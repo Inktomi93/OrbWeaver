@@ -2,38 +2,33 @@
 // node-context test that needs ONE store/registry symbol currently has to bare-import "@orb/client/state"
 // (the full barrel, ./index.ts), which also re-exports appearance-boot-hint.ts (touches `document`/
 // `window` directly) and deployment-boot-hint.ts (imports it) — dragging DOM globals into the DOM-less
-// root aggregator (tsconfig.json) for every such test. This surface is index.ts's content MINUS those two
-// files AND every `.tsx` registry-PROVIDER component (React components are never "pure logic" by this
-// surface's own definition, and none of the node-context tests need them) — a mechanical filter, not a
-// hand-picked symbol list, so it stays complete as index.ts grows. Wired via the exports-map's
-// `"./*/pure"` pattern (packages/client/package.json) + the enforcer at
-// tooling/src/verify/ops/tests-type-membership.ts (`findPureSurfaceDomLeaks`, the same verb as the
-// #1228 triple-slash-leak arm). A symbol genuinely needed here that turns out to be impure moves its
-// TEST to tsconfig.tests-dom.json instead — this file is never forced to carry it.
+// root aggregator (tsconfig.json) for every such test. This surface is index.ts's content MINUS every
+// DOM-coupled file/import-chain (below) AND every `.tsx` registry-PROVIDER component (React components
+// are never "pure logic" by this surface's own definition) — a mechanical filter, not a hand-picked
+// symbol list. Wired via the exports-map's `"./*/pure"` pattern (packages/client/package.json). A
+// symbol genuinely needed here that turns out to be impure moves its TEST to tsconfig.tests-dom.json
+// instead — this file is never forced to carry it. (No structural enforcer exists yet for "does this
+// surface's closure stay DOM-less" — #1243 part 4, still open; today's proof is `node scripts/ts7.cjs
+// --noEmit -p tsconfig.json` itself, run after every change to this file.)
 //
-// EXCLUDED, both `.ts` and DOM-coupled: appearance-boot-hint.ts, deployment-boot-hint.ts (imports it).
+// EXCLUDED, both `.ts` and DOM-coupled directly: appearance-boot-hint.ts, deployment-boot-hint.ts
+// (imports it).
 // EXCLUDED, `.tsx` component/provider files (JSX, not pure logic — no node-context test needs them):
 // chrome-registry-provider.tsx, command-palette-source-registry-provider.tsx,
 // config-section-registry-provider.tsx, message-tools-renderer-registry-provider.tsx,
 // modal-registry-provider.tsx, section-registry-provider.tsx, slash-command-registry-provider.tsx.
+// EXCLUDED, `.ts`, DOM-coupled via the internal `#lib` package alias (packages/client/package.json's
+// `"#*": "./src/*/index.ts"` ALWAYS resolves to lib/index.ts, never lib/pure.ts — a pure surface cannot
+// intercept an internal alias import, so any member that itself imports `#lib` re-drags lib/index.ts's
+// DOM-coupled content, e.g. agent-bridge.ts/bug-report-capture.ts/the motion-* flaggers, wholesale):
+// active-chat-store.ts, character-library-store.ts, character-selection-store.ts, chat-stream.ts,
+// chrome-registry-context.ts, command-palette-source-registry-context.ts, config-group-registry.ts,
+// config-section-partition.ts, config-section-registry-context.ts, config-section-registry.ts,
+// config-teach.ts, create-gated-store.ts, message-tools-renderer-registry-context.ts,
+// modal-registry-context.ts, section-registry-context.ts, section-registry.ts, shell-store.ts,
+// slash-command-registry-context.ts, tag-library-store.ts. Their TESTS moved to
+// tsconfig.tests-dom.json (each with its own comment there).
 
-export type { NewChatIntent } from "./active-chat-store.ts";
-export {
-  __migrateActiveChatForTest,
-  activeChatId,
-  chatDeletedFromList,
-  chatSectionSelection,
-  clearNewChatIntent,
-  enterCreatedChat,
-  goToLanding,
-  openNewChatPicker,
-  selectChat,
-  selectChatFromList,
-  subscribeHuskAbandoned,
-  useActiveChatHandle,
-  useActiveChatId,
-  useNewChatIntent,
-} from "./active-chat-store.ts";
 export { setAnalyticsSearchQuery, useAnalyticsSearchQuery } from "./analytics-search-store.ts";
 export {
   analyticsSectionSelection,
@@ -43,39 +38,6 @@ export {
 } from "./analytics-selection-store.ts";
 export type { AssembleChromeInput } from "./assemble-chrome.ts";
 export { assembleChrome } from "./assemble-chrome.ts";
-export type { CharacterViewMode } from "./character-library-store.ts";
-export {
-  __resetTagFilter,
-  CHARACTER_VIEW_MODES,
-  clearCharacterFilters,
-  cycleTagFilter,
-  setBulkMode,
-  setCharacterSearch,
-  setCharacterSortMode,
-  setCharacterViewMode,
-  toggleFavoritesOnly,
-  toggleFiltersOpen,
-  toggleShowArchived,
-  toggleSpoilerBlur,
-  useCharacterBulkMode,
-  useCharacterSearch,
-  useCharacterSortMode,
-  useCharacterViewMode,
-  useFavoritesOnly,
-  useFiltersOpen,
-  useShowArchived,
-  useSpoilerBlur,
-  useTagFilter,
-} from "./character-library-store.ts";
-export {
-  characterSectionSelection,
-  clearCharacterFacet,
-  clearCharacterSelection,
-  selectCharacter,
-  selectCharacterFacet,
-  useSelectedCharacterFacetId,
-  useSelectedCharacterId,
-} from "./character-selection-store.ts";
 export { __resetChatContextSections, setChatContextSectionOpen, useChatContextSectionOpen } from "./chat-context-section-open-store.ts";
 export type { ActiveChatHandle, ChatHandle } from "./chat-handle.ts";
 export { committedChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
@@ -89,26 +51,8 @@ export {
   useChatListMonth,
   useChatListSearch,
 } from "./chat-list-filter-store.ts";
-export type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream.ts";
-export {
-  __setFrameSchedulerForTest,
-  chatStream,
-  isLiveTurnPhase,
-  subscribeTurnSlot,
-  subscribeUserMessageCommitted,
-  useRecallState,
-  useSwipeTargetMessageId,
-  useTurnCommittedMessageId,
-  useTurnPhase,
-  useTurnSlot,
-  useTurnSpeakerCharacterId,
-} from "./chat-stream.ts";
 export type { ChromeEntry, ChromeEntryBehavior, ChromePresentation, ChromeZone, MobileCuration } from "./chrome-registry.ts";
 export { CHROME_ZONES, mobileBarCuration, sheetOverflowChrome } from "./chrome-registry.ts";
-export type { ChromeRegistry } from "./chrome-registry-context.ts";
-export { useChromeRegistry } from "./chrome-registry-context.ts";
-export type { CommandPaletteSourceRegistry } from "./command-palette-source-registry-context.ts";
-export { CommandPaletteSourceRegistryContext } from "./command-palette-source-registry-context.ts";
 export {
   __readComposerDraftsForTest,
   __resetComposerDrafts,
@@ -123,21 +67,6 @@ export { __resetConfigFocus, clearConfigFocus, setConfigFocus, useConfigFocus } 
 export type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
 export { CONFIG_GROUP_IDS, CONFIG_SHELVES, isConfigGroupId, isConfigShelf } from "./config-group-ids.ts";
 export { __resetConfigGroupOpen, openConfigGroup, toggleConfigGroup, useConfigGroupOpen } from "./config-group-open-store.ts";
-export type {
-  CollectionGroupDefinition,
-  ConfigGroupBase,
-  ConfigGroupBody,
-  ConfigGroupDefinition,
-  ConfigGroupRegistry,
-  ConfigSearchRow,
-  ConfigSettingLeaf,
-  ConfigSettingRef,
-  ConfigSubcategory,
-  SettingsViewerView,
-  SettingTeach,
-  SettingTeachDecl,
-} from "./config-group-registry.ts";
-export { configAnchorId, isCollectionGroup, isPlaceholderGroup, isPushingGroup, isTeachNone } from "./config-group-registry.ts";
 export type { ConfigLinkTarget } from "./config-link.ts";
 export { formatConfigLink, parseConfigLink } from "./config-link.ts";
 export type { ConfigTarget, ConfigVisibleSetting } from "./config-nav-store.ts";
@@ -166,15 +95,9 @@ export {
   useConfigSearchMatch,
   useConfigSearchQuery,
 } from "./config-search-store.ts";
-export type { UnclaimedSettingsKey } from "./config-section-partition.ts";
-export { assertSettingsKeyPartition, UNCLAIMED_SETTINGS_KEYS } from "./config-section-partition.ts";
 // `ResolvedConfigSection` is deliberately absent: no importer outside `state/` reads it by name (#978).
-export type { AppSettingsClaimPath, ConfigSectionContribution, ConfigSectionPartition, SettingsKeyClaim } from "./config-section-registry.ts";
-export { configSectionNavParts, configSectionNavs, resolveConfigSections } from "./config-section-registry.ts";
-export type { ConfigSectionRegistry } from "./config-section-registry-context.ts";
 // The bare context rides out beside the throwing hook for the SANCTIONED nullable read (`use(Context)`,
 // create-registry-context.tsx's own carve-out) — `useConfigLeaf` stays inert without a provider.
-export { configSectionRegistryContext, useConfigSectionRegistry, useConfigSections } from "./config-section-registry-context.ts";
 export {
   clearCollectionSelection,
   collectionMemberSelection,
@@ -182,7 +105,6 @@ export {
   selectCollectionMemberFromList,
   useCollectionSelection,
 } from "./config-selection-store.ts";
-export { assertTeachHonesty } from "./config-teach.ts";
 export {
   compareCorpusPair,
   setCorpusCompareA,
@@ -203,8 +125,6 @@ export type { DrillSelectionStore, PrimaryDrillStore } from "./create-drill-sele
 export { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 export type { EntityDraftStore, EntityDraftStoreConfig } from "./create-entity-draft-store.ts";
 export { createEntityDraftStore } from "./create-entity-draft-store.ts";
-export type { GatedSet, GatedStoreHook } from "./create-gated-store.ts";
-export { createGatedStore, STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
 export type { KindedDrillStore, KindedSelection } from "./create-kinded-selection-store.ts";
 export { createKindedSelectionStore } from "./create-kinded-selection-store.ts";
 export type { PersistedStoreOptions } from "./create-persisted-store.ts";
@@ -275,16 +195,12 @@ export {
   useSelectedCount,
   useSelectionActive,
 } from "./message-selection-store.ts";
-export type { MessageToolsRendererRegistry } from "./message-tools-renderer-registry-context.ts";
-export { MessageToolsRendererRegistryContext } from "./message-tools-renderer-registry-context.ts";
 export type {
   ModalDefinition,
   ModalTrigger,
   ModalTriggerPlacement,
 } from "./modal-registry.ts";
 export { MODAL_TRIGGER_PLACEMENTS } from "./modal-registry.ts";
-export type { ModalRegistry } from "./modal-registry-context.ts";
-export { useModalRegistry } from "./modal-registry-context.ts";
 export type { ModalSlotId } from "./modal-slot-ids.ts";
 export { MODAL_SLOT_IDS } from "./modal-slot-ids.ts";
 export { publishNoticeBand, useNoticeBand } from "./notice-band-store.ts";
@@ -378,18 +294,6 @@ export { applyRpgRoundEvent, clearRpgRounds, readRpgRoundPendingForTest, useRpgR
 export type { SectionId } from "./section-ids.ts";
 export { isSectionId, RETIRED_SECTION_HEAL, resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
 export { LIST_OFF_SCREEN_HINT, useSectionListIsScreen, useSectionListMode } from "./section-list-projection.ts";
-export type {
-  RailEntry,
-  RailZone,
-  SectionDefinition,
-  SectionGroup,
-  SectionPanelAvailability,
-  SectionPlaceholderCopy,
-  SectionSelection,
-} from "./section-registry.ts";
-export { NO_SELECTION_TITLE, RAIL_ZONES, SECTION_GROUPS } from "./section-registry.ts";
-export type { SectionRegistry } from "./section-registry-context.ts";
-export { useSectionRegistry } from "./section-registry-context.ts";
 export type { SaveLifecycleState } from "./settings-save-status-store.ts";
 export {
   clearSectionSaveStatus,
@@ -399,37 +303,6 @@ export {
   useBlockedSaveSections,
   useErroredSaveSections,
 } from "./settings-save-status-store.ts";
-export type { PublishedContextTab } from "./shell-store.ts";
-export {
-  closeModal,
-  getAvailableContextTabIds,
-  getAvailableContextTabs,
-  getContextTab,
-  hideContextPanel,
-  openModal,
-  publishContextTabIds,
-  publishContextTabs,
-  revealContextPanel,
-  revealContextPanelBesideContent,
-  setActiveSection,
-  setContextTab,
-  setFocusMode,
-  setMobileViewport,
-  setNarrowViewport,
-  setOpenOverlayPanel,
-  setPanelMode,
-  subscribeShellState,
-  useActiveSection,
-  useContextTab,
-  useFocusMode,
-  useMobileViewport,
-  useNarrowViewport,
-  useOpenModal,
-  useOpenOverlayPanel,
-  usePanelOverride,
-} from "./shell-store.ts";
-export type { SlashCommandRegistry } from "./slash-command-registry-context.ts";
-export { SlashCommandRegistryContext } from "./slash-command-registry-context.ts";
 export { announceStatus, useStatusAnnouncement } from "./status-announcement-store.ts";
 export {
   __readRecentSteersForTest,
@@ -439,5 +312,4 @@ export {
   useRecentSteers,
 } from "./steer-recovery-store.ts";
 export { __readSurfaceBoxForTest, __resetSurfaceBoxes, rememberSurfaceBox, useSurfaceBox } from "./surface-box-store.ts";
-export { setTagSortMode, useTagSortMode } from "./tag-library-store.ts";
 export { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "./world-entry-selection-store.ts";

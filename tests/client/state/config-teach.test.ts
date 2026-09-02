@@ -5,8 +5,8 @@
 // live-door mirror in `config-section-partition.test.ts` (one mirror list serves both door asserts).
 
 import { createContributorRegistry } from "@orb/client/lib/pure";
-import type { ConfigSectionContribution, ConfigSettingRef, SettingTeachDecl } from "@orb/client/state/pure";
-import { assertTeachHonesty, isTeachNone } from "@orb/client/state/pure";
+import type { ConfigSectionContribution, ConfigSettingRef, SettingTeachDecl } from "@orb/client/state";
+import { assertTeachHonesty, isTeachNone } from "@orb/client/state";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

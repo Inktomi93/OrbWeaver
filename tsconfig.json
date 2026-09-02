@@ -213,6 +213,66 @@
     "tests/client/features/chat/lib/chat-books-model.test.ts",
     "tests/client/features/character/lib/character-card-form-model.test.ts",
     "tests/client/features/chat/lib/chat-summary-row.test.ts",
-    "tests/client/forms/create-autosave-entity-form-model.test.ts"
+    "tests/client/forms/create-autosave-entity-form-model.test.ts",
+    // #1243, pure.ts #lib-trim displacement (see tsconfig.tests-dom.json's matching comment).
+    "tests/client/state/active-chat-store.test.ts",
+    "tests/client/data/bus/apply-chat-bus-event.test.ts",
+    "tests/client/state/chat-stream.test.ts",
+    "tests/client/features/config/lib/config-search.test.ts",
+    "tests/client/state/config-group-registry.test.ts",
+    "tests/client/state/config-section-partition.test.ts",
+    "tests/client/state/config-section-registry.test.ts",
+    "tests/client/state/config-teach.test.ts",
+    "tests/client/state/create-gated-store.test.ts",
+    "tests/client/state/create-gated-store.test-d.ts",
+    "tests/client/state/assemble-chrome.test.ts",
+    "tests/client/data/bus/room-registry.test.ts",
+    "tests/client/data/invalidation.test.ts",
+    "tests/client/data/invalidation-carrier.test.ts",
+    "tests/client/data/invalidation-reads.test.ts",
+    "tests/client/data/query-client.test.ts",
+    "tests/client/data/session-freshness.test.ts",
+    // #1243: two more #data-internal-alias reachers found on the re-measure after the pure.ts trim -
+    // preflight-warn.ts -> use-refinery-schemas.ts -> "#data", and workloads-schedule-model.ts ->
+    // workloads-model.ts -> "#data" (workloads-model.test.ts's OWN import was already homed above, but
+    // workloads-schedule-model.ts reaches the SAME impure file via a second, independent test).
+    "tests/client/features/refinery/lib/preflight-warn.test.ts",
+    "tests/client/features/workloads/lib/workloads-schedule-model.test.ts",
+    // #1243: use-orb-socket.ts imports "../stale-session.ts" directly (not via the "#data" alias this
+    // time, a plain relative import) which chains to auth-bootstrap.ts/auth-config.ts - the same
+    // DOM-coupled data/ files, a fourth independent path to them.
+    "tests/client/data/bus/use-orb-socket.test.ts",
+    // #1243, packages/ui half: the SAME class as the client escapees above, on the OTHER package.
+    // web-weave-*.test.ts bare-import "@orb/ui/web-weave" for pure geometry/physics (buildWeb,
+    // WEAVE_TIMELINE, the Weave* types) - a .test.ts, not .tsx, so no packages/ui/tsconfig.json
+    // reach-back claims it, and the barrel also carries the DOM-coupled web-weave.tsx component.
+    // bar-list/option.test.ts deep-imports charts/bar-list/option.ts, which imports
+    // charts/chart/{label-metrics,use-measured-width}.ts (DOM measurement). attach-media.test.ts
+    // deep-imports the client feature file that imports "@orb/ui/file-dropzone" (a component barrel).
+    "tests/ui/art/web-weave/web-weave-geometry.test.ts",
+    "tests/ui/art/web-weave/web-weave-glint.test.ts",
+    "tests/ui/art/web-weave/web-weave-physics.test.ts",
+    "tests/ui/art/web-weave/web-weave-prey.test.ts",
+    "tests/ui/art/web-weave/web-weave-render.test.ts",
+    "tests/ui/art/web-weave/web-weave-spider.test.ts",
+    "tests/ui/charts/bar-list/option.test.ts",
+    "tests/client/features/chat/lib/attach-media.test.ts",
+    // #1243: two more reachers of data/bus/index.ts, via the DEEPER "@orb/client/data/bus" subpath
+    // (not the top-level "@orb/client/data" barrel) - which still resolves to the impure index.ts
+    // (stale-session.ts's chain) via the exports-map wildcard. One is a SERVER test needing the bus
+    // barrel's socket types.
+    "tests/client/data/bus/chat-event-seq-guard.test.ts",
+    "tests/server/transport/trpc/stream/socket.test.ts",
+    // #1243: these deep-import a client feature file directly (bypassing any barrel entirely, a
+    // pre-existing pattern) whose OWN code internally imports "#state" - always state/index.ts, never
+    // state/pure.ts - so no pure surface can intercept it. order-home-tiles.test.ts also imports
+    // HomeTileContribution from state/pure - that half stays fine, only the deep-import half forces
+    // this move.
+    "tests/client/features/home/lib/order-home-tiles.test.ts",
+    "tests/client/features/home/lib/roadmap.test.ts",
+    "tests/client/features/preset/components/prompt-assembly/marker-copy.int.test.ts",
+    "tests/client/features/chat/lib/prose-settings-model.test.ts",
+    "tests/client/features/chat/lib/chat-behavior-message-handling-model.test.ts",
+    "tests/client/forms/autosave-convergence.suite.test.ts"
   ]
 }

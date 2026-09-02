@@ -1,4 +1,4 @@
-import { __migrateActiveChatForTest } from "@orb/client/state/pure";
+import { __migrateActiveChatForTest } from "@orb/client/state";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 

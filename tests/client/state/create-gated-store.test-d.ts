@@ -3,8 +3,8 @@
 // initializer and on the store handle. Runtime behavior lives in the .test.ts sibling; these
 // assertions run in the vitest `types` lane (typecheck-only, root tsconfig).
 
-import type { GatedSet, GatedStoreHook } from "@orb/client/state/pure";
-import { createGatedStore } from "@orb/client/state/pure";
+import type { GatedSet, GatedStoreHook } from "@orb/client/state";
+import { createGatedStore } from "@orb/client/state";
 import { expectTypeOf, test } from "vitest";
 
 interface CounterState {

@@ -5,7 +5,7 @@
 // `@` filter semantics — including `@modified` over a planted changed key and the `@advanced` flip.
 // DOM-free pure logic → a browser-free unit test (Spine-Testing.md §7); deep-imports the lib module.
 
-import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigModifiedMap, ConfigSubcategory } from "@orb/client/state/pure";
+import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigModifiedMap, ConfigSubcategory } from "@orb/client/state";
 import { Settings } from "@orb/ui/icons";
 import type { ConfigSearchEntry } from "../../../../../packages/client/src/features/config/lib/config-search.ts";
 import { buildConfigSearchEntries, filterConfigEntries, isConfigEntryModified } from "../../../../../packages/client/src/features/config/lib/config-search.ts";
