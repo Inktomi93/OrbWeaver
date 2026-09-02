@@ -16,7 +16,7 @@
 // THE PLANTED CONTROL IS THE PRE-FIX WRITER. The last case replays exactly what every instrument used to do
 // — stub to a FIXED path, work, final to the same FIXED path — driven the same way, and asserts that one
 // run's artifact is destroyed. Without it, the green arm below would only prove that two runs both exited.
-import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { expect, test } from "../../support/tool-fixtures.ts";
@@ -113,6 +113,104 @@ test("a run names the LIVE sibling holding a slot — the racing-writer census, 
 
   expect((await runCli("verify", ["structure"], { cwd: root })).code).toBe(0);
   expect(published(root).concurrent.join(" ")).toContain("planted-sibling");
+});
+
+// ── THE PRUNE RACE (#1029 adversarial verification, 2026-09-02) ────────────────────────────────────────
+//
+// WHAT THE TWO CASES ABOVE COULD NOT SEE. Both run on a FRESH root, where the ring never reaches capacity
+// and `pruneRuns` deletes nothing — so `statSync(...).mtimeMs`, the one per-slot read in the prune chain
+// that answered a vanished slot with a THROW instead of a value, was never reached with a sibling in the
+// window. The verifier reproduced it 12/15 trials with two publishers over a 12-slot ring: the ENOENT
+// escaped `publishRunSlot` BEFORE the instrument returned its verdict, so a green run exited 2 with a raw
+// stack and lost its history entry. All five instrument families share that call site.
+//
+// THE TWO PRECONDITIONS THIS CASE PLANTS, because neither arrives by accident:
+//   1. a ring ALREADY OVER capacity — 12 stale slots, so every publisher has real deletions to perform;
+//   2. publishes SYNCHRONIZED to overlap — the children sleep to one shared deadline instead of racing
+//      from spawn, so their filter-chain-then-delete windows interleave rather than serialize.
+// Three rounds on three fresh rings, four publishers each: bounded (the box carries sibling lanes) and
+// far past the measured per-trial reproduction rate. The green direction is not probabilistic — the guard
+// removes the failure mode, it does not narrow the window.
+
+/** A publisher that does exactly what every instrument's finish step does — open a slot, write one
+ *  artifact, publish + prune — but holds until a deadline it SHARES with its siblings. */
+const PRUNE_RACER = `import { writeFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+const [artifacts, root, instrument, deadline] = process.argv.slice(2);
+const A = await import(pathToFileURL(artifacts).href);
+const slot = A.openRunSlot(root, instrument);
+writeFileSync(A.runFile(slot, "artifact.json"), JSON.stringify({ runId: slot.runId }));
+const wait = Number(deadline) - Date.now();
+if (wait > 0) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, wait);
+}
+A.publishRunSlot(root, slot, [{ alias: "artifact.json", target: "artifact.json" }]);
+`;
+
+const RACER = "prune-racer.mjs";
+const RACE_INSTRUMENT = "raceprobe";
+/** Slots pre-planted per round — past `RETAINED_RUNS` (10), so every publisher has deletions to do. */
+const STALE_SLOTS = 12;
+const PUBLISHERS = 4;
+const ROUNDS = 3;
+/** How long the racers hold before publishing together. Enough for four `spawnNiced` children to reach
+ *  their wait under load, short enough that three rounds stay a few seconds. */
+const DEADLINE_MS = 900;
+
+/** A ring already OVER capacity: prunable slots (no in-flight marker, no published manifest, no pointer
+ *  naming them), with distinct mtimes so the age sort is real work rather than a tie. */
+function plantStaleRing(root: string): void {
+  for (let i = 0; i < STALE_SLOTS; i += 1) {
+    const dir = join(root, "reports", "runs", RACE_INSTRUMENT, `stale-${String(i).padStart(2, "0")}`);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "artifact.json"), JSON.stringify({ runId: `stale-${i}` }));
+    const at = new Date(Date.UTC(2026, 0, 1, 0, 0, i));
+    utimesSync(dir, at, at);
+  }
+}
+
+/** The line of a child's stderr that NAMES the failure — the `Error: ENOENT …` line when there is one,
+ *  else the first line. A stack's first three lines are the source excerpt, not the message, so slicing
+ *  from the top quotes `const stats = binding.stat(` and hides which errno fired. */
+function errorLine(stderr: string): string {
+  const lines = stderr.trim().split("\n");
+  return (lines.find((l) => l.includes("Error:")) ?? lines[0] ?? "").trim();
+}
+
+function raceSlots(root: string): readonly string[] {
+  return readdirSync(join(root, "reports", "runs", RACE_INSTRUMENT));
+}
+
+test("concurrent publishers pruning ONE over-capacity ring never throw at each other's deletions", { timeout: 120_000 }, async ({ plantedTree, repoRoot }) => {
+  const { spawnNiced } = await import("@orb/tooling/_shared/proc");
+  const artifacts = join(repoRoot, "tooling", "src", "_shared", "artifacts.ts");
+
+  for (let round = 0; round < ROUNDS; round += 1) {
+    const root = await plantedTree({ [RACER]: PRUNE_RACER });
+    plantStaleRing(root);
+    const deadline = String(Date.now() + DEADLINE_MS);
+    const results = await Promise.all(
+      Array.from({ length: PUBLISHERS }, () => spawnNiced(process.execPath, [join(root, RACER), artifacts, root, RACE_INSTRUMENT, deadline])),
+    );
+
+    // THE DEFECT, stated as the assertion: a publisher whose sibling removed a stale slot mid-prune exited
+    // non-zero with an ENOENT stack — from code that had already landed every artifact and pointer, so the
+    // run's OWN verdict was thrown away by its cleanup step.
+    const failed = results.filter((r) => r.code !== 0);
+    expect(failed.map((r) => `exit ${String(r.code)}: ${errorLine(r.stderr)}`)).toEqual([]);
+    // Named separately from the exit code: a publisher that ENOENTs on a sibling's deletion is THIS defect,
+    // and a red here that quoted only "exit 1" would send the next reader hunting the wrong failure.
+    expect(results.flatMap((r) => (r.stderr.includes("ENOENT") ? [errorLine(r.stderr)] : []))).toEqual([]);
+
+    // …and the guard must not have bought that by disabling retention: the ring shed slots, every
+    // publisher's own artifact survived, and the pointer still resolves into one of them.
+    const remaining = raceSlots(root);
+    expect(remaining.length).toBeLessThan(STALE_SLOTS + PUBLISHERS);
+    expect(remaining.length).toBeGreaterThanOrEqual(PUBLISHERS);
+    const target = readlinkSync(join(root, "reports", "artifact.json"));
+    expect(remaining.some((name) => target.includes(name))).toBe(true);
+    expect(readFileSync(join(root, "reports", "artifact.json"), "utf8")).toContain("runId");
+  }
 });
 
 // ── THE PLANTED CONTROL: the pre-#1029 fixed-path writer, driven the same way, LOSES a run ─────────────

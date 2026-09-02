@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 452,
-    "enforced": 449,
+    "sites": 453,
+    "enforced": 450,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 449,
+      "deliberate-absorb": 450,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 124,
-      "default": 134,
+      "default": 135,
       "empty": 194
     }
   },
@@ -4163,6 +4163,19 @@
       "verdict": "deliberate-absorb",
       "reason": "this IS an existence predicate — the throw is the negative answer and is returned as `false` to the one caller (publishRunSlot's \"did the run write this artifact?\" check). Ends if the caller starts needing WHY the path is unreadable.",
       "markerLine": 311
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::default:catch::7",
+      "path": "tooling/src/_shared/artifacts.ts",
+      "line": 332,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 7,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a slot removed by a CONCURRENT publisher's prune between the listing and this stat is the expected racing case, and `null` is the answer its one caller acts on — the row is dropped, because a slot that is already gone is nothing to prune. Ends if the caller starts needing to distinguish a vanished slot from an unreadable one (a permission error worth reporting).",
+      "markerLine": 329
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::empty:catch::1",

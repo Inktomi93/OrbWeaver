@@ -16,6 +16,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { storyShot } from "../../../../support/ct/story-shot.ts";
 import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import { RpgTakeoverDockedStory, RpgTakeoverFloorStory, RpgTakeoverNotifyStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories.tsx";
 
@@ -1801,7 +1802,7 @@ test("the pack GRID tile carries the ×N and the location, at a density SHORTER 
   expect(torchBox?.height ?? 0).toBeLessThan(56);
   const overflow = await cells.evaluateAll((els) => els.map((el) => el.scrollWidth - el.clientWidth));
   expect(Math.max(...overflow)).toBeLessThanOrEqual(0);
-  await component.locator('[data-slot="rpg-inventory-tab"]').screenshot({ path: "reports/snaps/pack-grid-after.png" });
+  await component.locator('[data-slot="rpg-inventory-tab"]').screenshot({ path: storyShot("pack-grid-after") });
 });
 
 /** The bare-name tile: `Map of the sunken road` carries neither prose line, so its tile text is EXACTLY the
@@ -1887,7 +1888,7 @@ test("#78: a hand-pinned ITEM carries its own pin and ONE click releases it — 
 
   // The pixels, banked beside the pack-grid shot the density CT takes: a rendered claim owes a rendered
   // receipt, and the whole defect was that a fenced-off pack looked exactly like a free one.
-  await component.locator('[data-slot="rpg-inventory-tab"]').screenshot({ path: "reports/snaps/pack-item-pin.png" });
+  await component.locator('[data-slot="rpg-inventory-tab"]').screenshot({ path: storyShot("pack-item-pin") });
 
   // …and the tile's own editor — the popover the tile already opens for every other per-item gesture —
   // carries the Release, so the grid lens is not a dead end for a host who never switches lenses.
@@ -1900,7 +1901,7 @@ test("#78: a hand-pinned ITEM carries its own pin and ONE click releases it — 
   await component.getByRole("button", { name: "Show as a list" }).click();
   const pin = component.locator('[data-slot="rpg-pack-row"]').getByRole("button", { name: "Release Bone key to the model" });
   await expect(pin).toBeVisible();
-  await component.locator('[data-slot="rpg-inventory-tab"]').screenshot({ path: "reports/snaps/pack-item-pin-list.png" });
+  await component.locator('[data-slot="rpg-inventory-tab"]').screenshot({ path: storyShot("pack-item-pin-list") });
   await pin.click();
 
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
