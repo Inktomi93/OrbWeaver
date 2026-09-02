@@ -190,6 +190,17 @@ rule does not apply. Exclusion is complete evidence, never a population gap, but
 serialized so an N/A cohort cannot silently disappear from the denominator. An exclusion reason may not
 stand in for a failed measurement: `unaskable`, unresolved paint, active animation, and a sufficiently
 large one-sided state cohort remain withheld and therefore fail loud.
+
+The surface-state axes obey the same polarity, and since #1122 (2026-09-02) they can PROVE an exclusion:
+the shell publishes each pane's declaration as `data-panel-available` on the `.shell-panel` aside and
+`__orb.shell()` carries `available: boolean | null` per panel row, so a mounted pane whose section declares
+it unavailable excludes its whole mode space as `excluded(sectionDeclaresNoPane=N)`, and the focus axis
+excludes as `excluded(sectionDeclaresNoPanes=N)` only when BOTH panes are declared absent (the focus toggle
+does not render on a pane-less section, so `focus:on` is unreachable by construction). A declaration that
+is absent (`null`) is never guessed into `true`: the census refuses the run (exit 2, printed reason). The
+"never guess into excluded" ruling survives — its input became a measured fact. On the RESULT line
+`NO-VERDICT` belongs to WITHHELD alone; an excluded axis prints `excluded` (its own label — `complete`
+would claim the run visited a space with no members), which also corrected the unmounted-shell arm.
 An authored target already adjudicated by the same ancestor decision is not unjudged; it is recorded in
 a separate `collapsed` reason map. This keeps a legitimate same-owner collapse from turning a complete
 audit into a false partial result while preserving exact arithmetic for every rendered target.
