@@ -15,13 +15,14 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { GateResult, Violation } from "../contract/harness.ts";
-import type { PassResult, PopulationAlarm, ToolError } from "../contract/pass.ts";
+import type { PassResult, PassTiming, PopulationAlarm, ToolError } from "../contract/pass.ts";
 import type { RunManifest } from "../contract/run-manifest.ts";
 import type { GateCorpus } from "../lib/loader.ts";
 import { loadGateCorpus } from "../lib/loader.ts";
 import { projectCtx, runPass, stripProbeFindings, zeroScanGates } from "../lib/pass.ts";
 import { populationAlarms } from "../lib/population.ts";
 import { renderPass } from "../lib/render.ts";
+import { timingAlarms, timingLine } from "../lib/timing.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
@@ -51,6 +52,13 @@ interface StructureReport {
    *  the same "not a verdict" class as `scanAlarms`, one level down: the gate read plenty of files and
    *  judged a shrunken member set. Judged only here, for the same real-tree-scope reason. */
   readonly populationAlarms: readonly PopulationAlarm[];
+  /** WHAT THE RUN COST (#1107) — the pass wall clock beside the sum of its gates, with the per-gate
+   *  breakdown on each `gates[].timing`. Joined 2026-09-02 for the class beside `scan`: the artifact said
+   *  what every gate DECIDED and how much it READ, and nothing about what it took — so a gate-cost claim
+   *  could only come from a scratch profiler and could never be re-derived from the canonical artifact
+   *  (memory `structure-full-cost-is-gate-code-not-ts-morph`). A gate that reports NO timing is refused
+   *  here like a short run (`timingAlarms`), never published as a silent `undefined`. */
+  readonly timing: PassTiming;
   readonly total: number;
   readonly ok: boolean;
 }
@@ -66,7 +74,7 @@ function toGateResults(pass: PassResult, gatesByName: ReadonlyMap<string, GateDe
       line: f.line,
       message: f.message ?? descriptor?.message ?? g.name,
     }));
-    return { name: g.name, ok: violations.length === 0, violations, scan: g.scan };
+    return { name: g.name, ok: violations.length === 0, violations, scan: g.scan, timing: g.timing };
   });
 }
 
@@ -98,7 +106,9 @@ function writeReport(slot: RunSlot, report: StructureReport): void {
  *  own `run.complete: false` refuses to be read as a verdict. Since #1029 it lands in the run's own slot
  *  and the slot's in-flight marker is what surfaces it to a fixed-path reader (`abandonedRuns`). */
 function writeInFlight(slot: RunSlot, run: RunManifest): void {
-  writeReport(slot, { run, gates: [], toolErrors: [], scanAlarms: [], populationAlarms: [], total: 0, ok: false });
+  // The zeroed timing is the honest stub value: nothing has run yet. `run.complete: false` is what tells
+  // a reader this is not a verdict — the cost ledger never has to carry that signal too.
+  writeReport(slot, { run, gates: [], toolErrors: [], scanAlarms: [], populationAlarms: [], timing: { totalMs: 0, gateMs: 0 }, total: 0, ok: false });
 }
 
 function startManifest(root: string, slot: RunSlot): RunManifest {
@@ -147,7 +157,9 @@ export async function runStructure(root: string): Promise<number> {
   // biome-ignore lint/style/noProcessEnv: ORB_GATE_FIXTURES is the check-gates suite's opt-out knob for its own child runs — harness plumbing, not app config.
   const pass = process.env["ORB_GATE_FIXTURES"] === "1" ? rawPass : stripProbeFindings(rawPass);
 
-  const incompleteReasons = reconcile(corpus, pass);
+  // An UNTIMED gate rides the same class as a SHORT run (lib/timing.ts): both leave a report that looks
+  // complete while a fact the artifact promises is silently absent.
+  const incompleteReasons = [...reconcile(corpus, pass), ...timingAlarms(pass)];
   const gates = toGateResults(pass, gatesByName);
   const total = gates.reduce((n, g) => n + g.violations.length, 0);
   const scanAlarms = zeroScanGates(pass);
@@ -168,6 +180,7 @@ export async function runStructure(root: string): Promise<number> {
   // whole tree, so it is the only one where "this gate read nothing" means the checker is blind.
   process.stdout.write(renderPass(pass, gatesByName, { zeroScanAlarm: true }));
   process.stdout.write(`\n${completenessLine(run)}\n`);
+  process.stdout.write(`${timingLine(pass.timing, pass.gates, `${slot.relDir}/${REPORT_NAME}`)}\n`);
 
   writeReport(slot, {
     run,
@@ -175,6 +188,7 @@ export async function runStructure(root: string): Promise<number> {
     toolErrors: pass.toolErrors,
     scanAlarms,
     populationAlarms: populations,
+    timing: pass.timing,
     total,
     ok: total === 0 && pass.toolErrors.length === 0 && scanAlarms.length === 0 && populations.length === 0 && incompleteReasons.length === 0,
   });

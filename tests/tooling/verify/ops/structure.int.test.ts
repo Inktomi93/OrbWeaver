@@ -95,6 +95,61 @@ test("`show` reads a complete artifact (the negative control for the refusal bel
   expect(shown.stdout).not.toContain("NOT a verdict");
 });
 
+// ── the COST ledger (#1107): the artifact must say what each gate took, not only what it decided ────
+//
+// Before this, `check-structure.json` carried a verdict and a denominator and NO timing, so every
+// gate-cost claim came from a scratch profiler and could not be re-derived from the canonical artifact.
+// The planted hog burns a known ~60ms in its `run` hook: a report that cannot tell it from the free gate
+// beside it is the artifact this arm exists to refuse.
+
+/** A planted gate that spends a KNOWN slice of wall clock in one named phase. Busy-wait, not a timer: the
+ *  harness measures the hook's own return, so only real occupied CPU inside it can be attributed. */
+const HOG_MS = 60;
+const HOG_GATE = OK_GATE.replace(
+  "visitFile: () => undefined,",
+  `visitFile: () => undefined,\n  run: () => {\n    const until = Date.now() + ${String(HOG_MS)};\n    while (Date.now() < until) {\n      /* planted cost */\n    }\n  },`,
+).replace('"planted-ok"', '"planted-hog"');
+
+interface TimingView {
+  readonly timing: { readonly totalMs: number; readonly gateMs: number };
+  readonly gates: readonly { readonly name: string; readonly timing: { readonly totalMs: number; readonly phaseMs: Record<string, number> } }[];
+}
+
+test("the artifact carries per-gate wall-clock, and the summary line names the slowest", async ({ plantedTree, runCli }) => {
+  const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-ok.ts`]: OK_GATE, [`${GATE_DIR}/planted-hog.ts`]: HOG_GATE });
+  const res = await runCli("verify", ["structure"], { cwd: root });
+  expect(res.code).toBe(0);
+  const report = runArtifact<TimingView>(root);
+
+  // EVERY gate is timed — a report where only the interesting ones carry a number is the silent
+  // `undefined` the writer refuses (tests/tooling/verify/lib/timing.test.ts holds that arm).
+  expect(report.gates).toHaveLength(2);
+  for (const gate of report.gates) {
+    expect(Number.isFinite(gate.timing.totalMs)).toBe(true);
+    const phases = ["begin", "visit", "visitFile", "run", "finalize"];
+    expect(Object.keys(gate.timing.phaseMs).toSorted()).toEqual([...phases].toSorted());
+    const sum = phases.reduce((total, phase) => total + (gate.timing.phaseMs[phase] ?? 0), 0);
+    expect(gate.timing.totalMs).toBeCloseTo(sum, 3);
+  }
+
+  // The hog's cost lands in the phase that spent it, and the free gate is NOT credited with it.
+  const hog = report.gates.find((gate) => gate.name === "planted-hog");
+  const free = report.gates.find((gate) => gate.name === "planted-ok");
+  expect(hog?.timing.phaseMs["run"]).toBeGreaterThanOrEqual(HOG_MS * 0.8);
+  expect(free?.timing.totalMs ?? Number.POSITIVE_INFINITY).toBeLessThan(HOG_MS * 0.8);
+
+  // The ledger adds up: the pass wall clock encloses the sum of its gates, by construction and not by
+  // rounding luck (per-gate numbers floor, the pass total ceils).
+  expect(report.timing.gateMs).toBeCloseTo((hog?.timing.totalMs ?? 0) + (free?.timing.totalMs ?? 0), 3);
+  expect(report.timing.totalMs).toBeGreaterThanOrEqual(report.timing.gateMs);
+
+  // The console half: the format a reader diffs across runs, and the slowest gate named on it.
+  expect(res.stdout).toContain("single-pass cost: ");
+  expect(res.stdout).toContain("ms wall — gate hooks ");
+  expect(res.stdout).toMatch(/slowest 2: planted-hog \d+\.\dms \(run\) · planted-ok /u);
+  expect(res.stdout).toContain("(per-gate timing: reports/runs/structure/");
+});
+
 // ── control 1: a corpus file that registers NOTHING makes the run SHORT, not clean ──────────────────
 
 test("a corpus file exporting no descriptor is a SHORT run — exit 2, never a shorter clean report", async ({ plantedTree, runCli }) => {

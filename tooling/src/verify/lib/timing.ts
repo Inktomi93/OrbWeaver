@@ -1,0 +1,87 @@
+// PER-GATE COST — the two readers of the harness's timing ledger (#1107): the alarm that refuses an
+// UNTIMED run, and the summary line that names the slowest gates on the console.
+//
+// WHY IT EXISTS. `reports/check-structure.json` carried a verdict (`gates`), a denominator (`scan`) and a
+// run manifest (`run`) — and NO COST. So every gate-cost claim in this repo came out of a scratch
+// profiler: the 2026-08-30 research lane had to wrap `runPass`'s hooks by hand to learn that `run` hooks
+// are 199s of a 292s `structure:full` and that ONE lib (`bus-coverage`) is 115s of that, and its own
+// report names the artifact's missing per-gate timing as the reason nobody could see it. A number no
+// reader can re-derive from the canonical artifact is an anecdote; per-gate `timing` makes the same
+// finding a `jq` away.
+//
+// THE REFUSAL IS THE POINT of `timingAlarms`. A gate record that arrives without a finite `ms` is a BROKEN
+// WRITER, and what it produces — a missing number that reads as "instant" — is exactly the placebo shape
+// the scan alarm (`zeroScanGates`) refuses one level up. So it rides the same severity: the run is NOT a
+// verdict (exit 2), never a silently untimed report.
+import type { GatePassResult, GatePhase, PassResult, PassTiming } from "../contract/pass.ts";
+
+/** How many gates the console line names. FIVE: the measured cost distribution is extremely long-tailed
+ *  (one lib was 115s of a 292s pass), so the top handful IS the actionable content, while a longer list
+ *  pushes the completeness line off a reader's screen. The full per-gate table is in the artifact — this
+ *  line is a POINTER to it, never a replacement. */
+const SLOWEST_REPORTED = 5;
+
+const PHASES: readonly GatePhase[] = ["begin", "visit", "visitFile", "run", "finalize"];
+
+function isMs(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+/** THE UNTIMED-GATE REFUSAL, in `incompleteReasons`' voice — the caller folds these into the run manifest,
+ *  so an untimed run prints "run INCOMPLETE" and exits 2 exactly like a short one.
+ *
+ *  It reads the shape DEFENSIVELY even though `timing` is a REQUIRED field, because the two ways it can
+ *  actually go missing both satisfy `tsc`: an artifact re-read from an older writer, and a phase added to
+ *  the dispatcher but not to the clock. Both surface at runtime as `undefined` — the silent value this
+ *  alarm exists to make loud. */
+export function timingAlarms(pass: PassResult): readonly string[] {
+  const out: string[] = [];
+  for (const gate of pass.gates) {
+    // CAST, not just a widened annotation: TypeScript narrows a `const` by its INITIALISER, so an
+    // annotation alone leaves the checks below reading as dead code to `no-unnecessary-condition`. The
+    // cast makes the runtime shape — which is what actually crosses the JSON/version boundary — the type.
+    const timing = gate.timing as Partial<GatePassResult["timing"]> | undefined;
+    if (timing === undefined || !isMs(timing.totalMs)) {
+      out.push(`gate '${gate.name}' reported NO wall-clock — the run is UNTIMED, not instant (tooling/src/verify/lib/timing.ts, #1107)`);
+      continue;
+    }
+    const missing = PHASES.filter((phase) => !isMs(timing.phaseMs?.[phase]));
+    if (missing.length > 0) {
+      out.push(`gate '${gate.name}' reported no wall-clock for phase(s) ${missing.join(", ")} — the per-phase breakdown is incomplete (#1107)`);
+    }
+  }
+  const timing = pass.timing as Partial<PassTiming> | undefined;
+  if (timing === undefined || !isMs(timing.totalMs) || !isMs(timing.gateMs)) {
+    out.push("the pass reported no wall-clock of its own — the timing ledger has no total to check the gates against (#1107)");
+    return out;
+  }
+  if (timing.gateMs > timing.totalMs) {
+    out.push(`the timing ledger does not add up: gates sum to ${fmt(timing.gateMs)} of a ${fmt(timing.totalMs)} pass — a part cannot exceed the whole (#1107)`);
+  }
+  return out;
+}
+
+/** One number, one unit, one precision — a cost a reader can diff across runs. */
+function fmt(ms: number): string {
+  return `${ms.toFixed(1)}ms`;
+}
+
+/** The phase that dominated this gate — what a reader needs BEFORE opening the artifact, because the fix
+ *  differs by phase: a `run` hog re-sweeps the whole corpus, a `visit` hog subscribes to a token kind. */
+function dominantPhase(gate: GatePassResult): GatePhase {
+  return PHASES.reduce((worst, phase) => (gate.timing.phaseMs[phase] > gate.timing.phaseMs[worst] ? phase : worst), "run");
+}
+
+/** The console's cost line: the pass total split into gate hooks vs the harness's own share, then the
+ *  `SLOWEST_REPORTED` most expensive gates with the phase each spent it in. Printed beside the
+ *  completeness line by ops/structure.ts. */
+export function timingLine(timing: PassTiming, gates: readonly GatePassResult[], artifactPath: string): string {
+  const slowest = [...gates].sort((a, b) => b.timing.totalMs - a.timing.totalMs).slice(0, SLOWEST_REPORTED);
+  const named = slowest.map((gate) => `${gate.name} ${fmt(gate.timing.totalMs)} (${dominantPhase(gate)})`).join(" · ");
+  const harness = Math.max(0, timing.totalMs - timing.gateMs);
+  return [
+    `single-pass cost: ${fmt(timing.totalMs)} wall — gate hooks ${fmt(timing.gateMs)}, harness ${fmt(harness)}`,
+    `  slowest ${String(slowest.length)}: ${named === "" ? "(no gates ran)" : named}`,
+    `  (per-gate timing: ${artifactPath})`,
+  ].join("\n");
+}

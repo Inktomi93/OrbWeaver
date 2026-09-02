@@ -4,7 +4,7 @@
 // pixel sampling) stays in ops/. The WCAG math is the fleet-shared kernel (_shared/wcag.ts).
 import type { Rgb } from "../../_shared/wcag.ts";
 import { MEASURABLE_OPACITY_MIN, UI_COMPONENT_MIN_RATIO as SHARED_UI_COMPONENT_MIN_RATIO } from "../../_shared/wcag.ts";
-import type { ContrastFacts, ContrastMeasured, ContrastOccluded, ContrastOffscreen } from "../contract/contrast.ts";
+import type { ContrastEvidence, ContrastFacts, ContrastMeasured, ContrastOccluded, ContrastOffscreen } from "../contract/contrast.ts";
 import type { ContrastOutcome } from "../contract/types.ts";
 
 export const BOLD_WEIGHT = 700;
@@ -48,6 +48,44 @@ export function refuseContrastVerdict(selector: string, facts: ContrastOffscreen
     line: `CONTRAST ${selector}: OCCLUDED  ${facts.inViewport} in-viewport match(es) of ${facts.total}, all painted over${by} — NO VERDICT (measuring one samples the occluder's pixels; scroll it clear, dismiss the chrome, or target the visible match)`,
     failed: true,
   };
+}
+
+/** The evidence row for every outcome that produced NO ratio — a refusal, an exemption, an instrument
+ *  error. Pure, so it lives here rather than in the op: it is the shape's null state, and the two ops that
+ *  mint it (ink and fill) must not spell it twice. */
+export function terminalEvidence(
+  selector: string,
+  status: ContrastEvidence["status"],
+  reason: string,
+  facts?: { readonly total: number; readonly inViewport?: number; readonly matchIndex?: number },
+): ContrastEvidence {
+  return {
+    selector,
+    status,
+    candidates: facts === undefined ? 0 : facts.total,
+    inViewport: facts === undefined ? 0 : (facts.inViewport ?? 0),
+    sampled: 0,
+    matchIndex: facts?.matchIndex ?? null,
+    method: null,
+    ratio: null,
+    requiredRatio: null,
+    passed: null,
+    foreground: null,
+    backdrop: null,
+    fillChannel: null,
+    reason,
+  };
+}
+
+/** IS THIS SUBJECT'S FOREGROUND ITS FILL RATHER THAN ITS INK (#1111)? A subject with no text and no `<svg>`
+ *  paints only its own box: `getComputedStyle().color` there is an INHERITED value nothing on screen uses,
+ *  and measuring it produced the defect — `[data-slot=switch-thumb]` read the same 16.26:1 before and after
+ *  its fill changed, and both side-eye reports quoted it as the OFF-state loudness. Such a subject goes to
+ *  the FILL arm (ops/contrast-fill.ts), which measures the pixels instead. Note the ORDER at the call site:
+ *  the exemptions (inactive / control-track / below the opacity floor) are decided FIRST and unchanged —
+ *  the fill arm re-answers WHICH foreground to measure, never WHETHER a subject is exempt. */
+export function isFillSubject(facts: ContrastMeasured): boolean {
+  return !(facts.hasText || facts.hasIconInk);
 }
 
 export function isContrastMeasured(facts: NonNullable<ContrastFacts>): facts is ContrastMeasured {

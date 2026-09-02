@@ -50,6 +50,8 @@ export function contrastFacts(value: unknown): ContrastFacts {
   pageObject(record["backdrop"], `${label} field "backdrop"`);
   pageObject(record["box"], `${label} field "box"`);
   pageBoolean(record["hasText"], `${label} field "hasText"`);
+  pageBoolean(record["hasIconInk"], `${label} field "hasIconInk"`);
+  pageObject(record["radii"], `${label} field "radii"`);
   pageBoolean(record["inactive"], `${label} field "inactive"`);
   return record as unknown as ContrastFacts;
 }

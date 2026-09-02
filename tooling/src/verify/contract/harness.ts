@@ -2,7 +2,7 @@
 // CheckContext / Check shapes still consumed by the injectable-baseline factories and the retained
 // `monotonicTests` Check, plus `GateResult` — the per-gate record the check-structure.json writer emits.
 import type { Project } from "ts-morph";
-import type { GateScan } from "./pass.ts";
+import type { GateScan, GateTiming } from "./pass.ts";
 
 export interface Violation {
   readonly file: string;
@@ -30,4 +30,9 @@ export interface GateResult {
    *  a ratchet baseline admitted. Carried into check-structure.json so the canonical artifact stops
    *  reporting a green gate without saying whether it read anything (Codex GA-H-01/02, 2026-08-13). */
   readonly scan: GateScan;
+  /** What this gate COST the run (#1107) — carried into check-structure.json for the same reason `scan`
+   *  is: a claim about a gate's price must be re-derivable from the canonical artifact, never only from
+   *  a scratch profiler. Missing or non-finite here is a BROKEN WRITER, not a fast gate: `timingAlarms`
+   *  (lib/timing.ts) refuses the run rather than publishing a silent `undefined`. */
+  readonly timing: GateTiming;
 }
