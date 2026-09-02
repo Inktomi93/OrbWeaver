@@ -1,6 +1,9 @@
 // <ArtBleed> CT (#205) — the decorative art band's whole contract, which is geometry plus silence:
-//   • it starts one `--reading-measure` (+ the host-padding clearance) in from the host's inline start,
-//     which is what lets a host guarantee no ink over art by capping its own column at the same measure;
+//   • it starts one `--reading-measure-min` (+ the host-padding clearance) in from the host's inline
+//     start, which is what lets a host guarantee no ink over art by capping its own column at the SAME
+//     measure — the pair moved from the 75ch measure to the 65ch one at #1121 (the wider one collapsed
+//     the band to zero width at the shipped 1280 desktop default, so #205's art rendered at no width
+//     anyone runs). The token this probe resolves is the contract; it is deliberately not a literal;
 //   • it COLLAPSES to nothing on a host narrower than that, with no media query — the "desktop
 //     hierarchy only" scoping of the ruling, enforced by the recipe rather than remembered by callers;
 //   • it is invisible to AT and takes no hit target, in every arm.
@@ -19,7 +22,7 @@ test("the band starts a reading measure in from the host's inline start — the 
     // The measure resolved in the HOST's own font — a `ch` is font-relative, so a literal would lie the
     // moment the font scale moves.
     const probe = el.ownerDocument.createElement("div");
-    probe.style.inlineSize = "var(--reading-measure)";
+    probe.style.inlineSize = "var(--reading-measure-min)";
     el.append(probe);
     const measure = probe.getBoundingClientRect().width;
     probe.remove();

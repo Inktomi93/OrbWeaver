@@ -423,12 +423,20 @@
 /* ART BLEED (#205) — the two declarations `art/art-bleed/variants.ts` cannot honestly spell as utilities.
  * Read them together; the component's own header carries the WHY.
  *
- * `inset-inline-start` IS THE READING-SURFACE GUARANTEE. The band begins one `--reading-measure` in, so a
- * host that caps its content column at the same measure has NO INK OVER ART — which is why this recipe
- * invokes none of the D144 reading-plate machinery: a plate backs text that sits on art, and by
+ * `inset-inline-start` IS THE READING-SURFACE GUARANTEE. The band begins one `--reading-measure-min` in,
+ * so a host that caps its content column at the same measure has NO INK OVER ART — which is why this
+ * recipe invokes none of the D144 reading-plate machinery: a plate backs text that sits on art, and by
  * construction none does. `min(100%, …)` is the other half of the same expression and is what makes the
  * band VANISH on a surface narrower than the measure — the phone arm and the docked-narrow arm, with no
  * media query and no caller branch.
+ *
+ * WHICH MEASURE, AND WHY IT MOVED (#1121, side-eye HOME 2026-09-02 H7). It was `--reading-measure` (75ch),
+ * and at the SHIPPED 1280 desktop default that resolved WIDER than the home hero itself: the band measured
+ * `[773, 175, 0, 132]` — zero pixels — so #205's owner ruling ("the hero gets its room's art") did not fire
+ * at the width most people run, and at 1920 what survived was a 33px slice of a face. The guarantee is
+ * untouched: it is still "column capped at X, band starts at X plus one clearance", and X is simply the
+ * design law's LOW reading bound rather than its high one. Both halves move together or neither does —
+ * `home-hearth-room.tsx` caps its column at the same token and says so.
  *
  * THE `+ --spacing-section` IS THE HOST'S OWN PADDING, PAID FOR WITHOUT NAMING IT. An absolutely
  * positioned layer lays out against its host's PADDING box while the host's content starts one padding
@@ -445,7 +453,7 @@
  * (no transition) => reduced-motion-safe. */
 [data-slot="art-bleed"] {
   --art-bleed-peak: 0.55;
-  inset-inline-start: min(100%, calc(var(--reading-measure) + var(--spacing-section)));
+  inset-inline-start: min(100%, calc(var(--reading-measure-min) + var(--spacing-section)));
   -webkit-mask-image: linear-gradient(to left, rgb(0 0 0 / var(--art-bleed-peak)), transparent);
   mask-image: linear-gradient(to left, rgb(0 0 0 / var(--art-bleed-peak)), transparent);
 }
@@ -482,18 +490,68 @@
  *
  * SCROLL-AWARE, same contract as the horizontal twin: an edge dissolves ONLY while content is actually
  * scrolled past it, so a surface that fits renders both edges fully opaque instead of dimming a flush
- * heading against nothing. Static (no transition) => reduced-motion-safe. */
+ * heading against nothing. Static (no transition) => reduced-motion-safe.
+ *
+ * IT IS A BOUNDED BAND WITH A FLOOR, NOT `--fade-edge-stop` TO ZERO (#1128, side-eye HOME 2026-09-02 H1).
+ * The inline twin's `--fade-edge-stop` is a PERCENTAGE of the box, which is right for a strip and wrong
+ * for a self-scrolling SURFACE: 10% of a 752px scroller is a 75px band, and the databank empty state's two
+ * buttons sit 27px inside it at the shipped 1280x800 default. Measured on the live app AND reproduced in
+ * the CT browser to the byte: `srgb(61,59,56)` ink over `srgb(15,12,10)`, **1.75:1**, while the peer CTA
+ * one block up read 17.14:1 in the same decode. A mask is PAINT, so both buttons stayed fully
+ * hit-testable — a user could click a primary door they could not read — and every contrast instrument we
+ * own resolves its subject through `getComputedStyle` and reported the surface clean.
+ *
+ * TWO CHANGES, AND BOTH ARE LOAD-BEARING. (1) The band is a LENGTH (`--spacing-section`, the surface's own
+ * rhythm), so it cannot grow with the pane: at any viewport a control more than one section-step above the
+ * cut is painted at full strength, which is where a control that is genuinely on screen sits. (2) The ramp
+ * bottoms out at `--fade-block-floor` rather than at zero, so a control the band DOES reach still carries
+ * ink. The floor is derived, not chosen by eye: a fade composites the ink toward whatever is behind the
+ * scroller, so for a full-contrast pair the composite clears WCAG 1.4.3's 4.5:1 at alpha >= 0.48 on the
+ * dark arm and >= 0.60 on the LIGHT one (near-black on near-white, the demanding polarity); 0.62 clears
+ * both, measured at 5.04:1 light and 6.9:1 dark in the worst case where a control lies wholly inside the
+ * band. Pinned by framebuffer decode, not by property, in
+ * tests/client/features/home/surfaces/home-surface.ct.tsx (#1128 — both polarities, three viewports).
+ *
+ * WHAT A FADE STILL CANNOT PROMISE, stated so the next reader does not read this as a guarantee it is not:
+ * a MUTED pair (7.62:1 authored) needs alpha >= 0.79 to hold 4.5:1, i.e. no perceptible fade at all. No
+ * mask can keep every text weight at AA — the physics is the one `[data-slot="message-list-scroll"]`
+ * (client globals.css) already states from the other side. The floor is set for the class this cue is
+ * ACTUALLY over: controls and headings at full ink. */
 .scroll-fade-y {
-  --fade-top-stop: 0%;
-  --fade-bottom-stop: 0%;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--fade-top-stop), black calc(100% - var(--fade-bottom-stop)), transparent);
-  mask-image: linear-gradient(to bottom, transparent, black var(--fade-top-stop), black calc(100% - var(--fade-bottom-stop)), transparent);
+  /* THE FLOOR AND THE DEPTH RIDE `--scroll-fade-*`, NOT `--fade-*`. `--fade-edge-stop` is a GENERATED
+     token family (tokens.json `fade.edge-stop`), and the only names a stylesheet may mint inside it are
+     the four sanctioned local stops the `css-family-ownership` gate declares — a `--fade-block-floor`
+     here rewrites a generated family outside theme.css and is gate-RED. These two mint no family at all,
+     exactly as `--art-bleed-peak` above does, and they stay local to this recipe on purpose: neither is
+     portable (a depth in the surface's own rhythm, an alpha derived from a contrast floor). */
+  --scroll-fade-depth: var(--spacing-section);
+  --scroll-fade-floor: 0.62;
+  /* The two SANCTIONED stop names carry the scroll-aware half — 0 while an edge hides nothing. They are
+     LENGTHS on this axis where the inline twin uses a percentage; see the header for why. */
+  --fade-top-stop: 0px;
+  --fade-bottom-stop: 0px;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / var(--scroll-fade-floor)),
+    black var(--fade-top-stop),
+    black calc(100% - var(--fade-bottom-stop)),
+    rgb(0 0 0 / var(--scroll-fade-floor))
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / var(--scroll-fade-floor)),
+    black var(--fade-top-stop),
+    black calc(100% - var(--fade-bottom-stop)),
+    rgb(0 0 0 / var(--scroll-fade-floor))
+  );
 }
+/* A zero stop is a HARD stop against the floor colour at the same position, so the later `black` wins and
+   an edge that hides nothing renders fully opaque — the same mechanism the inline twin's `0%` relies on. */
 .scroll-fade-y[data-fade-top] {
-  --fade-top-stop: var(--fade-edge-stop);
+  --fade-top-stop: var(--scroll-fade-depth);
 }
 .scroll-fade-y[data-fade-bottom] {
-  --fade-bottom-stop: var(--fade-edge-stop);
+  --fade-bottom-stop: var(--scroll-fade-depth);
 }
 
 /* CLAMPED-MENU TAIL CUE (side-eye 2026-08-06 P2). A menu taller than `--available-height` clamps and

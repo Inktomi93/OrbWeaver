@@ -212,6 +212,28 @@ body {
         color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent)
       );
     }
+    /* A COLLAPSED PANE PAYS FOR NO GLASS (#1120, side-eye HOME 2026-09-02 H3). A section that declares a
+     * pane `"unavailable"` still renders its `PanelChrome` — that IS the ruled mechanism (owner decision
+     * H3 / arm L-b, section-registry.ts: `"unavailable"` is not a fourth `PanelMode`; the panel resolves
+     * `collapsed`, its track is already zero-width, and the topbar renders no toggle). What was NOT ruled
+     * is that the off-screen box keeps `backdrop-filter`. Measured on home, which declares BOTH panes
+     * away: two inert, aria-hidden, 80-byte asides carrying `blur(14px) saturate(1.4)` — the only two
+     * backdrop-filter elements on the page, i.e. the most expensive paint primitive in the browser, twice,
+     * blurring nothing, on the surface whose whole job is to appear instantly, forever. They also stayed
+     * live to the COMPOSITOR: the recorded drive flagged `[drop] 53ms · aside[aria-label="Home list"]` on
+     * the return-to-home click.
+     *
+     * It is not a home rule and must not be one: EVERY section pays this for whichever pane it leaves
+     * closed (chats' context pane, config's, the whole mobile arm). The gate is the panel's own resolved
+     * mode, which is the one fact that means "this box is off-screen".
+     *
+     * Higher specificity than the glass rule above (0,3,1 vs 0,2,1) so it is order-proof across sheets, and
+     * it deliberately does NOT touch `background-color`: an off-screen fill costs nothing, and leaving it
+     * keeps the docked/overlay arms byte-identical. The reduced-transparency arm below is unaffected — it
+     * asks for exactly this on every surface. */
+    html[data-blur-panels] .shell-panel[data-panel-mode="collapsed"] {
+      backdrop-filter: none;
+    }
     html[data-blur-composer] [data-slot="composer"] {
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
       background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);

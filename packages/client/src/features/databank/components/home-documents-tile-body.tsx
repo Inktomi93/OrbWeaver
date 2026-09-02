@@ -138,7 +138,10 @@ export function HomeDocumentsTileBody(): ReactElement {
             <TrailingArrow />
           </Button>
         </Row>
-        <Text className="line-clamp-3" voice="gloss" prose={true}>
+        {/* MEASURED (#1130, H5), the peer of the temp-chat gloss one block up: it resolved `max-width:
+            none` and was saved from the 153ch arm only by the 1920 sub-column split, which is a layout
+            accident rather than a measure. The house cap makes it a property of the prose. */}
+        <Text className="line-clamp-3 max-w-(--reading-measure)" voice="gloss" prose={true}>
           {DATABANK_INGEST_GLOSS}
         </Text>
       </Stack>

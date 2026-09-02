@@ -13,6 +13,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { useAppearanceRootEffects } from "../../../../packages/client/src/features/app-shell/hooks/use-appearance-root-effects.ts";
 import type { SeedThemeName } from "../../../../packages/client/src/state/appearance-boot-hint.ts";
+import type { PanelMode } from "../../../../packages/client/src/state/panel-resolve.ts";
 
 /** Roughly a production list panel (346px, reports/side-eye-138/L1.log) — see the probe comment below. */
 const PANEL_PROBE_WIDTH = "346px";
@@ -44,6 +45,13 @@ export interface ShellCascadeFixtureProps {
    * region's fill, including the panel's own seam. Set this for a pixel-sampling test only.
    */
   readonly omitMainRegion?: boolean;
+  /**
+   * `data-panel-mode` on BOTH panel probes — the attribute shell.css and the glass rules key their
+   * off-screen arms on. Left off ⇒ the probes carry no mode at all, which is what every case in this
+   * file predating #1120 asserted against; `"collapsed"` is the arm a section that declares a pane
+   * `"unavailable"` resolves (owner decision H3 / arm L-b) and every section's own closed pane.
+   */
+  readonly panelMode?: PanelMode;
 }
 
 /**
@@ -70,6 +78,7 @@ export function ShellCascadeFixture({
   surfaceTexture = "none",
   dataTheme = null,
   omitMainRegion = false,
+  panelMode,
 }: ShellCascadeFixtureProps): ReactElement {
   useAppearanceRootEffects({
     fontScale,
@@ -105,12 +114,18 @@ export function ShellCascadeFixture({
           Every computed-style assertion was happy with that; #138's framebuffer pin is not, because
           "sample the panel a few px inside its seam" then lands on the page background and compares the
           backdrop with itself. A production list panel measures ~346px (reports/side-eye-138/L1.log). */}
-        <div className="shell-panel" data-panel-side="list" data-testid="panel-probe" style={{ width: PANEL_PROBE_WIDTH }} />
+        <div className="shell-panel" data-panel-side="list" data-panel-mode={panelMode} data-testid="panel-probe" style={{ width: PANEL_PROBE_WIDTH }} />
         {/* The MIRROR side. The two panels author OPPOSITE seams (`border-inline-end` vs
           `border-inline-start`, shell.css), and #138's per-side contrast rules have to be asserted on
           both — a list-only fixture cannot tell a correct per-side rule from one that thickens the wrong
           edge. */}
-        <div className="shell-panel" data-panel-side="context" data-testid="context-panel-probe" style={{ width: PANEL_PROBE_WIDTH }} />
+        <div
+          className="shell-panel"
+          data-panel-side="context"
+          data-panel-mode={panelMode}
+          data-testid="context-panel-probe"
+          style={{ width: PANEL_PROBE_WIDTH }}
+        />
         {omitMainRegion ? null : (
           <div className="shell-main" data-testid="main-probe">
             <div className="shell-topbar" data-testid="topbar-probe" />

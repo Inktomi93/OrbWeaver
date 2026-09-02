@@ -54,14 +54,24 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // +1 more: --color-accolade, the polarity-aware distinction ink minted 2026-09-01 when the seed
   // ink-duty audit measured the crown gold as TEXT at 1.41-1.71:1 on the light seed (tokens.json
   // color.accolade; the mark token color.highlight stays background-only).
-  [THEME]: 290,
-  [UI_GLOBALS]: 187,
+  // +1 more (2026-09-02, #1120): --dimension-device-pixel, the DPR-1 grid quantum the shell's panel
+  // tracks round to (tokens.json dimension.device-pixel; a viewport-derived clamp resolves 307.1875 and
+  // takes the promoted panel layer off the grid). It is a round() STEP, never a width or a spacing.
+  [THEME]: 291,
+  // +2 (2026-09-02, #1128): `--scroll-fade-depth` / `--scroll-fade-floor` on `.scroll-fade-y`. The block
+  // -axis fade ramped to ZERO alpha over 10% of the pane and measured two live buttons at 1.75:1 at the
+  // shipped 1280x800 default; a bounded band plus an alpha floor needs two locals, and they deliberately
+  // mint no `--fade-*` family (that one is generated — see LOCAL_FADE_STOP_RE below).
+  [UI_GLOBALS]: 189,
   [TIERS]: 45,
-  [CLIENT_GLOBALS]: 111,
+  // +1 (2026-09-02, #1120): the collapsed panel's `backdrop-filter: none`. A section that declares a pane
+  // "unavailable" still renders it collapsed (owner decision H3 / arm L-b), and the off-screen box was
+  // keeping the most expensive paint primitive in the browser for a box that blurs nothing.
+  [CLIENT_GLOBALS]: 112,
   [SHELL]: 335,
 };
-export const EXPECTED_DECLARATION_TOTAL = 968;
-export const EXPECTED_DIRECT_THEME_DECLARATIONS = 190;
+export const EXPECTED_DECLARATION_TOTAL = 972;
+export const EXPECTED_DIRECT_THEME_DECLARATIONS = 191;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",
   [UI_GLOBALS]: "census:ui-globals",

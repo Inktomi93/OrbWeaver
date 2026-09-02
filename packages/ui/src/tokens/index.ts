@@ -115,6 +115,7 @@ export const TOKENS = {
   "dimension.rail": { cssVar: "--dimension-rail", value: "3.5rem" },
   "dimension.chrome-row": { cssVar: "--dimension-chrome-row", value: "3rem" },
   "dimension.panel-floor": { cssVar: "--dimension-panel-floor", value: "17rem" },
+  "dimension.device-pixel": { cssVar: "--dimension-device-pixel", value: "1px" },
   "dimension.panel-context-step": { cssVar: "--dimension-panel-context-step", value: "24rem" },
   "dimension.content-reading-floor": { cssVar: "--dimension-content-reading-floor", value: "40rem" },
   "dimension.shell-breakpoint": { cssVar: "--dimension-shell-breakpoint", value: "48rem" },

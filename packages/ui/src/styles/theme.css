@@ -114,6 +114,7 @@
   --dimension-rail: 3.5rem;
   --dimension-chrome-row: 3rem;
   --dimension-panel-floor: 17rem;
+  --dimension-device-pixel: 1px;
   --dimension-panel-context-step: 24rem;
   --dimension-content-reading-floor: 40rem;
   --dimension-shell-breakpoint: 48rem;

@@ -116,7 +116,13 @@ export function HomeTempChatTileBody(): ReactElement {
           explanation into a telegram: the punctuation was doing the work the conjunctions should. Same
           three facts, same voice, no dashes — a room that doesn't stick around, a flag set at birth, and
           everything else behaving normally. */}
-      <Text size="label" tone="muted">
+      {/* MEASURED (#1130, side-eye HOME 2026-09-02 H5). This paragraph resolved `max-width: none`, so it
+          took whatever the hearth column gave it: 76.7ch at 1280 and **153.2ch at 1920** — over twice the
+          65-75ch reading band, on the widest single block on the surface. The cap is the house one
+          (`--reading-measure`), the same idiom every other teaching paragraph in the app already carries;
+          it is a LENGTH statement about prose, not a taste knob, which is why it rides the element rather
+          than the column (the column also holds a Row of controls that must keep the full width). */}
+      <Text className="max-w-(--reading-measure)" size="label" tone="muted">
         A room that never joins your chats list, deleted after{" "}
         <Text as="span" size="code">
           {ttlHours}h
