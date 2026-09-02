@@ -24,6 +24,7 @@
 import { Blocks } from "@orb/ui/icons";
 import type { SectionDefinition } from "#state";
 import { pluginPageSectionSelection } from "#state";
+import { ExtensionsListHeader } from "../components/extensions-list-header.tsx";
 import { ExtensionsPageSurface } from "../surfaces/extensions-page-surface.tsx";
 import { ExtensionsSwitcherSurface } from "../surfaces/extensions-switcher-surface.tsx";
 import { EXTENSIONS_PLACEHOLDER } from "./extensions-copy.ts";
@@ -35,6 +36,9 @@ export const extensionsSection: SectionDefinition = {
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: EXTENSIONS_PLACEHOLDER,
   list: () => <ExtensionsSwitcherSurface />,
+  // The LIST chrome-band content (#1190): "Extensions" title + a live page count. Browse-shaped, no create
+  // action — a page is registered by a plugin, not made from this band (see the header's own note).
+  listHeader: () => <ExtensionsListHeader />,
   // How the SHELL reads "is a page open?" — the mobile ONE-SHELL rule's input and its back affordance.
   selection: pluginPageSectionSelection,
   // …and what the MOBILE topbar calls the open page: the page's own name, never the section's.
