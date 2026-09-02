@@ -2113,6 +2113,57 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/verifier/2026-09-02-941-semantic-denominator-closure.md",
+      "assignedSha256": "9ba37b0ab6328cf3e424a8a2b7cd01b6dd13043e6a6173f01434fd28f320e717",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "9ba37b0ab6328cf3e424a8a2b7cd01b6dd13043e6a6173f01434fd28f320e717",
+      "verifiedCommit": "574da5a05006861c23737de3e03b3d8feba6df81",
+      "verifiedAt": "2026-09-02",
+      "summary": "Verifier closure check of the #941 semantic-denominator program on 718e97ab3: REFUTED narrowly — the three named escapes are closed with planted regressions and all 24 gates declare a semantic population, but four paired controls show two gates still silently under-read a sanctioned composition shape (chat-viewer-plane-canon-reads non-literal matrix values; knob-wire-coverage arms A/B/B2/C inheritance and spreads).",
+      "evidence": [
+        "born-reviewed at 574da5a05: full read by the primary orchestrator — the verdict, the three planted-regression receipts, the 24-row table across tiers A/B/C/D, the four GAP rows with their paired inline-vs-composed controls, the environment notes; residual rows filed from §GAP"
+      ],
+      "claims": [
+        {
+          "claim": "The three current escapes (#934/#942/#943) are genuinely closed: planted regressions in the imported appearance schema, the RAIL_ZONES spread and the WorkloadScheduleService verbs each RED their gate with the census moving as expected.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#941"
+            }
+          ]
+        },
+        {
+          "claim": "chat-viewer-plane-canon-reads' foldMatrix silently drops any CHAT_VERB_AUTHORITY row whose value is not a string literal (census 93→92, gate green), and isViewerPlane(undefined)===false then removes that verb from the D16 room-plane check.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#941"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts:191"
+            }
+          ]
+        },
+        {
+          "claim": "knob-wire-coverage's non-C arms were never re-homed: interfaceKeys drops inherited EffectiveAppConfig fields, tupleMembers drops a spread USER_SETTINGS_SECTIONS member, zObjectKeys drops a spread appSettingsSchema key from arms B2 and C — silently, while the inline spelling REDs.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#941"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/gates/knob-wire-coverage.ts:137"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
