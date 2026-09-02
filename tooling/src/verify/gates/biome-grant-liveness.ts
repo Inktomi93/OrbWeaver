@@ -16,11 +16,31 @@
 // file created under that glob. Every live biome override glob resolves today, so the RATIFIED table is
 // empty-but-armed.
 // GRANT is judged). COMMENT POSTURE: n/a — the scanned unit is strict JSON, which has no comment syntax.
+// RULE LIVENESS (#1158, the sixth arm): path liveness proves the granted SUBJECT exists, never that the
+// RULE still fires — a planted `useFilenamingConvention: "off"` on a file with no such violation was
+// invisible to every gate here. So for each exact-path rule-OFF grant the arm strips that rule from a COPY
+// of biome.json at the repo ROOT and runs the real biome over the granted files: a grant that suppresses
+// ZERO diagnostics is dead text reading as protection. Unit = (override row × rule) — the pair the config
+// AUTHORS; DECLARED LIMIT 1: a row is live when its rule fires on ANY of its files, and the per-file dead
+// count rides the scan line (`rule-dead-file-pairs`) rather than a finding, because reporting it would
+// force splitting multi-file rows. DECLARED LIMIT 2 (`rule-mixed-row`): a row that ALSO carries a glob
+// include is stripped but NEVER judged — its subject set is the glob's expansion, so "fired on none of the
+// named files" says nothing about it (the live `**/*.config.ts` row beside five named test files would
+// otherwise have lost noNodejsModules). Stripping happens for EVERY row, judged or not, deliberately in the
+// PERMISSIVE direction: a file suppressed by two rows reads as LIVE rather than as a grant to delete.
+// COST, measured 2026-09-02: 6.4s wall / one biome invocation (4.3s of it
+// biome's project scan — irreducible: `--only`, vcs-off and domains-off all measure the same, verdicts
+// byte-identical), which is ~4% of the static tier it rides. Orchestrator ruling 2026-09-02: it lives HERE,
+// unconditional, beside its ledger siblings; a push/full-tier stage of its own is the FALLBACK the day
+// structure:full's budget is the binding constraint. The depcruise/eslint grant-liveness siblings are out of
+// scope by design — each needs its own runner and its own cost decision; `lib/grant-liveness.ts` stays the
+// PATH-liveness home only.
 // The TOTAL-EMPTY case (no `overrides` at all) is deliberately NOT the NO-ROWS arm — it derives zero units,
 // so the harness's own SCANNED-ZERO alarm refuses the verdict (exit 2) without this gate guessing.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExemptionTable, Finding, GateDescriptor, GateScanDeclaration } from "../contract/gate.ts";
+import { judgeRuleLiveness } from "../lib/biome-rule-liveness.ts";
 import type { GrantExemption as PatternGrantExemption, PatternLivenessMessages, PatternRow } from "../lib/grant-liveness.ts";
 import { globMatcher, memberSources, patternLivenessFindings } from "../lib/grant-liveness.ts";
 
@@ -144,6 +164,14 @@ const MSG_CORPUS_BLIND =
   "not a work tree, so every glob-liveness verdict below is vacuous and a ✓ would be a lie " +
   "(tooling/src/verify/gates/GATE-AUTHORING.md §4.6). See tooling/src/verify/lib/grant-liveness.ts.";
 
+const MSG_DEAD_RULE_PREFIX =
+  "a `biome.json` override turns a lint rule OFF for named files, but with that grant removed the rule " +
+  "produces ZERO diagnostics on ALL of them — the suppression is DEAD TEXT that reads as protection " +
+  "(tooling/src/verify/gates/GATE-AUTHORING.md §4.4 mode B, one level up from a dead path: the subject is " +
+  "alive, the promise is not). Delete the rule from that override in biome.json — and delete the whole " +
+  "override when it carried nothing else. If the rule is off REPO-WIDE, the row was redundant from birth. " +
+  "The finding token is the granted rule. See tooling/src/verify/lib/biome-rule-liveness.ts. Grant: ";
+
 const MSG_DEAD_CITE =
   "a biome-grant-liveness EXEMPT row's `cite` no longer resolves — the producer that justified the exemption " +
   "moved or was deleted, so the promise has outlived its evidence. Re-derive the cite, or delete the row from " +
@@ -202,6 +230,25 @@ interface Outcome {
   readonly declaration: GateScanDeclaration;
   /** The glob half's disposition, folded into the gate's scan declaration by `run`. */
   readonly patterns?: { readonly live: number; readonly ratified: number };
+  /** The RULE half's disposition (#1158) — live grants, files probed, and the two declared limits. */
+  readonly rules?: { readonly live: number; readonly files: number; readonly deadFilePairs: number; readonly skippedMixed: number };
+}
+
+/** The rule-liveness arm's findings, anchored at the granting row's first exact include. */
+function ruleLivenessFindings(root: string, text: string, isExact: (path: string) => boolean): Outcome["rules"] & { readonly findings: readonly Finding[] } {
+  const outcome = judgeRuleLiveness({ root, configText: text, isExactPath: isExact });
+  // NOT `lineFinder`: its cursor advances per lookup, and one override row is looked up ONCE PER GRANTED
+  // RULE — the second rule of a row would anchor at line 0. Every rule of a row anchors at the same include.
+  const lines = text.split("\n");
+  const firstLineOf = (path: string): number => lines.findIndex((line) => line.includes(`"${path}"`)) + 1;
+  const findings = outcome.dead.map((grant) => ({
+    file: CONFIG_REL,
+    line: firstLineOf(grant.anchor),
+    column: 0,
+    token: `${grant.group}/${grant.rule}`,
+    message: `${MSG_DEAD_RULE_PREFIX}${grant.group}/${grant.rule} over ${grant.files.join(", ")}`,
+  }));
+  return { findings, live: outcome.live, files: outcome.filesProbed, deadFilePairs: outcome.deadFilePairs, skippedMixed: outcome.skippedMixed };
 }
 
 /** The two-sided arms on EXEMPT. The caller owns the real-tree anchor. `carriedRows` is EVERY positive
@@ -278,7 +325,13 @@ function scanBiomeGrantLiveness(root: string): Outcome {
     anchorOk: isRealConfig,
     messages: PATTERN_MESSAGES,
   });
-  return { findings: [...exactFindings, ...outcome.findings], declaration, patterns: { live: outcome.live, ratified: outcome.ratified } };
+  const rules = ruleLivenessFindings(root, read.text, (path) => !GLOB_META_RE.test(path));
+  return {
+    findings: [...exactFindings, ...outcome.findings, ...rules.findings],
+    declaration,
+    patterns: { live: outcome.live, ratified: outcome.ratified },
+    rules: { live: rules.live, files: rules.files, deadFilePairs: rules.deadFilePairs, skippedMixed: rules.skippedMixed },
+  };
 }
 
 // ── self-proof fixtures ───────────────────────────────────────────────────────────────────────────────
@@ -312,13 +365,22 @@ export const gate: GateDescriptor = {
   fix: FIX,
   run: (ctx) => {
     const outcome = scanBiomeGrantLiveness(ctx.root);
-    ctx.scan(
-      outcome.patterns === undefined
-        ? outcome.declaration
+    const patternCounts = outcome.patterns === undefined ? {} : { "glob-live": outcome.patterns.live, "glob-ratified": outcome.patterns.ratified };
+    // The rule half's counts are its RECEIPT: `rule-files` is the denominator biome actually judged, and
+    // `rule-dead-file-pairs` is the declared limit made visible (per-file grants the row-level arm forgives).
+    const ruleCounts =
+      outcome.rules === undefined
+        ? {}
         : {
-            ...outcome.declaration,
-            skipped: { ...outcome.declaration.skipped, "glob-live": outcome.patterns.live, "glob-ratified": outcome.patterns.ratified },
-          },
+            "rule-live": outcome.rules.live,
+            "rule-files": outcome.rules.files,
+            "rule-dead-file-pairs": outcome.rules.deadFilePairs,
+            "rule-mixed-row": outcome.rules.skippedMixed,
+          };
+    ctx.scan(
+      outcome.patterns === undefined && outcome.rules === undefined
+        ? outcome.declaration
+        : { ...outcome.declaration, skipped: { ...outcome.declaration.skipped, ...patternCounts, ...ruleCounts } },
     );
     for (const finding of outcome.findings) {
       ctx.report(finding);
@@ -409,6 +471,25 @@ export const gate: GateDescriptor = {
         "packages/client/src/live.ts": "export const live = 1;\n",
       },
       why: "DECLARED LIMIT — a NEGATED entry inside an override excludes rather than grants, so its subject is legitimately allowed not to exist",
+    },
+    {
+      files: {
+        "biome.json":
+          '{\n  "overrides": [\n    {\n      "includes": ["packages/client/src/live.ts"],\n      "linter": { "rules": { "style": { "noDefaultExport": "off" } } }\n    }\n  ]\n}\n',
+        "packages/client/src/live.ts": "export const live = 1;\n",
+      },
+      why: "DECLARED LIMIT — the RULE-liveness arm (#1158) needs the real biome binary and the real project root, so it is scoped to the §4.5 anchor exactly like the pattern half: a mini-project's rule-off grant is SILENT here. Its planted controls in both directions — a dead grant reds naming path+rule, a live grant is silent, a missing binary REFUSES — live in tests/tooling/verify/gates/biome-grant-liveness.int.test.ts",
+    },
+    {
+      files: {
+        "biome.json": overridesJson(`${ANCHOR_FILLER}, "${TRANSIENT_CATALOG_TMP}", "${LIVE_REL}"`).replace(
+          '"rules": {}',
+          '"rules": { "style": { "noDefaultExport": "off" } }',
+        ),
+        [CATALOG_SERIALIZER]: "export const serializer = 1;\n",
+        [LIVE_REL]: LIVE_SOURCE,
+      },
+      why: "DECLARED LIMIT, the OTHER half of the guard: this config IS anchor-sized, so only the missing GATE_SELF module keeps the rule arm out — the two exits are different code paths and a mini-project must take both silently, never a refusal",
     },
   ],
 };
