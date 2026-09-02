@@ -75,9 +75,7 @@
       "verifiedSha256": "0078cc298da95842fca5f810ffc4e0c6b25e75b65cc2515a9d4397bc934d21a2",
       "verifiedCommit": "0952cc4623ea0bca4dd8b3b55984866d04ec6ca9",
       "verifiedAt": "2026-08-31",
-      "evidence": [
-        "docs/design/961-static-class-provenance-repair.md:1 (full read; red-first repair design and declared residual limits)"
-      ],
+      "evidence": ["docs/design/961-static-class-provenance-repair.md:1 (full read; red-first repair design and declared residual limits)"],
       "summary": "Implemented #961 repair design for return-position composer ownership, local namespace re-exports, and JavaScript-correct object-spread overwrite/opacity semantics.",
       "claims": [
         {

@@ -446,9 +446,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 395,
-      "bytes": 222149,
-      "sha256": "0db6c3e3ca9a81d930f333e0f64b0d99c9e1a226847c9733150e34b6989fe7a8",
+      "lines": 397,
+      "bytes": 224552,
+      "sha256": "bfec4da4fe3adfeba490a0fe89ffa46ab542a4ba0fad6a6466700dceac156d28",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -465,10 +465,11 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "0db6c3e3ca9a81d930f333e0f64b0d99c9e1a226847c9733150e34b6989fe7a8",
-        "verifiedCommit": "921f52d3331ad20735fe7d58df5f0c25e7a8fc12",
+        "verifiedSha256": "bfec4da4fe3adfeba490a0fe89ffa46ab542a4ba0fad6a6466700dceac156d28",
+        "verifiedCommit": "1ba20d2ca1ccc5e2b777811d5b8c9c736abcd883",
         "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at the merge 1ba20d2ca (cb-reserve-floor #885/#884, claude-b, --no-ff to keep its self-referencing receipt shas): two new rows query-boundary-reservation + sub-floor-disclosure; registered-gate count 251 (union of the lane's +2 over #1080's 249)",
           "re-attested at 921f52d33 (#1091, security lane p-matrix-fold): chat-viewer-plane-canon-reads row — foldMatrix total over member kinds (const/import values read through the binding; shorthand/computed keys read; methods/accessors/unresolvable values REFUSE by kind); isViewerPlane takes string",
           "re-attested at da01f7eb9 (#1080 variant axes, claude-b lane cb-variant-axes): new gate row ui-variant-axes-stamped (fail-closed A2, shrink-only 11-row baseline, real-tree arm probes); registered-gate count 249",
           "re-attested at ea1b53fd5 (#1036, lane p-dangling-law): dangling-refs row — corpora derived from the catalog by class (law 31 · living design 22 · law-outside-docs 2, unioned with the prior dirs), frozen classes out by Documentation-Law §Relocation step 5, arm 4 law-only (measured), the population receipt",
@@ -10830,6 +10831,92 @@
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
         ],
         "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/885-884-boundary-reservation-and-touch-floor.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 270,
+      "bytes": 19902,
+      "sha256": "e3e7d004690f3bbdda8790517b676401ee4c7bf230c5c95133815926943ff912",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-01"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/885-884-boundary-reservation-and-touch-floor.md",
+        "assignedSha256": "e3e7d004690f3bbdda8790517b676401ee4c7bf230c5c95133815926943ff912",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "e3e7d004690f3bbdda8790517b676401ee4c7bf230c5c95133815926943ff912",
+        "verifiedCommit": "720f4439316842c7c1fb62c60901d9a93070502e",
+        "verifiedAt": "2026-09-02",
+        "summary": "Design for #885 QueryBoundary.reserveKey (the one measure-then-remember reservation seam: chosen shape, rejected alternatives, keying tranche, gate arms, the counted tail) and #884 collapsible touch-floor defaults (the size inversion, the sub-floor marker gate, Stack rows=control + the vertical-pitch arm). Authored born-reviewed by the building lane (cb-reserve-floor).",
+        "evidence": [
+          "born-reviewed at 720f4439316 (lane cb-reserve-floor, the commit that authored it): full read; premise re-verification in §0 measured on the same tree; §1.4/§2.2 tables mirror the landed edits"
+        ],
+        "claims": [
+          {
+            "claim": "QueryBoundary carries the one measure-then-remember reservation seam (reserveKey/reserveBlock): the remembered box reserves the fallback, skeletonRowCountFor re-fills a static-count SkeletonRows, and the settled child re-measures into surface-box-store.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/data/query-boundary.tsx:130"
+              },
+              {
+                "kind": "test",
+                "target": "tests/client/data/query-boundary.ct.tsx:126"
+              },
+              {
+                "kind": "issue",
+                "target": "#885"
+              }
+            ]
+          },
+          {
+            "claim": "The SkeletonRows-static-count class is gated: no reserveKey and no @first-boot-only marker is RED, duplicate literal keys are RED, and the marker vocabulary is two-sided.",
+            "evidence": [
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/query-boundary-reservation.ts:1"
+              },
+              {
+                "kind": "issue",
+                "target": "#885"
+              }
+            ]
+          },
+          {
+            "claim": "The collapsible trigger default is inverted to the control floor; size=\"text\" is the marked sub-floor opt-out and the Stack rows=\"control\" variant plus the vertical-pitch arm close the #850 row-pitch class.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/ui/src/primitives/collapsible/variants.ts:31"
+              },
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/sub-floor-disclosure.ts:1"
+              },
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/no-floorless-control-in-wrap.ts:1"
+              },
+              {
+                "kind": "issue",
+                "target": "#884"
+              }
+            ]
+          }
+        ]
       },
       "receiptCurrent": true
     },
