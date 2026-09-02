@@ -1945,6 +1945,7 @@
     "tests/tooling/_shared/artifact-out.int.test.ts",
     "tests/tooling/_shared/artifacts.int.test.ts",
     "tests/tooling/_shared/artifacts.test.ts",
+    "tests/tooling/_shared/browser-attach.suite.int.test.ts",
     "tests/tooling/_shared/browser.int.test.ts",
     "tests/tooling/_shared/browser.test.ts",
     "tests/tooling/_shared/devtools-assets.test.ts",
