@@ -185,7 +185,7 @@ function revealView(
 
 // A `rpg.getConfigView` stub — the HOST GM-console read (steering note, delivery model, the TRACKER defs,
 // relationship hints, the deception knobs). Empty-but-valid defaults; the console renders it.
-function configView(macros: readonly unknown[] = [], presetNames: readonly string[] = []): unknown {
+function configView(macros: readonly unknown[] = [], presetNames: readonly string[] = [], gmPresetId: string | null = null): unknown {
   return {
     statProfile: {
       attributes: [{ key: "str", label: "Strength", hint: "raw power" }],
@@ -197,7 +197,8 @@ function configView(macros: readonly unknown[] = [], presetNames: readonly strin
       resolution: { kind: "house-d20" },
     },
     steeringNote: "Keep the tone grim.",
-    gmPresetId: null,
+    // #1032 — the GM-VOICE knob. Default null (the born "your own preset" arm every other pin here drives).
+    gmPresetId,
     extractionMode: "cheap",
     trackers: [
       {
@@ -340,6 +341,9 @@ function stubTakeover(
      *  satellite row leaves the head band for the game tab's own scroll region. Default: the schema's born
      *  1, so every other pin in this file keeps the orbs in the band. */
     readonly fontScale?: number;
+    /** #1032 — the preset LIBRARY the GM-voice knob picks from. Default: the ambient empty list (the
+     *  band's honest "Built-in preset" arm), so every existing caller is unchanged. */
+    readonly presets?: readonly { readonly id: string; readonly name: string }[];
   } = {},
 ): ReturnType<typeof routeTrpc> {
   const readOnly = opts.readOnly ?? false;
@@ -394,6 +398,7 @@ function stubTakeover(
     "chat.listChatInjections": () => [],
     "chat.listMessages": () => opts.messages ?? { messages: [] },
     "chat.send": () => undefined,
+    ...(opts.presets === undefined ? {} : { "preset.list": opts.presets }),
   });
 }
 
@@ -460,6 +465,78 @@ test("the crown HOST console (Game tab, host) renders getConfigView — scalars,
   await trackerRest.click();
   await expect(component.getByRole("textbox", { name: "Tracker 1 label" })).toHaveValue("Trust");
   await expect(component.getByText("debtor")).toBeVisible();
+});
+
+// ── #1032, the viewgap WIRE batch: the GM-VOICE knob ──────────────────────────────────────────────────
+// `RpgConfigView.gmPresetId` is the ONE per-room preset binding there is. The view served it, the write door
+// took it, the turn assembled it, and the console had no control — a host could not reach it from anywhere.
+
+test("the GM-voice knob renders the preset library and shows the game's current pick", async ({ mount, page }) => {
+  await stubTakeover(page, {
+    presets: [
+      { id: "preset_gm_ct", name: "Grim Narrator" },
+      { id: "preset_other_ct", name: "Warm Companion" },
+    ],
+    config: configView([], [], "preset_gm_ct"),
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+
+  const trigger = component.locator('[data-slot="rpg-gm-voice"]').getByRole("combobox", { name: "GM voice preset" });
+  // The pinned preset's NAME, not its id — the trigger mirrors the picked option's label.
+  await expect(trigger).toContainText("Grim Narrator");
+});
+
+test("picking a preset writes the knob through updateConfig; picking the shown value writes nothing", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, {
+    presets: [
+      { id: "preset_gm_ct", name: "Grim Narrator" },
+      { id: "preset_other_ct", name: "Warm Companion" },
+    ],
+    config: configView([], [], "preset_gm_ct"),
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+
+  const trigger = component.locator('[data-slot="rpg-gm-voice"]').getByRole("combobox", { name: "GM voice preset" });
+  // Re-picking what is already shown is not an edit — a knob that writes on every open would repaint the
+  // whole room's reads for nothing.
+  await trigger.click();
+  await page.getByRole("option", { name: "Grim Narrator", exact: true }).click();
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBe(0);
+
+  await trigger.click();
+  await page.getByRole("option", { name: "Warm Companion", exact: true }).click();
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.lastInput("rpg.updateConfig")).toMatchObject({ gmPresetId: "preset_other_ct" });
+});
+
+test("choosing `Your own preset` CLEARS the knob to null (the augment arm), never an empty string", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, {
+    presets: [{ id: "preset_gm_ct", name: "Grim Narrator" }],
+    config: configView([], [], "preset_gm_ct"),
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+
+  await component.locator('[data-slot="rpg-gm-voice"]').getByRole("combobox", { name: "GM voice preset" }).click();
+  await page.getByRole("option", { name: "Your own preset", exact: true }).click();
+  await expect.poll(() => trpc.lastInput("rpg.updateConfig")).toMatchObject({ gmPresetId: null });
+});
+
+// A game can point at a preset the viewer cannot read (a delete, or a handoff whose heal has not run). The
+// picker must not display "Your own preset" there — that would be a lie about what the next turn assembles.
+test("a DANGLING pick shows as its own degraded option, never silently as the default arm", async ({ mount, page }) => {
+  await stubTakeover(page, {
+    presets: [{ id: "preset_other_ct", name: "Warm Companion" }],
+    config: configView([], [], "preset_gone_ct"),
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+
+  const trigger = component.locator('[data-slot="rpg-gm-voice"]').getByRole("combobox", { name: "GM voice preset" });
+  await expect(trigger).toContainText("preset_gone_ct");
+  await expect(trigger).not.toContainText("Your own preset");
 });
 
 test("the GM console BAND toggle fires updateConfig (host) — the mutation COUNT", async ({ mount, page }) => {

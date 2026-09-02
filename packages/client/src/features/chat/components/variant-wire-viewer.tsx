@@ -19,6 +19,20 @@
 // would refuse — the affordance itself doesn't advertise a plane they can't have. The server gate is the
 // AUTHORITY; this one is UX (never the reverse).
 //
+// THE FOUR RECORDED INPUTS, NOT JUST THE PROMPT (#1032, the viewgap WIRE batch). `VariantWireView` serves
+// `promptSnapshot` + `params` + `macroDraws` + `rawContent`/`macroFreezes`, and this dialog used to destructure
+// only the first two — so the three fields that answer "why did it say THAT" for a NONDETERMINISTIC turn were
+// stamped per variant, host-gated, and never rendered anywhere. Together they are the whole nondeterministic
+// input set (draws ∪ freezes ∪ params ∪ prompt): running the volatile registry over `rawContent` with the
+// recorded draws + freezes reproduces the stored body byte-exactly.
+//
+// THE PROVENANCE BLOCK IS NOT INSIDE THE PROMPT ARM, DELIBERATELY. `rawContent`/`macroFreezes` are about the
+// stored CONTENT, not about a prompt, and the documented reason the freeze record exists at all is the
+// greeting-swipe gap — a variant committed by a verbatim/greeting seed carries NO prompt (`prompt: null`) and
+// can still carry freezes. Rendering them only beside a non-null prompt would hide them on exactly the case
+// they were minted for, so the empty-prompt arm keeps its honest "nothing was captured" answer and the
+// provenance sections render beneath it either way.
+//
 // The read is GATED on `open` (`useQuery` `enabled`) — never eager per row — and immutable once committed
 // (`staleTime: Infinity`): an edit mints a new variant and a swipe appends one, so a variant's stamped prompt
 // never changes. A NOT_FOUND is a TYPED gone-arm (the `MemberCardViewer` precedent), never a swallowed catch:
@@ -87,16 +101,78 @@ function InjectionsSection({ prompt }: { readonly prompt: VariantWireView["promp
   );
 }
 
-/** The resolved body: the two prompt halves + the injections + the recorded knobs. */
+/** The per-turn RANDOM-PICK draws (`macroDraws`) — macro → input → the value that was drawn, frozen at
+ *  commit so a swipe/continue of this slot resolves the identical pick. Renders nothing when the turn drew
+ *  nothing (null, or the recorded-but-empty `{}` a turn with no random-pick macro writes). */
+function MacroDrawsSection({ draws }: { readonly draws: VariantWireView["macroDraws"] }): ReactElement | null {
+  const lines =
+    draws === null ? [] : Object.entries(draws).flatMap(([macro, inputs]) => Object.entries(inputs).map(([input, value]) => `${macro}.${input} = ${value}`));
+  if (lines.length === 0) {
+    return null;
+  }
+  return (
+    <Section heading={<Text voice="kicker">{`Frozen random draws (${lines.length})`}</Text>}>
+      <Stack gap="field">
+        <Text voice="gloss">The random-pick macros this turn rolled, frozen at commit — a swipe or a continue of this reply replays these exact values.</Text>
+        <LogViewer lines={lines} className="max-h-40" />
+      </Stack>
+    </Section>
+  );
+}
+
+/** The VOLATILE occurrences the commit baked into the stored body (D129-F) — `{{roll::2d6}} → 7`, in
+ *  occurrence order, so a replay walks them positionally exactly as the freeze wrote them. Null/empty ⇒
+ *  nothing froze (the common case). */
+function MacroFreezesSection({ freezes }: { readonly freezes: VariantWireView["macroFreezes"] }): ReactElement | null {
+  if (freezes === null || freezes.length === 0) {
+    return null;
+  }
+  return (
+    <Section heading={<Text voice="kicker">{`Frozen volatile macros (${freezes.length})`}</Text>}>
+      <Stack gap="field">
+        <Text voice="gloss">Rolls, picks and clock reads are baked destructively into the stored text at commit. These are the values that were baked in.</Text>
+        <LogViewer
+          lines={freezes.map((freeze) => `{{${freeze.name}${freeze.args === undefined ? "" : `::${freeze.args}`}}} → ${freeze.value}`)}
+          className="max-h-40"
+        />
+      </Stack>
+    </Section>
+  );
+}
+
+/** The three FREEZE-PROVENANCE arms, rendered whether or not a prompt was captured (the greeting-swipe case
+ *  carries freezes with a null prompt — see this file's header). */
+function WireProvenance({ wire }: { readonly wire: VariantWireView }): ReactElement {
+  const { macroDraws, macroFreezes, rawContent } = wire;
+  return (
+    <>
+      <MacroDrawsSection draws={macroDraws} />
+      <MacroFreezesSection freezes={macroFreezes} />
+      {rawContent === null ? null : (
+        <WireSection
+          heading="Authored text, before transforms"
+          gloss="What this reply said before the receive transforms and the freeze rewrote it. Absent means no distinct pre-transform text is recorded — never that the two were identical."
+          text={rawContent}
+        />
+      )}
+    </>
+  );
+}
+
+/** The resolved body: the two prompt halves + the injections + the recorded knobs, then the freeze
+ *  provenance (which is content-plane, so it outlives a null prompt). */
 function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
   const { prompt, params } = wire;
   if (prompt === null) {
     return (
-      <EmptyState
-        icon={<Icon icon={ScrollText} size="lg" />}
-        title="No prompt was captured for this reply"
-        description="Only generated replies record the prompt they sent — a message you typed, an imported turn, or a seeded greeting never ran one. Raw provider bytes aren't stored at all; they live only in the dev wire-capture ring (WIRE_CAPTURE)."
-      />
+      <Stack gap="section">
+        <EmptyState
+          icon={<Icon icon={ScrollText} size="lg" />}
+          title="No prompt was captured for this reply"
+          description="Only generated replies record the prompt they sent — a message you typed, an imported turn, or a seeded greeting never ran one. Raw provider bytes aren't stored at all; they live only in the dev wire-capture ring (WIRE_CAPTURE)."
+        />
+        <WireProvenance wire={wire} />
+      </Stack>
     );
   }
   return (
@@ -114,6 +190,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
           <LogViewer lines={JSON.stringify(params, null, 2).split("\n")} className="max-h-40" />
         </Section>
       )}
+      <WireProvenance wire={wire} />
     </Stack>
   );
 }

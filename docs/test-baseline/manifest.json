@@ -209,6 +209,7 @@
     "tests/client/features/chat/lib/join-token.test.ts",
     "tests/client/features/chat/lib/member-rows.test.ts",
     "tests/client/features/chat/lib/message-actions-reveal.test.ts",
+    "tests/client/features/chat/lib/message-readout.test.ts",
     "tests/client/features/chat/lib/message-render-context.test.ts",
     "tests/client/features/chat/lib/message-row-variants.test.ts",
     "tests/client/features/chat/lib/new-arrivals.test.ts",

@@ -37,6 +37,7 @@ import { mintDefKey } from "../lib/mint-key.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgGameMacros } from "./rpg-game-macros.tsx";
+import { RpgGmVoice } from "./rpg-gm-voice.tsx";
 import { RpgHintMapEditor } from "./rpg-hint-map-editor.tsx";
 import { HostConsoleScalars } from "./rpg-host-scalars.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
@@ -384,6 +385,10 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
           → GAME MACROS (WAVE MU — the game half of the two authoring homes; its own autosave boundary because
           it owns a structural array). */}
       <RpgRulesetControl chatId={state.chatId} config={config} />
+      {/* #1032 — the GM-VOICE knob sits directly under the ruleset because the two answer the same class of
+          question about the whole table: the ruleset decides the vocabulary every section below edits, this
+          decides which preset the turns speak in. Both are per-room bindings, neither is a scalar. */}
+      <RpgGmVoice chatId={state.chatId} config={config} />
       <RpgStatProfileEditor chatId={state.chatId} config={config} />
       <TrackersEditor chatId={state.chatId} config={config} />
       <RelationshipHintsEditor chatId={state.chatId} config={config} />

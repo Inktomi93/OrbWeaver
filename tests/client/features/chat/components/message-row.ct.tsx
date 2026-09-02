@@ -188,6 +188,39 @@ test("showTimestamps off: no timestamp element (respecting the toggle)", async (
   await expect(component.locator(TIMESTAMP)).toHaveCount(0);
 });
 
+// #1032 — the EDITED marker. `MessageView.editedAt` was stamped by the edit verb and read by no client
+// file, so a rewritten reply was indistinguishable from the one the model produced. It rides the name row
+// beside the timestamp (it is a fact about WHEN this text became what it is), never the prose block.
+test("editedAt: the name row carries an `edited` marker beside the timestamp", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      editedAt={1_700_000_000_000}
+      metadataVisibility={meta({ showTimestamps: true })}
+    />,
+  );
+  const edited = component.locator(NAME_ROW).locator('[data-slot="message-metadata-edited"]');
+  await expect(edited).toHaveCount(1);
+  await expect(edited).toHaveText("edited");
+});
+
+test("a never-edited row carries no marker (absence, not an empty span)", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      metadataVisibility={meta({ showTimestamps: true })}
+    />,
+  );
+  await expect(component.locator(NAME_ROW).locator(TIMESTAMP)).toHaveCount(1);
+  await expect(component.locator('[data-slot="message-metadata-edited"]')).toHaveCount(0);
+});
+
 test("showTokenCount: the token count is inline micro-mono text (no Badge pill); the metadata row renders", async ({ mount }) => {
   const component = await mount(
     <MessageRowStory

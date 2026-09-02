@@ -18,15 +18,19 @@ export function genDurationMs(startedAt: number | null, finishedAt: number | nul
   return finishedAt - startedAt;
 }
 
+/** The quiet-metadata format for ANY millisecond duration in this row: sub-second → whole `Nms`, else
+ *  `N.Ns` (one decimal). Extracted (#1032) so the `ttftMs` readout beside the timer prints in the SAME
+ *  shape as the timer itself — two spellings of "a duration" in one `·`-separated row would read as two
+ *  different kinds of number.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
+export function durationLabel(ms: number): string {
+  return ms < SUB_SECOND_MAX_MS ? `${ms}ms` : `${(ms / MS_PER_SECOND).toFixed(1)}s`;
+}
+
 /** The quiet-metadata label for a gen duration: sub-second → whole `Nms`, else `N.Ns` (one decimal).
  *  Returns null when there is no complete window to show (caller renders no chip). */
 export function genDurationLabel(startedAt: number | null, finishedAt: number | null): string | null {
   const ms = genDurationMs(startedAt, finishedAt);
-  if (ms === null) {
-    return null;
-  }
-  if (ms < SUB_SECOND_MAX_MS) {
-    return `${ms}ms`;
-  }
-  return `${(ms / MS_PER_SECOND).toFixed(1)}s`;
+  return ms === null ? null : durationLabel(ms);
 }

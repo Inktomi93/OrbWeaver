@@ -172,6 +172,7 @@ export interface InboxView {
  *  a prompt-composition attack), so there is deliberately no `presenceSchema` to parse a client claim into. */
 export interface PresenceView {
   userId: UserId;
+  // @view-server-only: no wire producer exists yet — presence is read server-side only (transport's `presence.read`, injected into chat's cast-gating as `readPresence` and used by the stream router's host-return edge), so no tRPC procedure carries this view to a client. The wire surface is RULED TO BE BUILT — #1039 (the D16 invite system's presence half: a membership-gated read + the roster presence dot), provenance #1032. This marker REDS AS STALE the moment that client read lands, which is exactly the signal #1039 wants.
   online: boolean;
   lastSeenAt: number | null;
 }

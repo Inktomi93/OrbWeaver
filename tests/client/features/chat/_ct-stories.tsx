@@ -249,6 +249,9 @@ export interface MessageRowStoryProps {
   readonly reasoning?: string | null;
   /** Phase 4b §B.5.5 — the reasoning-disclosure glyph pref. */
   readonly showLLMReasoningIcon?: boolean;
+  /** #1032 — the edit stamp (`MessageView.editedAt`, epoch-ms). Omitted/null ⇒ the never-edited row every
+   *  other story drives; a number drives the name row's "edited" marker beside the timestamp. */
+  readonly editedAt?: number | null;
   /** WIREBTN — the server-resolved room-HOST bit (`ChatDetail.viewerIsHost`). Gates the kebab's
    *  "View wire trace…" item; default false = the member plane every other row story drives. */
   readonly viewerIsHost?: boolean;
@@ -300,6 +303,7 @@ export function MessageRowStory({
   toolCalls,
   reasoning = null,
   showLLMReasoningIcon,
+  editedAt = null,
   viewerIsHost = false,
   messageKind = "standard",
   stickyAttribution = false,
@@ -352,6 +356,7 @@ export function MessageRowStory({
               ...(messageId === undefined ? {} : { id: messageId }),
               role: messageRole,
               kind: messageKind,
+              editedAt,
               content,
               characterId,
               personaId,

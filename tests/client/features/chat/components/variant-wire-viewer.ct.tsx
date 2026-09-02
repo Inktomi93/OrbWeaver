@@ -50,6 +50,20 @@ const WIRE_DATA = {
   },
   params: { temperature: 0.7 },
   macroDraws: null,
+  rawContent: null,
+  macroFreezes: null,
+};
+
+/** The FREEZE-PROVENANCE arms (#1032) — the three fields the dialog never destructured. Kept separate from
+ *  `WIRE_DATA` so the default stub stays the "nothing nondeterministic happened" case and each pin opts in. */
+const WIRE_DATA_WITH_PROVENANCE = {
+  ...WIRE_DATA,
+  macroDraws: { mood: { tone: "grim" } },
+  macroFreezes: [
+    { name: "roll", args: "2d6", value: "7" },
+    { name: "time", value: "dusk" },
+  ],
+  rawContent: "The dice said {{roll::2d6}} and it was {{time}}.",
 };
 
 /** The A3 action cluster rests `opacity-0 pointer-events-none` and reveals on hover/focus-within; these
@@ -122,11 +136,66 @@ test("opening fires exactly one fetch keyed by the shown swipe's variantId and r
   await expect(dialog).toContainText("temperature");
 });
 
+// #1032 — the three recorded inputs the dialog served but never rendered. A host asking "why did it say
+// THAT" of a nondeterministic turn got the prompt and the knobs and nothing about the roll that decided it.
+test("the freeze provenance renders: the frozen draws, the baked volatile macros, and the pre-transform text", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, [WIRE_PROC]: () => WIRE_DATA_WITH_PROVENANCE });
+  const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
+
+  await openActionsMenu(component);
+  await menuItem(page, WIRE_ITEM).click();
+  const dialog = page.locator('[data-testid="variant-wire-viewer"]');
+
+  // The DRAWS — macro → input → the value the turn actually drew (a swipe replays exactly this).
+  await expect(dialog).toContainText("Frozen random draws (1)");
+  await expect(dialog).toContainText("mood.tone = grim");
+  // The FREEZES — occurrence-ordered, argument-carrying and argument-less both spelled honestly.
+  await expect(dialog).toContainText("Frozen volatile macros (2)");
+  await expect(dialog).toContainText("{{roll::2d6}} → 7");
+  await expect(dialog).toContainText("{{time}} → dusk");
+  // The RAW — the authored text before the transforms + the freeze rewrote it.
+  await expect(dialog).toContainText("Authored text, before transforms");
+  await expect(dialog).toContainText("The dice said {{roll::2d6}} and it was {{time}}.");
+});
+
+test("nothing nondeterministic happened: no draws/freezes/raw sections at all (absent, never an empty shell)", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, [WIRE_PROC]: () => WIRE_DATA });
+  const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
+
+  await openActionsMenu(component);
+  await menuItem(page, WIRE_ITEM).click();
+  const dialog = page.locator('[data-testid="variant-wire-viewer"]');
+  // Settle on the arm that IS present before asserting the absences (never assert absence into a pending read).
+  await expect(dialog).toContainText("Static prefix");
+  await expect(dialog).not.toContainText("Frozen random draws");
+  await expect(dialog).not.toContainText("Frozen volatile macros");
+  await expect(dialog).not.toContainText("Authored text, before transforms");
+});
+
+// The greeting-swipe case the freeze record was minted FOR: a verbatim/greeting-seeded variant carries no
+// prompt at all, and its freezes are the only record of what it rolled. Hiding them behind the prompt arm
+// would blind exactly the case that motivated the column.
+test("a variant with NO prompt still shows its freeze provenance beside the honest empty answer", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    [WIRE_PROC]: () => ({ ...WIRE_DATA_WITH_PROVENANCE, prompt: null, params: null }),
+  });
+  const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
+
+  await openActionsMenu(component);
+  await menuItem(page, WIRE_ITEM).click();
+  const dialog = page.locator('[data-testid="variant-wire-viewer"]');
+  await expect(dialog).toContainText("No prompt was captured for this reply");
+  await expect(dialog).toContainText("{{roll::2d6}} → 7");
+  await expect(dialog).toContainText("mood.tone = grim");
+});
+
 test("a variant that captured nothing says so — never a blank panel", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
-    [WIRE_PROC]: () => ({ variantId: "mv_ct_1", prompt: null, params: null, macroDraws: null }),
+    [WIRE_PROC]: () => ({ variantId: "mv_ct_1", prompt: null, params: null, macroDraws: null, rawContent: null, macroFreezes: null }),
   });
   const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
 
