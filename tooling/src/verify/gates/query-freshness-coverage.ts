@@ -76,6 +76,9 @@ const STATIC: ExemptionTable = {
   "admin.vllmEngines": {
     why: "POLLS: features/user-admin/components/admin-engines-section.tsx sets a status-adaptive `refetchInterval` (fast while an engine is mid-transition, slow at steady state) — an engine's liveness is a machine fact no bus announces.",
   },
+  "notifications.presence": {
+    why: "POLLS (#1039): features/chat/hooks/use-roster-presence.ts sets `refetchInterval = PRESENCE_POLL_MS` (20s) beside a finite 10s staleTime, and the hook's header argues the choice — presence has NO bus (the registry is a ref-count over open sockets with no event and no fan-out), the roster it decorates is itself a query, and the server debounces disconnects behind a 15s grace window, so a sub-second driver could not see a change sooner than the poll does. The `admin.vllmEngines` shape exactly: a machine liveness fact nothing announces. The row goes STALE-RED the day presence grows a bus member and the seam gains its filter, which is the intended end condition.",
+  },
   "notifications.list": {
     why: "driven by the durable inbox SSE adapter (features/notifications/hooks/use-inbox-stream.ts) — every arrival AND every transition into the live state calls invalidation.invalidateFilters([notifications.list]); the bell's own mark-read/dismiss mutations `invalidates` it too.",
   },

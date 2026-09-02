@@ -242,6 +242,19 @@ const beltSurfaces: readonly BeltSurface[] = [
     },
     drive: (ctx) => caller(ctx).notifications.dismiss({ notificationId }),
   },
+  {
+    // #1039 — the presence DISCLOSURE read. It reaches no domain verb (presence is transport-owned state),
+    // so the probe is the registry's own `read` spy: not called ⇒ the belt refused before any presence fact
+    // was consulted. This row is the belt half of the row's security posture — a deployment that cannot seat
+    // a second human must not answer "who is online" at all, and must refuse it as NONEXISTENT rather than
+    // as forbidden (a FORBIDDEN here would advertise that the surface exists).
+    path: "notifications.presence",
+    make: () => {
+      const read = vi.fn<PresenceRegistry["read"]>((userId) => ({ userId, online: false, lastSeenAt: null }));
+      return { services: {}, presence: { connect: (): void => undefined, read }, probe: read };
+    },
+    drive: (ctx) => caller(ctx).notifications.presence({ userIds: [kickTarget] }),
+  },
 ];
 
 describe("multiHumanProcedure — the multi-human capability 404 belt (PD-106 / B4)", () => {

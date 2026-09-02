@@ -469,3 +469,64 @@ test("dismissing the confirm nominates NOBODY and forgets the box (a checked-the
   await page.getByRole("menuitem", { name: HANDOFF_RE }).click();
   await expect(page.getByRole("alertdialog").getByRole("checkbox", { name: OFFER_RE })).not.toBeChecked();
 });
+
+// ── #1039: the roster PRESENCE dot ─────────────────────────────────────────────────────────────────────
+//
+// The presence read is a new DISCLOSURE surface, so the rendered half owes three things: the state reaches
+// a screen reader as a WORD (the dot is aria-hidden decoration — an aria-label inside the row Button would
+// be swallowed by the Button's own aria-label and announce nothing), the two states are distinguishable
+// with COLOUR REMOVED, and UNKNOWN renders nothing at all rather than being drawn as offline.
+
+const PRESENCE_DOT = '[data-slot="member-presence"]';
+
+test("#1039: presence reaches AT as a WORD, and the dot itself is aria-hidden decoration", async ({ mount }) => {
+  const component = await mount(<MembersPanelStory withPeople={true} presence="mixed" />);
+  const people = component.locator('[data-slot="members-people"]');
+
+  await expect(people.getByRole("button", { name: "Riley — host, you, online" })).toBeVisible();
+  await expect(people.getByRole("button", { name: "Kestrel — member, nominated as host, offline" })).toBeVisible();
+  // Two dots, both hidden from the a11y tree: the announcement is the row name, never the indicator.
+  await expect(people.locator(PRESENCE_DOT)).toHaveCount(2);
+  for (const dot of await people.locator(PRESENCE_DOT).all()) {
+    await expect(dot).toHaveAttribute("aria-hidden", "true");
+  }
+});
+
+test("#1039: the two states differ with COLOUR REMOVED — online is filled, offline is a hollow ring", async ({ mount }) => {
+  const component = await mount(<MembersPanelStory withPeople={true} presence="mixed" />);
+
+  // Read the SHAPE channel off the resolved styles, not the class string: a fill and a ring are the two
+  // things a colour-blind reader can still tell apart, so that difference is what the pin is about.
+  const shape = await component.locator(PRESENCE_DOT).evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const style = globalThis.getComputedStyle(node);
+      return {
+        online: node.getAttribute("data-online"),
+        filled: style.backgroundColor !== "rgba(0, 0, 0, 0)" && style.backgroundColor !== "transparent",
+        ringed: Number.parseFloat(style.borderTopWidth) > 0 && style.borderTopStyle !== "none",
+      };
+    }),
+  );
+
+  expect(shape).toEqual([
+    { online: "true", filled: true, ringed: false },
+    { online: "false", filled: false, ringed: true },
+  ]);
+});
+
+test("#1039: UNKNOWN presence renders NO dot and says NOTHING — a read that never landed is not 'offline'", async ({ mount }) => {
+  // The default story leaves presence unresolved (`online: null`), which is what a surface that never asked,
+  // an in-flight read, and a deployment that refuses the read all produce.
+  const component = await mount(<MembersPanelStory withPeople={true} />);
+  const people = component.locator('[data-slot="members-people"]');
+
+  await expect(people.locator(PRESENCE_DOT)).toHaveCount(0);
+  await expect(people.getByRole("button", { name: "Riley — host, you" })).toBeVisible();
+  await expect(people).not.toContainText("offline");
+});
+
+test("#1039: the dot is a PEOPLE-row affordance — a character seat never grows one", async ({ mount }) => {
+  const component = await mount(<MembersPanelStory withPeople={true} presence="mixed" />);
+
+  await expect(component.locator('[data-slot="members-characters"]').locator(PRESENCE_DOT)).toHaveCount(0);
+});

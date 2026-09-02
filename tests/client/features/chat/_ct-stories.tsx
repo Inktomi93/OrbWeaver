@@ -2285,7 +2285,18 @@ export interface MembersPanelStoryProps {
   readonly soloCharacters?: boolean;
   /** A room with NO characters at all — the Characters section is then the add door's empty state. */
   readonly emptyCharacters?: boolean;
+  /** #1039 — the People rows' presence state. Default `undefined` = UNKNOWN on every seat (`online: null`),
+   *  which is what a surface that never asked produces and is why the pre-#1039 accessible names in this
+   *  file's CTs are unchanged. `"mixed"` seats Riley ONLINE and Kestrel OFFLINE — the two rendered arms plus
+   *  the two announced words in one mount. */
+  readonly presence?: "mixed";
 }
+/** #1039 — the story's two People seats' presence, as ONE decision. Lifted out of the component because the
+ *  story is already at the cognitive-complexity ceiling and two inline ternaries pushed it over. */
+function membersStoryPresence(presence: "mixed" | undefined): { readonly riley: boolean | null; readonly kestrel: boolean | null } {
+  return presence === undefined ? { riley: null, kestrel: null } : { riley: true, kestrel: false };
+}
+
 export function MembersPanelStory({
   omitForceTurn = false,
   withPeople = false,
@@ -2294,8 +2305,10 @@ export function MembersPanelStory({
   withAddCharacter = false,
   soloCharacters = false,
   emptyCharacters = false,
+  presence,
 }: MembersPanelStoryProps): ReactElement {
   const [lastAction, setLastAction] = useState("");
+  const seatPresence = membersStoryPresence(presence);
   const people: MemberPersonRow[] = withPeople
     ? [
         {
@@ -2308,6 +2321,7 @@ export function MembersPanelStory({
           avatarHash: null,
           pendingNominee: false,
           historyVisibility: "full",
+          online: seatPresence.riley,
         },
         {
           kind: "person",
@@ -2321,6 +2335,7 @@ export function MembersPanelStory({
           // Default `full` ⇒ the row menu offers the RESTRICT direction; `restrictedMember` flips both the
           // state chip and the item to the RESTORE direction.
           historyVisibility: restrictedMember ? "from-join" : "full",
+          online: seatPresence.kestrel,
         },
       ]
     : [];
@@ -2408,6 +2423,9 @@ export function MembersKickFocusStory(): ReactElement {
     avatarHash: null,
     pendingNominee: false,
     historyVisibility: "full",
+    // Presence UNKNOWN (#1039): this story is about post-kick focus, and an unasked presence read renders
+    // no dot and adds no word — so its accessible names are the pre-#1039 ones the focus pins match on.
+    online: null,
   };
   const people: MemberPersonRow[] = [
     {
@@ -2420,6 +2438,7 @@ export function MembersKickFocusStory(): ReactElement {
       avatarHash: null,
       pendingNominee: false,
       historyVisibility: "full",
+      online: null,
     },
     ...(kicked ? [] : [kestrel]),
   ];

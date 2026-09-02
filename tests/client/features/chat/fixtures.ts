@@ -143,6 +143,13 @@ export const CHAT_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // exercises the real gate path (`hasTransforms === false` ⇒ zero per-row calls) where `null` would only
   // exercise the defensive arm.
   "plugin.listDisplayTransforms": [],
+  // The roster's live-presence read (#1039) — ambient to any CT that mounts the Members tab, which is the
+  // context panel's DEFAULT tab, so it is ambient to the whole context-bracket family rather than a fact
+  // about presence. EMPTY is the honest default (a CT browser holds no live socket for any seat, so nobody
+  // IS online) and, unlike `null`, it is a RESOLVED answer — the rows run the real projection and render the
+  // offline arm, where a null would leave every seat on the UNKNOWN branch and the pipeline inert. A CT whose
+  // SUBJECT is presence overrides it after the spread.
+  "notifications.presence": { onlineUserIds: [] },
 };
 
 /**

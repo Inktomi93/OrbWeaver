@@ -33,6 +33,12 @@ export interface MemberPersonRow {
   /** D16 — how much of the room's canon this member may read (`full` = all of it, the default;
    *  `from-join` = only from their own join point). The host flips it from this row's menu. */
   readonly historyVisibility: JoinHistoryVisibility;
+  /** Live presence (#1039): `true` online · `false` offline · **`null` = NOT KNOWN**, which is its own
+   *  state and never a synonym for offline. Null is what a surface that never asked, a read still in
+   *  flight, and a deployment that refuses the read all produce — the row renders no indicator at all
+   *  there rather than asserting an absence it cannot see. Server-derived from the live socket ref-count;
+   *  never a client heartbeat (client-architecture-lockdown.md §6). */
+  readonly online: boolean | null;
 }
 
 /** A CHARACTER-SEAT row view — source-agnostic (committed roster OR draft founding cards). */
@@ -87,6 +93,17 @@ export interface MemberRowActions {
   readonly onRequestRemovalFocus?: ((key: string) => void) | undefined;
 }
 
+/** The presence CLAUSE of a person row's accessible name (#1039) — the whole non-colour channel, since the
+ *  dot itself is `aria-hidden`. UNKNOWN (`null`) contributes NOTHING: claiming "offline" for a read that
+ *  never resolved is the one lie this field can tell. Split out of {@link rowAccessibleName} because the
+ *  three-way state needs a branch, and a nested ternary is banned house-wide (biome `noNestedTernary`). */
+function presenceClause(online: boolean | null): string {
+  if (online === null) {
+    return "";
+  }
+  return online ? ", online" : ", offline";
+}
+
 /** Identity + state — the row's accessible NAME (§7.1 examples: "Aria — character, muted" ·
  *  "Riley — host" · "you"). */
 export function rowAccessibleName(row: MemberPersonRow | MemberCharacterRow): string {
@@ -96,7 +113,9 @@ export function rowAccessibleName(row: MemberPersonRow | MemberCharacterRow): st
     const nominated = row.pendingNominee ? ", nominated as host" : "";
     // The non-default D16 posture is state, so it rides the accessible NAME (the character row's ", muted" precedent).
     const history = row.historyVisibility === "from-join" ? ", limited history" : "";
-    return `${row.displayName} — ${role}${you}${nominated}${history}`;
+    // Presence is the row's NON-COLOUR channel (#1039): the dot is `aria-hidden` decoration, so this word
+    // is the whole announcement — a colour-blind or screen-reader user reads the state a sighted one sees.
+    return `${row.displayName} — ${role}${you}${nominated}${history}${presenceClause(row.online)}`;
   }
   return `${row.displayName} — character${row.disabled ? ", muted" : ""}`;
 }
@@ -111,6 +130,11 @@ export interface MemberRowSources {
   readonly pendingHostUserId: UserId | null;
   /** The live turn's voiced speaker (`turnStarted.speakerCharacterId`) — never a token read (§7.1). */
   readonly respondingCharacterId: CharacterId | null;
+  /** The human seats the presence read reported ONLINE (`notifications.presence`, #1039), or `null` while
+   *  presence is unknown — unresolved, unasked, or refused by the deployment. A userId's ABSENCE from a
+   *  non-null set means offline OR undisclosed: the server collapses both to the same answer on purpose,
+   *  so the client must not read absence as anything richer than "not shown as online". */
+  readonly onlineUserIds: ReadonlySet<UserId> | null;
 }
 
 /**
@@ -156,6 +180,9 @@ export function toPersonRows(sources: MemberRowSources): MemberPersonRow[] {
       avatarHash: personaAvatar ?? p.avatarHash,
       pendingNominee: sources.pendingHostUserId !== null && p.userId === sources.pendingHostUserId,
       historyVisibility: p.joinHistoryVisibility,
+      // `null` propagates: an unresolved presence read leaves every seat UNKNOWN rather than defaulting the
+      // whole roster to "offline", which is what a `?? false` here would silently publish.
+      online: sources.onlineUserIds === null ? null : sources.onlineUserIds.has(p.userId),
     });
   }
   return rows;

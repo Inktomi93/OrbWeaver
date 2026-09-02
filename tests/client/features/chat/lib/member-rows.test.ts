@@ -11,7 +11,7 @@ import type { ChatIdentity } from "@orb/contracts/chat";
 import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MemberRowSources } from "../../../../../packages/client/src/features/chat/lib/member-rows.ts";
-import { toCharacterRows, toPersonRows } from "../../../../../packages/client/src/features/chat/lib/member-rows.ts";
+import { rowAccessibleName, toCharacterRows, toPersonRows } from "../../../../../packages/client/src/features/chat/lib/member-rows.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "./_support.ts";
 
@@ -27,7 +27,16 @@ const OIDC_EMAIL = "inktomi93@gmail.com";
 const NATE_CAST: ChatIdentity = { kind: "persona", id: NATE_PERSONA, name: "Alex", description: "", avatarHash: "persona-hash" };
 
 function sourcesOf(over: Partial<MemberRowSources> = {}): MemberRowSources {
-  return { participants: [], identities: [], viewerUserId: OWNER_ID, pendingHostUserId: null, respondingCharacterId: null, ...over };
+  return {
+    participants: [],
+    identities: [],
+    viewerUserId: OWNER_ID,
+    pendingHostUserId: null,
+    respondingCharacterId: null,
+    // UNKNOWN by default (#1039) — the state a surface that never asked produces.
+    onlineUserIds: null,
+    ...over,
+  };
 }
 
 /** One human seat as an OIDC install produces it: handle === displayName === the email. */
@@ -102,4 +111,46 @@ test("toCharacterRows projects every character seat in roster order, marking the
     ["Alice", true, false],
     ["Bob", false, true],
   ]);
+});
+
+// ── #1039 PRESENCE PROJECTION ────────────────────────────────────────────────────────────────────────
+// The security-relevant half of the roster dot is what the client does with an answer it did NOT get. The
+// server collapses "offline" and "not disclosable to you" into one answer (an id simply absent from the
+// online set), so absence is only ever "not shown as online" — and a read that never resolved must not be
+// rendered as an absence at all.
+
+test("presence projects per seat: in the online set ⇒ true, absent from a resolved set ⇒ false", () => {
+  const other = oidcSeat({ id: castId("participant_other"), userId: OTHER_ID, role: "member" });
+  const rows = toPersonRows(sourcesOf({ participants: [oidcSeat(), other], onlineUserIds: new Set([OWNER_ID]) }));
+
+  expect(rows.map((r) => [r.key, r.online])).toEqual([
+    ["participant_owner", true],
+    ["participant_other", false],
+  ]);
+});
+
+test("an UNRESOLVED presence read leaves every seat UNKNOWN — never a roster silently published as offline", () => {
+  const other = oidcSeat({ id: castId("participant_other"), userId: OTHER_ID, role: "member" });
+  const rows = toPersonRows(sourcesOf({ participants: [oidcSeat(), other], onlineUserIds: null }));
+
+  expect(rows.map((r) => r.online)).toEqual([null, null]);
+});
+
+test("an EMPTY resolved set is a real answer (everyone offline), NOT the unknown state", () => {
+  const rows = toPersonRows(sourcesOf({ participants: [oidcSeat()], onlineUserIds: new Set<UserId>() }));
+  expect(rows.map((r) => r.online)).toEqual([false]);
+});
+
+test("the accessible name carries presence as a WORD — and says nothing at all when it is unknown", () => {
+  const [unknown] = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })], identities: [NATE_CAST] }));
+  const [online] = toPersonRows(
+    sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })], identities: [NATE_CAST], onlineUserIds: new Set([OWNER_ID]) }),
+  );
+  const [offline] = toPersonRows(
+    sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })], identities: [NATE_CAST], onlineUserIds: new Set<UserId>() }),
+  );
+
+  expect(unknown === undefined ? "" : rowAccessibleName(unknown)).toBe("Alex — host, you");
+  expect(online === undefined ? "" : rowAccessibleName(online)).toBe("Alex — host, you, online");
+  expect(offline === undefined ? "" : rowAccessibleName(offline)).toBe("Alex — host, you, offline");
 });
