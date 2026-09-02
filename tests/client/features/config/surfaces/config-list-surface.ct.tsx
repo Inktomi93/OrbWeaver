@@ -12,7 +12,14 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { ConfigListDefaultStory, ConfigListNarrowStory, ConfigMobileListStory, ConfigSectionArrivalStory, ConfigWorkspaceStory } from "../_ct-stories.tsx";
+import {
+  ConfigHostStory,
+  ConfigListDefaultStory,
+  ConfigListNarrowStory,
+  ConfigMobileListStory,
+  ConfigSectionArrivalStory,
+  ConfigWorkspaceStory,
+} from "../_ct-stories.tsx";
 
 /** The group bands, by their accessible name — a band is `<disclosure> <icon> LABEL <count>`, so the
  *  name carries the count and only a pattern can address it. */
@@ -999,4 +1006,141 @@ test("the LIST teaches on a phone and stays silent on the desktop", async ({ mou
   expect(frameBox.y + frameBox.height, "the frame leads the list").toBeLessThanOrEqual(bandBox.y + 1);
   const overflow = await frame.evaluate((node) => node.scrollWidth - node.clientWidth);
   expect(overflow, "no sideways scroll on a phone").toBe(0);
+});
+
+// ── #978 F1 · THE LIST'S ROW HEIGHT IS ONE GOVERNED BOX ──────────────────────────────────────────────
+//
+// The settings bands measured 290.2 × 16.0px on the live surface at BOTH pointer classes (side-eye
+// 2026-09-02 F1, byte-identical to the 08-30 drive) while their COLLECTION siblings in the same list
+// measured the governed `control-sm` box — one component, two heights, and Lighthouse `target-size`
+// failing on nine nodes with a 20px safe clickable space. The cause is an AXIS mistake, not a missing
+// size: the band Button is a child of a VERTICAL `Stack`, so `flex-1`'s `flex-basis: 0%` lands on the
+// BLOCK axis and defeats the sealed `h-control-sm`; the box then falls back to min-content.
+//
+// The pin is DYNAMIC on both halves — every band the list renders, against the RESOLVED token — because
+// the count is history (nine today) and the token is pointer-CONDITIONAL (44 coarse / 32 fine). A frozen
+// nine or a literal 32 would ratify today's registry and fail a correct retune.
+function controlSmPx(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.height = "var(--spacing-control-sm)";
+    document.body.append(probe);
+    const px = probe.getBoundingClientRect().height;
+    probe.remove();
+    return px;
+  });
+}
+
+/** Every rendered band's height, in DOM order — zero-boxed (unmounted/hidden) bands dropped, so the
+ *  LENGTH is a real measured count and a silent empty sweep can never read as a pass. */
+function bandHeights(pane: Locator): Promise<readonly number[]> {
+  return pane
+    .locator('[data-slot="config-band"]')
+    .evaluateAll((bands) => bands.map((band) => band.getBoundingClientRect().height).filter((height) => height > 0));
+}
+
+test("every band in the LIST is the governed control-sm box — one row height, not two", async ({ mount, page }) => {
+  await stub(page);
+  const listPane = await mount(<ConfigListDefaultStory />);
+  await listPane.getByRole("button", { name: "reset groups" }).click();
+
+  expect(await page.evaluate(() => matchMedia("(pointer: fine)").matches), "the fine-pointer arm must be active").toBe(true);
+  const floor = await controlSmPx(page);
+  await expect.poll(async () => (await bandHeights(listPane)).length, "the sweep must have measured bands at all").toBeGreaterThan(1);
+  const heights = await bandHeights(listPane);
+  expect(new Set(heights), `all ${String(heights.length)} bands are the resolved control-sm box (${String(floor)}px)`).toEqual(new Set([floor]));
+});
+
+test.describe("coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("every band in the LIST is the governed box at a COARSE pointer too", async ({ mount, page }) => {
+    await stub(page);
+    const listPane = await mount(<ConfigListDefaultStory />);
+    await listPane.getByRole("button", { name: "reset groups" }).click();
+
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches), "the coarse arm must be active").toBe(true);
+    const floor = await controlSmPx(page);
+    await expect.poll(async () => (await bandHeights(listPane)).length, "the sweep must have measured bands at all").toBeGreaterThan(1);
+    const heights = await bandHeights(listPane);
+    expect(new Set(heights), `all ${String(heights.length)} bands are the resolved coarse control-sm box (${String(floor)}px)`).toEqual(new Set([floor]));
+  });
+});
+
+// ── #978 F4 · THE LIST TELLS THE TRUTH ABOUT CONTENT'S ORDER ─────────────────────────────────────────
+//
+// The LIST used to paint the registry's RAW declaration order while CONTENT painted the advanced sections
+// last, inside a collapsed fold — so the map advertised `… Avatars · Sizing & motion · Message details …`
+// over a pane that renders `… Avatars · Message details …` and hides Sizing & motion 2200px down behind a
+// disclosure the map never mentioned (side-eye 2026-09-02 F4). ONE partition contract now owns the order
+// for both panes, and the fold's rows are announced as what they are.
+const APPEARANCE_BAND = "Appearance";
+/** The canonical Appearance sequence: the plain sections in declaration order, then the "Customize this
+ *  look" cohort. LIST rows render `navLabel ?? label`, so "Message details" is the declared abbreviation
+ *  of the "Message details & actions" heading. */
+const APPEARANCE_ROWS = ["Looks", "Message style", "Avatars", "Message details", "Background", "Library", "Sizing & motion", "Reading typography", "Effects"];
+const APPEARANCE_FOLD = "Customize this look";
+function readRowTitles(scope: Locator): Promise<readonly string[]> {
+  return scope.locator('[data-slot="list-row-title"]').evaluateAll((rows) => rows.map((row) => (row.textContent ?? "").trim()));
+}
+
+test("the LIST paints the Appearance group in CONTENT's order, with the fold's sections last", async ({ mount, page }) => {
+  await stub(page);
+  const listPane = await mount(<ConfigListDefaultStory />);
+  await listPane.getByRole("button", { name: "reset groups" }).click();
+  await listPane.getByRole("button", { name: APPEARANCE_BAND }).click();
+
+  await expect
+    .poll(() => readRowTitles(listPane.locator('[data-config-group="appearance"]')), "the map's sequence is the pane's sequence")
+    .toEqual(APPEARANCE_ROWS);
+});
+
+test("the LIST says the last three Appearance sections live inside the fold", async ({ mount, page }) => {
+  await stub(page);
+  const listPane = await mount(<ConfigListDefaultStory />);
+  await listPane.getByRole("button", { name: "reset groups" }).click();
+  await listPane.getByRole("button", { name: APPEARANCE_BAND }).click();
+
+  // A NAMED nested group, not a badge per row: the fold is ONE place in the pane, so the map states it
+  // once and a screen reader hears those rows inside a group called by the disclosure's own label.
+  const fold = listPane.getByRole("group", { name: APPEARANCE_FOLD });
+  await expect(fold, "the fold cohort is announced by the disclosure's own label").toBeVisible();
+  await expect.poll(() => readRowTitles(fold)).toEqual(["Sizing & motion", "Reading typography", "Effects"]);
+});
+
+// The fold's rows carry a SECOND indent step on top of the group's, so the naming costs width — and a
+// point measurement at the roomy default would not prove the range. This is the OTHER end: the narrowest
+// real docked pane (271px, both panels open), where the list already clips (#1106).
+test("the fold's label and its extra indent still fit the NARROWEST docked pane (271px)", async ({ mount, page }) => {
+  await stub(page);
+  const listPane = await mount(<ConfigListNarrowStory />);
+  await listPane.getByRole("button", { name: "reset groups" }).click();
+  await listPane.getByRole("button", { name: APPEARANCE_BAND }).click();
+
+  const fold = listPane.getByRole("group", { name: APPEARANCE_FOLD });
+  await expect(fold).toBeVisible();
+  const foldKicker = listPane.getByText(APPEARANCE_FOLD, { exact: true });
+  await expect.poll(async () => [...(await overflows(foldKicker)), ...(await overflows(fold.locator('[data-slot="list-row-title"]')))]).toEqual([0, 0, 0, 0]);
+});
+
+// The ANCHOR, not a defect proof: CONTENT already painted this sequence before the fix (the pane was
+// never the liar — the LIST was), so this pin is GREEN-BEFORE and is labelled as what it is. Its job is
+// to make the canonical order above a claim about the RENDERED pane rather than a literal two tests
+// agree on: if a future contribution reorders CONTENT, this reds and the LIST pins red with it.
+test("the CONTENT pane paints the canonical sequence the LIST now advertises (parity anchor)", async ({ mount, page }) => {
+  await stub(page);
+  const host = await mount(<ConfigHostStory height={720} target="appearance" width={1100} />);
+
+  // The fold is collapsed at rest, so its sections are not in the pane yet — open it and read the whole
+  // rendered sequence. This is the map/territory claim itself: the LIST row title at index i is the
+  // CONTENT heading at index i (or its declared abbreviation).
+  await host.getByRole("button", { name: new RegExp(APPEARANCE_FOLD) }).click();
+  const headings = host.locator('[data-slot="config-content"] h3');
+  const readHeadings = (): Promise<readonly string[]> => headings.evaluateAll((nodes) => nodes.map((node) => (node.textContent ?? "").trim()));
+  await expect.poll(readHeadings, "every declared Appearance section is rendered once the fold is open").toHaveLength(APPEARANCE_ROWS.length);
+
+  const rendered = await readHeadings();
+  for (const [index, row] of APPEARANCE_ROWS.entries()) {
+    expect(rendered[index]?.startsWith(row), `CONTENT heading ${String(index)} ("${String(rendered[index])}") is the LIST's row "${row}"`).toBe(true);
+  }
 });

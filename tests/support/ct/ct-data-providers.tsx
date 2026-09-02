@@ -343,7 +343,11 @@ export function CtConfigGroupBody({
   readonly sections: ContributorRegistry<ConfigSectionContribution>;
 }): ReactElement {
   const viewer = useSettingsViewerView();
-  const resolved = resolveConfigSections(sections, anchor, viewer);
+  // The canonical CONTENT sequence (`ConfigSectionPartition`): plain sections, then the advanced-fold
+  // cohort. The story has no fold chrome of its own, so it renders the flattened order — which is exactly
+  // what a foldless host group paints.
+  const { primary, advanced } = resolveConfigSections(sections, anchor, viewer);
+  const resolved = [...primary, ...advanced];
   return (
     <ConfigSectionRegistryProvider value={sections}>
       {/* The host's CONTENT root is a `Container` (a `@container` root, config-content-surface.tsx), so every

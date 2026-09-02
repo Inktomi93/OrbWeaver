@@ -168,9 +168,13 @@ export interface ConfigGroupBase {
    *  contributed with `advanced: true` render inside ONE collapsed-by-default disclosure the host draws
    *  with this label. `caption` is a RENDER (a component may read its own data — Appearance's names the
    *  current look), never a hook the host would have to call conditionally. Declaring a fold with zero
-   *  advanced sections renders nothing; advanced sections without a fold render in plain order (the
-   *  declaration is the wall, not a runtime guess). LIST rows and search are UNTOUCHED — the fold is a
-   *  CONTENT posture, and a landing whose target names a folded section opens it first. */
+   *  advanced sections renders nothing; advanced sections without a fold render in flow AT THE END (the
+   *  canonical order is `ConfigSectionPartition`'s, not each consumer's own sort).
+   *
+   *  THE LIST IS NOT UNTOUCHED (#978 F4, correcting this clause): the map paints the fold's sections last,
+   *  inside a nested group wearing this `label`, and search flattens the same canonical order — because a
+   *  LIST that advertised the raw declaration order over a pane that re-sorted it was telling the reader
+   *  the wrong place to look. A landing whose target names a folded section still opens it first. */
   readonly advancedFold?: { readonly label: string; readonly caption?: () => ReactNode };
 }
 

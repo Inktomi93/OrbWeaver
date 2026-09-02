@@ -217,11 +217,15 @@ function MemberBody({ group, memberId }: { readonly group: ConfigGroupDefinition
  *  group's own server-gated error. A `collection` group never reaches here (`isPushingGroup`). */
 function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactNode {
   const viewer = useSettingsViewerView();
-  const sections = useConfigSections(group.id, viewer);
+  // The ONE order contract (`ConfigSectionPartition`, #978 F4) — the pane does NOT re-sort what it is
+  // handed, because the LIST paints its map off the same partition and a second sort here is exactly how
+  // the two panes drifted. A group with advanced sections and NO declared fold renders them in flow, at
+  // the end: same sequence, no disclosure.
+  const { primary, advanced } = useConfigSections(group.id, viewer);
   const target = useConfigTarget();
   const fold = group.advancedFold;
-  const plain = fold === undefined ? sections : sections.filter((section) => !section.advanced);
-  const folded = fold === undefined ? [] : sections.filter((section) => section.advanced);
+  const plain = fold === undefined ? [...primary, ...advanced] : primary;
+  const folded = fold === undefined ? [] : advanced;
   // The fold OPENS itself when a landing names one of its sections (a LIST click, a search hit, a deep
   // link — a jump into a closed drawer would scroll to nothing). User toggles win afterwards; keyed on the
   // target nonce so a later manual close is never re-fought by a stale landing. A LANDING open is

@@ -9,7 +9,7 @@ import type { ContributorRegistry } from "#lib";
 import { createRegistryContext } from "#lib";
 import type { ConfigGroupId } from "./config-group-ids.ts";
 import type { SettingsViewerView } from "./config-group-registry.ts";
-import type { ConfigSectionContribution, ResolvedConfigSection } from "./config-section-registry.ts";
+import type { ConfigSectionContribution, ConfigSectionPartition, ResolvedConfigSection } from "./config-section-registry.ts";
 import { resolveConfigSections } from "./config-section-registry.ts";
 
 /** The open contributor view over every config section, keyed by contribution id. */
@@ -21,11 +21,13 @@ export function useConfigSectionRegistry(): ConfigSectionRegistry {
   return configSectionRegistryContext.useRegistry();
 }
 
-/** The visible sections contributed at one anchor — the render half of the seam, read by the host group's
+/** The visible sections contributed at one anchor, PARTITIONED by fold membership in canonical order
+ *  (`ConfigSectionPartition` — the ONE order contract, which the LIST's nav projection reads too) — the
+ *  render half of the seam, read by the host group's
  *  own surface so a contributed section keeps the exact DOM position (and therefore the exact geometry) it
  *  had when the registry arrived by prop. `viewer` comes from `#data`'s `useSettingsViewerView()`, the ONE
  *  home of the projection a `when` predicate consumes. */
-export function useConfigSections(anchor: ConfigGroupId, viewer: SettingsViewerView): readonly ResolvedConfigSection[] {
+export function useConfigSections(anchor: ConfigGroupId, viewer: SettingsViewerView): ConfigSectionPartition<ResolvedConfigSection> {
   const registry = useConfigSectionRegistry();
   return resolveConfigSections(registry, anchor, viewer);
 }

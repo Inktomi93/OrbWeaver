@@ -32,7 +32,7 @@ import { ConfigListGroup } from "../components/config-list-group.tsx";
 import { ConfigMobileTeaching } from "../components/config-mobile-teaching.tsx";
 import { ConfigSearchInput } from "../components/config-search-input.tsx";
 import { CONFIG_SHELF_LABELS, configShelfLabelId } from "../lib/config-nav-model.ts";
-import { useConfigSubcategories } from "../lib/config-subcategories.ts";
+import { useConfigSubcategoryParts } from "../lib/config-subcategories.ts";
 import { orderConfigGroups } from "../lib/order-groups.ts";
 
 // The row marker for a section whose save FAILED (SET-SEAMS §3) — a short string so it rides ListRow's
@@ -49,7 +49,7 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
   // The ONE `when` projection (non-suspense — gating must never block a pane from painting), shared by the
   // group filter, the section filter and (S2) the search index.
   const viewer = useSettingsViewerView();
-  const subcategoriesFor = useConfigSubcategories();
+  const subcategoriesFor = useConfigSubcategoryParts();
   const activeGroup = useActiveConfigGroup();
   const activeSub = useActiveConfigSub();
   // The failing sections' rows (§3): the aggregate footer is read-only, so the LOCATION of a failure is
@@ -61,7 +61,13 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
   const visible = orderConfigGroups(groups).filter((group) => group.when?.(viewer) ?? true);
   // Landing at the TOP of a group IS landing on its first section, so the row says so immediately instead
   // of waiting for the suppressed spy to re-arm (#549).
-  const onSelectGroup = (group: ConfigGroupDefinition): void => selectConfigGroup(group.id, subcategoriesFor(group)[0]?.id ?? null);
+  // The FIRST section the pane paints — canonical order, so a fold-only group lands on its first folded
+  // section rather than on nothing (`primary` leads by construction; `advanced` is the fallback).
+  const firstSubId = (group: ConfigGroupDefinition): string | null => {
+    const parts = subcategoriesFor(group);
+    return (parts.primary[0] ?? parts.advanced[0])?.id ?? null;
+  };
+  const onSelectGroup = (group: ConfigGroupDefinition): void => selectConfigGroup(group.id, firstSubId(group));
   const onSelectSub = (groupId: ConfigGroupId, subId: string): void => selectConfigSub(groupId, subId);
 
   return (

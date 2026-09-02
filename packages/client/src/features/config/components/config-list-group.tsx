@@ -12,6 +12,13 @@
 // surface: the ACTIVE group is always expanded and its band cannot collapse it — selection and disclosure
 // are one act (the `selectCollectionMember` rule, now for every kind).
 //
+// A SETTINGS GROUP'S ROWS ARE THE PANE'S SEQUENCE, FOLD AND ALL (#978 F4, superseding the earlier "the
+// fold is a CONTENT posture, LIST rows are untouched" clause on `ConfigGroupBase.advancedFold`). The rows
+// arrive already partitioned by `ConfigSectionPartition` — the ONE order contract, shared with CONTENT —
+// and the advanced cohort is drawn LAST, inside a nested `role="group"` labelled by the disclosure's own
+// name. A map that shows a section where the pane does not paint it is worse than a map that admits the
+// section is behind a door.
+//
 // THE BAND'S CONTROLS ARE SIBLINGS, never nested: the disclosure is a button spanning the identity cluster,
 // and a collection's trailing verbs (the optional IMPORT trigger, then the create `+`) sit BESIDE it — a
 // button inside the disclosure button would be unclickable-by-spec (nested interactives) and unreadable to
@@ -31,14 +38,16 @@ import { useId, useState } from "react";
 import { QueryBoundary, QueryErrorState } from "#data";
 import type { CollectionContribution } from "#lib";
 import { COLLECTION_LARGE_GROUP } from "#lib";
-import type { CollectionGroupDefinition, ConfigGroupDefinition, ConfigGroupId, ConfigSubcategory } from "#state";
+import type { CollectionGroupDefinition, ConfigGroupDefinition, ConfigGroupId, ConfigSectionPartition, ConfigSubcategory } from "#state";
 import { isCollectionGroup, selectCollectionMemberFromList, toggleConfigGroup, useCollectionSelection, useConfigGroupOpen } from "#state";
 
 export interface ConfigListGroupProps {
   readonly group: ConfigGroupDefinition;
-  /** The group's rows: the sections contributed at its anchor (`useConfigSubcategories`, §6.8 — nothing else).
-   *  Empty for a collection group (its rows are the owner's). */
-  readonly subcategories: readonly ConfigSubcategory[];
+  /** The group's rows: the sections contributed at its anchor (`useConfigSubcategoryParts`, §6.8 — nothing
+   *  else), in the ONE canonical order and still SPLIT by fold membership, so the band can say where the
+   *  advanced cohort lives instead of appending it silently. Both sides empty for a collection group (its
+   *  rows are the owner's). */
+  readonly subcategories: ConfigSectionPartition<ConfigSubcategory>;
   /** The EFFECTIVE active group is this one — its rows show, its band cannot collapse. */
   readonly active: boolean;
   /** The scroll-spy's current subcategory inside the active group. */
@@ -74,7 +83,9 @@ function SectionsListGroup({
   const remembered = useConfigGroupOpen(group.id);
   const open = remembered || active;
   const bodyId = useId();
-  const hasRows = subcategories.length > 0;
+  const foldLabelId = `${bodyId}-fold`;
+  const fold = group.advancedFold;
+  const hasRows = subcategories.primary.length > 0 || subcategories.advanced.length > 0;
   return (
     <Stack gap="tight" data-slot="config-group" data-config-group={group.id}>
       {/* A group WITH rows is a disclosure GROUP, not a nav leaf: it expands (`aria-expanded`) and its
@@ -86,7 +97,14 @@ function SectionsListGroup({
         aria-controls={hasRows ? bodyId : undefined}
         aria-current={hasRows || !active ? undefined : "true"}
         aria-expanded={hasRows ? open : undefined}
-        className="min-w-0 flex-1 justify-start gap-tight px-tight"
+        // `w-full`, NOT `flex-1` (#978 F1). This band's parent is a VERTICAL `Stack`, so `flex: 1 1 0%`
+        // put a flex-BASIS of 0 on the BLOCK axis and defeated the size variant's sealed `h-control-sm`:
+        // the button fell back to min-content and every settings band in the LIST rendered 16px tall — at
+        // BOTH pointer classes, beside 32/44px collection siblings drawn by the same component (measured
+        // 290.2 × 16.0px; Lighthouse `target-size` "safe clickable space … 20px instead of at least 24px").
+        // The collection band below keeps `flex-1` because ITS parent is a `Row` — same intent, the axis is
+        // what differs. Pinned by the dynamic band-height CT at both pointer classes.
+        className="min-w-0 w-full justify-start gap-tight px-tight"
         data-slot="config-band"
         data-config-group={group.id}
         intent="ghost"
@@ -103,24 +121,93 @@ function SectionsListGroup({
       <div id={bodyId} hidden={!(open && hasRows)}>
         {open && hasRows ? (
           <Stack className="ps-(--spacing-section)" gap="field">
-            {subcategories.map((sub) => (
-              // The row renders `navLabel` when the section declares one — a name too long for the LIST
-              // column is ABBREVIATED here, never renamed at its heading. The full `label` rides `fullTitle`
-              // so hovering recovers it.
-              <ListRow
+            {subcategories.primary.map((sub) => (
+              <SubcategoryRow
                 key={sub.id}
-                clickable={true}
-                {...(erroredSubIds.has(sub.id) ? { meta: saveFailedMarker } : {})}
-                fullTitle={sub.label}
-                onClick={(): void => onSelectSub(group.id, sub.id)}
-                selected={active && activeSub === sub.id}
-                title={sub.navLabel ?? sub.label}
+                active={active}
+                activeSub={activeSub}
+                erroredSubIds={erroredSubIds}
+                groupId={group.id}
+                onSelectSub={onSelectSub}
+                saveFailedMarker={saveFailedMarker}
+                sub={sub}
               />
             ))}
+            {/* THE MAP SAYS WHERE THE FOLD IS (#978 F4). The advanced cohort used to be interleaved into
+                the LIST at its raw declaration position while CONTENT painted it last, inside a collapsed
+                disclosure — so the map advertised "Sizing & motion" fourth over a pane that renders it
+                ninth, behind a door the map never mentioned, and a cold reader could not tell that three
+                of the nine sections were not on screen. It is now the LAST rows (the partition owns that
+                order) inside a NESTED GROUP wearing the disclosure's own label, which is both the visible
+                answer and the announced one. A group with no declared fold has nothing to name, so its
+                advanced rows simply ride in flow at the end — exactly where CONTENT paints them. */}
+            {fold === undefined || subcategories.advanced.length === 0 ? (
+              subcategories.advanced.map((sub) => (
+                <SubcategoryRow
+                  key={sub.id}
+                  active={active}
+                  activeSub={activeSub}
+                  erroredSubIds={erroredSubIds}
+                  groupId={group.id}
+                  onSelectSub={onSelectSub}
+                  saveFailedMarker={saveFailedMarker}
+                  sub={sub}
+                />
+              ))
+            ) : (
+              <Stack aria-labelledby={foldLabelId} data-slot="config-fold-rows" gap="field" role="group">
+                {/* The visible kicker IS the announced name (`aria-labelledby`), the shelf-label idiom —
+                    so the two cannot drift, and the surface spends no sixth voice on it. */}
+                <Text id={foldLabelId} voice="kicker">
+                  {fold.label}
+                </Text>
+                <Stack className="ps-(--spacing-block)" gap="field">
+                  {subcategories.advanced.map((sub) => (
+                    <SubcategoryRow
+                      key={sub.id}
+                      active={active}
+                      activeSub={activeSub}
+                      erroredSubIds={erroredSubIds}
+                      groupId={group.id}
+                      onSelectSub={onSelectSub}
+                      saveFailedMarker={saveFailedMarker}
+                      sub={sub}
+                    />
+                  ))}
+                </Stack>
+              </Stack>
+            )}
           </Stack>
         ) : null}
       </div>
     </Stack>
+  );
+}
+
+interface SubcategoryRowProps {
+  readonly sub: ConfigSubcategory;
+  readonly groupId: ConfigGroupId;
+  readonly active: boolean;
+  readonly activeSub: string | null;
+  readonly erroredSubIds: ReadonlySet<string>;
+  readonly saveFailedMarker: string;
+  readonly onSelectSub: (groupId: ConfigGroupId, subId: string) => void;
+}
+
+/** ONE section row. The row renders `navLabel` when the section declares one — a name too long for the LIST
+ *  column is ABBREVIATED here, never renamed at its heading. The full `label` rides `fullTitle` so hovering
+ *  recovers it. Extracted so the plain cohort and the fold's cohort are provably the SAME row (they are
+ *  drawn in two places now; a copy would let the fold's rows drift into a second grammar). */
+function SubcategoryRow({ sub, groupId, active, activeSub, erroredSubIds, saveFailedMarker, onSelectSub }: SubcategoryRowProps): ReactElement {
+  return (
+    <ListRow
+      clickable={true}
+      {...(erroredSubIds.has(sub.id) ? { meta: saveFailedMarker } : {})}
+      fullTitle={sub.label}
+      onClick={(): void => onSelectSub(groupId, sub.id)}
+      selected={active && activeSub === sub.id}
+      title={sub.navLabel ?? sub.label}
+    />
   );
 }
 
