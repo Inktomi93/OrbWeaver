@@ -120,3 +120,52 @@ test("#843 the count never breaks mid-phrase at the narrowest real pane", async 
   });
   expect(lines, "the count is one line").toBe(1);
 });
+
+// #1137 (side-eye Characters F10) — THE BAR'S EXIT WAS THE LEAST DISCOVERABLE THING IN IT. At the same
+// docked 290px the #843 arm above measures at, `Clear selection` rendered as a lone 34x34 glyph on its own
+// row 40px BELOW the count, left-aligned: the root carried the wrap and the dismiss is the root's last
+// child, so the dismiss is what went to the second line. The claim is positional, so it is measured
+// positionally — same row as the count, at the bar's trailing edge — with the #843 pin above unchanged
+// beside it (the count still may not break).
+test("#1137 the dismiss stays on the count's row, at the bar's trailing edge, at the narrowest real pane", async ({ mount }) => {
+  const bar = await mount(
+    <div style={{ width: "290px", overflow: "visible" }}>
+      <SelectionBar count={1} onClear={(): void => undefined}>
+        <Button intent="secondary" size="sm">
+          Tag
+        </Button>
+        <Button intent="secondary" size="sm">
+          Archive
+        </Button>
+        <Button intent="secondary" size="sm">
+          Delete
+        </Button>
+      </SelectionBar>
+    </div>,
+  );
+
+  const geometry = await bar.evaluate((host: HTMLElement) => {
+    const rect = (selector: string): DOMRect | null => host.querySelector(selector)?.getBoundingClientRect() ?? null;
+    const count = rect('[data-slot="selection-bar-count"]');
+    const clear = rect('[data-slot="selection-bar-clear"]');
+    const root = rect('[data-slot="selection-bar-root"]');
+    return {
+      countTop: Math.round(count?.top ?? -1),
+      countBottom: Math.round(count?.bottom ?? -1),
+      clearTop: Math.round(clear?.top ?? -2),
+      clearRight: Math.round(clear?.right ?? -1),
+      rootRight: Math.round(root?.right ?? -2),
+      rootPaddingRight: Math.round(
+        Number.parseFloat(globalThis.getComputedStyle(host.querySelector('[data-slot="selection-bar-root"]') as HTMLElement).paddingRight),
+      ),
+    };
+  });
+  // Positive control: a missing element reads as -1/-2 and would make both claims below meaningless.
+  // ONESHOT-OK: one settled evaluate over a static bar at a fixed host width — no images, no transitions, one snapshot.
+  expect(geometry.countTop).toBeGreaterThanOrEqual(0);
+  expect(geometry.clearTop).toBeGreaterThanOrEqual(0); // ONESHOT-OK: same snapshot
+  // SAME ROW: the dismiss's top edge sits inside the count's line box, not on a row beneath it.
+  expect(geometry.clearTop).toBeLessThan(geometry.countBottom); // ONESHOT-OK: same snapshot
+  // TRAILING EDGE: the dismiss ends at the bar's inner right edge (its padding), never mid-row.
+  expect(geometry.rootRight - geometry.clearRight).toBeLessThanOrEqual(geometry.rootPaddingRight + 1);
+});

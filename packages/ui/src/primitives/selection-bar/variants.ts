@@ -11,10 +11,20 @@ export const selectionBarVariants = tv({
   // longest form this primitive can render is a number plus one word), and `flex-wrap` on the root sends
   // the ACTION cluster to a second line instead, which is the give that should have been there: an action
   // row is a set of separate things and reads fine stacked, a sentence does not.
+  //
+  // THE GIVE IS THE ACTION CLUSTER, AND NOW IT ACTUALLY IS (#1137, side-eye Characters F10). The paragraph
+  // above says the wrap should send the ACTIONS to a second line — but the wrap was on the ROOT, whose last
+  // child is the dismiss, so what actually went to the second line was `Clear selection`: measured on the
+  // characters bulk bar as a lone 34x34 glyph on its own row 40px below the count, left-aligned, consuming
+  // a whole row to hold one dismiss — the bar's EXIT as the least discoverable thing in it. The wrap moves
+  // INTO the action cluster: the count stays one indivisible phrase, the actions stack among themselves
+  // when the bar is narrow, and the dismiss keeps the bar's trailing edge on the first row where a user
+  // looks for it. The count is `flex-none` rather than `flex-1` because the actions now carry the growth
+  // (`justify-end` holds them against the dismiss instead of drifting into the middle).
   slots: {
-    root: "flex flex-wrap items-center gap-row px-row py-field",
-    count: "flex-1 whitespace-nowrap text-body leading-body text-muted-foreground",
-    actions: "flex items-center gap-field",
+    root: "flex items-center gap-row px-row py-field",
+    count: "flex-none whitespace-nowrap text-body leading-body text-muted-foreground",
+    actions: "flex min-w-0 flex-1 flex-wrap items-center justify-end gap-field",
   },
   variants: {
     placement: {

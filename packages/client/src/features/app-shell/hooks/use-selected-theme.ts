@@ -7,7 +7,9 @@
 // Two gated reads, both never-suspend/never-crash (the shell must degrade to default, never blank): the
 // settings read defaults to no selection, and the theme read is gated on a non-null id (useGatedQuery).
 //
-// `useDataTheme` IS THE `[data-theme]` DERIVATION'S ONE HOME (#231). It used to be a one-liner at the
+// THE `[data-theme]` DERIVATION ITSELF now lives beside the token resolver (`#lib`'s `dataThemeOf`,
+// #920) — the thumbnail on every theme card must answer it the same way the shell does. What lives
+// HERE is the RESOLUTION POLICY around it (#231). It used to be a one-liner at the
 // app-shell call site, and that is precisely where the dark→light cold-boot swap lived: the value is
 // null until BOTH chained reads land, so a Light user's first paint was the base DARK palette and the
 // swap arrived ~1s later, animating colour-bearing properties on everything (measured 100–167ms frame
@@ -21,21 +23,12 @@ import type { ThemeId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useGatedQuery, useTRPC } from "#data";
-import { setBootReadPending } from "#lib";
-import type { SeedThemeName } from "#state";
-import { isSeedThemeName, rememberDataThemeHint, useAppearanceBootHint } from "#state";
+import type { SeedThemeName } from "#lib";
+import { dataThemeOf, setBootReadPending } from "#lib";
+import { rememberDataThemeHint, useAppearanceBootHint } from "#state";
 
 /** The boot-read key this hook owns (`boot-reads.ts`): the theme chain, held until it settles. */
 const THEME_BOOT_READ = "theme";
-
-/** The `[data-theme]` value for a resolved theme row: a SEED palette paints from its generated block. */
-function dataThemeOf(theme: Theme | null): SeedThemeName | null {
-  if (theme?.isSeed !== true) {
-    return null;
-  }
-  const name = theme.name.toLowerCase();
-  return isSeedThemeName(name) ? name : null;
-}
 
 /**
  * The active theme ROW (`null` = the Hearth default) and the root `[data-theme]` value the shell stamps

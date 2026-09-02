@@ -3,13 +3,13 @@
 // D71 clamp), so the SAME tokens paint the SAME stripe in BOTH shapes (strip vs card) — a mount-local
 // re-derivation or a hand-painted approximation would break the equality. No color literal is spelled or
 // asserted here (§13.7): the theme input lives in the fixtures module, and the pin is EQUALITY of the
-// derived paints. Card a11y: a toggle button (`aria-pressed` carries the applied state — apply-not-mode's
-// one applying act; the accessible NAME is the theme's name alone).
+// derived paints. The CARD arm retired with #920 (the Looks collection is the shared picker cell now); the
+// picker's own selection semantics are pinned in tests/ui/primitives/picker-cell.ct.tsx.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { SwatchCardsStory, SwatchPairStory } from "./theme-swatch.fixtures.tsx";
+import { SwatchPairStory } from "./theme-swatch.fixtures.tsx";
 
-test("the SAME tokens paint the SAME stripe in both mounts — the strip and the card", async ({ mount, page }) => {
+test("the SAME tokens paint the SAME stripe in both footprints", async ({ mount, page }) => {
   await mount(<SwatchPairStory />);
 
   const read = (host: string): Promise<readonly string[]> =>
@@ -28,20 +28,4 @@ test("the SAME tokens paint the SAME stripe in both mounts — the strip and the
   expect(cardCells).toEqual(stripCells);
   // The three cells are DISTINCT paints (base · card · accent) — a stripe of one color is a broken derivation.
   expect(new Set(stripCells).size).toBe(3);
-});
-
-test("the card is a toggle: aria-pressed carries the applied state, activation fires onSelect", async ({ mount, page }) => {
-  let picks = 0;
-  await mount(
-    <SwatchCardsStory
-      onPick={(): void => {
-        picks += 1;
-      }}
-    />,
-  );
-  const weft = page.getByRole("button", { name: "Weft", exact: true });
-  await expect(weft).toHaveAttribute("aria-pressed", "false");
-  await expect(page.getByRole("button", { name: "Mocha", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await weft.click();
-  expect(picks).toBe(1);
 });

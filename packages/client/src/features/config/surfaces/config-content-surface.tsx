@@ -20,7 +20,7 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useSettingsViewerView } from "#data";
 import { SaveStatusHostContext } from "#forms";
 import { useFocusOnMount } from "#lib";
@@ -230,6 +230,9 @@ function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactN
   // re-arms onto an intermediate section (measured: the Effects landing lit Sizing on the way).
   const [foldOpen, setFoldOpen] = useState<{ readonly open: boolean; readonly instant: boolean }>({ open: false, instant: false });
   const [seenNonce, setSeenNonce] = useState<number | null>(null);
+  const foldIds = useId();
+  const foldLabelId = `${foldIds}-fold-label`;
+  const foldCaptionId = `${foldIds}-fold-caption`;
   const landingNonce = target !== null && target.group === group.id && folded.some((section) => section.nav.id === target.sub) ? target.nonce : null;
   // Derived-state adjustment DURING render (the React-sanctioned setState-in-render form, never an
   // effect): a fresh landing nonce opens the fold in the SAME commit the jump machinery will observe.
@@ -252,12 +255,17 @@ function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactN
         <Collapsible onOpenChange={(open): void => setFoldOpen({ open, instant: false })} open={foldOpen.open}>
           {/* #297's explicit custom arm: the fine-tuning knobs behind ONE named disclosure, collapsed by
               default — the caption names what the knobs ride on ("your changes, on top of <look>"). */}
-          <CollapsibleTrigger size="control">
+          {/* The label and the caption are NAMED SEPARATELY (#1099 G5): as bare siblings they concatenated
+              into "Customize this lookadvanced · your changes, on top of Hearth" — the browser's real
+              computed name, and the trigger resolved only as a DOM path in `snap --map`, i.e. it had no
+              stable semantic identity for a primary door. `aria-labelledby` over the two ids joins them
+              with a space and keeps every visible word in the name (§13.10 N2). */}
+          <CollapsibleTrigger aria-labelledby={fold.caption === undefined ? foldLabelId : `${foldLabelId} ${foldCaptionId}`} size="control">
             <Row align="center" gap="field" className="min-w-0">
-              <Text as="span" voice="kicker">
+              <Text as="span" id={foldLabelId} voice="kicker">
                 {fold.label}
               </Text>
-              {fold.caption === undefined ? null : fold.caption()}
+              {fold.caption === undefined ? null : <span id={foldCaptionId}>{fold.caption()}</span>}
             </Row>
           </CollapsibleTrigger>
           <CollapsiblePanel instant={foldOpen.instant}>

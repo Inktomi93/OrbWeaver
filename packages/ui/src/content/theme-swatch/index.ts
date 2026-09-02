@@ -1,2 +1,2 @@
-export type { ThemeSwatchCardProps, ThemeSwatchStripProps } from "./theme-swatch.tsx";
-export { ThemeSwatchCard, ThemeSwatchStrip } from "./theme-swatch.tsx";
+export type { ThemeSwatchStripProps } from "./theme-swatch.tsx";
+export { ThemeSwatchStrip } from "./theme-swatch.tsx";

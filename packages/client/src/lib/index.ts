@@ -172,6 +172,15 @@ export { CHAT_CONTEXT_TAB_IDS, defineContextRegion, defineContextTabs, GAME_STRI
 export { RenderProfiler } from "./render-profiler.tsx";
 export type { ResolveRowRenderPolicyInput, RowRenderPolicy } from "./render-trust.ts";
 export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy, SAFE_FLOOR } from "./render-trust.ts";
+export {
+  BASE_PALETTE_COLOR_SCHEME,
+  BASE_PALETTE_VARS,
+  dataThemeOf,
+  isSeedThemeName,
+  type ResolvedThemeScope,
+  resolveThemeScopeTokens,
+  type SeedThemeName,
+} from "./resolve-theme-scope-tokens.ts";
 export { rowActionSubject, rowQualifiers } from "./row-qualifiers.ts";
 export type { SessionMessage, SingleFlightOutcome } from "./session-channel.ts";
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";

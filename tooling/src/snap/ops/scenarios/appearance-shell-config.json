@@ -23,7 +23,7 @@
         "--key",
         "Escape",
         "--wait-for",
-        "[data-slot=\"density-preview\"]",
+        "[data-slot=\"picker-cell\"][aria-checked=\"false\"] [data-slot=\"density-preview\"]",
         "--goto",
         "modal:command",
         "--expect-visible",
@@ -32,7 +32,7 @@
     },
     {
       "name": "density-preview",
-      "args": ["/", "--key", "Escape", "--goto", "settings:appearance.sizing", "--expect-visible", "[data-slot=\"density-preview\"]"]
+      "args": ["/", "--key", "Escape", "--goto", "settings:appearance.sizing", "--expect-visible", "[data-slot=\"picker-cell\"][aria-checked=\"false\"] [data-slot=\"density-preview\"]"]
     }
   ]
 }

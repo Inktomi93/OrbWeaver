@@ -51,7 +51,8 @@
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { isPlainObject } from "@orb/kit/guards";
-import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
+import type { SeedThemeName } from "#lib";
+import { isSeedThemeName } from "#lib";
 import { createPersistedStore } from "./create-persisted-store.ts";
 
 /** The root flag the `[data-reduced-motion="true"] *` floor in the ui package's globals.css selects on. */
@@ -64,8 +65,9 @@ export const FONT_SCALE_VAR = "--font-scale";
 /** The appearance axes a boot needs before the shell can render one — the hint's whole surface. */
 export type AppearanceBootAxes = Pick<AppearanceSettings, "reducedMotion" | "fontScale" | "density">;
 
-/** The generated seed palettes that own a `[data-theme]` block. Hearth is represented by `null`. */
-export type SeedThemeName = keyof typeof SEED_THEME_VALUE_SETS;
+/** The generated seed palettes that own a `[data-theme]` block — re-exported from its ONE home beside the
+ *  theme-scope resolver (`#lib`), which owns both halves of "what does this theme paint from". */
+export type { SeedThemeName };
 
 /** This device's whole remembered answer: the appearance axes plus the resolved `[data-theme]` value. */
 export interface AppearanceBootHintState extends AppearanceBootAxes {
@@ -80,11 +82,9 @@ const DEFAULT_STATE: AppearanceBootHintState = { ...DEFAULT_AXES, dataTheme: nul
 
 const PERSIST_VERSION = 1;
 
-/** The `[data-theme]` names the ui package actually generates a palette block for — anything else stamps nothing. */
-/** Boundary guard: persisted/server strings may name only a generated seed palette. */
-export function isSeedThemeName(value: string): value is SeedThemeName {
-  return Object.hasOwn(SEED_THEME_VALUE_SETS, value);
-}
+// The guard itself lives at the util floor beside `dataThemeOf` (one predicate, one home); this module
+// keeps re-exporting it so every `#state` consumer is untouched by the re-home.
+export { isSeedThemeName };
 
 /** TOTAL: any shape that is not a valid remembered answer degrades to "this device knows nothing". */
 function migrate(persisted: unknown): AppearanceBootHintState {

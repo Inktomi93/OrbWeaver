@@ -1,15 +1,33 @@
-// The LOOKS appearance SECTION (#866 S4 / #297 — config-revamp-design.md §7.3, the owner-approved
-// canvas): APPLY-NOT-MODE in three tiers. PICK — the three shipped looks as fixed cards (a closed set;
-// picking APPLIES via the D71 pipeline: `theme.selectedThemeId`, and the Hearth card writes NULL — the
-// base `@theme`, no `[data-theme]` block). MANAGE — "Your themes": imported + built themes as rows
-// (swatch strip · name · age · ⋯ = Apply · Edit in builder · Export · Delete) plus the Import file door.
-// MAKE — ONE builder door, "New theme from <current>…": the retired picker's draft/mint machinery
-// verbatim (the duplicate is minted at the FIRST REAL EDIT, never on the click), opening the builder
-// INLINE as this section's editing state. There is NO freestanding color knob anywhere — a color
-// decision always saves as a named theme.
+// The LOOKS appearance SECTION (#866 S4 / #297 — config-revamp-design.md §7.3, as amended by the owner's
+// 2026-08-30 ruling): ONE COLLECTION, ONE CARD SHAPE. Verbatim: *"i dont want to separate our themes from
+// a user's, that's clunky — one spot for themes, they all should have same shape."* That supersedes §7.3's
+// three tiers — the shipped looks as fixed CARDS over "Your themes" as `ListRow`s — which rendered one
+// concept in two anatomies and made a user learn two layouts to do one job. Whether a theme shipped with
+// the app is a PROPERTY of that theme, not a different kind of thing.
 //
-// Export/Import are CLIENT-SIDE over the row's own bytes ({name, override, css} JSON — the same values
-// the theme renders from); no provenance word on rows (owner ruling 2026-08-30 — name · swatch · age · ⋯).
+// SO: one grid, every theme, the same cell. `isSeed` changes CAPABILITY only (the ⋯ menu's item list, in
+// theme-row-menu.tsx) — never anatomy, never a provenance word, never a separate list. The client keeps NO
+// allowlist of shipped names: it renders the server's one readable collection in the order it arrives, so
+// a fourth seed appears with no client change (the deleted `SHIPPED_ORDER`/`shipped`/`own` split is what
+// made that impossible).
+//
+// APPLY-NOT-MODE (#297): picking a cell APPLIES the look through the D71 pipeline — `theme.selectedThemeId`
+// — and HEARTH WRITES NULL (the base `@theme`, no `[data-theme]` block, and the anti-brick reset in one
+// gesture). Every other cell writes its id.
+//
+// THE CELL IS THE APP'S ONE PICKER CELL (#929 E6) inside a real `RadioGroupPicker`: one tab stop, roving
+// focus, arrows change selection (#981 F20). The thumbnail is `ThemeMiniSurface`, which paints each row
+// from its OWN pipeline (see that file for the seed-vs-custom provenance invariants). The ⋯ is a SIBLING
+// of the radio root, never nested inside it — a control inside a control is unreachable by keyboard and
+// illegal ARIA.
+//
+// MAKE — ONE builder door, "New theme from <current>…": the retired picker's draft/mint machinery verbatim
+// (the duplicate is minted at the FIRST REAL EDIT, never on the click), opening the builder INLINE as this
+// section's editing state. There is NO freestanding color knob anywhere — a color decision always saves as
+// a named theme.
+//
+// Export/Import are CLIENT-SIDE over the row's own bytes ({name, override, css} JSON — the same values the
+// theme renders from).
 
 import type { CreateThemeInput, Theme } from "@orb/contracts/theme";
 import type { ThemeId } from "@orb/kit/ids";
@@ -17,26 +35,26 @@ import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { ListRow } from "@orb/ui/list-row";
+import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";
 import { Text } from "@orb/ui/text";
-import { ThemeSwatchCard, ThemeSwatchStrip } from "@orb/ui/theme-swatch";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ConfigTeachScope, SettingRow, SettingRowGroup } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
-import { downloadTextFile, notify, timeLib } from "#lib";
+import { downloadTextFile, notify } from "#lib";
 import { configAnchorId } from "#state";
 import { useCreateTheme, useDuplicateTheme, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
 import { APPEARANCE_LOOKS_SUBCATEGORY } from "../lib/appearance-looks-nav.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeInputFromForm } from "../lib/theme-editor-model.ts";
 import { ThemeEditor } from "./theme-editor.tsx";
+import { ThemeMiniSurface } from "./theme-mini-surface.tsx";
 import { ThemeRowMenu } from "./theme-row-menu.tsx";
 
+/** The ONE seed whose selection is spelled `null` — it IS the base `@theme`, so it has no
+ *  `[data-theme]` block to select into. Every other theme (seed or owned) writes its own id. */
 const HEARTH_NAME = "Hearth";
-/** The shipped set, in the canvas's order — a CLOSED row (this list never grows; new looks are YOURS). */
-const SHIPPED_ORDER = [HEARTH_NAME, "Mocha", "Light"] as const;
 const COPY_SUFFIX = " copy";
 /** The draft id a from-scratch session carries — it keys the editor's mount, and is never sent anywhere. */
 const NEW_THEME_DRAFT_ID = "theme_draft_new";
@@ -98,17 +116,13 @@ function LooksBody(): ReactElement {
   const duplicateTheme = useDuplicateTheme({ trpc, invalidation });
   const removeTheme = useRemoveTheme({ trpc, invalidation });
   const [editing, setEditing] = useState<EditorSession | null>(null);
+  const ids = useId();
 
-  const shipped = SHIPPED_ORDER.flatMap((name) => {
-    const seed = themes.find((theme) => theme.isSeed && theme.name === name);
-    return seed === undefined ? [] : [seed];
-  });
-  const own = themes.filter((theme) => !theme.isSeed);
+  // ONE collection, in the SERVER's order — no client allowlist, no shipped/own split (#920).
   const isActive = (theme: Theme): boolean => (selectedId === null ? theme.isSeed && theme.name === HEARTH_NAME : theme.id === selectedId);
-  const current = themes.find(isActive) ?? shipped[0];
+  const current = themes.find(isActive) ?? themes[0];
 
-  // Applying: the ONE applying act (#297). The Hearth card writes NULL — the base theme, no data-theme
-  // block, and the anti-brick reset semantics in one gesture.
+  // Applying: the ONE applying act (#297). The Hearth card writes NULL.
   const applyById = (id: string | null): void => selectTheme.mutate({ section: "theme", patch: { selectedThemeId: id } });
   const apply = (theme: Theme): void => applyById(theme.isSeed && theme.name === HEARTH_NAME ? null : theme.id);
 
@@ -149,35 +163,12 @@ function LooksBody(): ReactElement {
         </Stack>
       ) : (
         <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_LOOKS_SUBCATEGORY }}>
-          {/* #932: the three Looks rows are CANVAS rows — a card shelf, a theme list, a builder door — so
-              each takes `span`, which draws the registry lead (name · `i` · gloss) above the canvas. That
-              retires the three different hand-rolled leads this section used to carry (a `gloss` line, a
-              `kicker` + import button row, and a `label` beside a Button), which the re-drive counted as
-              three label voices in one section. */}
+          {/* #932: the two Looks rows are CANVAS rows — one collection, one builder door — so each takes
+              `span`, which draws the registry lead (name · `i` · gloss) above the canvas. */}
           <SettingRowGroup>
             <SettingRow settingId="shipped-looks" span={true}>
               <Stack gap="field">
-                <Row gap="row" className="flex-wrap">
-                  {shipped.map((theme) => (
-                    <ThemeSwatchCard
-                      key={theme.id}
-                      name={theme.name}
-                      {...(isActive(theme) ? { meta: "current" } : {})}
-                      onSelect={(): void => apply(theme)}
-                      selected={isActive(theme)}
-                      tokens={theme.override}
-                    />
-                  ))}
-                </Row>
-              </Stack>
-            </SettingRow>
-
-            <SettingRow settingId="your-themes" span={true}>
-              <Stack gap="field">
-                <Row align="center" gap="row" className="justify-between">
-                  <Text as="span" voice="gloss">
-                    {own.length === 0 ? "None yet" : `${String(own.length)} saved`}
-                  </Text>
+                <Row align="center" className="justify-end" gap="row">
                   <FileTrigger
                     accept="application/json"
                     onFilesSelected={([file]): void => {
@@ -193,32 +184,44 @@ function LooksBody(): ReactElement {
                     )}
                   </FileTrigger>
                 </Row>
-                {own.length === 0 ? (
-                  <Text voice="gloss">Nothing here yet — import a theme file, or start one in the builder below.</Text>
-                ) : (
-                  <Stack gap="tight">
-                    {own.map((theme) => (
-                      <ListRow
-                        key={theme.id}
-                        actions={
-                          <ThemeRowMenu
-                            onApply={(): void => applyById(theme.id)}
-                            onDelete={(): void => removeTheme.mutate({ id: theme.id as ThemeId })}
-                            onEdit={(): void => setEditing({ draft: theme })}
-                            onExport={(): void => exportTheme(theme)}
-                            theme={theme}
-                          />
-                        }
-                        clickable={true}
-                        leading={<ThemeSwatchStrip tokens={theme.override} />}
-                        onClick={(): void => applyById(theme.id)}
-                        selected={isActive(theme)}
-                        subtitle={timeLib.formatRelative(theme.updatedAt)}
-                        title={theme.name}
+                <RadioGroupPicker
+                  aria-label="Theme"
+                  data-slot="theme-collection"
+                  onValueChange={(next): void => {
+                    const picked = themes.find((theme) => theme.id === next);
+                    if (picked !== undefined) {
+                      apply(picked);
+                    }
+                  }}
+                  value={current?.id ?? null}
+                >
+                  {themes.map((theme) => (
+                    // The ⋯ is a SIBLING of the radio root (never nested interaction), positioned over the
+                    // cell's own top-leading corner \u2014 the check indicator owns the trailing one.
+                    <Row className="relative min-w-0" key={theme.id}>
+                      <RadioGroupPickerItem
+                        art={<ThemeMiniSurface theme={theme} />}
+                        className="w-full"
+                        idPrefix={`${ids}-${theme.id}`}
+                        label={theme.name}
+                        {...(isActive(theme) ? { meta: "current" } : {})}
+                        value={theme.id}
                       />
-                    ))}
-                  </Stack>
-                )}
+                      <Row className="absolute top-tight left-tight rounded-control bg-card/80">
+                        <ThemeRowMenu
+                          onApply={(): void => apply(theme)}
+                          onDelete={(): void => removeTheme.mutate({ id: theme.id as ThemeId })}
+                          onDuplicate={(): void => {
+                            duplicateTheme.mutate({ id: theme.id as ThemeId });
+                          }}
+                          onEdit={(): void => setEditing({ draft: theme })}
+                          onExport={(): void => exportTheme(theme)}
+                          theme={theme}
+                        />
+                      </Row>
+                    </Row>
+                  ))}
+                </RadioGroupPicker>
               </Stack>
             </SettingRow>
 
