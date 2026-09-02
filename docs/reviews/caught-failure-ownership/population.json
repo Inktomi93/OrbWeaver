@@ -5298,7 +5298,7 @@
     {
       "siteId": "tooling/src/snap/ops/session-daemon.ts::empty:error::1",
       "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 137,
+      "line": 153,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5306,12 +5306,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the failure is printed to the caller as SESSION CALL ERROR and the request's `done` carries toolError — the caller's exit IS the report; the daemon stays up by design (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.",
-      "markerLine": 134
+      "markerLine": 150
     },
     {
       "siteId": "tooling/src/snap/ops/session-daemon.ts::empty:error::2",
       "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 374,
+      "line": 392,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5319,12 +5319,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "a browser that fails to close is logged and the teardown proceeds to the registry half — the row + socket must go regardless, or the session reads as live forever. Ends if a failed browser close must abort the teardown.",
-      "markerLine": 371
+      "markerLine": 389
     },
     {
       "siteId": "tooling/src/snap/ops/session-daemon.ts::promise:readRequestLine::1",
       "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 343,
+      "line": 361,
       "column": 5,
       "grammar": "promise",
       "position": "promise:readRequestLine",
@@ -5332,12 +5332,12 @@
       "snippet": "readRequestLine(socket)",
       "verdict": "deliberate-absorb",
       "reason": "the failure is reported to the caller as SESSION SERVE ERROR and the request's `done` carries toolError — the caller's exit IS the report, and the daemon stays up (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.",
-      "markerLine": 342
+      "markerLine": 360
     },
     {
       "siteId": "tooling/src/snap/ops/session-daemon.ts::promise:work::1",
       "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 72,
+      "line": 80,
       "column": 3,
       "grammar": "promise",
       "position": "promise:work",
@@ -5345,7 +5345,7 @@
       "snippet": "work.catch((unhandled: unknown) => {",
       "verdict": "deliberate-absorb",
       "reason": "a timer/signal boundary has no caller to carry an exit code, so the daemon log IS the report; the `closed` latch is already released by shutdown's `finally`, so the process leaves regardless. Ends if shutdown stops releasing the latch unconditionally.",
-      "markerLine": 71
+      "markerLine": 79
     },
     {
       "siteId": "tooling/src/snap/ops/shot.ts::empty:catch::1",
@@ -5922,7 +5922,7 @@
     {
       "siteId": "tooling/src/verify/lib/program-routing.ts::empty:catch::1",
       "path": "tooling/src/verify/lib/program-routing.ts",
-      "line": 165,
+      "line": 169,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5930,7 +5930,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a corrupt/unreadable cache becomes a miss, which the caller recomputes from scratch via ts7 rather than trusting. Ends if the caller stops recomputing on a cache miss.",
-      "markerLine": 162
+      "markerLine": 166
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::1",
