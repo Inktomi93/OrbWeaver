@@ -40,14 +40,16 @@ current as of the newest commit.
 | Leg | Full-read files | Lines | Findings |
 | - | - | - | - |
 | Leg 1 | 24 | \~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
-| Leg 2 so far | 14 | \~9,290 | none yet |
-| **Total** | **38 / 469** | \~35,390 | ceiling P3 |
+| Leg 2 so far | 20 | \~11,670 | none yet |
+| **Total** | **44 / 469** | \~37,770 | ceiling P3 |
 
 Leg-2 files read and judged (chunk 1): `web-weave.ct.tsx`, `slider.ct.tsx`, `toast.ct.tsx`,
 `sandbox-frame.ct.tsx`, `params-deck.ct.tsx`, `chat-room-surface.ct.tsx`,
 `preset-library-surface.ct.tsx`, `preset-editor-surface.ct.tsx`. Chunk 2:
 `character-editor-surface.ct.tsx`, `character-create-actions.ct.tsx`, `preset-structure-tabs.ct.tsx`,
-`section-drill-in.ct.tsx`, `lane-run-control.ct.tsx`, `image-edit-body.ct.tsx`.
+`section-drill-in.ct.tsx`, `lane-run-control.ct.tsx`, `image-edit-body.ct.tsx`. Chunk 3:
+`theme-scope.ct.tsx`, `tabs.ct.tsx`, `menu.ct.tsx`, `code-editor.ct.tsx`,
+`accessible-name-quality.suite.ct.tsx`, `context-tabs-panel.ct.tsx`.
 
 ## 2. Findings
 
@@ -190,20 +192,73 @@ reds because the forced layout read reflects the decoded intrinsic size). The `O
 is barriered by the preceding count poll. #702 negatives (`toBeHidden` on the wrong-toast and the
 absent hand-off) run behind the retrying `toContainText` settle on the partial-success toast.
 
+## 3c. Per-file verdicts — chunk 3 (6 files, all CLEAN)
+
+### 3c.1 `tests/ui/content/theme-scope/theme-scope.ct.tsx` (654 lines) — CLEAN
+
+The contrast kernels (`renderedContrast`, `paintedRingVsBase`, `arcPartVsCard`, `tokenPairContrast`)
+are instrument-grade: each documents the alpha-compositing correction (a translucent token measured
+over transparent black would fake a ratio — the kernel paints card-then-part), throws loudly on a
+missing property (never a clean zero), and the #685/#692 rows carry the fill-outshouts-track invariant
+fence in both directions. The one-shot evaluates read STATIC token-resolution state settled at mount.
+Hostile-value clamp asserted on the inline style (not computed, which would hide the drop behind the
+:root default — the distinction is stated in-file). Both polarities exercised throughout.
+
+### 3c.2 `tests/ui/primitives/tabs/tabs.ct.tsx` (358 lines) — CLEAN
+
+The #1069 FLIP-glide pin: settle-poll to identity landing (never mid-flight), the launch-property
+tally as its own positive control ("silence would pass every assertion below on a bar that just
+teleports"), asymmetric labels so the scale half is exercised. Stacked-layout geometry one-shots read
+static post-mount boxes; gap/height fences resolve tokens via live probes, never hardcoded px. The
+`:visible` panel selector is used only at rest (the file's own comment bans it mid-swap).
+
+### 3c.3 `tests/ui/primitives/menu/menu.ct.tsx` (453 lines) — CLEAN
+
+Keyboard flows gate on `toBeFocused` before pressing (the Wave-1 Select race, cited in-file, both in
+the top-level and submenu tests). The label-column pin refreshes its array THROUGH the poll before the
+one-shot asserts. The long-menu clamp pin: poll-until-non-null box, scroll-to-bottom + `toBeInViewport`
+retry, scroll-cue `background-attachment` fence behind a clamp-precondition poll. Highlight-indicator
+reads are class-driven static computed styles behind `data-highlighted` barriers, with the ring colour
+resolved from a live probe.
+
+### 3c.4 `tests/ui/code-editor/code-editor.ct.tsx` (295 lines) — CLEAN
+
+The CM6 completion test's `waitForTimeout` is the one sanctioned sleep in the leg-2 population so far,
+and it is the model of a justified one: the flake was instrumented (measured cohort split on the 100ms
+poll grid vs CM6's 75ms `interactionDelay`), the sleep-free alternative was tried and its failure
+mechanism documented (validFor refilters synchronously), and the biome-ignore carries the inverted
+premise with receipts (4/20 red without, 0/40 with). Real-clipboard paste is proven in BOTH directions
+(blocked + the positive-control accept). Focus ring driven by a real Tab with a `:focus-visible` count
+poll as the barrier.
+
+### 3c.5 `tests/client/a11y/accessible-name-quality.suite.ct.tsx` (206 lines) — CLEAN
+
+All four predicates carry planted positive controls (the parser-went-silent hazard is named and
+fenced), the duplicate predicate's scope-awareness has its own negative control, and every surface
+barriers on a settled named control before the page-wide sweep (the vacuous-pass hazard stated
+in-file). The one fixed-id suppression is load-bearing and justified.
+
+### 3c.6 `tests/client/features/app-shell/components/context-tabs-panel.ct.tsx` (418 lines) — CLEAN
+
+`bottomOf` one-shots follow visibility barriers; the settled-panel selector is
+`:visible:not([inert])` with the cross-fade flake history cited (#875/#878 legs); the coarse-pointer
+block proves the emulation landed before trusting anything; the RV-7 lock pin asserts the dim moved
+OFF the cell root (the #874 correction) and defers the pixel half to `context-bracket.ct.tsx` by name.
+Red-first and fence tests are labelled as which they are.
+
 ## 4. Verified clean so far (leg-2 methods)
 
-- Full-read of all 14 files above, whole files, no sampling.
+- Full-read of all 20 files above, whole files, no sampling.
 - Fresh merged-tree Phase A scan (469/469 files, scannedFileCount cross-checked against `git ls-files`).
-- Helper-hoisted site classification against the scan's site list; every site in the 14 files accounted
+- Helper-hoisted site classification against the scan's site list; every site in the 20 files accounted
   for above.
 
 ## 5. Remaining leg-2 queue (state at this commit)
 
-Core helper-await files still to read (\~21): theme-scope (654), workloads-group (461), menu (453),
-context-tabs-panel (418), assembly-preview-panel (569), corpus-content (586), databank-detail-surface
-(494), analytics-overview-surface (382, ex-fenced), tabs (358), injections-manager (335), payload-view
-(320), code-editor (295), accessible-name-quality.suite (206), image-detail-body (204),
-message-media-block (161), room-overrides-form (146), form-identity.suite (138), web-weave-touch (104).
+Core helper-await files still to read (\~15): workloads-group (461), assembly-preview-panel (569),
+corpus-content (586), databank-detail-surface (494), analytics-overview-surface (382, ex-fenced),
+injections-manager (335), payload-view (320), image-detail-body (204), message-media-block (161),
+room-overrides-form (146), form-identity.suite (138), web-weave-touch (104).
 Ex-fenced batch:
 appearance-background-section (405), config-teacher (370), config-search-input (234), config-save-footer
 (202), config-list-collection-group (113), config-group-placeholder (101), config-palette-source (57).
