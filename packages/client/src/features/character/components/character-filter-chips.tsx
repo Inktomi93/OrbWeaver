@@ -251,7 +251,12 @@ function ScopePill({
     return null;
   }
   return (
-    <Toggle aria-label={name} intent="outline" onPressedChange={onToggle} pressed={pressed} shape="pill" size="chip">
+    // THE RECEDING INK IS STATED HERE, beside the tag chips' own (#1141): `Toggle`'s `outline` arm reads
+    // "must read as the same class of thing as the tag chips beside it", and since #969 flipped the
+    // transparent intents to the host's inherited ink neither of them recedes on its own. The rail is the
+    // host, so the rail says it — unprefixed, because `data-pressed:text-accent-foreground` (base) is a
+    // variant key twMerge keeps and the attribute selector wins whenever the pill is ON.
+    <Toggle aria-label={name} className="text-muted-foreground" intent="outline" onPressedChange={onToggle} pressed={pressed} shape="pill" size="chip">
       <Icon icon={glyph} size="xs" />
       {label}
     </Toggle>

@@ -15,7 +15,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import type { TagFilterEntry, TagFilterState } from "#lib";
-import { tagFilterStateOf } from "#lib";
+import { cn, tagFilterStateOf } from "#lib";
 import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
 
 import type { LibraryChipTag } from "../lib/character-library-lens.ts";
@@ -47,12 +47,27 @@ interface TagChipPresentation {
   /** A shape cue beside the name, so include ⇄ exclude is distinguishable without colour. `off` still
    *  RESERVES the cell (see {@link TagFilterChip}) — it just paints nothing in it. */
   readonly icon: LucideIcon | null;
+  /** THE RESTING INK, DECLARED BY THE RAIL RATHER THAN BY THE PRIMITIVE (#1141, 2026-09-02 — and this is
+   *  a FORK between two live rulings, resolved, not reversed). #102 ruled the rail carries THREE registers
+   *  and that a filter chip "recedes to muted" against the command's foreground; it got that for free
+   *  because `Button`'s `outline` intent painted `text-muted-foreground`. #969
+   *  (`docs/design/theme-pivot-foreground-contract.md`, 242bfaecb) then ruled the opposite half —
+   *  "Transparent `Button` actions inherit their host surface's paired ink; they do not substitute the
+   *  low-emphasis `muted-foreground` semantic for an action label" — and flipped all three transparent
+   *  intents to `text-current`, which silently collapsed two of the rail's three registers onto one ink
+   *  (both measured `oklch(0.955 0.004 75)`; the CT that pins the registers went red on main).
+   *  BOTH RULINGS SURVIVE: the primitive keeps inheriting (#969's mechanism is untouched, and its own
+   *  button CT still passes), and the HOST — this rail, which is where #102's register law lives — states
+   *  the receding ink for the vocabulary it holds. Only the `off` arm carries it: an ON/NEGATED chip is
+   *  wearing the selection layer's `bg-accent text-accent-foreground` pairing, and a call-site ink would
+   *  win the merge and erase exactly the muted-vs-selected reading {@link TagFilterChip} depends on. */
+  readonly restingInk: string | undefined;
 }
 
 const TAG_CHIP_PRESENTATION: Record<TagFilterState, TagChipPresentation> = {
-  off: { announced: "off", next: "activate to include", selection: "none", icon: null },
-  include: { announced: "included", next: "activate to exclude", selection: "on", icon: Check },
-  exclude: { announced: "excluded", next: "activate to clear", selection: "negated", icon: Minus },
+  off: { announced: "off", next: "activate to include", selection: "none", icon: null, restingInk: "text-muted-foreground" },
+  include: { announced: "included", next: "activate to exclude", selection: "on", icon: Check, restingInk: undefined },
+  exclude: { announced: "excluded", next: "activate to clear", selection: "negated", icon: Minus, restingInk: undefined },
 };
 
 /** THE BOUNDED EXPANSION (side-eye 2026-08-17 P1). Four properties, each answering one measured symptom:
@@ -203,7 +218,9 @@ export function TagFilterChip({
   return (
     <Button
       aria-label={`Filter by ${tag.name}: ${presentation.announced} — ${presentation.next}`}
-      className="min-w-0 max-w-full"
+      // `?? ""` because `cn`'s type admits `undefined` (clsx's) while `ButtonProps.className` does not under
+      // `exactOptionalPropertyTypes` — the same idiom message-row-variants.ts homes as its `cx`.
+      className={cn("min-w-0 max-w-full", presentation.restingInk) ?? ""}
       data-tag-filter-state={state}
       intent="outline"
       onClick={(): void => onCycle(tag.id)}
@@ -273,7 +290,9 @@ export function RailAction({
       aria-controls={controls}
       aria-expanded={expanded}
       aria-label={accessibleName}
-      className="underline decoration-dotted"
+      // The receding ink is the RAIL's to state, not `ghost`'s — see {@link TagChipPresentation.restingInk}
+      // for the #102/#969 fork this resolves. This affordance has no selected arm, so it carries it flat.
+      className="text-muted-foreground underline decoration-dotted"
       intent="ghost"
       onClick={onClick}
       size="chip"

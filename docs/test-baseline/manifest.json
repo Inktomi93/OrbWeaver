@@ -140,6 +140,7 @@
     "tests/client/features/chat/components/chat-behavior-streaming-section.ct.tsx",
     "tests/client/features/chat/components/chat-books-section.ct.tsx",
     "tests/client/features/chat/components/chat-character-bar.ct.tsx",
+    "tests/client/features/chat/components/chat-context-disclosure-section.ct.tsx",
     "tests/client/features/chat/components/chat-controls-band.ct.tsx",
     "tests/client/features/chat/components/chat-documents-section.ct.tsx",
     "tests/client/features/chat/components/chat-header.ct.tsx",
