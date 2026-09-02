@@ -6,6 +6,7 @@
 //   check:structure          → cli.ts structure
 //   check:show               → cli.ts show [--errors-only|--gate|--file|--limit]
 //   (scoped, from selection) → cli.ts scoped (--scope|--package|--changed)
+//   test:scoped / ct:scoped  → cli.ts scoped-test <node|ct> [paths…] (the path preflight, #1192)
 //   gate:new                 → cli.ts new-gate <kebab-name>
 //   prose:baseline           → cli.ts baseline prose      (+ the 7 other committed baselines)
 //   check:tests-membership   → cli.ts tests-membership
@@ -33,11 +34,13 @@ import {
   runOrphanRatchet,
   runRatchetGateCli,
   runScopedCli,
+  runScopedTest,
   runShow,
   runStructure,
   runTestsExecutionMembership,
   runTestsTypeMembership,
   runVerify,
+  SCOPED_TEST_USAGE,
   SCOPED_USAGE,
   SHOW_HELP,
   VERIFY_VERBS,
@@ -61,6 +64,7 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
     "usage: node tooling/src/verify/cli.ts structure\n  Runs every structural gate in one ts-morph pass; writes reports/check-structure.json (read it with `show`).",
   show: SHOW_HELP,
   scoped: SCOPED_USAGE,
+  "scoped-test": SCOPED_TEST_USAGE,
   "new-gate": "usage: node tooling/src/verify/cli.ts new-gate <kebab-name>\n  Scaffolds a gate descriptor + its conformance proofs (GATE-AUTHORING.md).",
   baseline: BASELINE_HELP,
   "tests-membership":
@@ -100,6 +104,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return runShow(root, rest);
     case "scoped":
       return await runScopedCli(root, rest);
+    case "scoped-test":
+      return runScopedTest(root, rest);
     case "new-gate":
       return runNewGate(root, rest);
     case "baseline":

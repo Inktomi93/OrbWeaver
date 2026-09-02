@@ -10,6 +10,7 @@ export const VERIFY_VERBS = [
   "structure",
   "show",
   "scoped",
+  "scoped-test",
   "new-gate",
   "baseline",
   "tests-membership",

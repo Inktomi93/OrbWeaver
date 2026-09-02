@@ -35,6 +35,8 @@ export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contr
 export type { DeclaredScan, GateIgnoreMarker, GatePassResult, GateScan, PassResult, ToolError } from "./contract/pass.ts";
 export type { RunManifest } from "./contract/run-manifest.ts";
 export type { BootChunkVerdict, ConformanceFailure, LedgerFreshness, SchemaBaselineComparison, ScopedResult } from "./contract/scoped.ts";
+export type { ScopedTestCollection, ScopedTestRunner } from "./contract/scoped-test.ts";
+export { SCOPED_TEST_RUNNERS } from "./contract/scoped-test.ts";
 export type { CtView, Selection, SelectionRequest } from "./contract/selection.ts";
 export type { ScopedArgv, StageDef, StageGroup, StageMode, StageResult, Tier, VerifyReport } from "./contract/stage.ts";
 export type { TestBaselineDeletion, TestBaselineManifest } from "./contract/test-baseline.ts";
@@ -97,6 +99,7 @@ export type { RatchetClassification, RatchetExclusion } from "./ops/ratchet-gate
 export { classifyRatchetFiles, discoverTestFiles, isRatchetShaped, runRatchetGateCli } from "./ops/ratchet-gate.ts";
 export { noticesIn, runVerify } from "./ops/run.ts";
 export { runScopedCli, runScopedPass, SCOPED_USAGE } from "./ops/scoped.ts";
+export { runScopedTest, SCOPED_TEST_USAGE } from "./ops/scoped-test.ts";
 export { runShow, SHOW_HELP } from "./ops/show.ts";
 export { runStructure } from "./ops/structure.ts";
 export { findMultiMembershipFiles, findUnrunFiles, runTestsExecutionMembership } from "./ops/tests-execution-membership.ts";

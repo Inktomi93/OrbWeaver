@@ -3,9 +3,10 @@
 // never a silent-ignore. Split out of ops/run.ts at the @orb/tooling P6 move (size cap §4.3); the grammar
 // is unchanged.
 import { parseArgs } from "node:util";
+import { resolveOperand, unresolvedOperands, unresolvedRefusal } from "@orb/tooling/_shared/scoped-run-paths";
 import type { Selection, SelectionRequest } from "../contract/selection.ts";
 import type { Tier } from "../contract/stage.ts";
-import { badPaths } from "./repo-paths.ts";
+import { ROOT } from "./repo-paths.ts";
 import { resolveSelection } from "./selection.ts";
 
 export interface Parsed {
@@ -103,14 +104,19 @@ function scopeSelectorCount(v: ParsedValues): number {
 const WHOLE_SCOPE = { none: true } as const;
 type ScopeResult = SelectionRequest | typeof WHOLE_SCOPE | { readonly error: string };
 
-/** The --file branch: ≥1 positional path, all under the repo + existing (the check:file muscle memory). */
+/** The --file branch: ≥1 positional path, all under the repo + existing (the check:file muscle memory).
+ *  The existence rule is the SHARED one (`_shared/scoped-run-paths.ts`, #1192) — `"claim"` because every
+ *  `--file` positional is documented as a literal path, so a metacharacter does not excuse it. */
 function fileRequest(positionals: readonly string[]): SelectionRequest | { readonly error: string } {
   if (positionals.length === 0) {
     return { error: "--file needs at least one path" };
   }
-  const bad = badPaths(positionals);
+  const bad = unresolvedOperands(
+    positionals.map((p) => resolveOperand(ROOT, p)),
+    "claim",
+  );
   if (bad.length > 0) {
-    return { error: `not under the repo or nonexistent: ${bad.join(", ")}` };
+    return { error: unresolvedRefusal(bad) };
   }
   return { kind: "file", paths: positionals };
 }

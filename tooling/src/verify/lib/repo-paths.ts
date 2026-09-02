@@ -36,11 +36,6 @@ export function packageDir(name: string): string {
   return name.startsWith("@orb/") ? name.slice("@orb/".length) : name;
 }
 
-/** A caller-facing existence check for `--file` paths (the check:file muscle memory refused bad paths). */
-export function badPaths(paths: readonly string[]): readonly string[] {
-  return paths.filter((p) => {
-    const abs = isAbsolute(p) ? p : resolve(ROOT, p);
-    const rel = relative(ROOT, abs);
-    return rel.startsWith("..") || !existsSync(abs);
-  });
-}
+// The caller-facing existence check for `--file` paths used to live HERE as `badPaths`, private to
+// verify. It moved to `_shared/scoped-run-paths.ts` (#1192) when the two scoped TEST runners were found
+// to have no such check at all: one rule, three doors, one refusal sentence. `lib/run-argv.ts` calls it.
