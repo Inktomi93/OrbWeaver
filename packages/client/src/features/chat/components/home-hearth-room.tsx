@@ -46,7 +46,9 @@
 // so the ruling above never fired at the width most people run, and 1920 got a 33px slice of a face. Both
 // halves of the pair moved to `--reading-measure-min` — the design law's low reading bound, 65ch — which
 // keeps the guarantee byte-for-byte and buys the band ~68px at 1280 / ~210px at 1920. Pinned by geometry,
-// not by property, in tests/client/features/chat/components/home-hearth-room.ct.tsx.
+// not by property, in tests/client/features/chat/components/home-recents-tile-body.ct.tsx (this component
+// has no CT file of its own — it is pinned through the tile body that renders it; the citation this line
+// replaced named a path that has never existed on the tree).
 //
 // A11y follows the `ListRow clickable` model rather than inventing one: the island is the operable thing
 // (`Card interactive` — role=button + Enter/Space) and the excerpt + the cast line ride
@@ -176,7 +178,17 @@ export function HomeHearthRoom({
         <Text className="line-clamp-2 max-w-(--reading-measure-min)" id={scentId} voice="reading">
           {subtitle}
         </Text>
-        <Row align="center" gap="row" justify="between">
+        {/* ALIGNED TO START, NOT CENTRE (side-eye HOME 2026-09-02 H17). At the 430x932 coarse mount the
+            credit line wraps — "SABINE VEYRA · CALAMITY ·" / "MORGATHA" — and `align="center"` put the
+            island's ONE affordance in the GUTTER BETWEEN the two lines of its own credit, which is the
+            one place a label must never sit. `start` gives the hint the credit's FIRST line box: both
+            children are the `credit` voice, so their first-line baselines coincide and the row is
+            byte-identical at every width where the credit does not wrap (measured: the hint sat 8px
+            below the credit's top at 430 and 0px after).
+            NOT truncation, deliberately: the credit is the island's ONE cast rendering (rail sweep P2-6)
+            and this island's own title ruling is CLAMP-never-truncate (side-eye F7) — dropping a seat
+            name to buy a baseline would trade a real fact for a layout convenience. */}
+        <Row align="start" gap="row" justify="between">
           {/* THE CREDIT LINE (side-eye F12/F15) — the island's ONE cast rendering now that the face strip
               is gone, and therefore no longer truncated: it used to clip because a 136px strip and a
               stamp span shared the row with it. `credit` is the mock's own register (mono, caps, tracked,

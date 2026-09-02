@@ -152,10 +152,22 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
             invisible to the design-audit's own contrast walker (it does not compose ancestor opacity).
             Same `gloss` step as the teaser above it — the scale has no step between micro and nothing — so
             the separation is carried by the MONO FACE alone now, which is the distinction that costs no
-            contrast. No "waiting on:" prefix: the sentence says its own state. */}
-        <Text className="font-mono" voice="gloss">
-          {doorway.reason}
-        </Text>
+            contrast. No "waiting on:" prefix: the sentence says its own state.
+            …AND THAT RULING SURVIVES; ITS SPELLING DID NOT (side-eye HOME 2026-09-02 H8/H9). The line was
+            `voice="gloss"` + a `font-mono` className, so ONE voice name rendered TWO different ways 4px
+            apart in one component — Geist 13/20 for the teaser and Geist Mono 10.5/13 here, same colour,
+            stacked — which is exactly what the voice grammar exists to make impossible (§2.3: a voice is
+            an intent, and a role has one spelling). H9 is the same defect from the reader's side: this
+            string is a SENTENCE ("Partly built — the table runs; encounters and handing the GM seat to a
+            person are still to come." — 95 characters) set at the stamp step.
+            `datumMono` is the ratified voice this was reaching for by hand: the RECEDED MONO readout at
+            the `code` step. It keeps every clause above — mono face, muted ink, no alpha, quieter than the
+            title — and only stops spelling type at the call site. The MONO FACE is still the whole carrier
+            of the teaser/state separation, which is the clause that must not move; what it lost is the
+            ramp step that P3-6 had lent it, and that is the cost H9 is: a stamp voice cannot carry a
+            sentence, and this line is a sentence. Pinned by computed type + `data-voice` in
+            tests/client/features/home/surfaces/home-surface.ct.tsx. */}
+        <Text voice="datumMono">{doorway.reason}</Text>
       </Stack>
     </Row>
   );

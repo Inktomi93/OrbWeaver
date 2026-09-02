@@ -408,7 +408,15 @@ function ChatRows({
     // otherwise) — `h-full` inside the surface's `min-h-0 flex-1` column is where that bound comes from.
     <Stack className="h-full min-h-0">
       <VirtualList
-        aria-label="Chats"
+        // THE LIST NAMES ITSELF AS A LIST (side-eye HOME 2026-09-02 H20). It was `aria-label="Chats"` —
+        // the same string the RAIL's own nav button carries one region over — so one document held two
+        // different things under one accessible name and `snap --map` had to disambiguate them by index
+        // (`[aria-label="Chats"]:visible >> nth=0` the button, `nth=1` the list). That is the same
+        // collision the home jump tile was fixed for (`section-jump-rail.tsx`, rail sweep P3-19), and the
+        // shell's own pattern for a list region is the noun plus the word (`Presets list`, and the
+        // `"<section> list"` the pane landmark used before #493 made it read its visible band). The RAIL
+        // keeps "Chats" — it names the SECTION, which is what a nav button names.
+        aria-label="Chats list"
         className="h-full"
         endApproachRows={listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX}

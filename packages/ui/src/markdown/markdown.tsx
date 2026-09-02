@@ -9,12 +9,17 @@ import { MARKDOWN_MATH_PLUGIN } from "./math.ts";
 import { MARKDOWN_MERMAID_OPTIONS } from "./mermaid.tsx";
 import { MARKDOWN_REMARK_PLUGINS, TIER_A_UNTRUSTED_ELEMENTS, TRUSTED_ALLOWED_TAGS, TRUSTED_LITERAL_TAG_CONTENT, untrustedUrlTransform } from "./policy.ts";
 import { createRevealPlugin } from "./reveal-plugin.ts";
+import { MARKDOWN_RULE_COMPONENTS } from "./rule-component.tsx";
 import { MARKDOWN_SHIKI_PLUGIN } from "./shiki-plugin.ts";
 import { holdAmbiguousTail } from "./tail-hold.ts";
 
 // The two stable `components` maps. Both are module-level constants because Streamdown's Block memo
 // reference-compares the map key by key — a per-render object would re-render every settled block.
-const LIST_COMPONENTS_WITH_DIALOGUE: NonNullable<StreamdownProps["components"]> = { ...MARKDOWN_LIST_COMPONENTS, ...DIALOGUE_COMPONENTS };
+// The seal OWNS four elements now: the three list elements (#1085) and the thematic break (H19,
+// `rule-component.tsx`) — every one a vendor `jsx` call with an uncompiled class string and no branch
+// behind it, which is the test #1085 set for taking an element over rather than out-painting it.
+const SEAL_COMPONENTS: NonNullable<StreamdownProps["components"]> = { ...MARKDOWN_LIST_COMPONENTS, ...MARKDOWN_RULE_COMPONENTS };
+const SEAL_COMPONENTS_WITH_DIALOGUE: NonNullable<StreamdownProps["components"]> = { ...SEAL_COMPONENTS, ...DIALOGUE_COMPONENTS };
 
 const TRUSTS = ["trusted", "untrusted"] as const;
 const MODES = ["static", "streaming"] as const;
@@ -184,6 +189,13 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
   // and owning them means our tokens are the ONLY classes on the element rather than a compiled layer
   // over dead vendor residue. The unscanned-dist ruling is untouched — the values are house tokens.
   //
+  // H19 — THE FAMILY'S FOURTH CASE (side-eye HOME 2026-09-02), taken the #1085 way. Streamdown's `hr` is
+  // `cn("my-6 border-border", …)`, so a message containing `---` rendered `[css] dead class · .my-6` in
+  // the transcript AND a rule flush against the prose on both sides (preflight zeroes margins). Owned, for
+  // the #1085 test: one vendor `jsx` call, no branch behind it, so owning it removes the dead class from
+  // the DOM rather than out-painting it. Its spacing is the descendant variant above, and
+  // `rule-component.tsx` states why that one is a margin where the blockquote's is padding.
+  //
   // WHAT THIS DOES *NOT* DO: it does not move `snap --deadcss`, which still reports the vendor's three
   // uncompiled literals (`text-sm`/`py-0.5`/`px-1.5`) because they stay in the class attribute — the
   // element is Streamdown's, and taking it over would mean re-implementing its whole fenced-code branch
@@ -204,15 +216,23 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
         {...mermaidProp}
         // Incomplete-markdown repair is a streaming concern only; a settled body must render as-authored.
         parseIncompleteMarkdown={mode === "streaming"}
-        // ALWAYS passed since #1085 — the seal owns the three list elements (`list-components.tsx`), and
-        // the dialogue paragraph joins that map rather than replacing it. Both arms are module-level
-        // constants: Streamdown's Block memo compares `components` key by key, so a stable identity is
-        // what keeps a settled block from re-rendering on every commit.
-        components={colorQuotes ? LIST_COMPONENTS_WITH_DIALOGUE : MARKDOWN_LIST_COMPONENTS}
+        // ALWAYS passed since #1085 — the seal owns the three list elements (`list-components.tsx`) and,
+        // since H19, the thematic break (`rule-component.tsx`); the dialogue paragraph joins that map
+        // rather than replacing it. Both arms are module-level constants: Streamdown's Block memo compares
+        // `components` key by key, so a stable identity is what keeps a settled block from re-rendering on
+        // every commit.
+        components={colorQuotes ? SEAL_COMPONENTS_WITH_DIALOGUE : SEAL_COMPONENTS}
         className={
           cn(
             "space-y-0 whitespace-normal break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_em]:text-narration",
             "[&_blockquote]:border-l-4 [&_blockquote]:border-muted-foreground/50 [&_blockquote]:py-row [&_blockquote]:pl-block",
+            // The thematic break's SEPARATION (H19). The element itself is ours now (`rule-component.tsx`
+            // owns its ink), but the gap is spelled HERE, as a descendant variant, for the same reason the
+            // blockquote's is: the root's own `space-y-0` trim governs a direct child's block margins, and
+            // a rule is the one owned element whose separation cannot be padding (preflight draws the line
+            // as its border-top, so padding puts the whole gap on one side of it). House token, never the
+            // vendor's `my-6`.
+            "[&_hr]:my-row",
             // @orb-gate-ignore integer-line-boxes: inline code INSIDE prose — the line's box is the surrounding paragraph's strut (a smaller inline box never grows an integer line), so pairing a leading here would be inert. Ends if this selector stops targeting inline (non-pre) code.
             "[&_:not(pre)>code]:px-tight [&_:not(pre)>code]:py-tight [&_:not(pre)>code]:text-code",
             className,

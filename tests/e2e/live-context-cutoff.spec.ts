@@ -68,7 +68,7 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
   expect(restingPreview.boundaryMessageId).toBeNull();
 
   await gotoChatsList(page);
-  await page.getByRole("list", { name: "Chats" }).getByRole("button").first().click();
+  await page.getByRole("list", { name: "Chats list" }).getByRole("button").first().click();
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('[data-slot="context-boundary-divider"]')).toHaveCount(0);

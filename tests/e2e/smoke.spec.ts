@@ -11,7 +11,7 @@
 //     `main` landmark (app-shell.tsx `<main className="shell-content">`) is the stable shell-mounted target.
 //   • the variant-C HOME surface (home-surface.tsx) mounts a `main "Home content"` landmark, and its
 //     masthead/Hearth-hero/recents ALL derive from `chat.listChats` — so the home content rendering proves
-//     `chat.listChats` resolved. The chats-LIST surface (`aria-label="Chats"`) moved OFF `/` in the #102
+//     `chat.listChats` resolved. The chats-LIST surface (`aria-label="Chats list"`) moved OFF `/` in the #102
 //     rework; it now lives on the Chats SECTION (reached via the Primary rail), not the landing.
 
 import { expect, test } from "@playwright/test";
@@ -126,7 +126,7 @@ test("the home page renders the home surface (tRPC query works)", {
   // where you left off" region and the "Other rooms" recents ALL derive from `chat.listChats`, so the home
   // content rendering at all is the end-to-end proof the owner-scoped query resolved (auth + transport + DB
   // all answered). A transport/auth failure would render an ErrorState instead of the surface — assert none.
-  // (The chats-LIST surface — `getByRole("list", { name: "Chats" })` — moved to the Chats SECTION in this
+  // (The chats-LIST surface — `getByRole("list", { name: "Chats list" })` — moved to the Chats SECTION in this
   // rework; it no longer lives on `/`, which is exactly the stale coupling this test used to carry.)
   await expect(page.locator(APP_READY)).toBeAttached({ timeout: 30_000 });
   await expect(page.getByRole("main", { name: "Home content" })).toBeVisible({ timeout: 10_000 });

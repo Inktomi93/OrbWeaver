@@ -1588,6 +1588,20 @@ export function ChatRecentsTileStory(): ReactElement {
   return <HomeTileStory tile={chatRecentsTile} />;
 }
 
+/** The hero pane at a PHONE width — the narrowest REAL mount home has (430x932 coarse, the shipped mobile
+ *  viewport), where the hero is full-width and its own action row is the tightest. The 720px story above
+ *  is a desktop half-pane and cannot reproduce a credit line that wraps, which is the whole subject of
+ *  side-eye HOME H17: the pane, not the viewport, is what sizes this surface. */
+export function ChatRecentsMobileStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 932, width: 430 }}>
+        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [chatRecentsTile])} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The hero pane at a DESKTOP width — the only place #205's art bleed exists. The band is
  *  `inset-inline-start: min(100%, var(--reading-measure))`, so at the 720px story pane above there is
  *  almost nothing beyond the measure and an art assertion there would be measuring a sliver. This pane is a

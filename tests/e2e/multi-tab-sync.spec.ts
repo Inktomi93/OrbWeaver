@@ -24,14 +24,14 @@ test("rename in tab A propagates live to tab B's list via the user-bus", async (
     await boot.close();
 
     // Both tabs sit on the Chats-section LIST — no room opened, no URL deep-link. (The list moved off `/`
-    // in the variant-C home rework; `gotoChatsList` lands the Chats section where the `aria-label="Chats"`
+    // in the variant-C home rework; `gotoChatsList` lands the Chats section where the `aria-label="Chats list"`
     // list lives, which is exactly the surface SHAPE A's live-sync proof needs.)
     const tabA = await ctx.newPage();
     const tabB = await ctx.newPage();
     await gotoChatsList(tabA);
     await gotoChatsList(tabB);
     // Both list the same first chat.
-    const listRowB = tabB.getByRole("list", { name: "Chats" }).getByRole("button").first();
+    const listRowB = tabB.getByRole("list", { name: "Chats list" }).getByRole("button").first();
     await expect(listRowB).toBeVisible({ timeout: 15_000 });
 
     const newTitle = `e2e-multitab-${Date.now()}`;
