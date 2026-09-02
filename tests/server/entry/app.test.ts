@@ -89,7 +89,7 @@ function fakeSeam(principal: Principal | null, onResolve?: () => void): AuthSeam
       onResolve?.();
       return Promise.resolve({ principal, sessionId: null, csrfHeaderPresent: false });
     },
-    isAdmin: (): Promise<boolean> => Promise.resolve(false),
+    debugGateAdmits: (): boolean => false,
   };
 }
 

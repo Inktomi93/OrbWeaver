@@ -149,17 +149,24 @@ export interface AssetInspector {
   fsck: () => Promise<object>;
 }
 
-/** Admin-auth gate — structural-injection so foundation accepts the entry auth resolver without importing
- *  it. Consulted before the token check. `isAdmin` must never throw (a transport/db error resolves to
- *  `false` so a misbehaving seam can't open the gate).
+/** Admin-auth gate — structural-injection so foundation accepts the entry auth verdict without importing
+ *  it. Consulted before the token check. `isAdmin` must never throw (the middleware catches anyway: a
+ *  misbehaving seam falls through to the token check, it never opens the gate).
  *
  *  THE IMPLEMENTOR'S CONTRACT, and the one this port cannot check for itself: `true` means the caller
  *  PRESENTED an admin credential. Because this arm short-circuits BOTH the token comparison and the
  *  `expectedToken === undefined` → 404 branch, an impl that returns `true` for a merely-inferred principal
  *  opens the entire surface unconditionally — which is exactly what the production impl did until
- *  AUTHFIX-2 (`entry/auth/seam.ts::DEBUG_GATE_CREDENTIALED`). An ORIGIN is not a credential. */
+ *  AUTHFIX-2 (`entry/auth/seam.ts::debugGateCredentialed`). An ORIGIN is not a credential.
+ *
+ *  IT TAKES THE REQUEST CONTEXT, NOT THE HEADERS, AND IT IS SYNCHRONOUS — both deliberate (#1193). The impl
+ *  must answer from the principal the app's auth middleware ALREADY resolved onto the context (spine
+ *  invariant #2), because that is the only resolution that saw the request's raw TCP peer; the previous
+ *  `(headers) => Promise<boolean>` shape invited a second, peer-less resolution, and that is precisely what
+ *  refused the box operator's own loopback-owner session at this door. A sync signature makes the re-resolve
+ *  unwritable rather than merely discouraged. */
 export interface AdminAuthChecker {
-  isAdmin: (headers: Headers) => Promise<boolean>;
+  isAdmin: (c: Context) => boolean;
 }
 
 /** The rpg flight-recorder read port (R-OBS) — structural-injection so foundation accepts `domain/rpg`'s ring
@@ -232,27 +239,45 @@ export interface DebugRoutesOptions {
   auth?: DebugAuthOptions | string;
 }
 
-/** Factory — the middleware closes over the gate config. Order: admin-cookie short-circuit, then the
+/** The refusal's ARM-NAMING half. A caller told only "an admin session or x-debug-token" cannot act: the
+ *  owner's dev bug button reported exactly that for months while the session arm was the one refusing
+ *  (#1193). These name WHICH arm said no — and nothing about the principal, which an unauthenticated
+ *  response has no business describing. */
+const ADMIN_ARM_REFUSED = "the admin-session arm refused this request (no admin or owner session on it)";
+const TOKEN_UNSET = "and DEBUG_TOKEN is not configured on this server";
+const TOKEN_ABSENT = "and no x-debug-token header was sent";
+const TOKEN_MISMATCH = "and the x-debug-token sent did not match";
+
+/** One sentence naming every arm that refused. The admin clause is omitted when no checker is wired at all
+ *  (a hand-built app / a headless-only deployment) — claiming an arm refused when it never ran would be a
+ *  lie in the one field the caller acts on. */
+function refusalReason(adminArmConsulted: boolean, tokenClause: string): string {
+  return adminArmConsulted ? `${ADMIN_ARM_REFUSED}, ${tokenClause}` : tokenClause.replace(/^and /u, "");
+}
+
+/** Factory — the middleware closes over the gate config. Order: admin-session short-circuit, then the
  *  token check. The query-param token form is intentionally absent (it leaked into proxy access logs). */
 export function createDebugAuthMiddleware(opts: DebugAuthOptions | string | undefined): MiddlewareHandler {
   const config: DebugAuthOptions = typeof opts === "string" || opts === undefined ? { expectedToken: opts } : opts;
   return async (c: Context, next: Next) => {
+    const adminArmConsulted = config.adminAuth !== undefined;
     if (config.adminAuth !== undefined) {
       // @orb-gate-ignore caught-failure-ownership(empty:catch): documented below — a checker error falls
       // through to the token check, never opening the gate. Ends if the fallthrough is removed.
       try {
-        if (await config.adminAuth.isAdmin(c.req.raw.headers)) {
+        if (config.adminAuth.isAdmin(c)) {
           return await next();
         }
       } catch {
         // Fall through to the token check — never throw upward from the gate.
       }
     }
+    const provided = c.req.header("x-debug-token");
     if (config.expectedToken === undefined) {
-      return c.json({ error: "debug API disabled — set DEBUG_TOKEN to enable" }, NOT_FOUND);
+      return c.json({ error: "debug API disabled — set DEBUG_TOKEN to enable", reason: refusalReason(adminArmConsulted, TOKEN_UNSET) }, NOT_FOUND);
     }
-    if (!tokenMatches(c.req.header("x-debug-token"), config.expectedToken)) {
-      return c.json({ error: "unauthorized" }, UNAUTHORIZED);
+    if (!tokenMatches(provided, config.expectedToken)) {
+      return c.json({ error: "unauthorized", reason: refusalReason(adminArmConsulted, provided === undefined ? TOKEN_ABSENT : TOKEN_MISMATCH) }, UNAUTHORIZED);
     }
     return await next();
   };

@@ -179,13 +179,35 @@ embeddings/search "ONE engine" → `Knowledge-Cluster.md`; AAD belt → `Spine-I
 **Status: CLOSED 2026-08-07 (DEBUGGATE lane), including the e2e coupled site that blocked the first attempt.
 Was HIGH wherever the origin port was reachable. Kept in full because the finding's SHAPE recurs.**
 
-**What landed.** `entry/auth/seam.ts::isAdmin` now requires TWO conditions, not one: the caller presented a
-CREDENTIAL, and that credential's principal satisfies `can(p,'admin',global)`. The credential test is
-`DEBUG_GATE_CREDENTIALED`, a positive allow-list `satisfies Record<Principal["via"], boolean>` —
-`cookie:true`, `header:true`, `fallback:false`. Deliberately not a `via === "fallback"` negative check: the
-mapped Record is exhaustive, so a fourth `via` member is a **tsc error** at the allow-list rather than a
-silent default-to-admitted. (Verified by planting a 4th member: `TS2741` at `seam.ts`, plus `TS7053` on the
-index. Fail-closed by construction beats fail-closed by vigilance.)
+**What landed.** `entry/auth/seam.ts`'s debug-gate verdict now requires TWO conditions, not one: the caller
+presented a CREDENTIAL, and that credential's principal satisfies `can(p,'admin',global)`. The credential
+test is a positive allow-list `Record<Principal["via"], boolean>`. Deliberately not a `via === "fallback"`
+negative check: the mapped Record is exhaustive, so a fourth `via` member is a **tsc error** at the
+allow-list rather than a silent default-to-admitted. (Verified by planting a 4th member: `TS2741` at
+`seam.ts`, plus `TS7053` on the index. Fail-closed by construction beats fail-closed by vigilance.)
+
+**AMENDED 2026-09-02 (#1193) — the ruling survives, its INPUT changed.** Two arms of that allow-list were
+absolutes that had become false, and the fix cost the owner a live debug session:
+
+- `fallback:false` was a door closed to its only user. On a DEV box the un-credentialed LOOPBACK owner
+  fallback IS how the operator authenticates — the same request the gate refused was already being served as
+  `role:"owner"` on every tRPC surface (measured live: an un-credentialed loopback `sessions.me` answered
+  `globalRole:"owner"` while `/api/_debug/info` answered 401), so the dev bug-report button (#1095) 401'd for
+  the owner's own session. The arm is now POSTURE-scoped, and the posture is not decided in the seam: it is
+  `foundation/env::resolveOwnerFallbackCredential` (`NODE_ENV !== "production" && AUTH_FALLBACK === "owner"`),
+  living beside the superRefine that rules the same hazard. **Production is excluded in EVERY mode,
+  `single-user` and break-glass included** — behind a same-host proxy every external request is a loopback
+  peer there, and this surface holds more than the app does (raw provider request bodies).
+- `header:true` was safe only by a CALL-SITE OMISSION (the old verdict re-resolved from bare headers with no
+  `peerIp`, so the unsigned raw-`Remote-User:` path fail-closed and only a signed JWT could reach it). The
+  verdict now judges the request's ALREADY-RESOLVED principal (spine invariant #2 — the re-resolution was
+  itself the reason the loopback arm could not mint at this door), so that accident is gone and the condition
+  is stated: `header` is `selectSignedForwardJwt(headers, config) !== null`, the same predicate
+  `resolveForwardHeader` branches on. An unsigned proxy-asserted admin still needs `DEBUG_TOKEN`.
+
+Also landed: every refusal now carries an arm-naming `reason` in its body (`the admin-session arm refused
+…, and no x-debug-token header was sent`), because "the debug gate admits an admin session or x-debug-token"
+is not something an owner can act on — that unactionable line is what let this defect sit.
 
 The gate itself was NOT changed — the admin-arm-then-token order stands, and fix shape (ii) (making the
 bypass conditional on `expectedToken !== undefined`) was rejected: it leaves a bypass that exists whenever no
@@ -201,7 +223,13 @@ credentials all three witnesses (`fetchWireCaptures` / `inspectChatDb` / `fetchD
   token-state, through the REAL seam and the REAL registrar, asserting refusals by **body** (a bare status
   cannot tell the gate's 404 from an unregistered route). 43 of its rows failed on the pre-fix source with
   "expected 200"; 67 pass after. Positive controls (admin cookie, owner cookie, signed-JWT SSO admin,
-  operator token) prove the instrument can still observe a 200.
+  operator token) prove the instrument can still observe a 200. **Since #1193 it also reproduces the
+  resolve-once middleware** (the gate reads the principal off the context, so registrar-only wiring would
+  test a shape that does not exist) and adds the PEER × POSTURE dimensions: every refusal row now runs with a
+  LOOPBACK peer — the worst case, where the fallback arm really does mint an owner — and the arm-3 rows pin
+  admit-on-dev, refuse-on-LAN-peer, refuse-when-demoted, refuse-in-production, plus the unsigned-header
+  refusal. Planted controls: hard-coding `fallback:false` fails exactly the 4 admission rows (including the
+  bug-report WRITE row that reproduces the owner's 401); `header:true` fails exactly the 2 header rows.
 - `tests/e2e/smoke.spec.ts` — a `@smoke` (push-tier) pin on a REAL BOOTED STACK: un-credentialed
   `/api/_debug/info` → 401, with-token → 200. **This is the only assertion in the tree that proves the gate
   end-to-end**, and it doubles as the proof that `E2E_DEBUG_TOKEN` actually reaches the server. Needed
