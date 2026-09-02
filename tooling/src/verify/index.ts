@@ -97,5 +97,5 @@ export { noticesIn, runVerify } from "./ops/run.ts";
 export { runScopedCli, runScopedPass, SCOPED_USAGE } from "./ops/scoped.ts";
 export { runShow, SHOW_HELP } from "./ops/show.ts";
 export { runStructure } from "./ops/structure.ts";
-export { findUnrunFiles, runTestsExecutionMembership } from "./ops/tests-execution-membership.ts";
+export { findMultiMembershipFiles, findUnrunFiles, runTestsExecutionMembership } from "./ops/tests-execution-membership.ts";
 export { findEscapees, runTestsTypeMembership } from "./ops/tests-type-membership.ts";
