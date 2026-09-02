@@ -64,22 +64,58 @@ export interface GateScan {
   readonly populations: readonly PopulationScan[];
 }
 
+/** The five hooks a gate can own, in the order the pass runs them. ONE importable spelling — the
+ *  harness's error attribution (`ToolError.phase`) and its cost ledger (`GateTiming.phaseMs`) are the
+ *  same axis, and a sixth phase must fail `tsc` in both readers at once. */
+export type GatePhase = "begin" | "visit" | "visitFile" | "run" | "finalize";
+
+/** WALL-CLOCK ONE GATE'S OWN HOOKS CONSUMED this pass (#1107). Recorded by the harness for every gate,
+ *  like `GateScan` and for the same reason one level over: `reports/check-structure.json` carried a
+ *  verdict and a denominator but NO COST, so every gate-cost claim in this repo had to come from a
+ *  scratch profiler nobody committed and nobody could re-derive (the 2026-08-30 research lane measured
+ *  `run` hooks at 199s of a 292s pass exactly that way — and its own report says the artifact carrying
+ *  no per-gate timing is why nobody could see it).
+ *
+ *  Each phase is FLOORED to 3dp and `totalMs` is their exact sum, so `Σ phaseMs === totalMs` and
+ *  `PassTiming.totalMs >= Σ gates` hold by construction rather than by rounding luck. `visit` includes
+ *  the per-dispatch timer overhead spent measuring it (two `performance.now()` per dispatched node) —
+ *  the honest attribution, since that cost exists only because the gate subscribed to the kind. */
+export interface GateTiming {
+  /** `Σ phaseMs` — the number to sort by. */
+  readonly totalMs: number;
+  readonly phaseMs: Readonly<Record<GatePhase, number>>;
+}
+
+/** The PASS's own wall clock beside the sum of its gates (#1107). `totalMs - gateMs` is the harness's
+ *  share — the ts-morph walk, the dispatch, the finding sort — the number that says whether a slow run
+ *  is the gates' fault or the machine's. `totalMs` is CEILED to 3dp for the same
+ *  invariant-by-construction reason `GateTiming` floors: `totalMs >= gateMs` is never a rounding claim. */
+export interface PassTiming {
+  readonly totalMs: number;
+  /** `Σ gates[].timing.totalMs`. */
+  readonly gateMs: number;
+}
+
 export interface GatePassResult {
   readonly name: string;
   readonly ok: boolean;
   readonly findings: readonly Finding[];
   readonly scan: GateScan;
+  /** What this gate COST the pass (#1107) — recorded for every gate, never opt-in. */
+  readonly timing: GateTiming;
 }
 
 export interface ToolError {
   readonly gate: string;
-  readonly phase: "begin" | "visit" | "visitFile" | "run" | "finalize";
+  readonly phase: GatePhase;
   readonly message: string;
 }
 
 export interface PassResult {
   readonly gates: readonly GatePassResult[];
   readonly toolErrors: readonly ToolError[];
+  /** What the pass itself cost, beside the sum of its gates (#1107). */
+  readonly timing: PassTiming;
 }
 
 /** One parsed `@orb-gate-ignore` marker. `malformed` is the GATE-AUTHORING §4.3 verdict: a marker missing

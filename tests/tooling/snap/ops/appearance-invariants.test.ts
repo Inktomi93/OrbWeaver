@@ -196,6 +196,7 @@ describe("#953 appearance invariant receipt", () => {
       passed: true,
       foreground: { r: 255, g: 255, b: 255 },
       backdrop: { r: 0, g: 0, b: 0 },
+      fillChannel: null,
       reason: null,
     };
     expect(evaluateAppearanceInvariantCell(pixelPolicy, { ...clean, pixels: [validPixel] }).status).toBe("ok");

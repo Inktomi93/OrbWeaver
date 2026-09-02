@@ -257,7 +257,11 @@ function evaluatePixels(policy: RuntimeAppearanceHistoricalRow, receipt: Appeara
     if (numericCounts.some((count) => !validCount(count)) || pixel.candidates <= 0 || pixel.inViewport <= 0 || pixel.sampled !== 1) {
       errors.push(`pixel selector ${pixel.selector} has an invalid or empty sampled population`);
     }
-    if (pixel.status !== "ok" || pixel.method !== "pixel-sample" || pixel.matchIndex === null || pixel.ratio === null || pixel.requiredRatio === null) {
+    // `fill-sample` (#1111) is a framebuffer verdict exactly like `pixel-sample` — it reads decoded
+    // pixels — it just measures a FILL-ONLY subject's own painted channel instead of its ink. Excluding
+    // it would report a legitimately measured swatch/indicator as an instrument error.
+    const framebuffer = pixel.method === "pixel-sample" || pixel.method === "fill-sample";
+    if (pixel.status !== "ok" || !framebuffer || pixel.matchIndex === null || pixel.ratio === null || pixel.requiredRatio === null) {
       errors.push(`pixel selector ${pixel.selector} lacks a composited framebuffer verdict`);
     } else if (pixel.passed !== true || pixel.ratio < pixel.requiredRatio) {
       violations.push(`pixel selector ${pixel.selector} contrast=${pixel.ratio} is below required=${pixel.requiredRatio}`);
