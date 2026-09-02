@@ -62,6 +62,11 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--expect-url",
   "--expect-focus",
   "--ref",
+  "--session",
+  "--session-daemon",
+  "--session-close",
+  "--session-export",
+  "--session-ttl",
 ]);
 
 export const OPTIONAL_SELECTOR_FLAGS = new Set(["--aria", "--text", "--map", "--expect-no-overflow"]);
@@ -72,6 +77,13 @@ export const OPTIONAL_SELECTOR_FLAGS = new Set(["--aria", "--text", "--map", "--
  *  type-selector chain and refuse the run (the #550 predicate, applied to the wrong vocabulary). The
  *  containment pin in tests/tooling/snap/lib/selector-shape.test.ts governs the selector set only. */
 export const OPTIONAL_VALUE_FLAGS = new Set(["--requests"]);
+/** Flags whose optional inline value is a NAME, never a selector — consumed when the next token is not a
+ *  flag (ops/flags-session.ts `consumeOptionalName` is the handler-side twin of the scanner's rule). Kept
+ *  apart from OPTIONAL_SELECTOR_FLAGS for the same reason as OPTIONAL_VALUE_FLAGS above, and apart from
+ *  OPTIONAL_VALUE_FLAGS because the RULES differ: a name swallows a `/`-leading token (so
+ *  `--session-status /x` is refused as a bad name), a value does not (so `--requests /route` leaves the
+ *  route alone). Two classes, two predicates in ops/parse.ts — not a synonym pair. */
+export const OPTIONAL_NAME_FLAGS = new Set(["--session-status"]);
 
 export const PAGE_TARGET_FLAGS = new Set([
   "--click",

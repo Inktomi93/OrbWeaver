@@ -1,13 +1,14 @@
 // Official DevTools SDK cascade runtime. Owns the temporary profile, exact-origin loopback server,
 // ephemeral debugging endpoint, target identity, SDK bridge, and teardown. It observes; it never calls
 // a CSS mutation API and never evaluates returned CSS text in the product page.
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { Page } from "@playwright/test";
 import type { ProbeMedia } from "./browser-media.ts";
 import { applyProbeMedia, readProbeMedia } from "./browser-media.ts";
+import { REMOTE_DEBUGGING_PORT_ARG, readDebuggingPort } from "./debugging-endpoint.ts";
 import type { DevToolsAssetPin, DevToolsAssetServer } from "./devtools-assets.ts";
 import { startDevToolsAssetServer, verifyDevToolsAssets } from "./devtools-assets.ts";
 import { budget } from "./load-budget.ts";
@@ -21,8 +22,6 @@ const PROPERTY_RE = /^(?:--[A-Za-z0-9_-]+|-?[A-Za-z][A-Za-z0-9-]*)$/u;
 const MAX_QUERIES = 32;
 const MAX_DECLARATIONS = 256;
 const MAX_EVIDENCE_TEXT = 4096;
-const DEBUG_PORT_ATTEMPTS = 100;
-const DEBUG_PORT_RETRY_MS = 25;
 const MEDIA_RESTORE_ATTEMPTS = 3;
 const MEDIA_RESTORE_STABILITY_MS = 250;
 
@@ -90,27 +89,10 @@ function validateInputs(inputs: readonly DevToolsCascadeInput[]): void {
   }
 }
 
-async function debugPort(profileDir: string): Promise<number> {
-  const file = join(profileDir, "DevToolsActivePort");
-  for (let attempt = 0; attempt < DEBUG_PORT_ATTEMPTS; attempt += 1) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): Chrome creates this file only after binding the ephemeral endpoint; the bounded retry loop owns the race and throws when its budget expires. Ends if exhaustion stops throwing.
-    try {
-      const [line] = (await readFile(file, "utf8")).split("\n");
-      const port = Number(line);
-      if (Number.isInteger(port) && port > 0) {
-        return port;
-      }
-    } catch {
-      // Chrome publishes the file only after binding its OS-assigned endpoint.
-    }
-    await new Promise((resolve) => setTimeout(resolve, DEBUG_PORT_RETRY_MS));
-  }
-  throw new Error("Chrome did not publish DevToolsActivePort");
-}
-
 async function targetIdentity(page: Page, pin: DevToolsAssetPin, profileDir: string): Promise<{ readonly id: string; readonly port: number }> {
   const session = await page.context().newCDPSession(page);
-  const [target, version, port] = await Promise.all([session.send("Target.getTargetInfo"), session.send("Browser.getVersion"), debugPort(profileDir)]);
+  // The port read is ./debugging-endpoint.ts's — the one reader of `DevToolsActivePort` (#1231).
+  const [target, version, port] = await Promise.all([session.send("Target.getTargetInfo"), session.send("Browser.getVersion"), readDebuggingPort(profileDir)]);
   if (
     version.revision !== `@${pin.chromiumRevision}` ||
     version.protocolVersion !== pin.protocolVersion ||
@@ -397,7 +379,7 @@ export async function prepareDevToolsCascadeRuntime(assetRoot: string): Promise<
     let closed = false;
     return {
       profileDir,
-      browserArgs: ["--remote-debugging-port=0", `--remote-allow-origins=${ownedServer.origin}`],
+      browserArgs: [REMOTE_DEBUGGING_PORT_ARG, `--remote-allow-origins=${ownedServer.origin}`],
       pin: assets.pin,
       query: async (page, inputs) => queryRuntime({ page, inputs, pin: assets.pin, profileDir, server: ownedServer }),
       close: async (): Promise<void> => {

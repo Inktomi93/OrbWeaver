@@ -16,6 +16,9 @@ import {
   refuseFileMode,
   resolveContextsMode,
   resolveFixtureTarget,
+  runSessionAdmin,
+  runSessionCall,
+  runSessionDaemon,
   SNAP_HELP,
   snap,
   snapContexts,
@@ -64,7 +67,9 @@ async function runResolvedMode(opts: Args): Promise<number> {
   return await snap(opts);
 }
 
-export async function main(opts: Args): Promise<number> {
+/** `argv` rides beside the parsed `opts` for ONE consumer: a session call forwards its raw argv to the
+ *  daemon, which re-parses it (validation has one home) — the client never re-spells the grammar. */
+export async function main(opts: Args, argv: readonly string[]): Promise<number> {
   const cliExit = printCliPreamble(opts);
   if (cliExit !== null) {
     return cliExit;
@@ -72,10 +77,24 @@ export async function main(opts: Args): Promise<number> {
   if (opts.materializeDevToolsAssets) {
     return await materializeDevToolsAssets();
   }
+  // The daemon opens ITS OWN run slot (instrument `snap-session` — the dead-session marker, design §3.8),
+  // so it enters before the per-call slot below; the admin modes print and exit without a slot.
+  if (opts.sessionDaemon !== null) {
+    return await runSessionDaemon(opts, argv);
+  }
+  const sessionAdminExit = await runSessionAdmin(opts);
+  if (sessionAdminExit !== null) {
+    return sessionAdminExit;
+  }
   const fileRefusal = refuseFileMode(opts);
   if (fileRefusal !== null) {
     print(fileRefusal);
     return 1;
+  }
+  // A session call boots its stage INSIDE the daemon (the stage is the session's binding), so the stage
+  // door below is the one-shot path's only; the call still owns a per-call slot (design §3.7).
+  if (opts.session !== null || opts.sessionExport !== null) {
+    return await withInstrumentRun("snap", async () => await runSessionCall(opts, argv));
   }
   const stageExit = configureStage(opts);
   if (stageExit !== null) {
@@ -90,5 +109,6 @@ export async function main(opts: Args): Promise<number> {
 
 const cliEntry = process.argv[1];
 if (cliEntry !== undefined && import.meta.url === pathToFileURL(cliEntry).href) {
-  await runTool(() => main(parseSnapArgs(process.argv.slice(2))));
+  const argv = process.argv.slice(2);
+  await runTool(() => main(parseSnapArgs(argv), argv));
 }

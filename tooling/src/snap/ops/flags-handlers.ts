@@ -14,6 +14,7 @@ import type { Args } from "../contract/types.ts";
 import { parseLighthouseDevice, parseLighthouseMode } from "../lib/lighthouse-report.ts";
 import { parseShotScale } from "../lib/shot-scale.ts";
 import { NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
+import { SESSION_FLAG_HANDLERS } from "./flags-session.ts";
 import { STAGE_FLAG_HANDLERS } from "./flags-stage.ts";
 import { ariaFlag, consumeOptionalSelector, DEFAULT_VIEWPORT, MS_PER_SECOND, mapFlag, pushEval, pushNav, pushStep, WIDE_VIEWPORT } from "./flags-support.ts";
 
@@ -368,4 +369,6 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   // The isolated-stage family lives in its own module (ops/flags-stage.ts) — seven flags about the same
   // subsystem, split out when this table crossed the tooling line cap.
   ...STAGE_FLAG_HANDLERS,
+  // The stateful-session family (ops/flags-session.ts) — the same one-family-per-module shape.
+  ...SESSION_FLAG_HANDLERS,
 };

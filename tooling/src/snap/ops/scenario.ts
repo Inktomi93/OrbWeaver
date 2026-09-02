@@ -18,6 +18,7 @@ import { scenarioPresetFile } from "../contract/scenario-presets.ts";
 import type { Args, CaptureOutcome, ScenarioCheckpoint, ScenarioSpec, SessionCounts, ShotPlan } from "../contract/types.ts";
 import type { SnapFailureSummary } from "../contract/verdict.ts";
 import { HTTP_URL_RE, shouldProduceShot } from "../lib/out-names.ts";
+import { checkpointArgErrors, identicalSeedsError, inheritSessionArgs } from "../lib/session-plan.ts";
 import { capture } from "./capture.ts";
 import { captureCssEvidence } from "./cascade.ts";
 import { refuseFileMode, snapDestination } from "./guards.ts";
@@ -65,64 +66,14 @@ export function parseScenarioSpec(source: string, fallbackName: string): Scenari
   return { name: routeSlug(name), defaults, checkpoints };
 }
 
-function inheritScenarioSession(globalArgs: Args, checkpoint: Args, name: string): Args {
-  return {
-    ...checkpoint,
-    base: globalArgs.base,
-    vnc: globalArgs.vnc,
-    debugToken: globalArgs.debugToken,
-    failureEvidence: globalArgs.failureEvidence,
-    strictConsole: globalArgs.strictConsole,
-    checkpoint: globalArgs.checkpoint || checkpoint.checkpoint,
-    includeHidden: globalArgs.includeHidden || checkpoint.includeHidden,
-    json: globalArgs.json,
-    summary: globalArgs.summary || checkpoint.summary,
-    viewport: globalArgs.viewport,
-    device: globalArgs.device,
-    colorScheme: globalArgs.colorScheme,
-    reducedMotion: globalArgs.reducedMotion,
-    ...(globalArgs.browserContrast === undefined ? {} : { browserContrast: globalArgs.browserContrast }),
-    ...(globalArgs.reducedTransparency === undefined ? {} : { reducedTransparency: globalArgs.reducedTransparency }),
-    // The shim is installed once, on the ONE context every checkpoint shares — so it is a session-level
-    // property like the media emulation, taken from the outer command (a checkpoint that sets its own is
-    // refused below rather than silently applying to every checkpoint or to none).
-    appearance: globalArgs.appearance,
-    theme: globalArgs.theme,
-    cascade: globalArgs.cascade,
-    probe: globalArgs.probe,
-    localStorage: [...globalArgs.localStorage, ...checkpoint.localStorage],
-    out: checkpoint.out ?? name,
-  };
-}
-
+// The PARTITION (which flag is the browser lifetime's and which is the checkpoint's) and the refusal rows
+// live in lib/session-plan.ts since #1231 — ONE table serves a scenario's checkpoints and a stateful
+// session's calls, so the two can never disagree about what a lifetime owns.
 function scenarioCheckpointArgs(globalArgs: Args, spec: ScenarioSpec): Args[] {
   return spec.checkpoints.map((checkpoint) => {
     const args = parseSnapArgs([...spec.defaults, ...checkpoint.args]);
-    const inherited = inheritScenarioSession(globalArgs, args, `${spec.name}-${routeSlug(checkpoint.name)}`);
-    inherited.errors.push(
-      ...[
-        [inherited.pages > 1 || inherited.contexts > 1 || inherited.as !== null, "scenario checkpoints do not support --pages/--contexts/--as"],
-        [inherited.watchMs > 0 || inherited.baseline || inherited.diff, "scenario checkpoints do not support --watch/--baseline/--diff"],
-        [inherited.scenario !== null || inherited.matrix, "scenario checkpoints cannot nest --scenario/--matrix"],
-        [
-          inherited.lighthouse !== null || inherited.requests,
-          "scenario checkpoints do not run the --lighthouse/--requests arms (this path drives its own session and would ignore them) — take those receipts in their own snap run",
-        ],
-        [
-          inherited.isolated || inherited.stageDown || inherited.stageStatus,
-          "scenario checkpoint args cannot manage stages; put stage flags on the outer command",
-        ],
-        [
-          args.appearance !== null,
-          "scenario checkpoints share ONE browser context, so the appearance shim is session-level; put --appearance/--appearance-preset/--full-motion on the outer command",
-        ],
-        [args.theme !== null, "scenario checkpoints share ONE browser context, so the theme shim is session-level; put --theme on the outer command"],
-      ]
-        // Each row is [invalid, message], so the tuple element type here is `boolean | string`;
-        // `=== true` reads the boolean slot exactly and never the message.
-        .filter(([invalid]) => invalid === true)
-        .map(([, message]) => `${checkpoint.name}: ${message}`),
-    );
+    const inherited = inheritSessionArgs(globalArgs, args, `${spec.name}-${routeSlug(checkpoint.name)}`);
+    inherited.errors.push(...checkpointArgErrors(inherited, args, checkpoint.name));
     return inherited;
   });
 }
@@ -132,9 +83,9 @@ function scenarioErrors(checkpoints: readonly Args[]): string[] {
     const fileRefusal = refuseFileMode(checkpoint);
     return fileRefusal === null ? checkpoint.errors : [...checkpoint.errors, fileRefusal];
   });
-  const firstSeeds = JSON.stringify(checkpoints[0]?.localStorage ?? []);
-  if (checkpoints.some((checkpoint) => JSON.stringify(checkpoint.localStorage) !== firstSeeds)) {
-    errors.push("scenario checkpoints must use identical --ls seeds because they share one browser lifetime");
+  const seeds = identicalSeedsError(checkpoints);
+  if (seeds !== null) {
+    errors.push(seeds);
   }
   return errors;
 }

@@ -252,6 +252,11 @@ export interface NicedChildOptions {
   /** Receives every stdout/stderr chunk (probe-fire forwards the child server's output to ITS stderr
    *  so boot failures stay visible while the parseable payload owns stdout). */
   readonly onOutput?: (chunk: Buffer) => void;
+  /** Append the child's stdout+stderr here instead of piping them to THIS process — the DAEMON shape
+   *  (snap's session daemon): a detached child that outlives its launcher must never hold a pipe to it,
+   *  because its first write after the launcher exits is EPIPE. Mutually exclusive with `onOutput`; the
+   *  parent's fd copy is closed at once (the `spawnFullPriorityChild` discipline). */
+  readonly logPath?: string;
 }
 
 export interface NicedChild {
@@ -262,19 +267,30 @@ export interface NicedChild {
   /** Signal the WHOLE process group — `detached:true` gives the child its own pgid, so this reaps the
    *  full tree (pnpm→node→server); signalling only the direct child orphans the real process. */
   readonly killGroup: (signal: NodeJS.Signals) => void;
+  /** Drop the handle from the parent's event loop — node waits on a detached child until the parent
+   *  `unref`s it, so a launcher that must EXIT before its daemon calls this. */
+  readonly unref: () => void;
 }
 
-/** Long-lived detached child under `nice -n 19` (the ephemeral-server / supervisor shape): own process
- *  group, piped output via `onOutput`, reaped by `killGroup`. The caller owns lifecycle; nothing here
- *  waits for exit. */
+/** Long-lived detached child under `nice -n 19` (the ephemeral-server / supervisor / daemon shape): own
+ *  process group, output piped via `onOutput` OR appended to `logPath`, reaped by `killGroup`. The caller
+ *  owns lifecycle; nothing here waits for exit. */
 export function spawnNicedChild(cmd: string, args: readonly string[], opts: NicedChildOptions = {}): NicedChild {
+  if (opts.logPath !== undefined && opts.onOutput !== undefined) {
+    throw new Error("spawnNicedChild: logPath and onOutput are mutually exclusive — a child logs to a file or pipes to its parent, never both");
+  }
+  const logFd = opts.logPath === undefined ? undefined : openSync(opts.logPath, "a");
   const child = spawn("nice", ["-n", "19", cmd, ...args], {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),
     detached: true,
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: childStdio(undefined, logFd),
   });
-  if (opts.onOutput !== undefined) {
+  if (logFd !== undefined) {
+    // The child holds its own dups; the parent copy would leak one fd per spawn (engines audit, 08-03).
+    closeSync(logFd);
+  }
+  if (opts.onOutput !== undefined && child.stdout !== null && child.stderr !== null) {
     child.stdout.on("data", opts.onOutput);
     child.stderr.on("data", opts.onOutput);
   }
@@ -282,6 +298,7 @@ export function spawnNicedChild(cmd: string, args: readonly string[], opts: Nice
     pid: child.pid,
     hasExited: (): boolean => child.exitCode !== null || child.signalCode !== null,
     killGroup: (signal): void => killPidGroup(child.pid, signal),
+    unref: (): void => child.unref(),
   };
 }
 
