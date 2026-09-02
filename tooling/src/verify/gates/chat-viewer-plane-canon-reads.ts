@@ -43,9 +43,21 @@
 // used to yield ONE verb while staying non-empty — so the blindness arm was satisfied, the gate reported a
 // live matrix, and every spread-in viewer-plane verb was simply not judged. Composition shapes the matrix's
 // own law does not sanction (a spread of a call, an unresolvable binding, a cycle) refuse loudly instead.
+//
+// AND EVERY MEMBER KIND IS ANSWERED, NONE IS SKIPPED (#1091, the #1035 rule carried here). `foldMatrix` read
+// exactly one shape — a `PropertyAssignment` whose value unwraps to a StringLiteral — and let every other
+// member kind fall out of the loop with no throw and no count. Measured: `getChat: MEMBER_AUTHORITY_PROBE`
+// beside `const MEMBER_AUTHORITY_PROBE = "member" as const` took the live census 93 -> 92 with the gate
+// still ✓. A verb missing from the matrix is a verb this gate never classifies, so its factory is judged for
+// nothing — the D16 leak class going invisible in the one direction that is silent. The fold is now TOTAL:
+// every member either writes a row or THROWS. A value resolves through `as const`/`satisfies`/parens and
+// through an identifier's binding (local const or named import); a SHORTHAND resolves through the same hop;
+// a COMPUTED key resolves when its expression is a string literal. Everything else — a non-literal value
+// that binds to nothing, a value-binding cycle, a non-literal computed key, a method, an accessor — refuses.
 import type { Node, ObjectLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import { readStringValue } from "../lib/ast-read.ts";
 
 const MATRIX_CONST = "CHAT_VERB_AUTHORITY";
 const SERVICE_TYPE = "ChatService";
@@ -182,6 +194,54 @@ interface MatrixFold {
   readonly sources: string[];
 }
 
+/** A member's KEY: an identifier / numeric / quoted name read as written, or a COMPUTED key whose
+ *  expression is a string literal. A computed key this reader cannot NAME must not enter the map: before
+ *  #1091 it entered as the bracket text (`["listMessages"]`), which matches no factory — so the gate
+ *  reported an UNCHECKED verb that does not exist while the real one went unjudged. */
+function memberKey(name: Node): string {
+  if (name.isKind(SyntaxKind.ComputedPropertyName)) {
+    const computed = readStringValue(name.getExpression());
+    if (computed === undefined) {
+      throw new Error(
+        `chat-viewer-plane-canon-reads: computed ${MATRIX_CONST} key in ${name.getSourceFile().getFilePath()} is not a string literal: ${name.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
+      );
+    }
+    return computed;
+  }
+  return readStringValue(name) ?? name.getText();
+}
+
+/** The authority STRING a member's value denotes — through `as const`/`satisfies`/parens (`readStringValue`,
+ *  the house reader) and through an identifier's BINDING, the same local-or-named-import hop the matrix
+ *  object itself takes. Every other shape THROWS: an authority this reader cannot establish would drop its
+ *  verb out of the classified set entirely, and `isViewerPlane` never sees the verb it was supposed to
+ *  protect. `seen` is the value chain's OWN cycle domain (`const A = B; const B = A;`). */
+function authorityValue(expression: Node, seen: ReadonlySet<string>): string {
+  const literal = readStringValue(expression);
+  if (literal !== undefined) {
+    return literal;
+  }
+  const node = unwrap(expression);
+  if (node?.isKind(SyntaxKind.Identifier) !== true) {
+    throw new Error(
+      `chat-viewer-plane-canon-reads: unsupported ${MATRIX_CONST} value in ${expression.getSourceFile().getFilePath()}: ${expression.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
+    );
+  }
+  const declaration = matrixBinding(node.getSourceFile(), node.getText());
+  if (declaration === undefined) {
+    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} value binding "${node.getText()}" resolves to no local declaration or named import`);
+  }
+  const key = sourceKey(declaration, declaration.getName());
+  if (seen.has(key)) {
+    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} value binding cycle at ${key}`);
+  }
+  const initializer = declaration.getInitializer();
+  if (initializer === undefined) {
+    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} value binding ${key} has no initializer`);
+  }
+  return authorityValue(initializer, new Set([...seen, key]));
+}
+
 /** Fold one matrix object's rows into the accumulator, resolving object spreads first so a locally-written
  *  row always WINS over the base it overrides (the live `{...BASE, listMessages:"member"}` precedence).
  *
@@ -206,10 +266,24 @@ function foldMatrix(obj: ObjectLiteralExpression, out: MatrixFold, seen: Readonl
       continue;
     }
     const assign = prop.asKind(SyntaxKind.PropertyAssignment);
-    const value = unwrap(assign?.getInitializer())?.asKind(SyntaxKind.StringLiteral);
-    if (assign !== undefined && value !== undefined) {
-      out.verbs.set(assign.getName().replace(/^["']|["']$/gu, ""), value.getLiteralText());
+    if (assign !== undefined) {
+      const initializer = assign.getInitializer();
+      if (initializer === undefined) {
+        throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} row "${assign.getName()}" at ${key} has no value`);
+      }
+      out.verbs.set(memberKey(assign.getNameNode()), authorityValue(initializer, new Set()));
+      continue;
     }
+    // A SHORTHAND row (`{ previewAssembly, listMessages }`) is the same row one hop away: its NAME is both
+    // the verb and the value expression, so the binding hop answers it.
+    const shorthand = prop.asKind(SyntaxKind.ShorthandPropertyAssignment);
+    if (shorthand !== undefined) {
+      out.verbs.set(shorthand.getName(), authorityValue(shorthand.getNameNode(), new Set()));
+      continue;
+    }
+    throw new Error(
+      `chat-viewer-plane-canon-reads: unsupported ${MATRIX_CONST} member kind ${prop.getKindName()} at ${key}: ${prop.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
+    );
   }
 }
 
@@ -443,8 +517,11 @@ function reportReaderCall(ctx: GateRunCtx, call: Node, at: { readonly verb: stri
   ctx.report(call, { token: `${at.verb}:${at.reader}`, offset: 0 });
 }
 
-function isViewerPlane(authority: string | undefined): boolean {
-  return authority !== undefined && !ROOM_PLANE_AUTHORITIES.has(authority);
+/** The parameter is `string`, NOT `string | undefined`, and that is the enforcement (#1091): an
+ *  unclassified verb used to arrive here as `undefined` and answer "not viewer plane" — the false-negative
+ *  direction. Every caller must now decide what an unclassified verb means BEFORE asking. */
+function isViewerPlane(authority: string): boolean {
+  return !ROOM_PLANE_AUTHORITIES.has(authority);
 }
 
 /** Fail-loud arm: a banned reader that no longer exists means it was RENAMED past this gate. */
@@ -658,6 +735,65 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "has rotted" },
       why: "two banned readers absent from the tree — the rename-past-the-gate blindness must be RED, never silently green",
     },
+    {
+      // #1091 MEMBER KIND — a row whose VALUE is a local const. On the real tree `getChat: MEMBER_AUTHORITY_PROBE`
+      // took the census 93 -> 92 with the gate still green: the verb stopped being judged, silently. The `host`
+      // row keeps the matrix non-empty, so the blindness arm cannot stand in for this red.
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'const MEMBER_AUTHORITY = "member" as const;\nexport const CHAT_VERB_AUTHORITY = { previewAssembly: "host", listMessages: MEMBER_AUTHORITY } as const satisfies Record<string, string>;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+        "packages/server/src/domain/chat/verbs/read.ts":
+          'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nexport const x = createListMessages;\n',
+      },
+      expect: { count: 1, token: "listMessages:loadCanonHistory" },
+      why: "a viewer-plane row written as a LOCAL CONST is still a viewer-plane row — resolving the value is what keeps the verb judged",
+    },
+    {
+      // The same value one module away: an IMPORTED authority const, the shape a shared vocabulary file makes
+      // natural. Resolved through the same local-or-named-import binding hop the matrix object itself takes.
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/authorities.ts": 'export const MEMBER = "member" as const;\n',
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'import { MEMBER } from "./authorities";\nexport const CHAT_VERB_AUTHORITY = { previewAssembly: "host", listMessages: MEMBER } as const;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+        "packages/server/src/domain/chat/verbs/read.ts":
+          'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nexport const x = createListMessages;\n',
+      },
+      expect: { count: 1, token: "listMessages:loadCanonHistory" },
+      why: "an IMPORTED authority const must not launder a verb out of the judged set",
+    },
+    {
+      // A SHORTHAND member (`{ previewAssembly, listMessages }`) — one editor refactor away from the inline row,
+      // and the exact shape #1035 caught dropping a drizzle column with its whole FK obligation.
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'const listMessages = "member" as const;\nexport const CHAT_VERB_AUTHORITY = { previewAssembly: "host", listMessages } as const;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+        "packages/server/src/domain/chat/verbs/read.ts":
+          'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nexport const x = createListMessages;\n',
+      },
+      expect: { count: 1, token: "listMessages:loadCanonHistory" },
+      why: "a shorthand row resolves through its binding — before #1091 it fell out of the fold with no throw and no count",
+    },
+    {
+      // A COMPUTED key whose expression is a string literal. Before #1091 this read as the literal key text
+      // `["listMessages"]`, which matches no factory — so it produced an UNCHECKED coverage finding instead of
+      // judging the verb: loud, but about the wrong thing, and the real read went unjudged.
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { previewAssembly: "host", ["listMessages"]: "member" } as const;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+        "packages/server/src/domain/chat/verbs/read.ts":
+          'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nexport const x = createListMessages;\n',
+      },
+      expect: { count: 1, token: "listMessages:loadCanonHistory" },
+      why: "a computed STRING-LITERAL key names its verb — the resolved key must be the verb, not the bracket text",
+    },
   ],
   mustPass: [
     {
@@ -715,6 +851,20 @@ export const gate: GateDescriptor = {
           'import { loadMessagesPage } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadMessagesPage(0);\n}\nexport const x = createListMessages;\n',
       },
       why: "the correct shape: a viewer-plane verb using the floor-TAKING read — the gate must not fire on the good path",
+    },
+    {
+      // VALUE FIDELITY, not merely key presence: the resolved authority must be the STRING the const holds. A
+      // reader that resolved the key but handed back the identifier text would classify this room-plane verb as
+      // viewer-plane (every unknown authority is viewer-plane by design) and accuse the ROOM plane of its job.
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'const HOST_AUTHORITY = "host" as const;\nexport const CHAT_VERB_AUTHORITY = { previewAssembly: HOST_AUTHORITY } as const;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+        "packages/server/src/domain/chat/verbs/read.ts":
+          'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createPreviewAssembly(): ChatService["previewAssembly"] {\n  return async () => await loadCanonHistory();\n}\nexport const x = createPreviewAssembly;\n',
+      },
+      why: "a `host` authority written as a const is still `host` — resolving the member must widen the judged set without widening the accusation",
     },
   ],
 };
