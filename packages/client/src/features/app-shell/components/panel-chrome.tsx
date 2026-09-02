@@ -37,10 +37,12 @@ export interface PanelChromeProps {
   /** The current mode — sets `data-panel-mode` (shell.css owns the transform/width per mode). */
   readonly mode: PanelMode;
   /** Does the ACTIVE SECTION declare this pane at all (`SectionDefinition.panels`, `section-registry.ts`)?
-   *  Published as `data-panel-available` because the declaration is otherwise UNREACHABLE outside React —
-   *  `agent-nav/panel-request.ts` can only infer it from a write that failed to land ("the active section
-   *  LIKELY declares no pane"), and design-audit's SURFACE-AXIS census had to call an unreachable mode
-   *  WITHHELD on a section that structurally cannot have it (#1122). `false` does NOT change what renders:
+   *  Published as `data-panel-available` because the declaration is otherwise UNREACHABLE outside React:
+   *  before it, `agent-nav/panel-request.ts` could only infer the answer from a write that failed to land
+   *  ("the active section LIKELY declares no pane") and design-audit's SURFACE-AXIS census had to call an
+   *  unreachable mode WITHHELD on a section that structurally cannot have it (#1122). `panel-request.ts`
+   *  now READS this attribute and refuses without hedging; the "likely" wording survives only where the
+   *  declaration is absent (#1149). `false` does NOT change what renders:
    *  `"unavailable"` is still not a fourth `PanelMode` (the pane resolves `collapsed`, the topbar ships no
    *  toggle — section-registry.ts). This attribute is a DECLARE, not a behaviour. */
   readonly available: boolean;

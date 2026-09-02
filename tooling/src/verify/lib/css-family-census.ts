@@ -67,10 +67,20 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // +1 (2026-09-02, #1120): the collapsed panel's `backdrop-filter: none`. A section that declares a pane
   // "unavailable" still renders it collapsed (owner decision H3 / arm L-b), and the off-screen box was
   // keeping the most expensive paint primitive in the browser for a box that blurs nothing.
-  [CLIENT_GLOBALS]: 112,
-  [SHELL]: 335,
+  // +7 more (2026-09-02, #1154): the pane's glass moved off `.shell-panel` onto a `.shell-panel::before`
+  // fill layer, so the pane's TEXT is no longer inside a promoted layer (integer-line-boxes.md Law 3/4).
+  // One 2-declaration rule became two rules of 1 + 8 — `background-color: transparent` on the pane, and on
+  // the carrier the five that GENERATE it (`content`/`position`/`inset`/`z-index`/`pointer-events`, the
+  // grain overlay's own shape one screen down), the two glass declarations, and `box-shadow: inherit` so
+  // the pane's elevation highlight is not blurred away by the carrier's backdrop-filter.
+  [CLIENT_GLOBALS]: 119,
+  // +2 (2026-09-02, #1154): the band's separator moved from `border-block-end` to two composed box-shadow
+  // stops (`--shell-band-rule` / `--shell-band-ember` + the `box-shadow` that reads them), so the 48px band
+  // stops being a 47px CONTENT box that lands every occupant on a half pixel. The ramp / floating-context
+  // overrides are one declaration each before and after — they now answer their own stop, not the property.
+  [SHELL]: 337,
 };
-export const EXPECTED_DECLARATION_TOTAL = 972;
+export const EXPECTED_DECLARATION_TOTAL = 981;
 export const EXPECTED_DIRECT_THEME_DECLARATIONS = 191;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",

@@ -44,7 +44,8 @@ test("the count is mono at the LABEL step; a ZERO count renders nothing at all",
   const component = await mount(<ListPaneHeader count={12} title="Chats" />);
   const count = component.getByText("12", { exact: true });
   // #1136 — micro beside a 24px name is not quiet, it is unreadable. A legibility step, not a grid one:
-  // the band's own 47px content box decides this datum's half-pixel landing either way (see the source).
+  // where this datum LANDS is the band's own arithmetic, pinned by the #1154 case at the end of this file
+  // (the 47px content box that decided it is gone — the band's separator is an inset shadow now).
   await expect(count).toHaveCSS("font-size", LABEL_PX);
   await expect.poll(() => count.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(MONO_STACK_RE);
 
@@ -179,3 +180,51 @@ test("DESKTOP: the band is untouched — title, count and action all paint", asy
 // list is `unavailable`) can never reach `data-list-mode="docked"` at ≤48rem. (Refinery graduated in R3 with
 // a `listHeader` + `selection` pair, which only strengthens the ruling.) The rule and its fixture went with
 // them; see the ruling comment in shell.css.
+
+// ── #1154 · THE BAND'S OWN ARITHMETIC: EVERY OCCUPANT LANDS ON A DEVICE PIXEL ──────────────────────
+// side-eye Characters F8 addendum. `.shell-panel-header` was `height: 3rem` PLUS a `border-block-end`, i.e.
+// a 48px border box with a 47px CONTENT box, and `align-items: center` halves the odd remainder: the
+// display-voice heading landed at top 8.5, the label-voice count at 15.5, a 32px control at 7.5. The pane
+// was ALSO a `backdrop-filter` layer, so those halves were rasterized once rather than re-snapped every
+// paint (docs/design/integer-line-boxes.md Law 3/4) — which is what made them visible.
+//
+// IT IS NOT RE-VOICEABLE, which is why the box moved and not the type: every leading token at or above
+// 21px is EVEN (display 30 · headline 26 · title 22), so a display-voice band title (#1136) and an integer
+// landing were mutually exclusive while the content box was odd. The separator is an inset shadow now,
+// which paints the same hairline without consuming box height.
+//
+// The assertion is the LANDING, not three magic numbers — the numbers are annotated so a token move reads
+// in the report, but what REDs is a fractional device-pixel offset, normalized exactly as the runtime
+// oracle normalizes it (`tooling/src/ui-audit/ops/walker/census-grid.ts` `gridDeviceFrac`).
+test("#1154 the band is an EVEN content box and every occupant lands on the device-pixel grid", async ({ mount, page }) => {
+  await mount(<ListBandInShell count={8} withAction={true} />);
+  const header = page.locator(".shell-panel-header");
+  await expect(header).toBeVisible();
+
+  const landing = await header.evaluate((el) => {
+    const dpr = window.devicePixelRatio;
+    const bandTop = el.getBoundingClientRect().top;
+    // `clientHeight` is the CONTENT box: it excludes the border the old separator spent, which IS the
+    // defect. An odd content box cannot centre an even child on a whole pixel.
+    const contentHeight = el.clientHeight;
+    const deviceFraction = (value: number): number => value * dpr - Math.round(value * dpr);
+    const occupants = [...el.querySelectorAll("h2, span, button")].map((node) => ({
+      name: `${node.tagName.toLowerCase()}:${(node.textContent ?? "").slice(0, 10)}`,
+      top: Number((node.getBoundingClientRect().top - bandTop).toFixed(3)),
+      height: Number(node.getBoundingClientRect().height.toFixed(3)),
+      topFraction: Number(deviceFraction(node.getBoundingClientRect().top).toFixed(4)),
+    }));
+    return { contentHeight, dpr, occupants };
+  });
+
+  test.info().annotations.push({
+    description: `content box ${String(landing.contentHeight)}px at DPR ${String(landing.dpr)} · ${landing.occupants.map((o) => `${o.name} top ${String(o.top)} h ${String(o.height)}`).join(" · ")}`,
+    type: "band-arithmetic",
+  });
+
+  expect(landing.occupants.length, "the band must actually have occupants, or this pin measures nothing").toBeGreaterThan(2);
+  expect(landing.contentHeight % 2, `the band's CONTENT box is ${String(landing.contentHeight)}px — an odd box half-pixels every centred child`).toBe(0);
+  for (const occupant of landing.occupants) {
+    expect(occupant.topFraction, `${occupant.name} lands ${String(occupant.topFraction)} device px off the grid (top ${String(occupant.top)})`).toBe(0);
+  }
+});
