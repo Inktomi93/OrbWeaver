@@ -10,10 +10,20 @@
 // "topbar.trail"]` spread; the hand-copied second list this gate used to hold had already drifted — it
 // omitted `rail.brand` and would have REJECTED a legitimate brand-cell entry. A vocabulary that resolves to
 // nothing while the tuple's home is loaded is the §4.6 blindness RED, never a silent pass.
+//
+// (4) UNREADABLE DEFINITION (#944/#946, 2026-09-01) — the discovery used to `continue` past any initializer
+// that was not a bare object literal, so `export const xChrome: ChromeEntry = importedEntry;` left the
+// duplicate-id, zone and rail-mobile arms with nothing to judge while the file still sat at its sanctioned
+// `*-chrome.tsx` path and every path check stayed green. §A/§D give the definition ONE home and sanction no
+// builder, so an unresolvable initializer FAILS CLOSED. A same-file const and an `as`/`satisfies` wrapper
+// still resolve — both are still co-located. The gate also declares its ENTRY POPULATION beside the zone
+// vocabulary, so a shrinking subject cannot hide behind a healthy file count. The SUBJECT is TOP-LEVEL
+// `ChromeEntry`-annotated variable declarations: an ARRAY annotation (`ChromeEntry[]`) is the assembler's
+// derivation, never a definition, and is excluded by matching the annotation HEAD exactly.
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { readStringValue } from "../lib/ast-read.ts";
+import { readObjectLiteral, readStringValue } from "../lib/ast-read.ts";
 import { readTupleVocabulary } from "../lib/tuple-read.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
@@ -96,23 +106,44 @@ function checkChromeEntry(def: ChromeDef, ctx: GateRunCtx, seenIds: Map<string, 
   }
 }
 
-function checkChromeDefs(sf: SourceFile, ctx: GateRunCtx, seenIds: Map<string, Seen>, zones: ReadonlySet<string>): void {
+/** Is this annotation a `ChromeEntry` DEFINITION (bare or generic)? `ChromeEntry[]` is the assembler's
+ *  derived list, not a definition — a loose `startsWith` prefix would swallow that whole class. */
+function isChromeAnnotation(typeText: string): boolean {
+  return typeText === "ChromeEntry" || typeText.startsWith("ChromeEntry<");
+}
+
+/** The per-pass member tally behind the #946 population receipt. */
+interface EntryTally {
+  members: number;
+  unresolved: number;
+}
+
+function checkChromeDefs(
+  sf: SourceFile,
+  ctx: GateRunCtx,
+  seenIds: Map<string, Seen>,
+  scan: { readonly zones: ReadonlySet<string>; readonly tally: EntryTally },
+): void {
   const path = sf.getFilePath();
   const coLocated = CHROME_FILE_RE.test(path);
   for (const decl of sf.getVariableDeclarations()) {
-    const typeNode = decl.getTypeNode();
-    if (typeNode === undefined || !typeNode.getText().startsWith("ChromeEntry")) {
+    if (!isChromeAnnotation(decl.getTypeNode()?.getText() ?? "")) {
       continue;
     }
     if (!coLocated) {
       ctx.report(decl, { token: `not co-located: ${decl.getName()}`, offset: 0 });
       continue;
     }
-    const init = decl.getInitializer();
-    if (init === undefined || !Node.isObjectLiteralExpression(init)) {
+    // FAIL CLOSED (#944): an initializer this gate cannot resolve to a co-located object literal leaves the
+    // dup-id, zone and rail-mobile arms nothing to judge — the law being unestablishable, not a clean skip.
+    const read = readObjectLiteral(decl.getInitializer());
+    if (read.kind === "unresolved") {
+      scan.tally.unresolved += 1;
+      ctx.report(decl, { token: `unreadable definition: ${decl.getName()} — ${read.shape}`, offset: 0 });
       continue;
     }
-    checkChromeEntry({ name: decl.getName(), path, init }, ctx, seenIds, zones);
+    scan.tally.members += 1;
+    checkChromeEntry({ name: decl.getName(), path, init: read.object }, ctx, seenIds, scan.zones);
   }
 }
 
@@ -122,11 +153,12 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a chrome widget is dishonest: a ChromeEntry not co-located in a feature chrome file, a duplicate id across defs, a zone outside CHROME_ZONES, or a rail.* widget missing `mobile` — shell-chrome-unification.md §A/§D.",
-  fix: 'co-locate the definition at features/<owner>/lib/<id>-chrome.tsx; give every ChromeEntry a unique id; use a real CHROME_ZONES member; declare `mobile` on every rail.* widget (topbar.* may declare it too — the You sheet projects `"sheet"`-curated trail widgets).',
+    "a chrome widget is dishonest: a ChromeEntry not co-located in a feature chrome file, a co-located definition this gate cannot READ (an imported/builder initializer — every arm below then has nothing to judge), a duplicate id across defs, a zone outside CHROME_ZONES, or a rail.* widget missing `mobile` — shell-chrome-unification.md §A/§D.",
+  fix: 'co-locate the definition at features/<owner>/lib/<id>-chrome.tsx and write it as an object literal (a same-file const and an `as`/`satisfies` wrapper read fine — an IMPORT does not); give every ChromeEntry a unique id; use a real CHROME_ZONES member; declare `mobile` on every rail.* widget (topbar.* may declare it too — the You sheet projects `"sheet"`-curated trail widgets).',
   run: (ctx) => {
     const seenIds = new Map<string, Seen>();
     const vocabulary = readTupleVocabulary(ctx.project, ZONE_TUPLE);
+    const tally: EntryTally = { members: 0, unresolved: 0 };
     ctx.scan({
       unit: `zone vocabulary [${ZONE_TUPLE}=${vocabulary.members.size} from ${vocabulary.sources.length === 0 ? "<none>" : vocabulary.sources.join("+")}]`,
       candidates: vocabulary.sources.length,
@@ -137,8 +169,12 @@ export const gate: GateDescriptor = {
       if (!path.includes(CLIENT_SRC)) {
         continue;
       }
-      checkChromeDefs(sf, ctx, seenIds, vocabulary.members);
+      checkChromeDefs(sf, ctx, seenIds, { zones: vocabulary.members, tally });
     }
+    // The SUBJECT's own denominator (#946), beside the zone VOCABULARY's above: they are two different
+    // populations that shrink independently — a healthy zone tuple says nothing about how many entries the
+    // dup-id / zone / rail-mobile arms actually ran over.
+    ctx.scan({ population: [{ source: "ChromeEntry", members: tally.members, unresolved: tally.unresolved }] });
     // §4.6 blindness tripwire: the zone axis is DERIVED, so a rename/refactor that stops resolving it would
     // silently retire the zone arm. If the tuple's home is in the fileset the vocabulary must be non-empty.
     if (vocabulary.members.size === 0 && ctx.project.getSourceFile(`${ctx.root}/${ZONE_TUPLE_HOME}`) !== undefined) {
@@ -212,6 +248,20 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "resolved to ZERO zones" },
       why: "THE §4.6 BLINDNESS TRIPWIRE: the tuple's home is loaded but nothing named CHROME_ZONES resolves (a rename) — the zone arm has silently retired, which must be RED and not a ✓ over an empty vocabulary",
     },
+    {
+      files: {
+        "packages/client/src/state/section-registry.ts": 'export const RAIL_ZONES = ["rail.nav", "rail.brand", "rail.end"] as const;\n',
+        "packages/client/src/state/chrome-registry.ts":
+          'import { RAIL_ZONES } from "./section-registry.ts";\nexport const CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"] as const;\n',
+        "packages/client/src/features/x/lib/x-definition.ts":
+          "export const xDef = { id: 'x', zone: 'rail.nav', label: 'X', behavior: { kind: 'widget', body: () => null } };\n",
+        "packages/client/src/features/x/lib/x-chrome.tsx": 'import { xDef } from "./x-definition.ts";\nexport const xChrome: ChromeEntry = xDef;\n',
+      },
+      expect: {
+        token: "unreadable definition: xChrome — the identifier `xDef` (not an object literal declared in this file — an imported or re-exported definition)",
+      },
+      why: "THE #944 CONTROL (the audit's exact fixture): an IMPORTED `ChromeEntry` with `zone: 'rail.nav'` and NO `mobile`. The rail-mobile arm would have RED'd it; before the fail-closed arm the discovery returned silently at a sanctioned `*-chrome.tsx` path, so every co-location and zone check stayed green over nothing",
+    },
   ],
   mustPass: [
     {
@@ -273,6 +323,25 @@ export const gate: GateDescriptor = {
           "function sectionEntry(): ChromeEntry {\n  return { id: 'a', zone: 'rail.nav', label: 'A', mobile: 'tab', behavior: { kind: 'widget', body: () => null } };\n}\nexport function assemble(): ChromeEntry[] {\n  const entries: ChromeEntry[] = [sectionEntry()];\n  return entries;\n}\n",
       },
       why: "THE ASSEMBLER BOUNDARY: `state/assemble-chrome.ts` DERIVES entries (a `ChromeEntry` return type and a function-scoped `ChromeEntry[]` local) rather than declaring co-located defs — the subject is TOP-LEVEL `ChromeEntry`-typed variable declarations only, and this row pins that the derivation stays silent instead of being read as an uncolocated def",
+    },
+    {
+      files: {
+        "packages/client/src/state/section-registry.ts": 'export const RAIL_ZONES = ["rail.nav", "rail.brand", "rail.end"] as const;\n',
+        "packages/client/src/state/chrome-registry.ts":
+          'import { RAIL_ZONES } from "./section-registry.ts";\nexport const CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"] as const;\n',
+        "packages/client/src/state/assemble-chrome.ts": "export const ENTRIES: ChromeEntry[] = [];\n",
+      },
+      why: 'THE ASSEMBLER BOUNDARY\'S TOP-LEVEL HALF (#944): a `ChromeEntry[]` ARRAY annotation at module scope is a derived list, not a definition. The old `startsWith("ChromeEntry")` subject would have read it as an uncolocated def AND then failed closed on its array initializer — two false accusations; matching the annotation HEAD exactly keeps the assembler out of the subject',
+    },
+    {
+      files: {
+        "packages/client/src/state/section-registry.ts": 'export const RAIL_ZONES = ["rail.nav", "rail.brand", "rail.end"] as const;\n',
+        "packages/client/src/state/chrome-registry.ts":
+          'import { RAIL_ZONES } from "./section-registry.ts";\nexport const CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"] as const;\n',
+        "packages/client/src/features/x/lib/x-chrome.tsx":
+          "const xDef = { id: 'x', zone: 'topbar.trail', label: 'X', behavior: { kind: 'widget', body: () => null } };\nexport const xChrome: ChromeEntry = xDef;\n",
+      },
+      why: "SAME-FILE indirection — still co-located, so `readObjectLiteral` follows it and every arm judges the real entry. The declared limit this row writes down: only an import/builder fails closed, never a local const",
     },
   ],
 };
