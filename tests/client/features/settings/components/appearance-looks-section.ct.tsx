@@ -19,8 +19,8 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { LooksSectionNarrowStory, LooksSectionStory } from "../_ct-stories.tsx";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { LooksSectionNarrowStory, LooksSectionReopenStory, LooksSectionStory } from "../_ct-stories.tsx";
 
 const NOW = 0;
 interface SeedView {
@@ -289,6 +289,53 @@ test("Export downloads the row's own bytes; Import feeds createTheme the parsed 
   await component.getByRole("button", { name: "Import a theme file" }).click();
   await (await chooserPromise).setFiles(file);
   await expect.poll(() => trpc.lastInput("settings.createTheme"), { intervals: [50, 100, 200] }).toEqual({ name: "Weft", override: OWNED.override });
+});
+
+// ── #1100 (re-drive G1): the section must not walk out from under the pointer ────────────────────────
+// MEASURED on the live stack before the fix, with a real click on the Appearance group row: the pane
+// painted with NO Looks heading and a one-line "Loading your themes…" gloss, then the collection landed
+// ~230ms later and pushed everything below it down — `[cls] shift 0.1624 input-adjacent · <section> moved
+// 0px,365px · observed 0.2094`. Two things were wrong and both are pinned here: the section CHROME lived
+// inside the suspending body (so the heading and its `configAnchorId` jump target did not exist during the
+// read), and the boundary was unkeyed (so nothing held the box). The tail sentinel is the assertion that
+// matters — it is what a user is reading when the pane jumps.
+
+test("#1100 reopening Looks holds its box: the heading stays, the boundary reserves the measured height, and nothing below it moves", async ({
+  mount,
+  page,
+}) => {
+  const hold = trpcHold();
+  let reads = 0;
+  // First open answers; the SECOND read is parked, which is the pending arm a user sees on the way back in.
+  const trpc = await stub(page, { "settings.listThemes": (): unknown => (reads++ === 0 ? THEMES : hold) });
+  const component = await mount(<LooksSectionReopenStory />);
+  await expect(component.getByRole("radiogroup", { name: "Theme" })).toBeVisible();
+
+  const tail = component.getByTestId("looks-tail");
+  const settledY = (await tail.boundingBox())?.y;
+  expect(settledY, "the tail sentinel has no box").not.toBeUndefined();
+
+  await component.getByRole("button", { name: "reopen" }).click();
+  await hold.requested;
+
+  // The chrome is OUTSIDE the read: a jump target that does not exist until a query lands is not a jump
+  // target, and the pane's first paint used to start at the NEXT section's heading.
+  await expect(component.getByRole("heading", { name: "Looks" })).toBeVisible();
+  await expect(page.getByText("Loading your themes…")).toHaveCount(0);
+  // The reservation is this DEVICE's own measurement from the first open, not a declared constant.
+  const reserved = page.locator("[data-tile-reserved]");
+  await expect(reserved).toHaveAttribute("data-tile-reserve-source", "measured");
+  const heldY = (await tail.boundingBox())?.y ?? Number.NaN;
+  // ±1px: the store keeps sub-pixel heights and the reserved `blockSize` is rounded.
+  expect(Math.abs(heldY - (settledY ?? Number.NaN)), "the pane jumped while the themes read was in flight").toBeLessThanOrEqual(1);
+
+  hold.release(THEMES);
+  await expect(component.getByRole("radiogroup", { name: "Theme" })).toBeVisible();
+  const afterY = (await tail.boundingBox())?.y ?? Number.NaN;
+  expect(Math.abs(afterY - (settledY ?? Number.NaN)), "the pane jumped when the themes read landed").toBeLessThanOrEqual(1);
+  // Two genuine reads — a cached second open would make the whole pin vacuous.
+  // ONESHOT-OK: read after the released collection re-rendered; the story issues no third read.
+  expect(trpc.count("settings.listThemes")).toBe(2);
 });
 
 test("at the 430px pushed-pane width the collection collapses to one column and the builder door stays inside", async ({ mount, page }) => {
