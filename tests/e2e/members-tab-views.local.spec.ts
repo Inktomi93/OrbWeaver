@@ -19,12 +19,15 @@
 import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
+import { STORY_SHOT_DIR } from "../support/ct/story-shot.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { addMemberToChat, loginLocal, ownerActor } from "./support/actors.ts";
 import { openBrowserActor, openMembersTab } from "./support/browser-actors.ts";
 import { LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes.ts";
 
-const SNAP_DIR = "reports/snaps";
+// The pointer-free story-shot family (#1201): `reports/snaps/` is the SNAP instrument's published
+// alias, and a screenshot written there follows the symlink into a finished run's slot.
+const SNAP_DIR = STORY_SHOT_DIR;
 const MEMBERS_PANEL = "[data-testid=members-panel]";
 const INVITE_BUTTON = "[data-testid=invite-people-button]";
 const RENDER_TIMEOUT_MS = 20_000;

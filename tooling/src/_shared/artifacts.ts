@@ -317,6 +317,23 @@ function exists(path: string): boolean {
   }
 }
 
+/** A slot's last-modified instant, or null when the slot VANISHED between the directory listing and this
+ *  read. THE DEFECT THIS CLOSES (#1029 adversarial verification, 2026-09-02): every other per-slot read in
+ *  the prune chain — `readMarker`, `publishedAliases`, `pointerRunId` — already answers "gone" with a
+ *  value, but this one called `statSync(...).mtimeMs` bare after a multi-syscall filter chain. A SIBLING
+ *  publisher pruning the same stale slot inside that window threw ENOENT out of `publishRunSlot`, BEFORE
+ *  the instrument returned its verdict — so a green (or honestly red) run exited 2 with a raw stack and
+ *  lost its history entry. Reproduced 12/15 trials at 2 concurrent publishers over a 12-slot ring; all
+ *  five instrument families share the call site. A vanished slot is nothing to prune. */
+function slotMtime(dir: string): number | null {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): a slot removed by a CONCURRENT publisher's prune between the listing and this stat is the expected racing case, and `null` is the answer its one caller acts on — the row is dropped, because a slot that is already gone is nothing to prune. Ends if the caller starts needing to distinguish a vanished slot from an unreadable one (a permission error worth reporting).
+  try {
+    return statSync(dir).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
 /** Keep the `RETAINED_RUNS` newest slots for this instrument. A slot that is still in flight (live
  *  marker), the one just published, and any slot a published pointer still resolves into are never pruned
  *  — `latest` can therefore never point at a removed run. */
@@ -329,7 +346,10 @@ function pruneRuns(root: string, slot: RunSlot): void {
       return marker === null || !pidAlive(marker.pid);
     })
     .filter((name) => !slotIsReferenced(root, slot.instrument, name, join(base, name)))
-    .map((name) => ({ name, at: statSync(join(base, name)).mtimeMs }))
+    .map((name) => ({ name, at: slotMtime(join(base, name)) }))
+    // A slot a racing publisher already removed drops out here; the `rmSync(force)` below is likewise
+    // indifferent to one vanishing between this sort and the delete.
+    .filter((row): row is { readonly name: string; readonly at: number } => row.at !== null)
     .sort((a, b) => b.at - a.at);
   for (const stale of candidates.slice(RETAINED_RUNS - 1)) {
     rmSync(join(base, stale.name), { recursive: true, force: true });
