@@ -2,10 +2,12 @@
 import type { AppearancePatch } from "../../_shared/appearance.ts";
 import type { Viewport } from "../../_shared/argv.ts";
 import type { CapturedConsole, CapturedRequest, LocalStorageSeed } from "../../_shared/browser.ts";
+import type { EvidenceGap } from "../../_shared/evidence.ts";
 import type { NavMethod } from "../../_shared/nav.ts";
 import type { ThemeRequest } from "../../_shared/theme.ts";
 import type { CssCascadeQuery, CssEvidenceReceipt } from "./cascade.ts";
 import type { DeadCssEvidence } from "./dead-css.ts";
+import type { LighthouseDevice, LighthouseMode } from "./lighthouse.ts";
 
 /** `--scale`'s resolved shape. `mode` is what Playwright's `screenshot({ scale })` receives — it accepts
  *  ONLY "css" | "device", so a numeric ask reaches the pixels through `deviceScaleFactor`, which raises
@@ -265,6 +267,25 @@ export interface Args {
   mapSelector: string;
   /** Which --pages tab to map (default 0), set by a `@<idx>` suffix on --map. */
   mapPage: number;
+  // ── THE TWO MCP-RETIRING ARMS (#1198/#1199 — docs/design/1195-devtools-mcp-retirement.md §2) ──
+  /** `--lighthouse <desktop|mobile>`: audit the SETTLED page with the Lighthouse engine over this run's
+   *  own browser (ops/lighthouse.ts). null = the arm is off, which is every ordinary run — the engine
+   *  and its puppeteer attach are dynamically imported, so a run without this flag pays nothing.
+   *  `--lighthouse mobile` also fills the DEVICE slot with `--mobile`'s descriptor, so one device story
+   *  governs the pixels and the audit; a later --desktop/--viewport/--wide clears it and is REFUSED. */
+  lighthouse: LighthouseDevice | null;
+  /** `--lighthouse-mode <snapshot|navigation>`. snapshot (the default) audits the page as the drive queue
+   *  left it; navigation RELOADS and therefore audits a different, freshly-booted page. */
+  lighthouseMode: LighthouseMode;
+  /** `--requests [url-substring]`: print + file the ORDERED log of every request this run's pages issued
+   *  (method, url, status, type, size, timing). The optional value narrows what is PRINTED, never what is
+   *  recorded — the artifact is always the complete log, and the block states both counts. */
+  requests: boolean;
+  requestsFilter: string | null;
+  /** `--request-body <url-substring>`: capture ONE matching response body, capped and truncation-accounted
+   *  (lib/request-log.ts). Implies --requests: a body with no log leaves the reader unable to see which
+   *  request it came from, or that a second one matched. */
+  requestBody: string | null;
   // ── LOAD EMULATION (CDP — the margin a rest-state measurement cannot see) ───
   /** `--cpu-throttle <n>`: CDP `Emulation.setCPUThrottlingRate`, applied to EVERY page before it
    *  navigates. 1 = no throttle (the default). The measurement it exists for: a settle that is free at
@@ -327,6 +348,10 @@ export interface CaptureOutcome {
   perf: PerfEvidence | null;
   /** Null when no --cascade query targeted this page. */
   cssEvidence: CssEvidenceReceipt | null;
+  /** #1227: the `--theme` stamp this page was supposed to carry and did not. Non-null means the capture
+   *  describes the DEFAULT palette while the run was labelled with a theme — an instrument error (exit 2),
+   *  never a finding about the app (ops/theme-stamp.ts). */
+  themeStampGap: EvidenceGap | null;
   /** Indices into this capture's ProbeSession arrays when --checkpoint owns the verdict window. */
   evidenceRange: EvidenceRange | null;
 }
@@ -349,37 +374,6 @@ export interface EvalOutcome {
 export interface AssertionOutcome {
   readonly line: string;
   readonly failed: boolean;
-}
-
-// ── --expect-no-overflow: the scroll-delta arm AND the child-rect sweep ──────
-// `scrollWidth - clientWidth` is a POSITIVE-ONLY measure: content pushed off the LEFT or TOP edge of a
-// clipping box does not grow the scroll box at all, so the delta reads 0 on a frame where a control is
-// painted outside the container and cut (#439/#444 — measured, a `justify-end` nowrap footer put a
-// button 35px left of a dialog while this assertion printed `overflow=0x0`). The predicate that decides
-// what the rect sweep judges lives with the measurement, in ops/overflow.ts.
-
-const OVERFLOW_SIDES = ["bottom", "left", "right", "top"] as const;
-export type OverflowSide = (typeof OVERFLOW_SIDES)[number];
-
-export interface OverflowEscape {
-  /** A locatable path to the OUTERMOST escaping element, with its text as a recognition hint. */
-  readonly selector: string;
-  readonly side: OverflowSide;
-  readonly px: number;
-}
-
-export interface OverflowProbe {
-  /** `scrollWidth - clientWidth` / `scrollHeight - clientHeight` — the historical arm, unchanged. */
-  readonly scrollX: number;
-  readonly scrollY: number;
-  /** Which SIDES the rect sweep judged, and therefore which it did not. Scrolling sanctions content
-   *  past the RIGHT/BOTTOM edge — that content is reachable, and the scroll arm above measures it —
-   *  but it sanctions nothing on the LEFT/TOP: there is no negative scroll offset, so content before
-   *  the content origin is unreachable and cut whatever the overflow value says. (Measured on the live
-   *  new-chat dialog, which is `overflow: auto` with a zero scroll delta — an axis-level decline would
-   *  have left the instrument blind on the exact surface #439 was found on.) */
-  readonly judged: readonly OverflowSide[];
-  readonly escapes: readonly OverflowEscape[];
 }
 
 export interface PerfEvidence {

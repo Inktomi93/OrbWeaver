@@ -51,6 +51,24 @@ catalog:
   "@vitest/coverage-v8": ^4.1.11
   "@playwright/test": ^1.61.1
   "@playwright/experimental-ct-react": ^1.61.1
+  # --- rendered instruments ---
+  # lighthouse: the audit ENGINE the retired chrome-devtools MCP wrapped (#1195/#1198). WHY THE DEPENDENCY
+  # IS WORTH IT (every dependency is a liability): the census in docs/design/1195-devtools-mcp-retirement.md
+  # §1 counted 41 `lighthouse_audit` MCP calls in 14 days and it was the ONLY MCP tool producing findings
+  # snap could not — axe's `label-content-name-mismatch` (3 nodes on the plugins pane) and `target-size`.
+  # Owning the engine retires a whole MCP server for one dev-only @orb/tooling dep that ships to nobody.
+  # The caret is deliberate but NOT free: snap reads audit ids and the `details.items[].node.selector`
+  # shape, so a minor bump owes a re-run of tests/tooling/snap/ops/lighthouse.int.test.ts (it pins the
+  # audit BY NAME) before it is trusted.
+  lighthouse: ^13.4.1
+  # puppeteer-core: NOT a second browser — the ATTACH surface. Lighthouse drives a puppeteer Page
+  # (`page.target().createCDPSession()` + a wildcard protocol listener), so snap connects puppeteer to the
+  # SAME chromium Playwright already launched, over its `--remote-debugging-port` endpoint, and hands
+  # Lighthouse the handle for the exact target being driven (tooling/src/snap/ops/lighthouse.ts). Already
+  # in the tree as lighthouse's own dependency; PINNED EXACT TO LIGHTHOUSE'S RESOLUTION so the two share
+  # one installed copy — a drift here silently gives Lighthouse a page from a different puppeteer build.
+  # Re-derive this pin on every `lighthouse` bump (`pnpm why puppeteer-core`).
+  "puppeteer-core": 25.9.0
   # --- quality / mutation tooling ---
   # ts-reset: ambient type hardening (filter(Boolean), JSON.parse→unknown) — wired via root reset.d.ts.
   "@total-typescript/ts-reset": ^0.6.1

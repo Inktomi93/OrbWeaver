@@ -42,6 +42,7 @@ const CLEAN_FAILURES: SnapFailureSummary = {
   emptyCss: 0,
   environment: 0,
   appearance: 0,
+  lighthouse: 0,
 };
 
 function runSnap(args: readonly string[]): ReturnType<typeof spawnSync> {

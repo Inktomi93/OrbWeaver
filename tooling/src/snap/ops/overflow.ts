@@ -39,7 +39,7 @@
 // file already answered it before: by declaring the structural surface the body touches.
 import type { Locator } from "@playwright/test";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { OverflowProbe } from "../contract/types.ts";
+import type { OverflowProbe } from "../contract/overflow.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 

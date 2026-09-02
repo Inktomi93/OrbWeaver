@@ -3,6 +3,7 @@
 import { appearanceHelpBlock } from "../../_shared/appearance-flags.ts";
 import { panelPresetHelpBlock } from "../../_shared/panel-flags.ts";
 import { themeHelpBlock } from "../../_shared/theme.ts";
+import { LIGHTHOUSE_DEVICE_SPELLINGS, LIGHTHOUSE_MODE_SPELLINGS } from "../lib/lighthouse-report.ts";
 import { SHOT_PIXEL_BUDGET } from "../lib/shot-scale.ts";
 import { NETWORK_PROFILE_SPELLINGS } from "../lib/throttle.ts";
 import { SNAP_SCENARIO_PRESET_NAMES } from "./scenario-presets.ts";
@@ -77,6 +78,32 @@ ${panelPresetHelpBlock()}
 ${appearanceHelpBlock()}
 
 ${themeHelpBlock()}
+
+Audit and network (the two arms that retired the chrome-devtools MCP):
+  --lighthouse <${LIGHTHOUSE_DEVICE_SPELLINGS.join("|")}>
+                          run Lighthouse (accessibility + best-practices + seo) against the SETTLED page
+                          of this very run — same browser, same tab, same device. Prints the category
+                          scores and EVERY failed audit with its node count and first three selectors,
+                          and writes report.json + report.html into the run slot. Findings RED the run
+                          (exit 1), like --contrast and --deadcss. A page that never signalled
+                          data-app-ready, a Lighthouse throw, or a truncated report REFUSE with exit 2 —
+                          a refusal is never a finding. \`--lighthouse mobile\` fills the SAME device slot
+                          --mobile does (touch, coarse pointer, DPR 3), so it does not combine with a
+                          later --desktop/--viewport/--wide, and --lighthouse desktop does not combine
+                          with --mobile. Not combinable with --cascade (both want the debugging endpoint).
+  --lighthouse-mode <${LIGHTHOUSE_MODE_SPELLINGS.join("|")}>
+                          DEFAULT snapshot: audit the page as the drive queue left it, because every
+                          surface under review here is client state. navigation RELOADS the URL first, so
+                          it measures a freshly-booted page and loses whatever you drove to.
+  --requests [url-substring]
+                          the ORDERED log of every request this run's pages issued — method, url, status,
+                          resource type, declared size, timing — printed and written into the run slot.
+                          The optional value narrows what is PRINTED; the artifact is always complete and
+                          the block states both counts. It is a plain case-insensitive URL SUBSTRING, not
+                          a selector and not a regex.
+  --request-body <url-substring>
+                          one matching response body, capped and truncation-accounted (the block says
+                          \`truncatedAt=<bytes>\` when it cut). Implies --requests.
 
 Pixels:
   --no-shot               skip the primary PNG

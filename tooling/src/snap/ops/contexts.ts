@@ -30,6 +30,7 @@ import {
   sessionForEvidence,
 } from "./report.ts";
 import { finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
+import { themeStampExit } from "./theme-stamp.ts";
 import { buildFailureSummary, evidenceFailureCounts, hasSnapFailure, mapOutputSummary, outcomeTotals } from "./verdict.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -209,7 +210,7 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
     captures: outcomes,
   });
   const mapSummary = mapOutputSummary(opts.map, outcomes);
-  return printVerdict("snap", {
+  const contextsCode = printVerdict("snap", {
     verdict: red ? 1 : 0,
     denominators: { contexts: { value: totalContexts, refuseWhen: "zero" } },
     pairs: [
@@ -250,6 +251,8 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
       ["emptycss", totals.emptyCss],
     ],
   });
+  // #1227: a page whose requested THEME never stamped measured the default palette — exit 2, not a verdict.
+  return themeStampExit(outcomes, contextsCode);
 }
 
 export function resolveContextsMode(opts: Args, target: FixtureTarget): { readonly users: readonly FixtureUser[] } | { readonly refuse: string } | null {

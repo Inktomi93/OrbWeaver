@@ -4,11 +4,12 @@ import { parseViewport, splitFirstEq, splitLastEq, splitPageSuffix, splitSelecto
 import { DEFAULT_BASE, DEFAULT_DEBUG_TOKEN } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
+import { LIGHTHOUSE_DEVICE_SPELLINGS, LIGHTHOUSE_MODE_SPELLINGS, parseLighthouseDevice, parseLighthouseMode } from "../lib/lighthouse-report.ts";
 import { CROP_RE } from "../lib/out-names.ts";
 import { selectorRefusalForFlag } from "../lib/selector-shape.ts";
 import { CSS_SHOT_SCALE, parseShotScale, shotScaleBudgetRefusal } from "../lib/shot-scale.ts";
 import { NETWORK_PROFILE_SPELLINGS, NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
-import { OPTIONAL_SELECTOR_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
+import { OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
 import { DEFAULT_VIEWPORT, MS_PER_SECOND } from "./flags-support.ts";
 
@@ -42,6 +43,18 @@ function validateLoadFlagValue(flag: string, raw: string, errors: string[]): voi
   }
   if (flag === "--network" && parseNetworkProfile(raw) === null) {
     errors.push(`--network expects one of ${NETWORK_PROFILE_SPELLINGS.join(" | ")}, got ${JSON.stringify(raw)}`);
+  }
+}
+
+/** The two MCP-retiring arms refuse a bad value rather than silently running the default arm: a run that
+ *  asked for `--lighthouse mobile` and audited desktop is the same false-receipt class as a throttle flag
+ *  that no-ops (#1198). */
+function validateLighthouseFlagValue(flag: string, raw: string, errors: string[]): void {
+  if (flag === "--lighthouse" && parseLighthouseDevice(raw) === null) {
+    errors.push(`--lighthouse expects ${LIGHTHOUSE_DEVICE_SPELLINGS.join(" | ")}, got ${JSON.stringify(raw)}`);
+  }
+  if (flag === "--lighthouse-mode" && parseLighthouseMode(raw) === null) {
+    errors.push(`--lighthouse-mode expects ${LIGHTHOUSE_MODE_SPELLINGS.join(" | ")}, got ${JSON.stringify(raw)}`);
   }
 }
 
@@ -127,6 +140,7 @@ function validateFlagValue(flag: string, raw: string, errors: string[]): void {
   }
   validateNumericFlag(flag, raw, errors);
   validateLoadFlagValue(flag, raw, errors);
+  validateLighthouseFlagValue(flag, raw, errors);
   validateEvidenceFlagValue(flag, raw, errors);
   validatePairFlagValue(flag, raw, errors);
   validateShellNavFlagValue(flag, raw, errors);
@@ -170,6 +184,11 @@ function scanArgvToken(argv: readonly string[], index: number, scan: ArgvScan): 
   }
   if (REQUIRED_VALUE_FLAGS.has(flag)) {
     return consumeRequiredArg(argv, index, flag, scan.errors);
+  }
+  // An optional NON-selector value (`--requests trpc`): consumed so it is never counted as the route,
+  // and deliberately NOT passed to the selector refusal — see OPTIONAL_VALUE_FLAGS.
+  if (OPTIONAL_VALUE_FLAGS.has(flag)) {
+    return consumesOptionalSelector(argv, index) ? 1 : 0;
   }
   if (!(OPTIONAL_SELECTOR_FLAGS.has(flag) && consumesOptionalSelector(argv, index))) {
     return 0;
@@ -267,10 +286,34 @@ function evidenceValidationPairs(args: Args, producesShot: boolean): ValidationP
   ];
 }
 
+/** The `--lighthouse`/`--requests` arms' cross-flag rules. Every one refuses a run that would produce a
+ *  receipt whose LABEL and CONTENT disagree — the failure class ops/lighthouse.ts's header calls out. */
+function armValidationPairs(args: Args): ValidationPair[] {
+  return [
+    [
+      args.lighthouse === "mobile" && args.device === null,
+      "--lighthouse mobile needs the mobile device descriptor, but a later --desktop/--viewport/--wide cleared it — the audit would be labelled mobile and taken on a desktop context (tooling/src/snap/ops/lighthouse.ts)",
+    ],
+    [
+      args.lighthouse === "desktop" && args.device !== null,
+      "--lighthouse desktop cannot run on the --mobile device descriptor — pass --lighthouse mobile, or drop --mobile",
+    ],
+    [
+      args.lighthouse !== null && args.cascade.length > 0,
+      "--lighthouse and --cascade are mutually exclusive: both need the browser's debugging endpoint, and --cascade owns it through a persistent profile (tooling/src/_shared/devtools-runtime.ts). Take the two receipts in two runs",
+    ],
+    [args.lighthouse === null && args.lighthouseMode !== "snapshot", "--lighthouse-mode requires --lighthouse <desktop|mobile>"],
+    [
+      (args.scenario !== null || args.matrix || args.contexts > 1 || args.as !== null) && (args.lighthouse !== null || args.requests),
+      "--lighthouse/--requests run only on the ordinary single-run path: --scenario, --contexts/--as and --matrix drive their own sessions or their own device axis and would silently ignore the arm (tooling/src/snap/ops/run.ts)",
+    ],
+  ];
+}
+
 function validateParsedArgs(args: Args): string[] {
   const contextsMode = args.contexts > 1 || args.as !== null;
   const producesShot = args.shotOf !== null || args.shot || args.baseline || args.diff;
-  const invalidModes = [...sessionValidationPairs(args, contextsMode), ...evidenceValidationPairs(args, producesShot)];
+  const invalidModes = [...sessionValidationPairs(args, contextsMode), ...evidenceValidationPairs(args, producesShot), ...armValidationPairs(args)];
   // The image budget is checked against the RAW viewport, which is the one a numeric --scale can reach
   // (the device arm is refused above, so a descriptor's own viewport is never the multiplicand here).
   const budget = args.device === null ? shotScaleBudgetRefusal(args.scale, args.viewport) : null;
@@ -363,6 +406,11 @@ export function parseSnapArgs(argv: string[]): Args {
     map: false,
     mapSelector: "body",
     mapPage: 0,
+    lighthouse: null,
+    lighthouseMode: "snapshot",
+    requests: false,
+    requestsFilter: null,
+    requestBody: null,
     device: null,
     isolated: false,
     ref: null,
