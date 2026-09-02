@@ -448,7 +448,7 @@
       "issue": 2,
       "lines": 399,
       "bytes": 229883,
-      "sha256": "973a3d6ce1b80983c9c3d1b09158ffee55844a54465b1f2b3c69ffcad4b11360",
+      "sha256": "7b9029c1a3d6ef3bf54a6692fba27d4984c67f490694177160ed2850841c48f6",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -461,12 +461,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "973a3d6ce1b80983c9c3d1b09158ffee55844a54465b1f2b3c69ffcad4b11360",
+        "assignedSha256": "7b9029c1a3d6ef3bf54a6692fba27d4984c67f490694177160ed2850841c48f6",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "973a3d6ce1b80983c9c3d1b09158ffee55844a54465b1f2b3c69ffcad4b11360",
-        "verifiedCommit": "5253ba772ac23ac77d60ebf78e864f0bb9aaa9da",
+        "verifiedSha256": "7b9029c1a3d6ef3bf54a6692fba27d4984c67f490694177160ed2850841c48f6",
+        "verifiedCommit": "7f51cd1b51531884accd5d1b80b8efbbf92534de",
         "verifiedAt": "2026-09-02",
         "evidence": [
           "re-attested at a4467408a (#971, lane p-argv-lock): `tooling-argv-front-door` row — both read spellings, the shape-derived cli.ts home, the two-sided ARGV_ENTRIES stale sweep, the §4.6 blindness tripwire, and the declared limit; registered-gate count 251 → 252 (a live `pnpm check:structure` reports 252/252).",
@@ -546,7 +546,8 @@
           "re-attested at f92e84640 (#1048, lane p-bus-secret2, owner ruling): the bus-payload-allowlist row records `markerImmune` — no `@orb-gate-ignore` can silence a credential finding or a fail-closed token on the D16 wire firewall, and the ONE exemption door stays a reviewed SANCTIONED_FIELDS row with its D-cite. It is the FIRST NON-AUDITOR occupant of that flag, so GATE-AUTHORING.md §1 (the descriptor table cell) and §4.3a-bis both widen by ONE stated precedent, and both say a third occupant owes the same argument in writing. Delta read; registered-gate COUNT unchanged. Receipts: red-first on the REAL descriptor, two-sided in ONE run — with the flag off the marker suppressed both a planted `apiKey` member and an `unresolved-base:` token (so the marker spelling really bites and the pin is not a lying proof), and with it on neither is suppressed; a live-tree sweep found NO `@orb-gate-ignore bus-payload-allowlist` marker anywhere, so the flip orphaned nothing and gate-ignore-inventory stayed clean. check:structure ran COMPLETE 248/248 clean over 6,509 files (234/234 members), gate-conformance + the gate-ignore resolver pins 20/20, the gate's own pins 32/32, knip clean, types:graph clean, check:docs clean on both edited docs, ledgers-fresh clean. check-gates.int was UNRUN-BY-LOAD (loadavg 22.7 on 24 cores, above the quiet-tree bar).",
           "re-attested at 9e5c8f6ee — merge of #1048 (f92e84640: bus-payload-allowlist markerImmune; GATE-AUTHORING §1 charter widened by one stated precedent); union read once",
           "re-attested at fc5f99e4c — fold of #1097 (cb-axis-drain, 57c0aaecc rebased): the `ui-variant-axes-stamped` row gains its drain note — baseline DRAINED TO `{}` (tranche 2, 2026-09-02), all 15 stamped-axis recipes reach the DOM through the seam, every A1 admission gone, A4 empty, ledger + generator teardown the remaining terminal step. Delta read once against the word-diff; the baseline file in the same commit is `{}` and the lane's planted positive control proves the empty ledger does not blind the gate. No other row moved.",
-          "re-attested at 5253ba772 — fold of #962 (p-biome-zero): the `suppressions` row now governs `tests/**` (two ratification tables, two-sided per scope), a new `no-blanket-suppression` row (three arms: harness fileset, tracked non-TS corpus derived from git ls-files minus biome's ignores, the INDEX via git grep --cached + git show :path; markerImmune; no allowlist/baseline), and the registered-gate count 252 → 253 cited from the scan line. Delta read once; no other row moved."
+          "re-attested at 5253ba772 — fold of #962 (p-biome-zero): the `suppressions` row now governs `tests/**` (two ratification tables, two-sided per scope), a new `no-blanket-suppression` row (three arms: harness fileset, tracked non-TS corpus derived from git ls-files minus biome's ignores, the INDEX via git grep --cached + git show :path; markerImmune; no allowlist/baseline), and the registered-gate count 252 → 253 cited from the scan line. Delta read once; no other row moved.",
+          "re-attested at 7f51cd1b5 — the no-blanket-suppression row's renamed describe-scoped CONSTANT_CASE count corrected 24 → 21 (the diff's `- const` removals under tests/, per the cold verifier); one number, no other text moved."
         ],
         "claims": [
           {
