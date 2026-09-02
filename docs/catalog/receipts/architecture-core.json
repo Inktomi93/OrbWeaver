@@ -163,12 +163,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "32ba6324ef05a2f04f7ec21e33a54062a87245fc714ab1f5b7d582f039ce5e01",
+      "assignedSha256": "7ccf1ffdec1830cf1711f95e27b0fbf7d2e703c1e0807794ba0f3bc0dd57bd2c",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "32ba6324ef05a2f04f7ec21e33a54062a87245fc714ab1f5b7d582f039ce5e01",
-      "verifiedCommit": "a4ae3f6a76e87f01bfb31030f49b20c509e6cdf3",
+      "verifiedSha256": "7ccf1ffdec1830cf1711f95e27b0fbf7d2e703c1e0807794ba0f3bc0dd57bd2c",
+      "verifiedCommit": "b8baf68dc0148c62cfff4aa5054382082c2098bf",
       "verifiedAt": "2026-09-01",
       "evidence": [
         "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
@@ -225,7 +225,8 @@
         "re-attested at 8d813c402 — merge of #1018/#968/#910 (77f0aaad9: runner-config-path-liveness row, 247→248, the @mirrors-message preamble + three marked rows) onto the #942-#948 ledger; union read once",
         "re-attested at 171daabb4 (#947): six more rows truth-repaired where the gate's claim changed — tooling-instrument-proof / warning-code-coverage / duplicate-action-doors now RESOLVE their tuples through lib/tuple-read.ts, chat-viewer-plane-canon-reads folds object spreads into its authority matrix, message-kind-policy-coverage counts INHERITED axes, and section-factory-contribution-bundle resolves registry parameters through type aliases (its old alias mustPass, which blessed the false negative, is now a mustFlag). Delta read; verified by check:structure 247/247 run COMPLETE clean, check-gates.int + gate-conformance 16/16, 18 resolver pins, and per-gate red-first receipts (7/7 HEAD readers silent or mis-keyed on the same planted shapes)",
         "re-attested at a4ae3f6a7 — merge of #947 (171daabb4: six member-gate rows truth-repaired) onto the #1018/#968/#910 ledger; union read once",
-        "re-attested at e0c1ebe83 + 9055cfe6a (#944/#946, lane p-gates-closed): SIX Layer-3 rows changed, no gate added or removed, so the 247 count line is untouched. Each row now states its fail-closed discovery arm (an initializer not resolvable to a co-located object literal REDs instead of being skipped) and its declared MEMBER POPULATION; the section rows additionally state the widened subject (the `make<X>Section(): SectionDefinition` FACTORY, read through the shared lib/section-defs.ts). Delta read at the edited bytes. RED-FIRST on the real tree: six planted imported-definition probes under packages/client/src/features/refinery/lib/ were measured against the HEAD gate sources first — all six gates rendered ✓ over them (chrome with a fully healthy `CHROME_ZONES=4` vocabulary line) — then RED with `N member(s), 1 UNRESOLVED` after the fix; probes rm'd, `git status --short` clean. check:structure ran 247/247 COMPLETE and clean on the final tree; gate conformance, check-gates.int, and the four new runner controls (tests/tooling/verify/lib/population.int.test.ts) all pass."
+        "re-attested at e0c1ebe83 + 9055cfe6a (#944/#946, lane p-gates-closed): SIX Layer-3 rows changed, no gate added or removed, so the 247 count line is untouched. Each row now states its fail-closed discovery arm (an initializer not resolvable to a co-located object literal REDs instead of being skipped) and its declared MEMBER POPULATION; the section rows additionally state the widened subject (the `make<X>Section(): SectionDefinition` FACTORY, read through the shared lib/section-defs.ts). Delta read at the edited bytes. RED-FIRST on the real tree: six planted imported-definition probes under packages/client/src/features/refinery/lib/ were measured against the HEAD gate sources first — all six gates rendered ✓ over them (chrome with a fully healthy `CHROME_ZONES=4` vocabulary line) — then RED with `N member(s), 1 UNRESOLVED` after the fix; probes rm'd, `git status --short` clean. check:structure ran 247/247 COMPLETE and clean on the final tree; gate conformance, check-gates.int, and the four new runner controls (tests/tooling/verify/lib/population.int.test.ts) all pass.",
+        "re-attested at b8baf68dc — merge of #944/#946 (e0c1ebe83 + 9055cfe6a: six definition-gate rows fail-closed + population receipt) onto the #947 ledger; the adjacent section-factory (#947) / config-group (#944) rows resolved per side; union read once"
       ],
       "claims": [
         {
