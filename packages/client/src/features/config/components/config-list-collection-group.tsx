@@ -28,7 +28,7 @@ import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 import { useId, useState } from "react";
 import { QueryBoundary, QueryErrorState } from "#data";
 import type { CollectionContribution } from "#lib";
@@ -42,9 +42,11 @@ export interface CollectionListGroupProps {
    *  itself `aria-current` while no member of the collection is open, and the populated arm's click toggles
    *  its rows rather than re-entering once it is already the location. */
   readonly active: boolean;
+  /** The SECTION's arrival focus target (#1218) — handed to the ACTIVE group only, whichever species it is. */
+  readonly bandRef?: RefObject<HTMLButtonElement | null>;
 }
 
-export function CollectionListGroup({ group, active }: CollectionListGroupProps): ReactNode {
+export function CollectionListGroup({ group, active, bandRef }: CollectionListGroupProps): ReactNode {
   const collection = group.body.collection;
   // Every hook runs UNCONDITIONALLY over the door-frozen registry (the `useVisible` contract) — the
   // visibility verdict gates the RENDER, never the hook call.
@@ -55,6 +57,7 @@ export function CollectionListGroup({ group, active }: CollectionListGroupProps)
   const selection = useCollectionSelection();
   const [filter, setFilter] = useState("");
   const bodyId = useId();
+  const bandId = `${bodyId}-band`;
 
   if (!visible) {
     return null;
@@ -71,11 +74,20 @@ export function CollectionListGroup({ group, active }: CollectionListGroupProps)
             different band, not this one with pieces missing: no chevron, no panel, and an act of SELECTION
             rather than disclosure. Its own component states that ruling and what #1099 F5 changed about it. */}
         {isEmpty ? (
-          <CollectionEmptyBand active={active} count={count} group={group} />
+          <CollectionEmptyBand active={active} bandId={bandId} count={count} group={group} {...(bandRef === undefined ? {} : { bandRef })} />
         ) : (
-          <CollectionMemberBand active={active} bodyId={bodyId} count={count} group={group} memberOpen={selection?.kind === group.id} open={open} />
+          <CollectionMemberBand
+            active={active}
+            bandId={bandId}
+            {...(bandRef === undefined ? {} : { bandRef })}
+            bodyId={bodyId}
+            count={count}
+            group={group}
+            memberOpen={selection?.kind === group.id}
+            open={open}
+          />
         )}
-        <CollectionBulkTrigger collection={collection} />
+        <CollectionBulkTrigger collection={collection} hasMembers={!isEmpty && count !== undefined} />
         <CollectionImportTrigger collection={collection} />
         {/* The band's `+` STAYS at zero — it is the standing create affordance at every count, and it is the
             one this group keeps (side-eye 2026-08-08 P2: the zero-slot's button died, the launcher card
@@ -84,6 +96,8 @@ export function CollectionListGroup({ group, active }: CollectionListGroupProps)
           <Icon icon={Plus} size="sm" />
         </Button>
       </Row>
+      {/* THE MEMBER ROWS ARE AN OWNED, NAMED GROUP (#1214-3) — the settings arm's anatomy, same reason: a
+          bare `div` is transparent to AT, so the contribution's rows announced as siblings of the band. */}
       <div id={bodyId} hidden={!open || isEmpty}>
         {open && !isEmpty ? (
           <QueryBoundary
@@ -91,6 +105,7 @@ export function CollectionListGroup({ group, active }: CollectionListGroupProps)
             renderError={(_error, retry): ReactElement => <QueryErrorState label={group.label.toLowerCase()} onRetry={retry} />}
           >
             <CollectionGroupBody
+              bandId={bandId}
               collection={collection}
               count={count}
               filter={filter}
@@ -144,7 +159,9 @@ function CollectionMemberBand({
   open,
   active,
   memberOpen,
+  bandId,
   bodyId,
+  bandRef,
 }: {
   readonly group: CollectionGroupDefinition;
   readonly count: number | undefined;
@@ -152,7 +169,11 @@ function CollectionMemberBand({
   readonly active: boolean;
   /** A member of THIS collection is open — then the member's row is the location, not the band. */
   readonly memberOpen: boolean;
+  /** The band's own id — the NAME its expanded row group points at (#1214-3). */
+  readonly bandId: string;
   readonly bodyId: string;
+  /** Present on the ACTIVE group only — the section's arrival focus target (#1218). */
+  readonly bandRef?: RefObject<HTMLButtonElement | null>;
 }): ReactElement {
   return (
     <Button
@@ -181,7 +202,9 @@ function CollectionMemberBand({
       className="min-w-0 flex-1 justify-start gap-tight px-tight"
       data-config-group={group.id}
       data-slot="config-band"
+      id={bandId}
       intent="ghost"
+      {...(bandRef === undefined ? {} : { ref: bandRef })}
       onClick={(): void => {
         if (active) {
           toggleConfigGroup(group.id);
@@ -215,10 +238,15 @@ function CollectionEmptyBand({
   group,
   count,
   active,
+  bandId,
+  bandRef,
 }: {
   readonly group: CollectionGroupDefinition;
   readonly count: number | undefined;
   readonly active: boolean;
+  readonly bandId: string;
+  /** Present on the ACTIVE group only — the section's arrival focus target (#1218). */
+  readonly bandRef?: RefObject<HTMLButtonElement | null>;
 }): ReactElement {
   return (
     // ── THE RULING FORK, STATED (#1099 F5 · the 2026-08-06 P2 ruling in this file, preserved) ──
@@ -253,7 +281,11 @@ function CollectionEmptyBand({
       // got an empty string for it — which is how the LIST sweep hung on a selector matching nothing.
       data-config-group={group.id}
       data-slot="config-band"
+      // The id its group's (always hidden, on this arm) row wrapper is NAMED by (#1214-3) — carried by both
+      // band arms so the relation resolves whichever one is drawn.
+      id={bandId}
       intent="ghost"
+      {...(bandRef === undefined ? {} : { ref: bandRef })}
       onClick={(): void => selectConfigGroup(group.id, null)}
       size="sm"
       type="button"
@@ -288,9 +320,24 @@ interface CollectionTriggerProps {
 /** The group band's BULK-SELECT toggle (REGX2) — rendered only for a collection that declares one, and
  *  split into its own component for the same reason the import door is: whether a collection has a bulk mode
  *  is a module-level BUILD fact, so the hook below it is called unconditionally. */
-function CollectionBulkTrigger({ collection }: CollectionTriggerProps): ReactNode {
+/**
+ * The band's BULK-SELECT toggle — drawn for a collection that DECLARES one and HAS members to select
+ * (#1212).
+ *
+ * THE MEMBERS DECIDE, NOT THE KIND. Measured on the live surface: the regex library at count 0 drew "Select
+ * scripts" — enabled, focusable, `aria-disabled` unset — over a library with nothing in it, so the one thing
+ * the control could do was enter a mode with no rows to check. That is the capability lie ruling 1 names,
+ * and it is the same class as the zero-member band that was not a control at all: population must decide
+ * what a control CAN DO, never whether a row is a door. A settling count (`undefined`) draws nothing either
+ * — a toggle that appears a beat later is chrome that moved, and the mode it opens is meaningless until the
+ * rows exist.
+ *
+ * `hasMembers` is a PROP rather than a second `useCount()` here for the reason the whole file is shaped this
+ * way: the count is already read once, unconditionally, at the top of the group frame.
+ */
+function CollectionBulkTrigger({ collection, hasMembers }: CollectionTriggerProps & { readonly hasMembers: boolean }): ReactNode {
   const bulk = collection.bulkSelect;
-  if (bulk === undefined) {
+  if (bulk === undefined || !hasMembers) {
     return null;
   }
   return <CollectionBulkToggle bulk={bulk} />;
@@ -336,6 +383,9 @@ function CollectionImportDoor({ door }: { readonly door: NonNullable<CollectionC
 
 interface CollectionGroupBodyProps {
   readonly collection: CollectionContribution;
+  /** The band that NAMES these rows (#1214-3) — the group's label, so the rows are an owned, named set in
+   *  the accessibility tree rather than siblings of the control that opened them. */
+  readonly bandId: string;
   readonly kind: ConfigGroupId;
   readonly label: string;
   readonly count: number | undefined;
@@ -345,12 +395,12 @@ interface CollectionGroupBodyProps {
 }
 
 /** The expanded body: the host's filter box above the contribution's own rows. */
-function CollectionGroupBody({ collection, kind, label, count, filter, onFilterChange, selectedId }: CollectionGroupBodyProps): ReactElement {
+function CollectionGroupBody({ collection, kind, label, count, filter, onFilterChange, selectedId, bandId }: CollectionGroupBodyProps): ReactElement {
   // The filter is COUNT-DRIVEN host chrome, not a per-collection special: any library past a glance earns
   // the same box, in the same place, with the same grammar.
   const filterable = (count ?? 0) > COLLECTION_LARGE_GROUP;
   return (
-    <Stack gap="tight">
+    <Stack aria-labelledby={bandId} gap="tight" role="group">
       {filterable ? (
         <Row align="center" gap="tight">
           <Icon icon={Search} size="sm" className="text-muted-foreground" />

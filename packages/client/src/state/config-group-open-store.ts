@@ -68,6 +68,21 @@ export function openConfigGroup(id: ConfigGroupId): void {
   useConfigGroupOpenStore.setState({ openIds: [...openIds, id] }, false, "configGroupOpen/open");
 }
 
+/** Collapse one group, if it is open — the AUTO-OPEN's undo (#1217).
+ *
+ *  IT EXISTS BECAUSE AUTO-OPEN IS NOT USER INTENT. `openConfigGroup` remembers a disclosure per device, and
+ *  that memory is the reader's: a group they opened stays open across switches (C-12). The arrival default
+ *  opens a group NOBODY asked for, so leaving that one expanded behind the reader is the memory telling a
+ *  lie about what they did — measured as nine Appearance rows pinned above the library the reader actually
+ *  entered. Only the arrival module calls this, and only for the group it opened itself. */
+export function closeConfigGroup(id: ConfigGroupId): void {
+  const { openIds } = useConfigGroupOpenStore.getState();
+  if (!openIds.includes(id)) {
+    return;
+  }
+  useConfigGroupOpenStore.setState({ openIds: openIds.filter((k) => k !== id) }, false, "configGroupOpen/close");
+}
+
 /** Test seam: drop every remembered disclosure (a CT must not inherit another test's expanded set). */
 export function __resetConfigGroupOpen(): void {
   useConfigGroupOpenStore.setState({ openIds: [] }, false, "configGroupOpen/__reset");

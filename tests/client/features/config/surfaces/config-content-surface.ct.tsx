@@ -173,14 +173,16 @@ test("renders the four shelves as NAMED groups, labelled by their own kicker, wi
   // own (#978 F4's fold rows, deliberately) — so the loose count measured "four shelves" by accident and
   // read 5 the moment anything was open. The claim was always about the shelves.
   await expect(list.locator("[data-config-shelf]")).toHaveCount(4);
-  await expect(list.getByRole("group", { name: "User" })).toBeVisible();
-  await expect(list.getByRole("group", { name: "App" })).toBeVisible();
-  await expect(list.getByRole("group", { name: "Collections" })).toBeVisible();
-  await expect(list.getByRole("group", { name: "Extensions" })).toBeVisible();
+  // EXACT names (#1214-3): an expanded band's rows are now a named group too, so a substring "App" also
+  // matches the "Appearance" row group — which is the new anatomy working, not a defect.
+  await expect(list.getByRole("group", { exact: true, name: "User" })).toBeVisible();
+  await expect(list.getByRole("group", { exact: true, name: "App" })).toBeVisible();
+  await expect(list.getByRole("group", { exact: true, name: "Collections" })).toBeVisible();
+  await expect(list.getByRole("group", { exact: true, name: "Extensions" })).toBeVisible();
   // The bands live INSIDE their shelf, which is the whole point — a group nobody is in is decoration.
-  await expect(list.getByRole("group", { name: "User" }).getByRole("button", { name: "Appearance" })).toBeVisible();
-  await expect(list.getByRole("group", { name: "App" }).getByRole("button", { name: "Connections" })).toBeVisible();
-  await expect(list.getByRole("group", { name: "Extensions" }).getByRole("button", { name: "Plugins" })).toBeVisible();
+  await expect(list.getByRole("group", { exact: true, name: "User" }).getByRole("button", { name: "Appearance" })).toBeVisible();
+  await expect(list.getByRole("group", { exact: true, name: "App" }).getByRole("button", { name: "Connections" })).toBeVisible();
+  await expect(list.getByRole("group", { exact: true, name: "Extensions" }).getByRole("button", { name: "Plugins" })).toBeVisible();
 });
 
 // PREMISE RETIRED, TEST KEPT (#925 ruling 4). This used to open "nothing active ⇒ the welcome": the arrival

@@ -58,6 +58,11 @@ const FIRST_GROUP_LABEL = "Appearance";
 /** The phone's cold teaching frame — its presence is the proof that NOTHING was auto-selected (it renders
  *  only while `activeGroup === null` on a mobile viewport). */
 const MOBILE_TEACHING = '[data-slot="config-mobile-teaching"]';
+/** The first group's ID (its label is `FIRST_GROUP_LABEL`) — the arrival default's subject. */
+const FIRST_GROUP_ID = "appearance";
+/** The ONE word for "differs from its default" (`config-copy.ts`'s `CONFIG_MODIFIED_MARKER`), restated
+ *  here because a test may not import a source constant and then assert it against itself. */
+const CONFIG_MODIFIED_MARK = "Modified";
 
 function tagRow(index: number): Record<string, unknown> {
   return {
@@ -154,7 +159,12 @@ const BOOK = {
 };
 const BOOKS = [BOOK];
 
-function stub(page: Page, tags: readonly unknown[] = MANY_TAGS): Promise<TrpcRecorder> {
+function stub(
+  page: Page,
+  tags: readonly unknown[] = MANY_TAGS,
+  scripts: readonly unknown[] = SCRIPTS,
+  overrides: Readonly<Record<string, unknown>> = {},
+): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     // The fourth collection (casts) + the viewer projection the LIST's `when` gate reads (#866 S1).
     "rosterPreset.list": [],
@@ -170,7 +180,7 @@ function stub(page: Page, tags: readonly unknown[] = MANY_TAGS): Promise<TrpcRec
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
     "tag.listTagsWithUsage": () => tags,
     "tag.createTag": () => tagRow(TAG_COUNT),
-    "regex.listScripts": () => SCRIPTS,
+    "regex.listScripts": () => scripts,
     "regex.listGlobal": () => [],
     // The regex CONTEXT arm's reverse rosters (REGROSTER) — this host only proves that the arm MOUNTS;
     // what the rosters say is pinned by the regex feature's own CT.
@@ -188,6 +198,9 @@ function stub(page: Page, tags: readonly unknown[] = MANY_TAGS): Promise<TrpcRec
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
     "worldInfo.importFile": () => ({ created: true }),
+    // LAST, so an arm can swap ONE read without re-spelling the table — `routeTrpc` REPLACES the table it
+    // is given, so a second call would leave every other procedure unfed (the ratchet's whole point).
+    ...overrides,
   });
 }
 
@@ -849,12 +862,15 @@ test("arriving with nothing selected lands focus in the LIST, not in CONTENT", a
   await section.getByRole("button", { name: "Leave Configuration" }).click();
   await section.getByRole("button", { name: "Back to Configuration" }).click();
 
-  await expect(section.locator(LIST_PANE)).toBeFocused();
-  // …AND IT SAYS WHERE YOU LANDED (side-eye 2026-08-19 P3). Focus arriving on an unnamed `tabIndex={-1}`
-  // scroller announces nothing at all, so the one affordance the arrival fix exists to deliver — "you are in
-  // the list" — was silent for the reader who cannot see the pane move. Naming the container is the whole
-  // fix; the roles inside it are unchanged.
+  // THE PANE IS THE CLAIM, NOT THE ELEMENT (#1218 moved the target inside it — see that test below): the
+  // finding was that CONTENT stole the section's arrival focus, and it is answered as long as the focused
+  // element lives in the LIST.
+  await expect(section.locator(LIST_PANE).locator(":focus")).toHaveCount(1);
+  // …AND IT SAYS WHERE YOU LANDED (side-eye 2026-08-19 P3). Focus arriving somewhere that announces nothing
+  // at all left the one affordance the arrival fix exists to deliver — "you are in the list" — silent for
+  // the reader who cannot see the pane move. The pane is named, and so is the control the landing picks.
   await expect(section.locator(LIST_PANE)).toHaveAccessibleName(ANY_NAME);
+  await expect(section.locator(LIST_PANE).locator(":focus")).toHaveAccessibleName(ANY_NAME);
 });
 
 // THE FILTER MISS IS ANNOUNCED (side-eye 2026-08-19 P3). Typing into the host's filter box changes the rows
@@ -1056,4 +1072,154 @@ test("the CONTENT pane paints the canonical sequence the LIST now advertises (pa
   for (const [index, row] of APPEARANCE_ROWS.entries()) {
     expect(rendered[index]?.startsWith(row), `CONTENT heading ${String(index)} ("${String(rendered[index])}") is the LIST's row "${row}"`).toBe(true);
   }
+});
+
+// ── #1212 · THE BULK TOGGLE FOLLOWS THE MEMBERS ─────────────────────────────────────────────────────
+// Measured: regex at count 0 drew "Select scripts" — enabled, focusable, `aria-disabled` unset — over a
+// library with nothing to select. Population must decide what a control CAN DO (it must never decide
+// whether a row is a door — that is the OTHER half of ruling 1, pinned in the content CT).
+/** The same host, with ONE appearance knob moved off its default — the state `useConfigModified` derives the
+ *  `@modified` marks from (a section's `owns` claim vs `DEFAULT_USER_SETTINGS`). `avatarShape` is an
+ *  Appearance-owned key, so the mark lands on the Appearance band and on the User shelf above it. */
+function stubModified(page: Page): Promise<TrpcRecorder> {
+  return stub(page, MANY_TAGS, SCRIPTS, {
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_config",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, avatarShape: "square" } },
+      updatedAt: 0,
+    }),
+  });
+}
+
+test("the BULK toggle is drawn only where there are members to select", async ({ mount, page }) => {
+  await stub(page, []);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  const listPane = workspace.locator(LIST_PANE);
+
+  // Tags are EMPTY in this stub and regex is populated: the toggle regex declares appears for regex only.
+  await expect(listPane.locator('[data-collection="tags"]').getByRole("button", { name: ANY_BULK_TOGGLE })).toHaveCount(0);
+  await expect(listPane.getByRole("button", { name: "Select scripts" })).toBeVisible();
+});
+
+test("…and it disappears when its library empties", async ({ mount, page }) => {
+  // The regex library is EMPTY here (the same stub the collection-band CT uses for its first-run arm), so
+  // the one collection that declares a bulk mode has nothing to select — and offers nothing.
+  await stub(page, [], []);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+
+  await expect(workspace.locator(LIST_PANE).getByRole("button", { name: ANY_BULK_TOGGLE })).toHaveCount(0);
+  // …while the create verb, which works at every count, is untouched.
+  await expect(workspace.locator(LIST_PANE).getByRole("button", { name: "New script" })).toBeVisible();
+});
+
+// ── #1217 · THE AUTO-OPENED ARRIVAL GROUP FOLDS WHEN THE READER MOVES ON ────────────────────────────
+// Auto-open is not user intent: the disclosure store is a memory of what the READER opened, and the
+// arrival default writes into it on nobody's behalf. Measured: after entering a library, Appearance's nine
+// rows sat expanded above it (the library 57% down the pane, 7 of 28 rows visible).
+test("the group the arrival default opened folds itself once the reader is somewhere else", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  const listPane = workspace.locator(LIST_PANE);
+  const arrival = listPane.getByRole("button", { name: FIRST_GROUP_LABEL, exact: true });
+  await expect(arrival).toHaveAttribute("aria-expanded", "true");
+
+  await listPane.getByRole("button", { name: TAGS_BAND }).click();
+  await expect(arrival, "the arrival group folds when the location moves").toHaveAttribute("aria-expanded", "false");
+  // …and the group the reader actually chose is the open one.
+  await expect(listPane.getByRole("button", { name: TAGS_BAND })).toHaveAttribute("aria-expanded", "true");
+});
+
+test("…but a group the READER opened stays open — the fold is the auto-open's undo, not a new accordion", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  const listPane = workspace.locator(LIST_PANE);
+
+  // Open a second group deliberately, then move on: C-12's per-device memory is the reader's and survives.
+  await listPane.getByRole("button", { name: "Chat behavior", exact: true }).click();
+  await listPane.getByRole("button", { name: TAGS_BAND }).click();
+  await expect(listPane.getByRole("button", { name: "Chat behavior", exact: true })).toHaveAttribute("aria-expanded", "true");
+});
+
+// ── #1218 · THE ARRIVAL FOCUS TARGET IS VISIBLE ─────────────────────────────────────────────────────
+// The Tab-walk receipt: focus landed on `div[aria-label="Settings groups"]`, `tabindex=-1`,
+// `:focus-visible` true, `outline: none` — a keyboard reader arrived somewhere with no indicator at all.
+// The fix takes the row's SECOND arm (move the landing to the search box) rather than its first (paint a
+// ring on the programmatic stop), because "a programmatic-only focus target must not paint a ring" is a
+// recorded rule for every section surface and the shell modal's body. The fork is stated in the source.
+test("arriving lands focus on the ACTIVE GROUP'S BAND — a real control with a visible focus ring", async ({ mount, page }) => {
+  await stub(page);
+  const section = await mount(<ConfigSectionArrivalStory />);
+
+  // The bounce is what a rail switch does, and it is the only arrangement in which arrival focus exists at
+  // all (`useFocusOnMount` declines on a cold load, where activeElement is `<body>`).
+  await section.getByRole("button", { name: "Leave Configuration" }).click();
+  await section.getByRole("button", { name: "Back to Configuration" }).click();
+
+  const band = section.locator(LIST_PANE).locator(`[data-slot="config-band"][data-config-group="${FIRST_GROUP_ID}"]`);
+  await expect(band).toBeFocused();
+  // A REAL CONTROL, so it announces where the reader is and paints the house ring — the two things the old
+  // target (a `tabIndex={-1}` scroller with `outline-none`) could not do.
+  await expect(band).toHaveRole("button");
+  await expect(band).toHaveAccessibleName(/\S/);
+  await expect
+    .poll(() =>
+      band.evaluate((el: HTMLElement) => {
+        const style = getComputedStyle(el);
+        return `${style.outlineStyle}/${style.outlineWidth}/${style.boxShadow}`;
+      }),
+    )
+    .not.toBe("none/0px/none");
+});
+
+// ── #1214 · THE A11Y TRIO ───────────────────────────────────────────────────────────────────────────
+// (1) the band's name welded its mark onto the label ("AppearanceModified"); (2) the shelf drew TWO
+// identical kickers ("USER MODIFIED"), same step, same tracking, same ink; (3) the expanded rows were not an
+// owned, named set in the accessibility tree. All three are read off the RENDERED tree here.
+test("a modified band announces its label and its mark as separate words", async ({ mount, page }) => {
+  await stubModified(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+
+  // The fixture moves an APPEARANCE-owned key, so Appearance is the band that wears the mark.
+  const band = workspace.locator(LIST_PANE).locator(`[data-slot="config-band"][data-config-group="${FIRST_GROUP_ID}"]`);
+  await expect(band.getByText(CONFIG_MODIFIED_MARK)).toBeVisible();
+  // The name CONTAINS the visible label (WCAG 2.5.3) and the mark is a separate word, never welded to it.
+  await expect(band).toHaveAccessibleName(`${FIRST_GROUP_LABEL} ${CONFIG_MODIFIED_MARK}`);
+});
+
+test("the shelf's modified mark is a BADGE, not a second kicker of the same rank", async ({ mount, page }) => {
+  await stubModified(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+
+  const shelf = workspace.locator(LIST_PANE).locator('[data-config-shelf="user"]');
+  const mark = shelf.locator('[data-slot="config-shelf-modified"]');
+  await expect(mark).toBeVisible();
+  // The shelf's NAME is still the kicker alone — the mark is not part of it.
+  await expect(shelf).toHaveAccessibleName("User");
+  // …and it is visibly a different KIND of thing: a badge box, not a bare run of kicker text.
+  await expect(mark).toHaveAttribute("data-slot", "config-shelf-modified");
+  await expect
+    .poll(() => mark.evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor))
+    .not.toBe(
+      await shelf
+        .locator("p,span")
+        .first()
+        .evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor),
+    );
+});
+
+test("an expanded band's rows are an OWNED, NAMED group, not flat siblings", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  const listPane = workspace.locator(LIST_PANE);
+
+  // A settings group: its rows are a named group whose name is the band's own.
+  const rows = listPane.locator(`[data-config-group="${FIRST_GROUP_ID}"] [role="group"]`).first();
+  await expect(rows).toBeVisible();
+  await expect(rows).toHaveAccessibleName(FIRST_GROUP_LABEL);
+  // A COLLECTION group: the same anatomy over the contribution's own rows.
+  await listPane.getByRole("button", { name: TAGS_BAND }).click();
+  const memberRows = listPane.locator('[data-collection="tags"] [role="group"]').first();
+  await expect(memberRows).toBeVisible();
+  await expect(memberRows).toHaveAccessibleName(/^Tags/);
 });

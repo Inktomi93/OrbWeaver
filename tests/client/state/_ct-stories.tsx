@@ -19,6 +19,7 @@ import {
   __resetComposerDrafts,
   __resetConfigFocus,
   __resetConfigGroupOpen,
+  closeConfigGroup,
   __resetConfigNav,
   __resetConfigSearch,
   __resetDeploymentBootHint,
@@ -815,6 +816,9 @@ export function ConfigGroupOpenProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => openConfigGroup("tags")}>
         open tags group
+      </button>
+      <button type="button" onClick={(): void => closeConfigGroup("tags")}>
+        close tags group
       </button>
       <button type="button" onClick={(): void => __resetConfigGroupOpen()}>
         reset collection groups
