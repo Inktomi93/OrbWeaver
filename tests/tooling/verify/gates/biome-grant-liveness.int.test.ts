@@ -21,7 +21,7 @@ const CONFIG_REL = "biome.json";
 /** Mirrors the gate's own anchor (`REAL_CONFIG_MIN_INCLUDES`) — the size at which its exemption + blindness
  *  arms come alive. Restated rather than exported: the test is the SECOND opinion, not a re-import of it. */
 const ANCHOR_INCLUDES = 30;
-const TRANSIENT_CATALOG_TMP = "docs/catalog/catalog.tmp.json";
+const TRANSIENT_CATALOG_TMP = "docs/catalog/catalog.tmp.*.json";
 const CATALOG_SERIALIZER = "tooling/src/doc-catalog/ops/tree.ts";
 
 interface Run {
@@ -128,14 +128,18 @@ describe("biome-grant-liveness — the exemption table is two-sided (§4.4)", ()
   });
 
   test("an EXEMPT row whose cited producer MOVED — RED (the promise outlived its evidence)", ({ scratch }) => {
-    plant(scratch, CONFIG_REL, configWith(`${filler}, "${TRANSIENT_CATALOG_TMP}"`));
+    // The exempt row is a GLOB since #1029, so one live file-exact row rides beside it — without it the
+    // §4.6 zero-exact-rows tripwire fires first and this arm is never reached.
+    plant(scratch, CONFIG_REL, configWith(`${filler}, "packages/client/src/live.ts", "${TRANSIENT_CATALOG_TMP}"`));
+    plant(scratch, "packages/client/src/live.ts", "export const x = 1;\n");
     const run = runGate(scratch);
     expect(tokens(run)).toEqual([CATALOG_SERIALIZER]);
     expect(messages(run)).toContain("`cite` no longer resolves");
   });
 
   test("the exemption HONOURED: an absent-by-design subject with a resolving cite is silent", ({ scratch }) => {
-    plant(scratch, CONFIG_REL, configWith(`${filler}, "${TRANSIENT_CATALOG_TMP}"`));
+    plant(scratch, CONFIG_REL, configWith(`${filler}, "packages/client/src/live.ts", "${TRANSIENT_CATALOG_TMP}"`));
+    plant(scratch, "packages/client/src/live.ts", "export const x = 1;\n");
     plant(scratch, CATALOG_SERIALIZER, "export const serializer = 1;\n");
     expect(runGate(scratch).findings).toEqual([]);
   });
