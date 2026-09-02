@@ -12,10 +12,17 @@
 // (6) the SURFACE-REACHABILITY arm (§E-7) — a `surface`-placed modal has NO chrome affordance deriving it
 //     (it lives inside a feature surface), so it MUST have ≥1 explicit `openModal("<id>")` call site or it
 //     is unreachable dead chrome. A DECLARED-PLANNED surface modal is exempt (not wired yet, by design).
+// (7) UNREADABLE DEFINITION (#944, 2026-09-01) — the reader used to `continue` past any initializer that
+//     was not a bare object literal, so `export const xModal: ModalDefinition = importedDefinition;` left
+//     the duplicate-id, singleton-placement, planned-honesty and surface-reachability arms with NOTHING to
+//     judge while the file still sat at its sanctioned `*-modal.tsx` path and every path check stayed
+//     green. §6d gives the definition ONE home and sanctions no builder for modals, so an unresolvable
+//     initializer FAILS CLOSED. A same-file const and an `as`/`satisfies` wrapper still resolve — both are
+//     still co-located. The gate declares its MODAL POPULATION (#946) so the next shrink is loud.
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { readStringValue } from "../lib/ast-read.ts";
+import { readObjectLiteral, readStringValue } from "../lib/ast-read.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
 /** A co-located modal definition file: `features/<owner>/lib/<id>-modal.{ts,tsx}`. */
@@ -96,7 +103,13 @@ interface Accum {
   readonly seenSingletons: Map<string, Seen>;
   readonly surfaceModals: SurfaceModal[];
   readonly openModalCallSites: Set<string>;
+  /** The #946 member tally: definitions this pass RESOLVED, and definitions it could not read. */
+  members: number;
+  unresolved: number;
 }
+
+/** The population's stable name — what a reader diffs run over run (#946). */
+const POPULATION = "ModalDefinition";
 
 /** Collects the id argument of every `openModal("<id>")` call — the explicit opener a `surface` modal
  *  needs. Matches a call whose callee is the bare identifier `openModal` with a first string-literal arg;
@@ -167,11 +180,16 @@ function checkModalDefs(sf: SourceFile, ctx: GateRunCtx, acc: Accum): void {
       ctx.report(decl, { token: `not co-located: ${decl.getName()}`, offset: 0 });
       continue;
     }
-    const init = decl.getInitializer();
-    if (init === undefined || !Node.isObjectLiteralExpression(init)) {
+    // FAIL CLOSED (#944): an initializer this gate cannot resolve to a co-located object literal leaves
+    // every arm below with nothing to judge — that is the law being unestablishable, not a clean skip.
+    const read = readObjectLiteral(decl.getInitializer());
+    if (read.kind === "unresolved") {
+      acc.unresolved += 1;
+      ctx.report(decl, { token: `unreadable definition: ${decl.getName()} — ${read.shape}`, offset: 0 });
       continue;
     }
-    checkModalDef({ name: decl.getName(), path, init }, ctx, acc);
+    acc.members += 1;
+    checkModalDef({ name: decl.getName(), path, init: read.object }, ctx, acc);
   }
 }
 
@@ -196,10 +214,10 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a modal is dishonest: a ModalDefinition not co-located in a feature modal file, a duplicate id, a DECLARED-PLANNED modal with an empty reason, two modals claiming the mobile-tab singleton placement, a `surface` modal with no `openModal(id)` opener, or a route re-forming the `modals` override god-map — client-architecture-lockdown.md §6d.",
-  fix: 'co-locate the definition; a planned modal is a non-empty reason (no function body); one modal per mobile-tab; give a `surface` modal ≥1 `openModal("<id>")` call site; a route is a thin mount — modals ride the registry.',
+    "a modal is dishonest: a ModalDefinition not co-located in a feature modal file, a co-located definition this gate cannot READ (an imported/builder initializer — every arm below then has nothing to judge), a duplicate id, a DECLARED-PLANNED modal with an empty reason, two modals claiming the mobile-tab singleton placement, a `surface` modal with no `openModal(id)` opener, or a route re-forming the `modals` override god-map — client-architecture-lockdown.md §6d.",
+  fix: 'co-locate the definition and write it as an object literal (a same-file const and an `as`/`satisfies` wrapper read fine — an IMPORT does not); a planned modal is a non-empty reason (no function body); one modal per mobile-tab; give a `surface` modal ≥1 `openModal("<id>")` call site; a route is a thin mount — modals ride the registry.',
   run: (ctx) => {
-    const acc: Accum = { seenIds: new Map(), seenSingletons: new Map(), surfaceModals: [], openModalCallSites: new Set() };
+    const acc: Accum = { seenIds: new Map(), seenSingletons: new Map(), surfaceModals: [], openModalCallSites: new Set(), members: 0, unresolved: 0 };
     for (const sf of ctx.project.getSourceFiles()) {
       const path = sf.getFilePath();
       if (!path.includes(CLIENT_SRC)) {
@@ -216,6 +234,9 @@ export const gate: GateDescriptor = {
         ctx.report(m.init, { token: `surface modal unreachable: "${m.id}" (${m.name})`, offset: 0 });
       }
     }
+    // The SEMANTIC denominator (#946): what the six arms above actually ran over. Zero members on the real
+    // tree, or a single unresolved definition, refuses the verdict rather than rendering a healthy ✓.
+    ctx.scan({ population: [{ source: POPULATION, members: acc.members, unresolved: acc.unresolved }] });
   },
   mustFlag: [
     {
@@ -266,6 +287,16 @@ export const gate: GateDescriptor = {
       expect: { token: "modals god-map prop" },
       why: "a `modals` prop object literal in a route — the anti-god-map arm",
     },
+    {
+      files: {
+        "packages/client/src/features/x/lib/x-definition.ts": "export const xDef = { id: 'x', trigger: { placement: 'surface' }, body: () => null };\n",
+        "packages/client/src/features/x/lib/x-modal.tsx": 'import { xDef } from "./x-definition.ts";\nexport const xModal: ModalDefinition = xDef;\n',
+      },
+      expect: {
+        token: "unreadable definition: xModal — the identifier `xDef` (not an object literal declared in this file — an imported or re-exported definition)",
+      },
+      why: "THE #944 CONTROL: an IMPORTED initializer at a sanctioned `*-modal.tsx` path. The surface-reachability arm above would have RED'd this modal (no `openModal('x')` anywhere) — instead the gate returned silently, which is the audit's exact escape",
+    },
   ],
   mustPass: [
     {
@@ -285,6 +316,17 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/x/components/opener.tsx": "import { openModal } from '#state';\nexport const O = (): void => openModal('x');\n",
       },
       why: "a `surface` modal with a real body AND an `openModal('x')` opener call site — reachable, passes",
+    },
+    {
+      files:
+        "const themeModalDef = { id: 'theme', trigger: { placement: 'rail.end' }, body: () => null };\nexport const themeModal: ModalDefinition = themeModalDef;\n",
+      at: "packages/client/src/features/settings/lib/theme-modal.tsx",
+      why: "SAME-FILE indirection — still co-located, so `readObjectLiteral` follows it and every arm judges the real definition. The declared limit this row writes down: only an import/builder fails closed",
+    },
+    {
+      files: "export const themeModal: ModalDefinition = { id: 'theme', trigger: { placement: 'rail.end' }, body: () => null } satisfies ModalDefinition;\n",
+      at: "packages/client/src/features/settings/lib/theme-modal.tsx",
+      why: "a WHOLE-literal `satisfies` wrapper — the shape the plain ObjectLiteral check treated as unreadable and silently skipped before #944 (config-group-completeness's `literalInit` closed the same class on groups 2026-08-30)",
     },
   ],
 };

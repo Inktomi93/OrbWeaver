@@ -14,11 +14,12 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { GateResult, Violation } from "../contract/harness.ts";
-import type { PassResult, ToolError } from "../contract/pass.ts";
+import type { PassResult, PopulationAlarm, ToolError } from "../contract/pass.ts";
 import type { RunManifest } from "../contract/run-manifest.ts";
 import type { GateCorpus } from "../lib/loader.ts";
 import { loadGateCorpus } from "../lib/loader.ts";
 import { projectCtx, runPass, stripProbeFindings, zeroScanGates } from "../lib/pass.ts";
+import { populationAlarms } from "../lib/population.ts";
 import { renderPass } from "../lib/render.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
@@ -34,13 +35,21 @@ refuseDirectInvocation(import.meta.url, "pnpm check:structure");
  *  invisible behind green.
  *
  *  `run` joined 2026-08-21 (#410) for the class one level down AGAIN: the artifact reported a verdict with
- *  nothing about the RUN — so a shorter run and a killed run were both indistinguishable from a clean one. */
+ *  nothing about the RUN — so a shorter run and a killed run were both indistinguishable from a clean one.
+ *
+ *  `populationAlarms` joined 2026-09-01 (#946) for the class one level down ONCE MORE: files visited is not
+ *  the denominator a COVERAGE gate's verdict rests on, so a gate whose members moved behind an import kept
+ *  a healthy file count while judging a shrunken set (docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md). */
 interface StructureReport {
   readonly run: RunManifest;
   readonly gates: readonly GateResult[];
   readonly toolErrors: readonly ToolError[];
   /** Gates that ran and read NOTHING — a blind checker, judged only here at real-tree scope. */
   readonly scanAlarms: readonly string[];
+  /** Declared SEMANTIC-MEMBER populations that came back empty or left declarations unresolved (#946) —
+   *  the same "not a verdict" class as `scanAlarms`, one level down: the gate read plenty of files and
+   *  judged a shrunken member set. Judged only here, for the same real-tree-scope reason. */
+  readonly populationAlarms: readonly PopulationAlarm[];
   readonly total: number;
   readonly ok: boolean;
 }
@@ -83,7 +92,7 @@ function writeReport(root: string, report: StructureReport): void {
  *  own `run.complete: false` refuses to be read as a verdict — instead of leaving the PREVIOUS run's
  *  complete-looking file on disk for the next reader to mistake for this one's. */
 function writeInFlight(root: string, run: RunManifest): void {
-  writeReport(root, { run, gates: [], toolErrors: [], scanAlarms: [], total: 0, ok: false });
+  writeReport(root, { run, gates: [], toolErrors: [], scanAlarms: [], populationAlarms: [], total: 0, ok: false });
 }
 
 function startManifest(): RunManifest {
@@ -123,6 +132,7 @@ export async function runStructure(root: string): Promise<number> {
   const gates = toGateResults(pass, gatesByName);
   const total = gates.reduce((n, g) => n + g.violations.length, 0);
   const scanAlarms = zeroScanGates(pass);
+  const populations = populationAlarms(pass);
   const run: RunManifest = {
     ...started,
     finishedAt: new Date().toISOString(),
@@ -145,14 +155,15 @@ export async function runStructure(root: string): Promise<number> {
     gates,
     toolErrors: pass.toolErrors,
     scanAlarms,
+    populationAlarms: populations,
     total,
-    ok: total === 0 && pass.toolErrors.length === 0 && scanAlarms.length === 0 && incompleteReasons.length === 0,
+    ok: total === 0 && pass.toolErrors.length === 0 && scanAlarms.length === 0 && populations.length === 0 && incompleteReasons.length === 0,
   });
 
-  // A short run, a blind gate and a thrown gate ride the SAME severity: in all three the run is not a
-  // verdict. A short run is the worst of them — a throw is loud and a blind gate renders ⚠, but a gate
-  // that never ran leaves NOTHING behind at all.
-  if (pass.toolErrors.length > 0 || scanAlarms.length > 0 || incompleteReasons.length > 0) {
+  // A short run, a blind gate, a refused POPULATION receipt and a thrown gate ride the SAME severity: in
+  // all four the run is not a verdict. A short run is the worst of them — a throw is loud and a blind gate
+  // renders ⚠, but a gate that never ran leaves NOTHING behind at all.
+  if (pass.toolErrors.length > 0 || scanAlarms.length > 0 || populations.length > 0 || incompleteReasons.length > 0) {
     return EXIT.toolError;
   }
   return total > 0 ? EXIT.violations : EXIT.clean;

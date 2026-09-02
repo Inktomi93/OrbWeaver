@@ -16,12 +16,19 @@
 //   (5)–(7) the COLLECTION arms folded in from the retired `collection-registry-completeness` gate: `create`
 //       is `{label, useRun}` DATA (never a rendered node), a declared `importFile` is `{label, accept, useRun}`
 //       data, and ORPHAN-BODY — a co-located `CollectionContribution` no `*-group` def references is dead
-//       wire that reads as a shipped library.
+//       wire that reads as a shipped library;
+//   (8) UNREADABLE DEFINITION (#944, 2026-09-01) — `literalInit` returning undefined used to mean "skip
+//       this declaration", so an imported group/collection/contribution initializer hid duplicate ids,
+//       collection lifecycle data, orphan references and contributed body tags at once, from a file still
+//       sitting at its sanctioned path. §8/§6.8 give each definition ONE home and sanction no builder, so
+//       an unresolvable initializer FAILS CLOSED — and each of the THREE accumulators declares its own
+//       POPULATION (#946), because they are three different denominators that can shrink independently.
 import type { ObjectLiteralExpression, SourceFile, Node as TsMorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { ObjectLiteralRead } from "../contract/ast-read.ts";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
-import { readStringValue, unwrapExpression } from "../lib/ast-read.ts";
+import { readObjectLiteral, readStringValue, unwrapExpression } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 /** A NODE-anchored hit — never a `{file,line,message}` Finding literal (finding-overload-provenance): the
@@ -132,8 +139,22 @@ function claim(key: string, def: Def, seen: Map<string, Seen>): Seen | undefined
   return firstOwner;
 }
 
+/** The THREE semantic denominators this gate carries (#946) — three accumulators that can shrink
+ *  independently, so they are three declared populations, never one summed number. */
+type PopulationKey = "ConfigGroupDefinition" | "CollectionContribution" | "ConfigSectionContribution";
+type PopulationTally = Record<PopulationKey, { members: number; unresolved: number }>;
+
+function emptyPopulation(): PopulationTally {
+  return {
+    ConfigGroupDefinition: { members: 0, unresolved: 0 },
+    CollectionContribution: { members: 0, unresolved: 0 },
+    ConfigSectionContribution: { members: 0, unresolved: 0 },
+  };
+}
+
 interface ScanState {
   readonly ctx: GateRunCtx;
+  readonly population: PopulationTally;
   readonly out: Violation[];
   readonly hits: Hit[];
   readonly seenIds: Map<string, Seen>;
@@ -245,11 +266,17 @@ function checkImportIsData(def: Def, out: Violation[]): void {
 
 /** A typed declaration's object-literal initializer — through any `as`/`satisfies`/paren wrapper around the
  *  WHOLE literal (the planted-probe lesson: `{ id: "personas" } as ConfigGroupDefinition` slipped the dup-id
- *  and co-location arms while the plain literal tripped them) — or undefined when it has none. */
-function literalInit(decl: VariableDeclaration): ObjectLiteralExpression | undefined {
-  const init = decl.getInitializer();
-  const unwrapped = init === undefined ? undefined : unwrapExpression(init);
-  return unwrapped !== undefined && Node.isObjectLiteralExpression(unwrapped) ? unwrapped : undefined;
+ *  and co-location arms while the plain literal tripped them) AND through same-file indirection, or the
+ *  REFUSAL naming the shape (#944 — an imported/builder definition is not a skip, it is a fail-closed
+ *  finding: §8/§6.8 give each definition ONE home, so the law cannot be established through an import). */
+function literalInit(decl: VariableDeclaration): ObjectLiteralRead {
+  return readObjectLiteral(decl.getInitializer());
+}
+
+/** Record the fail-closed finding + the denominator loss for a declaration whose definition is unreadable. */
+function failClosed(decl: VariableDeclaration, read: Extract<ObjectLiteralRead, { kind: "unresolved" }>, kind: PopulationKey, state: ScanState): void {
+  state.population[kind].unresolved += 1;
+  state.hits.push({ node: decl, token: `${decl.getName()}-unreadable-definition (${read.shape})` });
 }
 
 /** A `ConfigGroupDefinition`-typed declaration: co-location, then the per-def arms. */
@@ -258,10 +285,13 @@ function checkGroupDecl(decl: VariableDeclaration, path: string, state: ScanStat
     state.hits.push({ node: decl, token: `${decl.getName()}-not-co-located` });
     return;
   }
-  const init = literalInit(decl);
-  if (init !== undefined) {
-    checkGroupDef({ name: decl.getName(), path, line: decl.getStartLineNumber(), init }, state);
+  const read = literalInit(decl);
+  if (read.kind === "unresolved") {
+    failClosed(decl, read, "ConfigGroupDefinition", state);
+    return;
   }
+  state.population.ConfigGroupDefinition.members += 1;
+  checkGroupDef({ name: decl.getName(), path, line: decl.getStartLineNumber(), init: read.object }, state);
 }
 
 /** A `CollectionContribution`-typed declaration: co-location, then the folded-in collection arms. */
@@ -270,12 +300,14 @@ function checkCollectionDecl(decl: VariableDeclaration, path: string, state: Sca
     state.hits.push({ node: decl, token: `${decl.getName()}-not-co-located` });
     return;
   }
-  const init = literalInit(decl);
-  if (init === undefined) {
+  const read = literalInit(decl);
+  if (read.kind === "unresolved") {
+    failClosed(decl, read, "CollectionContribution", state);
     return;
   }
+  state.population.CollectionContribution.members += 1;
   const line = decl.getStartLineNumber();
-  const def: Def = { name: decl.getName(), path, line, init };
+  const def: Def = { name: decl.getName(), path, line, init: read.object };
   state.bodySites.set(def.name, { file: rel(path), line });
   checkCreateIsData(def, state.out);
   checkImportIsData(def, state.out);
@@ -283,8 +315,15 @@ function checkCollectionDecl(decl: VariableDeclaration, path: string, state: Sca
 
 /** A `ConfigSectionContribution`-typed declaration: record every tag its `body` renders. */
 function noteContribution(decl: VariableDeclaration, state: ScanState): void {
-  const init = literalInit(decl);
-  const body = init === undefined ? undefined : objProp(init, "body");
+  const read = literalInit(decl);
+  if (read.kind === "unresolved") {
+    // FAIL CLOSED: an unreadable contribution contributes NO tags to the ANCHOR arm's allow-set, which
+    // turns that arm's every judgement into a guess — the permissive direction, silently.
+    failClosed(decl, read, "ConfigSectionContribution", state);
+    return;
+  }
+  state.population.ConfigSectionContribution.members += 1;
+  const body = objProp(read.object, "body");
   if (body !== undefined) {
     jsxTagNames(body, state.contributedTags);
   }
@@ -367,11 +406,12 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a config group is dishonest: a ConfigGroupDefinition not co-located in a feature `*-group` file (or a CollectionContribution outside a `*-collection` file), a duplicate id, the config host importing a feature's internals instead of reading the registries, a file stamping `configAnchorId(…)` that no ConfigSectionContribution renders (a section painted OUTSIDE the registry — the LIST, spy and search cannot derive a row for it), a collection body whose `create`/`importFile` is not `{label, useRun}` data, or a collection body no group references — client-architecture-lockdown.md §8 / docs/design/config-revamp-design.md §6.8.",
-  fix: "co-locate the definition under features/*/lib/*-group.{ts,tsx} (a collection body under lib/*-collection.tsx, referenced from its group's `body.collection`); register every anchored section as a ConfigSectionContribution whose `body` renders the component that stamps the anchor (or pass the anchor in from the contribution); declare `create: { label, useRun }` / `importFile: { label, accept, useRun }` as data; read bodies off the registries in the host instead of importing a feature.",
+    "a config group is dishonest: a ConfigGroupDefinition not co-located in a feature `*-group` file (or a CollectionContribution outside a `*-collection` file), a co-located definition this gate cannot READ (an imported/builder initializer — the duplicate-id, lifecycle-data, orphan and contributed-tag arms then all have nothing to judge), a duplicate id, the config host importing a feature's internals instead of reading the registries, a file stamping `configAnchorId(…)` that no ConfigSectionContribution renders (a section painted OUTSIDE the registry — the LIST, spy and search cannot derive a row for it), a collection body whose `create`/`importFile` is not `{label, useRun}` data, or a collection body no group references — client-architecture-lockdown.md §8 / docs/design/config-revamp-design.md §6.8.",
+  fix: "write every definition as a co-located object literal (a same-file const and an `as`/`satisfies` wrapper read fine — an IMPORT does not); co-locate the definition under features/*/lib/*-group.{ts,tsx} (a collection body under lib/*-collection.tsx, referenced from its group's `body.collection`); register every anchored section as a ConfigSectionContribution whose `body` renders the component that stamps the anchor (or pass the anchor in from the contribution); declare `create: { label, useRun }` / `importFile: { label, accept, useRun }` as data; read bodies off the registries in the host instead of importing a feature.",
   run: (ctx) => {
     const state: ScanState = {
       ctx,
+      population: emptyPopulation(),
       out: [],
       hits: [],
       seenIds: new Map<string, Seen>(),
@@ -398,6 +438,12 @@ export const gate: GateDescriptor = {
     for (const hit of state.hits) {
       ctx.report(hit.node, { token: hit.token, offset: 0 });
     }
+    // The three SEMANTIC denominators (#946), beside the harness's one file count: zero members in any of
+    // them on the real tree means that accumulator's discovery went blind, and any unresolved declaration
+    // is denominator loss. Both refuse the verdict rather than rendering ✓.
+    ctx.scan({
+      population: Object.entries(state.population).map(([source, p]) => ({ source, members: p.members, unresolved: p.unresolved })),
+    });
   },
   mustFlag: [
     {
@@ -524,6 +570,40 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "`importFile` has no `useRun`" },
       why: "a bare `run` on the import door — the hook-runner arm, same reason as create's",
     },
+    {
+      files: {
+        "packages/client/src/features/x/lib/x-definition.ts": "export const xDef = { emptyText: 'none' };\n",
+        "packages/client/src/features/x/lib/x-collection.tsx":
+          'import { xDef } from "./x-definition.ts";\nexport const xCollection: CollectionContribution = xDef;\n',
+      },
+      expect: {
+        token:
+          "xCollection-unreadable-definition (the identifier `xDef` (not an object literal declared in this file — an imported or re-exported definition))",
+      },
+      why: "THE #944 COLLECTION CONTROL (the audit's exact fixture): an imported `CollectionContribution` with NO `create`. The create-is-data arm would have RED'd it; before the fail-closed arm `literalInit` returned undefined and the whole declaration was skipped",
+    },
+    {
+      files: {
+        "packages/client/src/features/a/lib/a-definition.ts": "export const aDef = { id: 'dup' };\n",
+        "packages/client/src/features/a/lib/a-group.ts": 'import { aDef } from "./a-definition.ts";\nexport const aGroup: ConfigGroupDefinition = aDef;\n',
+        "packages/client/src/features/b/lib/b-group.ts": "export const bGroup: ConfigGroupDefinition = { id: 'dup' };\n",
+      },
+      expect: {
+        token: "aGroup-unreadable-definition (the identifier `aDef` (not an object literal declared in this file — an imported or re-exported definition))",
+      },
+      why: "THE #944 GROUP CONTROL — a SECOND fixture because the group and collection accumulators are different code paths (the audit says so explicitly). The imported group hides a duplicate id from the seenIds map: the dup-id arm cannot fire at all, so the fail-closed finding is the only thing standing between this and silence",
+    },
+    {
+      files: {
+        "packages/client/src/features/x/lib/x-definition.tsx": "export const xDef = { id: 'x', anchor: 'personas', body: () => <XSection /> };\n",
+        "packages/client/src/features/x/lib/x-section.tsx":
+          'import { xDef } from "./x-definition.tsx";\nexport const xSection: ConfigSectionContribution = xDef;\n',
+      },
+      expect: {
+        token: "xSection-unreadable-definition (the identifier `xDef` (not an object literal declared in this file — an imported or re-exported definition))",
+      },
+      why: "THE #944 CONTRIBUTION CONTROL — the third accumulator, and the PERMISSIVE direction (GATE-AUTHORING §5): an unreadable contribution silently contributes NO tags to the ANCHOR arm's allow-set, so every anchor-stamping file it should have vouched for becomes a false accusation and every one it should not becomes a guess",
+    },
   ],
   mustPass: [
     {
@@ -572,6 +652,12 @@ export const gate: GateDescriptor = {
         "export const worldInfoCollection: CollectionContribution = { create: { label: 'New book', useRun: useCreateWorldInfoMember }, importFile: { label: 'Import a world-info book', accept: 'application/json', useRun: useImportWorldInfoMember } };\n",
       at: "packages/client/src/features/world-info/lib/world-info-collection.tsx",
       why: "a body with BOTH lifecycle halves declared as data (D121-D band=Import) — the shape R2's world-info migration ships",
+    },
+    {
+      files:
+        'const tagsGroupDef = { id: \'tags\', shelf: "collections", body: { kind: "collection", collection: tagCollection } };\nexport const tagsGroup: ConfigGroupDefinition = tagsGroupDef;\n',
+      at: "packages/client/src/features/tag/lib/tags-group.tsx",
+      why: "SAME-FILE indirection — still co-located, so it resolves and the `collection` body reference is still recorded for the ORPHAN arm. The declared limit this row writes down: only an import/builder fails closed",
     },
   ],
 };

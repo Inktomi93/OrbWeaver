@@ -11,6 +11,30 @@ export interface DeclaredScan {
   readonly skipReasons: Readonly<Record<string, number>>;
 }
 
+/** ONE resolved SEMANTIC POPULATION a gate declared (`ctx.scan({population:[…]})`) — the member
+ *  denominator its verdict rests on, folded across every declaration for that `source`. */
+export interface PopulationScan {
+  readonly source: string;
+  /** Members resolved and judged. `0` at real-tree scope is a BLIND derivation (exit 2). */
+  readonly members: number;
+  /** Declarations seen but not resolvable into members. `> 0` is denominator LOSS (exit 2). */
+  readonly unresolved: number;
+}
+
+/** A refused population verdict, raised ONLY at the real-tree entrypoint (`ops/structure.ts`) — the same
+ *  placement, and for the same reason, as the zero-SCAN alarm: a scoped run and a conformance
+ *  mini-project both legitimately resolve zero members, so `scope.kind` cannot tell them apart. */
+export interface PopulationAlarm {
+  readonly gate: string;
+  readonly source: string;
+  /** `empty` — the derivation returned nothing (unconditional); `unresolved` — declarations the reader
+   *  could not resolve, raised ONLY behind a green verdict (a gate that already reported them rides the
+   *  ordinary violation exit — see lib/population.ts). */
+  readonly reason: "empty" | "unresolved";
+  readonly members: number;
+  readonly unresolved: number;
+}
+
 /** PER-GATE SCAN HEALTH — the DENOMINATOR behind a gate's verdict, recorded by the harness for every
  *  gate from the one walk (no gate opts in). Without it a `scanRoot`/predicate regression is invisible:
  *  the gate runs, reads NOTHING, finds nothing, and renders ✓ — the zero-scan placebo. `scanned === 0`
@@ -35,6 +59,9 @@ export interface GateScan {
   readonly admittedRatified: number;
   /** Present only when the gate declared units of its own. */
   readonly declared?: DeclaredScan;
+  /** The SEMANTIC MEMBER populations the gate declared (#946), sorted by `source`. Empty for the ~200
+   *  gates whose verdict is per-file/per-node and has no member denominator to lose. */
+  readonly populations: readonly PopulationScan[];
 }
 
 export interface GatePassResult {

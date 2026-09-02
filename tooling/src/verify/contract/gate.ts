@@ -71,6 +71,43 @@ export interface GateExample {
   readonly why?: string; // one-liner: what this example proves (rendered in conformance failures)
 }
 
+/** ONE named SEMANTIC SOURCE and the members a coverage gate resolved from it — the DENOMINATOR its
+ *  verdict actually rests on, which the harness's FILE counts structurally cannot see.
+ *
+ *  WHY IT EXISTS (#946, from the 2026-08-31 member-discovery audit): a coverage gate stays green when
+ *  members move behind an import / a spread / an inherited interface / a builder, because it still visits
+ *  the same files, still has a subject, and still renders a healthy `scanned N/M files` while the set it
+ *  actually judged shrank. `admitted` did this one level up for ratchet debt; this is the same move for the
+ *  population itself.
+ *
+ *  DECLARING IS THE OPT-IN — there is no descriptor flag beside it, deliberately (a stored "judge me" flag
+ *  beside the call that produces the number is two facts that can disagree, the same argument §4's
+ *  ratchet-class PARTITION makes). A gate that declares a population is judged on it at the real-tree
+ *  entrypoint, exactly where the zero-SCAN alarm is judged and for the same reason:
+ *  - `members === 0` ⇒ the gate's subject derivation came back EMPTY — a blind checker, exit 2,
+ *    unconditionally (a vacuous verdict is vacuous whatever else the gate said);
+ *  - `unresolved > 0` BEHIND A GREEN VERDICT ⇒ the gate SAW declarations it could not resolve into members
+ *    and reported nothing — a ✓ over a shrunken denominator, which is the audited defect verbatim: exit 2.
+ *    A gate that ALREADY reported the unreadable declaration (the #944 fail-closed arms) has done its job
+ *    and rides the ordinary violation exit; the count still prints on its line as the receipt.
+ *    Either way a gate never `continue`s past an unreadable declaration silently: it reports the finding,
+ *    or counts it here, or both.
+ *
+ *  AND A COUNT NEVER PROVES CORRECTNESS. A confidently wrong number is still wrong: this receipt makes a
+ *  SHRINKING denominator loud, it does not establish that the members it did resolve are the right ones.
+ *  Every gate declaring a population still owes the per-shape planted controls (imported / spread /
+ *  inherited / builder) its source law sanctions — GATE-AUTHORING.md §5. */
+interface GatePopulationDeclaration {
+  /** The source's stable name — what a reader diffs run over run (`"SectionDefinition"`,
+   *  `"CHROME_ZONES"`, `"WorkloadService members"`). Declarations ACCUMULATE per source name. */
+  readonly source: string;
+  /** Members the gate RESOLVED from that source and actually judged. */
+  readonly members: number;
+  /** Declarations the gate SAW but could not resolve into members — an authoring shape outside its
+   *  reader. Non-zero is an instrument error: the gate's denominator silently shrank. */
+  readonly unresolved?: number;
+}
+
 /** What a gate DECLARES about its own scan, for the counts the harness structurally cannot observe.
  *  Every field is optional and every numeric field ACCUMULATES across calls (`unit` is last-wins), so a
  *  gate may declare once in `finalize` or per batch. Nothing here can shrink the harness's own observed
@@ -101,6 +138,10 @@ export interface GateScanDeclaration {
    *  permanent (`_shared/ratchet-rows.ts`). Never larger than `admitted`; the burnable remainder is
    *  `admitted - admittedRatified`. Omitted means "all of it is burnable debt". */
   readonly admittedRatified?: number;
+  /** The SEMANTIC-MEMBER populations behind this gate's verdict (#946). Entries accumulate by `source`,
+   *  so a gate may declare once in `finalize` or per discovery site. Declaring is the opt-in — see
+   *  `GatePopulationDeclaration`. */
+  readonly population?: readonly GatePopulationDeclaration[];
 }
 
 /** Per-run context handed to every hook. */
