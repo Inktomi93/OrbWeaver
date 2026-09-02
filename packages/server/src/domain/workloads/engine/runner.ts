@@ -7,7 +7,15 @@
 // the lease cadence — so a run reporting per document costs the same db traffic as one that never reports,
 // and a client that reconnects after the 60s replay ring expired still reads the last known progress.
 
-import type { ReportProgress, WorkloadError, WorkloadKind, WorkloadParamsByKind, WorkloadProgress, WorkloadRunContext } from "@orb/contracts/workloads";
+import type {
+  ReportProgress,
+  WorkloadError,
+  WorkloadEvent,
+  WorkloadKind,
+  WorkloadParamsByKind,
+  WorkloadProgress,
+  WorkloadRunContext,
+} from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog, withRequestSpan } from "#foundation/observability";
@@ -195,13 +203,19 @@ async function finalizeSuccess(deps: WorkloadRunnerDeps, row: WorkloadRunnableRo
     now: deps.now(),
   });
   if (moved) {
+    // THE THIRD CAST OF THE DISPATCH BRIDGE (see `dispatchAndRun` — contained here too, do not spread).
+    // `row.kind` and the value its contribution returned ARE correlated at runtime: the registry dispatched
+    // exactly that kind's `run`, whose declared return is `WorkloadResultByKind[kind]`. The correlation is
+    // simply not expressible once `kind` is the union — the succeeded arm is per-kind, and a
+    // (union kind × union result) cross product satisfies none of its arms. The event's own type is what
+    // holds every READER to the pairing; this is the one writer that stands where the union was erased.
     emitWorkloadEvent({
       type: "succeeded",
       workloadId: row.id,
       kind: row.kind,
       at: deps.now(),
       result: args.result,
-    });
+    } as WorkloadEvent);
     return;
   }
   // succeeded didn't move (row not `running`): pin cancelling→cancelled, or it was already reaped (zombie).

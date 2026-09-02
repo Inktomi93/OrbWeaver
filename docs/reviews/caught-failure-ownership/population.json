@@ -2529,7 +2529,7 @@
     {
       "siteId": "packages/server/src/domain/workloads/engine/runner.ts::empty:err::1",
       "path": "packages/server/src/domain/workloads/engine/runner.ts",
-      "line": 100,
+      "line": 108,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -2537,12 +2537,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "converts a SYNCHRONOUS throw into a rejected",
-      "markerLine": 93
+      "markerLine": 101
     },
     {
       "siteId": "packages/server/src/domain/workloads/engine/runner.ts::empty:err::2",
       "path": "packages/server/src/domain/workloads/engine/runner.ts",
-      "line": 302,
+      "line": 316,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -2550,12 +2550,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "fully classified below into `outcome` (LeaseFailure",
-      "markerLine": 296
+      "markerLine": 310
     },
     {
       "siteId": "packages/server/src/domain/workloads/engine/runner.ts::empty:err::3",
       "path": "packages/server/src/domain/workloads/engine/runner.ts",
-      "line": 329,
+      "line": 343,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -2563,12 +2563,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "reclassifies `outcome` to failure, consumed by the",
-      "markerLine": 325
+      "markerLine": 339
     },
     {
       "siteId": "packages/server/src/domain/workloads/engine/runner.ts::empty:err::4",
       "path": "packages/server/src/domain/workloads/engine/runner.ts",
-      "line": 340,
+      "line": 354,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -2576,12 +2576,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "a finalize-success failure is reclassified and",
-      "markerLine": 336
+      "markerLine": 350
     },
     {
       "siteId": "packages/server/src/domain/workloads/engine/runner.ts::promise:contribution::1",
       "path": "packages/server/src/domain/workloads/engine/runner.ts",
-      "line": 323,
+      "line": 337,
       "column": 11,
       "grammar": "promise",
       "position": "promise:contribution",
@@ -2589,12 +2589,12 @@
       "snippet": "await contribution.catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "`outcome` already carries the",
-      "markerLine": 319
+      "markerLine": 333
     },
     {
       "siteId": "packages/server/src/domain/workloads/engine/runner.ts::promise:next::1",
       "path": "packages/server/src/domain/workloads/engine/runner.ts",
-      "line": 108,
+      "line": 116,
       "column": 5,
       "grammar": "promise",
       "position": "promise:next",
@@ -2602,7 +2602,7 @@
       "snippet": "next.then(",
       "verdict": "deliberate-absorb",
       "reason": "the reject handler classifies + owns the",
-      "markerLine": 105
+      "markerLine": 113
     },
     {
       "siteId": "packages/server/src/domain/workloads/persistence/queries.ts::empty:catch::1",

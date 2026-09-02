@@ -676,7 +676,7 @@ test("a LIVE terminal event refetches the list — Running flips to Succeeded wi
       workloadId: castId<WorkloadId>("workload_ct_1"),
       kind: "index",
       at: 1_750_000_002_000,
-      result: { embedded: 12 },
+      result: { embedded: 12, skipped: 0 },
     },
   ]);
 
@@ -722,7 +722,7 @@ test("THREE active rows attach THREE rooms over exactly ONE socket; a finished r
           workloadId: castId<WorkloadId>("workload_ct_1"),
           kind: "index",
           at: 1_750_000_002_000,
-          result: { embedded: 12 },
+          result: { embedded: 12, skipped: 0 },
         },
       },
     ],

@@ -20,6 +20,7 @@
 import type { WorkloadId } from "@orb/kit/ids";
 import type { WorkloadKind, WorkloadStatus } from "./axes.ts";
 import type { WorkloadProgress } from "./execution.ts";
+import type { WorkloadResultByKind } from "./result.ts";
 
 /** Each arm has one owning producer plane: `runtime` (the engine dispatch catch or the engine's durable
  *  poison-row bridge), `cancelled` (the queued cancel verb or an in-flight abort), `worker_died` (the reaper only), and
@@ -36,20 +37,42 @@ export interface WorkloadError {
 /** Every event carries the row it belongs to (`emitWorkloadEvent` throws on an empty id — the room filters on
  *  it), its kind, and `at` = the INJECTED-clock epoch-ms. The replay ring's TTL is measured in that same
  *  event-time domain, never `Date.now()`. */
-interface WorkloadEventBase {
+interface WorkloadEventRow {
   readonly workloadId: WorkloadId;
-  readonly kind: WorkloadKind;
   readonly at: number;
 }
+
+interface WorkloadEventBase extends WorkloadEventRow {
+  readonly kind: WorkloadKind;
+}
+
+/**
+ * The SUCCESS arm, per kind. `kind` is the SECOND discriminant (under `type`) and `result` is that kind's
+ * own terminal projection — the same `WorkloadResultByKind` correlation the contribution's `run` return, the
+ * row projection (`WorkloadRowAnyKind`) and the client's renderer map already speak, now carried on the wire
+ * instead of stopping at the domain door.
+ *
+ * SPELLED AS A MAPPED TYPE INDEXED BY ITSELF (§5.5, the `AnyWorkloadContribution` precedent), never a
+ * hand-restated arm per kind: the distribution IS the totality pin, so a new `WorkloadKind` needs no edit
+ * here and lands as a tsc error at `WorkloadResultByKind` — the one home that owns the pairing.
+ *
+ * `result` IS REQUIRED. It was `result?: unknown` because an `unknown` property is inhabited by `undefined`,
+ * which made tRPC's output inference emit it as optional and a required declaration unsatisfiable by the
+ * client's own frame type. The concrete per-kind types retire that reason (none of them admits `undefined`),
+ * and every producer already emitted the field — so the wire now says what the code always did.
+ */
+type WorkloadSucceededEvent = {
+  [K in WorkloadKind]: WorkloadEventRow & {
+    readonly type: "succeeded";
+    readonly kind: K;
+    readonly result: WorkloadResultByKind[K];
+  };
+}[WorkloadKind];
 
 export type WorkloadEvent =
   | (WorkloadEventBase & { readonly type: "started" })
   | (WorkloadEventBase & { readonly type: "progress"; readonly progress: WorkloadProgress })
   | (WorkloadEventBase & { readonly type: "status"; readonly status: WorkloadStatus })
-  // `result` is OPTIONAL because that is what the wire actually says: an `unknown`-typed property serializes
-  // to `unknown | undefined` (tRPC's output inference makes it optional), so a REQUIRED declaration here would
-  // be a shape the client's own frame type could never satisfy. Every producer emits it; only the type is
-  // open — the per-kind result shapes are `WorkloadResultByKind`, resolved by the reader that knows the kind.
-  | (WorkloadEventBase & { readonly type: "succeeded"; readonly result?: unknown })
+  | WorkloadSucceededEvent
   | (WorkloadEventBase & { readonly type: "failed"; readonly error: WorkloadError })
   | (WorkloadEventBase & { readonly type: "cancelled" });
