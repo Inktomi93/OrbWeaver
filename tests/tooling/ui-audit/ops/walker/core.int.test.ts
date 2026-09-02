@@ -17,7 +17,13 @@
 // uses: the rule's own POPULATION line (`withheld(capExceeded=…)`) and the run-level refusal
 // (`censusCapGap`). The shadows are ACHROMATIC on purpose — this file is about the LEDGER, not about the
 // glow verdict, and an achromatic elevation shadow is a judged pass rather than 200 findings of noise.
-import { writeFile } from "node:fs/promises";
+//
+// AND THE JSON ARTIFACT IS A THIRD READER (#1087 F1). stdout and the exit code carried the truncation from
+// the start; the artifact did not, so a JSON consumer read `populationVerdict: "complete"` with no trace of
+// the bound. That is worst for the four rung-1 WALKER-PROVEN families, which have no population row to
+// inspect either — the artifact was their only channel and it read clean over dropped findings. The
+// `overflows` test below is exactly that shape, and it asserts the artifact, not stdout.
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
@@ -54,6 +60,45 @@ test("a census past its bound publishes the exact overflow and refuses the run",
   await expect(res).toExitWith(2);
 });
 
+/** `census-quality.ts`'s bound for the text-overflow census — a rung-1 WALKER-PROVEN family, so every
+ *  returned sample IS a finding and a silent bound DELETED findings rather than shrinking a denominator. */
+const OVERFLOW_CAP = 100;
+
+/** A block-mode spill with NO affordance: `overflow: hidden` + `nowrap`, no `text-overflow: ellipsis` and
+ *  no `title`/`aria-label` (either would be a recoverable truncation the walker silences by design, #825). */
+function spillCarriers(count: number): string {
+  const rows: string[] = [];
+  for (let i = 0; i < count; i += 1) {
+    rows.push(`<div class="spill" id="s${String(i)}">row ${String(i)} carries far more text than sixty pixels can ever show</div>`);
+  }
+  return `<style>.spill { width: 60px; overflow: hidden; white-space: nowrap; }</style>${rows.join("")}`;
+}
+
+test("a truncated rung-1 census reaches the JSON artifact, which has no population row to fall back on", async ({ runCli, scratch }) => {
+  const over = OVERFLOW_CAP + 1;
+  const reportPath = join(scratch, "overflow-cap.json");
+  await writeFile(join(scratch, "overflow-cap.html"), relationalDocument(spillCarriers(over)));
+  const res = await runCli("ui-audit", ["/overflow-cap.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+  const report = JSON.parse(await readFile(reportPath, "utf8")) as {
+    readonly censusCaps: Readonly<Record<string, { readonly cap: number; readonly dropped: number }>> | null;
+    readonly censusCapVerdict: unknown;
+    readonly populationVerdict: unknown;
+    readonly findings: readonly { readonly rule: string }[];
+  };
+
+  // THE EXACT SHAPE THAT USED TO READ CLEAN: no `censusCaps` key at all, and `populationVerdict:"complete"`
+  // because `text-overflow` is rung 1 and publishes no population row for a cap to appear in.
+  expect(report.censusCaps?.["overflows"], "the artifact must carry the family, its bound, and the exact drop").toEqual({
+    cap: OVERFLOW_CAP,
+    dropped: 1,
+  });
+  expect(report.censusCapVerdict, "and its own verdict, so a consumer never has to infer it from a count").toMatchObject({ verdict: "NO VERDICT" });
+  // The findings list is genuinely short by one — which is the point: this family's samples ARE its findings.
+  expect(report.findings.filter((finding) => finding.rule === "text-overflow")).toHaveLength(OVERFLOW_CAP);
+  await expect(res).toExitWith(2);
+});
+
 test("a census that fits inside its bound keeps judging and publishes no cap arm", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "cap-fits.html"), relationalDocument(shadowCarriers(SHADOW_GLOW_CAP)));
   const res = await runCli("ui-audit", ["/cap-fits.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
@@ -62,5 +107,27 @@ test("a census that fits inside its bound keeps judging and publishes no cap arm
   expect(res.stdout).toContain(`POPULATION   glow-shadow candidates=${String(SHADOW_GLOW_CAP)} judged=${String(SHADOW_GLOW_CAP)}`);
   expect(res.stdout, "a family that had room must not withhold anything").not.toContain("capExceeded");
   expect(res.stdout, "a bound that did not bite is not an instrument failure").not.toContain("the capped censuses' completeness is ABSENT");
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+});
+
+test("the artifact carries the cap ledger and a complete verdict when nothing truncated", async ({ runCli, scratch }) => {
+  const reportPath = join(scratch, "cap-fits.json");
+  await writeFile(join(scratch, "cap-fits-json.html"), relationalDocument(shadowCarriers(SHADOW_GLOW_CAP)));
+  const res = await runCli("ui-audit", ["/cap-fits-json.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+  const report = JSON.parse(await readFile(reportPath, "utf8")) as {
+    readonly censusCaps: Readonly<Record<string, { readonly cap: number; readonly dropped: number }>> | null;
+    readonly censusCapVerdict: unknown;
+    readonly hoverPass: { readonly forceFailedGroups: number } | null;
+    readonly forceVerdict: unknown;
+  };
+
+  // The ledger is PRESENT with dropped 0, never absent: "absent" and "nothing dropped" have to be two
+  // different readings, or the field's disappearance is invisible — the same silence the ledger ended.
+  expect(report.censusCaps?.["shadowGlows"]).toEqual({ cap: SHADOW_GLOW_CAP, dropped: 0 });
+  expect(report.censusCapVerdict).toBe("complete");
+  // #1087 F2: the COMPLETE group-failure count is serialized, not just the ≤3 quoted reasons.
+  expect(report.hoverPass?.forceFailedGroups).toBe(0);
+  expect(report.forceVerdict).toBe("complete");
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 });

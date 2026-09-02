@@ -85,15 +85,32 @@ one candidate index space, one verify, one join contract (contract/samples-hover
   idiom — `resolveBackdrop` walks ancestors only, ops/walker/resolve.ts:201, and cannot read a
   pseudo's background) are WITHHELD by name (`pseudoElementPaint`), never silently unparseable and
   never judged against a wrong backdrop. Non-`=` attribute operators → `complexStateSelector`
-  withheld. A state test of EITHER mechanism reachable only inside `:is()`/`:where()` — the compiled
-  group-variant shapes `.cls:is(:where(.group)[data-checked] *)` and
-  `.cls:is(:where(.group):hover *)`, where forcing the painted element would not engage the rule and
-  would publish a FALSE `noHoverChange` exclusion → withheld by the same named reason
-  (`complexStateSelector`). The `:hover` half of that sentence was PROSE-ONLY until #1073: the
-  attribute scanner tracked functional-pseudo depth from birth and the `:hover` side answered one
-  "anywhere" boolean, so every `group-hover:` rule in the product was measured against the wrong
-  subject and excluded as unchanged. Both halves now share `stateHoverScan`/`stateAttrScan`'s depth
-  guard, pinned in `tests/tooling/ui-audit/ops/hover-walker-group-variant.int.test.ts`. Bare-attribute-first descendant
+  withheld. A state test of EITHER mechanism reachable only inside `:is()`/`:where()` is the compiled
+  group-variant shape — `.cls:is(:where(.group)[data-checked] *)` and `.cls:is(:where(.group):hover *)`
+  — and it has a two-step history that the ruling's own idiom explains: **the ruling survives, its
+  INPUT changed.**
+
+  - **Withheld, because unforcible (#1073).** Forcing the element the compound names would not engage
+    the rule, so the pass published a FALSE `noHoverChange` exclusion — a measurement claim about a
+    rule it never held. The `:hover` half of this bullet had been PROSE-ONLY until then: the attribute
+    scanner tracked functional-pseudo depth from birth, the `:hover` side answered one "anywhere"
+    boolean, and every `group-hover:` rule in the product was measured against the wrong subject.
+    `stateHoverScan` gave both halves the same depth guard and the shape became
+    `withheld(complexStateSelector)`.
+  - **Judged, because the anchor is rest-resolvable (#1084).** The subject the rule names is a real
+    selector inside the functional pseudo (`:where(.group)`, or a named `:where(.group\/row)`).
+    `ops/walker/group-variant.ts` derives it, the pass resolves `painted.closest(anchor)` and forces
+    THAT — over CDP for `:hover`, by `setAttribute` for the attribute twin, whose subject resolution is
+    identical. `complexStateSelector` is retired for this shape on BOTH mechanisms.
+  - **Still withheld: what the derivation refuses.** Only `<anchorCompound><stateTest> *` is accepted —
+    ONE compound, ONE state test, a DESCENDANT combinator. The sibling form (`peer-hover:` compiles to
+    `:is(:where(.peer):hover ~ *)`) has no `closest()` answer; a multi-compound argument names an
+    anchor the pass cannot address; two state-bearing pseudos are two subjects it can only hold one of.
+    Each keeps `withheld(complexStateSelector)`, and refusing them is what makes the acceptances
+    trustworthy. Non-`=` attribute operators stay withheld for the same reason: the forcer cannot
+    produce the value.
+
+  All four directions are pinned in `tests/tooling/ui-audit/ops/hover-walker.int.test.ts`. Bare-attribute-first descendant
   pairs whose subject cannot be located at rest → `unresolvableStateSubject`. `noHoverPaint` keeps
   its key (pinned by tests/tooling/ui-audit/cli.int.test.ts) and its claim becomes TRUE: excluded
   only when NEITHER mechanism paints the text and the scan was whole

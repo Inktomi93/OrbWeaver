@@ -9,8 +9,8 @@ import type { SettingsShimEvidence, ThemeResolutionEvidence } from "@orb/tooling
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
 import type { ThemeRequest } from "@orb/tooling/_shared/theme";
 import type { RawSamples, ThemeRenderInput } from "../contract/samples.ts";
-import { CENSUS_CAP_FAMILIES } from "../contract/samples-populations.ts";
 import type { RelationalSamples } from "../contract/samples-populations.ts";
+import { CENSUS_CAP_FAMILIES } from "../contract/samples-populations.ts";
 import type { DomPopulation } from "../contract/types.ts";
 
 /** Every RELATIONAL sample family, derived from the ONE contract that declares them

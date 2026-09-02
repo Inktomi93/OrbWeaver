@@ -5402,7 +5402,7 @@
     {
       "siteId": "tooling/src/ui-audit/ops/hover.ts::empty:e::1",
       "path": "tooling/src/ui-audit/ops/hover.ts",
-      "line": 400,
+      "line": 414,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5410,7 +5410,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as `HOVER REFUSED <why>`, RETURNED as a `broke` outcome, and RENDERED AS EXIT.toolError by run.ts — propagated through both the message and the exit code, so a forced-state pass that failed reddens the audit's verdict rather than being absorbed. END CONDITION: the run reports `hover-contrast` NO VERDICT and exits 2.",
-      "markerLine": 321
+      "markerLine": 335
     },
     {
       "siteId": "tooling/src/ui-audit/ops/matrix.ts::empty:error::1",

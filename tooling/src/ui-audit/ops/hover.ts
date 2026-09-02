@@ -40,6 +40,7 @@ import { attrRestored, candidateIndices, groupReadResult, hoverCensusResult, pag
 import { HOVER_CENSUS } from "./hover-walker.ts";
 import { HOVER_FORCE_READ } from "./hover-walker-read.ts";
 import { WALKER_CORE } from "./walker/core.ts";
+import { WALKER_GROUP_VARIANT } from "./walker/group-variant.ts";
 import { WALKER_RESOLVE } from "./walker/resolve.ts";
 import { WALKER_STATE_PAINT } from "./walker/state-paint.ts";
 import { WALKER_MUTATION_CARRIES } from "./walker.ts";
@@ -51,9 +52,11 @@ refuseDirectInvocation(import.meta.url, "pnpm design-audit");
  *  resolver (UI-Primitives-and-Reuse.md §13.9; three shipped rules were structurally dead the last time
  *  this instrument grew its own). CORE's mutation observer needs `mutationCarriesElement`, which is why
  *  walker.ts exports that fragment separately. WALKER_STATE_PAINT sits after RESOLVE and before the
- *  census halves — the same var-initialization ordering COLLECT_SAMPLES_JS obeys. */
+ *  census halves — the same var-initialization ordering COLLECT_SAMPLES_JS obeys — and
+ *  WALKER_GROUP_VARIANT (#1084) sits between them: it READS state-paint's strippers and is composed
+ *  ONLY here, because the main walk builds no state pairs and would carry the bytes for nothing. */
 const HOVER_CENSUS_JS = `(async () => {
-${WALKER_MUTATION_CARRIES}${WALKER_CORE}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${HOVER_CENSUS}${HOVER_FORCE_READ}})()`;
+${WALKER_MUTATION_CARRIES}${WALKER_CORE}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_GROUP_VARIANT}${HOVER_CENSUS}${HOVER_FORCE_READ}})()`;
 
 /** The RESULT line's `hover-pass=` word. ONE token, never a sentence — the machine line is split on
  *  whitespace by its readers, so the `broke` arm's full reason rides the printed `HOVER REFUSED` line,
@@ -185,8 +188,19 @@ interface ForcedReads {
  *  WHAT THAT REASONING MISSED, and what `failedGroups` closes: `forceFailedMembers` counts MEMBERS, and a
  *  group with zero contrast members but a non-zero glow count — driven precisely so the state-gated glow
  *  arm is not silently dropped — contributes ZERO on failure. Its reason was printed as a `HOVER REFUSED`
- *  line that reddened nothing, so the run read complete. The count is now published whole and ops/run.ts
- *  raises it as its own evidence gap. */
+ *  line that reddened nothing, so the run read complete. The count is now published whole, ops/run.ts
+ *  raises it as its own evidence gap, and it is serialized on `hoverPass` (#1087 F2).
+ *
+ *  STATED LIMIT — the FAILING arm has no fixture, and this is a real limit rather than a deferred one. A
+ *  group fails only when CDP or the page throws mid-pass (`DOM.requestNode` on a node that detached
+ *  between census and force, `CSS.forcePseudoState` refused, the group read throwing). No static
+ *  `file://` document can produce any of those deterministically — the timing is the protocol's, not the
+ *  fixture's — and the alternative is a test-only fault hook wired into this instrument, which is exactly
+ *  the class of change that makes a tool lie about itself. What IS pinned, in
+ *  tests/tooling/ui-audit/ops/walker/core.int.test.ts, is the clean-run arm: `forceFailedGroups: 0` and
+ *  `forceVerdict: "complete"` are asserted PRESENT, so the field cannot silently vanish or invert. Closing
+ *  the failing arm needs a CDP fault injector at the probe layer (_shared/browser.ts), which would serve
+ *  every instrument, not just this one. */
 async function forceEveryGroup(session: HoverSession, groups: readonly HoverGroupRow[]): Promise<ForcedReads> {
   const reads = new Map<number, HoverForcedReadRow>();
   const failures: string[] = [];
