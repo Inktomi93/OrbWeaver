@@ -31503,6 +31503,186 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L1-ui.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 233,
+      "bytes": 18838,
+      "sha256": "c00698488c8efe87b9d06936d1cfe9417f5be7517b81d76dc7e3184b3c416db6",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L1-ui.md",
+        "assignedSha256": "c00698488c8efe87b9d06936d1cfe9417f5be7517b81d76dc7e3184b3c416db6",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "c00698488c8efe87b9d06936d1cfe9417f5be7517b81d76dc7e3184b3c416db6",
+        "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
+        "verifiedAt": "2026-09-02",
+        "summary": "CT corpus audit shard L1 (#1229, lane cb-ct-audit-L1): full read of tests/ui/** minus files already covered by legs 1-3 and a concurrent sibling shard — 64/106 population files, all newly read in full top-to-bottom (8,206 lines). Zero findings: every file honest, premise-current (5 load-bearing spot-checks against today's packages/ui/src), harness-correct. Taxonomy sweep (reports/ writes, as-unknown-as casts, .labels[0] accname trap, skip/tautology, ONESHOT-window, stand-in children, shared-render-tree reads) returned zero in-population hits on every class, each corroborated by non-zero hits landing correctly in the excluded files.",
+        "evidence": [
+          "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-L1 (stickler) in the same session — the population derivation, 64-file verdict table, taxonomy sweep receipts with cross-referenced corroboration, and the #1229 issue summary"
+        ],
+        "claims": [
+          {
+            "claim": "The 64-file tests/ui/** population's zero-count taxonomy classes are corroborated by non-zero hits landing correctly in the excluded (already-read) files — e.g. 17 as-unknown-as double-casts confined to log-viewer.ct.tsx/message-list.ct.tsx/sortable.ct.tsx/sandbox-frame.ct.tsx/markdown.ct.tsx — proving the corpus-wide sweep is live rather than blind, and that population attribution was checked rather than assumed.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/ui/charts/meter/waystone.ct.tsx:1"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L2-chat.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 426,
+      "bytes": 34811,
+      "sha256": "a5e2ebe1be7bd2cd51e30a47b35d1db1400c6fd00f3dc4e3845f221af6707a24",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L2-chat.md",
+        "assignedSha256": "a5e2ebe1be7bd2cd51e30a47b35d1db1400c6fd00f3dc4e3845f221af6707a24",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "a5e2ebe1be7bd2cd51e30a47b35d1db1400c6fd00f3dc4e3845f221af6707a24",
+        "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
+        "verifiedAt": "2026-09-02",
+        "summary": "CT corpus audit shard L2 (#1229, lane cb-ct-audit-L2): chat + shared-components population, 65/65 files read whole across 8 chunks (tests/client/features/chat/** + tests/client/components/**, minus 9 files already audited by legs 1-3 and 11 chat files claimed by a concurrent sibling shard, from an 87-file raw population). Zero findings. Taxonomy sweep (literal reports/ writes, as-unknown-as double-casts, skip/fixme/only, suppression markers, ONESHOT-OK adjacency) came back clean across the board, each class corroborated with a planted positive control.",
+        "evidence": [
+          "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-L2 (stickler) in the same session — the population derivation, per-file verdicts across 8 chunks, taxonomy sweep receipts with planted-control corroboration, and the #1229 issue summary"
+        ],
+        "claims": [
+          {
+            "claim": "The 65-file chat + shared-components population's taxonomy sweep (component.screenshot({path:}) not routed through storyShot, as-unknown-as double-casts, test.skip/.fixme/.todo/.only, biome-ignore/eslint-disable) returned zero real hits, each class corroborated by a planted positive control in the same invocation that matched the identical grep, proving the sweep is live rather than silently blind.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/features/chat/hooks/use-slash-commands.ct.tsx:30"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L3-rpg-refinery.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 195,
+      "bytes": 14147,
+      "sha256": "7e1f101416db6c3afef8626761edda3b8d5ed812d073d10c5aed17ed46758d4e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L3-rpg-refinery.md",
+        "assignedSha256": "7e1f101416db6c3afef8626761edda3b8d5ed812d073d10c5aed17ed46758d4e",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "7e1f101416db6c3afef8626761edda3b8d5ed812d073d10c5aed17ed46758d4e",
+        "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
+        "verifiedAt": "2026-09-02",
+        "summary": "CT corpus audit L3 shard (#1229, lane cb-ct-audit-L3): rpg/refinery/preset/automation/workloads/imagery fully drained — 35 files / 4,507 lines read whole, 100% of this shard's real population (no gallery/tool-use .ct.tsx files exist on this tree). Verdict: 35 CLEAN, zero findings — the strongest-condition register the campaign has found so far. Taxonomy sweep over exactly these files: 0 literal reports/ writes (1 hit is a prose citation of a historical screenshot receipt in a comment), 0 kill spawns, 0 as-unknown-as casts, 0 skip/fixme/only, 0 suppressions, 6 ONESHOT-OK markers across 4 files all inside the adjacency window.",
+        "evidence": [
+          "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-L3 (stickler) in the same session — the population derivation, 35-file verdict table, taxonomy sweep receipts, per-file notes, and the #1229 issue summary"
+        ],
+        "claims": [
+          {
+            "claim": "The readout family's pipeline-order pin is DERIVED from PROMPT_LANE_STEPS/REPLY_LANE_STEPS (the same tuples the server iterates) rather than hand-spelled, so a server-side reorder of those steps breaks the CT too — the shard's strongest instance of a derived-not-duplicated pin.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/features/preset/components/readout/transforms-readout.ct.tsx:1"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L4-client-core.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 293,
+      "bytes": 29050,
+      "sha256": "7589f7573d37af4ae47ee9f7c92211c7e4e955a2c87bc6aa1852f2fda2b35f29",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L4-client-core.md",
+        "assignedSha256": "7589f7573d37af4ae47ee9f7c92211c7e4e955a2c87bc6aa1852f2fda2b35f29",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "7589f7573d37af4ae47ee9f7c92211c7e4e955a2c87bc6aa1852f2fda2b35f29",
+        "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
+        "verifiedAt": "2026-09-02",
+        "summary": "CT corpus audit leg 4, shard L4 (#1229, lane cb-ct-audit-L4): 107 files full-read, zero sampled. Scope: tests/client/{data,lib,state,forms,a11y,agent-nav,agent-rpg,agent-seed,compose}/** + tests/client/features/{app-shell,settings,connections,databank,plugin,home}/**, minus legs 1-3's already-read files and the sibling-lane exclusion set (tests/client/features/connections/ does not exist on this tree — flagged as a spec/naming mismatch, not guessed into scope). Verdict: 106 of 107 files CLEAN with zero findings; one P4 (G1) — use-carried-appearance.ct.tsx's header describes 3 pins from a pre-R1 design (2 describe deleted draft-mode behavior, 1 is a genuine untested error-degrade arm on the still-live single-arm hook).",
+        "evidence": [
+          "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-L4 (stickler) in the same session — the population derivation, per-file verdicts across multiple chunks, the G1 finding, taxonomy sweep receipts, and the #1229 issue summary"
+        ],
+        "claims": [
+          {
+            "claim": "use-carried-appearance.ct.tsx's header comment lists five pins but the file contains exactly two test() blocks; reading the source shows R1 (13ee1bde6) deleted the draft-phase card-reading arm the header's pins 2-3 describe, while pin 5 (a failed card read degrading to undefined) is a genuine, still-live, untested coverage gap on the current single-arm hook.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/data/use-carried-appearance.ct.tsx:1"
+              },
+              {
+                "kind": "code",
+                "target": "packages/client/src/data/use-carried-appearance.ts:1"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg1.md",
       "lane": "reviews",
       "issue": 7,
@@ -31666,6 +31846,138 @@
               {
                 "kind": "code",
                 "target": "packages/client/src/features/chat/components/composer-drop-target.tsx:41"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg4a-chat.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 132,
+      "bytes": 10616,
+      "sha256": "5c241d83d2a65a5d66d25beaad3ca6ecdfd1c5ef5e1437da2ddd75b5bbb08aae",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg4a-chat.md",
+        "assignedSha256": "5c241d83d2a65a5d66d25beaad3ca6ecdfd1c5ef5e1437da2ddd75b5bbb08aae",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "5c241d83d2a65a5d66d25beaad3ca6ecdfd1c5ef5e1437da2ddd75b5bbb08aae",
+        "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
+        "verifiedAt": "2026-09-02",
+        "summary": "CT corpus audit leg 4a (#1229, lane cb-ct-audit-4a): one of three parallel shards continuing legs 1-3, shard (a) chat components — 11/11 files full-read (~6,900 lines), zero findings of any severity. Every taxonomy class (ONESHOT-OK/FABRICATION-OK/double-casts/reports-writes/expect.soft/assertion-free/stale-selectors/accname-shape) swept at zero except 3 correctly-windowed ONESHOT-OK markers, all verified true. 3 premise-currency spot-checks against today's source all confirmed live. Running campaign total after this shard + siblings 4b/4c: at least 95/469 full-read.",
+        "evidence": [
+          "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-4a (stickler) in the same session — the 11-file verdict table, taxonomy sweep receipts, per-file notes, and the #1229 issue summary"
+        ],
+        "claims": [
+          {
+            "claim": "Shard (a)'s 11-file chat-component population (~6,900 lines) swept clean across the full leg-1 taxonomy, and the zero-count classes are corroborated by a non-zero positive control — 3 correctly-windowed ONESHOT-OK markers, all verified true — proving the per-file sweep actually finds markers when present rather than silently missing them.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/features/chat/components/prose-settings-section.ct.tsx:138"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg4b-discovery.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 499,
+      "bytes": 42043,
+      "sha256": "f3eff9e6bdc1f2c4eeda1c6ea6e67fcea09dd43a8d60f1984683c6fa7a5c5e08",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg4b-discovery.md",
+        "assignedSha256": "f3eff9e6bdc1f2c4eeda1c6ea6e67fcea09dd43a8d60f1984683c6fa7a5c5e08",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "f3eff9e6bdc1f2c4eeda1c6ea6e67fcea09dd43a8d60f1984683c6fa7a5c5e08",
+        "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
+        "verifiedAt": "2026-09-02",
+        "summary": "CT corpus audit leg 4b (#1229, lane cb-ct-audit-4b): one of three parallel shards continuing legs 1-2 — 45 files full-read across 8 commits (discovery/databank surfaces, tracker-blocks/workloads-jobs/actions-view/face-strip/roster-picker, all 5 persona-* files, the full 19-file character-* family including the 1,951-line character-library-surface.ct.tsx, regex-tab, schema-editor-dialog, turn-tool-calls-disclosure, three motion-instrument files, plugin-scripted-surface, connections-roles-section, 4 client/data hook files). Zero findings, campaign ceiling unchanged at leg 1's P3. Process notes: the brief's cited leg3.md shard-map source did not exist in this worktree (numbered leg4b to avoid colliding with sibling shards); one coordination flag on corpus-search-results.ct.tsx's SCENES door-look block, read pre-#1249.",
+        "evidence": [
+          "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-4b (stickler) in the same session — the resolved file list, per-file verdicts across 8 chunks, taxonomy sweep receipts, and the #1229 issue summary"
+        ],
+        "claims": [
+          {
+            "claim": "corpus-search-results.ct.tsx's SCENES door-look block (:483-503) was read against this worktree's pre-#1249 content — the sibling lane's RoomDoor recession fix at that composite is not present here — so the CLEAN verdict on that block is provisional pending re-verification once #1249 merges into a worktree that has it.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/features/discovery/components/corpus-search-results.ct.tsx:483"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg4c-primitives.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 196,
+      "bytes": 15251,
+      "sha256": "0240e4333cec708a8d4ce570b8ff05662d47426fdd4caff17275e1dc0755aa41",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg4c-primitives.md",
+        "assignedSha256": "0240e4333cec708a8d4ce570b8ff05662d47426fdd4caff17275e1dc0755aa41",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "0240e4333cec708a8d4ce570b8ff05662d47426fdd4caff17275e1dc0755aa41",
+        "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
+        "verifiedAt": "2026-09-02",
+        "summary": "CT corpus audit leg 4, shard (c) (#1229, lane cb-ct-audit-4c): 17/17 named UI-primitive files full-read (3,050 lines) — switch, select, macro-textarea, toggle, text, icon, command, popover, drawer, table, avatar-stack, selection-bar, stream-text, art-bleed, weave-veil, stack, layer. Verdict: 16 CLEAN, 1 P4 finding (F1) — macro-textarea.ct.tsx:206-208 carries a structurally un-failable belt-and-suspenders assertion beside an already-correct toHaveAccessibleName pin. Taxonomy sweep zero across the shard (all corroborated by a planted positive control in the same invocation); 27 ONESHOT-OK markers sampled all-true. 0 of 2 permitted CT runs used.",
+        "evidence": [
+          "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-4c (stickler) in the same session — the 17-file verdict table, F1 finding, taxonomy sweep receipts, premise-currency spot-checks, and the #1229 issue summary"
+        ],
+        "claims": [
+          {
+            "claim": "macro-textarea.ct.tsx:206-208 pins el.labels[0].textContent against the ghost-default template string, but that DOM property is a static label/for relationship the F-3 accname regression it guards (role=combobox falling through to VALUE) can never touch — the assertion is structurally un-failable on every possible source state and redundant beside the correct toHaveAccessibleName pin two lines above it.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/ui/primitives/macro-textarea/macro-textarea.ct.tsx:206"
               }
             ]
           }
