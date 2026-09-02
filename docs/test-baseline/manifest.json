@@ -2069,6 +2069,7 @@
     "tests/tooling/ui-audit/ops/walker/census-tier.int.test.ts",
     "tests/tooling/ui-audit/ops/walker/census-tier.test.ts",
     "tests/tooling/ui-audit/ops/walker/core.int.test.ts",
+    "tests/tooling/ui-audit/ops/walker/hit-extent.test.ts",
     "tests/tooling/ui-audit/ops/walker/returns.int.test.ts",
     "tests/tooling/ui-audit/ops/walker/state-paint.int.test.ts",
     "tests/tooling/ui-gate-structural-regressions.int.test.ts",
