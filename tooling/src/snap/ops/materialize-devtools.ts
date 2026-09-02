@@ -20,6 +20,7 @@ import type {
   DevToolsLicenseManifest,
 } from "../../_shared/devtools-assets.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { budget } from "../../_shared/load-budget.ts";
 import { DEVTOOLS_LICENSE_SOURCES } from "../lib/devtools-license-sources.ts";
 import { literalModuleAssetPaths, pathForDevToolsRequest } from "../lib/devtools-module-assets.ts";
 import { devToolsDiscoveryProof } from "./page-validate.ts";
@@ -42,7 +43,13 @@ const PLANTED_CASES = 9;
 const RESOURCE_FETCH_BATCH = 6;
 const RESOURCE_FETCH_ATTEMPTS = 3;
 const RESOURCE_FETCH_RETRY_MS = 250;
-const RESOURCE_FETCH_TIMEOUT_MS = 30_000;
+/** Both DevTools ceilings ride `budget()` (#1266): the asset fetch and the frontend navigation are
+ *  ceilings a healthy materialisation never reaches, so stretching them under load costs nothing and
+ *  stops a contended box reading as a broken DevTools pin. */
+const RESOURCE_FETCH_BASE_MS = 30_000;
+const RESOURCE_FETCH_TIMEOUT_MS = budget(RESOURCE_FETCH_BASE_MS);
+const FRONTEND_NAV_BASE_MS = 30_000;
+const FRONTEND_NAV_TIMEOUT_MS = budget(FRONTEND_NAV_BASE_MS);
 const JAVASCRIPT_MIME_TYPES = new Set(["application/javascript", "text/javascript"]);
 
 interface CachedAsset {
@@ -306,7 +313,7 @@ async function exerciseClosure(page: Page, pin: DevToolsAssetPin, frontendOrigin
   try {
     await frontend.goto(`${frontendOrigin}/serve_rev/@${pin.devtoolsFrontendRevision}/inspector.html?ws=127.0.0.1:${port}/devtools/page/${identity.id}`, {
       waitUntil: "domcontentloaded",
-      timeout: 30_000,
+      timeout: FRONTEND_NAV_TIMEOUT_MS,
     });
     await frontend.waitForTimeout(FRONTEND_ATTACH_MS);
     // #1004 — this object IS the attach proof for the whole materialisation; a malformed one used to

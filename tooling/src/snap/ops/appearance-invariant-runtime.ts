@@ -10,6 +10,7 @@ import type { ProbeSession } from "../../_shared/browser.ts";
 import { settle } from "../../_shared/browser.ts";
 import { readBrowserEnvironment } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { budget } from "../../_shared/load-budget.ts";
 import { buildNavScript } from "../../_shared/nav.ts";
 import type { AppearanceCascadeExpectation, AppearanceInvariantReceipt, AppearanceMergeExpectation } from "../contract/appearance-invariants.ts";
 import type { ContrastEvidence } from "../contract/contrast.ts";
@@ -26,6 +27,11 @@ import { scanDeadCss } from "./dead-css.ts";
 import { animationEvidence as animationEvidenceShape, checkpointReset, resetFailures } from "./page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
+
+/** The dialog attach/detach CEILING, not a sleep — a healthy popup returns in a frame or two, so `budget()`
+ *  (#1266) only matters on a saturated box, where it beats calling a descheduled render a missing dialog. */
+const DIALOG_ATTACH_BASE_MS = 5000;
+const DIALOG_ATTACH_TIMEOUT_MS = budget(DIALOG_ATTACH_BASE_MS);
 
 function instrumentError(message: string): never {
   throw new Error(`INSTRUMENT ERROR: ${message}`);
@@ -89,7 +95,7 @@ async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalRow): Pr
   if (!result.ok) {
     instrumentError(`Appearance row ${row.id} navigation refused: ${result.reason ?? "unknown"}`);
   }
-  await page.locator(waitSelector).first().waitFor({ state: "attached", timeout: 5000 });
+  await page.locator(waitSelector).first().waitFor({ state: "attached", timeout: DIALOG_ATTACH_TIMEOUT_MS });
   await settle(page, MOUNT_SETTLE_MS);
   if (row.id === "dark-name-time-short-bubble" || row.id === "hover-pointer") {
     const subjectId = row.id === "dark-name-time-short-bubble" ? "attribution" : "bubble";
@@ -133,13 +139,13 @@ async function openPortalDialog(page: Page, row: RuntimeAppearanceHistoricalRow)
   if (!result.ok) {
     instrumentError(`Appearance row ${row.id} dialog navigation refused: ${result.reason ?? "unknown"}`);
   }
-  await page.locator('[data-slot="portal-root"] [data-slot="dialog-popup"]').waitFor({ state: "attached", timeout: 5000 });
+  await page.locator('[data-slot="portal-root"] [data-slot="dialog-popup"]').waitFor({ state: "attached", timeout: DIALOG_ATTACH_TIMEOUT_MS });
   await settle(page, STEP_SETTLE_MS);
 }
 
 async function closePortalDialog(page: Page): Promise<void> {
   await page.keyboard.press("Escape");
-  await page.locator('[data-slot="portal-root"] [data-slot="dialog-popup"]').waitFor({ state: "detached", timeout: 5000 });
+  await page.locator('[data-slot="portal-root"] [data-slot="dialog-popup"]').waitFor({ state: "detached", timeout: DIALOG_ATTACH_TIMEOUT_MS });
   await settle(page, STEP_SETTLE_MS);
 }
 

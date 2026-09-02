@@ -108,18 +108,6 @@ const CLOCK_SITES: ExemptionTable = {
   "tests/tooling/verify/ops/structure.int.test.ts": {
     why: "ONE deliberate SHORT kill (line ~215): a planted-hang gate is run under a 4s ceiling and the assertion IS `timedOut === true`. Scaling it would stretch the proof of the timeout path itself — the budget is the subject, not the tolerance. The file's other ceilings ARE scaled. Ends if the hang probe stops asserting its own kill.",
   },
-  "tooling/src/snap/lib/budgets.ts": {
-    why: "SCOPE FENCE dated 2026-09-02 (#1232 landing lane): tooling/src/snap/** is the concurrent session-substrate lane's tree (#1231) and this lane was fenced out of it, so snap's nav/ready/step/stage/throttle ceilings are the ONE part of the fleet still fixed. The obligation is INHERITED, not waived — they become budget(<X>_BASE_MS) when the session daemon consumes budget(). Ends the day snap's budgets are scaled; delete this row then.",
-  },
-  "tooling/src/snap/ops/appearance-invariant-runtime.ts": {
-    why: "SCOPE FENCE dated 2026-09-02, same lane split as the row above (three 5s in-page waits). Ends with the same landing.",
-  },
-  "tooling/src/snap/ops/materialize-devtools.ts": {
-    why: "SCOPE FENCE dated 2026-09-02, same lane split (the DevTools resource fetch + frontend nav ceilings). Ends with the same landing.",
-  },
-  "tooling/src/snap/ops/shot.ts": {
-    why: "SCOPE FENCE dated 2026-09-02, same lane split (the per-frame paint-settle ceiling, which is arguably a settle rather than a budget — the owning lane decides). Ends with the same landing.",
-  },
 };
 
 /** Property names whose numeric value IS a wall clock. A nested option object reaches this list through its
@@ -564,8 +552,8 @@ export const gate: GateDescriptor = {
     },
     {
       files: "export const opts = { timeout: 5000 };\n",
-      at: "tooling/src/snap/lib/budgets.ts",
-      why: "a CENSUSED CLOCK_SITES row (the 2026-09-02 scope fence: snap is the concurrent session-substrate lane's tree) — absolved by cited row, never ambient",
+      at: "tests/tooling/verify/ops/structure.int.test.ts",
+      why: "a CENSUSED CLOCK_SITES row (the deliberate SHORT kill whose assertion IS `timedOut === true`) — absolved by cited row, never ambient. Re-pointed here by #1266: this fixture used to cite snap/lib/budgets.ts, whose row was SPENT when snap's ceilings went through budget(), and a mustPass proof may only cite a row that still exists",
     },
     {
       files: 'import { Project } from "ts-morph";\nexport const p = new Project({});\n',

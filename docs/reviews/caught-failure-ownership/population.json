@@ -5129,7 +5129,7 @@
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 191,
+      "line": 198,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5137,12 +5137,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "Chrome creates this file only after binding the ephemeral endpoint; the bounded retry loop owns the race and throws when its budget expires. Ends if exhaustion stops throwing.",
-      "markerLine": 184
+      "markerLine": 191
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::empty:error::1",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 81,
+      "line": 88,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5150,12 +5150,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "each failed attempt is retained as `lastError`; retry exhaustion throws it with the asset path below. Ends if exhaustion stops throwing the retained detail.",
-      "markerLine": 70
+      "markerLine": 77
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::empty:error::2",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 155,
+      "line": 162,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -5163,12 +5163,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "request failures enter the shared `failures` receipt, return HTTP 502, and abort materialization after discovery. Ends if the post-discovery failures check is removed.",
-      "markerLine": 144
+      "markerLine": 151
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::promise:promise::1",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 143,
+      "line": 150,
       "column": 5,
       "grammar": "promise",
       "position": "promise:promise",
@@ -5176,7 +5176,7 @@
       "snippet": "(async (): Promise<void> => {",
       "verdict": "deliberate-absorb",
       "reason": "any escape from the request handler is recorded in `failures`, destroys the response, and aborts materialization after discovery. Ends if the shared failure receipt stops gating installation.",
-      "markerLine": 142
+      "markerLine": 149
     },
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::empty:error::1",
@@ -5350,7 +5350,7 @@
     {
       "siteId": "tooling/src/snap/ops/shot.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/shot.ts",
-      "line": 69,
+      "line": 80,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5358,7 +5358,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented best-effort optimisation — a torn context makes the shot one frame stale, never absent, per the trailing comment. Ends if the shot stops happening regardless of this failure.",
-      "markerLine": 36
+      "markerLine": 47
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::default:catch::1",
