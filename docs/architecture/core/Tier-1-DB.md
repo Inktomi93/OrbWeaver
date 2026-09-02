@@ -66,11 +66,14 @@ A schema change is a SOURCE edit plus a REGENERATED baseline. There is no `0001`
 
    The `--name baseline` is not cosmetic: the journal's single entry must stay
    `{ idx: 0, tag: "0000_baseline" }`, and generating into a NON-empty dir emits a `0001_*.sql` — regime 2,
-   which the `baseline-single-migration` gate reds.
+   which the `baseline-single-migration` gate reds. If you clear the dir IN PLACE instead of moving it,
+   `drizzle-kit generate` REFUSES without `meta/_journal.json` — write one carrying `"entries": []` first.
 3. `biome format --write` the two `migrations/meta` files (drizzle emits unformatted JSON; `lint:biome`
    reds otherwise). Scope the `--write` to those files — never a repo-wide fix-all.
 4. Verify with the two stages, not by eye: `pnpm check:db-baseline` (schema ≡ baseline) and
-   `pnpm check:drizzle-kit` (the journal/snapshot chain).
+   `pnpm check:drizzle-kit` (the journal/snapshot chain). Then DIFF the regenerated baseline against the
+   old one and confirm it is EXACTLY your delta — a regen recomputes from the whole working tree, so a
+   sibling's in-flight schema edit lands in your committed baseline otherwise.
 5. ONLY THEN drop the backup (`rm -rf <lane>-migrations.bak`). If the regen went sideways, `mv` it back —
    never excavate it out of git.
 
@@ -102,6 +105,11 @@ exchange for a disposable dev db.
 >   backups out on a recent-5 + daily-7 budget. `touch data/orbweaver.db.backup-<stamp>.keep` exempts one
 >   from the sweep forever. Pin the pre-reset copy the moment it exists; it is the only record of what was
 >   dropped.
+
+**Two lanes with baseline regens cannot be unioned** — two independently regenerated `0000_baseline.sql`s
+each miss the other's tables and the generated files do not hand-merge. The orchestrator sequences them:
+the first lane's baseline merges to main, the second regenerates ONLY on a post-merge main merged into its
+own worktree. (A lane doing this is merge-window-scheduled; say so in your report.)
 
 Enforcement of the regime itself: the `baseline-single-migration` gate (exactly one `.sql`, exactly one
 journal entry) and its runtime twin `LAUNCHED` in `entry/boot/migrate.ts`.

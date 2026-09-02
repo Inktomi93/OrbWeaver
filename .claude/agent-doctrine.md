@@ -1,487 +1,170 @@
 # Orbweaver executor doctrine (build-process hard rules)
 
-Every role reads this BEFORE touching code (all seven role bodies order the full read). These are the
-recurring gotchas that break this repo's gates or ship broken
-pixels — they are not optional, and "I didn't know" is not a valid outcome. The *architecture* law is
-separate and higher: `docs/architecture/core/AGENTS.md` (the constitution) wins on any conflict.
+Every role reads this BEFORE touching code (all seven role bodies order the full read): the recurring
+gotchas that break this repo's gates or ship broken pixels. `docs/architecture/core/AGENTS.md` (the
+constitution) is separate, higher, and wins on any conflict — read it IN FULL first, then this file,
+then the docs/file-headers your task touches (per-domain law is the CODE + its headers). Do not skim.
 
-## Read order
-1. `docs/architecture/core/AGENTS.md` — the constitution, IN FULL. Then the specific docs/file-headers
-   it points to for your task. The per-domain law is the CODE + its file headers (the code is the doc).
-2. This file.
-Do not skim. You are an amnesiac agent; these docs are your memory.
+Every line below is a RULE; the incident that minted it is in
+`docs/architecture/history/agent-doctrine-accretion-2026-08.md` and the shared memory store — go there
+only when a rule's edge case is genuinely unclear.
 
 ## The hard rules
-- **Tokens only.** No raw px / hex / arbitrary Tailwind values in features (a biome hook enforces it).
-  Compose from `@orb/ui` primitives + `<Stack>/<Row>/<Section>/<Container>`; never `className` on raw
-  HTML in a feature. Tokens live in `packages/ui/src/tokens/tokens.json` → after editing them run
-  `pnpm --filter @orb/ui tokens:build` (theme.css + tokens/index.ts are GENERATED; a dead/unused token
-  is a build error).
-- **The gate battery is `pnpm check`** (biome + eslint + typecheck + structure + depcruise). The commit
-  hook runs `pnpm check`, NOT `pnpm test`. After editing any gate or token file, run the gate's own
-  integration test (`check-gates.int`). CT/unit tests are NOT in the commit hook — a change can be
-  gate-green and still fail `pnpm test`.
-- **Lane verification is SCOPED (owner ruling 2026-07-25). Whole-tree `pnpm check`, `structure:full`,
-  and the full `pnpm test` battery are BANNED in a lane** — on a shared multi-lane tree they only show
-  sibling churn and burn your time attributing it. Your DONE bar: run exactly the test files you touched
-  (`pnpm test:scoped <paths> --maxWorkers=4`, `pnpm ct:scoped <paths> --workers=2` — the niced scripts,
-  never raw `npx`), typecheck your surface (scoped tsc / the fast per-package stages), biome+eslint on
-  your files. The ORCHESTRATOR runs the big gates once on the
-  quiesced tree; anything it catches comes back to you to fix.
-- **The harness AUTO-WRITES artifacts — READ them, never pipe or re-run to rediscover a failure.**
-  `pnpm check` → `reports/verify.json` + per-stage `reports/verify/<stage>.log` +
-  `reports/check-structure.json`; `pnpm test` → `reports/test-report.json` + `reports/ct-flaky.json`.
-- **Those paths are `latest` POINTERS, not files a run writes in place (#1029).** Each run writes only
-  inside `reports/runs/<instrument>/<checkout>-<pid>-<timestamp>/` and publishes the pointer atomically when
-  it FINISHES, so concurrent runs on one checkout keep both verdicts. Read the same paths as always; when
-  you need YOUR run, take the slot the run printed. Layout: `UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
-  Invoke the SCRIPTS, not bare runners (a bare `npx vitest run` skips the json reporter and loses the
-  artifact); a `| tail`/`| grep` filter on live output eats the failure list you needed.
-- **NEVER run tree-wide `biome check --write`, `biome format`, or any format-all / fix-all.** Its
-  INFO-level autofixes have changed behavior and crashed the server (the `/u` unicode-regex wave took
-  down boot). Fix only ERROR-level diagnostics. `useUnicodeRegex` is deliberately deleted from
-  biome.json — do not re-add `u` flags to ASCII-matching regexes. CARVE-OUT (2026-08-21, paid once —
-  a lane hand-rolled an import sorter to obey this line's letter): `biome check --write` SCOPED to
-  files you yourself touched is legal and is the sanctioned form for mechanical fixes biome owns
-  (organize-imports, formatting) — the tool-guard stamps exactly this form. Condition: read the
-  WHOLE resulting diff before committing (INFO-level autofixes have changed behavior here before);
-  never widen the invocation past your own touched set.
-- **`biome-ignore` must be the comment IMMEDIATELY above the flagged line.** If you also need an
-  `eslint-disable-next-line`, put the eslint comment ABOVE the biome-ignore(s) so the biome-ignore stays
-  flush with the code. Suppress a rule only when it is a genuine false-positive, with a cited reason —
-  never restructure real code (e.g. `role="grid"` div → `<table>`) just to silence a linter.
-- **done ≠ rendered.** Verify the computed / rendered result — `getComputedStyle`, `boundingBox`,
-  `pnpm snap` — not the source. A gate can be green while the pixels are wrong (collapsed to 0px,
-  wrong aspect, unreadable contrast). Assert geometry against the resolved token, never a hardcoded px.
-- **Read the FULL gate / test output.** Tailing hides mid-chain errors. A run that "looks done" isn't
-  verified until you've read its result. A builder whose last message is "waiting on the background run"
-  is NOT done.
-- **DB (pre-launch): schema changes SQUASH into `0000_baseline.sql`** (regen via drizzle-kit + biome-
-  format the meta), never an incremental `0001`. The `db-structure` gate does NOT catch this.
-- **Use the right search tool — don't default to grep for everything (all these ARE installed):**
-  - **`ast-grep` for code STRUCTURE** — "every `useState(...)` call", "components matching a JSX shape",
-    "functions with signature X", and AST-aware rewrites. Structural, no regex-escaping pain, respects
-    syntax. **Type `ast-grep`, never `sg`** — VERIFIED on this box 2026-08-03, after two wrong versions of
-    this line: `which -a sg` returns `~/.cargo/bin/sg` (ast-grep's own binary) FIRST, then
-    **`/usr/bin/sg`, which is a symlink to `newgrp`** — the collision is present HERE, merely shadowed by
-    PATH order. And ast-grep itself prints `WARNING: \`sg\` is deprecated. Use \`ast-grep\` instead.` So:
-    upstream deprecated it, and one PATH change / different shell / `sudo` flips a search into a
-    group-switch command. (An earlier version of this line claimed `sg` silently searches nothing here —
-    FALSE, a census of 133,631 Bash calls found it working. The rule is right; that reason was not.)
-    (Run `ast-grep run --help` for the rest; no repo `sgconfig`, run ad-hoc.)
-    - `ast-grep run -p '<pattern>' -l ts <paths>` — search. Metavars: `$A` = one node, `$$$A` = many;
-      `-l/--lang` is `ts`/`tsx`/`js`/`html`/`css`/… (required for a bare pattern).
-    - **`ts` and `tsx` are DIFFERENT LANGUAGES and there is NO superset flag — run BOTH and merge,
-      always.** `-l ts` matches no `.tsx`; `-l tsx` scans ZERO `.ts`-only files. One measured tree, same
-      pattern: `-l ts` scanned=303/matches=11 vs `-l tsx` scanned=359/matches=107.
-    - **A negative claim needs `--inspect summary`.** `ast-grep run` exits 1 on no-match — the IDENTICAL
-      exit as the wrong language, wrong path, or an ignored dir. `--inspect summary` prints
-      `scannedFileCount=…`; **`scannedFileCount=0` means the search never happened** — report "I could
-      not search", never "not found". A non-zero scan count is what entitles you to an absence claim.
-    - `-r '<fix>'` rewrites, but **prints a diff only** — nothing is applied until `-U/--update-all`
-      (batch) or `-i/--interactive` (confirm each). A search never mutates.
-    - `--globs 'packages/ui/**'` to scope · `-C <n>` context lines · `--json=compact` machine output ·
-      `--files-with-matches` for paths only · `-k <kind>` by AST node kind.
-    - `ast-grep outline <paths>` lists symbols/imports/exports/members — **syntax-only**: no references,
-      no types, no re-export chains, no call graph, so it maps structure but never proves reachability.
-      `--debug-query -l ts` prints the tree-sitter AST when a pattern won't match (don't guess the kind).
-    - Inline rules: `--inline-rules` (with `--stdin` for snippets), single-quoted or the shell eats
-      `$META`. **`stopBy` defaults to `neighbor`, not the whole subtree** — write `stopBy: end` unless
-      you mean direct-child-only. Validate any rule against a known-POSITIVE and known-NEGATIVE before
-      trusting a zero from it; every failure mode here returns a silent zero.
-  - **The built-in Grep TOOL for literal text** — strings, comments, config values, a quick "does
-    this token appear". It's ripgrep-backed, needs no permission prompt, and has no binary-skip
-    issue. Don't force ast-grep on a literal, and don't shell out to grep for a plain search.
-    ONLY when a Bash pipeline genuinely needs grep in it: use `/usr/bin/grep -a` — the shell's bare
-    `grep` is a ugrep wrapper that skips some `.ts` as binary → silent false-negative sweeps.
-    **Always pass `--exclude-dir=node_modules` explicitly.** `grep -r` does NOT respect ignore files,
-    and all six packages have their own `node_modules`. Today those happen to contain SYMLINKS into the
-    pnpm store, which `grep -r` won't follow — so a count can come out right by ACCIDENT of the store
-    layout while the command is wrong. Hoisting, a different installer, or one real directory turns the
-    same command into thousands of `@types` hits with no signal that anything changed. Rely on the flag,
-    never on the layout. (`ast-grep` and the Grep tool respect ignore files and need no flag — this is
-    a raw-`grep`-in-a-pipeline rule.)
-  - **`tree`** (v2.1) for directory structure at a glance; **`tokei`** (v12.1, `--output json`) for
-    LOC/size stats by language when scoping how big a surface is.
-  - **The global `code-recon` SKILL is the standard for any recon claim** — load it with the Skill tool
-    before hunting in an unfamiliar codebase. It carries the evidence ladder this repo judges by
-    (declared → exported → imported → called), the three ways recon fails while LOOKING like success
-    ("a file existing is not evidence the thing is implemented"; "no-matches is not absence"), and the
-    ast-grep run/outline/scan mechanics. Absence claims need TWO independent methods.
-  - **Reading NEO (`legacy-main`) structurally:** it is a BRANCH, so nothing is on disk and `git show`
-    yields one file at a time — which is how a dig degrades into grep-guessing. Materialize it OUTSIDE
-    the repo and run ast-grep over that:
-    `git -C <repo> archive legacy-main | tar -x -C <scratchpad>/neo`. Never `checkout`, never
-    `worktree add`, never `cp` into the tree (lanes may be mid-sweep on the working tree). For
-    SillyTavern (`/home/inktomi/inktomi-stack/SillyTavern/`) use `ast-grep -l js` **and `-l html`** and
-    lead with `ast-grep outline` for the symbol map — hunt by SHAPE, not by the feature's English name.
-    **Much of ST's UI hides in TEMPLATE HTML** (`public/scripts/templates/`, inline `<template>`), so a
-    JS-only sweep misses whole capabilities; its locale/string tables are a cheap high-recall index of
-    every user-facing option.
-  - **`tooling/src/codemod/` (`pnpm codemod`; the ts-morph kit, ex-scripts/codemods/codemod-kit.ts) BEFORE you hand-edit a repeated shape or write your own
-    codemod.** It is a ts-morph toolkit with a documented index (search `── §`), and it already carries
-    the helpers for campaigns this repo has run: `retypeIdAnnotations` (retype every `chatId: string`
-    → `chatId: ChatId` AND insert the type-only import, preserving `| null` / `?`, idempotent),
-    `castStringLiteralsByDiagnostic` (TYPE-CHECKER-driven — wraps the literals tsc reports as
-    unassignable, so it catches positional args/returns a structural pattern misses; run it LAST, after
-    the retypes), `castIdInObjectLiterals` / `castIdInComparisons`, plus move/repoint/rename/re-export
-    arms. **`runCodemod` DRY-RUNS BY DEFAULT** and prints a per-file diff before a byte hits disk —
-    `--apply` is the explicit commit flag. Preview, read the WHOLE diff, then apply in reviewable
-    batches; a blind mass `--apply` is how a wrong rename ships. Same rule for `ast-grep -r`: it prints
-    a diff only until `-U`/`-i`.
-- **Verify with our instruments, cheaply.** `pnpm snap <route> --map/--contrast/--eval/--aria` (Bash,
-  own headless browser, no MCP cost); `window.__orb` for render/query/bus state; wait on
-  `data-app-ready`. Prefer these over chrome-devtools MCP.
+- **Tokens only.** No raw px / hex / arbitrary Tailwind in features (a biome hook enforces it); compose
+  from `@orb/ui` primitives + `<Stack>/<Row>/<Section>/<Container>`; never `className` on raw HTML.
+  Tokens are `packages/ui/src/tokens/tokens.json` → `pnpm --filter @orb/ui tokens:build` after editing
+  (theme.css + tokens/index.ts are GENERATED; a dead token is a build error).
+- **The gate battery is `pnpm check`**; the commit hook runs it, NOT `pnpm test`. A change can be
+  gate-green and still fail `pnpm test`. After editing any gate or token file, run `check-gates.int`.
+- **Lane verification is SCOPED (owner ruling 2026-07-25): whole-tree `pnpm check`, `structure:full` and
+  the full `pnpm test` battery are BANNED in a lane.** DONE bar = exactly the test files you touched
+  (`pnpm test:scoped <paths> --maxWorkers=4`, `pnpm ct:scoped <paths> --workers=2` — niced scripts, never
+  raw `npx`) + scoped typecheck + biome/eslint on your files. The orchestrator runs the big gates once.
+- **The harness AUTO-WRITES artifacts — READ them, never pipe or re-run to rediscover a failure**, and
+  invoke the SCRIPTS (a bare `npx vitest run` drops the json reporter). Which artifact each run writes,
+  and why the paths are `latest` POINTERS rather than files written in place: constitution §4.
+- **NEVER a tree-wide `biome check --write` / `biome format` / any fix-all** — INFO-level autofixes have
+  changed behavior and crashed the server; fix ERROR-level only, and never re-add `u` flags
+  (`useUnicodeRegex` is deliberately deleted). CARVE-OUT: `--write` SCOPED to files you touched is
+  sanctioned for the fixes biome owns — read the WHOLE diff, never widen past your own set.
+- **`biome-ignore` is the comment IMMEDIATELY above the flagged line** (an `eslint-disable-next-line`
+  goes ABOVE it). Suppress only a genuine false-positive, with a cited reason; never restructure real
+  code to silence a linter.
+- **done ≠ rendered.** Verify the computed/rendered result (`getComputedStyle`, `boundingBox`,
+  `pnpm snap`), not the source; assert geometry against the resolved token, never a hardcoded px.
+- **Read the FULL gate / test output.** A run that "looks done" isn't verified until you have read its
+  result; a builder whose last message is "waiting on the background run" is NOT done.
+- **DB (pre-launch): schema changes SQUASH into `0000_baseline.sql`**, never an incremental `0001` — the
+  `db-structure` gate does not catch it. Procedure + the dev-db drop: `.claude/rules/db-schema.md` →
+  `Tier-1-DB.md` §"The migration lifecycle".
+- **Verify with our instruments, cheaply:** `pnpm snap <route> --map/--contrast/--eval/--aria`,
+  `window.__orb` for render/query/bus state, wait on `data-app-ready`. Prefer these to devtools MCP.
+- **NEVER commit while a `git push` is running, and never trust the push's summary line** — git resolves
+  the ref at invocation and transfers its value at transfer time, so a commit inside the ~17-min pre-push
+  window ships silently under a stale printed range. Verify against the SERVER (`git ls-remote origin`).
+- **A lane that dies silently is usually a PERMISSION DEFER, not a transient** — tell: "completed" after
+  1-4 tool calls at a consistent token count; the real message is `settings deferred Bash` and a subagent
+  has nobody to ask. Report the EXACT command and stop cleanly; the fix is the allowlist, not the guard.
 
-- **NEVER commit while a `git push` is running, and never trust the push's summary line.** Measured
-  2026-08-03: our pre-push hook is `pnpm verify --push` (~17 min), and git resolves the ref to push at
-  INVOCATION but transfers the ref's value at TRANSFER time. A commit made inside that window ships
-  silently, and git prints the range it computed 17 minutes earlier — so the output actively misreports
-  what went to origin. It cost a confused investigation and a wrong accusation of an innocent lane.
-  **Verify a push against the SERVER** (`git ls-remote origin refs/heads/main`, or the GitHub API's push
-  events), never the console summary — the same discipline as reading `reports/verify.json` instead of
-  console output. Two instances of that one lesson in a single day.
-
-- **A LANE THAT DIES SILENTLY IS USUALLY A PERMISSION DEFER, NOT A TRANSIENT.** Symptom: "completed"
-  after a one-line preamble, 1-4 tool calls, at a suspiciously CONSISTENT token count. The real message
-  is `settings deferred Bash` — the command was not in `.claude/settings.json` `permissions.allow`, the
-  permission flow asked, and **a subagent has nobody to ask**. Consistency across lanes is the tell; a
-  genuine transient is ragged. **The PreToolUse guard is implicated even when it denies nothing:**
-  `defer` means "fall through to the normal permission flow", which is NOT `allow` — a decisions log full
-  of `defer` with zero denies exonerates the RULES while still being the trigger. Fix the allowlist, not
-  the guard. (Cost seven lanes on 2026-08-03 because "0 denies" was read as "not the hook", twice.)
+## Search and recon
+- **`ast-grep` for code STRUCTURE, the Grep tool for literal text, `pnpm ast` for reference/liveness.**
+  Type `ast-grep`, NEVER `sg` (`/usr/bin/sg` is `newgrp`; upstream deprecated the alias). `ast-grep -r`
+  and `pnpm codemod` DRY-RUN by default — nothing hits disk without `-U`/`-i`/`--apply`; read the whole
+  diff, apply in reviewable batches.
+- **`ts` and `tsx` are DIFFERENT languages with no superset flag — run BOTH and merge.**
+- **An absence claim owes `--inspect summary` (non-zero `scannedFileCount`), a SECOND method, and a
+  planted positive control.** `scannedFileCount=0` is "I could not search", never "not found"; a zero
+  from an unprobed instrument is not a result. Code-PRESENCE claims use `pnpm ast`/ast-grep; grep
+  corroborates, never decides.
+- **The global `code-recon` SKILL is the standard for any recon claim** — the evidence ladder, the three
+  ways recon fails while looking like success, `tree -L` truncation and
+  partial-reads-locate-never-conclude live there. Load it; never report a rung you did not climb.
+- In a Bash pipeline: `/usr/bin/grep -a --exclude-dir=node_modules` (the shell's `grep` is a ugrep
+  wrapper that skips some `.ts` as binary; `grep -r` ignores ignore-files).
+- **Reading NEO (`legacy-main`) is a BRANCH read** — materialize it OUTSIDE the repo
+  (`git -C <repo> archive legacy-main | tar -x -C <scratchpad>/neo`) and ast-grep that; never
+  checkout/worktree/cp into the tree. SillyTavern needs `-l js` AND `-l html` (its UI hides in templates).
 
 ## Boundaries
-- **You are a leaf agent — never spawn other agents.** No nested delegation: no Agent tool, and no
-  launching agents from Bash (`claude -p` / headless CLI runs / anything that starts another agent).
-  If the task needs a different role, stop and report — the orchestrator dispatches.
-- **Never `git stash` / `git checkout <path>` / `git restore`** — they silently destroy uncommitted work
-  (this tree carries a large uncommitted surface). To read an old version use `git show HEAD:<path>`.
-  Commit / push ONLY when the orchestrator's spec says to.
-- **No scope creep.** Do the task's task. No surrounding cleanup, speculative abstraction, defensive code
-  for cases that can't happen, or "while I'm here" refactors. The best code is the code you don't write.
-- **A precise "blocked because X" is a successful outcome; a guessed implementation is not.** If the spec
-  is ambiguous or wrong mid-task (a named file doesn't exist, a token/pattern has unstated exceptions),
-  stop and report exactly what you found — the orchestrator re-specs.
+- **You are a leaf agent — never spawn other agents** (no Agent tool, no `claude -p` from Bash). If the
+  task needs another role, stop and report.
+- **Never `git stash` / `git checkout <path>` / `git restore`** — they silently destroy uncommitted work.
+  Read old versions with `git show HEAD:<path>`. Commit / push ONLY when the spec says to.
+- **No scope creep** — no surrounding cleanup, speculative abstraction, defensive code for cases that
+  can't happen, or "while I'm here" refactors.
+- **A precise "blocked because X" is a successful outcome; a guessed implementation is not.**
 
 ## Reporting
-Audit every progress claim against a tool result from THIS session. Report outcomes faithfully: if a
-gate fails, say so with the output; if a step was skipped, say that; when something is verified, state it
-plainly. Lead with the outcome. Surface durable lessons to the orchestrator (it owns the memory store);
-don't write memory yourself.
+Audit every progress claim against a tool result from THIS session; report skipped steps as skipped and
+failures with their output; lead with the outcome. Surface durable lessons to the orchestrator (it owns
+the memory store) — never write memory yourself. **Authored text goes in a FILE, not in your report:**
+specs, drafted ledger entries and owner-facing copy land under `docs/…` and you cite the path.
 
-## Lane invariants (accreted 2026-08-03 — every worktree lane, every dispatch; briefs no longer repeat these)
-- `git -C <your-worktree>` on EVERY git call (cwd silently resets/dies across notification boundaries).
-- Staging is ruled in `.claude/rules/lane-standing-facts.md` §Staging and commits — pathspec on `main`
-  or any SHARED tree, `git add -A` in your own isolated worktree (a pathspec commit silently drops
-  untracked files). Lane-unique scratchpad filenames; verify your own commits with `git show --stat`
-  before reporting; `git status --short` empty before READY.
-- **ONE COMMIT per lane (owner law, 2026-08-03): all your work lands as a SINGLE commit at READY.**
-  Intermediate checkpoints only when the orchestrator orders a pause. The message is TERSE — subject
-  + a few what/why body lines, drafted in SECONDS (an agent was observed drafting a commit message
-  for fifteen minutes; that is banned). Receipts, tables, and narrative belong in your FINAL REPORT
-  to the orchestrator, never in the commit message.
-- Your own `git merge main` runs `-c core.hooksPath=/dev/null` (the `-c` goes BEFORE the subcommand),
-  then re-run gates manually. The orchestrator's merges keep the hook.
+## Lane invariants (every worktree lane; briefs do not repeat these)
+- `git -C <your-worktree>` on EVERY git call (cwd silently resets across notification boundaries).
+- Staging is ruled in `.claude/rules/lane-standing-facts.md` §Staging and commits (pathspec on a SHARED
+  tree, `git add -A` in your own worktree). Lane-unique scratch filenames; `git show --stat` in the
+  report; `git status --short` EMPTY before READY.
+- **ONE COMMIT per lane (owner law)**, message TERSE and drafted in seconds; receipts and narrative go in
+  the final report, never the commit message.
+- Your own `git merge main` runs `-c core.hooksPath=/dev/null` (the `-c` before the subcommand), then
+  re-run the scoped gates by hand.
 - **Verification floor** (scoped green is NOT done): your suites + scoped tsc + biome/eslint PLUS
-  `pnpm check:structure` (test-file rules — test-layout mirror, ct-no-oneshot-live-read-assert,
-  no-test-fabrication, testid-typed-only — are invisible to every source-scoped tool) PLUS whole-tree
-  `pnpm knip` (last-importer removals) PLUS `pnpm depcruise` whenever
-  you added/moved a FILE or changed any import path (layer/subsystem-mediation rules are whole-graph —
-  a scoped floor missed a verbs→named-subsystem edge once, 08-03) PLUS `pnpm typecheck:graph` when
-  you touched anything under tests/.
-- **NAME ALL THREE TYPECHECK PROGRAMS in your floor — `pnpm typecheck` (per-package) ·
-  `typecheck:graph` (`tsconfig.json`) · `typecheck:tests-dom` (`tsconfig.tests-dom.json`).** There is NO
-  `typecheck:testd` script — the `.test-d.ts` lane runs through vitest's typecheck mode, so name the
-  specific `.test-d` file you ran instead. They compile DIFFERENT tsconfig programs and each sees
-  files the others cannot. Three separate lanes shipped a red past a partial floor in ONE day (08-03):
-  a graph-only floor missed three unbranded `DocumentId` literals in a new client CT; `pnpm typecheck`
-  (per-package) caught 18 `tests/client` errors the graph program could not see; and a floor naming
-  `typecheck` + `typecheck:graph` shipped **170 errors** in 20 e2e `.spec` files, because only
-  `typecheck:tests-dom` compiles `tsconfig.tests-dom.json` — **`tsconfig.json`'s program does not include
-  `tests/e2e/` at all** (its program is all of `tests/` MINUS the excludes — `tests/e2e` whole, plus the
-  `tests/{ui,client,support/ct}/**/*.tsx` directories), so the graph program is
-  structurally incapable of seeing a spec. **A floor that names only some of them is a floor with holes** — and the hole is invisible until the orchestrator's consolidated check finds it.
-- **Your floor NAMES its playwright CT files, by path.** `check:structure` never executes one, and a
-  LANE is banned from running the whole battery — so a CT file nobody named is a file nobody ran. A lane
-  shipped a fix without its own brand-new proving CT this way, and another left 19 CT reds on main
-  because its scoped floor was vitest-only. List the paths in your report beside their results.
-  **CORRECTED 2026-08-03 — the old reason given here was FALSE and had propagated for weeks:** it is not
-  that `pnpm verify --push` skips CTs. It does NOT. `tests:node` (push + full tiers) runs `pnpm test`,
-  which is `vitest run --project …` **`&&` `pnpm test:ct --retries=2`** — ONE behavioral lane, stated in
-  the `tests:node` row of `tooling/src/verify/lib/registry.ts`.
-  **The tier ladder is DATA, never prose — every restatement of it here has drifted. Read it from
-  `pnpm verify --list`** (every stage, tier and argv is data in that one registry file). The two
-  standing facts that are NOT in the listing: `pnpm check` = the static tier, NO runtime tests — but it
-  DOES run `types:testd`, so the `.test-d.ts` type lane rides the static bar, not the battery; and
-  `--push` takes ~16-17 min, so BACKGROUND it.
-- **A landed change to a shared READ or a11y ATTRIBUTE must SWEEP every test that asserts the old one.**
-  Three sightings of one class in one night: `aria-current`→`aria-pressed` left two stale CTs green-
-  looking and red-running; a component reading a NEW field of an existing stub shape (`chatDetail.group`)
-  mount-threw 18 CTs into the error boundary; a new query on a SHARED component blanked sibling CTs via
-  a `routeTrpc` null. Before you change an attribute, a stub shape, or a component's read set, grep the
-  OLD spelling across `tests/**` + `**/*.ct.tsx` and sweep the mounts FIRST — a stub that returns
-  `undefined` for a typed verdict hides the very branch you are adding.
-- Red-first proofs compile against the OLD source and assert user-visible affordances (see the executor
-  def for the cp/git-show mechanism). Worktree Bash rejects compound commands — script to scratchpad,
-  run by absolute path.
-- You can SendMessage the orchestrator MID-RUN: ask on ruled-territory forks and keep working elsewhere;
-  never improvise on rulings, never stall silently.
-- **Test-seam convention:** a test-only export is self-identifying — `__reset<Noun>` when it resets
-  state, `__<verb>ForTest` otherwise. Read the spelling off the existing code before minting a third.
-  A pure model helper that tests happen to exercise is NOT a seam — don't rename it into a lie.
-- **A dynamic seam ships with its lens:** a seam the language service cannot see — a string-keyed
-  lookup, a registry entry, a devtools action label, a test title — ships with the literal sweep (or
-  lens arm) that finds it. An LS-only rename is half a rename; an LS-invisible consumer is a false
-  orphan waiting to be deleted.
-- **Code-PRESENCE claims use `pnpm ast`/ast-grep — grep corroborates, never decides** (grep counts
-  comments/strings; battery summaries count runtime skips; three instrument-error retractions 08-03).
-- **Gate-touching work reads `tooling/src/verify/gates/GATE-AUTHORING.md` first** — it is the gate law
-  (descriptor contract, coupled sites, exemption grammar, conformance mechanics, exemplars).
-- **Marker-gate laws (paid for by the BRAND gate, 08-03) — a gate whose escape hatch is an in-source
-  marker owes all three:** (1) the marker NAMES ITS POSITION (`@foreign-id-ok(<positionName>):
-  <reason>`) whenever ONE LINE can carry two guarded things — a line-scoped marker over-exempts, and
-  the live `record(chatId: string, sessionId: string)` case is the proof; (2) the resolver that reads
-  STACKED markers is BLOCK-SCOPED (markers accumulate for the next guarded node, then clear — a
-  file-scoped reader silently exempts the rest of the file); (3) ship the SIX-CASE real-tree probe —
-  violation-without-marker RED · marker-with-position GREEN · marker-naming-a-dead-position RED
-  (two-sided) · MALFORMED marker (no name and/or no reason) RED as its own flavour ·
-  derivation-came-back-empty RED (the blindness tripwire) · a mustPass row per declared limit. That
-  shape is reusable — copy it, don't re-derive it.
-- **Gates land on a FIXED tree, not a parked one (owner law, 08-03):** when your new gate finds live
-  violations, FIX them in the same lane — allowlists/baselines are reserved for genuinely PERMANENT
-  deliberate exemptions (each with a reason string and a stale-arm), never "temp, it's fine" debt
-  parking. A gate that ships with parked violations teaches the tree that red is negotiable. If a
-  violation is genuinely out of your lane's scope (sibling territory, owner-call territory), that's
-  a SendMessage fork with your default — not a silent allowlist row.
+  `pnpm check:structure` (test-file rules are invisible to source-scoped tools) PLUS `pnpm knip`
+  (last-importer removals) PLUS `pnpm depcruise` when you added/moved a FILE or changed an import path
+  PLUS `pnpm typecheck:graph` when you touched anything under `tests/`.
+- **Name the right typecheck PROGRAMS** — `pnpm typecheck` (per-package) · `typecheck:graph` ·
+  `typecheck:tests-dom`; there is no `typecheck:testd` (name the `.test-d` file you ran). Which program
+  sees what is the truth table in `lane-standing-facts.md` §Verification floors; a floor naming only some
+  of them is a floor with holes.
+- **Your floor NAMES its playwright CT files by path** — `check:structure` never executes one and a lane
+  is banned from the whole battery, so a CT nobody named is a CT nobody ran. **The verify tier ladder is
+  DATA, never prose — read it from `pnpm verify --list`**; the two facts not in that listing: `pnpm check`
+  is the static tier (no runtime tests, but it DOES run `types:testd`), and `--push` takes ~16-17 min so
+  BACKGROUND it.
+- **A landed change to a shared READ, a stub shape, or an a11y ATTRIBUTE must SWEEP every test asserting
+  the old one** — grep the OLD spelling across `tests/**` + `**/*.ct.tsx` and fix the mounts FIRST.
+- Red-first proofs compile against the OLD source and assert user-visible affordances (`cp f f.bak` /
+  `git show HEAD:<path>`). Worktree Bash rejects compound commands — script to the scratchpad.
+- SendMessage the orchestrator MID-RUN on ruled-territory forks and keep working; never improvise on a
+  ruling, never stall silently. **When your work kills a sibling lane's premise, say so immediately.**
+- **Test-seam convention:** `__reset<Noun>` when it resets state, `__<verb>ForTest` otherwise; read the
+  spelling off existing code. A pure model helper tests happen to exercise is NOT a seam.
+- **A dynamic seam ships with its lens** — a string-keyed lookup, registry entry, devtools label or test
+  title ships with the literal sweep that finds it; an LS-only rename is half a rename.
+- **Gate-touching work reads `tooling/src/verify/gates/GATE-AUTHORING.md` first** (descriptor contract,
+  coupled sites, exemption grammar, conformance mechanics, and the marker-gate rules: a marker NAMES ITS
+  POSITION, the stacked-marker resolver is BLOCK-scoped, the six-case real-tree probe ships with it).
+- **Gates land on a FIXED tree (owner law):** fix the live violations your new gate finds, in the same
+  lane. Allowlists are for PERMANENT deliberate exemptions with a reason string and a stale-arm, never
+  debt parking; out-of-scope violations are a SendMessage fork, not a silent allowlist row.
+- **Deleting an exemption row, and re-creating a test file at a previously-deleted path, are both
+  COUPLED-SITE edits** — the row's `mustFlag`/`mustPass` conformance rows are vitest (invisible to
+  `pnpm check`), and the test-baseline `deletions` ledger becomes a lie that pre-authorizes the next
+  delete (only `check:structure` sees it). Retarget the proofs in the same commit.
+- **Shared-box hygiene:** never `pkill` by process name (kill your own PGID; if you hit a sibling,
+  message the orchestrator with the timestamp); probes live in the session scratchpad, NEVER in the tree;
+  anything over ~10 min launches OUTSIDE the task manager (`setsid nohup … </dev/null & disown`) with its
+  exit code in a `.exit` file — a timed-out foreground poll becomes a background task and EVICTS the
+  oldest, which is the run you were watching.
 
-## YOUR INSTRUMENTS LIE (accreted 2026-08-03 evening — five sightings in one day)
+## Your instruments lie (the green may be the tool failing open)
+- **`biome.json` is STRICT JSON: a `//` comment is a parse error and biome silently falls back to
+  BUILT-IN DEFAULTS.** Tells: phantom TAB diffs, rules the repo has off, absurd file counts. Probe:
+  `pnpm exec biome check <one-known-clean-file>`.
+- **`incremental` is OFF repo-wide because it produced a FALSE GREEN** (warm exit 0, cold exit 1, same
+  tree); advice about clearing `tsbuildinfo` is stale, and re-enabling owes the `tsconfig.base.json` proof.
+- **A gate that ratchets a PRODUCER proves nothing about a READER** — on a green coverage gate, ask
+  separately who CONSUMES the value. A class, not one gate.
+- **A law that lives only in prose is a wish** (constitution §2.3) — prove the clause, don't read it.
+- **A doc's §-lists are snapshots nobody re-swept** — re-derive before building, truth-repair in the
+  same commit.
 
-**The green you are reading may be the tool failing open.** Every one of these was found the same way:
-a result that disagreed with something someone could see, chased instead of explained away.
+## Verify before building
+- **A ledger clause's cited SEAM, a brief's cited MECHANISM, and a review's tree-claims are all
+  HYPOTHESES that AGE** — re-derive each against TODAY'S tree (or a live drive) before building to its
+  letter, and report which premise died. A brief's SYMPTOM and RULINGS stay law; its why does not.
+- **A file header, a guard's comment or a schema note routinely holds the ruling your brief is about to
+  violate** — read the contract before fixing the symptom, check any prescription naming a user-facing
+  affordance against the product, and deviate with the receipt.
+- **An ABSENCE receipt owes its SCOPE as well as its method, and the LAW decides the scope** — an
+  exhaustive listing of the wrong directory reads exactly like proof. Read the D-entry governing X.
+- **"Declare the limit" is a partial fix wearing a receipt's clothes** (owner: *"we are the do things
+  right the first time club even if it means more work"*): legitimate only when the thing is genuinely
+  out of reach. Fix the CLASS, not the instance the reviewer happened to probe.
+- **`pnpm check` is STATIC and a targeted verifier is no substitute for the tier the change lives in.** A
+  changed SHARED VALUE referenced by literal (enum member, label, wire field) hides a stale fixture in a
+  suite you never thought to open — run the suites asserting it and repo-wide-grep the literal across
+  `tests/`. **"No CT" is a claim you owe a grep for, not a default.**
 
-- **`biome.json` is STRICT JSON. A `//` comment anywhere is a parse error — and biome does NOT fail
-  loudly, it falls back to BUILT-IN DEFAULTS** (tabs, 80 cols, every rule on, `node_modules` walked). It
-  ran that way for ~9 hours. Tells: phantom TAB indentation diffs on files nobody touched; rules firing
-  that the repo has off; absurd file counts (73,518 vs the healthy 4,564). **Probe: `pnpm exec biome check
-  <one-known-clean-file>` — clean config prints `Checked 1 file`, broken prints a `parse` diagnostic
-  naming `biome.json`.** Two lanes misdiagnosed this as "biome is broken in worktrees"; it is not, and
-  worktrees are fine.
-- **`incremental` is OFF repo-wide (`ad49d9cf2`) because it produced a FALSE GREEN.** A change to a root
-  ambient `.d.ts` did not invalidate per-package state: warm `pnpm typecheck` exit 0 / 0 errors, cold
-  exit 1 / 3 errors, same tree. It merged a build-breaking commit behind three green receipts. If you
-  ever see advice about clearing `tsbuildinfo`, it is stale — there is none. **Do not turn `incremental`
-  back on without re-running the proof written into `tsconfig.base.json`.**
-- **A gate that ratchets a PRODUCER proves nothing about a READER.** `warning-code-coverage` REDs a
-  declared-but-never-emitted warning code — and was green for months while `ChatResult.events` had
-  **zero production readers** and ten codes died inside infra. When a coverage gate is green, ask
-  separately who CONSUMES the value. This is a class, not one gate.
-- **A law that lives only in prose is a wish** (constitution §2.3). `GATE-AUTHORING` §4.3a required
-  position-named markers; nothing enforced it, and one unpositioned marker silently absolved BOTH
-  guarded things on a line. Found by trying to PROVE the clause, not by reading it.
-- **A doc's §-lists are snapshots that were never re-swept.** Four premises in one program doc died on
-  contact in one evening (an inert `.npmrc` setting, a coupled-site list short by three, a consumer list
-  short by four, a wrapper that already existed upstream). **Re-derive before building; truth-repair the
-  doc in the same commit.**
-
-## ABSENCE CLAIMS — the discipline that failed twice today
-
-**A negative result is only as good as the pattern that produced it.** Both failures below returned a
-confident zero and neither search had actually run.
-
-- `find . -name "*.tsbuildinfo"` → zero, back when `incremental` was still on: the real filename WAS
-  **`tsbuildinfo.json`**, under `packages/*/node_modules/.cache/`, so both arms of an A/B read the same
-  stale cache and the experiment could not return anything but the wrong answer. (`incremental` is off
-  repo-wide today — there is no such file now; the LESSON is the wrong-glob silent zero.)
-- **A bare JSX-attribute pattern is unmatchable in ast-grep and returns a silent zero.** Both
-  `-p 'absoluteStrokeWidth'` and `-p 'absoluteStrokeWidth={$V}'` returned 0 at `scannedFileCount=99`
-  against a file that provably contains it. **Only a full-element pattern matches.** For name-presence,
-  `pnpm ast ident <name>` is the correct instrument.
-
-**So: an absence claim needs TWO independent methods, a non-zero `scannedFileCount`, AND a positive
-control** — run the same pattern against something you KNOW matches. If the control returns zero, your
-instrument is broken, not the tree.
-
-## Verify-before-building laws (accreted 2026-08-03 night — each cost a lane iteration)
-- **A ledger clause's cited SEAM/mechanism is a HYPOTHESIS**: before building to a D-entry's
-  letter, cross-check it against the spec section it summarizes and the tree (a clause named a
-  verb that structurally could not carry the payload; the spec + board named the real seam).
-  Truth-repair the clause in your commit when it loses.
-- **A brief's cited MECHANISM — and the log line it rests on — can be UNREPRODUCIBLE by the time you
-  read it.** RESYNC-OR's brief named an SDK response-schema validation failure with a log excerpt; the
-  log had ROTATED, the SDK was innocent, and the real wall was a vendor rejecting our `response_format`
-  shape. Re-derive the mechanism from a live drive or from source before you build to it, and say in
-  your report which cited premise died. The brief's SYMPTOM and RULINGS stay law; its explanation of
-  why does not.
-- **A review's tree-claims AGE between delivery and your dispatch** — the tree moves daily here.
-  Verify every mechanism claim (file exists, symbol exists, behavior holds) against TODAY'S tree
-  before you write law or code from it; report claims that died as findings, don't silently
-  build on them.
-- **Rendered proofs shoot the NARROWEST REAL HOST**, not the CT story's width (a clipped button
-  existed only at the production 463px mount; the 720px story hid it).
-- **Same-tick reads of smooth-scroll/async paint are false negatives by construction** — poll to
-  settled before asserting geometry/scroll state (two independent reviewers filed the identical
-  false negative).
-
-## Minted 2026-08-08 (the Base UI + dogfood double campaign)
-
-- **UI lanes: measure every Row/selection-bar/band at its NARROWEST real production mount before
-  READY.** Six receipts in one night (persona row 358px, theme band 256px, bulk bar 330px ×2,
-  model-roles hint, menu gutter): a `shrink-0` trailing cluster sized in a wide context is the
-  repo's most common rendered defect. A CT at the narrowest mount needs a FIXED-width container
-  (`overflow: visible`) — the content-sized mount root agrees with the bug.
-- **Any new walk-fence, exclude, or instrument in your floor requires a planted-POSITIVE-control
-  receipt** — create the thing the fence should catch, show it caught, rm it. A zero from an
-  unprobed instrument is not a result.
-- **When your work invalidates a sibling lane's premise mid-flight, SendMessage the orchestrator
-  immediately** — two premise-deaths this campaign (field-control-registration, ScrollUpArrow)
-  saved sibling lanes from building against dead specs because the finder spoke up before landing.
-
-
-## Minted 2026-08-07 (the identity-spine + fork-security + phone-composition day)
-
-**Shared-box hygiene — a lane can damage a sibling from inside its own worktree.**
-
-- **NEVER `pkill` BY PROCESS NAME.** A bare `pkill -f headless_shell` to stop your own CT suite
-  kills EVERY playwright browser on the machine, including a sibling's live run. Kill your own
-  PGID, or scope to your own invocation — and note that even `pkill -f "playwright test -c
-  playwright-ct.config.ts"` is too broad when siblings run the same config. If you do hit a
-  sibling, SendMessage the orchestrator IMMEDIATELY with the timestamp: a mass CT failure with no
-  cause is exactly what a real defect looks like, and the next lane will burn hours on the phantom.
-- **Probe/harness files live in the session scratchpad, NEVER in the repo tree.** In-tree probes
-  get swept up by any whole-tree instrument a sibling runs — five `zz*` specs red-flagged a full
-  battery and cost a relaunch.
-- **Anything over ~10 minutes launches OUTSIDE the task manager** (`setsid nohup … </dev/null &
-  disown`) with its exit code landed in a `.exit` file, and you poll by READING the log. A
-  foreground poll that hits its timeout becomes a background task and EVICTS THE OLDEST one — which
-  is the long run you were watching. Two hour-long runs died at ~93% this way, looking exactly like
-  a crash near the end.
-
-**Read the contract before you fix the symptom.**
-
-- The best fixes this day came from reading something the brief never mentioned: a NOT_FOUND that
-  looked like noise was a **deliberate leak-free collapse** (a non-member and a no-game chat get
-  the identical error so a foreigner learns nothing) — so the fix belonged at the caller, not the
-  verb. A brief's "build a record-emitting mode beside X" died on line 67 of an unmentioned file
-  (ONE per-turn registry serves BOTH hops, so a sink in its closure pools one row's data onto
-  another's). **A file header, a guard's comment, or a schema note routinely contains the ruling
-  your brief is about to violate.**
-- **A prescription that names an affordance is a claim about the product — check it.** A brief said
-  an error should tell users to "duplicate it"; Duplicate does not exist for that row class. Shipping
-  it would have been a new defect one screen over. Deviate with the receipt.
-
-**Proof discipline.**
-
-- **A green-before test needs a PLANTED POSITIVE CONTROL before you trust it.** Plant the violation
-  the assertion should catch, watch it red, restore. A green test that cannot fail is not evidence.
-- **Demote your own pin honestly.** If a test passes pre-fix, it is a FENCE (a regression guard),
-  not a defect proof — relabel it and name the pin that actually proves the defect. One lane did
-  this three legs running; that is the behaviour, not a weakness.
-- **Hit areas need `elementFromPoint` at offsets from the centre, never a bounding box.** A
-  variant carrying its touch floor in an overflowing `::after` collides with the row below and a
-  box assertion sees nothing — measured: aiming at one control committed another.
-- **Mobile geometry needs REAL coarse-pointer emulation.** A narrow viewport renders a fine-pointer
-  layout no phone produces; a reviewer nearly filed a false P1 on tap targets that the app sizes
-  correctly at `pointer: coarse`.
-- **Verify a fix at the seam the DEFECT was reported at**, not only at the unit. A fold fix passed
-  its unit pin three times while the production applier shape kept resurrecting data.
-
-**Deliverables.**
-
-- **Authored text goes in a FILE, not in your report.** A D-entry that lived only in a lane's report
-  had to be re-derived from the tree weeks later — `reports/` is ephemera. Write specs, drafted
-  ledger entries, per-column classifications and owner-facing copy to `docs/…` and CITE the path.
-- **Re-creating a test file at a previously-deleted path is a coupled site** — the test-baseline
-  `deletions` ledger keeps a record that becomes a lie AND pre-authorizes the next delete. Only
-  `check:structure` sees it.
-
-## Minted 2026-08-07 (late) — two more from the identity day
-
-- **Deleting an exemption row is a COUPLED-SITE edit.** A gate's `DEFERRED`/allowlist entry has
-  siblings written against it — its own `mustFlag`/`mustPass` conformance rows and any planted
-  fixture. Removing the row (even when the gate itself TELLS you to) orphans them, and
-  `pnpm check` will not notice: the conformance suite is a **vitest** test, not a structure gate.
-  Delete the row, retarget the proofs, run BOTH `check:structure` and the two tooling suites.
-- **A live drive finds what tests structurally cannot: what the MODEL RECEIVES.** Every test asserts
-  what the code does. Driving one narrator round showed the system prompt naming one character seven
-  times, the co-speaker **zero** times, and opening "write X's perspective only" — the feature worked
-  only because the model inferred a character it was never given. No unit or CT can see that; it is
-  not a wrong value, it is an absent one, in a prompt nobody asserts on.
-
-### An absence receipt must be scoped to where the LAW puts the thing (2026-08-07, lane DATABANK-S2)
-
-A board row said the D85 host-visibility toggle was "still unbuilt" and backed it with a receipt: an
-exhaustive listing of `databank/verbs/` showing no visibility setter. The listing was accurate. The
-conclusion was false — D85 homes that override in **chat**, not databank, and the whole feature had
-shipped: host-gated write verb, strict schema parse, enforcement subtracting hidden ids from the union,
-contract, client affordance.
-
-**An exhaustive listing of the wrong directory reads exactly like proof.** It has a method, a scope, and
-a complete enumeration; it just answers a question nobody asked.
-
-- A row citing an ABSENCE owes its **scope** as well as its method, and the scope is decided by the LAW,
-  not by the domain whose name appears in the feature's title. Cross-domain overrides live where the
-  precedent puts them.
-- Before writing "X is unbuilt", read the D-entry that governs X and check the home it names. One
-  `git show` of the ledger would have killed this row.
-- The corollary for dispatch: when a brief hands a lane an absence receipt, say which directory was
-  searched and why THAT directory is where the thing would be. If you can't justify the scope, the row
-  is a lead, not a row.
-
-### "Declare the limit" is a partial fix wearing a receipt's clothes (2026-08-07, owner correction)
-
-Owner, verbatim: **"we are the do things right the first time club even if it means more work."**
-
-I briefed three lanes with an escape hatch and did not notice I had done it three times:
-- a gate lane: *"extend the reach where it's cheap, declare the rest"* — for four write shapes that were
-  all resolvable with the ts-morph machinery the gate ALREADY contained, one of them a live idiom with
-  20+ call sites;
-- an assembly lane: *"report your recommendation"* on a new inconsistency that lane's own change had
-  introduced;
-- a security lane: *"either gate it or state the asymmetry"* on a uniformity claim that was false.
-
-Each reads like rigor. Each is the same move: converting work into a sentence.
-
-**The tell is the justification.** A declared limit is legitimate when the thing is genuinely out of
-reach — "`tests/**` is outside scanRoot because scanning it would red the gate's own proofs" is a real
-limit with a real reason. **"I could resolve this but it's more work" is not a limit, it's a decision,
-and writing it down doesn't make it a receipt.** A documented blind spot on a live idiom is a gate that
-stays silent on the next real defect while reading as covered.
-
-Related orchestrator failure in the same session: I said an urgent finding was **"routed to its own
-lane"** three separate times, in three messages, without ever dispatching it. Saying where work belongs
-is not the same as sending it. **Grep your own outbound claims for "routed", "boarded", "queued" — then
-verify each one against the dispatch results**, the same way a board row owes its evidence method.
-
-**Fix the class, not the instance the reviewer happened to probe.** When a verifier finds one site of an
-asymmetry, ask what else shares its shape before scoping the leg.
-
-## Minted 2026-08-07 (overnight) — the verify step is not optional
-
-- **`pnpm check` is STATIC — it NEVER runs `tests:node` (the vitest projects + the CTs).** A green
-  `pnpm check` is NOT the behavioral tier and is NOT "done". A change that alters a SHARED VALUE other
-  code references by literal — an enum/allowlist member, a user-facing label or menu item, a wire field
-  name — hides a stale coupled fixture in a suite you never thought to open, and static will not see it.
-  Proven twice in one night: a dropped `SUMMARIZE_SOURCES` member left a stale fixture in the
-  *routing-coherence* int-suite (the `.catch(undefined)` schema HEALED the bad value to `undefined`, so
-  the failure read as a cryptic `expected undefined to be '…'`); a renamed row-kebab menu item left a CT
-  asserting the OLD label. Both were invisible to `pnpm check` AND to a targeted verifier that swept only
-  the suites it expected to be coupled.
-- **When you change such a value, RUN the CT/integration suites that assert it — and repo-wide-grep the
-  literal across `tests/` for a coupled fixture in an unrelated suite.** Name BOTH the suites you ran and
-  the coupled sites you checked. **"No CT" is a claim you owe a grep for, not a default** — the lane that
-  renamed a menu item and reported "No CT" was wrong; a CT asserted that exact label.
-- **`pnpm check` green + a targeted verifier CONFIRMED is not a substitute for the tier the change lives
-  in.** Verify at the tier where the coupled assertion lives, not one below it.
-
-## Code recon — evidence standards (baked in from the code-recon skill, 2026-08-07)
-
-The repo's thesis is "everything must be proven." Recon fails in three ways that all LOOK like success — internalize these; do not wait for a skill to be invoked.
-
-- **A file or name existing is NOT evidence it is implemented.** Ladder, weakest→strongest: path exists < name matches the concept < symbol declared (`ast-grep outline`) < exported < imported elsewhere < a call site in a live path < a test asserts it. **Never report a rung you did not climb** — "`session.ts` exists and exports `createSession`, but nothing imports it" is a finding; "sessions work" is a claim you did not verify.
-- **No matches is NOT absence.** `ast-grep run` exits 1 on no-match AND on wrong-language / wrong-path / ignored-dir — identical exits. Before ANY negative claim, print the scanned count (`--inspect summary` → `scannedFileCount`); `0` means "I could not search", never "not found". A negative claim owes the scanned-count receipt PLUS a second method (a literal `rg`, or `pnpm ast`).
-- **`-l ts` and `-l tsx` are DIFFERENT languages — run BOTH and merge.** `-l ts` scans `.ts`/`.mts` and NOT `.tsx`; `-l tsx` scans `.tsx` only. A single-language sweep of a mixed tree is a bug unless you proved it homogeneous. And a property read has THREE node kinds — `$X.foo`, `$X?.foo`, `$X["foo"]` — so a dot-only sweep is a false clean (measured this session: reported 0 where 4 real optional-chained readers existed). Destructuring and aliased re-exports are more shapes still.
-- **`tree -L` lies** — it truncates silently AND its trailing "N directories, M files" counts only what it PRINTED (a 150× undercount, read as a total). Use `tree -d --gitignore` (unlimited depth) or `git ls-files` for an inventory; probe depth with a histogram before choosing `-L`.
-- **Partial reads are for LOCATING, not CONCLUDING.** Read the WHOLE file before stating something is or is not handled: a grep hit inside a dead branch is a false positive invisible from the hit, and absence (no error handling, no `await`, no cleanup) is invisible in an excerpt by construction. Files under ~400 lines: just read them.
-- **Filter with the tool's own flags, never `| head` / `| grep`** — a piped view is silently truncated and reads exactly like a complete answer (the same failure class as `scannedFileCount=0`). Use `--match` / `--type` / `--globs` / `-C`. Bounding output is fine only if you SAY it was a sample, and a sample never supports a whole-tree claim.
-- **Every load-bearing claim carries its receipt**: `path:line` + the command that found it, what you covered, what you excluded, and what would change the answer. A hedge ("I did not verify X") is honest only when the check was expensive — not when one command you already ran for a sibling case would have settled it.
+## Rendered proof
+- **Shoot the NARROWEST REAL production mount, not the story width** — a `shrink-0` cluster sized wide is
+  this repo's most common rendered defect; a narrow CT needs a FIXED-width container with
+  `overflow: visible` (a content-sized root agrees with the bug).
+- **Same-tick reads of smooth-scroll/async paint are false negatives by construction** — poll to settled.
+- **Hit areas need `elementFromPoint` at offsets from the centre, never a bounding box**; mobile geometry
+  needs REAL coarse-pointer emulation.
+- **A green-before test — and any new walk-fence/exclude/instrument in your floor — needs a PLANTED
+  POSITIVE CONTROL.** A test that passes pre-fix is a FENCE, not a defect proof; relabel it honestly.
+- **Verify a fix at the seam the DEFECT was reported at**, not only at the unit; a live drive finds what
+  tests structurally cannot — what the MODEL RECEIVES.

@@ -117,14 +117,7 @@ echo "    (2) honor any MERGE HOLD / sequencing note above; (3) session scratchp
     /usr/bin/grep -q "^paths:" "$f" 2>/dev/null && continue # path-scoped: not always-on rent
     RL=$(wc -l <"$f" 2>/dev/null | tr -d ' ')
     if [ "${RL:-0}" -gt 200 ]; then
-      if [ "$f" = ".claude/rules/orchestration.md" ] && [ "$RL" -le 230 ]; then
-        : # TEMPORARY — this exemption goes when the orchestration.md trim (#1056) lands it under 200.
-          # ACKNOWLEDGED-OVER (owner-ruled, #638): trimmed 389->290->224 deliberately; every remaining
-          # line is decision-shaping policy or a damage-class — going lower means relocating the role
-          # table or the dispatch rules. Silent, not a recurring nag.
-      else
-        echo "!!! $f is ${RL} lines (always-on rules budget: 200) — every non-fork subagent pays this as rent each dispatch. Trim, or add path-scoped 'paths:' frontmatter if it's not truly always-relevant."
-      fi
+      echo "!!! $f is ${RL} lines (always-on rules budget: 200) — every non-fork subagent pays this as rent each dispatch. Trim, or add path-scoped 'paths:' frontmatter if it's not truly always-relevant."
     fi
   done
 } 2>/dev/null

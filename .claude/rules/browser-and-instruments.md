@@ -25,17 +25,12 @@ paths:
   `--workers=2` came back green in 53s. A contention timeout is not a failing test.
 - **NEVER run two `ct:scoped` invocations concurrently in ONE worktree** — the script's `rm -rf
   playwright/.cache` + rebuild is single-flight per TREE, so a sibling replaces the component index
-  mid-flight and everything that MOUNTS fails while the few tests that don't still pass. TRUTH-REPAIR
-  2026-09-01 (#1006): the interim rule "pass `--reporter=list` until the summary reporter is fixed" is
-  RETIRED — the CT summary was accused of inverting a run ("2 passed / 51 failed" against list's "52 passed
-  / 1 failed") and was CLEARED by reproduction (three arms — a trivial pass/fail probe, a 51× retry-then-pass
-  probe under `--retries=2`, and the real tests/ui suites — each matched the json reporter's own counts from
-  the SAME run, and a list arm of the same selection agreed 82/82). The sighting came from ONE shared
-  worktree that six lanes were working in with sibling CT runs live: it was the cache clobber above, i.e.
-  two different runs, not a lying counter. The counting is now pure and committed-pinned
-  (`tooling/src/verify/ops/ct-run-tally.ts` + `tests/tooling/verify/ops/ct-run-tally.test.ts`), so a real
-  inversion would red a test instead of costing a lane an investigation. Read a clobbered run's tell —
-  a *registered* component list naming stories you did not select — from `reports/ct-report.json`.
+  mid-flight and everything that MOUNTS fails while the few tests that don't still pass. Its tell — a
+  *registered* component list naming stories you did not select — is in `reports/ct-report.json`.
+- **The CT summary reporter is TRUSTED** (#1006 cleared it by reproduction; the counting is pure and
+  pinned by `tooling/src/verify/ops/ct-run-tally.ts` + its test). The old "pass `--reporter=list` until
+  the summary is fixed" interim rule is RETIRED — an inverted count today means a cache clobber, i.e. two
+  different runs.
 - **A CT file nobody NAMED is a file nobody ran.** `pnpm check` is static and `check:structure` never
   executes a CT, so list the CT paths you ran in your floor and in your report, beside their results.
 - **Only per-package `pnpm typecheck` owns `tests/**/*.ct.tsx`**, and only `typecheck:tests-dom` owns
@@ -66,12 +61,10 @@ paths:
 
 ## Snap and the stage
 
-- **A snap stage's db is whatever its cached dir already holds** (corrected 2026-08-19 — the seed
-  copies the dev db only into a FRESH stage dir; a cached stage keeps its old, possibly thin state).
-  Verify provenance before using owner-corpus rows as receipts (fresh sha, or probe a known row); when
-  unverified, rendered receipts come from CT or live-main instead.
-- **The stage band (`:8888`/`:5273`) is ONE pair.** If a sibling holds it, fall back to CT and SAY SO —
-  never tear a sibling's stage down. Stage writes land in the stage's own copy; read-only discipline
-  still applies to drives.
+- **A snap stage's db is whatever its cached dir already holds** (the seed copies the dev db only into a
+  FRESH stage dir), so verify provenance before using owner-corpus rows as receipts; when unverified,
+  rendered receipts come from CT or live-main instead.
+- **The stage band (`:8888`/`:5273`) is ONE pair** — if a sibling holds it, fall back to CT and SAY SO;
+  never tear a sibling's stage down. Stage mechanics: the `snap-driving` skill §8.
 - **`:5173` serves MAIN, never your worktree** (§L.6). From a lane, use `snap --isolated --ref <sha>`
   or screenshot from the CT browser.
