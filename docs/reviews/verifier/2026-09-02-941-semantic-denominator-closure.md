@@ -247,3 +247,95 @@ spelling REDs, and none of the four is recorded as a declared limit in the gate 
 `docs/reviews/verifier/2026-09-02-941-semantic-denominator-closure.md`. Recommend filing G1 as the P1
 residual (security-adjacent, `security-executor` or the bus/chat gate owner) and G2-G4 as one P2
 knob-wire arms row, before #941 closes.
+
+## Re-verification 2026-09-02 — CONFIRMED after #1091 + #1094
+
+Warm leg. Branch fast-forwarded to main's tip `3b38d5b84` after proving containment
+(`git rev-list --left-right --count main...HEAD` → `31 0`: nothing of mine outstanding). The two
+residual fixes on main are `921f52d33` (#1091, `chat-viewer-plane-canon-reads` — the fold is now total
+over member kinds) and `f93bc911d` (#1094, `knob-wire-coverage` arms A/B/B2/C/E/F through the resolved
+type / `tuple-read` / one shared authored-object reader). I re-ran ONLY my own paired controls plus the
+computed-key case #1094 surfaced.
+
+**Verdict: CONFIRMED.** All four GAP rows are closed, each by the composed spelling now producing the
+finding its inline twin produces, and the arithmetic of the census matches the plant exactly.
+
+### Runs
+
+| Run | Result |
+| - | - |
+| `pnpm test:scoped tests/tooling/verify/gates/chat-viewer-plane-canon-reads.test.ts tests/tooling/verify/gates/knob-wire-coverage.test.ts tests/tooling/gate-conformance.int.test.ts --maxWorkers=4` | 43/43 pass (15 + 20 new committed pins, plus conformance still green over every descriptor) |
+| `pnpm check:structure` CLEAN on `3b38d5b84` | exit 0, `single-pass: clean`, 251/251 active gates, run COMPLETE |
+| `pnpm check:structure` with the probe batch | exit 1, exactly the 8 expected findings |
+
+### Clean baseline vs. planted, same tip
+
+| Census | Clean | Planted | Δ |
+| - | - | - | - |
+| `chat-viewer` `CHAT_VERB_AUTHORITY` | 93 | **93** | 0 |
+| `knob-wire` `fields` (arm A) | 26 | 27 | +1 inherited |
+| `knob-wire` `sections` (arm B) | 16 | 17 | +1 spread |
+| `knob-wire` `appKeys` (arm B2) | 26 | 29 | +3 spread / computed / inline |
+| `knob-wire` `leaves` (arm C) | 166 | 169 | +3 |
+| `knob-wire` `appearanceLeaves` | 41 | 41 | 0 |
+
+Every planted member entered its denominator by exactly one and produced its finding — the pre-fix
+behaviour was the opposite (the composed member never entered the count at all).
+
+### G1 — `chat-viewer-plane-canon-reads`: CLOSED
+
+Planted on two VIEWER-PLANE verbs at once in
+`packages/server/src/domain/chat/substrate/auth/matrix.ts`: `getChat: MEMBER_AUTHORITY_PROBE` (the
+identifier-bound value that previously took the census 93 → 92 silently) and `["listForks"]: "member"`
+(the computed string-literal key, which previously would have entered the map as bracket text — the
+wrong-name case).
+
+Result: `✓ chat-viewer-plane-canon-reads · 1/1 authority matrix [CHAT_VERB_AUTHORITY=93 …]`. The census
+is UNCHANGED at 93 and both verbs stay classified, so their factories are still judged for room-plane
+bulk canon reads. `isViewerPlane` now takes `string` rather than `string | undefined`
+(`tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts`), so an unclassified verb can no longer
+reach the verdict as a silent "not viewer plane" — the leak path I reported is closed by construction,
+not only by the reader widening. The refuse direction (non-literal value, unbound or cyclic binding,
+non-literal computed key, method, accessor) is pinned by the 15 committed cases in
+`tests/tooling/verify/gates/chat-viewer-plane-canon-reads.test.ts`, which I ran green.
+
+### G2/G3/G4 — `knob-wire-coverage`: CLOSED, and the computed-key case with them
+
+One plant in `packages/contracts/src/settings/index.ts`, all five spellings in the same run; the inline
+key is the live-arm control.
+
+| Control | Spelling | Finding |
+| - | - | - |
+| G2 arm A | `EffectiveAppConfig extends GhostBaseProbe` | `knob-wire-coverage[A:ghostInheritedProbe]` |
+| G3 arm B | `USER_SETTINGS_SECTIONS = [...GHOST_SECTIONS_PROBE, …]` | `knob-wire-coverage[B:ghostSpreadSection]` |
+| G4 arms B2+C | `z.object({ ...GHOST_APP_SHAPE_PROBE, … })` | `[B2:ghostSpreadAppKey]` + `[C:ghostSpreadAppKey]` |
+| computed key | `z.object({ ["ghostComputedAppKey"]: … })` | `[B2:ghostComputedAppKey]` + `[C:ghostComputedAppKey]` — named by the RESOLVED key, never the bracket text |
+| control (inline) | `ghostInlineAppKey: z.boolean()` | `[B2:ghostInlineAppKey]` + `[C:ghostInlineAppKey]` |
+
+Eight findings, no silent member. Each arm now also declares its own population on the scan line
+(`EffectiveAppConfig` · `USER_SETTINGS_SECTIONS` · `appSettingsSchema` · `userSettingsSchema leaves`),
+so a future shrink is visible per arm rather than only in aggregate.
+
+### Restoration
+
+Both probe files restored with `git show HEAD:<path>` (never `git stash`/`checkout`/`restore`);
+`git status --short` empty after the batch. No whole-tree battery was run; two sibling lanes were live.
+
+## Issue summary for #941 (re-verification)
+
+Re-verified the two residual GAP rows on main's tip `3b38d5b84` after `921f52d33` (#1091) and
+`f93bc911d` (#1094). **CONFIRMED — both are closed, and the program's Done text now holds for all 24
+audited gates.** The 35 new committed pins in
+`tests/tooling/verify/gates/chat-viewer-plane-canon-reads.test.ts` +
+`knob-wire-coverage.test.ts` run green alongside `gate-conformance.int.test.ts` (43/43), and
+`pnpm check:structure` on the clean tip is `single-pass: clean` over 251/251 gates. Re-planting my own
+four paired controls plus the computed-key case in ONE batch: `chat-viewer-plane-canon-reads` holds
+`CHAT_VERB_AUTHORITY=93` with BOTH an identifier-bound value (`getChat: MEMBER_AUTHORITY_PROBE`, which
+previously took the census silently to 92) and a computed key (`["listForks"]`) planted, and
+`isViewerPlane` now takes `string` so an unclassified verb cannot reach the verdict as a silent "not
+viewer plane"; `knob-wire-coverage` reports all eight expected findings —
+`[A:ghostInheritedProbe]` (inherited field), `[B:ghostSpreadSection]` (tuple spread),
+`[B2/C:ghostSpreadAppKey]` (object spread), `[B2/C:ghostComputedAppKey]` (computed key, named by the
+resolved key rather than bracket text) and the inline control — with the per-arm census moving by
+exactly the planted member each time (fields 26→27, sections 16→17, appKeys 26→29, leaves 166→169,
+appearanceLeaves 41 unchanged). No new gap surfaced. #941 can close on this evidence.
