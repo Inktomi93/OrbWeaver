@@ -24,6 +24,7 @@ export function CorpusMapTab(): ReactElement {
     <QueryBoundary
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the map" onRetry={retry} />}
+      reserveKey="corpus.map"
     >
       <MapBody />
     </QueryBoundary>

@@ -53,6 +53,7 @@ export function OwnerBudgetSection(): ReactElement {
       <QueryBoundary
         fallback={<SkeletonRows count={1} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your automation limit" onRetry={retry} />}
+        reserveKey="config.automation.budget"
       >
         <OwnerBudgetBody />
       </QueryBoundary>
@@ -128,6 +129,7 @@ export function OwnerRulesSection(): ReactElement {
       <QueryBoundary
         fallback={<SkeletonRows count={3} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your library-wide rules" onRetry={retry} />}
+        reserveKey="config.automation.rules"
       >
         <OwnerRulesBody />
       </QueryBoundary>

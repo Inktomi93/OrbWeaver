@@ -4332,7 +4332,10 @@ test("side-eye 2026-08-16: the PHASE-lock glyph keeps a gutter off the pane's ow
 // exists — a settled band looks identical before and after the fix.
 
 const HUD_BAND = '[data-slot="rpg-hud-band"]';
-const HUD_BAND_RESERVATION = '[data-slot="rpg-hud-band-reservation"]';
+// #885 folded the band's bespoke reservation into `QueryBoundary.reserveKey` — the reserved box is the
+// boundary's own wrapper now, under the shared `data-tile-reserved` vocabulary (source "declared" is the
+// renamed "estimate" arm: a declared px constant, not this device's measurement).
+const HUD_BAND_RESERVATION = `${HUD_BAND} [data-tile-reserved]`;
 
 test("#149 the band holds its box open while `getTrackerView` is in flight, and the read SHRINKS it — never pushes", async ({ mount, page }) => {
   const tracker = trpcHold();
@@ -4343,10 +4346,10 @@ test("#149 the band holds its box open while `getTrackerView` is in flight, and 
   await expect(band).toBeVisible();
 
   // IN FLIGHT: the reservation is what is holding the band open, and it says WHICH source held it — a
-  // first-ever open has no measurement, so this is the declared estimate (`data-band-reserve-source`).
+  // first-ever open has no measurement, so this is the declared estimate (`data-tile-reserve-source`).
   const reservation = component.locator(HUD_BAND_RESERVATION);
   await expect(reservation).toBeVisible();
-  await expect(reservation).toHaveAttribute("data-band-reserve-source", "estimate");
+  await expect(reservation).toHaveAttribute("data-tile-reserve-source", "declared");
   const pending = await band.evaluate((el) => el.getBoundingClientRect().height);
 
   tracker.release(trackerView(false));

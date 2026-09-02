@@ -18,7 +18,7 @@ export const savedRostersModal: ModalDefinition = {
   title: "Saved rosters",
   trigger: { placement: "surface", label: "Saved rosters", icon: Users },
   body: (): ReactElement => (
-    <QueryBoundary fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}>
+    <QueryBoundary fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />} reserveKey="rosterPreset.savedRosters">
       <RosterPicker />
     </QueryBoundary>
   ),

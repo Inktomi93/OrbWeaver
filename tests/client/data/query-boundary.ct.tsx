@@ -4,7 +4,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError, trpcHold } from "../../support/ct/route-trpc.ts";
-import { BatchedHoldStory, DeferredEchoBoundaryStory, EchoBoundaryStory } from "./_ct-stories.tsx";
+import { BatchedHoldStory, DeferredEchoBoundaryStory, EchoBoundaryStory, ReservedBoundaryStory } from "./_ct-stories.tsx";
 
 test("renders suspended data through the boundary and records the decoded input", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
@@ -115,4 +115,72 @@ test("error surface → retry refetches (the reset handshake, not a re-render)",
   await expect(page.getByText("recovered")).toBeVisible();
   // 2 calls = the retry REFETCHED (a reset-less boundary re-throws the cached error at 1).
   await expect.poll(() => trpc.count("echo")).toBe(2);
+});
+
+// ── The #885 reservation seam (`reserveKey`) — the #837 sentinel pin at the boundary tier ───────────
+// The store is the REAL `createPersistedStore` mint (never a double — zustand `persist` patches
+// setState, so only the real middleware can prove the write-through). The seed IS a remembered box:
+// `rememberSurfaceBox` in the story runs the same code path a settled surface does, so seed→boot→
+// reserve is the measure-then-remember round trip with the measurement planted deterministically.
+
+test("#885 a seeded box reserves the held fallback EXACTLY, re-fills the skeleton, and the settle re-measures without resetting the store", async ({
+  mount,
+  page,
+}) => {
+  const hold = trpcHold();
+  await routeTrpc(page, { echo: hold });
+
+  const component = await mount(<ReservedBoundaryStory />);
+  await component.getByRole("button", { name: "seed" }).click();
+  await component.getByRole("button", { name: "toggle" }).click();
+  await hold.requested;
+
+  // The reserved wrapper: the seeded 480, attributed to the MEASURED source (the seed rode
+  // rememberSurfaceBox), at exactly 480 rendered px (`blockSize` is exact, never a floor).
+  const reserved = page.locator("[data-tile-reserved]");
+  await expect(reserved).toHaveAttribute("data-tile-reserved", "480");
+  await expect(reserved).toHaveAttribute("data-tile-reserve-source", "measured");
+  await expect.poll(() => reserved.evaluate((el) => el.getBoundingClientRect().height)).toBe(480);
+
+  // THE FILL: the bars must match the IN-BROWSER arithmetic (`fill=` on the probe — same tokens, same
+  // document), and must EXCEED the authored 3 — if the pitch tokens were unresolvable both sides would
+  // agree at the fallback count and this pin would green while the fill is inert (the planted-control
+  // clause: a tautology cannot fail).
+  await component.getByRole("button", { name: "probe" }).click();
+  const stamped = await component.getByTestId("reserve-probe").textContent();
+  const fill = Number(/fill=(\d+)/u.exec(stamped ?? "")?.[1]);
+  expect(fill).toBeGreaterThan(3);
+  await expect(reserved.locator('[data-slot="skeleton"]')).toHaveCount(fill);
+
+  hold.release({ message: "pong:ping" });
+  await expect(page.getByText("pong:ping")).toBeVisible();
+  // The reservation is gone (the settled child replaced it)…
+  await expect(reserved).toHaveCount(0);
+  // …the settle RE-MEASURED (the box self-heals off the seed toward the real content height), and the
+  // SENTINEL survived — the store was written through, not reset-and-rebuilt (#837: a destructive reset
+  // erases keys nothing else writes; non-application would have left box=480).
+  await component.getByRole("button", { name: "probe" }).click();
+  await expect(component.getByTestId("reserve-probe")).not.toContainText("box=480 ");
+  await expect(component.getByTestId("reserve-probe")).not.toContainText("box=null");
+  await expect(component.getByTestId("reserve-probe")).toContainText("sentinel=999");
+  // Durable, not in-memory: the real persist middleware landed both keys in localStorage.
+  const readBlob = (): Promise<string> =>
+    page.evaluate(() => {
+      const key = Object.keys(localStorage).find((k) => k.includes("surface-box"));
+      return key === undefined ? "" : (localStorage.getItem(key) ?? "");
+    });
+  await expect.poll(readBlob).toContain("ct.reserve.probe");
+  await expect.poll(readBlob).toContain("zzz.ct.reserve.sentinel");
+});
+
+test("#885 an UNKEYED boundary mounts no reservation wrapper (the 108 unkeyed mounts' contract)", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await routeTrpc(page, { echo: hold });
+
+  await mount(<DeferredEchoBoundaryStory />);
+  await page.getByRole("button", { name: "load" }).click();
+  await hold.requested;
+
+  await expect(page.getByText("loading…")).toBeVisible();
+  await expect(page.locator("[data-tile-reserved]")).toHaveCount(0);
 });
