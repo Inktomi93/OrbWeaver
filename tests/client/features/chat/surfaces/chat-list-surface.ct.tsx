@@ -13,13 +13,20 @@
 //
 // NOTE (mirrors the other surface CTs): `trpc.chat.listChats` is stubbed at the NETWORK (routeTrpc) — the
 // tRPC proxy builds the path structurally, so the CT runs regardless of the transport verb landing.
+//
+// `CHAT_ROOM_ROUTES` is AMBIENT to every mount here since #1180: a row WARMS the room it opens
+// (`useWarmRoomOnIntent` — `chat.getChat` leaves on a fine pointer RESTING on the row, on any pointer
+// pressing it, or on keyboard focus), so any test that hovers, clicks or tabs a row requests the roster
+// key. Fed at its honest empty default rather than left to `routeTrpc`'s null, so the warm-up runs for
+// real. `chat.getChat` ONLY — the owner refused warming `chat.listMessages` too (the measured trade is in
+// `use-prefetch-room.ts`); the map's `listMessages` row rides along because the two are one feed.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
 import { ChatListBandAndSurfaceStory, ChatListHeaderStory, ChatListSurfaceStory } from "../_ct-stories.tsx";
-import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
+import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
 
 const RAW_MONTH_COPY = /2020-06/u;
 const ARIA_SEAT = makeSeatPortrait("char_aria", "Aria Nightshade", "hash_aria");
@@ -124,7 +131,7 @@ const ADVENTURE_STAR = /^Star "A grand adventure" · /u;
 const PINNED_UNSTAR = /^Unstar "A pinned thread" · /u;
 
 test("renders each chat row (title + participant names), with a fallback title/subtitle", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
 
   const component = await mount(<ChatListSurfaceStory />);
 
@@ -138,7 +145,7 @@ test("renders each chat row (title + participant names), with a fallback title/s
 });
 
 test("selecting a row fires onSelect with that chat's id", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
@@ -150,7 +157,7 @@ test("selecting a row fires onSelect with that chat's id", async ({ mount, page 
 test("the empty-state New button fires onNewChat (the J2 picker trigger)", async ({ mount, page }) => {
   // The header New moved to the LIST chrome band (`chat-list-header.tsx`, north-star §4 N2) — outside this
   // surface. The surface's own `onNewChat` wiring now lives on the empty-state News, exercised here.
-  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([]) });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(page.getByTestId("new-count")).toHaveText("0");
@@ -160,7 +167,7 @@ test("the empty-state New button fires onNewChat (the J2 picker trigger)", async
 });
 
 test("the search field narrows the rows — the predicate rides the SERVER query, not a client pass", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+  const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
@@ -188,7 +195,11 @@ test("jumping to a month resets loaded pages and lands its newest old row withou
       updatedAt: recencyAt,
     });
   });
-  const trpc = await routeTrpc(page, { "chat.listChats": datedChatListResponder([...recent, ...old]), "character.list": { items: [], nextCursor: null } });
+  const trpc = await routeTrpc(page, {
+    ...CHAT_ROOM_ROUTES,
+    "chat.listChats": datedChatListResponder([...recent, ...old]),
+    "character.list": { items: [], nextCursor: null },
+  });
   const component = await mount(<ChatListSurfaceStory />);
 
   const list = component.getByRole("list", { name: "Chats list" });
@@ -228,7 +239,7 @@ test.describe("date jump coarse pointer", () => {
   test.use({ hasTouch: true });
 
   test("the native month field and clear action meet the resolved tap floor", async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const component = await mount(<ChatListSurfaceStory width={320} />);
 
@@ -258,7 +269,7 @@ test.describe("date jump coarse pointer", () => {
         updatedAt: recencyAt,
       });
     });
-    await routeTrpc(page, { "chat.listChats": datedChatListResponder(old), "character.list": { items: [], nextCursor: null } });
+    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder(old), "character.list": { items: [], nextCursor: null } });
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const component = await mount(<ChatListSurfaceStory width={430} />);
     await component.evaluate((root) => {
@@ -316,7 +327,7 @@ test.describe("#372 coarse chat-list header target", () => {
 
   for (const width of [430, 390, 320] as const) {
     test(`@${String(width)}: transcript import is a contained 44px coarse target`, async ({ mount, page }) => {
-      await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]) });
+      await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]) });
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       const component = await mount(<ChatListHeaderStory width={width} />);
       const header = component.locator(".shell-panel-header");
@@ -334,7 +345,7 @@ test.describe("#372 coarse chat-list header target", () => {
 });
 
 test("#372 keeps the accessible import control compact at a fine pointer", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]) });
   await expect.poll(() => page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
   const component = await mount(<ChatListHeaderStory width={320} />);
   const button = component.getByRole("button", { name: "Import a chat transcript" });
@@ -347,7 +358,7 @@ test("#372 keeps the accessible import control compact at a fine pointer", async
 
 for (const trigger of ["hover", "focus"] as const) {
   test(`#377 ${trigger}: transcript import exposes tooltip copy byte-equal to its accessible name`, async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]) });
+    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]) });
     const component = await mount(<ChatListHeaderStory width={430} />);
     const button = component.getByRole("button", { name: "Import a chat transcript" });
 
@@ -363,7 +374,7 @@ for (const trigger of ["hover", "focus"] as const) {
 }
 
 test("the icon-only month clear exposes pointer copy byte-equal to its accessible name", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
   await component.getByLabel("Show chats from").fill("2020-06");
 
@@ -374,7 +385,7 @@ test("the icon-only month clear exposes pointer copy byte-equal to its accessibl
 
 for (const width of [1280, 720, 430, 390, 320] as const) {
   test(`@${String(width)}: the month clear aligns to the input control rather than the label-and-field block`, async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
     const component = await mount(<ChatListSurfaceStory width={width} />);
     const month = component.getByLabel("Show chats from");
     await month.fill("2020-06");
@@ -388,7 +399,7 @@ for (const width of [1280, 720, 430, 390, 320] as const) {
 }
 
 test("month-scoped empty copy names the localized human month and year", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": datedChatListResponder([]), "character.list": { items: [], nextCursor: null } });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([]), "character.list": { items: [], nextCursor: null } });
   const component = await mount(<ChatListSurfaceStory />);
   await component.getByLabel("Show chats from").fill("2020-06");
 
@@ -402,7 +413,7 @@ test("a SEARCH that matches nothing says NO MATCHES — never the library-empty 
   // empty library to a bare `isEmpty` check. The surface showed "No chats yet — pick a character to start your
   // first conversation" over a library full of chats. The sibling arm below only caught it by accident,
   // because it also has a character filter set and lands in a different branch.
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
@@ -423,7 +434,7 @@ test("a SEARCH that matches nothing says NO MATCHES — never the library-empty 
 // never told about still applied, and the pane had already spent its single action. The copy already knew —
 // it said "No chat by June 2020 matches …" — so the actions were behind their own sentence.
 test("a search AND a month empty offers BOTH exits, and each one really widens the scope", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": CHARACTERS, "chat.listChats": datedChatListResponder([ADVENTURE]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "character.list": CHARACTERS, "chat.listChats": datedChatListResponder([ADVENTURE]) });
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
 
@@ -450,7 +461,7 @@ test("a search AND a month empty offers BOTH exits, and each one really widens t
 });
 
 test("a month-only empty offers the CHARACTER exit too when a character scope is also on", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": CHARACTERS, "chat.listChats": datedChatListResponder([ADVENTURE]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "character.list": CHARACTERS, "chat.listChats": datedChatListResponder([ADVENTURE]) });
   const component = await mount(<ChatListSurfaceStory />);
   await component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true }).click();
   await expect(component.getByText("Filtered:")).toBeVisible();
@@ -469,7 +480,7 @@ test("a month-only empty offers the CHARACTER exit too when a character scope is
 });
 
 test("the active chat's row is marked current", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
 
   const component = await mount(<ChatListSurfaceStory activeChatId="chat_adventure" />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
@@ -481,7 +492,7 @@ test("the active chat's row is marked current", async ({ mount, page }) => {
 });
 
 test("the per-row kebab opens the actions menu", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]) });
 
   const component = await mount(<ChatListSurfaceStory />);
   // Finding #4: the kebab is named after the row ("Chat actions for <title> · <stamp>"), not a bare,
@@ -503,7 +514,7 @@ test("the per-row kebab opens the actions menu", async ({ mount, page }) => {
 // read. `.orb.json` (R6 fidelity container, listed first) rides `?format=orb`; `.jsonl` is the default
 // route (ST/share transcript); `.txt` is the reading copy.
 test("§12 export homes on the row kebab — all three formats link to the host-gated download route", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]) });
 
   const component = await mount(<ChatListSurfaceStory />);
   await component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" }).hover();
@@ -521,7 +532,7 @@ test("§12 export homes on the row kebab — all three formats link to the host-
 
 test("a chat with a portrait-owning participant renders the REAL portrait; the others keep the initials blob (F7)", async ({ mount, page }) => {
   await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
@@ -538,6 +549,7 @@ test("a chat with a portrait-owning participant renders the REAL portrait; the o
 test("D3 a MULTI-SEAT room leads with an AvatarStack (shared, not one member's face); a 1:1 keeps its portrait", async ({ mount, page }) => {
   await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
   await routeTrpc(page, {
+    ...CHAT_ROOM_ROUTES,
     "chat.listChats": chatListResponder([GROUP, ADVENTURE]),
     "character.list": CHARACTERS,
   });
@@ -557,6 +569,7 @@ test("D3 a MULTI-SEAT room leads with an AvatarStack (shared, not one member's f
 test("a chat whose participants own no portrait falls back to initials (no broken image element)", async ({ mount, page }) => {
   await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
   await routeTrpc(page, {
+    ...CHAT_ROOM_ROUTES,
     "chat.listChats": chatListResponder([
       makeChatSummary({
         id: "chat_faceless",
@@ -581,7 +594,12 @@ test("a chat whose participants own no portrait falls back to initials (no broke
 // stated, which meant the file's one mutation-firing test could not tell a served star from an unrouted one.
 // Feeding it `{}` says what the test means; the assertions below are unchanged and still pass.
 test("§12 the star is the row's state TOGGLE, and clicking it fires the star MUTATION with the row's id", async ({ mount, page }) => {
-  const recorder = await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, STARRED]), "character.list": CHARACTERS, "chat.star": {} });
+  const recorder = await routeTrpc(page, {
+    ...CHAT_ROOM_ROUTES,
+    "chat.listChats": chatListResponder([ADVENTURE, STARRED]),
+    "character.list": CHARACTERS,
+    "chat.star": {},
+  });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A pinned thread")).toBeVisible();
@@ -603,7 +621,7 @@ test("§12 the star is the row's state TOGGLE, and clicking it fires the star MU
 });
 
 test("§12 the kebab KEEPS its Star item beside the inline toggle (N3 mirror parity)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]) });
 
   const component = await mount(<ChatListSurfaceStory />);
   const row = component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" });
@@ -616,7 +634,7 @@ test("§12 the kebab KEEPS its Star item beside the inline toggle (N3 mirror par
 });
 
 test("starred and archived rows say so in ACCESSIBLE content, and the archived row recedes (F7)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, STARRED, ARCHIVED]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, STARRED, ARCHIVED]), "character.list": CHARACTERS });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A pinned thread")).toBeVisible();
@@ -634,7 +652,7 @@ test("starred and archived rows say so in ACCESSIBLE content, and the archived r
 });
 
 test("the chats pane's INSTRUMENT tier is LIVE — its rows resolve the mapped step, not the tier-less default", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
   await expectInstrumentTierLive(component);
@@ -647,7 +665,7 @@ test("the chats pane's INSTRUMENT tier is LIVE — its rows resolve the mapped s
 // unconditional. Measured, not classes: `done ≠ rendered`.
 test.describe("P1 the trailing zone is split: markers on the title line, the CONTROL cluster floats", () => {
   test("every chat row — game, starred, archived — keeps its text column at rest, and hover shifts it 0px", async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listChats": chatListResponder([GAME, STARRED, ARCHIVED, ADVENTURE]), "character.list": CHARACTERS });
+    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([GAME, STARRED, ARCHIVED, ADVENTURE]), "character.list": CHARACTERS });
     const component = await mount(<ChatListSurfaceStory width={PANE_WIDTH} />);
     await expect(component.getByText("The Ashfell run")).toBeVisible();
 
@@ -669,7 +687,7 @@ test.describe("P1 the trailing zone is split: markers on the title line, the CON
   });
 
   test("the markers render IN the title line and stay accessible content (aria-describedby, not the name)", async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listChats": chatListResponder([GAME, STARRED, ARCHIVED, ADVENTURE]), "character.list": CHARACTERS });
+    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([GAME, STARRED, ARCHIVED, ADVENTURE]), "character.list": CHARACTERS });
     const component = await mount(<ChatListSurfaceStory width={PANE_WIDTH} />);
     await expect(component.getByText("The Ashfell run")).toBeVisible();
 
@@ -691,7 +709,7 @@ test.describe("P1 the trailing zone is split: markers on the title line, the CON
   // leaving its existence visible only behind a host-only tab inside a pane that ships closed. The row now
   // keeps a quieter mark that SAYS paused, so the live and the sleeping state are never one ambiguous glyph.
   test("a room whose game is switched OFF keeps a quiet 'paused' marker, distinct from the live one", async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listChats": chatListResponder([GAME, PAUSED_GAME]), "character.list": CHARACTERS });
+    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([GAME, PAUSED_GAME]), "character.list": CHARACTERS });
     const component = await mount(<ChatListSurfaceStory width={PANE_WIDTH} />);
     await expect(component.getByText("The dormant delve")).toBeVisible();
 
@@ -704,7 +722,7 @@ test.describe("P1 the trailing zone is split: markers on the title line, the CON
   });
 
   test("a starred row never paints TWO stars: the title-line marker yields to the revealed toggle", async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listChats": chatListResponder([STARRED]), "character.list": CHARACTERS });
+    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([STARRED]), "character.list": CHARACTERS });
     const component = await mount(<ChatListSurfaceStory width={PANE_WIDTH} />);
     await expect(component.getByText("A pinned thread")).toBeVisible();
 
@@ -722,7 +740,7 @@ test.describe("P1 the trailing zone is split: markers on the title line, the CON
 });
 
 test("the SCENT line wins the subtitle and stays ONE truncated line; the GAME marker is labelled text (not color)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([GAME, ADVENTURE]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([GAME, ADVENTURE]) });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("The Ashfell run")).toBeVisible();
@@ -758,7 +776,7 @@ test("the SCENT line wins the subtitle and stays ONE truncated line; the GAME ma
 // by" a chip you can clear, never a second list that owns her chats (the D18 grammar).
 
 test("Arm B: the faces strip curates the recent cast, and tapping one SCOPES the pane through the filter chip", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([GROUP, ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([GROUP, ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("The Crimson Court")).toBeVisible();
@@ -782,7 +800,7 @@ test("Arm B: the faces strip curates the recent cast, and tapping one SCOPES the
 // in the pane — above the scope chip and the search box — and each face is CAPTIONED, because a portrait
 // alone is not a name.
 test("Arm B: the strip is the pane's FIRST element (above chip + search) and its faces are captioned", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
 
   const component = await mount(<ChatListSurfaceStory />);
   const face = component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true });
@@ -825,7 +843,7 @@ const PENDING_HOLD_MS = 1200;
 const NO_MOVE_PX = 1;
 
 test("Arm B: the strip RESERVES its box while its reads are in flight — the search field does not move on arrival", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   await page.route("**/api/trpc/**", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, PENDING_HOLD_MS));
     await route.fallback();
@@ -848,7 +866,7 @@ test("Arm B: the strip RESERVES its box while its reads are in flight — the se
 // LAUNCHES a chat. The strip's kicker is therefore the VERB, not the contents — "Faces" named the picture
 // and left both readings open. It is the only line a sighted user gets BEFORE committing to a click.
 test("Arm B: the strip's kicker names the FILTER verb, so a face here can't read as a launcher", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]), "character.list": CHARACTERS });
 
   const component = await mount(<ChatListSurfaceStory />);
   const kicker = component.getByText("Filter by character", { exact: true });
@@ -859,7 +877,7 @@ test("Arm B: the strip's kicker names the FILTER verb, so a face here can't read
 });
 
 test("Arm B: re-tapping the scoping face clears the scope (the same toggle its aria-pressed announces)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
 
   const component = await mount(<ChatListSurfaceStory />);
   const face = component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true });
@@ -873,7 +891,7 @@ test("Arm B: re-tapping the scoping face clears the scope (the same toggle its a
 
 test("Arm B: the strip STAYS while a scope is empty — it is the way out, not a dead end", async ({ mount, page }) => {
   // Aria's only seat is on a chat that is filtered out by the search, so the scoped list goes empty.
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
 
   const component = await mount(<ChatListSurfaceStory />);
   await component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true }).click();
@@ -884,7 +902,7 @@ test("Arm B: the strip STAYS while a scope is empty — it is the way out, not a
 });
 
 test("an empty chats list shows the 'no chats yet' empty state", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([]) });
 
   const component = await mount(<ChatListSurfaceStory />);
 
@@ -933,7 +951,7 @@ function rosterChats(): readonly ReturnType<typeof makeChatSummary>[] {
 }
 
 test("FACEFILT: 30 recent faces fit ONE unscrolled row at the narrowest real pane; the rest fold behind the picker tile", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder(rosterChats()), "character.list": rosterCharacters() });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder(rosterChats()), "character.list": rosterCharacters() });
 
   const component = await mount(<ChatListSurfaceStory width={NARROW_PANE_WIDTH} />);
   // Barrier on the SETTLED folded arm — the tile only exists once the strip has measured itself.
@@ -972,7 +990,7 @@ test("FACEFILT: 30 recent faces fit ONE unscrolled row at the narrowest real pan
 });
 
 test("FACEFILT: a folded character picked from the roster scopes the pane AND takes a visible slot in the strip", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder(rosterChats()), "character.list": rosterCharacters() });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder(rosterChats()), "character.list": rosterCharacters() });
 
   const component = await mount(<ChatListSurfaceStory width={NARROW_PANE_WIDTH} />);
   const tile = component.getByRole("button", { name: OVERFLOW_TILE });
@@ -1005,7 +1023,7 @@ test("FACEFILT: a folded character picked from the roster scopes the pane AND ta
 });
 
 test("FACEFILT: the picker tile is KEYBOARD reachable and lands focus in its search field", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder(rosterChats()), "character.list": rosterCharacters() });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder(rosterChats()), "character.list": rosterCharacters() });
 
   const component = await mount(<ChatListSurfaceStory width={NARROW_PANE_WIDTH} />);
   const tile = component.getByRole("button", { name: OVERFLOW_TILE });
@@ -1025,7 +1043,7 @@ test("FACEFILT: the picker tile is KEYBOARD reachable and lands focus in its sea
 });
 
 test("FACEFILT: a cast that already fits keeps every face and grows NO picker tile (the ≤N pane is today, minus the scrollbar)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([GROUP, ADVENTURE]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([GROUP, ADVENTURE]), "character.list": CHARACTERS });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true })).toBeVisible();
@@ -1046,7 +1064,7 @@ test("FACEFILT: a cast that already fits keeps every face and grows NO picker ti
 });
 
 test("FACEFILT: no chats means NO strip at all — the picker tile never becomes a lone shell", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([]), "character.list": rosterCharacters() });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([]), "character.list": rosterCharacters() });
 
   const component = await mount(<ChatListSurfaceStory width={NARROW_PANE_WIDTH} />);
   await expect(component.getByText("No chats yet")).toBeVisible();
@@ -1079,7 +1097,7 @@ test.describe("coarse roster", () => {
 
   for (const width of PHONE_WIDTHS) {
     test(`@${width}: the inline star stands down, the kebab stays, and the title gets the width back`, async ({ mount, page }) => {
-      await routeTrpc(page, { "chat.listChats": chatListResponder([STARRED, ADVENTURE]), "character.list": CHARACTERS });
+      await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([STARRED, ADVENTURE]), "character.list": CHARACTERS });
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
 
       const component = await mount(<ChatListSurfaceStory width={width} />);
@@ -1102,7 +1120,7 @@ test.describe("coarse roster", () => {
 // The fine-pointer roster is untouched: the toggle is the affordance, the marker swaps out from under it
 // on hover, and nothing about the desktop row moved.
 test("a fine pointer keeps the inline star toggle on the roster row", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([STARRED, ADVENTURE]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([STARRED, ADVENTURE]), "character.list": CHARACTERS });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByRole("button", { name: UNSTAR_TOGGLE_RE }).first()).toBeAttached();
@@ -1168,7 +1186,7 @@ function axisLibrary(): readonly ReturnType<typeof makeChatSummary>[] {
 
 for (const axis of ["character", "search"] as const) {
   test(`#385 the ${axis} axis lands the top of its new scope after a deep scroll, not the old offset`, async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listChats": chatListResponder(axisLibrary()), "character.list": CHARACTERS });
+    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder(axisLibrary()), "character.list": CHARACTERS });
     const component = await mount(<ChatListSurfaceStory />);
     await expect(component.getByText("Deep 000", { exact: true })).toBeVisible();
 
@@ -1202,7 +1220,7 @@ for (const axis of ["character", "search"] as const) {
 // by handing `Date` a month index one past the selection, so December is the one selection whose bound
 // crosses a YEAR. Two-sided — the BOUND rolls into January, the printed LABEL must not.
 test("#385 a December jump rolls the exclusive bound into the following January while the label stays December", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+  const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
 
   await component.getByLabel("Show chats from").fill("2020-12");
@@ -1225,7 +1243,7 @@ test("the head page is NEVER evicted — a deep scroll and back still lands on t
       updatedAt: 100_000_000 - at,
     }),
   );
-  await routeTrpc(page, { "chat.listChats": chatListResponder(library), "character.list": { items: [], nextCursor: null } });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder(library), "character.list": { items: [], nextCursor: null } });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText(HEAD_CHAT)).toBeVisible();
@@ -1264,7 +1282,7 @@ test("the head page is NEVER evicted — a deep scroll and back still lands on t
 const NARROW_TERM = "grand";
 
 test("#490 the search field grows a clear affordance the moment it holds a value", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
   const search = component.getByRole("textbox", { name: "Search chats" });
   const clear = component.getByRole("button", { name: "Clear the search" });
@@ -1285,7 +1303,7 @@ test("#490 the search field grows a clear affordance the moment it holds a value
 // shrank the moment you typed. Both glyphs are inset at their own field's inline end now, over a constant
 // reserve, so neither field changes width and neither value reflows.
 test("#525 both filter clears sit INSIDE their field's box, and the field never resizes around them", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory width={320} />);
 
   const search = component.getByRole("textbox", { name: "Search chats" });
@@ -1337,6 +1355,7 @@ test("#525 both filter clears sit INSIDE their field's box, and the field never 
 test("#490 the chrome band's count reflects the pane's filters, and returns to the library census", async ({ mount, page }) => {
   const library = [ADVENTURE, UNTITLED, GAME];
   await routeTrpc(page, {
+    ...CHAT_ROOM_ROUTES,
     "chat.listChats": (input: unknown): unknown => {
       const search = (input as { search?: string } | undefined)?.search;
       const scoped = search === undefined ? library : library.filter((chat) => (chat.title ?? "").toLowerCase().includes(search.toLowerCase()));
@@ -1371,7 +1390,7 @@ test("#490 the chrome band's count reflects the pane's filters, and returns to t
 // against the document's OWN tokens, never a hardcoded px — the fix is `subtitleStep="label"`, and the
 // guard is that the resolved step is the label one and NOT the micro one.
 test("#500 the scent line takes the LABEL step, not the chrome kickers' micro gloss — and the title still outranks it", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([GAME, ADVENTURE]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([GAME, ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("The Ashfell run")).toBeVisible();
 
@@ -1458,7 +1477,7 @@ test("#500 the scent line takes the LABEL step, not the chrome kickers' micro gl
 // only skip target was CONTENT. The pane carries its own now, the landed characters twin's exact posture
 // (#491).
 test("#500 the pane's skip link is its FIRST focusable and lands focus on the first chat row", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText(ADVENTURE_ROW)).toBeVisible();
 
@@ -1479,4 +1498,58 @@ test("#500 the pane's skip link is its FIRST focusable and lands focus on the fi
   await skip.focus();
   await page.keyboard.press("Enter");
   await expect(component.locator('[data-slot="list-row-body"]').first()).toBeFocused();
+});
+
+// ── RED-FIRST (#1180): the row WARMS the room it opens, and the wrapper carrying that intent is
+// ── LAYOUT-NEUTRAL ──────────────────────────────────────────────────────────────────────────────────
+// The chats-list door carried the identical 52px shift Home Resume had (#1126/H13): `ChatCharacterBar`
+// reads `chat.getChat` non-suspending, so a cold click paints the room without the strip and then pushes
+// the transcript down 40px + the room stack's 12px gap once the roster lands. Measured on this door at
+// main d8f10cee5: `[cls] shift 0.0225 · div[aria-label=Example — Midnight Run] moved 0px,52px`.
+//
+// The click is too late to fix it, so the warm-up rides the reader's APPROACH. Two halves are pinned
+// because both can fail silently: that the intent reaches the NETWORK (the one place a warm-up is
+// observable), and that the `display:contents` wrapper carrying the handlers generates no box — a stray
+// box inside a virtualized list is exactly what would corrupt row measurement and perturb the
+// transcript's own settle (#1181).
+test("#1180 a fine pointer RESTING on a row warms that room's roster read, and only that room's", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+
+  const list = await mount(<ChatListSurfaceStory />);
+  const row = list.getByRole("button", { name: /A grand adventure/u }).first();
+  await expect(row).toBeVisible();
+
+  await row.hover();
+  // The WHOLE input list, not a count, and not a separate "nothing warmed at mount" one-shot (which would
+  // be a non-retrying read of mutable async state — the DEF-14 class). One array equality carries every
+  // half of the claim: the hovered room was warmed, no OTHER room was, and rendering the list warmed
+  // nothing on its own — a mount-time prefetch would have put both fixtures in here and this could never
+  // match a one-element array.
+  await expect.poll(() => trpc.inputs("chat.getChat")).toEqual([{ chatId: "chat_adventure" }]);
+});
+
+test("#1180 the intent wrapper is display:contents — it generates no box and moves no row", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+
+  const list = await mount(<ChatListSurfaceStory />);
+  const row = list.getByRole("button", { name: /A grand adventure/u }).first();
+  await expect(row).toBeVisible();
+
+  // The wrapper is found by WHAT IT IS rather than by a slot name it does not carry: the nearest ancestor
+  // that takes no part in layout. `null` here would mean the wrapper started generating a box, which is
+  // the regression this pins.
+  await expect
+    .poll(async () =>
+      row.evaluate((el: HTMLElement) => {
+        let node: HTMLElement | null = el.parentElement;
+        while (node !== null) {
+          if (globalThis.getComputedStyle(node).display === "contents") {
+            return true;
+          }
+          node = node.parentElement;
+        }
+        return false;
+      }),
+    )
+    .toBe(true);
 });
