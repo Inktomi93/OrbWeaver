@@ -13,19 +13,22 @@
 // never a default-palette measurement wearing a theme label.
 //
 // WHAT IS PREDICTABLE, AND WHY THE OTHER ARMS ARE NAMED RATHER THAN GATED (source: _shared/theme.ts):
-// app-shell derives `data-theme` from a SEED theme's own name (lowercased). A CUSTOM theme paints
+// app-shell derives `data-theme` from a SEED theme's own name (lowercased) — but ONLY for a seed that
+// owns a generated `[data-theme]` block; Hearth is the base ramp and stamps nothing. A CUSTOM theme paints
 // through <ThemeScope> and stamps no html attribute at all (D71), and `--theme none` selects "whatever
 // the app defaults to", which is not a value this instrument may assert. Gating those on `[data-theme]`
 // would manufacture refusals on exactly the cells `--matrix` is built from (its required rows are rated
 // CUSTOM themes). They are reported as UNGATED with the reason, so a reader knows which half of the
 // receipt is proven — silence would be the same defect in the other direction.
+
+import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import type { SettingsShimEvidence } from "../../_shared/appearance.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { EvidenceGap } from "../../_shared/evidence.ts";
 import { printEvidenceGaps } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
-import type { ThemeStampExpectation } from "../contract/theme-stamp.ts";
+import type { ThemeStampExpectation, ThemeStampReceipt } from "../contract/theme-stamp.ts";
 import type { CaptureOutcome } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --theme <name>");
@@ -42,8 +45,21 @@ export function themeStampExpectation(evidence: SettingsShimEvidence | undefined
   if (resolution === null) {
     return { kind: "ungated", reason: "no --theme was applied to this run" };
   }
-  if (resolution.source === "seed" && resolution.name !== null) {
-    return { kind: "gated", stamp: resolution.name.toLowerCase(), themeName: resolution.name };
+  const seedName = resolution.source === "seed" ? resolution.name : null;
+  if (seedName !== null) {
+    const stamp = seedName.toLowerCase();
+    // A SEED THEME THAT OWNS NO BLOCK STAMPS NOTHING, and that is CORRECT, not a miss: Hearth IS the base
+    // `@theme` ramp, `dataThemeOf` (packages/client/src/lib/resolve-theme-scope-tokens.ts) answers null
+    // for it, and the shell paints it by stamping nothing at the root. Gating on `isSeed` alone would
+    // have refused every `--theme Hearth` run as though the palette never applied — so the predicate
+    // reads the SAME generated source the `[data-theme]` blocks are emitted from, never a name list of
+    // its own (a second home for the seed vocabulary is how the two would drift).
+    return Object.hasOwn(SEED_THEME_VALUE_SETS, stamp)
+      ? { kind: "gated", stamp, themeName: seedName }
+      : {
+          kind: "ungated",
+          reason: `--theme resolved to the seed theme ${JSON.stringify(seedName)}, which owns no generated [data-theme] block (it IS the base @theme ramp) and stamps nothing — the stamp cannot gate this run`,
+        };
   }
   if (resolution.source === "custom") {
     return {
@@ -81,22 +97,26 @@ export function themeStampExit(outcomes: readonly Pick<CaptureOutcome, "themeSta
   return EXIT.toolError;
 }
 
-/** Wait for the stamp. Returns null when it landed, or the gap to refuse with. Polls rather than using a
- *  locator wait so the OBSERVED value is available for the refusal — "absent" and "the wrong theme" are
- *  different findings and the operator needs to be told which one happened. */
-export async function awaitThemeStamp(page: Page, evidence: SettingsShimEvidence | undefined): Promise<EvidenceGap | null> {
+/** Wait for the stamp. Polls rather than using a locator wait so the OBSERVED value is available for the
+ *  refusal — "absent" and "the wrong theme" are different findings and the operator needs to be told which
+ *  one happened. Returns a RECEIPT rather than a bare verdict: `polls` is how many times the attribute was
+ *  actually read, so "the ungated arm never touched the page" is a fact the instrument REPORTS instead of
+ *  something a caller has to infer by timing the call (#1252). */
+export async function awaitThemeStamp(page: Page, evidence: SettingsShimEvidence | undefined): Promise<ThemeStampReceipt> {
   const expectation = themeStampExpectation(evidence);
   if (expectation.kind === "ungated") {
-    return null;
+    return { gap: null, polls: 0 };
   }
   const deadline = Date.now() + STAMP_TIMEOUT_MS;
   let observed: string | null = null;
+  let polls = 0;
   while (Date.now() < deadline) {
+    polls += 1;
     observed = await page.locator("html").first().getAttribute(STAMP_ATTRIBUTE);
     if (observed === expectation.stamp) {
-      return null;
+      return { gap: null, polls };
     }
     await new Promise((resolve) => setTimeout(resolve, STAMP_POLL_MS));
   }
-  return themeStampGap(expectation, observed);
+  return { gap: themeStampGap(expectation, observed), polls };
 }
