@@ -30,7 +30,18 @@ export const SHOT_BASE = { animations: "disabled", caret: "hide", scale: "css" }
  *  streaming turn, a looping animation) must never block the shot: on a live surface this simply spends
  *  its budget and captures, which is the pre-#123 behaviour. */
 const PAINT_SETTLE_MAX_FRAMES = 24;
-const PAINT_SETTLE_FRAME_TIMEOUT_MS = 50;
+/** THE ONE SNAP WALL CLOCK THAT IS DELIBERATELY NOT `budget()`-SCALED (owner ruling, #1266). It is a
+ *  PER-FRAME SETTLE BOUND, not a tolerance: it says "one animation frame has had long enough to paint",
+ *  and 50ms is already ~3x a 60Hz frame. Stretching it under load would not widen a budget — it would
+ *  change what "settled" MEANS, letting a slow box call a still-animating surface quiet and shoot it. That
+ *  is the third arm #1040 forbids: a rate-shaped judgement answers load by WITHHOLDING, never by widening
+ *  the verdict. The run stays bounded twice over regardless (PAINT_SETTLE_MAX_FRAMES caps the whole wait),
+ *  so a contended box spends its frame budget and captures — it never hangs.
+ *  Named `_MS` and not `_TIMEOUT_MS` because that is what it IS; the gate's clock pattern keys on
+ *  `_TIMEOUT_MS`, and the old name asserted a timeout this value has never been. Its `CLOCK_SITES` census
+ *  row is deleted with the other three: the row's stated end condition (snap's budgets are scaled) is met,
+ *  and an exemption row whose reason has expired is worse than the exception written here in the code. */
+const PAINT_SETTLE_FRAME_MS = 50;
 
 async function waitForPaintSettle(page: Page): Promise<void> {
   // @orb-gate-ignore caught-failure-ownership(empty:catch): documented best-effort optimisation — a torn context makes the shot one frame stale, never absent, per the trailing comment. Ends if the shot stops happening regardless of this failure.
@@ -40,7 +51,7 @@ async function waitForPaintSettle(page: Page): Promise<void> {
     // evaluates untransformed in the page (the same idiom as scanDeadCss/buildContrastScript).
     await page.evaluate(`(async () => {
       const maxFrames = ${PAINT_SETTLE_MAX_FRAMES};
-      const frameTimeoutMs = ${PAINT_SETTLE_FRAME_TIMEOUT_MS};
+      const frameTimeoutMs = ${PAINT_SETTLE_FRAME_MS};
       const geometry = () => {
         const root = document.documentElement;
         const body = document.body;
