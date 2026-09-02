@@ -219,13 +219,29 @@ function environmentPairs(environment: BrowserEnvironmentEvidence): Array<readon
   ];
 }
 
+/** Whether the BUDGETED frame population can carry the dropped-frame rate at all (#1148). The tool has
+ *  printed "this is not a frames verdict" over a collapsed population since #1127 — and then gated on it
+ *  anyway, which is the instrument contradicting its own receipt: `36.36% of 11` on a suppressed-motion
+ *  matrix cell minted a FAIL off four slow frames, the exact number the R-2 retraction was about.
+ *  `framePopulationBasis` owns the classification and DERIVES its floor from the budget, so this reads
+ *  the classification rather than re-spelling a threshold. */
+function framesBudgetJudgeable(data: AuditData): boolean {
+  return framePopulationBasis(data.frames.budgeted.total) === "verdict";
+}
+
 /** The PASS/FAIL arm — every budget the audit gates on. Speaks only about evidence the caller has
  *  already proven PRESENT; the absent-evidence arm is `verdictFor` below. */
 function budgetsPass(data: AuditData, dirtyAnimations: number): boolean {
   const { motion, frames, pageErrors, stepFailed, reachFailures } = data;
   // A budgeted population that is empty because the exemption consumed every RAW frame is honestly
   // clean — the raw evidence exists. An empty RAW population is not, and the evidence gaps own it.
-  const framesOverBudget = frames.budgeted.pct !== null && frames.budgeted.pct > DROPPED_FRAME_BUDGET_PCT;
+  //
+  // AND A POPULATION THAT CANNOT CARRY THE RATE MINTS NEITHER ARM OF IT (#1148). The percentage is real
+  // arithmetic; what it is not is a smoothness verdict, so the frames budget is simply NOT JUDGED here
+  // and the RESULT line says so (`frames-budget=unjudged`) rather than passing silently. The run's
+  // verdict still comes from every OTHER budget — CLS, LoAF, dirty animations, page errors — which is
+  // what keeps this a narrowing of one dishonest arm and not a blanket amnesty.
+  const framesOverBudget = framesBudgetJudgeable(data) && frames.budgeted.pct !== null && frames.budgeted.pct > DROPPED_FRAME_BUDGET_PCT;
   const budgetFails = loafOverBudget(motion) || clsOverBudget(motion, data.measuredInput) || dirtyAnimations > 0 || framesOverBudget;
   return !(budgetFails || stepFailed || reachFailures > 0 || pageErrors.length > 0);
 }
@@ -239,6 +255,9 @@ export interface MotionAuditEvaluation {
   readonly transientDirtyAnimations: number;
   readonly sanctionedLibraryAnimations: number;
   readonly budgetedDirtyAnimations: number;
+  /** FALSE ⇒ the dropped-frame arm was skipped because its population cannot support a rate (#1148).
+   *  Carried on the evaluation so a `budgetsPass: true` is never read as "frames were clean". */
+  readonly framesBudgetJudged: boolean;
   readonly budgetsPass: boolean;
 }
 
@@ -252,6 +271,7 @@ export function evaluateMotionAudit(data: AuditData, windowMs: number): MotionAu
     transientDirtyAnimations: animations.transientDirty,
     sanctionedLibraryAnimations: animations.sanctionedLibrary,
     budgetedDirtyAnimations: animations.budgetedDirty,
+    framesBudgetJudged: framesBudgetJudgeable(data),
     budgetsPass: budgetsPass(data, animations.budgetedDirty),
   };
 }
@@ -285,6 +305,14 @@ export function report(url: string, opts: Args, data: AuditData): number {
   print(
     `frames      raw ${frames.raw.dropped}/${frames.raw.total} dropped (${droppedFrameText(frames.raw)}) · Select entrance ${frames.classified.dropped}/${frames.classified.total} classified · budgeted ${frames.budgeted.dropped}/${frames.budgeted.total} (${droppedFrameText(frames.budgeted)})`,
   );
+  // Only for a population that EXISTS and still cannot carry the rate — an empty one is already owned by
+  // the hard evidence gap printed below ("the frame population is ABSENT"), and saying it twice reads as
+  // two different findings.
+  if (frames.budgeted.total > 0 && !framesBudgetJudgeable(data)) {
+    print(
+      `            ↳ the dropped-frame budget was NOT JUDGED: ${frames.budgeted.total} budgeted frame(s) cannot carry a ${DROPPED_FRAME_BUDGET_PCT}% rate (#1148). Every other budget below still gates this run`,
+    );
+  }
   printAnimations(data);
   for (const l of layoutInFrame) {
     printLayoutLoaf(l);
@@ -331,6 +359,11 @@ export function report(url: string, opts: Args, data: AuditData): number {
       // collapse `budgeted` while `raw` still resolves.
       ["frames-population-raw", framePopulationBasis(frames.raw.total)],
       ["frames-population-budgeted", framePopulationBasis(frames.budgeted.total)],
+      // #1148: WHETHER THE DROPPED-FRAME BUDGET SPOKE AT ALL. `frames-population-budgeted` says what the
+      // population can support; this says what the VERDICT did with it, and the two must be read
+      // together — a PASS with `frames-budget=unjudged` is clean on CLS/LoAF/animations and silent on
+      // smoothness, which is the only honest thing to be over a population that cannot carry the rate.
+      ["frames-budget", evaluation.framesBudgetJudged ? "judged" : "unjudged"],
       ["worst-blocking-raw", `${loaf.rawWorstBlocking}ms`],
       ["first-select-entrances", loaf.classifiedInitializations],
       ["worst-blocking-budgeted", `${loaf.budgetedWorstBlocking}ms`],

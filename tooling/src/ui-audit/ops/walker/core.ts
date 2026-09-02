@@ -328,4 +328,24 @@ export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button]
     hiddenCache.set(el, value);
     return value;
   }
+
+  // SCREEN-READER-ONLY TEXT — THE ONE HOME (#1156). Two shapes, exactly as the type-floor family has
+  // always spelled them: the CLIPPED posture (isVisuallyHidden above — a full-size box the browser paints
+  // nowhere) and the sub-2px plumbing box (a live-region span sized to nothing). This predicate lived
+  // INSIDE census-text.ts's sample literal, so every OTHER family that wanted it had to re-spell it — and
+  // the grid census (Law 4, off-grid-text) simply never did, which is how a never-painted node ended up
+  // indicted for blurring (a node with no pixels cannot land off the device-pixel grid). One function, two
+  // readers; a third reader adds a call, never a copy.
+  //
+  // TRI-STATE, BY THE #1122 RULING: null means the box could not be READ (not an Element, or a non-finite
+  // rect), which is a WITHHOLDING for any rule whose population turns on it — never a quiet "not sr-only".
+  // A boolean here would fold "measured painted" and "could not measure" into the same clean arm, which is
+  // the exact silence the population contract exists to end.
+  var SR_ONLY_MAX_BOX_PX = 2;
+  function srOnlyText(el, rect) {
+    if (!(el instanceof Element)) return null;
+    var box = rect || el.getBoundingClientRect();
+    if (!box || !Number.isFinite(box.width) || !Number.isFinite(box.height)) return null;
+    return isVisuallyHidden(el) || (box.width <= SR_ONLY_MAX_BOX_PX && box.height <= SR_ONLY_MAX_BOX_PX);
+  }
 `;

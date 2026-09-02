@@ -16,8 +16,10 @@
 //
 // POLARITY (the census-tier.ts ruling, one property over): text with NO promoting ancestor is EXCLUDED, not
 // judged clean — the browser re-snaps its baseline every paint, so its fraction is a measurement proving
-// INAPPLICABILITY (the verdict survives). WITHHELD is reserved for a landing the instrument could not read
-// (a non-finite rect, an unusable DPR) and for a transform mid-animation, which has no rest landing yet.
+// INAPPLICABILITY (the verdict survives). SCREEN-READER-ONLY text is excluded on the same polarity and for
+// a stronger reason (#1156): it paints no pixels at all, so "blurred" is unaskable of it. WITHHELD is
+// reserved for a landing the instrument could not read (a non-finite rect, an unusable DPR), for a
+// transform mid-animation, which has no rest landing yet, and for an sr-only answer that could not be read.
 //
 // Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string, not
 // a function; the one interpolation is a deliberate tooling constant, the `INACTIVE_KIND_EXPR` precedent).
@@ -135,6 +137,23 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
   for (var gt = 0; gt < textEls.length; gt += 1) {
     var gtEl = textEls[gt];
     relationalAccounting["off-grid-text"].candidates += 1;
+    // SCREEN-READER-ONLY TEXT IS OUTSIDE THIS RULE'S POPULATION, and it is tested FIRST because it is the
+    // most fundamental proof of inapplicability there is: the node paints no pixels anywhere, so it cannot
+    // land off the device-pixel grid and cannot blur, whatever surface or layer it sits in (#1156 — the
+    // Characters list pane's \`role=status\` sr-only count span was judged, and reported, as a P2 blur).
+    // The predicate is core.ts's ONE \`srOnlyText\`, the same one the text census stamps on its samples —
+    // never a second spelling. A null (unreadable box, or a composition that never initialised the
+    // predicate) is a WITHHOLDING, which makes the whole run NO VERDICT: this rule's population is
+    // defined by the answer, so an unanswered candidate may not be quietly judged.
+    var gtSrOnly = typeof srOnlyText === "function" ? srOnlyText(gtEl, null) : null;
+    if (gtSrOnly === null) {
+      withholdRelational(relationalAccounting["off-grid-text"], "srOnlyUnreadable");
+      continue;
+    }
+    if (gtSrOnly) {
+      excludeRelational(relationalAccounting["off-grid-text"], "srOnly");
+      continue;
+    }
     if (gtEl.closest(GRID_READING_SURFACE)) {
       excludeRelational(relationalAccounting["off-grid-text"], "readingSurface");
       continue;
