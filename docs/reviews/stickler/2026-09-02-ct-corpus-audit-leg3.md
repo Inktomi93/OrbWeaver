@@ -33,8 +33,8 @@ the external `kill` binary (#1254).
 | - | - | - | - |
 | Leg 1 | 24 | ~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
 | Leg 2 | 45 | ~19,540 | none |
-| Leg 3 (this commit) | 6 | ~1,395 | none confirmed |
-| **Campaign total** | **75 / 469** | ~47,035 | ceiling P3 |
+| Leg 3 (this commit) | 9 | ~3,366 | none confirmed |
+| **Campaign total** | **78 / 469** | ~49,006 | ceiling P3 |
 
 ## 2. Findings
 
@@ -131,3 +131,65 @@ the old bare `[data-tone]` selector became unable to state anything (#1097) reco
 channels (`data-hint-tone` feature value, `data-tone` recipe value) on the same element. Premises verified
 live: `refinery-chip.tsx:43` stamps `data-hint-tone`, `lib/list-pane-title-id.ts:25` is
 `"orb-list-pane-title"`, `list-pane-header.tsx:92` stamps `data-slot="list-pane-title"`.
+
+## 3b. Per-file verdicts — chunk 2 (3 files, all CLEAN)
+
+### 3b.1 `tests/ui/primitives/virtual-list/virtual-list.ct.tsx` (431 ln) — CLEAN
+
+Windowing is asserted as a BOUND with both ends (rows rendered > 0 AND < 100; a deep item absent from the
+DOM), the overscan branches are distinguished by two disjoint bounds rather than a cross-test comparison
+(playwright-ct mounts one root per test — stated in-file), and every geometry claim goes through
+`expect(fn).toPass()` retrying helpers whose predicates include the non-vacuity floor
+(`geometry.length > 1`, `visible.length > 1`) plus a real overlap/ownership test via `elementFromPoint`.
+The reset-scope pair is the strongest work in the file: `requestAnimationFrame` is replaced by a harness
+whose `drain()` returns the RESIDUE so a half-drained state fails loudly instead of proceeding, the
+landing frame is named by capturing `pendingIds()` at the moment it is scheduled (the comment states
+exactly why "the newest pending frame" would be false), and the unmount arm proves the stale landing wrote
+nothing to the detached node AND that no page error fired. Premises verified live:
+`virtual-list.tsx:159-160` still calls `assertBoundedScrollHeight`, whose message in
+`packages/ui/src/lib/virtual-gap.ts:48-55` still contains "no bounded height"; `data-more` is toggled at
+`virtual-list.tsx:185,225`; `data-slot="virtual-list-viewport"` at `:231`.
+
+Coverage note: `onEndApproach`'s positive arm asserts `not.toHaveText("0")` rather than an exact count —
+deliberate and stated in-file (a re-fire as rows settle from estimated to measured size is legal), and the
+negative arm is exact.
+
+### 3b.2 `tests/client/features/chat/components/composer-guided-cluster.ct.tsx` (513 ln) — CLEAN
+
+`expectNoReconnect` is a model absence proof: a POSITIVE `page.waitForRequest` that must TIME OUT (the
+stub pins the EventSource retry to 200ms, so a live subscription would have re-opened several times inside
+the window) PLUS the stub's own connect counter still reading 1 — two methods, the way the standing law
+demands. The dead-engine zombie class is pinned on the mechanism that actually caused it (a RETRYABLE tRPC
+code is not an error to `httpSubscriptionLink`), the Stop arm proves the unsubscribe over a window LONGER
+than the pinned retry and asserts the deliberate divergence from ST (a cancel KEEPS the partial and toasts
+nothing), and the wait-reason pins were RE-POINTED at the surviving carrier (the Base UI tooltip popup)
+when `title` was dropped, with the reason for the move and the `focusableWhenDisabled` +
+`data-disabled:pointer-events-auto` mechanism that keeps a disabled control's tooltip reachable recorded
+in-file — the #1207 stale-premise class handled correctly rather than by deleting the claim. Wire claims
+are asserted on the DECODED input (`gameSteer` KIND, `rewriteToggles` in CATALOG order proven by flipping a
+later member FIRST) with the never-send-template-bytes fence
+(`.not.toContain("cut filler")`). `hoverOpenSubmenu`'s bounded retry is justified by a board-diagnosed
+hover-intent miss (menu open + submenu collapsed screenshots), not by a slow-machine timeout, and
+`expectPopupSettled` pins the popup's `opacity: 1` as the transition's own end signal.
+
+Two idiom notes (neither a defect): (a) the recurring
+`const readInputAtAssertion = async () => trpc.lastInput(...) as T; const input = trpc.lastInput(...) as T;`
+pair declares `input` only so `typeof input` resolves — the eager read's value is discarded, which reads
+like a live one-shot but is inert; (b) the progressive-fill assertions (`toHaveValue(PARTIAL)` then the
+full string) can only fail RED if two deltas ever land in one frame — the safe direction, and the
+EventSource-task mechanism is argued in-file.
+
+### 3b.3 `tests/tooling/design-audit-walker.ct.tsx` (1,027 ln) — CLEAN — the corpus's best instrument suite
+
+Every one of the ~20 walker rules is pinned in BOTH directions in the SAME mount: the defect fires and the
+healthy twin stays silent WHILE PRESENT in the census (the "silence is only evidence when the control was
+looked at" law is spelled out and enforced — e.g. the below-fold healthy control must be IN `tapTargets`
+before its non-finding means anything). Withheld verdicts are asserted as COUNTED
+(`censusReach.frameTruncated`, `withheld.pseudoBoxUnmeasurable`) rather than as silence, and #987's
+settlement identity (`candidates === judged + withheld + excluded`) is re-asserted over the widened census
+— an instrument that cannot print a clean zero by accident. `smallestSide` throws with the whole census in
+the message so a zero reads "the walker never SAW the control", never "the number is fine". Exemption
+scoping is pinned as a two-halved predicate with BOTH negative halves (slot-only would licence every list
+row; state-only would licence any selected box). The two-unit reading-measure test (#1183) asserts the
+ratio band 1.2–2.0 with the measured provenance, so a rule reading one unit for the other cannot pass. No
+`reports/` write, no double-cast, no stale premise found.
