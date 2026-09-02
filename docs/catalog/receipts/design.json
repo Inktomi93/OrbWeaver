@@ -75,7 +75,9 @@
       "verifiedSha256": "0078cc298da95842fca5f810ffc4e0c6b25e75b65cc2515a9d4397bc934d21a2",
       "verifiedCommit": "0952cc4623ea0bca4dd8b3b55984866d04ec6ca9",
       "verifiedAt": "2026-08-31",
-      "evidence": ["docs/design/961-static-class-provenance-repair.md:1 (full read; red-first repair design and declared residual limits)"],
+      "evidence": [
+        "docs/design/961-static-class-provenance-repair.md:1 (full read; red-first repair design and declared residual limits)"
+      ],
       "summary": "Implemented #961 repair design for return-position composer ownership, local namespace re-exports, and JavaScript-correct object-spread overwrite/opacity semantics.",
       "claims": [
         {
@@ -1510,6 +1512,73 @@
             {
               "kind": "code",
               "target": "tooling/src/workboard/lib/vocab.ts:49"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/design/885-884-boundary-reservation-and-touch-floor.md",
+      "assignedSha256": "e3e7d004690f3bbdda8790517b676401ee4c7bf230c5c95133815926943ff912",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "e3e7d004690f3bbdda8790517b676401ee4c7bf230c5c95133815926943ff912",
+      "verifiedCommit": "720f4439316842c7c1fb62c60901d9a93070502e",
+      "verifiedAt": "2026-09-02",
+      "summary": "Design for #885 QueryBoundary.reserveKey (the one measure-then-remember reservation seam: chosen shape, rejected alternatives, keying tranche, gate arms, the counted tail) and #884 collapsible touch-floor defaults (the size inversion, the sub-floor marker gate, Stack rows=control + the vertical-pitch arm). Authored born-reviewed by the building lane (cb-reserve-floor).",
+      "evidence": [
+        "born-reviewed at 720f4439316 (lane cb-reserve-floor, the commit that authored it): full read; premise re-verification in §0 measured on the same tree; §1.4/§2.2 tables mirror the landed edits"
+      ],
+      "claims": [
+        {
+          "claim": "QueryBoundary carries the one measure-then-remember reservation seam (reserveKey/reserveBlock): the remembered box reserves the fallback, skeletonRowCountFor re-fills a static-count SkeletonRows, and the settled child re-measures into surface-box-store.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/data/query-boundary.tsx:130"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/data/query-boundary.ct.tsx:126"
+            },
+            {
+              "kind": "issue",
+              "target": "#885"
+            }
+          ]
+        },
+        {
+          "claim": "The SkeletonRows-static-count class is gated: no reserveKey and no @first-boot-only marker is RED, duplicate literal keys are RED, and the marker vocabulary is two-sided.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/query-boundary-reservation.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#885"
+            }
+          ]
+        },
+        {
+          "claim": "The collapsible trigger default is inverted to the control floor; size=\"text\" is the marked sub-floor opt-out and the Stack rows=\"control\" variant plus the vertical-pitch arm close the #850 row-pitch class.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/primitives/collapsible/variants.ts:31"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/sub-floor-disclosure.ts:1"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/no-floorless-control-in-wrap.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#884"
             }
           ]
         }

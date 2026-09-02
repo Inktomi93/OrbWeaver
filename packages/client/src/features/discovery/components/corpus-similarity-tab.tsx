@@ -92,6 +92,7 @@ export function CorpusSimilarityTab(): ReactElement {
     <QueryBoundary
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="similarity" onRetry={retry} />}
+      reserveKey="corpus.similarity"
     >
       <SimilarityBody />
     </QueryBoundary>

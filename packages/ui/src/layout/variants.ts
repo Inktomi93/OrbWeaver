@@ -37,7 +37,20 @@ const JUSTIFY = {
 
 export const stackVariants = tv({
   base: "flex flex-col",
-  variants: { gap: GAP, align: ALIGN, justify: JUSTIFY, padding: PADDING },
+  variants: {
+    gap: GAP,
+    align: ALIGN,
+    justify: JUSTIFY,
+    padding: PADDING,
+    // THE ROW-PITCH FLOOR (#884 C3 — #850's class: rows of floorless inline-edit affordances stacked at a
+    // sub-floor pitch, so a Button's hit pseudo overflows onto the NEIGHBOUR ROW'S TEXT and loses
+    // hit-testing to it; 28 P1 tap-targets on one rpg tab). `control` floors every DIRECT child at the
+    // pointer-conditional `--spacing-control-sm` (44px coarse / 32px fine — clears design-audit's 24px fine
+    // floor), so each row seats its own controls' hit areas instead of lending them to the row below. One
+    // token at the container, because no control primitive can own PITCH and a per-row `min-h-*` is the
+    // N-site spelling of the same fact (gate `no-floorless-control-in-wrap`, the vertical-pitch arm).
+    rows: { control: "*:min-h-control-sm" },
+  },
 });
 
 export const rowVariants = tv({

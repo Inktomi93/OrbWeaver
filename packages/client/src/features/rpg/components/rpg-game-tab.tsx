@@ -202,18 +202,22 @@ function TrackersEditor({ chatId, config }: { readonly chatId: ChatId; readonly 
         the character. A meter's max here is the DEFAULT ceiling: an individual character can carry a different one on their card.
       </Text>
       {defs.length === 0 ? <RpgDoorwayLine>No trackers yet — name one below and the story starts keeping it.</RpgDoorwayLine> : null}
-      {defs.map((def, i) => (
-        <TrackerRow
-          key={def.key}
-          def={def}
-          index={i}
-          onCommit={(next): void => {
-            // A row commits its whole def; the remove affordance signals itself by blanking the key.
-            commit(next.key === "" ? defs.filter((_, j) => j !== i) : defs.map((x, j) => (j === i ? next : x)));
-          }}
-        />
-      ))}
-      <AddTracker onAdd={add} />
+      {/* The ROW band takes its own Stack so `rows="control"` floors the tracker rows (#884 C3 — the #850
+          pitch class) without inflating the kicker/gloss above them. */}
+      <Stack gap="field" rows="control">
+        {defs.map((def, i) => (
+          <TrackerRow
+            key={def.key}
+            def={def}
+            index={i}
+            onCommit={(next): void => {
+              // A row commits its whole def; the remove affordance signals itself by blanking the key.
+              commit(next.key === "" ? defs.filter((_, j) => j !== i) : defs.map((x, j) => (j === i ? next : x)));
+            }}
+          />
+        ))}
+        <AddTracker onAdd={add} />
+      </Stack>
     </Stack>
   );
 }

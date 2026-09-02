@@ -64,6 +64,7 @@ export function CorpusVisualsTab(): ReactElement {
     <QueryBoundary
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the visuals" onRetry={retry} />}
+      reserveKey="corpus.visuals"
     >
       <VisualsBody />
     </QueryBoundary>

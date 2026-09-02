@@ -210,6 +210,7 @@ function CorpusRestState({ targetId }: { readonly targetId: string }): ReactElem
       <QueryBoundary
         fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the corpus catalog" onRetry={retry} />}
+        reserveKey="corpus.browse"
       >
         <CorpusBrowseView />
       </QueryBoundary>

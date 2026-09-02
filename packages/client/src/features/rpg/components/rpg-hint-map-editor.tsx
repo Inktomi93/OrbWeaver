@@ -43,50 +43,54 @@ export function RpgHintMapEditor({ kicker, emptyLine, labelNoun, addPlaceholder,
       <Kicker>{kicker}</Kicker>
       {children}
       {entries.length === 0 ? <RpgDoorwayLine>{emptyLine}</RpgDoorwayLine> : null}
-      {entries.map(([label, hint]) => (
-        <Row key={label} gap="field" align="center">
-          <Badge tone="soft" size="sm" intent="neutral">
-            {label}
-          </Badge>
-          <HintEditor
-            ariaLabel={`${label} hint`}
-            hint={hint}
-            max={RPG_HINT_MAX}
-            placeholder="how this label steers…"
-            onEdit={(next): void => onCommit({ ...hints, [label]: next })}
-          />
-          <Button
-            aria-label={`Remove ${label}`}
-            intent="ghost"
-            size="glyph-md"
-            onClick={(): void => {
-              const { [label]: _removed, ...rest } = hints;
-              onCommit(rest);
-            }}
-            title={`Remove ${label}`}
-          >
-            <Icon icon={Trash2} size="xs" />
-          </Button>
-        </Row>
-      ))}
-      <AddRow
-        ariaLabel={`New ${labelNoun}`}
-        placeholder={addPlaceholder}
-        actions={[
-          {
-            key: "label",
-            label: "Add",
-            icon: Plus,
-            onAdd: (label: string): void => {
-              // Re-adding an existing label would blank the gloss already written on it — a silent data loss
-              // from a fat-finger. The row is already on screen; do nothing.
-              if (!(label in hints)) {
-                onCommit({ ...hints, [label]: "" });
-              }
+      {/* The ROW band takes its own Stack so `rows="control"` floors the hint rows (#884 C3 — the #850
+          pitch class) without inflating the kicker/lead content above them. */}
+      <Stack gap="field" rows="control">
+        {entries.map(([label, hint]) => (
+          <Row key={label} gap="field" align="center">
+            <Badge tone="soft" size="sm" intent="neutral">
+              {label}
+            </Badge>
+            <HintEditor
+              ariaLabel={`${label} hint`}
+              hint={hint}
+              max={RPG_HINT_MAX}
+              placeholder="how this label steers…"
+              onEdit={(next): void => onCommit({ ...hints, [label]: next })}
+            />
+            <Button
+              aria-label={`Remove ${label}`}
+              intent="ghost"
+              size="glyph-md"
+              onClick={(): void => {
+                const { [label]: _removed, ...rest } = hints;
+                onCommit(rest);
+              }}
+              title={`Remove ${label}`}
+            >
+              <Icon icon={Trash2} size="xs" />
+            </Button>
+          </Row>
+        ))}
+        <AddRow
+          ariaLabel={`New ${labelNoun}`}
+          placeholder={addPlaceholder}
+          actions={[
+            {
+              key: "label",
+              label: "Add",
+              icon: Plus,
+              onAdd: (label: string): void => {
+                // Re-adding an existing label would blank the gloss already written on it — a silent data loss
+                // from a fat-finger. The row is already on screen; do nothing.
+                if (!(label in hints)) {
+                  onCommit({ ...hints, [label]: "" });
+                }
+              },
             },
-          },
-        ]}
-      />
+          ]}
+        />
+      </Stack>
     </Stack>
   );
 }
