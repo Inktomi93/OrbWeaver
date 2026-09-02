@@ -33,6 +33,12 @@ const ENGINES_SH = fileURLToPath(new URL("../../../tooling/src/stack/engines.sh"
 const DEV_IDENTITY_ENTRY = fileURLToPath(new URL("../../../tooling/src/stack/ops/dev-identity-entry.ts", import.meta.url));
 /** The refusal every unclearable identity must still carry (hoisted: no per-call regex literals). */
 const MANUAL_CLEANUP_INT_RE = /manual cleanup|relaunch/u;
+/** EXPLICIT, on every arm that spawns a `dev-identity-entry.ts` child. Measured on this box 2026-09-02:
+ *  ONE such child costs 2.4-4.2s (node transpiles the entry's TS graph per spawn), so vitest's 5s default
+ *  is inside the noise — and a blown budget reports a TIMEOUT, which reads exactly like an assertion red
+ *  while the assertion never ran (#1040's lesson, one tier down). Two arms that predate #1162 flaked this
+ *  way under lane load; the pre-#1162 sources timed the SAME, so the budget is the defect, not the code. */
+const IDENTITY_ARM_TIMEOUT_MS = 60_000;
 
 interface Dispatch {
   readonly status: number;
@@ -113,7 +119,7 @@ test("the dev force-restart spellings still reach the force path, and a bare cal
   expect(dispatch().line).toBe("DISPATCH verb=status mode=dev debug=0 force=0 rest=");
 });
 
-test("foreign fleet-shaped argv receives zero signals from the strict dev identity door", async () => {
+test("foreign fleet-shaped argv receives zero signals from the strict dev identity door", { timeout: IDENTITY_ARM_TIMEOUT_MS }, async () => {
   const repoRoot = mkdtempSync(path.join(tmpdir(), "orb-foreign-stack-"));
   const child = spawn(process.execPath, ["-e", "setInterval(() => undefined, 60_000)", ".cache/vllm/venv EngineCore Worker_TP"], {
     cwd: repoRoot,
@@ -141,7 +147,7 @@ test("foreign fleet-shaped argv receives zero signals from the strict dev identi
   }
 });
 
-test("clear-absent surfaces an unlink failure instead of claiming a blocked identity path was cleared", () => {
+test("clear-absent surfaces an unlink failure instead of claiming a blocked identity path was cleared", { timeout: IDENTITY_ARM_TIMEOUT_MS }, () => {
   const repoRoot = mkdtempSync(path.join(tmpdir(), "orb-dev-identity-clear-"));
   try {
     const preload = path.join(repoRoot, "fail-unlink.cjs");
@@ -256,10 +262,6 @@ test("a vite that does not answer at all is UNREACHABLE, never fresh", async ({ 
 const LEADER_HOLD = "setInterval(() => undefined, 60_000)";
 const LEADER_WITH_CHILD = `require('node:child_process').spawn(process.execPath, ['-e', '${LEADER_HOLD}'], { stdio: 'ignore' }); ${LEADER_HOLD}`;
 const GROUP_EXIT_GRACE_MS = 1500;
-/** Explicit, because these arms spawn a disposable leader plus two node children: on a contended box that
- *  outruns vitest's 5s default and reports a TIMEOUT where the assertion never ran (observed at loadavg
- *  ~32 while writing this pin — the same arms passed in 4.2s on a quiet one). */
-const IDENTITY_ARM_TIMEOUT_MS = 60_000;
 
 /** A disposable repo root holding a CAPTURED dev-stack identity for a real, disposable leader.
  *  `script` runs as the leader body; it must keep the process alive until the test kills it. */
@@ -283,11 +285,13 @@ async function capturedFakeLeader(script: string): Promise<{ readonly root: stri
 }
 
 function killGroup(pid: number): void {
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the test owns this disposable group; it may already have exited. Ends if the fixture needs proof the teardown landed.
   try {
     process.kill(-pid, "SIGKILL");
   } catch {
-    // already gone
+    // The test owns this disposable group; it may have exited independently — the same cleanup posture as
+    // the foreign-fleet probe above. NO `@orb-gate-ignore` here: caught-failure-ownership does not scan
+    // `tests/` (its own header pins that boundary — tests are golden/cleanup behaviour), so a marker would
+    // suppress nothing and `gate-ignore-inventory` reds it STALE, which is a loaded gun for the next catch.
   }
 }
 

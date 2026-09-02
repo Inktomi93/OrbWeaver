@@ -1108,15 +1108,24 @@ export function AppearanceBackgroundSectionStory(): ReactElement {
 }
 
 /** #1194's commit-count pin: the Background section wrapped in its own `<Profiler>`, tallying every
- *  commit that touches it onto `window.__ctCommits` (a bare counter — no `render-stats.ts` dependency,
- *  since that store's ids are the app's own wrapped-surface set, not a CT-local probe). The bounded-
- *  commits CT reads this to prove the section settles instead of re-rendering forever. */
+ *  commit that touches it onto `globalThis.__ctCommits` (a bare counter — no `render-stats.ts`
+ *  dependency, since that store's ids are the app's own wrapped-surface set, not a CT-local probe). The
+ *  bounded-commits CT reads this to prove the section settles instead of re-rendering forever.
+ *
+ *  `declare global` HONESTLY types the seam (no-test-fabrication forbids the `X as unknown as Y`
+ *  double-cast this used to reach `globalThis` with) — same shape as
+ *  `tests/client/lib/motion-animation-record.ct.tsx`'s `__readAnimationRecords`; an ambient `var` here is
+ *  visible to every file in the client test program, so the CT reads `globalThis.__ctCommits` with no
+ *  cast either. */
+declare global {
+  var __ctCommits: number | undefined;
+}
+
 const COMMIT_TALLY_PROFILER_ID = "bg-section-commit-tally";
 
 function CommitTally({ children }: { readonly children: ReactElement }): ReactElement {
   const onRender = (): void => {
-    const w = globalThis as unknown as { __ctCommits?: number };
-    w.__ctCommits = (w.__ctCommits ?? 0) + 1;
+    globalThis.__ctCommits = (globalThis.__ctCommits ?? 0) + 1;
   };
   return (
     <Profiler id={COMMIT_TALLY_PROFILER_ID} onRender={onRender}>
