@@ -137,8 +137,8 @@ A FOCUSED review runs the subset its targets implicate, but still prints the tab
 
 | # | Instrument | What it alone can see |
 |---|---|---|
-| 1 | `pnpm snap` — `--map`, `--aria`, `--contrast` (in-viewport; add a tall-viewport arm for below-fold text), `--matrix`, `--json` manifests | selectors, ARIA tree, WCAG ratios, 8-variant responsive/theme/motion, lossless console |
-| 2 | `pnpm design-audit <route>` AND `pnpm design-audit <route> --mobile` | the ~40 deterministic rules; the mobile arm is the only honest tap-target read |
+| 1 | `pnpm snap` — `--map`, `--aria`, `--contrast` (in-viewport; add a tall-viewport arm for below-fold text), `--matrix`, `--json` manifests | selectors, ARIA tree, WCAG ratios, the pairwise APPEARANCE-INVARIANT matrix (§"Fleet truth" below — no longer an 8-variant sweep), lossless console |
+| 2 | `pnpm design-audit <route>` AND `pnpm design-audit <route> --mobile` | the deterministic rules (59 registered at 2026-09-01); the mobile arm is the only honest tap-target read. **Read `population-verdict` on the RESULT line BEFORE the findings — NO-VERDICT (exit 2) means the run could not see, and zero findings there is not clean** (§"Fleet truth" item 2) |
 | 3 | `pnpm motion-audit <route>` | LoAF, CLS, compositor-dirty animations, dropped-frame % |
 | 4 | `pnpm perf-meter <route> --click <primary action>` | input delay, long tasks, rAF gaps on the surface's ONE primary action |
 | 5 | **Lighthouse via `lighthouse_audit` (MCP) — desktop AND mobile, `outputDirPath: reports/lighthouse*/`** | axe-core a11y rules ours don't carry (color-contrast on composed widgets, label-content-name-mismatch), best-practices, agentic-browsing score. These two calls are SANCTIONED MCP use beside the perf trace — they don't count against the ~8 budget. **DEV-SERVER TRAP:** the vite-plugin-checker error-overlay HUD (`VITE-PLUGIN-CHECKER-ERROR-OVERLAY`, `badge-base`/`summary` classes) is part of the page to Lighthouse — before filing any Lighthouse finding, check its node path; an overlay-rooted finding is the DEV TOOL, not the product (a "badge contrast" P-find was entirely that widget) |
@@ -146,7 +146,7 @@ A FOCUSED review runs the subset its targets implicate, but still prints the tab
 | 7 | Console triage TABLE — every warning/error → virtualizer-excluded / known-ruled (cite) / INVESTIGATE | "it's dev mode" is a BANNED disposition (owner ruling) unless truly unavoidable, argued |
 | 8 | The PNGs, actually looked at (Read renders images) | the blunt-taste verdict no number makes |
 | 9 | Keyboard walk (`--key Tab` chain + `--expect-focus`) incl. the skip link | focus order, ring visibility, landing points |
-| 10 | **Appearance arms** — `--appearance-preset` over the FIVE committed profiles (`scripts/probes/appearance-presets.json`: `defaults` / `maximal` / `compact` / `reading` / `diagnostics`) + `--full-motion`, all NON-MUTATING shims | the owner's own row hides every ornament (reducedMotion on, flat elevation, no texture) AND the shipped-default state differs from his row — a pass that measures only one arm audits an accident. Minimum on any visual/scored pass: `defaults` + `maximal`; a surface whose findings could be density- or typography-dependent (transcripts, lists, settings) runs `compact` + `reading` too; `diagnostics` when metadata chrome is under judgment. The coverage table lists each preset arm as its own RAN/SKIPPED row. THEME ARMS (built, #225): `--theme <name|id|none>` on all four probes flips the app theme non-mutatingly (names resolved against the account's own library — customs/ST imports work; unknown names WARN and render the owner's theme, so read the warn before trusting a theme receipt). On any surface with light-sensitive findings, run at least `--theme Light` beside the owner arm; `--theme none` is the fresh-account state. CARRIED-theme rooms suppress the app theme BY DESIGN (D44 takeover — `<html>` carries no data-theme there): theme arms are taken on non-carried surfaces (Home/Configuration/Analytics), and a byte-identical theme arm inside a carried room is expected, not a shim failure. |
+| 10 | **Appearance arms** — `--appearance-preset` over the FIVE committed profiles (`tooling/src/_shared/appearance-presets.json` — the file MOVED there from `scripts/probes/`, corrected 2026-09-01; still `defaults` / `maximal` / `compact` / `reading` / `diagnostics`, and new coverage is a new profile in that file, never a new CLI flag) + `--full-motion`, all NON-MUTATING shims | the owner's own row hides every ornament (reducedMotion on, flat elevation, no texture) AND the shipped-default state differs from his row — a pass that measures only one arm audits an accident. Minimum on any visual/scored pass: `defaults` + `maximal`; a surface whose findings could be density- or typography-dependent (transcripts, lists, settings) runs `compact` + `reading` too; `diagnostics` when metadata chrome is under judgment. The coverage table lists each preset arm as its own RAN/SKIPPED row. THEME ARMS (built, #225): `--theme <name|id|none>` on all four probes flips the app theme non-mutatingly (names resolved against the account's own library — customs/ST imports work; unknown names WARN and render the owner's theme, so read the warn before trusting a theme receipt). On any surface with light-sensitive findings, run at least `--theme Light` beside the owner arm; `--theme none` is the fresh-account state. CARRIED-theme rooms suppress the app theme BY DESIGN (D44 takeover — `<html>` carries no data-theme there): theme arms are taken on non-carried surfaces (Home/Configuration/Analytics), and a byte-identical theme arm inside a carried room is expected, not a shim failure. |
 | 11 | **Pane-state arms** — on any surface with collapsible panes (list rail, context panel), score the layout at the REAL width states: both open · list collapsed · context hidden · both hidden (full-width content), at desktop AND --mobile | pane visibility is the largest width lever in the app; width-dependent defects (axis/track disagreements, wrap arms, measure caps) pass at one pane state and fail at another. A single-pane-state pass is a point measurement standing in for a range property. Each state is a RAN/SKIPPED row; a surface with no panes marks the row N/A. |
 
 **Instrument skepticism (each of these cost a real wrong call):** a rule FAMILY reporting zero
@@ -172,7 +172,8 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
   fails reds the run (`nav=ACTIONS-FAILED`) because the findings then describe some other surface.
   **`--mobile` is required for any tap-target claim** — the floor is pointer-conditional, so a bare
   `--viewport 430x932` still renders `pointer: fine` and judges everything against 24px instead of 44px.
-  ~40 deterministic rules in two ORIGIN-TAGGED families (each finding carries `origin`):
+  59 registered deterministic rules as of 2026-09-01 (`tooling/src/ui-audit/contract/rules.ts` is the
+  denominator — count it, never quote the old "~40") in two ORIGIN-TAGGED families (each finding carries `origin`):
   `orbweaver` (contrast/text-over-art, distorted images, tap targets, ARIA names/landmarks,
   tabindex, z-index, nested cards, gradient text, img-hover) and `impeccable` (adapted from
   pbakaus/impeccable — script errors P0, broken images + text overflow P1, clipped positioned
@@ -246,9 +247,20 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
     settings walk, open-edit-save-reopen). Each checkpoint gets its own evidence window + report;
     `--summary` prints one compact `CHECKPOINT <name> PASS/FAIL` line each. No --pages/--contexts/
     --watch inside checkpoints; identical `--ls` seeds across all.
-  - **`--matrix`** = the bounded 8-variant sweep (desktop/mobile × light/dark × motion/reduced-motion)
-    in ONE command, each variant its own report + `<out>-<variant>.png` — replaces eight hand runs for
-    responsive/theme/motion coverage. Composes with `--scenario`.
+  - **`--matrix`** = the bounded representative APPEARANCE matrix, each cell its own report +
+    `<out>-<variant>.png`. **Its shape changed under #953 — the "8-variant desktop/mobile × light/dark ×
+    motion" description this line used to carry is RETIRED (2026-09-01).** It now DISCOVERS the live
+    Appearance/theme contract from the running app (`__orb.appearanceMatrixContract`) and PAIRWISE-plans
+    over theme × device × os-color × os-motion × prefers-contrast × prefers-transparency × the
+    app's own Appearance carrier rows — never a Cartesian product. Read the plan receipt, not the cell
+    count: `MATRIX PLAN … cells=N pairs-uncovered=M` plus `MATRIX INPUT declared/executable/dependencies`.
+    Composes with `--scenario`. Full semantics in §"Fleet truth" below.
+  - **`--scale css|device|<n>`** (#915) = how many IMAGE pixels one CSS pixel becomes. **The default is
+    `css` and you leave it alone** — one image pixel per CSS pixel roughly HALVES the image tokens you pay
+    to read a PNG, and snap was minted for an agent reader. `--scale 2` is the opt-in for the one case
+    where a HUMAN is the reader (a committed design-mock render, a durable visual record). Past a
+    16 MP budget the run REFUSES rather than silently writing a huge PNG; the RESULT line states
+    `scale=<ask>/<WxH>` — what the run actually produced, not what it asked for.
   - **`--checkpoint`** = scope console/page-error VERDICTS to the post-readiness interaction window
     (boot noise excluded from the verdict, retained in `--json`; the RESULT line splits
     `boot-console-warnings` out). Use it when a surface's boot chatter isn't the thing under review.
@@ -303,9 +315,15 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
     its method (`css-resolve` vs `pixel-sample`) and `--contrast-pixel` forces the pixel path when
     you suspect a layer paints behind. UNRESOLVED = a refusal, never a fake number — investigate,
     don't ignore.
-  - **STALENESS footguns (cost real re-verification rounds):** (1) `--map` names go stale across
-    state changes AND double-count hidden hover-reveal text — re-map FRESH against the settled
-    surface; the REAL accessible name comes from `--aria`, not `--map`. (2) Base UI combobox
+  - **STALENESS footguns (cost real re-verification rounds):** (1) `--map` names still go stale across
+    state changes — re-map FRESH against the settled surface. **The other half of this line is RETIRED
+    (2026-09-01, #877): `--map` no longer welds hidden text into the name.** It runs Text Alternative
+    Computation step 2A — `aria-hidden` subtrees and `display:none`/`visibility:hidden`/`[hidden]`
+    subtrees contribute NOTHING — so a container-query two-arm label no longer reads
+    "Pick a characterPick a character to start" (a reviewer filed a product defect on that manufactured
+    reading; that class of finding is now an instrument-suspicion tell, not a defect). `--aria` remains
+    the authority for the browser's own computed name; `--map` is now trustworthy enough to quote.
+    (2) Base UI combobox
     accessible names flip label⇄value mid-transition — never reuse a pre-settle name.
   - **THE HOVER CLASS IS REAL-POINTER-ONLY (measured 2026-08-02, preset-list P0):** a layout/
     hit-test oscillation (a hover that moves layout under the pointer — display-swapped markers,
@@ -511,6 +529,97 @@ to show it, a light-theme polarity the eye misreads) — so this store is unusua
 - **Canvas charts are invisible to every DOM instrument** — `--expect-no-overflow` PASSES over clipped
   canvas labels; axe scores 100 over dataless charts. Screenshots ARE the receipt there; say so instead
   of citing a green that cannot see.
+
+## Fleet truth — 2026-09-01 (the instruments you will actually run, and what they now owe you)
+
+The fleet moved under this file. Everything below is the CURRENT contract; where it retires an older
+claim, the older claim is named at the point it died so you can tell a repair from a restatement.
+
+**1. Report artifacts are per-run SLOTS with `latest` pointers (#1029, owner: "all reports need to be
+able to be ran concurrently").** Every verdict instrument writes ONLY inside
+`reports/runs/<instrument>/<checkout>-<pid>-<timestamp>/` and publishes its well-known path
+(`reports/verify.json`, `reports/verify/<stage>.log`, `reports/check-structure.json`,
+`reports/test-report.json`, `ct-flaky.json`) as an ATOMIC symlink at COMPLETION — so those paths now
+resolve to a run that FINISHED, never a half-written one, and a sibling lane's run can no longer clobber
+yours. `<checkout>` is `main` or the worktree basename. Consequences for you: cite the SLOT path when you
+need YOUR run specifically (the pointer may have moved on); a `concurrent` list on stderr/in the artifact
+NAMES a racing writer instead of silently last-write-wins; and an abandoned slot (in-flight marker
+outliving its pid) is a DIED run, which `check:show` refuses — that is an environment-is-lying
+`SendMessage`, not a finding. **Your OWN instrument outputs are deliberately NOT slotted yet** —
+`reports/snaps/`, `design-audit/`, `traces/`, `perf-meter/`, `recordings/`, `baselines/` are `--out`-keyed
+families where the caller names the artifact. So under multi-lane load, NAME YOUR OUTPUTS (`--out
+<lane>-<surface>-<arm>`); an unnamed shot is a filename a sibling probe can overwrite. Layout's one home:
+`docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
+
+**2. `pnpm design-audit` now owes a POPULATION VERDICT, and a partial run is exit 2 — read it before you
+read the findings (#1027/#987/#953).** Every rule is wired through a decided collection rung
+(`tooling/src/ui-audit/lib/collect.ts`'s RUNG ASSIGNMENT TABLE is the enforcement; the mechanics are in
+`lib/population-strategies.ts`), and the accounting must CLOSE: `candidates = judged + withheld[non-cap] +
+excluded`, `affected = emitted + cap + collapsed` — arithmetic that does not close THROWS as an instrument
+error rather than being normalized. The polarity is the whole point and you must read it correctly:
+- **EXCLUDED = measured facts PROVE the rule inapplicable** (a sanctioned effect carrier, a role this lens
+  does not govern, a sample another rule owns). Complete evidence. Never a gap.
+- **WITHHELD = the rule APPLIES and the instrument could not judge it.** Absence of measurement. A
+  non-cap withheld makes the run **NO VERDICT** and the CLI exits **2, not 0/1** (`populationEvidenceGap`
+  → `EXIT.toolError`). The `cap` reason is the one presentation-only withholding that does not.
+- The RESULT line carries `population-verdict=complete|NO-VERDICT`; the JSON carries
+  `populationAccounting`, `populationVerdict` and `hoverVerdict`. **A run with zero findings and a
+  NO-VERDICT population is not a clean surface — it is a run that could not see.** Reporting it as clean
+  is the single worst thing you can do with this instrument. Say NO VERDICT, name the rule and reason.
+- Same law one dimension up: `surfaceStateAccounting` (which pane/shell configuration this run held, and
+  the census over the ones it did not) and `drive` (`rest` = an empty action queue, the state a visitor
+  lands on · `driven` = any action ran). Two different populations — say which one your receipt is.
+
+**3. `--matrix` is now the appearance-invariant matrix, and it lives on THREE probes** (`snap`,
+`design-audit`, `motion-audit`) over one shared pairwise planner (`tooling/src/_shared/variant-matrix.ts`
++ `appearance-matrix.ts`). Read the plan receipt as evidence, not decoration:
+- **`uncoveredPairs`** — axis-value pairs the plan did NOT reach. Non-empty means your sweep has a stated
+  hole; quote it rather than claiming matrix coverage.
+- **`requiredTwins`** — pairs the plan is FORCED to keep adjacent so a delta is attributable (motion's
+  three: app-reduced-motion, os-reduced-motion, and the desktop↔mobile device descriptor, each pinned at
+  one otherwise-identical assignment). A twin is how "reduced motion changed this" stops being a guess.
+- **`STATIC-EXPECTED`** — motion-audit's ONE sanctioned zero-frame verdict: the exact reduced-motion
+  mobile entry legitimately produces no animation. It is earned ONLY by exact app/OS/device identity PLUS
+  a paired full-motion mobile control that proves the trace could see frames at all. Missing identity
+  evidence is rejected as instrument error — absence never becomes STATIC-EXPECTED. Anywhere else, zero
+  frames is still the zero-frame law: the instrument failed, not the product.
+- snap's arm additionally reconciles #953's seven literal historical appearance rows with their own
+  candidates/reached/sampled/skipped accounting — same population law, applied to subjects.
+
+**4. KNOWN-DEFECT REGISTRY — the fleet has NAMED LIES right now. Check the row's status on the board
+before you trust the family; several have live fix lanes, so these are POINTERS, not frozen facts.**
+Treat a finding from a listed family as unproven until you have checked whether its row landed.
+| Row | The lie | What you do until it lands |
+| - | - | - |
+| #1073 | `hover-contrast` publishes a FALSE `excluded(noHoverChange)` for group-variant hover paint — it is force-blind, and should withhold | a clean hover-contrast on a `group-hover:` surface proves nothing; verify hover paint by hand |
+| #1071 | motion-audit interaction CLS gates on the INPUT-EXCLUDED number (`observedCls` is collected and consumed nowhere) — a documented paid false-PASS | do not quote an interaction-CLS PASS as a shift receipt; use `__orb.motion()`/the buffered replay |
+| #1069 | `[anim]` convicts guide-RATIFIED motion — #953's sanctioned-height allowance reached motion-audit's census but never the console flagger (tabs indicator glide, collapsible height) | see heuristic (b) below; do not forward those OVER BUDGET lines as findings |
+| #1038 | ui-audit walker censuses SILENTLY CAP candidates (accentBorders 200, glows 200/100, bgPatterns 50, motionStatics 100) — a truncated denominator reads complete | on a dense surface treat those families' denominators as floors, not totals |
+| #1078 | mask paint (the `SCROLL_FADE` recipes) has ZERO fleet handling — unsound in BOTH directions over masked text | mask is paint and is invisible to `getComputedStyle`; screenshot/pixel-sample masked text yourself |
+| #1079 | ECharts canvas ink is silently absent from every census (needs an EXCLUDED canvas-ink row) | unchanged from the 2026-08-19 canvas line above: screenshots ARE the receipt on canvas; never cite a green that cannot see |
+| #1072 | gesture-driven motion (motion guide §3.6) has ZERO instrument coverage fleet-wide — the reach vocabulary is click+nav only | a gesture surface is UNMEASURED, not clean; say so in the coverage table |
+
+**5. Your oracle set — read these two mechanism audits before a deep instrument-heavy drive.** They are
+the current record of WHERE each instrument's detection mechanism does and does not match how this
+codebase expresses the thing it looks for, with receipts on both sides:
+`docs/reviews/stickler/2026-09-02-motion-perf-mechanism-audit.md` (motion-audit + the in-page collectors +
+grid rules + budget suites vs vendored Base UI 1.7.0 and the house motion law — 8 findings, 3 in the
+lying-instrument class) and `docs/reviews/stickler/2026-09-02-uiaudit-orbui-mechanism-audit.md` (all 54
+in-scope detector rules vs `@orb/ui`'s own conventions — 8 blind-class findings, 14 matched
+intersections). The rule-authoring mechanism-match table they apply is
+`tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md`.
+
+**6. Two instrument-suspicion heuristics, promoted to shared memory — read the topic files by name (the
+index carries only the hook):**
+- (a) `floating-ui-rounds-positioner-transforms-by-dpr.md` — `@floating-ui/react-dom` applies
+  `Math.round(v * dpr) / dpr` to every positioner translate and stamps `will-change: transform` at
+  DPR ≥ 1.5, so **Base UI popup positioners are device-pixel-grid-clean BY CONSTRUCTION**. An
+  `off-grid-transform` or `promoted-layer-offset` finding that names a popup positioner is
+  suspect-the-instrument territory, not a defect.
+- (b) `allowance-minted-on-one-half-of-a-shared-vocabulary.md` — an allowance minted for a defect
+  vocabulary with a PULL half (an audit budget) and a PUSH half (a console flagger) must land on both.
+  **`[anim]` OVER BUDGET on `height`/`left`/`width` coming from an `@orb/ui` primitive is
+  suspect-the-instrument FIRST** (#1069).
 
 ## Code-recon evidence standards (apply to your DOM + AST probes too)
 Read the "Code recon — evidence standards" section of `.claude/agent-doctrine.md` and apply it to every structural claim you make: `-l ts` ≠ `-l tsx` (run both), `$X.foo`/`$X?.foo`/`$X["foo"]` are three node kinds, `ast-grep` exit 1 = no-match OR couldn't-search (print `scannedFileCount` before any "it's not there"), a partial read locates but never concludes, and every claim carries its `path:line` receipt. A rendered "it's fine" needs a measured receipt exactly as a structural "it's absent" needs a scanned-count.
