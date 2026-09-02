@@ -1,0 +1,155 @@
+---
+kind: review
+status: active
+updated: 2026-09-02
+---
+
+# CT corpus audit — leg 2 (helper-hoisted assert triage + ex-fenced + HI remainder)
+
+Lane `cb-ct-audit`, #1229. Continues
+[the leg-1 report](2026-09-02-ct-corpus-audit-leg1.md) (Phase A over all 469 `.ct.tsx` + 24 full-reads).
+Leg-2 charge: full-read the un-triaged helper-hoisted-assert population (leg-1 Appendix B minus the \~70
+sites already verified inside the leg-1 shard), judging every helper-hoisted non-retrying assert as
+barriered-by-construction vs racing (leg-1 F2 is the model defect), plus the full
+honesty/premise/coverage/harness rubric per file; fold in the 11 formerly-fenced files and the HI-band
+remainder as budget allows.
+
+**This report is committed INCREMENTALLY** (coordinator hedge, 2026-09-02): each chunk of full-reads
+lands as its own commit so an interruption costs one chunk, not the leg. The coverage tally in §1 is
+current as of the newest commit.
+
+## 0. Base read + population
+
+- Worktree: `.claude/worktrees/agent-ad97119ee5dd2503b`, branch = leg-1 branch merged with **main @
+  `0d07eeb2a`** (merge commit `1f193edbe`, hooks off; catalog regenerated green — 786 documents, 0
+  pending; `git status --short` clean at merge time).
+- Fresh Phase A scan on the merged tree (`cb-ctaudit-scan2.ndjson`, 469 files scanned = 469 tracked via
+  `git ls-files` cross-check). Delta vs the leg-1 base: fabrication double-casts 38→35 (fenced-lane fixes
+  landed), oneshot markers 307→308, helper-hoisted awaits 149 sites/49 files → **147 sites/48 files**,
+  literal `reports/` writes still 1 (= leg-1 F1, `rules-section.ct.tsx:1088`, **still live on this base**
+  — fix queued on `cb-conform-pins` per the board, #1240).
+- Leg-2 core population (helper-await files minus the leg-1 shard): **35 files / 69 sites / 18,286
+  lines**, plus 7 additional ex-fenced files, plus the HI-band remainder.
+- **Pre-fold caveat:** the collections batch (fold-ready worktree `agent-a0f39b92c4b84361e`, commits
+  `61cd73e1f` + `2cb665e6d`) is NOT on this base. It deletes `config-welcome.ct.tsx` outright and
+  extracts `config-content-surface` (908 → 394 lines). Auditing those files at this base is auditing
+  dead text; they are deprioritized to the final chunk and flagged as pre-fold where read.
+
+## 1. Running coverage
+
+| Leg | Full-read files | Lines | Findings |
+| - | - | - | - |
+| Leg 1 | 24 | \~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
+| Leg 2 so far | 8 | \~6,850 | none yet |
+| **Total** | **32 / 469** | \~32,950 | ceiling P3 |
+
+Leg-2 files read and judged (chunk 1): `web-weave.ct.tsx`, `slider.ct.tsx`, `toast.ct.tsx`,
+`sandbox-frame.ct.tsx`, `params-deck.ct.tsx`, `chat-room-surface.ct.tsx`,
+`preset-library-surface.ct.tsx`, `preset-editor-surface.ct.tsx`.
+
+## 2. Findings
+
+None confirmed in leg-2 chunk 1. (Leg-1 findings F1–F3 remain the campaign's only confirmed defects;
+F1's literal `reports/snaps/` write is still live at `tests/client/features/automation/components/rules-section.ct.tsx:1088`
+on this base.)
+
+## 3. Per-file verdicts — chunk 1 (8 files, all CLEAN)
+
+Rubric per file: (a) every helper-hoisted non-retrying assert classified barriered-by-construction vs
+racing; (b) honesty (premise still true of the tree, no decorative pins, no fabrication reaching the
+assert); (c) coverage (the branch the test names is the branch it exercises); (d) harness discipline
+(settled barriers, portal-aware locators, no shared-render-tree reads).
+
+### 3.1 `tests/ui/art/web-weave/web-weave.ct.tsx` (429 lines) — CLEAN
+
+The instrument controls both directions of every timing window it reads. The helper-hoisted sites are
+premise guards (asserting the fixture produced motion at all before judging its shape) and post-window
+absence reads taken after the animation window the test itself owns has closed. No site reads a live
+value that a later frame could change out from under the assert.
+
+### 3.2 `tests/ui/primitives/slider/slider.ct.tsx` (397 lines) — CLEAN
+
+The flagged helper reads (`backgroundAlpha` and friends) are computed-style reads of STATIC post-barrier
+state — the style is a function of props/variant, not of an in-flight transition, and each read follows
+a `toBeVisible`/attribute barrier on the same element. Non-retrying by shape, settled by construction.
+
+### 3.3 `tests/ui/primitives/toast/toast.ct.tsx` (465 lines) — CLEAN
+
+Settle discipline is `getAnimations()`-based (await all animations finished) before any one-shot read.
+The one unpolled outline read is justified in-file with a mechanism pin: the property under test is
+excluded from `transition-property`, so there is no window in which it could still be moving — the file
+pins that exclusion too, making the justification self-enforcing.
+
+### 3.4 `tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx` (626 lines) — CLEAN
+
+CSP/sandbox measurement suite. Every negative (blocked script, refused navigation) carries a planted
+positive control and asserts on Chromium's own refusal line, and the helper-hoisted reads sit behind
+happens-after `settleNavigation` barriers. The strongest file of the chunk for
+negative-evidence hygiene.
+
+### 3.5 `tests/client/features/preset/components/params-deck.ct.tsx` (989 lines) — CLEAN
+
+`savePoll()` is a hoisted FUNCTION returning a fresh `expect.poll` per call (not a shared const — the
+lesson leg 1 recorded from the F2 shape does not bite here). The `partColor` reads are static
+token-resolution reads post-barrier. Wire-payload pins go through `expect.poll` on the recorder.
+
+### 3.6 `tests/client/features/chat/surfaces/chat-room-surface.ct.tsx` (953 lines) — CLEAN
+
+The busDriven anti-storm pin brackets its zero-read in a disabled→enabled settle pair: the count is read
+only after the surface has re-rendered through the enabled arm, which is a browser-side happens-after
+for the request the pin says must NOT have fired. Model shape for a justified zero-read.
+
+### 3.7 `tests/client/features/preset/surfaces/preset-library-surface.ct.tsx` (1,050 lines) — CLEAN
+
+Full read. The three Appendix-B sites (lines \~91/95/312): `focalHierarchyRatio` reads resolved font
+sizes (static, cascade-determined) and the rest-vs-hover `boxes()` geometry comparison follows hover +
+`toBeVisible` barriers with the hover-identity assert inside the helper. Clock is frozen via
+`page.clock.setFixedTime(FROZEN_NOW)` for the relative-time subtitle pins. The three `ONESHOT-OK`
+zero-reads (`:371`, `:1017`, `:1033`) all ride the same-click single-arm-handler argument: the recorded
+sibling request from the SAME click proves the batch already landed, so the zero is settled, not racing.
+Keyboard-walk pin (#481 P1-1) deliberately asserts the WHOLE write log after one commit rather than a
+mid-walk zero — the settle-safe form, called out as such in-file. Menu-absence pins assert with the menu
+OPEN (`Duplicate` visible first). No stale premises found against the merged tree.
+
+### 3.8 `tests/client/features/preset/surfaces/preset-editor-surface.ct.tsx` (1,946 lines) — CLEAN
+
+Full read; the file is the corpus's densest negative-assertion surface and every zero-read is windowed:
+
+- Lines 460 / 731 / 958: `trpc.count(...)` one-shots, each behind an explicit browser-side real-timer
+  wait (700/500/900ms) that IS the negative window (debounce + round-trip priced in), each carrying an
+  `ONESHOT-OK` mechanism note. Barriered-by-construction.
+- Line 410 (SWITCH pin) and 543–546 (FORK-ONCE): one-shot log filters after a 300/900ms wait that
+  follows an `expect.poll` proving the positive arm landed first. Sound.
+- Line 796: `updatesAgainst(trpc, FORK_ONE).length === 0` microseconds after the mint poll — justified
+  by the single-confirm-handler arm-exclusivity argument (the poll at 790 records the OTHER arm of the
+  same click; one handler picks one arm), and the test then barriers on the `selected=FORK_TWO` render.
+  Not the F2 shape.
+- The `holdCapability` PENDING pins own their in-flight window via `page.route` delay — the negative
+  (`CHAT_MODEL_CLAIM_RE` count 0) runs inside a held-open, deterministic state, not against a flash.
+- The #1140 strip-fade matrix: barrier is the RENDERED fade state (`data-fade-*` attributes polled),
+  never `scrollLeft`; the cell re-reads the state after decoding and THROWS on mid-sample movement;
+  polarity is proven from the framebuffer; `bandedCells > 0` kills a vacuous sweep; and the
+  dimmest-in-band < dimmest-clear fence stops a paint-no-fade "fix" from passing. Instrument-grade.
+- Fabrication surface: fixtures are typed (`PresetDetailFixture`), input casts are narrowing reads of
+  recorder payloads (`input as { id?: string }`), not double-casts reaching an assert.
+
+## 4. Verified clean so far (leg-2 methods)
+
+- Full-read of all 8 files above, whole files, no sampling.
+- Fresh merged-tree Phase A scan (469/469 files, scannedFileCount cross-checked against `git ls-files`).
+- Helper-hoisted site classification against the scan's site list; every site in the 8 files accounted
+  for above.
+
+## 5. Remaining leg-2 queue (state at this commit)
+
+Core helper-await files still to read (\~27): character-editor-surface (1086), section-drill-in (517),
+theme-scope (654), workloads-group (461), menu (453), context-tabs-panel (418), assembly-preview-panel
+(569), corpus-content (586), databank-detail-surface (494), analytics-overview-surface (382, ex-fenced),
+tabs (358), injections-manager (335), payload-view (320), code-editor (295), image-edit-body (216),
+accessible-name-quality.suite (206), image-detail-body (204), config-save-footer-adjacent files,
+character-create-actions (183), lane-run-control (180), message-media-block (161), room-overrides-form
+(146), form-identity.suite (138), web-weave-touch (104), preset-structure-tabs (62). Ex-fenced batch:
+appearance-background-section (405), config-teacher (370), config-search-input (234), config-save-footer
+(202), config-list-collection-group (113), config-group-placeholder (101), config-palette-source (57).
+Pre-fold-flagged (last, dead-text risk): config-welcome (755), config-content-surface (908),
+config-list-surface (1240). Then the HI-band remainder if budget allows.
