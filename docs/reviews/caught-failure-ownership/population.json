@@ -1177,7 +1177,7 @@
     {
       "siteId": "packages/client/src/features/workloads/hooks/use-library-import.ts::promise:importBundle::1",
       "path": "packages/client/src/features/workloads/hooks/use-library-import.ts",
-      "line": 94,
+      "line": 122,
       "column": 7,
       "grammar": "promise",
       "position": "promise:importBundle",
@@ -1185,12 +1185,12 @@
       "snippet": "importBundle(first)",
       "verdict": "deliberate-absorb",
       "reason": "the .catch below calls fail(), which",
-      "markerLine": 92
+      "markerLine": 120
     },
     {
       "siteId": "packages/client/src/features/workloads/hooks/use-library-import.ts::promise:importCharacters::1",
       "path": "packages/client/src/features/workloads/hooks/use-library-import.ts",
-      "line": 105,
+      "line": 133,
       "column": 5,
       "grammar": "promise",
       "position": "promise:importCharacters",
@@ -1198,12 +1198,12 @@
       "snippet": "importCharacters(files)",
       "verdict": "deliberate-absorb",
       "reason": "the .catch below calls fail(), which",
-      "markerLine": 103
+      "markerLine": 131
     },
     {
       "siteId": "packages/client/src/features/workloads/hooks/use-library-import.ts::promise:importTree::1",
       "path": "packages/client/src/features/workloads/hooks/use-library-import.ts",
-      "line": 119,
+      "line": 147,
       "column": 5,
       "grammar": "promise",
       "position": "promise:importTree",
@@ -1211,7 +1211,7 @@
       "snippet": "importTree(files)",
       "verdict": "deliberate-absorb",
       "reason": "the .catch below calls fail(), which sets",
-      "markerLine": 117
+      "markerLine": 145
     },
     {
       "siteId": "packages/client/src/forms/bound-fields/avatar-upload-field.tsx::empty:catch::1",
