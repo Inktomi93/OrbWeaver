@@ -490,6 +490,7 @@
     "tests/client/state/config-group-registry.test.ts",
     "tests/client/state/config-link.test.ts",
     "tests/client/state/config-nav-store.ct.tsx",
+    "tests/client/state/config-row-annotation.ct.tsx",
     "tests/client/state/config-search-store.ct.tsx",
     "tests/client/state/config-section-partition.test.ts",
     "tests/client/state/config-section-registry-context.ct.tsx",

@@ -13,12 +13,11 @@
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
-import { FieldLayout } from "@orb/ui/field";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { ConfigTeachScope, SettingRow } from "#components";
+import { ConfigTeachScope, SettingRow, SettingRowGroup } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -115,7 +114,7 @@ function SizingBody({ sectionId, session }: { readonly sectionId: string; readon
           scope is the SAME nav const the contribution registers, so a row can never publish an address its
           section does not own. */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_SIZING_SUBCATEGORY }}>
-        <FieldLayout orientation="horizontal">
+        <SettingRowGroup>
           <SettingRow settingId="chat-width">
             <form.AppField name="chatWidthPct">
               {(field): ReactElement => <field.SliderField label="Chat width (%)" min={CHAT_WIDTH_MIN} max={CHAT_WIDTH_MAX} />}
@@ -156,7 +155,7 @@ function SizingBody({ sectionId, session }: { readonly sectionId: string; readon
           <SettingRow settingId="reduced-motion">
             <form.AppField name="reducedMotion">{(field): ReactElement => <field.SwitchField label="Reduce motion" />}</form.AppField>
           </SettingRow>
-        </FieldLayout>
+        </SettingRowGroup>
       </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />

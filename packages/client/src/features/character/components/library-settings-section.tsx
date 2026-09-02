@@ -16,6 +16,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 
+import { SettingRowGroup } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import type { SaveLifecycleState } from "#state";
@@ -71,15 +72,22 @@ function LibraryPageSizeRow({ sectionId }: { readonly sectionId: string }): Reac
   };
   return (
     <Section divider={true} heading={LIBRARY_SETTINGS_SUBCATEGORY.label} id={configAnchorId("appearance", LIBRARY_SETTINGS_SUBCATEGORY.id)}>
-      <Field label="Rows per page" description="How many entries the library lists load per page as you scroll." orientation="horizontal">
-        <NumberField
-          aria-label="Rows per page"
-          min={LIBRARY_PAGE_SIZE_MIN}
-          max={LIBRARY_PAGE_SIZE_MAX}
-          value={data.config.library.pageSize}
-          onValueChange={onValueChange}
-        />
-      </Field>
+      {/* #932: the ONE Appearance row that was never a `SettingRow` — and the one `row-void` still filed
+          after the conversion, at 616px of 1176px (52%) in the focus arm, because a bare horizontal
+          `<Field>` docks its control against the PANE. `SettingRowGroup` gives it the same shared track
+          set as its neighbours; the row keeps its own hand-written description (a call-site description
+          always wins over the registry gloss — `useBoundField`). */}
+      <SettingRowGroup>
+        <Field label="Rows per page" description="How many entries the library lists load per page as you scroll." orientation="horizontal">
+          <NumberField
+            aria-label="Rows per page"
+            min={LIBRARY_PAGE_SIZE_MIN}
+            max={LIBRARY_PAGE_SIZE_MAX}
+            value={data.config.library.pageSize}
+            onValueChange={onValueChange}
+          />
+        </Field>
+      </SettingRowGroup>
     </Section>
   );
 }

@@ -93,9 +93,16 @@ test("every chat-display CARD carries its name, its gloss and its preview — an
   expect(bubblePreview).not.toBe(documentPreview); // ONESHOT-OK: settled — same render, structural comparison
 });
 
-// UIP-404 row grammar: form fields render horizontal — label+description LEFT, control docked RIGHT in the
-// fixed ~200px control column — and a select is sized to that column, never 100% of the section.
-test("settings fields use the horizontal row grammar and controls are not full-width", async ({ mount, page }) => {
+// UIP-404's row grammar, AS AMENDED BY #932 — and the amendment is the point, so the old pin is stated
+// here rather than deleted. UIP-404 docked every horizontal row's control in a FIXED `--width-control-col`
+// (200px) at the row's right edge, and this test asserted exactly that: `colWidth == tokenPx ± 2`. That
+// dock is what put a label and its control at opposite ends of the pane — `row-void` measured 543-703px of
+// nothing between them, 8× on this very surface, in every pane state except the one that narrowed the
+// column (#1099 G6). A converted section now shares ONE track set (`SettingRowGroup`), so the control
+// column is CONTENT-sized and its alignment comes from the section's shared track start, not from a fixed
+// width. The half of the old pin that survives — a control must never stretch to the section's width — is
+// kept verbatim below; the fixed-width half is replaced by the track claim it was standing in for.
+test("settings fields use the horizontal row grammar; the control is content-sized on ONE shared track, never full-width", async ({ mount, page }) => {
   await stub(page);
   await mount(<AppearanceMessageStyleSectionStory />);
   // Retargeted to the SWITCH row (#866 §7.8 — chat-style is cards now, outside the Field control column
@@ -130,42 +137,62 @@ test("settings fields use the horizontal row grammar and controls are not full-w
   });
 
   await expect.poll(async () => (await readGeoAtAssertion()).orientation).toBe("horizontal");
-  expect(Math.abs(geo.colWidth - geo.tokenPx)).toBeLessThanOrEqual(2);
+  // The surviving half: a control is never the section's width (a 545px switch would be a lie about its
+  // hit target, and it is what a `w-full` control column produces).
   await expect.poll(async () => (await readGeoAtAssertion()).colWidth).toBeLessThan(geo.fieldWidth);
+  // The replacement half: every converted row in this section starts its control at the SAME x, which is
+  // what "one traverse to learn" means now that the column is content-sized rather than pinned at 200px.
+  const readStarts = async (): Promise<readonly number[]> =>
+    await page.evaluate((): readonly number[] => {
+      const group = document.querySelector('[data-slot="setting-row-group"]');
+      return group === null ? [] : [...group.querySelectorAll('[data-slot="field-control-col"]')].map((c) => Math.round(c.getBoundingClientRect().left));
+    });
+  // The positive control comes FIRST — an empty list would satisfy the "all equal" claim vacuously.
+  await expect.poll(async () => (await readStarts()).length).toBeGreaterThan(1);
+  await expect.poll(async () => new Set(await readStarts()).size).toBe(1);
 });
 
-// In-flow squeeze guard (Wave-1 remedy · §4b axis 1): at a NARROW width the fixed ~200px control column
-// must NOT starve the label block — the horizontal row stacks (control below label).
+// In-flow squeeze guard (Wave-1 remedy · §4b axis 1): at a NARROW width the control column must NOT starve
+// the label — the row STACKS, control below label.
+//
+// RE-EXPRESSED for #932, and the reason is the mechanism change: the old assertion measured the WIDTH of
+// `field-label-block` against the field's width, which worked while that block was a flex column with a box
+// of its own. In the track arm the block is `display: contents` — it has no box at all (its label and its
+// gloss are grid items of the section's shared tracks), so the old read returns 0 and would have "failed"
+// a layout that is in fact correct. The claim it was standing in for is unchanged and is asserted
+// directly: at a narrow container the control sits BELOW the label rather than beside it.
 test("at a narrow width the horizontal field stacks — the control column can't starve the label", async ({ mount, page }) => {
   await stub(page);
   await mount(<AppearanceMessageStyleNarrowStory />);
   const combo = page.getByRole("switch", { name: "Color quoted speech" });
   await expect(combo).toBeVisible();
 
-  const readGeoAtAssertion = async (): Promise<typeof geo> =>
-    await combo.evaluate((trigger) => {
+  interface StackGeometry {
+    readonly fieldW: number;
+    readonly labelBottom: number;
+    readonly controlTop: number;
+    readonly labelWantsW: number;
+    readonly labelW: number;
+  }
+  const readGeoAtAssertion = async (): Promise<StackGeometry> =>
+    await combo.evaluate((trigger): StackGeometry => {
       const slot = "data-slot";
       const field = trigger.closest(`[${slot}='field-root']`);
-      const block = field?.querySelector(`[${slot}='field-label-block']`);
       const label = field?.querySelector(`[${slot}='field-label']`);
+      const control = trigger.closest(`[${slot}='field-control-col']`);
       return {
         fieldW: Math.round(field?.getBoundingClientRect().width ?? -1),
-        blockW: Math.round(block?.getBoundingClientRect().width ?? -1),
+        labelBottom: Math.round(label?.getBoundingClientRect().bottom ?? -1),
+        controlTop: Math.round(control?.getBoundingClientRect().top ?? -1),
         labelWantsW: (label as HTMLElement | null)?.scrollWidth ?? -1,
+        labelW: Math.round(label?.getBoundingClientRect().width ?? -1),
       };
     });
-  const geo = await combo.evaluate((trigger) => {
-    const slot = "data-slot";
-    const field = trigger.closest(`[${slot}='field-root']`);
-    const block = field?.querySelector(`[${slot}='field-label-block']`);
-    const label = field?.querySelector(`[${slot}='field-label']`);
-    return {
-      fieldW: Math.round(field?.getBoundingClientRect().width ?? -1),
-      blockW: Math.round(block?.getBoundingClientRect().width ?? -1),
-      labelWantsW: (label as HTMLElement | null)?.scrollWidth ?? -1,
-    };
-  });
+  const geo = await readGeoAtAssertion();
 
-  await expect.poll(async () => (await readGeoAtAssertion()).blockW).toBeGreaterThan(geo.fieldW * 0.9);
-  await expect.poll(async () => (await readGeoAtAssertion()).blockW).toBeGreaterThanOrEqual(geo.labelWantsW - 1);
+  // STACKED: the control's top edge is at or below the label's bottom edge, never beside it.
+  await expect.poll(async () => (await readGeoAtAssertion()).controlTop).toBeGreaterThanOrEqual(geo.labelBottom - 1);
+  // …and the label is never clipped to buy the control room (the half the old width read was protecting).
+  await expect.poll(async () => (await readGeoAtAssertion()).labelW).toBeGreaterThanOrEqual(geo.labelWantsW - 1);
+  expect(geo.fieldW).toBeGreaterThan(0); // positive control: a zero-width field would pass both reads
 });

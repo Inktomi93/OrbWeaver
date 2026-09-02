@@ -8,12 +8,45 @@ import { fieldVariants } from "./variants.ts";
 
 export type FieldOrientation = "vertical" | "horizontal";
 
+/**
+ * How a HORIZONTAL row places its two columns (#932 — the measure-capped settings row).
+ *
+ * - `block` (the default, and byte-identical to every pre-#932 horizontal row): the row is its own flex
+ *   box — label block left, a fixed `width.control-col` dock right, `justify-between` between them. Each
+ *   row sizes itself, so a column of rows agrees on the control's RIGHT edge and on nothing else, and the
+ *   space between a label and its control is whatever the pane happens to be wide.
+ * - `track`: the row is a SUBGRID of an ancestor that declares the tracks, so the label column is sized
+ *   `max-content` over EVERY row in the section and the control column starts at one shared x. The gap
+ *   between a label and its control stops being a function of the pane width — which is the whole defect
+ *   (`row-void` fired 8× at 63–77% on Config and ZERO in the one pane state that narrowed the column).
+ *   The ancestor is `@orb/client`'s `SettingRowGroup`; a `track` Field with no such ancestor still renders
+ *   (subgrid on a non-grid parent falls back to `none`), it simply gains nothing.
+ */
+export type FieldAlign = "block" | "track";
+
 // Lets a settings pane set orientation once instead of threading it through every field call site.
 const FieldOrientationContext = createContext<FieldOrientation>("vertical");
+// SEPARATE from orientation on purpose: `align` is a SECTION-level decision (all the rows share tracks or
+// none do) while `orientation` is legitimately per-row, and keeping them apart is what lets `FieldLayout`'s
+// default stay byte-identical for the 25 horizontal consumers that are not settings rows.
+const FieldAlignContext = createContext<FieldAlign>("block");
 
-/** Sets the ambient `<Field>` orientation for its subtree. */
-export function FieldLayout({ orientation, children }: { readonly orientation: FieldOrientation; readonly children: ReactNode }): ReactElement {
-  return <FieldOrientationContext value={orientation}>{children}</FieldOrientationContext>;
+/** Sets the ambient `<Field>` orientation (and, opt-in, the column alignment) for its subtree. */
+export function FieldLayout({
+  orientation,
+  align = "block",
+  children,
+}: {
+  readonly orientation: FieldOrientation;
+  /** @defaultValue "block" — see {@link FieldAlign}. */
+  readonly align?: FieldAlign;
+  readonly children: ReactNode;
+}): ReactElement {
+  return (
+    <FieldOrientationContext value={orientation}>
+      <FieldAlignContext value={align}>{children}</FieldAlignContext>
+    </FieldOrientationContext>
+  );
 }
 
 export interface FieldProps extends Omit<FieldRootProps, "className"> {
@@ -36,6 +69,22 @@ export interface FieldProps extends Omit<FieldRootProps, "className"> {
   orientation?: FieldOrientation;
   /** Short explainer surfaced as an info-icon hover tooltip beside the label (no vertical-space cost). */
   hint?: ReactNode;
+  /**
+   * An ACTIVATION on the hint trigger beyond its tooltip — the label-adjacent annotation door (#927).
+   *
+   * THE CONSTRAINT THIS SATISFIES, stated so nobody "simplifies" it back: installed `@base-ui/react` 1.7
+   * ships `Field.Root/Label/Error/Description/Control/Validity/Item` and NO label-adjacent action part, so
+   * the anatomy is ours — and it is already correct. `HintTrigger` is a SIBLING of `Field.Label` inside
+   * `field-label-row`, which is what keeps "More info" out of the control's accessible name (W3C accname
+   * subtree concatenation) while `Field.Description` stays in `aria-describedby`. This prop is therefore
+   * the whole of the extension: the existing trigger gains a click. It is deliberately NOT an
+   * unconstrained `labelAdjacent: ReactNode` slot — an arbitrary node beside the label is exactly the
+   * accname leak the sibling anatomy exists to prevent, and it would be a second icon vocabulary.
+   *
+   * Ignored without `hint` (there is no trigger to activate). The tooltip still opens on hover/focus; on
+   * touch, where no tooltip can open, the click is the whole affordance.
+   */
+  onHintClick?: () => void;
   /** Non-null marks the row invalid (`data-invalid` on the control) and renders destructive error text. */
   error?: ReactNode;
   className?: string;
@@ -49,6 +98,7 @@ export function Field({
   labelFor,
   description,
   hint,
+  onHintClick,
   orientation,
   error,
   disabled = false,
@@ -59,12 +109,13 @@ export function Field({
   ...rest
 }: FieldProps): ReactElement {
   const ambient = use(FieldOrientationContext);
+  const align = use(FieldAlignContext);
   const resolved = orientation ?? ambient;
   const hasError = error !== undefined && error !== null;
   const hasDescription = description !== undefined && description !== null;
   // A description or an error makes one column multi-line, which is the only case that wants a top-aligned
   // horizontal row (see `multiline` in ./variants.ts).
-  const slots = fieldVariants({ orientation: resolved, multiline: hasDescription || hasError });
+  const slots = fieldVariants({ align, orientation: resolved, multiline: hasDescription || hasError });
   const hasHint = hint !== undefined && hint !== null;
 
   const labelText = (
@@ -97,7 +148,7 @@ export function Field({
           height does not express it — pre-#146 a custom-token height was opaque to tailwind-merge, so both
           heights survived and stylesheet order picked the winner; with the spacing scale registered the
           call site wins instead, which is silently defeating a sealed box rather than naming an arm. */}
-      <HintTrigger className={slots.hintTrigger()} hint={hint} size="inline" subject={label} />
+      <HintTrigger className={slots.hintTrigger()} hint={hint} size="inline" subject={label} {...(onHintClick === undefined ? {} : { onClick: onHintClick })} />
     </span>
   ) : (
     labelText

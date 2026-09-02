@@ -155,6 +155,8 @@ export {
   useActiveConfigSub,
   useConfigTarget,
 } from "./config-nav-store.ts";
+export type { ConfigRowAnnotation } from "./config-row-annotation.ts";
+export { ConfigRowAnnotationProvider, useConfigRowAnnotation } from "./config-row-annotation.ts";
 export type { ConfigSearchMatch, ModifiedSubIds } from "./config-search-store.ts";
 export {
   __resetConfigSearch,

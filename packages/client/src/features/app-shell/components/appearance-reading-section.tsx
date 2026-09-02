@@ -12,12 +12,11 @@
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
-import { FieldLayout } from "@orb/ui/field";
 import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { ConfigTeachScope, SettingRow } from "#components";
+import { ConfigTeachScope, SettingRow, SettingRowGroup } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -93,7 +92,7 @@ function ReadingBody({ sectionId, session }: { readonly sectionId: string; reado
     >
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`. */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_READING_SUBCATEGORY }}>
-        <FieldLayout orientation="horizontal">
+        <SettingRowGroup>
           <SettingRow settingId="line-height">
             <form.AppField name="readingLineHeight">
               {(field): ReactElement => (
@@ -142,7 +141,7 @@ function ReadingBody({ sectionId, session }: { readonly sectionId: string; reado
           <SettingRow settingId="justify">
             <form.AppField name="justifyBodyText">{(field): ReactElement => <field.SwitchField label="Justify message text" />}</form.AppField>
           </SettingRow>
-        </FieldLayout>
+        </SettingRowGroup>
       </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />

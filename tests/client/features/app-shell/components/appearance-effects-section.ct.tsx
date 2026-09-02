@@ -13,7 +13,7 @@ import { AppearanceEffectsSectionStory } from "../_ct-stories.tsx";
 const SETTINGS_VIEW = { userId: "user_ct_effects", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = ["blurStrength", "blurSurfaces", "enableThemeColorization", "shadowEffects", "surfaceTexture"];
-const FROSTED_GLASS_GLOSS_RE = /Backdrop blur \+ a translucent fill/;
+const FROSTED_GLASS_GLOSS_RE = /Backdrop blur plus a translucent fill/;
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => ({}) });
@@ -98,13 +98,18 @@ test("the Frosted glass explanation stays contained on mobile without moving the
   await mount(<AppearanceEffectsSectionStory width={390} />);
   const gloss = page.getByText(FROSTED_GLASS_GLOSS_RE);
   const section = page.locator("#config-anchor-appearance-effects");
-  await expect(gloss).toContainText("Messages carry glass poorly (scrolling prose over blur), so they stay off unless you opt in.");
+  // THE GLOSS IS THE FIRST SENTENCE, deliberately (#932 E5): the row states WHAT the setting is and the
+  // teacher pane carries the rest — "Messages carry glass poorly …" is the second sentence and lives
+  // there. Before #932 no gloss rendered at all, which is why this file's two prose-measure tests were
+  // RED on main (proven by a two-arm control, 2026-09-02) against a `+` spelling the product replaced
+  // with "plus" back at the S3 teacher commit.
+  await expect(gloss).toContainText("Backdrop blur plus a translucent fill on the surfaces you pick.");
   await expect(section).toHaveCount(1);
 
   const readGeometryAtAssertion = async (): Promise<typeof geometry> =>
     await page.evaluate(() => {
       const sectionElement = document.querySelector("#config-anchor-appearance-effects");
-      const glossElement = Array.from(document.querySelectorAll("p")).find((element) => element.textContent?.startsWith("Backdrop blur +"));
+      const glossElement = Array.from(document.querySelectorAll("p")).find((element) => element.textContent?.startsWith("Backdrop blur plus"));
       const switchElements = Array.from(document.querySelectorAll<HTMLElement>('[role="switch"]'));
       if (!(sectionElement instanceof HTMLElement && glossElement instanceof HTMLElement) || switchElements.length === 0) {
         throw new Error("missing Effects geometry target");
@@ -119,7 +124,7 @@ test("the Frosted glass explanation stays contained on mobile without moving the
     });
   const geometry = await page.evaluate(() => {
     const sectionElement = document.querySelector("#config-anchor-appearance-effects");
-    const glossElement = Array.from(document.querySelectorAll("p")).find((element) => element.textContent?.startsWith("Backdrop blur +"));
+    const glossElement = Array.from(document.querySelectorAll("p")).find((element) => element.textContent?.startsWith("Backdrop blur plus"));
     const switchElements = Array.from(document.querySelectorAll<HTMLElement>('[role="switch"]'));
     if (!(sectionElement instanceof HTMLElement && glossElement instanceof HTMLElement) || switchElements.length === 0) {
       throw new Error("missing Effects geometry target");

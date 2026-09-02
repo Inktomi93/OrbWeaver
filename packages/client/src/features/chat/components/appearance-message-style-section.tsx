@@ -18,12 +18,11 @@
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
-import { FieldLayout } from "@orb/ui/field";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { ConfigTeachScope, SettingRow } from "#components";
+import { ConfigTeachScope, SettingRow, SettingRowGroup } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -90,20 +89,17 @@ function MessageStyleBody({ sectionId, session }: { readonly sectionId: string; 
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`.
           The per-mode legend stays INSIDE the option rows (`CHAT_STYLE_DESCRIPTIONS`, side-eye 2026-08-16). */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_MESSAGE_STYLE_SUBCATEGORY }}>
-        <FieldLayout orientation="horizontal">
+        <SettingRowGroup>
           {/* SEEN, NOT READ (#866 §7.8, owner-acked): a skin is a visual anatomy, so the Select became
               PREVIEW CARDS deriving each mini pair from `MESSAGE_ROW_SKINS` — the same bound field, the
-              same patch shape. The group keeps its visible name (the label line) and each card is a real
-              `aria-pressed` button named for its mode. */}
-          <SettingRow settingId="chat-style">
-            <Stack className="min-w-0" gap="field">
-              <Text as="span" voice="label">
-                Chat display
-              </Text>
-              <form.AppField name="chatStyle">
-                {(field): ReactElement => <ChatStyleCards onPick={field.handleChange} value={field.state.value} />}
-              </form.AppField>
-            </Stack>
+              same patch shape. Each card is a real `aria-pressed` button named for its mode.
+              `span` (#932): the row's LEAD — the leaf's name, its adjacent `i` and its gloss — is drawn by
+              `SettingRow` from the registry, and the cards sit below it across every track. The
+              hand-rolled `<Text voice="label">Chat display</Text>` that used to stand in for the lead is
+              gone: it was a third label voice on a surface the re-drive already measured three of, and it
+              carried no `i` and no gloss. */}
+          <SettingRow settingId="chat-style" span={true}>
+            <form.AppField name="chatStyle">{(field): ReactElement => <ChatStyleCards onPick={field.handleChange} value={field.state.value} />}</form.AppField>
           </SettingRow>
           <SettingRow settingId="color-quoted-speech">
             <form.AppField name="colorQuotedSpeech">{(field): ReactElement => <field.SwitchField label="Color quoted speech" />}</form.AppField>
@@ -111,7 +107,7 @@ function MessageStyleBody({ sectionId, session }: { readonly sectionId: string; 
           <SettingRow settingId="auto-fix-markdown">
             <form.AppField name="autoFixMarkdown">{(field): ReactElement => <field.SwitchField label="Auto-fix unfinished formatting" />}</form.AppField>
           </SettingRow>
-        </FieldLayout>
+        </SettingRowGroup>
       </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
