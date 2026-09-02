@@ -104,7 +104,9 @@ export async function sseOp(argv: readonly string[]): Promise<number> {
     );
   }
   const chatIdArg = argv[0];
-  if (chatIdArg === undefined || chatIdArg === "") {
+  if (chatIdArg === undefined || chatIdArg === "" || argv.length > 1) {
+    // The trailing tokens used to be dropped, so a second id tapped only the FIRST room while the
+    // operator read the transcript as covering both (#971).
     throw new UsageError("usage: pnpm sse-tap <chatId>");
   }
   const env = readEnv();
