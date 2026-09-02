@@ -26,7 +26,7 @@ case "${CLAUDE_CONFIG_DIR:-primary}" in
   *".claude-b"*) WHO="claude-b"; INBOX="to-b"; OUTBOX="to-primary" ;;
   *)             WHO="primary";  INBOX="to-primary"; OUTBOX="to-b" ;;
 esac
-echo "!!! IDENTITY: you are ${WHO} (CLAUDE_CONFIG_DIR=${CLAUDE_CONFIG_DIR:-unset}). YOUR inbox is ~/.claude/bridge/${INBOX}/ — read it, ack by MOVE into its done/, and Monitor THAT dir; you WRITE notes to ~/.claude/bridge/${OUTBOX}/. claude-b prefixes lanes cb-, never delegates cross-account, and only PRIMARY commits on main's checkout (bridge protocol 022)."
+echo "!!! IDENTITY: you are ${WHO} (CLAUDE_CONFIG_DIR=${CLAUDE_CONFIG_DIR:-unset}). YOUR inbox is ~/.claude/bridge/${INBOX}/ — read it, ack by MOVE into its done/, and Monitor THAT dir; you WRITE notes to ~/.claude/bridge/${OUTBOX}/. claude-b prefixes lanes cb-, never delegates cross-account, and only PRIMARY commits on main's checkout (bridge protocol 022). MESSAGE FORM is ~/.claude/bridge/PROTOCOL.md — read it before writing a note: NNN monotonic across BOTH directions (max over all four dirs incl. done/), at: in ISO 8601 UTC, kind in re: (plain | QUESTION with stated default | BLOCKED | ANSWER to NNN | ACK of NNN); a QUESTION stays unacked until answered."
 
 # 1) THE DISPATCH MAP FIRST (agentIds + merge order + holds — the un-summarizable state). Both
 #    accounts historically park their dispatch maps in to-primary/, so the newest note is scanned
