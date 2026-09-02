@@ -112,6 +112,27 @@ export async function characterSeatedInAnotherChat(db: Db, characterId: Characte
 }
 
 /**
+ * Has this character EVER held a seat in THIS chat — present OR left? The #1147 census idempotency probe:
+ * `addCharacterToChat` credits the room to the joining character's `character_stats.chats` only on a seat
+ * the room has never held before.
+ *
+ * PAST SEATS COUNT, and that is the whole point. A removed character keeps its `chat_participants` row with
+ * `leftSeq` stamped (era-per-row, F8), so a re-add mints a SECOND row for the same pair — while the rebuild
+ * counts `COUNT(DISTINCT cp.chat_id)`, which stays 1. A presence-filtered probe here would push a second
+ * `+1` on the re-add and drift the live census above the rebuild forever.
+ *
+ * Asked BEFORE the new seat's row commits, so `true` means "some earlier seat", never "the one I am adding".
+ */
+export async function characterEverSeatedInChat(db: Db, characterId: CharacterId, chatId: ChatId): Promise<boolean> {
+  const rows = await db
+    .select({ id: chatParticipants.id })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.characterId, characterId), eq(chatParticipants.chatId, chatId)))
+    .limit(LIMIT_ONE);
+  return rows.length > 0;
+}
+
+/**
  * Build the initial roster rows for a brand-new chat (Part III §1; solo = a roster of `{1 host human, N characters}`,
  * byte-identical). The host human is `role='host'` (the ONE authority + funding source, D18);
  * every character is server-forced `role='member'` (guarded by {@link assertForcedCharacterMember}). All rows

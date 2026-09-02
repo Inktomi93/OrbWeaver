@@ -59,3 +59,13 @@ export interface CtRunFacts {
   /** Repo-relative paths of the files this run actually EXECUTED (a skipped test observed nothing). */
   readonly executedFiles: readonly string[];
 }
+
+/** One CT that DECLINED TO VOTE because the box was too loaded for its measured rate to mean anything
+ *  (#1232 section 7.1, `annotateRateWithhold`). Not a flake and not a failure — a third outcome the
+ *  reporter names out loud so a green bar with a missing arm is never mistaken for a full run. */
+export interface CtWithheldTest {
+  readonly file: string;
+  readonly title: string;
+  /** The withhold reason, carrying the loadavg receipt. */
+  readonly reason: string;
+}

@@ -9,8 +9,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-const BROWSER_TIMEOUT_MS = 60_000;
+const BROWSER_TIMEOUT_MS = scaledBudget(60_000);
 const PNG_IHDR_WIDTH_OFFSET = 16;
 const PNG_IHDR_HEIGHT_OFFSET = 20;
 

@@ -4280,7 +4280,7 @@ test("useAppearanceRootEffects lands a representative axis on <html> as a real c
 const UA_ROOT_PX = 16;
 
 test("chatWidthPct stamps a real rendered max-width on a --width-shell-content consumer", async ({ mount, page }) => {
-  const chatWidthPct = 90; // clear of the clamp's 680px floor at any CT viewport ≥ 756px wide.
+  const chatWidthPct = 90; // clear of the clamp's 46.125rem floor at any CT viewport ≥ 820px wide (#1204).
   await routeTrpc(page, {
     ...SHELL_AMBIENT_ROUTES,
     "settings.getUserSettings": () => ({
@@ -4301,6 +4301,75 @@ test("chatWidthPct stamps a real rendered max-width on a --width-shell-content c
   // bounds. This isolates the one thing under test: the --width-shell-content var reaching the probe.
   const expectedPx = (chatWidthPct / 100) * viewportWidth;
   await expect.poll(async () => shell.getByTestId("width-probe").evaluate((el) => Number.parseFloat(getComputedStyle(el).maxWidth))).toBeCloseTo(expectedPx, 0);
+});
+
+// ── #1204: THE DIAL'S WIDTH MATRIX — a point measurement never proves a range property ──────────────
+//
+// The test above proves ONE point of the clamp (the viewport term, at a percentage chosen to clear the
+// floor). `--width-shell-content` is `clamp(--dimension-shell-content-floor, <chatWidthPct>dvw, 100dvw)`,
+// which is three regimes, and the one that had been WRONG since Geist landed was the FLOOR — a `680px`
+// literal in app-shell.tsx that no skin could hold 65 `ch` at (#1204). So the matrix walks all three
+// against the SAME dial position: below the crossover the floor term wins, AT the crossover the two terms
+// are equal and the hand-over is continuous (no step), above it the viewport term wins.
+//
+// EVERY EXPECTATION IS THE RESOLVED TOKEN, never a hardcoded 738: the floor is a rem token, so a
+// fontScale or a token retune must move the assertion with it, not red it. The non-vacuity is structural —
+// the three viewports straddle the crossover, so no single value can satisfy all three rows.
+//
+// WHAT THIS DOES NOT PIN is the reading LINE at that floor: the line is what survives the transcript row's
+// gutter and the active skin's insets, which this stage has no transcript to measure. That half is
+// `tests/client/features/chat/chat-room-track.suite.ct.tsx`'s `#1204` loop, over flat AND echo.
+const DIAL_MATRIX_PCT = 50;
+
+async function dialFloorPx(page: Page): Promise<number> {
+  return await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.width = "var(--dimension-shell-content-floor)";
+    document.body.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return width;
+  });
+}
+
+test("#1204 the chat-width dial's clamp: the floor binds below the crossover, hands over AT it, and yields above it", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_shell_dial_matrix",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatWidthPct: DIAL_MATRIX_PCT } },
+      updatedAt: 0,
+    }),
+  });
+  const shell = await mount(<AppShellWidthProbeStory />);
+  const readProbe = async (): Promise<number> => await shell.getByTestId("width-probe").evaluate((el) => Number.parseFloat(getComputedStyle(el).maxWidth));
+
+  const floorPx = await dialFloorPx(page);
+  expect(floorPx).toBeGreaterThan(0);
+  // The crossover is where the reader's own percentage first reaches the floor. Derived from the token,
+  // so it moves with it — the whole point of taking the floor out of the feature as a literal.
+  const crossoverWidth = Math.round((floorPx * 100) / DIAL_MATRIX_PCT);
+
+  // 1. BELOW: the dvw term is short of the floor, so the floor is what the reader gets — the regime the
+  //    #1204 defect lived in, where the narrowest dial position must still be a readable line.
+  await page.setViewportSize({ width: crossoverWidth - 200, height: 900 });
+  await expect.poll(readProbe).toBeCloseTo(floorPx, 0);
+
+  // 2. AT the crossover: both terms resolve to the same width, so the hand-over is continuous. A floor
+  //    that did not agree with the viewport term here would step the thread's width under the reader.
+  await page.setViewportSize({ width: crossoverWidth, height: 900 });
+  await expect.poll(readProbe).toBeCloseTo(floorPx, 0);
+  await expect.poll(readProbe).toBeCloseTo((crossoverWidth * DIAL_MATRIX_PCT) / 100, 0);
+
+  // 3. ABOVE: the reader's percentage owns the width again and the floor is inert — the clamp is a floor,
+  //    not a fixed width, and a regression that pinned the track at the floor would red exactly here.
+  const wide = crossoverWidth + 400;
+  await page.setViewportSize({ width: wide, height: 900 });
+  await expect.poll(readProbe).toBeCloseTo((wide * DIAL_MATRIX_PCT) / 100, 0);
+  expect((wide * DIAL_MATRIX_PCT) / 100).toBeGreaterThan(floorPx);
 });
 
 test("fontScale stamps a real rendered <html> font-size (UA root × fontScale)", async ({ mount, page }) => {

@@ -210,34 +210,6 @@ export function ConfigSectionArrivalStory(): ReactElement {
   );
 }
 
-/** The CONTENT pane at the width it actually gets in production — measured 2026-08-16 on the live app
- *  with the LIST docked and the CONTEXT collapsed, which is the default `panelDefaults` this section
- *  declares. It is the width the Hearth split has to engage at (`cols="lead"` breathes at the `@4xl`
- *  container step, 56rem/896px), so a roomier story would prove the split somewhere the user never is. */
-const CONTENT_PANE_PX = 917;
-
-/** The CONTENT pane ALONE at its real width — the welcome's own geometry, with no roster beside it to
- *  steal the pane. The corpus is the CT's `routeTrpc` stubs, so one story drives every corpus state
- *  (built · not built · the cold first run where nothing is). */
-export function ConfigWelcomeStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <CtRealConfigSectionRegistry>
-        <ResetGroupsButton />
-        {/* The inner `flex: 1` is load-bearing, not ceremony (it is also what the workspace story does): the
-            surface's root `<Container>` is `h-full` with no width of its own, so as a bare flex ITEM it
-            shrinks to its content and the whole pane renders at ~26px — every geometry assertion then reads
-            zero and the surface measures as `hidden`. */}
-        <div style={{ display: "flex", height: 752, width: CONTENT_PANE_PX }}>
-          <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
-            <ConfigContentSurface groups={realConfigGroups} />
-          </div>
-        </div>
-      </CtRealConfigSectionRegistry>
-    </CtDataProviders>
-  );
-}
-
 /** The narrowest real PHONE the app is measured at (side-eye's own mobile arm) — the width where the LIST
  *  is the whole screen and CONTENT is unreachable until a member is selected. */
 const PHONE_PX = 430;

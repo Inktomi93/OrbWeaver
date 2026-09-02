@@ -1,6 +1,7 @@
 // The `--expect-no-overflow` verdict: pure, so the two-arm decision is provable without a browser.
 // The measurement half (and why there are two arms at all) is ops/overflow.ts.
-import type { AssertionOutcome, OverflowProbe } from "../contract/types.ts";
+import type { OverflowProbe } from "../contract/overflow.ts";
+import type { AssertionOutcome } from "../contract/types.ts";
 
 /** The historical scroll-arm tolerance. Kept at 1px — this arm's calibration predates the rect sweep
  *  and nothing about adding a second arm makes its numbers wrong. */

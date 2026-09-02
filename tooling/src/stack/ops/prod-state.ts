@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
@@ -16,7 +17,9 @@ import { classifyDebugPosture } from "../lib/verdicts.ts";
 refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
 
 const DEFAULT_PORT = 8788;
-const PROBE_TIMEOUT_MS = 2000;
+// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
+const PROBE_TIMEOUT_MS_BASE = 2000;
+const PROBE_TIMEOUT_MS = budget(PROBE_TIMEOUT_MS_BASE);
 export const POLL_INTERVAL_MS = 500;
 export const MS_PER_SECOND = 1000;
 

@@ -178,9 +178,16 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
   (b) an explicit, documented, non-default env opt-in that widens the fallback's peer set for a deployer
   who accepts the risk. The build lane MUST verify the observed peer inside the container before closing
   this; do not assume.
-- **Debug gate:** the owner fallback is `via:"fallback"`, which `DEBUG_GATE_CREDENTIALED.fallback = false`
-  (`entry/auth/seam.ts:305-313`) — so `/api/_debug/*` is NEVER open to the un-credentialed caller even in
-  single-user. It requires `DEBUG_TOKEN` (default unset → 404). Correct.
+- **Debug gate:** the owner fallback is `via:"fallback"`, which `debugGateCredentialed().fallback` admits
+  ONLY on a non-production box (`entry/auth/seam.ts`; the rule is
+  `foundation/env::resolveOwnerFallbackCredential`, `NODE_ENV !== "production" && AUTH_FALLBACK === "owner"`).
+  **In a PRODUCTION image — which is every image this spec describes, since both prod launchers export
+  `NODE_ENV=production` — `/api/_debug/*` is still NEVER open to the un-credentialed caller, single-user
+  included.** It requires `DEBUG_TOKEN` (default unset → 404). Correct. The amendment (#1193, 2026-09-02)
+  exists because the same absolute had closed the door on the DEV stack against the owner's own session,
+  which is the only session a dev box has; it deliberately stops at the production boundary because a
+  same-host proxy makes every external request a loopback peer, and this surface holds more than the app
+  does (raw provider request bodies with `WIRE_CAPTURE=on`).
 
 ### 3.2 `local` (app-stored username+password, cookie/BFF sessions)
 
@@ -202,7 +209,7 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
   TO BOOT with `AUTH_FALLBACK=owner` — set `AUTH_FALLBACK=deny` for any public multi-user local deploy.
 - **Container posture:** set `SESSION_SECRET` + `LOCAL_INITIAL_PASSWORD` via secrets; multi-user is a runtime
   admin setting (`localMultiUser` → `MULTI_HUMAN_CAPABLE.local`, `entry/app.ts:154-156`), not env.
-- **Debug gate:** an admin/owner session cookie passes (`DEBUG_GATE_CREDENTIALED.cookie = true`), else
+- **Debug gate:** an admin/owner session cookie passes (`debugGateCredentialed().cookie = true`), else
   `DEBUG_TOKEN`.
 
 ### 3.3 `oidc` (the app is an OIDC client — the owner's live mode, and the most complex)
@@ -362,10 +369,27 @@ container). The old critical (`Host`-spoof → owner) is closed at the source. T
 (b) — a same-host loopback proxy paired with `AUTH_FALLBACK=owner` — which the prod boot guard makes
 unrepresentable.
 
-**What is NOT exposed regardless:** `/api/_debug/*`. AUTHFIX-2 (`entry/auth/seam.ts`,
-`DEBUG_GATE_CREDENTIALED.fallback = false`) keeps the fallback out of the debug gate, and `isAdmin` threads
-no `peerIp` so the fallback cannot even mint there — a SECOND independent belt. Enforcer:
-`tests/server/entry/debug-gate.suite.test.ts` (every AUTH\_MODE × Host × token state).
+**THE RESIDUAL'S PRICE ROSE ON 2026-09-02 (#1193) — re-read it before accepting it again.** The one accepted
+gap is a hand-rolled launch that OMITS `NODE_ENV` (a bare `node entry/index.ts`; both supported prod
+launchers set it in `buildProdSpawnPlan`) behind a loopback proxy with the default `AUTH_FALLBACK=owner`.
+That used to cost exactly the SSO bypass: every external request resolves as the owner. It now costs
+`/api/_debug/*` as well — the debug gate's fallback arm is credentialed by
+`resolveOwnerFallbackCredential`, which reads the SAME omitted `NODE_ENV`, so a box that lies about being
+production hands the diagnostics surface (whole-db reads, and with `WIRE_CAPTURE=on` the RAW PROVIDER REQUEST
+BODIES) to the same laundered callers, with no `DEBUG_TOKEN` needed. One missing env var, two doors instead
+of one. The mitigation is unchanged and now doubly load-bearing: **use the supported launchers** (`pnpm stack
+up prod` / `start-fg prod`), and set `IP_ALLOWLIST` — it is the only control that bounds either door when the
+process is lying about its own posture.
+
+**What is NOT exposed regardless:** `/api/_debug/*`. AUTHFIX-2 (`entry/auth/seam.ts`) keeps the fallback out
+of the debug gate — and since #1193 that exclusion is stated as a POSTURE rather than an absolute:
+`debugGateCredentialed().fallback` is `resolveOwnerFallbackCredential`, false whenever
+`NODE_ENV === "production"`, which is every deployment this spec describes. **The second belt is gone by
+design** (the verdict now reads the request's already-resolved principal, which does carry a peer, instead of
+re-resolving without one), so the production exclusion rests on the posture alone — that is why the posture
+is production-EXCLUDING rather than "SSO-modes-only". Enforcer:
+`tests/server/entry/debug-gate.suite.test.ts` (every AUTH\_MODE × Host × peer × posture × token state,
+including "the PRODUCTION posture refuses the same loopback owner, single-user included").
 
 **The secure-default answer (belt AND suspenders):**
 

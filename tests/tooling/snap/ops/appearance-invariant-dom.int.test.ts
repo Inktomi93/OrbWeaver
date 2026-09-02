@@ -5,8 +5,9 @@ import { chromium } from "@playwright/test";
 import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/_shared/appearance-matrix.ts";
 import { probeAppearanceDom } from "../../../../tooling/src/snap/ops/appearance-invariant-dom.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-const BROWSER_TIMEOUT_MS = 60_000;
+const BROWSER_TIMEOUT_MS = scaledBudget(60_000);
 const VIEWPORT = { width: 400, height: 240 } as const;
 
 const ROW: RuntimeAppearanceHistoricalRow = {

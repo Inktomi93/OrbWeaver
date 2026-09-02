@@ -105,6 +105,12 @@ function tileTitle(item: RpgInventoryItem): string {
 // pixel-identical at rest (PERMISSION differs in what a CLICK does, never in what the pack looks like).
 // A left-aligned card, not the old empty square: the grid track (layout/variants `cols="cell"`) gives it
 // the width the item's own words need, and the card is only as tall as those words.
+//
+// DELIBERATE COMPOSED SKIN, not an intent (the TEACHING_ACTION_BUTTON precedent,
+// `chat/surfaces/new-chat-picker-surface.tsx`): `border border-border bg-card` is a CARD tile, not a button
+// reading as "outline" or "ghost" — no intent arm owns "a bordered filled card that happens to be
+// clickable", and the member arm (`edit === undefined`) below is not even a `Button` (a plain `Row`), so the
+// skin cannot be an intent by construction. Composed here, at the one call site both lenses share.
 const TILE_CLASS = "relative w-full min-w-0 items-center gap-field rounded-control border border-border bg-card px-row py-field text-left";
 
 /** The tile's INK — the glyph · the name (wrapped) · ×N · the PINNED tell · where it's kept. Shared by both

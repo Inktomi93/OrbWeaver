@@ -19,6 +19,7 @@ import {
   throttleResultValue,
 } from "../../../tooling/src/snap/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget } from "../_load-budget.ts";
 
 const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 const SNAP_CLI = fileURLToPath(new URL("../../../tooling/src/snap/cli.ts", import.meta.url));
@@ -42,13 +43,14 @@ const CLEAN_FAILURES: SnapFailureSummary = {
   emptyCss: 0,
   environment: 0,
   appearance: 0,
+  lighthouse: 0,
 };
 
 function runSnap(args: readonly string[]): ReturnType<typeof spawnSync> {
   return spawnSync(process.execPath, [SNAP_CLI, ...args], {
     cwd: ROOT,
     encoding: "utf8",
-    timeout: 10_000,
+    timeout: scaledBudget(10_000),
   });
 }
 

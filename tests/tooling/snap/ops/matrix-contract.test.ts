@@ -11,6 +11,7 @@ import {
   snapMatrixVariant,
 } from "../../../../tooling/src/snap/ops/matrix-contract.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const THEMES = [
   { id: "seed-light", name: "Light", isSeed: true, background: "#ffffff", polarity: "light", hasCustomCss: false },
@@ -18,7 +19,7 @@ const THEMES = [
   { id: "custom-light", name: "Paper", isSeed: false, background: "#f7f3eb", polarity: "light", hasCustomCss: true },
   { id: "custom-dark", name: "Ink", isSeed: false, background: "#161821", polarity: "dark", hasCustomCss: true },
 ] as const satisfies readonly ThemeEntry[];
-const MATRIX_TEST_TIMEOUT_MS = 60_000; // measured 22.3s at load ~30 (2026-09-02 fold train), 14s quiet
+const MATRIX_TEST_TIMEOUT_MS = scaledBudget(60_000); // measured 22.3s at load ~30 (2026-09-02 fold train), 14s quiet
 // Every case here plans the full carrier x theme matrix (3-7s each on a quiet box); on the contended box the
 // battery runs on, the 5s default timed out 5 of 7 in one run — the budget applies to the whole file, not
 // only the identity case that first needed it (#1008).

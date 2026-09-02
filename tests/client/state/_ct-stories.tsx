@@ -44,6 +44,7 @@ import {
   clearNewChatIntent,
   clearSectionSaveStatus,
   clearWorldEntrySelection,
+  closeConfigGroup,
   closeModal,
   collapseListPanel,
   compareCorpusPair,
@@ -815,6 +816,9 @@ export function ConfigGroupOpenProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => openConfigGroup("tags")}>
         open tags group
+      </button>
+      <button type="button" onClick={(): void => closeConfigGroup("tags")}>
+        close tags group
       </button>
       <button type="button" onClick={(): void => __resetConfigGroupOpen()}>
         reset collection groups

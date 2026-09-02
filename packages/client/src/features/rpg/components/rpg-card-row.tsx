@@ -25,12 +25,12 @@ export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
   return (
     <Button
       type="button"
-      intent="ghost"
+      intent="outline"
       size="inline"
       aria-label={`Open card: ${label}`}
       title="Open card"
       onClick={(): void => onOpen(card.key)}
-      className="w-full border border-border px-field py-row text-left"
+      className="w-full px-field py-row text-left"
       data-slot="rpg-card-row"
     >
       <Text as="span" voice="label" className="min-w-0 flex-1 truncate">

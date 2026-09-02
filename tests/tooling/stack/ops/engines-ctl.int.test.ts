@@ -24,10 +24,11 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const CTL = fileURLToPath(new URL("../../../../tooling/src/stack/ops/engines-ctl.ts", import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
-const SPAWN_TIMEOUT_MS = 30_000;
+const SPAWN_TIMEOUT_MS = scaledBudget(30_000);
 /** The seam above. A pair because the key is ENV VOCABULARY; spawnNiced merges it over the ambient env. */
 const PROBE_ENV: Readonly<Record<string, string>> = Object.fromEntries([["ENGINES_CTL_DISPATCH_PROBE", "1"]]);
 /** The verbs engines.sh execs, one per shell `case` arm. The refusal must offer every one of them. */

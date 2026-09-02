@@ -4,8 +4,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useInvalidation, useTRPC } from "#data";
-import type { CollectionPreviewEntry } from "#lib";
-import { COLLECTION_PREVIEW_LIMIT, sortTagsBy } from "#lib";
+import type { CollectionInsight } from "#lib";
 import { selectCollectionMember } from "#state";
 import { TAG_COLLECTION_ID } from "../lib/tags-model.ts";
 import { useCreateTag } from "./use-tag-settings-mutations.ts";
@@ -21,25 +20,39 @@ export function useTagCount(): number | undefined {
   return useQuery(trpc.tag.listTagsWithUsage.queryOptions()).data?.length;
 }
 
-/** One ranked row → the host-facing preview entry. The wire row carries five per-target usage counters; the
- *  hero shows the TOTAL, because "how much of the library this tag accounts for" is the one number that
- *  ranks the wall and the breakdown belongs to the member editor. */
-function previewEntry(row: { readonly id: string; readonly name: string; readonly usage: { readonly total: number } }): CollectionPreviewEntry {
-  return { id: row.id, label: row.name, detail: String(row.usage.total) };
-}
-
-/** The welcome hero's CHIP WALL (the `preview` seam): the most-used slice of the library, ranked by the
- *  ONE comparator the list and the tag picker already rank by (`sortTagsBy(…, "used")` — a second
- *  spelling of "most used" here would be the drift that function exists to prevent).
+/**
+ * THE TAG LIBRARY'S OWN LANDING FACTS (the `insights` seam — #1209 replaced the preview wall with these).
  *
- *  THE SAME CACHED LIST the census and the rows read, so this is a cache hit and never a second request —
- *  the `useMemberTitle` discipline: usage totals already ride every row of a query the pane has loaded
- *  anyway. (This clause used to say tags was "the one collection that HAS a preview" — regex and world-info
- *  grew their own on 2026-08-19, ranked by recency and by attachment.) */
-export function useTagPreview(): readonly CollectionPreviewEntry[] | undefined {
+ * WHAT THE LIST CANNOT SAY, which is the whole bar the ruling set: the rows show tags by name and usage
+ * total, one screen at a time. What no row can state is a fact about the LIBRARY — how much of it is doing
+ * nothing. An unused tag is the tag library's own failure mode (it accumulates: every card import, every
+ * abandoned scheme), and it is invisible in a 400-row list sorted by use because the answer is at the far
+ * end of the scroll.
+ *
+ * BOTH FACTS COME FROM THE SAME CACHED READ the census and the rows already loaded (the `useMemberTitle`
+ * discipline) — never a second request. The unused fact carries a DOOR because it is about members the
+ * reader will want to act on; the in-use fact is a statement and renders as one, because data that dressed
+ * as an affordance is exactly what #1209 deleted.
+ */
+export function useTagInsights(): readonly CollectionInsight[] | undefined {
   const trpc = useTRPC();
   const rows = useQuery(trpc.tag.listTagsWithUsage.queryOptions()).data;
-  return rows === undefined ? rows : sortTagsBy(rows, "used").slice(0, COLLECTION_PREVIEW_LIMIT).map(previewEntry);
+  if (rows === undefined) {
+    return rows;
+  }
+  const unused = rows.filter((row) => row.usage.total === 0);
+  const first = unused[0];
+  return [
+    {
+      id: "unused",
+      label: "Labelling nothing",
+      value: `${String(unused.length)} of ${String(rows.length)}`,
+      // The door opens the FIRST unused tag — a real member, in the editor, where the reader can rename or
+      // delete it. Omitted when there are none: a door to nothing is the dead end this seam exists to end.
+      ...(first === undefined ? {} : { open: { label: `Open ${first.name}`, run: (): void => selectCollectionMember(TAG_COLLECTION_ID, first.id) } }),
+    },
+    { id: "in-use", label: "In use", value: String(rows.length - unused.length) },
+  ];
 }
 
 /** The OPEN member's name for the mobile pushed frame's topbar (the `useMemberTitle` seam) — the SAME

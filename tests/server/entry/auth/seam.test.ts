@@ -18,7 +18,7 @@
 // owning it. An un-credentialed fallback principal is not a debug-route curiosity: under `single-user` it is
 // what reaches every owner- and admin-gated tRPC surface, so "who does this arm admit" is the whole boundary.
 
-import type { UserRole } from "@orb/contracts/identity";
+import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -391,66 +391,79 @@ test("the CSRF header presence is surfaced as a signal (the ladder gates, not th
   expect(without.csrfHeaderPresent).toBe(false);
 });
 
-test("isAdmin requires a CREDENTIAL as well as the admin role, and never throws", async () => {
-  // ⚠ DO NOT "RESTORE" THE OLD ASSERTION HERE. Until 2026-08-07 this test asserted
-  // `ownerSeam.isAdmin(new Headers()) === true` — i.e. it PINNED the AUTHFIX-2 hole as if it were behaviour.
-  // It was not: `isAdmin`'s only consumer is the /api/_debug admin arm, which short-circuits the DEBUG_TOKEN
-  // check (and the `expectedToken === undefined` → 404 branch with it), so that `true` meant a caller who
-  // presented NOTHING read principal-blind whole-db probes — wire captures included. The old comment even
-  // said "this is an open finding, not a design pin", which is exactly why a green test asserting it was the
-  // worst possible shape: the suite went green on the defect every run. Both halves are now required.
+test("debugGateAdmits requires a CREDENTIAL as well as the admin role", async () => {
+  // ⚠ DO NOT "RESTORE" THE OLD ASSERTION HERE. Until 2026-08-07 this test asserted that an un-credentialed
+  // caller was admitted — i.e. it PINNED the AUTHFIX-2 hole as if it were behaviour. It was not: this
+  // verdict's only consumer is the /api/_debug admin arm, which short-circuits the DEBUG_TOKEN check (and the
+  // `expectedToken === undefined` → 404 branch with it), so a loose `true` means a caller reads
+  // principal-blind whole-db probes — wire captures included. Both halves are required.
   vi.stubEnv(OWNER_HANDLES_VAR, OWNER_HANDLE);
 
-  // The un-credentialed owner FALLBACK: a real `role:"owner"` principal (so `requireAdmin` passes) that
-  // presented no cookie and no header. `via:"fallback"` is not a credential — the origin is not the caller.
-  const ownerSeam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: fakeUsers().sessions });
-  // isAdmin threads NO peerIp, so the fallback arm cannot even mint here (peer-gate fails closed) — the
-  // debug gate stays shut against the un-credentialed owner both by that AND by the credential rule.
-  expect(await ownerSeam.isAdmin(new Headers())).toBe(false);
-  // …and the same principal still resolves for every OTHER surface FROM A LOOPBACK PEER: this closes the
-  // debug gate, not the single-user fallback (which is the only way into a single-user box at all).
-  expect((await ownerSeam.resolvePrincipal(new Headers(), LOOPBACK)).principal?.role).toBe("owner");
+  // The un-credentialed owner FALLBACK on a STRICT-posture box (the dep omitted ⇒ fail-closed): a real
+  // `role:"owner"` principal that presented no cookie and no header, refused at the diagnostics door.
+  const strictSeam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: fakeUsers().sessions });
+  const owner = (await strictSeam.resolvePrincipal(new Headers(), LOOPBACK)).principal;
+  expect(owner?.role).toBe("owner"); // …and it still authenticates everywhere else, which is the whole point
+  expect(strictSeam.debugGateAdmits(owner, new Headers())).toBe(false);
 
-  const adminSeam = createAuthSeam({
-    config: baseConfig({ mode: "local" }),
-    sessions: stubSessions({
-      validate: () =>
-        Promise.resolve({
-          sessionId: castId<SessionId>("sess_cookie"),
-          userId: COOKIE_UID,
-          role: "admin",
-          handle: castId<Handle>("carol"),
-          externalId: null,
-          enabled: true,
-        }),
-    }),
+  // The SAME principal on a box whose posture says the loopback owner IS the operator (#1193 — dev, or any
+  // non-production box). The rule that decides this lives in `foundation/env`; the seam only carries it.
+  const operatorSeam = createAuthSeam({
+    config: baseConfig({ mode: "single-user" }),
+    sessions: fakeUsers().sessions,
+    ownerFallbackIsOperatorCredential: true,
   });
-  expect(await adminSeam.isAdmin(new Headers({ cookie: "__Host-orb_session=t" }))).toBe(true);
+  expect(operatorSeam.debugGateAdmits(owner, new Headers())).toBe(true);
+  // The ROLE half is still required on that arm: a loopback caller whose row is a plain user is refused.
+  expect(operatorSeam.debugGateAdmits({ ...(owner as NonNullable<typeof owner>), role: "user" }, new Headers())).toBe(false);
 
-  const userSeam = createAuthSeam({
-    config: baseConfig({ mode: "local" }),
-    sessions: stubSessions({
-      validate: () =>
-        Promise.resolve({
-          sessionId: castId<SessionId>("sess_cookie"),
-          userId: COOKIE_UID,
-          role: "user",
-          handle: castId<Handle>("alice"),
-          externalId: null,
-          enabled: true,
-        }),
-    }),
-  });
-  expect(await userSeam.isAdmin(new Headers({ cookie: "__Host-orb_session=t" }))).toBe(false);
+  const cookiePrincipal = async (role: UserRole): Promise<Principal | null> => {
+    const seam = createAuthSeam({
+      config: baseConfig({ mode: "local" }),
+      sessions: stubSessions({
+        validate: () =>
+          Promise.resolve({
+            sessionId: castId<SessionId>("sess_cookie"),
+            userId: COOKIE_UID,
+            role,
+            handle: castId<Handle>("carol"),
+            externalId: null,
+            enabled: true,
+          }),
+      }),
+    });
+    return (await seam.resolvePrincipal(new Headers({ cookie: "__Host-orb_session=t" }))).principal;
+  };
+  const cookieSeam = createAuthSeam({ config: baseConfig({ mode: "local" }), sessions: stubSessions({}) });
+  expect(cookieSeam.debugGateAdmits(await cookiePrincipal("admin"), new Headers())).toBe(true);
+  expect(cookieSeam.debugGateAdmits(await cookiePrincipal("user"), new Headers())).toBe(false);
+  // No principal at all (anonymous, or a context the auth middleware never ran on) → refused.
+  expect(cookieSeam.debugGateAdmits(null, new Headers())).toBe(false);
+});
 
-  // A throwing resolver must fail closed (not admin), never propagate.
-  const brokenSeam = createAuthSeam({
-    config: baseConfig({ mode: "local" }),
+test("debugGateAdmits takes a VERIFIED SSO identity, never a proxy-asserted one", async () => {
+  // `via:"header"` covers both forward-header sub-paths, and only one of them is a credential at this door:
+  // the JWT the deployment verified. The unsigned path is the trusted-proxy allowlist's word about a raw
+  // `Remote-User:` header — enough to run the app as that admin, not enough to hand over whole-db reads.
+  const signedConfig = baseConfig({ mode: "forward-header", verifyForwardJwt: true, jwksAllowlist: ["idp.example.test"] });
+  const seam = createAuthSeam({
+    config: signedConfig,
     sessions: stubSessions({
-      validate: () => Promise.reject(new Error("db down")),
+      provisionIdentity: () =>
+        Promise.resolve({ outcome: "provisioned" as const, userId: HEADER_UID, role: "admin" as UserRole, enabled: true, identityChanged: false }),
     }),
+    verifyForwardJwt: {
+      verify: () => Promise.resolve({ handle: castId<Handle>("sso-admin"), externalId: castId<ExternalId>("ext-1"), groups: [], email: null }),
+    },
   });
-  expect(await brokenSeam.isAdmin(new Headers({ cookie: "__Host-orb_session=t" }))).toBe(false);
+
+  const signedHeaders = new Headers({ "x-authentik-jwt": "jwt", "x-authentik-meta-jwks": "{}" });
+  const signed = (await seam.resolvePrincipal(signedHeaders)).principal;
+  expect(signed?.via).toBe("header");
+  expect(seam.debugGateAdmits(signed, signedHeaders)).toBe(true);
+
+  // The SAME admin principal, on a request that carried no JWT — the unsigned (proxy-asserted) shape.
+  expect(seam.debugGateAdmits(signed, new Headers({ "remote-user": "sso-admin" }))).toBe(false);
 });
 
 test("createHostPrincipalResolver mints the host Principal from the LIVE row (real role carried)", async () => {
@@ -502,8 +515,15 @@ test("D135: a DISABLED owner row is refused by the fallback arm (parity with coo
 
   // Anonymous → transport 401. The origin gate admitted the request; the ROW refused it.
   expect(principal).toBeNull();
-  // And the admin verdict that keys on this principal collapses with it.
-  expect(await seam.isAdmin(new Headers())).toBe(false);
+  // And the debug-gate verdict that keys on this principal collapses with it — even on the OPERATOR posture,
+  // where the fallback arm IS a credential: a disabled row never becomes a principal to admit.
+  expect(seam.debugGateAdmits(principal, new Headers())).toBe(false);
+  const operatorSeam = createAuthSeam({
+    config: baseConfig({ mode: "single-user" }),
+    sessions: users.sessions,
+    ownerFallbackIsOperatorCredential: true,
+  });
+  expect(operatorSeam.debugGateAdmits((await operatorSeam.resolvePrincipal(new Headers(), LOOPBACK)).principal, new Headers())).toBe(false);
 });
 
 test("D135: the frozen-host bridge still resolves a DISABLED row (the gate is the CALLER's)", async () => {

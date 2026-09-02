@@ -19,6 +19,7 @@
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 import process from "node:process";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
@@ -37,7 +38,9 @@ const MODULE_EXT_RE = /\.(?:ts|tsx)$/u;
 const DECLARATION_RE = /\.d\.ts$/u;
 /** How far down the newest-first list to walk before giving up on finding a comparable module. */
 const CANDIDATE_DEPTH = 5;
-const FETCH_TIMEOUT_MS = 3000;
+// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
+const FETCH_TIMEOUT_MS_BASE = 3000;
+const FETCH_TIMEOUT_MS = budget(FETCH_TIMEOUT_MS_BASE);
 const DEFAULT_VITE_PORT = 5173;
 const HTTP_OK = 200;
 

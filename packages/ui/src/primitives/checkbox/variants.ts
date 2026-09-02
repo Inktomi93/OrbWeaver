@@ -13,22 +13,32 @@ import { SELECTION_CONTROL, tv } from "#lib";
 // checked before the user has decided anything, were the loudest ink in the pane.
 //
 // THE POLARITY IS NOT REVERSED, AND `quiet-state` MUST KEEP NOT FIRING. The ON state still carries its
-// own ink — a bright neutral fill plus the check glyph — it just carries no ember. Ranked the way the
-// rule ranks it (each state's own fill against the pane it sits on, `ui-audit` census-region.ts; it files
+// own ink — the opaque `--color-selection-quiet` fill plus the check glyph — it just carries no ember.
+// Ranked the way the rule ranks it (each state's own fill against the pane it sits on, `ui-audit` census-region.ts; it files
 // a P2 only when OFF outruns ON by more than its 1.5 inversion tolerance). ON is LOUDER than OFF on every
 // seed, so there is no inversion, and QUIETER than the accent on every seed, which is the whole point.
 //
-// `foreground/55` IS THE SWITCH'S ALREADY-BOUNDED VALUE, NOT A SECOND HAND-PICKED ONE (switch/variants.ts
-// header: /70 painted near-white pills that out-shouted the row labels; /55 keeps the separation). Reusing
-// it makes the two selection controls' quiet arms one decision instead of two that drift. Its own floors
-// hold here too — WCAG 1.4.11 asks 3:1 of the thing that identifies the control and of the mark inside it.
-// MEASURED FROM THE FRAMEBUFFER over `bg-card` (computed style can see neither the alpha composite nor
-// the oklch), quiet ON box vs pane · check glyph vs box · and the accent ON box it undercuts:
-//   Hearth  5.475 · 5.967   (accent 6.824)
-//   Light   3.750 · 3.590   (accent 6.267) ← the binding arm: the quiet fill has least to spend here
-//   Mocha   5.352 · 5.936
-// Pinned in tests/ui/primitives/checkbox/checkbox.ct.tsx, on ALL THREE seeds — a polarity fix proven on
-// the dark arm alone is this tree's recorded failure family.
+// `foreground/55` WAS THE FIRST CUT AND IT DID NOT SURVIVE ITS OWN GATE. Reusing the switch's already
+// bounded alpha made the two quiet arms one decision, but it forced the mark to `text-background` — an
+// INVERTED pair ink, whose ground is the control's own fill and not a surface — and `seed-theme-ink-
+// contrast` judges every non-`-foreground` ink against the eight enumerated surface GROUNDS, where
+// `background` on `--color-background` is 1:1 by construction. 48 findings, unpassable by tuning. The
+// switch's identical `readOnlyIcon` construction rides that gate's exemption table; this lane was ruled
+// to fix the class instead, and the fix is strictly better: `--color-selection-quiet` is OPAQUE, so the
+// pair is one measurable fact rather than an alpha composite that changes with whatever is behind it
+// (`alpha-token-needs-composited-contrast-probe`), and the `-foreground` suffix makes the inversion a
+// pair the census can SEE (lib/seed-theme-ink.ts `inkTokensIn`) instead of one it must be told about.
+//
+// The pair is BOUNDED FROM BOTH SIDES and both bounds are machine-checked — tokens.json carries the
+// derivation, palette-contrast.suite.test.ts pins the pair per seed, and checkbox.ct.tsx pins it from the
+// FRAMEBUFFER (computed style can see neither the composite nor the oklch). Over `bg-card`:
+//                quiet box vs pane   check glyph vs box   the accent it must undercut
+//   Hearth            5.759                6.145                    6.836
+//   Light             4.994                4.781                    6.264   ← the binding arm
+//   Mocha             5.687                6.145                    6.658
+// The glyph clears AA-NORMAL 4.5:1 on every seed, which is the TEXT bar — a checkmark would only owe
+// 1.4.11's 3:1, and the margin is deliberate. The fill's worst ground is the `bg-accent` an interactive
+// row paints on hover: 4.618 / 4.119 / 4.528, all above 1.4.11's 3:1.
 //
 // THE GLYPH INK RIDES THE CHECKED STATE, not the root. The root's `text-primary-foreground` is what the
 // read-only Lock glyph inherits in the UNCHECKED state, and it is unchanged on both tones — a tone must
@@ -51,8 +61,8 @@ export const checkboxVariants = tv({
       },
       quiet: {
         root: [
-          "data-checked:border-foreground/55 data-checked:bg-foreground/55 data-checked:text-background",
-          "data-indeterminate:border-foreground/55 data-indeterminate:bg-foreground/55 data-indeterminate:text-background",
+          "data-checked:border-selection-quiet data-checked:bg-selection-quiet data-checked:text-selection-quiet-foreground",
+          "data-indeterminate:border-selection-quiet data-indeterminate:bg-selection-quiet data-indeterminate:text-selection-quiet-foreground",
         ],
       },
     },

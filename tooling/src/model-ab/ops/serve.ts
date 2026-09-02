@@ -9,6 +9,7 @@
 // measurement it publishes is the DELTA between variant columns, all of which run at the same priority.
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { warn } from "../../_shared/log.ts";
@@ -19,10 +20,14 @@ import { runProbes } from "./probe.ts";
 refuseDirectInvocation(import.meta.url, "node tooling/src/model-ab/cli.ts <verb>");
 
 const HOST = "127.0.0.1";
-const BOOT_TIMEOUT_MS = 900_000; // 15 minutes — a cold TP2 27B load takes minutes, not seconds.
+// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base. // 15 minutes — a cold TP2 27B load takes minutes, not seconds.
+const BOOT_TIMEOUT_MS_BASE = 900_000;
+const BOOT_TIMEOUT_MS = budget(BOOT_TIMEOUT_MS_BASE);
 const MS_PER_SECOND = 1000;
 const HEALTH_POLL_MS = 3000;
-const HEALTH_PROBE_TIMEOUT_MS = 2000;
+// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
+const HEALTH_PROBE_TIMEOUT_MS_BASE = 2000;
+const HEALTH_PROBE_TIMEOUT_MS = budget(HEALTH_PROBE_TIMEOUT_MS_BASE);
 const VRAM_SETTLE_MS = 12_000;
 const BOOT_ERROR_CHARS = 300;
 const SERVED_NAME = "ab-model";

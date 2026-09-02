@@ -31,6 +31,18 @@ export function appReadyTimeoutGap(url: string, timeoutMs: number): EvidenceGap 
   };
 }
 
+/** THE LOAD WITHHOLD (#1040 -> #1232 section 7.1). motion-audit's ONLY verdict member is a measured RATE
+ *  (dropped frames / total), and load does not scale a rate - it destroys it: identical code read 47.54%
+ *  at per-core 1.04, then 10%, then clean. So on a contended box this instrument does not vote at all. It
+ *  is deliberately the SAME evidence-gap shape as a missing bridge: "the run is not a verdict" is one
+ *  claim with one exit (2), and the reason names the box so nobody re-runs it hoping for a different
+ *  number. It is NOT a red - nothing about the surface failed - and it is NOT a pass. Ends only if
+ *  motion-audit gains a non-rate verdict member, at which point the withhold narrows to that arm
+ *  (`<arm>=withheld`) instead of ending the run. */
+export function loadWithholdGap(reason: string): EvidenceGap {
+  return { evidence: "a quiet box", detail: reason };
+}
+
 /** THE APPARATUS VERDICT, decided once from the two facts a run can observe, in the ONE order that makes
  *  each claim honest: readiness first, because "no bridge" is only a claim about the APP once the app has
  *  had its chance to install one. `null` ⇒ the apparatus is present and the audit may speak. */

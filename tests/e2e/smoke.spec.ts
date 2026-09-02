@@ -42,26 +42,37 @@ test("the health endpoint reports ok", { tag: "@smoke" }, async ({ request }) =>
   expect(await res.json()).toMatchObject({ status: "ok" });
 });
 
-// AUTHFIX-2 — the ONLY assertion in the tree that proves the /api/_debug gate on a REAL BOOTED STACK, and
-// the reason it lives in `@smoke` (the pre-push tier) rather than beside the unit suite: the unit suite
-// (`tests/server/entry/debug-gate.suite.test.ts`) proves the seam+gate composition, but nothing there boots a
-// server, so nothing there can catch a wiring, proxy or env-threading regression. Both halves matter:
+// THE /api/_debug GATE on a REAL BOOTED STACK — the only place a wiring, proxy or env-threading regression
+// can be caught (the unit suite, `tests/server/entry/debug-gate.suite.test.ts`, proves the seam+gate
+// composition but boots no server). Which QUESTION this asks changed on 2026-09-02 (#1193); read the
+// re-premise before "restoring" the old number.
 //
-//   • NO TOKEN → 401. This is the hole itself. Until 2026-08-07 the gate's admin arm admitted the
-//     un-credentialed owner fallback, so this exact request returned 200 — under `single-user`
-//     unconditionally, and under an SSO mode to anyone who could reach the port with `Host: 127.0.0.1`.
-//     Behind it: whole-db reads and (with WIRE_CAPTURE=on, as this stack runs) provider request BODIES.
-//   • WITH TOKEN → 200. The positive control, and simultaneously the proof that `E2E_DEBUG_TOKEN` really
-//     reached the server through `modes.ts::webServerEnv` — which is what every `@live` spec's debug witness
-//     (`fetchWireCaptures`/`inspectChatDb`/`fetchDebugErrors`) now depends on. Those specs are `@live`-gated
-//     and never run on push, so without THIS test the threading could rot silently for weeks.
+// ⚠ DO NOT CHANGE THE FIRST ASSERTION BACK TO 401. It used to assert that an un-credentialed caller is
+// refused (AUTHFIX-2). On THIS harness that assertion has stopped being about the gate at all: this project's
+// `webServerEnv` (support/modes.ts) sets no NODE_ENV and no AUTH_FALLBACK, so the stack runs
+// `NODE_ENV=development` + `AUTH_FALLBACK=owner`, and every request here arrives on a LOOPBACK socket (vite
+// proxies `/api` to 127.0.0.1). That caller IS the box operator — `sessions.me` answers `globalRole:"owner"`
+// for it, and #1193 stopped the diagnostics door from being the one surface that pretended otherwise. A 401
+// here would now mean the OPERATOR ARM IS BROKEN, i.e. the dev bug-report button is 401ing again.
 //
-// A 200 on the first half is not a flake to retry — it is the hole, reopened.
-test("the /api/_debug gate refuses an un-credentialed caller and admits the operator token", {
+// WHAT THIS CAN AND CANNOT PROVE, stated so nobody reads more into a green run than is there:
+//   • CAN: the door is reachable and its admin arm admits the box operator (regression pin for #1193), and
+//     the operator TOKEN still opens it — the latter is simultaneously the proof that `E2E_DEBUG_TOKEN`
+//     really reached the server through `modes.ts::webServerEnv`, which every `@live` spec's debug witness
+//     (`fetchWireCaptures`/`inspectChatDb`/`fetchDebugErrors`) depends on. Those are `@live`-gated and never
+//     run on push, so without THIS the threading could rot silently for weeks.
+//   • CANNOT: that an UN-CREDENTIALED (anonymous) caller is refused. No dev-posture stack can construct one —
+//     a loopback peer is the operator by construction, and `AUTH_FALLBACK=deny` is not available here because
+//     globalSetup seeds every booted mode through that same un-credentialed loopback seam
+//     (`support/global-setup.ts::seedMode`). The anonymous/PRODUCTION-posture refusal is proven by
+//     `tests/server/entry/debug-gate.suite.test.ts` ("the PRODUCTION posture refuses the same loopback
+//     owner, single-user included") and the ROLE refusal end-to-end by `auth-smoke.local.spec.ts`
+//     (a logged-in non-admin → 401). Neither proof was deleted; both moved to where they are real.
+test("the /api/_debug gate admits the box operator's loopback session and the operator token", {
   tag: "@smoke",
 }, async ({ request }) => {
-  const unauthenticated = await request.get("/api/_debug/info");
-  expect(unauthenticated.status(), "an un-credentialed /api/_debug read must NEVER be served").toBe(401);
+  const operator = await request.get("/api/_debug/info");
+  expect(operator.status(), "the dev posture must admit the box operator's own loopback session (#1193)").toBe(200);
 
   const authorized = await request.get("/api/_debug/info", { headers: { "x-debug-token": E2E_DEBUG_TOKEN } });
   expect(authorized.ok(), "the operator token must still open the debug surface").toBe(true);

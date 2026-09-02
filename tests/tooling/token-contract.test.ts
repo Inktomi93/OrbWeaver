@@ -159,12 +159,26 @@ test("the real vault is conformant and preserves the exact generated target surf
     mocha: countTokens(JSON.parse(texts.mocha)),
   };
   expect(result.diagnostics).toEqual([]);
-  // 2026-09-01 (#998 seed-contrast landing): base +3 = color.accolade + the two snapped --leading-* vars;
-  // light +1 = accolade's light arm. Spelled, not derived, because the same-count controls below depend on
-  // the exact surface — a same-count swap must be caught by the diagnostics, never by the count.
-  expect(constituents).toEqual({ base: 190, light: 62, mocha: 42 });
+  // SPELLED, NOT DERIVED, on purpose: the same-count controls below depend on the exact surface — a
+  // same-count swap must be caught by the diagnostics, never by the count. Which means every re-pin owes
+  // the whole delta, token by token, or it is a rubber stamp.
+  //
+  // 2026-09-02 re-pin, 190/62/42 → 197/64/42 (#1247). The `pnpm verify --push` tier caught this; a green
+  // `pnpm check` never runs it, so SEVEN separate folds each landed a vault token and none re-paired here.
+  // `git log facb808d0..HEAD -- packages/ui/src/tokens/{tokens.json,themes/*.json}` names five that moved a
+  // count, and the delta is exactly theirs — nothing is unattributed:
+  //   da3dcdfac (#1120)         base +1  dimension.device-pixel
+  //   4fd9aad49 (#1145)         base +1  reading.measure-prose-ch
+  //   aad98e225 (#1109, #1170)  base +2  spacing.switch-inset · spacing.switch-track-height
+  //   27eb41557 (#1204)         base +1  dimension.shell-content-floor
+  //   a743e4799                 base +2  color.selection-quiet · color.selection-quiet-foreground
+  //                             light +2 the same pair's light arm
+  // = base +7, light +2, mocha +0. `cssTargets` moves +7 with the seven new BASE tokens (each emits one
+  // `cssVar`, all seven verified present in theme.css + tokens/index.ts); a theme ARM re-values a var that
+  // already exists, so light's +2 adds no target. `scannedTokens` is the sum, 294 → 303.
+  expect(constituents).toEqual({ base: 197, light: 64, mocha: 42 });
   expect(result.scannedTokens).toBe(constituents.base + constituents.light + constituents.mocha);
-  expect(result.cssTargets.size).toBe(198);
+  expect(result.cssTargets.size).toBe(205);
   expect(result.cssTargets).toEqual(BASELINE_TARGETS);
   expect(result.themes).toEqual([
     { id: "hearth", colorScheme: "dark", source: "base" },
@@ -329,7 +343,7 @@ describe("Orb semantic controls", () => {
       cssValues["--aspect-portrait-renamed"] = portrait;
     });
     const result = validateTokenContractTexts(swapped, REPO_ROOT);
-    expect(result.cssTargets.size).toBe(198);
+    expect(result.cssTargets.size).toBe(205);
     expect(result.diagnostics.map((item) => item.code)).toContain("removed.target.unrecorded");
 
     const avatar = readFileSync(join(UI_ROOT, "src/primitives/avatar/variants.ts"), "utf8");
@@ -364,7 +378,7 @@ describe("bounded Resolver controls", () => {
       colors["sky-day"] = background;
     });
     const result = validateTokenContractTexts(swapped);
-    expect(result.scannedTokens).toBe(294);
+    expect(result.scannedTokens).toBe(303);
     expect(result.diagnostics.map((item) => item.code)).toContain("seed.members");
   });
 

@@ -54,6 +54,7 @@ import type { TagId } from "@orb/kit/ids";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Archive, Icon, Star } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import { RECEDED_INK } from "@orb/ui/lib";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
@@ -256,7 +257,7 @@ function ScopePill({
     // transparent intents to the host's inherited ink neither of them recedes on its own. The rail is the
     // host, so the rail says it — unprefixed, because `data-pressed:text-accent-foreground` (base) is a
     // variant key twMerge keeps and the attribute selector wins whenever the pill is ON.
-    <Toggle aria-label={name} className="text-muted-foreground" intent="outline" onPressedChange={onToggle} pressed={pressed} shape="pill" size="chip">
+    <Toggle aria-label={name} className={RECEDED_INK} intent="outline" onPressedChange={onToggle} pressed={pressed} shape="pill" size="chip">
       <Icon icon={glyph} size="xs" />
       {label}
     </Toggle>

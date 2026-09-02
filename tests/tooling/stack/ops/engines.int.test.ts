@@ -25,10 +25,11 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const ENGINES = fileURLToPath(new URL("../../../../tooling/src/stack/ops/engines.ts", import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
-const SPAWN_TIMEOUT_MS = 30_000;
+const SPAWN_TIMEOUT_MS = scaledBudget(30_000);
 /** The seam above. Built from a pair because the key is ENV VOCABULARY; spawnNiced MERGES it over the
  *  ambient env, so PATH et al. still ride through. */
 const PROBE_ENV: Readonly<Record<string, string>> = Object.fromEntries([["ENGINES_DISPATCH_PROBE", "1"]]);

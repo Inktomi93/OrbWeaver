@@ -12,16 +12,14 @@
 
 import type { CollectionContribution } from "#lib";
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
-import { useCreateTagMember, useTagCount, useTagMemberTitle, useTagPreview } from "../hooks/use-tag-collection.ts";
+import { useCreateTagMember, useTagCount, useTagInsights, useTagMemberTitle } from "../hooks/use-tag-collection.ts";
 import { TagMemberSurface } from "../surfaces/tag-member-surface.tsx";
 
 export const tagCollection: CollectionContribution = {
   emptyText: "No tags yet.",
   useCount: useTagCount,
-  // The welcome hero's chip wall (program #102). Usage totals ride every row of the list the pane already
-  // loaded, so the preview is a cache read of that same key. The kicker NAMES THE RANK ("Most used") rather
-  // than letting the host assume one — regex and world-info rank by recency and by attachment.
-  preview: { label: "Most used", useEntries: useTagPreview },
+  // The landing's library-level FACTS (#1209 — what the LIST cannot state, from the same cached read).
+  insights: { useInsights: useTagInsights },
   useMemberTitle: useTagMemberTitle,
   create: { label: "New tag", useRun: useCreateTagMember },
   list: (view) => <TagCollectionRows view={view} />,

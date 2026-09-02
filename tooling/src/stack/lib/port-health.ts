@@ -1,6 +1,9 @@
+import { budget } from "@orb/tooling/_shared/load-budget";
 import type { PortHealth } from "../contract/types.ts";
 
-const HEALTH_PROBE_TIMEOUT_MS = 2000;
+// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
+const HEALTH_PROBE_TIMEOUT_MS_BASE = 2000;
+const HEALTH_PROBE_TIMEOUT_MS = budget(HEALTH_PROBE_TIMEOUT_MS_BASE);
 
 function errorCode(error: unknown): unknown {
   if (typeof error !== "object" || error === null) {

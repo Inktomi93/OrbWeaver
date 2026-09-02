@@ -7,14 +7,18 @@
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { closeSync, existsSync, openSync } from "node:fs";
 import process from "node:process";
+import { budget } from "./load-budget.ts";
 
 function errnoIs(error: unknown, code: string): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === code;
 }
 
-/** Signal a child's whole process GROUP. Both child doors share it: signalling only the direct child
- *  orphans the real tree (pnpm→node→server, setsid→vllm→EngineCore). */
-function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): void {
+/** Signal a whole process GROUP by its pgid — THE ONE door. Both child doors share it: signalling only the
+ *  direct child orphans the real tree (pnpm→node→server, setsid→vllm→EngineCore). Exported for the stage
+ *  teardowns (#1254): never spell this as the external `kill -SIG -<pgid>` — procps-ng 4.0.4 parses that
+ *  argument by its FIRST DIGIT (`kill -TERM -4570` → `kill(-4)`), so a seven-digit pgid starting in 1
+ *  became `kill(-1)` and logged the owner out (2026-09-02). The syscall takes the real negative pgid. */
+export function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): void {
   if (typeof pid !== "number") {
     return;
   }
@@ -43,7 +47,11 @@ export interface SpawnNicedResult {
   readonly timedOut: boolean;
 }
 
-const DEFAULT_TIMEOUT_MS = 120_000;
+/** The default child ceiling, LOAD-SCALED through the one policy (#1232, docs/design/1208-instrument-substrate.md
+ *  §7.1): 120s is the QUIET-BOX base, and a caller that names no ceiling gets it stretched by the box's
+ *  contention rather than killed at a number written for an idle machine. Evaluated per CALL (not at module
+ *  load) because a long-lived process spawns children across changing load. */
+const DEFAULT_TIMEOUT_BASE_MS = 120_000;
 
 export interface RunNicedSyncOptions {
   readonly cwd?: string;
@@ -357,7 +365,7 @@ export function spawnNiced(cmd: string, args: readonly string[], opts: SpawnNice
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGKILL");
-    }, opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+    }, opts.timeoutMs ?? budget(DEFAULT_TIMEOUT_BASE_MS));
     child.on("error", (e) => {
       clearTimeout(timer);
       rejectPromise(e);

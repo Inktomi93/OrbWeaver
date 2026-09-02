@@ -131,6 +131,30 @@ test("maintenance extrema (firstAt/lastAt/maxContextTokens) accept nulls; increm
   expect(statsDeltaSchema.parse(value)).toEqual(value);
 });
 
+// #1147 — the ROOM COUNT is grain-split like the token slices: `chats` is the OWNER's library count,
+// `characterChats` the per-character seat census. A room with N character seats emits ONE delta carrying
+// both and N−1 SEAT deltas carrying only the character half, so the schema must accept a delta that sets
+// `characterChats` while OMITTING `chats` — the shape that credits a second seat without inflating the
+// owner's library (the decoupling pin above, on the chat axis).
+test("a SEAT delta sets the character room census but OMITS the owner chat count (grain-split pin)", () => {
+  const value: StatsDelta = {
+    ownerId: OWNER_ID,
+    characterId: CHARACTER_ID,
+    day: DAY,
+    model: null,
+    provider: null,
+    now: NOW_MS,
+    characterChats: 1,
+    characterForkedChats: 1,
+    firstAt: NOW_MS,
+    lastAt: NOW_MS,
+  };
+  const parsed = statsDeltaSchema.parse(value);
+  expect(parsed).toEqual(value);
+  expect(parsed.chats).toBeUndefined();
+  expect(parsed.chatsCreated).toBeUndefined();
+});
+
 test("statsDeltaSchema rejects a delta missing the required `now` stamp", () => {
   const invalid = {
     ownerId: OWNER_ID,

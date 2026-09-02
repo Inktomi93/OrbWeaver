@@ -11,8 +11,9 @@
 // is the same defect class pointing the other way.
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-const BROWSER_TIMEOUT_MS = 60_000;
+const BROWSER_TIMEOUT_MS = scaledBudget(60_000);
 
 // Each button carries exactly one non-rendered arm and one rendered arm, except `both-visible`, which is
 // the negative control: two rendered spans, separated by source whitespace, must still read as one name.

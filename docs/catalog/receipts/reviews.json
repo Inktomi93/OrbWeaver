@@ -2366,6 +2366,158 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-cta-conformance-census.md",
+      "assignedSha256": "67e2164147a7dc6717c5840f0c38f80d86a71dd6fb307bf363316748b6abc403",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "67e2164147a7dc6717c5840f0c38f80d86a71dd6fb307bf363316748b6abc403",
+      "verifiedCommit": "97fe449fb2e58b4e3373cb1e7a81f628d13b0c47",
+      "verifiedAt": "2026-09-02",
+      "evidence": [
+        "docs/reviews/stickler/2026-09-02-cta-conformance-census.md:1 (authored by lane cb-cta-census; the #1224 CTA conformance census — structural population, stamp census, rendered theme-reactivity arms)"
+      ],
+      "claims": [
+        {
+          "claim": "675 CTA-shaped controls in packages/client/src/{features,compose}: 97% direct @orb/ui primitives, the rest Button-backed wrappers, one sanctioned raw shell scrim; zero hand-styled Base UI parts, zero tv() outside @orb/ui, and zero theme-frozen controls across Hearth/Mocha/Light once the --theme shim settles.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1224"
+            },
+            {
+              "kind": "code",
+              "target": "packages/ui/src/lib/variant-attrs.ts:41"
+            }
+          ]
+        },
+        {
+          "claim": "Three ghost-intent Button call sites (rpg-card-row, rpg-pack-rows TILE_CLASS, assembly-preview) hand-compose the outline/card skin via className, so the #1080 data-intent stamp mis-describes the painted arm and the F8 authored-identity collapse is rebuilt through the class channel no gate reads.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/rpg/components/rpg-card-row.tsx:33"
+            }
+          ]
+        }
+      ],
+      "summary": "The #1224 CTA census: population conformant (675 controls, primitives-funneled by four live belts plus resolver physics), stamps fully held inside @orb/ui (baseline {}), rendered arm clean across all three shipped themes with token-matched positive controls. Two findings: the call-site skin family shadowing intent=outline (LOW), and snap --theme landing after data-app-ready so first-surface receipts sample the default palette (P2 instrument)."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg1.md",
+      "assignedSha256": "25c5dbed4daeef8ff14a77a9e1c16fde889116d3dfefafcccf5f658c844cc385",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "25c5dbed4daeef8ff14a77a9e1c16fde889116d3dfefafcccf5f658c844cc385",
+      "verifiedCommit": "e55c7b6991dfcf8eb31229ead7e8ce6254e1d756",
+      "verifiedAt": "2026-09-02",
+      "summary": "CT corpus audit leg 1 (#1229, lane cb-ct-audit): Phase A structural sweeps over all 469 .ct.tsx files (16 defect classes, planted positive controls, second-method corroboration) + full-reads of the 24 highest-risk files (~26k lines). 2 confirmed findings (P3 reports/snaps literal screenshot write; P4 racy zero-count negative pin), 1 half-tracked product note (bare-Button CTA ring), 0 stale selectors, 0 assertion-free/tautological tests. Shard map + 149-site helper-await triage list for legs 2+.",
+      "evidence": [
+        "born-reviewed at e55c7b6991dfcf8eb31229ead7e8ce6254e1d756: authored and full-read by lane cb-ct-audit (stickler) in the same session — Phase A table, F1-F3, 24 shard verdicts, Appendix A band map, Appendix B helper-await sites"
+      ],
+      "claims": [
+        {
+          "claim": "rules-section.ct.tsx writes a CT screenshot into the snap instrument's published reports/snaps/ family via a template literal the #1201 sweep missed — the same file uses storyShot at five sibling sites.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/features/automation/components/rules-section.ct.tsx:1088"
+            }
+          ]
+        },
+        {
+          "claim": "The unchanged-commit zero-count pin races the async fetch it forbids — a node-side recorder read microseconds after blur() with no rendered barrier, downstream ordering proof, or inverted poll.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/features/automation/components/owner-automation-sections.ct.tsx:223"
+            }
+          ]
+        },
+        {
+          "claim": "A bare <Button> (omitted intent) paints the primary skin without its data-cta ring; 9 live call sites; the 'documented, not repainted' disposition lives only on the frozen 2026-08-03 board.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/primitives/button/button.tsx:54"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg2.md",
+      "assignedSha256": "e2453ea4d3608ac9c31ab477f5048aca252bd52b9893498e5dea8f30dbad06ad",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "e2453ea4d3608ac9c31ab477f5048aca252bd52b9893498e5dea8f30dbad06ad",
+      "verifiedCommit": "323f3d68b82033eac8056599529e2f8eb71f5b60",
+      "verifiedAt": "2026-09-02",
+      "summary": "CT corpus audit leg 2 (#1229, lane cb-ct-audit): full-read of 45 more CT files (~19.5k lines) in 7 incrementally-committed chunks — the whole reachable helper-hoisted-assert core population (32 files/69 sites), the 7 ex-fenced config files, and 6 of the 19 HI-band remainder files. Zero new findings; every helper-hoisted non-retrying assert judged barriered-by-construction; F1 (#1240) confirmed still live on the merged base. Running campaign total 69/469 full-read. Stop marker + exact leg-3 queue recorded (usage-window stop).",
+      "evidence": [
+        "born-reviewed at 323f3d68b82033eac8056599529e2f8eb71f5b60: authored and full-read by lane cb-ct-audit (stickler) in the same session — chunks 1-7 per-file verdicts, updated shard map, leg-3 queue"
+      ],
+      "claims": [
+        {
+          "claim": "The leg-2 core helper-await population (35 files minus 3 pre-fold-parked) contains zero racing (F2-shaped) one-shot asserts; every site is barriered by construction.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/features/preset/surfaces/preset-editor-surface.ct.tsx:460",
+              "note": "the model windowed zero-read: explicit browser-side settle window + ONESHOT-OK mechanism note; every sibling site in the 32 read files carries an equivalent barrier (report §3-§3g)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg3.md",
+      "assignedSha256": "18c07c9c8a719d57604eade319b704175de77d342539badbe71520045601c127",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "18c07c9c8a719d57604eade319b704175de77d342539badbe71520045601c127",
+      "verifiedCommit": "dc4f733d90b106a9297acfcd830c6e1c01d13162",
+      "verifiedAt": "2026-09-02",
+      "summary": "CT corpus audit leg 3 (#1229, lane cb-ct-audit-3): full-read of the 13-file HI-band remainder plus the two config surfaces the collections fold REWROTE (fresh subjects) — 15 files, ~12,258 lines, in 4 incrementally-committed chunks. The HI band (61 files) is DRAINED. Zero findings; campaign ceiling stays at leg 1's P3. Taxonomy sweep receipts over exactly these files (0 reports/ writes, 0 kill spawns, 4 marked fabrication casts, 0 skip/only, 0 suppressions, every ONESHOT-OK marker inside the adjacency window) plus premise spot-checks against today's src. Running campaign total 84/469 full-read; leg-4 shard map (MID 74 by area, LO 334 by directory) and 4 proposed memory lessons recorded.",
+      "evidence": [
+        "born-reviewed at dc4f733d90b106a9297acfcd830c6e1c01d13162: authored and full-read by lane cb-ct-audit-3 (stickler) in the same session — chunks 1-4 per-file verdicts, the taxonomy sweep receipts, the premise spot-check list, the leg-4 shard map and the #1229 issue summary"
+      ],
+      "claims": [
+        {
+          "claim": "The #1203 luck-based-coverage P0 (an optional per-library hook whose count differed between neighbouring collections) now has a class-sweep repair pin: both directions through both declaring libraries, with page errors collected from the first navigation and the LIST landmark asserted to survive.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/features/config/surfaces/config-content-surface.ct.tsx:857",
+              "note": "a white-screened shell can satisfy a naive 'the old text is gone' assertion, so the claim is pageerror + the surviving landmark, not the pane alone"
+            }
+          ]
+        },
+        {
+          "claim": "home-surface's two-polarity contrast matrix ASSERTS that its light arm inverted before judging a pixel, and reads the framebuffer because a CSS mask is invisible to every computed-style contrast instrument in the repo (including pixelContrast, which composites ancestor opacity a mask never touches).",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/features/home/surfaces/home-surface.ct.tsx:1201",
+              "note": "the polarity probe resolves the tokens through a canvas because oklch defeats an rgb regex; the in-band controls' positive control is a peer CTA outside the fade band"
+            }
+          ]
+        },
+        {
+          "claim": "composer's #366 keyboard-focus pin is failable rather than decorative: the composer card carries shadow-glow and its ring only under focus-within, so the resting computed box-shadow is none.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/components/composer-drop-target.tsx:41"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

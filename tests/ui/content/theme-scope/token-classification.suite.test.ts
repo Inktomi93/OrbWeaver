@@ -103,9 +103,25 @@ const SEED_COVERED = new Set<string>(["color.backdrop"]);
 //     wanting a dark gloss), none is required to, and no seed value-set carries it (the seed sets are
 //     restricted to the ThemeScope-emitted class + backdrop). It replaced three bare `oklch(1 0 0 / 0.0N)`
 //     literals, so the token's job is making that choice visible and overridable, not palette-tracking.
+//   • selection-quiet (+ its foreground): the QUIET SELECTION FILL of a BULK-DEFAULT selection control
+//     (#1110, owner ruling 2026-09-02 — Backup & Restore's eleven-row "Include" fieldset is all-selected
+//     before the user has chosen anything, so the accent skin spent the ember on a state nobody picked).
+//     Classified here, not EMITTED, because it is shaped EXACTLY like the divergent intents above and for
+//     the same reason: ONE token carrying `orb.output: "light-dark"`, whose active arm follows
+//     `color-scheme` (themes/light.json supplies the light arm; no seed re-authors it beyond that), and
+//     whose value is a MEASURED bound rather than a palette role. The token's own $description states the
+//     bound from both sides — a CEILING (it must stay quieter than the accent checked fill: 5.759 vs 6.836
+//     Hearth, 4.994 vs 6.264 Light, 5.687 vs 6.658 Mocha) and a FLOOR (WCAG 1.4.11's 3:1 against the
+//     `bg-accent` an interactive row paints on hover: 4.618 / 4.119 / 4.528). A theme-derived value cannot
+//     hold a two-sided measured bound, which is precisely why it is static; deriving it off a custom base
+//     would re-open the 48 unpassable ink-on-surface findings it was minted to close. Its `-foreground` is
+//     a PAIR ink — it only ever sits on its own fill — so it is static for the same reason and is the
+//     DOCUMENTED_STATIC row in tests/ui/tokens/theme-emit-pairing.suite.test.ts.
 const STATIC_RATIONALE = new Set<string>([
   "color.sheen",
   "color.accolade",
+  "color.selection-quiet",
+  "color.selection-quiet-foreground",
   "color.destructive",
   "color.destructive-foreground",
   "color.success",

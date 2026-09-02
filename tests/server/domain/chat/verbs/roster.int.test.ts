@@ -13,6 +13,7 @@ import type { Db } from "@orb/db";
 import {
   assets,
   auditLogs,
+  characterStats,
   characters,
   chatEvents,
   chatHandoffResumptions,
@@ -35,7 +36,7 @@ import { createChatBus } from "../../../../../packages/server/src/domain/chat/bu
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { getToolRecurseLimit } from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
 import { createRoster, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
-import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { publishChatEvent, subscribeAllChatEvents } from "../../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -675,6 +676,41 @@ describe("add character to chat — the participant-insert chokepoint", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.talkativeness).toBe(0.9);
   });
+
+  // #1147 — A LATER SEAT IS STILL A SEAT. The stats rebuild's per-character census counts every chat a
+  // character holds a `chat_participants` row in, so a character seated into a live room owes its own `+1`
+  // at the moment of the join; without it the Analytics/leaderboard read stays 0 until a reconcile. The
+  // RE-ADD arm is the other half: a removed character keeps its `leftSeq`-stamped row, so a re-add mints a
+  // SECOND participant row for a pair the rebuild still counts ONCE — a presence-blind `+1` here would
+  // drift the live census ABOVE the rebuild, which is the same defect with the sign flipped.
+  test("a character seated into a live room counts the room, and a re-add after a removal does not count it twice", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const characterId = await seedCharacter(db, host, "aria");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = createRoster(
+      makeChatContext(db, {
+        getCard: () => Promise.resolve(card("Aria")),
+        applyStatsDelta: (batch, deltaDb, delta) => applyStatsDelta(batch as BatchStmt[], deltaDb, delta),
+      }),
+      { emit, claimChat: noClaim },
+    );
+
+    await roster.addCharacterToChat({ principal: principal(host), chatId, characterId });
+    const afterJoin = (await db.select().from(characterStats).where(eq(characterStats.characterId, characterId)))[0];
+    expect(afterJoin).toMatchObject({ chats: 1, firstChatAt: FROZEN_AT });
+
+    await roster.removeCharacterFromChat({ principal: principal(host), chatId, characterId });
+    await roster.addCharacterToChat({ principal: principal(host), chatId, characterId });
+    const afterReAdd = (await db.select().from(characterStats).where(eq(characterStats.characterId, characterId)))[0];
+    // Two participant ERAS, one room — the rebuild's `COUNT(DISTINCT cp.chat_id)` says 1 and so must this.
+    expect(afterReAdd?.chats).toBe(1);
+    const seats = await db
+      .select()
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.characterId, characterId)));
+    expect(seats).toHaveLength(2);
+  });
 });
 
 // F6 (chat-creation-draft-mode-replacement.md §4.8/§5): a character added while the GREETING WINDOW is still
@@ -764,18 +800,29 @@ describe("add character to chat — the F6 in-window join greeting", () => {
     const brann = await seedCharacter(db, host, "brann");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const deltas: { ownerId: UserId; characterId: CharacterId | null; assistantTurns: number }[] = [];
+    const deltas: { ownerId: UserId; characterId: CharacterId | null; assistantTurns: number; characterChats: number }[] = [];
     const ctx = makeChatContext(db, {
       getCard: () => Promise.resolve(card("Brann", ["Brann strides in."])),
       applyStatsDelta: (_stmts, _db, delta): void => {
-        deltas.push({ ownerId: delta.ownerId, characterId: delta.characterId, assistantTurns: delta.assistantTurns ?? 0 });
+        deltas.push({
+          ownerId: delta.ownerId,
+          characterId: delta.characterId,
+          assistantTurns: delta.assistantTurns ?? 0,
+          characterChats: delta.characterChats ?? 0,
+        });
       },
     });
     const roster = createRoster(ctx, { emit, claimChat: noClaim });
 
     await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
 
-    expect(deltas).toEqual([{ ownerId: host, characterId: brann, assistantTurns: 1 }]);
+    // TWO deltas, in join order: the SEAT census (#1147 — this room now counts for Brann) and then the
+    // greeting row's own canon fold. Neither subsumes the other: a silent join still owes the first, and a
+    // re-add after a removal owes only the second.
+    expect(deltas).toEqual([
+      { ownerId: host, characterId: brann, assistantTurns: 0, characterChats: 1 },
+      { ownerId: host, characterId: brann, assistantTurns: 1, characterChats: 0 },
+    ]);
   });
 });
 

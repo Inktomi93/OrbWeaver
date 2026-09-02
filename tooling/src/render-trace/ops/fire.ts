@@ -28,6 +28,7 @@ import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import type { RequestTrace } from "@orb/server/foundation/observability";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { instrumentError, printVerdict } from "../../_shared/evidence.ts";
@@ -40,7 +41,9 @@ import { renderTrace } from "../lib/render.ts";
 refuseDirectInvocation(import.meta.url, "pnpm trace:render | pnpm trace:tail | pnpm trace:fire");
 
 // Cold compile of the server graph is bounded generously; a warm host is far under it.
-const READY_TIMEOUT_MS = 120_000;
+// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
+const READY_TIMEOUT_MS_BASE = 120_000;
+const READY_TIMEOUT_MS = budget(READY_TIMEOUT_MS_BASE);
 const POLL_MS = 200;
 const SETTLE_MS = 100;
 const TOKEN_BYTES = 16;
