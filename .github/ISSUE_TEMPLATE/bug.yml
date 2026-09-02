@@ -68,7 +68,6 @@ body:
         - Technical
         - Security
         - UX
-        - Technical and UX
         - Owner
         - None
       default: 0
