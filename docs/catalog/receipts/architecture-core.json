@@ -496,10 +496,11 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "2dbb8fe3d7c6863178ab3c17410529553dac5e5b885b1d971e28394eee6af302",
-      "verifiedCommit": "f20da4c3037482422ad23db329b508f6dba96c01",
+      "verifiedSha256": "8e0c2616b80fea881bf91ab6b1559a27fdc025a08a97eb5687812250cfa43d1a",
+      "verifiedCommit": "dad0162ae0dbac9cc6c7669486cbf88b276b8e69",
       "verifiedAt": "2026-09-02",
       "evidence": [
+        "re-attested at dad0162ae (#1184, claude-b lane cb-bug-button warm leg): the §2.6 tool roster gains the `bug-reports/` row — the READER for the dev bug button's gitignored captures (`pnpm bug:reports` list + show); the artifacts have no tree presence, so the script name IS their discoverability. Diff read in full at the fold by the primary orchestrator.",
         "re-attested at a4467408a (#971, lane p-argv-lock): NEW §4.9 `tooling-argv-front-door` — the operator's argv enters a tooling program at ONE place (a tool cli.ts, matched by shape; or a censused ARGV_ENTRIES row for the bash-fronted node halves and `_shared/entrypoint.ts`, whose subject is argv[1]) and flows down as a parameter; the four library readers the mint census found are named, and the DECLARED LIMIT (this gate pins WHERE argv is read, never how strictly each grammar parses it) is written down beside the 27-reader classification. §4's gate count rolled five → six. Verified against tooling/src/verify/gates/tooling-argv-front-door.ts and the red-first receipt (6 findings across the four pre-fix sources plus a planted scratch probe).",
         "delta re-verify 2026-09-01 (#1029, content commit b2b74c97343aa257aabed4ac61dd3ef39d39d128): §2.4's `artifacts.ts` row now names the run-slot layout members (runId/checkoutName/openRunSlot/runFile/publishRunSlot/abandonedRuns) that joined the ONE reports/ plumbing home, and cites the layout's home rather than restating it. Verified against tooling/src/_shared/artifacts.ts:59-300 and the tooling-shared-plumbing arm-C exemption row that keeps this module the only `reports` speller.",
         "re-attested at 7b7eb54b2 under #950 — full-file/delta read; the shared-tooling table and revisioned-runtime section bind the verified offline DevTools asset server/runtime to Snap's one sanctioned asset root",
