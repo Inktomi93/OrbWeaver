@@ -131,16 +131,20 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
         <TooltipTrigger
           render={
             <MenuTrigger
-              aria-label="Message tools"
               data-testid={testId("composerUtility")}
               render={
                 // NO NATIVE `title` HERE (side-eye 2026-08-21): it read "Message tools" while the popup below
                 // reads "More message actions", so Chrome stacked a SECOND tooltip with DIFFERENT copy on the
-                // one control that had two answers. The accessible name stays "Message tools" (the trigger's
-                // aria-label, which every CT and the e2e room helper address it by) and the hover/focus
-                // explanation is the tooltip popup, once. Disabled MENUITEMS inside the popup keep their
-                // `title` — a menuitem cannot be tooltip-wrapped, and that idiom is unaffected.
-                <Button type="button" intent="ghost" size="icon" shape="pill" className="shrink-0">
+                // one control that had two answers. The accessible name stays "Message tools" (which every CT
+                // and the e2e room helper address it by) and the hover/focus explanation is the tooltip popup,
+                // once. Disabled MENUITEMS inside the popup keep their `title` — a menuitem cannot be
+                // tooltip-wrapped, and that idiom is unaffected.
+                //
+                // The name now sits on the BUTTON rather than on the MenuTrigger (#1021): the trigger renders
+                // this element, so it is the same DOM node and the same string — but an icon-only `@orb/ui`
+                // Button now REQUIRES its name at the type level, and a name declared one component up is
+                // invisible to that check (and to a reader of this element).
+                <Button aria-label="Message tools" type="button" intent="ghost" size="icon" shape="pill" className="shrink-0">
                   <Icon icon={WandSparkles} size="sm" />
                 </Button>
               }

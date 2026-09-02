@@ -303,3 +303,30 @@ test("a ghost slider is still fully operable — the inherited value is editable
   await thumb.press("ArrowRight");
   await expect(thumb).toHaveAttribute("aria-valuenow", "51");
 });
+
+// #1019 — ONE NAMING PATH. Base UI wires the thumb's `aria-labelledby` to the rendered `Slider.Label`
+// and DROPS that association the moment any `aria-label` is passed (`SliderThumb.js`:
+// `'aria-labelledby': ariaLabelledByProp ?? (ariaLabel == null ? labelId : undefined)`). The seal used to
+// seed the thumb's `aria-label` from `thumbLabels[0]` whenever `label` was not a plain string, so a
+// slider with a rich visible label announced the OTHER string — the pixels and the name were two
+// independent sources that could drift (§13.10 N1: visible text beats `aria-label`).
+test("N1: a visible label names the thumb even when thumbLabels is also supplied", async ({ mount, page }) => {
+  await mount(<Slider defaultValue={50} label={<span>Reveal speed</span>} max={100} min={0} thumbLabels={["Chars per second"]} />);
+  await expect(page.getByRole("slider")).toHaveAccessibleName("Reveal speed");
+});
+
+// The FENCE for the plain-string label: the name is the label the eye reads, sourced from the rendered
+// element rather than re-spelled here — a duplicated string would keep passing after the two drifted.
+test("N1: the thumb's name IS the rendered label's text", async ({ mount, page }) => {
+  await mount(<Slider defaultValue={50} label="Volume" max={100} min={0} />);
+  const labelText = await page.locator('[data-slot="slider-label"]').innerText();
+  await expect(page.getByRole("slider")).toHaveAccessibleName(labelText);
+});
+
+// The label-less arm (the KnobRow / talkativeness shape): no visible label is rendered, so the string
+// form is the ONLY name source and must survive.
+test("a label-less slider is still named by thumbLabels", async ({ mount, page }) => {
+  await mount(<Slider defaultValue={50} max={100} min={0} thumbLabels={["Max output tokens"]} />);
+  await expect(page.locator('[data-slot="slider-label"]')).toHaveCount(0);
+  await expect(page.getByRole("slider")).toHaveAccessibleName("Max output tokens");
+});

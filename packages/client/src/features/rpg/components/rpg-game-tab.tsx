@@ -78,6 +78,14 @@ function TrackerRow({
   readonly onCommit: (next: RpgTrackerDef) => void;
 }): ReactElement {
   const patch = (fields: Partial<RpgTrackerDef>): void => onCommit({ ...def, ...fields });
+  // ONE string, two jobs (#1021): the accessible NAME an icon-only button has no visible text to supply,
+  // and the hover tooltip. Spelled once here so the two can never drift apart.
+  // BAND vocabulary + Eye glyph, never "pin" (owner ruling 08-01): "pin" is the HAND-LOCK's word
+  // (RpgFieldLock's "Pinned by hand"), and the band toggle even shared its Pin icon — two different
+  // concepts, one verb+glyph. Band = visibility, so it speaks visibility.
+  const bandLabel = def.pinned ? `Remove ${def.label} from the band` : `Show ${def.label} as a band orb`;
+  const lockLabel = def.locked ? `Let the story write ${def.label} again` : `Lock ${def.label} — the story can no longer write it`;
+  const removeLabel = `Remove ${def.label}`;
   return (
     <Stack gap="field" className={DEF_ROW_CLASS} data-slot="rpg-tracker-row">
       <Row gap="field" align="center">
@@ -114,26 +122,13 @@ function TrackerRow({
             />
           </Row>
         ) : null}
-        <Button
-          intent="ghost"
-          size="glyph-md"
-          onClick={(): void => patch({ pinned: !def.pinned })}
-          // BAND vocabulary + Eye glyph, never "pin" (owner ruling 08-01): "pin" is the HAND-LOCK's word
-          // (RpgFieldLock's "Pinned by hand"), and the band toggle even shared its Pin icon — two different
-          // concepts, one verb+glyph. Band = visibility, so it speaks visibility.
-          title={def.pinned ? `Remove ${def.label} from the band` : `Show ${def.label} as a band orb`}
-        >
+        <Button aria-label={bandLabel} intent="ghost" size="glyph-md" onClick={(): void => patch({ pinned: !def.pinned })} title={bandLabel}>
           <Icon icon={def.pinned ? Eye : EyeOff} size="xs" />
         </Button>
-        <Button
-          intent="ghost"
-          size="glyph-md"
-          onClick={(): void => patch({ locked: !def.locked })}
-          title={def.locked ? `Let the story write ${def.label} again` : `Lock ${def.label} — the story can no longer write it`}
-        >
+        <Button aria-label={lockLabel} intent="ghost" size="glyph-md" onClick={(): void => patch({ locked: !def.locked })} title={lockLabel}>
           <Icon icon={def.locked ? Lock : LockOpen} size="xs" />
         </Button>
-        <Button intent="ghost" size="glyph-md" onClick={(): void => onCommit({ ...def, key: "" })} title={`Remove ${def.label}`}>
+        <Button aria-label={removeLabel} intent="ghost" size="glyph-md" onClick={(): void => onCommit({ ...def, key: "" })} title={removeLabel}>
           <Icon icon={Trash2} size="xs" />
         </Button>
       </Row>

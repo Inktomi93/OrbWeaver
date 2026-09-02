@@ -136,10 +136,12 @@ export function ImpersonateGuidedButton({
           render={
             <MenuTrigger
               disabled={disabled}
-              aria-label={name}
               data-testid={testId("composerGuidedImpersonate")}
               render={
+                // The name rides the BUTTON, not the trigger (#1021): the trigger renders this element, so it
+                // is one DOM node and one string — and an icon-only Button now states its own name.
                 <Button
+                  aria-label={name}
                   type="button"
                   intent={hasText && !disabled ? "primary" : "ghost"}
                   size="icon"
@@ -217,10 +219,11 @@ export function ResponseGuidedButton({
           render={
             <MenuTrigger
               disabled={!idle}
-              aria-label={name}
               data-testid={testId("composerGuidedResponse")}
               render={
+                // The name rides the BUTTON, not the trigger (#1021) — same node, same string.
                 <Button
+                  aria-label={name}
                   type="button"
                   intent={hasText ? "primary" : "ghost"}
                   size="icon"

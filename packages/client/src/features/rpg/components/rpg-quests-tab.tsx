@@ -102,7 +102,13 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
             {o.text}
           </Text>
           {editable ? (
-            <Button intent="ghost" size="glyph-sm" onClick={(): void => edit.onRemoveObjective(quest, o.id)} title={`Remove objective: ${o.text}`}>
+            <Button
+              aria-label={`Remove objective: ${o.text}`}
+              intent="ghost"
+              size="glyph-sm"
+              onClick={(): void => edit.onRemoveObjective(quest, o.id)}
+              title={`Remove objective: ${o.text}`}
+            >
               <Icon icon={X} size="xs" />
             </Button>
           ) : null}
@@ -136,7 +142,7 @@ function DeleteQuestAction({ quest, onDelete }: { readonly quest: RpgQuestView; 
       confirmLabel="Delete"
       onConfirm={(): void => onDelete(quest)}
       trigger={
-        <Button intent="ghost" size="glyph-sm" title={`Delete quest: ${quest.name}`}>
+        <Button aria-label={`Delete quest: ${quest.name}`} intent="ghost" size="glyph-sm" title={`Delete quest: ${quest.name}`}>
           <Icon icon={Trash2} size="xs" />
         </Button>
       }

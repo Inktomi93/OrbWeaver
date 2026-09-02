@@ -62,8 +62,10 @@ test("the auto-fix switch patches autoFixMarkdown, still key-minimal", async ({ 
 
 // side-eye 2026-08-16 P2, RE-PINNED ON THE CARDS (#866 §7.8 — the Select's popup died with the flip; the
 // concern survives): each mode's gloss must be readable at the moment of choosing (now: at REST, on the
-// card), the card's accessible NAME must stay the bare mode name (the aria-label pins it — a gloss folded
-// into the name would rename every card), and every mode carries a gloss AND a mini preview pair.
+// card), the card's accessible NAME must stay the bare mode name (`aria-labelledby` to the rendered label
+// pins it; the gloss is its `aria-describedby` DESCRIPTION — #1022, 2026-09-01: the ruling survives, its
+// mechanism changed, because the old `aria-label` over a visible label + gloss was a WCAG 2.5.3 /
+// §13.10 N2 label-in-name violation ×8), and every mode carries a gloss AND a mini preview pair.
 test("every chat-display CARD carries its name, its gloss and its preview — and exactly one is pressed", async ({ mount, page }) => {
   await stub(page);
   await mount(<AppearanceMessageStyleSectionStory />);

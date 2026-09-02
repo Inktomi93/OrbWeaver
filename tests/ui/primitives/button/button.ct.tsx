@@ -87,7 +87,7 @@ test.describe("coarse pointer — the touch floor", () => {
         <Button className="size-control-sm p-0" intent="ghost" size="sm">
           <span data-testid="old-icon-sm" style={{ display: "block", height: 8, width: 8 }} />
         </Button>
-        <Button intent="ghost" size="icon-sm">
+        <Button aria-label="Sample action" intent="ghost" size="icon-sm">
           <span data-testid="new-icon-sm" style={{ display: "block", height: 8, width: 8 }} />
         </Button>
       </div>,
@@ -389,7 +389,7 @@ test("every converted glyph site paints the SAME box on the arm as it did on its
           <Button className={s.retired} intent="ghost" size="sm">
             <span data-testid={`old-glyph-${i}`} style={{ display: "block", height: 12, width: 12 }} />
           </Button>
-          <Button intent="ghost" size={s.size}>
+          <Button aria-label={`Sample action ${i + 1}`} intent="ghost" size={s.size}>
             <span data-testid={`new-glyph-${i}`} style={{ display: "block", height: 12, width: 12 }} />
           </Button>
         </div>

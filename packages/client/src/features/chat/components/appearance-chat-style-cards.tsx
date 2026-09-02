@@ -17,6 +17,7 @@ import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import { CHAT_STYLE_ITEMS } from "../lib/appearance-select-items.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 
@@ -47,18 +48,33 @@ export interface ChatStyleCardsProps {
   readonly onPick: (value: AppearanceSettings["chatStyle"]) => void;
 }
 
-/** The card grid. Each card is a real `aria-pressed` button named for its mode; the mini pair inside is
- *  ornament (`aria-hidden`) — the gloss under the name is the reader's words. */
+/**
+ * The card grid. Each card is a real `aria-pressed` button named for its mode; the mini pair inside is
+ * ornament (`aria-hidden`) — the gloss under the name is the reader's words.
+ *
+ * THE NAME IS THE RENDERED MODE LABEL, WIRED (#1022, and the side-eye 2026-08-16 ruling this preserves).
+ * The card used to carry `aria-label={option.label}` over visible "Bubble" + a full-sentence gloss, and
+ * WCAG 2.5.3 (§13.10 N2) counts every visible word: the label dropped seven of them, ×8 cards, and the
+ * `accessible-name-quality` suite reds on it. The ruling that the card's name must stay the BARE MODE NAME
+ * still stands — a gloss folded into the name renames every card and breaks the way this pane is addressed
+ * — so the fix is the WIRING, not the string: `aria-labelledby` points at the rendered label (N1's top
+ * tier: visible text, one source, nothing to drift) and the gloss becomes the DESCRIPTION it always was.
+ * N2's own carve-out for `aria-describedby` targets then applies, and the name is still exactly "Bubble".
+ */
 export function ChatStyleCards({ value, onPick }: ChatStyleCardsProps): ReactElement {
+  const ids = useId();
   return (
     <Row className="flex-wrap" gap="row" data-slot="chat-style-cards">
       {THEME_CHAT_STYLES.map((style) => {
         const option = optionFor(style);
         const selected = style === value;
+        const labelId = `${ids}-${style}-label`;
+        const glossId = `${ids}-${style}-gloss`;
         return (
           <Button
             key={style}
-            aria-label={option.label}
+            aria-labelledby={labelId}
+            {...(option.description === undefined ? {} : { "aria-describedby": glossId })}
             aria-pressed={selected}
             className={
               selected
@@ -73,11 +89,11 @@ export function ChatStyleCards({ value, onPick }: ChatStyleCardsProps): ReactEle
               <PreviewLine speaker="assistant" style={style} />
             </Stack>
             <Stack className="min-w-0" gap="tight">
-              <Text as="span" voice="label" className="truncate">
+              <Text as="span" voice="label" className="truncate" id={labelId}>
                 {option.label}
               </Text>
               {option.description === undefined ? null : (
-                <Text as="span" voice="gloss" className="whitespace-normal">
+                <Text as="span" voice="gloss" className="whitespace-normal" id={glossId}>
                   {option.description}
                 </Text>
               )}
