@@ -1140,7 +1140,7 @@ function writeFixtures(): void {
 // the last deferral). STALE needs a deferred member (none); MISSING needs an un-emitted REAL union member,
 // which a throwaway `__g_` file can't add to the single-home `CHAT_BUS_EVENT_TYPES`. Its bite stays proven by
 // its conformance mustFlag (a synthetic un-emitted member) + the `user-bus-coverage` twin's live STALE fixture.
-// bus-payload-allowlist: scopes to 5 EXACT bus-contract file paths (BUS_FILES) — a __g_ sentinel path
+// bus-payload-allowlist: scopes to 7 EXACT bus-contract file paths (BUS_FILES) — a __g_ sentinel path
 // can't match. STILL UNFIXTURABLE after #948 made the member walk TRANSITIVE over the named event's own
 // type identity, and after #1024/#1025 added the open-key-space and imported-zod-schema arms: every one of
 // those reaches a carrier ONLY because a REAL bus file `extends`/aliases/imports it, which a throwaway
@@ -1149,7 +1149,10 @@ function writeFixtures(): void {
 // `.loose()` rows) + the committed pins in tests/tooling/verify/gates/bus-payload-allowlist.test.ts + two
 // D16 real-file backup-pattern proofs (apiKey planted on user-bus settingsChanged → RED → restored;
 // 2026-09-01, an index signature on the real `UserBusEvent.corpusRecomputed` arm AND a relatively-imported
-// notification arm carrying `apiKey` → both RED at their declaring sites → restored).
+// notification arm carrying `apiKey` → both RED at their declaring sites → restored). The #1030 F4
+// population widening (rpg + automation homes) carries its own real-file control: a planted
+// `ResolvedCredential` type-import in packages/contracts/src/rpg/bus.ts REDs the paired dep-cruiser
+// `bus-contract-no-credentials` rule at its widened scope → restored.
 // knob-wire-coverage (D107): a whole-corpus coverage ratchet over its semantic member sources
 // (EffectiveAppConfig / USER_SETTINGS_SECTIONS / appSettingsSchema / imported Appearance schema /
 // DEFAULT_FORMAT_STRINGS / chatMetadataSchema). Its MISSING arm needs an UNWIRED member added to one of
