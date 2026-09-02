@@ -867,3 +867,42 @@ bulk-export contract per collection, which is a domain change, not a landing cha
 **#1213 — the EMPTY landing teaches.** The zero arm rendered `emptyText` alone, so the reader with nothing —
 the first-timer the empty state exists for — was the only one not told what the library is FOR. It now
 renders the group's blurb and the collection's own empty sentence above the create verb.
+
+### 8.7 The five mechanicals (#1212 #1213 #1214 #1217 #1218, as built 2026-09-02)
+
+Each from the same spot lens, each pinned in `tests/client/features/config/surfaces/config-list-surface.ct.tsx`
+unless stated.
+
+- **#1212 · the BULK toggle follows the MEMBERS.** Regex at count 0 drew "Select scripts" — enabled,
+  focusable, over a library with nothing to select. The toggle now renders only where a collection declares
+  a bulk mode AND has members (a settling count draws nothing either). **PRICED GAP:** the row's other
+  direction — "Tags at 28 exposes none" — is not a host fix: `bulkSelect` is a DATA declaration and the
+  contribution owns everything behind it (the selection bar, the checkbox rows, the batch verbs). Giving
+  tags a bulk mode is a tag-feature build, not a config-host change, and it is not stubbed here.
+- **#1213 · the empty landing teaches** (§8.6).
+- **#1214 · the a11y trio.** (1) A modified band announced "AppearanceModified" — the same welding the
+  collection band's count fix solved, so the same fix: an explicit `aria-label` stated ONLY when a mark
+  exists, separator a SPACE (WCAG 2.5.3 Label in Name). (2) The shelf's Modified mark was a second kicker
+  identical in step, tracking and ink to the shelf's own name; it is a `Badge` now — the house's state
+  chrome, with its own box and its own accessible text, and the shelf's NAME is the kicker alone.
+  (3) **PARTLY REFUTED:** the row says the expanded rows have "no aria-controls/owned container" — the
+  `aria-controls` relation and a real `div#bodyId` wrapper have existed on BOTH band species since #978.
+  What was true is that the wrapper is a bare `div`, which is generic and therefore transparent to AT, so
+  the rows still announced as siblings. The row Stack now carries `role="group"` + `aria-labelledby` the
+  band — the anatomy the row itself cites as proof nesting is representable — rather than the tree/treeitem
+  promotion, which would re-spell the whole LIST's semantics for one relation.
+- **#1217 · the auto-opened arrival group folds** when the location moves on. Auto-open is not user intent:
+  the disclosure store is a memory of what the READER opened (C-12), and the arrival default writes into it
+  on nobody's behalf. It closes exactly one group — the one it opened, by id — and a group the reader opened
+  themselves is untouched (both arms pinned).
+- **#1218 · the arrival focus target is a visible control.** The Tab-walk receipt: focus landed on the LIST's
+  own `tabIndex={-1}` scroller, `:focus-visible` true over `outline: none`. **RULING FORK, stated:** the row
+  offers "paint a ring" as one arm, but "a programmatic-only focus target must NOT paint a ring" is a
+  recorded rule for every section surface and the shell modal's body (a ring on a non-tab-stop is a lie about
+  tabbability). So the TARGET moved instead: the ACTIVE GROUP'S BAND — a real control, already a tab stop,
+  inside the LIST (the 2026-08-19 "the map owns the section's arrival focus" ruling, preserved), announcing
+  exactly where the reader is. The row's own second arm (the search box) was built first and REVERTED with a
+  receipt: `CommandInput` keeps an internal ref to correct cmdk's `aria-expanded`, a caller `ref` replaces
+  it, and the box then claims an expanded listbox that does not exist (measured as a red in
+  `config-search-input.ct.tsx`). Fixing that needs a ref-merge inside a sealed `@orb/ui` primitive, which is
+  not this lane's to change.

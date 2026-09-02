@@ -12,6 +12,7 @@
 // THE SEARCH (S2) rides the top of this scroller as a `role="search"` block, not the 48px LIST band
 // (fork F-11 — the corpus omnibox precedent).
 
+import { Badge } from "@orb/ui/badge";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -21,6 +22,7 @@ import { useFocusOnMount } from "#lib";
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry } from "#state";
 import {
   CONFIG_SHELVES,
+  closeConfigGroup,
   selectConfigGroup,
   selectConfigSub,
   useActiveConfigGroup,
@@ -48,7 +50,16 @@ export interface ConfigListSurfaceProps {
 
 export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  const bandRef = useRef<HTMLButtonElement>(null);
+  // ARRIVAL FOCUS LANDS ON A CONTROL THE READER CAN SEE (#1218). This pane used to take the landing focus on
+  // its own scroll container — a `tabIndex={-1}` box with `outline-none`, so the Tab-walk receipt read
+  // `:focus-visible` true over `outline: none` and a keyboard reader arrived somewhere with no indicator at
+  // all. The recorded rule for such a stop is that it must NOT paint a ring (every section surface's focus
+  // target and the shell modal's body: a ring on a non-tab-stop is a lie about tabbability), so the ring is
+  // not the fix — the TARGET is. Focus goes to the ACTIVE GROUP'S BAND: a real control with the house ring,
+  // already a tab stop, inside the LIST (the 2026-08-19 "the map owns the section's arrival focus" ruling,
+  // preserved), and what it announces is exactly where the reader is.
+  useFocusOnMount(bandRef);
   // The ONE `when` projection (non-suspense — gating must never block a pane from painting), shared by the
   // group filter, the section filter and (S2) the search index.
   const viewer = useSettingsViewerView();
@@ -112,20 +123,27 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
             <Stack aria-labelledby={configShelfLabelId(shelf)} data-config-shelf={shelf} gap="field" key={shelf} role="group">
               {/* The shelf's kicker keeps being the shelf's NAME (`aria-labelledby` still points at it
                   alone); the mark is content beside it, so the group's name does not change under the
-                  reader as they edit. */}
+                  reader as they edit.
+                  THE MARK IS A BADGE, NOT A SECOND KICKER (#1214-2). As a `Text voice="kicker"` it was
+                  typographically IDENTICAL to the shelf's own name — same step, same tracking, same 8.45:1
+                  ink — so the header read as two labels of equal rank ("USER MODIFIED") and a reader had no
+                  way to tell the name from the state. A `Badge` is the house's own state chrome: its own
+                  box, its own contrast, and its own accessible text, which is also what stops it being read
+                  as part of the shelf's name. */}
               <Row align="center" gap="tight">
                 <Text id={configShelfLabelId(shelf)} voice="kicker">
                   {CONFIG_SHELF_LABELS[shelf]}
                 </Text>
                 {members.some((group) => isGroupModified(group.id)) ? (
-                  <Text data-slot="config-shelf-modified" voice="kicker">
+                  <Badge data-slot="config-shelf-modified" intent="neutral" size="sm" tone="soft">
                     {CONFIG_MODIFIED_MARKER}
-                  </Text>
+                  </Badge>
                 ) : null}
               </Row>
               {members.map((group) => (
                 <ConfigListGroup
                   active={activeGroup === group.id}
+                  {...(activeGroup === group.id ? { bandRef } : {})}
                   activeSub={activeSub}
                   erroredSubIds={erroredSubIds}
                   group={group}
@@ -180,14 +198,34 @@ function useConfigArrivalDefault(
   activeGroup: ConfigGroupId | null,
   onSelectGroup: (group: ConfigGroupDefinition) => void,
 ): void {
-  const landed = useRef(false);
+  // TWO refs, one per fact, because they retire at different moments: `fired` is the ONE-SHOT arrival latch
+  // and never re-arms (a reader who backed out to the teaching frame stays there), while `autoOpened` names
+  // the group this hook expanded and is cleared the moment that group is folded again.
+  const fired = useRef(false);
+  const autoOpened = useRef<ConfigGroupId | null>(null);
   const mobile = useMobileViewport();
   useLayoutEffect((): void => {
     const first = visible[0];
-    if (landed.current || mobile || activeGroup !== null || first === undefined) {
+    if (fired.current || mobile || activeGroup !== null || first === undefined) {
       return;
     }
-    landed.current = true;
+    fired.current = true;
+    autoOpened.current = first.id;
     onSelectGroup(first);
   });
+  // …AND IT FOLDS ITSELF WHEN THE READER MOVES ON (#1217). The disclosure store is a per-device memory of
+  // what the READER opened (C-12), and the arrival default writes into it on nobody's behalf — so once the
+  // location moves somewhere else, the group this hook opened is nine rows of somebody else's map pinned
+  // above the library the reader actually entered (measured: the library sat 57% down the pane with 7 of 28
+  // rows visible). It closes exactly ONE group — the one it opened, remembered by id, and only while the
+  // reader has not re-opened it themselves, which is why the latch is cleared with the same act: after this
+  // the group is theirs again and its memory behaves like every sibling's.
+  useLayoutEffect((): void => {
+    const opened = autoOpened.current;
+    if (opened === null || activeGroup === null || activeGroup === opened) {
+      return;
+    }
+    autoOpened.current = null;
+    closeConfigGroup(opened);
+  }, [activeGroup]);
 }

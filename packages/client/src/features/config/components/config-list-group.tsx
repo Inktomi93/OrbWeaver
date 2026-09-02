@@ -29,7 +29,7 @@ import { ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 import { useId } from "react";
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigSectionPartition, ConfigSubcategory } from "#state";
 import { isCollectionGroup, isPlaceholderGroup, useConfigGroupOpen } from "#state";
@@ -55,13 +55,16 @@ export interface ConfigListGroupProps {
   readonly modifiedMarker?: string;
   readonly onSelectGroup: (group: ConfigGroupDefinition) => void;
   readonly onSelectSub: (groupId: ConfigGroupId, subId: string) => void;
+  /** The SECTION's arrival focus target (#1218) — handed to the ACTIVE group only, so the reader lands on
+   *  the map row that says where they are. Absent on every other group. */
+  readonly bandRef?: RefObject<HTMLButtonElement | null>;
 }
 
 /** One group frame, dispatched by body KIND. */
 export function ConfigListGroup(props: ConfigListGroupProps): ReactNode {
   const { group } = props;
   if (isCollectionGroup(group)) {
-    return <CollectionListGroup active={props.active} group={group} />;
+    return <CollectionListGroup active={props.active} group={group} {...(props.bandRef === undefined ? {} : { bandRef: props.bandRef })} />;
   }
   return <SectionsListGroup {...props} />;
 }
@@ -78,10 +81,12 @@ function SectionsListGroup({
   modifiedMarker,
   onSelectGroup,
   onSelectSub,
+  bandRef,
 }: ConfigListGroupProps): ReactElement {
   const remembered = useConfigGroupOpen(group.id);
   const open = remembered || active;
   const bodyId = useId();
+  const bandId = `${bodyId}-band`;
   const foldLabelId = `${bodyId}-fold`;
   const fold = group.advancedFold;
   const hasRows = subcategories.primary.length > 0 || subcategories.advanced.length > 0;
@@ -95,17 +100,23 @@ function SectionsListGroup({
     <Stack gap="tight" data-slot="config-group" data-config-group={group.id}>
       <SectionsBand
         active={active}
+        bandId={bandId}
         bodyId={bodyId}
         group={group}
         hasRows={hasRows}
         {...(modifiedMarker === undefined ? {} : { modifiedMarker })}
+        {...(bandRef === undefined ? {} : { bandRef })}
         onSelectGroup={onSelectGroup}
         open={open}
         unbuilt={unbuilt}
       />
+      {/* THE ROWS ARE AN OWNED, NAMED GROUP (#1214-3): a bare `div` is generic and transparent, so the
+          section rows announced as flat siblings of the band that owns them and the `aria-controls`
+          relation below was the only thing saying otherwise. `role="group"` labelled BY THE BAND is the
+          same anatomy the advanced fold already uses one level in. */}
       <div id={bodyId} hidden={!(open && hasRows)}>
         {open && hasRows ? (
-          <Stack className="ps-(--spacing-section)" gap="field">
+          <Stack aria-labelledby={bandId} className="ps-(--spacing-section)" gap="field" role="group">
             {subcategories.primary.map((sub) => (
               <SubcategoryRow
                 key={sub.id}
@@ -178,14 +189,18 @@ interface SectionsBandProps {
   readonly modifiedMarker?: string;
   /** Its surface has not been built (the `{ placeholder: true }` arm) — the row says so and stays a door. */
   readonly unbuilt: boolean;
+  /** The band's own id — the NAME its expanded row group points at (#1214-3). */
+  readonly bandId: string;
   readonly bodyId: string;
   readonly onSelectGroup: (group: ConfigGroupDefinition) => void;
+  /** Present on the ACTIVE group only — the section's arrival focus target (#1218). */
+  readonly bandRef?: RefObject<HTMLButtonElement | null>;
 }
 
 /** A SETTINGS group's band. Its own component so the frame above reads as a dispatch (the collection arm's
  *  two bands are each one for the same reason), and so this file stays under the `component-size` cap the
  *  collection split was about. */
-function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, bodyId, onSelectGroup }: SectionsBandProps): ReactElement {
+function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, bandId, bodyId, onSelectGroup, bandRef }: SectionsBandProps): ReactElement {
   return (
     // A group WITH rows is a disclosure GROUP, not a nav leaf: it expands (`aria-expanded`) and its children
     // carry the one "you are here" marker. A group with no rows IS the leaf, so it keeps `aria-current`
@@ -196,6 +211,13 @@ function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, b
       aria-controls={hasRows ? bodyId : undefined}
       aria-current={hasRows || !active ? undefined : "true"}
       aria-expanded={hasRows ? open : undefined}
+      // THE NAME AND THE MARK, UNGLUED (#1214-1) — the collection band's landed fix, arriving here for the
+      // same reason: the accessible-name computation concatenates adjacent inline nodes with NOTHING in
+      // between, so a modified Appearance group announced as "AppearanceModified", one token. The separator
+      // is a SPACE, never a comma or a dash: the band VISIBLY reads "Appearance Modified" and a name must
+      // CONTAIN what it shows (WCAG 2.5.3 Label in Name). Stated only when there IS a mark, so an unmodified
+      // band keeps its content-derived name and nothing here can drift from the visible label.
+      {...(modifiedMarker === undefined ? {} : { "aria-label": `${group.label} ${modifiedMarker}` })}
       // `w-full`, NOT `flex-1` (#978 F1). This band's parent is a VERTICAL `Stack`, so `flex: 1 1 0%` put a
       // flex-BASIS of 0 on the BLOCK axis and defeated the size variant's sealed `h-control-sm`: the button
       // fell back to min-content and every settings band in the LIST rendered 16px tall — at BOTH pointer
@@ -213,9 +235,11 @@ function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, b
       className={`min-w-0 w-full justify-start gap-tight px-tight${unbuilt ? " text-muted-foreground" : ""}`}
       data-config-group={group.id}
       data-slot="config-band"
+      id={bandId}
       {...(unbuilt ? { "data-config-unbuilt": "" } : {})}
       intent="ghost"
       onClick={(): void => onSelectGroup(group)}
+      {...(bandRef === undefined ? {} : { ref: bandRef })}
       size="sm"
       type="button"
     >
