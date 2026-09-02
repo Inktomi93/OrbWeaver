@@ -7,20 +7,29 @@
 // reintroduced. Every arm here is a planted control: a dead row REDs, a live row is silent, a
 // zero-row/unparseable/absent config REFUSES LOUDLY rather than printing a clean zero, and the real tree
 // derives a substantial row count (a green over a count you did not expect is the blind-gate failure mode).
+// Since #1158 it also pins the RULE half: a grant that turns a rule OFF is a promise the named files WOULD
+// violate it, and a PLANTED dead grant (`useFilenamingConvention: "off"` on a kebab-case barrel) was
+// invisible to every arm above. Those controls drive the REAL biome binary — the only substrate where the
+// question exists — and the refusal arms prove a report this arm cannot trust never reads as "dead".
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Node } from "ts-morph";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { Finding, GateRunCtx, GateScanDeclaration } from "../../../../tooling/src/verify/contract/gate.ts";
 import { gate } from "../../../../tooling/src/verify/gates/biome-grant-liveness.ts";
+import { judgeReport, judgeRuleLiveness } from "../../../../tooling/src/verify/lib/biome-rule-liveness.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const CONFIG_REL = "biome.json";
 /** Mirrors the gate's own anchor (`REAL_CONFIG_MIN_INCLUDES`) — the size at which its exemption + blindness
  *  arms come alive. Restated rather than exported: the test is the SECOND opinion, not a re-import of it. */
 const ANCHOR_INCLUDES = 30;
+/** Every arm that drives the gate over the REAL tree spawns one biome check (#1158). MEASURED 2026-09-02:
+ *  4.8s for the gate alone, 8.5s for the planted-control run under a 4-worker co-run — a SPAWN budget,
+ *  which degrades with load, so the headroom is generous on purpose rather than tuned to one machine. */
+const GATE_RUN_TIMEOUT_MS = 120_000;
 const TRANSIENT_CATALOG_TMP = "docs/catalog/catalog.tmp.*.json";
 const CATALOG_SERIALIZER = "tooling/src/doc-catalog/ops/tree.ts";
 
@@ -146,14 +155,22 @@ describe("biome-grant-liveness — the exemption table is two-sided (§4.4)", ()
 });
 
 describe("biome-grant-liveness — the REAL tree", () => {
-  test("the real biome.json parses, derives a substantial row count, and carries NO unexempted dead grant", ({ repoRoot }) => {
-    const run = runGate(repoRoot);
-    const declared = run.declarations[0];
-    // The denominator IS the receipt: a ✓ over a count you did not expect is the blind-gate failure mode.
-    expect(declared?.unit).toBe("grant row");
-    expect(declared?.scanned ?? 0).toBeGreaterThanOrEqual(ANCHOR_INCLUDES);
-    expect(run.findings).toEqual([]);
-  });
+  test(
+    "the real biome.json parses, derives a substantial row count, and carries NO unexempted dead grant",
+    ({ repoRoot }) => {
+      const run = runGate(repoRoot);
+      const declared = run.declarations[0];
+      // The denominator IS the receipt: a ✓ over a count you did not expect is the blind-gate failure mode.
+      expect(declared?.unit).toBe("grant row");
+      expect(declared?.scanned ?? 0).toBeGreaterThanOrEqual(ANCHOR_INCLUDES);
+      // The RULE half's receipt (#1158): a live population, not a zero it could have printed while blind.
+      expect(declared?.skipped?.["rule-live"] ?? 0).toBeGreaterThanOrEqual(10);
+      expect(run.findings).toEqual([]);
+      // 5s is the WRONG UNIT here since #1158: the run spawns one real biome check (4.3s of project scan
+      // alone, measured 2026-09-02), so vitest's default killed this arm at 5,276ms on the first co-run.
+    },
+    GATE_RUN_TIMEOUT_MS,
+  );
 
   test("the exemption's cited producer is still on the tree (the §3 path-constant tripwire, live)", ({ repoRoot }) => {
     expect(existsSync(join(repoRoot, CATALOG_SERIALIZER))).toBe(true);
@@ -199,6 +216,81 @@ function plantBiomeRepo(root: string, globs: readonly string[]): void {
     [CATALOG_SERIALIZER]: "export const serializer = 1;\n",
   });
 }
+
+// ── #1158: the RULE half. A rule-off grant is a promise that the named files WOULD violate the rule;
+// path liveness cannot see it lapse. These arms drive the REAL biome binary against the REAL repo (the
+// only substrate where the question exists) with three grants PLANTED into a copy of biome.json's text:
+// one dead, one dead-but-on-a-mixed-row (the declared limit), and the repo's own 14 live grants as the
+// other direction. The refusal arms are pure — a truncated or broken report must never read as "dead".
+
+/** biome.json's text with extra overrides spliced into `overrides` — the planted-control substrate. */
+function configWithOverrides(repoRoot: string, extra: readonly Record<string, unknown>[]): string {
+  const parsed = JSON.parse(readFileSync(join(repoRoot, CONFIG_REL), "utf8")) as { overrides: unknown[] };
+  return JSON.stringify({ ...parsed, overrides: [...parsed.overrides, ...extra] });
+}
+
+const KIT_BARREL = "packages/kit/src/index.ts";
+const DEAD_RULE = "useFilenamingConvention";
+
+function ruleOffOverride(includes: readonly string[]): Record<string, unknown> {
+  return { includes, linter: { rules: { style: { [DEAD_RULE]: "off" } } } };
+}
+
+describe("biome-grant-liveness — RULE liveness, planted controls in BOTH directions (#1158)", () => {
+  test(
+    "a DEAD rule-off grant reds naming path+rule, a MIXED row is the declared limit, and the real grants stay live",
+    ({ repoRoot }) => {
+      const configText = configWithOverrides(repoRoot, [ruleOffOverride([KIT_BARREL]), ruleOffOverride(["packages/kit/src/**", KIT_BARREL])]);
+      const outcome = judgeRuleLiveness({ root: repoRoot, configText, isExactPath: (path) => !/[*?[\]{}]/u.test(path) });
+      // The planted grant is the ONLY dead one: kit's barrel is kebab-case, so useFilenamingConvention
+      // suppresses nothing there — the exact control the audit planted when it proved this gate blind.
+      expect(outcome.dead.map((grant) => `${grant.rule} ${grant.anchor}`)).toEqual([`${DEAD_RULE} ${KIT_BARREL}`]);
+      // …and the SAME grant on a row that also carries a glob is silent: its subject is the expansion.
+      expect(outcome.skippedMixed).toBeGreaterThanOrEqual(1);
+      // The other direction, over the repo's own rule-off grants: a substantial live population, not zero.
+      expect(outcome.live).toBeGreaterThanOrEqual(10);
+      expect(outcome.filesProbed).toBeGreaterThanOrEqual(10);
+    },
+    GATE_RUN_TIMEOUT_MS,
+  );
+
+  test("the probe config never survives the run — a leftover would be linted by the next `pnpm check`", ({ repoRoot }) => {
+    expect(readdirSync(repoRoot).filter((name) => name.startsWith("__g_biome-rule-liveness."))).toEqual([]);
+  });
+
+  test("no biome binary under the root REFUSES loudly — it never calls every grant live", ({ scratch }) => {
+    plant(scratch, "packages/kit/src/index.ts", "export const x = 1;\n");
+    const configText = JSON.stringify({ overrides: [ruleOffOverride([KIT_BARREL])] });
+    expect(() => judgeRuleLiveness({ root: scratch, configText, isExactPath: () => true })).toThrow(/biome binary/u);
+  });
+});
+
+describe("biome-grant-liveness — a rule verdict this arm cannot trust is a REFUSAL, never a DEAD grant", () => {
+  const grants = [{ group: "style", rule: DEAD_RULE, files: [KIT_BARREL], anchor: KIT_BARREL }];
+
+  test("a TRUNCATED report refuses — every grant past the cut would read as dead", () => {
+    const stdout = JSON.stringify({ summary: { diagnosticsNotPrinted: 3 }, diagnostics: [] });
+    expect(() => judgeReport(grants, stdout)).toThrow(/TRUNCATED/u);
+  });
+
+  test("a non-lint diagnostic (a broken probe config) refuses", () => {
+    const stdout = JSON.stringify({ summary: { diagnosticsNotPrinted: 0 }, diagnostics: [{ category: "internalError/fs" }] });
+    expect(() => judgeReport(grants, stdout)).toThrow(/probe config is broken/u);
+  });
+
+  test("output that is not the reporter's shape refuses", () => {
+    expect(() => judgeReport(grants, "not json")).toThrow(/did not parse/u);
+    expect(() => judgeReport(grants, JSON.stringify({ hello: 1 }))).toThrow(/reporter shape changed/u);
+  });
+
+  test("a report where the rule DID fire leaves the grant live — the control's other direction", () => {
+    const stdout = JSON.stringify({
+      summary: { diagnosticsNotPrinted: 0 },
+      diagnostics: [{ category: `lint/style/${DEAD_RULE}`, location: { path: KIT_BARREL } }],
+    });
+    expect(judgeReport(grants, stdout).dead).toEqual([]);
+  });
+});
 
 describe("biome-grant-liveness — PATTERN liveness (#973)", () => {
   test("a GLOB grant matching no tracked file is RED, and names the glob", ({ scratch }) => {
