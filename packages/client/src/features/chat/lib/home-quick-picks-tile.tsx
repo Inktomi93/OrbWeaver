@@ -31,8 +31,19 @@ const QUICK_PICKS_SKELETON_ROWS = 6;
  *  (`Text lines={2}` — a clamp caps, it does not reserve, so one- and two-line names started their captions
  *  21px apart in the same row), which adds one line of the `promoted` leading to EVERY row of the shelf.
  *  374 is the re-measurement, taken the way this note demands: the same `#177` CT reported the residual as
- *  `chat.quickPicks moved 43.38px` against the old 331 (two rows × one line). */
-const QUICK_PICKS_SKELETON_BLOCK_PX = 374;
+ *  `chat.quickPicks moved 43.38px` against the old 331 (two rows × one line).
+ *  RE-MEASURED 2026-09-02 (#1144). 376. This one is NOT a drift and NOT a regression, and saying which is
+ *  the whole point of the protocol: the cell's SETTLED content changed under a ruled token change. The
+ *  integer-line-box pass (`ed55bf193`, 2026-09-01 — one day after the reading above, which is why it was
+ *  never re-taken) landed BOTH of the leadings this cell reserves two lines of, and it reserves them in
+ *  `lh`, so each one moves the box twice per row: `--leading-title` went from the ratio `1.35` to
+ *  `round(1.375rem, 1px)` (the name, `voice="promoted"` `lines={2}`), and the `prose` modifier went from
+ *  `leading-body` (`1.55`) to the newly minted `leading-label-relaxed`, `round(1.25rem, 1px)` (the pitch,
+ *  `lines={2}`). Whole-pixel line boxes are the POINT of that pass (docs/design/integer-line-boxes.md), so
+ *  the settled box is the correct one and the declaration is what was stale. Taken the way this note
+ *  demands, from the `#177` CT's own printed table: `chat.quickPicks  reserved 414.00  settled 416.00`
+ *  (the tile box; the band above the body is a constant 40px, so the BODY reading is 374 → 376). */
+const QUICK_PICKS_SKELETON_BLOCK_PX = 376;
 
 export const chatQuickPicksTile: HomeTileContribution = {
   id: "chat.quickPicks",

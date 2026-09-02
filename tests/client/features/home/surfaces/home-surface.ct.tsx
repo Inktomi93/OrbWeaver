@@ -746,6 +746,16 @@ test("#177 a tile whose settled box is a CONSTANT reserves it exactly — no res
   const settled = await Promise.all(EXACTLY_RESERVED_TILES.map(async (id) => (await home.locator(`[data-home-tile="${id}"]`).boundingBox())?.height ?? 0));
 
   const drift = Object.fromEntries(EXACTLY_RESERVED_TILES.map((id, i) => [id, Number(((settled[i] ?? 0) - (reserved[i] ?? 0)).toFixed(2))]));
+  // Printed on PASS as well as fail — and it is the RE-MEASURE PROTOCOL's own instrument, not decoration.
+  // Each of these tiles declares its box as a px constant (`HomeTileContribution.skeletonBlock`), and every
+  // one of those constants' notes says "re-measure with the same probe if the cell anatomy changes". A bare
+  // "moved 2px" tells the next reader the drift and not the two numbers, so the re-measure was a guess at
+  // the delta rather than a reading of the settled box. These are the numbers to copy.
+  console.info(
+    `\n#177 first-boot reservation (declared box → settled box)\n${EXACTLY_RESERVED_TILES.map(
+      (id, i) => `${id}\treserved ${(reserved[i] ?? 0).toFixed(2)}\tsettled ${(settled[i] ?? 0).toFixed(2)}\tdrift ${(drift[id] ?? 0).toFixed(2)}`,
+    ).join("\n")}\n`,
+  );
   expect(
     reserved.every((h) => h > 0),
     `every measured tile must exist while reading: ${JSON.stringify(drift)}`,
