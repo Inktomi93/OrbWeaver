@@ -15,7 +15,7 @@ const TEMP_CHAT_TILE_ORDER = 30;
 
 /** The measured settled body block — see the `skeletonBlock` note on the contribution below.
  *  RE-MEASURED 2026-09-02 (#1146, the reservation sweep post `ed55bf193`): that pass re-authored every
- *  leading token as a snapped rem dimension (`leading.body` 1.55 -> `round(1.4375rem, 1px)`, among
+ *  leading token as a snapped rem dimension (`leading.body` 1.55 -\> `round(1.4375rem, 1px)`, among
  *  others), which moves any settled block built from two voices of text. The `#177` first-boot CT's own
  *  declared-vs-settled printout read `chat.tempChat reserved 114.00 settled 113.00 drift -1.00` against
  *  the OLD 93 — still inside the test's ±1px epsilon, but a real 1px shrink, not epsilon noise, so this
