@@ -1701,8 +1701,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 445,
-      "bytes": 58309,
-      "sha256": "6cb639e87b360513990016fdc29bdcd84cd76b967db6e4b3487d9da8d622ae7a",
+      "bytes": 58560,
+      "sha256": "88d8d0598880c3fbc1b3f03b09838c1546d250b4ed43b9466b42dfad1ab4f769",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1715,13 +1715,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
-        "assignedSha256": "6cb639e87b360513990016fdc29bdcd84cd76b967db6e4b3487d9da8d622ae7a",
+        "assignedSha256": "88d8d0598880c3fbc1b3f03b09838c1546d250b4ed43b9466b42dfad1ab4f769",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "6cb639e87b360513990016fdc29bdcd84cd76b967db6e4b3487d9da8d622ae7a",
-        "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-        "verifiedAt": "2026-08-31",
+        "verifiedSha256": "88d8d0598880c3fbc1b3f03b09838c1546d250b4ed43b9466b42dfad1ab4f769",
+        "verifiedCommit": "48dab484837894419963111fa0fbc09db42e3346",
+        "verifiedAt": "2026-09-01",
         "evidence": [
           "re-attested at bbecbfc78 — full-file read under #930; the responsive-axis table now names the measured shell/client-globals complement and points to the one paint-law home",
           "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
@@ -1730,7 +1730,8 @@
           "delta re-verify 2026-08-30 (3afbd7858276453f149c4db4148214f702b314f0, #832 by the orchestrator, who made the edit): the RAIL count line flips NINE → TEN with `extensions` added to the dated tally with its provenance (plugin-ui-plane U5, #679 §4.5b, 'beside config', never per-plugin) and the SECTION_IDS truth pointer moves from shell-store.ts to state/section-ids.ts (re-exported); no ceiling was re-ratified — the line is a running tally, not a D-row; no other line changed; typed claims unaffected",
           "docs/architecture/core/UI-Architecture-and-Layout.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
           "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator",
-          "re-attested at 4032663cc — the COLLECTIONS shelf row's 'until #902 lands the rename' caveat was stale on both counts (#902 shipped the copy, #916 took the files/symbols/ids); corrected to name ROSTER_COLLECTION_ID"
+          "re-attested at 4032663cc — the COLLECTIONS shelf row's 'until #902 lands the rename' caveat was stale on both counts (#902 shipped the copy, #916 took the files/symbols/ids); corrected to name ROSTER_COLLECTION_ID",
+          "re-attested at 48dab4848 — #924 (claude-b lane cb-plugins-granted, 7515be8ce rebased): one line truth-repaired about the Extensions pane's four-reason empty resolver; delta read of that line"
         ],
         "claims": [
           {

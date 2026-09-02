@@ -149,10 +149,10 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 - **The harness AUTO-WRITES its artifacts — read them, never pipe or re-run to find a failure:**
   `pnpm check` → `reports/verify.json` + `reports/verify/<stage>.log`; `pnpm test` →
   `reports/test-report.json`. A `| tail`/`| grep` on live output eats the failure list.
-Those paths are `latest` POINTERS, not files a run writes in place (#1029). Each run writes only inside
-`reports/runs/<instrument>/<checkout>-<pid>-<timestamp>/` and publishes the pointer atomically when it FINISHES, so
-concurrent runs on one checkout keep both verdicts. Read the same paths as always; when you need YOUR run, take the
-slot the run printed. Layout: `UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
+- **Those paths are `latest` POINTERS, not files a run writes in place (#1029).** Each run writes only
+  inside `reports/runs/<instrument>/<checkout>-<pid>-<timestamp>/` and publishes the pointer atomically when
+  it FINISHES, so concurrent runs on one checkout keep both verdicts. Read the same paths as always; when
+  you need YOUR run, take the slot the run printed. Layout: `UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
 
 ## The dev stack
 
