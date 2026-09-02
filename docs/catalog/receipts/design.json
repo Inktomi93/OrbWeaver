@@ -9,10 +9,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "54c4f521692e5b3e5a40c9cf69da699b6f7816dc1a407841a761a2f48129803b",
-      "verifiedCommit": "f21f7d10c097dd6cb09e8a9e2b46dfabc0254f3e",
+      "verifiedSha256": "ffd79f398334f5addebdfb1ea2c9f9d48c7c1a4f3fbe783a015ee83cc7efed14",
+      "verifiedCommit": "06267c252b787fdced74e2f86a401e10e460a117",
       "verifiedAt": "2026-09-02",
       "evidence": [
+        "re-attested at 06267c252 (#1226, lane p-substrate-spike, merged by hand into the forge's later table): the §10 phase-0 receipt paragraph — F3 arm (a) CONFIRMED (context-scoped shims reach a second CDP client; page-scoped do not), the Lighthouse seam is snapshot(page) over an attached puppeteer page with defaultViewport:null, the category score is not a verdict, dependency shape (root devDeps: lighthouse ^13.4.1 + puppeteer-core), the test-layout naming deviation (.suite.int). Union read at the fold by the primary orchestrator.",
         "re-attested at f21f7d10c (forge warm leg, two commits): §7.1 'Timeouts and load: one budget policy' added per the owner's 'also wrap in the timeout design' — inventory with receipts, one load reading, three classes (wall clocks scale via budget(baseMs) with a factor cap + absolute ceiling F11; rates withhold with ORB-LOAD-WITHHOLD; idle/TTL is not a budget), home tooling/src/_shared/load-budget (planned), gate arm J, T14–T17, phase 1b; §12.1 records F1–F4 as owner rulings; the twelve dangling backticked paths de-backticked (stale receipts as plain text, planned files marked '(planned)'); premise correction: motion-audit's mobile arm already carries withholdMeasurement. Read in full at the fold by the primary orchestrator.",
         "born-reviewed by the primary orchestrator at 9d479c443 (lane p-substrate-design, forge): all 403 lines read in full at the fold — the 12-row pain-point inventory with code and transcript receipts (3015 instrument invocations over 14 days), the launch/stage-binding map, the four-noun model, the daemon protocol and state machine, the band registry, the slot integration, the grammar inventory and shared families, the op reuse map, the two worked arms, the load model, T1–T13, the alternatives, the phased plan, the cost and F1–F10. Premise refutations recorded in §1 P11 (the brief's stale paths; 'five lanes refused' = discipline refusals, 2 hard errors)."
       ],
@@ -335,10 +336,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "8fcf3b6faf2e74d34a2ec04e246f67191981237e2d153ab27d7fcc7d05fbd051",
-      "verifiedCommit": "dad0162ae0dbac9cc6c7669486cbf88b276b8e69",
+      "verifiedSha256": "7275446281c61a356fb91295b8e8968a05b3f18c0ac8a4d4be0f7b66d646e7f9",
+      "verifiedCommit": "3063712328b14bb6fcc88455834d5d9b1033d16f",
       "verifiedAt": "2026-09-02",
       "evidence": [
+        "re-attested at 306371232 (#1209 #1210 #1212 #1213 #1214 #1217 #1218, claude-b lane cb-collections batch, two commits): §8.5 arrival receipt amended; NEW §8.6 — ConfigWelcome RETIRED (no reachable door on any viewport; the Hearth vocabulary collision noted and corrected), the populated landing states LIBRARY-LEVEL facts via CollectionInsight (the preview seam fully retired, no half-migration; import/export doors PRICED as gaps, not stubbed), the empty landing teaches; NEW §8.7 — the five mechanicals (bulk toggle follows members, the a11y trio with a partial refutation, auto-opened arrival group folds, arrival focus target = the active group's band — a stated ruling fork). Read in full at the fold by the primary orchestrator (96 added lines).",
         "re-attested at dad0162ae (#925 #1043, claude-b lane cb-collections): NEW §8 — the COLLECTIONS species contract and the landing redesign (four owner rulings of 2026-09-02 compressed in §8.1; the classification receipt in §8.2: all four collections BUILT, the greyed arm has zero occupants and stays pinned; the species/divergence table in §8.3 left as the clean seam for #1169 and #1191). Section read in full at the fold by the primary orchestrator.",
         "re-attested at 65a4934fe (#1101 / re-drive G2, claude-b lane cb-context-distill): the CONTEXT pane teaches the scroll-spy's current section instead of restating the LIST's doors; two program-doc lines carry dated AMENDED notes — shell law §4.2 ('never navigation') outranks the program doc; ConfigSettingRef.setting now required",
         "docs/design/config-revamp-design.md read in full by the orchestrator (claude-b) at merge (lane cb-config-research, stickler research + design for #866; 12 products + NN/g receipted via SearXNG→trafilatura, THIN rows marked; the house read against 9707b9672; the Settings-is-a-modal premise repair accepted mid-run); the nine owner forks are being ruled live; the four D-rows are labelled R-A..R-D, never forward-numbered",

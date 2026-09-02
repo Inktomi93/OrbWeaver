@@ -1305,6 +1305,19 @@
       "markerLine": 128
     },
     {
+      "siteId": "packages/client/src/lib/bug-report-capture.ts::default:catch::1",
+      "path": "packages/client/src/lib/bug-report-capture.ts",
+      "line": 210,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the FAILURE is already owned and surfaced — the caller returns `{ok:false}` and the button's status line renders `HTTP <status> from <route>` either way. This try only asks whether the body ADDS a named arm; a non-JSON error page (proxy 502, HTML) is the expected miss, and `null` means \"say only what is true\". Ends if a refusal body ever becomes required rather than additive.",
+      "markerLine": 204
+    },
+    {
       "siteId": "packages/client/src/lib/console-error-ring.ts::empty:catch::1",
       "path": "packages/client/src/lib/console-error-ring.ts",
       "line": 78,
@@ -1983,7 +1996,7 @@
     {
       "siteId": "packages/server/src/domain/chat/verbs/claim-chat.ts::promise:incumbent::1",
       "path": "packages/server/src/domain/chat/verbs/claim-chat.ts",
-      "line": 181,
+      "line": 185,
       "column": 13,
       "grammar": "promise",
       "position": "promise:incumbent",
@@ -1991,7 +2004,7 @@
       "snippet": "await incumbent.catch(() => claim(chatId));",
       "verdict": "deliberate-absorb",
       "reason": "retried, not swallowed — a failed",
-      "markerLine": 178
+      "markerLine": 182
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::default:catch::1",
@@ -2633,7 +2646,7 @@
     {
       "siteId": "packages/server/src/entry/auth/seam.ts::default:catch::1",
       "path": "packages/server/src/entry/auth/seam.ts",
-      "line": 111,
+      "line": 126,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -2641,20 +2654,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a cookie value that fails to percent-decode is not a session token, and `null` here means exactly \"no cookie session\" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one.",
-      "markerLine": 108
-    },
-    {
-      "siteId": "packages/server/src/entry/auth/seam.ts::default:catch::2",
-      "path": "packages/server/src/entry/auth/seam.ts",
-      "line": 382,
-      "column": 7,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 2,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "FAIL-CLOSED, and this function's own JSDoc above is the contract — a transport/db fault resolves to `false` so a misbehaving seam can never OPEN the debug gate. Propagating here would turn an infra blip into a 500 on a gate whose only correct failure mode is \"denied\". Ends if the debug gate gains a distinct unavailable state.",
-      "markerLine": 374
+      "markerLine": 123
     },
     {
       "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::1",
@@ -3153,7 +3153,7 @@
     {
       "siteId": "packages/server/src/foundation/observability/debug/routes.ts::empty:catch::1",
       "path": "packages/server/src/foundation/observability/debug/routes.ts",
-      "line": 247,
+      "line": 271,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3161,7 +3161,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented below — a checker error falls",
-      "markerLine": 241
+      "markerLine": 265
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/wire-capture.ts::default:catch::1",
