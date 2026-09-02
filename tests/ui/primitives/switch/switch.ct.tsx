@@ -1,11 +1,15 @@
 // CT: the switch seal — real role="switch" semantics: pointer + keyboard toggle aria-checked,
 // checked state lands as the primary token track. (Base UI renders the styled span + a hidden
 // form input as siblings, so the role locator is the element under test, not the mount handle.)
+import { contrastRatio } from "@orb/tooling/_shared/wcag";
 import { Field } from "@orb/ui/field";
 import { Switch } from "@orb/ui/switch";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import type { ReactElement } from "react";
+import type { PixelSurfaceReceipt, PixelSurfaceRegion } from "../../../support/ct/pixel-contrast.ts";
+import { pixelSurface } from "../../../support/ct/pixel-contrast.ts";
 import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 
 const NON_EMPTY = /.+/u;
@@ -210,7 +214,7 @@ test("tone=quiet: checked spends no ember AND is LUMINANCE-SEPARATED from unchec
   await expect(on).not.toHaveCSS("background-color", TOKENS["color.primary"].value);
 
   // COMPOSITED relative luminance, measured the only honest way: PAINT it. Both tracks are semi-transparent
-  // (`bg-input` is a 12% overlay; the checked track a 70% one) and both resolve in oklch, so parsing
+  // (`bg-input` is a 12% overlay; the checked track a 55% one) and both resolve in oklch, so parsing
   // `backgroundColor` numerically would be reading L/C/H as if they were R/G/B — a number that moves with
   // the HUE. A 1×1 canvas composites the real color over the real backdrop and hands back sRGB.
   const luminance = async (control: typeof on): Promise<number> =>
@@ -249,6 +253,113 @@ test("tone=quiet: still toggles and the thumb still travels — state is positio
   await expect(control).toHaveAttribute("aria-checked", "true");
   // Same 14px travel as accent (thumb translate is tone-independent) — the a11y on/off signal holds.
   await expect.poll(async () => (await thumb.boundingBox())?.x ?? 0, { intervals: [20, 50, 100] }).toBeGreaterThan(offX + 12);
+});
+
+// ── THE QUIET STATE MUST BE THE QUIET ONE (#1090; side-eye F10/E3 2026-08-30, re-measured 2026-09-02).
+// The OFF thumb was `bg-foreground` — the page's brightest ink, opaque, 32 of the track's 48px — so an
+// OFF switch's loudest object measured 11.118:1 here while the ON accent track measured 6.824:1 (this
+// pin's own red-first run). `design-audit`'s `quiet-state` rule filed it as P2 in every appearance arm:
+// "OFF 12.58:1 vs ON 7.06:1". The surface spent its loudest register on the state that carries no
+// information — six near-white pills that mean "off".
+//
+// PINNED THE WAY THE RULE MEASURES IT: `quiet-state` ranks each state by its LOUDEST member —
+// max(track vs pane, thumb vs track), because that is the object the eye lands on — so this pin does
+// the same, on both tones, in every seed polarity.
+//
+// FRAMEBUFFER, NOT COMPUTED STYLE. `bg-input` is a 12%/13%/16% overlay and the OFF thumb is itself an
+// alpha of `--color-muted-foreground`, so what the eye reads exists only after compositing; every token
+// also resolves in `oklch`, where a numeric parse of `backgroundColor` reads L/C/H as if they were
+// R/G/B (`oklch-kills-rgb-regex-probes`). `pixelSurface` decodes the real pixels.
+//
+// ALL THREE SEEDS, because a polarity fix proven on the dark arm alone is this tree's recorded failure
+// family (`light-theme-polarity-receipts`): under Light the same tokens inverted their roles and the
+// ON accent has the LEAST contrast to spend (6.02:1), so Light — not Hearth — is the binding arm.
+const SEED_THEMES = ["hearth", "light", "mocha"] as const;
+/** The track shows only at the end the thumb is NOT parked at: OFF parks left, ON parks right. Sampled
+ *  across the pill's waist, inside the root's own border. */
+const TRACK_BEHIND_PARKED_THUMB: Readonly<Record<"off" | "on", PixelSurfaceRegion>> = {
+  off: { x0: 0.8, x1: 0.96, y0: 0.35, y1: 0.65 },
+  on: { x0: 0.04, x1: 0.2, y0: 0.35, y1: 0.65 },
+};
+
+/** All three seeds side by side in ONE mount. playwright-ct refuses a second `mount()` in a test
+ *  ("Attempting to mount a component into a container that already has a React root"), and `hearth` IS
+ *  the base `@theme` at `:root` — theme.css emits `[data-theme]` blocks for light + mocha only — so the
+ *  hearth arm is the unattributed pane. */
+const seedThemePanes = (): ReactElement => (
+  <>
+    {SEED_THEMES.map((theme) => (
+      <div className="bg-card p-gutter" key={theme} {...(theme === "hearth" ? {} : { "data-theme": theme })}>
+        {/* An empty block over the pane fill: its pixels ARE the pane, so the backdrop reading needs
+              no guess about how much of a wrapper the controls happen to cover. */}
+        <div className="h-block w-block" data-testid={`pane-${theme}`} />
+        <Switch aria-label={`${theme} accent off`} />
+        <Switch aria-label={`${theme} accent on`} defaultChecked={true} />
+        <Switch aria-label={`${theme} quiet off`} tone="quiet" />
+        <Switch aria-label={`${theme} quiet on`} defaultChecked={true} tone="quiet" />
+      </div>
+    ))}
+  </>
+);
+
+/** The loudest member of one state, each measured against the surface actually behind it: the track
+ *  against the pane, the thumb against the track it sits in — the way `quiet-state` resolves it. */
+async function stateLoudness(page: Page, name: string, state: "off" | "on", pane: PixelSurfaceReceipt): Promise<{ value: number; describe: string }> {
+  const root = page.getByRole("switch", { name });
+  const thumb = root.locator('[data-slot="switch-thumb"]');
+  // SETTLED, not mid-transition: the thumb has a 130ms transform transition and the track strip is
+  // addressed relative to where the thumb has PARKED — a same-tick read samples the knob instead.
+  const border = (await thumbRims(root)).border;
+  await expect.poll(async () => (await thumbRims(root))[state === "on" ? "right" : "left"], { intervals: [20, 50, 100, 150] }).toBe(border);
+  const track = await pixelSurface(page, root, { region: TRACK_BEHIND_PARKED_THUMB[state] });
+  const knob = await pixelSurface(page, thumb);
+  const trackRatio = contrastRatio(track.rgb, pane.rgb);
+  const thumbRatio = contrastRatio(knob.rgb, track.rgb);
+  return {
+    value: Math.max(trackRatio, thumbRatio),
+    describe: `${name}: track ${track.describe} ${trackRatio.toFixed(3)}:1 vs pane ${pane.describe} · thumb ${knob.describe} ${thumbRatio.toFixed(3)}:1 vs track`,
+  };
+}
+
+test("the OFF state is measurably QUIETER than the ON state, on both tones and every seed theme (#1090)", async ({ mount, page }) => {
+  await mount(seedThemePanes());
+  for (const theme of SEED_THEMES) {
+    const pane = await pixelSurface(page, page.getByTestId(`pane-${theme}`));
+    const accentOff = await stateLoudness(page, `${theme} accent off`, "off", pane);
+    const accentOn = await stateLoudness(page, `${theme} accent on`, "on", pane);
+    const quietOff = await stateLoudness(page, `${theme} quiet off`, "off", pane);
+    const quietOn = await stateLoudness(page, `${theme} quiet on`, "on", pane);
+
+    // THE UN-FAILABLE GUARD. Every ratio above collapses to 1.000 if the samples come back as one
+    // colour — a clipped screenshot, a region off the box, a `[data-theme]` that never applied — and an
+    // ordering pin over constant inputs passes on nothing. The ON accent track must be really painted.
+    expect(
+      contrastRatio(
+        (await pixelSurface(page, page.getByRole("switch", { name: `${theme} accent on` }), { region: TRACK_BEHIND_PARKED_THUMB.on })).rgb,
+        pane.rgb,
+      ),
+      `[${theme}] the ON accent track must be a real painted fill, or this pin is vacuous`,
+    ).toBeGreaterThan(3);
+
+    expect(accentOff.value, `[${theme}] tone=accent — ${accentOff.describe} || ${accentOn.describe}`).toBeLessThan(accentOn.value);
+    expect(quietOff.value, `[${theme}] tone=quiet — ${quietOff.describe} || ${quietOn.describe}`).toBeLessThan(quietOn.value);
+  }
+});
+
+test("the OFF thumb still clears the WCAG 1.4.11 3:1 floor against its own track, in every seed theme (#1090)", async ({ mount, page }) => {
+  // The other side of the polarity fix: quieting the knob may not erase it. 1.4.11 asks 3:1 of the
+  // visual information that identifies a control's state, and the OFF knob IS that information — so the
+  // fix has a floor as well as a ceiling, and the pair together is what makes the value non-arbitrary.
+  // HONESTLY LABELLED: this is a FENCE, not a defect proof. It was GREEN on the pre-#1090 source by
+  // construction (an 11.118:1 knob clears 3:1 trivially); what it locks out is the next tune-down.
+  await mount(seedThemePanes());
+  for (const theme of SEED_THEMES) {
+    const root = page.getByRole("switch", { name: `${theme} accent off` });
+    const track = await pixelSurface(page, root, { region: TRACK_BEHIND_PARKED_THUMB.off });
+    const knob = await pixelSurface(page, root.locator('[data-slot="switch-thumb"]'));
+    const ratio = contrastRatio(knob.rgb, track.rgb);
+    expect(ratio, `[${theme}] OFF thumb ${knob.describe} on track ${track.describe}`).toBeGreaterThanOrEqual(3);
+  }
 });
 
 test("tone=accent (explicit) matches the default — checked wears ember", async ({ mount, page }) => {

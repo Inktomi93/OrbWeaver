@@ -131,6 +131,22 @@ export interface PixelSurfaceReceipt {
   readonly describe: string;
 }
 
+/** A sub-rectangle of the target's box, as fractions of its own width/height (0..1, `x0 < x1`). */
+export interface PixelSurfaceRegion {
+  readonly x0: number;
+  readonly x1: number;
+  readonly y0: number;
+  readonly y1: number;
+}
+
+export interface PixelSurfaceOptions {
+  /** Sample only part of the box. A COMPOSITE control's own fill can be mostly covered by a child —
+   *  a Switch TRACK is 48px wide with a 32px thumb parked in it, so 2/3 of the root's pixels are the
+   *  THUMB and the whole-box median silently returns the child's colour rather than the track's. Name
+   *  the strip the parent actually paints (for the switch: the end the thumb is NOT parked at). */
+  readonly region?: PixelSurfaceRegion;
+}
+
 /**
  * The composited SURFACE colour of one element — what an alpha fill actually resolves to on screen.
  *
@@ -140,7 +156,7 @@ export interface PixelSurfaceReceipt {
  * "quieter step of the same fill" that composited to 1.001:1 against the pane behind it. REFUSES rather
  * than fabricating, on the same terms as `pixelContrast`.
  */
-export async function pixelSurface(page: Page, target: Locator): Promise<PixelSurfaceReceipt> {
+export async function pixelSurface(page: Page, target: Locator, options: PixelSurfaceOptions = {}): Promise<PixelSurfaceReceipt> {
   const box = await target.boundingBox();
   if (box === null) {
     throw new Error("pixelSurface: the target has no box (not rendered)");
@@ -149,12 +165,13 @@ export async function pixelSurface(page: Page, target: Locator): Promise<PixelSu
   if (viewport === null) {
     throw new Error("pixelSurface: the page has no viewport size");
   }
-  const x = Math.max(0, Math.floor(box.x));
-  const y = Math.max(0, Math.floor(box.y));
-  const width = Math.min(Math.ceil(box.width), viewport.width - x);
-  const height = Math.min(Math.ceil(box.height), viewport.height - y);
+  const region = options.region ?? { x0: 0, x1: 1, y0: 0, y1: 1 };
+  const x = Math.max(0, Math.floor(box.x + box.width * region.x0));
+  const y = Math.max(0, Math.floor(box.y + box.height * region.y0));
+  const width = Math.min(Math.ceil(box.width * (region.x1 - region.x0)), viewport.width - x);
+  const height = Math.min(Math.ceil(box.height * (region.y1 - region.y0)), viewport.height - y);
   if (width < 1 || height < 1) {
-    throw new Error(`pixelSurface: the target box is empty or off-screen (${JSON.stringify(box)})`);
+    throw new Error(`pixelSurface: the target box is empty or off-screen (${JSON.stringify(box)}, region ${JSON.stringify(region)})`);
   }
   const shot = await page.screenshot({ clip: { x, y, width, height }, animations: "disabled" });
   const { data, info } = await rawPixels(shot);
