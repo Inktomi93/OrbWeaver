@@ -10,6 +10,7 @@
 // fan-out over the same per-issue path.
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { CreateCommand, FileCommand, IssueClass, ListCommand, WorkCommand } from "../contract/types.ts";
+import { validateDodCommand } from "./dod.ts";
 import { CREATE_OPTION_COUNT, EVIDENCE_MAX_LENGTH, ISSUE_CLASSES, ISSUE_RE, LIFECYCLE_FIELDS } from "./vocab.ts";
 
 export function issueNumber(raw: string | undefined): number {
@@ -53,6 +54,31 @@ function requiredFlagValue(args: readonly string[], flag: string): string {
     throw new UsageError(`${flag} requires a value`);
   }
   return value;
+}
+
+/** The multi-option verbs used to IGNORE a flag they did not read — a typo'd `--prioirty` filed a row
+ *  missing its Priority and a typo'd `--dod` would mint no bar at all, both silently. Flag values never
+ *  begin with `--` (flagValue refuses them), so every `--token` is a flag position and checkable. */
+function refuseUnknownFlags(args: readonly string[], allowed: readonly string[], verb: string): void {
+  const unknown = args.find((token) => token.startsWith("--") && !allowed.includes(token));
+  if (unknown !== undefined) {
+    throw new UsageError(`${verb} does not recognize ${unknown} — flags: ${allowed.join(" ")}`);
+  }
+}
+
+/** `--force-close --reason "<text>"` — the LOUD override (#923): never a silent skip, never absent.
+ *  Returns the tail with the override tokens stripped so the verb's own strict parse still applies. */
+function splitOverride(rest: readonly string[]): { readonly rest: readonly string[]; readonly override: string | null } {
+  if (!rest.includes("--force-close")) {
+    if (rest.includes("--reason")) {
+      throw new UsageError("--reason requires --force-close");
+    }
+    return { rest, override: null };
+  }
+  const override = requiredFlagValue(rest, "--reason");
+  const forceIndex = rest.indexOf("--force-close");
+  const reasonIndex = rest.indexOf("--reason");
+  return { rest: rest.filter((_, index) => index !== forceIndex && index !== reasonIndex && index !== reasonIndex + 1), override };
 }
 
 /** `--evidence` is written to GitHub's Evidence text column, which server-side rejects anything past
@@ -103,7 +129,9 @@ function createOptions(args: readonly string[]): Pick<CreateCommand, "title" | "
  *  exists for. A `decision` refuses --ready/--claim rather than walking past the owner gate the class
  *  itself declares (its create status is Needs owner). */
 function parseFile(args: readonly string[]): FileCommand {
+  refuseUnknownFlags(args, ["--title", "--kind", "--priority", "--area", "--review", "--body-file", "--ready", "--claim", "--dod"], "file");
   const title = requiredFlagValue(args, "--title").trim();
+  const dod = flagValue(args, "--dod");
   const command: FileCommand = {
     kind: "file",
     issueClass: issueClass(requiredFlagValue(args, "--kind")),
@@ -114,23 +142,57 @@ function parseFile(args: readonly string[]): FileCommand {
     review: flagValue(args, "--review"),
     ready: args.includes("--ready") || args.includes("--claim"),
     lane: flagValue(args, "--claim"),
+    dod: dod === null ? null : validateDodCommand(dod),
   };
   if (command.issueClass === "decision" && command.ready) {
     throw new UsageError("a decision enters Needs owner — resolve the owner decision, then ready it separately");
   }
+  // The DoD fit table (#923): a decision closes on an owner ruling and a program on its child rows —
+  // neither is machine-checkable, so a bar on one is a category error, refused at parse.
+  if (command.dod !== null && (command.issueClass === "decision" || command.issueClass === "program")) {
+    throw new UsageError(
+      command.issueClass === "decision"
+        ? "a decision closes on an owner ruling — a DoD does not apply"
+        : "a program closes on its child rows — a DoD does not apply",
+    );
+  }
   return command;
 }
 
-/** `land <n…> --evidence <receipt> [--lane <x>] [--comment-file <f>]`. `--lane` is optional because a row
- *  already Running needs no claim; the claim guard is what refuses a Ready row that arrives without one. */
+/** `land <n…> --evidence <receipt> [--lane <x>] [--comment-file <f>] [--force-close --reason <text>]`.
+ *  `--lane` is optional because a row already Running needs no claim; the claim guard is what refuses a
+ *  Ready row that arrives without one. */
 function parseLand(issues: readonly number[], rest: readonly string[]): WorkCommand {
+  refuseUnknownFlags(rest, ["--lane", "--evidence", "--comment-file", "--force-close", "--reason"], "land");
+  const { rest: tail, override } = splitOverride(rest);
   return {
     kind: "land",
     issues,
-    lane: flagValue(rest, "--lane"),
-    evidence: capEvidence(requiredFlagValue(rest, "--evidence")),
-    commentFile: flagValue(rest, "--comment-file"),
+    lane: flagValue(tail, "--lane"),
+    evidence: capEvidence(requiredFlagValue(tail, "--evidence")),
+    commentFile: flagValue(tail, "--comment-file"),
+    override,
   };
+}
+
+/** The receipt-carrying verbs. `done` takes the loud override; `refute` can mint the failing command as
+ *  the row's DoD in the same call (#923); `dod` re-mints a bar red-first. verify/reverify keep the strict
+ *  single-option tail they always had. */
+function parseReceiptVerb(name: "verify" | "reverify" | "done" | "refute" | "dod", issues: readonly number[], rest: readonly string[]): WorkCommand {
+  if (name === "verify" || name === "reverify") {
+    return { kind: name, issues, evidence: capEvidence(option(rest, "--evidence")) };
+  }
+  if (name === "done") {
+    refuseUnknownFlags(rest, ["--evidence", "--force-close", "--reason"], "done");
+    const { rest: tail, override } = splitOverride(rest);
+    return { kind: name, issues, evidence: capEvidence(option(tail, "--evidence")), override };
+  }
+  if (name === "refute") {
+    refuseUnknownFlags(rest, ["--evidence", "--dod"], "refute");
+    const dod = flagValue(rest, "--dod");
+    return { kind: name, issues, evidence: capEvidence(requiredFlagValue(rest, "--evidence")), dod: dod === null ? null : validateDodCommand(dod) };
+  }
+  return { kind: name, issues, command: validateDodCommand(option(rest, "--cmd")) };
 }
 
 function parseList(args: readonly string[]): ListCommand {
@@ -153,8 +215,8 @@ function parseLifecycle(name: string | undefined, issues: readonly number[], res
   if (name === "set") {
     return parseSet(issues, rest);
   }
-  if (name === "verify" || name === "reverify" || name === "done" || name === "refute") {
-    return { kind: name, issues, evidence: capEvidence(option(rest, "--evidence")) };
+  if (name === "verify" || name === "reverify" || name === "done" || name === "refute" || name === "dod") {
+    return parseReceiptVerb(name, issues, rest);
   }
   if (name === "land") {
     return parseLand(issues, rest);
@@ -166,7 +228,7 @@ function parseLifecycle(name: string | undefined, issues: readonly number[], res
     return { kind: name, issues, blocker: issueNumber(option(rest, "--by")) };
   }
   throw new UsageError(
-    "command must be help, show, create, file, claim, ready, review, needs-owner, set, verify, reverify, done, refute, land, park, block, or unblock",
+    "command must be help, show, create, file, claim, ready, review, needs-owner, set, verify, reverify, done, refute, dod, land, park, block, or unblock",
   );
 }
 

@@ -27,6 +27,8 @@ export interface Issue {
   readonly title?: string;
   readonly url: string;
   readonly state: "OPEN" | "CLOSED";
+  /** The issue body — carries the dod-fenced block when the row has a Definition of Done (#923). */
+  readonly body: string;
   readonly comments: readonly { readonly body: string }[];
   readonly blockers: readonly number[];
 }
@@ -67,14 +69,32 @@ export type LifecycleCommand =
   | { readonly kind: "claim"; readonly issues: readonly number[]; readonly lane: string }
   | { readonly kind: "ready" | "review" | "needs-owner"; readonly issues: readonly number[] }
   | { readonly kind: "set"; readonly issues: readonly number[]; readonly field: string; readonly value: string }
-  | { readonly kind: "verify" | "reverify" | "done" | "refute"; readonly issues: readonly number[]; readonly evidence: string }
+  | { readonly kind: "verify" | "reverify"; readonly issues: readonly number[]; readonly evidence: string }
+  /** `done` gains the LOUD override (#923): `override` is the `--force-close --reason` text — it skips
+   *  the DoD run, records the reason + the overridden command as an issue comment, and closes. Null =
+   *  the normal path, where a red DoD refuses the close. */
+  | { readonly kind: "done"; readonly issues: readonly number[]; readonly evidence: string; readonly override: string | null }
+  /** `refute --dod` mints the FAILING command as the row's bar in the same call that returns it to
+   *  Ready — red-first is satisfied by the very failure being reported (#923). */
+  | { readonly kind: "refute"; readonly issues: readonly number[]; readonly evidence: string; readonly dod: string | null }
+  /** Re-mint (or first-mint) a row's DoD: red-first run, body-block upsert, Project stamp — the ONLY
+   *  writer of the DoD field besides `file --dod` (`set` refuses it). */
+  | { readonly kind: "dod"; readonly issues: readonly number[]; readonly command: string }
   | { readonly kind: "park"; readonly issues: readonly number[]; readonly wake: string }
   | { readonly kind: "block"; readonly issues: readonly number[]; readonly blocker: number }
   | { readonly kind: "unblock"; readonly issues: readonly number[]; readonly blocker: number }
   /** `land` = the closing half of a row's lifecycle in ONE call: claim-if-needed → review → verify → done,
    *  with ONE `--evidence` satisfying the same-receipt rule `done` already enforces. It composes the
    *  EXISTING verbs (never a parallel path), so every guard, refusal and rerun property still holds. */
-  | { readonly kind: "land"; readonly issues: readonly number[]; readonly lane: string | null; readonly evidence: string; readonly commentFile: string | null };
+  | {
+      readonly kind: "land";
+      readonly issues: readonly number[];
+      readonly lane: string | null;
+      readonly evidence: string;
+      readonly commentFile: string | null;
+      /** The `--force-close --reason` text — same loud-override semantics as `done` (#923). */
+      readonly override: string | null;
+    };
 
 export interface CreateCommand {
   readonly kind: "create";
@@ -97,6 +117,9 @@ export interface FileCommand {
   readonly review: string | null;
   readonly ready: boolean;
   readonly lane: string | null;
+  /** RED-FIRST at file time (#923): the command runs BEFORE any GitHub call and a green run REFUSES
+   *  the row — a bug whose reproduction already passes is no bug, or the bar is wrong. */
+  readonly dod: string | null;
 }
 
 export interface ListCommand {
@@ -149,6 +172,7 @@ export interface RawIssueNode {
   readonly title?: string;
   readonly url: string;
   readonly state: "OPEN" | "CLOSED";
+  readonly body?: string;
   readonly comments: { readonly nodes: readonly { readonly body: string }[] };
   readonly blockedBy: { readonly nodes: readonly { readonly number: number; readonly state: "OPEN" | "CLOSED" }[] };
   readonly projectItems: { readonly nodes: readonly RawItemNode[] };

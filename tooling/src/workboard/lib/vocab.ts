@@ -35,7 +35,21 @@ export const MS_PER_SECOND = 1000;
 // misuse refusal (exit 3) with the limit and the actual length named, before any network call.
 export const EVIDENCE_MAX_LENGTH = 1024;
 
-export const LIFECYCLE_FIELDS = new Set(["status", "evidence", "lane", "wake condition", "disposition"]);
+export const LIFECYCLE_FIELDS = new Set(["status", "evidence", "lane", "wake condition", "disposition", "dod"]);
+
+/** The Project TEXT field pairing an issue-body dod-fenced block with its mint-time stamp (#923;
+ *  docs/design/work-item-dod.md). Lifecycle-controlled (`set` refuses it above): the stamp is only
+ *  ever written by a path that just watched the command FAIL — the red-first mint. */
+export const DOD_FIELD = "DoD";
+/** Per-DoD wall-clock ceiling, at mint AND at close — a batched `land` of N rows is bounded at
+ *  N·timeout, and an unfinishable bar refuses instead of hanging the board. A bar needing more than
+ *  this is a verification TIER, not a close gate (the refusal message says so). */
+const DOD_TIMEOUT_DEFAULT_MS = 300_000;
+// biome-ignore lint/style/noProcessEnv: WORK_ITEM_DOD_TIMEOUT_MS is the test seam for the per-DoD wall clock — harness plumbing, not app config.
+const dodTimeoutSeam = Number(process.env["WORK_ITEM_DOD_TIMEOUT_MS"]);
+export const DOD_TIMEOUT_MS = Number.isFinite(dodTimeoutSeam) && dodTimeoutSeam > 0 ? dodTimeoutSeam : DOD_TIMEOUT_DEFAULT_MS;
+/** Refusal messages print the output TAIL — enough to read the failure, never a megabyte dump. */
+export const DOD_OUTPUT_TAIL = 2000;
 export const REQUIRED_READY_METADATA = ["Kind", "Priority", "Area", "Review"];
 export const TERMINAL_DISPOSITIONS = new Set(["killed", "already resolved"]);
 

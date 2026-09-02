@@ -8,11 +8,12 @@
 // It does spawn the tool by its five-slot path via process.execPath — the tsx hop it used to take was
 // launcher rot (tsx was shed 2026-08-03).
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
 import { parseWorkCommand } from "../../../tooling/src/workboard/index.ts";
+import { buildDodBlock, dodStamp } from "../../../tooling/src/workboard/lib/dod.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ROOT = resolve(import.meta.dirname, "../../..");
@@ -41,6 +42,7 @@ interface FakeIssue {
   readonly number: number;
   readonly url: string;
   state: "OPEN" | "CLOSED";
+  body?: string;
   readonly blockers: number[];
   readonly comments: string[];
 }
@@ -66,6 +68,8 @@ interface FakeState {
   rateLimitAfter?: number;
   secondaryRateLimit?: boolean;
   failOptionAlways?: boolean;
+  /** Overrides the per-DoD wall clock through the WORK_ITEM_DOD_TIMEOUT_MS seam (#923). */
+  dodTimeoutMs?: number;
 }
 
 // The fake gh speaks the CLI's quota-sane wire protocol: named GraphQL operations dispatched on the
@@ -122,6 +126,7 @@ if (args[0] === "api" && args[1] === "rate_limit") {
       number: target.number,
       url: target.url,
       state: target.state,
+      body: target.body || "",
       blockedBy: { nodes: target.blockers.map((number) => ({ number, state: (state.issues[String(number)] || {}).state || "OPEN" })) },
       comments: { nodes: target.comments.map((body) => ({ body })) },
       projectItems: { nodes: state.items.filter((item) => item.content.number === target.number).map(itemNode) },
@@ -183,7 +188,8 @@ if (args[0] === "api" && args[1] === "rate_limit") {
 } else if (args[0] === "issue" && args[1] === "create") {
   const number = ${CREATED_ISSUE};
   const url = "https://example.test/issues/" + number;
-  state.issues[String(number)] = { id: "issue-" + number, number, url, state: "OPEN", blockers: [], comments: [] };
+  const bodyFlag = args.indexOf("--body");
+  state.issues[String(number)] = { id: "issue-" + number, number, url, state: "OPEN", blockers: [], comments: [], body: bodyFlag === -1 ? "" : args[bodyFlag + 1] };
   save();
   process.stdout.write(url);
 } else if (args[0] === "issue" && args[1] === "comment") {
@@ -193,6 +199,8 @@ if (args[0] === "api" && args[1] === "rate_limit") {
   issue().state = "CLOSED";
   text({});
 } else if (args[0] === "issue" && args[1] === "edit") {
+  const bodyFlag = args.indexOf("--body");
+  if (bodyFlag !== -1) issue().body = args[bodyFlag + 1];
   text({});
 } else { throw new Error("Unhandled gh invocation: " + args.join(" ")); }
 `;
@@ -212,6 +220,7 @@ function createState(status: string, blockers: number[] = []): FakeState {
       { id: "evidence", name: "Evidence", type: "ProjectV2Field" },
       { id: "lane", name: "Lane", type: "ProjectV2Field" },
       { id: "wake", name: "Wake condition", type: "ProjectV2Field" },
+      { id: "dod", name: "DoD", type: "ProjectV2Field" },
       {
         id: "disposition",
         name: "Disposition",
@@ -264,6 +273,9 @@ function drive(state: FakeState, ...args: string[]): { readonly status: number |
     childEnv["PATH"] = `${directory}:${ORIGINAL_PATH}`;
     childEnv["WORK_ITEM_FAKE_GH_STATE"] = statePath;
     childEnv["WORK_ITEM_CACHE_DIR"] = state.cacheDir ?? join(directory, "cache");
+    if (state.dodTimeoutMs !== undefined) {
+      childEnv["WORK_ITEM_DOD_TIMEOUT_MS"] = String(state.dodTimeoutMs);
+    }
     const result = spawnSync(process.execPath, [join(ROOT, "tooling", "src", "workboard", "cli.ts"), ...args], { cwd: ROOT, encoding: "utf8", env: childEnv });
     Object.assign(state, JSON.parse(readFileSync(statePath, "utf8")) as FakeState);
     return { status: result.status, stdout: result.stdout, stderr: result.stderr };
@@ -1134,4 +1146,368 @@ defineTest("primary and secondary rate-limit failures produce two distinct opera
   expect(primaryResult.stderr).not.toBe(secondaryResult.stderr);
   expect(primaryResult.stderr).not.toContain("GraphQL:");
   expect(secondaryResult.stderr).not.toContain("GraphQL:");
+});
+
+// ── #923: the Definition of Done — RED at file time, a gate at the close ────────────────────────────
+// The bar lives in two paired places: the command in a ```dod body block (edit history = the trace) and
+// a sha256 stamp in the Project's DoD field, written only by the red-first mint paths. These pins prove
+// both directions of every clause in the issue's own Receipt section, against the fake board.
+
+const DOD_FIELD = "DoD";
+
+/** Hand a Verify-shaped row a MINTED bar: the body block plus its matching stamp. */
+function withDod(state: FakeState, command: string): void {
+  targetIssue(state).body = `row body\n\n${buildDodBlock(command)}`;
+  const item = state.items[0];
+  if (item !== undefined) {
+    item[DOD_FIELD] = dodStamp(command);
+  }
+}
+
+function withVerifyEvidence(state: FakeState, evidence: string): void {
+  const item = state.items[0];
+  if (item !== undefined) {
+    item[EVIDENCE_FIELD] = evidence;
+  }
+}
+
+defineTest(
+  "file --dod runs the bar BEFORE any board call and refuses a green or unfinishable one",
+  () => {
+    const green = createState("Triage");
+    const refused = drive(green, "file", "--title", "Ghost bug", "--kind", "bug", "--dod", "exit 0");
+    expect(refused.status).toBe(TOOL_ERROR_EXIT);
+    expect(refused.stderr).toContain("already green at mint");
+    expect(refused.stderr).toContain("exit 0");
+    // Zero board cost: not one gh invocation of any kind reached the fake.
+    expect(green.calls).toHaveLength(0);
+
+    const hung = createState("Triage");
+    hung.dodTimeoutMs = 400;
+    const timedOut = drive(hung, "file", "--title", "Slow bar", "--kind", "bug", "--dod", "sleep 5");
+    expect(timedOut.status).toBe(TOOL_ERROR_EXIT);
+    expect(timedOut.stderr).toContain("did not complete within 400ms");
+    expect(hung.calls).toHaveLength(0);
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
+
+defineTest(
+  "a red DoD files: the block lands in the created body, the stamp in the DoD field; bug rows without one get the nudge",
+  () => {
+    const state = createState("Triage");
+    const result = drive(
+      state,
+      "file",
+      "--title",
+      "Real bug",
+      "--kind",
+      "bug",
+      "--priority",
+      "High",
+      "--area",
+      "Docs",
+      "--review",
+      "Technical",
+      "--dod",
+      "exit 1",
+    );
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("DoD red at mint (exit 1)");
+    const createCall = state.calls.find((args) => args[0] === "issue" && args[1] === "create") ?? [];
+    expect(createCall[createCall.indexOf("--body") + 1]).toContain("```dod\nexit 1\n```");
+    expect(itemFieldValue(state, CREATED_ISSUE, DOD_FIELD)).toBe(dodStamp("exit 1"));
+    expect(result.stdout).not.toContain("no --dod");
+
+    const bare = drive(createState("Triage"), "file", "--title", "Bar-less bug", "--kind", "bug");
+    expect(bare.status).toBe(0);
+    expect(bare.stdout).toContain("no --dod");
+    const work = drive(createState("Triage"), "file", "--title", "Feature row", "--kind", "work");
+    expect(work.status).toBe(0);
+    expect(work.stdout).not.toContain("no --dod");
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
+
+defineTest("the DoD parse guards: class fit, spelling, unknown flags, dangling override, set refusal", () => {
+  expect(() => parseWorkCommand(["file", "--title", "Fork", "--kind", "decision", "--dod", "exit 1"])).toThrow("a decision closes on an owner ruling");
+  expect(() => parseWorkCommand(["file", "--title", "Sprint", "--kind", "program", "--dod", "exit 1"])).toThrow("a program closes on its child rows");
+  expect(() => parseWorkCommand(["file", "--title", "x", "--kind", "bug", "--dod", "npx vitest run t.test.ts"])).toThrow("must not invoke npx");
+  // The #1043-adjacent silent-typo class: an unknown flag refuses instead of silently dropping.
+  expect(() => parseWorkCommand(["file", "--title", "x", "--kind", "work", "--prioirty", "High"])).toThrow("file does not recognize --prioirty");
+  expect(() => parseWorkCommand(["set", "11", "DoD", "sha256:abc"])).toThrow("set cannot modify lifecycle-controlled field DoD");
+  expect(() => parseWorkCommand(["done", "11", "--evidence", "r", "--force-close"])).toThrow("--reason requires a value");
+  expect(() => parseWorkCommand(["land", "11", "--evidence", "r", "--reason", "text"])).toThrow("--reason requires --force-close");
+  expect(parseWorkCommand(["dod", "11", "--cmd", "exit 1"])).toEqual({ kind: "dod", issues: [11], command: "exit 1" });
+  expect(parseWorkCommand(["refute", "11", "--evidence", "failed", "--dod", "exit 1"])).toEqual({
+    kind: "refute",
+    issues: [11],
+    evidence: "failed",
+    dod: "exit 1",
+  });
+});
+
+defineTest(
+  "done/land run the DoD at close and refuse a red one printing what ran; a green one (CRLF body included) closes",
+  () => {
+    const red = createState("Verify");
+    withVerifyEvidence(red, "abc1234");
+    withDod(red, "echo boom; exit 7");
+    const refused = drive(red, "land", "11", "--evidence", "abc1234");
+    expect(refused.status).toBe(TOOL_ERROR_EXIT);
+    expect(refused.stderr).toContain("DoD is red — refusing to close #11");
+    expect(refused.stderr).toContain("echo boom; exit 7");
+    expect(refused.stderr).toContain("exit: 7");
+    expect(refused.stderr).toContain("boom");
+    expect(targetIssue(red).state).toBe("OPEN");
+    expect(fieldValue(red, STATUS_FIELD)).toBe("Verify");
+
+    // The primitive spelling hits the same gate — done() is the one close door.
+    const alsoDone = drive(red, "done", "11", "--evidence", "abc1234");
+    expect(alsoDone.status).toBe(TOOL_ERROR_EXIT);
+    expect(alsoDone.stderr).toContain("DoD is red");
+
+    // Green closes — through a \r\n body, GitHub's real wire shape for issue bodies.
+    const green = createState("Verify");
+    withVerifyEvidence(green, "abc1234");
+    withDod(green, "exit 0");
+    targetIssue(green).body = (targetIssue(green).body ?? "").replaceAll("\n", "\r\n");
+    expect(drive(green, "land", "11", "--evidence", "abc1234").status).toBe(0);
+    expect(targetIssue(green).state).toBe("CLOSED");
+    expect(fieldValue(green, STATUS_FIELD)).toBe("Done");
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
+
+defineTest("a per-DoD timeout bounds the close — a sleeping bar refuses instead of hanging a batched land", () => {
+  const state = createState("Verify");
+  withVerifyEvidence(state, "abc1234");
+  withDod(state, "sleep 5");
+  state.dodTimeoutMs = 400;
+  const result = drive(state, "land", "11", "--evidence", "abc1234");
+  expect(result.status).toBe(TOOL_ERROR_EXIT);
+  expect(result.stderr).toContain("did not complete within 400ms");
+  expect(targetIssue(state).state).toBe("OPEN");
+});
+
+defineTest("the pairing is two-sided: an unminted block, an edited block, and a deleted block refuse BY NAME, never run", () => {
+  // Every bar below is `exit 0` — if any of these paths EXECUTED it, the close would succeed; the
+  // refusal is therefore also the proof that nothing ran.
+  const unminted = createState("Verify");
+  withVerifyEvidence(unminted, "r");
+  targetIssue(unminted).body = buildDodBlock("exit 0");
+  const u = drive(unminted, "land", "11", "--evidence", "r");
+  expect(u.status).toBe(TOOL_ERROR_EXIT);
+  expect(u.stderr).toContain("never minted through work:item");
+
+  const edited = createState("Verify");
+  withVerifyEvidence(edited, "r");
+  withDod(edited, "exit 1");
+  targetIssue(edited).body = `row body\n\n${buildDodBlock("exit 0")}`;
+  const e = drive(edited, "land", "11", "--evidence", "r");
+  expect(e.status).toBe(TOOL_ERROR_EXIT);
+  expect(e.stderr).toContain("edited without re-minting");
+
+  const deleted = createState("Verify");
+  withVerifyEvidence(deleted, "r");
+  withDod(deleted, "exit 0");
+  targetIssue(deleted).body = "the bar was removed from this body";
+  const d = drive(deleted, "land", "11", "--evidence", "r");
+  expect(d.status).toBe(TOOL_ERROR_EXIT);
+  expect(d.stderr).toContain("the bar was deleted");
+});
+
+defineTest(
+  "--force-close --reason closes red, records the override on the issue, and provably does NOT run the bar",
+  () => {
+    const directory = mkdtempSync(join(tmpdir(), "work-item-dod-witness-"));
+    try {
+      const witness = join(directory, "ran");
+      const state = createState("Verify");
+      withVerifyEvidence(state, "abc1234");
+      const command = `touch ${witness}; exit 1`;
+      withDod(state, command);
+      const result = drive(state, "land", "11", "--evidence", "abc1234", "--force-close", "--reason", "bar rotted; receipts in comment");
+      expect(result.status).toBe(0);
+      expect(targetIssue(state).state).toBe("CLOSED");
+      const override = targetIssue(state).comments.find((body) => body.includes("DoD override"));
+      expect(override).toContain("bar rotted; receipts in comment");
+      expect(override).toContain(command);
+      // The planted witness: the overridden bar was never executed.
+      expect(existsSync(witness)).toBe(false);
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
+
+    // Two-sided: a row with NO bar refuses the override — there is nothing to record.
+    const bare = createState("Verify");
+    withVerifyEvidence(bare, "r");
+    const refused = drive(bare, "land", "11", "--evidence", "r", "--force-close", "--reason", "nothing to override");
+    expect(refused.status).toBe(TOOL_ERROR_EXIT);
+    expect(refused.stderr).toContain("has no DoD");
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
+
+defineTest("an interrupted close reruns convergently: a row already at Done never re-executes its bar", () => {
+  const directory = mkdtempSync(join(tmpdir(), "work-item-dod-rerun-"));
+  try {
+    const witness = join(directory, "ran");
+    const state = createState("Done");
+    withVerifyEvidence(state, "abc1234");
+    withDod(state, `touch ${witness}; exit 1`);
+    targetIssue(state).comments.push("Verification evidence: abc1234");
+    const result = drive(state, "done", "11", "--evidence", "abc1234");
+    expect(result.status).toBe(0);
+    expect(targetIssue(state).state).toBe("CLOSED");
+    expect(existsSync(witness)).toBe(false);
+  } finally {
+    rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+defineTest(
+  "dod re-mints red-first: refuses a green bar at zero board cost, replaces the block, restamps; decision rows refuse",
+  () => {
+    const green = createState("Running");
+    const refused = drive(green, "dod", "11", "--cmd", "exit 0");
+    expect(refused.status).toBe(TOOL_ERROR_EXIT);
+    expect(refused.stderr).toContain("already green at mint");
+    expect(green.calls).toHaveLength(0);
+
+    const state = createState("Running");
+    withDod(state, "exit 5");
+    const result = drive(state, "dod", "11", "--cmd", "exit 1");
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("#11 dod");
+    expect(targetIssue(state).body).toContain("```dod\nexit 1\n```");
+    // Replacement, not accumulation — exactly one fence remains after a re-mint.
+    expect((targetIssue(state).body ?? "").match(/```dod/gu) ?? []).toHaveLength(1);
+    expect(fieldValue(state, DOD_FIELD)).toBe(dodStamp("exit 1"));
+
+    const decision = createState("Running");
+    const decisionItem = decision.items[0];
+    if (decisionItem !== undefined) {
+      decisionItem[KIND_FIELD] = "Decision";
+    }
+    const categorical = drive(decision, "dod", "11", "--cmd", "exit 1");
+    expect(categorical.status).toBe(TOOL_ERROR_EXIT);
+    expect(categorical.stderr).toContain("a decision closes on an owner ruling");
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
+
+defineTest("refute --dod mints the failing command as the returned row's bar in the same call", () => {
+  const state = createState("Verify");
+  withVerifyEvidence(state, "old receipt");
+  const result = drive(state, "refute", "11", "--evidence", "failed under load", "--dod", "exit 1");
+  expect(result.status).toBe(0);
+  expect(fieldValue(state, STATUS_FIELD)).toBe("Ready");
+  expect(fieldValue(state, EVIDENCE_FIELD)).toBe("failed under load");
+  expect(targetIssue(state).body).toContain("```dod\nexit 1\n```");
+  expect(fieldValue(state, DOD_FIELD)).toBe(dodStamp("exit 1"));
+
+  const green = createState("Verify");
+  withVerifyEvidence(green, "old receipt");
+  const refused = drive(green, "refute", "11", "--evidence", "failed", "--dod", "exit 0");
+  expect(refused.status).toBe(TOOL_ERROR_EXIT);
+  expect(refused.stderr).toContain("already green at mint");
+  expect(fieldValue(green, STATUS_FIELD)).toBe("Verify");
+});
+
+defineTest("a multi-id refusal names the refusing row, the transitioned rows, and the not-attempted rows", () => {
+  const state = createState("Verify");
+  withVerifyEvidence(state, "abc1234");
+  withDod(state, "exit 9");
+  state.items.push({
+    id: "item-8",
+    content: { number: 8, url: "https://example.test/issues/8" },
+    [STATUS_FIELD]: "Verify",
+    [DISPOSITION_FIELD]: "Action",
+    [KIND_FIELD]: "Work",
+    [PRIORITY_FIELD]: "High",
+    [AREA_FIELD]: "Docs",
+    [REVIEW_FIELD]: "Technical",
+    [EVIDENCE_FIELD]: "abc1234",
+  });
+  const result = drive(state, "land", "8", "11", "7", "--evidence", "abc1234");
+  expect(result.status).toBe(TOOL_ERROR_EXIT);
+  expect(result.stderr).toContain("#11: DoD is red");
+  expect(result.stderr).toContain("already transitioned: #8");
+  expect(result.stderr).toContain("not attempted: #7");
+  // The row before the refusal keeps its close — the fan-out semantics are unchanged.
+  expect(state.issues["8"]?.state).toBe("CLOSED");
+});
+
+defineTest(
+  "a sweep-shaped DoD: red while the needle exists, green after the sweep, and the close follows the bar",
+  () => {
+    const directory = mkdtempSync(join(tmpdir(), "work-item-dod-sweep-"));
+    try {
+      const needleFile = join(directory, "stale.txt");
+      writeFileSync(needleFile, "the-old-name");
+      const command = `rg -F the-old-name ${directory} --files-with-matches; test $? -eq 1`;
+      const state = createState("Triage");
+      const filed = drive(
+        state,
+        "file",
+        "--title",
+        "Rename sweep",
+        "--kind",
+        "work",
+        "--priority",
+        "High",
+        "--area",
+        "Docs",
+        "--review",
+        "Technical",
+        "--claim",
+        "cb-dod-forge",
+        "--dod",
+        command,
+      );
+      // RED at mint: the needle still exists on disk.
+      expect(filed.status).toBe(0);
+      expect(itemFieldValue(state, CREATED_ISSUE, DOD_FIELD)).toBe(dodStamp(command));
+      // The sweep happens; the bar flips green; the close now passes its own gate.
+      rmSync(needleFile);
+      const created = state.items.find((item) => item.content.number === CREATED_ISSUE);
+      if (created !== undefined) {
+        created[STATUS_FIELD] = "Verify";
+        created[EVIDENCE_FIELD] = "sweep receipt";
+      }
+      const landed = drive(state, "land", String(CREATED_ISSUE), "--evidence", "sweep receipt");
+      expect(landed.status).toBe(0);
+      expect(state.issues[String(CREATED_ISSUE)]?.state).toBe("CLOSED");
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
+
+defineTest("file fails ATOMICALLY on a bad enum: nothing is created, and the refusal names the valid options (#1043)", () => {
+  const state = createState("Triage");
+  const result = drive(state, "file", "--title", "Half-fielded row", "--kind", "bug", "--priority", "High", "--area", "Docs", "--review", "Design", "--ready");
+  expect(result.status).toBe(TOOL_ERROR_EXIT);
+  expect(result.stderr).toContain("Review has no option named Design");
+  expect(result.stderr).toContain("Technical | Owner");
+  expect(state.calls.some((args) => args[0] === "issue" && args[1] === "create")).toBe(false);
+  expect(state.items.some((item) => item.content.number === CREATED_ISSUE)).toBe(false);
+
+  // The other direction: valid enums still file-and-ready exactly as before.
+  const good = createState("Triage");
+  expect(drive(good, "file", "--title", "Valid row", "--kind", "work", "--priority", "High", "--area", "Docs", "--review", "Technical", "--ready").status).toBe(
+    0,
+  );
+  expect(itemFieldValue(good, CREATED_ISSUE, STATUS_FIELD)).toBe("Ready");
+});
+
+defineTest("help documents the DoD surface", () => {
+  const result = drive(createState("Triage"), "--help");
+  expect(result.status).toBe(0);
+  expect(result.stdout).toContain("--dod '<cmd>'");
+  expect(result.stdout).toContain("--force-close --reason");
+  expect(result.stdout).toContain("dod <issue…> --cmd '<command>'");
+  expect(result.stdout).toContain("never npx");
 });

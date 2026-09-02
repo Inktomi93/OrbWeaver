@@ -6,10 +6,12 @@ import { resolve } from "node:path";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { CreateCommand, FileCommand, GraphqlVariables, IssueClass, ListRow, RawListPage } from "../contract/types.ts";
+import { appendDodBlock, dodStamp } from "../lib/dod.ts";
 import { issueNumber } from "../lib/parse.ts";
 import { LIST_QUERY } from "../lib/queries.ts";
-import { EVIDENCE_MAX_LENGTH, ISSUE_CLASSES, ISSUE_URL_RE, PROJECT_NUMBER, REPOSITORY } from "../lib/vocab.ts";
-import { fieldOf, itemFields } from "../lib/writes.ts";
+import { DOD_FIELD, DOD_TIMEOUT_MS, EVIDENCE_MAX_LENGTH, ISSUE_CLASSES, ISSUE_URL_RE, PROJECT_NUMBER, REPOSITORY } from "../lib/vocab.ts";
+import { encodeWrite, fieldOf, itemFields } from "../lib/writes.ts";
+import { requireRedDodAtMint } from "./dod.ts";
 import { gh, graphql } from "./gh.ts";
 import { runLifecycle } from "./lifecycle.ts";
 import { ensureItem, fetchIssueContext, setField, withProjectContext, writeFields } from "./project.ts";
@@ -142,12 +144,27 @@ function createdIssueNumber(output: string): number {
   return issueNumber(number);
 }
 
+/** With a DoD the block is APPENDED to the body at creation — the mint and the issue are one write, so
+ *  there is never a filed row whose bar exists only in Project state. */
+function issueBody(command: { readonly title: string; readonly bodyFile: string | null; readonly dod: string | null }): readonly string[] {
+  if (command.dod === null) {
+    return command.bodyFile === null ? ["--body", command.title] : ["--body-file", resolveNonEmptyBodyFile(command.bodyFile)];
+  }
+  const base = command.bodyFile === null ? command.title : readFileSync(resolveNonEmptyBodyFile(command.bodyFile), "utf8").trim();
+  return ["--body", appendDodBlock(base, command.dod)];
+}
+
 /** The ingress write shared by `create` and `file`: the issue is created FIRST and its URL printed
  *  IMMEDIATELY, so if Project setup then fails the operator holds a resumable receipt instead of an
  *  orphaned issue they cannot name. `bodyFile` null (the `file` one-liner) makes the TITLE the body. */
-function createIssue(command: { readonly issueClass: IssueClass; readonly title: string; readonly bodyFile: string | null }): number {
+function createIssue(command: {
+  readonly issueClass: IssueClass;
+  readonly title: string;
+  readonly bodyFile: string | null;
+  readonly dod: string | null;
+}): number {
   const issueConfig = ISSUE_CLASSES[command.issueClass];
-  const body = command.bodyFile === null ? ["--body", command.title] : ["--body-file", resolveNonEmptyBodyFile(command.bodyFile)];
+  const body = issueBody(command);
   const output = gh(["issue", "create", "--repo", REPOSITORY, "--title", command.title, ...body, ...issueConfig.labels.flatMap((label) => ["--label", label])]);
   const number = createdIssueNumber(output);
   print(`created #${number} ${output}`);
@@ -171,7 +188,7 @@ function resolveNonEmptyBodyFile(path: string): string {
 }
 
 export function create(command: CreateCommand): void {
-  const number = createIssue(command);
+  const number = createIssue({ issueClass: command.issueClass, title: command.title, bodyFile: command.bodyFile, dod: null });
   const next = command.issueClass === "decision" ? "set Priority, Area, and resolve the owner decision before ready" : "set Priority, Area, Review, then ready";
   print(`work-item — #${number} Project metadata initialized; ${next}`);
 }
@@ -181,24 +198,37 @@ export function create(command: CreateCommand): void {
  *  batched field write, and `ready`/`claim` are the same guarded functions, so an incomplete row is
  *  refused by ready's own metadata guard rather than by a second copy of that rule living here. */
 export function file(command: FileCommand): void {
-  const number = createIssue(command);
-  const context = fetchIssueContext(number);
-  const item = ensureItem(context.target, context.item);
+  // RED-FIRST (#923): the DoD runs before ANY GitHub call — a green reproduction refuses the row at
+  // zero board cost (no bug, or the wrong bar; both worth knowing before the row exists).
+  if (command.dod !== null) {
+    requireRedDodAtMint(command.dod);
+  }
   const changes = [
     { name: "Priority", value: command.priority },
     { name: "Area", value: command.area },
     { name: "Review", value: command.review },
+    { name: DOD_FIELD, value: command.dod === null ? null : dodStamp(command.dod) },
   ].flatMap((change) => (change.value === null ? [] : [{ name: change.name, value: change.value }]));
+  // ATOMIC on a bad enum (the #1043 specimen: an invalid --review created the issue, then aborted the
+  // batch — a half-fielded row). Encode the operator's metadata against the cached project context
+  // BEFORE the issue exists; withProjectContext's stale-cache retry keeps a cold/stale cache honest,
+  // and encodeWrite's refusal names the valid options.
+  withProjectContext((project) => changes.map((change) => encodeWrite(project.fields, change)));
+  const number = createIssue(command);
+  const context = fetchIssueContext(number);
+  const item = ensureItem(context.target, context.item);
   writeFields(item, changes, "WorkItemFields");
+  const nudge =
+    command.issueClass === "bug" && command.dod === null ? " — no --dod; a bug row closes strongest with a red-first reproduction (--dod '<cmd>')" : "";
   if (!command.ready) {
-    print(`work-item — #${number} filed; ready it when Kind, Priority, Area and Review are set`);
+    print(`work-item — #${number} filed; ready it when Kind, Priority, Area and Review are set${nudge}`);
     return;
   }
   runLifecycle({ kind: "ready", issues: [number] });
   if (command.lane !== null) {
     runLifecycle({ kind: "claim", issues: [number], lane: command.lane });
   }
-  print(`work-item — #${number} filed and ${command.lane === null ? "Ready" : `claimed by ${command.lane}`}`);
+  print(`work-item — #${number} filed and ${command.lane === null ? "Ready" : `claimed by ${command.lane}`}${nudge}`);
 }
 
 export function help(): void {
@@ -207,12 +237,20 @@ export function help(): void {
 ONE CALL PER ROW, NOT SIX. Every lifecycle verb takes a LIST of issues, and the two composite verbs
 cover the whole opening and closing sequence. Reach for these first — a lone board call is the cost:
 file --title <title> --kind <work|bug|decision|program|evidence> [--priority P] [--area A] [--review R]
-     [--body-file <file>] [--ready] [--claim <lane>]
+     [--body-file <file>] [--ready] [--claim <lane>] [--dod '<cmd>']
        create + the metadata writes + ready + claim in ONE call. With no --body-file the body IS the
        title (the one-line row). A decision enters Needs owner and refuses --ready/--claim.
-land <issue…> --evidence <receipt> [--lane <lane>] [--comment-file <file>]
+land <issue…> --evidence <receipt> [--lane <lane>] [--comment-file <file>] [--force-close --reason <text>]
        claim-if-needed → review → verify → done in ONE call, per row, with ONE receipt. Resumes from
        wherever each row already is; --lane is required only for a row still Ready.
+
+DEFINITION OF DONE (#923): --dod '<cmd>' runs the command at FILE time and refuses a row whose bar is
+already green (red-first — the reproduction and the acceptance test are one command). done/land re-run
+it and refuse a red close, printing what ran and its output. --force-close --reason '<text>' is the loud
+recorded override (a comment lands on the issue). dod <issue…> --cmd '<cmd>' re-mints a bar (red-first
+again; the body block and its stamp must match or the close refuses). refute … --dod '<cmd>' mints the
+failing command as the returned row's bar. Each run is capped at ${DOD_TIMEOUT_MS}ms; spell commands
+with pnpm scripts or pnpm exec, never npx (refused at mint).
 
 show <issue…>   (batched — one call reads N rows)
 overview  (the whole board: every status, counts + numbered rows — the board-read ritual verb)
@@ -220,8 +258,9 @@ list [--status <status>]
 create <work|bug|decision|program|evidence> --title <title> --body-file <file>
 ready <issue…> | claim <issue…> --lane <lane> | review <issue…> | needs-owner <issue…> | set <issue…> <field> <value>
 block <issue…> --by <blocker> | unblock <issue…> --by <blocker> | park <issue…> --wake <condition>
-verify <issue…> --evidence <receipt> | reverify <issue…> --evidence <replacement-receipt> | done <issue…> --evidence <same-receipt>
-refute <issue…> --evidence <refutation-receipt> — Verify only; returns the row to Ready with Evidence replaced (outcome stands, rework is claimable)
+verify <issue…> --evidence <receipt> | reverify <issue…> --evidence <replacement-receipt> | done <issue…> --evidence <same-receipt> [--force-close --reason <text>]
+refute <issue…> --evidence <refutation-receipt> [--dod '<cmd>'] — Verify only; returns the row to Ready with Evidence replaced (outcome stands, rework is claimable)
+dod <issue…> --cmd '<command>' — mint or re-mint a row's Definition of Done (red-first; set DoD is refused)
 --evidence is capped at ${EVIDENCE_MAX_LENGTH} chars (GitHub's Project text-column limit) — post the full receipt as an issue comment and keep --evidence short
 
 Lifecycle: Triage → Ready → Running → Review → Verify → Done. Set Kind, Priority, Area, and Review before Ready. Decisions enter Needs owner. Interrupted transitions are safe to rerun — including a composite verb, which resumes at the row's current status. Use .github/ISSUE_TEMPLATE/*.yml for canonical issue bodies; Project holds mutable lifecycle state.`);
