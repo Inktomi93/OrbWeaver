@@ -126,23 +126,30 @@ test("a run names the LIVE sibling holding a slot — the racing-writer census, 
 //
 // THE TWO PRECONDITIONS THIS CASE PLANTS, because neither arrives by accident:
 //   1. a ring ALREADY OVER capacity — 12 stale slots, so every publisher has real deletions to perform;
-//   2. publishes SYNCHRONIZED to overlap — the children sleep to one shared deadline instead of racing
-//      from spawn, so their filter-chain-then-delete windows interleave rather than serialize.
+//   2. publishes SYNCHRONIZED to overlap — the children meet at a RENDEZVOUS before publishing instead of
+//      racing from spawn, so their filter-chain-then-delete windows interleave rather than serialize. The
+//      barrier is a directory of readiness markers, not a wall-clock deadline: nobody reads a clock (the
+//      determinism law bans the ambient one), the meet is TIGHTER than a deadline can be under load, and a
+//      bounded spin means a crashed sibling costs one round's overlap rather than a hung suite.
 // Three rounds on three fresh rings, four publishers each: bounded (the box carries sibling lanes) and
 // far past the measured per-trial reproduction rate. The green direction is not probabilistic — the guard
 // removes the failure mode, it does not narrow the window.
 
 /** A publisher that does exactly what every instrument's finish step does — open a slot, write one
- *  artifact, publish + prune — but holds until a deadline it SHARES with its siblings. */
-const PRUNE_RACER = `import { writeFileSync } from "node:fs";
+ *  artifact, publish + prune — but waits at a RENDEZVOUS so every sibling reaches its prune together.
+ *  `Atomics.wait` sleeps a DURATION and reads no clock; the spin cap is what keeps a dead sibling from
+ *  hanging the round. */
+const PRUNE_RACER = `import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-const [artifacts, root, instrument, deadline] = process.argv.slice(2);
+const [artifacts, root, instrument, publishers, rendezvous, spinCap, spinMs] = process.argv.slice(2);
 const A = await import(pathToFileURL(artifacts).href);
 const slot = A.openRunSlot(root, instrument);
 writeFileSync(A.runFile(slot, "artifact.json"), JSON.stringify({ runId: slot.runId }));
-const wait = Number(deadline) - Date.now();
-if (wait > 0) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, wait);
+mkdirSync(rendezvous, { recursive: true });
+writeFileSync(join(rendezvous, String(process.pid)), "");
+for (let spin = 0; spin < Number(spinCap) && readdirSync(rendezvous).length < Number(publishers); spin += 1) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Number(spinMs));
 }
 A.publishRunSlot(root, slot, [{ alias: "artifact.json", target: "artifact.json" }]);
 `;
@@ -153,9 +160,11 @@ const RACE_INSTRUMENT = "raceprobe";
 const STALE_SLOTS = 12;
 const PUBLISHERS = 4;
 const ROUNDS = 3;
-/** How long the racers hold before publishing together. Enough for four `spawnNiced` children to reach
- *  their wait under load, short enough that three rounds stay a few seconds. */
-const DEADLINE_MS = 900;
+/** The rendezvous spin: `SPIN_CAP` × `SPIN_MS` is the ceiling a child waits for its siblings (2s — past
+ *  four niced `spawnNiced` starts under lane load) before publishing anyway, so no round can hang. */
+const SPIN_CAP = 400;
+const SPIN_MS = 5;
+const RENDEZVOUS = "rendezvous";
 
 /** A ring already OVER capacity: prunable slots (no in-flight marker, no published manifest, no pointer
  *  naming them), with distinct mtimes so the age sort is real work rather than a tie. */
@@ -188,9 +197,11 @@ test("concurrent publishers pruning ONE over-capacity ring never throw at each o
   for (let round = 0; round < ROUNDS; round += 1) {
     const root = await plantedTree({ [RACER]: PRUNE_RACER });
     plantStaleRing(root);
-    const deadline = String(Date.now() + DEADLINE_MS);
+    const rendezvous = join(root, RENDEZVOUS);
     const results = await Promise.all(
-      Array.from({ length: PUBLISHERS }, () => spawnNiced(process.execPath, [join(root, RACER), artifacts, root, RACE_INSTRUMENT, deadline])),
+      Array.from({ length: PUBLISHERS }, () =>
+        spawnNiced(process.execPath, [join(root, RACER), artifacts, root, RACE_INSTRUMENT, String(PUBLISHERS), rendezvous, String(SPIN_CAP), String(SPIN_MS)]),
+      ),
     );
 
     // THE DEFECT, stated as the assertion: a publisher whose sibling removed a stale slot mid-prune exited
