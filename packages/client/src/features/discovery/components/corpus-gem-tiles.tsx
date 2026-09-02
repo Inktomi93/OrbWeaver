@@ -108,7 +108,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
           because 10.5px was one of 17 `undersized-ui-text` findings. The same argument reaches a SENTENCE
           the reader is meant to read: `prose` is the length statement that lifts the step to 13px without
           leaving the gloss voice, which is the lever the tiles below already use. */}
-      <Text className="max-w-(--reading-measure)" prose={true} voice="gloss">
+      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
         Lifetime totals per character — the most played, longest left alone.
       </Text>
       {/* auto-fit at the 16rem tile floor: a wider pane shows MORE tiles, never wider ones. `role="list"`

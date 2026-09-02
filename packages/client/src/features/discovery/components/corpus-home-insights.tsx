@@ -90,7 +90,7 @@ export function CorpusNeverPlayedSection({
           is alphabetical by name (`domain/discovery/verbs/insights.ts`, `orderBy(asc(characters.name))`),
           which without a caption is indistinguishable from a top-8 of something. Both facts in one line,
           bounded by the reading measure so it cannot become the 145-chars/line finding it sits beside. */}
-      <Text className="max-w-(--reading-measure)" voice="gloss">
+      <Text className="max-w-(--reading-measure-prose)" voice="gloss">
         {`${formatCount(characters.length)} of ${formatCount(libraryCharacters)} characters have never been played — collected and never opened. Listed A–Z; scroll for the rest.`}
       </Text>
       <VirtualList
@@ -195,7 +195,7 @@ export function CorpusModelEconomicsSection({
   return (
     <Section kicker="Model economics" level={2}>
       <Stack gap="block">
-        <Text className="max-w-(--reading-measure)" voice="gloss">
+        <Text className="max-w-(--reading-measure-prose)" voice="gloss">
           {economicsSummary(routes)}
         </Text>
         <BarList

@@ -70,7 +70,7 @@ export const fieldVariants = tv({
         labelBlock: "@lg:contents",
         label: "@lg:col-start-1 @lg:row-start-1",
         labelRow: "@lg:col-start-1 @lg:row-start-1",
-        description: "max-w-(--reading-measure) @lg:col-span-full @lg:row-start-2",
+        description: "max-w-(--reading-measure-prose) @lg:col-span-full @lg:row-start-2",
         // The control column stops being a fixed 200px right-hand DOCK and becomes the shared track's
         // cell, filled from its START. Not `items-end`/`stretch`: the cold contract is explicit that
         // unlike controls must not be stretched merely to equalize their visible right edge — a switch is

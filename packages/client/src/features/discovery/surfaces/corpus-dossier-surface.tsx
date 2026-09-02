@@ -113,8 +113,10 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
           {facet !== "" ? <Text voice="gloss">{facet}</Text> : null}
           {/* A MEASURE CAP ON THE PROSE (P2-8): the pitch measured 109ch and the neighbour gloss 165ch on a
               wide pane, against the 65-75ch reading law. The cap belongs on the PARAGRAPH, never on the
-              page — `--reading-measure` is the token the masthead's own headline uses one section up. */}
-          {dossier.elevatorPitch !== null ? <Text className="max-w-(--reading-measure) text-muted-foreground">{dossier.elevatorPitch}</Text> : null}
+              page. The token is `--reading-measure-prose` since #1145 — the masthead's headline one section
+              up keeps `--reading-measure`, because the law's band is about BODY line length and a display
+              line is not body copy. */}
+          {dossier.elevatorPitch !== null ? <Text className="max-w-(--reading-measure-prose) text-muted-foreground">{dossier.elevatorPitch}</Text> : null}
         </Stack>
       </Row>
 
@@ -131,7 +133,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
             {/* THE SAME MEASURE CAP ITS SIBLINGS GOT (side-eye corpus re-pass #3, P3-E). This sentence was
                 the one paragraph on the surface that escaped the 65-75ch reading law — 78.6ch at
                 `max-width: none`, beside a pitch and a masthead headline that both carry the token. */}
-            <Text className="max-w-(--reading-measure)" voice="gloss">
+            <Text className="max-w-(--reading-measure-prose)" voice="gloss">
               Not scored yet — run the Refinery's library score sweep, or open a Refinery session on this card.
             </Text>
             <Button intent="ghost" onClick={(): void => setActiveSection("refinery")} size="sm">
@@ -215,7 +217,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
                 rather than asserted, and the clause that existed only to pre-empt the contradiction
                 ("so it won't descend") is gone. The sentence keeps the part that is still information —
                 which of the two quantities each number is. */}
-            <Text className="max-w-(--reading-measure)" voice="gloss">
+            <Text className="max-w-(--reading-measure-prose)" voice="gloss">
               Ranked by distinctive similarity; the percent beside each rank is plain card similarity.
             </Text>
             <Stack gap="row" role="list">

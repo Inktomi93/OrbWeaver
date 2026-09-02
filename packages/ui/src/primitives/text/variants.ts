@@ -78,8 +78,10 @@ export const textVariants = tv({
       // So the reading step had no route and surfaces reached for `gloss` instead, which is how a room's
       // last spoken line ends up set at the same 10.5px as a footnote. Rides `--color-prose-body` (the
       // per-theme reading ink, warmer than `foreground` and dimmer than pure white on a dark backdrop) and
-      // the body leading. Pair it with `max-w-(--reading-measure)`: a reading line is capped on the
-      // PARAGRAPH, never on the page.
+      // the body leading. Pair it with `max-w-(--reading-measure-prose)` — the TEACHING/BODY measure, not
+      // the transcript's wider one (#1145): a reading line is capped on the PARAGRAPH, never on the page.
+      // Only the chat transcript itself takes `--reading-measure`; see the token's own $description for
+      // why one CSS `ch` is ~1.5 of the characters the design law counts.
       reading: "font-sans text-body leading-body tracking-normal font-normal text-prose-body",
       // THE SURFACE'S ONE OPENING STATEMENT (added 2026-08-16, program #102 — the home hearth build). A
       // landing surface opens on a SENTENCE about your own state ("Six rooms, still warm."), and the two

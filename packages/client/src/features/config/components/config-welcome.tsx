@@ -194,7 +194,7 @@ export function ConfigWelcome({ groups }: ConfigWelcomeProps): ReactElement {
           {/* ONE SENTENCE TRUE FOR BOTH READERS (side-eye 2026-08-03 P2; #104 item 3 took the em-dash).
               At the READING step and capped on the PARAGRAPH, never on the page — a measure belongs to
               the line, and capping the page is what put 160px of void down each side of this pane. */}
-          <Text className="max-w-(--reading-measure)" voice="reading">
+          <Text className="max-w-(--reading-measure-prose)" voice="reading">
             {CONFIG_WELCOME.teaching}
           </Text>
         </Stack>
@@ -313,7 +313,7 @@ function BuiltLibrary({ group }: { readonly group: CollectionGroupDefinition }):
             at the gloss voice's own 10.5px micro step, the footnote step. `prose` is the house statement for
             exactly that ("this text is sentences, not a label"): it lifts the step and relaxes the leading
             and changes nothing else, so the blurb is still unmistakably the gloss voice. */}
-        <Text className="max-w-(--reading-measure)" prose={true} voice="gloss">
+        <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
           {group.description}
         </Text>
         {shown.length === 0 ? null : (
@@ -423,7 +423,7 @@ function UnbuiltLibrary({ group }: { readonly group: CollectionGroupDefinition }
       </Row>
       {/* Capped on the paragraph AND read at the prose step — the hero's rule and the masthead's (side-eye
           2026-08-19 P3, both passes). This slot's blurb is the one a cold first-timer reads. */}
-      <Text className="max-w-(--reading-measure)" prose={true} voice="gloss">
+      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
         {group.description}
       </Text>
       {/* THE VERB IS A BUTTON (side-eye 2026-08-06 P2). At `ghost` it was transparent, borderless and

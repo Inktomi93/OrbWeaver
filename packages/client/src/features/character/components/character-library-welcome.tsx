@@ -288,7 +288,7 @@ function FreshInstallArm({ listOffScreen, newest }: { readonly listOffScreen: bo
     <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? FRESH_GLOSS_COLLAPSED : FRESH_GLOSS_DOCKED} title="Meet your characters">
       <Stack gap="section">
         {shippedFaces.length === 0 ? null : <CharacterShelf faces={shippedFaces} label={label} legend={null} onOpen={selectCharacter} />}
-        <Text className="max-w-(--reading-measure) rounded-base border border-border border-dashed p-row" voice="quiet">
+        <Text className="max-w-(--reading-measure-prose) rounded-base border border-border border-dashed p-row" voice="quiet">
           {FRESH_HINT}
         </Text>
       </Stack>
@@ -338,7 +338,7 @@ function ResumeArm({
           // rides a full-width wrapper, while the measure caps the PARAGRAPH (design-audit `line-length` —
           // uncapped, this line ran to 145 characters at 1280).
           <Stack className="border-border border-t pt-row">
-            <Text className="max-w-(--reading-measure)" voice="gloss">
+            <Text className="max-w-(--reading-measure-prose)" voice="gloss">
               {weekLine(addedThisWeek)}
             </Text>
           </Stack>
@@ -377,11 +377,12 @@ function LandingFrame({
         <Row align="start" className="@max-md:flex-col" gap="section" justify="between">
           <Stack className="min-w-0 flex-1" gap="tight">
             <Heading level={2}>{title}</Heading>
-            {/* The measure rides the PARAGRAPH, not its box: `--reading-measure` is 75`ch` and `ch`
-                resolves against the element's OWN font, so the same cap on the Stack above was computed
-                at the heading's step and let this 13px line run to 114 characters (design-audit
-                `line-length`, measured at 1280). */}
-            <Text className="max-w-(--reading-measure)" voice="gloss">
+            {/* The measure rides the PARAGRAPH, not its box: a `ch` resolves against the element's OWN
+                font, so the same cap on the Stack above was computed at the heading's step and let this
+                13px line run to 114 characters (design-audit `line-length`, measured at 1280). The token
+                is `--reading-measure-prose` (#1145): the house `--reading-measure`'s 75 CSS `ch` is ~117
+                of the characters that 114 was counted in, so it was never the right ceiling for prose. */}
+            <Text className="max-w-(--reading-measure-prose)" voice="gloss">
               {gloss}
             </Text>
           </Stack>

@@ -118,11 +118,15 @@ export function HomeTempChatTileBody(): ReactElement {
           everything else behaving normally. */}
       {/* MEASURED (#1130, side-eye HOME 2026-09-02 H5). This paragraph resolved `max-width: none`, so it
           took whatever the hearth column gave it: 76.7ch at 1280 and **153.2ch at 1920** — over twice the
-          65-75ch reading band, on the widest single block on the surface. The cap is the house one
-          (`--reading-measure`), the same idiom every other teaching paragraph in the app already carries;
-          it is a LENGTH statement about prose, not a taste knob, which is why it rides the element rather
-          than the column (the column also holds a Row of controls that must keep the full width). */}
-      <Text className="max-w-(--reading-measure)" size="label" tone="muted">
+          65-75ch reading band, on the widest single block on the surface. It is a LENGTH statement about
+          prose, not a taste knob, which is why it rides the element rather than the column (the column also
+          holds a Row of controls that must keep the full width).
+          THE MEASURE IT TAKES CHANGED (#1145, owner ruling 2026-09-02). The house `--reading-measure` is
+          75 CSS `ch`, and a CSS `ch` is the zero-glyph advance — 1.56 of this paragraph's average glyphs —
+          so at 1920 the capped line still read 117 of the characters the law counts. The measure was SPLIT
+          rather than narrowed: transcripts keep `--reading-measure`, teaching prose like this takes
+          `--reading-measure-prose` (47ch = 73.3 law-characters here, the densest copy in the app). */}
+      <Text className="max-w-(--reading-measure-prose)" size="label" tone="muted">
         A room that never joins your chats list, deleted after{" "}
         <Text as="span" size="code">
           {ttlHours}h

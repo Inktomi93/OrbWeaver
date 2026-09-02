@@ -140,8 +140,10 @@ export function HomeDocumentsTileBody(): ReactElement {
         </Row>
         {/* MEASURED (#1130, H5), the peer of the temp-chat gloss one block up: it resolved `max-width:
             none` and was saved from the 153ch arm only by the 1920 sub-column split, which is a layout
-            accident rather than a measure. The house cap makes it a property of the prose. */}
-        <Text className="line-clamp-3 max-w-(--reading-measure)" voice="gloss" prose={true}>
+            accident rather than a measure. A cap makes it a property of the prose — and since #1145 that
+            cap is `--reading-measure-prose`, the TEACHING measure, because the house one is 75 CSS `ch`
+            and a CSS `ch` is ~1.5 of the characters the design law counts. */}
+        <Text className="line-clamp-3 max-w-(--reading-measure-prose)" voice="gloss" prose={true}>
           {DATABANK_INGEST_GLOSS}
         </Text>
       </Stack>

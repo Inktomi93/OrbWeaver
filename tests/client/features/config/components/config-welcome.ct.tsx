@@ -228,16 +228,19 @@ test("the welcome FILLS the content pane — no centred column", async ({ mount,
   // merely "narrower than its parent": a line that is narrower by accident would pass the weaker claim,
   // and the measure is the thing under test.
   //
-  // (`--reading-measure` is declared in @orb/ui's theme.css, which the CT harness has always loaded, so
+  // (the measure tokens are declared in @orb/ui's theme.css, which the CT harness has always loaded, so
   // this assertion reads the same before and after #114 — that commit restored the CLIENT tier's cap on
   // the transcript's `message-content-column`, a rule this surface does not use.)
-  // PROBED IN THE PARAGRAPH'S OWN FONT CONTEXT, which is load-bearing: `--reading-measure` is `75ch`, and
-  // `ch` resolves against the ELEMENT's font. Probing it on the content region (16px) instead of on the
-  // capped line (the 15px reading step) reads 686.39px against a correct 643.5px render — a 16/15 ratio
-  // exactly, i.e. the instrument disagreeing with itself, not a defect.
+  // THE TOKEN IS THE PROSE ONE SINCE #1145 (owner ruling 2026-09-02): the measure was SPLIT, and only the
+  // chat transcript kept `--reading-measure` (75 CSS `ch`, which is ~117 of the characters the design law
+  // counts). Teaching copy like this line takes `--reading-measure-prose`.
+  // PROBED IN THE PARAGRAPH'S OWN FONT CONTEXT, which is load-bearing: the value is in `ch`, and `ch`
+  // resolves against the ELEMENT's font. Probing it on the content region (16px) instead of on the
+  // capped line (the 15px reading step) reads a 16/15-inflated number — the instrument disagreeing with
+  // itself, not a defect.
   const line = pane.getByText("Tags label your library.", { exact: false });
   const paragraph = await box(line);
-  const measure = await resolvedPx(line, "--reading-measure");
+  const measure = await resolvedPx(line, "--reading-measure-prose");
   expect(measure, "the reading measure resolves in this document").toBeGreaterThan(0);
   expect(paragraph.width, "the teaching line is capped at the reading measure").toBeCloseTo(measure, 0);
   expect(measure, "…and the measure caps the LINE, leaving the surface wider").toBeLessThan(welcome.width);
@@ -638,9 +641,10 @@ test("every launcher blurb is capped at the reading measure, like the masthead",
   const measured = await Promise.all(
     (["tags", "regex", "worldInfo"] as const).map(async (id) => {
       const blurb = pane.locator(`[data-config-built="${id}"]`).locator('[data-slot="text"][data-voice="gloss"]').first();
-      // Probed IN THE BLURB'S OWN FONT CONTEXT — `--reading-measure` is a `ch` value and `ch` resolves
-      // against the ELEMENT's font, so probing it on the pane reads a different number for the same rule.
-      const [measure, drawn] = await Promise.all([resolvedPx(blurb, "--reading-measure"), box(blurb)]);
+      // Probed IN THE BLURB'S OWN FONT CONTEXT — the measure is a `ch` value and `ch` resolves against
+      // the ELEMENT's font, so probing it on the pane reads a different number for the same rule. The
+      // token is `--reading-measure-prose` since the #1145 split; the transcript keeps the wider one.
+      const [measure, drawn] = await Promise.all([resolvedPx(blurb, "--reading-measure-prose"), box(blurb)]);
       return { drawn, id, measure };
     }),
   );
