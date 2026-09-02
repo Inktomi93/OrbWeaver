@@ -119,6 +119,7 @@
   --dimension-device-pixel: 1px;
   --dimension-panel-context-step: 24rem;
   --dimension-content-reading-floor: 40rem;
+  --dimension-shell-content-floor: 46.125rem;
   --dimension-shell-breakpoint: 48rem;
   --shadow-prose: 0 1px 2px oklch(0 0 0 / 0.45), 0 0 6px oklch(0 0 0 / 0.25);
   --blur-strength: 14px;

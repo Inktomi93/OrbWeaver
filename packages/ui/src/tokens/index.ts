@@ -120,6 +120,7 @@ export const TOKENS = {
   "dimension.device-pixel": { cssVar: "--dimension-device-pixel", value: "1px" },
   "dimension.panel-context-step": { cssVar: "--dimension-panel-context-step", value: "24rem" },
   "dimension.content-reading-floor": { cssVar: "--dimension-content-reading-floor", value: "40rem" },
+  "dimension.shell-content-floor": { cssVar: "--dimension-shell-content-floor", value: "46.125rem" },
   "dimension.shell-breakpoint": { cssVar: "--dimension-shell-breakpoint", value: "48rem" },
   "shadow.prose": { cssVar: "--shadow-prose", value: "0 1px 2px oklch(0 0 0 / 0.45), 0 0 6px oklch(0 0 0 / 0.25)" },
   "blur.strength": { cssVar: "--blur-strength", value: "14px" },
