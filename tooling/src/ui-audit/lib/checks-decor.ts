@@ -70,7 +70,7 @@ function classifyHorizontalEdge(input: AccentBorderInput, w: number): readonly A
 }
 
 /** The two accent-border rules' shared disposition. The census is every visible element carrying a
- *  >=2px border (ops/walker/census-decor.ts), so both declines below are RATIFIED EXEMPTIONS — measured
+ *  \>=2px border (ops/walker/census-decor.ts), so both declines below are RATIFIED EXEMPTIONS — measured
  *  facts that put the candidate outside the rule's semantic population — and both are counted rather
  *  than dropped, so widening one is visible in the denominator instead of arriving as a quieter clean
  *  run. Everything else is judged: the width/chroma/dominance gates are the rule's own question, and a
