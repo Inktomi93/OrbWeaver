@@ -1450,11 +1450,12 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "e67115ff99d9c1a15232d9a4464503f058703e02c5c5fc3da785a2e5705ee2a5",
-      "verifiedCommit": "99fa2e9f27967ca5683f970828bd09b3f7f7fb0f",
+      "verifiedSha256": "30b55a97b22fa465bd623f456e1b7e1323d820c8572ced45f052ecd7a47508c6",
+      "verifiedCommit": "1d90455b6a515aa517d59934fcb4fa260babb476",
       "verifiedAt": "2026-09-01",
       "summary": "Design for the work:item Definition of Done (#923): red-first mint, body fence + Project-field stamp pairing, close gate with a loud recorded override, dod/refute --dod re-mint, 5-min timeout; P1/P2/P3/P5 survey builds landed, P4 archive sweep deferred with a priced sketch.",
       "evidence": [
+        "re-attested at 1d90455b6 (#923 amendment 0c134c4a3, claude-b lane cb-dod-forge): full read of the amended §; `land` now pre-flights the DoD bar BEFORE its first board write (zero gh calls on red, WeakSet memo) — the text matches tooling/src/workboard/ops/lifecycle.ts + ops/dod.ts and the 46-line cli.test.ts pin",
         "born-reviewed at 99fa2e9f2 (#923, claude-b lane cb-dod-forge, 370b92b43 + 7f6c74920 rebased): full read by the primary orchestrator — mechanism (red-first mint, close gate, loud override, dod re-mint, refute --dod, per-class refusals), storage choice + the three rejected shapes, the trust surface (pairing stamp in the Project DoD field vs the body block), 5-min timeout with env seam, CRLF normalization, the coupled-site table, P1/P2/P3/P5 built, P4 deferred with its priced sketch. NOTE: a third commit amending land's gate ORDER (bar first, zero gh calls on red) is announced and will re-attest this doc if it edits it"
       ],
       "claims": [
