@@ -245,12 +245,12 @@ describe("claimChat — the creation-stats replay", () => {
 
 /** The per-character room census (`character_stats.chats`) as a writer left it — read straight off the
  *  rollup so the assertion is over STORED rows, never a builder's return value. */
-async function characterCensus(): Promise<{ characterId: string; chats: number; firstChatAt: number | null }[]> {
+async function characterCensus(): Promise<{ characterId: CharacterId; chats: number; firstChatAt: number | null }[]> {
   const rows = await db
     .select({ characterId: characterStats.characterId, chats: characterStats.chats, firstChatAt: characterStats.firstChatAt })
     .from(characterStats);
   return rows
-    .map((r) => ({ chats: r.chats, firstChatAt: r.firstChatAt, characterId: String(r.characterId) }))
+    .map((r) => ({ chats: r.chats, firstChatAt: r.firstChatAt, characterId: r.characterId }))
     .sort((a, b) => a.characterId.localeCompare(b.characterId));
 }
 
