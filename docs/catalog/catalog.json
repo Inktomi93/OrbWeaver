@@ -447,8 +447,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 399,
-      "bytes": 229883,
-      "sha256": "7b9029c1a3d6ef3bf54a6692fba27d4984c67f490694177160ed2850841c48f6",
+      "bytes": 229959,
+      "sha256": "41c9f5e788b952358b3a2af2e0f0f8e6206a1d8bdc89bd9dc042ea7af31a2936",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -461,12 +461,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "7b9029c1a3d6ef3bf54a6692fba27d4984c67f490694177160ed2850841c48f6",
+        "assignedSha256": "41c9f5e788b952358b3a2af2e0f0f8e6206a1d8bdc89bd9dc042ea7af31a2936",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "7b9029c1a3d6ef3bf54a6692fba27d4984c67f490694177160ed2850841c48f6",
-        "verifiedCommit": "7f51cd1b51531884accd5d1b80b8efbbf92534de",
+        "verifiedSha256": "41c9f5e788b952358b3a2af2e0f0f8e6206a1d8bdc89bd9dc042ea7af31a2936",
+        "verifiedCommit": "f20da4c3037482422ad23db329b508f6dba96c01",
         "verifiedAt": "2026-09-02",
         "evidence": [
           "re-attested at a4467408a (#971, lane p-argv-lock): `tooling-argv-front-door` row — both read spellings, the shape-derived cli.ts home, the two-sided ARGV_ENTRIES stale sweep, the §4.6 blindness tripwire, and the declared limit; registered-gate count 251 → 252 (a live `pnpm check:structure` reports 252/252).",
@@ -547,7 +547,8 @@
           "re-attested at 9e5c8f6ee — merge of #1048 (f92e84640: bus-payload-allowlist markerImmune; GATE-AUTHORING §1 charter widened by one stated precedent); union read once",
           "re-attested at fc5f99e4c — fold of #1097 (cb-axis-drain, 57c0aaecc rebased): the `ui-variant-axes-stamped` row gains its drain note — baseline DRAINED TO `{}` (tranche 2, 2026-09-02), all 15 stamped-axis recipes reach the DOM through the seam, every A1 admission gone, A4 empty, ledger + generator teardown the remaining terminal step. Delta read once against the word-diff; the baseline file in the same commit is `{}` and the lane's planted positive control proves the empty ledger does not blind the gate. No other row moved.",
           "re-attested at 5253ba772 — fold of #962 (p-biome-zero): the `suppressions` row now governs `tests/**` (two ratification tables, two-sided per scope), a new `no-blanket-suppression` row (three arms: harness fileset, tracked non-TS corpus derived from git ls-files minus biome's ignores, the INDEX via git grep --cached + git show :path; markerImmune; no allowlist/baseline), and the registered-gate count 252 → 253 cited from the scan line. Delta read once; no other row moved.",
-          "re-attested at 7f51cd1b5 — the no-blanket-suppression row's renamed describe-scoped CONSTANT_CASE count corrected 24 → 21 (the diff's `- const` removals under tests/, per the cold verifier); one number, no other text moved."
+          "re-attested at 7f51cd1b5 — the no-blanket-suppression row's renamed describe-scoped CONSTANT_CASE count corrected 24 → 21 (the diff's `- const` removals under tests/, per the cold verifier); one number, no other text moved.",
+          "re-attested at f20da4c30 — fold of #1164 (cb-instrument-slots, claude-b): the rendered instruments (snap/design-audit/record/motion-audit/perf-meter) take per-run artifact slots with atomic per-FILE pointers, reference-aware retention, the tooling-shared-plumbing arm G, and the artifact-out.ts layer split; §3.3b's 'deliberately not slotted' ruling retired with both texts preserved. Delta read once at the fold; no other text moved."
         ],
         "claims": [
           {
@@ -940,9 +941,9 @@
       "path": "docs/architecture/core/Core-Tooling-Law.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 400,
-      "bytes": 43578,
-      "sha256": "2f23618b5d02475aa3ddc77f2afd769c986217c13aca71d2dfb20e5482e343ac",
+      "lines": 402,
+      "bytes": 44066,
+      "sha256": "2dbb8fe3d7c6863178ab3c17410529553dac5e5b885b1d971e28394eee6af302",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -955,12 +956,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Tooling-Law.md",
-        "assignedSha256": "3639dae6b3509b4c3454712dff3dc397d1b337935b9397e275db3bdde9a83132",
+        "assignedSha256": "2dbb8fe3d7c6863178ab3c17410529553dac5e5b885b1d971e28394eee6af302",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "2f23618b5d02475aa3ddc77f2afd769c986217c13aca71d2dfb20e5482e343ac",
-        "verifiedCommit": "a4467408ab335513db51c43aab97f7042d29240b",
+        "verifiedSha256": "2dbb8fe3d7c6863178ab3c17410529553dac5e5b885b1d971e28394eee6af302",
+        "verifiedCommit": "f20da4c3037482422ad23db329b508f6dba96c01",
         "verifiedAt": "2026-09-02",
         "evidence": [
           "re-attested at a4467408a (#971, lane p-argv-lock): NEW §4.9 `tooling-argv-front-door` — the operator's argv enters a tooling program at ONE place (a tool cli.ts, matched by shape; or a censused ARGV_ENTRIES row for the bash-fronted node halves and `_shared/entrypoint.ts`, whose subject is argv[1]) and flows down as a parameter; the four library readers the mint census found are named, and the DECLARED LIMIT (this gate pins WHERE argv is read, never how strictly each grammar parses it) is written down beside the 27-reader classification. §4's gate count rolled five → six. Verified against tooling/src/verify/gates/tooling-argv-front-door.ts and the red-first receipt (6 findings across the four pre-fix sources plus a planted scratch probe).",
@@ -973,7 +974,8 @@
           "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
           "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the operator-one-offs roster drops `oracle-steady-clone.sh`. No other claim in this document moved.",
           "docs/design/tooling-package.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
-          "docs/architecture/core/Core-Tooling-Law.md: RELOCATED + REWRITTEN (#876, owner ruling 2026-08-30: \"move to law but rewrite it so it actually reads as law\"). The program-record framing is gone (status banner, phase/done-bar table, the P2-P6 replay ledgers, the deferral roster); every ruling survives, and § numbers are PRESERVED because 60 citers — the constitution's §0.3 router, four cruiser stanzas, eleven gate descriptors and their messages — cite them by number. §6 is now the standing verification floor for a tooling change and §8 the gate-corpus census hazard; §9 keeps the move playbook with the per-phase ledgers folded into it."
+          "docs/architecture/core/Core-Tooling-Law.md: RELOCATED + REWRITTEN (#876, owner ruling 2026-08-30: \"move to law but rewrite it so it actually reads as law\"). The program-record framing is gone (status banner, phase/done-bar table, the P2-P6 replay ledgers, the deferral roster); every ruling survives, and § numbers are PRESERVED because 60 citers — the constitution's §0.3 router, four cruiser stanzas, eleven gate descriptors and their messages — cite them by number. §6 is now the standing verification floor for a tooling change and §8 the gate-corpus census hazard; §9 keeps the move playbook with the per-phase ledgers folded into it.",
+          "re-attested at f20da4c30 — fold of #1164 (cb-instrument-slots, claude-b): the rendered instruments (snap/design-audit/record/motion-audit/perf-meter) take per-run artifact slots with atomic per-FILE pointers, reference-aware retention, the tooling-shared-plumbing arm G, and the artifact-out.ts layer split; §3.3b's 'deliberately not slotted' ruling retired with both texts preserved. Delta read once at the fold; no other text moved."
         ],
         "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the coupled-site playbook with the P2 pilot and P3 fleet replay ledgers.",
         "claims": [
@@ -1952,9 +1954,9 @@
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 443,
-      "bytes": 36942,
-      "sha256": "ddf345f7ed8b9260e28db678c64955c5fa791b0d1e0482ebcdb26b8a7d1e47a8",
+      "lines": 476,
+      "bytes": 39846,
+      "sha256": "6f10e3f9cc14dd41d331843b39757d2c58164593c1cde45cadf6108bd4f397c8",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1967,12 +1969,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
-        "assignedSha256": "ddf345f7ed8b9260e28db678c64955c5fa791b0d1e0482ebcdb26b8a7d1e47a8",
+        "assignedSha256": "6f10e3f9cc14dd41d331843b39757d2c58164593c1cde45cadf6108bd4f397c8",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "ddf345f7ed8b9260e28db678c64955c5fa791b0d1e0482ebcdb26b8a7d1e47a8",
-        "verifiedCommit": "da850353717582d0f5ab2e23a008ff7ad9c1296e",
+        "verifiedSha256": "6f10e3f9cc14dd41d331843b39757d2c58164593c1cde45cadf6108bd4f397c8",
+        "verifiedCommit": "f20da4c3037482422ad23db329b508f6dba96c01",
         "verifiedAt": "2026-09-02",
         "evidence": [
           "re-attested at a6a27c943 (#1096, lane p-membership-one): §tests:execution-membership restated as three directions — union, non-empty views, and EXACTLY ONE runtime project per test file (the vitest `types` project excluded as typecheck-only); real tree 2309 files, 0 multi-membership",
@@ -1988,7 +1990,8 @@
           "delta re-verify 2026-08-22 (#460, commit 4b048de6d): re-read at the ratchet bytes — §3.2's push row gains `quality:boot-chunk` and the previously-missing `quality:cpd` (promoted 2026-08-03), §3.7 gains the boot-chunk stage entry, and the static ordered set is corrected to include structure:agent-config and docs:catalog. No other claim in this document moved.",
           "delta re-verify 2026-08-23 (#591, commit 0ae0cb4f1): re-read at the re-scoped ratchet bytes — §3.7's `quality:boot-chunk` entry now states the measured quantity as the BOOT SET (entry chunk + every dist/assets/*.js the emitted index.html references), the re-derived 780,000 B ceiling, and the widened unmeasurable arms. Verified against the code (tooling/src/verify/ops/boot-chunk-ratchet.ts) and a real `pnpm check:boot-chunk` run reporting 742,930 B over two boot files. No other claim in this document moved.",
           "delta re-verify 2026-08-30 (bc94c85f16e429e06f1d67b3704072df2098189c, #817 ledgers:fresh merged by the orchestrator, who read the delta in full): the static tier row + the ordered static set gain `ledgers:fresh`, and a full stage bullet records what it checks (the two single-writer ledgers vs the SAME derivation the regenerators run), why (three barrier re-lines in one night while pnpm check stayed green), its cost (19.7s — the census half is the whole-repo ts-morph project the tier already builds), whole-only-by-absence scoping, exit 2 on an empty derivation, and the lane consequence (a newly tracked spec needs a manifest regen after git add); no other line changed; typed claims unaffected",
-          "re-attested at da8503537 — #1107 fold (881c70701): §3.3b gains the structure record's timing shape (pass `timing: { totalMs, gateMs }`, per-gate `timing: { totalMs, phaseMs }` measured in the one `guard()` wrapper, floor/ceil arithmetic, the five-slowest console line). Delta read once against a live `pnpm check` artifact; no other text moved."
+          "re-attested at da8503537 — #1107 fold (881c70701): §3.3b gains the structure record's timing shape (pass `timing: { totalMs, gateMs }`, per-gate `timing: { totalMs, phaseMs }` measured in the one `guard()` wrapper, floor/ceil arithmetic, the five-slowest console line). Delta read once against a live `pnpm check` artifact; no other text moved.",
+          "re-attested at f20da4c30 — fold of #1164 (cb-instrument-slots, claude-b): the rendered instruments (snap/design-audit/record/motion-audit/perf-meter) take per-run artifact slots with atomic per-FILE pointers, reference-aware retention, the tooling-shared-plumbing arm G, and the artifact-out.ts layer split; §3.3b's 'deliberately not slotted' ruling retired with both texts preserved. Delta read once at the fold; no other text moved."
         ],
         "claims": [
           {
