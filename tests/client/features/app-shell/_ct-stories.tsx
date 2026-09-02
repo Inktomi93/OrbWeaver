@@ -41,7 +41,7 @@ import { Heading } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Toaster } from "@orb/ui/toast";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { Profiler, useEffect, useState } from "react";
 import { ListPaneHeader } from "../../../../packages/client/src/components/list-pane-header.tsx";
 import { AppearanceBackgroundSection } from "../../../../packages/client/src/features/app-shell/components/appearance-background-section.tsx";
 import { AppearanceEffectsSection } from "../../../../packages/client/src/features/app-shell/components/appearance-effects-section.tsx";
@@ -1102,6 +1102,36 @@ export function AppearanceBackgroundSectionStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
         <AppearanceBackgroundSection sectionId="appearance-background" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** #1194's commit-count pin: the Background section wrapped in its own `<Profiler>`, tallying every
+ *  commit that touches it onto `window.__ctCommits` (a bare counter — no `render-stats.ts` dependency,
+ *  since that store's ids are the app's own wrapped-surface set, not a CT-local probe). The bounded-
+ *  commits CT reads this to prove the section settles instead of re-rendering forever. */
+const COMMIT_TALLY_PROFILER_ID = "bg-section-commit-tally";
+
+function CommitTally({ children }: { readonly children: ReactElement }): ReactElement {
+  const onRender = (): void => {
+    const w = globalThis as unknown as { __ctCommits?: number };
+    w.__ctCommits = (w.__ctCommits ?? 0) + 1;
+  };
+  return (
+    <Profiler id={COMMIT_TALLY_PROFILER_ID} onRender={onRender}>
+      {children}
+    </Profiler>
+  );
+}
+
+export function AppearanceBackgroundSectionCommitTallyStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720, padding: 16 }}>
+        <CommitTally>
+          <AppearanceBackgroundSection sectionId="appearance-background" />
+        </CommitTally>
       </div>
     </CtDataProviders>
   );
