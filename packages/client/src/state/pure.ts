@@ -1,33 +1,6 @@
-// state/ PURE-LOGIC front door (#1243, Arm A-prime — the fork ledger for #1228's residual). A
-// node-context test that needs ONE store/registry symbol currently has to bare-import "@orb/client/state"
-// (the full barrel, ./index.ts), which also re-exports appearance-boot-hint.ts (touches `document`/
-// `window` directly) and deployment-boot-hint.ts (imports it) — dragging DOM globals into the DOM-less
-// root aggregator (tsconfig.json) for every such test. This surface is index.ts's content MINUS every
-// DOM-coupled file/import-chain (below) AND every `.tsx` registry-PROVIDER component (React components
-// are never "pure logic" by this surface's own definition) — a mechanical filter, not a hand-picked
-// symbol list. Wired via the exports-map's `"./*/pure"` pattern (packages/client/package.json). A
-// symbol genuinely needed here that turns out to be impure moves its TEST to tsconfig.tests-dom.json
-// instead — this file is never forced to carry it. (No structural enforcer exists yet for "does this
-// surface's closure stay DOM-less" — #1243 part 4, still open; today's proof is `node scripts/ts7.cjs
-// --noEmit -p tsconfig.json` itself, run after every change to this file.)
-//
-// EXCLUDED, both `.ts` and DOM-coupled directly: appearance-boot-hint.ts, deployment-boot-hint.ts
-// (imports it).
-// EXCLUDED, `.tsx` component/provider files (JSX, not pure logic — no node-context test needs them):
-// chrome-registry-provider.tsx, command-palette-source-registry-provider.tsx,
-// config-section-registry-provider.tsx, message-tools-renderer-registry-provider.tsx,
-// modal-registry-provider.tsx, section-registry-provider.tsx, slash-command-registry-provider.tsx.
-// EXCLUDED, `.ts`, DOM-coupled via the internal `#lib` package alias (packages/client/package.json's
-// `"#*": "./src/*/index.ts"` ALWAYS resolves to lib/index.ts, never lib/pure.ts — a pure surface cannot
-// intercept an internal alias import, so any member that itself imports `#lib` re-drags lib/index.ts's
-// DOM-coupled content, e.g. agent-bridge.ts/bug-report-capture.ts/the motion-* flaggers, wholesale):
-// active-chat-store.ts, character-library-store.ts, character-selection-store.ts, chat-stream.ts,
-// chrome-registry-context.ts, command-palette-source-registry-context.ts, config-group-registry.ts,
-// config-section-partition.ts, config-section-registry-context.ts, config-section-registry.ts,
-// config-teach.ts, create-gated-store.ts, message-tools-renderer-registry-context.ts,
-// modal-registry-context.ts, section-registry-context.ts, section-registry.ts, shell-store.ts,
-// slash-command-registry-context.ts, tag-library-store.ts. Their TESTS moved to
-// tsconfig.tests-dom.json (each with its own comment there).
+// state/ PURE-LOGIC front door (#1243). HAND-MAINTAINED mirror of a state/index.ts subset — NO enforcer
+// keeps it complete. #1262 (2026-09-03) measured its stated reasons (DOM-crash risk, type-graph
+// isolation, import cost) against the real tree and refuted all three — receipts on issue #1262.
 
 export { setAnalyticsSearchQuery, useAnalyticsSearchQuery } from "./analytics-search-store.ts";
 export {
