@@ -119,6 +119,19 @@ export function loadLine(read: BoxLoadReader = readBoxLoad): string {
   return loadPairs(read).join(" ");
 }
 
+/** `loadPairs`, reshaped as key/value tuples so a `printVerdict` `pairs` array can spread them directly
+ *  (`_shared/artifacts.ts` `ResultPair` — not imported here to keep this module's only cross-file
+ *  dependency the box reader; the tuple shape is structurally identical). §7.1: "printVerdict prints the
+ *  two load pairs on every RESULT line by default (a reader can tell a stretched run from a quiet one
+ *  without the argv)". */
+export function loadResultPairs(read: BoxLoadReader = readBoxLoad): readonly (readonly [string, string])[] {
+  const box = read();
+  return [
+    ["load", `${box.loadavg1.toFixed(1)}/${String(box.cpuCount)}`],
+    ["budget-factor", computeLoadFactor(box.loadavg1, box.cpuCount).toFixed(2)],
+  ];
+}
+
 export interface MeasurementWithholding {
   readonly withheld: boolean;
   /** Populated in BOTH directions — the quiet arm's reason is the receipt that the box WAS read. */
