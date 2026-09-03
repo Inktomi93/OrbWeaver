@@ -14,6 +14,7 @@ import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
+import { SESSION_FLAG, SESSION_FLAG_HELP } from "@orb/tooling/_shared/instrument-argv";
 import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS, panelPresetHelpBlock } from "@orb/tooling/_shared/panel-flags";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -108,6 +109,11 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--theme": (a, rest) => {
     applyThemeFlag(a, parseThemeFlag(rest.shift() ?? ""));
   },
+  // #1285: attach to a live snap session's browser (docs/design/1208-instrument-substrate.md §3.4)
+  // instead of launching a fresh one — the shared WHERE_FLAGS spelling (_shared/instrument-argv.ts).
+  [SESSION_FLAG]: (a, rest) => {
+    a.session = rest.shift() ?? null;
+  },
 };
 
 // Flags that consume the next token. A missing value used to swallow the following flag silently.
@@ -124,6 +130,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--selector",
   "--window",
   "--viewport",
+  SESSION_FLAG,
   ...PANEL_PRESET_VALUE_FLAGS,
   ...APPEARANCE_VALUE_FLAGS,
   ...THEME_VALUE_FLAGS,
@@ -145,6 +152,8 @@ Reach the surface (argv-ordered, run BEFORE the trace; evidence is reset after t
 Measure:
   --selector <sel>          THE interaction — clicked inside the trace window
   --window <ms>             observation window (default ${DEFAULT_WINDOW_MS})
+
+${SESSION_FLAG_HELP}
 
 Environment:
   --base <url> · --url <full-url> · --viewport <WxH> · --vnc (headful) · --no-throttle
@@ -253,6 +262,7 @@ export function parseMotionArgs(argv: string[]): Args {
     throttle: true,
     appearance: null,
     theme: null,
+    session: null,
     errors: scanArgv(argv),
   };
   const rest = [...argv];

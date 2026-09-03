@@ -13,13 +13,15 @@ import { writeFile } from "node:fs/promises";
 import type { SettingsShimEvidence } from "@orb/tooling/_shared/appearance";
 import { artifactFile } from "@orb/tooling/_shared/artifact-out";
 import { print, routeSlug } from "@orb/tooling/_shared/artifacts";
-import { buildUrl, launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
+import type { ProbeSession } from "@orb/tooling/_shared/browser";
+import { attachProbeSession, buildUrl, launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
 import { readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
 import { instrumentError, printEvidenceGaps, printVerdict } from "@orb/tooling/_shared/evidence";
 import type { ExitCode } from "@orb/tooling/_shared/exit-contract";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { resolveSessionAttach } from "../../snap/index.ts";
 import type { RawSamples } from "../contract/samples.ts";
 import type { DriveStateCandidate } from "../contract/surface-state.ts";
 import type { Args, BackdropRefusal, DomPopulation } from "../contract/types.ts";
@@ -106,22 +108,40 @@ function evidenceGapOf({ url, appReady, samples, population, opts, settingsEvide
   );
 }
 
+/** #1285: `--session <name>` attaches to a live snap session's browser (design §3.4) instead of launching
+ *  a fresh one; a dead/foreign/absent session is an EXIT.toolError refusal (never a fallback launch —
+ *  that would silently audit a DIFFERENT browser than the one the caller named). */
+async function launchOrAttach(opts: Args): Promise<ProbeSession | ExitCode> {
+  if (opts.session === null) {
+    return await launchProbeSession({
+      headless: true,
+      viewport: opts.viewport,
+      device: opts.device,
+      colorScheme: null,
+      reducedMotion: false,
+      appearance: opts.appearance,
+      theme: opts.theme,
+      localStorage: [],
+    });
+  }
+  const attach = resolveSessionAttach(opts.session);
+  if (!attach.ok) {
+    print(attach.message);
+    return EXIT.toolError;
+  }
+  return await attachProbeSession(attach.endpoint, attach.environment);
+}
+
 export async function runUiAudit(opts: Args): Promise<number> {
   const url = buildUrl(opts.base, opts.route);
   // `--out` names an artifact BASE under reports/design-audit/ — or, when it is path-shaped, the exact
   // file to write (_shared/artifacts.ts owns that contract for every probe).
   const outPath = await artifactFile("design-audit", opts.out ?? routeSlug(opts.route), ".json");
 
-  const session = await launchProbeSession({
-    headless: true,
-    viewport: opts.viewport,
-    device: opts.device,
-    colorScheme: null,
-    reducedMotion: false,
-    appearance: opts.appearance,
-    theme: opts.theme,
-    localStorage: [],
-  });
+  const session = await launchOrAttach(opts);
+  if (typeof session === "number") {
+    return session;
+  }
 
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one linear ownership closure keeps every audit verdict and early return inside the same guaranteed cleanup boundary.
   return await withProbeSession(session, async () => {

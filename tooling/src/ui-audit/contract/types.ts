@@ -65,6 +65,9 @@ export interface Args {
   /** The booted stage's short sha (or the dirty key), filled by ops/stage.ts — what the RESULT line and the
    *  JSON report publish as `stage=`, so a receipt states WHICH tree it measured. null = the live base. */
   stageShortSha: string | null;
+  /** `--session <name>` (#1285, WHERE_FLAGS `_shared/instrument-argv.ts`): attach to a live snap
+   *  session's browser instead of launching a fresh one — null = launch (today's behaviour, unchanged). */
+  session: string | null;
   /** CLI misuse collected without side effects; any entry means EXIT.misuse before a browser boots. */
   errors: string[];
 }

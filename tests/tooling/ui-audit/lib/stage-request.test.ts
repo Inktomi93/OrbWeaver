@@ -6,20 +6,36 @@ import { parseAuditArgs, stageArgErrors, stageBootedByThisRun, stageLabel, unkno
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("--base beside a stage flag is misuse — two answers to WHERE is never resolved by a default", () => {
-  expect(stageArgErrors({ isolated: true, dirty: false, ref: null, baseExplicit: true })).toHaveLength(1);
-  expect(stageArgErrors({ isolated: true, dirty: false, ref: null, baseExplicit: true })[0]).toContain("--base");
+  expect(stageArgErrors({ isolated: true, dirty: false, ref: null, baseExplicit: true, session: null })).toHaveLength(1);
+  expect(stageArgErrors({ isolated: true, dirty: false, ref: null, baseExplicit: true, session: null })[0]).toContain("--base");
 });
 
 test("--ref beside --dirty is misuse — a commit and the working tree are two different trees", () => {
-  expect(stageArgErrors({ isolated: true, dirty: true, ref: "abc1234", baseExplicit: false })).toHaveLength(1);
+  expect(stageArgErrors({ isolated: true, dirty: true, ref: "abc1234", baseExplicit: false, session: null })).toHaveLength(1);
 });
 
 test("the legal combinations are silent — the fence does not eat the mode", () => {
   // --isolated alone (HEAD), --ref alone, --dirty alone, and a bare --base run with no stage at all.
-  expect(stageArgErrors({ isolated: true, dirty: false, ref: null, baseExplicit: false })).toEqual([]);
-  expect(stageArgErrors({ isolated: true, dirty: false, ref: "HEAD~1", baseExplicit: false })).toEqual([]);
-  expect(stageArgErrors({ isolated: true, dirty: true, ref: null, baseExplicit: false })).toEqual([]);
-  expect(stageArgErrors({ isolated: false, dirty: false, ref: null, baseExplicit: true })).toEqual([]);
+  expect(stageArgErrors({ isolated: true, dirty: false, ref: null, baseExplicit: false, session: null })).toEqual([]);
+  expect(stageArgErrors({ isolated: true, dirty: false, ref: "HEAD~1", baseExplicit: false, session: null })).toEqual([]);
+  expect(stageArgErrors({ isolated: true, dirty: true, ref: null, baseExplicit: false, session: null })).toEqual([]);
+  expect(stageArgErrors({ isolated: false, dirty: false, ref: null, baseExplicit: true, session: null })).toEqual([]);
+});
+
+// #1285: --session attaches to the session's own BROWSER, but the run still names its own navigation
+// target with --base/route (design §5) — so --session + --base is LEGAL. What is not is combining it
+// with snap's isolated-STAGE machinery, which is orthogonal to attaching a browser.
+test("--session beside --isolated is misuse — attaching a browser and booting a stage are unrelated asks", () => {
+  expect(stageArgErrors({ isolated: true, dirty: false, ref: null, baseExplicit: false, session: "p-x" })).toHaveLength(1);
+  expect(stageArgErrors({ isolated: true, dirty: false, ref: null, baseExplicit: false, session: "p-x" })[0]).toContain("--session");
+});
+
+test("--session beside --base is silent — the run still names its own navigation target while attaching the browser", () => {
+  expect(stageArgErrors({ isolated: false, dirty: false, ref: null, baseExplicit: true, session: "p-x" })).toEqual([]);
+});
+
+test("--session alone (no stage flag) is silent", () => {
+  expect(stageArgErrors({ isolated: false, dirty: false, ref: null, baseExplicit: false, session: "p-x" })).toEqual([]);
 });
 
 test("the RESULT label names the tree that was measured — `live` only when no stage served it", () => {

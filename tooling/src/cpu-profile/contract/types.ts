@@ -34,6 +34,9 @@ export interface Args {
   /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
    *  `settings.getUserSettings` response (never written — _shared/theme.ts). null = the account's own theme. */
   theme: ThemeRequest | null;
+  /** `--session <name>` (#1285, WHERE_FLAGS `_shared/instrument-argv.ts`): attach to a live snap
+   *  session's browser instead of launching a fresh one — null = launch (today's behaviour, unchanged). */
+  session: string | null;
   /** CLI misuse collected without side effects; any entry means EXIT.misuse (3) before a browser boots. */
   errors: string[];
 }

@@ -49,13 +49,23 @@ export const COLD_STAGE_REFUSAL =
 /** Argv conflicts, collected without side effects — any entry is EXIT.misuse before git or a browser runs.
  *  Both arms exist because the silent alternative is a lie about which tree was audited: `--base` beside a
  *  stage flag means two answers to "where", and `--ref` beside `--dirty` means two answers to "which tree". */
-export function stageArgErrors(args: Pick<Args, "isolated" | "dirty" | "ref" | "baseExplicit">): string[] {
+export function stageArgErrors(args: Pick<Args, "isolated" | "dirty" | "ref" | "baseExplicit" | "session">): string[] {
   const errors: string[] = [];
   if (args.isolated && args.baseExplicit) {
     errors.push("--base and --isolated/--ref/--dirty both name WHERE to audit — pass one (the stage supplies its own base URL)");
   }
   if (args.dirty && args.ref !== null) {
     errors.push("--dirty stages the WORKING TREE and --ref stages a commit — pass one");
+  }
+  // #1285: `--session` attaches to the session's own BROWSER, but the run still names its OWN navigation
+  // target with `--base`/route (design §5: "an attached sibling wires its own capture for the duration
+  // of its run") — so `--base` composes with `--session`. What does NOT compose is snap's ISOLATED STAGE
+  // machinery: booting/reusing a second dev stack is orthogonal to attaching a browser, and a caller who
+  // wrote both is asking two unrelated things this run cannot do at once.
+  if (args.session !== null && args.isolated) {
+    errors.push(
+      "--session attaches to a live session's browser; --isolated/--ref/--dirty/--fresh boot a stage — pass one (the stage the session itself was booted against is unaffected either way)",
+    );
   }
   return errors;
 }
