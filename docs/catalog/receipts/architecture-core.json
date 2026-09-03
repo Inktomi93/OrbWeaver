@@ -172,8 +172,8 @@
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "f4a04fe70cb7df1bd149c031b5c61f8e2656eb68a9cfee56134846466c64de72",
-      "verifiedCommit": "2d8e7f6284c241587a497365de3c15fd6e449dce",
+      "verifiedSha256": "f0c18c0e479c33c52a8b0436ebdb2a09a195e620516b286e741f064e1fb2ef39",
+      "verifiedCommit": "4d45c7a55270f6da119daa1969ffcf81501274e3",
       "verifiedAt": "2026-09-02",
       "evidence": [
         "re-attested at a4467408a (#971, lane p-argv-lock): `tooling-argv-front-door` row — both read spellings, the shape-derived cli.ts home, the two-sided ARGV_ENTRIES stale sweep, the §4.6 blindness tripwire, and the declared limit; registered-gate count 251 → 252 (a live `pnpm check:structure` reports 252/252).",
