@@ -9,10 +9,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "b97d0308800be0a47cb951ceb84f881545c3a4b09794071b6a1b919c65f98fed",
-      "verifiedCommit": "474e2df654e94bb8429fc064c3a4f01e0903c44b",
+      "verifiedSha256": "0f257f60c78cae1f5f54c7dafb7461496fd9fe5f4baca8b734b2d8927f6c59c6",
+      "verifiedCommit": "4fce858a40436521013aa8517b14ca36d1f33526",
       "verifiedAt": "2026-09-03",
       "evidence": [
+        "re-attested at 4fce858a4 after the primary orchestrator read the complete design and reconciled every phase against the landed tree: phase 4's total five-tool grammar, shared environment/artifact/stage seams, F10 one-browser disposable-context matrix, session-cap reservation, owner-targeted teardown, stage-death lifecycle, per-call watchdog, CT run-slot ownership, e2e vLLM guard, window.screen repair, and sibling session-binding inheritance are recorded in the as-built section and committed with their behavioral controls.",
         "re-attested at 273b95d61 (the #1276 fold merge, lane p-stage-bands): §10.2 \"Phase 2 as built\" added, 84 lines (478-561), read IN FULL by the primary orchestrator at the fold. It records the band table as landed — four premises that died with receipts (ensureStage({band,session}) refused as the wrong seam, the synchronous stage path forcing the third probe into a child, --stage-down losing its singular referent, one listeningPids() snapshot instead of twenty ss forks), the arms chosen (claim written INSIDE the mkdir mutex before the 55s boot, a lock broken rather than inherited past a dead pid or 30s; the third probe asked only of --dirty stages so unverifiable means degraded there and warm for --ref; shortSha/baseUrl derived rather than serialized; two modules split at the line cap), the refusals (fork F7 --stage-down --owner NOT built, and phase 3’s attach half deliberately out of scope), the coupled-site census, the test plan as landed, and §\"What phase 2 does NOT prove\" — which is the doc naming its own gap and assigning the live multi-band boot receipt to the orchestrator at the barrier rather than to a suite. Also in this fold: biome.json’s existing snap/ops/stage.ts useNamingConvention override extended to stage-probe.ts, the same spawn-env reason, not a new exemption class. verifiedSha256 taken from the COMMITTED blob at the merge sha and identical to the working-tree digest, so no formatting pass moved it.",
         "re-attested at 6e19ff922 (#1277 + #1259, lane p-arms-registry): §10.3 'Phase 3 as built' added — the six places §6's ArmDef had to widen for real arms (the page/run lifecycle union, `failures` as a map because dead-css owns two summary members, `needs` pruned to the two members with a live launch consumer and made a function of the argv, ARM_DEFS homed in ops/ to stay out of an import cycle with every arm, ARMS as the page-pass order, the ArmArgs/NonArmArgs tsc fence and the RESULT-line claim ledger), what is now DERIVED and the seven operator rows that had never existed, the #1259 endpoint unification with its planted session-vs-one-shot receipt, and the byte-stability receipt including the NUL-in-a-template-literal defect it caught. §6 and §10 read in full against the tree before the first edit; the rest of the document read in full at the phase-3 dispatch.",
         "re-attested at 06267c252 (#1226, lane p-substrate-spike, merged by hand into the forge's later table): the §10 phase-0 receipt paragraph — F3 arm (a) CONFIRMED (context-scoped shims reach a second CDP client; page-scoped do not), the Lighthouse seam is snapshot(page) over an attached puppeteer page with defaultViewport:null, the category score is not a verdict, dependency shape (root devDeps: lighthouse ^13.4.1 + puppeteer-core), the test-layout naming deviation (.suite.int). Union read at the fold by the primary orchestrator.",
@@ -48,7 +49,7 @@
           ]
         },
         {
-          "claim": "Ten open forks (F1–F10) are posed to the owner with the build's defaults; the phased plan is 0 spike → 1 sessions (forge) → (2 stages ∥ 3 arms) → 4 grammar + retirement.",
+          "claim": "The owner ruled all ten forks (F1–F10), and phases 0–4 are implemented: sessions, stage bands, arms, total five-tool grammar, shared browser/environment seams, and physical browser-MCP retirement.",
           "evidence": [
             {
               "kind": "issue",
@@ -57,7 +58,7 @@
           ]
         }
       ],
-      "summary": "The instrument substrate design (owner-directed #1208): stateful snap sessions behind a per-lane daemon, N registered stage bands with TTL and lazy reap, one CLI grammar as shared flag families, an arm registry with Lighthouse and request-log worked, a 13-control test plan, a five-phase build plan and ten owner forks."
+      "summary": "Landed instrument substrate program (#1208): stateful Snap sessions, registered stage bands, shared browser/environment/artifact seams, a total five-tool CLI grammar, Lighthouse and request-log arms, load-aware watchdogs, one-browser matrix contexts, and the reconciled phase 0–4 control set."
     },
     {
       "path": "docs/design/1195-devtools-mcp-retirement.md",
@@ -65,8 +66,8 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "351b6fbb934777fe3f7516ef53aa0518a46082069527a0c45cd2561e4a9ed9cf",
-      "verifiedCommit": "e3ba5275ac147cd5d887be0ba68f0bfb3917f0ae",
+      "verifiedSha256": "756c0c71645436d282d19cbf7723996713f615f2ff3fee4b1e6d05bbd6518e0b",
+      "verifiedCommit": "4fce858a40436521013aa8517b14ca36d1f33526",
       "verifiedAt": "2026-09-03",
       "claims": [
         {
@@ -88,7 +89,7 @@
           ]
         },
         {
-          "claim": "The retirement itself (side-eye tools, the main-session plugin, the headless-patch ritual, the skill's Lighthouse row) is the last step of the program.",
+          "claim": "Browser-MCP retirement is complete: agent and main-session surfaces no longer configure the server, the headless patch ritual is gone, and Snap owns the Lighthouse and request-log capabilities.",
           "evidence": [
             {
               "kind": "issue",
@@ -97,8 +98,9 @@
           ]
         }
       ],
-      "summary": "Census of every chrome-devtools MCP tool call across both accounts for 14 days (176 calls) mapped to snap arms; the Lighthouse arm and a request log are the gaps to build before the MCP retires (owner-directed #1195).",
+      "summary": "Completed browser-MCP retirement program (#1195): the 14-day two-account census mapped 176 calls to Snap, the Lighthouse and request-log gaps were built, and the physical MCP configuration and rituals were removed.",
       "evidence": [
+        "re-attested at 4fce858a4 after a complete read and current-tree reconciliation: the document now records the retirement as complete under the owner's #1279 no-gate ruling, with the remaining browser-driving capabilities owned by Snap and the shared instrument substrate.",
         "re-attested at 2642a54df (#1198 #1199 #1227, lane p-snap-arms): §2 items 1-2 marked BUILT with the seam (snap's own chromium on --remote-debugging-port, puppeteer-core attaches to THAT browser, the target matched by CDP id; defaultViewport:null and disableFullPageScreenshot measured as load-bearing), the pins and the live plugins-pane receipt (desktop audited=36 failed-audits=1 label-content-name-mismatch ×4 — the MCP's own finding reproduced in-house; requests=2445). Read in full at the fold by the primary orchestrator.",
         "born-reviewed by the primary orchestrator (author) 2026-09-02 at 33d7067f0: the two-account, 14-day transcript census of chrome-devtools MCP tool calls (176 calls, 719 jsonl files) mapped to snap arms; two gaps named (a Lighthouse arm, a request log) and the retirement step; owner-directed program (#1195)."
       ]
