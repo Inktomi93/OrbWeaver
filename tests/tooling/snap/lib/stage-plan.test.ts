@@ -1,15 +1,19 @@
 // Fixture tests for the PURE derivation core of `snap --isolated` (tooling/src/snap/lib/stage-plan.ts) —
 // no git, no worktree, no stack: sha/port/path derivation, the reuse-vs-rebuild staleness rule, the #108
-// cross-checkout ownership marker, and the #324 strand rule (heartbeat, sweep verdict, orphan dirs), plus a
-// smoke that the stage dir lands under a gitignored path. The imperative worktree/install/boot orchestration
-// is deliberately NOT exercised here (it spins a real stack — out of the CI-tier's remit; this file's home
-// is tests/tooling/ per core/Spine-Testing.md §2, a test of a scripts/ tool). The two marker functions
-// (`readActive`/`writeActive`/`touchActive`) ARE exercised: they are file I/O over a tmpdir, not a stack.
+// cross-checkout ownership rules PER ROW, the heartbeat, the teardown consent and the #1186 band claim,
+// plus a smoke that the stage dir lands under a gitignored path. The imperative worktree/install/boot
+// orchestration is deliberately NOT exercised here (it spins a real stack — out of the CI-tier's remit;
+// this file's home is tests/tooling/ per core/Spine-Testing.md §2, a test of a scripts/ tool).
+//
+// THE TABLE'S OWN RULES MOVED (#1276): the allocator, the limits, the strand/TTL rule with its live-session
+// fence and the three-probe health verdict are lib/stage-bands.ts's, pinned at
+// tests/tooling/snap/lib/stage-bands.test.ts; the table's file I/O, its mutex and the legacy migration are
+// pinned at tests/tooling/snap/ops/stage-marker.int.test.ts. This file keeps what stage-plan still owns.
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DEV_PORTS } from "../../../../tooling/src/_shared/ports.ts";
-import type { ActiveStage } from "../../../../tooling/src/snap/contract/stage.ts";
+import { DEV_PORTS, STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/_shared/ports.ts";
+import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import {
   bandAccess,
   DIRTY_STAGE_KEY,
@@ -18,12 +22,10 @@ import {
   foreignStageRefusal,
   foreignTeardownRefusal,
   ISOLATION_TRIPWIRE,
-  markerIsDangling,
   markerRootFromCommonDir,
   missingLauncherRefusal,
   orphanStageDirs,
   SHORT_SHA_LEN,
-  STAGE_IDLE_TTL_MS,
   STAGE_INHERITED_ENV_KEYS,
   STAGE_LAUNCHER_RELS,
   shortSha,
@@ -35,11 +37,9 @@ import {
   stageInheritedEnv,
   stageLauncherPath,
   stagePaths,
-  stagePorts,
-  stageSweepVerdict,
   teardownConsent,
 } from "../../../../tooling/src/snap/lib/stage-plan.ts";
-import { readActive, stageBandRefusalFor, touchActive, writeActive } from "../../../../tooling/src/snap/ops/stage-marker.ts";
+import { readBands, stageBandRefusalFor, writeRow } from "../../../../tooling/src/snap/ops/stage-marker.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
@@ -57,17 +57,17 @@ test("shortSha truncates to SHORT_SHA_LEN and trims surrounding whitespace", () 
   expect(shortSha(`  ${SHA}\n`)).toBe(SHORT);
 });
 
-// ── stagePorts / stageBaseUrl ─────────────────────────────────────────────────────────────────────────
+// ── band ports / stageBaseUrl ─────────────────────────────────────────────────────────────────────────
 
-test("stagePorts offsets BOTH dev ports into the free band by default (8788→8888, 5173→5273)", () => {
-  expect(stagePorts()).toEqual({ server: 8888, vite: 5273 });
-});
-
-test("stagePorts honors a custom offset and never overlaps the dev pair", () => {
-  const ports = stagePorts(250);
-  expect(ports).toEqual({ server: DEV_PORTS.server + 250, vite: DEV_PORTS.vite + 250 });
-  expect(ports.server).not.toBe(DEV_PORTS.server);
-  expect(ports.vite).not.toBe(DEV_PORTS.vite);
+test("band 0 is the pair the single-band era used, and no band collides with the DEV pair", () => {
+  // The hand-picked 8888/5273 of the one-band era is now band 0 of the registry — the numbers did not
+  // move, the TABLE did (#1276). The full disjointness proof is tests/tooling/_shared/ports.test.ts.
+  expect(stageBandPorts(0)).toEqual({ server: 8888, vite: 5273 });
+  expect(stageBandPorts(1)).toEqual({ server: 8898, vite: 5283 });
+  for (let band = 0; band < STAGE_BAND_COUNT; band += 1) {
+    expect(stageBandPorts(band).server).not.toBe(DEV_PORTS.server);
+    expect(stageBandPorts(band).vite).not.toBe(DEV_PORTS.vite);
+  }
 });
 
 test("stageBaseUrl uses localhost (vite v8 binds [::1] only), not 127.0.0.1", () => {
@@ -85,40 +85,44 @@ test("stagePaths keys every artifact off the short sha under .cache/snap-stage",
 
 // ── stageDecision (the staleness rule) ──────────────────────────────────────────────────────────────────
 
-function active(over: Partial<ActiveStage> = {}): ActiveStage {
+/** One band-table ROW. `shortSha`/`baseUrl` are gone on purpose (#1276): they are functions of `sha` and
+ *  `vitePort`, and a serialized copy of a derived value is a second home that drifts. */
+function active(over: Partial<StageRow> = {}): StageRow {
   return {
+    band: 0,
     sha: SHA,
-    shortSha: SHORT,
     dir: `/repo/.cache/snap-stage/${SHORT}`,
-    serverPort: 8888,
-    vitePort: 5273,
-    baseUrl: "http://localhost:5273",
+    serverPort: stageBandPorts(0).server,
+    vitePort: stageBandPorts(0).vite,
     checkout: MAIN_CHECKOUT,
     ownerPid: 4242,
     startedAt: "2026-08-16T12:00:00.000Z",
     lastUsedAt: "2026-08-16T12:00:00.000Z",
+    sessions: [],
+    dbProvenance: null,
+    rsyncs: 0,
     ...over,
   };
 }
 
 test("stageDecision reuses ONLY a healthy, same-sha, non-fresh stage", () => {
-  expect(stageDecision({ targetSha: SHA, active: active(), fresh: false, healthy: true })).toBe("reuse");
+  expect(stageDecision({ targetSha: SHA, row: active(), fresh: false, healthy: true })).toBe("reuse");
 });
 
 test("stageDecision rebuilds when there is no active stage", () => {
-  expect(stageDecision({ targetSha: SHA, active: null, fresh: false, healthy: true })).toBe("rebuild");
+  expect(stageDecision({ targetSha: SHA, row: null, fresh: false, healthy: true })).toBe("rebuild");
 });
 
 test("stageDecision rebuilds when HEAD moved (a stale sha)", () => {
-  expect(stageDecision({ targetSha: "ffffffffffffffffffffffffffffffffffffffff", active: active(), fresh: false, healthy: true })).toBe("rebuild");
+  expect(stageDecision({ targetSha: "ffffffffffffffffffffffffffffffffffffffff", row: active(), fresh: false, healthy: true })).toBe("rebuild");
 });
 
 test("stageDecision rebuilds an unhealthy (dead-stack) same-sha stage", () => {
-  expect(stageDecision({ targetSha: SHA, active: active(), fresh: false, healthy: false })).toBe("rebuild");
+  expect(stageDecision({ targetSha: SHA, row: active(), fresh: false, healthy: false })).toBe("rebuild");
 });
 
 test("stageDecision rebuilds when --fresh is forced even on a healthy same-sha stage", () => {
-  expect(stageDecision({ targetSha: SHA, active: active(), fresh: true, healthy: true })).toBe("rebuild");
+  expect(stageDecision({ targetSha: SHA, row: active(), fresh: true, healthy: true })).toBe("rebuild");
 });
 
 // ── gitignore coverage + version tripwire ───────────────────────────────────────────────────────────────
@@ -143,9 +147,9 @@ test("stagePaths keys the dirty stage under its own fixed dir, distinct from any
 });
 
 test("stageDecision treats a warm dirty stage exactly like any other sha for staleness (rebuilds on a real-sha switch)", () => {
-  const dirtyActive = active({ sha: DIRTY_STAGE_KEY, shortSha: DIRTY_STAGE_KEY, dir: "/repo/.cache/snap-stage/dirty" });
-  expect(stageDecision({ targetSha: DIRTY_STAGE_KEY, active: dirtyActive, fresh: false, healthy: true })).toBe("reuse");
-  expect(stageDecision({ targetSha: SHA, active: dirtyActive, fresh: false, healthy: true })).toBe("rebuild");
+  const dirtyActive = active({ sha: DIRTY_STAGE_KEY, dir: "/repo/.cache/snap-stage/dirty" });
+  expect(stageDecision({ targetSha: DIRTY_STAGE_KEY, row: dirtyActive, fresh: false, healthy: true })).toBe("reuse");
+  expect(stageDecision({ targetSha: SHA, row: dirtyActive, fresh: false, healthy: true })).toBe("rebuild");
 });
 
 // ── the DB-BOUND env allowlist ──────────────────────────────────────────────────────────────────────────
@@ -217,37 +221,29 @@ test("a common dir that is not a checkout's .git keeps the marker INSIDE it, nev
   expect(markerRootFromCommonDir("/srv/gitdirs/orbweaver")).toBe("/srv/gitdirs/orbweaver");
 });
 
-test("a stage staged from a worktree is visible from main, and vice versa (one shared marker file)", () => {
+test("a stage staged from a worktree is visible from main, and vice versa (one shared table)", () => {
   const markerHome = mkdtempSync(join(tmpdir(), "ae-tooling2-marker-"));
-  // Direction 1: the LANE boots the stage…
-  writeActive(markerHome, active({ checkout: LANE_CHECKOUT, dir: `${LANE_CHECKOUT}/.cache/snap-stage/${SHORT}` }));
-  // …and MAIN, resolving the same marker home, sees whose it is.
-  const seenFromMain = readActive(markerHome);
+  // Direction 1: the LANE boots the stage on a band…
+  writeRow(markerHome, active({ band: 2, checkout: LANE_CHECKOUT, dir: `${LANE_CHECKOUT}/.cache/snap-stage/${SHORT}` }));
+  // …and MAIN, resolving the same table home, sees whose that band is.
+  const seenFromMain = readBands(markerHome).find((entry) => entry.band === 2);
   expect(seenFromMain?.checkout).toBe(LANE_CHECKOUT);
   expect(seenFromMain?.dir).toContain(LANE_CHECKOUT);
 
-  // Direction 2: main boots one, the lane reads it.
-  writeActive(markerHome, active({ checkout: MAIN_CHECKOUT }));
-  expect(readActive(markerHome)?.checkout).toBe(MAIN_CHECKOUT);
-});
-
-test("a marker with no owner (a pre-#108 per-checkout file) reads as NO marker, not as a foreign one", () => {
-  // Otherwise a legacy marker would refuse every checkout forever; the port-probe fallback handles it.
-  const markerHome = mkdtempSync(join(tmpdir(), "ae-tooling2-legacy-"));
-  const { checkout: _dropped, ...legacy } = active();
-  writeActive(markerHome, legacy as ActiveStage);
-  expect(readActive(markerHome)).toBeNull();
+  // Direction 2: main boots one on ANOTHER band, and both rows stand — which is the whole of #1276.
+  writeRow(markerHome, active({ band: 3, checkout: MAIN_CHECKOUT }));
+  expect(readBands(markerHome).map((entry) => entry.checkout)).toEqual([LANE_CHECKOUT, MAIN_CHECKOUT]);
 });
 
 test("bandAccess leaves OUR OWN marker to the existing staleness rules", () => {
   const opts = { checkout: MAIN_CHECKOUT, targetSha: SHA, dirty: false, fresh: false, bandBound: true, healthy: true };
-  expect(bandAccess({ ...opts, active: null })).toBe("ours");
-  expect(bandAccess({ ...opts, active: active({ checkout: MAIN_CHECKOUT }) })).toBe("ours");
+  expect(bandAccess({ ...opts, row: null })).toBe("ours");
+  expect(bandAccess({ ...opts, row: active({ checkout: MAIN_CHECKOUT }) })).toBe("ours");
 });
 
 test("bandAccess REFUSES rather than killing a live sibling's stage", () => {
   const foreign = active({ checkout: LANE_CHECKOUT });
-  const base = { active: foreign, checkout: MAIN_CHECKOUT, bandBound: true, healthy: true };
+  const base = { row: foreign, checkout: MAIN_CHECKOUT, bandBound: true, healthy: true };
   // A different commit would tear their stack down…
   expect(bandAccess({ ...base, targetSha: "f".repeat(40), dirty: false, fresh: false })).toBe("refuse");
   // …--fresh would too…
@@ -260,7 +256,7 @@ test("bandAccess REFUSES rather than killing a live sibling's stage", () => {
 
 test("bandAccess SHARES a healthy foreign stage at the same commit, and RECLAIMS a dead one", () => {
   const foreign = active({ checkout: LANE_CHECKOUT });
-  const base = { active: foreign, checkout: MAIN_CHECKOUT, targetSha: SHA, dirty: false, fresh: false };
+  const base = { row: foreign, checkout: MAIN_CHECKOUT, targetSha: SHA, dirty: false, fresh: false };
   // Same frozen commit, still serving: point at it read-only rather than fight for the one pair.
   expect(bandAccess({ ...base, bandBound: true, healthy: true })).toBe("shared-reuse");
   // Marker present, band unbound ⇒ a corpse: reclaim it (this is the stale-marker case, not a collision).
@@ -292,117 +288,38 @@ test("describeStageAge reads humanely and refuses to fake freshness on an unpars
   expect(describeStageAge("not-a-date", now)).toBe("unknown age");
 });
 
-// ── THE STRAND RULE + THE HEARTBEAT (issue #324) ───────────────────────────────────────────────────
+// ── THE HEARTBEAT (issue #324) ─────────────────────────────────────────────────────────────────────
 //
-// A snap stage stayed running as a detached process group long after its purpose ended, holding the band
+// A snap stage stayed running as a detached process group long after its purpose ended, holding its band
 // and reading like the real dev stack. The fix is NOT teardown-at-run-completion: a warm stage OUTLIVING
 // its run is the feature (and #108's shared-reuse depends on it). So liveness is USE — `lastUsedAt`,
-// stamped by every boot and every reuse — and the sweep's safety lives in two fences these arms pin:
-// it never touches a band it cannot positively identify as a stage's, and never one used inside the TTL.
+// stamped by every boot, every reuse, every session call bound to the band and every attached sibling
+// run. The VERDICT that reads this stamp (and its live-session fence) is lib/stage-bands.ts's and is
+// pinned at tests/tooling/snap/lib/stage-bands.test.ts; what stage-plan still owns is the measurement.
 
 const NOW = Date.parse("2026-08-22T12:00:00.000Z");
-const TTL = 60 * 60_000;
 const USED_RECENTLY = new Date(NOW - 5 * 60_000).toISOString();
 const USED_LONG_AGO = new Date(NOW - 6 * 60 * 60_000).toISOString();
-
-function evidence(over: Partial<Parameters<typeof stageSweepVerdict>[0]> = {}): Parameters<typeof stageSweepVerdict>[0] {
-  return { active: active({ lastUsedAt: USED_RECENTLY }), bandBound: true, bandIsStageRooted: true, bandProcessAgeSeconds: 60, nowMs: NOW, ...over };
-}
 
 test("stageIdleMs measures time since the last USE, and treats an unreadable stamp as infinitely idle", () => {
   expect(stageIdleMs(active({ lastUsedAt: USED_RECENTLY }), NOW)).toBe(5 * 60_000);
   // A stamp that cannot be parsed must not read as fresh — the describeStageAge posture, one level up.
   expect(stageIdleMs(active({ lastUsedAt: "not-a-date" }), NOW)).toBe(Number.POSITIVE_INFINITY);
+  // And the age is measured from the LAST USE, never from the boot: the exact shape a teardown-on-
+  // completion fix would have destroyed — booted this morning, snapped five minutes ago, still serving.
+  expect(stageIdleMs(active({ startedAt: USED_LONG_AGO, lastUsedAt: USED_RECENTLY }), NOW)).toBe(5 * 60_000);
 });
 
-test("a stage USED inside the TTL is live — no matter how old the stage itself is", () => {
-  // The exact shape a teardown-on-completion fix would have destroyed: booted this morning, snapped five
-  // minutes ago, still serving a campaign. `startedAt` is deliberately ancient here.
-  expect(stageSweepVerdict(evidence({ active: active({ startedAt: USED_LONG_AGO, lastUsedAt: USED_RECENTLY }) }), TTL)).toBe("live");
-});
-
-test("a stage nothing has used past the TTL is STRANDED — the #324 corpse", () => {
-  expect(stageSweepVerdict(evidence({ active: active({ lastUsedAt: USED_LONG_AGO }) }), TTL)).toBe("stranded");
-});
-
-test("the sweep NEVER judges a band it cannot identify as a stage's — the one hard fence", () => {
-  // The dev stack on a mis-set PORT, an engine, any other server: killing its process group would take an
-  // unrelated service down. An idle marker does not license that — the fence outranks the TTL.
-  const notAStage = { bandIsStageRooted: false, active: active({ lastUsedAt: USED_LONG_AGO }), bandProcessAgeSeconds: 99_999 };
-  expect(stageSweepVerdict(evidence(notAStage), TTL)).toBe("live");
-  // The positive control for that same fence: flip ONLY the identification and the identical evidence is
-  // reapable — so the arm above is proving the fence, not merely passing.
-  expect(stageSweepVerdict(evidence({ ...notAStage, bandIsStageRooted: true }), TTL)).toBe("stranded");
-});
-
-test("a MARKER-LESS bound band is judged by its PROCESS age, and an unknown age is never 'old'", () => {
-  const lost = { active: null };
-  // A lost marker with an old stage-rooted process is the strand `--stage-down` used to be the only cure for.
-  expect(stageSweepVerdict(evidence({ ...lost, bandProcessAgeSeconds: 6 * 60 * 60 }), TTL)).toBe("stranded");
-  // A young one is a stage someone just booted (the marker write may not even have landed yet).
-  expect(stageSweepVerdict(evidence({ ...lost, bandProcessAgeSeconds: 30 }), TTL)).toBe("live");
-  // `ps` refusing to answer is "I could not measure", never "it is old" — the instrument-zero rule.
-  expect(stageSweepVerdict(evidence({ ...lost, bandProcessAgeSeconds: null }), TTL)).toBe("live");
-});
-
-test("an unbound band is 'unbound' regardless of what the marker still claims", () => {
-  expect(stageSweepVerdict(evidence({ bandBound: false, active: active({ lastUsedAt: USED_LONG_AGO }) }), TTL)).toBe("unbound");
-  expect(stageSweepVerdict(evidence({ bandBound: false, active: null }), TTL)).toBe("unbound");
-});
-
-test("the default idle TTL is generous enough that a long visual campaign is never a strand", () => {
-  // Two hours: the sweep exists for the forgotten stage of a killed agent, not for impatience with a live
-  // one. Pinned by VALUE so a shrink has to be a deliberate edit here, not a quiet one in the source.
-  expect(STAGE_IDLE_TTL_MS).toBe(2 * 60 * 60_000);
-  expect(stageSweepVerdict(evidence({ active: active({ lastUsedAt: new Date(NOW - 90 * 60_000).toISOString() }) }))).toBe("live");
-});
-
-test("a marker over an UNBOUND band is DANGLING — the residue that outlives a reaped stage", () => {
-  // Measured on the live tree 2026-08-22 while building this: `--stage-status` showed a stage from 42h
-  // earlier whose band had been free for two days. Nothing reconciled it, so every reader had to.
-  expect(markerIsDangling(active({ lastUsedAt: USED_LONG_AGO }), "unbound")).toBe(true);
-  // No marker ⇒ nothing to reconcile; a BOUND band ⇒ the strand rule owns it, not this one (a dangling
-  // check that fired on a live stage would clear the marker of a stage still serving).
-  expect(markerIsDangling(null, "unbound")).toBe(false);
-  expect(markerIsDangling(active({ lastUsedAt: USED_LONG_AGO }), "stranded")).toBe(false);
-  expect(markerIsDangling(active({ lastUsedAt: USED_RECENTLY }), "live")).toBe(false);
-});
-
-test("orphanStageDirs spares the marker's dir and the dir the current call is about to use", () => {
+test("orphanStageDirs spares EVERY row's dir and the dir the current call is about to use", () => {
   const dirs = ["0123456789ab", "dirty", "deadbeefcafe"];
-  expect(orphanStageDirs(dirs, { markerDir: `/repo/.cache/snap-stage/${SHORT}`, targetDir: "/repo/.cache/snap-stage/dirty" })).toStrictEqual(["deadbeefcafe"]);
+  const rowDirs = [`/repo/.cache/snap-stage/${SHORT}`];
+  expect(orphanStageDirs(dirs, { rowDirs, targetDir: "/repo/.cache/snap-stage/dirty" })).toStrictEqual(["deadbeefcafe"]);
+  // With TEN bands there can be ten dirs to spare, not one — the single-marker era's blind spot.
+  expect(orphanStageDirs(dirs, { rowDirs: [...rowDirs, "/other/.cache/snap-stage/deadbeefcafe"], targetDir: null })).toStrictEqual(["dirty"]);
   // Nothing to spare ⇒ every dir on disk is residue from a run that never finished.
-  expect(orphanStageDirs(dirs, { markerDir: null, targetDir: null })).toStrictEqual(dirs);
+  expect(orphanStageDirs(dirs, { rowDirs: [], targetDir: null })).toStrictEqual(dirs);
   // …and the spare is matched by NAME, not by the caller's absolute path spelling.
-  expect(orphanStageDirs(dirs, { markerDir: "/somewhere/else/.cache/snap-stage/dirty", targetDir: null })).toStrictEqual(["0123456789ab", "deadbeefcafe"]);
-});
-
-test("readActive backfills the heartbeat of a marker written before it existed (never a fresh-looking undefined)", () => {
-  const markerHome = mkdtempSync(join(tmpdir(), "ae-tooling2-heartbeat-"));
-  const { lastUsedAt: _dropped, ...legacy } = active({ startedAt: USED_LONG_AGO });
-  writeActive(markerHome, legacy as ActiveStage);
-  // The boot stamp is the honest floor: it can only make such a stage look OLDER, never fresher.
-  expect(readActive(markerHome)?.lastUsedAt).toBe(USED_LONG_AGO);
-  expect(stageIdleMs(readActive(markerHome) as ActiveStage, NOW)).toBe(6 * 60 * 60_000);
-});
-
-test("touchActive stamps the heartbeat and disturbs NOTHING else the marker says", () => {
-  const markerHome = mkdtempSync(join(tmpdir(), "ae-tooling2-touch-"));
-  writeActive(markerHome, active({ lastUsedAt: USED_LONG_AGO }));
-  touchActive(markerHome, USED_RECENTLY);
-  const after = readActive(markerHome);
-  expect(after?.lastUsedAt).toBe(USED_RECENTLY);
-  // The ownership facts (#108) are what a foreign-stage refusal names — a heartbeat must not rewrite them.
-  expect(after?.checkout).toBe(MAIN_CHECKOUT);
-  expect(after?.startedAt).toBe("2026-08-16T12:00:00.000Z");
-  expect(after?.ownerPid).toBe(4242);
-  expect(stageSweepVerdict(evidence({ active: after }), TTL)).toBe("live");
-});
-
-test("touchActive on a missing marker is a no-op — there is no stage to keep alive", () => {
-  const markerHome = mkdtempSync(join(tmpdir(), "ae-tooling2-touch-none-"));
-  touchActive(markerHome, USED_RECENTLY);
-  expect(readActive(markerHome)).toBeNull();
+  expect(orphanStageDirs(dirs, { rowDirs: ["/somewhere/else/.cache/snap-stage/dirty"], targetDir: null })).toStrictEqual(["0123456789ab", "deadbeefcafe"]);
 });
 
 // ── TEARDOWN CONSENT (#447 follow-on) ───────────────────────────────────────────────────────────────
@@ -414,13 +331,13 @@ test("touchActive on a missing marker is a no-op — there is no stage to keep a
 
 test("teardown consent: your OWN stage, an idle one and a dead one all tear down with no flag", () => {
   const base = { checkout: MAIN_CHECKOUT, force: false };
-  expect(teardownConsent({ ...base, active: active({ checkout: MAIN_CHECKOUT }), inUse: true })).toBe("allow");
-  expect(teardownConsent({ ...base, active: active({ checkout: LANE_CHECKOUT }), inUse: false })).toBe("allow");
-  expect(teardownConsent({ ...base, active: null, inUse: false })).toBe("allow");
+  expect(teardownConsent({ ...base, row: active({ checkout: MAIN_CHECKOUT }), inUse: true })).toBe("allow");
+  expect(teardownConsent({ ...base, row: active({ checkout: LANE_CHECKOUT }), inUse: false })).toBe("allow");
+  expect(teardownConsent({ ...base, row: null, inUse: false })).toBe("allow");
 });
 
 test("teardown consent REFUSES a foreign stage that is still in use — until --force says so", () => {
-  const foreign = { checkout: MAIN_CHECKOUT, active: active({ checkout: LANE_CHECKOUT }), inUse: true };
+  const foreign = { checkout: MAIN_CHECKOUT, row: active({ checkout: LANE_CHECKOUT }), inUse: true };
   expect(teardownConsent({ ...foreign, force: false })).toBe("refuse");
   // #108's mechanism SURVIVES: any checkout can still tear down any stage — it just has to say so.
   expect(teardownConsent({ ...foreign, force: true })).toBe("allow");
@@ -488,34 +405,40 @@ test("the isolation tripwire is the exact env var vite.config reads for its prox
 // exact rather than heuristic — the band is ONE fixed port pair and its owner marker is ONE shared file —
 // so all four arms are pinned, including the two that must stay SILENT: a guard that refuses everything
 // is as useless as one that refuses nothing.
-test("a base at the stage band is judged against the marker's OWNER; anything else is not the band (#1186)", () => {
-  // The two SILENT arms: an ordinary base, and the band this checkout itself owns.
-  expect(stageBandClaim("http://localhost:5173/chat", MAIN_CHECKOUT, active())).toBe("not-the-band");
-  expect(stageBandClaim("file:///tmp/fixture/page.html", MAIN_CHECKOUT, active())).toBe("not-the-band");
-  expect(stageBandClaim("http://localhost:5273", MAIN_CHECKOUT, active())).toBe("ours");
-  // …and the two that must refuse. BOTH band ports count: a `--url` may name the server half directly.
-  expect(stageBandClaim("http://localhost:5273/chat", LANE_CHECKOUT, active())).toBe("foreign");
-  expect(stageBandClaim("http://localhost:8888/api/health", LANE_CHECKOUT, active())).toBe("foreign");
-  // No marker is NOT permission: nothing accounts for whoever is serving that port.
-  expect(stageBandClaim("http://localhost:5273", LANE_CHECKOUT, null)).toBe("unowned");
+test("a base at ANY stage band is judged against that band's owner; anything else is not the band (#1186)", () => {
+  const rows = [active({ band: 0 }), active({ band: 4, checkout: LANE_CHECKOUT })];
+  // The two SILENT arms: an ordinary base, and a band this checkout itself owns.
+  expect(stageBandClaim("http://localhost:5173/chat", MAIN_CHECKOUT, rows)).toBe("not-the-band");
+  expect(stageBandClaim("file:///tmp/fixture/page.html", MAIN_CHECKOUT, rows)).toBe("not-the-band");
+  expect(stageBandClaim("http://localhost:5273", MAIN_CHECKOUT, rows)).toBe("ours");
+  // …and the ones that must refuse. BOTH band ports count: a `--url` may name the server half directly.
+  expect(stageBandClaim("http://localhost:5273/chat", LANE_CHECKOUT, rows)).toBe("foreign");
+  expect(stageBandClaim("http://localhost:8888/api/health", LANE_CHECKOUT, rows)).toBe("foreign");
+  // #1276 widened the door from ONE hardcoded pair to the whole range: band 4 is arbitrated identically.
+  expect(stageBandClaim(`http://localhost:${stageBandPorts(4).vite}`, MAIN_CHECKOUT, rows)).toBe("foreign");
+  expect(stageBandClaim(`http://localhost:${stageBandPorts(4).vite}`, LANE_CHECKOUT, rows)).toBe("ours");
+  // No row is NOT permission: nothing accounts for whoever is serving that port.
+  expect(stageBandClaim(`http://localhost:${stageBandPorts(7).vite}`, LANE_CHECKOUT, rows)).toBe("unowned");
+  expect(stageBandClaim("http://localhost:5273", LANE_CHECKOUT, [])).toBe("unowned");
 });
 
 test("the band refusal names BOTH checkouts — the whole failure was not knowing whose tree answered (#1186)", () => {
-  const refusal = stageBandRefusal("foreign", "http://localhost:5273", LANE_CHECKOUT, active());
+  const refusal = stageBandRefusal("foreign", "http://localhost:5273", LANE_CHECKOUT, [active()]);
   expect(refusal).toContain(MAIN_CHECKOUT);
   expect(refusal).toContain(LANE_CHECKOUT);
   expect(refusal).toContain("nothing was measured");
   // An unowned band still refuses, and says so in the owner slot rather than inventing one.
-  expect(stageBandRefusal("unowned", "http://localhost:5273", LANE_CHECKOUT, null)).toContain("NOBODY");
+  expect(refusal).toContain("stage band 0");
+  expect(stageBandRefusal("unowned", "http://localhost:5273", LANE_CHECKOUT, [])).toContain("NOBODY");
   // The readable claims produce NO text at all — the guard must be silent on the ordinary path.
-  expect(stageBandRefusal("ours", "http://localhost:5273", MAIN_CHECKOUT, active())).toBeNull();
-  expect(stageBandRefusal("not-the-band", "http://localhost:5173", MAIN_CHECKOUT, active())).toBeNull();
+  expect(stageBandRefusal("ours", "http://localhost:5273", MAIN_CHECKOUT, [active()])).toBeNull();
+  expect(stageBandRefusal("not-the-band", "http://localhost:5173", MAIN_CHECKOUT, [active()])).toBeNull();
 });
 
-test("the marker door refuses a FOREIGN owner and passes our own — a PLANTED marker, never the box's (#1186)", () => {
-  // Both readers are injected on purpose: writing the real shared marker from a suite would evict a live
+test("the table door refuses a FOREIGN owner and passes our own — a PLANTED table, never the box's (#1186)", () => {
+  // Both readers are injected on purpose: writing the real shared table from a suite would evict a live
   // sibling lane's stage, which is the very failure this guard exists to prevent.
-  expect(stageBandRefusalFor("http://localhost:5273", { checkout: LANE_CHECKOUT, readMarker: () => active() })).toContain(MAIN_CHECKOUT);
-  expect(stageBandRefusalFor("http://localhost:5273", { checkout: MAIN_CHECKOUT, readMarker: () => active() })).toBeNull();
-  expect(stageBandRefusalFor("http://localhost:5173/chat", { checkout: LANE_CHECKOUT, readMarker: () => active() })).toBeNull();
+  expect(stageBandRefusalFor("http://localhost:5273", { checkout: LANE_CHECKOUT, readTable: () => [active()] })).toContain(MAIN_CHECKOUT);
+  expect(stageBandRefusalFor("http://localhost:5273", { checkout: MAIN_CHECKOUT, readTable: () => [active()] })).toBeNull();
+  expect(stageBandRefusalFor("http://localhost:5173/chat", { checkout: LANE_CHECKOUT, readTable: () => [active()] })).toBeNull();
 });

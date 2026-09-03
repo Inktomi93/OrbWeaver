@@ -7,12 +7,12 @@
 // front-door law already has an answer for (§4.2: a sibling tool enters through `index.ts`). So this module
 // imports `ensureStage`/`tryResolveRef` from `../../snap/index.ts` rather than re-homing four modules and
 // their gate rows — and stage ADMIN (`--stage-status`/`--stage-down`/`--stage-sweep`) is deliberately NOT
-// mirrored here: one band, one lifecycle owner.
+// mirrored here: the band TABLE has one lifecycle owner (snap), whichever band this audit lands on.
 import { errorMessage } from "@orb/kit/error-message";
 import { print } from "@orb/tooling/_shared/artifacts";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { ensureStage, tryResolveRef } from "../../snap/index.ts";
+import { ensureStage, shortSha, stageRowBaseUrl, tryResolveRef } from "../../snap/index.ts";
 import type { Args } from "../contract/types.ts";
 import { COLD_STAGE_REFUSAL, STAGE_DB_NOTE, STAGE_WARMUP_NOTE, stageBootedByThisRun, stageBootRefusal, unknownRefRefusal } from "../lib/stage-request.ts";
 
@@ -44,8 +44,8 @@ export function configureAuditStage(opts: Args): number | null {
     const stage = opts.dirty
       ? ensureStage({ fresh: opts.fresh, dirty: true })
       : ensureStage(opts.ref === null ? { fresh: opts.fresh } : { ref: opts.ref, fresh: opts.fresh });
-    opts.base = stage.baseUrl;
-    opts.stageShortSha = stage.shortSha;
+    opts.base = stageRowBaseUrl(stage);
+    opts.stageShortSha = shortSha(stage.sha);
     // The stage is now UP and stays warm for the next call — but this call cannot believe it (see
     // COLD_STAGE_REFUSAL's measured receipt), so it refuses instead of publishing a partial census.
     if (stageBootedByThisRun(stage.startedAt, beforeEnsureMs)) {

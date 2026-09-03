@@ -96,6 +96,13 @@ export function liveRows(home: string): readonly SessionRow[] {
   return listRows(home).filter(rowIsLive);
 }
 
+/** The names of every session whose daemon is ALIVE, for the band table's reaper fence (§3.6): a stage row
+ *  listing one of these is IN USE and is never a strand, whatever its idle age — the daemon is driving it,
+ *  and a reaper that eats a live stage is worse than no reaper. */
+export function liveSessionNames(root: string): ReadonlySet<string> {
+  return new Set(liveRows(sessionRegistryHome(root)).map((row) => row.name));
+}
+
 /** Signal the daemon's whole process group — `spawnNicedChild` is detached, so the daemon leads its own
  *  group and the browser tree rides with it. Through the SYSCALL door (`_shared/proc.ts` `killPidGroup`)
  *  and never a spawned `kill -SIG -<pgid>`: procps parses that as the pgid's first digit, which with
