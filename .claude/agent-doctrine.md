@@ -38,7 +38,8 @@ only when a rule's edge case is genuinely unclear.
   `db-structure` gate does not catch it. Procedure + the dev-db drop: `.claude/rules/db-schema.md` →
   `Tier-1-DB.md` §"The migration lifecycle".
 - **Verify with our instruments, cheaply:** `pnpm snap <route> --map/--contrast/--eval/--aria`,
-  `window.__orb` for render/query/bus state, wait on `data-app-ready`. Prefer these to devtools MCP.
+  `window.__orb` for render/query/bus state, wait on `data-app-ready`. These ARE the browser — there is
+  no devtools MCP (retired 2026-09-02, #1255); wanting one means naming the gap and building the arm.
 - **NEVER commit while a `git push` is running, and never trust the push's summary line** — git resolves
   the ref at invocation and transfers its value at transfer time, so a commit inside the ~17-min pre-push
   window ships silently under a stale printed range. Verify against the SERVER (`git ls-remote origin`).
