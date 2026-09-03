@@ -4,6 +4,7 @@
 // off the wire (`readSessionRequest` / `readSessionRow`) live beside the other pure derivations in
 // lib/session-plan.ts, so the daemon and the client parse ONE grammar.
 import type { Viewport } from "../../_shared/argv.ts";
+import type { ProbeAttachOptions } from "../../_shared/browser.ts";
 
 export const SESSION_PROTOCOL_VERSION = 1;
 
@@ -124,3 +125,21 @@ export interface SessionLimits {
  *  stands (`navigatePage: false`, the scenario's `keepLivePage` shape). */
 const SESSION_CALL_TARGETS = ["file", "route", "live"] as const;
 export type SessionCallTarget = (typeof SESSION_CALL_TARGETS)[number];
+
+/** What a sibling instrument's `--session <name>` resolved to: an attach target, or a printable refusal
+ *  (#1285, §3.4/§5). The verdict itself has ONE home in lib/session-plan.ts; these are the shapes
+ *  ops/session-attach.ts converts it into, homed here because a type outside a type home is gate-RED. */
+export interface SessionAttachTarget {
+  readonly ok: true;
+  readonly endpoint: string;
+  readonly environment: ProbeAttachOptions;
+  readonly row: SessionRow;
+}
+
+export interface SessionAttachRefusal {
+  readonly ok: false;
+  /** Print VERBATIM and exit 2 — never a silently-resolving pointer (§3.8). */
+  readonly message: string;
+}
+
+export type SessionAttachResolution = SessionAttachTarget | SessionAttachRefusal;

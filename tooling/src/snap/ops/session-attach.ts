@@ -6,26 +6,14 @@
 // Exported through `snap/index.ts` (the ONLY door — `tooling-front-door` refuses a sibling importing
 // `ops/**`); never call browser.ts's `chromium.connectOverCDP` here — gate arm H keeps that ONE call in
 // `_shared/browser.ts`, this module only decides WHETHER a caller may reach it and with what endpoint.
-import type { ProbeAttachOptions } from "../../_shared/browser.ts";
-import type { SessionRow } from "../contract/session.ts";
+
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SessionAttachRefusal, SessionAttachResolution, SessionRow } from "../contract/session.ts";
 import { foreignSessionRefusal, sessionAccess, sessionDeadText } from "../lib/session-plan.ts";
 import { readRow, rowIsLive, sessionRegistryHome } from "./session-registry.ts";
 import { repoRoot } from "./stage-git.ts";
 
-export interface SessionAttachTarget {
-  readonly ok: true;
-  readonly endpoint: string;
-  readonly environment: ProbeAttachOptions;
-  readonly row: SessionRow;
-}
-
-export interface SessionAttachRefusal {
-  readonly ok: false;
-  /** Print VERBATIM and exit 2 — never a silently-resolving pointer (§3.8). */
-  readonly message: string;
-}
-
-export type SessionAttachResolution = SessionAttachTarget | SessionAttachRefusal;
+refuseDirectInvocation(import.meta.url, "pnpm design-audit --session <name> <route>");
 
 function noEndpointRefusal(name: string): SessionAttachRefusal {
   return {

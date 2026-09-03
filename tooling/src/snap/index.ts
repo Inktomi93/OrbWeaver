@@ -8,6 +8,7 @@ export type { NetworkConditions, NetworkProfileName } from "./contract/load-emul
 export type { OverflowEscape, OverflowProbe, OverflowSide } from "./contract/overflow.ts";
 export type { RequestBodyOutcome, RequestLogEntry, RequestLogReceipt } from "./contract/request-log.ts";
 export type { SnapDetailedResult, SnapRunReceipt } from "./contract/run.ts";
+export type { SessionAttachRefusal, SessionAttachResolution, SessionAttachTarget } from "./contract/session.ts";
 export type {
   BandAccess,
   EnsureStageOpts,
@@ -75,7 +76,6 @@ export { parseScenarioSpec, runScenarioDetailed, snapScenario } from "./ops/scen
 // The stateful-session substrate (docs/design/1208-instrument-substrate.md §10.1): the admin verbs, the
 // client (boot + call + export), and the daemon's own entry — all three dispatched by cli.ts.
 export { runSessionAdmin } from "./ops/session-admin.ts";
-export type { SessionAttachRefusal, SessionAttachResolution, SessionAttachTarget } from "./ops/session-attach.ts";
 // The sibling-attach door (#1285, §3.4 F3): design-audit/motion-audit/perf-meter/record resolve a
 // `--session <name>` through this ONE function rather than reading the registry themselves.
 export { resolveSessionAttach } from "./ops/session-attach.ts";

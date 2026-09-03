@@ -2115,7 +2115,7 @@
     "tests/tooling/ui-audit/ops/walker/state-paint.int.test.ts",
     "tests/tooling/ui-audit/ops/walker/target-identity.int.test.ts",
     "tests/tooling/ui-audit/ops/walker/target-identity.test.ts",
-    "tests/tooling/ui-audit/session-attach.int.test.ts",
+    "tests/tooling/ui-audit/session-attach.suite.int.test.ts",
     "tests/tooling/ui-gate-structural-regressions.int.test.ts",
     "tests/tooling/verify/cli.int.test.ts",
     "tests/tooling/verify/gates/biome-grant-liveness.int.test.ts",
