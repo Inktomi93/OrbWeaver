@@ -1,6 +1,12 @@
 // The flag table itself: one handler per flag (Record dispatch), driven by parseSnapArgs (ops/parse.ts)
 // in argv order. Split out of ops/flags.ts when that file crossed the tooling line cap
 // (docs/architecture/core/Core-Tooling-Law.md §4.3) — the table is the single biggest seam in that file.
+//
+// WHAT IS **NOT** HERE ANY MORE: the twenty-five ARM flags (--text/--map/--eval/--contrast/--cascade/
+// --expect-*/--no-shot/--crop/--requests/--lighthouse/…). Each now rides its own `ArmDef.flags` row
+// (contract/arms.ts) beside the code that reads it, and `armFlagHandlers()` spreads them in below — the
+// same one-family-per-module shape the stage and session families already use, except that for an arm the
+// argv class, the help row and the RESULT pair are derived from the SAME row, so they cannot drift apart.
 
 import { mergeAppearancePatches } from "../../_shared/appearance.ts";
 import { applyAppearanceFlag, FULL_MOTION_PATCH, loadAppearancePreset, parseAppearancePatch } from "../../_shared/appearance-flags.ts";
@@ -11,12 +17,12 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { applyPanelPresetFlag, loadPanelPreset } from "../../_shared/panel-flags.ts";
 import { applyThemeFlag, parseThemeFlag } from "../../_shared/theme.ts";
 import type { Args } from "../contract/types.ts";
-import { parseLighthouseDevice, parseLighthouseMode } from "../lib/lighthouse-report.ts";
 import { parseShotScale } from "../lib/shot-scale.ts";
 import { NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
+import { armFlagHandlers } from "./arms/registry.ts";
 import { SESSION_FLAG_HANDLERS } from "./flags-session.ts";
 import { STAGE_FLAG_HANDLERS } from "./flags-stage.ts";
-import { ariaFlag, consumeOptionalSelector, DEFAULT_VIEWPORT, MS_PER_SECOND, mapFlag, pushEval, pushNav, pushStep, WIDE_VIEWPORT } from "./flags-support.ts";
+import { DEFAULT_VIEWPORT, MS_PER_SECOND, pushNav, pushStep, WIDE_VIEWPORT } from "./flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -59,9 +65,6 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--vnc": (a) => {
     a.vnc = true;
-  },
-  "--full": (a) => {
-    a.fullPage = true;
   },
   "--wait": (a, rest) => {
     a.waitSelector = rest.shift() ?? null;
@@ -196,33 +199,6 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--every": (a, rest) => {
     a.watchEveryMs = Math.max(1, Number(rest.shift() ?? "0") || MS_PER_SECOND);
   },
-  "--no-deadcss": (a) => {
-    a.deadCss = false;
-  },
-  "--aria": (a, rest, page) => {
-    ariaFlag(a, rest, false, page);
-  },
-  "--text": (a, rest, page) => {
-    ariaFlag(a, rest, true, page);
-  },
-  "--aria-depth": (a, rest) => {
-    a.ariaDepth = Number(rest.shift() ?? "0") || null;
-  },
-  "--aria-boxes": (a) => {
-    a.ariaBoxes = true;
-  },
-  "--no-shot": (a) => {
-    a.shot = false;
-  },
-  "--shot-of": (a, rest) => {
-    a.shotOf = rest.shift() ?? null;
-  },
-  "--mask": (a, rest) => {
-    const sel = rest.shift();
-    if (sel !== undefined && sel !== "") {
-      a.mask.push(sel);
-    }
-  },
   "--dark": (a) => {
     a.colorScheme = "dark";
   },
@@ -249,9 +225,6 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--idle": (a) => {
     a.idle = true;
-  },
-  "--crop": (a, rest) => {
-    a.crop = rest.shift() ?? null;
   },
   // The css default is DELIBERATE (image-token cost — lib/shot-scale.ts states why); this is its opt-in
   // escape hatch. A bad value keeps the default here and is REFUSED by ops/parse.ts, so a run never
@@ -301,74 +274,13 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--network": (a, rest) => {
     a.network = parseNetworkProfile(rest.shift() ?? "");
   },
-  // ── The two arms that retired the chrome-devtools MCP (#1198/#1199) ──
-  // `--lighthouse mobile` COMPOSES over --mobile rather than re-emulating: it fills the same device slot
-  // the flag does (the --panels precedent), so touch/coarse-pointer/DPR3 are real for the audit AND the
-  // pixels. A bad value keeps the arm off here and is REFUSED in ops/parse.ts, so a run never audits a
-  // device it was not asked for.
-  "--lighthouse": (a, rest) => {
-    const device = parseLighthouseDevice(rest.shift() ?? "");
-    a.lighthouse = device ?? a.lighthouse;
-    if (device === "mobile") {
-      a.device = MOBILE_DEVICE;
-    }
-  },
-  "--lighthouse-mode": (a, rest) => {
-    a.lighthouseMode = parseLighthouseMode(rest.shift() ?? "") ?? a.lighthouseMode;
-  },
-  "--requests": (a, rest) => {
-    a.requests = true;
-    a.requestsFilter = consumeOptionalSelector(rest) ?? a.requestsFilter;
-  },
-  "--request-body": (a, rest) => {
-    a.requestBody = rest.shift() ?? null;
-    a.requests = true;
-  },
-  "--eval": (a, rest, page) => {
-    const expr = rest.shift();
-    if (expr !== undefined && expr !== "") {
-      pushEval(a, { expr, page });
-    }
-  },
-  "--contrast": (a, rest, page) => {
-    const sel = rest.shift();
-    if (sel !== undefined && sel !== "") {
-      a.contrast.push({ selector: sel, page });
-    }
-  },
-  "--cascade": (a, rest, page) => {
-    const value = splitLastEq(rest.shift() ?? "");
-    a.cascade.push({ selector: value.head, property: value.tail, page });
-  },
-  "--contrast-pixel": (a) => {
-    a.contrastPixel = true;
-  },
-  "--expect-visible": (a, rest, page) => {
-    a.assertions.push({ kind: "visible", selector: rest.shift() ?? "", page });
-  },
-  "--expect-text": (a, rest, page) => {
-    const value = splitLastEq(rest.shift() ?? "");
-    a.assertions.push({ kind: "text", selector: value.head, expected: value.tail, page });
-  },
-  "--expect-count": (a, rest, page) => {
-    const value = splitLastEq(rest.shift() ?? "");
-    a.assertions.push({ kind: "count", selector: value.head, expected: Number(value.tail), page });
-  },
-  "--expect-url": (a, rest, page) => {
-    a.assertions.push({ kind: "url", expected: rest.shift() ?? "", page });
-  },
-  "--expect-no-overflow": (a, rest, page) => {
-    a.assertions.push({ kind: "overflow", selector: consumeOptionalSelector(rest) ?? "html", page });
-  },
-  "--expect-focus": (a, rest, page) => {
-    a.assertions.push({ kind: "focus", selector: rest.shift() ?? "", page });
-  },
-  "--map": (a, rest, page) => {
-    mapFlag(a, rest, page);
-  },
   // The isolated-stage family lives in its own module (ops/flags-stage.ts) — seven flags about the same
   // subsystem, split out when this table crossed the tooling line cap.
   ...STAGE_FLAG_HANDLERS,
   // The stateful-session family (ops/flags-session.ts) — the same one-family-per-module shape.
   ...SESSION_FLAG_HANDLERS,
+  // EVERY ARM'S FLAGS, derived from the registry (contract/arms.ts). A new arm reaches the CLI through
+  // its own file alone: this spread, ops/flags-classes.ts's scanner classes, ops/parse.ts's defaults and
+  // contract/help.ts's operator block all read the same rows.
+  ...armFlagHandlers(),
 };

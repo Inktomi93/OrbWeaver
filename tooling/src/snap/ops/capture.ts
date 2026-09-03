@@ -1,53 +1,33 @@
-// One page's full capture pass: drive the argv queue, then the settled-surface evidence (aria/eval/
-// contrast/map/assertions/perf/dead-css), then the shot — failures never abort (the PNG still lands).
+// One page's full capture pass: drive the argv queue, then EVERY PAGE ARM in registry order — the
+// settled-surface evidence (dead CSS, aria, trailing evals, contrast, map, assertions, perf) and then the
+// pixels. Failures never abort (the PNG still lands).
+//
+// THERE IS NO PER-ARM BRANCH HERE ANY MORE (docs/design/1208-instrument-substrate.md §6). This file used
+// to carry one `if` per capability, which is what made adding an arm a four-file edit and what let the
+// pass order drift away from the roster. Now it walks `pageArms()`: each row answers `enabled(ctx)` for
+// itself and writes its own slice of the outcome, and `ARMS` IS the pass order, so a new arm runs where
+// the tuple says without touching this function.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import type { ProbeSession } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { ArmPageContext } from "../contract/arms.ts";
 import type { CaptureEvidence, PagePlan } from "../contract/plan.ts";
-import type { Args, CaptureOutcome, EvidencePass, ShotPlan } from "../contract/types.ts";
+import type { Args, CaptureOutcome, ShotPlan } from "../contract/types.ts";
 import { planOut } from "../lib/out-names.ts";
-import { captureContrasts } from "./contrast.ts";
-import { scanDeadCss } from "./dead-css.ts";
+import { pageArms } from "./arms/registry.ts";
+import { SHOT_ARM } from "./arms/shot.ts";
 import { driveActions, navigate, settlePage, splitTrailingEvals } from "./drive.ts";
-import { captureAria, captureEvals, capturePerfEvidence, runAssertions } from "./evidence.ts";
-import { captureMap } from "./map.ts";
-import { captureShot } from "./shot.ts";
 import { awaitThemeStamp } from "./theme-stamp.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
-async function captureEvidence(page: Page, opts: Args, outcome: CaptureOutcome, pass: EvidencePass): Promise<void> {
-  const { pageIndex, trailingEvals } = pass;
-  if (opts.deadCss) {
-    const scan = await scanDeadCss(page, opts.includeHidden);
-    outcome.deadCss = [...scan.dead];
-    outcome.emptyCss = [...scan.empty];
-    outcome.deadCssEvidence = scan;
+async function runPageArms(ctx: ArmPageContext): Promise<void> {
+  for (const [, lifecycle] of pageArms()) {
+    if (lifecycle.enabled(ctx)) {
+      await lifecycle.run(ctx);
+    }
   }
-  if (opts.aria && opts.ariaPage === pageIndex) {
-    const aria = await captureAria(page, opts);
-    outcome.ariaText = aria.text;
-    outcome.ariaError = aria.error;
-  }
-  // Evals that come AFTER the last drive action run here — post-settle, exactly as they always did.
-  // The ones written mid-chain already ran at their argv position inside driveActions, and their
-  // outcomes are already in `outcome.evalResults`; appending keeps the report in argv order.
-  if (trailingEvals.length > 0) {
-    outcome.evalResults = [...outcome.evalResults, ...(await captureEvals(page, trailingEvals))];
-  }
-  const pageContrasts = opts.contrast.filter((entry) => entry.page === pageIndex).map((entry) => entry.selector);
-  if (pageContrasts.length > 0) {
-    outcome.contrastResults = await captureContrasts(page, pageContrasts, opts.contrastPixel, page.viewportSize() ?? opts.viewport);
-  }
-  if (opts.map && opts.mapPage === pageIndex) {
-    const mapped = await captureMap(page, opts.mapSelector, opts.includeHidden);
-    outcome.mapResult = mapped.entries;
-    outcome.mapError = mapped.error;
-  }
-  const pageAssertions = opts.assertions.filter((entry) => entry.page === pageIndex);
-  outcome.assertions = pageAssertions.length > 0 ? await runAssertions(page, pageAssertions, opts.includeHidden) : [];
-  outcome.perf = await capturePerfEvidence(page);
 }
 
 export async function capture(page: Page, opts: Args, plan: PagePlan, evidence: CaptureEvidence): Promise<CaptureOutcome> {
@@ -73,8 +53,7 @@ export async function capture(page: Page, opts: Args, plan: PagePlan, evidence: 
     themeStampGap: null,
   };
   const out = planOut(plan, pageIndex, totalPages);
-  // Volatile-region masks (pink overlay) shared by the main shot, --shot-of, and crop.
-  const mask = opts.mask.map((s) => page.locator(s));
+  const armPlan: ShotPlan = { url: plan.url, out, produceShot: plan.produceShot };
   // @orb-gate-ignore caught-failure-ownership(empty:e): captured into outcome.navError, which the caller counts into the verdict's navigation total and prints as NAV ERROR. Ends if navError stops being read.
   try {
     outcome.navError = plan.navigatePage === false ? null : await navigate(page, opts, plan.url);
@@ -103,17 +82,16 @@ export async function capture(page: Page, opts: Args, plan: PagePlan, evidence: 
     outcome.stepFailures = driven.stepFailures;
     outcome.evalResults = driven.evalResults;
     await settlePage(page, opts);
-    await captureEvidence(page, opts, outcome, { pageIndex, trailingEvals: split.trailingEvals });
-    if (plan.produceShot) {
-      await captureShot(page, opts, out, mask);
-    }
+    await runPageArms({ page, opts, pageIndex, plan: armPlan, outcome, trailingEvals: split.trailingEvals });
   } catch (e) {
     outcome.navError = `nav/wait threw: ${errorMessage(e)}`;
-    // Try to screenshot whatever we got anyway.
+    // Try to screenshot whatever we got anyway. THE ONE ARM NAMED BY HAND, and only here: the fallback
+    // is about the NAV FAILURE, not about the pixel arm — the run has to hand back an image of whatever
+    // state it reached even though the pass above never got as far as the shutter.
     if (plan.produceShot) {
       // @orb-gate-ignore caught-failure-ownership(empty:catch): best-effort fallback shot after the nav already failed — the RESULT line's navError still reports the real failure. Ends if the comment's "still lands" claim stops holding.
       try {
-        await captureShot(page, opts, out, mask);
+        await SHOT_ARM.lifecycle.run({ page, opts, pageIndex, plan: armPlan, outcome, trailingEvals: [] });
       } catch {
         /* best effort — the report + RESULT line still land */
       }

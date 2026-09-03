@@ -51,24 +51,7 @@ export function consumeOptionalSelector(rest: string[]): string | null {
   return null;
 }
 
-export function ariaFlag(args: Args, rest: string[], textMode: boolean, page: number): void {
-  args.aria = true;
-  args.ariaPage = page;
-  // --text is the cheap combo: structure-as-text, no pixels.
-  if (textMode) {
-    args.shot = false;
-  }
-  const sel = consumeOptionalSelector(rest);
-  if (sel !== null) {
-    args.ariaSelector = sel;
-  }
-}
-
-export function mapFlag(args: Args, rest: string[], page: number): void {
-  args.map = true;
-  args.mapPage = page;
-  const sel = consumeOptionalSelector(rest);
-  if (sel !== null) {
-    args.mapSelector = sel;
-  }
-}
+// The `--aria`/`--text` and `--map` flag bodies used to live here too; they moved to their arms
+// (ops/arms/aria.ts, ops/arms/map.ts) with the registry, because a flag body belongs beside the code that
+// reads what it parsed. What stays is what is genuinely SHARED across families: the queue pushers, the
+// optional-selector predicate, and the viewport constants.

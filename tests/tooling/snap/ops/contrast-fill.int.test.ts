@@ -20,7 +20,7 @@
 // the surface a reviewer's `pnpm snap --contrast` reaches, and asserting through it is what makes this
 // file a defect proof against the OLD source rather than a compile error.
 import { chromium } from "@playwright/test";
-import { captureContrastEvidence } from "../../../../tooling/src/snap/ops/contrast.ts";
+import { captureContrastEvidence } from "../../../../tooling/src/snap/ops/arms/contrast.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 

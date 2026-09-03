@@ -3,11 +3,13 @@
 import { splitPageSuffix } from "../../_shared/argv.ts";
 import { DEFAULT_BASE, DEFAULT_DEBUG_TOKEN } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { NonArmArgs } from "../contract/arms.ts";
 import type { Args } from "../contract/types.ts";
 import { validateFlagValue, validateSelectorFlagValue } from "../lib/flag-values.ts";
 import { sessionModeValidationPairs, sessionNameErrors } from "../lib/session-plan.ts";
 import { CSS_SHOT_SCALE, shotScaleBudgetRefusal } from "../lib/shot-scale.ts";
 import { NO_CPU_THROTTLE } from "../lib/throttle.ts";
+import { armArgDefaults } from "./arms/registry.ts";
 import { OPTIONAL_NAME_FLAGS, OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
 import { DEFAULT_VIEWPORT, MS_PER_SECOND } from "./flags-support.ts";
@@ -239,7 +241,9 @@ function parsedArgWarnings(args: Args): string[] {
 
 export function parseSnapArgs(argv: string[]): Args {
   const errors = scanArgv(argv);
-  const args: Args = {
+  // The RUN's own defaults; every ARM-owned field comes from `armArgDefaults()` below, and tsc refuses
+  // this assignment if the registry stops supplying one (contract/types.ts `ArmArgs`/`NonArmArgs`).
+  const runDefaults: NonArmArgs = {
     help: false,
     materializeDevToolsAssets: false,
     errors,
@@ -257,7 +261,6 @@ export function parseSnapArgs(argv: string[]): Args {
     waitSelector: null,
     sseSeconds: 0,
     base: DEFAULT_BASE,
-    fullPage: false,
     debugToken: DEFAULT_DEBUG_TOKEN,
     actions: [],
     pages: 1,
@@ -276,35 +279,12 @@ export function parseSnapArgs(argv: string[]): Args {
     probe: false,
     baseline: false,
     diff: false,
-    deadCss: true,
-    crop: null,
-    aria: false,
-    ariaSelector: "body",
-    ariaDepth: null,
-    ariaBoxes: false,
-    ariaPage: 0,
-    shot: true,
-    shotOf: null,
-    mask: [],
     scale: CSS_SHOT_SCALE,
     colorScheme: null,
     reducedMotion: false,
     appearance: null,
     theme: null,
     idle: false,
-    eval: [],
-    cascade: [],
-    contrast: [],
-    contrastPixel: false,
-    assertions: [],
-    map: false,
-    mapSelector: "body",
-    mapPage: 0,
-    lighthouse: null,
-    lighthouseMode: "snapshot",
-    requests: false,
-    requestsFilter: null,
-    requestBody: null,
     device: null,
     isolated: false,
     ref: null,
@@ -324,6 +304,7 @@ export function parseSnapArgs(argv: string[]): Args {
     sessionTtlMin: null,
     routeGiven: false,
   };
+  const args: Args = { ...runDefaults, ...armArgDefaults() };
   const rest = [...argv];
   while (rest.length > 0) {
     const tok = rest.shift() as string;

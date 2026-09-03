@@ -3,12 +3,14 @@
 // The WCAG math itself is the fleet-shared kernel (_shared/wcag.ts) — one ruler for every instrument.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
-import type { Viewport } from "../../_shared/argv.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { compositeForeground, contrastRatio, FOREGROUND_OPACITY_EPS, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../_shared/wcag.ts";
-import type { ContrastCapture, ContrastFacts, ContrastMeasured } from "../contract/contrast.ts";
-import type { ContrastOutcome } from "../contract/types.ts";
-import { buildContrastScript } from "../lib/contrast-script.ts";
+import type { Viewport } from "../../../_shared/argv.ts";
+import type { ResultPair } from "../../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { compositeForeground, contrastRatio, FOREGROUND_OPACITY_EPS, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../../_shared/wcag.ts";
+import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
+import type { ContrastCapture, ContrastFacts, ContrastMeasured } from "../../contract/contrast.ts";
+import type { ContrastOutcome } from "../../contract/types.ts";
+import { buildContrastScript } from "../../lib/contrast-script.ts";
 import {
   BOLD_WEIGHT,
   contrastExemption,
@@ -18,10 +20,10 @@ import {
   refuseContrastVerdict,
   terminalEvidence,
   UI_COMPONENT_MIN_RATIO,
-} from "../lib/contrast-verdict.ts";
-import { measureFillContrast } from "./contrast-fill.ts";
-import { resolveContrastBackdrop } from "./contrast-pixels.ts";
-import { contrastFacts } from "./page-validate.ts";
+} from "../../lib/contrast-verdict.ts";
+import { measureFillContrast } from "../contrast-fill.ts";
+import { resolveContrastBackdrop } from "../contrast-pixels.ts";
+import { contrastFacts } from "../page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -203,7 +205,7 @@ async function measureInkContrast(
   };
 }
 
-export async function captureContrasts(page: Page, selectors: readonly string[], forcePixel: boolean, viewport: Viewport): Promise<ContrastOutcome[]> {
+async function captureContrasts(page: Page, selectors: readonly string[], forcePixel: boolean, viewport: Viewport): Promise<ContrastOutcome[]> {
   return (await captureContrastEvidence(page, selectors, forcePixel, viewport)).map((capture) => capture.outcome);
 }
 
@@ -219,3 +221,50 @@ export async function captureContrastEvidence(
   }
   return results;
 }
+
+function contrastFailures({ outcomes }: ArmPairInput): number {
+  return outcomes.reduce((count, outcome) => count + outcome.contrastResults.filter((entry) => entry.failed).length, 0);
+}
+
+export const CONTRAST_ARM = {
+  flags: [
+    {
+      flag: "--contrast",
+      kind: "required-value",
+      pageTargetable: true,
+      handler: (a, rest, page): void => {
+        const selector = rest.shift();
+        if (selector !== undefined && selector !== "") {
+          a.contrast.push({ selector, page });
+        }
+      },
+    },
+    {
+      flag: "--contrast-pixel",
+      kind: "boolean",
+      pageTargetable: false,
+      handler: (a): void => {
+        a.contrastPixel = true;
+      },
+    },
+  ],
+  level: "call",
+  needs: (): ArmNeeds => ({}),
+  defaults: (): Pick<ArmArgs, "contrast" | "contrastPixel"> => ({ contrast: [], contrastPixel: false }),
+  help: `  --contrast <selector>   rendered WCAG contrast check (repeatable)
+  --contrast-pixel        force the framebuffer sample instead of the CSS resolve (requires --contrast)`,
+  lifecycle: {
+    at: "page",
+    enabled: ({ opts, pageIndex }): boolean => opts.contrast.some((entry) => entry.page === pageIndex),
+    run: async ({ page, opts, pageIndex, outcome }): Promise<void> => {
+      outcome.contrastResults = await captureContrasts(
+        page,
+        opts.contrast.filter((entry) => entry.page === pageIndex).map((entry) => entry.selector),
+        opts.contrastPixel,
+        page.viewportSize() ?? opts.viewport,
+      );
+    },
+    pairs: (input): readonly ResultPair[] => [["contrast-fails", contrastFailures(input)]],
+    failures: (input): ArmFailureCounts => ({ contrast: contrastFailures(input) }),
+  },
+} satisfies ArmDef;
