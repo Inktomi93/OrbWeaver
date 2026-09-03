@@ -4,16 +4,15 @@
 import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
-import { SESSION_FLAG, SESSION_FLAG_HELP } from "@orb/tooling/_shared/instrument-argv";
+import { aliasRefusal, crossToolAdminRefusal, HELP_FLAGS, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { DEFAULT_FRAMES_OFFSET_MS, DEFAULT_SETTLE_MS } from "../contract/defaults.ts";
 import type { Args, Step } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm record");
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
-const DEFAULT_SETTLE_MS = 1500;
 const DEFAULT_PAUSE_MS = 600;
-const DEFAULT_FRAMES_OFFSET_MS = 450;
 const DEFAULT_WHEEL_DY = 600;
 
 const INT_RE = /^\d+$/u;
@@ -49,6 +48,25 @@ function parseStepFlag(flag: string, rest: string[], steps: Step[]): boolean {
   return false;
 }
 
+/** The session-attach and help flags — its own arm purely to keep parseScalarFlag under the biome
+ *  cognitive-complexity cap; both are boolean/instrument-argv-owned rather than record's own scalars. */
+function parseInstrumentFlag(flag: string, rest: string[], args: Args): boolean {
+  // #1285: attach to a live snap session's browser (docs/design/1208-instrument-substrate.md §3.4/§5)
+  // instead of launching a fresh one — the shared WHERE_FLAGS spelling (_shared/instrument-argv.ts).
+  // record opens its OWN new context on the session browser (ops/record.ts) rather than reusing a page.
+  if (flag === SESSION_FLAG) {
+    args.session = rest.shift() ?? null;
+    return true;
+  }
+  // HELP_FLAGS (§4.3, _shared/instrument-argv.ts): print RECORD_HELP and exit 0 — before this family,
+  // --help was an unknown flag and exited 3.
+  if (HELP_FLAGS.has(flag)) {
+    args.help = true;
+    return true;
+  }
+  return false;
+}
+
 function parseScalarFlag(flag: string, rest: string[], args: Args): boolean {
   if (flag === "--base") {
     args.base = rest.shift() ?? DEFAULT_BASE;
@@ -72,18 +90,12 @@ function parseScalarFlag(flag: string, rest: string[], args: Args): boolean {
     args.framesOffsetMs = peek !== undefined && INT_RE.test(peek) ? Number(rest.shift()) : DEFAULT_FRAMES_OFFSET_MS;
     return true;
   }
-  // #1285: attach to a live snap session's browser (docs/design/1208-instrument-substrate.md §3.4/§5)
-  // instead of launching a fresh one — the shared WHERE_FLAGS spelling (_shared/instrument-argv.ts).
-  // record opens its OWN new context on the session browser (ops/record.ts) rather than reusing a page.
-  if (flag === SESSION_FLAG) {
-    args.session = rest.shift() ?? null;
-    return true;
-  }
-  return false;
+  return parseInstrumentFlag(flag, rest, args);
 }
 
 export function parseRecordArgs(argv: string[]): Args {
   const args: Args = {
+    help: false,
     route: "/",
     base: DEFAULT_BASE,
     out: "recording",
@@ -108,31 +120,14 @@ export function parseRecordArgs(argv: string[]): Args {
 }
 
 // Every flag this CLI knows, and which of them consume the next token. Used ONLY by the misuse scan;
-// --frames takes an OPTIONAL numeric, handled inline.
+// --frames takes an OPTIONAL numeric, handled inline. --help/-h are BOOLEAN (never consume a value) so
+// they are deliberately not in this set — see scanArgv's own HELP_FLAGS branch.
 const VALUE_FLAGS = new Set(["--click", "--jsclick", "--hover", "--fill", "--wheel", "--pause", "--base", "--out", "--settle", "--viewport", SESSION_FLAG]);
-
-export const RECORD_HELP = `record — animation-responsiveness screencasts
-
-Usage:
-  pnpm record [route] [flags]
-
-Steps (ONE argv-ordered tape):
-  --click/--jsclick/--hover <sel>   --fill "sel=value"   --wheel "sel=dy"   --pause <ms>
-
-Run:
-  --base <url> · --viewport <WxH> · --settle <ms> (initial, default ${DEFAULT_SETTLE_MS}) ·
-  --out <name> · --frames [offsetMs] (per-step full-res PNGs, default offset ${DEFAULT_FRAMES_OFFSET_MS})
-
-${SESSION_FLAG_HELP}
-                          A --session recording opens its OWN new context on the shared browser (Playwright
-                          can only enable video capture at context-creation time), never the session's live
-                          page/tab.
-
-Exit: 0 recorded · 1 step failure / page error · EXIT.misuse on a bad CLI.`;
+const KNOWN_FLAGS = new Set([...VALUE_FLAGS, ...HELP_FLAGS]);
 
 function scanValueFlag(token: string, value: string | undefined): readonly [error: string | null, consumesValue: boolean] {
   if (!VALUE_FLAGS.has(token)) {
-    return [`unknown flag ${token}`, false];
+    return [crossToolAdminRefusal(token) ?? aliasRefusal(token, KNOWN_FLAGS) ?? `unknown flag ${token}`, false];
   }
   if (value === undefined || value.startsWith("--")) {
     return [`${token} requires a value`, false];
@@ -141,6 +136,16 @@ function scanValueFlag(token: string, value: string | undefined): readonly [erro
     return ["--viewport requires WIDTHxHEIGHT positive integers", true];
   }
   return [null, true];
+}
+
+/** `--frames` (optional numeric offset) and HELP_FLAGS (never consume a value) both bypass the ordinary
+ *  VALUE_FLAGS scan — split out purely to keep scanArgv under the biome cognitive-complexity cap. Returns
+ *  the extra-token count to skip, or null when `token` is neither. */
+function specialFlagSkip(token: string, peek: string | undefined): number | null {
+  if (token === "--frames") {
+    return peek !== undefined && INT_RE.test(peek) ? 1 : 0;
+  }
+  return HELP_FLAGS.has(token) ? 0 : null;
 }
 
 /** Argv scanned for misuse BEFORE a browser boots (the fleet's strict-CLI posture — a typo'd flag
@@ -154,11 +159,9 @@ function scanArgv(argv: readonly string[]): string[] {
       routeCount += 1;
       continue;
     }
-    if (token === "--frames") {
-      const peek = argv[index + 1];
-      if (peek !== undefined && INT_RE.test(peek)) {
-        index += 1;
-      }
+    const special = specialFlagSkip(token, argv[index + 1]);
+    if (special !== null) {
+      index += special;
       continue;
     }
     const [error, consumesValue] = scanValueFlag(token, argv[index + 1]);

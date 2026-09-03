@@ -31,6 +31,10 @@ async function main(): Promise<number> {
     print(PERF_METER_HELP);
     return EXIT.misuse;
   }
+  if (opts.help) {
+    print(PERF_METER_HELP);
+    return 0;
+  }
   // The run's own artifact slot; `reports/perf-meter/<out>.json` is its published pointer (#1164).
   return await withInstrumentRun("cpu-profile", async () => await runCpuProfile(opts));
 }

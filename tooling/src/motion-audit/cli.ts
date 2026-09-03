@@ -55,6 +55,10 @@ async function main(): Promise<number> {
     print(MOTION_AUDIT_HELP);
     return EXIT.misuse;
   }
+  if (opts.help) {
+    print(MOTION_AUDIT_HELP);
+    return 0;
+  }
   // The run's own artifact slot; `reports/motion-audit/<route>-matrix.json` is its published pointer (#1164).
   return await withInstrumentRun("motion-audit", async () => (opts.matrix ? await runMotionAuditMatrix(opts) : await runMotionAudit(opts)));
 }

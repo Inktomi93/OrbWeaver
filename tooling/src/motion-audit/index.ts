@@ -2,6 +2,7 @@
 // surface. One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
 
 export type { BrowserEnvironmentEvidence } from "../_shared/browser-environment.ts";
+export { MOTION_AUDIT_HELP } from "./contract/help.ts";
 export type {
   AnimationRecord,
   ApplicationMotionEvidence,
@@ -31,6 +32,6 @@ export {
   observedClsTotals,
 } from "./lib/verdicts.ts";
 export { runMotionAuditMatrix } from "./ops/matrix.ts";
-export { MOTION_AUDIT_HELP, parseMotionArgs } from "./ops/parse.ts";
+export { parseMotionArgs } from "./ops/parse.ts";
 export { evaluateMotionAudit } from "./ops/report.ts";
 export { runMotionAudit, runMotionAuditDetailed } from "./ops/run.ts";

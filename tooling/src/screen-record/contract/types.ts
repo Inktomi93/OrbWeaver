@@ -10,6 +10,9 @@ export type Step =
   | { readonly kind: "pause"; readonly ms: number };
 
 export interface Args {
+  /** `--help`/`-h` (HELP_FLAGS, `_shared/instrument-argv.ts`): print `RECORD_HELP` and exit 0 — before
+   *  this family, `--help` was an unknown flag and exited 3 (design §1 P5, §4.3). */
+  help: boolean;
   route: string;
   base: string;
   out: string;

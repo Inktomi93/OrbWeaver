@@ -28,6 +28,9 @@ export type AuditAction =
   | { kind: "upload"; selector: string; paths: readonly string[] };
 
 export interface Args {
+  /** `--help`/`-h` (HELP_FLAGS, `_shared/instrument-argv.ts`): print `DESIGN_AUDIT_HELP` and exit 0 —
+   *  before this family, `--help` was an unknown flag and exited 3 (measured 20 hits, design §1 P5). */
+  help: boolean;
   route: string;
   base: string;
   /** Run the bounded representative Appearance matrix through the ordinary single-audit path. */

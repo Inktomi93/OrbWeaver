@@ -12,6 +12,9 @@ import type { ThemeRequest } from "@orb/tooling/_shared/theme";
 export type ReachAction = { kind: "click"; selector: string } | { kind: "nav"; method: NavMethod; target: string };
 
 export interface Args {
+  /** `--help`/`-h` (HELP_FLAGS, `_shared/instrument-argv.ts`): print `MOTION_AUDIT_HELP` and exit 0 —
+   *  before this family, `--help` was an unknown flag and exited 3 (measured 8 hits, design §1 P5). */
+  help: boolean;
   route: string;
   url: string | null;
   base: string;
