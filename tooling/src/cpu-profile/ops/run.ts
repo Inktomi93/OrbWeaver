@@ -5,11 +5,13 @@ import { writeFile } from "node:fs/promises";
 import { artifactFile } from "@orb/tooling/_shared/artifact-out";
 import type { ResultPair } from "@orb/tooling/_shared/artifacts";
 import { print } from "@orb/tooling/_shared/artifacts";
-import { buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
+import type { ProbeSession } from "@orb/tooling/_shared/browser";
+import { attachProbeSession, buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
 import { instrumentError, printVerdict } from "@orb/tooling/_shared/evidence";
+import type { ExitCode } from "@orb/tooling/_shared/exit-contract";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { stageBandRefusalFor } from "../../snap/index.ts";
+import { resolveSessionAttach, stageBandRefusalFor } from "../../snap/index.ts";
 import type { Args, MeterData, MeterWindow } from "../contract/types.ts";
 import { NAV_TIMEOUT_MS, TRAILING_SETTLE_MS } from "../lib/budgets.ts";
 import { meterApparatusGap, meterEvidenceGaps } from "../lib/evidence.ts";
@@ -26,6 +28,28 @@ const CLICK_DUR_BREACH_MS = 100;
  *  `snap --isolated` leaves the band with its previous owner, so an instrument chained behind one measures
  *  a sibling checkout's pixels and prints numbers that look completely normal. Refuse (exit 2 — nothing was
  *  measured) before the browser launches; the door is snap's, one home (tooling/src/snap/ops/stage-marker.ts). */
+/** #1285: `--session <name>` attaches to a live snap session's browser (design §3.4) instead of launching
+ *  a fresh one; a dead/foreign/absent session is an EXIT.toolError refusal (never a fallback launch). */
+async function launchOrAttach(opts: Args): Promise<ProbeSession | ExitCode> {
+  if (opts.session === null) {
+    return await launchProbeSession({
+      headless: true,
+      viewport: opts.viewport,
+      colorScheme: null,
+      reducedMotion: false, // the OS media query — a motion probe wants the real animations
+      appearance: opts.appearance, // …and the APP setting, which the media query does not reach (--full-motion)
+      theme: opts.theme,
+      localStorage: [],
+    });
+  }
+  const attach = resolveSessionAttach(opts.session);
+  if (!attach.ok) {
+    print(attach.message);
+    return EXIT.toolError;
+  }
+  return await attachProbeSession(attach.endpoint, attach.environment);
+}
+
 export async function runCpuProfile(opts: Args): Promise<number> {
   const url = buildUrl(opts.base, opts.route);
   const bandRefusal = stageBandRefusalFor(url);
@@ -34,15 +58,10 @@ export async function runCpuProfile(opts: Args): Promise<number> {
     return EXIT.toolError;
   }
 
-  const session = await launchProbeSession({
-    headless: true,
-    viewport: opts.viewport,
-    colorScheme: null,
-    reducedMotion: false, // the OS media query — a motion probe wants the real animations
-    appearance: opts.appearance, // …and the APP setting, which the media query does not reach (--full-motion)
-    theme: opts.theme,
-    localStorage: [],
-  });
+  const session = await launchOrAttach(opts);
+  if (typeof session === "number") {
+    return session;
+  }
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one linear ownership closure keeps every profiling arm inside the same guaranteed cleanup boundary.
   return await withProbeSession(session, async () => {
     await session.context.addInitScript({ content: METER_INIT_JS });

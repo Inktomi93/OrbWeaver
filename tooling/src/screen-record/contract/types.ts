@@ -18,6 +18,11 @@ export interface Args {
   /** Non-null: dump one full-res PNG per step at dispatch+offset ms. */
   framesOffsetMs: number | null;
   steps: Step[];
+  /** `--session <name>` (#1285, WHERE_FLAGS `_shared/instrument-argv.ts`): attach to a live snap
+   *  session's browser instead of launching a fresh one — null = launch (today's behaviour, unchanged).
+   *  A record attach opens its OWN new context on the session browser (recordVideo can only be set at
+   *  `newContext()` time), never the session's live page — see `_shared/browser.ts` `attachProbeSession`. */
+  session: string | null;
   /** CLI misuse collected without side effects; any entry means EXIT.misuse before a browser boots. */
   errors: string[];
 }
