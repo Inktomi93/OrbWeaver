@@ -218,6 +218,11 @@ test("the parse-time session rows: every combination that cannot mean anything r
   expect(rows(["--session", "p-x", "--session-daemon", "p-x"])).toEqual([expect.stringContaining("--session-daemon is the daemon's own entry")]);
   expect(rows(["--session-ttl", "5"])).toEqual([expect.stringContaining("boot property")]);
   expect(rows(["--session", "p-x", "--matrix"])).toEqual([expect.stringContaining("phase 1")]);
+  // #1259: the phase-1 refusal of `--session` + `--lighthouse` is DELETED. It existed because two
+  // mechanisms wrote `--remote-debugging-port` onto one browser (the arm RESERVED a loopback port, a
+  // session read Chrome's own back), which is last-wins and silent. Phase 3 deleted the reserving path,
+  // so one endpoint serves both and the pair composes: the audit runs against the session's live page.
+  expect(rows(["--session", "p-x", "--lighthouse", "desktop"])).toEqual([]);
   expect(rows(["--session-sweep", "--stage-sweep"])).toEqual([expect.stringContaining("do not combine with --stage-status")]);
   expect(sessionNameErrors(parseSnapArgs(["--session", "P-Bad", "--session-ttl", "1"]))).toEqual([expect.stringContaining("must match")]);
   expect(sessionNameErrors(parseSnapArgs(["--session", "p-good"]))).toEqual([]);

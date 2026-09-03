@@ -18,6 +18,7 @@ import { routeSlug } from "../../_shared/artifacts.ts";
 import { budget } from "../../_shared/load-budget.ts";
 import type { SessionAccess, SessionCallTarget, SessionLimits, SessionRow, SessionSweepVerdict } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
+import { sessionLevelArmFlags } from "../ops/arms/registry.ts";
 import { describeStageAgePhrase } from "./stage-plan.ts";
 
 // ── the registry (repo-keyed like the stage marker, #108) ─────────────────────────────────────────────
@@ -105,10 +106,14 @@ export function resolveSessionLimits(input: {
 /** Flags that name a property of the BROWSER LIFETIME — where it serves, its emulation, its shims, its
  *  seeds, its load arm, its tab count. Legal on the boot call only; a later call carrying one is refused
  *  (exit 3) instead of being silently overridden, because "I asked for 412 wide and measured 1280" is the
- *  P3 leak wearing a socket. `--cascade` is here because its runtime is a launch property (phase 3 revisits).
+ *  P3 leak wearing a socket.
  *  NOT here: `--no-failure-evidence` — a session records no trace/HAR at all (the daemon forces it off at
  *  boot), so the flag names nothing a later call could change; refusing it would refuse every operator's
- *  habitual argv over a property sessions do not have. */
+ *  habitual argv over a property sessions do not have.
+ *
+ *  THE ARM MEMBERS ARE DERIVED (`sessionLevelArmFlags()`, contract/arms.ts §3.3): an arm declares
+ *  `level: "session"` beside its flags, so `--cascade` is in this set because its DevTools-SDK runtime is
+ *  a persistent-profile LAUNCH property, and it says so once — in the arm — instead of here and there. */
 export const SESSION_ONLY_FLAGS: ReadonlySet<string> = new Set([
   "--base",
   "--isolated",
@@ -127,7 +132,6 @@ export const SESSION_ONLY_FLAGS: ReadonlySet<string> = new Set([
   "--appearance-preset",
   "--full-motion",
   "--theme",
-  "--cascade",
   "--probe",
   "--ls",
   "--vnc",
@@ -140,6 +144,7 @@ export const SESSION_ONLY_FLAGS: ReadonlySet<string> = new Set([
   "--fixture-base",
   "--cpu-throttle",
   "--network",
+  ...sessionLevelArmFlags(),
 ]);
 
 /** The session-level flags a later call's argv carries, in argv order (duplicates kept — the refusal
@@ -398,15 +403,12 @@ export function sessionModeValidationPairs(args: Args, contextsMode: boolean): r
       driving && (args.matrix || args.scenario !== null || contextsMode),
       "--session does not combine with --matrix/--scenario/--contexts/--as in phase 1 — the appearance matrix rides a session in phase 3 (docs/design/1208-instrument-substrate.md §12.2 F10)",
     ],
-    [
-      // NOT a taste call: both features write `--remote-debugging-port` onto ONE browser. The arm RESERVES
-      // a port and passes it; a session lets Chrome pick (port 0) and reads `DevToolsActivePort` back. Two
-      // such args on one launch is last-wins, and whichever reader lost then attaches to nothing or to the
-      // wrong endpoint — silently. Refusing the pair is the honest phase-1 answer; unifying the two onto the
-      // one debugging-endpoint reader is phase 3's job, alongside the arm registry (ops/arms/lighthouse.ts).
-      driving && args.lighthouse !== null,
-      "--session does not combine with --lighthouse in phase 1: both claim the browser's --remote-debugging-port (the arm reserves one, a session reads Chrome's own back) and one launch cannot carry both — take the audit in its own one-shot snap run, or attach to the session over its endpoint in phase 3",
-    ],
+    // `--session` + `--lighthouse` WAS REFUSED HERE, and the refusal is DELETED (#1259, phase 3). It was
+    // never a taste call: the two features wrote `--remote-debugging-port` onto one browser by
+    // incompatible means — the arm RESERVED a loopback port and passed it, a session let Chrome pick
+    // (port 0) and read `DevToolsActivePort` back — so two such args on one launch was last-wins and
+    // silent. Phase 3 deleted the reserving path outright (ops/session.ts), leaving ONE mechanism, so the
+    // pair now composes: `--session x --lighthouse desktop` audits the session's own live page.
     [
       (driving || admin) && (args.stageDown || args.stageStatus || args.stageSweep),
       "the session modes do not combine with --stage-status/--stage-down/--stage-sweep",

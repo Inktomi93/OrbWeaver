@@ -12,13 +12,16 @@
 import { writeFile } from "node:fs/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page, Request } from "@playwright/test";
-import { artifactFile } from "../../_shared/artifact-out.ts";
-import { print } from "../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../_shared/browser.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { RequestBodyOutcome, RequestLogEntry, RequestLogReceipt } from "../contract/request-log.ts";
-import type { Args } from "../contract/types.ts";
-import { capBody, filterRequests, matchesRequestFilter, requestLogLines } from "../lib/request-log.ts";
+import { artifactFile } from "../../../_shared/artifact-out.ts";
+import type { ResultPair } from "../../../_shared/artifacts.ts";
+import { print } from "../../../_shared/artifacts.ts";
+import type { ProbeSession } from "../../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
+import type { RequestBodyOutcome, RequestLogEntry, RequestLogReceipt } from "../../contract/request-log.ts";
+import type { Args } from "../../contract/types.ts";
+import { capBody, filterRequests, matchesRequestFilter, requestLogLines } from "../../lib/request-log.ts";
+import { consumeOptionalSelector } from "../flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --requests");
 
@@ -102,7 +105,7 @@ export function recordRequestsOn(page: Page, recorder: RequestLogRecorder): void
 }
 
 /** Attach to every page of every context of a launched session — before anything navigates. */
-export function attachRequestLog(session: ProbeSession, opts: Args): RequestLogRecorder {
+function attachRequestLog(session: ProbeSession, opts: Args): RequestLogRecorder {
   const recorder = newRecorder(opts.requestBody);
   for (const context of session.contexts) {
     for (const page of context.pages) {
@@ -113,7 +116,7 @@ export function attachRequestLog(session: ProbeSession, opts: Args): RequestLogR
 }
 
 /** Drain the body read, file the COMPLETE log in this run's slot, print the block, return the receipt. */
-export async function finishRequestLog(recorder: RequestLogRecorder, opts: Args, name: string): Promise<RequestLogReceipt> {
+async function finishRequestLog(recorder: RequestLogRecorder, opts: Args, name: string): Promise<RequestLogReceipt> {
   await Promise.all(recorder.pending);
   const filter = opts.requestsFilter;
   const bodyFilter = recorder.bodyFilter;
@@ -127,3 +130,81 @@ export async function finishRequestLog(recorder: RequestLogRecorder, opts: Args,
   }
   return receipt;
 }
+
+/** `request-body=` states WHICH body you got — off, the byte count, or the named non-capture arm. Never a
+ *  bare number: a reader must not have to guess whether nothing printed means "no match" or "not asked". */
+function requestBodyLabel(body: RequestBodyOutcome | null): string {
+  if (body === null) {
+    return "off";
+  }
+  if (body.kind !== "captured") {
+    return body.kind;
+  }
+  return body.truncatedAt === null ? `${body.bytes}b` : `${body.bytes}b truncatedAt=${body.truncatedAt}`;
+}
+
+/** THE REQUEST-LOG ARM (#1199). The reason `ArmDef` carries an `at: "run"` lifecycle with a `begin` at
+ *  all: this recorder MUST be wired before anything navigates, so the arm needs a mint that happens
+ *  before the capture pass and state that survives to the report. A page-shaped `run(ctx)` could only ever
+ *  attach after the first `goto`, which is a log that silently starts mid-stream. */
+export const REQUESTS_ARM = {
+  flags: [
+    {
+      flag: "--requests",
+      kind: "optional-value",
+      pageTargetable: false,
+      handler: (a, rest): void => {
+        a.requests = true;
+        a.requestsFilter = consumeOptionalSelector(rest) ?? a.requestsFilter;
+      },
+    },
+    {
+      flag: "--request-body",
+      kind: "required-value",
+      pageTargetable: false,
+      handler: (a, rest): void => {
+        a.requestBody = rest.shift() ?? null;
+        a.requests = true;
+      },
+    },
+  ],
+  level: "call",
+  needs: (): ArmNeeds => ({}),
+  defaults: (): Pick<ArmArgs, "requests" | "requestsFilter" | "requestBody"> => ({ requests: false, requestsFilter: null, requestBody: null }),
+  help: `  --requests [url-substring]
+                          the ORDERED log of every request this run's pages issued — method, url, status,
+                          resource type, declared size, timing — printed and written into the run slot.
+                          The optional value narrows what is PRINTED; the artifact is always complete and
+                          the block states both counts. It is a plain case-insensitive URL SUBSTRING, not
+                          a selector and not a regex.
+  --request-body <url-substring>
+                          one matching response body, capped and truncation-accounted (the block says
+                          \`truncatedAt=<bytes>\` when it cut). Implies --requests.`,
+  lifecycle: {
+    at: "run",
+    begin: (session, opts): ArmRunInstance => {
+      const recorder: RequestLogRecorder | null = opts.requests ? attachRequestLog(session, opts) : null;
+      let log: RequestLogReceipt | null = null;
+      return {
+        measure: (): Promise<void> => Promise.resolve(),
+        report: async (ctx): Promise<void> => {
+          if (recorder !== null) {
+            log = await finishRequestLog(recorder, ctx.opts, ctx.name);
+          }
+        },
+        failures: (): ArmFailureCounts => ({}),
+        // A log that recorded NOTHING is an instrument failure — nothing was wired, or the pages issued
+        // no request at all — never a clean sheet.
+        denominators: () => (log === null ? {} : { requests: { value: log.total, refuseWhen: "zero" as const } }),
+        pairs: (): readonly ResultPair[] =>
+          log === null
+            ? []
+            : [
+                ["requests-shown", log.shown.length],
+                ["request-body", requestBodyLabel(log.body)],
+              ],
+        exit: (code: number): number => code,
+      };
+    },
+  },
+} satisfies ArmDef;

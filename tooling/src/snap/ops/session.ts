@@ -10,14 +10,14 @@ import { closeProbeSession, closeProbeSessionAfterError, launchProbeSession } fr
 import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
 import { readBrowserEnvironment } from "../../_shared/browser-environment.ts";
 import type { DebuggingProfile } from "../../_shared/debugging-endpoint.ts";
-import { createDebuggingProfile, readDebuggingEndpoint } from "../../_shared/debugging-endpoint.ts";
+import { createDebuggingProfile, readDebuggingEndpoint, readDebuggingPort } from "../../_shared/debugging-endpoint.ts";
 import type { DevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
 import { prepareDevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { FailureArtifacts } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
-import { reserveLoopbackPort } from "../lib/loopback-port.ts";
 import { NETWORK_PROFILES, NO_CPU_THROTTLE } from "../lib/throttle.ts";
+import { armLaunchNeeds } from "./arms/registry.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -27,15 +27,14 @@ const PROBE_MODE_KEY = "orb:probe-mode";
 const DEBUG_TOKEN_KEY = "orb:debug-token";
 const DEVTOOLS_ASSET_ROOT = fileURLToPath(new URL("../lib/devtools-frontend", import.meta.url));
 const CASCADE_RUNTIMES = new WeakMap<ProbeSession, DevToolsCascadeRuntime>();
-/** The profile dir whose `DevToolsActivePort` names a session's debugging endpoint (cascade or bare). */
+// The profile dir whose `DevToolsActivePort` names a session's debugging endpoint — ONE mechanism for
+// every consumer (#1259, phase 3). It used to be two: this map for the session/cascade path (Chrome picks
+// the port, we read it back) plus a `LIGHTHOUSE_PORTS` map for the audit arm, which RESERVED a loopback
+// port and passed `--remote-debugging-port=<n>` at launch. Two writers of one launch argument is
+// last-wins-and-silent, so phase 1 could only refuse the pair (`--session` + `--lighthouse`, exit 3). The
+// read-it-back mechanism is strictly more general — it needs no free-port race and it survives a browser
+// somebody else launched — so the reserving path is GONE and the refusal with it.
 const DEBUG_PROFILES = new WeakMap<ProbeSession, string>();
-// `--lighthouse` needs a REAL Chrome debugging endpoint on the browser this run drives (ops/lighthouse.ts
-// explains why an adapter is not an option). The port is a LAUNCH ARGUMENT, so it is reserved before the
-// browser exists and remembered here — the same shape the cascade runtime uses for its own attachment.
-// SEPARATE from DEBUG_PROFILES on purpose: this arm PICKS a port, the session/cascade path lets Chrome
-// pick one and READS it back. Both write `--remote-debugging-port`, so they must never launch one browser
-// together — `--session` + `--lighthouse` is refused at parse time (lib/session-plan.ts).
-const LIGHTHOUSE_PORTS = new WeakMap<ProbeSession, number>();
 // Harness-side determinism for --probe: floor every animation/transition and hide the
 // caret from FIRST PAINT (screenshot-time `animations:"disabled"` only rewinds at capture;
 // this kills mid-run flicker during steps too). Raw string — see _shared/browser.ts header.
@@ -107,26 +106,6 @@ function scaleLaunchOverride(opts: Args): { readonly deviceScaleFactor?: number 
   return opts.scale.deviceScaleFactor === null ? {} : { deviceScaleFactor: opts.scale.deviceScaleFactor };
 }
 
-/** The `--lighthouse` debugging endpoint, resolved TOTALLY: the arm-is-off case returns an empty launch
- *  patch and a no-op, so the launcher below gains no branch for an optional arm. Mutually exclusive with
- *  the cascade runtime's own persistent-profile endpoint AND with a session's, by parse-time refusal
- *  (ops/parse.ts, lib/session-plan.ts). */
-async function lighthouseEndpoint(opts: Args): Promise<{
-  readonly launch: Partial<Pick<ProbeLaunchOptions, "browserArgs">>;
-  readonly remember: (session: ProbeSession) => void;
-}> {
-  if (opts.lighthouse === null) {
-    return { launch: {}, remember: (): void => undefined };
-  }
-  const port = await reserveLoopbackPort();
-  return {
-    launch: { browserArgs: [`--remote-debugging-port=${port}`] },
-    remember: (session: ProbeSession): void => {
-      LIGHTHOUSE_PORTS.set(session, port);
-    },
-  };
-}
-
 /** The persistent-profile launch a run may need: the DevTools-SDK cascade runtime (its profile publishes
  *  the debugging endpoint AND serves the SDK) or the bare debugging profile (a session with no cascade).
  *  Never both — one profile, one endpoint. */
@@ -135,9 +114,16 @@ interface LaunchProfile {
   readonly debugging: DebuggingProfile | null;
 }
 
+/** ONE persistent profile per launch, and WHO ASKS FOR IT IS DERIVED (#1259). `armLaunchNeeds(opts)` reads
+ *  every enabled arm's declared `needs` (contract/arms.ts): `--cascade` needs the SDK runtime, and
+ *  `--lighthouse` needs a debugging endpoint — which the cascade profile already publishes, so a run that
+ *  wants both gets one browser with one endpoint instead of the two incompatible ones phase 1 had to
+ *  refuse. `requireCascadeRuntime`/`debuggingEndpoint` stay as CALLER asks on top (the appearance-invariant
+ *  pass needs the runtime with no `--cascade` query; a session publishes an endpoint with no arm at all). */
 async function prepareLaunchProfile(opts: Args, requireCascadeRuntime: boolean, debuggingEndpoint: boolean): Promise<LaunchProfile> {
-  const cascade = opts.cascade.length === 0 && !requireCascadeRuntime ? null : await prepareDevToolsCascadeRuntime(DEVTOOLS_ASSET_ROOT);
-  const debugging = cascade === null && debuggingEndpoint ? await createDebuggingProfile() : null;
+  const needs = armLaunchNeeds(opts);
+  const cascade = needs.devtoolsSdk === true || requireCascadeRuntime ? await prepareDevToolsCascadeRuntime(DEVTOOLS_ASSET_ROOT) : null;
+  const debugging = cascade === null && (debuggingEndpoint || needs.debuggingPort === true) ? await createDebuggingProfile() : null;
   return { cascade, debugging };
 }
 
@@ -174,10 +160,9 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
   const { requireCascadeRuntime = false, debuggingEndpoint = false, ...launchExtras } = extras;
   const traceDir = opts.failureEvidence ? await artifactDir("traces") : null;
   const profile = await prepareLaunchProfile(opts, requireCascadeRuntime, debuggingEndpoint);
-  const endpoint = await lighthouseEndpoint(opts);
   let launched: ProbeSession;
   try {
-    launched = await launchProbeSession({ ...buildLaunchOptions(opts, name, traceDir, profile), ...endpoint.launch, ...launchExtras });
+    launched = await launchProbeSession({ ...buildLaunchOptions(opts, name, traceDir, profile), ...launchExtras });
   } catch (error) {
     await closeLaunchProfile(profile);
     throw error;
@@ -191,7 +176,6 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
   if (persistent !== null) {
     DEBUG_PROFILES.set(session, persistent.profileDir);
   }
-  endpoint.remember(session);
   if (opts.probe) {
     try {
       await Promise.all(session.contexts.map(({ context }) => context.addInitScript({ content: PROBE_CSS_SCRIPT })));
@@ -239,10 +223,13 @@ export async function debuggingEndpointFor(session: ProbeSession): Promise<strin
   return profileDir === undefined ? null : await readDebuggingEndpoint(profileDir);
 }
 
-/** The Chrome debugging port this session's browser was launched with, or null when `--lighthouse` was
- *  off. A null here is what makes the arm REFUSE rather than attach to somebody else's browser. */
-export function lighthousePortFor(session: ProbeSession): number | null {
-  return LIGHTHOUSE_PORTS.get(session) ?? null;
+/** The Chrome debugging PORT this run's browser published, or null when it published none — the
+ *  `ArmProvisions.debuggingPort` an arm declaring `needs.debuggingPort` receives. A null is what makes the
+ *  Lighthouse arm REFUSE rather than attach to somebody else's browser. ONE reader for one mechanism
+ *  (#1259): the reserve-a-port path that used to answer this for `--lighthouse` alone is gone. */
+export async function debuggingPortFor(session: ProbeSession): Promise<number | null> {
+  const profileDir = DEBUG_PROFILES.get(session);
+  return profileDir === undefined ? null : await readDebuggingPort(profileDir);
 }
 
 // ── CDP load emulation (#826) ───────────────────────────────────────────────
