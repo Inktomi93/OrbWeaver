@@ -25,14 +25,23 @@ const TRAILING_SETTLE_MS = 900;
 // probe exists to produce.
 const PERF_TAGS = ["[perf]", "[frame]", "[reflow]", "[input]", "[anim]", "[css]", "[drop]", "[space]", "[cls]"] as const;
 
-/** #1285: `--session <name>` attaches to a live snap session's BROWSER (design §3.4/§5) rather than
+interface Attached {
+  readonly session: ProbeSession;
+  readonly base: string;
+}
+
+/** #1285/#1289: `--session <name>` attaches to a live snap session's BROWSER (design §3.4/§5) rather than
  *  launching a fresh one — but record cannot reuse the session's live PAGE: `recordVideo` is only
  *  settable at Playwright's `newContext()` time, so `attachProbeSession` opens a brand-new context on the
  *  attached browser for it (`_shared/browser.ts`'s `attachRecordedContext`). A dead/foreign/absent
- *  session is an EXIT.toolError refusal (never a fallback launch). */
-async function launchOrAttach(opts: Args, videoDir: string): Promise<ProbeSession | ExitCode> {
+ *  session is an EXIT.toolError refusal (never a fallback launch).
+ *
+ *  #1289 fork (see ui-audit/ops/run.ts's fuller note): `opts.baseExplicit` distinguishes a named `--base`
+ *  (composes, #1285) from the unset default, which falls back to the session's own bound URL (design
+ *  §3.6) instead of `DEFAULT_BASE`. */
+async function launchOrAttach(opts: Args, videoDir: string): Promise<Attached | ExitCode> {
   if (opts.session === null) {
-    return await launchProbeSession({
+    const session = await launchProbeSession({
       headless: true,
       viewport: opts.viewport,
       colorScheme: null,
@@ -40,22 +49,23 @@ async function launchOrAttach(opts: Args, videoDir: string): Promise<ProbeSessio
       localStorage: [],
       recordVideoDir: videoDir,
     });
+    return { session, base: opts.base };
   }
   const attach = resolveSessionAttach(opts.session);
   if (!attach.ok) {
     print(attach.message);
     return EXIT.toolError;
   }
-  return await attachProbeSession(attach.endpoint, { ...attach.environment, recordVideoDir: videoDir });
+  const session = await attachProbeSession(attach.endpoint, { ...attach.environment, recordVideoDir: videoDir });
+  return { session, base: opts.baseExplicit ? opts.base : attach.row.binding.url };
 }
 
 export async function recordVideo(opts: Args, outDir: string): Promise<Recording> {
-  const url = buildUrl(opts.base, opts.route);
   const videoDir = join(outDir, `.video-${opts.out}`);
   await rm(videoDir, { recursive: true, force: true });
 
-  const session = await launchOrAttach(opts, videoDir);
-  if (typeof session === "number") {
+  const attached = await launchOrAttach(opts, videoDir);
+  if (typeof attached === "number") {
     // recordVideo's own return shape (Recording) has no exit-code leg; `ops/run.ts` already treats a
     // null videoPath as "no video produced" and exits 1 (non-zero, never a silent clean) — the refusal
     // message printed above explains WHY before that generic line prints. Returning `failures: -1`
@@ -63,6 +73,8 @@ export async function recordVideo(opts: Args, outDir: string): Promise<Recording
     // was a REFUSAL, not a run whose zero steps happened to succeed.
     return { videoPath: null, stepTimeline: [], clickTimes: [], perfLines: [], failures: -1, pageErrors: 0 };
   }
+  const { session, base } = attached;
+  const url = buildUrl(base, opts.route);
   const recorded = await withProbeSession(session, async () => {
     await session.context.addInitScript({ content: MARKER_INIT_JS });
 

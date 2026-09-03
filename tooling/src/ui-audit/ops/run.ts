@@ -1,14 +1,5 @@
-// The audit orchestration: launch → navigate/reveal → walk → pixel-settle → classify → report.
-// The browser never decides pass/fail; every verdict is lib/checks-* over plain data.
-//
-// CONTRAST HAS A PIXEL PATH (issue #218). A DOM ancestor walk cannot see a fixed art layer painting over
-// the base it resolves — the app's wallpaper photo sits between <body>'s near-black background and every
-// translucent reading plate, and trusting the walk put 28 false P1 contrast findings on one chat
-// transcript (3.16:1 reported where the real composite is 4.94:1). The walker says "unresolved"
-// instead of fabricating, and `resolvePixelBackdrops` (ops/pixels.ts) settles those from ONE viewport
-// screenshot (perimeter-ring median, _shared/pixel-backdrop.ts — the same arithmetic snap's --contrast
-// uses, one home so the two instruments cannot disagree about what is behind a glyph). What cannot be
-// sampled — an off-screen box, a failed shot — is printed as NO VERDICT and judged by nothing.
+// Orchestrates audit collection and reporting. Unresolved DOM backdrops take the shared pixel-sampling
+// path; anything the browser cannot sample is reported as NO VERDICT rather than fabricated contrast.
 import { writeFile } from "node:fs/promises";
 import type { SettingsShimEvidence } from "@orb/tooling/_shared/appearance";
 import { artifactFile } from "@orb/tooling/_shared/artifact-out";
@@ -108,12 +99,17 @@ function evidenceGapOf({ url, appReady, samples, population, opts, settingsEvide
   );
 }
 
-/** #1285: `--session <name>` attaches to a live snap session's browser (design §3.4) instead of launching
- *  a fresh one; a dead/foreign/absent session is an EXIT.toolError refusal (never a fallback launch —
- *  that would silently audit a DIFFERENT browser than the one the caller named). */
-async function launchOrAttach(opts: Args): Promise<ProbeSession | ExitCode> {
+/** The attached browser and its inherited navigation base. */
+interface Attached {
+  readonly session: ProbeSession;
+  readonly base: string;
+}
+
+/** Attach without fallback: a bare `--session` inherits its binding URL, while explicit `--base`
+ *  remains a composing navigation override. */
+async function launchOrAttach(opts: Args): Promise<Attached | ExitCode> {
   if (opts.session === null) {
-    return await launchProbeSession({
+    const session = await launchProbeSession({
       headless: true,
       viewport: opts.viewport,
       device: opts.device,
@@ -123,25 +119,28 @@ async function launchOrAttach(opts: Args): Promise<ProbeSession | ExitCode> {
       theme: opts.theme,
       localStorage: [],
     });
+    return { session, base: opts.base };
   }
   const attach = resolveSessionAttach(opts.session);
   if (!attach.ok) {
     print(attach.message);
     return EXIT.toolError;
   }
-  return await attachProbeSession(attach.endpoint, attach.environment);
+  const session = await attachProbeSession(attach.endpoint, attach.environment);
+  return { session, base: opts.baseExplicit ? opts.base : attach.row.binding.url };
 }
 
 export async function runUiAudit(opts: Args): Promise<number> {
-  const url = buildUrl(opts.base, opts.route);
   // `--out` names an artifact BASE under reports/design-audit/ — or, when it is path-shaped, the exact
   // file to write (_shared/artifacts.ts owns that contract for every probe).
   const outPath = await artifactFile("design-audit", opts.out ?? routeSlug(opts.route), ".json");
 
-  const session = await launchOrAttach(opts);
-  if (typeof session === "number") {
-    return session;
+  const attached = await launchOrAttach(opts);
+  if (typeof attached === "number") {
+    return attached;
   }
+  const { session, base } = attached;
+  const url = buildUrl(base, opts.route);
 
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one linear ownership closure keeps every audit verdict and early return inside the same guaranteed cleanup boundary.
   return await withProbeSession(session, async () => {

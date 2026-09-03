@@ -57,11 +57,8 @@ export function stageArgErrors(args: Pick<Args, "isolated" | "dirty" | "ref" | "
   if (args.dirty && args.ref !== null) {
     errors.push("--dirty stages the WORKING TREE and --ref stages a commit — pass one");
   }
-  // #1285: `--session` attaches to the session's own BROWSER, but the run still names its OWN navigation
-  // target with `--base`/route (design §5: "an attached sibling wires its own capture for the duration
-  // of its run") — so `--base` composes with `--session`. What does NOT compose is snap's ISOLATED STAGE
-  // machinery: booting/reusing a second dev stack is orthogonal to attaching a browser, and a caller who
-  // wrote both is asking two unrelated things this run cannot do at once.
+  // An explicit base composes with the attached browser, but stage boot/reuse does not: the session
+  // already owns its binding, and a bare `--session` inherits that URL.
   if (args.session !== null && args.isolated) {
     errors.push(
       "--session attaches to a live session's browser; --isolated/--ref/--dirty/--fresh boot a stage — pass one (the stage the session itself was booted against is unaffected either way)",
