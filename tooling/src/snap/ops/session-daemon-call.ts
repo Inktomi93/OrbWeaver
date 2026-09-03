@@ -8,6 +8,7 @@ import process from "node:process";
 import { artifactFile, beginInstrumentRun, finishInstrumentRun } from "../../_shared/artifact-out.ts";
 import { artifactKey, print, routeSlug } from "../../_shared/artifacts.ts";
 import type { CapturedRequest, ProbeSession } from "../../_shared/browser.ts";
+import { reassertOwnerViewport } from "../../_shared/browser-emulation-guard.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import type { SessionCallTarget, SessionRequest } from "../contract/session.ts";
@@ -101,6 +102,12 @@ export async function runSessionCallInDaemon(state: SessionCallState, request: S
     print(`ARG WARNING  ${warning}`);
   }
   const { session, bootArgs } = state;
+  // #1287: a sibling that attached directly on the debugging endpoint since the last call — invisible to
+  // this socket protocol, so "always repair" is the only sound trigger — can have left `window.screen`
+  // reverted to Chromium's compiled default while `window.innerWidth/innerHeight` read correctly. A
+  // forced round trip on THIS persistent connection is the one mechanism proven to survive that
+  // sibling's own detach (browser-emulation-guard.ts); cheap (two CDP round trips) and idempotent.
+  await reassertOwnerViewport(session.page, session.environmentContract.applied.viewport);
   const target = sessionCallTarget(call);
   const pageUrl = session.page.url();
   if (target === "live" && pageUrl === ABOUT_BLANK) {
