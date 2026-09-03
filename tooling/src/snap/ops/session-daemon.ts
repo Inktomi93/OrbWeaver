@@ -28,12 +28,14 @@ import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
 import { foreignSessionRefusal, SESSION_INSTRUMENT, sessionBusyRefusal, sessionCapRefusal, sessionIdleMs, sessionSocketPath } from "../lib/session-plan.ts";
 import { readSessionRequest, resultPairsOf } from "../lib/session-wire.ts";
+import { urlStageBand } from "../lib/stage-plan.ts";
 import { configureStage, snapDestination } from "./guards.ts";
 import { debuggingEndpointFor, finishSession, launchSnapSession } from "./session.ts";
 import type { SessionCallState } from "./session-daemon-call.ts";
 import { runSessionCallInDaemon } from "./session-daemon-call.ts";
 import { liveRows, readRow, removeRow, removeSocket, sessionLimitsFromEnv, sessionRegistryHome, writeRow } from "./session-registry.ts";
 import { repoRoot } from "./stage-git.ts";
+import { bindSessionToBand, markerRoot, touchRow as touchStageBand, unbindSessionFromBand } from "./stage-marker.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
@@ -51,6 +53,11 @@ interface DaemonState extends SessionCallState {
   readonly home: string;
   readonly socketPath: string;
   readonly ttlMs: number;
+  /** The band table's home and the band this session drives, or null for a `--base`/`--file` session.
+   *  A session bound to a band is what keeps that STAGE alive: every call stamps the row's heartbeat and
+   *  the row lists this name, so the stage reaper never takes a band a live daemon is driving (§3.6). */
+  readonly stageHome: string;
+  readonly stageBand: number | null;
   row: SessionRow;
   /** The in-flight `call`/`export`, or null — `busy` refuses a second driver; `close` awaits it. */
   inflight: { readonly op: string; readonly startedAt: number; readonly done: Promise<void> } | null;
@@ -65,8 +72,14 @@ function emitTo(socket: Socket, event: SessionEvent): void {
 }
 
 function touchRow(state: DaemonState, patch: Partial<SessionRow>): void {
-  state.row = { ...state.row, ...patch, lastUsedAt: new Date().toISOString() };
+  const nowIso = new Date().toISOString();
+  state.row = { ...state.row, ...patch, lastUsedAt: nowIso };
   writeRow(state.home, state.row);
+  // INTERACTION MEANS ANY REQUEST THROUGH THE SUBSTRATE, not only a snap CLI call (§3.6): a lane driving
+  // its stage exclusively through a session would otherwise watch its stage go idle and be reaped under it.
+  if (state.stageBand !== null) {
+    touchStageBand(state.stageHome, state.stageBand, nowIso);
+  }
 }
 
 /** The daemon's three CALLER-LESS shutdown boundaries — the TTL timer and the two signal handlers. Nobody
@@ -332,6 +345,10 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
     throw error;
   }
   const socketPath = sessionSocketPath(home, name);
+  // `configureStage` has already allocated (or reused) a band and repointed `bootArgs.base` at it, so the
+  // BASE names the band — the one fact both halves of the substrate agree on (`urlStageBand` is port-keyed).
+  const stageHome = markerRoot(root);
+  const stageBand = bootArgs.isolated ? urlStageBand(bootArgs.base) : null;
   const state: DaemonState = {
     name,
     root,
@@ -342,6 +359,8 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
     requestLog: [],
     calls: 0,
     ttlMs: limits.ttlMs,
+    stageHome,
+    stageBand,
     row: initialRow(
       { name, root, home, socketPath, ttlMs: limits.ttlMs, bootArgs },
       { slotDir: slot.dir, cdpEndpoint: await debuggingEndpointFor(session), bootArgv: argv },
@@ -350,6 +369,10 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
     ttlTimer: null,
     closing: false,
   };
+  if (stageBand !== null) {
+    // The row lists this session, so the stage reaper leaves the band alone while the daemon lives (§3.6).
+    bindSessionToBand(stageHome, stageBand, name, new Date().toISOString());
+  }
   let resolveClosed: () => void = () => undefined;
   const closed = new Promise<void>((resolve) => {
     resolveClosed = resolve;
@@ -396,6 +419,10 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
     // on `closed` forever holding a row that still reads LIVE — that is §3.8's dead-marker class from the
     // inside, and it is what makes `detachShutdown`'s catch a report rather than a hang.
     try {
+      if (stageBand !== null) {
+        // Release the stage: the band is now reapable on its own idle TTL, exactly as if no session had run.
+        unbindSessionFromBand(stageHome, stageBand, name);
+      }
       removeSocket(home, name);
       removeRow(home, name);
       publishRunSlot(root, slot, []);

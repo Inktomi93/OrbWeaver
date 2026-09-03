@@ -472,7 +472,7 @@
       }
     },
     {
-      "includes": ["tooling/src/snap/ops/stage.ts", "tooling/src/render-trace/ops/fire.ts"],
+      "includes": ["tooling/src/snap/ops/stage.ts", "tooling/src/snap/ops/stage-probe.ts", "tooling/src/render-trace/ops/fire.ts"],
       "linter": {
         "rules": {
           "style": {

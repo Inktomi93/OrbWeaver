@@ -9,6 +9,7 @@ import { print, routeSlug } from "../../_shared/artifacts.ts";
 import { buildUrl } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
+import { stageRowBaseUrl } from "../lib/stage-plan.ts";
 import { ensureStage } from "./stage.ts";
 import { stageStatus, sweepStages, teardownStage } from "./stage-status.ts";
 
@@ -89,7 +90,7 @@ export function configureStage(opts: Args): number | null {
       const stage = opts.dirty
         ? ensureStage({ fresh: opts.fresh, dirty: true })
         : ensureStage(opts.ref === null ? { fresh: opts.fresh } : { ref: opts.ref, fresh: opts.fresh });
-      opts.base = stage.baseUrl;
+      opts.base = stageRowBaseUrl(stage);
     } catch (e) {
       print(`STAGE ERROR: ${errorMessage(e)}`);
       return 1;

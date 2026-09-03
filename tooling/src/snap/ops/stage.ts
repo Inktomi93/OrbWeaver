@@ -8,15 +8,23 @@
 // both run at once. The worktree is never edited, so its watchers never fire: crash-loop-immune by
 // construction while keeping the dev bundle's `window.__orb` (side-eye's eval machinery) intact.
 //
-// THE MARKER IS REPO-KEYED, NOT CHECKOUT-KEYED (issue #108, 2026-08-16). The band is ONE fixed port pair
-// for the whole BOX, so its owner marker must be one file every checkout agrees on. It used to be written
+// THE TABLE IS REPO-KEYED, NOT CHECKOUT-KEYED (issue #108, 2026-08-16). A band is a port pair for the whole
+// BOX, so the file naming its owner must be one every checkout agrees on. It used to be written
 // into whichever checkout snap ran from, so a lane's stage left main's marker dir empty and a sibling's
-// only tell was `ss -tlnp` plus ps spelunking — two coordination rounds in one afternoon. The marker now
+// only tell was `ss -tlnp` plus ps spelunking — two coordination rounds in one afternoon. The table now
 // lives beside the MAIN checkout (`git rev-parse --git-common-dir` answers `<main>/.git` from every linked
-// worktree) and records the owner's checkout, pid and start time, so `--stage-status` / `--stage-down`
-// work from anywhere and a collision REFUSES with a name instead of silently killing a sibling's stage.
+// worktree) and each row records the owner's checkout, pid and start time, so `--stage-status` /
+// `--stage-down` work from anywhere and a collision REFUSES with a name instead of silently killing a
+// sibling's stage.
 //
-// LIFECYCLE: one active stage keyed by sha at .cache/snap-stage/<short-sha>/ (`pnpm install` once —
+// EVERY LANE GETS ITS OWN STAGE (issue #1276, design §3.6). There used to be ONE band, so two lanes wanting
+// a stage was a refusal by construction — four were blocked in a single afternoon (2026-09-02). There are
+// now ten registered bands (`_shared/ports.ts`) and a locked ALLOCATOR: this checkout's own row, else a
+// sibling's healthy row at our sha, else the lowest free band, else the lowest stranded one (reaped on
+// acquire), else an exit-2 refusal naming every row with its idle age. The decision is
+// lib/stage-bands.ts's, the census + the claim are ops/stage-census.ts's; this file boots what it is given.
+//
+// LIFECYCLE: one stage per (checkout, sha) at .cache/snap-stage/<short-sha>/ (`pnpm install` once —
 // shared store), its OWN db (seedStageData's provenance note below — a cached stage KEEPS its old db)
 // + assets symlink; boots the worktree's stack.sh on the offset band and stays WARM. A new HEAD sha
 // rebuilds (stale stage torn down first); `--fresh` forces; `--stage-down` (ops/stage-status.ts) removes.
@@ -33,138 +41,47 @@
 //
 // WARMTH HAS AN EXPIRY NOW (issue #324, 2026-08-22). A stage stayed running as a detached process group
 // long after its purpose ended, holding the band and reading like the real dev stack until someone read
-// the cmdline; `.cache/snap-stage/` also accumulated dirs from crashed runs, and `active.json` outlived
+// the cmdline; `.cache/snap-stage/` also accumulated dirs from crashed runs, and the marker outlived
 // the stage it named by two days. The fix is NOT teardown at run completion — staying warm across runs
 // (and across checkouts, #108's `shared-reuse`) is the whole feature, and killing the stage with its
-// invoker would delete it. A WARM stage's liveness is its USE: every boot and every reuse stamps
-// `lastUsedAt` (the heartbeat), `--stage-sweep` reaps only a stage-rooted band process that no use inside
-// `STAGE_IDLE_TTL_MS` accounts for, and the boot path prunes stage dirs that neither the marker nor the
-// current call owns. The verdicts are pure (lib/stage-plan.ts `stageSweepVerdict`/`markerIsDangling`/
-// `orphanStageDirs`); the sweep NEVER touches a band process it cannot positively identify as a stage,
-// which is what keeps a sibling's live stage safe.
+// invoker would delete it. A WARM stage's liveness is its USE: every boot, every reuse, every session call
+// bound to the band and every attached sibling run stamps `lastUsedAt` (the heartbeat); a row past the
+// owner-ruled TTL (60 min, `ORB_STAGE_TTL_MIN` — F5) is reaped by the next allocation that needs a band or
+// by `--stage-sweep`; and the boot path prunes stage dirs that no row and no current call owns. A row with
+// a LIVE session ref is never a strand, whatever its idle age. The verdicts are pure (lib/stage-bands.ts
+// `stageSweepVerdict`/`rowIsDangling`, lib/stage-plan.ts `orphanStageDirs`); the sweep NEVER touches a band
+// process it cannot positively identify as a stage, which is what keeps a sibling's live stage safe.
 
 import { randomBytes } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { execNicedSync, runNicedSync, spawnFullPrioritySync } from "../../_shared/proc.ts";
-import type { ActiveStage, EnsureStageOpts, StagePaths, StagePorts } from "../contract/stage.ts";
+import { stageBandPorts } from "../../_shared/ports.ts";
+import { runNicedSync, spawnFullPrioritySync } from "../../_shared/proc.ts";
+import type { EnsureStageOpts, StagePaths, StagePorts, StageRow } from "../contract/stage.ts";
 import {
-  bandAccess,
   DIRTY_STAGE_KEY,
-  foreignStageRefusal,
-  ISOLATION_TRIPWIRE,
   missingLauncherRefusal,
   orphanStageDirs,
   STAGE_ROOT_REL,
   shortSha,
-  stageBaseUrl,
   stageDecision,
   stageInheritedEnv,
   stageLauncherPath,
   stagePaths,
-  stagePorts,
+  stageRowBaseUrl,
 } from "../lib/stage-plan.ts";
-import { addWorktree, removeWorktree, repoRoot, resolveRef, worktreeExists } from "./stage-git.ts";
-import { clearActive, markerRoot, readActive, touchActive, writeActive } from "./stage-marker.ts";
-import { bandIsBound, killProcessGroup, pidIsStageRooted, stageBandPortPid, stageDirs } from "./stage-probe.ts";
+import { acquireStageBand, stageRowHealth } from "./stage-census.ts";
+import { repoRoot, resolveRef } from "./stage-git.ts";
+import { clearRow, markerRoot, readBands, touchRow, writeRow } from "./stage-marker.ts";
+import { killProcessGroup, pidIsStageRooted, stageBandPortPid, stageDirs } from "./stage-probe.ts";
+import { assertStageSourceSupportsIsolation, pnpmInstall, prepareStageSource, removeStageDir, seedStageData, syncDirtyTree } from "./stage-source.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const DEBUG_TOKEN_BYTES = 16;
-
-// ── health / version primitives ────────────────────────────────────────────────────────────────────────
-// (the git/worktree primitives are ops/stage-git.ts — same by-nature split as the marker and probe modules)
-
-function curlOk(url: string): boolean {
-  return runNicedSync("curl", ["-sf", "-m", "2", url], { stdio: "ignore" }).status === 0;
-}
-
-/** Both halves must answer: the server (healthz) AND vite (the origin snap navigates to). */
-function stageHealthy(ports: StagePorts): boolean {
-  return curlOk(`http://127.0.0.1:${ports.server}/healthz`) && curlOk(`${stageBaseUrl(ports.vite)}/`);
-}
-
-/** Reject a ref whose vite.config predates the VITE_API_TARGET hook — read straight from git, BEFORE any
- *  worktree/install work, so a bad ref costs nothing and never boots a stage that proxies to the dev server. */
-function assertRefSupportsIsolation(root: string, sha: string): void {
-  const res = runNicedSync("git", ["show", `${sha}:packages/client/vite.config.ts`], { cwd: root });
-  if (res.status !== 0 || !res.stdout.includes(ISOLATION_TRIPWIRE)) {
-    throw new Error(
-      `stage ref ${shortSha(sha)} predates snap --isolated support — its packages/client/vite.config.ts lacks ` +
-        `the ${ISOLATION_TRIPWIRE} env hook, so vite would proxy /api to the DEV server (isolation broken). ` +
-        "Use a ref at or after the commit that added isolated serving.",
-    );
-  }
-}
-
-/** Reject a dirty stage when the WORKING TREE's vite.config predates the VITE_API_TARGET hook — read the
- *  file straight off disk (no git — that's the whole point of `--dirty`), mirroring
- *  `assertRefSupportsIsolation`'s ref-side check. */
-function assertDirtyTreeSupportsIsolation(root: string): void {
-  const p = join(root, "packages", "client", "vite.config.ts");
-  const content = existsSync(p) ? readFileSync(p, "utf8") : "";
-  if (!content.includes(ISOLATION_TRIPWIRE)) {
-    throw new Error(
-      `the working tree's packages/client/vite.config.ts lacks the ${ISOLATION_TRIPWIRE} env hook, so vite ` +
-        "would proxy /api to the DEV server (isolation broken). Update to a tree at or after the commit that " +
-        "added isolated serving.",
-    );
-  }
-}
-
-/** rsync the CURRENT working tree (tracked + modified + untracked, `.gitignore`-filtered) into the dirty
- *  stage dir. The file LIST comes from `git ls-files` (not a naive rsync `.gitignore` filter merge — git's
- *  `!re-include` negation lines, e.g. the memory/build re-includes on an otherwise-ignored `build/`, are NOT
- *  rsync filter syntax and get silently mis-parsed as excludes, which dropped real tracked source the first
- *  time this ran). `--delete-missing-args` removes a stage file whose source entry was deleted from the
- *  tree (a plain rename/delete); the stage's OWN gitignored node_modules/db/assets are never in the list, so
- *  they're never candidates for deletion either. Idempotent + cheap: safe to call on every `--dirty` call. */
-function syncDirtyTree(root: string, dir: string): void {
-  mkdirSync(dir, { recursive: true });
-  const manifest = execNicedSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { cwd: root });
-  const manifestPath = join(dir, ".rsync-manifest.txt");
-  writeFileSync(manifestPath, manifest);
-  const res = runNicedSync("rsync", ["-a", "--delete-missing-args", "--files-from", manifestPath, `${root}/`, `${dir}/`], { stdio: "inherit" });
-  if (res.status !== 0) {
-    throw new Error(`rsync of the working tree into dirty stage ${dir} failed`);
-  }
-}
-
-function pnpmInstall(dir: string): void {
-  const res = runNicedSync("pnpm", ["install", "--frozen-lockfile", "--prefer-offline"], { cwd: dir, stdio: "inherit" });
-  if (res.status !== 0) {
-    throw new Error(`pnpm install failed in stage worktree ${dir}`);
-  }
-}
-
-/** Give the stage its OWN db (best-effort copy of the dev db so real data renders — isolated) + assets
- *  (symlink to the content-addressed dev blob dir; a visual pass only reads). Idempotent: skips whatever
- *  already exists so a plain reboot keeps the stage's state. */
-function seedStageData(root: string, paths: StagePaths): void {
-  mkdirSync(paths.dir, { recursive: true });
-  const devDb = join(root, "data", "orbweaver.db");
-  const stageDb = join(paths.dir, "orbweaver.db");
-  if (existsSync(devDb) && !existsSync(stageDb)) {
-    // Copy the WAL/SHM sidecars too for a consistent-enough snapshot of in-flight writes.
-    for (const suffix of ["", "-wal", "-shm"]) {
-      if (existsSync(devDb + suffix)) {
-        cpSync(devDb + suffix, stageDb + suffix);
-      }
-    }
-  }
-  const devAssets = join(root, "data", "assets");
-  if (existsSync(devAssets) && !existsSync(paths.assetsDir)) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): documented degraded-but-non-fatal floor — the stage renders without avatars/cards rather than aborting the stage build, per the trailing comment. Ends if a caller starts requiring assetsDir to exist.
-    try {
-      symlinkSync(devAssets, paths.assetsDir, "dir");
-    } catch {
-      // No symlink (e.g. permissions) ⇒ the stage renders without avatars/cards rather than aborting.
-    }
-  }
-}
 
 /** Stop a stage's stack, and MEAN IT. Two beats, because the first one is not guaranteed to happen:
  *
@@ -182,14 +99,13 @@ function seedStageData(root: string, paths: StagePaths): void {
  *
  *  The group kill is fenced exactly like the sweep's: a band port held by something that is NOT
  *  stage-rooted is somebody else's server and is never touched. */
-export function stopStage(dir: string): void {
+export function stopStage(dir: string, ports: StagePorts): void {
   const stackSh = existsSync(dir) ? stageLauncherPath(dir, existsSync) : null;
   if (stackSh !== null) {
     runNicedSync("bash", [stackSh, "stop"], { cwd: dir, stdio: "inherit" });
   } else if (existsSync(dir)) {
     print(`[snap-stage] no launcher to stop ${dir} with — falling back to the band's process group. ${missingLauncherRefusal(dir)}`);
   }
-  const ports = stagePorts();
   for (const port of [ports.server, ports.vite]) {
     const pid = stageBandPortPid(port);
     if (pid !== null && pidIsStageRooted(pid) && killProcessGroup(pid)) {
@@ -259,148 +175,179 @@ function bootStage(root: string, paths: StagePaths, ports: StagePorts): void {
 
 // ── Orchestration ──────────────────────────────────────────────────────────────────────────────────────
 
-/** Remove a stage dir by its kind: a real ref is a `git worktree` (needs `git worktree remove`); the
- *  `--dirty` stage is a plain rsync'd directory (a bare `rmSync` suffices — no git bookkeeping to free). */
-export function removeStageDir(root: string, stage: Pick<ActiveStage, "sha" | "dir">): void {
-  if (stage.sha === DIRTY_STAGE_KEY) {
-    rmSync(stage.dir, { recursive: true, force: true });
-  } else {
-    removeWorktree(root, stage.dir);
-  }
+/** The PROVISIONAL row written inside the allocation lock, before the 55 s boot: it claims the band by
+ *  name so a sibling entering the lock a millisecond later sees it occupied and takes the next one. The
+ *  boot rewrites it with the real pid and the db provenance; a boot that throws clears it. */
+function claimRow(claim: {
+  readonly band: number;
+  readonly checkout: string;
+  readonly targetSha: string;
+  readonly dir: string;
+  readonly nowIso: string;
+}): StageRow {
+  const { band, targetSha, dir, nowIso } = claim;
+  const ports = stageBandPorts(band);
+  return {
+    band,
+    sha: targetSha,
+    dir,
+    serverPort: ports.server,
+    vitePort: ports.vite,
+    checkout: claim.checkout,
+    ownerPid: null,
+    startedAt: nowIso,
+    lastUsedAt: nowIso,
+    sessions: [],
+    dbProvenance: null,
+    rsyncs: 0,
+  };
 }
 
-/** Reject an unsupported ref/tree before spending any sync/install/boot work. */
-function assertStageSourceSupportsIsolation(root: string, dirty: boolean, targetSha: string): void {
-  if (dirty) {
-    assertDirtyTreeSupportsIsolation(root);
-  } else {
-    assertRefSupportsIsolation(root, targetSha);
-  }
-}
-
-/** Free the fixed offset ports: tear down a DIFFERENT active stage, or a --fresh rebuild of the same one.
- *  `active` here is always OUR OWN stage — a foreign one is refused or reclaimed before this runs (#108). */
-function teardownIfStale(homes: { readonly root: string; readonly markerHome: string }, active: ActiveStage | null, targetSha: string, fresh: boolean): void {
-  if (active !== null && (active.sha !== targetSha || fresh)) {
-    print(`[snap-stage] tearing down stale stage ${active.shortSha}`);
-    stopStage(active.dir);
-    removeStageDir(homes.root, active);
-    clearActive(homes.markerHome);
-  }
-}
-
-/** Populate the stage dir's SOURCE (rsync for `--dirty`, `git worktree add` for a real ref) — the caller
- *  has already handled staleness teardown. */
-function prepareStageSource(root: string, paths: StagePaths, opts: { readonly targetSha: string; readonly dirty: boolean; readonly fresh: boolean }): void {
-  if (opts.dirty) {
-    if (opts.fresh) {
-      rmSync(paths.dir, { recursive: true, force: true });
-    }
-    print(`[snap-stage] syncing working tree → ${paths.dir}`);
-    syncDirtyTree(root, paths.dir);
-    return;
-  }
-  if (opts.fresh && worktreeExists(paths.dir)) {
-    removeWorktree(root, paths.dir);
-  }
-  if (!worktreeExists(paths.dir)) {
-    print(`[snap-stage] creating detached worktree ${shortSha(opts.targetSha)} → ${paths.dir}`);
-    addWorktree(root, paths.dir, opts.targetSha);
-  }
+/** Tear a stage down and forget it — the shape every rebuild/reap path shares. Ports come from the ROW,
+ *  because the stage being removed may sit on a different band than the one we are about to boot on. */
+function dropStage(root: string, home: string, row: StageRow): void {
+  stopStage(row.dir, { server: row.serverPort, vite: row.vitePort });
+  removeStageDir(root, row);
+  clearRow(home, row.band);
 }
 
 /** Reuse a healthy warm stage as-is, EXCEPT a dirty one still re-syncs the working tree first (cheap,
- *  idempotent — the point of `--dirty` being refreshable); its own node --watch picks up the diff. */
-function reuseWarmStage(root: string, active: ActiveStage, dirty: boolean): ActiveStage {
+ *  idempotent — the point of `--dirty` being refreshable); its own node --watch picks up the diff. The
+ *  rsync COUNT rides the row, because it is one half of the ERA rule (lib/stage-bands.ts). */
+function reuseWarmStage(homes: { readonly root: string; readonly home: string }, row: StageRow, dirty: boolean, nowIso: string): StageRow {
+  const { root, home } = homes;
   if (dirty) {
-    print(`[snap-stage] re-syncing working tree → warm dirty stage ${active.dir}`);
-    syncDirtyTree(root, active.dir);
-  } else {
-    print(`[snap-stage] reusing warm stage ${active.shortSha} → ${active.baseUrl}`);
+    print(`[snap-stage] re-syncing working tree → warm dirty stage ${row.dir} (band ${row.band})`);
+    syncDirtyTree(root, row.dir);
+    const resynced: StageRow = { ...row, rsyncs: row.rsyncs + 1, lastUsedAt: nowIso };
+    writeRow(home, resynced);
+    return resynced;
   }
-  return active;
+  print(`[snap-stage] reusing warm stage ${shortSha(row.sha)} on band ${row.band} → ${stageRowBaseUrl(row)}`);
+  touchRow(home, row.band, nowIso);
+  return { ...row, lastUsedAt: nowIso };
 }
 
-/** Boot-or-reuse the isolated stage and return the active handle (its base URL is where snap navigates).
- *  `--dirty` stages the WORKING TREE (keyed by the fixed `DIRTY_STAGE_KEY`, never a real sha) instead of a
- *  git ref — see the module header. */
-export function ensureStage(opts: EnsureStageOpts): ActiveStage {
-  const root = repoRoot();
-  const dirty = opts.dirty ?? false;
-  const targetSha = dirty ? DIRTY_STAGE_KEY : resolveRef(root, opts.ref ?? "HEAD");
-  const ports = stagePorts();
+/** Build the stage on the band the allocator gave us, and write the row that says so. Everything here runs
+ *  OUTSIDE the table lock — the band is already claimed, so a 55 s boot blocks nobody's allocation. */
+function bootOntoBand(input: {
+  readonly root: string;
+  readonly home: string;
+  readonly band: number;
+  readonly targetSha: string;
+  readonly dirty: boolean;
+  readonly fresh: boolean;
+}): StageRow {
+  const { root, home, band, targetSha, dirty } = input;
   const paths = stagePaths(root, targetSha);
-  const markerHome = markerRoot(root);
-  const active = readActive(markerHome);
-  const healthy = active !== null && active.sha === targetSha && stageHealthy(ports);
-
-  // ISSUE #108: the marker is shared, so it can name ANOTHER checkout. Decide that before anything else —
-  // the old code tore down whatever the marker named, which is how a lane silently killed a sibling's stage.
-  const access = bandAccess({ active, checkout: root, targetSha, dirty, fresh: opts.fresh, bandBound: bandIsBound(ports), healthy });
-  if (active !== null && access === "refuse") {
-    throw new Error(foreignStageRefusal(active, stageBandPortPid(ports.server), Date.now()));
-  }
-  if (active !== null && access === "shared-reuse") {
-    print(`[snap-stage] reusing ${active.checkout}'s warm stage ${active.shortSha} (same commit) → ${active.baseUrl}`);
-    // OUR use keeps THEIR stage alive: the heartbeat measures the band's use, not one checkout's (#324).
-    touchActive(markerHome, new Date().toISOString());
-    return active;
-  }
-  if (active !== null && access === "take-over") {
-    // Their dir lives under THEIR checkout, so `teardownIfStale` (which only judges sha/fresh against OUR
-    // paths) would leave the corpse and the marker behind. Reclaim explicitly, then proceed marker-less.
-    print(`[snap-stage] reclaiming a DEAD stage ${active.shortSha} owned by ${active.checkout} (band unbound)`);
-    stopStage(active.dir);
-    removeStageDir(root, active);
-    clearActive(markerHome);
-  }
-  const ours = access === "ours" ? active : null;
-
-  if (ours !== null && stageDecision({ targetSha, active: ours, fresh: opts.fresh, healthy }) === "reuse") {
-    touchActive(markerHome, new Date().toISOString());
-    return reuseWarmStage(root, ours, dirty);
-  }
-
+  const ports = stageBandPorts(band);
   assertStageSourceSupportsIsolation(root, dirty, targetSha);
-  teardownIfStale({ root, markerHome }, ours, targetSha, opts.fresh);
   // After the staleness teardown and BEFORE this call's dir is created: whatever is still on disk that
-  // neither the marker nor this call accounts for is a crashed run's residue (#324).
-  const surviving = readActive(markerHome);
-  pruneOrphanStageDirs(root, { markerDir: surviving === null ? null : surviving.dir, targetDir: paths.dir });
-  prepareStageSource(root, paths, { targetSha, dirty, fresh: opts.fresh });
+  // no row and no current call accounts for is a crashed run's residue (#324).
+  pruneOrphanStageDirs(root, { rowDirs: readBands(home).map((row) => row.dir), targetDir: paths.dir });
+  prepareStageSource(root, paths, { targetSha, dirty, fresh: input.fresh });
 
   if (!existsSync(join(paths.dir, "node_modules"))) {
     print(`[snap-stage] pnpm install (shared store) in ${paths.dir}`);
     pnpmInstall(paths.dir);
   }
-  seedStageData(root, paths);
+  const dbProvenance = seedStageData(root, paths);
 
-  print(`[snap-stage] booting isolated stack — server:${ports.server} vite:${ports.vite}`);
-  bootStage(root, paths, ports);
-
-  const built: ActiveStage = {
+  print(`[snap-stage] booting isolated stack on band ${band} — server:${ports.server} vite:${ports.vite}`);
+  try {
+    bootStage(root, paths, ports);
+  } catch (e) {
+    // The claim outlives nothing: a band whose boot failed must be free for the next caller, or one bad
+    // ref would burn a band until somebody swept it.
+    clearRow(home, band);
+    throw e;
+  }
+  const nowIso = new Date().toISOString();
+  const built: StageRow = {
+    band,
     sha: targetSha,
-    shortSha: shortSha(targetSha),
     dir: paths.dir,
     serverPort: ports.server,
     vitePort: ports.vite,
-    baseUrl: stageBaseUrl(ports.vite),
     checkout: root,
     ownerPid: stageBandPortPid(ports.server),
-    startedAt: new Date().toISOString(),
-    // Born used: a stage booted this instant is the freshest possible, and the sweep reads THIS field.
-    lastUsedAt: new Date().toISOString(),
+    startedAt: nowIso,
+    // Born used: a stage booted this instant is the freshest possible, and the reaper reads THIS field.
+    lastUsedAt: nowIso,
+    sessions: [],
+    dbProvenance,
+    rsyncs: dirty ? 1 : 0,
   };
-  writeActive(markerHome, built);
-  print(`[snap-stage] stage ready → ${built.baseUrl}`);
+  writeRow(home, built);
+  print(`[snap-stage] stage ready → ${stageRowBaseUrl(built)}`);
   return built;
 }
 
-/** Sweep stage dirs on THIS checkout that no live stage accounts for (#324): a crashed run leaves a bare
+/** Boot-or-reuse an isolated stage ON THIS LANE'S OWN BAND and return its row (its base URL is where snap
+ *  navigates). `--dirty` stages the WORKING TREE (keyed by the fixed `DIRTY_STAGE_KEY`, never a real sha)
+ *  instead of a git ref — see the module header. */
+export function ensureStage(opts: EnsureStageOpts): StageRow {
+  const root = repoRoot();
+  const dirty = opts.dirty ?? false;
+  const targetSha = dirty ? DIRTY_STAGE_KEY : resolveRef(root, opts.ref ?? "HEAD");
+  const home = markerRoot(root);
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const dir = stagePaths(root, targetSha).dir;
+
+  const { allocation } = acquireStageBand({
+    home,
+    root,
+    checkout: root,
+    targetSha,
+    dirty,
+    fresh: opts.fresh,
+    nowMs,
+    claim: (band) => claimRow({ band, checkout: root, targetSha, dir, nowIso }),
+  });
+
+  if (allocation.kind === "exhausted") {
+    // Exit-2 class: nothing was measured, and the text names every row with its idle age so the operator
+    // can see which lane holds what (§3.6). ops/guards.ts turns the throw into the printed STAGE ERROR.
+    throw new Error(allocation.refusal);
+  }
+  if (allocation.kind === "shared-reuse") {
+    print(
+      `[snap-stage] reusing ${allocation.row.checkout}'s warm stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (same commit) → ${stageRowBaseUrl(allocation.row)}`,
+    );
+    // OUR use keeps THEIR stage alive: the heartbeat measures the band's use, not one checkout's (#324).
+    touchRow(home, allocation.band, nowIso);
+    return { ...allocation.row, lastUsedAt: nowIso };
+  }
+  if (allocation.kind === "ours") {
+    const healthy = stageRowHealth(allocation.row, nowMs) === "warm";
+    if (stageDecision({ targetSha, row: allocation.row, fresh: opts.fresh, healthy }) === "reuse") {
+      return reuseWarmStage({ root, home }, allocation.row, dirty, nowIso);
+    }
+    print(`[snap-stage] rebuilding our stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (${opts.fresh ? "--fresh" : "unhealthy or stale"})`);
+    dropStage(root, home, allocation.row);
+    writeRow(home, claimRow({ band: allocation.band, checkout: root, targetSha, dir, nowIso }));
+    return bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh });
+  }
+  if (allocation.kind === "reap") {
+    // LAZY REAP-ON-ACQUIRE (#1163 arm a): the band was already claimed for us inside the lock, so this
+    // tears down the corpse that was on it. `git worktree remove` is repo-wide, so a sibling checkout's
+    // stranded worktree is removable from here (#108) — and it is a strand by the sweep's own rule: past
+    // the TTL, no live session, stage-rooted.
+    print(
+      `[snap-stage] reaping the stranded stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (owner ${allocation.row.checkout}, last used ${allocation.row.lastUsedAt})`,
+    );
+    stopStage(allocation.row.dir, { server: allocation.row.serverPort, vite: allocation.row.vitePort });
+    removeStageDir(allocation.row.checkout, allocation.row);
+  }
+  return bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh });
+}
+
+/** Sweep stage dirs on THIS checkout that no row accounts for (#324): a crashed run leaves a bare
  *  worktree dir behind, and `.cache/snap-stage/` accumulated them silently. Cheap, and it runs on the
- *  boot path rather than waiting for an operator to notice — the marker's dir and the dir this call is
+ *  boot path rather than waiting for an operator to notice — every row's dir and the dir this call is
  *  about to use are always spared, and dirs are per-checkout so a sibling's stage is out of reach. */
-function pruneOrphanStageDirs(root: string, keep: { readonly markerDir: string | null; readonly targetDir: string | null }): void {
+function pruneOrphanStageDirs(root: string, keep: { readonly rowDirs: readonly string[]; readonly targetDir: string | null }): void {
   const orphans = orphanStageDirs(stageDirs(root), keep);
   if (orphans.length === 0) {
     return;

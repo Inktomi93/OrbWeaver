@@ -9,13 +9,18 @@ export type { OverflowEscape, OverflowProbe, OverflowSide } from "./contract/ove
 export type { RequestBodyOutcome, RequestLogEntry, RequestLogReceipt } from "./contract/request-log.ts";
 export type { SnapDetailedResult, SnapRunReceipt } from "./contract/run.ts";
 export type {
-  ActiveStage,
   BandAccess,
   EnsureStageOpts,
+  StageAllocation,
   StageBandClaim,
+  StageBandView,
   StageDecision,
+  StageHealth,
+  StageHealthEvidence,
+  StageLimits,
   StagePaths,
   StagePorts,
+  StageRow,
   StageSweepEvidence,
   StageSweepVerdict,
 } from "./contract/stage.ts";
@@ -41,7 +46,10 @@ export { variantOut } from "./lib/out-names.ts";
 export { overflowAssertionLine } from "./lib/overflow-line.ts";
 export { capBody, filterRequests, matchesRequestFilter, REQUEST_BODY_CAP_BYTES, requestLogLines } from "./lib/request-log.ts";
 export { SELECTOR_VALUE_FLAGS, selectorRefusalForFlag, unmatchableSelectorRefusal } from "./lib/selector-shape.ts";
-export { stageBandClaim, stageBandRefusal, urlTargetsStageBand } from "./lib/stage-plan.ts";
+export { allocateStageBand, resolveStageLimits, stageHealthVerdict, stageSweepVerdict } from "./lib/stage-bands.ts";
+// `shortSha`/`stageRowBaseUrl` are the row's DERIVED fields (#1276 stopped storing them — a serialized copy
+// of a derived value is a second home that drifts), so every consumer derives them through this door.
+export { shortSha, stageBandClaim, stageBandRefusal, stageRowBaseUrl, urlTargetsStageBand } from "./lib/stage-plan.ts";
 export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile, throttleResultValue } from "./lib/throttle.ts";
 // The mode surface — the cli's dispatch targets, exported so a caller can drive snap programmatically
 // (and so cli.ts enters through THIS door, per the front-door gate).
@@ -72,7 +80,8 @@ export { runSessionDaemon } from "./ops/session-daemon.ts";
 // front door — the stage set stays one home in snap/ (docs/architecture/core/Core-Tooling-Law.md §2.4 + §4.2).
 export { ensureStage } from "./ops/stage.ts";
 export { tryResolveRef } from "./ops/stage-git.ts";
-// #1186: the band-ownership door — perf-meter/motion-audit ask it before they trust a `--base`.
-export { stageBandRefusalFor } from "./ops/stage-marker.ts";
+// #1186: the band-ownership door — perf-meter/motion-audit ask it before they trust a `--base`. The table
+// readers ride beside it: a proof plants rows in a scratch home rather than the box's real band table.
+export { readBands, stageBandRefusalFor, withBandsLock, writeBands } from "./ops/stage-marker.ts";
 export { awaitThemeStamp, themeStampExit, themeStampExpectation, themeStampGap } from "./ops/theme-stamp.ts";
 export { hasSnapFailure } from "./ops/verdict.ts";

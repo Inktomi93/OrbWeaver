@@ -1,8 +1,9 @@
 // WHAT IS RUNNING, AND WHOSE IS IT — the observation half of the isolated stage, split out of ops/stage.ts
 // when that file crossed the tooling line cap (docs/architecture/core/Core-Tooling-Law.md §4.3). One command family:
-// read the band's port owners, decide whether a bound port belongs to a STAGE, age a process, kill a
-// process group, and list the stage dirs on disk. Nothing here boots, tears down or judges — ops/stage.ts
-// orchestrates and lib/stage-plan.ts rules; these are the raw signals both of them read.
+// read the band ports' owners (ONE `ss` for the whole table), decide whether a bound port belongs to a
+// STAGE, age a process, kill a process group, take the THREE health probes of design §3.6, and list the
+// stage dirs on disk. Nothing here boots, tears down or judges — ops/stage.ts orchestrates and
+// lib/stage-plan.ts + lib/stage-bands.ts rule; these are the raw signals all of them read.
 //
 // Every negative here is "I could not measure", never "it is not there": `ss`/`ps`/`readlink` failing to
 // answer returns null or false, and the callers are written to treat that as unknown rather than as
@@ -10,37 +11,48 @@
 // identify (the #310 liveness-gate lesson).
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { budget } from "../../_shared/load-budget.ts";
 import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
 import type { StagePorts } from "../contract/stage.ts";
-import { STAGE_ROOT_REL } from "../lib/stage-plan.ts";
+import { STAGE_ROOT_REL, stageBaseUrl } from "../lib/stage-plan.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const SS_PID_RE = /pid=(\d+)/u;
+const SS_PORT_RE = /:(\d+)\s/u;
 
-/** The pid bound to a stage-band port (via `ss -tlnp`), or null — the marker-less teardown's index. */
-export function stageBandPortPid(port: number): number | null {
+/** ONE `ss -tlnp`, parsed into port → pid. Ten bands × two ports used to mean twenty `ss` invocations per
+ *  allocation (`bandIsBound` alone forked twice per band); the table asks the box ONE question and every
+ *  band verdict is read off the same snapshot, so the census can never disagree with itself mid-read. */
+export function listeningPids(): ReadonlyMap<number, number> {
+  const bound = new Map<number, number>();
   const out = runNicedSync("ss", ["-tlnp"]);
   if (out.status !== 0) {
-    return null;
+    return bound;
   }
   for (const line of out.stdout.split("\n")) {
-    if (line.includes(`:${port} `)) {
-      const m = SS_PID_RE.exec(line);
-      if (m !== null) {
-        return Number(m[1]);
-      }
+    const port = SS_PORT_RE.exec(line);
+    const pid = SS_PID_RE.exec(line);
+    if (port !== null && pid !== null) {
+      bound.set(Number(port[1]), Number(pid[1]));
     }
   }
-  return null;
+  return bound;
 }
 
-/** Is EITHER half of the fixed band bound right now? The liveness half of the #108 ownership question —
- *  a foreign marker over an unbound band is a corpse to reclaim, over a bound one it is a live sibling.
+/** The pid bound to a stage-band port, or null — the row-less teardown's index. `bound` is injectable so a
+ *  caller judging the whole table reads ONE snapshot rather than re-forking `ss` per band. */
+export function stageBandPortPid(port: number, bound: ReadonlyMap<number, number> = listeningPids()): number | null {
+  return bound.get(port) ?? null;
+}
+
+/** Is EITHER half of a band bound right now? The liveness half of the #108 ownership question —
+ *  a foreign row over an unbound band is a corpse to reclaim, over a bound one it is a live sibling.
  *  The #324 sweep asks the same question before judging anything. */
-export function bandIsBound(ports: StagePorts): boolean {
-  return stageBandPortPid(ports.server) !== null || stageBandPortPid(ports.vite) !== null;
+export function bandIsBound(ports: StagePorts, bound: ReadonlyMap<number, number> = listeningPids()): boolean {
+  return stageBandPortPid(ports.server, bound) !== null || stageBandPortPid(ports.vite, bound) !== null;
 }
 
 /** Is the process holding a band port actually a SNAP STAGE? The sweep's one hard fence (#324): a stage
@@ -79,7 +91,64 @@ export function killProcessGroup(pid: number): boolean {
   return true;
 }
 
-/** Stage worktree/dir names present under `.cache/snap-stage/` (excludes active.json). Stage dirs are
+// ── the three health probes (design §3.6) ─────────────────────────────────────────────────────────────
+
+const CURL_TIMEOUT_S = "2";
+/** The served-probe child's ceiling. It fetches up to five modules from the stage's own vite, each with its
+ *  own 3 s budget inside the child, so this is the child's whole life — a wedged probe must not hold a snap
+ *  call open. Load-scaled through the one policy (#1232): the literal is the QUIET-BOX base. */
+const SERVED_PROBE_BASE_MS = 20_000;
+
+function curlOk(url: string): boolean {
+  return runNicedSync("curl", ["-sf", "-m", CURL_TIMEOUT_S, url], { stdio: "ignore" }).status === 0;
+}
+
+/** Probe 1 of 3: does the stage's SERVER answer /healthz? */
+export function stageHealthzOk(serverPort: number): boolean {
+  return curlOk(`http://127.0.0.1:${serverPort}/healthz`);
+}
+
+/** Probe 2 of 3: does the stage's VITE answer at the origin snap navigates to? */
+export function stageViteOk(vitePort: number): boolean {
+  return curlOk(`${stageBaseUrl(vitePort)}/`);
+}
+
+/** Probe 3 of 3: is that vite serving the code that is ON DISK, or a transform from before its watcher died?
+ *
+ *  THE VERB ALREADY EXISTS and is not re-spelled here: `tooling/src/stack/ops/served-probe.ts`, reached
+ *  through `prod-entry.ts served-probe` exactly as `stack.sh`'s `served_probe()` reaches it (`stack.sh:441`).
+ *  We run the STAGE'S OWN COPY of it, from the stage dir, with the stage's `VITE_PORT` — so the comparison is
+ *  that tree's disk source against that tree's vite, never ours against theirs.
+ *
+ *  A child, not an import, for one reason: the whole stage path is SYNCHRONOUS (spawnSync boots, `ss`
+ *  probes, JSON writes) and `probeServedTransform` is async. The bash front door already spawns it; this is
+ *  the same door from node.
+ *
+ *  Exit codes are the stack tool's contract: 0 fresh · 1 stale · 2 could-not-measure. A ref whose tree
+ *  predates the probe entry has nothing to run, which is `unverifiable` — an honest "I could not measure",
+ *  which `stageHealthVerdict` then reads by source kind. */
+export function stageServedState(stageDir: string, vitePort: number): "fresh" | "stale" | "unreachable" | "unverifiable" {
+  const entry = join(stageDir, "tooling", "src", "stack", "ops", "prod-entry.ts");
+  if (!existsSync(entry)) {
+    return "unverifiable";
+  }
+  const env: NodeJS.ProcessEnv = {
+    // biome-ignore lint/style/noProcessEnv: spawnSync's `env` REPLACES the child's environment, so the ambient PATH (which `nice` and `node` are found through) has to come across — harness plumbing, not app config. Only VITE_PORT is added, and it is what points the probe at the STAGE's vite instead of the dev one.
+    ...process.env,
+    VITE_PORT: String(vitePort),
+  };
+  const res = runNicedSync("node", [entry, "served-probe"], { cwd: stageDir, env, timeout: budget(SERVED_PROBE_BASE_MS) });
+  const state = SERVED_STATE_RE.exec(res.stdout);
+  if (state === null) {
+    return "unverifiable";
+  }
+  const named = state[1];
+  return named === "fresh" || named === "stale" || named === "unreachable" ? named : "unverifiable";
+}
+
+const SERVED_STATE_RE = /^SERVED state=([a-z-]+)/mu;
+
+/** Stage worktree/dir names present under `.cache/snap-stage/` (excludes the band table). Stage dirs are
  *  per-checkout by design — each is a worktree of its own checkout — so this can only ever see ours. */
 export function stageDirs(root: string): string[] {
   const dir = join(root, STAGE_ROOT_REL);
