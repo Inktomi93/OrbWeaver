@@ -65,8 +65,8 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "c42e40cd23fc64649f27bfd0db7b57082ee1f9f67ebcfa7ca61db2e49f5a0bfd",
-      "verifiedCommit": "dc33801d79759bb0fdf8fab3d0f7c01bc5093c1f",
+      "verifiedSha256": "351b6fbb934777fe3f7516ef53aa0518a46082069527a0c45cd2561e4a9ed9cf",
+      "verifiedCommit": "e3ba5275ac147cd5d887be0ba68f0bfb3917f0ae",
       "verifiedAt": "2026-09-03",
       "claims": [
         {
