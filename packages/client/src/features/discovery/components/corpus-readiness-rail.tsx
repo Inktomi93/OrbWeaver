@@ -33,6 +33,7 @@
 import { Button } from "@orb/ui/button";
 import { Check, Circle, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import { RECEDED_INK } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { openConfigTo } from "#state";
@@ -174,7 +175,12 @@ function CorpusReadinessRerun(): ReactElement {
           </Text>
         </Stack>
       )}
-      <Button data-slot="readiness-jobs-door" intent="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm">
+      {/* THE JOBS DOOR RECEDES BEHIND THE ONE PRIMARY (#1256, 2026-09-02 — the #1141/#1244/#1249 fork,
+          seventh instance). It renders beside `Run the passes again` — the column's one warm/filled
+          control per this file's own "ONE primary" ruling above — and #969 flipped `ghost` to
+          `text-current`, so it now paints at the same weight as that primary. The primitive keeps
+          inheriting; this composite states its own ink. */}
+      <Button className={RECEDED_INK} data-slot="readiness-jobs-door" intent="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm">
         All jobs in Settings → Jobs
       </Button>
     </Stack>

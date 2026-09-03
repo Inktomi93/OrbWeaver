@@ -23,6 +23,7 @@
 import type { RefineryStage } from "@orb/contracts/refinery";
 import { Button } from "@orb/ui/button";
 import { Container, Row, Stack } from "@orb/ui/layout";
+import { RECEDED_INK } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { testId } from "#lib";
@@ -161,7 +162,19 @@ export function LaneRunControl({
       <Row align="center" className="flex-wrap" gap="field">
         {stagePre === undefined ? null : <FitLine contextTokens={contextTokens} stagePre={stagePre} warn={warn.message !== null} />}
         <Row className="flex-1 justify-end" gap="field">
-          <Button aria-busy={running} disabled={busy || blocked !== null} intent={focal ? "primary" : "secondary"} onClick={onRun} size="sm">
+          {/* THE NON-FOCAL LANES RECEDE (#1256, 2026-09-02 — the #1141/#1244/#1249 fork, fourth instance).
+              242bfaecb (#969) flipped `secondary` to `text-current`, so a non-focal lane's Run button now
+              paints at the SAME ink as the one filled `primary` lane beside it on the canvas — the header's
+              own "Every other lane's stays `secondary`" ruling lost its rest ink. The primitive keeps
+              inheriting; this composite states its own, through {@link RECEDED_INK}. */}
+          <Button
+            aria-busy={running}
+            disabled={busy || blocked !== null}
+            intent={focal ? "primary" : "secondary"}
+            onClick={onRun}
+            size="sm"
+            {...(focal ? {} : { className: RECEDED_INK })}
+          >
             {hasRun ? `Re-run ${stage}` : `Run ${stage}`}
           </Button>
         </Row>
