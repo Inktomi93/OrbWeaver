@@ -88,7 +88,11 @@ function TrackerRow({
   const lockLabel = def.locked ? `Let the story write ${def.label} again` : `Lock ${def.label} — the story can no longer write it`;
   const removeLabel = `Remove ${def.label}`;
   return (
-    <Stack gap="field" className={DEF_ROW_CLASS} data-slot="rpg-tracker-row">
+    // rows="control" (#884 C3, #850 fix-forward): floors this card's own three rows (label · badges/write ·
+    // hint) at the pointer-conditional control-sm height, giving the `size="inline"` buttons' touch-target
+    // ::after room inside its own row rather than overflowing onto a neighbour row's text — the parity fix
+    // to RpgStatProfileEditor's `AttributeRow` (same defect, same recipe, same #850 report).
+    <Stack gap="field" rows="control" className={DEF_ROW_CLASS} data-slot="rpg-tracker-row">
       <Row gap="field" align="center">
         {def.shape === "meter" ? <TrackBar value={1} max={1} {...trackColorProps(resolveTrackerColor(def.color, index))} width="swatch" /> : null}
         <TrackerValue
