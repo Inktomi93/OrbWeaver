@@ -256,8 +256,8 @@ dump). **There is no browser MCP — these ARE the browser** (the chrome-devtool
   pair, server :8790 / vite :5175, so it coexists with the shared stack; `down`/`status` manage it).
   A `--contexts N` bigger than the fixture's seeded roster (2 today: owner, member), or the fixture
   down/env-pin-mismatched, REFUSES loudly (`FIXTURE REFUSED …`) with the exact remedy line — never a
-  silent fallback to the shared stack. Full flag doc: `scripts/probes/snap.ts` header; detection/
-  credential logic: `scripts/probes/_kit/fixture.ts`.
+  silent fallback to the shared stack. Full flag doc: `pnpm snap --help` (source: `tooling/src/snap/contract/help.ts`); detection/
+  credential logic: `tooling/src/snap/ops/fixture.ts`.
   **VIEWPORT TOGGLES:** `--mobile` (real iPhone 14 Pro Max emulation — 430×932, DPR 3, touch +
   `pointer: coarse`, so hover-reveals go always-visible and the rail becomes the bottom tab bar) ·
   `--desktop` (the 1280×800 default, explicit) · last of `--mobile`/`--desktop`/`--wide`/`--viewport` wins.
@@ -543,7 +543,7 @@ Three instrument facts the eval must respect on a prod build:
 **Navigation is CLIENT STATE, not URLs.** The router has exactly TWO routes (`/` and `/login` —
 `packages/client/src/routes/router.tsx`); entity ids never enter the address bar. Sections, modals,
 settings panes, context tabs, and the open chat are all shell state — so "go to X" means driving the
-UI (or `snap --goto`/`__orb.nav` if present; check `scripts/probes/snap.ts`'s header). Snapping
+UI (or `snap --goto`/`__orb.nav` if present; check `pnpm snap --help` (generated from `tooling/src/snap/contract/help.ts`)). Snapping
 `/some-path` does NOT navigate anywhere — it renders the home shell under a misleading PNG name.
 
 | What | Where |
@@ -561,7 +561,7 @@ UI (or `snap --goto`/`__orb.nav` if present; check `scripts/probes/snap.ts`'s he
 | The constitution + doc index | `docs/architecture/core/AGENTS.md` |
 | D-ledger (cite the D-number a finding breaks) | `docs/architecture/core/Core-Laws-and-Precedents.md` → `Core-Path-Registry.md` |
 | CTs (component tests) — repo root, NOT packages/\*\* | `tests/client/**` (e2e: `tests/e2e/**`) |
-| Probe tool manuals — **authoritative, read them fresh; this skill does not duplicate flags** | `scripts/probes/snap.ts` header · `scripts/probes/design-audit*.ts` |
+| Probe tool manuals — **authoritative, read them fresh; this skill does not duplicate flags** | `pnpm snap --help` (source: `tooling/src/snap/contract/help.ts`) · `pnpm design-audit --help` |
 | Server truth for any chat surface | `GET :8788/api/_debug/db/chat/:id` · `/api/_debug/db/chats` (LIST) · `/api/_debug/db/characters` (LIST) · `/api/_debug/errors` · `/api/_debug/db/integrity` |
 
 **Seeding + enumeration (stop re-deriving this):** enumerate ids straight from the harness —
