@@ -139,7 +139,7 @@ A FOCUSED review runs the subset its targets implicate, but still prints the tab
 | 2 | `pnpm design-audit <route>` AND `pnpm design-audit <route> --mobile` | the deterministic rules (59 registered at 2026-09-01); the mobile arm is the only honest tap-target read. **Read `population-verdict` on the RESULT line BEFORE the findings — NO-VERDICT (exit 2) means the run could not see, and zero findings there is not clean** (§"Fleet truth" item 2) |
 | 3 | `pnpm motion-audit <route>` | LoAF, CLS, compositor-dirty animations, dropped-frame % |
 | 4 | `pnpm perf-meter <route> --click <primary action>` | input delay, long tasks, rAF gaps on the surface's ONE primary action |
-| 5 | **Lighthouse via `lighthouse_audit` (MCP) — desktop AND mobile, `outputDirPath: reports/lighthouse*/`** | axe-core a11y rules ours don't carry (color-contrast on composed widgets, label-content-name-mismatch), best-practices, agentic-browsing score. These two calls are SANCTIONED MCP use beside the perf trace — they don't count against the ~8 budget. **DEV-SERVER TRAP:** the vite-plugin-checker error-overlay HUD (`VITE-PLUGIN-CHECKER-ERROR-OVERLAY`, `badge-base`/`summary` classes) is part of the page to Lighthouse — before filing any Lighthouse finding, check its node path; an overlay-rooted finding is the DEV TOOL, not the product (a "badge contrast" P-find was entirely that widget) |
+| 5 | **`pnpm snap <route> --lighthouse desktop` AND `pnpm snap <route> --lighthouse mobile`** (report.json + report.html land in the run slot; `--lighthouse-mode navigation` reloads first — the default `snapshot` audits the page as your drive queue left it, which is what you want for client state) | axe-core a11y rules ours don't carry (color-contrast on composed widgets, label-content-name-mismatch), best-practices, SEO. Same browser, same tab, same device as the rest of the run — `--lighthouse mobile` fills the SAME device slot `--mobile` does, so it does not combine with a later `--desktop`/`--viewport`/`--wide` (and not with `--cascade`, which wants the same debugging endpoint). Failed audits RED the run (exit 1) like `--contrast`; a page that never signalled `data-app-ready`, a Lighthouse throw or a truncated report REFUSE with exit 2 — **a refusal is never a finding, and never a clean row.** **DEV-SERVER TRAP:** the vite-plugin-checker error-overlay HUD (`VITE-PLUGIN-CHECKER-ERROR-OVERLAY`, `badge-base`/`summary` classes) is part of the page to Lighthouse — before filing any Lighthouse finding, check its node path; an overlay-rooted finding is the DEV TOOL, not the product (a "badge contrast" P-find was entirely that widget) |
 | 6 | `__orb` suite via `snap --eval`: `.motion()`, `.perf()`, `.renders()`, `.flags()` | shifts, User-Timing, render churn, frame-drop evidence the console already scored |
 | 7 | Console triage TABLE — every warning/error → virtualizer-excluded / known-ruled (cite) / INVESTIGATE | "it's dev mode" is a BANNED disposition (owner ruling) unless truly unavoidable, argued |
 | 8 | The PNGs, actually looked at (Read renders images) | the blunt-taste verdict no number makes |
@@ -155,11 +155,13 @@ inset(50%), 24px clientWidth) is NOT an overflow or tap-target finding — check
 before filing; `--probe` voids every motion/CLS number in its run.
 
 **Tool economy — this matters.** Your three primary instruments are Bash probes that each spin their
-OWN internal headless browser: ONE tool call, no context dump, ZERO MCP usage. Spend ~90% of your
-effort here. Their internal engine is Playwright, but you invoke them via `Bash` — that is NOT the
-Playwright MCP and costs no usage. **Never call the Playwright MCP.** Use the chrome-devtools MCP only
-for the interactive checks the probes can't script (below). The stack must be up — if `pnpm snap /`
-reports a nav error, run `pnpm stack start` first. **All three write only under `reports/` (gitignored)
+OWN internal headless browser: ONE tool call, no context dump, ZERO MCP usage. Their internal engine
+is Playwright, but you invoke them via `Bash` — that is NOT the Playwright MCP and costs no usage.
+**Never call a browser MCP. You do not hold one** (the chrome-devtools MCP was RETIRED 2026-09-02,
+#1255 — every load-bearing use it had is a snap arm now; `docs/design/1195-devtools-mcp-retirement.md`
+is the census). **If you ever find yourself wanting one, that is a GAP IN SNAP: name the gap in your
+report with the receipt for what you could not measure, and stop — do not improvise around it.**
+The stack must be up — if `pnpm snap /` reports a nav error, run `pnpm stack start` first. **All three write only under `reports/` (gitignored)
 — never dump artifacts into the repo root.**
 
 - **`pnpm design-audit <route> [--goto|--open-chat|--open-character|--context-tab|--click …] [--mobile]
@@ -203,8 +205,8 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
   all false). The same triage discipline applies to the impeccable families: `radial-spotlight-glow`
   and `glow-shadow` P3s on an owner-effect-adjacent surface get checked against the sanctioned
   carriers list (skill §11 effect axes) before they're forwarded.
-- **`pnpm snap <route> [flags]`** — the swiss-army probe; ONE call does a lot. **Discover targets and
-  get computed receipts HERE before ever touching chrome-devtools:**
+- **`pnpm snap <route> [flags]`** — the swiss-army probe; ONE call does a lot. **This is where you
+  discover targets and get computed receipts:**
   - `--map [selector]` = the SELECTOR MAP — every interactive element as `role "name" → best selector`.
     Run this FIRST on any surface (`--click X --map '[role=dialog]'` maps a revealed one) to learn how
     to target things. **NEVER grep source for a selector** — map it. Every printed selector is now
@@ -213,11 +215,11 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
     have no stable accessible identity). Rendered-only by default; `--include-hidden` widens.
   - `--contrast <selector>` (repeatable) = the WCAG contrast ratio of that element's text vs its
     effective background (`PASS/FAIL/INDETERMINATE`, oklch-safe). Your contrast receipt; FAILs fold into
-    the exit code. Use this instead of hand-rolling `getComputedStyle` contrast math in chrome-dev.
+    the exit code. Use this instead of hand-rolling `getComputedStyle` contrast math.
   - `--eval '<js>'` (repeatable) = run ANY in-page JS, get the JSON back — including `__orb`
     (`--eval '__orb.renders()'`, `--eval '__orb.snap()'`) and `getComputedStyle`/size/aspect/state. This
-    is how you get a computed value in a Bash call; you should almost never need chrome-devtools for a
-    one-off query. **Footgun: `--eval` AUTO-INVOKES a function literal** — pass a BARE arrow
+    is how you get a computed value in a Bash call — every one-off in-page query is this flag.
+    **Footgun: `--eval` AUTO-INVOKES a function literal** — pass a BARE arrow
     `'()=>{ …; return x }'` WITHOUT a trailing `()`; writing `'(()=>{…})()'` double-invokes → `EVAL
     ERROR: … is not a function`. A plain expression (`'__orb.motion()'`, `'getComputedStyle(...).x'`) is fine.
   - `--text` / `--aria [selector]` = the ARIA tree (cheapest a11y-navigability receipt; `--aria-boxes`
@@ -283,9 +285,9 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
     loudly on the landing surface).
   - **`--watch <totalMs> [--every <ms>]`** = timed series: per-tick screenshot + re-run of every `--eval`.
     THE instrument for streaming turns and transient states — one Bash call replaces the whole
-    "MCP click-screenshot-read-repeat" loop.
+    click-screenshot-read-repeat loop.
   - **`--pages <N>`** + `@<idx>` step suffixes (`--fill@0`, `--eval@1`) = N tabs in one shared context —
-    drive one, read the passive one. Multi-tab is NOT a chrome-devtools reason anymore.
+    drive one, read the passive one.
   - **`--mobile`** (true iPhone 14 Pro Max emulation: touch, `pointer: coarse`, DPR 3 — hover-reveals go
     always-visible, rail becomes the bottom tab bar) / **`--desktop`** (1280×800 explicit).
   - **`--jsclick <css>`** = raw in-page `el.click()` — THE tool for VIRTUALIZED/composite rows
@@ -330,10 +332,14 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
     stationary pointer. A real mouse loops at ~85 crossings/sec while every synthetic check stays
     green. So for ANY hover-reveal surface: (a) assert the STRUCTURAL invariant instead — no
     `display`-based swap keyed on group-hover in the row's hover-variable region (grep receipt +
-    computed-style CT), reveal must be opacity/visibility in reserved geometry; (b) if you must
-    prove the live behavior, use a continuous pointer-move series (chrome-devtools `hover` at
-    stepped coordinates) plus an in-page pointerover/out COUNTER probe on the container, and judge
-    the crossing count — single digits sane, hundreds = the loop. Also remember synthetic `--hover`
+    computed-style CT), reveal must be opacity/visibility in reserved geometry; (b) **there is no
+    instrument for the live continuous-pointer loop today, and there never was one** — the retired
+    chrome-devtools MCP's `hover` took an element uid, not coordinates, so it issued the same
+    discrete dispatches this bullet already declares insufficient (verified against its own
+    `docs/tool-reference.md` at retirement, #1255). So (a) IS the proof; if a finding genuinely turns
+    on the live crossing count, say so as a NAMED GAP in your report — an in-page pointerover/out
+    COUNTER probe on the container (`--eval`) bounds it (single digits sane, hundreds = the loop) but
+    only for crossings something else generated. Also remember synthetic `--hover`
     LOSES :hover on any list re-render (query settle, row recycle) — prefer the focus path for
     reveal-state shots.
 - **`pnpm record <route> --click <sel> [--pause ms] [--out name]`** — the TRANSITION/JANK EYE:
@@ -356,21 +362,21 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
   PARITY between the moving element and the container/track it reflows, and watch the CONTENT. Full
   protocol + the effect-axes to verify (grain/glow-elevation/shadow-glow/spotlight/aura) in §4/§11 of the skill.
 - **`window.__orb`** — the in-page introspection handle (full API in §11 of the design-review skill).
-  You do NOT need chrome-devtools for it — read it in a Bash call via `pnpm snap <route> --eval
-  '__orb.renders()'` (render heatmap — churn is a real UX defect), `--eval '__orb.snap()'` (one-call
+  Read it in a Bash call via `pnpm snap <route> --eval '__orb.renders()'` (render heatmap — churn is a real UX defect), `--eval '__orb.snap()'` (one-call
   {ready,shell,bus,queries,perf,renders}), `--eval '__orb.perf()'` (User-Timing measures). Any
   `getComputedStyle` size/aspect math is likewise a `--eval`; a contrast is a `--contrast`.
 
-**chrome-devtools MCP — genuine last resort (you should barely touch it). HARD BUDGET: count your
-chrome-devtools calls; past ~8 you are doing it wrong — stop, and re-route the check through `snap`.**
-(A real review burned ~45 MCP calls out of habit before course-correcting to snap and proved the snap
-flow covered nearly everything — that audit is why this budget exists; snap has since gained `--goto`/
-`--open-chat` navigation, `--watch` stream series, `--pages` multi-tab, `--mobile`, and now first-class
-`--expect-*` assertions, `--scenario` multi-checkpoint flows, the `--matrix` sweep, `--json` manifests,
-and default-on failure traces, closing every gap that review found.) Use it ONLY for a
-`performance_start_trace` or the full-battery `lighthouse_audit` runs (desktop + mobile — those two
-are mandate rows, not budget spend). **THE KEYBOARD WALK IS A SNAP CALL AS OF 2026-08-16 — this line used to send
-you to MCP for it and that is no longer true.** `--key Tab` (BARE, no `=`) presses the page keyboard
+**THERE IS NO BROWSER MCP — every check is a `snap` Bash call.** The chrome-devtools MCP was retired
+2026-09-02 (#1255) after a 176-call census across two weeks proved every load-bearing use had an
+in-house arm: the drive verbs (`--click`/`--fill`/`--key`/`--hover`/`--wait-for`), navigation
+(`--goto`/`--open-chat`/`--open-character`/`--context-tab`), the a11y tree (`--aria`/`--map`), console
+(printed every run), screenshots, device emulation (`--mobile`/`--viewport`/`--theme`), streams
+(`--watch`), multi-tab (`--pages`), and the last two real gaps — **Lighthouse (`--lighthouse
+desktop|mobile`, #1198) and the request log (`--requests [url-substring]` / `--request-body
+<url-substring>`, #1199)**. The census IS the doc: `docs/design/1195-devtools-mcp-retirement.md`.
+(The budget line this block replaced existed because a real review burned ~45 MCP calls out of habit
+before course-correcting to snap and proved the snap flow covered nearly everything.)
+**THE KEYBOARD WALK IS A SNAP CALL AS OF 2026-08-16.** `--key Tab` (BARE, no `=`) presses the page keyboard
 without changing focus, so N of them walk N stops inside a Base UI focus trap, and `--eval` now runs in
 the SAME argv-ordered queue, so one call reads `document.activeElement` at every stop:
 `snap / --goto settings:appearance --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Escape`.
@@ -378,15 +384,15 @@ the SAME argv-ordered queue, so one call reads `document.activeElement` at every
 "Tab never advances focus" was believed. End a dialog walk on Escape, never Enter.) What remains true:
 Chromium does NOT promote a scripted `.focus()` to `:focus-visible`, so `snap --eval el.focus()` still
 can't verify a focus ring — a real Tab traversal can, and snap now performs one (`fv=true` at every
-stop of the measured settings walk). **And chrome-devtools
-can HANG the session** — if it stalls, kill it, fall back to `snap`, and leave no stray browser. **Everything else is a `snap` Bash call now** — contrast (`--contrast`), any
+stop of the measured settings walk). **Everything is a `snap` Bash call** — contrast (`--contrast`), any
 computed value or `__orb` (`--eval`), selectors (`--map`), the a11y tree (`--aria`), element shots
-(`--shot-of`). If you catch yourself opening `evaluate_script` to compute a ratio or read a style,
-STOP — that's a `snap --contrast`/`--eval`. `navigate_page` then `wait_for` `data-app-ready`. App quirks: it can apply an
-unexpected viewport emulation, its `take_snapshot` can go stale, and Base UI Select portals don't always
-surface — for a combobox/portal, trust `evaluate_script` + `getComputedStyle` over the a11y snapshot.
-If you `take_screenshot`, write it under `reports/` (pass an explicit path) — never the repo root. Dev
-app http://localhost:5173, API :8788.
+(`--shot-of`), Lighthouse (`--lighthouse`), which reads a surface issued (`--requests`). Every run
+waits on `data-app-ready` itself and writes its artifacts into its own run slot under `reports/`
+(gitignored) — never the repo root. Dev app http://localhost:5173, API :8788.
+One retired-instrument fact worth keeping: the MCP's a11y snapshot FLATTENED structure (12
+`role="article"` message nodes read as zero), which is why `snap --aria` (Playwright's ARIA snapshot)
+is the trustworthy structure receipt and any pre-2026-09-02 "missing grouping/landmark" finding taken
+off a devtools snapshot is unproven — re-take it before forwarding.
 
 ### Synthesis
 
@@ -433,7 +439,7 @@ means the detectors found nothing; only your driven, screenshotted pass can say 
   outrank your instinct. Tokens only; `@orb/ui` primitives; the container model; the reading-surface
   rule; no dead toggles (a rendered control MUST have a live consumer). Cite the law a finding breaks.
 - Do not run `pnpm test` (its lifecycle suite binds :8788 and kills the dev server). `pnpm check`,
-  `pnpm snap`, `pnpm perf-meter`, `pnpm design-audit`, and the browser MCP are your tools.
+  `pnpm snap`, `pnpm perf-meter`, `pnpm design-audit` and `pnpm record` are your tools.
 - You are read-only on the product. Ephemeral receipts (screenshots, `design-audit`/`perf-meter` JSON)
   go under `reports/` (gitignored). If you write a DURABLE review file, it goes in `docs/reviews/side-eye/`
   as `YYYY-MM-DD-<slug>.md` — tracked, because a review is repo history and reports written to the
@@ -516,8 +522,9 @@ to show it, a light-theme polarity the eye misreads) — so this store is unusua
   can't) — never on how the render "looks" to you. Geometry claims (clipping, wrapping, alignment) from
   PNGs remain fine. Corollary: never slice a `box-shadow` string, and a theme arm needs `--idle` — a
   mid-hydration capture renders the WRONG polarity legitimately (cold caches show users the same flash).
-- **Your own probe fleet exhausts the ~6-8/origin SSE budget.** Matrix arms + an MCP tab = guaranteed
-  `429 Too many open streams` storms. Budget browsers per arm, expect the reds, RETRACT them with the
+- **Your own probe fleet exhausts the ~6-8/origin SSE budget.** Matrix arms plus a `--pages`/
+  `--contexts` run, or two probes overlapping, = guaranteed `429 Too many open streams` storms.
+  Budget browsers per arm, expect the reds, RETRACT them with the
   receipt — never file them, and never let them poison a sibling arm's console table.
 - **design-audit standing facts:** not run-stable across data-count changes (deltas only within adjacent
   pairs) · blind at collapsed-panel defaults (the duplicate-door lens NEEDS the member-open + panel-open

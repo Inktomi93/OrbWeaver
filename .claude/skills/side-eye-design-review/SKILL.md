@@ -179,7 +179,7 @@ minor (workaround exists) · `P3` polish. Test: "would a user contact support?" 
 Dev-gated; the app prints a pointer to `packages/client/src/lib/agent-tools.README.md` on load. Read
 state in ONE eval — never scrape the DOM.
 
-**`window.__orb`** (via chrome-devtools MCP `evaluate_script`, after `data-app-ready`):
+**`window.__orb`** (via `pnpm snap <route> --eval '<js>'`, which waits on `data-app-ready` itself):
 
 | Call | Returns / use |
 | - | - |
@@ -200,18 +200,34 @@ Plus raw `getComputedStyle(el)` for the contrast / size / aspect-ratio math behi
 not a query, so it fires with the stream open). Wait on it, never network-idle.
 
 **Console channels** (dev): `[bus]` (canon event → invalidated keys + storm alarm), `[trpc]` (query/
-mutation round-trips), `[perf]` (>12ms commits attributed to a surface + >50ms long tasks) — via the
-probes' capture or chrome-devtools `list_console_messages`.
+mutation round-trips), `[perf]` (>12ms commits attributed to a surface + >50ms long tasks) — every snap
+run prints them (`console-errors` / `page-errors`); `--strict-console` reds on them.
 
-**Probes** (Bash, own headless browser, output under `reports/` — gitignored; the cheap path — one
-call, no MCP, no context dump; **prefer these over the chrome-devtools MCP for everything but a live
-keyboard walk**):
+**Probes** (Bash, own headless browser, output under `reports/` — gitignored; one call, no context
+dump). **There is no browser MCP — these ARE the browser** (the chrome-devtools MCP was retired
+2026-09-02, #1255; census: `docs/design/1195-devtools-mcp-retirement.md`):
 
 - `pnpm snap <route>` — capture + introspection flags: **`--map [sel]`** (selector map — every element
   → its stable selector; discover targets, never grep source) · **`--contrast <sel>`** (WCAG ratio,
   oklch-safe, `PASS/FAIL`) · **`--eval '<js>'`** (any in-page value, incl. `__orb.renders()`/
   `__orb.snap()` and `getComputedStyle`) · `--aria`/`--text` (a11y tree) · `--click/--press/--fill/ --wait-for` (interaction chain) · `--shot-of` · `--diff`/`--baseline` · `--dark`/`--reduced-motion` ·
   `--deadcss`.
+  **LIGHTHOUSE (#1198):** `--lighthouse <desktop|mobile>` runs accessibility + best-practices + seo
+  against the SETTLED page of that very run — same browser, same tab, same device — prints the category
+  scores and EVERY failed audit with node count + first three selectors, and writes `report.json` +
+  `report.html` into the run slot. This is where the axe rules our own detectors do not carry come from
+  (`label-content-name-mismatch`, `target-size`, composed-widget contrast). Default mode is `snapshot`
+  (audits the page as your drive queue left it — correct, since every surface here is client state);
+  `--lighthouse-mode navigation` RELOADS and loses the drive. Failed audits RED the run (exit 1); a
+  not-ready page, a Lighthouse throw or a truncated report REFUSE with exit 2 — **a refusal is not a
+  clean row.** `--lighthouse mobile` fills the same device slot as `--mobile`, so it does not combine
+  with a later `--desktop`/`--viewport`/`--wide`, nor with `--cascade`.
+  **REQUESTS (#1199):** `--requests [url-substring]` = the ORDERED log of every request the run's pages
+  issued (method, url, status, type, declared size, timing); `--request-body <url-substring>` = one
+  response body (cut at `truncatedAt=16384`). This answers "which reads did this surface issue", which
+  `__orb.queries()` only half-answers — a re-read of the same route is the answer, so the log is
+  ordered, not URL-keyed. An undeclared `content-length` prints `size=unknown` and an unfinished request
+  `ms=unfinished` — never a fake 0.
   **NAVIGATION (the app is state-navigated, 2 URL routes — these replace click-chains):**
   `--goto <target>` (a section id like `presets`, `settings:<category>`, or `modal:<slot>`; refuses
   loudly on an unknown target, exit 1) · `--open-chat <id|exactTitle|latest|current>` (refuses loudly
@@ -226,10 +242,10 @@ keyboard walk**):
   room you just opened.
   **OBSERVATION OVER TIME:** `--watch <totalMs> [--every <ms>]` — after nav+steps, screenshot + re-run
   every `--eval` each tick (per-tick PNGs + labeled eval results). THE tool for streaming turns /
-  transient states — never eyeball a stream one MCP screenshot at a time.
+  transient states — never eyeball a stream one screenshot at a time.
   **MULTI-TAB:** `--pages <N>` opens N pages in ONE shared context; step/capture flags take an
   `@<idx>` suffix (`--fill@0`, `--eval@1`; unsuffixed = page 0) — drive one tab, read the passive one,
-  per-page report sections. (Multi-tab is NO LONGER a chrome-devtools reason.)
+  per-page report sections.
   **MULTI-USER CONTEXTS:** `--contexts <N>` (2..4) opens N ISOLATED browser contexts (own cookies —
   unlike `--pages`, which shares one context's auth), each logged in as a DIFFERENT dev user, for
   host-vs-member views / presence / visibility-floors in one run. Same `@<idx>` targeting as `--pages`
@@ -291,7 +307,7 @@ keyboard walk**):
   report DECLARES which regime it measured (`drive=` on the SHELL STATE line, `SURFACE-AXIS drive`,
   `drive-state=`/`drive-axis=` on the RESULT line). Never compare a driven population to a rest one.
 
-Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a **Bash** call, no MCP.
+Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a **Bash** call.
 
 **Probe footguns (pay these once, not every review):**
 
@@ -300,8 +316,8 @@ Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a 
 - **`snap --eval` AUTO-INVOKES a function literal** — pass a BARE arrow `'()=>{…; return x}'` WITHOUT a
   trailing `()`. Writing `'(()=>{…})()'` double-invokes → `EVAL ERROR: … is not a function`. A plain
   expression (`'document.title'`, `'__orb.motion()'`, `'getComputedStyle(...).x'`) needs no wrapping.
-- **The KEYBOARD WALK is a `snap` call now — no MCP hop** (corrected 2026-08-16; the old text sent you to
-  chrome-devtools and the version before that claimed Tab was dead). Two true facts:
+- **The KEYBOARD WALK is a `snap` call** (corrected 2026-08-16; the text before that claimed Tab was
+  dead). Two true facts:
   - Chromium does NOT promote a scripted `.focus()` to `:focus-visible`, so `--eval el.focus()` still
     cannot verify a focus ring. That part was always right.
   - `--key` has TWO forms, and only one walks. **`--key Tab`** (bare, no `=`) presses the page keyboard
@@ -340,12 +356,11 @@ Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a 
 - **A tab strip's semantics depend on WHICH tablist you are in.** An admin-rail tab correctly reads
   unselected while the CONTENT tablist carries the selection. Follow `aria-controls` / `aria-labelledby`
   back-references to identify the tablist before declaring tab semantics broken.
-- **chrome-devtools MCP can HANG a browser session** — if it stalls, fall back to `pnpm snap` (its own
-  headless browser) and don't leave a stray session; kill it and re-drive via snap.
-- **chrome-devtools `take_snapshot` FLATTENS structure** — verified 2026-07-25: a chat room with 12
-  `role="article"` message nodes in the DOM showed ZERO articles in its tree (children rendered flat).
-  Never report "missing grouping/landmark" from a devtools snapshot alone — `snap --aria` (Playwright's
-  ARIA snapshot) is the trustworthy structure receipt; cross-check the DOM via `--eval` when in doubt.
+- **`snap --aria` is the ONLY trustworthy structure receipt, and any pre-2026-09-02 grouping/landmark
+  finding taken off a devtools a11y snapshot is unproven.** The retired MCP's `take_snapshot` FLATTENED
+  structure — verified 2026-07-25, a chat room with 12 `role="article"` message nodes in the DOM showed
+  ZERO articles in its tree. `--aria` is Playwright's ARIA snapshot and does not; cross-check the DOM
+  via `--eval` when in doubt, and re-take any inherited "missing landmark" row before forwarding it.
 - **CLOSED 2026-09-01 — hover-state contrast IS checked now (`hover-contrast`, P1).** This bullet used
   to read "KNOWN GAP, we carry no hover-state contrast check"; that is false on the current tree. The
   gap was real and it was missed by the upstream adoption triage BY CONSTRUCTION rather than by
@@ -459,9 +474,8 @@ drawer/panel slides, scroll, immersive chat modes), read the numbers instead of 
 > 2026-08-16. snap now prints `PROBE-NEUTERED-MOTION` and stamps `motion=PROBE-NEUTERED-MOTION` on the
 > RESULT line for every `--probe` run — if you see it, the motion numbers in that run are void.
 
-- **Read `__orb.motion()` and `__orb.animations()`** (via your `evaluate_script` tool over
-  chrome-devtools MCP, or `pnpm snap <route> --eval '__orb.motion()' --eval '__orb.animations()'` — a
-  Bash call, no MCP). Trigger the motion first (the interaction, or just load a route with entry
+- **Read `__orb.motion()` and `__orb.animations()`** (`pnpm snap <route> --eval '__orb.motion()'
+  --eval '__orb.animations()'` — one Bash call). Trigger the motion first (the interaction, or just load a route with entry
   animation), then read. Flag, each a finding:
   - a LoAF with **`styleAndLayoutStart > 0`** in the window — style/layout ran *inside* the frame (a
     forced reflow / a non-compositor animation): the jank signature.
