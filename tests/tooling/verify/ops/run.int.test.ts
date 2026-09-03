@@ -383,12 +383,11 @@ test("types:graph per --package: a NODE package RUNS it (in the graph), a BROWSE
   }
 });
 
-test("types:testd + types:tests-* + browser:e2e* are whole-only (no scopedArgv) — deferred at a scoped tier", () => {
+test("types:testd + types:tests-membership + browser:e2e* are whole-only (no scopedArgv) — deferred at a scoped tier", () => {
   for (const name of [
     "types:testd",
-    // The type-membership floor stages: tests-dom is one tiny program, tests-membership is a whole-tree
-    // reconciliation — both are whole-tree invariants with no honest scoped form (§3.4).
-    "types:tests-dom",
+    // The whole-tree type-membership reconciliation: unions every type program's closure — no honest
+    // scoped form (§3.4). types:tests-dom is NO LONGER here — see its own scopedArgv test below (#1274).
     "types:tests-membership",
     // tests-execution-membership's #22 sibling: same whole-tree-reconciliation shape (unions every
     // runner's --list view), no honest scoped form.
@@ -404,6 +403,19 @@ test("types:testd + types:tests-* + browser:e2e* are whole-only (no scopedArgv) 
   ]) {
     expect(stage(name).scopedArgv).toBeUndefined();
   }
+});
+
+test("types:tests-dom scopedArgv: deferred (whole-only) unless the selection touches the program (#1274)", () => {
+  // Before #1274 this stage carried NO scoped route at all (tiers: STATIC, no scopedArgv), so a `--file`/
+  // `--changed` run over a tests-dom-owned file never even considered it — a clean verdict with no type
+  // stage and no deferral notice. Now it defers loudly off-domain and runs on-domain.
+  const offDomain = resolveSelection({ kind: "file", paths: ["packages/client/src/app.tsx"] });
+  expect(offDomain.touchesTestsDom).toBe(false);
+  expect(stage("types:tests-dom").scopedArgv?.(offDomain)).toBe("whole-only");
+
+  const onDomain = resolveSelection({ kind: "file", paths: ["tests/client/data/auth-config.test.ts"] });
+  expect(onDomain.touchesTestsDom).toBe(true);
+  expect(stage("types:tests-dom").scopedArgv?.(onDomain)).toEqual(["pnpm", "typecheck:tests-dom"]);
 });
 
 test("lint:eslint scopedArgv: skip-empty when no file is in the eslint surface", () => {

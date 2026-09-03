@@ -96,14 +96,20 @@ const GATING_STAGES: readonly StageDef[] = [
   {
     name: "types:tests-dom",
     group: "types",
-    tiers: STATIC,
+    tiers: ["changed", ...STATIC],
     argv: ["pnpm", "typecheck:tests-dom"],
     classify: asViolations,
     // The DOM-libbed home (tsconfig.tests-dom.json) for DOM-COUPLED NON-`.tsx` tests: a `.ts` test that
     // can't be a `.tsx` (the int lane is `.ts`-only) but drags a DOM barrel — the root graph `exclude`s it
     // and no `*.tsx` reach-back claims it, so WITHOUT this program it is type-checked by nothing. Tiny (one
-    // small `include`) — whole-only, deferred at a scoped tier; the tests-type-membership stage guards that
-    // every such escapee is actually listed here.
+    // small `include`) — whole-only per RUN (`pnpm typecheck:tests-dom` is one program, no per-file `tsc`
+    // split), but MUST be considered at `changed` (#1274 — before this it carried NO scoped route at all,
+    // so a stage with `tiers: STATIC` never even entered `stagesForTier("changed")` and `verify --file`
+    // over a tests-dom-owned file reported clean with no type stage and no deferral notice — worse than a
+    // visible defer). `scopedArgv` runs the whole program when the selection touches ≥1 of its roots, else
+    // defers to `--static` (a real deferral notice, not silence); the tests-type-membership stage still
+    // guards that every escapee is actually listed in the config's own `include`.
+    scopedArgv: (sel) => (sel.touchesTestsDom ? ["pnpm", "typecheck:tests-dom"] : "whole-only"),
   },
   {
     name: "types:tests-membership",
