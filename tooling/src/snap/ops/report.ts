@@ -18,8 +18,10 @@ import type {
   SessionCounts,
   WatchTick,
 } from "../contract/types.ts";
-import { CROP_RE, PNG_EXT_RE } from "../lib/out-names.ts";
 import { shotScaleResultValue } from "../lib/shot-scale.ts";
+// `cropOutcome` belongs to the PIXEL ARM (ops/arms/shot.ts) — the crop is a shot instruction, and one
+// rule with two homes is what the arm registry exists to end.
+import { cropOutcome } from "./arms/shot.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -331,25 +333,6 @@ function printCascadeReceipt(receipt: CssEvidenceReceipt | null): void {
       print(`    … +${query.declarations.length - CSS_FINDINGS_CAP} declarations (use --json)`);
     }
   }
-}
-
-/** Where `--crop` actually landed — the PATH when a crop was written, else why it wasn't. The RESULT
- *  line carries this too (`crop=…`): a reviewer greps RESULT, and a crop reported only in the body read
- *  as a no-op (2026-08-16, an audit believed --crop did nothing). One derivation, two printers. */
-export function cropOutcome(opts: Args, ctx: ReportCtx): string | null {
-  if (opts.crop === null) {
-    return null;
-  }
-  if (!CROP_RE.test(opts.crop)) {
-    return `IGNORED — expected WxH+X+Y, got "${opts.crop}"`;
-  }
-  if (!ctx.produceShot) {
-    return "IGNORED — needs a shot (drop --no-shot/--text)";
-  }
-  if (opts.shotOf !== null) {
-    return "IGNORED — mutually exclusive with --shot-of";
-  }
-  return ctx.out.replace(PNG_EXT_RE, "-crop.png");
 }
 
 // Crop is captured natively in captureShot (Playwright clip) — just report it.

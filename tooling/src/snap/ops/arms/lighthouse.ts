@@ -28,14 +28,30 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import type { Flags } from "lighthouse";
 import type { Page as PuppeteerPage } from "puppeteer-core";
-import { artifactFile } from "../../_shared/artifact-out.ts";
-import { print } from "../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../_shared/browser.ts";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { LighthouseDevice, LighthouseMode, LighthouseOutcome, LighthouseReceipt } from "../contract/lighthouse.ts";
-import { LIGHTHOUSE_CATEGORIES } from "../contract/lighthouse.ts";
-import type { Args } from "../contract/types.ts";
-import { auditedCount, categoryScores, failedAudits, lighthouseLines, reportTruncation } from "../lib/lighthouse-report.ts";
+import { artifactFile } from "../../../_shared/artifact-out.ts";
+import type { ResultPair } from "../../../_shared/artifacts.ts";
+import { print } from "../../../_shared/artifacts.ts";
+import type { ProbeSession } from "../../../_shared/browser.ts";
+import { MOBILE_DEVICE } from "../../../_shared/browser-environment.ts";
+import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import type { EvidenceGap } from "../../../_shared/evidence.ts";
+import { printEvidenceGaps } from "../../../_shared/evidence.ts";
+import { EXIT } from "../../../_shared/exit-contract.ts";
+import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
+import type { LighthouseDevice, LighthouseMode, LighthouseOutcome, LighthouseReceipt } from "../../contract/lighthouse.ts";
+import { LIGHTHOUSE_CATEGORIES } from "../../contract/lighthouse.ts";
+import type { Args } from "../../contract/types.ts";
+import {
+  auditedCount,
+  categoryScores,
+  failedAudits,
+  LIGHTHOUSE_DEVICE_SPELLINGS,
+  LIGHTHOUSE_MODE_SPELLINGS,
+  lighthouseLines,
+  parseLighthouseDevice,
+  parseLighthouseMode,
+  reportTruncation,
+} from "../../lib/lighthouse-report.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --lighthouse <desktop|mobile>");
 
@@ -92,7 +108,7 @@ async function awaitEndpoint(port: number): Promise<void> {
     await sleep(ENDPOINT_RETRY_MS);
   }
   throw new Error(
-    `the Chrome debugging endpoint on 127.0.0.1:${port} never answered within ${ENDPOINT_ATTEMPTS * ENDPOINT_RETRY_MS}ms — the port was reserved but nothing bound it (tooling/src/snap/lib/loopback-port.ts)`,
+    `the Chrome debugging endpoint on 127.0.0.1:${port} never answered within ${ENDPOINT_ATTEMPTS * ENDPOINT_RETRY_MS}ms — the browser published that port in its profile's DevToolsActivePort but nothing is listening on it (tooling/src/_shared/debugging-endpoint.ts)`,
   );
 }
 
@@ -193,7 +209,7 @@ export async function auditSettledPage(page: Page, ask: LighthouseAsk): Promise<
 
 /** The snap-shaped wrapper: read the ask off `Args`, file the two artifacts in THIS run's slot, print the
  *  accounting block, and hand back a measured receipt or a refusal the run turns into `EXIT.toolError`. */
-export async function runLighthouseArm(session: ProbeSession, opts: Args, name: string, port: number | null): Promise<LighthouseOutcome> {
+async function runLighthouseArm(session: ProbeSession, opts: Args, name: string, port: number | null): Promise<LighthouseOutcome> {
   const device = opts.lighthouse;
   if (device === null) {
     throw new Error("INSTRUMENT ERROR: the Lighthouse arm ran without --lighthouse (tooling/src/snap/ops/run.ts)");
@@ -205,7 +221,7 @@ export async function runLighthouseArm(session: ProbeSession, opts: Args, name: 
   if (port === null) {
     return gap(
       "the Chrome debugging endpoint",
-      "the browser was launched without `--remote-debugging-port`, so Lighthouse could not attach to the page this run drove (tooling/src/snap/ops/session.ts).",
+      "this run's browser published no debugging endpoint, so Lighthouse could not attach to the page the run drove. The launch provides one when an enabled arm declares `needs.debuggingPort` (tooling/src/snap/contract/arms.ts → tooling/src/snap/ops/session.ts).",
     );
   }
   const refusal = await readinessRefusal(page);
@@ -231,3 +247,108 @@ export async function runLighthouseArm(session: ProbeSession, opts: Args, name: 
     return gap("the Lighthouse report", `the audit did not complete: ${errorMessage(error)}`);
   }
 }
+
+/** `lighthouse=` states WHICH run you got — off, the device/mode pair, or REFUSED. Never a bare score: a
+ *  reader must not have to guess whether an absent number means "clean" or "never ran". */
+function lighthousePairs(outcome: LighthouseOutcome | null): ResultPair[] {
+  if (outcome === null) {
+    return [["lighthouse", "off"]];
+  }
+  if (outcome.kind === "refused") {
+    return [["lighthouse", "REFUSED"]];
+  }
+  const { receipt } = outcome;
+  return [
+    ["lighthouse", `${receipt.device}/${receipt.mode}`],
+    ["lighthouse-failed-audits", receipt.failed.length],
+    ...receipt.categories.map(({ id, score }): ResultPair => [`lighthouse-${id}`, score ?? "n/a"]),
+  ];
+}
+
+/** THE AUDIT ARM (#1198), and the reason `ArmNeeds.debuggingPort` exists. It is the ONE arm that needs the
+ *  launch to have done something for it — a Chrome `--remote-debugging-port` endpoint on THIS run's
+ *  browser — and it takes that endpoint from its run context rather than reaching back into the launcher,
+ *  which is what lets `ops/session.ts` read the registry to decide whether to provide one.
+ *
+ *  #1259 closed here: the endpoint is now the SAME one a stateful session publishes (a persistent profile
+ *  launched with `--remote-debugging-port=0`, read back out of `DevToolsActivePort`), so
+ *  `--session x --lighthouse desktop` audits the session's own live page instead of being refused. */
+export const LIGHTHOUSE_ARM = {
+  flags: [
+    {
+      flag: "--lighthouse",
+      kind: "required-value",
+      pageTargetable: false,
+      // `--lighthouse mobile` COMPOSES over --mobile rather than re-emulating: it fills the same device
+      // slot the flag does (the --panels precedent), so touch/coarse-pointer/DPR3 are real for the audit
+      // AND the pixels. A bad value keeps the arm off here and is REFUSED in ops/parse.ts, so a run never
+      // audits a device it was not asked for.
+      handler: (a, rest): void => {
+        const device = parseLighthouseDevice(rest.shift() ?? "");
+        a.lighthouse = device ?? a.lighthouse;
+        if (device === "mobile") {
+          a.device = MOBILE_DEVICE;
+        }
+      },
+    },
+    {
+      flag: "--lighthouse-mode",
+      kind: "required-value",
+      pageTargetable: false,
+      handler: (a, rest): void => {
+        a.lighthouseMode = parseLighthouseMode(rest.shift() ?? "") ?? a.lighthouseMode;
+      },
+    },
+  ],
+  level: "call",
+  needs: (opts): ArmNeeds => (opts.lighthouse === null ? {} : { debuggingPort: true }),
+  defaults: (): Pick<ArmArgs, "lighthouse" | "lighthouseMode"> => ({ lighthouse: null, lighthouseMode: "snapshot" }),
+  help: `  --lighthouse <${LIGHTHOUSE_DEVICE_SPELLINGS.join("|")}>
+                          run Lighthouse (accessibility + best-practices + seo) against the SETTLED page
+                          of this very run — same browser, same tab, same device. Prints the category
+                          scores and EVERY failed audit with its node count and first three selectors,
+                          and writes report.json + report.html into the run slot. Findings RED the run
+                          (exit 1), like --contrast and --deadcss. A page that never signalled
+                          data-app-ready, a Lighthouse throw, or a truncated report REFUSE with exit 2 —
+                          a refusal is never a finding. \`--lighthouse mobile\` fills the SAME device slot
+                          --mobile does (touch, coarse pointer, DPR 3), so it does not combine with a
+                          later --desktop/--viewport/--wide, and --lighthouse desktop does not combine
+                          with --mobile. Not combinable with --cascade (both drive the debugging endpoint).
+  --lighthouse-mode <${LIGHTHOUSE_MODE_SPELLINGS.join("|")}>
+                          DEFAULT snapshot: audit the page as the drive queue left it, because every
+                          surface under review here is client state. navigation RELOADS the URL first, so
+                          it measures a freshly-booted page and loses whatever you drove to.`,
+  lifecycle: {
+    at: "run",
+    begin: (_session, _opts): ArmRunInstance => {
+      let outcome: LighthouseOutcome | null = null;
+      const refusal = (): EvidenceGap | null => (outcome !== null && outcome.kind === "refused" ? outcome.gap : null);
+      return {
+        // The audit runs on the SETTLED page, after the drive queue and every settled-surface capture —
+        // that page IS the subject. A refusal prints its evidence gap HERE, where the reader meets it in
+        // run order, not at the RESULT line.
+        measure: async (ctx): Promise<void> => {
+          if (ctx.opts.lighthouse === null) {
+            return;
+          }
+          outcome = await runLighthouseArm(ctx.session, ctx.opts, ctx.name, ctx.provisions.debuggingPort);
+          const refused = refusal();
+          if (refused !== null) {
+            printEvidenceGaps([refused]);
+          }
+        },
+        report: (): Promise<void> => Promise.resolve(),
+        // A failed audit is a verdict member for the same reason dead CSS and contrast are: the arm is
+        // opt-in, so a green exit over the a11y failures the caller asked Lighthouse to find would be a
+        // false ship receipt. A REFUSED audit counts here as ZERO and exits 2 through `exit` instead.
+        failures: (): ArmFailureCounts => ({ lighthouse: outcome !== null && outcome.kind === "measured" ? outcome.receipt.failed.length : 0 }),
+        // A report that judged nothing is an instrument failure — the audit read an empty page — never a
+        // clean sheet.
+        denominators: () =>
+          outcome !== null && outcome.kind === "measured" ? { "lighthouse-audits": { value: outcome.receipt.auditedCount, refuseWhen: "zero" as const } } : {},
+        pairs: (): readonly ResultPair[] => lighthousePairs(outcome),
+        exit: (code: number): number => (refusal() === null ? code : EXIT.toolError),
+      };
+    },
+  },
+} satisfies ArmDef;

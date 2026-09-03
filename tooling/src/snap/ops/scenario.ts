@@ -19,16 +19,17 @@ import type { Args, CaptureOutcome, ScenarioCheckpoint, ScenarioSpec, SessionCou
 import type { SnapFailureSummary } from "../contract/verdict.ts";
 import { HTTP_URL_RE, shouldProduceShot } from "../lib/out-names.ts";
 import { checkpointArgErrors, identicalSeedsError, inheritSessionArgs } from "../lib/session-plan.ts";
+import { capturePageCssEvidence } from "./arms/cascade.ts";
+import { pageArmFailures } from "./arms/registry.ts";
 import { capture } from "./capture.ts";
-import { captureCssEvidence } from "./cascade.ts";
 import { refuseFileMode, snapDestination } from "./guards.ts";
 import { appliedAcrossContexts, writeManifestIfRequested } from "./manifest.ts";
 import { consoleFailureCounts, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
 import { parseSnapArgs } from "./parse.ts";
 import { consoleForEvidence, pageErrorsForEvidence, printCaptureLog, printCheckpointScope, printPageReport, sessionForEvidence } from "./report.ts";
-import { finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
+import { cascadeRuntimeFor, finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
 import { themeStampExit } from "./theme-stamp.ts";
-import { evidenceFailureCounts, hasSnapFailure } from "./verdict.ts";
+import { hasSnapFailure } from "./verdict.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -115,13 +116,28 @@ async function loadScenario(pathArg: string): Promise<ScenarioSpec> {
   return parseScenarioSpec(source, basename(path, extname(path)));
 }
 
-function scenarioFailureSummary(
-  outcomes: readonly CaptureOutcome[],
-  session: ProbeSession,
-  failedRequests: readonly CapturedRequest[],
-  strictConsole: boolean,
-): SnapFailureSummary {
-  const evidence = evidenceFailureCounts(outcomes);
+interface ScenarioSummaryInput {
+  readonly opts: Args;
+  readonly outcomes: readonly CaptureOutcome[];
+  readonly session: ProbeSession;
+  readonly failedRequests: readonly CapturedRequest[];
+  readonly plan: ShotPlan;
+}
+
+function scenarioFailureSummary(input: ScenarioSummaryInput): SnapFailureSummary {
+  const { opts, outcomes, session, failedRequests } = input;
+  const strictConsole = opts.strictConsole;
+  // Every ARM-owned member comes from the arm that measures it (contract/arms.ts). The scenario keeps its
+  // own literal because its non-arm members are scoped differently (per-checkpoint console/page-error
+  // windows, no watch, no diff) — but the arm halves must not be a second implementation.
+  const arms = pageArmFailures({ opts, outcomes, ctx: { ...input.plan, failed: [...failedRequests], totalPages: 1 } });
+  const armCount = (field: keyof SnapFailureSummary): number => {
+    const count = arms[field];
+    if (count === undefined) {
+      throw new Error(`INSTRUMENT ERROR: no arm produced the verdict member "${field}" (tooling/src/snap/contract/arms.ts)`);
+    }
+    return count;
+  };
   const consoleFailures = consoleFailureCounts(consoleForEvidence(session.consoleMessages, outcomes), strictConsole);
   return {
     navigation: outcomes.filter((outcome) => outcome.navError !== null).length,
@@ -129,22 +145,23 @@ function scenarioFailureSummary(
     pageErrors: pageErrorsForEvidence(session.pageErrors, outcomes).length,
     failedRequests: failedRequests.length,
     steps: outcomes.reduce((count, outcome) => count + outcome.stepFailures, 0),
-    contrast: outcomes.reduce((count, outcome) => count + outcome.contrastResults.filter((entry) => entry.failed).length, 0),
-    aria: evidence.aria,
-    map: evidence.map,
-    eval: evidence.eval,
+    contrast: armCount("contrast"),
+    aria: armCount("aria"),
+    map: armCount("map"),
+    eval: armCount("eval"),
     watch: 0,
     diff: 0,
-    assertions: outcomes.reduce((count, outcome) => count + outcome.assertions.filter((entry) => entry.failed).length, 0),
+    assertions: armCount("assertions"),
     consoleErrors: consoleFailures.errors,
     consoleWarnings: consoleFailures.warnings,
     css: outcomes.filter((outcome) => outcome.cssEvidence?.status === "instrument-error" || (outcome.deadCssEvidence?.unreadable.length ?? 0) > 0).length,
-    deadCss: outcomes.reduce((count, outcome) => count + outcome.deadCss.length, 0),
-    emptyCss: outcomes.reduce((count, outcome) => count + outcome.emptyCss.length, 0),
+    deadCss: armCount("deadCss"),
+    emptyCss: armCount("emptyCss"),
     environment: 0,
     appearance: 0,
     // A scenario checkpoint runs the DRIVE path, not the single-run evidence pass — the Lighthouse arm
-    // never fires there, so its member is structurally zero rather than "unmeasured".
+    // never fires there (it is a RUN arm and the scenario hosts no run arms), so its member is
+    // structurally zero rather than "unmeasured".
     lighthouse: 0,
   };
 }
@@ -196,7 +213,16 @@ async function captureScenarioCheckpoints(
         settingsEvidence: session.contexts[0]?.settingsEvidence,
       },
     );
-    await captureCssEvidence(session, checkpoint, [outcome]);
+    // The cascade arm's read, driven directly: a scenario checkpoint hosts no RUN arms (it has its own
+    // per-checkpoint lifecycle), so it calls the arm's engine rather than the run-arm surface.
+    if (checkpoint.cascade.length > 0) {
+      outcome.cssEvidence = await capturePageCssEvidence({
+        runtime: cascadeRuntimeFor(session),
+        session,
+        queries: checkpoint.cascade,
+        pageIndex: 0,
+      });
+    }
     outcomes.push(outcome);
     evidenceRanges.push({
       consoleStart,
@@ -309,7 +335,10 @@ export async function runScenarioDetailed(opts: Args): Promise<SnapDetailedResul
     const { failed: failedRequests, viteChurn } = partitionFailedRequests(session.requests.values());
     const browserEnvironment = await readSnapEnvironmentEvidence(session);
     const environmentFailures = snapEnvironmentMismatchCount(browserEnvironment);
-    const failureSummary = { ...scenarioFailureSummary(outcomes, session, failedRequests, opts.strictConsole), environment: environmentFailures };
+    const failureSummary = {
+      ...scenarioFailureSummary({ opts, outcomes, session, failedRequests, plan: plans[0] ?? { url: spec.name, out: spec.name, produceShot: false } }),
+      environment: environmentFailures,
+    };
     const red = hasSnapFailure(failureSummary);
     const artifacts = await finishSession(session, red, spec.name, opts.failureEvidence);
     printScenarioReports({ spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests, viteChurn });

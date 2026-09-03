@@ -1,11 +1,18 @@
 // The operator contract is large prose, not parser machinery. Keeping it outside ops/parse.ts gives the
 // validator headroom while still deriving every advertised vocabulary from its owning constants.
+//
+// EVERY ARM'S BLOCK IS DERIVED (`armHelp`, docs/design/1208-instrument-substrate.md §6). `ArmDef.help` is
+// a REQUIRED member, so an arm cannot ship without its operator row, and the row lives beside the flags it
+// documents rather than in a list that drifts away from them — `--no-deadcss` had no help row at all for
+// its whole life, and nothing could have caught that while this file was hand-maintained. `armHelp` THROWS
+// on an unknown arm and `remainingArmHelp()` prints every arm this file did not place, so an arm added to
+// `ARMS` shows up in `--help` without an edit here.
 import { appearanceHelpBlock } from "../../_shared/appearance-flags.ts";
 import { panelPresetHelpBlock } from "../../_shared/panel-flags.ts";
 import { themeHelpBlock } from "../../_shared/theme.ts";
-import { LIGHTHOUSE_DEVICE_SPELLINGS, LIGHTHOUSE_MODE_SPELLINGS } from "../lib/lighthouse-report.ts";
 import { SHOT_PIXEL_BUDGET } from "../lib/shot-scale.ts";
 import { NETWORK_PROFILE_SPELLINGS } from "../lib/throttle.ts";
+import { armHelp, remainingArmHelp } from "../ops/arms/help.ts";
 import { SNAP_SCENARIO_PRESET_NAMES } from "./scenario-presets.ts";
 
 export const SNAP_HELP = `snap — one browser run, many pieces of UI evidence
@@ -15,21 +22,15 @@ Usage:
   pnpm snap --file <html> [flags]
 
 Cheap evidence:
-  --text [selector]       ARIA tree, no primary screenshot
-  --map [selector]        interactive roles, names, and selectors
-  --eval <expression>     in-page JSON result (repeatable)
-  --contrast <selector>   rendered WCAG contrast check (repeatable)
-  --cascade <selector=property>  Chromium's computed value + official Active/Overloaded declarations
+${armHelp("aria")}
+${armHelp("map")}
+${armHelp("eval")}
+${armHelp("contrast")}
+${armHelp("cascade")}
+${armHelp("dead-css")}
 
 Assertions and reports:
-  --expect-visible <selector>       require a rendered, visible element
-  --expect-text <selector=text>     require rendered text to contain a value
-  --expect-count <selector=N>       require N rendered matches
-  --expect-url <url-or-path>        require the final URL
-  --expect-no-overflow [selector]   scroll bounds must fit client bounds AND no descendant's box may
-                                    exit the clip on any side (left/top too — scrollWidth cannot see
-                                    a justify-end spill); a scrolling axis is not judged
-  --expect-focus <selector>         require the active element to match
+${armHelp("assert")}
   --json                            write a machine-readable run manifest
   --summary                         compact scenario output; pair with --json for full evidence
   --strict-console                  make console warnings red (errors are always red)
@@ -80,35 +81,11 @@ ${appearanceHelpBlock()}
 ${themeHelpBlock()}
 
 Audit and network (the two arms that retired the chrome-devtools MCP):
-  --lighthouse <${LIGHTHOUSE_DEVICE_SPELLINGS.join("|")}>
-                          run Lighthouse (accessibility + best-practices + seo) against the SETTLED page
-                          of this very run — same browser, same tab, same device. Prints the category
-                          scores and EVERY failed audit with its node count and first three selectors,
-                          and writes report.json + report.html into the run slot. Findings RED the run
-                          (exit 1), like --contrast and --deadcss. A page that never signalled
-                          data-app-ready, a Lighthouse throw, or a truncated report REFUSE with exit 2 —
-                          a refusal is never a finding. \`--lighthouse mobile\` fills the SAME device slot
-                          --mobile does (touch, coarse pointer, DPR 3), so it does not combine with a
-                          later --desktop/--viewport/--wide, and --lighthouse desktop does not combine
-                          with --mobile. Not combinable with --cascade (both want the debugging endpoint).
-  --lighthouse-mode <${LIGHTHOUSE_MODE_SPELLINGS.join("|")}>
-                          DEFAULT snapshot: audit the page as the drive queue left it, because every
-                          surface under review here is client state. navigation RELOADS the URL first, so
-                          it measures a freshly-booted page and loses whatever you drove to.
-  --requests [url-substring]
-                          the ORDERED log of every request this run's pages issued — method, url, status,
-                          resource type, declared size, timing — printed and written into the run slot.
-                          The optional value narrows what is PRINTED; the artifact is always complete and
-                          the block states both counts. It is a plain case-insensitive URL SUBSTRING, not
-                          a selector and not a regex.
-  --request-body <url-substring>
-                          one matching response body, capped and truncation-accounted (the block says
-                          \`truncatedAt=<bytes>\` when it cut). Implies --requests.
+${armHelp("lighthouse")}
+${armHelp("requests")}
 
 Pixels:
-  --no-shot               skip the primary PNG
-  --shot-of <selector>    capture one element
-  --crop <WxH+X+Y>        capture a bounded region
+${armHelp("shot")}
   --baseline | --diff     save or compare a visual baseline (mutually exclusive)
   --scale <css|device|n>  image pixels per CSS pixel. DEFAULT css, and that default is DELIBERATE: one
                           image pixel per CSS pixel HALVES the pixel count on a hi-dpi context, so an
@@ -161,6 +138,9 @@ Stateful sessions (ONE browser per lane, kept between calls — docs/design/1208
                           --scenario, applies those derived environment/Appearance cells to every JSON
                           checkpoint; R1-R7 are explicitly N/A because the scenario owns its drive.
 
+Always on:
+${armHelp("perf")}
+${remainingArmHelp()}
 Maintainers:
   --materialize-devtools-assets   regenerate the pinned official DevTools cascade SDK closure; networked
                                   update operation, never used by normal Snap/CT runs

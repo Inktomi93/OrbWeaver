@@ -53,13 +53,16 @@ export { shortSha, stageBandClaim, stageBandRefusal, stageRowBaseUrl, urlTargets
 export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile, throttleResultValue } from "./lib/throttle.ts";
 // The mode surface — the cli's dispatch targets, exported so a caller can drive snap programmatically
 // (and so cli.ts enters through THIS door, per the front-door gate).
+// `auditSettledPage` is the liftable core: a Playwright page + a debugging port, no snap session; the
+// request recorder is its twin (one Playwright page, no snap session). Both live in their ARM's module
+// now (ops/arms/, docs/design/1208-instrument-substrate.md §6).
+export { auditSettledPage } from "./ops/arms/lighthouse.ts";
+export { recordRequestsOn } from "./ops/arms/requests.ts";
 export { resolveContextsMode, snapContexts } from "./ops/contexts.ts";
 export { splitTrailingEvals } from "./ops/drive.ts";
 export { resolveFixtureTarget } from "./ops/fixture.ts";
 export { OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS } from "./ops/flags-classes.ts";
 export { configureStage, refuseFileMode } from "./ops/guards.ts";
-// `auditSettledPage` is the liftable core: a Playwright page + a debugging port, no snap session.
-export { auditSettledPage } from "./ops/lighthouse.ts";
 export { materializeDevToolsAssets } from "./ops/materialize-devtools.ts";
 export { snapMatrix } from "./ops/matrix.ts";
 export { isSandboxTraceNoise, isViteDepChurn, partitionFailedRequests, SANDBOX_TRACE_NOISE_RE } from "./ops/noise.ts";
@@ -67,7 +70,6 @@ export { isSandboxTraceNoise, isViteDepChurn, partitionFailedRequests, SANDBOX_T
 export { OVERFLOW_MAX_ESCAPES, OVERFLOW_TOLERANCE_PX, sweepOverflowEscapes } from "./ops/overflow.ts";
 export { parseSnapArgs } from "./ops/parse.ts";
 export { selectConsoleMessagesForReport } from "./ops/report.ts";
-export { recordRequestsOn } from "./ops/request-log.ts";
 export { runOnSession, runSnapDetailed, snap } from "./ops/run.ts";
 export { parseScenarioSpec, runScenarioDetailed, snapScenario } from "./ops/scenario.ts";
 // The stateful-session substrate (docs/design/1208-instrument-substrate.md §10.1): the admin verbs, the

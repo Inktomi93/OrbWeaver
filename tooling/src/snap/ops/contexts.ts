@@ -3,22 +3,24 @@
 
 import type { Page } from "@playwright/test";
 import { artifactFile } from "../../_shared/artifact-out.ts";
+import type { ResultPair } from "../../_shared/artifacts.ts";
 import { artifactKey, print, routeSlug } from "../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../_shared/browser.ts";
 import { buildUrl, closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
+import type { Arm, ArmPairInput } from "../contract/arms.ts";
 import type { FixtureTarget } from "../contract/fixture.ts";
 import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "../contract/types.ts";
 import { contextOut, shouldProduceShot } from "../lib/out-names.ts";
 import { throttleResultValue } from "../lib/throttle.ts";
+import { armPairLedger, pageArmFailures } from "./arms/registry.ts";
 import { capture } from "./capture.ts";
 import { defaultFixtureUsers, fixtureRefusalLine, fixtureStatus, loginFixtureUser, resolveFixtureUsers } from "./fixture.ts";
 import { appliedAcrossContexts, writeManifestIfRequested } from "./manifest.ts";
 import { partitionFailedRequests } from "./noise.ts";
 import {
   consoleForEvidence,
-  cropOutcome,
   motionResultValue,
   navResultVerdict,
   pageErrorsForEvidence,
@@ -31,7 +33,7 @@ import {
 } from "./report.ts";
 import { finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
 import { themeStampExit } from "./theme-stamp.ts";
-import { buildFailureSummary, evidenceFailureCounts, hasSnapFailure, mapOutputSummary, outcomeTotals } from "./verdict.ts";
+import { buildFailureSummary, hasSnapFailure, outcomeTotals } from "./verdict.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -159,7 +161,12 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
   const reportArgs: ContextReportArgs = { opts, session, outcomes, users, plan, out, totalContexts };
   const reportTotals = reportContexts(reportArgs);
   const totals = outcomeTotals(outcomes);
-  const evidenceFailures = evidenceFailureCounts(outcomes);
+  const pairInput: ArmPairInput = {
+    opts,
+    outcomes,
+    ctx: { ...plan, out: contextOut(out, 0, totalContexts), failed: [], totalPages: totalContexts },
+  };
+  const ledger = armPairLedger(pairInput, new Map<Arm, readonly ResultPair[]>());
   const allConsole = session.contexts.flatMap((context) => context.consoleMessages);
   const allEvidenceConsole = session.contexts.flatMap((context, index) => consoleForEvidence(context.consoleMessages, [outcomes[index] as CaptureOutcome]));
   const allPageErrors = session.contexts.flatMap((context) => context.pageErrors);
@@ -173,6 +180,7 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
     consoleMessages: allEvidenceConsole,
     strictConsole: opts.strictConsole,
     environment: environmentFailures,
+    arms: pageArmFailures(pairInput),
   });
   const red = hasSnapFailure(failureSummary);
   const artifacts = await finishSession(session, red, key, opts.failureEvidence);
@@ -209,26 +217,20 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
       : { viteDepChurn: session.contexts.flatMap((context) => partitionFailedRequests(context.requests.values()).viteChurn) }),
     captures: outcomes,
   });
-  const mapSummary = mapOutputSummary(opts.map, outcomes);
   const contextsCode = printVerdict("snap", {
     verdict: red ? 1 : 0,
     denominators: { contexts: { value: totalContexts, refuseWhen: "zero" } },
     pairs: [
-      ["out", produceShot ? contextOut(out, 0, totalContexts) : "(none)"],
+      ...ledger.some("shot", "out"),
       ["contexts", totalContexts],
       ["users", users.map((u) => u.handle).join(",")],
-      ["aria", totals.ariaSeen ? "yes" : "no"],
-      ["aria-fails", evidenceFailures.aria],
-      ["map", mapSummary.count],
-      ["map-dom-fallbacks", mapSummary.domFallbacks],
-      ["map-fails", evidenceFailures.map],
-      ["evals", totals.evals],
-      ["eval-fails", evidenceFailures.eval],
-      ["contrast-fails", totals.contrast],
-      ["assertion-fails", totals.assertions],
+      ...ledger.arm("aria"),
+      ...ledger.arm("map"),
+      ...ledger.arm("eval"),
+      ...ledger.arm("contrast"),
+      ...ledger.arm("assert"),
       ["environment-fails", failureSummary.environment],
-      ["deadcss-fails", failureSummary.deadCss],
-      ["emptycss-fails", failureSummary.emptyCss],
+      ...ledger.some("dead-css", "deadcss-fails", "emptycss-fails"),
       ["console-errors", failureSummary.consoleErrors],
       ["console-warnings", allEvidenceConsole.filter((entry) => entry.type === "warning").length],
       [
@@ -238,7 +240,7 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
       ["trace", artifacts.traces[0] ?? "none"],
       ["har", artifacts.hars[0] ?? "none"],
       ["json", manifestPath ?? "none"],
-      ["crop", cropOutcome(opts, { ...plan, out: contextOut(out, 0, totalContexts), failed: [], totalPages: totalContexts }) ?? "none"],
+      ...ledger.some("shot", "crop"),
       ["motion", motionResultValue(opts)],
       ["throttle", throttleResultValue(opts.cpuThrottle, opts.network)],
       ["nav", navResultVerdict(totals.navigation, totals.navActions)],
@@ -247,8 +249,9 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
       ["page-errors", reportTotals.pageErrors],
       ["failed-req", reportTotals.failedRequests],
       ["vite-dep-churn", reportTotals.viteChurn],
-      ["deadcss", totals.deadCss],
-      ["emptycss", totals.emptyCss],
+      ...ledger.some("dead-css", "deadcss", "emptycss"),
+      // A new arm's members land here with no edit to this file (design §6).
+      ...ledger.rest(),
     ],
   });
   // #1227: a page whose requested THEME never stamped measured the default palette — exit 2, not a verdict.
