@@ -12,9 +12,10 @@
 // stack.sh's own 8788/5173, which made `--contexts` unusable whenever the owner's dev stack was up (they
 // were mutually exclusive tenants of one port pair). It now boots on 8790/5175 with its own DB, assets and
 // stack pidfile, so BOTH stacks run at once — the same isolation recipe every e2e mode uses
-// (tests/e2e/support/modes.ts). These constants MIRROR multi-user-fixture.sh's defaults by hand (it is a
-// shell script, not an importable module) — the same hand-lockstep the credentials below already live
-// under; `resolveFixtureTarget` is the ONE seam every port/URL decision flows through, so an override
+// (tests/e2e/support/modes.ts). The pair itself is READ from `_shared/ports.ts` (`FIXTURE_PORTS`), which is
+// where multi-user-fixture.sh's defaults are mirrored — this module no longer respells them, so the only
+// hand-lockstep left here is the credentials below;
+// `resolveFixtureTarget` is the ONE seam every port/URL decision flows through, so an override
 // (`--fixture-server`/`--fixture-base`, or SNAP_FIXTURE_SERVER_URL/SNAP_FIXTURE_BASE_URL) reaches the
 // health probe AND the browser's base URL together — never one without the other.
 //
@@ -25,18 +26,18 @@
 
 import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { FIXTURE_PORTS } from "../../_shared/ports.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { FixtureStatus, FixtureTarget, FixtureTargetOverride } from "../contract/fixture.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
-// The fixture's OFFSET pair (multi-user-fixture.sh's FIXTURE_PORT/FIXTURE_VITE_PORT defaults) — NOT the
-// dev stack's 8788/5173, so both run side by side. `localhost` for the vite origin, 127.0.0.1 for the
-// server: vite v8 binds [::1] only (see stack.sh's vite_ok()).
-export const FIXTURE_SERVER_PORT = 8790;
-export const FIXTURE_VITE_PORT = 5175;
-export const FIXTURE_SERVER_URL_DEFAULT = `http://127.0.0.1:${FIXTURE_SERVER_PORT}`;
-export const FIXTURE_BASE_URL_DEFAULT = `http://localhost:${FIXTURE_VITE_PORT}`;
+// The fixture's OFFSET pair comes from the ONE port registry (_shared/ports.ts `FIXTURE_PORTS`, which
+// mirrors multi-user-fixture.sh's FIXTURE_PORT/FIXTURE_VITE_PORT defaults) — NOT the dev stack's pair, so
+// both run side by side. It used to be two literals respelled here (#1271). `localhost` for the vite
+// origin, 127.0.0.1 for the server: vite v8 binds [::1] only (see stack.sh's vite_ok()).
+export const FIXTURE_SERVER_URL_DEFAULT = `http://127.0.0.1:${FIXTURE_PORTS.server}`;
+export const FIXTURE_BASE_URL_DEFAULT = `http://localhost:${FIXTURE_PORTS.vite}`;
 
 // The credentials multi-user-fixture.sh mints (its own header docstring is the source of truth — kept in
 // lockstep by hand since the fixture is a shell script, not an importable module). Order is the
@@ -66,11 +67,11 @@ export function resolveFixtureTarget(
 ): FixtureTarget {
   const serverUrl = stripSlash(override.serverUrl ?? env["SNAP_FIXTURE_SERVER_URL"] ?? FIXTURE_SERVER_URL_DEFAULT);
   const baseUrl = stripSlash(override.baseUrl ?? env["SNAP_FIXTURE_BASE_URL"] ?? FIXTURE_BASE_URL_DEFAULT);
-  let serverPort = FIXTURE_SERVER_PORT;
+  let serverPort = FIXTURE_PORTS.server;
   // @orb-gate-ignore caught-failure-ownership(empty:catch): documented fail-safe floor — keeps the default port, and the status probe below refuses loudly on the same bad URL with a readable reason (see the doc comment above). Ends if that downstream refusal is removed.
   try {
     const parsed = new URL(serverUrl);
-    serverPort = parsed.port === "" ? FIXTURE_SERVER_PORT : Number(parsed.port);
+    serverPort = parsed.port === "" ? FIXTURE_PORTS.server : Number(parsed.port);
   } catch {
     /* keep the default port — the status probe refuses on the bad URL with a readable reason */
   }

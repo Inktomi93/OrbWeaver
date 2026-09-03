@@ -9,13 +9,12 @@
 // One resolve feeding both halves is the fix; these cases are its lens.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { DEV_PORTS, FIXTURE_PORTS } from "../../../../tooling/src/_shared/ports.ts";
 import {
   defaultFixtureUsers,
   FIXTURE_BASE_URL_DEFAULT,
   FIXTURE_CREDENTIALS,
-  FIXTURE_SERVER_PORT,
   FIXTURE_SERVER_URL_DEFAULT,
-  FIXTURE_VITE_PORT,
   resolveFixtureTarget,
   resolveFixtureUsers,
 } from "../../../../tooling/src/snap/ops/fixture.ts";
@@ -29,10 +28,11 @@ test("resolveFixtureTarget defaults to the fixture's OFFSET pair, not the dev st
   const target = resolveFixtureTarget({}, {});
   expect(target.serverUrl).toBe(FIXTURE_SERVER_URL_DEFAULT);
   expect(target.baseUrl).toBe(FIXTURE_BASE_URL_DEFAULT);
-  expect(target.serverPort).toBe(FIXTURE_SERVER_PORT);
-  // The whole point of the offset pair: coexistence with the dev stack (8788/5173).
-  expect(FIXTURE_SERVER_PORT).not.toBe(8788);
-  expect(FIXTURE_VITE_PORT).not.toBe(5173);
+  expect(target.serverPort).toBe(FIXTURE_PORTS.server);
+  // The whole point of the offset pair: coexistence with the dev stack. Both pairs come from the ONE port
+  // registry now (#1271), so this asserts the registry rows are distinct rather than two local literals.
+  expect(FIXTURE_PORTS.server).not.toBe(DEV_PORTS.server);
+  expect(FIXTURE_PORTS.vite).not.toBe(DEV_PORTS.vite);
 });
 
 /** The two env knobs as a plain record — built from entries so the SCREAMING_CASE keys don't read as
@@ -69,15 +69,15 @@ test("resolveFixtureTarget strips a trailing slash so URL joins never double up"
 test("resolveFixtureTarget keeps the default port when the override URL is unparseable (the probe refuses loudly instead)", () => {
   const target = resolveFixtureTarget({ serverUrl: "not-a-url" }, {});
   expect(target.serverUrl).toBe("not-a-url");
-  expect(target.serverPort).toBe(FIXTURE_SERVER_PORT);
+  expect(target.serverPort).toBe(FIXTURE_PORTS.server);
 });
 
-// ── the shell/TS hand-lockstep (the ports live in two files by necessity) ────────────────────────────────
+// ── the shell/TS hand-lockstep (bash cannot import the TS registry, so the pair lives in two files) ──────
 
-test("the fixture launcher script binds the SAME offset pair these constants mirror", () => {
+test("the fixture launcher script binds the SAME offset pair the port registry declares", () => {
   const script = readFileSync(join(REPO_ROOT, "tooling", "src", "stack", "multi-user-fixture.sh"), "utf8");
-  expect(script).toContain(`export PORT="\${FIXTURE_PORT:-${FIXTURE_SERVER_PORT}}"`);
-  expect(script).toContain(`export VITE_PORT="\${FIXTURE_VITE_PORT:-${FIXTURE_VITE_PORT}}"`);
+  expect(script).toContain(`export PORT="\${FIXTURE_PORT:-${FIXTURE_PORTS.server}}"`);
+  expect(script).toContain(`export VITE_PORT="\${FIXTURE_VITE_PORT:-${FIXTURE_PORTS.vite}}"`);
   // Its own pidfile dir — without it a second stack from this tree clobbers the dev stack's pgid.
   expect(script).toContain("export STACK_RUN_DIR=");
 });
