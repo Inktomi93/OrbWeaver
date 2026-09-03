@@ -2073,6 +2073,7 @@
     "tests/tooling/static-class-collection.int.test.ts",
     "tests/tooling/static-class-consumers.int.test.ts",
     "tests/tooling/suppressions.residual.test.ts",
+    "tests/tooling/testd-lane-program-coverage.int.test.ts",
     "tests/tooling/token-contract.test.ts",
     "tests/tooling/tool-guard.int.test.ts",
     "tests/tooling/ui-audit/cli.int.test.ts",
