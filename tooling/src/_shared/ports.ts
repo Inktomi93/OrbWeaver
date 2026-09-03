@@ -21,11 +21,19 @@
 // PURE — no env, no I/O, no imports. Every consumer that ALSO honours an env override (PORT, VITE_PORT,
 // FIXTURE_PORT, SNAP_BASE_URL, …) keeps that override at its own call site and uses these as the default.
 //
-// THE MIRROR SIDE, which this module cannot own: three shell launchers spell the same defaults in bash and
-// cannot import a TS module — `tooling/src/stack/stack.sh` (8788/5173), `tooling/src/stack/multi-user-
-// fixture.sh` (8790/5175) and `tooling/src/stack/engines.sh` (8701-8703). They are the same numbers by
-// hand. `STACK_SPAWNERS` (tooling/src/stack/lib/spawners.ts) reads THIS table, so `stack status` can still
-// name whoever holds a port; a shell default that drifted from this table would show up there.
+// THE MIRROR SIDE, which this module cannot own — FOUR files, and the two reasons are DIFFERENT (owner
+// ruling 2026-09-02, #1271: house precedent, no env file and no move into @orb/kit; the `tooling-shared-
+// plumbing` arm-I gate excludes all four BY RULING, not as a deferral):
+//   • BY LANGUAGE — three shell launchers spell the same defaults in bash and cannot import a TS module:
+//     `tooling/src/stack/stack.sh` (8788/5173), `tooling/src/stack/multi-user-fixture.sh` (8790/5175) and
+//     `tooling/src/stack/engines.sh` (8701-8703). `STACK_SPAWNERS` (tooling/src/stack/lib/spawners.ts)
+//     reads THIS table, so `stack status` can still name whoever holds a port; a drifted shell default
+//     shows up there, and `tests/tooling/snap/ops/fixture.test.ts` asserts the fixture pair in lockstep.
+//   • BY CAKE — `packages/client/vite.config.ts` (`5173`, `http://127.0.0.1:8788`). `tooling` sits ABOVE
+//     the package cake, so importing `@orb/tooling` from `packages/**` is an UPWARD import and is
+//     automatically wrong (constitution §2) — this is a boundary, not a preference. Those two values are
+//     env-overridable DEFAULTS there (`VITE_PORT`, `VITE_API_TARGET`), not hardcodes; the fallbacks must
+//     match DEV_PORTS above. That file carries the pointer back to this one.
 
 /** A server/vite pair — the shape every stack in this repo binds. */
 export interface PortPair {

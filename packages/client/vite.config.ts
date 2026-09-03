@@ -16,6 +16,14 @@ import checker from "vite-plugin-checker";
 // `VITE_API_TARGET` env read below is ALSO the snap-stage version tripwire — a stage ref that predates this
 // line is rejected up front (a silent proxy-to-the-dev-server would defeat isolation), so keep the literal.
 
+// THE TWO FALLBACKS BELOW ARE A DOCUMENTED MIRROR OF `tooling/src/_shared/ports.ts` `DEV_PORTS`
+// (5173 / 8788), which is the ONE home for every port this repo's tooling binds (#1269/#1271). This file
+// CANNOT read it: `tooling` sits ABOVE the package cake, so importing `@orb/tooling` from `packages/**`
+// would be an upward import — automatically wrong (constitution §2), not a matter of taste. Duplicating the
+// two numbers here is the ruled house precedent (owner, 2026-09-02), the same treatment the three bash
+// launchers get for the same reason in a different dimension; the `tooling-shared-plumbing` arm-I gate
+// therefore excludes this file BY RULING. **Change one of these and you must change DEV_PORTS too** — that
+// registry's header names this file, so the pointer is greppable from either side.
 const DEV_SERVER_PORT = Number(process.env["VITE_PORT"]) || 5173;
 
 const API_PROXY_TARGET = process.env["VITE_API_TARGET"] ?? "http://127.0.0.1:8788";
