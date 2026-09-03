@@ -12,6 +12,8 @@
 // derived value is a second home that drifts. Ports ARE stored because they are the band's identity as the
 // row was written — a row whose ports disagree with `stageBandPorts(row.band)` is evidence of a registry
 // edit, not something to silently paper over.
+import type { ServedState } from "../../stack/index.ts";
+
 export interface StagePorts {
   readonly server: number;
   readonly vite: number;
@@ -145,13 +147,20 @@ export type StageAllocation =
 const STAGE_HEALTH = ["warm", "degraded", "rebuild"] as const;
 export type StageHealth = (typeof STAGE_HEALTH)[number];
 
-/** What the three probes answered for one band. `served` mirrors `@orb/tooling/stack`'s `ServedState`
- *  vocabulary as observed for THIS stage; it is passed in rather than imported so the verdict stays pure
- *  and the stack tool stays behind snap's front door. */
+/** What the three probes answered for one band.
+ *
+ *  `served` IS the stack tool's `ServedState`, imported TYPE-ONLY through its front door — not a copy of it.
+ *  The first draft re-spelled the four members here with a comment claiming that kept the stack tool behind
+ *  snap's door; `no-inline-union-redecl` was right and the comment was wrong. The purity that comment was
+ *  actually protecting is about VALUES: a type-only import is erased at compile time, so this file still
+ *  pulls in no stack code, no `ss`, no fetch and no runtime edge — while the vocabulary keeps ONE home
+ *  (`tooling/src/stack/contract/types.ts` `SERVED_STATES`, exported as `ServedState` at that tool's
+ *  index.ts). The IMPERATIVE probe that produces the value still enters through the same front door
+ *  (ops/stage-probe.ts spawns the stack's own `served-probe` entry), which is what §4.2 requires. */
 export interface StageHealthEvidence {
   readonly healthzOk: boolean;
   readonly viteOk: boolean;
-  readonly served: "fresh" | "stale" | "unreachable" | "unverifiable";
+  readonly served: ServedState;
   /** Is this the `--dirty` stage? Only it HMRs, so only it has an era. */
   readonly dirty: boolean;
   readonly rsyncs: number;

@@ -15,6 +15,7 @@ import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { budget } from "../../_shared/load-budget.ts";
 import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
+import type { ServedState } from "../../stack/index.ts";
 import type { StagePorts } from "../contract/stage.ts";
 import { STAGE_ROOT_REL, stageBaseUrl } from "../lib/stage-plan.ts";
 
@@ -127,7 +128,7 @@ export function stageViteOk(vitePort: number): boolean {
  *  Exit codes are the stack tool's contract: 0 fresh · 1 stale · 2 could-not-measure. A ref whose tree
  *  predates the probe entry has nothing to run, which is `unverifiable` — an honest "I could not measure",
  *  which `stageHealthVerdict` then reads by source kind. */
-export function stageServedState(stageDir: string, vitePort: number): "fresh" | "stale" | "unreachable" | "unverifiable" {
+export function stageServedState(stageDir: string, vitePort: number): ServedState {
   const entry = join(stageDir, "tooling", "src", "stack", "ops", "prod-entry.ts");
   if (!existsSync(entry)) {
     return "unverifiable";
