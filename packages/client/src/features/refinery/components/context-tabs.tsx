@@ -15,6 +15,7 @@ import { Card } from "@orb/ui/card";
 import { DiffView } from "@orb/ui/diff";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Row, Stack } from "@orb/ui/layout";
+import { RECEDED_INK } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -138,7 +139,10 @@ export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrit
           // §14 is bolder in the work pane, quieter in the ledger; the canvas's one filled run control is the
           // FOCAL lane's (`workbench-lanes.ts` decides which lane that is). This stays a real door, because
           // the Runs tab can be open with the workbench scrolled past its lanes.
-          <Button intent="ghost" onClick={onRunScore} size="sm">
+          // (#1256, 2026-09-02 — the #1141/#1244/#1249 fork, fifth instance): this comment block's own
+          // words ("GHOST, and deliberately the quiet twin") are the recession ruling; the primitive keeps
+          // inheriting since #969, so the composite states its own ink through the shared spelling.
+          <Button className={RECEDED_INK} intent="ghost" onClick={onRunScore} size="sm">
             Run score
           </Button>
         }
