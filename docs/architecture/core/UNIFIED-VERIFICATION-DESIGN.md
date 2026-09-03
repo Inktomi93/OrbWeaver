@@ -331,7 +331,14 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   single-thread constraint; merging it means the green-to-commit ritual (`pnpm check` + `pnpm test`)
   exercises the CT suite too, and the visible `--retries=2` makes parallelism flakes RETRY instead of blocking (the CT\_GATE env it replaced retired 2026-07-17). At
   `changed` scope: vitest's own related-test graph over the unit+integration lanes (serial + contract are
-  whole-tree-shaped, deferred to push). **The vitest run is wrapped by `scripts/vitest-supervised.mjs`
+  whole-tree-shaped, deferred to push). **A derived-empty selection there is a CLEAN SKIP, never a red**
+  (#1272): the scoped child carries `--passWithNoTests`, so a `--changed` set that resolves to no related
+  test file — a clean committed tree, a docs-only diff — exits 0 instead of vitest's "No test files found"
+  exit 1 that `asViolations` scored as violations. This does NOT retire PD-115 (`vitest.config.ts`
+  `passWithNoTests: false`, so a lane whose include glob matches nothing FAILS): PD-115 judges an
+  ASSERTED selector and this one is DERIVED, the same asymmetry §3.4 draws for an empty scope. The flag
+  therefore rides the SCOPED argv ONLY — never `vitest.config.ts`, never the whole-scope `pnpm test`,
+  which still reds on an empty suite, as does `tests:execution-membership` on a zero-file runner view. **The vitest run is wrapped by `scripts/vitest-supervised.mjs`
   (#345, re-rooted #1012):** vitest 4.1.11's run path has exactly ONE unbounded await — `Pool.run`'s
   `await testFinish.promise`, settled only by a worker's `testfileFinished` message or a runner error/exit
   event — and the CLI reaches `ctx.exit()` (which arms vitest's own unref'd `teardownTimeout` force-exit)
