@@ -14,7 +14,7 @@ import type { Args, EvalOutcome, NavAction, SnapAction, Step } from "../contract
 import { HOVER_REVEAL_MS, MOUNT_SETTLE_MS, NETWORKIDLE_TIMEOUT_MS, STEP_SETTLE_MS, STEP_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
 import { CHURN_LINE, isContextChurn } from "../lib/eval-text.ts";
 import { driveBudgets } from "../lib/throttle.ts";
-import { captureEvals } from "./evidence.ts";
+import { captureEvals } from "./arms/eval.ts";
 import { MS_PER_SECOND } from "./flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");

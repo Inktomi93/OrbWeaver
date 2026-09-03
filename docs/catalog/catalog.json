@@ -10918,16 +10918,16 @@
       "path": "docs/design/1208-instrument-substrate.md",
       "lane": "design",
       "issue": 5,
-      "lines": 509,
-      "bytes": 91544,
-      "sha256": "7825d7927a1d27fdb8359e3ad693be7ebefc24dbee63029a731c2abead1f4d59",
+      "lines": 551,
+      "bytes": 96842,
+      "sha256": "487394992e3fcc964a3eb12a525c464b4650862a48bd4c9cbe8b49232e0a032f",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-02"
+          "updated": "2026-09-03"
         },
         "errors": []
       },
@@ -10985,7 +10985,7 @@
         ],
         "summary": "The instrument substrate design (owner-directed #1208): stateful snap sessions behind a per-lane daemon, N registered stage bands with TTL and lazy reap, one CLI grammar as shared flag families, an arm registry with Lighthouse and request-log worked, a 13-control test plan, a five-phase build plan and ten owner forks."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/1238-plugin-distribution.md",

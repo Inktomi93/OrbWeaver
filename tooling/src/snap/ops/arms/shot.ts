@@ -1,9 +1,11 @@
 // Screenshot capture: paint-settle (#123 — two identical frames before the PNG), native stabilization
 // (SHOT_BASE), element shots, volatile-region masks, and the native crop.
 import type { Locator, Page } from "@playwright/test";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { Args } from "../contract/types.ts";
-import { CROP_RE, PNG_EXT_RE } from "../lib/out-names.ts";
+import type { ResultPair } from "../../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds } from "../../contract/arms.ts";
+import type { Args, ReportCtx } from "../../contract/types.ts";
+import { CROP_RE, PNG_EXT_RE } from "../../lib/out-names.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -84,7 +86,7 @@ async function waitForPaintSettle(page: Page): Promise<void> {
   }
 }
 
-export async function captureShot(page: Page, opts: Args, out: string, mask: Locator[]): Promise<void> {
+async function captureShot(page: Page, opts: Args, out: string, mask: Locator[]): Promise<void> {
   await waitForPaintSettle(page);
   // `--scale` reaches the pixels HERE, at SHOT_BASE's CONSUMER — the shared const is never mutated
   // (#915), so an invocation that does not ask for a scale is byte-identical to every pre-#915 run.
@@ -119,3 +121,105 @@ export async function captureShot(page: Page, opts: Args, out: string, mask: Loc
     }
   }
 }
+
+/** What the RESULT line's `crop=` says. Every refusal here is IGNORED-with-a-reason rather than silence:
+ *  a crop that could not be taken must not read as a crop that was not asked for. */
+export function cropOutcome(opts: Args, ctx: ReportCtx): string | null {
+  if (opts.crop === null) {
+    return null;
+  }
+  if (!CROP_RE.test(opts.crop)) {
+    return `IGNORED — expected WxH+X+Y, got "${opts.crop}"`;
+  }
+  if (!ctx.produceShot) {
+    return "IGNORED — needs a shot (drop --no-shot/--text)";
+  }
+  if (opts.shotOf !== null) {
+    return "IGNORED — mutually exclusive with --shot-of";
+  }
+  return ctx.out.replace(PNG_EXT_RE, "-crop.png");
+}
+
+/** THE PIXEL ARM. It owns the flags that turn the primary capture off (`--no-shot`) or SCOPE it
+ *  (`--shot-of`, `--mask`, `--full`, `--crop`). Deliberately NOT its flags: `--scale` (a browser CONTEXT
+ *  property — it raises the context's DPR and is a session-level launch fact, not a capture instruction)
+ *  and `--baseline`/`--diff` (a separate capability with its own op and its own RESULT pairs, which is
+ *  why §6's roster has no `diff` member). Both would otherwise drag launch and comparison concerns into a
+ *  capture arm.
+ *
+ *  It runs LAST in the page pass, which is why `ARMS` is ordered by the pass: the PNG must show the page
+ *  the run's own text evidence describes, so every settled-surface read happens before the shutter. */
+export const SHOT_ARM = {
+  flags: [
+    {
+      flag: "--no-shot",
+      kind: "boolean",
+      pageTargetable: false,
+      handler: (a): void => {
+        a.shot = false;
+      },
+    },
+    {
+      flag: "--shot-of",
+      kind: "required-value",
+      pageTargetable: false,
+      handler: (a, rest): void => {
+        a.shotOf = rest.shift() ?? null;
+      },
+    },
+    {
+      flag: "--mask",
+      kind: "required-value",
+      pageTargetable: false,
+      handler: (a, rest): void => {
+        const selector = rest.shift();
+        if (selector !== undefined && selector !== "") {
+          a.mask.push(selector);
+        }
+      },
+    },
+    {
+      flag: "--full",
+      kind: "boolean",
+      pageTargetable: false,
+      handler: (a): void => {
+        a.fullPage = true;
+      },
+    },
+    {
+      flag: "--crop",
+      kind: "required-value",
+      pageTargetable: false,
+      handler: (a, rest): void => {
+        a.crop = rest.shift() ?? null;
+      },
+    },
+  ],
+  level: "call",
+  needs: (): ArmNeeds => ({}),
+  defaults: (): Pick<ArmArgs, "shot" | "shotOf" | "mask" | "fullPage" | "crop"> => ({ shot: true, shotOf: null, mask: [], fullPage: false, crop: null }),
+  help: `  --no-shot               skip the primary PNG
+  --shot-of <selector>    capture one element
+  --full                  capture the whole scrollable page, not just the viewport
+  --mask <selector>       pink-overlay a volatile region so it cannot churn the pixels (repeatable)
+  --crop <WxH+X+Y>        capture a bounded region`,
+  lifecycle: {
+    at: "page",
+    enabled: ({ plan }): boolean => plan.produceShot,
+    run: async ({ page, opts, plan }): Promise<void> => {
+      await captureShot(
+        page,
+        opts,
+        plan.out,
+        opts.mask.map((selector) => page.locator(selector)),
+      );
+    },
+    pairs: ({ opts, ctx }): readonly ResultPair[] => [
+      ["out", ctx.produceShot ? ctx.out : "(none)"],
+      ["crop", cropOutcome(opts, ctx) ?? "none"],
+    ],
+    // A missing or unwritable PNG surfaces as the nav/step failure that caused it; there is no separate
+    // "the shot failed" count today and inventing one would change the verdict this phase must not touch.
+    failures: (): ArmFailureCounts => ({}),
+  },
+} satisfies ArmDef;

@@ -6,8 +6,8 @@ import { settle } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, WatchTick } from "../contract/types.ts";
 import { PNG_EXT_RE, shouldProduceShot } from "../lib/out-names.ts";
-import { captureEvals } from "./evidence.ts";
-import { SHOT_BASE } from "./shot.ts";
+import { captureEvals } from "./arms/eval.ts";
+import { SHOT_BASE } from "./arms/shot.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 

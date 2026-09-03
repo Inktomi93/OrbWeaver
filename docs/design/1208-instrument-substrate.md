@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 
 # 1208 — the instrument substrate: stateful sessions, per-lane stages, one grammar, arms
@@ -474,6 +474,48 @@ Written BEFORE the first edit, per the forge contract. Every §10 row above was 
 **Test plan.** `tests/tooling/snap/lib/session-plan.test.ts` pins the pure core both ways (partition, refusal rows, `sessionAccess` all four cells, name validation, limits from env values, the DEAD/cap/foreign texts, sweep verdict, `stripSessionFlags`). `tests/tooling/snap/ops/session-daemon.int.test.ts` drives the REAL cli over `--file` fixtures with a scratch registry home (`ORB_SNAP_SESSION_HOME`) and a tiny cap/TTL from env: T1 (A `--viewport 412x823` reads 412, B reads 1280 — plus the one-shot twin as the FENCE it is), T2 (SIGKILL A → `SESSION DEAD … mid-` exit 2; `abandonedRuns` names A not B; sweep reaps + settles; B survives), T3 (two sessions, one `--out`, both slots keep the PNG, the pointer names a FINISHED run), T5 (TTL 0.05 min → dies; a half-window call keeps it past 2× the window), T6 (cap 2: the third boot exits 2 naming both with idle ages; closing one admits it), T9 (one-shot vs session RESULT pairs identical except `out`; a planted contrast defect reds both), plus busy (exit 2 naming the op), foreign (a `git init` scratch checkout is refused naming owner/pid/idle) and attach (`attachProbeSession` drives the live page and the owner survives). Gate arm H: conformance rows (planted `connectOverCDP(`/`connect(` outside the home flag; inside passes) via `gate-conformance.int`. Red-first: the new suite against the unmodified cli reds on `unknown flag --session` (the trivial red); the load-bearing reds are the planted controls above.
 
 **Forks stated (defaults taken, escalated in the report).** (a) Scenario checkpoints keep SILENTLY inheriting `--viewport`/`--dark`/… from the outer command (today's behaviour); sessions REFUSE the same flags loudly. Default: leave scenario byte-stable (a value change owes its own sweep), unify in phase 4. (b) The session slot's run id stays the house scheme (`<checkout>-<pid>-<stamp>`) instead of `<name>-<stamp>`; the name is the row's. (c) `--session-export` carries rings only, no trace/HAR, until phase 3.
+
+### 10.2 Phase 3 as built (lane p-arms-registry, #1277 + #1259, 2026-09-03) — where §6 had to widen
+
+§6's `ArmDef` was written from the two NEWEST arms (`lighthouse`, `requests`), and the nine older ones
+did not fit it. The worked-arm exercise did its job: each mismatch below is a member that WIDENED so the
+contract describes real arms, and the byte-stability receipt is what proves the widening changed nothing
+an operator sees.
+
+| §6 as sketched | As built | Why |
+| - | - | - |
+| `run: (ctx) => Promise<TOutcome>` | a `lifecycle` UNION: `at: "page"` (the settled-surface pass, once per `--pages` tab, writing its slice of that tab's `CaptureOutcome`) or `at: "run"` (a `begin(session, opts)` instance spanning the run) | `--requests` MUST wire its listeners before anything navigates, and `--cascade` needs the whole browser's SDK runtime. One `run()` would have lost the pre-navigation attach or given nine page arms three empty hooks. Exhaustively dispatched, so neither can be forgotten |
+| `failures: (outcome) => number` | `failures(): Partial<Record<keyof SnapFailureSummary, number>>` | `dead-css` owns TWO independent summary members (dead tokens, empty rules). `ops/verdict.ts` reads each by name and THROWS when its arm did not produce it |
+| `needs: { debuggingPort, devtoolsSdk, trace, requestRing, quietBox }` | `needs: (opts) => ArmNeeds` with **only** `debuggingPort` and `devtoolsSdk` minted | those two have a live consumer at the ONE launch site (`prepareLaunchProfile`). The request ring IS the `at: "run"` mint; the load withhold is per INSTRUMENT (`_shared/load-budget.ts`); nothing reads `trace`. A `needs` member nothing consumes is the declaration-without-enforcement this registry exists to delete. It is a FUNCTION of the argv so an ordinary run launches byte-identically |
+| `export const ARM_DEFS` in `contract/arms.ts` | the TYPES in `contract/arms.ts`, the RECORD in `ops/arms/registry.ts` | the record holds run functions and must import all eleven arm modules, which import the arm types — one file would be a value module in a cycle with every arm |
+| `ARMS` listed in prose order | `ARMS` IS the page-pass execution order (`dead-css → aria → eval → contrast → map → assert → perf → shot`, then the run arms) | a second ordering list beside the roster is a second home for one fact, and the order is load-bearing: every settled-surface read happens before the shutter |
+| (not sketched) | `defaults: () => Pick<ArmArgs, …>` + `armArgDefaults(): ArmArgs` spreading all eleven BY NAME | the tsc fence for the parse: `Args` splits into `ArmArgs`/`NonArmArgs` (`contract/arms.ts`), so `ops/parse.ts` refuses to compile when an arm stops defaulting a field it owns. A factory, not a literal — several arms default to a fresh array |
+| (not sketched) | the RESULT-line LEDGER (`armPairLedger`): `ops/run.ts` CLAIMS the pairs whose position is historical, and `rest()` appends the unclaimed in `ARMS` order | the line's field order is a contract with every script that greps it, so the pairs could not simply be concatenated. A claim for a pair its arm did not produce THROWS |
+
+**What is derived now** (each had a hand-maintained twin before): the four scanner classes
+(`ops/flags-classes.ts` — the optional-selector and optional-value classes turned out to be ENTIRELY
+arm-owned), the handler table (`...armFlagHandlers()`), the parse defaults, `SESSION_ONLY_FLAGS`'s arm
+members (from `level`), the launch provisions (from `needs`), the RESULT pairs, the verdict members, and
+`SNAP_HELP`. Help was the loudest gap: `--no-deadcss`, `--mask`, `--full`, `--aria`, `--aria-depth`,
+`--aria-boxes` and `--contrast-pixel` had NO operator row at all, and nothing could have caught that.
+
+**#1259 closed here.** `lighthouseEndpoint()` reserved a loopback port and launched with
+`--remote-debugging-port=<n>` while a session launched a persistent profile with `=0` and read
+`DevToolsActivePort` back — two writers of one launch argument, last-wins and silent, which is why
+phase 1 could only refuse the pair. The reserving path and `lib/loopback-port.ts` are DELETED, the
+refusal row in `sessionModeValidationPairs` with them, and `debuggingPortFor` reads the one profile.
+Live receipt: booting a session on a clean `--file` fixture, planting `aria-label="Zzz unrelated"` on its
+LIVE page through a later `--eval` call, then `--session p-arms --lighthouse desktop` reported
+`label-content-name-mismatch` (failed-audits=4) while a one-shot audit of the same FILE reported 3 — the
+arm read the session's browser, not a second one.
+
+**Byte-stability receipt.** 25 CLI invocations covering every arm and its refusals, captured on the
+pre-change tree and on this one: full normalised stdout+stderr byte-identical, RESULT lines
+byte-identical, `--json` manifest key set unchanged. `--help` gained the seven missing rows above and one
+five-word wording fix. The receipt was proven deterministic first by capturing it twice on the unchanged
+tree. **A defect it caught:** the ledger's claim key was minted by two separate template literals, one of
+which carried a NUL byte where its separator belonged, so nothing matched and every arm's pairs printed
+TWICE at the tail of an otherwise perfect RESULT line — invisible to tsc, biome and every suite.
 
 ## 11. Cost
 

@@ -2,7 +2,7 @@
 // from the same selector population painted over by an unrelated layer.
 
 import { chromium } from "@playwright/test";
-import { captureContrastEvidence } from "../../../../tooling/src/snap/ops/contrast.ts";
+import { captureContrastEvidence } from "../../../../tooling/src/snap/ops/arms/contrast.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 

@@ -21,10 +21,11 @@ import { buildAppearanceInvariantChecks } from "./appearance-invariant-checks.ts
 import type { AppearanceDomSnapshot } from "./appearance-invariant-dom.ts";
 import { probeAppearanceDom } from "./appearance-invariant-dom.ts";
 import { evaluateAppearancePrepaint } from "./appearance-prepaint.ts";
-import { capturePageCssEvidence } from "./cascade.ts";
-import { captureContrastEvidence } from "./contrast.ts";
-import { scanDeadCss } from "./dead-css.ts";
+import { capturePageCssEvidence } from "./arms/cascade.ts";
+import { captureContrastEvidence } from "./arms/contrast.ts";
+import { scanDeadCss } from "./arms/dead-css.ts";
 import { animationEvidence as animationEvidenceShape, checkpointReset, resetFailures } from "./page-validate.ts";
+import { cascadeRuntimeFor } from "./session.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
 
@@ -398,12 +399,9 @@ async function captureAppearanceInvariantRow(session: ProbeSession, opts: Args, 
       instrumentError(`Appearance row ${row.id} has no settings provenance`);
     }
     const cascade = cascadeExpectations(row, snapshots.current);
-    const css = await capturePageCssEvidence(
-      session,
-      cascade.map(({ selector, property, matchIndex }) => ({ selector, property, matchIndex, page: 0 })),
-      0,
-      row.merge.mechanism === "merge-required",
-    );
+    const queries = cascade.map(({ selector, property, matchIndex }) => ({ selector, property, matchIndex, page: 0 }));
+    const requireMerge = row.merge.mechanism === "merge-required";
+    const css = await capturePageCssEvidence({ runtime: cascadeRuntimeFor(session), session, queries, pageIndex: 0, requireMerge });
     const pixels = await pixelEvidence(page, row, opts);
     const animations = await animationEvidence(page);
     const messageCarrier = row.id === "mobile-compact-large-document" ? await readMessageCarrierEvidence(page) : undefined;

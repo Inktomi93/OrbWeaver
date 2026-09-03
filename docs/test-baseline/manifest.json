@@ -2041,6 +2041,7 @@
     "tests/tooling/snap/ops/appearance-invariant-dom.int.test.ts",
     "tests/tooling/snap/ops/appearance-invariants.test.ts",
     "tests/tooling/snap/ops/appearance-prepaint.test.ts",
+    "tests/tooling/snap/ops/arms/registry.test.ts",
     "tests/tooling/snap/ops/contexts.int.test.ts",
     "tests/tooling/snap/ops/contrast-fill.int.test.ts",
     "tests/tooling/snap/ops/contrast.int.test.ts",

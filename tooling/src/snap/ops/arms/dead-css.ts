@@ -5,9 +5,11 @@
 // probe compile the same regex and skip the same namespaces by construction.
 import { CLASS_SELECTOR_TOKEN_PATTERN, CLASS_TOKEN_ESCAPE_PATTERN, DEAD_CSS_MARKER_EXACT, DEAD_CSS_MARKER_PREFIXES } from "@orb/kit/dead-css";
 import type { Page } from "@playwright/test";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { DeadCssEvidence } from "../contract/dead-css.ts";
-import { deadCssCensus, deadCssDrain } from "./page-validate.ts";
+import type { ResultPair } from "../../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
+import type { DeadCssEvidence } from "../../contract/dead-css.ts";
+import { deadCssCensus, deadCssDrain } from "../page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -139,3 +141,59 @@ export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<D
   );
   return { ...census, drain };
 }
+
+/** FOUR RESULT pairs in TWO historical positions, which is why `ArmDef.failures` returns a MAP rather than
+ *  §6's single number: dead tokens and empty rules are independent findings with independent counts, and
+ *  each has both a `*-fails` member (the verdict) and a bare count (the census). `ops/run.ts` claims each
+ *  by name at the position it has always printed in, so the RESULT line stays byte-identical. */
+function deadCssCounts({ outcomes }: ArmPairInput): { readonly dead: number; readonly empty: number } {
+  return {
+    dead: outcomes.reduce((count, outcome) => count + outcome.deadCss.length, 0),
+    empty: outcomes.reduce((count, outcome) => count + outcome.emptyCss.length, 0),
+  };
+}
+
+export const DEAD_CSS_ARM = {
+  flags: [
+    {
+      flag: "--no-deadcss",
+      kind: "boolean",
+      pageTargetable: false,
+      handler: (a): void => {
+        a.deadCss = false;
+      },
+    },
+  ],
+  level: "call",
+  needs: (): ArmNeeds => ({}),
+  defaults: (): Pick<ArmArgs, "deadCss"> => ({ deadCss: true }),
+  help: `  --no-deadcss            skip the dead-class/empty-rule scan (it is ON by default: dead tokens and
+                          used-but-empty rules RED the run, the same way --contrast findings do)`,
+  lifecycle: {
+    at: "page",
+    enabled: ({ opts }): boolean => opts.deadCss,
+    run: async ({ page, opts, outcome }): Promise<void> => {
+      const scan = await scanDeadCss(page, opts.includeHidden);
+      outcome.deadCss = [...scan.dead];
+      outcome.emptyCss = [...scan.empty];
+      outcome.deadCssEvidence = scan;
+    },
+    pairs: (input): readonly ResultPair[] => {
+      const counts = deadCssCounts(input);
+      return [
+        ["deadcss-fails", counts.dead],
+        ["emptycss-fails", counts.empty],
+        ["deadcss", counts.dead],
+        ["emptycss", counts.empty],
+      ];
+    },
+    // NOT `css`: that summary member counts OUTCOMES whose CSS evidence is untrustworthy for EITHER
+    // reason — an unreadable stylesheet here, or a cascade instrument-error — and one page can carry both.
+    // Summing two arm-owned counts would double-count it, so `css` stays a cross-arm fold in
+    // ops/verdict.ts, which is the only place that sees both sheets of evidence for one page.
+    failures: (input): ArmFailureCounts => {
+      const counts = deadCssCounts(input);
+      return { deadCss: counts.dead, emptyCss: counts.empty };
+    },
+  },
+} satisfies ArmDef;

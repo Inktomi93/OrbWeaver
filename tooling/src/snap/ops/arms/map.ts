@@ -2,9 +2,12 @@
 // emitted selector is an EXECUTABLE agent handle (unique + visible) before it is printed.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
-import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { MapEntry, RawMapEntry } from "../contract/types.ts";
-import { rawMapEntries } from "./page-validate.ts";
+import type { ResultPair } from "../../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
+import type { CaptureOutcome, MapEntry, RawMapEntry } from "../../contract/types.ts";
+import { consumeOptionalSelector } from "../flags-support.ts";
+import { rawMapEntries } from "../page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -224,7 +227,7 @@ async function validateMapEntry(page: Page, entry: RawMapEntry, includeHidden: b
   throw new Error(`map could not mint one visible selector for ${entry.role} ${JSON.stringify(entry.name)}`);
 }
 
-export async function captureMap(page: Page, selector: string, includeHidden: boolean): Promise<{ entries: MapEntry[] | null; error: string | null }> {
+async function captureMap(page: Page, selector: string, includeHidden: boolean): Promise<{ entries: MapEntry[] | null; error: string | null }> {
   try {
     // #1004 — settled here rather than inside `validateMapEntry`'s per-row selector walk, where a
     // malformed row throws with no mention of the page read that produced it.
@@ -237,3 +240,58 @@ export async function captureMap(page: Page, selector: string, includeHidden: bo
     return { entries: null, error: errorMessage(e) };
   }
 }
+
+/** `map=`/`map-dom-fallbacks=` state WHICH run you got — `no` when the arm never ran, a count when it did.
+ *  A bare `0` for both would read the same as "the arm is off", which is the class the registry's
+ *  totality rule exists to kill. */
+function mapOutput(enabled: boolean, outcomes: readonly CaptureOutcome[]): { readonly count: string; readonly domFallbacks: string } {
+  if (!enabled) {
+    return { count: "no", domFallbacks: "no" };
+  }
+  const entries = outcomes.find((outcome) => outcome.mapResult !== null)?.mapResult ?? [];
+  return { count: String(entries.length), domFallbacks: String(entries.filter((entry) => entry.source === "dom").length) };
+}
+
+function mapFailures({ outcomes }: ArmPairInput): number {
+  return outcomes.filter((outcome) => outcome.mapError !== null).length;
+}
+
+export const MAP_ARM = {
+  flags: [
+    {
+      flag: "--map",
+      kind: "optional-selector",
+      pageTargetable: true,
+      handler: (a, rest, page): void => {
+        a.map = true;
+        a.mapPage = page;
+        const selector = consumeOptionalSelector(rest);
+        if (selector !== null) {
+          a.mapSelector = selector;
+        }
+      },
+    },
+  ],
+  level: "call",
+  needs: (): ArmNeeds => ({}),
+  defaults: (): Pick<ArmArgs, "map" | "mapSelector" | "mapPage"> => ({ map: false, mapSelector: "body", mapPage: 0 }),
+  help: "  --map [selector]        interactive roles, names, and selectors",
+  lifecycle: {
+    at: "page",
+    enabled: ({ opts, pageIndex }): boolean => opts.map && opts.mapPage === pageIndex,
+    run: async ({ page, opts, outcome }): Promise<void> => {
+      const mapped = await captureMap(page, opts.mapSelector, opts.includeHidden);
+      outcome.mapResult = mapped.entries;
+      outcome.mapError = mapped.error;
+    },
+    pairs: (input): readonly ResultPair[] => {
+      const summary = mapOutput(input.opts.map, input.outcomes);
+      return [
+        ["map", summary.count],
+        ["map-dom-fallbacks", summary.domFallbacks],
+        ["map-fails", mapFailures(input)],
+      ];
+    },
+    failures: (input): ArmFailureCounts => ({ map: mapFailures(input) }),
+  },
+} satisfies ArmDef;

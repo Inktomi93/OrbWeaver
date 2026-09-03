@@ -398,11 +398,6 @@ export type RawMapEntry = Omit<MapEntry, "source"> & { fallback: string; semanti
 
 /** Which page this evidence pass belongs to, plus the evals the drive queue deliberately LEFT for it
  *  (the ones written after the last step/nav — they observe the settled surface). */
-export interface EvidencePass {
-  readonly pageIndex: number;
-  readonly trailingEvals: readonly string[];
-}
-
 export interface ShotPlan {
   url: string;
   out: string;
