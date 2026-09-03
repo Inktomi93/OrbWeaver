@@ -468,7 +468,7 @@ function sweepPlaywrightConfigs(ctx: GateRunCtx): void {
         file: rel,
         line: 0,
         column: 0,
-        message: `arm I cannot read ${rel} (${read.kind === "missing" ? "not on the tree" : read.detail}) — the runner port surface is unreadable, so this arm is blind to it.`,
+        message: `arm I cannot read ${rel} (${read.kind === "missing" ? "not on the tree" : read.detail}) — the runner port surface is unreadable, so this arm is blind to it — every runner port literal has one home at tooling/src/_shared/ports.ts.`,
       });
       continue;
     }
