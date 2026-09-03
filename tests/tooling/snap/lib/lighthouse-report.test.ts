@@ -1,6 +1,6 @@
 // The PURE half of snap's Lighthouse arm (#1198): what the accounting block and the RESULT line are
 // derived from. The browser-backed proof that the arm bites on a real page is the sibling
-// tests/tooling/snap/ops/lighthouse.int.test.ts; these pins fix the READING of a report — the arms that
+// tests/tooling/snap/ops/arms/lighthouse.int.test.ts; these pins fix the READING of a report — the arms that
 // a real run cannot produce on demand (a runtime error, a truncated render, a missing category).
 
 import type { LighthouseReceipt } from "../../../../tooling/src/snap/index.ts";

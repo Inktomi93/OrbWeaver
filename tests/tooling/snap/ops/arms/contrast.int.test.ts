@@ -2,9 +2,9 @@
 // from the same selector population painted over by an unrelated layer.
 
 import { chromium } from "@playwright/test";
-import { captureContrastEvidence } from "../../../../tooling/src/snap/ops/arms/contrast.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
-import { scaledBudget } from "../../_load-budget.ts";
+import { captureContrastEvidence } from "../../../../../tooling/src/snap/ops/arms/contrast.ts";
+import { expect, test } from "../../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../../_load-budget.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);
 const VIEWPORT = { width: 400, height: 240 } as const;

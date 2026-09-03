@@ -129,7 +129,7 @@
     "tests/tooling/_shared/browser.int.test.ts",
     "tests/tooling/design-audit-walker.ct.tsx",
     "tests/tooling/snap/cascade.suite.int.test.ts",
-    "tests/tooling/snap/ops/contrast.int.test.ts",
+    "tests/tooling/snap/ops/arms/contrast.int.test.ts",
     "tests/tooling/stack/lib/engine-launch.test.ts",
     // #1243: two SERVER tests, each deep-importing a client/ui feature file whose OWN code internally
     // imports a package-scoped alias ("#lib"/the client "@orb/client/data/bus" deep subpath) - not
