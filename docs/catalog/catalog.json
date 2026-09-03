@@ -10856,9 +10856,9 @@
       "path": "docs/design/1195-devtools-mcp-retirement.md",
       "lane": "design",
       "issue": 5,
-      "lines": 95,
-      "bytes": 8218,
-      "sha256": "f427918198331c0a374be16ace90672ea0b22977bb89ff8f007d1834c3de76da",
+      "lines": 115,
+      "bytes": 10023,
+      "sha256": "7812c738e3e878312a417274bc2182cbe812ddc5ad4e73c397826f7729bb5217",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10875,9 +10875,9 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "f427918198331c0a374be16ace90672ea0b22977bb89ff8f007d1834c3de76da",
-        "verifiedCommit": "2642a54df9154c339a0b87c4ca0d5df8b48829f5",
-        "verifiedAt": "2026-09-02",
+        "verifiedSha256": "7812c738e3e878312a417274bc2182cbe812ddc5ad4e73c397826f7729bb5217",
+        "verifiedCommit": "58803e064cd350f8c27ab90b176446eb034c5d28",
+        "verifiedAt": "2026-09-03",
         "claims": [
           {
             "claim": "Lighthouse (41 calls, snapshot-mode dominant) is the one MCP use that produced findings snap could not (axe label-content-name-mismatch, target-size); it becomes a snap arm before the MCP retires.",
