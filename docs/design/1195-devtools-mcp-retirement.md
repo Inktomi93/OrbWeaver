@@ -89,6 +89,26 @@ dominating — the period before snap grew its drive arms.
    `reaching-for-chrome-devtools-means-snap-has-a-gap` survives as the standing test for any future "we
    need the MCP back" claim: name the gap, build the arm.
 
+   **RETIRED IN THE REPO (#1255, a122096ee).** `side-eye.md` holds `tools: Bash, Read, Grep, Glob,
+   SendMessage` and nothing else; the six `.claude/settings.json` permission grants are deleted; the skill's
+   §4 row 5 is re-pointed at `pnpm snap <route> --lighthouse desktop|mobile` with the arm's real contract
+   (snapshot default, exit-1 findings vs exit-2 refusal, the `--mobile` device-slot collision, the
+   `--cascade` exclusion) read out of `snap/contract/help.ts`; `.codex/agents/side-eye.toml` regenerated via
+   `pnpm agents:sync`. Coverage re-derived at the fold with a planted positive control in the same
+   invocation: `git grep --fixed-strings 'mcp__plugin_chrome-devtools'` over the tracked tree returns
+   exactly ONE hit, `1208-instrument-substrate.md:83`, which is the line SPECIFYING the gate below. History
+   was not sanitised: dated reviews citing the MCP as their era's instrument stand as written.
+
+   **TWO RESIDUES, both named rather than papered over.** (a) "Drop the plugin from the main session" is NOT
+   done and is not the repo's to do: `chrome-devtools-mcp@claude-plugins-official` is still `true` in the
+   owner's user-global `~/.claude/settings.json`, so the server still boots for a main session even though
+   nothing in the repo grants its tools. An agent's request is not authorization to edit a user's global
+   config; the owner flips it, or `/plugin` does. (b) This retirement is PROSE-ENFORCED until **#1279**
+   lands the `agent-def-no-browser-mcp` fs gate that `1208:83` specifies — the grep above is that gate's
+   assertion run by hand once, and it has a shelf life of one commit. The third sub-item, deleting the
+   `chrome-mcp-headless-patch` memory, was already done: neither the topic file nor its `MEMORY.md` index
+   line exists in the store.
+
 ## 3. What this does NOT decide
 
 The `claude-in-chrome` MCP (the owner's logged-in Chrome — 112 calls in the same window, Reddit threads and
