@@ -100,7 +100,7 @@ export const gate: GateDescriptor = {
     {
       files: "export const x = 1;\n".repeat(BROWSER_DEFERRED_CEILING + 1),
       at: "tooling/src/_shared/browser.ts",
-      expect: { messageIncludes: "shrink-only" },
+      expect: { messageIncludes: "SHRINK-ONLY" },
       why: "the deferral is SHRINK-ONLY — one line over the recorded 482 ceiling is RED, so a deferred file cannot keep growing",
     },
   ],
