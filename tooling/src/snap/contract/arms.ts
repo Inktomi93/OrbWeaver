@@ -39,7 +39,7 @@ export type Arm = (typeof ARMS)[number];
 
 /** How `ops/parse.ts`'s scanner must consume the flag's argv slot. One axis, so a new arm cannot invent a
  *  fourth consumption rule the scanner does not know about. */
-export const ARM_FLAG_KINDS = ["boolean", "required-value", "optional-selector", "optional-value"] as const;
+const ARM_FLAG_KINDS = ["boolean", "required-value", "optional-selector", "optional-value"] as const;
 export type ArmFlagKind = (typeof ARM_FLAG_KINDS)[number];
 
 /** The parse handler's shape — identical to the `FLAG_HANDLERS` rows this replaces, so an arm's handler is
