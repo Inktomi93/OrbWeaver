@@ -10,6 +10,7 @@ export type {
   Severity,
 } from "./contract/findings.ts";
 export { SEVERITIES } from "./contract/findings.ts";
+export { DESIGN_AUDIT_HELP } from "./contract/help.ts";
 export type { DesignAuditRuleFamily, DesignAuditRuleId, DesignAuditSeverity } from "./contract/rules.ts";
 export { DESIGN_AUDIT_RULE_FAMILIES, DESIGN_AUDIT_RULE_IDS, DESIGN_AUDIT_RULES, DESIGN_AUDIT_SEVERITIES } from "./contract/rules.ts";
 export type {
@@ -116,7 +117,7 @@ export {
 } from "./lib/stage-request.ts";
 export { buildSurfaceStateAccounting, surfaceStateAxisLabel } from "./lib/surface-state.ts";
 export { runUiAuditMatrix } from "./ops/matrix.ts";
-export { DESIGN_AUDIT_HELP, parseAuditArgs } from "./ops/parse.ts";
+export { parseAuditArgs } from "./ops/parse.ts";
 export { runUiAudit } from "./ops/run.ts";
 export { configureAuditStage } from "./ops/stage.ts";
 export { COLLECT_SAMPLES_JS } from "./ops/walker.ts";

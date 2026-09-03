@@ -4,7 +4,6 @@
 import { mergeAppearancePatches } from "@orb/tooling/_shared/appearance";
 import {
   APPEARANCE_VALUE_FLAGS,
-  appearanceHelpBlock,
   applyAppearanceFlag,
   FULL_MOTION_PATCH,
   loadAppearancePreset,
@@ -14,12 +13,12 @@ import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
-import { SESSION_FLAG, SESSION_FLAG_HELP } from "@orb/tooling/_shared/instrument-argv";
+import { aliasRefusal, HELP_FLAGS, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
 import type { NavMethod } from "@orb/tooling/_shared/nav";
-import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS, panelPresetHelpBlock } from "@orb/tooling/_shared/panel-flags";
-import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
+import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS } from "@orb/tooling/_shared/panel-flags";
+import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS } from "@orb/tooling/_shared/theme";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { Severity } from "../contract/findings.ts";
+import { DEFAULT_FAIL_ON, DEFAULT_SETTLE_MS } from "../contract/defaults.ts";
 import type { Args } from "../contract/types.ts";
 import { isValidSeverity } from "../lib/severity.ts";
 import { stageArgErrors } from "../lib/stage-request.ts";
@@ -27,8 +26,6 @@ import { stageArgErrors } from "../lib/stage-request.ts";
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
-const DEFAULT_WAIT_MS = 500;
-const DEFAULT_FAIL_ON: Severity = "P1";
 type FlagHandler = (args: Args, rest: string[]) => void;
 
 function pushNav(args: Args, method: NavMethod, rest: string[]): void {
@@ -88,8 +85,10 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
       a.actions.push({ kind: "nav", ...action });
     });
   },
-  "--wait": (a, rest) => {
-    a.waitMs = Number(rest.shift() ?? String(DEFAULT_WAIT_MS));
+  // #1290 F1: renamed from --wait (snap's --wait names a SELECTOR; this one always meant milliseconds,
+  // perf-meter's/record's spelling) — the old spelling is refused BY NAME in scanArgv, never accepted.
+  "--settle": (a, rest) => {
+    a.waitMs = Number(rest.shift() ?? String(DEFAULT_SETTLE_MS));
   },
   "--out": (a, rest) => {
     a.out = rest.shift() ?? null;
@@ -161,6 +160,16 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   [SESSION_FLAG]: (a, rest) => {
     a.session = rest.shift() ?? null;
   },
+  // HELP_FLAGS (§4.3, _shared/instrument-argv.ts): print DESIGN_AUDIT_HELP and exit 0 — before this
+  // family, --help was an unknown flag and exited 3 (measured 20 hits, design §1 P5).
+  ...Object.fromEntries(
+    [...HELP_FLAGS].map((flag): [string, FlagHandler] => [
+      flag,
+      (a) => {
+        a.help = true;
+      },
+    ]),
+  ),
 };
 
 const REQUIRED_VALUE_FLAGS = new Set([
@@ -172,7 +181,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--context-tab",
   "--panel",
   "--focus",
-  "--wait",
+  "--settle",
   "--out",
   "--base",
   "--ref",
@@ -184,68 +193,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   ...THEME_VALUE_FLAGS,
 ]);
 
-export const DESIGN_AUDIT_HELP = `design-audit — the deterministic UI defect scan
-
-Usage:
-  pnpm design-audit [route] [flags]
-
-The positional is a URL PATH on the audited origin, never a section lookup: \`design-audit characters\`
-loads \`/characters\`. Every rail section happens to BE a path — \`/<section>\` is a real deep-link alias
-(routes/router.tsx #181): it selects the section and lands on \`/\`. Anything that is not a section, a
-settings category or a modal slot has no route, so it renders the app's not-found boundary — which this
-tool refuses to audit (an error boundary is not a surface: exit 2, no findings, no populations). To reach
-a surface WITHOUT a page load — including every settings/modal target — audit \`/\` and drive \`--goto\`.
-
-Surface (ONE argv-ordered queue — write the chain the way it should happen):
-  --click <selector>        --goto <section|settings:cat|modal:slot>
-  --open-chat <id|title|latest|current>   --open-character <id|name>
-  --upload <selector>=<path[,path...]>    attach local file(s) to a file input — drills a wrapper
-                            selector down to the real <input type="file"> automatically. PATH BOUNDARY:
-                            every path must resolve inside this repo or the OS tmp dir; anything else is
-                            refused loudly. Same shape and boundary as snap's --upload (_shared/upload.ts).
-  --context-tab <tab>       --panel <name>=<docked|overlay|collapsed>   drive the shell's panel layout
-  --focus <on|off>          the shell's zen/focus-mode toggle
-  --panels <preset>         reach a NAMED panel configuration in one flag (see Panel state below)
-  --wait <ms>               settle after the last action (default ${DEFAULT_WAIT_MS})
-
-Environment:
-  --viewport <WxH>          default 1280x800
-  --mobile                  iPhone 14 Pro Max — touch + pointer:coarse (the 44px tap floor)
-  --desktop                 explicit 1280x800
-  --matrix                  derive and run the 13-cell Appearance/theme/device representative matrix
-
-Where it audits (default: ${DEFAULT_BASE} — the dev stack, which serves MAIN, never a worktree):
-  --base <url>              audit an already-running origin (a stage, a file:// dir) — conflicts with the
-                            stage flags below; two answers to "where" is refused, never defaulted
-  --isolated                boot/reuse snap's ISOLATED STAGE (a second dev stack on offset ports, serving a
-                            DETACHED worktree at a commit) and audit THAT — how a lane audits its own branch
-  --ref <sha|branch|tag>    the commit the stage serves (implies --isolated; default HEAD). A ref this
-                            checkout cannot resolve is CLI misuse — it never falls back to the dev stack
-  --dirty                   stage the WORKING TREE instead of a commit (implies --isolated)
-  --fresh                   rebuild the stage instead of reusing the warm one (implies --isolated)
-
-  STAGE DB: the stage serves its OWN db — a FRESH stage sha copies the dev db at boot; a stage dir that
-  already exists KEEPS the db it had (possibly older/thinner than dev). A corpus-dependent finding, or its
-  absence, is a claim about THAT db. A run that BOOTS the stage REFUSES (exit 2) rather than judging a
-  cold surface — vite's dep-optimizer is still churning and the walk would census a fraction of the page and
-  call it clean — so the first invocation warms the stage and the second one measures it. Stage admin is
-  snap's: pnpm snap --stage-status|--stage-down|--stage-sweep.
-
-${SESSION_FLAG_HELP}
-
-${panelPresetHelpBlock()}
-
-${appearanceHelpBlock()}
-
-${themeHelpBlock()}
-
-Verdict:
-  --fail-on <P0|P1|P2|P3>   exit 1 at this severity or worse (default ${DEFAULT_FAIL_ON})
-  --out <name|path>         reports/design-audit/<name>.json — or, path-shaped (absolute / ./ ../),
-                            that exact file
-
-Exit: 0 clean · 1 findings · 2 NOT A VERDICT (empty walk, nav error, an action that did not land, or a
-      declared failure surface) · 3 CLI misuse.`;
+const KNOWN_FLAGS = new Set(Object.keys(FLAG_HANDLERS));
 
 /** Argv is scanned for misuse BEFORE anything runs. An unknown flag used to print
  *  `UNKNOWN FLAG --goto (ignored)` and exit 0 — so a typo'd audit scanned home, reported clean, and the
@@ -256,8 +204,11 @@ function scanArgv(argv: readonly string[]): string[] {
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index] as string;
     if (FLAG_HANDLERS[token] === undefined) {
-      if (token.startsWith("-")) {
-        errors.push(`unknown flag ${token}`);
+      if (token === "--wait") {
+        // #1290 F1: the OLD spelling — refused BY NAME, never left to read as an unknown flag or a route.
+        errors.push("unknown flag --wait — design-audit renamed it to --settle <ms> (snap's --wait names a selector; this always meant milliseconds)");
+      } else if (token.startsWith("-")) {
+        errors.push(aliasRefusal(token, KNOWN_FLAGS) ?? `unknown flag ${token}`);
       } else {
         routeCount += 1;
       }
@@ -281,6 +232,7 @@ function scanArgv(argv: readonly string[]): string[] {
 
 export function parseAuditArgs(argv: string[]): Args {
   const args: Args = {
+    help: false,
     route: "/",
     base: DEFAULT_BASE,
     matrix: false,
@@ -291,7 +243,7 @@ export function parseAuditArgs(argv: string[]): Args {
     fresh: false,
     stageShortSha: null,
     actions: [],
-    waitMs: DEFAULT_WAIT_MS,
+    waitMs: DEFAULT_SETTLE_MS,
     out: null,
     viewport: DEFAULT_VIEWPORT,
     device: null,

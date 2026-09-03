@@ -4,7 +4,6 @@
 import { mergeAppearancePatches } from "@orb/tooling/_shared/appearance";
 import {
   APPEARANCE_VALUE_FLAGS,
-  appearanceHelpBlock,
   applyAppearanceFlag,
   FULL_MOTION_PATCH,
   loadAppearancePreset,
@@ -14,16 +13,16 @@ import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
-import { SESSION_FLAG, SESSION_FLAG_HELP } from "@orb/tooling/_shared/instrument-argv";
-import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS, panelPresetHelpBlock } from "@orb/tooling/_shared/panel-flags";
-import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
+import { aliasRefusal, HELP_FLAGS, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
+import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS } from "@orb/tooling/_shared/panel-flags";
+import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS } from "@orb/tooling/_shared/theme";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { DEFAULT_WINDOW_MS } from "../contract/defaults.ts";
 import type { Args } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
 
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
-const DEFAULT_WINDOW_MS = 2500;
 
 // One handler per flag (Record dispatch, snap.ts house style) — keeps parseArgs flat under the
 // cognitive-complexity cap instead of a long else-if chain.
@@ -114,6 +113,16 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   [SESSION_FLAG]: (a, rest) => {
     a.session = rest.shift() ?? null;
   },
+  // HELP_FLAGS (§4.3, _shared/instrument-argv.ts): print MOTION_AUDIT_HELP and exit 0 — before this
+  // family, --help was an unknown flag and exited 3 (measured 8 hits, design §1 P5).
+  ...Object.fromEntries(
+    [...HELP_FLAGS].map((flag): [string, FlagHandler] => [
+      flag,
+      (a) => {
+        a.help = true;
+      },
+    ]),
+  ),
 };
 
 // Flags that consume the next token. A missing value used to swallow the following flag silently.
@@ -136,48 +145,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   ...THEME_VALUE_FLAGS,
 ]);
 
-export const MOTION_AUDIT_HELP = `motion-audit — the smoothness ground-truth harness
-
-Usage:
-  pnpm motion-audit [route] [flags]
-
-Reach the surface (argv-ordered, run BEFORE the trace; evidence is reset after the last one):
-  --click <selector>        --goto <section|settings:cat|modal:slot>
-  --open-chat <id|title|latest|current>   --open-character <id|name>   --context-tab <tab>
-  --panel <name>=<docked|overlay|collapsed>   drive the shell's panel layout (also the docked↔collapsed
-                            FLIP transition — one of the app's largest motion surfaces)
-  --focus <on|off>          the shell's zen/focus-mode toggle
-  --panels <preset>         reach a NAMED panel configuration in one flag (see Panel state below)
-
-Measure:
-  --selector <sel>          THE interaction — clicked inside the trace window
-  --window <ms>             observation window (default ${DEFAULT_WINDOW_MS})
-
-${SESSION_FLAG_HELP}
-
-Environment:
-  --base <url> · --url <full-url> · --viewport <WxH> · --vnc (headful) · --no-throttle
-  --mobile                  ${MOBILE_DEVICE} full descriptor (touch · pointer:coarse · mobile UA · DPR)
-  --desktop                 explicit 1280x800 desktop (pointer:fine · hover)
-  --os-reduced-motion       emulate prefers-reduced-motion: reduce (independent of app Appearance)
-  --os-full-motion          explicit OS full-motion media-query arm (default)
-  --matrix                  derive/run the six scenario × app-motion × OS-motion × device cells;
-                            the exact reduced mobile entry may report STATIC-EXPECTED only beside the
-                            nonzero full-motion mobile interaction control (ordinary zero-frame law stays)
-                            rated Appearance recipe: --goto settings:appearance
-                            --selector '[data-slot="collapsible-trigger"]'
-
-${panelPresetHelpBlock()}
-
-${appearanceHelpBlock()}
-
-${themeHelpBlock()}
-  A single-run motion verdict owes BOTH app arms: bare (the account's real state — does the floor hold?)
-  and --full-motion (is the nice stuff good?). The independent --os-full-motion/--os-reduced-motion
-  flags change only the browser media query; --matrix derives and runs both app and OS arms.
-
-Exit: 0 pass · 1 budget breach / failed action / page error · 2 nothing was observed (no __orb bridge,
-      no composited frame) · 3 CLI misuse.`;
+const KNOWN_FLAGS = new Set(Object.keys(FLAG_HANDLERS));
 
 /** Argv is scanned for misuse BEFORE a browser boots — snap's and design-audit's strict-CLI posture. A
  *  typo'd nav flag used to print "(ignored)" and audit the landing page under the name of the surface the
@@ -189,7 +157,7 @@ function scanArgv(argv: readonly string[]): string[] {
     const token = argv[index] as string;
     if (FLAG_HANDLERS[token] === undefined) {
       if (token.startsWith("-")) {
-        errors.push(`unknown flag ${token}`);
+        errors.push(aliasRefusal(token, KNOWN_FLAGS) ?? `unknown flag ${token}`);
       } else {
         routeCount += 1;
       }
@@ -248,6 +216,7 @@ function strictValueErrors(argv: readonly string[]): string[] {
 
 export function parseMotionArgs(argv: string[]): Args {
   const args: Args = {
+    help: false,
     route: "/",
     url: null,
     base: DEFAULT_BASE,
