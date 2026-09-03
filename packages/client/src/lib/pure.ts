@@ -1,14 +1,6 @@
-// lib/ PURE-LOGIC front door (#1243, Arm A-prime — the fork ledger for #1228's residual). Same shape
-// as state/pure.ts (that file's header carries the full ARM/enforcer rationale). This surface is
-// lib/index.ts's content MINUS every `.tsx` component export (React components are never "pure logic"
-// here) and MINUS bug-report-capture.ts (imports agent-bridge.ts + console-error-ring.ts — both dev-only
-// DOM instrument internals index.ts itself deliberately never re-exports, per its own header, but
-// bug-report-capture.ts's OWN exports still transitively touch them). A mechanical filter over
-// lib/index.ts, not a hand-picked symbol list — stays complete as index.ts grows.
-//
-// EXCLUDED, `.tsx` component files (JSX, not pure logic): app-failure-surface.tsx,
-// create-registry-context.tsx, error-boundary.tsx, render-profiler.tsx, weave-glyph.tsx.
-// EXCLUDED, DOM-coupled via import chain: bug-report-capture.ts (→ agent-bridge.ts, console-error-ring.ts).
+// lib/ PURE-LOGIC front door (#1243). HAND-MAINTAINED mirror of a lib/index.ts subset — NO enforcer
+// keeps it complete. #1262 (2026-09-03) measured its stated reasons (DOM-crash risk, type-graph
+// isolation, import cost) against the real tree and refuted all three — receipts on issue #1262.
 
 // The seeded-background catalog has ONE home in @orb/contracts/theme (the server's /autobg arm reads the
 // same list); re-exported here so every client consumer keeps importing it from `#lib`.
