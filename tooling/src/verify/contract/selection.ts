@@ -36,6 +36,9 @@ export interface Selection {
   readonly tsconfigs: readonly string[];
   /** Does the selection touch tests/ · scripts/ · reset.d.ts (the graph-only trees)? */
   readonly touchesGraphOnlyTrees: boolean;
+  /** Does the selection put any file in `tsconfig.tests-dom.json` (the DOM-coupled test-escapee program,
+   *  #1274)? Drives the `types:tests-dom` stage at a scoped tier. */
+  readonly touchesTestsDom: boolean;
   /** The Playwright CT view: which `.ct.tsx` mirrors / sweep dirs this selection runs (§3.4). */
   readonly ct: CtView;
   /** The `node tooling/src/verify/cli.ts scoped …` argv that scopes the structure gates' WALK to this selection. */

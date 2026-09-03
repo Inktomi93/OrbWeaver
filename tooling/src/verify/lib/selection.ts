@@ -5,7 +5,7 @@
 // The program algebra lives in ./program-routing.ts and the CT view in ./ct-view.ts (five-slot split, P6).
 import type { CtView, Selection, SelectionRequest } from "../contract/selection.ts";
 import { ctView } from "./ct-view.ts";
-import { BROWSER_PACKAGES, distinctTsconfigs, graphMembership, touchesGraph } from "./program-routing.ts";
+import { BROWSER_PACKAGES, distinctTsconfigs, graphMembership, touchesGraph, touchesTestsDom } from "./program-routing.ts";
 import { existsRel, gitChangedPaths, packageDir, toRepoRel } from "./repo-paths.ts";
 
 // ── the path-zone predicates (lifted verbatim from check/file.ts — kept in ONE place) ──
@@ -38,6 +38,7 @@ function deriveViews(paths: readonly string[]): {
   readonly docsPaths: readonly string[];
   readonly tsconfigs: readonly string[];
   readonly touchesGraphOnlyTrees: boolean;
+  readonly touchesTestsDom: boolean;
   readonly ct: CtView;
 } {
   const graphSrc = graphMembership();
@@ -51,6 +52,7 @@ function deriveViews(paths: readonly string[]): {
     // `touchesGraphOnlyTrees` KEEPS its field name (downstream registry contract) but now means "puts any
     // file in the GRAPH program" — graph roots (tests/scripts/reset.d.ts) OR the import-pull overlay.
     touchesGraphOnlyTrees: touchesGraph(paths, graphSrc),
+    touchesTestsDom: touchesTestsDom(paths),
     ct: ctView(paths),
   };
 }
@@ -94,6 +96,9 @@ function resolvePackage(name: string): Selection {
     // package's own dom-tsconfig can't — the TS2584 class). Browser packages (ui/client) are graph-EXCLUDED,
     // so graph honestly defers. This keeps --package consistent with --changed on the same package's files.
     touchesGraphOnlyTrees: !BROWSER_PACKAGES.has(dir),
+    // A `--package` selection is a bare `packages/<dir>/` prefix — tsconfig.tests-dom.json's roots are
+    // never under packages/ (they're tests/scripts/playwright), so a package scope never touches it.
+    touchesTestsDom: false,
     // A whole-package scope over a BROWSER package sweeps that package's whole mirror tree (the honest floor
     // for "everything in ui/client changed"); a node package contributes no CT. Prefix-based, so it doesn't
     // route through the per-file mirror map (paths here is a bare prefix, not a concrete .tsx file).
@@ -118,6 +123,7 @@ function resolveScope(glob: string): Selection {
     // runs the graph, the honest floor for a whole-folder run.
     tsconfigs: distinctTsconfigs([`${prefix}/x.ts`], undefined),
     touchesGraphOnlyTrees: touchesGraph([`${prefix}/x.ts`], undefined),
+    touchesTestsDom: touchesTestsDom([`${prefix}/x.ts`]),
     // The sweep triggers are prefix-tests, so a folder scope under a declared blast-radius (e.g.
     // `--scope packages/ui/src/tokens`) escalates to the matching sweep; a scope with no trigger is skip
     // (the per-file mirror map needs a concrete .tsx path, which a folder glob is not).

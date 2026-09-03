@@ -17,6 +17,7 @@ const PKG_SRC_RE = /^packages\/([^/]+)\/src\//u;
 const GRAPH = "tsconfig.json";
 const CLIENT_TSCONFIG = "packages/client/tsconfig.json";
 const UI_TSCONFIG = "packages/ui/tsconfig.json";
+const TESTS_DOM_TSCONFIG = "tsconfig.tests-dom.json";
 // The root graph's `include: packages/*/src` sweeps EVERY package's src EXCEPT the two BROWSER packages it
 // `exclude`s (ui + client are dom-typechecked by their own tsconfig — never in the DOM-less graph). So a
 // NODE package's src IS a graph root; a browser package's is not. (Mirror of tsconfig.json include/exclude.)
@@ -60,7 +61,69 @@ const PACKAGE_TSCONFIGS: readonly string[] = [
   "tooling/tsconfig.json",
   UI_TSCONFIG,
   CLIENT_TSCONFIG,
+  TESTS_DOM_TSCONFIG,
 ];
+
+// ── tsconfig.tests-dom.json membership — DERIVED from that config's own `include`, never hand-mirrored
+// (#1274 — the router previously carried NO route for this program at all; a hand-copied second glob list
+// here would be the exact rot class tsconfig-routing-parity exists to catch, so instead we read the config
+// as ground truth and parse its own array). ──
+
+/** A directory-glob `include` entry of the shape `<dir>/**​/*.ts` (the only glob shape this config uses —
+ *  see its own header: `tests/client/**​/*.ts` / `tests/ui/**​/*.ts` / `tests/e2e/**​/*.ts`). Captures `<dir>`. */
+const TESTS_DOM_DIR_GLOB_RE = /^(.+)\/\*\*\/\*\.ts$/u;
+
+interface TestsDomInclude {
+  /** Exact repo-relative `include` entries (literal `.ts`/`.tsx` files — never `.d.ts`; those are ambient
+   *  and already routed by an earlier rule: rule 1 for package-src, rule 3b for the root ambient pair). */
+  readonly literals: ReadonlySet<string>;
+  /** Directory prefixes from a `<dir>/**​/*.ts` entry — matches any `.ts` (not `.tsx`, not `.d.ts`) file
+   *  directly under that directory tree, mirroring tsc's own glob semantics for this program. */
+  readonly dirGlobPrefixes: readonly string[];
+}
+
+let testsDomIncludeMemo: TestsDomInclude | undefined;
+
+/** Parse `tsconfig.tests-dom.json`'s own `include` array (JSONC — the file carries `//` line comments) into
+ *  a membership predicate. Memoized: the config only changes with a commit, and this module is loaded once
+ *  per process. */
+function testsDomInclude(): TestsDomInclude {
+  if (testsDomIncludeMemo !== undefined) {
+    return testsDomIncludeMemo;
+  }
+  const raw = readFileSync(join(ROOT, TESTS_DOM_TSCONFIG), "utf8");
+  const withoutComments = raw
+    .split("\n")
+    .map((line) => line.replace(/\/\/.*$/u, ""))
+    .join("\n");
+  const parsed = JSON.parse(withoutComments) as { readonly include?: readonly string[] };
+  const literals = new Set<string>();
+  const dirGlobPrefixes: string[] = [];
+  for (const entry of parsed.include ?? []) {
+    const globMatch = TESTS_DOM_DIR_GLOB_RE.exec(entry);
+    if (globMatch?.[1] !== undefined) {
+      dirGlobPrefixes.push(globMatch[1]);
+    } else if (TS_RE.test(entry) && !entry.endsWith(".d.ts")) {
+      literals.add(entry);
+    }
+    // else: an ambient `.d.ts` entry — already routed by rule 1 (package-src) or rule 3b (the root pair).
+  }
+  testsDomIncludeMemo = { literals, dirGlobPrefixes };
+  return testsDomIncludeMemo;
+}
+
+/** Is `rel` a ROOT of `tsconfig.tests-dom.json` — a literal `include` entry, or a `.ts` (never `.tsx`/
+ *  `.d.ts`) file under one of its directory-glob prefixes? */
+function isTestsDomRoot(rel: string): boolean {
+  const { literals, dirGlobPrefixes } = testsDomInclude();
+  if (literals.has(rel)) {
+    return true;
+  }
+  if (!rel.endsWith(".ts") || rel.endsWith(".d.ts")) {
+    return false;
+  }
+  return dirGlobPrefixes.some((prefix) => rel.startsWith(`${prefix}/`));
+}
 
 function isGraphOnlyTree(rel: string): boolean {
   return rel.startsWith("tests/") || rel.startsWith("scripts/") || ROOT_AMBIENT_DTS.has(rel) || ROOT_CONFIG_FILES.has(rel);
@@ -109,6 +172,14 @@ export function staticPrograms(rel: string): readonly string[] {
   //     `tooling/src` as roots — the same two-program shape as a node package's src, rule 1).
   if (rel.startsWith("tooling/src/")) {
     return ["tooling/tsconfig.json", GRAPH];
+  }
+  // 3d. the DOM-coupled test escapees tsconfig.tests-dom.json owns (#1274 — DERIVED from that config's own
+  //     `include`, see testsDomInclude()). MUST run before rule 4: the root graph's `exclude` (mirrored by
+  //     isGraphOnlyTree's blanket "tests/" prefix test below) excludes every one of these files, so without
+  //     this rule they fell through to a GRAPH route the compiler does not actually honor — a route the
+  //     tsconfig-routing-parity gate's MIRROR arm would red on (staticPrograms says GRAPH; tsgo disagrees).
+  if (isTestsDomRoot(rel)) {
+    return [TESTS_DOM_TSCONFIG];
   }
   // 4. the node graph roots (a .tsx here is claimed by rule 3 above — today none reach this arm).
   return isGraphOnlyTree(rel) ? [GRAPH] : [];
@@ -280,13 +351,15 @@ export function graphMembership(): ReadonlySet<string> | undefined {
 const GRAPH_TSCONFIG = "tsconfig.json";
 
 /** The distinct PACKAGE-level owning tsconfigs a selection touches (the honest per-package tsc floor). The
- *  root GRAPH program is EXCLUDED here — it is a separate stage (`types:graph`), driven by the graph flag,
- *  not a per-package `tsc -p`. */
+ *  root GRAPH program and `tsconfig.tests-dom.json` are EXCLUDED here — each is a separate stage
+ *  (`types:graph` / `types:tests-dom`) driven by its own flag (`touchesGraphOnlyTrees` /
+ *  `touchesTestsDom`), not a per-package `tsc -p`; folding either in here would run it TWICE, once under
+ *  `types:packages`'s sole-owner fast path and once under its own stage. */
 export function distinctTsconfigs(paths: readonly string[], graphSrc: ReadonlySet<string> | undefined): readonly string[] {
   const owners = new Set<string>();
   for (const p of paths) {
     for (const cfg of programsFor(p, graphSrc)) {
-      if (cfg !== GRAPH_TSCONFIG) {
+      if (cfg !== GRAPH_TSCONFIG && cfg !== TESTS_DOM_TSCONFIG) {
         owners.add(cfg);
       }
     }
@@ -308,4 +381,13 @@ export function touchesGraph(paths: readonly string[], graphSrc: ReadonlySet<str
     // Cache-cold conservative fallback: a package-src file whose graph membership we couldn't compute.
     return graphSrc === undefined && PKG_SRC_RE.test(p);
   });
+}
+
+/** Does the selection put ANY file in `tsconfig.tests-dom.json` (rule 3d — the DOM-coupled test escapees)?
+ *  Drives the `types:tests-dom` stage at a scoped tier (#1274 — previously this program had NO scoped
+ *  route at all, so `verify --file`/`--changed` reported clean over a file it never typechecked). No
+ *  import-pull overlay needed here — unlike the graph, this program is a small, explicit `include` list,
+ *  never a transitive-closure target. */
+export function touchesTestsDom(paths: readonly string[]): boolean {
+  return paths.some((p) => staticPrograms(p).includes(TESTS_DOM_TSCONFIG));
 }
