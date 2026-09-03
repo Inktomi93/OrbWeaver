@@ -10856,9 +10856,9 @@
       "path": "docs/design/1195-devtools-mcp-retirement.md",
       "lane": "design",
       "issue": 5,
-      "lines": 115,
-      "bytes": 10023,
-      "sha256": "7812c738e3e878312a417274bc2182cbe812ddc5ad4e73c397826f7729bb5217",
+      "lines": 121,
+      "bytes": 10516,
+      "sha256": "c42e40cd23fc64649f27bfd0db7b57082ee1f9f67ebcfa7ca61db2e49f5a0bfd",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10875,8 +10875,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "7812c738e3e878312a417274bc2182cbe812ddc5ad4e73c397826f7729bb5217",
-        "verifiedCommit": "58803e064cd350f8c27ab90b176446eb034c5d28",
+        "verifiedSha256": "c42e40cd23fc64649f27bfd0db7b57082ee1f9f67ebcfa7ca61db2e49f5a0bfd",
+        "verifiedCommit": "dc33801d79759bb0fdf8fab3d0f7c01bc5093c1f",
         "verifiedAt": "2026-09-03",
         "claims": [
           {
