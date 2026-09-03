@@ -1,15 +1,16 @@
 // The audit orchestration: launch with the requested OS media-query arm and independent app Appearance
 // arm -> goto/ready/settle -> reach -> flagger settle -> measured window -> report.
 import type { ProbeSession } from "@orb/tooling/_shared/browser";
-import { buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
+import { attachProbeSession, buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
 import { readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
+import type { ExitCode } from "@orb/tooling/_shared/exit-contract";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { withholdRate } from "@orb/tooling/_shared/load-budget";
 import type { Page } from "@playwright/test";
 import { readRuntimeAppearanceContract } from "../../_shared/appearance-matrix.ts";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { stageBandRefusalFor } from "../../snap/index.ts";
+import { resolveSessionAttach, stageBandRefusalFor } from "../../snap/index.ts";
 import type { ApplicationMotionEvidence, Args, AuditData } from "../contract/types.ts";
 import { CPU_THROTTLE_RATE, MOUNT_SETTLE_MS, NAV_TIMEOUT_MS, READY_TIMEOUT_MS } from "../lib/budgets.ts";
 import { apparatusGap, loadWithholdGap, reportInstrumentError } from "../lib/evidence.ts";
@@ -118,6 +119,29 @@ async function applyCpuThrottle(cdp: Awaited<ReturnType<ProbeSession["context"][
  *  `snap --isolated` leaves the band with its previous owner, so an instrument chained behind one measures
  *  a sibling checkout's pixels and prints numbers that look completely normal. Refuse (exit 2 — nothing was
  *  measured) before the browser launches; the door is snap's, one home (tooling/src/snap/ops/stage-marker.ts). */
+/** #1285: `--session <name>` attaches to a live snap session's browser (design §3.4) instead of launching
+ *  a fresh one; a dead/foreign/absent session is an EXIT.toolError refusal (never a fallback launch). */
+async function launchOrAttach(opts: Args): Promise<ProbeSession | ExitCode> {
+  if (opts.session === null) {
+    return await launchProbeSession({
+      headless: !opts.vnc,
+      viewport: opts.viewport,
+      device: opts.device,
+      colorScheme: null,
+      reducedMotion: opts.osReducedMotion,
+      appearance: opts.appearance, // …and the APP setting, which the media query does not reach (--full-motion)
+      theme: opts.theme,
+      localStorage: [],
+    });
+  }
+  const attach = resolveSessionAttach(opts.session);
+  if (!attach.ok) {
+    print(attach.message);
+    return EXIT.toolError;
+  }
+  return await attachProbeSession(attach.endpoint, attach.environment);
+}
+
 export async function runMotionAuditDetailed(opts: Args): Promise<MotionAuditRunResult> {
   const url = opts.url ?? buildUrl(opts.base, opts.route);
   const bandRefusal = stageBandRefusalFor(url);
@@ -126,16 +150,10 @@ export async function runMotionAuditDetailed(opts: Args): Promise<MotionAuditRun
     return { code: EXIT.toolError, data: null };
   }
 
-  const session = await launchProbeSession({
-    headless: !opts.vnc,
-    viewport: opts.viewport,
-    device: opts.device,
-    colorScheme: null,
-    reducedMotion: opts.osReducedMotion,
-    appearance: opts.appearance, // …and the APP setting, which the media query does not reach (--full-motion)
-    theme: opts.theme,
-    localStorage: [],
-  });
+  const session = await launchOrAttach(opts);
+  if (typeof session === "number") {
+    return { code: session, data: null };
+  }
   return await withProbeSession(session, async () => {
     const { page } = session;
     const cdp = await session.context.newCDPSession(page);

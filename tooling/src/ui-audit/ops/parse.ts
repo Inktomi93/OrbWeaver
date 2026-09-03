@@ -14,6 +14,7 @@ import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
+import { SESSION_FLAG, SESSION_FLAG_HELP } from "@orb/tooling/_shared/instrument-argv";
 import type { NavMethod } from "@orb/tooling/_shared/nav";
 import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS, panelPresetHelpBlock } from "@orb/tooling/_shared/panel-flags";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
@@ -155,6 +156,11 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
       a.errors.push(`--fail-on expects P0|P1|P2|P3, got ${JSON.stringify(raw)}`);
     }
   },
+  // #1285: attach to a live snap session's browser (docs/design/1208-instrument-substrate.md §3.4)
+  // instead of launching a fresh one — the shared WHERE_FLAGS spelling (_shared/instrument-argv.ts).
+  [SESSION_FLAG]: (a, rest) => {
+    a.session = rest.shift() ?? null;
+  },
 };
 
 const REQUIRED_VALUE_FLAGS = new Set([
@@ -172,6 +178,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--ref",
   "--viewport",
   "--fail-on",
+  SESSION_FLAG,
   ...PANEL_PRESET_VALUE_FLAGS,
   ...APPEARANCE_VALUE_FLAGS,
   ...THEME_VALUE_FLAGS,
@@ -223,6 +230,8 @@ Where it audits (default: ${DEFAULT_BASE} — the dev stack, which serves MAIN, 
   cold surface — vite's dep-optimizer is still churning and the walk would census a fraction of the page and
   call it clean — so the first invocation warms the stage and the second one measures it. Stage admin is
   snap's: pnpm snap --stage-status|--stage-down|--stage-sweep.
+
+${SESSION_FLAG_HELP}
 
 ${panelPresetHelpBlock()}
 
@@ -289,6 +298,7 @@ export function parseAuditArgs(argv: string[]): Args {
     failOn: DEFAULT_FAIL_ON,
     appearance: null,
     theme: null,
+    session: null,
     errors: scanArgv(argv),
   };
   const rest = [...argv];
