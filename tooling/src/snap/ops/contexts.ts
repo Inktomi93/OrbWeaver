@@ -9,6 +9,7 @@ import type { ProbeSession } from "../../_shared/browser.ts";
 import { buildUrl, closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
+import { loadResultPairs } from "../../_shared/load-budget.ts";
 import type { Arm, ArmPairInput } from "../contract/arms.ts";
 import type { FixtureTarget } from "../contract/fixture.ts";
 import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "../contract/types.ts";
@@ -252,6 +253,7 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
       ...ledger.some("dead-css", "deadcss", "emptycss"),
       // A new arm's members land here with no edit to this file (design §6).
       ...ledger.rest(),
+      ...loadResultPairs(),
     ],
   });
   // #1227: a page whose requested THEME never stamped measured the default palette — exit 2, not a verdict.

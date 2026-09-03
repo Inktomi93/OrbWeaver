@@ -5207,7 +5207,7 @@
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::empty:error::1",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 350,
+      "line": 353,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5215,12 +5215,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.",
-      "markerLine": 346
+      "markerLine": 349
     },
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::empty:error::2",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 357,
+      "line": 360,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5228,12 +5228,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.",
-      "markerLine": 354
+      "markerLine": 357
     },
     {
       "siteId": "tooling/src/snap/ops/scenario.ts::empty:error::1",
       "path": "tooling/src/snap/ops/scenario.ts",
-      "line": 317,
+      "line": 318,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5241,7 +5241,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as SCENARIO ERROR and routed through EXIT.misuse, the process's own exit code. Ends if that exit code stops being surfaced.",
-      "markerLine": 314
+      "markerLine": 315
     },
     {
       "siteId": "tooling/src/snap/ops/session-admin.ts::default:catch::1",

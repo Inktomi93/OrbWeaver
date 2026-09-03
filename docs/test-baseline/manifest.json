@@ -2026,6 +2026,7 @@
     "tests/tooling/snap/cascade.suite.int.test.ts",
     "tests/tooling/snap/cli.int.test.ts",
     "tests/tooling/snap/index.test.ts",
+    "tests/tooling/snap/lib/budgets.test.ts",
     "tests/tooling/snap/lib/cascade-source.test.ts",
     "tests/tooling/snap/lib/contrast-fill.test.ts",
     "tests/tooling/snap/lib/lighthouse-report.test.ts",

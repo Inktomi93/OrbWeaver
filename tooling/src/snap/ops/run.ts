@@ -7,6 +7,7 @@ import type { ProbeSession } from "../../_shared/browser.ts";
 import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
+import { loadResultPairs } from "../../_shared/load-budget.ts";
 import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
 import type { ArmPairInput, ArmRunContext } from "../contract/arms.ts";
 import type { EvidenceWindow, SessionRunHooks, SessionRunTarget, SnapDetailedPlan, SnapDetailedResult } from "../contract/run.ts";
@@ -245,6 +246,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
         // an edit to this file. That is the phase's actual claim (design §6).
         ...ledger.rest(),
         ...diffPairs,
+        ...loadResultPairs(),
       ],
     });
     return {
