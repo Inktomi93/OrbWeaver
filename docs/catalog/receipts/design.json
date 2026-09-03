@@ -9,8 +9,8 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "bafc920c2ed267c6c0cd78493de30a9c619c83fef052a44da8b1de8a9fae563f",
-      "verifiedCommit": "e1d0b00e18b962c91c9a3ac6c99db9524a49fc9c",
+      "verifiedSha256": "1d5032d8f176e3da27b3b67a5e9ad97013a3d401605454dc9d1cc16a209f89aa",
+      "verifiedCommit": "da64f56f5b2a55db7a2a2a46302a92c843f99d84",
       "verifiedAt": "2026-09-03",
       "evidence": [
         "re-attested at 273b95d61 (the #1276 fold merge, lane p-stage-bands): §10.2 \"Phase 2 as built\" added, 84 lines (478-561), read IN FULL by the primary orchestrator at the fold. It records the band table as landed — four premises that died with receipts (ensureStage({band,session}) refused as the wrong seam, the synchronous stage path forcing the third probe into a child, --stage-down losing its singular referent, one listeningPids() snapshot instead of twenty ss forks), the arms chosen (claim written INSIDE the mkdir mutex before the 55s boot, a lock broken rather than inherited past a dead pid or 30s; the third probe asked only of --dirty stages so unverifiable means degraded there and warm for --ref; shortSha/baseUrl derived rather than serialized; two modules split at the line cap), the refusals (fork F7 --stage-down --owner NOT built, and phase 3’s attach half deliberately out of scope), the coupled-site census, the test plan as landed, and §\"What phase 2 does NOT prove\" — which is the doc naming its own gap and assigning the live multi-band boot receipt to the orchestrator at the barrier rather than to a suite. Also in this fold: biome.json’s existing snap/ops/stage.ts useNamingConvention override extended to stage-probe.ts, the same spawn-env reason, not a new exemption class. verifiedSha256 taken from the COMMITTED blob at the merge sha and identical to the working-tree digest, so no formatting pass moved it.",
