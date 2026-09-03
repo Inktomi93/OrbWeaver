@@ -2,7 +2,7 @@
 
 Worked chains for the recurring drive shapes. Every recipe is one Bash call unless stated. Flags
 are current as of the `--scenario`/`--matrix`/`--expect-*` generation of the CLI — reconcile
-against `pnpm snap --help` / the `scripts/probes/snap.ts` header before copying blindly; the
+against `pnpm snap --help` / the `pnpm snap --help` (source: `tooling/src/snap/contract/help.ts`) before copying blindly; the
 header outranks this file.
 
 ## Reach + inspect one surface (the default drive)

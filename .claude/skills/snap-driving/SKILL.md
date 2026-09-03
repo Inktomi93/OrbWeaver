@@ -6,7 +6,7 @@ description: "Drive and verify the live Orbweaver app with `pnpm snap`: selector
 # Driving the app with snap
 
 One Bash call, snap's own headless browser, evidence out — no MCP in the loop. The FLAG CONTRACT
-(every flag, current semantics, refusal combinations) is `scripts/probes/snap.ts`'s header plus
+(every flag, current semantics, refusal combinations) is `pnpm snap --help` (generated from `tooling/src/snap/contract/help.ts`) plus
 `pnpm snap --help` — read those fresh; they change faster than any distillation. This skill is the
 driving course: where drives go wrong, and how to get receipts cheaply. **On any disagreement, the
 header wins.** Worked end-to-end recipes: `reference/recipes.md` in this skill dir.
@@ -190,10 +190,10 @@ judging an app whose own setting had frozen the animations they were measuring.
   app. They compose; neither implies the other. Naming the wrong one is a wrong verdict, not a typo.
 - **`--full-motion`** = `--appearance '{"reducedMotion":false}'` — the flag a motion sweep types.
 - **`--appearance '<json>'`** deep-merges ANY appearance keys over the REAL settings response
-  (`page.route` response shim, `scripts/probes/_kit/appearance.ts`). Keys you name are pretended; every
+  (`page.route` response shim, `tooling/src/_shared/appearance.ts`). Keys you name are pretended; every
   other key keeps the account's own value. **NOTHING IS WRITTEN** — no db row, no durable state, and the
   next flagless run sees the account again. Unparseable JSON or a non-object is ARG ERROR (exit 2).
-- **`--appearance-preset <name>`** loads a curated profile from `scripts/probes/appearance-presets.json`:
+- **`--appearance-preset <name>`** loads a curated profile from `tooling/src/_shared/appearance-presets.json`:
   `defaults` (the schema's born values — NOT the owner's row) · `maximal` (all the nice stuff: glow
   elevation, glass everywhere, grain, colorization, motion on) · `compact` (compact density, minimal
   chrome — where row height/truncation defects surface) · `reading` (big type, wide column, document
@@ -295,7 +295,7 @@ theme-polarity coverage rode only on chat rooms whose card carries a theme.
 
 - `--isolated` (frozen HEAD worktree) / `--dirty` (working tree, re-syncs per call) boot ONE stage
   on the fixed offset pair — **server :8888 / vite :5273** (dev pair + 100,
-  `scripts/probes/_kit/snap-stage.ts`). One stage at a time, keyed by sha; a new HEAD auto-
+  `tooling/src/snap/ops/stage.ts`). One stage at a time, keyed by sha; a new HEAD auto-
   rebuilds; `--fresh` forces it. Stage when your drive window overlaps active lanes — a
   crash-looping dev vite mid-drive is not a product finding.
 - **THE OWNER MARKER IS SHARED ACROSS CHECKOUTS** (issue #108, 2026-08-16). It is ONE file keyed by the

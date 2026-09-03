@@ -7,7 +7,7 @@
 > `cli/engine/registry/antipatterns.mjs`, implementations `cli/engine/rules/checks.mjs`) triaged
 > adopt / adapt / reject against orbweaver law, with the reason on every row. The adapted rules
 > live in OUR detector home — **`tooling/src/ui-audit/`** (paths corrected 2026-09-01; the
-> `scripts/probes/design-audit-*.ts` spellings this file carried were retired by the P3-of-#393
+> `tooling/src/ui-audit/*.ts` spellings this file carried were retired by the P3-of-#393
 > move and now resolve to nothing, which also left the Apache-2.0 §4b notice below naming files
 > that do not exist): `ops/walker.ts` + `ops/walker/census-*.ts` (in-page fact gathering),
 > `lib/checks-*.ts` (pure verdicts) and `lib/collect.ts` (the family dispatcher that carries the
@@ -52,7 +52,7 @@ Every adapted finding is origin-tagged: `Finding.origin === "impeccable"` in the
   (`data-impeccable-ignore`) that would fork our P0–P3 report contract.
 - **REJECTED — adopt their regex/source engine (`detect-text.mjs`) for source scanning.** Source
   enforcement is the gate battery's home (biome tokens-only hook, `density-tier`,
-  `no-off-token-radius-shadow`, …). A second source scanner under `scripts/probes` double-homes
+  `no-off-token-radius-shadow`, …). A second source scanner under `tooling/src` double-homes
   enforcement. Our detector stays RUNTIME — it judges rendered truth.
 - **CHOSEN — re-implement the applicable mechanisms in our three-part architecture** (in-page
   fact walker gathers raw samples; pure Node checks decide; the runner reports). Thresholds and
