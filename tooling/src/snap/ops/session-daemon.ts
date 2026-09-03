@@ -21,7 +21,7 @@ import type { CapturedRequest, ProbeSession } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
-import { budget } from "../../_shared/load-budget.ts";
+import { budget, loadResultPairs } from "../../_shared/load-budget.ts";
 import { installOutputSink, warn } from "../../_shared/log.ts";
 import type { SessionEvent, SessionRequest, SessionRow } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
@@ -136,7 +136,7 @@ async function exportRings(state: DaemonState, request: SessionRequest): Promise
         "page-errors": { value: state.session.pageErrors.length, refuseWhen: "zero", honestEmpty: "the session raised no page error" },
         requests: { value: requests.length, refuseWhen: "zero", honestEmpty: "the session issued no request (an --eval-only drive over a --file fixture)" },
       },
-      pairs: [["name", state.name]],
+      pairs: [["name", state.name], ...loadResultPairs()],
     });
   } finally {
     finishInstrumentRun();

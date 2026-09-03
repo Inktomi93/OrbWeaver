@@ -11,6 +11,7 @@ import { buildUrl, withProbeSession } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { loadResultPairs } from "../../_shared/load-budget.ts";
 import { provisionRatedStageThemes } from "../../_shared/rated-theme-fixture.ts";
 import type { ThemeEntry } from "../../_shared/theme.ts";
 import { NO_THEME } from "../../_shared/theme.ts";
@@ -254,6 +255,7 @@ async function finishScenarioMatrix({ opts, baseName, discovery, matrix, cells }
       ["scenario-manifests", aggregate.manifests],
       ["appearance", "not-applicable:scenario-owned-drive"],
       ["json", receipt ?? "none"],
+      ...loadResultPairs(),
     ],
   });
 }
@@ -336,6 +338,7 @@ async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry,
       ["merge-required", mergeRequired],
       ["merge-direct-carrier", mergeDirectCarrier],
       ["json", receipt ?? "none"],
+      ...loadResultPairs(),
     ],
   });
 }

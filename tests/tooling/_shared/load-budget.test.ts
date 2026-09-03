@@ -23,6 +23,7 @@ import {
   loadKillError,
   loadKillMessage,
   loadLine,
+  loadResultPairs,
   readBoxLoad,
   withheldPair,
   withholdRate,
@@ -109,6 +110,23 @@ test("T15 — the RESULT pairs report the reading a run was judged on", () => {
   const box = readBoxLoad();
   expect(box.cpuCount).toBeGreaterThan(0);
   expect(loadLine()).toMatch(/^load=\d+\.\d+\/\d+ budget-factor=\d+\.\d{2}$/u);
+});
+
+// #1283: the tuple twin of loadLine — the shape a `printVerdict` `pairs` array spreads directly (an
+// instrument's RESULT line, snap's included, carries these as key/value pairs rather than a joined string).
+test("T14/T15 — loadResultPairs carries the same two figures as loadLine, as key/value tuples", () => {
+  expect(loadResultPairs(readQuiet)).toEqual([
+    ["load", "7.2/24"],
+    ["budget-factor", "1.00"],
+  ]);
+  expect(loadResultPairs(readLoaded)).toEqual([
+    ["load", "96.0/24"],
+    ["budget-factor", "4.00"],
+  ]);
+  // Same live-reader exercise as loadLine: the default reader path is not left to the injected fakes alone.
+  const [load, factor] = loadResultPairs();
+  expect(load?.[0]).toBe("load");
+  expect(factor?.[0]).toBe("budget-factor");
 });
 
 // ── T16 (pure half): the kill is legible and is never confused with a red ──────────────────────────
