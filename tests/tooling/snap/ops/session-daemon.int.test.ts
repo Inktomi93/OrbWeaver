@@ -331,8 +331,11 @@ test("T9 — the same argv one-shot vs through a session yields identical RESULT
     const viaSession = await r.snap(["--session", a, ...argv]);
     await expect(oneShot).toExitWith(EXIT.clean);
     await expect(viaSession).toExitWith(EXIT.clean);
-    const { out: _oneOut, ...onePairs } = pairsOf(oneShot.stdout);
-    const { out: _sessionOut, ...sessionPairs } = pairsOf(viaSession.stdout);
+    // load/budget-factor (#1283, §7.1) are a reading of THIS PROCESS's box at THIS instant, not a fact
+    // about the drive — excluded from the parity check for the same reason `out` is: two separate CLI
+    // invocations legitimately disagree on it without the two paths having measured anything differently.
+    const { out: _oneOut, load: _oneLoad, "budget-factor": _oneFactor, ...onePairs } = pairsOf(oneShot.stdout);
+    const { out: _sessionOut, load: _sessionLoad, "budget-factor": _sessionFactor, ...sessionPairs } = pairsOf(viaSession.stdout);
     expect(Object.keys(onePairs).length).toBeGreaterThan(10);
     expect(sessionPairs).toEqual(onePairs);
 

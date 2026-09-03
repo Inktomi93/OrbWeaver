@@ -13,6 +13,7 @@ import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { loadResultPairs } from "../../_shared/load-budget.ts";
 import type { SnapDetailedResult } from "../contract/run.ts";
 import { scenarioPresetFile } from "../contract/scenario-presets.ts";
 import type { Args, CaptureOutcome, ScenarioCheckpoint, ScenarioSpec, SessionCounts, ShotPlan } from "../contract/types.ts";
@@ -401,6 +402,7 @@ export async function runScenarioDetailed(opts: Args): Promise<SnapDetailedResul
         ["har", artifacts.hars[0] ?? "none"],
         ["json", manifestPath ?? "none"],
         ["vite-dep-churn", viteChurn.length],
+        ...loadResultPairs(),
       ],
     });
     return {
