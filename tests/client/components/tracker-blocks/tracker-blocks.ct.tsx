@@ -8,14 +8,15 @@
 //     are exhaustively pinned;
 //   • the commit FIRES with the parsed value (assert-the-mutation-fired — not just the UI reaction).
 // The trailing CONVERGENCE block assembles the kit into the mockup-v2 block regions and screenshots them
-// (reports/snaps/tracker-kit-*.png) — the structure/density/hierarchy receipt against the committed mockup.
+// (via ctSnapPath, into THIS run's own slot — docs/design/1208-instrument-substrate.md §3.7) — the
+// structure/density/hierarchy receipt against the committed mockup.
 import { AddRow, AmbientStrip, BeatLine, CastCard, GoalLine, HintEditor, MeterRow, StatCell, TrackerChip } from "@orb/client/components";
 import { RPG_WEATHER_TYPES } from "@orb/contracts/rpg";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { ReactElement } from "react";
-import { storyShot } from "../../../support/ct/story-shot.ts";
+import { ctSnapPath } from "../../../support/ct/snap-out.ts";
 
 /** WCAG 2.2 SC 2.5.8's minimum target size. Named once so the ambient chip pin reads as the criterion it is. */
 const MIN_TARGET_PX = 24;
@@ -803,7 +804,7 @@ test("CP-3 Trackers-tab region — meters → guides → text trackers (mockup R
   );
   await expect(component).toContainText("42/100");
   await expect(component).toContainText("slow burn");
-  await component.screenshot({ path: storyShot("tracker-kit-trackers-tab") });
+  await component.screenshot({ path: ctSnapPath("tracker-kit-trackers-tab") });
 });
 
 test("Scene region — ambient strip → cast card w/ per-NPC meter → beats (mockup lite Scene)", async ({ mount }) => {
@@ -831,7 +832,7 @@ test("Scene region — ambient strip → cast card w/ per-NPC meter → beats (m
   );
   await expect(component).toContainText("The Rusted Lantern");
   await expect(component).toContainText("70/100");
-  await component.screenshot({ path: storyShot("tracker-kit-scene") });
+  await component.screenshot({ path: ctSnapPath("tracker-kit-scene") });
 });
 
 test("Editable arm — display-at-rest: an editable region shows NO inputs until a value is clicked (§12.4.1)", async ({ mount, page }) => {
@@ -851,7 +852,7 @@ test("Editable arm — display-at-rest: an editable region shows NO inputs until
   // The INSTRUMENT posture: zero inputs at rest — every editable value is a static-text button.
   await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(0);
   await expect(component.getByRole("button", { name: "Affection value" })).toContainText("42");
-  await component.screenshot({ path: storyShot("tracker-kit-editable") });
+  await component.screenshot({ path: ctSnapPath("tracker-kit-editable") });
   // Clicking one value reveals exactly ONE inline field, seeded with the value.
   await component.getByRole("button", { name: "Affection value" }).click();
   await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(1);
@@ -874,5 +875,5 @@ test("Sheet region — attribute stat cells, 3-up grid (mockup OSRS skills idiom
   );
   await expect(component).toContainText("STR");
   await expect(component).toContainText("16");
-  await component.screenshot({ path: storyShot("tracker-kit-sheet") });
+  await component.screenshot({ path: ctSnapPath("tracker-kit-sheet") });
 });

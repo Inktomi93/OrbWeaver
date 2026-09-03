@@ -1,25 +1,23 @@
-// WHERE A CT/e2e STORY SHOT LANDS (#1201) — its ONE home, so the family name is not re-spelled at
-// thirteen call sites.
+// WHERE AN e2e-LOCAL STORY SHOT LANDS (#1201) — this file's remaining job, now that CT specs have moved
+// off it (docs/design/1208-instrument-substrate.md §3.7).
 //
-// THE DEFECT THIS CLOSES. CT stories and local e2e specs wrote their eyeball shots to
+// THE DEFECT THIS CLOSED. CT stories and local e2e specs used to write their eyeball shots to
 // `reports/snaps/<name>.png`, the SNAP instrument's published pointer. Since #1164 that path is a symlink
 // into a finished snap run's slot, and a screenshot is an ordinary file write: it FOLLOWS the link and
 // rewrites the bytes inside that finished run, while the alias stays a symlink — so nothing at the pointer
 // shows the run's evidence was replaced. A live collision existed on the tree the day this was found
 // (`tracker-blocks.ct.tsx` wrote `tracker-kit-scene.png`, the same name `artifact-out.int.test.ts` plants
-// as a retention keeper).
+// as a retention keeper). The fix moved every write off `reports/snaps/` into this pointer-free
+// `reports/ct-shots/` family — no aliases live here, so there is no link for a write to follow.
 //
-// THE FIX IS THE CORPUS, NOT THE NAME. A CT story shot is not a snap RUN — it is not `--out`-named, not
-// diffed, and not published — so it belongs in its own pointer-free family. `reports/ct-shots/` holds no
-// aliases, so there is no link for a write to follow, and a name a snap run happens to share is no longer
-// a collision at all. Pinned by `story-shot.test.ts`, whose planted control writes through a real
-// published alias and shows the finished slot change under it.
-//
-// NOT DONE HERE (#1201 leftover, stated rather than implied): these shots are still one file per NAME, so
-// two concurrent CT runs on one checkout overwrite each other's copy of the same story. Giving them a run
-// slot needs the CT run's identity to reach the WORKER processes (playwright re-evaluates its config per
-// worker, so the id must be minted once in the parent and inherited through the environment) — a
-// playwright-ct.config.ts change with no cheap proof, deliberately left to a lane that can run the suite.
+// SPLIT 2026-09 (#1291, closing the leftover this file's header used to state): CT specs run in
+// Playwright WORKER processes, so giving them a per-RUN slot needed the CT run's identity to reach those
+// workers — `playwright-ct.config.ts` now does that (opens the "ct" instrument's slot once, sets an env
+// var before forking). Every `.ct.tsx` call site moved to `tests/support/ct/snap-out.ts` `ctSnapPath`,
+// which resolves into that per-run slot. `tests/e2e/**` local specs run under a SEPARATE config
+// (`playwright.config.ts`) with no "ct" run to adopt — out of #1291's scope — so they still call
+// `storyShot`/`STORY_SHOT_DIR` here, still safe against the symlink-follow defect, still one file per
+// NAME (two concurrent e2e runs on one checkout can still collide on a shared story name).
 
 /** The pointer-free family every CT/e2e story shot is written into. Repo-relative: playwright resolves a
  *  screenshot path against the config's root, and every consumer of these shots is a human with a repo. */

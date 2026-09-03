@@ -20,7 +20,7 @@ import type { Locator, Page } from "@playwright/test";
 import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
 import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { storyShot } from "../../../../support/ct/story-shot.ts";
+import { ctSnapPath } from "../../../../support/ct/snap-out.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import { RulesInThisChatTabStory, RulesSectionStory, RulesSectionToastStory } from "../_ct-stories.tsx";
 
@@ -349,7 +349,7 @@ test("#630: the lorebook knob is a PICKER over this chat's books — minting nee
   await expect(page.getByRole("option", { name: "Ashfall Canon", exact: true })).toBeVisible();
   await expect(page.getByRole("option", { name: "Session Notes", exact: true })).toBeVisible();
   // The rendered receipt for the row (reports/ is ephemera, never a committed artifact).
-  await page.screenshot({ path: storyShot("cb-lorebook-picker-open") });
+  await page.screenshot({ path: ctSnapPath("cb-lorebook-picker-open") });
 
   // Picking a book by NAME sends its id — the host never saw, let alone typed, a TypeID.
   await page.getByRole("option", { name: "Ashfall Canon", exact: true }).click();
@@ -635,7 +635,7 @@ test("#616: the host's 'This chat' tab renders the grafted Rules section in the 
   // …and the section's real body is inside it.
   await expect(component.getByText("Illustrate the scene", { exact: true })).toBeVisible();
   // The rendered receipt of the #616 graft (reports/ is ephemera, never a committed artifact).
-  await component.screenshot({ path: storyShot("cb-rules-in-this-chat-tab") });
+  await component.screenshot({ path: ctSnapPath("cb-rules-in-this-chat-tab") });
 });
 
 test("#616: a MEMBER's tab has no Rules section (host-only by MOUNT, not by a predicate)", async ({ mount, page }) => {
@@ -722,7 +722,7 @@ test("#640 END-TO-END: a room with no books → attach in Lorebooks → the auto
   await expect(page.getByRole("option", { name: ATTACHABLE_BOOK_NAME, exact: true })).toBeVisible();
 
   // The rendered receipt of the whole row (reports/ is ephemera, never a committed artifact).
-  await page.screenshot({ path: storyShot("cb-aa-attach-then-pick") });
+  await page.screenshot({ path: ctSnapPath("cb-aa-attach-then-pick") });
 });
 
 // ── #655: the spend signal, the readable form, and the door that can be opened ────────────────────────
@@ -765,7 +765,7 @@ test("#655: the catalogue names the recurring CHARGE before the mint, and stays 
   await expect(popup.getByText(SPEND_LINE)).toHaveCount(1);
 
   // The rendered receipt for the row (reports/ is ephemera, never a committed artifact).
-  await page.screenshot({ path: storyShot("cb-rules-spend-catalogue") });
+  await page.screenshot({ path: ctSnapPath("cb-rules-spend-catalogue") });
 
   // It survives the step change: the knob form is where Add is actually pressed.
   await popup.getByRole("button", { name: "Periodic pacing nudge" }).click();
@@ -940,7 +940,7 @@ test.describe("#663: the picker's popup at the real docked-pane geometry", () =>
     expect(Math.abs((step2?.x ?? 0) - (step1?.x ?? 0))).toBeLessThanOrEqual(STABLE_FRAME_TOLERANCE_PX);
     expect(Math.abs((step2?.y ?? 0) - (step1?.y ?? 0))).toBeLessThanOrEqual(STABLE_FRAME_TOLERANCE_PX);
 
-    await page.screenshot({ path: storyShot("cb-popup-width-docked-pane") });
+    await page.screenshot({ path: ctSnapPath("cb-popup-width-docked-pane") });
   });
 });
 
@@ -1085,7 +1085,7 @@ for (const theme of THEMES) {
       expect(await hitExtent(more, "x")).toBeGreaterThanOrEqual(floor);
 
       // The rendered receipt for the side-eye re-pass (reports/ is ephemera, never a committed artifact).
-      await component.screenshot({ path: storyShot(`cb-rules-${theme}-${width}`) });
+      await component.screenshot({ path: ctSnapPath(`cb-rules-${theme}-${width}`) });
     });
   }
 }
