@@ -13,7 +13,7 @@ import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
-import { aliasRefusal, HELP_FLAGS, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
+import { aliasRefusal, crossToolAdminRefusal, HELP_FLAGS, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
 import type { NavMethod } from "@orb/tooling/_shared/nav";
 import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS } from "@orb/tooling/_shared/panel-flags";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS } from "@orb/tooling/_shared/theme";
@@ -208,7 +208,7 @@ function scanArgv(argv: readonly string[]): string[] {
         // #1290 F1: the OLD spelling — refused BY NAME, never left to read as an unknown flag or a route.
         errors.push("unknown flag --wait — design-audit renamed it to --settle <ms> (snap's --wait names a selector; this always meant milliseconds)");
       } else if (token.startsWith("-")) {
-        errors.push(aliasRefusal(token, KNOWN_FLAGS) ?? `unknown flag ${token}`);
+        errors.push(crossToolAdminRefusal(token) ?? aliasRefusal(token, KNOWN_FLAGS) ?? `unknown flag ${token}`);
       } else {
         routeCount += 1;
       }

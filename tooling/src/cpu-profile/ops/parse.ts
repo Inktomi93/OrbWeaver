@@ -12,7 +12,7 @@ import {
 import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
-import { aliasRefusal, HELP_FLAGS, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
+import { aliasRefusal, crossToolAdminRefusal, HELP_FLAGS, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
 import { NAV_FLAG_METHOD, NAV_FLAGS } from "@orb/tooling/_shared/nav";
 import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS } from "@orb/tooling/_shared/panel-flags";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS } from "@orb/tooling/_shared/theme";
@@ -195,7 +195,7 @@ function scanArgv(argv: readonly string[]): string[] {
       continue;
     }
     if (!VALUE_FLAGS.has(token)) {
-      errors.push(aliasRefusal(token, KNOWN_FLAGS) ?? `unknown flag ${token}`);
+      errors.push(crossToolAdminRefusal(token) ?? aliasRefusal(token, KNOWN_FLAGS) ?? `unknown flag ${token}`);
       continue;
     }
     const value = argv[index + 1];
