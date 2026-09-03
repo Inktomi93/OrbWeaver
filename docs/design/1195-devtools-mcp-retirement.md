@@ -99,15 +99,21 @@ dominating — the period before snap grew its drive arms.
    exactly ONE hit, `1208-instrument-substrate.md:83`, which is the line SPECIFYING the gate below. History
    was not sanitised: dated reviews citing the MCP as their era's instrument stand as written.
 
-   **TWO RESIDUES, both named rather than papered over.** (a) "Drop the plugin from the main session" is NOT
-   done and is not the repo's to do: `chrome-devtools-mcp@claude-plugins-official` is still `true` in the
-   owner's user-global `~/.claude/settings.json`, so the server still boots for a main session even though
-   nothing in the repo grants its tools. An agent's request is not authorization to edit a user's global
-   config; the owner flips it, or `/plugin` does. (b) This retirement is PROSE-ENFORCED until **#1279**
-   lands the `agent-def-no-browser-mcp` fs gate that `1208:83` specifies — the grep above is that gate's
-   assertion run by hand once, and it has a shelf life of one commit. The third sub-item, deleting the
-   `chrome-mcp-headless-patch` memory, was already done: neither the topic file nor its `MEMORY.md` index
-   line exists in the store.
+   The third sub-item, deleting the `chrome-mcp-headless-patch` memory, was already done before this lane:
+   neither the topic file nor its `MEMORY.md` index line exists in the store.
+
+   **THE RETIREMENT IS COMPLETE, and the two residues this entry named at the fold both closed the same
+   evening (2026-09-03).** They are recorded here because the next reader will otherwise go looking for
+   them. (a) "Drop the plugin from the main session" was never the repo's to do —
+   `chrome-devtools-mcp@claude-plugins-official` lived in the owner's user-global
+   `~/.claude/settings.json`, and an agent's request is not authorization to edit a user's global config.
+   **The owner uninstalled it.** Verified: the key is absent from `~/.claude/settings.json` (which
+   `~/.claude-b/settings.json` symlinks), so no session boots the server. (b) The entry originally said this
+   retirement stays prose-enforced until an `agent-def-no-browser-mcp` fs gate lands. **The owner ruled that
+   gate out and #1279 is Parked** — with the plugin uninstalled and the grants deleted, a gate policing a
+   string nobody can grant is enforcement theatre, and `1208:83`'s proposal is superseded by that ruling
+   rather than pending. What survives as the real control is the standing rule above: reaching for a browser
+   MCP means snap has a gap, so name the gap and build the arm.
 
 ## 3. What this does NOT decide
 
