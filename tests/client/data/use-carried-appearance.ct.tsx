@@ -3,40 +3,29 @@
 // WHY IT EXISTS (owner dogfood 2026-08-06): the carried look — the app-root background (BG-C) and the
 // room-theme takeover — used to be resolved from `chat.getChat`'s roster, which a DRAFT has none of. Every
 // consumer therefore gated a card's appearance on a committed chat id, and a brand-new chat wore the
-// viewer's default chrome until the first message created the row. This hook is the seam that gives both
-// phases the same shape; these pins are its contract.
+// viewer's default chrome until the first message created the row.
 //
-// THE FIVE PINS:
+// IT IS ONE ARM NOW, AND THESE PINS SAY SO. The fix used to be a second, draft-phase resolver over the
+// founding CARDS; the room has had a row from the creation CLICK since
+// `chat-creation-draft-mode-replacement.md` §4.1 R1, and `useStartChat` seeds `chat.getChat` from
+// `startChat`'s own response. The card-reading arm and `useDraftCastCards` are DELETED — the hook reads one
+// gated `chat.getChat` and nothing else (`packages/client/src/data/use-carried-appearance.ts`). Two pins
+// this header used to advertise (a draft projecting founding cards; a partially-loaded cast reading
+// `pending` rather than a smaller cast) described that deleted arm and are gone with it — they were not
+// missing coverage, they were coverage of a question that can no longer be asked.
+//
+// THE THREE PINS:
 //   1. COMMITTED  → the roster projects (humans counted, characters carried).
-//   2. DRAFT      → the founding CARDS project, with the viewer's single implicit human seat.
-//   3. DRAFT      → a PARTIALLY-loaded cast reads `pending`, never a smaller cast (a 2-card draft must not
-//                   flash as true-solo and paint the first card's background).
-//   4. LANDING / blank draft → `undefined` (nothing carried; the viewer's own chrome).
-//   5. A FAILED card read degrades to `undefined` — decoration never throws into a consumer's boundary.
+//   2. LANDING / no open chat → `undefined` (nothing carried; the viewer's own chrome).
+//   3. A FAILED roster read degrades to `undefined` — decoration never throws into a consumer's boundary,
+//      and the story mounts OUTSIDE any QueryBoundary, so a throwing read would surface as a page error.
 
-import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
 import { CarriedAppearanceCastStory } from "./_ct-stories.tsx";
 
 const ARIA = mintTypeId(ID_PREFIX.character);
-const BRYN = mintTypeId(ID_PREFIX.character);
-
-/** A `character.get` payload carrying only what the cast reads. */
-function card(id: CharacterId, name: string): Record<string, unknown> {
-  return { id, name, themeOverride: null, backgroundOverride: null };
-}
-
-function routeCards(page: Page): Promise<unknown> {
-  return routeTrpc(page, {
-    "character.get": (input: unknown): unknown => {
-      const { characterId } = input as { readonly characterId: CharacterId };
-      return characterId === BRYN ? card(BRYN, "Bryn") : card(ARIA, "Aria");
-    },
-  });
-}
 
 test("COMMITTED: the roster projects into the cast (humans counted, characters carried)", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
@@ -56,10 +45,28 @@ test("COMMITTED: the roster projects into the cast (humans counted, characters c
 });
 
 test("LANDING and a BLANK draft carry nothing (the viewer's own chrome)", async ({ mount, page }) => {
-  await routeCards(page);
+  await routeTrpc(page, {});
 
   await mount(<CarriedAppearanceCastStory chatId={null} />);
 
-  // No chat and no cast — the `undefined` floor every consumer maps to "the viewer's own chrome".
+  // No chat — the `undefined` floor every consumer maps to "the viewer's own chrome". The gate means the
+  // key is never built, so this is the skipToken arm, not a resolved-empty one.
   await expect(page.getByTestId("carried-cast")).toHaveText("pending");
+});
+
+test("a FAILED roster read degrades to the same floor and never throws", async ({ mount, page }) => {
+  const chatId = mintTypeId(ID_PREFIX.chat);
+  await routeTrpc(page, { "chat.getChat": () => trpcError({ message: "roster read failed" }) });
+
+  // The hook's own contract is NON-SUSPENDING and non-throwing; the assertion below is only meaningful
+  // because nothing here catches — a `throwOnError` default would land as a page error, not a fallback.
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error: Error) => {
+    pageErrors.push(error.message);
+  });
+
+  await mount(<CarriedAppearanceCastStory chatId={chatId} />);
+
+  await expect(page.getByTestId("carried-cast")).toHaveText("pending");
+  expect(pageErrors).toEqual([]);
 });
