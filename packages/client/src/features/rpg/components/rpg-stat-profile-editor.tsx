@@ -42,7 +42,12 @@ function AttributeRow({
   readonly onRemove: () => void;
 }): ReactElement {
   return (
-    <Stack gap="field" className={DEF_ROW_CLASS} data-slot="rpg-attribute-row">
+    // rows="control" (#884 C3, #850 fix-forward): floors this card's OWN two rows (label · hint) at the
+    // pointer-conditional control-sm height so their `size="inline"` buttons' touch-target ::after has
+    // room to sit inside its own row instead of overflowing onto the neighbour row's text — the outer
+    // list-level `rows="control"` (RpgStatProfileEditor below) only floors the CARD, which was already
+    // taller than the floor and left this inner collision unaddressed.
+    <Stack gap="field" rows="control" className={DEF_ROW_CLASS} data-slot="rpg-attribute-row">
       <Row gap="field" align="center">
         <TrackerValue
           ariaLabel={`Attribute ${index + 1} label`}

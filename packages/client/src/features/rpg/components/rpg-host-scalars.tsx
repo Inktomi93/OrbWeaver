@@ -98,7 +98,18 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
     <HostConsoleFormBoundary entityId={`rpg-game:${chatId}`} serverValues={toHostConsoleForm(config)} save={save}>
       {({ form }): ReactElement => (
         <Stack gap="section">
-          <Stack gap="field">
+          {/* gap="row" (8px), not the base `gap-field` (6px) — #850 fix-forward, measured LIVE (snap
+              --eval on the isolated stage): each `SwitchField`'s hint-trigger sits ~2px from its field's
+              own top edge, and its `size="inline"` touch-target `::after` overflows 8px past the icon's
+              own edge at a fine pointer (28px pseudo centred on a 12px icon). At the base 6px `gap-field`
+              pitch — between the Kicker and the first row AND between every pair of rows — the pseudo's
+              overflow landed EXACTLY on the neighbour's edge (the Kicker's own label text for the FIRST
+              row, the previous field's box for every row after it): a zero-margin graze that subpixel/DPR
+              rounding tipped either way, which is why the audit flagged only some instances, not all of
+              them, and why floating just the inter-ROW gap (leaving Kicker on the tighter pitch) still
+              left the first row of every block capped. `gap="row"` on the WHOLE block (Kicker included)
+              gives 2px of honest clearance everywhere instead of a coin flip. */}
+          <Stack gap="row">
             <Kicker>Play style</Kicker>
             <form.AppField name="cyoa">
               {(field): ReactElement => (
@@ -175,7 +186,9 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
               the D107 dead-switch class). The pair is a DEPENDENCY, so it reads as one: the sub-toggle sits
               under its parent and goes DISABLED (not hidden) when the teaching is off — an interactivity ask
               with nothing to ask for is inapplicable, and the reason stays readable on its hint. */}
-          <Stack gap="field">
+          {/* gap="row" — the Play style block's own fix-forward (same measured clearance defect,
+              Kicker included so the FIRST row's collision with the Kicker's own label text clears too). */}
+          <Stack gap="row">
             <Kicker>Immersive cards</Kicker>
             <form.AppField name="immersiveHtml">
               {(field): ReactElement => (
@@ -223,7 +236,8 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
             </form.AppField>
           </Stack>
 
-          <Stack gap="field">
+          {/* gap="row" — same fix-forward (measured clearance defect, Kicker included). */}
+          <Stack gap="row">
             <Kicker crown={true}>Hidden channels — host only</Kicker>
             <form.AppField name="deception">
               {(field): ReactElement => (
