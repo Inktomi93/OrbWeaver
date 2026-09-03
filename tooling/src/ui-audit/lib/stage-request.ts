@@ -57,11 +57,15 @@ export function stageArgErrors(args: Pick<Args, "isolated" | "dirty" | "ref" | "
   if (args.dirty && args.ref !== null) {
     errors.push("--dirty stages the WORKING TREE and --ref stages a commit — pass one");
   }
-  // #1285: `--session` attaches to the session's own BROWSER, but the run still names its OWN navigation
-  // target with `--base`/route (design §5: "an attached sibling wires its own capture for the duration
-  // of its run") — so `--base` composes with `--session`. What does NOT compose is snap's ISOLATED STAGE
-  // machinery: booting/reusing a second dev stack is orthogonal to attaching a browser, and a caller who
-  // wrote both is asking two unrelated things this run cannot do at once.
+  // #1285/#1289: `--session` attaches to the session's own BROWSER, and the run still names its OWN
+  // navigation target with `--base`/route (design §5: "an attached sibling wires its own capture for the
+  // duration of its run") — so an EXPLICIT `--base` composes with `--session` and overrides. What does NOT
+  // compose is snap's ISOLATED STAGE machinery: booting/reusing a second dev stack is orthogonal to
+  // attaching a browser, and a caller who wrote both is asking two unrelated things this run cannot do at
+  // once. #1289 fixed the other half of this fork: a bare `--session` with NO `--base` no longer falls
+  // through to `DEFAULT_BASE` (the dev stack, wrong port for a lane's isolated stage) — it now inherits
+  // the session's own bound URL (design §3.6, `ops/run.ts`'s `resolveUrl`/`launchOrAttach`), so `--base`
+  // is a genuine override rather than the only way to reach a session's stage.
   if (args.session !== null && args.isolated) {
     errors.push(
       "--session attaches to a live session's browser; --isolated/--ref/--dirty/--fresh boot a stage — pass one (the stage the session itself was booted against is unaffected either way)",

@@ -108,12 +108,26 @@ function evidenceGapOf({ url, appReady, samples, population, opts, settingsEvide
   );
 }
 
-/** #1285: `--session <name>` attaches to a live snap session's browser (design §3.4) instead of launching
- *  a fresh one; a dead/foreign/absent session is an EXIT.toolError refusal (never a fallback launch —
- *  that would silently audit a DIFFERENT browser than the one the caller named). */
-async function launchOrAttach(opts: Args): Promise<ProbeSession | ExitCode> {
+/** A live session's own BASE (`resolveSessionAttach`'s `row.binding.url`, design §3.6: "sibling
+ *  instruments inherit the binding from the session"). An explicit `--base` still overrides it (#1285's
+ *  composition rule survives — see the fork note on `launchOrAttach`) — this is only the DEFAULT. */
+interface Attached {
+  readonly session: ProbeSession;
+  readonly base: string;
+}
+
+/** #1285/#1289: `--session <name>` attaches to a live snap session's browser (design §3.4) instead of
+ *  launching a fresh one; a dead/foreign/absent session is an EXIT.toolError refusal (never a fallback
+ *  launch — that would silently audit a DIFFERENT browser than the one the caller named).
+ *
+ *  #1289 fork: the design (§3.6) says a sibling INHERITS the session's binding; #1285 shipped `--base` as
+ *  a composing override instead, so a bare `--session` navigated to DEFAULT_BASE (the dev stack) and blew
+ *  up on a port the caller never mentioned. Both readings survive: `opts.baseExplicit` distinguishes
+ *  "caller named a base" from "the default nobody asked for" — explicit wins (the override composes,
+ *  #1285's rule), unset falls back to the session's own bound URL (the design's default, #1208 §3.6). */
+async function launchOrAttach(opts: Args): Promise<Attached | ExitCode> {
   if (opts.session === null) {
-    return await launchProbeSession({
+    const session = await launchProbeSession({
       headless: true,
       viewport: opts.viewport,
       device: opts.device,
@@ -123,25 +137,28 @@ async function launchOrAttach(opts: Args): Promise<ProbeSession | ExitCode> {
       theme: opts.theme,
       localStorage: [],
     });
+    return { session, base: opts.base };
   }
   const attach = resolveSessionAttach(opts.session);
   if (!attach.ok) {
     print(attach.message);
     return EXIT.toolError;
   }
-  return await attachProbeSession(attach.endpoint, attach.environment);
+  const session = await attachProbeSession(attach.endpoint, attach.environment);
+  return { session, base: opts.baseExplicit ? opts.base : attach.row.binding.url };
 }
 
 export async function runUiAudit(opts: Args): Promise<number> {
-  const url = buildUrl(opts.base, opts.route);
   // `--out` names an artifact BASE under reports/design-audit/ — or, when it is path-shaped, the exact
   // file to write (_shared/artifacts.ts owns that contract for every probe).
   const outPath = await artifactFile("design-audit", opts.out ?? routeSlug(opts.route), ".json");
 
-  const session = await launchOrAttach(opts);
-  if (typeof session === "number") {
-    return session;
+  const attached = await launchOrAttach(opts);
+  if (typeof attached === "number") {
+    return attached;
   }
+  const { session, base } = attached;
+  const url = buildUrl(base, opts.route);
 
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one linear ownership closure keeps every audit verdict and early return inside the same guaranteed cleanup boundary.
   return await withProbeSession(session, async () => {
