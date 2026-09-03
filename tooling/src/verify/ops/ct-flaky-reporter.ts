@@ -66,9 +66,11 @@ refuseDirectInvocation(import.meta.url, "pnpm test:ct (playwright loads this mod
 const ARTIFACT_NAME = "ct-flaky.json";
 /** THIS CT run's private slot (#1029). The artifact is written inside it and `reports/ct-flaky.json` is
  *  published as a symlink at the END of `onEnd` — two concurrent CT runs on one checkout used to write the
- *  same file, so the second run's flake census silently became the first's. The slot is opened when
- *  Playwright constructs the reporter (main process, once per run), which is also when a racing sibling is
- *  detectable. NOTE (leftover, #1029 scope 3): `ct-report.json` / `ct-report/` / `ct-results/` are named by
+ *  same file, so the second run's flake census silently became the first's. `playwright-ct.config.ts`
+ *  already opened this SAME "ct" slot before constructing this reporter (still main process, same
+ *  `process.cwd()`) so it could set `CT_RUN_SLOT_DIR` for the worker processes (§3.7) — `runId()` is
+ *  memoized per (process, root), so this call resolves the identical slot dir, never a second one. NOTE
+ *  (leftover, #1029 scope 3): `ct-report.json` / `ct-report/` / `ct-results/` are named by
  *  playwright-ct.config.ts and are NOT yet slotted. */
 const slot = openRunSlot(process.cwd(), "ct");
 const ARTIFACT_PATH = join(slot.dir, ARTIFACT_NAME);

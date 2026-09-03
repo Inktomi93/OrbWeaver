@@ -328,6 +328,11 @@ function writeFixtures(): void {
   // audit-client-tests: an async test with no await — the assertion is present so test-no-stubs stays
   // quiet; only the deep auditor's missing-await arm fires (activated 2026-07-17).
   fx("tests/__g_audit.test.ts", `import { expect, test } from "support/test";\ntest("g async", async () => {\n  expect(1).toBe(1);\n});\n`);
+  // no-direct-reports-write: a `.screenshot({ path: "reports/…" })` literal in tests/**.
+  fx(
+    "tests/__g_reportswrite/x.ts",
+    'export async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ path: "reports/snaps/g.png" });\n}\n',
+  );
   // server-layout: an illegal directory at the root of server/src.
   fx("packages/server/src/__g_rogue_drawer/index.ts", "export const x = 1;\n");
   // package-layout: a loose file at the root of kit/src.
