@@ -13,6 +13,20 @@
 // daemon's browser; a raw attach elsewhere is a shim-leak and a second ProbeSession shape). Declared
 // limit: puppeteer's `connect` (the Lighthouse engine's own seam, phase 3) is not this arm's — its row
 // is the mustPass below.
+// (I) a PORT LITERAL outside the ONE port registry (_shared/ports.ts): a numeric literal whose VALUE is a
+// registry port (reserved or stage-band — the arm imports the registry, so a new reserved row widens it for
+// free), or a numeric literal sitting at a PORT-NAMED position (`port`/`…Port`/`…_PORT`) carrying a number
+// the registry never declared — i.e. a hand-picked pair, pain P10 (docs/design/1208-instrument-substrate.md
+// §3.6, #1269/#1271). Arm I's jurisdiction is `tooling/src/**` + `tests/e2e/support/**` + the root
+// `playwright*.config.ts` files (discovered by readdir past the anchor, read through the ONE scratch
+// parser like arm J's root configs — no gate's node walk reaches a repo-root file).
+// DECLARED LIMITS: (1) a port inside a STRING (`"http://localhost:5173"`) is not a numeric literal and is
+// not judged — `tests/e2e/support/target-guard.test.ts` deliberately spells the dev origins as negative
+// fixture data; (2) the three SHELL launchers (stack.sh 8788/5173, multi-user-fixture.sh 8790/5175,
+// engines.sh 8701-8703) are the mirror side by LANGUAGE — bash cannot import a TS module — and
+// `packages/client/vite.config.ts` is the mirror side by CAKE (importing @orb/tooling from packages/** is
+// an upward import, constitution §2; and its two values are env-overridable DEFAULTS, not hardcodes). Both
+// mirrors are a RULED exclusion (owner, 2026-09-02), named in ports.ts's header, not a deferral.
 // (J) a WALL-CLOCK LITERAL outside the ONE budget policy (_shared/load-budget.ts): a numeric literal fed
 // to a `timeout`/`timeoutMs`/`testTimeout`/`hookTimeout`/`actionTimeout` option, a `setTimeout(fn, N)` at
 // ceiling scale, or a `*_TIMEOUT_MS` const with a bare numeric initializer. A budget written for a quiet
@@ -22,8 +36,10 @@
 // tooling/src/ exactly as before (arm H included — `visit` applies the TOOLING_PREFIX fence before
 // `capability()` ever runs, which is what keeps test-owned browsers out of the substrate, §2.1).
 // Scan-and-allowlist: the HOMES are SCANNED and carried as cited rows with a stale sweep (GATE-AUTHORING §4). Comment posture: comment-SAFE (node kinds + literal args).
+import { existsSync, readdirSync } from "node:fs";
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { RESERVED_PORT_NUMBERS, STAGE_BAND_PORT_NUMBERS } from "../../_shared/ports.ts";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { readStaticSource } from "../lib/config-static-read.ts";
@@ -32,6 +48,10 @@ import { fileLoaded } from "../lib/pass.ts";
 const TOOLING_PREFIX = "tooling/src/";
 /** Arm J ONLY — arms A-G fence themselves to TOOLING_PREFIX inside `visit`. */
 const TESTS_TOOLING_PREFIX = "tests/tooling/";
+/** Arm I ONLY — the e2e support tree owns the auth-mode stacks' port pairs, so it is the second place a
+ *  hand-picked pair has historically been born. Arm J does NOT judge it (its clocks are e2e boot budgets,
+ *  #1232's territory), which is why every arm fences its own jurisdiction rather than riding `scanRoot`. */
+const E2E_SUPPORT_PREFIX = "tests/e2e/support/";
 const ANCHOR = "tooling/src/_shared/exit-contract.ts";
 
 /** capability → its ONE sanctioned home (repo-relative). The stale sweep reds a row whose home was never
@@ -110,6 +130,33 @@ const CLOCK_SITES: ExemptionTable = {
   },
 };
 
+/** Arm I's ONE sanctioned home. Scan-and-allowlist, not a scanRoot exclusion (GATE-AUTHORING §3): the
+ *  registry is SCANNED and absolved by this cited row, so if it ever moves it goes RED at its new path
+ *  instead of carrying its exemption along silently. The stale sweep in run() reds the row the day the
+ *  registry stops carrying port literals — which is the day it stopped being the registry. */
+const PORT_HOME: ExemptionTable = {
+  "tooling/src/_shared/ports.ts": {
+    why: "THE port registry — the one home every reserved row and stage band is declared in, and the table this arm imports to know what a port number even is. Ends only if the registry moves, which re-keys this row.",
+  },
+};
+const seenPortHome = new Set<string>();
+
+/** Every number the registry declares — reserved rows AND stage bands. IMPORTED, never re-spelled: adding a
+ *  reserved row to ports.ts widens this arm for free, which is the "key off a LIVE single source of truth"
+ *  shape (GATE-AUTHORING §10) and the only way the arm cannot drift from the thing it protects. */
+const REGISTRY_PORTS: ReadonlySet<number> = new Set([...RESERVED_PORT_NUMBERS, ...STAGE_BAND_PORT_NUMBERS]);
+
+/** A declaration/property NAME that means "this number is a TCP port". The name-shaped half exists because
+ *  the value-shaped half can only see ports the registry ALREADY knows: a hand-picked NEW pair (P10's
+ *  actual pain — "picking a pair meant grepping and hoping") carries a number in no table, and only its
+ *  name gives it away. `port`, `ctPort`, `serverPort`, `FIXTURE_PORT`, `DEV_VITE_PORT` all land here. */
+const PORT_NAME_RE = /^port$|Port$|_PORT$|^PORT$/u;
+
+/** The root playwright configs are DISCOVERED, never listed: a hard-coded path constant dies silently on a
+ *  rename (GATE-AUTHORING §3), and a `playwright-<something>.config.ts` added tomorrow must be judged
+ *  without anyone remembering to edit this file. Zero matches is RED, not silence (§4.6). */
+const PLAYWRIGHT_CONFIG_RE = /^playwright.*\.config\.ts$/u;
+
 /** Property names whose numeric value IS a wall clock. A nested option object reaches this list through its
  *  INNER property (playwright's expect-timeout and the use-block action timeout both land here), which is
  *  the point — the arm reads the LEAF, never the wrapper. */
@@ -161,13 +208,15 @@ function toolOf(rel: string): string {
   return rel.split("/")[2] ?? "";
 }
 
-/** Absolute path to repo-relative, for the TWO roots this gate judges. It must know about both: the
- *  original single-prefix form returned null for every `tests/tooling/**` file, so arm J's widened
- *  `scanRoot` admitted them and `visit` silently dropped every one — a green arm over a jurisdiction it
- *  never read. Caught by the planted control, not by the zero (2026-09-02). */
+/** Absolute path to repo-relative, for the THREE roots this gate judges. IT MUST KNOW ABOUT ALL OF THEM,
+ *  and this is the single most dangerous line in the file: the original single-prefix form returned null for
+ *  every `tests/tooling/**` file, so arm J's widened `scanRoot` admitted them and `visit` silently dropped
+ *  every one — a green arm over a jurisdiction it never read. Caught by the planted control, not by the zero
+ *  (2026-09-02). `tests/e2e/support/` joined for arm I on the same day and owes the same control. A widened
+ *  `scanRoot` whose prefix list did not widen with it is ALWAYS this bug. */
 function relOf(abs: string): string | null {
   const norm = abs.replace(/\\/gu, "/");
-  for (const prefix of [TOOLING_PREFIX, TESTS_TOOLING_PREFIX]) {
+  for (const prefix of [TOOLING_PREFIX, TESTS_TOOLING_PREFIX, E2E_SUPPORT_PREFIX]) {
     const i = norm.indexOf(`/${prefix}`);
     if (i !== -1) {
       return norm.slice(i + 1);
@@ -196,6 +245,52 @@ function childProcessImport(node: Node): string | null {
     return null;
   }
   return node.getModuleSpecifierValue() === "node:child_process" ? 'import "node:child_process"' : null;
+}
+
+/** The NAME a numeric literal is bound to (`const x = 8788` / `{ port: 8788 }`), or null when the literal
+ *  sits in an unnamed position (a call argument, an array element). Read through the PARENT rather than a
+ *  text match, so `x as never`/parenthesized wrappers cannot hide the binding. */
+function boundName(node: Node): { readonly name: string; readonly sep: string } | null {
+  const parent = node.getParent();
+  if (parent?.isKind(SyntaxKind.PropertyAssignment) === true) {
+    return { name: parent.getName().replaceAll(/['"]/gu, ""), sep: ":" };
+  }
+  if (parent?.isKind(SyntaxKind.VariableDeclaration) === true) {
+    return { name: parent.getName(), sep: " =" };
+  }
+  return null;
+}
+
+/** Arm I: this numeric literal is a port the registry should have owned, or null. TWO shapes, and the order
+ *  matters — a registry VALUE is a respell of a known row (the strongest claim, and it needs no name), while
+ *  a port-NAMED position carrying an unknown number is a hand-picked pair. Subscribed by literal KIND, so
+ *  every wrapper shape (`as`, parens, an argument position) is caught for free. */
+function portLiteral(node: Node): string | null {
+  if (!node.isKind(SyntaxKind.NumericLiteral)) {
+    return null;
+  }
+  const text = node.getLiteralText();
+  const value = Number(text.replaceAll("_", ""));
+  if (REGISTRY_PORTS.has(value)) {
+    return text;
+  }
+  const bound = boundName(node);
+  return bound !== null && PORT_NAME_RE.test(bound.name) ? `${bound.name}${bound.sep} ${text}` : null;
+}
+
+/** Arm I's adjudication: TRUE when this node was a port literal (reported, or absolved by the registry's own
+ *  cited row), so the caller stops. Mirrors judgeClock — the arm's jurisdiction is its own, not scanRoot's. */
+function judgePort(node: Node, rel: string, ctx: GateRunCtx): boolean {
+  const port = portLiteral(node);
+  if (port === null) {
+    return false;
+  }
+  if (rel in PORT_HOME) {
+    seenPortHome.add(rel);
+    return true;
+  }
+  ctx.report(node, { token: port, offset: 0 });
+  return true;
 }
 
 /** Arm J: this node is a fixed wall clock, or null. Three shapes, one rule. */
@@ -307,17 +402,105 @@ function sweepRootConfigs(ctx: GateRunCtx): void {
   }
 }
 
+/** Arms A-H + F2 + G's first half — every arm fenced to `tooling/src/**`. Extracted from `visit` when arm I
+ *  joined: the dispatch now carries three jurisdictions and inlining all of them exceeded the cognitive-
+ *  complexity cap, which is the lint saying the same thing this header does — a jurisdiction per arm. */
+function visitToolingArms(node: Node, rel: string, ctx: GateRunCtx): void {
+  // Arm G's first half: this file files an artifact, so its TOOL owes a run slot (checked in run()).
+  if (node.isKind(SyntaxKind.CallExpression) && ARTIFACT_FILERS.has(node.getExpression().getText()) && toolOf(rel) !== SHARED_DIR) {
+    filingTools.set(toolOf(rel), rel);
+  }
+  // Arm F2: an un-niced spawn door call — legal only for a census'd row.
+  if (node.isKind(SyntaxKind.CallExpression) && FULL_PRIORITY_DOORS.has(node.getExpression().getText())) {
+    if (rel in FULL_PRIORITY_CALLERS || rel === "tooling/src/_shared/proc.ts") {
+      seenFullPriorityCallers.add(rel);
+      return;
+    }
+    ctx.report(node, { token: `${node.getExpression().getText()}(`, offset: 0 });
+    return;
+  }
+  const cap = capability(node) ?? childProcessImport(node);
+  if (cap === null) {
+    return;
+  }
+  if (rel in HOMES) {
+    seenHomes.add(rel);
+    return;
+  }
+  // Arm A's censused exceptions — a NON-workspace Project, exempt from THIS arm only.
+  if (cap === "new Project(" && rel in PROJECT_SITES) {
+    seenProjectSites.add(rel);
+    return;
+  }
+  ctx.report(node, { token: cap, offset: 0 });
+}
+
+/** Arm I's ROOT-CONFIG half. The playwright configs bind the CT vite port and (through modes.ts) every e2e
+ *  stack's pair, and no gate's node walk can reach a repo-root file — so they are DISCOVERED by readdir and
+ *  read through the ONE scratch parser, exactly as arm J reads its two. Finding ZERO configs is REPORTED:
+ *  the arm is keyed on a name pattern, and a rename that emptied the pattern would retire this half in
+ *  silence (GATE-AUTHORING §4.6). Called only past the real-tree anchor, so conformance never reaches it. */
+function sweepPlaywrightConfigs(ctx: GateRunCtx): void {
+  // The ANCHOR alone is not enough for a READDIR: a conformance example may PLANT the anchor path (the
+  // §4.4a mode-B stale proof does exactly that) while `ctx.root` is still a virtual `/repo-N` that no
+  // filesystem has, and `readdirSync` on it throws rather than returning nothing. `existsSync` on the root
+  // is the §4.5 alternate anchor shape and costs the real tree nothing.
+  if (!existsSync(ctx.root)) {
+    return;
+  }
+  const configs = readdirSync(ctx.root).filter((entry) => PLAYWRIGHT_CONFIG_RE.test(entry));
+  if (configs.length === 0) {
+    // @finding-overload-ok: a BLINDNESS TRIPWIRE with no node to report — nothing was parsed, so there is nothing to anchor on, and a suppressible tripwire would be a way to silence the arm's own retirement. Ends if the playwright configs join harnessGlobs and the shared walk can see them.
+    ctx.report({
+      file: "playwright.config.ts",
+      line: 0,
+      column: 0,
+      message:
+        "arm I found NO playwright*.config.ts at the repo root — the runner configs carry the CT/e2e port surface and sit outside harnessGlobs, so this readdir is the ONLY way any gate sees them. Re-key PLAYWRIGHT_CONFIG_RE (docs/design/1208-instrument-substrate.md §3.6).",
+    });
+    return;
+  }
+  for (const rel of configs) {
+    const read = readStaticSource(ctx.root, rel);
+    if (read.kind !== "ok") {
+      // @finding-overload-ok: the same BLINDNESS TRIPWIRE — an unreadable config is announced, never skipped, because a silent skip would retire the arm for that file. Ends with the same harnessGlobs fold-in.
+      ctx.report({
+        file: rel,
+        line: 0,
+        column: 0,
+        message: `arm I cannot read ${rel} (${read.kind === "missing" ? "not on the tree" : read.detail}) — the runner port surface is unreadable, so this arm is blind to it — every runner port literal has one home at tooling/src/_shared/ports.ts.`,
+      });
+      continue;
+    }
+    for (const node of read.sf.getDescendantsOfKind(SyntaxKind.NumericLiteral)) {
+      const port = portLiteral(node);
+      if (port !== null) {
+        // @finding-overload-ok: the node lives in the ONE scratch parser (config-static-read), NOT in the shared workspace project, so `ctx.report(node, …)` cannot anchor it to a repo-relative path — the file/line have to be stated. The token is carried, so an `@orb-gate-ignore` can still name its position. Ends if the root configs join harnessGlobs.
+        ctx.report({ file: rel, line: node.getStartLineNumber(), column: 1, token: port });
+      }
+    }
+  }
+}
+
 export const gate: GateDescriptor = {
   name: "tooling-shared-plumbing",
   docRow: "Core-Enforcement-Active-Gates.md (docs/architecture/core/Core-Tooling-Law.md §4.4)",
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a second home for _shared plumbing — ts-morph Project construction, Playwright launch AND attach (connectOverCDP/connect), reports/<kind> artifact filing, process.exit, and child_process spawning each have ONE sanctioned module (and every tool cli.ts enters through runTool — the exit-honesty runner — and opens a run slot for the artifacts it files); a respell here is the duplication class the tooling package was minted to end (docs/architecture/core/Core-Tooling-Law.md §2.4/§4.4). And every WALL CLOCK is derived from the one load-budget policy (arm J): a fixed ceiling written for a quiet box is a false RED on a contended one, and the fleet carried four unrelated answers to that before #1232.",
-  fix: "call the _shared home (ts-workspace getWorkspace / browser launchProbeSession or attachProbeSession / artifacts artifactFile inside artifacts withInstrumentRun / run-tool runTool / proc spawnNiced-runNicedSync) instead of respelling it; for a wall clock, name the quiet-box literal `<X>_BASE_MS` and derive the ceiling with `budget(<X>_BASE_MS)` (_shared/load-budget.ts).",
-  scanRoot: (p) => p.startsWith(TOOLING_PREFIX) || p.startsWith(TESTS_TOOLING_PREFIX),
-  kinds: [SyntaxKind.CallExpression, SyntaxKind.NewExpression, SyntaxKind.ImportDeclaration, SyntaxKind.PropertyAssignment, SyntaxKind.VariableDeclaration],
+    "a second home for _shared plumbing — ts-morph Project construction, Playwright launch AND attach (connectOverCDP/connect), reports/<kind> artifact filing, process.exit, and child_process spawning each have ONE sanctioned module (and every tool cli.ts enters through runTool — the exit-honesty runner — and opens a run slot for the artifacts it files); a respell here is the duplication class the tooling package was minted to end (docs/architecture/core/Core-Tooling-Law.md §2.4/§4.4). And every WALL CLOCK is derived from the one load-budget policy (arm J): a fixed ceiling written for a quiet box is a false RED on a contended one, and the fleet carried four unrelated answers to that before #1232. And every TCP PORT is a row in the one registry (arm I): 47 hand-picked literals across tooling, the e2e harness and the runner configs was the state this repo shipped until #1269, which is why picking a pair meant grepping and hoping.",
+  fix: "call the _shared home (ts-workspace getWorkspace / browser launchProbeSession or attachProbeSession / artifacts artifactFile inside artifacts withInstrumentRun / run-tool runTool / proc spawnNiced-runNicedSync) instead of respelling it; for a wall clock, name the quiet-box literal `<X>_BASE_MS` and derive the ceiling with `budget(<X>_BASE_MS)` (_shared/load-budget.ts); for a port, read the named row from _shared/ports.ts (DEV_PORTS, FIXTURE_PORTS, E2E_PORTS, CT_VITE_PORT, ENGINE_PORTS, …) — and a NEW port is a new reserved row or a stage band there, never a number picked at the call site.",
+  scanRoot: (p) => p.startsWith(TOOLING_PREFIX) || p.startsWith(TESTS_TOOLING_PREFIX) || p.startsWith(E2E_SUPPORT_PREFIX),
+  kinds: [
+    SyntaxKind.CallExpression,
+    SyntaxKind.NewExpression,
+    SyntaxKind.ImportDeclaration,
+    SyntaxKind.PropertyAssignment,
+    SyntaxKind.VariableDeclaration,
+    SyntaxKind.NumericLiteral,
+  ],
   begin: () => {
+    seenPortHome.clear();
     seenClockSites.clear();
     seenHomes.clear();
     seenFullPriorityCallers.clear();
@@ -330,41 +513,24 @@ export const gate: GateDescriptor = {
     if (rel === null) {
       return;
     }
-    // Arm J — judged FIRST because it is the only arm whose jurisdiction includes tests/tooling/**.
-    if (judgeClock(node, rel, ctx)) {
+    // Arm I — a NumericLiteral is no other arm's node kind, so this branch both judges and terminates.
+    // Its jurisdiction is tooling/src/** + tests/e2e/support/**; tests/tooling/** is arm J's, not its.
+    if (node.isKind(SyntaxKind.NumericLiteral)) {
+      if (rel.startsWith(TOOLING_PREFIX) || rel.startsWith(E2E_SUPPORT_PREFIX)) {
+        judgePort(node, rel, ctx);
+      }
+      return;
+    }
+    // Arm J — tooling/src/** + tests/tooling/**, NOT the e2e support tree (its clocks are e2e boot budgets,
+    // #1232's territory). EVERY arm fences its own jurisdiction: riding scanRoot means a widening for one
+    // arm silently widens every other, which is the mirror image of the relOf trap above.
+    if ((rel.startsWith(TOOLING_PREFIX) || rel.startsWith(TESTS_TOOLING_PREFIX)) && judgeClock(node, rel, ctx)) {
       return;
     }
     // Every arm below is fenced to tooling/src/ — the jurisdiction they had before arm J widened scanRoot.
-    if (!rel.startsWith(TOOLING_PREFIX)) {
-      return;
+    if (rel.startsWith(TOOLING_PREFIX)) {
+      visitToolingArms(node, rel, ctx);
     }
-    // Arm G's first half: this file files an artifact, so its TOOL owes a run slot (checked in run()).
-    if (node.isKind(SyntaxKind.CallExpression) && ARTIFACT_FILERS.has(node.getExpression().getText()) && toolOf(rel) !== SHARED_DIR) {
-      filingTools.set(toolOf(rel), rel);
-    }
-    // Arm F2: an un-niced spawn door call — legal only for a census'd row.
-    if (node.isKind(SyntaxKind.CallExpression) && FULL_PRIORITY_DOORS.has(node.getExpression().getText())) {
-      if (rel in FULL_PRIORITY_CALLERS || rel === "tooling/src/_shared/proc.ts") {
-        seenFullPriorityCallers.add(rel);
-        return;
-      }
-      ctx.report(node, { token: `${node.getExpression().getText()}(`, offset: 0 });
-      return;
-    }
-    const cap = capability(node) ?? childProcessImport(node);
-    if (cap === null) {
-      return;
-    }
-    if (rel in HOMES) {
-      seenHomes.add(rel);
-      return;
-    }
-    // Arm A's censused exceptions — a NON-workspace Project, exempt from THIS arm only.
-    if (cap === "new Project(" && rel in PROJECT_SITES) {
-      seenProjectSites.add(rel);
-      return;
-    }
-    ctx.report(node, { token: cap, offset: 0 });
   },
   // Arm E: every tool cli.ts enters through runTool — the argv front door may not hand-roll its exit.
   visitFile: (sf, ctx) => {
@@ -410,6 +576,16 @@ export const gate: GateDescriptor = {
     // anchor proves this is the repo, so a config that vanished is a rename the arm must announce rather
     // than a file it may skip — the "gate keyed on an exact name detects its own blindness" rule.
     sweepRootConfigs(ctx);
+    // Arm I's root-config half, same placement and same reason: past the anchor, so a conformance
+    // mini-project never readdirs the real repo root.
+    sweepPlaywrightConfigs(ctx);
+    staleSweep(
+      ctx,
+      PORT_HOME,
+      seenPortHome,
+      (key, why) =>
+        `stale PORT_HOME row — "${key}" no longer carries a port literal (row why: ${why}). Either the registry moved (re-key the row) or it stopped declaring ports, in which case arm I is judging against nothing (docs/design/1208-instrument-substrate.md §3.6).`,
+    );
     staleSweep(
       ctx,
       CLOCK_SITES,
@@ -516,6 +692,41 @@ export const gate: GateDescriptor = {
       why: "an instrument that files artifacts with no run slot — the #1164 shared-path clobber (arm G)",
     },
     {
+      files: "export const p = 8788;\n",
+      at: "tooling/src/stack/ops/up.ts",
+      expect: { count: 1, token: "8788" },
+      why: "a RESERVED registry port respelled as a literal — the dev pair was the exact respell #1271 spent (stage-plan.ts + fixture.ts held four of them) (arm I)",
+    },
+    {
+      files: "export const stage = { server: 8888, vite: 5273 };\n",
+      at: "tooling/src/snap/lib/stage-plan.ts",
+      expect: { count: 2, token: "8888" },
+      why: "the STAGE-BAND half: bands are allocated, never typed — the arm imports STAGE_BAND_PORT_NUMBERS, so band 0's pair is as much a respell as a reserved row, and BOTH sides report (arm I)",
+    },
+    {
+      files: 'export const mode = { name: "local", port: 8796 };\n',
+      at: "tests/e2e/support/modes.ts",
+      expect: { count: 1, token: "8796" },
+      why: "the proof arm I's jurisdiction REACHES tests/e2e/support/** — the root arm J does not judge, and the exact class of file where a widened scanRoot with an un-widened relOf reads GREEN over files it never opened (2026-09-02)",
+    },
+    {
+      files: "const FIXTURE_PORT = 8123;\nexport const x = FIXTURE_PORT;\n",
+      at: "tooling/src/stack/lib/spawners.ts",
+      expect: { count: 1, token: "FIXTURE_PORT = 8123" },
+      why: "a HAND-PICKED NEW port: no registry row declares 8123, so only the NAME gives it away — this is pain P10 verbatim (picking a pair by grepping and hoping) and the value-shaped half is structurally blind to it (arm I)",
+    },
+    {
+      files: "export const opts = { ctPort: 3101 };\n",
+      at: "tooling/src/snap/ops/capture.ts",
+      expect: { count: 1, token: "ctPort: 3101" },
+      why: "the PROPERTY spelling of the same dodge — a port-named object key is as much a declaration as a const, and CT's own port sits one below it (arm I)",
+    },
+    {
+      files: { "tooling/src/_shared/exit-contract.ts": "export const EXIT_OK = 0;\n" },
+      expect: { messageIncludes: "stale PORT_HOME row" },
+      why: "GATE-AUTHORING §4.4a mode (B): the real-tree ANCHOR is loaded but the PORT_HOME row's file is GONE — a path-keyed exemption whose file vanished must RED, not rot silently (the row is never visited, so a seen-set is the only test that catches it)",
+    },
+    {
       files: "export const opts = { timeout: 30_000 };\n",
       at: "tooling/src/ui-audit/ops/walk.ts",
       expect: { count: 1, token: "timeout: 30_000" },
@@ -535,6 +746,26 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: "export const DEV_PORTS = { server: 8788, vite: 5173 };\n",
+      at: "tooling/src/_shared/ports.ts",
+      why: "THE registry, scanned AND allowlisted by its cited PORT_HOME row — the scan-and-allowlist shape (never a scanRoot exclusion), so the day it moves it reds at its new path (arm I's pass half)",
+    },
+    {
+      files: 'import { DEV_PORTS } from "../../_shared/ports.ts";\nexport const staged = DEV_PORTS.server + 100;\n',
+      at: "tooling/src/snap/lib/stage-plan.ts",
+      why: "the SANCTIONED shape and the literal #1271 landing: the pair is READ from the registry and the offset is an ordinary number no port table declares — flagging this would leave no legal way to derive a port (arm I)",
+    },
+    {
+      files: 'export const dev = { name: "single-user", baseUrl: "http://localhost:5173" };\n',
+      at: "tests/e2e/support/target-guard.test.ts",
+      why: "DECLARED LIMIT: a port inside a STRING is not a numeric literal. The target guard spells the dev origins as negative FIXTURE data — the thing it refuses — and widening the arm to string content would either accuse it or need an allowlist row for a test's own subject (arm I)",
+    },
+    {
+      files: "export const model = { contextWindow: 8192, maxTokens: 4096 };\n",
+      at: "tests/e2e/support/actors.ts",
+      why: "the FALSE-POSITIVE control: 8192 is a real four-digit number at a non-port key, live in actors.ts today. The name half needs a PORT-shaped name and the value half needs a number the registry actually declares — 'any four-digit literal' would accuse every context window in the harness (arm I). DECLARED LIMIT, the other way: a registry number reused with a NON-port meaning IS flagged, deliberately — a respell is a respell and the escape is a positioned @orb-gate-ignore, not a looser matcher",
+    },
     {
       files: "export const budgets = { timeout: budget(NAV_BASE_MS) };\ndeclare function budget(n: number): number;\ndeclare const NAV_BASE_MS: number;\n",
       at: "tooling/src/ui-audit/lib/budgets.ts",
