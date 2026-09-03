@@ -286,7 +286,37 @@ const GATING_STAGES: readonly StageDef[] = [
     // are whole-tree-shaped, deferred to push). CT does NOT ride this lane at changed scope — its scoped
     // mirror-mapping is the separate `browser:ct` changed-tier stage (LANDED 2026-07-17); the WHOLE CT suite
     // rides this lane's whole-scope argv at push (via `pnpm test`). Whole-only otherwise.
-    scopedArgv: (sel) => ["vitest", "run", "--project", "unit", "--project", "integration", "--changed", ...(sel.gitRef === undefined ? [] : [sel.gitRef])],
+    //
+    // `--passWithNoTests` RIDES THE SCOPED ARGV ONLY (#1272) — the whole-scope `pnpm test` above must never
+    // carry it. THE DEFECT: `--changed` on a CLEAN COMMITTED TREE selects nothing, vitest prints "No test
+    // files found, exiting with code 1", and `asViolations` reads that digit as VIOLATIONS — so a lane that
+    // verified green BEFORE committing gets a RED after committing, at the exact door §L tells it to walk.
+    // A red meaning "there was nothing to run" either sends a lane chasing a phantom or teaches it that
+    // reds from this door are ignorable.
+    // THE RULING IT REOPENS: vitest 4 DEFAULTS `passWithNoTests` to true; `vitest.config.ts` turns it OFF
+    // repo-wide — "false (PD-115): every lane … has matching files now, so a lane whose include glob
+    // matches NOTHING (a typo'd pattern, a moved tree) FAILS instead of passing" (Core-Debt-Cleared-Ledger
+    // PD-115, 2026-07-03). That ruling SURVIVES; its INPUT changed. PD-115 judges an ASSERTED selector — a
+    // lane's config include glob, which asserts a fileset — while this argv's selector is always the
+    // DERIVED one (`--changed`), and derived-empty is CLEAN by the same asymmetry ops/scoped.ts's
+    // `emptyScopeNotice` already draws (AGENTS.md §4: an asserted selector resolving to zero is exit 2,
+    // a derived one resolving to zero is an ordinary state). PD-115's own class stays guarded without this
+    // door: `tests:execution-membership` REDs a runner view matching ZERO files at the STATIC tier, and
+    // every whole-scope `pnpm test` still runs under `passWithNoTests: false`.
+    // The flag sits BEFORE `--changed` because `--changed`'s ref value is OPTIONAL — a flag placed after it
+    // can be swallowed as that value. Measured 2026-09-02: it does not mask a broken invocation
+    // (`--project bogus --changed --passWithNoTests` still exits 1, "No projects matched the filter").
+    scopedArgv: (sel) => [
+      "vitest",
+      "run",
+      "--project",
+      "unit",
+      "--project",
+      "integration",
+      "--passWithNoTests",
+      "--changed",
+      ...(sel.gitRef === undefined ? [] : [sel.gitRef]),
+    ],
   },
   {
     name: "browser:ct",

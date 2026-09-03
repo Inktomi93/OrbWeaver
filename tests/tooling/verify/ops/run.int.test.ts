@@ -518,6 +518,80 @@ test("browser:ct scopedArgv: skip-empty on no CT surface; a DIRECT playwright ru
   expect(stage("browser:ct").scopedArgv?.(hit)).toEqual(["playwright", "test", "-c", "playwright-ct.config.ts", "tests/ui/primitives/badge/badge.ct.tsx"]);
 });
 
+// ── tests:node's derived-empty selection (#1272) — a red that means "there was nothing to run" ──
+// THE DEFECT: `pnpm verify --scope <path>` exited 1 on a CLEAN COMMITTED tree whose identical content
+// exited 0 minutes earlier while uncommitted. The scoped child is `vitest … --changed`, which selects
+// nothing on a clean tree; the repo's `vitest.config.ts` sets `passWithNoTests: false`, so vitest prints
+// "No test files found, exiting with code 1" and `asViolations` scores that digit as VIOLATIONS. §L tells
+// lanes to commit and then report receipts, so the door reds exactly when a lane is told to walk it.
+// THE FIX is `--passWithNoTests` on the SCOPED argv alone. It reopens PD-115 (Core-Debt-Cleared-Ledger:
+// `passWithNoTests` was flipped to false in 2026-07-03 so "a lane whose include glob matches NOTHING …
+// FAILS instead of passing"), and that ruling SURVIVES — its INPUT changed. PD-115 judges an ASSERTED
+// selector (a config include glob asserts a fileset); this argv's selector is always the DERIVED
+// `--changed` one, which AGENTS.md §4 and ops/scoped.ts's `emptyScopeNotice` already rule CLEAN when
+// empty. PD-115's own class stays guarded: `tests:execution-membership` REDs a runner view matching ZERO
+// files at the STATIC tier, and every whole-scope `pnpm test` still runs at `passWithNoTests: false`.
+
+test("tests:node scopedArgv: --passWithNoTests rides the SCOPED lane only, ordered so --changed's optional ref cannot eat it (#1272)", () => {
+  // The git-derived arm (`--changed` with no explicit paths) carries the ref; the explicit-path and folder
+  // arms carry none. In EVERY arm the flag sits immediately BEFORE `--changed` — `--changed`'s value is
+  // OPTIONAL, so a flag placed after it can be swallowed as that value.
+  const derived = resolveSelection({ kind: "changed", paths: [] });
+  expect(stage("tests:node").scopedArgv?.(derived)).toEqual([
+    "vitest",
+    "run",
+    "--project",
+    "unit",
+    "--project",
+    "integration",
+    "--passWithNoTests",
+    "--changed",
+    "HEAD",
+  ]);
+  const explicit = resolveSelection({ kind: "file", paths: ["packages/server/src/index.ts"] });
+  expect(stage("tests:node").scopedArgv?.(explicit)).toEqual([
+    "vitest",
+    "run",
+    "--project",
+    "unit",
+    "--project",
+    "integration",
+    "--passWithNoTests",
+    "--changed",
+  ]);
+  const folder = resolveSelection({ kind: "scope", glob: "tooling/src/verify/ops" });
+  expect(stage("tests:node").scopedArgv?.(folder)).toEqual([
+    "vitest",
+    "run",
+    "--project",
+    "unit",
+    "--project",
+    "integration",
+    "--passWithNoTests",
+    "--changed",
+  ]);
+  // The OTHER half of the ruling: the WHOLE-scope argv asserts the whole suite, where zero test files means
+  // the runner broke. It must never carry the flag — that is what keeps PD-115 alive where it applies.
+  expect(stage("tests:node").argv).toEqual(["pnpm", "test"]);
+  expect(stage("tests:node").argv).not.toContain("--passWithNoTests");
+});
+
+test("tests:node: the repo's own config is what reds an empty selection, and ONLY the CLI flag lifts it (#1272 mechanism, both directions)", async () => {
+  // A planted control in both directions against the REAL binary under the REAL config — vitest 4 defaults
+  // `passWithNoTests` to TRUE, so a scratch-repo probe would prove nothing about this repo. The filter names
+  // no file on any tree, which is the cheapest way to reach the same "no test files" branch deterministically
+  // (a `--changed` selection's emptiness depends on the working tree and cannot be pinned).
+  const filter = "tests/__pscopedred_no_such_test_file__.test.ts";
+  const red = await spawnNicedTranscript("./node_modules/.bin/vitest", ["run", "--project", "unit", filter], CAPTURE_OPTS);
+  expect(red.code).toBe(1);
+  expect(red.transcript).toContain("No test files found, exiting with code 1");
+  expect(asViolations(red.code)).toBe(1); // …and the classifier scores that digit as VIOLATIONS — the false red
+
+  const clean = await spawnNicedTranscript("./node_modules/.bin/vitest", ["run", "--project", "unit", "--passWithNoTests", filter], CAPTURE_OPTS);
+  expect(clean.code).toBe(0);
+  expect(clean.transcript).toContain("No test files found, exiting with code 0");
+});
+
 // ── argv parsing (parseArgs, strict schema §3.4) — the misuse (exit 3) matrix + good invocations ──
 
 test("parse: an UNKNOWN flag is misuse (exit 3), never silent-ignore", () => {
