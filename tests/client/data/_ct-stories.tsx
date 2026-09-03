@@ -851,14 +851,17 @@ function PromptMacroSuggestionsProbe(): ReactElement {
   );
 }
 
-/** CarriedAppearanceCastStory — the ONE home of "whose card dresses this room", resolved for BOTH chat
- *  phases: a COMMITTED chat's roster (`chat.getChat`) or a pre-send DRAFT's founding CARDS
- *  (`character.get` per id). NON-suspense on purpose: appearance is decoration, so an unresolved read must
- *  report `undefined` (the viewer's own chrome) rather than block or error the surface reading it.
+/** CarriedAppearanceCastStory — the ONE home of "whose card dresses this room". ONE ARM since
+ *  `chat-creation-draft-mode-replacement.md` §4.1 R1: a room has a row from the creation CLICK, so the
+ *  COMMITTED roster (`chat.getChat`) is the only source and the pre-send DRAFT resolver over founding
+ *  CARDS (`character.get` per id) is deleted — do not restore a card-reading branch here. NON-suspense on
+ *  purpose: appearance is decoration, so an unresolved OR FAILED read must report `undefined` (the
+ *  viewer's own chrome) rather than block or error the surface reading it.
  *
  *  The readout is the resolved COMPOSITION — the two counts every takeover rule gates on — plus the
- *  carried names, so a partially-loaded draft cast (which must read as `pending`, never as a SMALLER cast
- *  that would momentarily look true-solo) is distinguishable from a settled one. */
+ *  carried names, so a settled cast is distinguishable from an unresolved one. It deliberately renders the
+ *  SAME `pending` for every unresolved cause (gated-off, in-flight, errored), because the hook's contract
+ *  is that consumers cannot tell them apart either. */
 export function CarriedAppearanceCastStory({ chatId }: { readonly chatId: ChatId | null }): ReactElement {
   return (
     <CtDataProviders>
