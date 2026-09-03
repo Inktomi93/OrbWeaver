@@ -3,6 +3,7 @@
 import { splitPageSuffix } from "../../_shared/argv.ts";
 import { DEFAULT_BASE, DEFAULT_DEBUG_TOKEN } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { aliasRefusal } from "../../_shared/instrument-argv.ts";
 import type { NonArmArgs } from "../contract/arms.ts";
 import type { Args } from "../contract/types.ts";
 import { validateFlagValue, validateSelectorFlagValue } from "../lib/flag-values.ts";
@@ -15,6 +16,10 @@ import { FLAG_HANDLERS } from "./flags-handlers.ts";
 import { DEFAULT_VIEWPORT, MS_PER_SECOND } from "./flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
+
+// ALIAS_REFUSALS (§4.3, _shared/instrument-argv.ts): snap owns the real targets (--full/--every/
+// --shot-of/--out), so an asked-for --full-page/--watch-every/--screenshot/--name refuses BY NAME here.
+const KNOWN_FLAGS = new Set(Object.keys(FLAG_HANDLERS));
 
 function consumeRequiredArg(argv: readonly string[], index: number, flag: string, errors: string[]): number {
   const value = argv[index + 1];
@@ -63,7 +68,7 @@ function scanArgvToken(argv: readonly string[], index: number, scan: ArgvScan): 
   if (FLAG_HANDLERS[flag] === undefined) {
     scan.routeCount += token.startsWith("-") ? 0 : 1;
     if (token.startsWith("-")) {
-      scan.errors.push(`unknown flag ${token}`);
+      scan.errors.push(aliasRefusal(flag, KNOWN_FLAGS) ?? `unknown flag ${token}`);
     }
     return 0;
   }

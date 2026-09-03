@@ -57,6 +57,10 @@ async function main(): Promise<number> {
     print(DESIGN_AUDIT_HELP);
     return EXIT.misuse;
   }
+  if (opts.help) {
+    print(DESIGN_AUDIT_HELP);
+    return 0;
+  }
   // The isolated stage (#678) resolves BEFORE the browser: an unresolvable --ref is misuse and a stage that
   // will not boot is an instrument failure — neither may fall through to an audit of the dev stack.
   const stageExit = configureAuditStage(opts);
