@@ -273,6 +273,8 @@ test("the push tier carries the behavioral suites the static tier omits (the `bo
     readonly scripts: Record<string, string>;
   };
   expect(rootPkg.scripts["test"]).toContain("pnpm test:ct --retries=2");
+  expect(rootPkg.scripts["test:ct"]).toContain("tooling/src/verify/cli.ts scoped-test ct");
+  expect(rootPkg.scripts["test:ct"]).not.toContain("playwright test");
   // …and the static tier does NOT run behavioral suites (the core hole §2.1).
   const staticT = new Set(stagesForTier("static").map((s) => s.name));
   expect(staticT.has("tests:node")).toBe(false);
@@ -521,13 +523,13 @@ test("ct view: a shared GROUP CORE sweeps its group dir; a chart source's mirror
   expect(core.ct).toEqual({ mode: "sweep", targets: ["tests/ui/charts"] });
 });
 
-test("browser:ct scopedArgv: skip-empty on no CT surface; a DIRECT playwright run over the CT view otherwise", () => {
+test("browser:ct scopedArgv: skip-empty on no CT surface; the one-slot CT launcher otherwise", () => {
   const skip = resolveSelection({ kind: "changed", paths: ["packages/server/src/index.ts"] });
   expect(stage("browser:ct").scopedArgv?.(skip)).toBe("skip-empty");
-  // A mirror hit → a direct `playwright test -c playwright-ct.config.ts <mirror>` — NOT `pnpm test:ct` (no
-  // cache nuke, no retries flag): the two deliberate inner-loop divergences (§3.7).
+  // A mirror hit → the scoped launcher, which opens the one invocation slot before Playwright loads config.
+  // It keeps retries at the config's 0 default, so the inner loop still exposes a transient raw.
   const hit = resolveSelection({ kind: "changed", paths: ["packages/ui/src/primitives/badge/badge.tsx"] });
-  expect(stage("browser:ct").scopedArgv?.(hit)).toEqual(["playwright", "test", "-c", "playwright-ct.config.ts", "tests/ui/primitives/badge/badge.ct.tsx"]);
+  expect(stage("browser:ct").scopedArgv?.(hit)).toEqual(["pnpm", "ct:scoped", "tests/ui/primitives/badge/badge.ct.tsx"]);
 });
 
 // ── tests:node's derived-empty selection (#1272) — a red that means "there was nothing to run" ──

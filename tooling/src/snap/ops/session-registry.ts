@@ -29,6 +29,9 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --session-status");
 
 const ROW_SUFFIX = ".json";
 const SOCKET_SUFFIX = ".sock";
+const BOOT_LOCK = ".boot.lock";
+const BOOT_RESERVATIONS = ".boot";
+const BOOT_LOCK_POLL_MS = 25;
 const MS_PER_MINUTE = 60_000;
 
 /** THE ONE env door for the session registry — read once, at module load, because every consumer is a
@@ -94,6 +97,81 @@ export function rowIsLive(row: SessionRow): boolean {
 
 export function liveRows(home: string): readonly SessionRow[] {
   return listRows(home).filter(rowIsLive);
+}
+
+interface BootReservation {
+  readonly name: string;
+  readonly pid: number;
+}
+
+function reservationDir(home: string): string {
+  return join(home, BOOT_RESERVATIONS);
+}
+
+function reservationPath(home: string, name: string): string {
+  return join(reservationDir(home), name);
+}
+
+function reservationNames(home: string): readonly string[] {
+  const dir = reservationDir(home);
+  if (!existsSync(dir)) {
+    return [];
+  }
+  return readdirSync(dir).filter((name) => {
+    // @orb-gate-ignore caught-failure-ownership(empty:catch): an unreadable reservation cannot hold capacity; the lock owner removes that exact file below before returning false. Ends if malformed reservations must block acquisition instead of being reclaimed.
+    try {
+      const reservation = JSON.parse(readFileSync(reservationPath(home, name), "utf8")) as BootReservation;
+      if (reservation.name === name && pidAlive(reservation.pid)) {
+        return true;
+      }
+    } catch {
+      // A partial/dead reservation never holds capacity; the lock holder removes it below.
+    }
+    rmSync(reservationPath(home, name), { force: true });
+    return false;
+  });
+}
+
+function withBootLock<T>(home: string, fn: () => T): T {
+  const path = join(home, BOOT_LOCK);
+  for (;;) {
+    // @orb-gate-ignore caught-failure-ownership(empty:error): only EEXIST is the expected lock-contention signal and it retries after a bounded poll; every other mkdir failure rethrows. Ends if the lock stops being represented by exclusive directory creation.
+    try {
+      mkdirSync(path);
+      break;
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) {
+        throw error;
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT)), 0, 0, BOOT_LOCK_POLL_MS);
+    }
+  }
+  try {
+    return fn();
+  } finally {
+    rmSync(path, { recursive: true, force: true });
+  }
+}
+
+/** Reserve one name and one cap slot before spawning its daemon. A row is only published after Chromium
+ *  launches, so checking `liveRows()` alone races two cold boots through a cap of one. */
+export function reserveSessionBoot(home: string, name: string, cap: number): "reserved" | "name" | "cap" {
+  return withBootLock(home, () => {
+    mkdirSync(reservationDir(home), { recursive: true });
+    const pending = reservationNames(home);
+    if (pending.includes(name)) {
+      return "name";
+    }
+    if (liveRows(home).length + pending.length >= cap) {
+      return "cap";
+    }
+    writeFileSync(reservationPath(home, name), JSON.stringify({ name, pid: process.pid } satisfies BootReservation));
+    return "reserved";
+  });
+}
+
+export function releaseSessionBoot(home: string, name: string): void {
+  rmSync(reservationPath(home, name), { force: true });
 }
 
 /** The names of every session whose daemon is ALIVE, for the band table's reaper fence (§3.6): a stage row

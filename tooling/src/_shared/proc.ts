@@ -75,6 +75,13 @@ export interface RunNicedSyncResult {
   readonly stderr: string;
 }
 
+/** Ambient process environment plus explicit child overrides. Tool launchers use this instead of each
+ *  growing its own process.env suppression; app configuration is not read here. */
+export function inheritedProcessEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  // biome-ignore lint/style/noProcessEnv: the child inherits the AMBIENT env (PATH, HOME — how every spawn works); the rule guards app config reads, and no config is read here.
+  return { ...process.env, ...overrides };
+}
+
 /** Sync spawn under `nice -n 19` — never throws on a non-zero status (the caller judges). */
 export function runNicedSync(cmd: string, args: readonly string[], opts: RunNicedSyncOptions = {}): RunNicedSyncResult {
   const stdio = opts.stdio === undefined || opts.stdio === "collect" ? undefined : opts.stdio;
@@ -364,8 +371,7 @@ export function spawnNiced(cmd: string, args: readonly string[], opts: SpawnNice
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn("nice", ["-n", "19", cmd, ...args], {
       cwd: opts.cwd,
-      // biome-ignore lint/style/noProcessEnv: the child inherits the AMBIENT env (PATH, HOME — how every spawn works); the rule guards app config reads, and no config is read here.
-      env: opts.env === undefined ? process.env : { ...process.env, ...opts.env },
+      env: inheritedProcessEnv(opts.env),
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";

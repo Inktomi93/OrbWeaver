@@ -28,8 +28,17 @@ export interface Args {
    *  session's own bound URL instead of `DEFAULT_BASE` (#1289, design §3.6 "sibling instruments inherit
    *  the binding from the session"); an explicit `--base` still overrides (#1285's composing rule). */
   baseExplicit: boolean;
+  isolated: boolean;
+  ref: string | null;
+  dirty: boolean;
+  fresh: boolean;
+  stageShortSha: string | null;
   out: string;
+  json: boolean;
   viewport: Viewport;
+  device: string | null;
+  colorScheme: "light" | "dark" | null;
+  reducedMotion: boolean;
   settleMs: number;
   cycles: number;
   cpuProfile: boolean;

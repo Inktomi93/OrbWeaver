@@ -5,6 +5,9 @@ import type { Page } from "@playwright/test";
 import type { Viewport } from "./argv.ts";
 import { pageBooleanFields, pageNumberFields, pageObject, pageString } from "./page-validate.ts";
 
+export const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
+export const WIDE_VIEWPORT: Viewport = { width: 1920, height: 1080 };
+
 /** One canonical full Playwright descriptor. Snap, design-audit, and motion-audit import this identity. */
 export const MOBILE_DEVICE = "iPhone 14 Pro Max";
 

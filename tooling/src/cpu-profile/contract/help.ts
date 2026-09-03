@@ -19,7 +19,12 @@ Steps (ONE argv-ordered tape; each gets its own measurement window):
   --panels <preset>                 reach a NAMED panel configuration in one flag (see Panel state below)
 
 Run:
-  --base <url> · --viewport <WxH> · --settle <ms> · --cycles <n> · --out <name> · --cpuprofile
+  --base <url> · --viewport <WxH> · --wide · --mobile · --desktop · --dark | --light · --reduced-motion
+  --settle <ms> · --cycles <n> · --out <name|path> · --json · --cpuprofile
+
+Where:
+  --isolated · --ref <sha|branch|tag> · --dirty · --fresh
+                            use Snap's isolated stage; a cold stage refuses and must be rerun warm
 
 ${SESSION_FLAG_HELP}
 

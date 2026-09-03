@@ -5,3 +5,4 @@ export type { Args, MeterData, Step, StepReport } from "./contract/types.ts";
 export { parsePerfArgs } from "./ops/parse.ts";
 export { buildReports } from "./ops/report.ts";
 export { runCpuProfile } from "./ops/run.ts";
+export { configureCpuProfileStage } from "./ops/stage.ts";

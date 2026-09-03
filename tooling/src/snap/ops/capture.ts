@@ -9,7 +9,7 @@
 // the tuple says without touching this function.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
-import type { ProbeSession } from "../../_shared/browser.ts";
+import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ArmPageContext } from "../contract/arms.ts";
 import type { CaptureEvidence, PagePlan } from "../contract/plan.ts";

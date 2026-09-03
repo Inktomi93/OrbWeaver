@@ -135,17 +135,8 @@ export const LOCAL_MEMBER = { handle: "member", password: "member-dev-pass" } as
 // ADOPT the box's already-running loopback vLLM fleet — isolation is of the DB, never the GPU), WIRE_CAPTURE
 // on (the @live specs read /api/_debug/wire/captures).
 //
-// VLLM_DISABLED=true RIDES ALONGSIDE adopt-only, never instead of it (#1282): `dev.sh` → `engines.sh`
-// gates the in-stack COLD SPAWN on `VLLM_DISABLED`, not on `ENGINES_POSTURE` — `stack.sh`'s `off` →
-// `VLLM_DISABLED=true` bridge lives only inside `do_force_restart`, and `start`/`start-fg` (what
-// `webServerEnv` boots under) pass `ENGINES_POSTURE=adopt-only` straight through untouched. So
-// `adopt-only` alone does not stop a cold spawn on THIS path — only `VLLM_DISABLED` does, and the server
-// still ADOPTS an already-running fleet under an explicit `adopt-only` posture (the identical shape
-// `multi-user-fixture.sh` already uses). None of the specs `pnpm e2e:smoke`/`pnpm e2e` actually run need
-// a live model: `@smoke` is model-free (smoke.spec.ts's own header) and both the push and full verify
-// tiers invoke plain `pnpm e2e:smoke` / `pnpm e2e` with no `E2E_LIVE=1`, which `playwright.config.ts`
-// `grepInvert`s away every `@live` spec by default — so a harness stack booting here never needs the
-// fleet up, and letting it cold-spawn one anyway is pure GPU/time waste on the pre-push path.
+// E2E adopts an already-running model fleet but must never cold-spawn one; engines.sh gates that path on
+// VLLM_DISABLED rather than ENGINES_POSTURE.
 //
 // `E2E_ALLOW_DEV_TARGET=1` flips this project back to the pre-2026-08-01 shape: the dev ports 8788/5173 and
 // NO DATABASE_URL pin, i.e. the operator's real dev stack + dev DB (reused, not booted — see
@@ -161,8 +152,6 @@ export const SINGLE_USER: ModeProject = {
   testMatch: /(?<!\.(?:local|forward))\.spec\.ts$/u,
   webServerEnv: {
     ENGINES_POSTURE: "adopt-only",
-    // engines.sh gates the in-stack cold spawn on VLLM_DISABLED, not ENGINES_POSTURE (#1282) — this
-    // stack still ADOPTS an already-running fleet under adopt-only, it just never spawns its own.
     VLLM_DISABLED: "true",
     AUTH_MODE: "single-user",
     SESSION_SECRET: "orbweaver-dev-only-session-secret-insecure",
@@ -207,8 +196,6 @@ const LOCAL: ModeProject = {
   testMatch: /\.local\.spec\.ts$/u,
   webServerEnv: {
     ENGINES_POSTURE: "adopt-only",
-    // engines.sh gates the in-stack cold spawn on VLLM_DISABLED, not ENGINES_POSTURE (#1282) — this
-    // stack still ADOPTS an already-running fleet under adopt-only, it just never spawns its own.
     VLLM_DISABLED: "true",
     AUTH_MODE: "local",
     SESSION_SECRET,
@@ -251,8 +238,6 @@ const FORWARD_HEADER: ModeProject = {
   testMatch: /\.forward\.spec\.ts$/u,
   webServerEnv: {
     ENGINES_POSTURE: "adopt-only",
-    // engines.sh gates the in-stack cold spawn on VLLM_DISABLED, not ENGINES_POSTURE (#1282) — this
-    // stack still ADOPTS an already-running fleet under adopt-only, it just never spawns its own.
     VLLM_DISABLED: "true",
     AUTH_MODE: "forward-header",
     SESSION_SECRET,

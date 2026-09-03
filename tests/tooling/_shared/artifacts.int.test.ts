@@ -119,6 +119,20 @@ test("a run names the LIVE sibling holding a slot — the racing-writer census, 
   expect(published(root).concurrent.join(" ")).toContain("planted-sibling");
 });
 
+test("an adopted run slot transfers its in-flight ownership without minting another identity", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  const A = await import("@orb/tooling/_shared/artifacts");
+  const slot = A.openRunSlot(root, "ct");
+  const markerPath = join(slot.dir, ".inflight");
+  writeFileSync(markerPath, JSON.stringify({ runId: slot.runId, pid: 1, checkout: "stale", startedAt: "2026-09-01T00:00:00.000Z" }));
+
+  const adopted = A.transferRunSlotOwnership(root, slot);
+  const marker = JSON.parse(readFileSync(markerPath, "utf8")) as { readonly runId: string; readonly pid: number };
+  expect(adopted.dir).toBe(slot.dir);
+  expect(marker).toMatchObject({ runId: slot.runId, pid: process.pid });
+  expect(readdirSync(join(root, "reports", "runs", "ct"))).toEqual([slot.runId]);
+});
+
 // ── THE PRUNE RACE (#1029 adversarial verification, 2026-09-02) ────────────────────────────────────────
 //
 // WHAT THE TWO CASES ABOVE COULD NOT SEE. Both run on a FRESH root, where the ring never reaches capacity

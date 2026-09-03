@@ -10857,15 +10857,15 @@
       "lane": "design",
       "issue": 5,
       "lines": 121,
-      "bytes": 10523,
-      "sha256": "351b6fbb934777fe3f7516ef53aa0518a46082069527a0c45cd2561e4a9ed9cf",
+      "bytes": 10545,
+      "sha256": "756c0c71645436d282d19cbf7723996713f615f2ff3fee4b1e6d05bbd6518e0b",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-02"
+          "updated": "2026-09-03"
         },
         "errors": []
       },
@@ -10913,15 +10913,15 @@
           "born-reviewed by the primary orchestrator (author) 2026-09-02 at 33d7067f0: the two-account, 14-day transcript census of chrome-devtools MCP tool calls (176 calls, 719 jsonl files) mapped to snap arms; two gaps named (a Lighthouse arm, a request log) and the retirement step; owner-directed program (#1195)."
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/1208-instrument-substrate.md",
       "lane": "design",
       "issue": 5,
-      "lines": 653,
-      "bytes": 106792,
-      "sha256": "b97d0308800be0a47cb951ceb84f881545c3a4b09794071b6a1b919c65f98fed",
+      "lines": 680,
+      "bytes": 109022,
+      "sha256": "0f257f60c78cae1f5f54c7dafb7461496fd9fe5f4baca8b734b2d8927f6c59c6",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10988,7 +10988,7 @@
         ],
         "summary": "The instrument substrate design (owner-directed #1208): stateful snap sessions behind a per-lane daemon, N registered stage bands with TTL and lazy reap, one CLI grammar as shared flag families, an arm registry with Lighthouse and request-log worked, a 13-control test plan, a five-phase build plan and ten owner forks."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/1238-plugin-distribution.md",

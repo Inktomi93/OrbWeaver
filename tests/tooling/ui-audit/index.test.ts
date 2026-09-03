@@ -2288,6 +2288,16 @@ test("--mobile selects a coarse-pointer DEVICE, not a narrow viewport; --viewpor
   expect(parseAuditArgs(["/"]).device).toBeNull();
 });
 
+test("the shared environment and artifact flags parse into executable launch/output options", () => {
+  expect(parseAuditArgs(["/", "--wide", "--dark", "--reduced-motion", "--json"])).toMatchObject({
+    viewport: { width: 1920, height: 1080 },
+    colorScheme: "dark",
+    reducedMotion: true,
+    json: true,
+    errors: [],
+  });
+});
+
 // ── hover-contrast (the FORCED-STATE family) ──────────────────────────────────
 // The rule impeccable emits under its EXISTING `low-contrast` id, which is why our 59-rule adoption
 // triage never saw it. Samples come from ops/hover.ts's CDP pass; everything below is the pure half.

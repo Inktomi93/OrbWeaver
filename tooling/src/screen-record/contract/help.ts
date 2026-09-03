@@ -12,8 +12,13 @@ Steps (ONE argv-ordered tape):
   --click/--jsclick/--hover <sel>   --fill "sel=value"   --wheel "sel=dy"   --pause <ms>
 
 Run:
-  --base <url> · --viewport <WxH> · --settle <ms> (initial, default ${DEFAULT_SETTLE_MS}) ·
-  --out <name> · --frames [offsetMs] (per-step full-res PNGs, default offset ${DEFAULT_FRAMES_OFFSET_MS})
+  --base <url> · --viewport <WxH> · --wide · --mobile · --desktop · --dark | --light · --reduced-motion
+  --settle <ms> (initial, default ${DEFAULT_SETTLE_MS}) · --out <name|path> · --json ·
+  --frames [offsetMs] (per-step full-res PNGs, default offset ${DEFAULT_FRAMES_OFFSET_MS})
+
+Where:
+  --isolated · --ref <sha|branch|tag> · --dirty · --fresh
+                            use Snap's isolated stage; a cold stage refuses and must be rerun warm
 
 ${SESSION_FLAG_HELP}
                           A --session recording opens its OWN new context on the shared browser (Playwright

@@ -26,8 +26,9 @@ import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
-import type { ProbeSession } from "@orb/tooling/_shared/browser";
 import { attachProbeSession, closeProbeSession, launchProbeSession } from "@orb/tooling/_shared/browser";
+import { openProbeContext } from "@orb/tooling/_shared/browser-context";
+import type { ProbeSession } from "@orb/tooling/_shared/browser-contract";
 import { reassertOwnerViewport } from "@orb/tooling/_shared/browser-emulation-guard";
 import { chromium } from "@playwright/test";
 import { snapshot } from "lighthouse";
@@ -184,6 +185,48 @@ test("shim reach follows the shim's SCOPE, not the connection: a CONTEXT-scoped 
   }
 });
 
+test("a persistent session browser gives matrix cells isolated contexts while its owner remains usable", async ({ scratch }) => {
+  const { server, base } = await startOrigin();
+  const owner = await launchDebuggable(scratch);
+  const mobile = await openProbeContext(
+    owner.browser,
+    {
+      headless: true,
+      viewport: { width: 412, height: 823 },
+      colorScheme: null,
+      reducedMotion: false,
+      localStorage: [{ key: "matrix-cell", value: "mobile" }],
+    },
+    0,
+  );
+  const desktop = await openProbeContext(
+    owner.browser,
+    {
+      headless: true,
+      viewport: VIEWPORT,
+      colorScheme: null,
+      reducedMotion: false,
+      localStorage: [{ key: "matrix-cell", value: "desktop" }],
+    },
+    0,
+  );
+  try {
+    const mobilePage = mobile.pages[0] as NonNullable<(typeof mobile.pages)[number]>;
+    const desktopPage = desktop.pages[0] as NonNullable<(typeof desktop.pages)[number]>;
+    await Promise.all([mobilePage.goto(`${base}/mobile`), desktopPage.goto(`${base}/desktop`)]);
+    expect(await mobilePage.evaluate("innerWidth")).toBe(412);
+    expect(await desktopPage.evaluate("innerWidth")).toBe(1280);
+    expect(await mobilePage.evaluate("localStorage.getItem('matrix-cell')")).toBe("mobile");
+    expect(await desktopPage.evaluate("localStorage.getItem('matrix-cell')")).toBe("desktop");
+  } finally {
+    await mobile.context.close();
+    await desktop.context.close();
+    expect(await owner.page.evaluate("innerWidth")).toBe(1280);
+    await closeProbeSession(owner);
+    await closeOrigin(server);
+  }
+});
+
 interface AuditRead {
   readonly id: string;
   readonly score: number | null;
@@ -269,13 +312,8 @@ test("an unreachable debugging port THROWS instead of reporting zero failed audi
   await expect(puppeteer.connect({ browserURL: `http://127.0.0.1:${port}`, defaultViewport: null })).rejects.toThrow();
 });
 
-// #1287: PROVEN LIVE against the real `snap --session`/`design-audit --session` pair (not inferred) — an
-// attached sibling's own operations on the page it did not create (a bare `page.screenshot()` is enough)
-// silently re-issue Chromium's device-metrics override without `screenWidth`/`screenHeight`, and the
-// SCREEN half reverts to Chromium's compiled 800x600 default the instant that sibling's CDP session
-// detaches, while `window.innerWidth/innerHeight` (the CSS viewport) survive untouched. The corruption is
-// invisible to the sibling's own run and lands on the OWNER's next read of the same session.
-const CORRUPTIBLE_VIEWPORT = { width: 700, height: 900 } as const;
+// This deliberately equals the old hard-coded away viewport, proving the repair cannot silently no-op.
+const CORRUPTIBLE_VIEWPORT = { width: 111, height: 222 } as const;
 const READ_SCREEN_JS = "({w: window.screen.width, h: window.screen.height, iw: window.innerWidth, ih: window.innerHeight})";
 
 async function launchDebuggableAtViewport(profileDir: string): Promise<ProbeSession> {
@@ -290,16 +328,14 @@ async function launchDebuggableAtViewport(profileDir: string): Promise<ProbeSess
   });
 }
 
-test("#1287: an attached sibling's screenshot corrupts window.screen after it disconnects, and reassertOwnerViewport (the OWNER's own persistent connection) repairs it", async ({
-  scratch,
-}) => {
+test("#1287: the owner's viewport round trip repairs screen corruption even at the former away size", async ({ scratch }) => {
   const { server, base } = await startOrigin();
   const session = await launchDebuggableAtViewport(scratch);
   try {
     const endpoint = await debuggingEndpoint(scratch);
     await session.page.goto(`${base}/owner.html`);
     const boot = await session.page.evaluate(READ_SCREEN_JS);
-    expect(boot).toStrictEqual({ w: 700, h: 900, iw: 700, ih: 900 });
+    expect(boot).toStrictEqual({ w: 111, h: 222, iw: 111, ih: 222 });
 
     // Attach through the ONE real production door (gate arm H) — the same call every sibling instrument
     // makes (design-audit/motion-audit/perf-meter/record, ops/session-attach.ts).
@@ -320,18 +356,13 @@ test("#1287: an attached sibling's screenshot corrupts window.screen after it di
       await closeProbeSession(sibling);
     }
 
-    // PLANTED CONTROL — the defect, still unrepaired: `window.screen` has reverted to Chromium's compiled
-    // 800x600 default while the CSS viewport (`innerWidth`/`innerHeight`) survives untouched. Without this
-    // arm the repair below would prove nothing — the "before" state was never actually shown broken.
+    // Planted control: the sibling detach corrupts screen while leaving the CSS viewport intact.
     const corrupted = await session.page.evaluate(READ_SCREEN_JS);
-    expect(corrupted).toStrictEqual({ w: 800, h: 600, iw: 700, ih: 900 });
+    expect(corrupted).toStrictEqual({ w: 800, h: 600, iw: 111, ih: 222 });
 
-    // THE FIX — a forced round trip on the OWNER's own persistent connection (session-daemon-call.ts
-    // calls this on every request it serves; the ATTACHING side cannot do this durably — see the file
-    // header of browser-emulation-guard.ts and the "made it worse" note in the issue body).
     await reassertOwnerViewport(session.page, CORRUPTIBLE_VIEWPORT);
     const repaired = await session.page.evaluate(READ_SCREEN_JS);
-    expect(repaired).toStrictEqual({ w: 700, h: 900, iw: 700, ih: 900 });
+    expect(repaired).toStrictEqual({ w: 111, h: 222, iw: 111, ih: 222 });
   } finally {
     await closeProbeSession(session);
     await closeOrigin(server);

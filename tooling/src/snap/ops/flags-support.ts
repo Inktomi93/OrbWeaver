@@ -1,6 +1,5 @@
 // Shared constants + the queue-pusher/selector helpers ops/flags.ts's dispatch table is built from —
 // split out when that table crossed the tooling line cap (docs/architecture/core/Core-Tooling-Law.md §4.3).
-import type { Viewport } from "../../_shared/argv.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, NavAction, PagedExpr, Step } from "../contract/types.ts";
 
@@ -8,9 +7,6 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 export const MS_PER_SECOND = 1000;
 
-export const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
-// --wide: layout sanity at a real monitor width (neo's 1280 default disguised a dialog max-width bug for a morning).
-export const WIDE_VIEWPORT: Viewport = { width: 1920, height: 1080 };
 // --mobile: a Playwright device descriptor name (registry lookup in _shared/browser.ts). Real touch +
 // pointer:coarse + mobile UA + DPR3, so the app's coarse-pointer progressive-disclosure and bottom-tab
 // rail both render — a bare narrow viewport misses them. `scale:"css"` in SHOT_BASE keeps the DPR3 shot

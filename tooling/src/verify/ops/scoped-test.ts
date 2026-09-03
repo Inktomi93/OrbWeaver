@@ -31,10 +31,12 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
+import { openRunSlot } from "@orb/tooling/_shared/artifacts";
+import { CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/_shared/ct-run-slot";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { warn } from "@orb/tooling/_shared/log";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { inheritedProcessEnv, runNicedSync } from "@orb/tooling/_shared/proc";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { ScopedOperand } from "@orb/tooling/_shared/scoped-run-paths";
 import {
@@ -141,10 +143,19 @@ function walkSuiteFiles(node: unknown, rootDir: string, root: string, out: Set<s
  *  body is the "matched nothing" case and stays a COLLECTION (an empty one), which the barren arm then
  *  reports per-operand; only an unparsable body is a collection failure. */
 function collectCt(root: string, rest: readonly string[]): ScopedTestCollection {
-  const res = runNicedSync(process.execPath, [playwrightBin(root), "test", "-c", CT_CONFIG, "--list", "--reporter=json", ...rest], {
-    cwd: root,
-    maxBuffer: LIST_MAX_BUFFER,
-  });
+  // Config is adoption-only: collection gets a disposable identity so asking Playwright what it would
+  // select cannot mint a real run or leave an abandoned reports/runs/ct slot.
+  const dir = mkdtempSync(join(tmpdir(), "orb-ct-list-"));
+  let res: ReturnType<typeof runNicedSync>;
+  try {
+    res = runNicedSync(process.execPath, [playwrightBin(root), "test", "-c", CT_CONFIG, "--list", "--reporter=json", ...rest], {
+      cwd: root,
+      env: inheritedProcessEnv({ [CT_RUN_SLOT_ENV]: dir, [CT_RUN_RACING_ENV]: "" }),
+      maxBuffer: LIST_MAX_BUFFER,
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
   const start = res.stdout.indexOf("{");
   const end = res.stdout.lastIndexOf("}");
   if (start < 0 || end <= start) {
@@ -173,7 +184,12 @@ function spawnRun(runner: ScopedTestRunner, root: string, rest: readonly string[
   if (runner === "ct") {
     rmSync(join(root, CT_CACHE_REL), { recursive: true, force: true });
     mkdirSync(join(root, CT_CACHE_REL), { recursive: true });
-    const ct = runNicedSync(process.execPath, [playwrightBin(root), "test", "-c", CT_CONFIG, ...rest], { cwd: root, stdio: "inherit" });
+    const slot = openRunSlot(root, "ct");
+    const ct = runNicedSync(process.execPath, [playwrightBin(root), "test", "-c", CT_CONFIG, ...rest], {
+      cwd: root,
+      env: inheritedProcessEnv({ [CT_RUN_SLOT_ENV]: slot.dir, [CT_RUN_RACING_ENV]: slot.racing.join("\n") }),
+      stdio: "inherit",
+    });
     return ct.status ?? EXIT.toolError;
   }
   const node = runNicedSync(process.execPath, [vitestBin(root), "run", ...rest], { cwd: root, stdio: "inherit" });

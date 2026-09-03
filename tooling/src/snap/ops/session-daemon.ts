@@ -11,42 +11,46 @@
 // finishes the slot. Nothing here prints to its own stdout on purpose — `print`/`warn` reach the log file
 // (this process's stdio) AND, during a request, the caller's socket through the output sink.
 import { rmSync, writeFileSync } from "node:fs";
-import type { Server, Socket } from "node:net";
+import type { Socket } from "node:net";
 import { createServer } from "node:net";
 import process from "node:process";
 import { errorMessage } from "@orb/kit/error-message";
 import { artifactFile, beginInstrumentRun, finishInstrumentRun } from "../../_shared/artifact-out.ts";
 import { openRunSlot, print, publishRunSlot } from "../../_shared/artifacts.ts";
-import type { CapturedRequest, ProbeSession } from "../../_shared/browser.ts";
+import type { CapturedRequest } from "../../_shared/browser-capture.ts";
+import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
-import { budget, loadResultPairs } from "../../_shared/load-budget.ts";
+import { loadResultPairs } from "../../_shared/load-budget.ts";
 import { installOutputSink, warn } from "../../_shared/log.ts";
 import type { SessionEvent, SessionRequest, SessionRow } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
-import { foreignSessionRefusal, SESSION_INSTRUMENT, sessionBusyRefusal, sessionCapRefusal, sessionIdleMs, sessionSocketPath } from "../lib/session-plan.ts";
-import { readSessionRequest, resultPairsOf } from "../lib/session-wire.ts";
+import {
+  foreignSessionRefusal,
+  SESSION_INSTRUMENT,
+  sessionBusyRefusal,
+  sessionCapRefusal,
+  sessionIdleMs,
+  sessionSocketPath,
+  sessionStageDeadRefusal,
+} from "../lib/session-plan.ts";
+import { resultPairsOf } from "../lib/session-wire.ts";
 import { urlStageBand } from "../lib/stage-plan.ts";
 import { configureStage, snapDestination } from "./guards.ts";
 import { debuggingEndpointFor, finishSession, launchSnapSession } from "./session.ts";
+import { runSessionCallWithinBudget } from "./session-call-watchdog.ts";
 import type { SessionCallState } from "./session-daemon-call.ts";
 import { runSessionCallInDaemon } from "./session-daemon-call.ts";
+import { listenSessionServer, readSessionRequestLine } from "./session-daemon-wire.ts";
 import { liveRows, readRow, removeRow, removeSocket, sessionLimitsFromEnv, sessionRegistryHome, writeRow } from "./session-registry.ts";
+import { observeSessionStageDeath } from "./session-stage-liveness.ts";
 import { repoRoot } from "./stage-git.ts";
 import { bindSessionToBand, markerRoot, touchRow as touchStageBand, unbindSessionFromBand } from "./stage-marker.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
-/** A client that connects and never sends its request line is dropped after this — a leak guard, not a
- *  budget. The BASE is 30 s, not the 5 s this shipped with: a leak guard's only cost when it is GENEROUS is
- *  a dead client's socket lingering a few seconds, while a FALSE trip kills a live caller's real call. The
- *  `budget()` factor is 1 below one job per core, so a 5 s base stayed 5 s exactly when it was least safe —
- *  a sibling suite saturating the box can deschedule a healthy client between `connect` and its first
- *  write. Generous base + the policy's stretch on top (#1232). */
-const REQUEST_LINE_BASE_MS = 30_000;
-const REQUEST_LINE_TIMEOUT_MS = budget(REQUEST_LINE_BASE_MS);
 const MS_PER_MINUTE = 60_000;
 
 interface DaemonState extends SessionCallState {
@@ -162,11 +166,14 @@ async function serveSerialized(state: DaemonState, request: SessionRequest, sock
   let exit: number = EXIT.toolError;
   // @orb-gate-ignore caught-failure-ownership(empty:error): the failure is printed to the caller as SESSION CALL ERROR and the request's `done` carries toolError — the caller's exit IS the report; the daemon stays up by design (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.
   try {
-    exit = await run();
+    exit = await runSessionCallWithinBudget(state, op, run);
   } catch (error) {
     print(`SESSION CALL ERROR  ${state.name}: ${errorMessage(error)}`);
     exit = EXIT.toolError;
   } finally {
+    if (request.kind === "call") {
+      observeSessionStageDeath(state, op);
+    }
     release();
     touchRow(state, { inflightOp: null, lastOp: op, calls: state.calls });
   }
@@ -176,6 +183,21 @@ async function serveSerialized(state: DaemonState, request: SessionRequest, sock
 
 function pagesOf(session: ProbeSession): readonly { readonly index: number; readonly url: string; readonly title: string }[] {
   return session.pages.map((page, index) => ({ index, url: page.url(), title: "" }));
+}
+
+/** The T4 gate, split from the request dispatcher so lifecycle branching stays readable. */
+function refuseDeadStageCall(state: DaemonState, request: SessionRequest, socket: Socket): boolean {
+  if (request.kind !== "call") {
+    return false;
+  }
+  const dead = observeSessionStageDeath(state, request.argv.join(" ") || request.kind);
+  if (dead?.status !== "dead") {
+    return false;
+  }
+  emitTo(socket, { kind: "line", text: sessionStageDeadRefusal(state.name, dead) });
+  emitTo(socket, { kind: "done", exit: EXIT.toolError, pairs: [] });
+  socket.end();
+  return true;
 }
 
 async function serveRequest(state: DaemonState, request: SessionRequest, socket: Socket, shutdown: (reason: string) => Promise<void>): Promise<void> {
@@ -217,45 +239,15 @@ async function serveRequest(state: DaemonState, request: SessionRequest, socket:
     socket.end();
     return;
   }
+  if (refuseDeadStageCall(state, request, socket)) {
+    return;
+  }
   const run = request.kind === "export" ? (): Promise<number> => exportRings(state, request) : (): Promise<number> => runSessionCallInDaemon(state, request);
   const done = serveSerialized(state, request, socket, run);
   state.inflight = { op: request.argv.join(" ") || request.kind, startedAt: Date.now(), done };
   await done;
   state.inflight = null;
   armTtl(state, shutdown);
-}
-
-function readRequestLine(socket: Socket): Promise<SessionRequest | null> {
-  return new Promise<SessionRequest | null>((resolve) => {
-    let buffer = "";
-    socket.setEncoding("utf8");
-    socket.setTimeout(REQUEST_LINE_TIMEOUT_MS, () => {
-      socket.destroy();
-      resolve(null);
-    });
-    socket.on("data", (chunk: string) => {
-      buffer += chunk;
-      const newline = buffer.indexOf("\n");
-      if (newline !== -1) {
-        socket.setTimeout(0);
-        resolve(readSessionRequest(buffer.slice(0, newline)));
-      }
-    });
-    socket.on("error", (error) => {
-      warn(`session      ${errorMessage(error)} on a client connection`);
-      resolve(null);
-    });
-  });
-}
-
-function listen(server: Server, socketPath: string): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(socketPath, () => {
-      server.off("error", reject);
-      resolve();
-    });
-  });
 }
 
 function bindingOf(bootArgs: Args): SessionRow["binding"] {
@@ -267,7 +259,7 @@ function bindingOf(bootArgs: Args): SessionRow["binding"] {
 
 function initialRow(
   state: Pick<DaemonState, "name" | "root" | "home" | "socketPath" | "ttlMs" | "bootArgs">,
-  args: { readonly slotDir: string; readonly cdpEndpoint: string | null; readonly bootArgv: readonly string[] },
+  args: { readonly slotDir: string; readonly cdpEndpoint: string | null; readonly bootArgv: readonly string[]; readonly stageBand: number | null },
 ): SessionRow {
   const { bootArgs } = state;
   const now = new Date().toISOString();
@@ -281,6 +273,7 @@ function initialRow(
     cdpEndpoint: args.cdpEndpoint,
     slotDir: args.slotDir,
     binding: bindingOf(bootArgs),
+    stage: args.stageBand === null ? null : { band: args.stageBand, status: "live", detectedAt: null, op: null },
     environment: {
       viewport: bootArgs.viewport,
       device: bootArgs.device,
@@ -324,9 +317,10 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
     print(`SESSION REFUSED  ${name} is already live (daemon pid ${existing.daemonPid}) — a second daemon for one name is the shared-tab defect`);
     return EXIT.toolError;
   }
-  // A session records no Playwright trace/HAR (§10.1): a per-call trace stop would end the session's tracing.
+  // The long-lived base context records no trace/HAR; matrix cells open disposable contexts and retain
+  // their own failure evidence without stopping the daemon's browser.
   const bootArgs: Args = { ...opts, failureEvidence: false };
-  if (opts.failureEvidence) {
+  if (opts.failureEvidence && !opts.matrix) {
     print("session      failure-evidence traces are off for a session (phase 1) — `--session-export` carries the rings");
   }
   const stageExit = configureStage(bootArgs);
@@ -339,7 +333,11 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
   // caught-failure-ownership, so a marker would be a dead exemption (gate-ignore-inventory reds those).
   // The slot is settled first so the marker does not outlive the launch and read as a dead session.
   try {
-    session = await launchSnapSession(bootArgs, name, { pages: bootArgs.pages, debuggingEndpoint: true });
+    session = await launchSnapSession(bootArgs, name, {
+      pages: bootArgs.pages,
+      debuggingEndpoint: true,
+      requireCascadeRuntime: opts.matrix,
+    });
   } catch (error) {
     publishRunSlot(root, slot, []);
     throw error;
@@ -363,7 +361,7 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
     stageBand,
     row: initialRow(
       { name, root, home, socketPath, ttlMs: limits.ttlMs, bootArgs },
-      { slotDir: slot.dir, cdpEndpoint: await debuggingEndpointFor(session), bootArgv: argv },
+      { slotDir: slot.dir, cdpEndpoint: await debuggingEndpointFor(session), bootArgv: argv, stageBand },
     ),
     inflight: null,
     ttlTimer: null,
@@ -380,8 +378,8 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
   const server = createServer((socket) => {
     // The connection EVENT has no caller to await it, but the client IS blocked on this socket: a rejection
     // has to answer it with a verdict (exit 2) or the lane hangs instead of reading one.
-    // @orb-gate-ignore caught-failure-ownership(promise:readRequestLine): the failure is reported to the caller as SESSION SERVE ERROR and the request's `done` carries toolError — the caller's exit IS the report, and the daemon stays up (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.
-    readRequestLine(socket)
+    // @orb-gate-ignore caught-failure-ownership(promise:readSessionRequestLine): the failure is reported to the caller as SESSION SERVE ERROR and the request's `done` carries toolError — the caller's exit IS the report, and the daemon stays up (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.
+    readSessionRequestLine(socket)
       .then(async (request) => {
         if (request === null) {
           emitTo(socket, { kind: "warn", text: `SESSION PROTOCOL ERROR  ${name}: unreadable request line (protocol v${SESSION_PROTOCOL_VERSION})` });
@@ -433,7 +431,7 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
   // A stale socket file from a crashed predecessor blocks `listen` — the access gate already ruled this
   // name absent or reclaimable, so the file is ours to clear.
   rmSync(socketPath, { force: true });
-  await listen(server, socketPath);
+  await listenSessionServer(server, socketPath);
   writeRow(home, state.row);
   process.once("SIGTERM", () => {
     detachShutdown(shutdown("SIGTERM"), name, "SIGTERM");

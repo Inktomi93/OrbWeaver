@@ -211,6 +211,12 @@ export function teardownConsent(opts: {
   return "refuse";
 }
 
+/** The F7 teardown selector: no selector means rows owned by this checkout; a named owner narrows the
+ *  operation to that owner's rows. `--force` is consent, never a hidden all-foreign selector. */
+export function selectsTeardownRow(row: StageRow, checkout: string, owner: string | null): boolean {
+  return owner === null ? row.checkout === checkout : row.checkout === owner;
+}
+
 /** The refusal `--stage-down` prints instead of killing a sibling's working stage — names the owner and
  *  the one flag that overrides it, so the escape hatch #108 promised is still one command away. */
 export function foreignTeardownRefusal(row: StageRow, nowMs: number): string {

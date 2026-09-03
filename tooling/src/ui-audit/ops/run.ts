@@ -4,8 +4,8 @@ import { writeFile } from "node:fs/promises";
 import type { SettingsShimEvidence } from "@orb/tooling/_shared/appearance";
 import { artifactFile } from "@orb/tooling/_shared/artifact-out";
 import { print, routeSlug } from "@orb/tooling/_shared/artifacts";
-import type { ProbeSession } from "@orb/tooling/_shared/browser";
 import { attachProbeSession, buildUrl, launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
+import type { ProbeSession } from "@orb/tooling/_shared/browser-contract";
 import { readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
 import { instrumentError, printEvidenceGaps, printVerdict } from "@orb/tooling/_shared/evidence";
@@ -113,8 +113,8 @@ async function launchOrAttach(opts: Args): Promise<Attached | ExitCode> {
       headless: true,
       viewport: opts.viewport,
       device: opts.device,
-      colorScheme: null,
-      reducedMotion: false,
+      colorScheme: opts.colorScheme,
+      reducedMotion: opts.reducedMotion,
       appearance: opts.appearance,
       theme: opts.theme,
       localStorage: [],

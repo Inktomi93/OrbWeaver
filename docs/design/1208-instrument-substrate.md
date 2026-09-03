@@ -6,7 +6,7 @@ updated: 2026-09-03
 
 # 1208 — the instrument substrate: stateful sessions, per-lane stages, one grammar, arms
 
-> **Status: design (owner-directed 2026-09-02, #1208; build not started).** The owner ruled: no MCP (we own the engine: Playwright + the vendored DevTools SDK), an in-house browser/instrument substrate, design first. The accepted seed is a STATEFUL snap (`pnpm snap --session <lane> …`). This doc widens the seed to the substrate every rendered instrument and every browser-driving agent goes through. #1163 (self-expiring stages, private port pairs) and #1202 (a died session must be loud) are PARKED into this program as sections §3.6 / §3.8, not standalone builds. Every boundary below names its enforcer; a prose-only boundary is a wish. Forks F1–F4 were ruled by the owner on 2026-09-02 (§12.1); the timeout/load policy (§7.1) is an owner addition of the same day.
+> **Status: implemented, final whole-tree verification in progress (owner-directed 2026-09-02, #1208).** Phases 0–3 landed through #1277; the final reconciliation folded #1282, #1287, #1289 and #1290, then completed the remaining F7/F10/T4/T17 and CT run-slot obligations in this document. The accepted seed is a STATEFUL snap (`pnpm snap --session <lane> …`), widened into the substrate every rendered instrument and every browser-driving agent goes through. Every boundary below names its enforcer; a prose-only boundary is a wish. Forks F1–F4 were ruled by the owner on 2026-09-02 (§12.1); the timeout/load policy (§7.1) is an owner addition of the same day.
 
 ## 1. Pain-point inventory (receipts)
 
@@ -80,7 +80,7 @@ Four nouns, each with one home and one enforcer.
 
 ### 3.1 The invariants (what the design must make true)
 
-1. **Bash is the one door.** No MCP in any agent definition or skill; every capability is a `pnpm <tool> …` flag. Enforcer: a new fs gate `agent-def-no-browser-mcp` over `.claude/agents/*.md` + `.claude/settings.json` (RED on `mcp__plugin_chrome-devtools`), landing with #1195 step 3.
+1. **Bash is the one door.** No MCP in any agent definition or skill; every capability is a `pnpm <tool> …` flag. #1279 records the later owner ruling that a new `agent-def-no-browser-mcp` fs gate would be enforcement theatre after the plugin and grants were removed. The durable control is the standing rule: reaching for a browser MCP means snap has a gap, so name the gap and build the arm (`1195-devtools-mcp-retirement.md` §2.3).
 2. **A lane's browser is private by construction.** One session per lane name, owned by the booting checkout; contexts are Playwright contexts; a call from another checkout is refused naming the owner (§3.5). Enforcer: `session-plan.ts` `sessionAccess()` (pure, pinned) + the T1 planted control.
 3. **A lane's stage is private by construction.** N bands from a registry; a stage row names its owner; foreign use is `shared-reuse` (same sha, read-only) or refusal — the #108 rules, generalized from one row to a table (§3.6).
 4. **One implementation.** The one-shot `pnpm snap <route> …` and `pnpm snap --session x <route> …` run the SAME ops; the daemon is a host for `runOnSession()`, never a second capture path (§5).
@@ -445,7 +445,7 @@ Every phase is one lane, one commit, scoped floors; whole-tree gates are the orc
 | 1b load budgets | executor, 1 lane (∥ 1) | §7.1: `_shared/load-budget.ts` (the core promoted DOWN), `budget()` through every instrument's `lib/budgets.ts` + `driveBudgets` + `_shared/proc.ts`, the `load=`/`budget-factor=` RESULT pairs in `printVerdict`, RATE-arm withholds (motion-audit, perf-meter, snap's perf pair), CT config + `withholdRate`, vitest config budgets (#1174), the ui-audit suites (#1222), the launcher ceilings; gate arm J | `_shared/load-budget.ts`, tests/support/ct/withhold-rate.ts (planned), tests/tooling/\_shared/load-budget.test.ts (planned) ‖ `tests/tooling/_load-budget.ts`, the five `lib/budgets.ts`, `snap/lib/throttle.ts`, `_shared/evidence.ts`, `_shared/proc.ts`, `playwright-ct.config.ts`, `vitest.config.ts`, `tooling/src/stack/stack.sh`, `tooling/src/verify/ops/ct-flaky-reporter.ts`, gate `tooling-shared-plumbing` | T14 T15 T16 T17; `tests/tooling/load-budget.int.test.ts`, `tests/tooling/motion-audit/cli.int.test.ts`, `tests/tooling/cpu-profile/cli.int.test.ts`, `tests/tooling/ui-audit/cli.int.test.ts`, `check-gates.int`; the two config literals via `check:structure` |
 | 2 stages | forge, 1 lane | `_shared/ports.ts` + gate arm I; `bands.json` table; allocation + lazy reap + TTL arms; health = three probes + the dirty era rule; `--stage-status` lists all bands; `--base` fencing; #1162 survivors fix at the launcher; `ensureStage({ band, session })`; sibling tools gain `--session` (attach) — motion-audit/perf-meter/record therefore gain a branch-side arm without new stage code | `_shared/ports.ts`, tests/tooling/\_shared/ports.test.ts, tests/tooling/snap/ops/stage-bands.int.test.ts, tests/tooling/stack/stop-survivors.int.test.ts (all planned) ‖ `snap/lib/stage-plan.ts`, `ops/stage*.ts`, `ops/guards.ts`, `ui-audit/ops/stage.ts`, `motion-audit/ops/{parse,run}.ts`, `cpu-profile/ops/{parse,run}.ts`, `screen-record/ops/{parse,record}.ts`, `tooling/src/stack/{stack.sh,multi-user-fixture.sh}`, `tests/e2e/support/modes.ts`, `playwright-ct.config.ts`, `model-ab/ops/serve.ts` | T4 T7 T8 T11 T13; `stage-plan.test.ts`, `stage.test.ts`, `tests/tooling/stack/**`, `tests/tooling/dependency-cruiser.int.test.ts`; a live landing receipt on three bands |
 | 3 arms | executor, 1 lane (after 1) | `contract/arms.ts` registry + `ops/arms/*` (existing arms re-homed by nature, byte-stable flags); `lighthouse` (#1198) + `requests` (#1199) with both proof classes; help derived | `snap/contract/arms.ts`, `snap/ops/arms/{shot,aria,map,eval,contrast,cascade,dead-css,assert,perf,requests,lighthouse}.ts`, the arm pins under tests/tooling/snap/ops/arms/ (planned) ‖ `ops/capture.ts`, `ops/parse.ts`, `contract/help.ts`, `_shared/browser-capture.ts`, `tooling/package.json` (+ catalog pin) | T10; `tests/tooling/snap/**`; `tooling-instrument-proof` conformance |
-| 4 grammar + retirement | executor, 1 lane (after 3) | `_shared/instrument-argv.ts` families consumed by the five parsers; `--help` everywhere; alias refusals; F1's `--wait` decision; CT slot helper + gate arm (#1201); `agent-def-no-browser-mcp` gate; MCP retirement (#1195 §2.3: side-eye def, settings, skill rows); the P11 stale-path sweep in skills/rules/memory index | `_shared/instrument-argv.ts`, tests/support/ct/snap-out.ts (planned), gates ‖ the five `ops/parse.ts`, `.claude/agents/side-eye.md`, `.claude/skills/{snap-driving,side-eye-design-review}/**`, `.claude/rules/browser-and-instruments.md`, `docs/architecture/core/Core-Tooling-Law.md` §2.4/§4.4/§4.9 | T12; each tool's `parse.test.ts` + `cli.int.test.ts`; `check:agents`; scoped `check:docs`; the `tests/**` literal sweep for every renamed flag |
+| 4 grammar + retirement | executor, 1 lane (after 3) | `_shared/instrument-argv.ts` families consumed by the five parsers; `--help` everywhere; alias refusals; F1's `--wait` decision; CT slot helper + gate arm (#1201); MCP retirement (#1195 §2.3: side-eye def, settings, skill rows); the P11 stale-path sweep in skills/rules/memory index. The proposed `agent-def-no-browser-mcp` gate was later ruled out by the owner (#1279), not left pending. | `_shared/instrument-argv.ts`, tests/support/ct/snap-out.ts (planned), gates ‖ the five `ops/parse.ts`, `.claude/agents/side-eye.md`, `.claude/skills/{snap-driving,side-eye-design-review}/**`, `.claude/rules/browser-and-instruments.md`, `docs/architecture/core/Core-Tooling-Law.md` §2.4/§4.4/§4.9 | T12; each tool's `parse.test.ts` + `cli.int.test.ts`; `check:agents`; scoped `check:docs`; the `tests/**` literal sweep for every renamed flag |
 
 **Phase-0 spike receipt (#1226, landed 2026-09-02 — `tests/tooling/_shared/browser-attach.suite.int.test.ts`, 4 arms, `pnpm test:scoped … --maxWorkers=4` green in 11.4s).** Both questions came back YES, each with a planted control that was run RED before the arm was trusted.
 
@@ -618,6 +618,33 @@ five-word wording fix. The receipt was proven deterministic first by capturing i
 tree. **A defect it caught:** the ledger's claim key was minted by two separate template literals, one of
 which carried a NUL byte where its separator belonged, so nothing matched and every arm's pairs printed
 TWICE at the tail of an otherwise perfect RESULT line — invisible to tsc, biome and every suite.
+
+### 10.4 Phase 4 and final reconciliation as built (#1282/#1287/#1289/#1290, 2026-09-03)
+
+The four recovered slices were folded by exact commit, then re-derived against the whole document rather
+than treated as completion evidence. That audit found and closed six remaining substrate defects: the
+session-cap check now reserves a boot slot atomically; stage-table heartbeats use a lock plus atomic rename;
+a vanished half of a stage pair stamps both registries DEAD and the next call refuses (T4); a session call
+has a per-call watchdog that preserves the next call (T17); foreign teardown is owner-targeted per band
+(`--stage-down --owner <checkout> --force`, F7); and CT opens exactly one invocation slot whose reporter
+publishes the final marker and screenshots.
+
+F10 is the session path, not a parse-only permission: discovery uses the daemon's context and every rated
+cell opens a disposable isolated context in that same Chromium. The daemon passes the fully inherited
+session binding into the matrix, so a call cannot silently fall back to `:5173`. The matrix context owns its
+device/media/settings contract and capture rings, closes after its cell, and leaves the session owner usable.
+
+The five rendered tools now expose the total grammar families in §4: `--help|-h`; the WHERE flags
+`--base|--isolated|--ref|--dirty|--fresh|--session`; the environment flags
+`--viewport|--wide|--mobile|--desktop|--dark|--light|--reduced-motion`; and the artifact flags
+`--out|--json`. Motion's retired OS spellings and design-audit's old `--wait` spelling refuse by name with
+the replacement; there are no aliases. The proposed browser-MCP string gate is deliberately absent per
+the #1279 owner ruling recorded in `1195-devtools-mcp-retirement.md`.
+
+The CT run slot is one transaction directory per `pnpm ct:scoped` invocation. The launcher mints it and
+passes it through the environment; Playwright adopts it; workers write beneath its `snaps/`; and the flaky
+reporter publishes `.published` plus `ct-flaky.json` after the run. No config-load/list operation mints a
+slot, and no worker/reporter creates a second one.
 
 ## 11. Cost
 

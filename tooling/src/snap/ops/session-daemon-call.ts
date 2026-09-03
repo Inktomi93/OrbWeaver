@@ -7,7 +7,8 @@
 import process from "node:process";
 import { artifactFile, beginInstrumentRun, finishInstrumentRun } from "../../_shared/artifact-out.ts";
 import { artifactKey, print, routeSlug } from "../../_shared/artifacts.ts";
-import type { CapturedRequest, ProbeSession } from "../../_shared/browser.ts";
+import type { CapturedRequest } from "../../_shared/browser-capture.ts";
+import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { reassertOwnerViewport } from "../../_shared/browser-emulation-guard.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
@@ -25,6 +26,7 @@ import {
   sessionOnlyFlagsRefusal,
 } from "../lib/session-plan.ts";
 import { refuseFileMode, snapDestination } from "./guards.ts";
+import { snapMatrixOnSession } from "./matrix.ts";
 import { parseSnapArgs } from "./parse.ts";
 import { runOnSession } from "./run.ts";
 import { cascadeRuntimeFor } from "./session.ts";
@@ -124,6 +126,10 @@ export async function runSessionCallInDaemon(state: SessionCallState, request: S
   const destination = target === "live" ? { url: pageUrl, name: merged.out ?? defaultOut } : snapDestination(merged);
   beginInstrumentRun("snap", state.root, { slotDir: request.slotDir });
   try {
+    if (call.matrix) {
+      state.calls += 1;
+      return await snapMatrixOnSession(merged, session);
+    }
     const out = await artifactFile("snaps", destination.name, ".png");
     const key = artifactKey(destination.name);
     // The window: where the rings stood when this call began. Call 1 starts at 0, so its RESULT pairs are

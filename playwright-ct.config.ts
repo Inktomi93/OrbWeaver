@@ -1,12 +1,12 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import { openRunSlot } from "@orb/tooling/_shared/artifacts";
+import { adoptRunSlot } from "@orb/tooling/_shared/artifact-out";
+import { CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/_shared/ct-run-slot";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { CT_VITE_PORT } from "@orb/tooling/_shared/ports";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
 import tailwindcss from "@tailwindcss/vite";
-import { CT_RUN_SLOT_ENV } from "./tests/support/ct/snap-out.ts";
 
 // Component tests — `.ct.tsx` at the tests/{ui,client} mirrors, in a real chromium via Playwright CT
 // (the vitest browser project was never adopted — it hangs cold-cache; core/Spine-Testing.md §7).
@@ -35,21 +35,16 @@ const BASE_ACTION_TIMEOUT_MS = 15_000;
 const CLIENT_GLOBALS_CSS = path.resolve(import.meta.dirname, "packages/client/src/styles/globals.css");
 const CT_CSS_EXTENSION = path.resolve(import.meta.dirname, "playwright/index.css");
 
-// THE CT RUN'S OWN ARTIFACT SLOT (docs/design/1208-instrument-substrate.md §3.7, closing #1201's leftover
-// — story-shot.ts's own header named this as undone: "giving [shots] a run slot needs the CT run's
-// identity to reach the WORKER processes"). This config module is loaded MORE THAN ONCE per run — the
-// main process resolves it first, and EACH forked worker re-imports it independently (measured: a
-// `--workers=2` run minted THREE distinct `openRunSlot` ids before this guard, two of them orphaned
-// `.inflight` slots nothing ever published). So `CT_RUN_SLOT_ENV` is set ONLY when it is not already
-// present — the first process to load this file (the main process, which loads config before forking) sets
-// it; every worker inherits its parent's `process.env` at fork time (nothing here overrides it) and skips
-// re-minting when it re-imports this module. `ct-flaky-reporter.ts` ALSO calls `openRunSlot(process.cwd(),
-// "ct")` for the SAME (root, process) pair in the main process — `runId()` is memoized per (process,
-// root), so it resolves the identical slot dir, never a second one. `tests/support/ct/snap-out.ts`
-// `ctSnapPath` is the only door a CT spec uses to write into it.
-if (process.env[CT_RUN_SLOT_ENV] === undefined) {
-  process.env[CT_RUN_SLOT_ENV] = openRunSlot(process.cwd(), "ct").dir;
-}
+// The one-per-invocation launcher opens the slot. Config evaluation is deliberately adoption-only:
+// Playwright can load this file in several processes, so minting here creates orphan sibling slots.
+const ctSlotDir = process.env[CT_RUN_SLOT_ENV];
+const ctSlot =
+  ctSlotDir === undefined
+    ? null
+    : {
+        ...adoptRunSlot(process.cwd(), "ct", ctSlotDir),
+        racing: (process.env[CT_RUN_RACING_ENV] ?? "").split("\n").filter((label) => label.length > 0),
+      };
 
 export default defineConfig({
   testDir: "tests",
@@ -88,7 +83,10 @@ export default defineConfig({
     // cost two full re-runs (2026-07-24); the custom flake announcer stays the human-facing summary.
     ["json", { outputFile: "reports/ct-report.json" }],
     ["html", { outputFolder: "reports/ct-report", open: "never" }],
-    ["./tooling/src/verify/ops/ct-flaky-reporter.ts", { strict: process.env.CT_NO_FLAKES === "1" }],
+    [
+      "./tooling/src/verify/ops/ct-flaky-reporter.ts",
+      { strict: process.env.CT_NO_FLAKES === "1", ...(ctSlot === null ? {} : { slotDir: ctSlot.dir, racing: ctSlot.racing }) },
+    ],
   ],
   use: {
     // trace stays on-first-retry for CTs (NOT retain-on-failure): always-on trace RECORDING (retention is

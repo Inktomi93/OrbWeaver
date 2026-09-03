@@ -22,6 +22,11 @@ export interface Args {
    *  session's own bound URL instead of `DEFAULT_BASE` (#1289, design §3.6 "sibling instruments inherit
    *  the binding from the session"); an explicit `--base` still overrides (#1285's composing rule). */
   baseExplicit: boolean;
+  isolated: boolean;
+  ref: string | null;
+  dirty: boolean;
+  fresh: boolean;
+  stageShortSha: string | null;
   /** Run the six-cell scenario/application-motion/OS-motion/device representative matrix. */
   matrix: boolean;
   selector: string | null;
@@ -30,8 +35,11 @@ export interface Args {
   viewport: Viewport;
   /** null = raw desktop viewport; a name selects the shared full Playwright device descriptor. */
   device: string | null;
+  colorScheme: "light" | "dark" | null;
   /** The OS media-query arm, independent of the app's persisted Appearance reducedMotion setting. */
   osReducedMotion: boolean;
+  out: string | null;
+  json: boolean;
   vnc: boolean;
   throttle: boolean;
   /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_shared/appearance.ts).

@@ -109,6 +109,24 @@ test("A ROW WITH A LIVE SESSION IS NEVER A STRAND, however long it has sat idle"
   expect(stageSweepVerdict({ ...BOUND_STAGE, row: driven, liveSessions: [] }, TTL_MS)).toBe("stranded");
 });
 
+test("T4 — a stage marked DEAD is immediately sweepable even while its session daemon is alive", () => {
+  const dead = row(7, {
+    sessions: ["p-home-perf"],
+    dead: { detectedAt: "2026-09-02T17:59:00.000Z", op: "--goto settings" },
+  });
+  expect(stageSweepVerdict({ ...BOUND_STAGE, row: dead, liveSessions: ["p-home-perf"] }, TTL_MS)).toBe("stranded");
+  const occupied = Array.from({ length: STAGE_BAND_COUNT }, (_unused, band) =>
+    band === 7
+      ? { row: dead, over: { liveSessions: ["p-home-perf"] } }
+      : { row: row(band, { checkout: LANE_CHECKOUT, sha: OTHER_SHA }), over: { liveSessions: [`p-${band}`] } },
+  );
+  expect(allocateStageBand({ ...ALLOC, targetSha: "e".repeat(40), limits: { ...LIMITS, cap: STAGE_BAND_COUNT }, views: views(occupied) })).toEqual({
+    kind: "reap",
+    band: 7,
+    row: dead,
+  });
+});
+
 test("a band held by something that is NOT stage-rooted is never ours to reap, whatever the row says", () => {
   const evidence = { ...BOUND_STAGE, bandIsStageRooted: false, row: row(0, { lastUsedAt: USED_LONG_AGO }), liveSessions: [] };
   expect(stageSweepVerdict(evidence, TTL_MS)).toBe("live");

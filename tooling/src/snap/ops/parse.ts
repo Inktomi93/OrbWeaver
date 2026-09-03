@@ -2,6 +2,7 @@
 // the parse loop over ops/flags-handlers.ts's table, mode cross-validation, and the ARG WARNING set.
 import { splitPageSuffix } from "../../_shared/argv.ts";
 import { DEFAULT_BASE, DEFAULT_DEBUG_TOKEN } from "../../_shared/browser.ts";
+import { DEFAULT_VIEWPORT } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { aliasRefusal } from "../../_shared/instrument-argv.ts";
 import type { NonArmArgs } from "../contract/arms.ts";
@@ -13,7 +14,7 @@ import { NO_CPU_THROTTLE } from "../lib/throttle.ts";
 import { armArgDefaults } from "./arms/registry.ts";
 import { OPTIONAL_NAME_FLAGS, OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
-import { DEFAULT_VIEWPORT, MS_PER_SECOND } from "./flags-support.ts";
+import { MS_PER_SECOND } from "./flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -145,6 +146,11 @@ function sessionValidationPairs(args: Args, contextsMode: boolean): ValidationPa
     // The three stage-admin modes each print and exit; two of them in one argv is an ambiguous ask, not a
     // sequence, and silently honouring the first would hide the half the caller also meant.
     [[args.stageDown, args.stageStatus, args.stageSweep].filter(Boolean).length > 1, "--stage-down, --stage-status and --stage-sweep are mutually exclusive"],
+    [args.stageOwner !== null && !args.stageDown, "--owner <checkout> only selects rows for --stage-down"],
+    [
+      args.stageOwner !== null && args.stageDown && !args.force,
+      "--stage-down --owner <checkout> requires --force: cross-checkout teardown is deliberate per band",
+    ],
     [
       args.matrix && (args.pages > 1 || contextsMode || args.watchMs > 0 || args.baseline || args.diff),
       "--matrix does not combine with --pages/--contexts/--as/--watch/--baseline/--diff",
@@ -298,6 +304,7 @@ export function parseSnapArgs(argv: string[]): Args {
     stageDown: false,
     stageStatus: false,
     stageSweep: false,
+    stageOwner: null,
     force: false,
     session: null,
     sessionDaemon: null,

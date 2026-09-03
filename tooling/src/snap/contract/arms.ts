@@ -28,7 +28,7 @@
 // every page arm three empty hooks; the union is exhaustively dispatched, so neither can be forgotten.
 import type { Page } from "@playwright/test";
 import type { ResultPair } from "../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../_shared/browser.ts";
+import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import type { DevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
 import type { VerdictDenominator } from "../../_shared/evidence.ts";
 import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "./types.ts";

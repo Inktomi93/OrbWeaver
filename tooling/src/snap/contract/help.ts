@@ -104,8 +104,9 @@ Sessions:
   --ref <sha|branch|tag>  pin the isolated stage to a commit instead of HEAD (survives a merge train)
   --fresh                 force a full re-stage even when the stage is warm (implies --isolated)
   --stage-status          what holds the stage band, how long since it was used
-  --stage-down [--force]  tear down the active stage; --force is required for a LIVE stage owned by
-                          another checkout (it kills that checkout's run — measured, #447)
+  --stage-down [--owner <checkout> --force]
+                          tear down this checkout's stages; name an owner and --force for deliberate,
+                          per-band cross-checkout teardown (it kills that checkout's run — measured, #447)
   --stage-sweep           reap a stage nothing has used past the idle TTL + prune orphan dirs
   --scenario <json|preset> sequential checkpoints in one browser lifetime
                            presets: ${SNAP_SCENARIO_PRESET_NAMES.join(" | ")}
@@ -130,7 +131,8 @@ Stateful sessions (ONE browser per lane, kept between calls — docs/design/1208
   A call on a DEAD session (daemon gone) prints SESSION DEAD naming the op it died in and exits 2 — never a
   silently-resolving pointer. A call from another checkout is refused naming the owner (F4). One request at
   a time: a second caller mid-call gets SESSION BUSY (exit 2). --session-daemon <name> is the daemon's own
-  entry — spawned by snap, never typed. Phase 1 refuses --session with --matrix/--scenario/--contexts/--as.
+  entry — spawned by snap, never typed. --session refuses --scenario/--contexts/--as; --matrix runs each
+  rated cell in a disposable context inside the session's one browser.
   --matrix                rated 16-cell representative run derived from the live 36-axis Appearance
                           carrier contract plus authenticated theme/device/media capabilities; includes
                           both OS/app polarity directions and strict R1-R7 CSS/pixel/geometry accounting

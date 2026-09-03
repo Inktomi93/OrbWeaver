@@ -19,7 +19,7 @@ import { withInstrumentRun } from "../_shared/artifact-out.ts";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
-import { PERF_METER_HELP, parsePerfArgs, runCpuProfile } from "./index.ts";
+import { configureCpuProfileStage, PERF_METER_HELP, parsePerfArgs, runCpuProfile } from "./index.ts";
 
 async function main(): Promise<number> {
   const opts = parsePerfArgs(process.argv.slice(2));
@@ -34,6 +34,10 @@ async function main(): Promise<number> {
   if (opts.help) {
     print(PERF_METER_HELP);
     return 0;
+  }
+  const stageExit = configureCpuProfileStage(opts);
+  if (stageExit !== null) {
+    return stageExit;
   }
   // The run's own artifact slot; `reports/perf-meter/<out>.json` is its published pointer (#1164).
   return await withInstrumentRun("cpu-profile", async () => await runCpuProfile(opts));

@@ -51,7 +51,9 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import process from "node:process";
-import { openRunSlot, publishRunSlot } from "@orb/tooling/_shared/artifacts";
+import { adoptRunSlot } from "@orb/tooling/_shared/artifact-out";
+import type { RunSlot } from "@orb/tooling/_shared/artifacts";
+import { publishRunSlot, transferRunSlotOwnership } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { LOAD_WITHHOLD_ANNOTATION } from "@orb/tooling/_shared/load-budget";
 import { readBudgetRows } from "@orb/tooling/_shared/ratchet-rows";
@@ -64,19 +66,11 @@ import { ACTIVE_MARKER, BASELINE_REL, judgeUnfedReads, owesActiveMarker } from "
 refuseDirectInvocation(import.meta.url, "pnpm test:ct (playwright loads this module as a reporter)");
 
 const ARTIFACT_NAME = "ct-flaky.json";
-/** THIS CT run's private slot (#1029). The artifact is written inside it and `reports/ct-flaky.json` is
- *  published as a symlink at the END of `onEnd` — two concurrent CT runs on one checkout used to write the
- *  same file, so the second run's flake census silently became the first's. `playwright-ct.config.ts`
- *  already opened this SAME "ct" slot before constructing this reporter (still main process, same
- *  `process.cwd()`) so it could set `CT_RUN_SLOT_DIR` for the worker processes (§3.7) — `runId()` is
- *  memoized per (process, root), so this call resolves the identical slot dir, never a second one. NOTE
- *  (leftover, #1029 scope 3): `ct-report.json` / `ct-report/` / `ct-results/` are named by
- *  playwright-ct.config.ts and are NOT yet slotted. */
-const slot = openRunSlot(process.cwd(), "ct");
-const ARTIFACT_PATH = join(slot.dir, ARTIFACT_NAME);
 
 interface CtFlakyReporterOptions {
   readonly strict?: boolean;
+  readonly slotDir?: string;
+  readonly racing?: readonly string[];
 }
 
 interface FlakyArtifact {
@@ -86,15 +80,15 @@ interface FlakyArtifact {
   readonly flaky: readonly CtFlakyTest[];
 }
 
-function writeArtifact(flaky: readonly CtFlakyTest[], strict: boolean): void {
+function writeArtifact(flaky: readonly CtFlakyTest[], strict: boolean, slot: RunSlot, artifactPath: string): void {
   const artifact: FlakyArtifact = {
     generatedAt: new Date().toISOString(),
     flakyCount: flaky.length,
     strict,
     flaky,
   };
-  mkdirSync(dirname(ARTIFACT_PATH), { recursive: true });
-  writeFileSync(ARTIFACT_PATH, `${JSON.stringify(artifact, undefined, 2)}\n`);
+  mkdirSync(dirname(artifactPath), { recursive: true });
+  writeFileSync(artifactPath, `${JSON.stringify(artifact, undefined, 2)}\n`);
   // Published only now, with the run over: `reports/ct-flaky.json` therefore always resolves to a FINISHED
   // CT run's census — its own, or a concurrent sibling's, never a half-written one (#1029).
   publishRunSlot(process.cwd(), slot, [{ alias: ARTIFACT_NAME, target: ARTIFACT_NAME }]);
@@ -103,13 +97,13 @@ function writeArtifact(flaky: readonly CtFlakyTest[], strict: boolean): void {
   }
 }
 
-function announce(flaky: readonly CtFlakyTest[], strict: boolean): void {
+function announce(flaky: readonly CtFlakyTest[], strict: boolean, artifactPath: string): void {
   const posture = strict ? "STRICT (CT_NO_FLAKES=1) — FAILING the run" : "WARN (suite stays green; set CT_NO_FLAKES=1 to fail)";
   const lines = ["", RULE, `  CT FLAKES DETECTED — ${flaky.length} test(s) passed ONLY on retry (masked by --retries)`, `  posture: ${posture}`, RULE];
   for (const t of flaky) {
     lines.push(`  • ${t.file}:${t.line}  ${t.title}  (${t.retries} retr${t.retries === 1 ? "y" : "ies"})`);
   }
-  lines.push(RULE, `  machine-readable: ${relative(process.cwd(), ARTIFACT_PATH)}`, RULE, "");
+  lines.push(RULE, `  machine-readable: ${relative(process.cwd(), artifactPath)}`, RULE, "");
   process.stdout.write(`${lines.join("\n")}\n`);
 }
 
@@ -170,6 +164,8 @@ function announceWithheld(withheld: readonly CtWithheldTest[]): void {
 
 class CtFlakyReporter implements Reporter {
   readonly #strict: boolean;
+  readonly #slot: RunSlot;
+  readonly #artifactPath: string;
   #rootSuite: Suite | undefined;
   /** Unfed reads (#629), keyed by the test FILE that mounted them — the census announceUnstubbed prints. */
   readonly #unstubbed = new Map<string, Set<string>>();
@@ -180,7 +176,13 @@ class CtFlakyReporter implements Reporter {
   readonly #withheld: CtWithheldTest[] = [];
 
   constructor(options: CtFlakyReporterOptions = {}) {
+    if (options.slotDir === undefined) {
+      throw new Error("CT reporter received no run slot from playwright-ct.config.ts");
+    }
     this.#strict = options.strict === true;
+    const adopted = { ...adoptRunSlot(process.cwd(), "ct", options.slotDir), racing: options.racing ?? [] };
+    this.#slot = transferRunSlotOwnership(process.cwd(), adopted);
+    this.#artifactPath = join(this.#slot.dir, ARTIFACT_NAME);
   }
 
   onBegin(_config: unknown, suite: Suite): void {
@@ -245,9 +247,9 @@ class CtFlakyReporter implements Reporter {
     // second independent walk is how a summary and its own FAILED list could ever disagree (#1006).
     const facts = suite === undefined ? undefined : readRun(suite, process.cwd());
     const flaky = facts?.flaky ?? [];
-    writeArtifact(flaky, this.#strict);
+    writeArtifact(flaky, this.#strict, this.#slot, this.#artifactPath);
     if (flaky.length > 0) {
-      announce(flaky, this.#strict);
+      announce(flaky, this.#strict, this.#artifactPath);
     }
     if (this.#unstubbed.size > 0) {
       announceUnstubbed(this.#unstubbed);

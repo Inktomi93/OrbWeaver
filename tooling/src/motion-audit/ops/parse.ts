@@ -9,11 +9,11 @@ import {
   loadAppearancePreset,
   parseAppearancePatch,
 } from "@orb/tooling/_shared/appearance-flags";
-import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
-import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
+import { DEFAULT_VIEWPORT, MOBILE_DEVICE, WIDE_VIEWPORT } from "@orb/tooling/_shared/browser-environment";
 import { aliasRefusal, crossToolAdminRefusal, HELP_FLAGS, REDUCED_MOTION_FLAG, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
+import { stageArgErrors } from "@orb/tooling/_shared/instrument-stage";
 import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS } from "@orb/tooling/_shared/panel-flags";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS } from "@orb/tooling/_shared/theme";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -21,8 +21,6 @@ import { DEFAULT_WINDOW_MS } from "../contract/defaults.ts";
 import type { Args } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
-
-const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 
 // One handler per flag (Record dispatch, snap.ts house style) — keeps parseArgs flat under the
 // cognitive-complexity cap instead of a long else-if chain.
@@ -62,6 +60,27 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
     a.base = rest.shift() ?? DEFAULT_BASE;
     a.baseExplicit = true;
   },
+  "--isolated": (a) => {
+    a.isolated = true;
+  },
+  "--ref": (a, rest) => {
+    a.ref = rest.shift() ?? null;
+    a.isolated = true;
+  },
+  "--dirty": (a) => {
+    a.dirty = true;
+    a.isolated = true;
+  },
+  "--fresh": (a) => {
+    a.fresh = true;
+    a.isolated = true;
+  },
+  "--out": (a, rest) => {
+    a.out = rest.shift() ?? null;
+  },
+  "--json": (a) => {
+    a.json = true;
+  },
   "--selector": (a, rest) => {
     a.selector = rest.shift() ?? null;
   },
@@ -78,9 +97,19 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--mobile": (a) => {
     a.device = MOBILE_DEVICE;
   },
+  "--wide": (a) => {
+    a.viewport = WIDE_VIEWPORT;
+    a.device = null;
+  },
   "--desktop": (a) => {
     a.viewport = DEFAULT_VIEWPORT;
     a.device = null;
+  },
+  "--dark": (a) => {
+    a.colorScheme = "dark";
+  },
+  "--light": (a) => {
+    a.colorScheme = "light";
   },
   "--matrix": (a) => {
     a.matrix = true;
@@ -137,6 +166,8 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--focus",
   "--url",
   "--base",
+  "--ref",
+  "--out",
   "--selector",
   "--window",
   "--viewport",
@@ -222,13 +253,21 @@ export function parseMotionArgs(argv: string[]): Args {
     url: null,
     base: DEFAULT_BASE,
     baseExplicit: false,
+    isolated: false,
+    ref: null,
+    dirty: false,
+    fresh: false,
+    stageShortSha: null,
     matrix: false,
     selector: null,
     reach: [],
     windowMs: DEFAULT_WINDOW_MS,
     viewport: DEFAULT_VIEWPORT,
     device: null,
+    colorScheme: null,
     osReducedMotion: false,
+    out: null,
+    json: false,
     vnc: false,
     throttle: true,
     appearance: null,
@@ -246,10 +285,20 @@ export function parseMotionArgs(argv: string[]): Args {
       args.route = tok;
     }
   }
+  args.errors.push(...stageArgErrors(args));
   if (args.matrix) {
-    const overridden = ["--viewport", "--mobile", "--desktop", "--appearance", "--appearance-preset", "--full-motion", REDUCED_MOTION_FLAG].filter((flag) =>
-      argv.includes(flag),
-    );
+    const overridden = [
+      "--viewport",
+      "--wide",
+      "--mobile",
+      "--desktop",
+      "--dark",
+      "--light",
+      "--appearance",
+      "--appearance-preset",
+      "--full-motion",
+      REDUCED_MOTION_FLAG,
+    ].filter((flag) => argv.includes(flag));
     if (overridden.length > 0) {
       args.errors.push(`--matrix owns application-motion/OS-motion/device axes; drop: ${overridden.join(", ")}`);
     }

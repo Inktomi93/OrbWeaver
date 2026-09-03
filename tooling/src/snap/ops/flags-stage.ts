@@ -40,6 +40,9 @@ export const STAGE_FLAG_HANDLERS: Record<string, StageFlagHandler> = {
   "--stage-sweep": (a) => {
     a.stageSweep = true;
   },
+  "--owner": (a, rest) => {
+    a.stageOwner = rest.shift() ?? null;
+  },
   "--force": (a) => {
     a.force = true;
   },

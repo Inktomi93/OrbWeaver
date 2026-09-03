@@ -1,7 +1,8 @@
 // snap's typed surface — the queue/args/outcome shapes every op speaks (docs/architecture/core/Core-Tooling-Law.md §2.5).
 import type { AppearancePatch } from "../../_shared/appearance.ts";
 import type { Viewport } from "../../_shared/argv.ts";
-import type { CapturedConsole, CapturedRequest, LocalStorageSeed } from "../../_shared/browser.ts";
+import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-capture.ts";
+import type { LocalStorageSeed } from "../../_shared/browser-contract.ts";
 import type { EvidenceGap } from "../../_shared/evidence.ts";
 import type { NavMethod } from "../../_shared/nav.ts";
 import type { ThemeRequest } from "../../_shared/theme.ts";
@@ -295,6 +296,9 @@ export interface Args {
    *  orphaned stage dirs, then exit — the safe reaper (#324). A live stage, ours or a sibling's, is left
    *  standing; use --stage-down to tear down one you know you are finished with. Ignores the route. */
   stageSweep: boolean;
+  /** Explicit checkout selector for stage teardown. Cross-checkout teardown is deliberate per band and
+   *  therefore requires --force; a bare --force never broadens the default owned-row selection. */
+  stageOwner: string | null;
   /** Consent for --stage-down to tear down a stage owned by ANOTHER checkout while its band is still
    *  bound (#447 follow-on) — the #108 cross-checkout teardown is unchanged, it just says so out loud
    *  now. No effect on your own stage, an idle one, or a dead one. Also the consent `--session-close`

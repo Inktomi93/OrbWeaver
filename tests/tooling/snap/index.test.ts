@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import type { CapturedRequest } from "@orb/tooling/_shared/browser";
+import type { CapturedRequest } from "@orb/tooling/_shared/browser-capture";
 import type { SnapFailureSummary } from "../../../tooling/src/snap/index.ts";
 import {
   capEvalText,
@@ -197,7 +197,7 @@ test("session flags parse, the admin modes stand alone, and a bad TTL or name re
   expect(parseSnapArgs(["--session", "p-x", "--session-ttl", "0"]).errors).toContainEqual(
     expect.stringContaining("--session-ttl expects a positive number of minutes"),
   );
-  expect(parseSnapArgs(["--session", "p-x", "--matrix", "--isolated"]).errors).toContainEqual(expect.stringContaining("phase 1"));
+  expect(parseSnapArgs(["--session", "p-x", "--matrix", "--isolated"]).errors).toEqual([]);
   expect(parseSnapArgs(["--session", "p-x", "--stage-status"]).errors).toContainEqual(expect.stringContaining("do not combine with --stage-status"));
   expect(parseSnapArgs(["--session", "P-Bad Name"]).errors).toContainEqual(expect.stringContaining("must match"));
   expect(parseSnapArgs(["--session"]).errors).toContain("--session requires a value");

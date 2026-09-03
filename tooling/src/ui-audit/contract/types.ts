@@ -38,9 +38,12 @@ export interface Args {
   actions: AuditAction[];
   waitMs: number;
   out: string | null;
+  json: boolean;
   viewport: Viewport;
   /** A Playwright device descriptor name (--mobile), or null for the raw desktop viewport. */
   device: string | null;
+  colorScheme: "light" | "dark" | null;
+  reducedMotion: boolean;
   failOn: Severity;
   /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_shared/appearance.ts) — a
    *  scan of the owner's account only ever judges HIS appearance choices; the shipped defaults, the

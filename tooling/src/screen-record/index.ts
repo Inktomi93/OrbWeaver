@@ -4,3 +4,4 @@ export { RECORD_HELP } from "./contract/help.ts";
 export type { Args, Recording, Step } from "./contract/types.ts";
 export { parseRecordArgs } from "./ops/parse.ts";
 export { runScreenRecord } from "./ops/run.ts";
+export { configureRecordStage } from "./ops/stage.ts";

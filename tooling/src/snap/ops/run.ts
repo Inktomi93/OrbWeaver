@@ -3,8 +3,8 @@
 import type { Page } from "@playwright/test";
 import { artifactFile } from "../../_shared/artifact-out.ts";
 import { artifactKey } from "../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../_shared/browser.ts";
 import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
+import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
 import { loadResultPairs } from "../../_shared/load-budget.ts";

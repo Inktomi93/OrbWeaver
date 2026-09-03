@@ -1,7 +1,7 @@
 // The run shapes of screen-record (`pnpm record`): the step tape, parsed args, the recording +
 // render-job results. Split from the pre-move record.ts (P3 of #393).
 import type { Viewport } from "@orb/tooling/_shared/argv";
-import type { ProbeSession } from "@orb/tooling/_shared/browser";
+import type { ProbeSession } from "@orb/tooling/_shared/browser-contract";
 
 export type Step =
   | { readonly kind: "click" | "jsclick" | "hover"; readonly selector: string }
@@ -19,8 +19,17 @@ export interface Args {
    *  session's own bound URL instead of `DEFAULT_BASE` (#1289, design §3.6 "sibling instruments inherit
    *  the binding from the session"); an explicit `--base` still overrides (#1285's composing rule). */
   baseExplicit: boolean;
+  isolated: boolean;
+  ref: string | null;
+  dirty: boolean;
+  fresh: boolean;
+  stageShortSha: string | null;
   out: string;
+  json: boolean;
   viewport: Viewport;
+  device: string | null;
+  colorScheme: "light" | "dark" | null;
+  reducedMotion: boolean;
   settleMs: number;
   /** Non-null: dump one full-res PNG per step at dispatch+offset ms. */
   framesOffsetMs: number | null;

@@ -2,7 +2,8 @@
 // checkpoint evidence-window scoping, console selection (errors win), crop attribution, and the
 // probe-motion voiding marker. --json remains the lossless record (ops/manifest.ts).
 import { print } from "../../_shared/artifacts.ts";
-import type { CapturedConsole, CapturedRequest, ProbeSession } from "../../_shared/browser.ts";
+import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-capture.ts";
+import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { CssEvidenceReceipt } from "../contract/cascade.ts";

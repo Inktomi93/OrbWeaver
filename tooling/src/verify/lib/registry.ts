@@ -335,15 +335,10 @@ const GATING_STAGES: readonly StageDef[] = [
     tiers: ["changed", "manual"],
     argv: ["pnpm", "test:ct"],
     classify: asViolations,
-    // The scoped CT invocation — a DIRECT playwright run over the selection's CT view, NOT `pnpm test:ct`.
-    // TWO deliberate divergences from the `pnpm test:ct` script, each honest for the inner loop:
-    //   1. NO `rm -rf playwright/.cache` — the gate lanes keep that nuke for stale-bundle correctness; the
-    //      scoped run skips it for inner-loop SPEED. The residual stale-cache risk is acceptable because a
-    //      scoped green is NEVER the verdict (§3.4) — the push bar re-runs the whole suite with the nuke.
-    //   2. NO retries flag — retries stays 0 (the playwright-ct.config.ts default). Small scoped runs
-    //      don't hit the 500-test-parallelism flakes the gate retries around; the inner loop wants RAW signal, not a
-    //      retry-masked green. skip ⇒ no CT-relevant change this run (a no-op, not a failure).
-    scopedArgv: (sel) => (sel.ct.mode === "skip" ? "skip-empty" : ["playwright", "test", "-c", "playwright-ct.config.ts", ...sel.ct.targets]),
+    // The scoped CT invocation enters the same launcher as every other CT run: that is where one run slot
+    // is opened before Playwright evaluates its config in several processes. Retries remain 0 (the config
+    // default), so the small inner-loop selection still reports raw signal. skip ⇒ no CT-relevant change.
+    scopedArgv: (sel) => (sel.ct.mode === "skip" ? "skip-empty" : ["pnpm", "ct:scoped", ...sel.ct.targets]),
     manualReason: "runs inside tests:node (`pnpm test` composes it with --retries=2); direct lane kept for CT-only iteration at retries:0",
   },
   {

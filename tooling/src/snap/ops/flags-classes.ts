@@ -61,6 +61,7 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--session-close",
   "--session-export",
   "--session-ttl",
+  "--owner",
   ...armFlagsOfKind("required-value"),
 ]);
 

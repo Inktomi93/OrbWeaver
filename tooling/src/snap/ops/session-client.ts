@@ -34,7 +34,7 @@ import {
   stripSessionFlags,
 } from "../lib/session-plan.ts";
 import { readSessionEvent } from "../lib/session-wire.ts";
-import { liveRows, readRow, rowIsLive, sessionLimitsFromEnv, sessionRegistryHome } from "./session-registry.ts";
+import { liveRows, readRow, releaseSessionBoot, reserveSessionBoot, rowIsLive, sessionLimitsFromEnv, sessionRegistryHome } from "./session-registry.ts";
 import { repoRoot } from "./stage-git.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
@@ -153,9 +153,13 @@ async function bootSession(opts: Args, ctx: SessionCallContext): Promise<number 
     }
     return EXIT.misuse;
   }
-  const live = liveRows(home);
-  if (live.length >= limits.cap) {
-    print(sessionCapRefusal(name, live, limits.cap, Date.now()));
+  const reservation = reserveSessionBoot(home, name, limits.cap);
+  if (reservation === "cap") {
+    print(sessionCapRefusal(name, liveRows(home), limits.cap, Date.now()));
+    return EXIT.toolError;
+  }
+  if (reservation === "name") {
+    print(`SESSION REFUSED  ${name} is already booting — wait for its daemon to publish a row`);
     return EXIT.toolError;
   }
   const logPath = sessionLogPath(home, name);
@@ -167,21 +171,25 @@ async function bootSession(opts: Args, ctx: SessionCallContext): Promise<number 
   print(`session      booting ${name} (daemon pid ${child.pid ?? "?"}, log ${logPath})`);
   const deadline = Date.now() + SESSION_BOOT_TIMEOUT_MS;
   let offset = 0;
-  for (;;) {
-    offset = relayLog(logPath, offset);
-    if (child.hasExited()) {
-      print(`SESSION BOOT FAILED  ${name}'s daemon exited during boot — its log is above (${logPath})`);
-      return EXIT.toolError;
+  try {
+    for (;;) {
+      offset = relayLog(logPath, offset);
+      if (child.hasExited()) {
+        print(`SESSION BOOT FAILED  ${name}'s daemon exited during boot — its log is above (${logPath})`);
+        return EXIT.toolError;
+      }
+      if (await pingOk(socketPath, root)) {
+        return null;
+      }
+      if (Date.now() > deadline) {
+        child.killGroup("SIGKILL");
+        print(`SESSION BOOT FAILED  ${name} did not answer within ${SESSION_BOOT_TIMEOUT_MS}ms — its log is above (${logPath})`);
+        return EXIT.toolError;
+      }
+      await sleep(SESSION_READY_POLL_MS);
     }
-    if (await pingOk(socketPath, root)) {
-      return null;
-    }
-    if (Date.now() > deadline) {
-      child.killGroup("SIGKILL");
-      print(`SESSION BOOT FAILED  ${name} did not answer within ${SESSION_BOOT_TIMEOUT_MS}ms — its log is above (${logPath})`);
-      return EXIT.toolError;
-    }
-    await sleep(SESSION_READY_POLL_MS);
+  } finally {
+    releaseSessionBoot(home, name);
   }
 }
 

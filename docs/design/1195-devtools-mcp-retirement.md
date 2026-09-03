@@ -1,12 +1,12 @@
 ---
 kind: design
 status: active
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 
 # 1195 — retiring the chrome-devtools MCP: what it was used for, and the arms that replace it
 
-> **Status: program (owner-directed 2026-09-02).** The owner asked whether the chrome-devtools MCP is still
+> **Status: complete (owner-directed 2026-09-02; verified 2026-09-03).** The owner asked whether the chrome-devtools MCP is still
 > needed now that the in-house instruments answer most questions, then ruled: "check our transcripts for the
 > last two weeks between both accounts, parse tool calls, find every instance of what we used the MCP for,
 > and then we build those capabilities." This is that census and the build list. The MCP leaves the fleet

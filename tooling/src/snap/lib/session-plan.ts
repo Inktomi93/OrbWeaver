@@ -16,7 +16,7 @@ import { basename, extname, join } from "node:path";
 import { splitPageSuffix } from "../../_shared/argv.ts";
 import { routeSlug } from "../../_shared/artifacts.ts";
 import { budget } from "../../_shared/load-budget.ts";
-import type { SessionAccess, SessionCallTarget, SessionLimits, SessionRow, SessionSweepVerdict } from "../contract/session.ts";
+import type { SessionAccess, SessionCallTarget, SessionLimits, SessionRow, SessionStageState, SessionSweepVerdict } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
 import { sessionLevelArmFlags } from "../ops/arms/registry.ts";
 import { describeStageAgePhrase } from "./stage-plan.ts";
@@ -343,6 +343,13 @@ export function sessionBusyRefusal(name: string, op: string, ageMs: number): str
   );
 }
 
+export function sessionStageDeadRefusal(name: string, stage: SessionStageState): string {
+  return [
+    `STAGE DEAD     session ${name}'s band ${stage.band} died at ${stage.detectedAt ?? "an unknown time"} during \`${stage.op ?? "unknown op"}\` — nothing was measured.`,
+    `               remedies: \`pnpm snap --stage-sweep\` frees the dead band; close and reboot the session with \`pnpm snap --session-close ${name}\` then \`pnpm snap --session ${name} …\` — tooling/src/snap/lib/session-plan.ts`,
+  ].join("\n");
+}
+
 /** The loud marker (§3.8). The row is the evidence: the daemon cannot stamp its own death, so the last
  *  call boundary is the last time it was known alive, and the in-flight op (if any) is what it died in. */
 export function sessionDeadText(row: SessionRow, detail: string): string {
@@ -385,8 +392,7 @@ export function livePageSlug(pageUrl: string): string {
 // ── the parse-time refusal rows (ops/parse.ts consumes them; here because they are pure and session-owned) ──
 
 /** The stateful-session mode rows (design §3.3/§4.4). The four admin modes each print and exit, so two in
- *  one argv is an ambiguous ask (the stage-admin rule); `--session-daemon` is the daemon's own entry; phase 1
- *  drives single-page calls only — the matrix rides a session in phase 3 (F10). Each row is
+ *  one argv is an ambiguous ask (the stage-admin rule); `--session-daemon` is the daemon's own entry. Each row is
  *  `[invalid, message]`; ops/parse.ts filters the true ones into its ARG ERROR list. */
 export function sessionModeValidationPairs(args: Args, contextsMode: boolean): readonly (readonly [boolean, string])[] {
   const admin = args.sessionStatus || args.sessionClose !== null || args.sessionSweep || args.sessionExport !== null;
@@ -400,8 +406,8 @@ export function sessionModeValidationPairs(args: Args, contextsMode: boolean): r
     [args.session !== null && args.sessionDaemon !== null, "--session-daemon is the daemon's own entry and does not combine with --session"],
     [args.sessionTtlMin !== null && !driving, "--session-ttl <min> is a boot property of --session <name>"],
     [
-      driving && (args.matrix || args.scenario !== null || contextsMode),
-      "--session does not combine with --matrix/--scenario/--contexts/--as in phase 1 — the appearance matrix rides a session in phase 3 (docs/design/1208-instrument-substrate.md §12.2 F10)",
+      driving && (args.scenario !== null || contextsMode),
+      "--session does not combine with --scenario/--contexts/--as: scenarios and explicit multi-user contexts own a live page sequence; --matrix opens its own disposable contexts in the session browser",
     ],
     // `--session` + `--lighthouse` WAS REFUSED HERE, and the refusal is DELETED (#1259, phase 3). It was
     // never a taste call: the two features wrote `--remote-debugging-port` onto one browser by

@@ -49,6 +49,8 @@ const EVAL_RE = /EVAL\[0\][^\n]*\n(\d+)/u;
 const QUIET = ["--no-shot", "--no-failure-evidence"];
 /** A promise-returning eval snap awaits — the in-flight window T2 and the busy case need. */
 const SLOW_EVAL = "new Promise((resolve) => setTimeout(() => resolve('slow-done'), 4000))";
+/** T17's dead promise keeps the call in flight without blocking the browser protocol that aborts it. */
+const HANGING_EVAL = "new Promise(() => {})";
 const POLL_MS = 250;
 const POLL_ATTEMPTS = 80;
 /** The three env knobs the substrate reads (ops/session-registry.ts) — spelled once, composed by `envOf`. */
@@ -316,6 +318,24 @@ test("T6 — at the cap the next boot exits 2 naming the live sessions with idle
   }
 });
 
+test("T6 RACE — two cold boots under cap one reserve exactly one daemon slot", async ({ plantedTree, runCli }) => {
+  const r = await rig(plantedTree, runCli, envOf([[SESSION_CAP_KEY, "1"]]));
+  const a = uniq("t6-race-a");
+  const b = uniq("t6-race-b");
+  try {
+    const [left, right] = await Promise.all([
+      r.snap(["--session", a, "--file", r.fixture, "--eval", "1", ...QUIET]),
+      r.snap(["--session", b, "--file", r.fixture, "--eval", "1", ...QUIET]),
+    ]);
+    const results = [left, right];
+    expect(results.filter((result) => result.code === EXIT.clean)).toHaveLength(1);
+    expect(results.filter((result) => result.code === EXIT.toolError)).toHaveLength(1);
+    expect([existsSync(join(r.home, `${a}.json`)), existsSync(join(r.home, `${b}.json`))].filter(Boolean)).toHaveLength(1);
+  } finally {
+    await r.close([a, b]);
+  }
+});
+
 // ── T9: one implementation ───────────────────────────────────────────────────────────────────────────
 
 test("T9 — the same argv one-shot vs through a session yields identical RESULT pairs except out; a planted contrast defect reds BOTH", async ({
@@ -368,6 +388,24 @@ test("a second caller mid-call is refused with SESSION BUSY naming the op; the f
     const first = await slow;
     await expect(first).toExitWith(EXIT.clean);
     expect(first.stdout).toContain("slow-done");
+  } finally {
+    await r.close([a]);
+  }
+});
+
+test("T17 — a wedged call is terminated at the session budget and the next call survives", async ({ plantedTree, runCli }) => {
+  const r = await rig(plantedTree, runCli);
+  const a = uniq("t17");
+  try {
+    await expect(await r.snap(["--session", a, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
+    const hung = await r.snap(["--session", a, "--eval", HANGING_EVAL, ...QUIET]);
+    await expect(hung).toExitWith(EXIT.toolError);
+    expect(hung.stdout).toContain("ORB-LOAD-KILL");
+    expect(hung.stdout).toContain("session");
+    expect(hung.stdout).toContain("--eval");
+    const after = await r.snap(["--session", a, "--eval", "40 + 2", ...QUIET]);
+    await expect(after).toExitWith(EXIT.clean);
+    expect(evalValue(after.stdout)).toBe(42);
   } finally {
     await r.close([a]);
   }

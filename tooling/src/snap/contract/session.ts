@@ -4,7 +4,7 @@
 // off the wire (`readSessionRequest` / `readSessionRow`) live beside the other pure derivations in
 // lib/session-plan.ts, so the daemon and the client parse ONE grammar.
 import type { Viewport } from "../../_shared/argv.ts";
-import type { ProbeAttachOptions } from "../../_shared/browser.ts";
+import type { ProbeAttachOptions } from "../../_shared/browser-contract.ts";
 
 export const SESSION_PROTOCOL_VERSION = 1;
 
@@ -23,6 +23,13 @@ interface SessionEnvironment {
   readonly colorScheme: "light" | "dark" | null;
   readonly reducedMotion: boolean;
   readonly deviceScaleFactor: number | null;
+}
+
+export interface SessionStageState {
+  readonly band: number;
+  readonly status: "live" | "dead";
+  readonly detectedAt: string | null;
+  readonly op: string | null;
 }
 
 /** `<main>/.cache/snap-session/<name>.json` — everything a caller on ANY checkout needs to find, judge
@@ -46,6 +53,8 @@ export interface SessionRow {
    *  sessions whose daemon died (§3.8) with zero new marker machinery. */
   readonly slotDir: string;
   readonly binding: SessionBinding;
+  /** Null for base/file sessions. A stage death is sticky until this session closes and reboots. */
+  readonly stage?: SessionStageState | null;
   readonly environment: SessionEnvironment;
   readonly bootArgv: readonly string[];
   readonly createdAt: string;
