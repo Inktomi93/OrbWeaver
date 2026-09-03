@@ -4,6 +4,7 @@
 import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
+import { SESSION_FLAG, SESSION_FLAG_HELP } from "@orb/tooling/_shared/instrument-argv";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, Step } from "../contract/types.ts";
 
@@ -71,6 +72,13 @@ function parseScalarFlag(flag: string, rest: string[], args: Args): boolean {
     args.framesOffsetMs = peek !== undefined && INT_RE.test(peek) ? Number(rest.shift()) : DEFAULT_FRAMES_OFFSET_MS;
     return true;
   }
+  // #1285: attach to a live snap session's browser (docs/design/1208-instrument-substrate.md §3.4/§5)
+  // instead of launching a fresh one — the shared WHERE_FLAGS spelling (_shared/instrument-argv.ts).
+  // record opens its OWN new context on the session browser (ops/record.ts) rather than reusing a page.
+  if (flag === SESSION_FLAG) {
+    args.session = rest.shift() ?? null;
+    return true;
+  }
   return false;
 }
 
@@ -83,6 +91,7 @@ export function parseRecordArgs(argv: string[]): Args {
     settleMs: DEFAULT_SETTLE_MS,
     framesOffsetMs: null,
     steps: [],
+    session: null,
     errors: scanArgv(argv),
   };
   const rest = [...argv];
@@ -100,7 +109,7 @@ export function parseRecordArgs(argv: string[]): Args {
 
 // Every flag this CLI knows, and which of them consume the next token. Used ONLY by the misuse scan;
 // --frames takes an OPTIONAL numeric, handled inline.
-const VALUE_FLAGS = new Set(["--click", "--jsclick", "--hover", "--fill", "--wheel", "--pause", "--base", "--out", "--settle", "--viewport"]);
+const VALUE_FLAGS = new Set(["--click", "--jsclick", "--hover", "--fill", "--wheel", "--pause", "--base", "--out", "--settle", "--viewport", SESSION_FLAG]);
 
 export const RECORD_HELP = `record — animation-responsiveness screencasts
 
@@ -113,6 +122,11 @@ Steps (ONE argv-ordered tape):
 Run:
   --base <url> · --viewport <WxH> · --settle <ms> (initial, default ${DEFAULT_SETTLE_MS}) ·
   --out <name> · --frames [offsetMs] (per-step full-res PNGs, default offset ${DEFAULT_FRAMES_OFFSET_MS})
+
+${SESSION_FLAG_HELP}
+                          A --session recording opens its OWN new context on the shared browser (Playwright
+                          can only enable video capture at context-creation time), never the session's live
+                          page/tab.
 
 Exit: 0 recorded · 1 step failure / page error · EXIT.misuse on a bad CLI.`;
 

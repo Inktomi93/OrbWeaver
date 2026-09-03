@@ -200,10 +200,22 @@ export function resolveBrowserEnvironmentContract(
   };
 }
 
+/** `page.viewportSize()` is PLAYWRIGHT'S OWN local record of what IT set — null for a page a connection
+ *  did not create, which is every tab a session-attach reuses (design §3.4): the daemon's connection
+ *  created it, an attached sibling's did not, and Playwright never backfills that record from the live
+ *  browser. The rendered CSS viewport (`window.innerWidth/innerHeight`, already read for `innerViewport`)
+ *  is the same ground truth either way, so it is the fallback rather than a second "unavailable" leg
+ *  every attach would trip on its first environment check (#1285). A launched page's local record is
+ *  never null, so this changes nothing on that path — `observedViewport === viewport` always. */
+function observedViewport(viewport: Viewport | null, innerViewport: Viewport): Viewport {
+  return viewport ?? innerViewport;
+}
+
 function identityMismatches(applied: BrowserEnvironmentApplied, viewport: Viewport | null, runtime: RuntimeObservation): string[] {
   const mismatches: string[] = [];
-  if (!sameViewport(viewport, applied.viewport)) {
-    mismatches.push(`viewport expected ${viewportText(applied.viewport)} but observed ${viewportText(viewport)}`);
+  const observed = observedViewport(viewport, runtime.innerViewport);
+  if (!sameViewport(observed, applied.viewport)) {
+    mismatches.push(`viewport expected ${viewportText(applied.viewport)} but observed ${viewportText(observed)}`);
   }
   if (!sameViewport(runtime.screen, applied.screen)) {
     mismatches.push(`screen expected ${viewportText(applied.screen)} but observed ${viewportText(runtime.screen)}`);
@@ -308,7 +320,7 @@ export async function readBrowserEnvironment(page: Page, contract: BrowserEnviro
   const matched = mismatches.length === 0;
   const actual: BrowserEnvironmentActual = {
     device: matched ? (contract.applied.device ?? "desktop") : "unmatched",
-    viewport,
+    viewport: observedViewport(viewport, runtime.innerViewport),
     innerViewport: runtime.innerViewport,
     screen: runtime.screen,
     userAgent: runtime.userAgent,

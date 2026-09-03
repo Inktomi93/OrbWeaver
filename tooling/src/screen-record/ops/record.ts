@@ -2,9 +2,14 @@
 // transcribe the perf/motion console channels alongside the step timeline.
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
-import { buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
+import type { ProbeSession } from "@orb/tooling/_shared/browser";
+import { attachProbeSession, buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
 import { budget } from "@orb/tooling/_shared/load-budget";
+import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { ExitCode } from "../../_shared/exit-contract.ts";
+import { EXIT } from "../../_shared/exit-contract.ts";
+import { resolveSessionAttach } from "../../snap/index.ts";
 import type { Args, Recording, StepRun, TimedLine } from "../contract/types.ts";
 import { MARKER_INIT_JS, runSteps } from "./drive.ts";
 
@@ -20,19 +25,44 @@ const TRAILING_SETTLE_MS = 900;
 // probe exists to produce.
 const PERF_TAGS = ["[perf]", "[frame]", "[reflow]", "[input]", "[anim]", "[css]", "[drop]", "[space]", "[cls]"] as const;
 
+/** #1285: `--session <name>` attaches to a live snap session's BROWSER (design §3.4/§5) rather than
+ *  launching a fresh one — but record cannot reuse the session's live PAGE: `recordVideo` is only
+ *  settable at Playwright's `newContext()` time, so `attachProbeSession` opens a brand-new context on the
+ *  attached browser for it (`_shared/browser.ts`'s `attachRecordedContext`). A dead/foreign/absent
+ *  session is an EXIT.toolError refusal (never a fallback launch). */
+async function launchOrAttach(opts: Args, videoDir: string): Promise<ProbeSession | ExitCode> {
+  if (opts.session === null) {
+    return await launchProbeSession({
+      headless: true,
+      viewport: opts.viewport,
+      colorScheme: null,
+      reducedMotion: false, // a motion probe wants the real animations
+      localStorage: [],
+      recordVideoDir: videoDir,
+    });
+  }
+  const attach = resolveSessionAttach(opts.session);
+  if (!attach.ok) {
+    print(attach.message);
+    return EXIT.toolError;
+  }
+  return await attachProbeSession(attach.endpoint, { ...attach.environment, recordVideoDir: videoDir });
+}
+
 export async function recordVideo(opts: Args, outDir: string): Promise<Recording> {
   const url = buildUrl(opts.base, opts.route);
   const videoDir = join(outDir, `.video-${opts.out}`);
   await rm(videoDir, { recursive: true, force: true });
 
-  const session = await launchProbeSession({
-    headless: true,
-    viewport: opts.viewport,
-    colorScheme: null,
-    reducedMotion: false, // a motion probe wants the real animations
-    localStorage: [],
-    recordVideoDir: videoDir,
-  });
+  const session = await launchOrAttach(opts, videoDir);
+  if (typeof session === "number") {
+    // recordVideo's own return shape (Recording) has no exit-code leg; `ops/run.ts` already treats a
+    // null videoPath as "no video produced" and exits 1 (non-zero, never a silent clean) — the refusal
+    // message printed above explains WHY before that generic line prints. Returning `failures: -1`
+    // (never a legitimate step-failure count) keeps the RESULT line's `step-failures=` honest that this
+    // was a REFUSAL, not a run whose zero steps happened to succeed.
+    return { videoPath: null, stepTimeline: [], clickTimes: [], perfLines: [], failures: -1, pageErrors: 0 };
+  }
   const recorded = await withProbeSession(session, async () => {
     await session.context.addInitScript({ content: MARKER_INIT_JS });
 

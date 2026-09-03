@@ -13,6 +13,7 @@ import {
 import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
+import { SESSION_FLAG, SESSION_FLAG_HELP } from "@orb/tooling/_shared/instrument-argv";
 import { NAV_FLAG_METHOD, NAV_FLAGS } from "@orb/tooling/_shared/nav";
 import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS, panelPresetHelpBlock } from "@orb/tooling/_shared/panel-flags";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
@@ -142,6 +143,12 @@ function parseScalarFlag(flag: string, rest: string[], args: Args): boolean {
     args.cpuProfile = true;
     return true;
   }
+  // #1285: attach to a live snap session's browser (docs/design/1208-instrument-substrate.md §3.4)
+  // instead of launching a fresh one — the shared WHERE_FLAGS spelling (_shared/instrument-argv.ts).
+  if (flag === SESSION_FLAG) {
+    args.session = rest.shift() ?? null;
+    return true;
+  }
   return false;
 }
 
@@ -160,6 +167,7 @@ const VALUE_FLAGS = new Set([
   "--settle",
   "--viewport",
   "--cycles",
+  SESSION_FLAG,
   ...PANEL_PRESET_VALUE_FLAGS,
   ...APPEARANCE_VALUE_FLAGS,
   ...THEME_VALUE_FLAGS,
@@ -181,6 +189,8 @@ Steps (ONE argv-ordered tape; each gets its own measurement window):
 
 Run:
   --base <url> · --viewport <WxH> · --settle <ms> · --cycles <n> · --out <name> · --cpuprofile
+
+${SESSION_FLAG_HELP}
 
 ${panelPresetHelpBlock()}
 
@@ -252,6 +262,7 @@ export function parsePerfArgs(argv: string[]): Args {
     steps: [],
     appearance: null,
     theme: null,
+    session: null,
     errors: scanArgv(argv),
   };
   const rest = [...argv];

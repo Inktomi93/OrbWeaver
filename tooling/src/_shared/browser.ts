@@ -160,7 +160,7 @@ interface ProbeResourceOwner {
  *  registry row, so the attached session's environment contract is the session's rather than a guess. */
 export type ProbeAttachOptions = Pick<
   ProbeLaunchOptions,
-  "viewport" | "device" | "colorScheme" | "reducedMotion" | "contrast" | "reducedTransparency" | "deviceScaleFactor"
+  "viewport" | "device" | "colorScheme" | "reducedMotion" | "contrast" | "reducedTransparency" | "deviceScaleFactor" | "recordVideoDir"
 >;
 
 interface BuildContextArgs {
@@ -350,8 +350,51 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
  *  its run (context-scoped shims keep applying to what an attached client drives — the spike's Q1).
  *  `environment` is what the session DECLARED: it feeds the environment contract and is never re-applied
  *  to the page (re-emulating media from an attacher would be the P3 leak this substrate ends). */
+/** The `record` half of `attachProbeSession`: a brand-new context (and its own single page) opened ON the
+ *  attached browser, so `newContext({ recordVideo })` is legal. This context is `owned: true` — WE created
+ *  it over an attached connection nobody else knows about, so `closeProbeSession` closing it (which flushes
+ *  the video) is correct, unlike the owner's live context, which a disconnect must never touch. */
+async function attachRecordedContext(browser: Browser, environment: ProbeAttachOptions): Promise<ProbeSession> {
+  const deviceDescriptor = resolveDeviceDescriptor(environment);
+  const environmentContract = resolveBrowserEnvironmentContract(environment, deviceDescriptor);
+  const sizing = {
+    ...(deviceDescriptor ?? { viewport: environment.viewport }),
+    ...(environment.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: environment.deviceScaleFactor }),
+  };
+  const context = await browser.newContext({
+    ...sizing,
+    ...(environment.recordVideoDir === undefined ? {} : { recordVideo: { dir: environment.recordVideoDir, size: environment.viewport } }),
+  });
+  const page = await context.newPage();
+  const consoleLines: string[] = [];
+  const consoleMessages: CapturedConsole[] = [];
+  const pageErrors: string[] = [];
+  const requests = new Map<string, CapturedRequest>();
+  const capture: PageCapture = { media: resolveProbeMedia(environment), consoleLines, consoleMessages, pageErrors, requests };
+  await wireProbePage(page, capture);
+  const attached: ProbeContext = {
+    context,
+    pages: [page],
+    consoleLines,
+    consoleMessages,
+    pageErrors,
+    requests,
+    harPath: null,
+    settingsEvidence: { appearanceApplied: null, themeApplied: null, themeResolution: null, themeCatalog: null },
+    owned: true,
+  };
+  return { browser, context, page, pages: [page], consoleLines, consoleMessages, pageErrors, requests, environmentContract, contexts: [attached] };
+}
+
 export async function attachProbeSession(endpoint: string, environment: ProbeAttachOptions): Promise<ProbeSession> {
   const browser = await chromium.connectOverCDP(endpoint);
+  // `record` cannot reuse the session's live page: Playwright only records video from a context created
+  // WITH `recordVideo` set, and that option is fixed at `newContext()` time — it cannot be bolted onto the
+  // owner's existing context after the fact. So a `recordVideoDir` attach opens its OWN new context on the
+  // attached browser (§5's "record is not like the others") instead of joining `browser.contexts()[0]`.
+  if (environment.recordVideoDir !== undefined) {
+    return await attachRecordedContext(browser, environment);
+  }
   const context = browser.contexts()[0];
   const pages = context?.pages() ?? [];
   const page = pages[0];
