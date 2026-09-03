@@ -15,6 +15,10 @@ export interface Args {
   help: boolean;
   route: string;
   base: string;
+  /** True once `--base` was passed explicitly — a `--session` attach without it falls back to the
+   *  session's own bound URL instead of `DEFAULT_BASE` (#1289, design §3.6 "sibling instruments inherit
+   *  the binding from the session"); an explicit `--base` still overrides (#1285's composing rule). */
+  baseExplicit: boolean;
   out: string;
   viewport: Viewport;
   settleMs: number;

@@ -70,6 +70,7 @@ function parseInstrumentFlag(flag: string, rest: string[], args: Args): boolean 
 function parseScalarFlag(flag: string, rest: string[], args: Args): boolean {
   if (flag === "--base") {
     args.base = rest.shift() ?? DEFAULT_BASE;
+    args.baseExplicit = true;
     return true;
   }
   if (flag === "--out") {
@@ -98,6 +99,7 @@ export function parseRecordArgs(argv: string[]): Args {
     help: false,
     route: "/",
     base: DEFAULT_BASE,
+    baseExplicit: false,
     out: "recording",
     viewport: DEFAULT_VIEWPORT,
     settleMs: DEFAULT_SETTLE_MS,

@@ -11,6 +11,7 @@ import { instrumentError, printVerdict } from "@orb/tooling/_shared/evidence";
 import type { ExitCode } from "@orb/tooling/_shared/exit-contract";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { SessionAttachTarget } from "../../snap/index.ts";
 import { resolveSessionAttach, stageBandRefusalFor } from "../../snap/index.ts";
 import type { Args, MeterData, MeterWindow } from "../contract/types.ts";
 import { NAV_TIMEOUT_MS, TRAILING_SETTLE_MS } from "../lib/budgets.ts";
@@ -24,14 +25,36 @@ refuseDirectInvocation(import.meta.url, "pnpm perf-meter");
 const CPU_SAMPLING_INTERVAL_US = 100; // 10kHz
 const CLICK_DUR_BREACH_MS = 100;
 
+interface UrlResolution {
+  readonly url: string;
+  readonly attach: SessionAttachTarget | null;
+}
+
 /** #1186: a `--base`/`--url` at the isolated-stage band is a claim about WHOSE tree answered. A refused
  *  `snap --isolated` leaves the band with its previous owner, so an instrument chained behind one measures
  *  a sibling checkout's pixels and prints numbers that look completely normal. Refuse (exit 2 — nothing was
- *  measured) before the browser launches; the door is snap's, one home (tooling/src/snap/ops/stage-marker.ts). */
-/** #1285: `--session <name>` attaches to a live snap session's browser (design §3.4) instead of launching
- *  a fresh one; a dead/foreign/absent session is an EXIT.toolError refusal (never a fallback launch). */
-async function launchOrAttach(opts: Args): Promise<ProbeSession | ExitCode> {
+ *  measured) before the browser launches; the door is snap's, one home (tooling/src/snap/ops/stage-marker.ts).
+ *
+ *  #1285/#1289: `--session <name>` resolves the target from a live snap session's binding (design §3.4)
+ *  instead of `DEFAULT_BASE`; a dead/foreign/absent session is an EXIT.toolError refusal BEFORE any
+ *  browser work. #1289 fork (see ui-audit/ops/run.ts's fuller note): `opts.baseExplicit` distinguishes a
+ *  named `--base` (composes, #1285) from the unset default, which falls back to the session's own bound
+ *  URL (design §3.6) instead of `DEFAULT_BASE`. */
+function resolveUrl(opts: Args): UrlResolution | ExitCode {
   if (opts.session === null) {
+    return { url: buildUrl(opts.base, opts.route), attach: null };
+  }
+  const attach = resolveSessionAttach(opts.session);
+  if (!attach.ok) {
+    print(attach.message);
+    return EXIT.toolError;
+  }
+  const base = opts.baseExplicit ? opts.base : attach.row.binding.url;
+  return { url: buildUrl(base, opts.route), attach };
+}
+
+async function openSession(opts: Args, attach: SessionAttachTarget | null): Promise<ProbeSession> {
+  if (attach === null) {
     return await launchProbeSession({
       headless: true,
       viewport: opts.viewport,
@@ -42,26 +65,22 @@ async function launchOrAttach(opts: Args): Promise<ProbeSession | ExitCode> {
       localStorage: [],
     });
   }
-  const attach = resolveSessionAttach(opts.session);
-  if (!attach.ok) {
-    print(attach.message);
-    return EXIT.toolError;
-  }
   return await attachProbeSession(attach.endpoint, attach.environment);
 }
 
 export async function runCpuProfile(opts: Args): Promise<number> {
-  const url = buildUrl(opts.base, opts.route);
+  const resolved = resolveUrl(opts);
+  if (typeof resolved === "number") {
+    return resolved;
+  }
+  const { url, attach } = resolved;
   const bandRefusal = stageBandRefusalFor(url);
   if (bandRefusal !== null) {
     print(bandRefusal);
     return EXIT.toolError;
   }
 
-  const session = await launchOrAttach(opts);
-  if (typeof session === "number") {
-    return session;
-  }
+  const session = await openSession(opts, attach);
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one linear ownership closure keeps every profiling arm inside the same guaranteed cleanup boundary.
   return await withProbeSession(session, async () => {
     await session.context.addInitScript({ content: METER_INIT_JS });

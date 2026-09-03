@@ -4674,7 +4674,7 @@
     {
       "siteId": "tooling/src/motion-audit/ops/run.ts::default:catch::1",
       "path": "tooling/src/motion-audit/ops/run.ts",
-      "line": 107,
+      "line": 108,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4682,12 +4682,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "null is preserved in AuditData and the only consumer, matrix STATIC-EXPECTED, rejects it as instrument error; ordinary legacy-ref runs never claim this field. Ends if null becomes an accepted matrix identity.",
-      "markerLine": 96
+      "markerLine": 97
     },
     {
       "siteId": "tooling/src/motion-audit/ops/run.ts::promise:waitFor::1",
       "path": "tooling/src/motion-audit/ops/run.ts",
-      "line": 167,
+      "line": 188,
       "column": 25,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -4695,7 +4695,7 @@
       "snippet": "const ready = await page",
       "verdict": "deliberate-absorb",
       "reason": "false feeds apparatusGap, which emits INSTRUMENT ERROR instead of a motion verdict. Ends if readiness stops gating measurement.",
-      "markerLine": 166
+      "markerLine": 187
     },
     {
       "siteId": "tooling/src/motion-audit/ops/trace.ts::empty:e::1",

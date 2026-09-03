@@ -60,6 +60,7 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--base": (a, rest) => {
     a.base = rest.shift() ?? DEFAULT_BASE;
+    a.baseExplicit = true;
   },
   "--selector": (a, rest) => {
     a.selector = rest.shift() ?? null;
@@ -220,6 +221,7 @@ export function parseMotionArgs(argv: string[]): Args {
     route: "/",
     url: null,
     base: DEFAULT_BASE,
+    baseExplicit: false,
     matrix: false,
     selector: null,
     reach: [],
