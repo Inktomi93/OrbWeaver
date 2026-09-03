@@ -4,7 +4,7 @@
 // rather than on the source. Mounted via the support stories: CT cannot serialize a
 // component-as-prop (`icon={X}`) across the mount boundary.
 import { expect, test } from "@playwright/experimental-ct-react";
-import { storyShot } from "../../../support/ct/story-shot.ts";
+import { ctSnapPath } from "../../../support/ct/snap-out.ts";
 import { CloseIconStory, IconGalleryStory, StarIconStory, TwoPartialStarsStory } from "./icon.fixtures.tsx";
 
 // = ICON_XS / ICON_SM / ICON_MD / ICON_LG (packages/ui/src/primitives/icons/icon.tsx type-scale table).
@@ -174,5 +174,5 @@ test("two partial instances get DISTINCT gradient ids", async ({ mount }) => {
 test("axis gallery renders (screenshot receipt)", async ({ mount }) => {
   const component = await mount(<IconGalleryStory />);
   await expect(component.locator("svg").first()).toBeVisible();
-  await component.screenshot({ path: storyShot("icon-seal-gallery") });
+  await component.screenshot({ path: ctSnapPath("icon-seal-gallery") });
 });
