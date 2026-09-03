@@ -236,13 +236,31 @@ The CT runner keeps its own Playwright browser and worker pool (`playwright-ct.c
 | - | - | - |
 | `HELP_FLAGS` | `--help`, `-h` | every tool prints its help and exits 0 (ends the 33 misuse hits) |
 | `WHERE_FLAGS` | `--base`, `--isolated`, `--ref`, `--dirty`, `--fresh`, `--session <name>` | `--session` implies the session's binding; `--base` + stage flags = exit 3 (the ui-audit rule, `stage-request.ts:52-61`, promoted) |
-| `ENVIRONMENT_FLAGS` | `--viewport`, `--wide`, `--mobile`, `--desktop`, `--dark`, `--light`, `--reduced-motion` | motion-audit's `--os-reduced-motion/--os-full-motion` keep their spelling as ALIASES resolved by the family (byte-stable tails) |
+| `ENVIRONMENT_FLAGS` | `--viewport`, `--wide`, `--mobile`, `--desktop`, `--dark`, `--light`, `--reduced-motion` | **ONE SPELLING, NO ALIASES (owner ruling 2026-09-03, superseding this row's original alias clause).** Every member lands on ALL FIVE tools; a tool that lacks one GAINS it. motion-audit's `--os-reduced-motion`/`--os-full-motion` are RENAMED to the canonical `--reduced-motion` and the old spellings are refused BY NAME through `ALIAS_REFUSALS` — they do not survive as a second spelling. A rename is a VALUE change and owes the repo-wide sweep (`tests/**`, `.claude/skills/**`, `.claude/rules/**`, `docs/**`): grep exists, so every call site moves in the same commit rather than a compatibility tail being kept alive |
 | `SESSION_ADMIN_FLAGS` | `--session-status`, `--session-close`, `--session-sweep`, `--session-export`, `--session-ttl`, `--force` | snap only (the door); refused on sibling tools with the pointer |
 | `STAGE_ADMIN_FLAGS` | `--stage-status`, `--stage-down`, `--stage-sweep`, `--force` | snap only (unchanged ruling: one lifecycle owner) |
 | `ARTIFACT_FLAGS` | `--out`, `--json` | `--out` base-or-path contract (`_shared/artifacts.ts:379`) for all five |
-| `ALIAS_REFUSALS` | `--full-page→--full`, `--watch-every→--every`, `--name→--out`, `--screenshot→--shot-of` | an unknown flag that matches a known ask refuses NAMING the real flag (exit 3) |
+| `ALIAS_REFUSALS` | `--full-page→--full`, `--watch-every→--every`, `--name→--out`, `--screenshot→--shot-of`, `--os-reduced-motion→--reduced-motion`, `--os-full-motion→--reduced-motion` | an unknown flag that matches a known ask refuses NAMING the real flag (exit 3). This is a REFUSAL table, not an alias table — the old spelling stops working and says where to go; it is never quietly accepted |
 
 The `--wait` collision (selector in snap, ms in design-audit) is owner fork F1; default: design-audit renames to `--settle <ms>` (perf-meter/record's spelling) with the old spelling refused by name — a value change that owes the `tests/**` literal sweep.
+
+**THE UNIFICATION IS TOTAL, AND THAT IS THE POINT (owner ruling 2026-09-03).** Every family above lands on
+ALL FIVE instruments. A tool that does not have a member today GAINS it — that is not scope creep, it is the
+whole deliverable: §1's P5 counted five flag dialects and 33 `--help`-as-misuse hits precisely because each
+tool grew its own vocabulary. "This flag exists on snap only, so adding it to the siblings is a feature
+addition" is NOT a reason to defer; the feature IS the unification.
+
+Two things this ruling forecloses, so nobody re-derives them:
+
+- **No aliases, no compatibility tails.** A renamed flag has ONE spelling; the old one is refused by name
+  through `ALIAS_REFUSALS` and every call site moves in the same commit. Grep exists. A second accepted
+  spelling is the half-migration `Core-Tooling-Law.md` §1 already bans — the old map left beside the new
+  "for now" IS the rot.
+- **A value change owes its full sweep, not just `tests/**`.** `.claude/skills/**`, `.claude/rules/**` and
+  `docs/**` cite these flags too; #1290's (D) had to repoint 18 such citations for exactly this reason.
+
+What §4.2's ruling still forbids is unchanged and is not in tension with any of this: shared FAMILY TABLES
+in the existing data shape, never a generic `parseArgv(spec)`.
 
 ### 4.4 The session grammar (snap)
 
