@@ -13,7 +13,7 @@ import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
-import { aliasRefusal, crossToolAdminRefusal, HELP_FLAGS, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
+import { aliasRefusal, crossToolAdminRefusal, HELP_FLAGS, REDUCED_MOTION_FLAG, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
 import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS } from "@orb/tooling/_shared/panel-flags";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS } from "@orb/tooling/_shared/theme";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -85,11 +85,11 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--matrix": (a) => {
     a.matrix = true;
   },
-  "--os-reduced-motion": (a) => {
+  // ENVIRONMENT_FLAGS (§4.3, _shared/instrument-argv.ts, owner ruling 2026-09-03): the canonical
+  // spelling — RENAMED from --os-reduced-motion/--os-full-motion, which are now REFUSALS (ALIAS_REFUSALS
+  // in the same file), never a second accepted spelling. Default (absent) is full motion, matching snap.
+  [REDUCED_MOTION_FLAG]: (a) => {
     a.osReducedMotion = true;
-  },
-  "--os-full-motion": (a) => {
-    a.osReducedMotion = false;
   },
   "--vnc": (a) => {
     a.vnc = true;
@@ -247,16 +247,9 @@ export function parseMotionArgs(argv: string[]): Args {
     }
   }
   if (args.matrix) {
-    const overridden = [
-      "--viewport",
-      "--mobile",
-      "--desktop",
-      "--appearance",
-      "--appearance-preset",
-      "--full-motion",
-      "--os-reduced-motion",
-      "--os-full-motion",
-    ].filter((flag) => argv.includes(flag));
+    const overridden = ["--viewport", "--mobile", "--desktop", "--appearance", "--appearance-preset", "--full-motion", REDUCED_MOTION_FLAG].filter((flag) =>
+      argv.includes(flag),
+    );
     if (overridden.length > 0) {
       args.errors.push(`--matrix owns application-motion/OS-motion/device axes; drop: ${overridden.join(", ")}`);
     }
