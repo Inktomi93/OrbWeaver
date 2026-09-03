@@ -475,6 +475,90 @@ Written BEFORE the first edit, per the forge contract. Every §10 row above was 
 
 **Forks stated (defaults taken, escalated in the report).** (a) Scenario checkpoints keep SILENTLY inheriting `--viewport`/`--dark`/… from the outer command (today's behaviour); sessions REFUSE the same flags loudly. Default: leave scenario byte-stable (a value change owes its own sweep), unify in phase 4. (b) The session slot's run id stays the house scheme (`<checkout>-<pid>-<stamp>`) instead of `<name>-<stamp>`; the name is the row's. (c) `--session-export` carries rings only, no trace/HAR, until phase 3.
 
+### 10.2 Phase 2 as built (lane p-stage-bands, #1276, 2026-09-02) — the band table, re-derived against the tree
+
+Chunks 1–2 of the row (`8f853fb55`, `2d8e7f628`) had already landed `_shared/ports.ts` + gate arm I, so the
+NUMBERS existed and were protected; this chunk is the table that allocates them. Every §3.6 sentence was
+re-read against `3876705f6` before the first edit.
+
+**Premises that held.** `stage-plan.ts:35`'s single `ACTIVE_REL`; `bandAccess`'s four verdicts; the #324
+heartbeat; `stack.sh:441`'s `served_probe` (reached as `node prod-entry.ts served-probe` with `VITE_PORT` —
+a shell FUNCTION, not a `stack.sh` verb, which is why the stage spawns the node entry directly).
+
+**Premises that died, with receipts.**
+
+- **`ensureStage({ band, session })` (the §10 row's phrasing) is the wrong seam.** A caller cannot name a
+  band — that is the allocator's whole job — and the session is bound by the DAEMON after
+  `configureStage` has already repointed `bootArgs.base`. `EnsureStageOpts` is therefore unchanged, and the
+  binding is `bindSessionToBand(home, urlStageBand(base), name)` in `ops/session-daemon.ts`. The base names
+  the band (port-keyed), which is the one fact both halves of the substrate already agree on.
+- **The stage path is fully SYNCHRONOUS** (`spawnSync` boots, `ss` probes, `writeFileSync` rows) and
+  `probeServedTransform` is async. The third probe is a CHILD (`node <stageDir>/tooling/src/stack/ops/
+  prod-entry.ts served-probe`, cwd + `VITE_PORT` = the stage's), i.e. the same door `stack.sh` uses, run
+  against the STAGE'S OWN COPY so the comparison is that tree's disk source against that tree's vite.
+- **`--stage-down` could no longer mean "the stage".** With ten rows it has to select; the honest default is
+  the rows THIS CHECKOUT owns, with `--force` extending it to a sibling's (the #447 refusal is unchanged for
+  a foreign LIVE row). #108's cross-checkout teardown SURVIVES — its input changed, again.
+- **`ss` per band would be twenty forks and could disagree with itself mid-read** (a band free at question 3
+  and bound at question 11). `listeningPids()` answers once; every band verdict reads that snapshot.
+
+**Arms chosen (and why).**
+
+- **The claim is written INSIDE the lock, before the boot.** `withBandsLock` is a mkdir mutex (atomic
+  everywhere we run) held across read → decide → claim only; the 55 s boot happens outside it. Two lanes
+  entering a millisecond apart therefore see each other's ROW, not each other's intention. A lock whose
+  holder pid is gone, or which is older than 30 s, is broken rather than inherited — a crashed allocator
+  must not wedge the box.
+- **The third probe is asked only of the stage whose source can change.** A `--ref` stage is a frozen
+  detached worktree whose watchers never fire (that immunity is why `--isolated` exists), so a dead watcher
+  there has nothing stale to serve; the probe could only answer `fresh`/`unverifiable` at the cost of a node
+  child on every snap call. §3.6 already grants a `--ref` stage exactly this exemption for the ERA half of
+  the rule, and the same "never HMRs" fact is what makes it sound for the freshness half. An `unverifiable`
+  is `degraded` for a `--dirty` stage and `warm` for a `--ref` one — the asymmetry is the rule, and both
+  arms are pinned.
+- **`shortSha` and `baseUrl` left the row.** Both are functions of `sha`/`vitePort`; a serialized copy of a
+  derived value is a second home that drifts. Consumers derive them through `#snap` (`shortSha`,
+  `stageRowBaseUrl`).
+- **Two modules were split off at the line cap** (`Core-Tooling-Law.md` §4.3): `lib/stage-bands.ts` (the
+  table's pure rules — limits, strand, allocator, health) and `ops/stage-source.ts` (populating a stage
+  dir: the isolation asserts, rsync, install, db seed, worktree add/remove). `ops/stage-census.ts` is the
+  new seam that observes the box and performs the locked acquire.
+
+**Arms refused.** The §10 row's "sibling tools gain `--session` (attach)" is NOT in this chunk: it is the
+attach half of §3.4 and rides phase 3's endpoint work (lane p-arms-registry holds `ops/session.ts`,
+`ops/lighthouse.ts` and `_shared/debugging-endpoint.ts`). `#1162` (launcher survivors) and `#1186` (`--base`
+fencing) were already CLOSED; #1186's mechanism is preserved and widened from one hardcoded pair to the whole
+range (`stageBandClaim` now takes the row set and keys off `stageBandForPort`). Fork F7's
+`--stage-down --owner <checkout>` is NOT built: the owned-rows default plus `--force` covers the ruled
+behaviour, and a third selector with no caller would be speculative — if the orchestrator wants per-band
+selection at drain, it is a small follow-on.
+
+**Coupled-site census (all moved).** `contract/stage.ts` (`ActiveStage` → `StageRow` + band/sessions/
+dbProvenance/rsyncs; `StageBandsFile`, `StageBandView`, `StageAllocation`, `StageHealth*`, `StageLimits`) →
+`lib/stage-plan.ts` (per-row access/consent/claim; `BANDS_REL` + `LEGACY_ACTIVE_REL`; `stagePorts` retired
+for `stageBandPorts`) → `lib/stage-bands.ts` (new) → `ops/stage-marker.ts` (the table, the mutex, the
+one-time legacy read) → `ops/stage-census.ts` (new) → `ops/stage-source.ts` (new) → `ops/stage.ts`
+(allocate → claim → boot; `stopStage` takes the row's ports) → `ops/stage-status.ts` (all-band listing,
+per-band sweep/teardown) → `ops/stage-probe.ts` (one `ss`, the three probes) → `ops/guards.ts` +
+`ui-audit/ops/stage.ts` (derive the base URL) → `ops/session-daemon.ts` + `ops/session-registry.ts` (the
+band binding + `liveSessionNames`) → `snap/index.ts` → `biome.json` (the existing `snap/ops/stage.ts`
+naming-convention row gains `stage-probe.ts`, same env-object reason) → ledgers.
+
+**Test plan as landed.** `tests/tooling/snap/lib/stage-bands.test.ts` (20 arms, pure): limits + their named
+refusals, the strand rule with the live-session fence in BOTH directions, all five allocator arms in §3.6's
+order, the exhaustion text naming every row with its idle age, and the health verdict including the
+`unverifiable` asymmetry and the ERA rule. `tests/tooling/snap/ops/stage-marker.int.test.ts` (13 arms, real
+files + real child processes): the table's shape, row-drop validation, the one-time legacy migration (and
+that a second read does not resurrect it), FOUR concurrent processes claiming FOUR distinct bands with a
+single-process positive control, and the live-session fence end-to-end — a child binds its name onto the row
+and registers a session whose daemon pid is ALIVE (its own), and the six-hour-idle row still reads `live`;
+the same child with a dead pid reads `stranded`. `stage-plan.test.ts` keeps what stage-plan still owns.
+
+**What phase 2 does NOT prove.** Every arm here is hermetic by construction (design §8: a committed proof
+never boots the dev stack), so "two stages actually serving on two bands" is a LIVE receipt the orchestrator
+owes at the barrier, not something a suite can carry. The allocator half of that claim is pinned; the boot
+half is `bootOntoBand`, which is one `stack.sh start` per band with no shared state but the table.
+
 ## 11. Cost
 
 | Item | Estimate |
