@@ -65,7 +65,7 @@ export const SESSION_FLAG = "--session";
 
 /** WHERE_FLAGS (§4.3): today this family has exactly one member a sibling tool's parser wires — see the
  *  header note on why `--base`/`--isolated`/`--ref`/`--dirty`/`--fresh` are not here yet. */
-export const WHERE_FLAGS: ReadonlySet<string> = new Set([SESSION_FLAG]);
+export const WHERE_FLAGS: ReadonlySet<string> = new Set(["--base", "--isolated", "--ref", "--dirty", "--fresh", SESSION_FLAG]);
 
 /** The canonical `--reduced-motion` spelling — motion-audit's RENAME target (owner ruling 2026-09-03) for
  *  its retired `--os-reduced-motion`/`--os-full-motion`; snap has carried this spelling since phase 1. A
@@ -80,7 +80,9 @@ export const REDUCED_MOTION_FLAG = "--reduced-motion";
  *  effect of this one). `--wide`/`--dark`/`--light` are NEW capability on design-audit/perf-meter/record
  *  and are DEFERRED: see this file's header for why (the wiring crosses into files two other live lanes
  *  own). */
-export const ENVIRONMENT_FLAGS: ReadonlySet<string> = new Set([REDUCED_MOTION_FLAG]);
+export const ENVIRONMENT_FLAGS: ReadonlySet<string> = new Set(["--viewport", "--wide", "--mobile", "--desktop", "--dark", "--light", REDUCED_MOTION_FLAG]);
+
+export const ARTIFACT_FLAGS: ReadonlySet<string> = new Set(["--out", "--json"]);
 
 /** SESSION_ADMIN_FLAGS (§4.3): snap-only — the sibling four are refused BY NAME with a pointer (below),
  *  never a bare "unknown flag". */

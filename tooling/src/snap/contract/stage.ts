@@ -34,6 +34,13 @@ export interface StageDbProvenance {
   readonly devDbMtimeAtCopy: string;
 }
 
+/** A session observed that one half of this stage's port pair disappeared. Kept on the band row so
+ *  `--stage-status` and `--stage-sweep` see the same death the session recorded. */
+interface StageDeath {
+  readonly detectedAt: string;
+  readonly op: string;
+}
+
 /** One row of the band table: a stage on band `k`, owned by one checkout, serving one sha. */
 export interface StageRow {
   /** Index into `_shared/ports.ts` `STAGE_BANDS` — the row's key. */
@@ -63,6 +70,8 @@ export interface StageRow {
   /** How many `--dirty` rsyncs this stage has absorbed — the ERA rule's counter (a long-lived vite that
    *  absorbed a multi-merge era can serve a CORRUPT module graph; memory `long-lived-vite-corrupt-graph`). */
   readonly rsyncs: number;
+  /** Absent for a usable stage; present until the dead band is rebuilt or swept. */
+  readonly dead?: StageDeath;
 }
 
 /** `<main>/.cache/snap-stage/bands.json` — the whole table, versioned like the session registry's rows so a

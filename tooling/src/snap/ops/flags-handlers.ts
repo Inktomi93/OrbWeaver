@@ -12,7 +12,7 @@ import { mergeAppearancePatches } from "../../_shared/appearance.ts";
 import { applyAppearanceFlag, FULL_MOTION_PATCH, loadAppearancePreset, parseAppearancePatch } from "../../_shared/appearance-flags.ts";
 import { parseViewport, splitFirstEq, splitLastEq, splitSelectorEq } from "../../_shared/argv.ts";
 import { DEFAULT_BASE } from "../../_shared/browser.ts";
-import { MOBILE_DEVICE } from "../../_shared/browser-environment.ts";
+import { DEFAULT_VIEWPORT, MOBILE_DEVICE, WIDE_VIEWPORT } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { applyPanelPresetFlag, loadPanelPreset } from "../../_shared/panel-flags.ts";
 import { applyThemeFlag, parseThemeFlag } from "../../_shared/theme.ts";
@@ -22,7 +22,7 @@ import { NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
 import { armFlagHandlers } from "./arms/registry.ts";
 import { SESSION_FLAG_HANDLERS } from "./flags-session.ts";
 import { STAGE_FLAG_HANDLERS } from "./flags-stage.ts";
-import { DEFAULT_VIEWPORT, MS_PER_SECOND, pushNav, pushStep, WIDE_VIEWPORT } from "./flags-support.ts";
+import { MS_PER_SECOND, pushNav, pushStep } from "./flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 

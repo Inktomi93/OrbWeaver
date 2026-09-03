@@ -33,6 +33,7 @@ import {
   sessionOnlyFlagsRefusal,
   sessionRowPath,
   sessionSocketPath,
+  sessionStageDeadRefusal,
   sessionSweepVerdict,
   stripSessionFlags,
 } from "../../../../tooling/src/snap/lib/session-plan.ts";
@@ -122,6 +123,15 @@ test("a later call carrying a browser-lifetime flag is named, page suffix and al
   for (const flag of ["--eval", "--text", "--map", "--contrast", "--json", "--out", "--goto", "--click", "--checkpoint", "--file", "--no-failure-evidence"]) {
     expect(SESSION_ONLY_FLAGS.has(flag), flag).toBe(false);
   }
+});
+
+test("F7 --owner is a deliberate stage-down selector, never a stray checkout argument", () => {
+  expect(parseSnapArgs(["--stage-down", "--owner", LANE]).errors).toEqual([expect.stringContaining("--stage-down --owner <checkout> requires --force")]);
+  expect(parseSnapArgs(["--owner", LANE]).errors).toEqual([expect.stringContaining("--owner <checkout> only selects rows for --stage-down")]);
+  const targeted = parseSnapArgs(["--stage-down", "--owner", LANE, "--force"]);
+  expect(targeted.errors).toEqual([]);
+  expect(targeted.stageOwner).toBe(LANE);
+  expect(targeted.force).toBe(true);
 });
 
 test("the client strips exactly its own two flags and their values, keeping everything else in order", () => {
@@ -217,7 +227,7 @@ test("the parse-time session rows: every combination that cannot mean anything r
   expect(rows(["--session", "p-x", "--session-export", "p-x"])).toEqual([expect.stringContaining("stand alone")]);
   expect(rows(["--session", "p-x", "--session-daemon", "p-x"])).toEqual([expect.stringContaining("--session-daemon is the daemon's own entry")]);
   expect(rows(["--session-ttl", "5"])).toEqual([expect.stringContaining("boot property")]);
-  expect(rows(["--session", "p-x", "--matrix"])).toEqual([expect.stringContaining("phase 1")]);
+  expect(rows(["--session", "p-x", "--matrix"])).toEqual([]);
   // #1259: the phase-1 refusal of `--session` + `--lighthouse` is DELETED. It existed because two
   // mechanisms wrote `--remote-debugging-port` onto one browser (the arm RESERVED a loopback port, a
   // session read Chrome's own back), which is last-wins and silent. Phase 3 deleted the reserving path,
@@ -281,6 +291,17 @@ test("every refusal names the fact and the remedy", () => {
   expect(cascadeNotBootedRefusal("p-x")).toContain("--cascade");
   expect(sessionOnlyFlagsRefusal("p-x", ["--viewport", "--dark"])).toContain("--viewport --dark");
   expect(sessionOnlyFlagsRefusal("p-x", ["--viewport"])).toContain("--session-close p-x");
+
+  const stageDead = sessionStageDeadRefusal("p-x", {
+    band: 7,
+    status: "dead",
+    detectedAt: "2026-09-02T18:29:00.000Z",
+    op: "--goto settings",
+  });
+  expect(stageDead).toContain("band 7");
+  expect(stageDead).toContain("2026-09-02T18:29:00.000Z");
+  expect(stageDead).toContain("--goto settings");
+  expect(stageDead).toContain("--stage-sweep");
 });
 
 test("a live page's default artifact base is the file's basename or the route's slug", () => {

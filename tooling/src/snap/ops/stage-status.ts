@@ -30,6 +30,7 @@ import {
   foreignTeardownRefusal,
   orphanStageDirs,
   STAGE_ROOT_REL,
+  selectsTeardownRow,
   shortSha,
   stageIdleMs,
   teardownConsent,
@@ -207,23 +208,14 @@ function reconcileDanglingRow(root: string, home: string, row: StageRow, nowMs: 
  *  foreign rows exactly as #447 left it, so the cross-checkout escape hatch #108 promised is still one flag
  *  away and `foreignStageRefusal` still advertises it truthfully. A band bound by something no row accounts
  *  for is torn down by port (the lost-row fallback), unchanged. */
-export function teardownStage(force: boolean): string {
+export function teardownStage(selection: { readonly force: boolean; readonly owner: string | null }): string {
   const root = repoRoot();
   const home = markerRoot(root);
   const nowMs = Date.now();
   const { views, verdicts, pids } = bandCensus(root, nowMs);
   const results: string[] = [];
   for (const view of views) {
-    const verdict = verdicts.get(view.band) ?? "unbound";
-    if (view.row === null) {
-      results.push(...teardownRowlessBand(view, pids.get(view.band) ?? []));
-      continue;
-    }
-    if (view.row.checkout !== root && !force) {
-      results.push(foreignSkipLine(view.row, verdict === "live", root, nowMs));
-      continue;
-    }
-    results.push(teardownRow(root, home, view.row));
+    results.push(...teardownView({ root, home, view, verdict: verdicts.get(view.band) ?? "unbound", pids: pids.get(view.band) ?? [], selection, nowMs }));
   }
   const dirs = stageDirs(root);
   const orphanDirs = orphanStageDirs(dirs, { rowDirs: readBands(home).map((row) => row.dir), targetDir: null });
@@ -235,9 +227,33 @@ export function teardownStage(force: boolean): string {
     results.push(`swept ${orphanDirs.length} orphaned stage dir(s)`);
   }
   if (results.length === 0) {
-    return `no stage of this checkout to tear down (${root}) — \`--stage-status\` lists every band, \`--force\` reaches a sibling's`;
+    return selection.owner === null
+      ? `no stage of this checkout to tear down (${root}) — \`--stage-status\` lists every band; name a sibling with \`--owner <checkout> --force\``
+      : `no stage owned by ${selection.owner} to tear down — \`--stage-status\` lists every band`;
   }
   return results.join("\n");
+}
+
+function teardownView(input: {
+  readonly root: string;
+  readonly home: string;
+  readonly view: StageBandView;
+  readonly verdict: StageSweepVerdict;
+  readonly pids: readonly number[];
+  readonly selection: { readonly force: boolean; readonly owner: string | null };
+  readonly nowMs: number;
+}): readonly string[] {
+  const { root, home, view, verdict, pids, selection, nowMs } = input;
+  if (view.row === null) {
+    return selection.owner === null ? teardownRowlessBand(view, pids) : [];
+  }
+  if (!selectsTeardownRow(view.row, root, selection.owner)) {
+    return [];
+  }
+  if (view.row.checkout !== root && !selection.force) {
+    return [foreignSkipLine(view.row, verdict === "live", root, nowMs)];
+  }
+  return [teardownRow(root, home, view.row)];
 }
 
 /** What a plain `--stage-down` says about a SIBLING's row instead of touching it: the #447 refusal when it

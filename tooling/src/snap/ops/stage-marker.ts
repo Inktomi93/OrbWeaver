@@ -19,7 +19,7 @@
 // held across the read-decide-claim window, so a band is CLAIMED by a written row before its 55 s stack
 // boot starts. A lock whose holder pid is gone, or which is older than `LOCK_STALE_MS`, is broken rather
 // than inherited: a crashed allocator must not wedge the box forever.
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pidAlive } from "../../_shared/artifacts.ts";
@@ -40,6 +40,13 @@ const LOCK_REL = join(STAGE_ROOT_REL, "bands.lock");
 const LOCK_STALE_MS = 30_000;
 const LOCK_POLL_MS = 25;
 const LOCK_WAIT_MS = 5000;
+const LOCK_DEPTH = new Map<string, number>();
+
+function readDeath(value: StageRow["dead"]): Pick<StageRow, "dead"> | Record<never, never> {
+  return typeof value === "object" && typeof value.detectedAt === "string" && typeof value.op === "string"
+    ? { dead: { detectedAt: value.detectedAt, op: value.op } }
+    : {};
+}
 
 export function markerRoot(root: string): string {
   const res = runNicedSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root });
@@ -81,6 +88,7 @@ function readRow(value: unknown): StageRow | null {
     sessions: Array.isArray(row.sessions) ? row.sessions.filter((name): name is string => typeof name === "string") : [],
     dbProvenance: typeof row.dbProvenance === "object" && row.dbProvenance !== null ? row.dbProvenance : null,
     rsyncs: typeof row.rsyncs === "number" ? row.rsyncs : 0,
+    ...readDeath(row.dead),
   };
 }
 
@@ -138,7 +146,14 @@ export function readBands(home: string): readonly StageRow[] {
 export function writeBands(home: string, rows: readonly StageRow[]): void {
   mkdirSync(join(home, STAGE_ROOT_REL), { recursive: true });
   const file: StageBandsFile = { v: BANDS_FILE_VERSION, rows: [...rows].sort((a, b) => a.band - b.band) };
-  writeFileSync(bandsPath(home), `${JSON.stringify(file, null, 2)}\n`);
+  const path = bandsPath(home);
+  const temp = `${path}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    writeFileSync(temp, `${JSON.stringify(file, null, 2)}\n`);
+    renameSync(temp, path);
+  } finally {
+    rmSync(temp, { force: true });
+  }
 }
 
 function readRowFor(home: string, band: number): StageRow | null {
@@ -148,12 +163,16 @@ function readRowFor(home: string, band: number): StageRow | null {
 /** Write one row, replacing whatever held its band. Read-modify-write, so a concurrent allocator's row on
  *  ANOTHER band survives (the whole table is one file; a blind overwrite would drop it). */
 export function writeRow(home: string, row: StageRow): void {
-  writeBands(home, [...readBands(home).filter((existing) => existing.band !== row.band), row]);
+  withBandsLock(home, () => {
+    writeBands(home, [...readBands(home).filter((existing) => existing.band !== row.band), row]);
+  });
 }
 
 export function clearRow(home: string, band: number): void {
-  const kept = readBands(home).filter((row) => row.band !== band);
-  writeBands(home, kept);
+  withBandsLock(home, () => {
+    const kept = readBands(home).filter((row) => row.band !== band);
+    writeBands(home, kept);
+  });
 }
 
 /** Stamp the heartbeat (#324) without disturbing anything else the row says — called by every
@@ -161,27 +180,43 @@ export function clearRow(home: string, band: number): void {
  *  `shared-reuse` of a SIBLING checkout's stage: a band's liveness is USE, and our use is as good as
  *  theirs. A missing row is a no-op (there is nothing to keep alive). */
 export function touchRow(home: string, band: number, nowIso: string): void {
-  const row = readRowFor(home, band);
-  if (row !== null) {
-    writeRow(home, { ...row, lastUsedAt: nowIso });
-  }
+  withBandsLock(home, () => {
+    const row = readRowFor(home, band);
+    if (row !== null) {
+      writeRow(home, { ...row, lastUsedAt: nowIso });
+    }
+  });
+}
+
+/** Persist the stage death a session observed; status/sweep read this same row. */
+export function markStageDead(home: string, band: number, detectedAt: string, op: string): void {
+  withBandsLock(home, () => {
+    const row = readRowFor(home, band);
+    if (row !== null) {
+      writeRow(home, { ...row, dead: { detectedAt, op } });
+    }
+  });
 }
 
 /** Bind/unbind a session name to the band it drives — the list `stageSweepVerdict` fences the reaper on.
  *  Idempotent in both directions: a daemon that re-binds after a reclaim must not double the name, and a
  *  close that runs twice must not fail. */
 export function bindSessionToBand(home: string, band: number, name: string, nowIso: string): void {
-  const row = readRowFor(home, band);
-  if (row !== null) {
-    writeRow(home, { ...row, sessions: [...new Set([...row.sessions, name])], lastUsedAt: nowIso });
-  }
+  withBandsLock(home, () => {
+    const row = readRowFor(home, band);
+    if (row !== null) {
+      writeRow(home, { ...row, sessions: [...new Set([...row.sessions, name])], lastUsedAt: nowIso });
+    }
+  });
 }
 
 export function unbindSessionFromBand(home: string, band: number, name: string): void {
-  const row = readRowFor(home, band);
-  if (row !== null) {
-    writeRow(home, { ...row, sessions: row.sessions.filter((bound) => bound !== name) });
-  }
+  withBandsLock(home, () => {
+    const row = readRowFor(home, band);
+    if (row !== null) {
+      writeRow(home, { ...row, sessions: row.sessions.filter((bound) => bound !== name) });
+    }
+  });
 }
 
 // ── the allocation mutex ──────────────────────────────────────────────────────────────────────────────
@@ -220,6 +255,15 @@ function breakStaleLock(path: string, startedMs: number): void {
  *  anyway, because refusing to allocate over a stuck lock file would turn a crashed allocator into a
  *  box-wide outage — and the table write itself is a single atomic `writeFileSync`. */
 export function withBandsLock<T>(home: string, fn: () => T): T {
+  const depth = LOCK_DEPTH.get(home) ?? 0;
+  if (depth > 0) {
+    LOCK_DEPTH.set(home, depth + 1);
+    try {
+      return fn();
+    } finally {
+      LOCK_DEPTH.set(home, depth);
+    }
+  }
   mkdirSync(join(home, STAGE_ROOT_REL), { recursive: true });
   const path = lockPath(home);
   const deadline = Date.now() + LOCK_WAIT_MS;
@@ -241,9 +285,11 @@ export function withBandsLock<T>(home: string, fn: () => T): T {
     }
     waitSync(LOCK_POLL_MS);
   }
+  LOCK_DEPTH.set(home, 1);
   try {
     return fn();
   } finally {
+    LOCK_DEPTH.delete(home);
     rmSync(path, { recursive: true, force: true });
   }
 }

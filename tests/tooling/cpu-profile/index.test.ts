@@ -52,3 +52,19 @@ test("viewport and duration argv reject malformed values instead of retaining de
     expect(parsePerfArgs(["/", "--pause", raw]).errors).toContain("--pause requires a positive finite duration in milliseconds");
   }
 });
+
+test("phase-four where, environment, and artifact flags feed the perf launch contract", () => {
+  expect(parsePerfArgs(["/", "--isolated", "--dirty", "--wide", "--light", "--reduced-motion", "--out", "./tmp/perf", "--json"])).toMatchObject({
+    isolated: true,
+    dirty: true,
+    viewport: { width: 1920, height: 1080 },
+    colorScheme: "light",
+    reducedMotion: true,
+    out: "./tmp/perf",
+    json: true,
+    errors: [],
+  });
+  expect(parsePerfArgs(["--base", "http://localhost:5173", "--isolated"]).errors).toContain(
+    "--base and --isolated/--ref/--dirty both name WHERE to audit — pass one (the stage supplies its own base URL)",
+  );
+});

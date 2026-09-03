@@ -197,9 +197,9 @@ test("--session with --lighthouse is no longer refused — one debugging endpoin
   const args = parseSnapArgs(["--session", "p-x", "--lighthouse", "desktop"]);
   expect(args.errors).toEqual([]);
   expect(args.lighthouse).toBe("desktop");
-  // The other session refusals are untouched (the matrix argv also trips the stage-scoping rule, so the
-  // assertion is on the SESSION row being present, not on the row count).
-  expect(parseSnapArgs(["--session", "p-x", "--matrix"]).errors).toContainEqual(expect.stringContaining("--session does not combine with --matrix"));
+  // F10: matrix is the second promoted session composition. Its cells own disposable contexts in the
+  // existing browser; it is no longer one of the phase-1 refusals.
+  expect(parseSnapArgs(["--session", "p-x", "--matrix", "--isolated"]).errors).toEqual([]);
 });
 
 test("the arm roster names every capability snap advertises as an arm", () => {

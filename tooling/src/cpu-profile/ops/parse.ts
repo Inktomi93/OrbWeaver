@@ -9,10 +9,11 @@ import {
   loadAppearancePreset,
   parseAppearancePatch,
 } from "@orb/tooling/_shared/appearance-flags";
-import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
-import { aliasRefusal, crossToolAdminRefusal, HELP_FLAGS, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
+import { DEFAULT_VIEWPORT, MOBILE_DEVICE, WIDE_VIEWPORT } from "@orb/tooling/_shared/browser-environment";
+import { aliasRefusal, crossToolAdminRefusal, HELP_FLAGS, REDUCED_MOTION_FLAG, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
+import { stageArgErrors } from "@orb/tooling/_shared/instrument-stage";
 import { NAV_FLAG_METHOD, NAV_FLAGS } from "@orb/tooling/_shared/nav";
 import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS } from "@orb/tooling/_shared/panel-flags";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS } from "@orb/tooling/_shared/theme";
@@ -22,7 +23,6 @@ import type { Args, Step } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm perf-meter");
 
-const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 const DEFAULT_PAUSE_MS = 600;
 const DEFAULT_WHEEL_DY = 400;
 const DEFAULT_WHEELBURST_DY = 400;
@@ -117,7 +117,7 @@ function parseAppearanceFlag(flag: string, rest: string[], args: Args): boolean 
   return false;
 }
 
-function parseScalarFlag(flag: string, rest: string[], args: Args): boolean {
+function parseWhereArtifactFlag(flag: string, rest: string[], args: Args): boolean {
   if (flag === "--base") {
     args.base = rest.shift() ?? DEFAULT_BASE;
     args.baseExplicit = true;
@@ -127,12 +127,69 @@ function parseScalarFlag(flag: string, rest: string[], args: Args): boolean {
     args.out = rest.shift() ?? args.out;
     return true;
   }
-  if (flag === "--settle") {
-    args.settleMs = Number(rest.shift() ?? String(DEFAULT_SETTLE_MS));
+  if (flag === "--json") {
+    args.json = true;
     return true;
   }
+  if (flag === "--isolated") {
+    args.isolated = true;
+    return true;
+  }
+  if (flag === "--ref") {
+    args.ref = rest.shift() ?? null;
+    args.isolated = true;
+    return true;
+  }
+  if (flag === "--dirty") {
+    args.dirty = true;
+    args.isolated = true;
+    return true;
+  }
+  if (flag === "--fresh") {
+    args.fresh = true;
+    args.isolated = true;
+    return true;
+  }
+  return false;
+}
+
+function parseEnvironmentFlag(flag: string, rest: string[], args: Args): boolean {
   if (flag === "--viewport") {
     args.viewport = parseViewport(rest.shift() ?? "") ?? args.viewport;
+    return true;
+  }
+  if (flag === "--wide") {
+    args.viewport = WIDE_VIEWPORT;
+    args.device = null;
+    return true;
+  }
+  if (flag === "--mobile") {
+    args.device = MOBILE_DEVICE;
+    return true;
+  }
+  if (flag === "--desktop") {
+    args.viewport = DEFAULT_VIEWPORT;
+    args.device = null;
+    return true;
+  }
+  if (flag === "--dark") {
+    args.colorScheme = "dark";
+    return true;
+  }
+  if (flag === "--light") {
+    args.colorScheme = "light";
+    return true;
+  }
+  if (flag === REDUCED_MOTION_FLAG) {
+    args.reducedMotion = true;
+    return true;
+  }
+  return false;
+}
+
+function parsePerfFlag(flag: string, rest: string[], args: Args): boolean {
+  if (flag === "--settle") {
+    args.settleMs = Number(rest.shift() ?? String(DEFAULT_SETTLE_MS));
     return true;
   }
   if (flag === "--cycles") {
@@ -169,6 +226,7 @@ const VALUE_FLAGS = new Set([
   "--wheelburst",
   "--pause",
   "--base",
+  "--ref",
   "--out",
   "--settle",
   "--viewport",
@@ -178,7 +236,21 @@ const VALUE_FLAGS = new Set([
   ...APPEARANCE_VALUE_FLAGS,
   ...THEME_VALUE_FLAGS,
 ]);
-const BOOLEAN_FLAGS = new Set(["--cpuprofile", "--full-motion", ...HELP_FLAGS]);
+const BOOLEAN_FLAGS = new Set([
+  "--cpuprofile",
+  "--json",
+  "--isolated",
+  "--dirty",
+  "--fresh",
+  "--wide",
+  "--mobile",
+  "--desktop",
+  "--dark",
+  "--light",
+  REDUCED_MOTION_FLAG,
+  "--full-motion",
+  ...HELP_FLAGS,
+]);
 const KNOWN_FLAGS = new Set([...VALUE_FLAGS, ...BOOLEAN_FLAGS]);
 
 /** Argv is scanned for misuse BEFORE a browser boots (snap/design-audit's strict-CLI posture). An unknown
@@ -237,8 +309,17 @@ export function parsePerfArgs(argv: string[]): Args {
     route: "/",
     base: DEFAULT_BASE,
     baseExplicit: false,
+    isolated: false,
+    ref: null,
+    dirty: false,
+    fresh: false,
+    stageShortSha: null,
     out: "perf-meter",
+    json: false,
     viewport: DEFAULT_VIEWPORT,
+    device: null,
+    colorScheme: null,
+    reducedMotion: false,
     settleMs: DEFAULT_SETTLE_MS,
     cycles: 1,
     cpuProfile: false,
@@ -251,13 +332,21 @@ export function parsePerfArgs(argv: string[]): Args {
   const rest = [...argv];
   while (rest.length > 0) {
     const a = rest.shift() as string;
-    if (parseScalarFlag(a, rest, args) || parseAppearanceFlag(a, rest, args) || parsePanelPresetFlag(a, rest, args) || parseStepFlag(a, rest, args.steps)) {
+    if (
+      parseWhereArtifactFlag(a, rest, args) ||
+      parseEnvironmentFlag(a, rest, args) ||
+      parsePerfFlag(a, rest, args) ||
+      parseAppearanceFlag(a, rest, args) ||
+      parsePanelPresetFlag(a, rest, args) ||
+      parseStepFlag(a, rest, args.steps)
+    ) {
       continue;
     }
     if (!a.startsWith("--")) {
       args.route = a;
     }
   }
+  args.errors.push(...stageArgErrors(args));
   // Repetition-decay one-liner: unroll the whole sequence n times. The per-step table keeps
   // absolute indices, so decay reads as a column scan.
   if (args.cycles > 1) {

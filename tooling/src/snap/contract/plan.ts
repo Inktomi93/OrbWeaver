@@ -1,6 +1,6 @@
 // The per-page capture plan — beside types.ts so the shot-plan family reads as one unit.
 import type { SettingsShimEvidence } from "../../_shared/appearance.ts";
-import type { ProbeSession } from "../../_shared/browser.ts";
+import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import type { ShotPlan } from "./types.ts";
 
 /** What one capture pass needs to know about the SESSION: the two evidence rings it scopes a checkpoint

@@ -1,29 +1,9 @@
-// WHERE A CT SCREENSHOT LANDS (#1201, docs/design/1208-instrument-substrate.md §3.7) — the ONE door a CT
-// spec uses to resolve `page.screenshot({ path })` / `locator.screenshot({ path })` into THIS CT RUN'S
-// OWN artifact slot (`reports/runs/ct/<runId>/snaps/…`), never a shared family.
-//
-// SUPERSEDES story-shot.ts's `storyShot()` for CT (that helper's own header named this as its leftover:
-// "giving [shots] a run slot needs the CT run's identity to reach the WORKER processes"). CT specs run in
-// Playwright WORKER child processes, separate from the main runner process — `playwright-ct.config.ts`
-// opens the "ct" instrument's run slot ONCE, in the main process, before any worker forks, and sets
-// `CT_RUN_SLOT_DIR` on `process.env`; a plain child process inherits its parent's env unless overridden
-// (nothing here overrides it), so every worker sees the same value. `ct-flaky-reporter.ts` ADOPTS that same
-// slot for `ct-flaky.json` — one CT run, one slot, published once the run is over.
-//
-// `story-shot.ts` REMAINS the door for `tests/e2e/**` local specs: an e2e local spec runs under
-// `playwright.config.ts`, a separate runner with no "ct" run slot to adopt, and giving it one is out of
-// this ticket's scope (§3.9: the substrate gives the CT runner only the slot helper, nothing else).
-//
-// Gate `no-direct-reports-write` (tooling/src/verify/gates/no-direct-reports-write.ts) REDs a hand-spelled
-// `reports/…` literal handed to `.screenshot({ path })` anywhere in `tests/**` — `ctSnapPath` is the only
-// sanctioned producer of that path for a CT spec.
+// CT screenshots resolve through the slot opened by playwright-ct.config.ts and inherited by every
+// worker. The reporter adopts and publishes the same identity after the run completes.
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-
-/** The env var `playwright-ct.config.ts` sets, once, before workers fork — the absolute dir of this CT
- *  run's own slot (`reports/runs/ct/<runId>/`). */
-export const CT_RUN_SLOT_ENV = "CT_RUN_SLOT_DIR";
+import { CT_RUN_SLOT_ENV } from "@orb/tooling/_shared/ct-run-slot";
 
 const PNG_SUFFIX = /\.png$/iu;
 

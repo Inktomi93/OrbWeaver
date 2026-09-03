@@ -51,6 +51,9 @@ export function stageLimits(): StageLimits {
  *  exactly this exemption for the ERA half of the rule; the same "never HMRs" fact is what makes it sound
  *  here. A `--dirty` stage is rsync'd under a LIVE watcher on every call, so it is always asked. */
 export function stageRowHealth(row: StageRow, nowMs: number): StageHealth {
+  if (row.dead !== undefined) {
+    return "degraded";
+  }
   const dirty = row.sha === DIRTY_STAGE_KEY;
   const healthzOk = stageHealthzOk(row.serverPort);
   const viteOk = healthzOk && stageViteOk(row.vitePort);
@@ -63,6 +66,13 @@ export function stageRowHealth(row: StageRow, nowMs: number): StageHealth {
     rsyncs: row.rsyncs,
     ageMs: Math.max(0, nowMs - Date.parse(row.startedAt)),
   });
+}
+
+/** Both halves of a session's registered band must still be listening. One missing half is a dead stage,
+ *  not a degraded-but-usable base; the session records the transition and refuses later calls. */
+export function stageBindingAlive(home: string, band: number, bound: ReadonlyMap<number, number> = listeningPids()): boolean {
+  const row = readBands(home).find((candidate) => candidate.band === band);
+  return row !== undefined && bound.has(row.serverPort) && bound.has(row.vitePort);
 }
 
 /** The census: one view per band in the registry, rows matched in, ports read off ONE `ss` snapshot, live

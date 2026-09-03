@@ -25,9 +25,11 @@ import { vi } from "vitest";
 import { stageBandPorts } from "../../../../tooling/src/_shared/ports.ts";
 import type { StageBandsFile, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { BANDS_REL, LEGACY_ACTIVE_REL, STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
+import { stageBindingAlive } from "../../../../tooling/src/snap/ops/stage-census.ts";
 import {
   bindSessionToBand,
   clearRow,
+  markStageDead,
   readBands,
   touchRow,
   unbindSessionFromBand,
@@ -300,6 +302,52 @@ test("FOUR CONCURRENT PROCESSES CLAIM FOUR DISTINCT BANDS, and no two share a po
   expect(rows).toHaveLength(CONCURRENT_CLAIMERS);
   const ports = rows.flatMap((entry) => [entry.serverPort, entry.vitePort]);
   expect(new Set(ports).size, "no two stages may share a port").toBe(ports.length);
+});
+
+const TOUCH_CHILD = (home: string, band: number): string => `
+import { readBands, touchRow } from ${JSON.stringify(MARKER_SRC)};
+const HOME = ${JSON.stringify(home)};
+for (let index = 0; index < 24; index += 1) {
+  touchRow(HOME, ${band}, new Date(${FROZEN_AT_MS} + index).toISOString());
+  if (readBands(HOME).length !== 4) throw new Error("lost a sibling row");
+}
+console.log("TOUCHED ${band}");
+`;
+
+test("concurrent heartbeat writers keep every band and readers never observe a truncated table", async () => {
+  const home = scratchHome("touch-many");
+  for (let band = 0; band < CONCURRENT_CLAIMERS; band += 1) {
+    writeRow(home, row(band));
+  }
+  const children = await Promise.all(
+    Array.from({ length: CONCURRENT_CLAIMERS }, (_unused, band) => {
+      const path = join(home, `touch-${band}.ts`);
+      writeFileSync(path, TOUCH_CHILD(home, band));
+      return spawnNiced("node", [path], { timeoutMs: CASE_BUDGET_MS });
+    }),
+  );
+  for (const child of children) {
+    expect(child.code, child.stdout + child.stderr).toBe(0);
+  }
+  expect(readBands(home).map((entry) => entry.band)).toEqual([0, 1, 2, 3]);
+});
+
+test("T4 — one vanished port marks the registered band dead with the operation and preserves its siblings", () => {
+  const home = scratchHome("stage-death");
+  const live = row(7, { sessions: ["p-stage-owner"] });
+  const sibling = row(2);
+  writeBands(home, [sibling, live]);
+  const both = new Map([
+    [live.serverPort, 1001],
+    [live.vitePort, 1002],
+  ]);
+  expect(stageBindingAlive(home, 7, both)).toBe(true);
+
+  // The killed-half plant: server remains, vite is gone. A one-port check would lie green here.
+  expect(stageBindingAlive(home, 7, new Map([[live.serverPort, 1001]]))).toBe(false);
+  markStageDead(home, 7, FROZEN_ISO, "--goto settings");
+  expect(readBands(home).find((entry) => entry.band === 7)?.dead).toEqual({ detectedAt: FROZEN_ISO, op: "--goto settings" });
+  expect(readBands(home).find((entry) => entry.band === 2)).toEqual(sibling);
 });
 
 // ── the LIVE-SESSION fence, through the real session registry ─────────────────────────────────────────

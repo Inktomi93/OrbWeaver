@@ -43,7 +43,7 @@ import { withInstrumentRun } from "../_shared/artifact-out.ts";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
-import { MOTION_AUDIT_HELP, parseMotionArgs, runMotionAudit, runMotionAuditMatrix } from "./index.ts";
+import { configureMotionStage, MOTION_AUDIT_HELP, parseMotionArgs, runMotionAudit, runMotionAuditMatrix } from "./index.ts";
 
 async function main(): Promise<number> {
   const opts = parseMotionArgs(process.argv.slice(2));
@@ -58,6 +58,10 @@ async function main(): Promise<number> {
   if (opts.help) {
     print(MOTION_AUDIT_HELP);
     return 0;
+  }
+  const stageExit = configureMotionStage(opts);
+  if (stageExit !== null) {
+    return stageExit;
   }
   // The run's own artifact slot; `reports/motion-audit/<route>-matrix.json` is its published pointer (#1164).
   return await withInstrumentRun("motion-audit", async () => (opts.matrix ? await runMotionAuditMatrix(opts) : await runMotionAudit(opts)));

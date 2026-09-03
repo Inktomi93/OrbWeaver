@@ -14,7 +14,7 @@ import { withInstrumentRun } from "../_shared/artifact-out.ts";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
-import { parseRecordArgs, RECORD_HELP, runScreenRecord } from "./index.ts";
+import { configureRecordStage, parseRecordArgs, RECORD_HELP, runScreenRecord } from "./index.ts";
 
 async function main(): Promise<number> {
   const opts = parseRecordArgs(process.argv.slice(2));
@@ -29,6 +29,10 @@ async function main(): Promise<number> {
   if (opts.help) {
     print(RECORD_HELP);
     return 0;
+  }
+  const stageExit = configureRecordStage(opts);
+  if (stageExit !== null) {
+    return stageExit;
   }
   // The run's own artifact slot; the webm/gif/strips publish as `reports/recordings/…` pointers (#1164).
   return await withInstrumentRun("screen-record", async () => await runScreenRecord(opts));

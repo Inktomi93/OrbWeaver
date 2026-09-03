@@ -36,8 +36,11 @@ Surface (ONE argv-ordered queue — write the chain the way it should happen):
 
 Environment:
   --viewport <WxH>          default 1280x800
+  --wide                    1920x1080 desktop viewport
   --mobile                  iPhone 14 Pro Max — touch + pointer:coarse (the 44px tap floor)
   --desktop                 explicit 1280x800
+  --dark | --light          emulate the browser colour-scheme media query
+  --reduced-motion          emulate prefers-reduced-motion: reduce
   --matrix                  derive and run the 13-cell Appearance/theme/device representative matrix
 
 Where it audits (default: ${DEFAULT_BASE} — the dev stack, which serves MAIN, never a worktree):
@@ -69,6 +72,7 @@ Verdict:
   --fail-on <P0|P1|P2|P3>   exit 1 at this severity or worse (default ${DEFAULT_FAIL_ON})
   --out <name|path>         reports/design-audit/<name>.json — or, path-shaped (absolute / ./ ../),
                             that exact file
+  --json                    explicitly request the JSON report (design-audit always writes one)
 
   --help | -h               print this and exit 0
 

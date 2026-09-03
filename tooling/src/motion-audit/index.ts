@@ -35,3 +35,4 @@ export { runMotionAuditMatrix } from "./ops/matrix.ts";
 export { parseMotionArgs } from "./ops/parse.ts";
 export { evaluateMotionAudit } from "./ops/report.ts";
 export { runMotionAudit, runMotionAuditDetailed } from "./ops/run.ts";
+export { configureMotionStage } from "./ops/stage.ts";

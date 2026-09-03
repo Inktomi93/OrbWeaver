@@ -15,7 +15,7 @@ import type { Page, Request } from "@playwright/test";
 import { artifactFile } from "../../../_shared/artifact-out.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { print } from "../../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../../_shared/browser.ts";
+import type { ProbeSession } from "../../../_shared/browser-contract.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
 import type { RequestBodyOutcome, RequestLogEntry, RequestLogReceipt } from "../../contract/request-log.ts";

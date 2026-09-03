@@ -77,7 +77,7 @@ export function configureStage(opts: Args): number | null {
     return 0;
   }
   if (opts.stageDown) {
-    print(`[snap-stage] ${teardownStage(opts.force)}`);
+    print(`[snap-stage] ${teardownStage({ force: opts.force, owner: opts.stageOwner })}`);
     return 0;
   }
   if (opts.stageSweep) {

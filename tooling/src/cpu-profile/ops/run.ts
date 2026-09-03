@@ -5,8 +5,8 @@ import { writeFile } from "node:fs/promises";
 import { artifactFile } from "@orb/tooling/_shared/artifact-out";
 import type { ResultPair } from "@orb/tooling/_shared/artifacts";
 import { print } from "@orb/tooling/_shared/artifacts";
-import type { ProbeSession } from "@orb/tooling/_shared/browser";
 import { attachProbeSession, buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
+import type { ProbeSession } from "@orb/tooling/_shared/browser-contract";
 import { instrumentError, printVerdict } from "@orb/tooling/_shared/evidence";
 import type { ExitCode } from "@orb/tooling/_shared/exit-contract";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
@@ -58,8 +58,9 @@ async function openSession(opts: Args, attach: SessionAttachTarget | null): Prom
     return await launchProbeSession({
       headless: true,
       viewport: opts.viewport,
-      colorScheme: null,
-      reducedMotion: false, // the OS media query — a motion probe wants the real animations
+      device: opts.device,
+      colorScheme: opts.colorScheme,
+      reducedMotion: opts.reducedMotion,
       appearance: opts.appearance, // …and the APP setting, which the media query does not reach (--full-motion)
       theme: opts.theme,
       localStorage: [],

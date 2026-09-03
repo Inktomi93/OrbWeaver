@@ -1,6 +1,6 @@
 // The failure ledger: per-outcome totals, evidence failure counts, and the ONE summary whose any-non-
 // zero member reddens the exit — snap is CI-usable because this is exhaustive, not vibes.
-import type { CapturedConsole } from "../../_shared/browser.ts";
+import type { CapturedConsole } from "../../_shared/browser-capture.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ArmFailureCounts } from "../contract/arms.ts";
 import type { CaptureOutcome } from "../contract/types.ts";

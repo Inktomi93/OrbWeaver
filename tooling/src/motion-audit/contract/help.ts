@@ -27,13 +27,15 @@ Measure:
 ${SESSION_FLAG_HELP}
 
 Environment:
-  --base <url> · --url <full-url> · --viewport <WxH> · --vnc (headful) · --no-throttle
+  --base <url> · --url <full-url> · --viewport <WxH> · --wide · --dark | --light · --vnc (headful) · --no-throttle
   --mobile                  ${MOBILE_DEVICE} full descriptor (touch · pointer:coarse · mobile UA · DPR)
   --desktop                 explicit 1280x800 desktop (pointer:fine · hover)
   ${REDUCED_MOTION_FLAG}       emulate prefers-reduced-motion: reduce (independent of app Appearance);
                             absence is full motion (default) — was --os-reduced-motion/--os-full-motion
                             until #1290 slice 3 (owner ruling 2026-09-03: ONE spelling, no aliases; the
                             old pair is now refused BY NAME, never a silently-accepted second spelling)
+  --out <name|path>         write a JSON receipt under reports/motion-audit/, or exactly to a path-shaped value
+  --json                    write the default route-named JSON receipt
   --matrix                  derive/run the six scenario × app-motion × OS-motion × device cells;
                             the exact reduced mobile entry may report STATIC-EXPECTED only beside the
                             nonzero full-motion mobile interaction control (ordinary zero-frame law stays)
@@ -41,6 +43,10 @@ Environment:
                             --selector '[data-slot="collapsible-trigger"]'
 
 ${panelPresetHelpBlock()}
+
+Where:
+  --isolated · --ref <sha|branch|tag> · --dirty · --fresh
+                            use Snap's isolated stage; a cold stage refuses and must be rerun warm
 
 ${appearanceHelpBlock()}
 

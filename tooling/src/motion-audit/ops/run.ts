@@ -1,7 +1,10 @@
 // The audit orchestration: launch with the requested OS media-query arm and independent app Appearance
 // arm -> goto/ready/settle -> reach -> flagger settle -> measured window -> report.
-import type { ProbeSession } from "@orb/tooling/_shared/browser";
+import { writeFile } from "node:fs/promises";
+import { artifactFile } from "@orb/tooling/_shared/artifact-out";
+import { routeSlug } from "@orb/tooling/_shared/artifacts";
 import { attachProbeSession, buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
+import type { ProbeSession } from "@orb/tooling/_shared/browser-contract";
 import { readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
 import type { ExitCode } from "@orb/tooling/_shared/exit-contract";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
@@ -152,7 +155,7 @@ async function openSession(opts: Args, attach: SessionAttachTarget | null): Prom
       headless: !opts.vnc,
       viewport: opts.viewport,
       device: opts.device,
-      colorScheme: null,
+      colorScheme: opts.colorScheme,
       reducedMotion: opts.osReducedMotion,
       appearance: opts.appearance, // …and the APP setting, which the media query does not reach (--full-motion)
       theme: opts.theme,
@@ -160,6 +163,94 @@ async function openSession(opts: Args, attach: SessionAttachTarget | null): Prom
     });
   }
   return await attachProbeSession(attach.endpoint, attach.environment);
+}
+
+interface PreparedMotionRun {
+  readonly page: Page;
+  readonly cdp: Awaited<ReturnType<ProbeSession["context"]["newCDPSession"]>>;
+  readonly environment: Awaited<ReturnType<typeof readBrowserEnvironment>>;
+  readonly reachFailures: number;
+  readonly measuredClick: Awaited<ReturnType<typeof prepareMeasuredClick>>;
+}
+
+/** Establish every apparatus barrier before the measured window. Keeping this preparation separate makes
+ *  it impossible for reporting/artifact branches to obscure which failed barrier withheld the verdict. */
+async function prepareMotionRun(opts: Args, url: string, session: ProbeSession): Promise<PreparedMotionRun | null> {
+  const { page } = session;
+  const cdp = await session.context.newCDPSession(page);
+  await applyCpuThrottle(cdp, opts.throttle);
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
+  // @orb-gate-ignore caught-failure-ownership(promise:waitFor): false feeds apparatusGap, which emits INSTRUMENT ERROR instead of a motion verdict. Ends if readiness stops gating measurement.
+  const ready = await page
+    .locator("html[data-app-ready]")
+    .waitFor({ state: "attached", timeout: READY_TIMEOUT_MS })
+    .then(() => true)
+    .catch(() => false);
+  await settle(page, MOUNT_SETTLE_MS);
+  const gap = apparatusGap({ url, ready, bridge: await hasOrbBridge(page), readyTimeoutMs: READY_TIMEOUT_MS });
+  if (gap !== null) {
+    reportInstrumentError(url, gap);
+    return null;
+  }
+  const environment = await barrier(
+    url,
+    "the requested browser environment",
+    (message) => `runtime environment observation failed — the requested device/viewport/pointer arm cannot be proven, so this run refuses: ${message}`,
+    () => readBrowserEnvironment(page, session.environmentContract),
+  );
+  if (!environment.ok) {
+    return null;
+  }
+  const reach = await barrier(
+    url,
+    "the post-reach evidence reset",
+    (message) => `resetEvidence failed after reaching the surface — stale reach evidence could fabricate the verdict, so this run refuses: ${message}`,
+    () => driveReach(page, opts.reach),
+  );
+  if (!reach.ok) {
+    return null;
+  }
+  const settled = await barrier(
+    url,
+    "the motion flagger settle barrier",
+    (message) => `motionFlaggersSettled failed before measurement — the dead-class census is incomplete, so this run refuses: ${message}`,
+    () => page.evaluate(SETTLE_FLAGGERS),
+  );
+  if (!settled.ok) {
+    return null;
+  }
+  const measuredClick = await prepareMeasuredClick(page, opts.selector);
+  if (!(await resetBeforeMeasuredClick(page, url, opts.selector))) {
+    return null;
+  }
+  return { page, cdp, environment: environment.value, reachFailures: reach.value, measuredClick };
+}
+
+async function measureMotionRun(opts: Args, url: string, session: ProbeSession): Promise<MotionAuditRunResult> {
+  const prepared = await prepareMotionRun(opts, url, session);
+  if (prepared === null) {
+    return { code: EXIT.toolError, data: null };
+  }
+  const data = await runAudit(prepared.page, prepared.cdp, opts, prepared.measuredClick);
+  const load = withholdRate("motion-audit's dropped-frame rate");
+  if (load.withheld) {
+    reportInstrumentError(url, loadWithholdGap(load.reason));
+    return { code: EXIT.toolError, data: null };
+  }
+  const applicationMotion = await readApplicationMotion(prepared.page, opts, session.contexts[0]?.settingsEvidence.appearanceApplied ?? null);
+  const withErrors: AuditData = {
+    ...data,
+    environment: prepared.environment,
+    applicationMotion,
+    pageErrors: [...session.pageErrors],
+    reachFailures: prepared.reachFailures,
+  };
+  if (opts.out !== null || opts.json) {
+    const jsonPath = await artifactFile("motion-audit", opts.out ?? routeSlug(opts.route), ".json");
+    await writeFile(jsonPath, JSON.stringify({ args: opts, url, data: withErrors }, null, 2));
+    print(`json        ${jsonPath}`);
+  }
+  return { code: report(url, opts, withErrors), data: withErrors };
 }
 
 export async function runMotionAuditDetailed(opts: Args): Promise<MotionAuditRunResult> {
@@ -175,95 +266,7 @@ export async function runMotionAuditDetailed(opts: Args): Promise<MotionAuditRun
   }
 
   const session = await openSession(opts, attach);
-  return await withProbeSession(session, async () => {
-    const { page } = session;
-    const cdp = await session.context.newCDPSession(page);
-
-    await applyCpuThrottle(cdp, opts.throttle);
-
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
-    // The readiness outcome is KEPT, not swallowed (#515). Discarding it here is what let a cold-vite boot
-    // timeout be reported as "the __orb dev bridge is ABSENT" on a page that has the whole bridge.
-    // @orb-gate-ignore caught-failure-ownership(promise:waitFor): false feeds apparatusGap, which emits INSTRUMENT ERROR instead of a motion verdict. Ends if readiness stops gating measurement.
-    const ready = await page
-      .locator("html[data-app-ready]")
-      .waitFor({ state: "attached", timeout: READY_TIMEOUT_MS })
-      .then(() => true)
-      .catch(() => false);
-    await settle(page, MOUNT_SETTLE_MS);
-
-    // The INPUT CONTRACT, checked before a single number is produced: `__orb` is app-only, and without it
-    // every budget arm below reads its absent evidence as a clean zero. Absent apparatus ⇒ no verdict —
-    // and WHICH apparatus was absent decides whether the operator retries or opens the client.
-    const gap = apparatusGap({ url, ready, bridge: await hasOrbBridge(page), readyTimeoutMs: READY_TIMEOUT_MS });
-    if (gap !== null) {
-      reportInstrumentError(url, gap);
-      return { code: EXIT.toolError, data: null };
-    }
-
-    const environment = await barrier(
-      url,
-      "the requested browser environment",
-      (m) => `runtime environment observation failed — the requested device/viewport/pointer arm cannot be proven, so this run refuses: ${m}`,
-      () => readBrowserEnvironment(page, session.environmentContract),
-    );
-    if (!environment.ok) {
-      return { code: EXIT.toolError, data: null };
-    }
-
-    // Reach the surface FIRST (and reset the evidence it produced), then trace the measured window.
-    const reach = await barrier(
-      url,
-      "the post-reach evidence reset",
-      (m) => `resetEvidence failed after reaching the surface — stale reach evidence could fabricate the verdict, so this run refuses: ${m}`,
-      () => driveReach(page, opts.reach),
-    );
-    if (!reach.ok) {
-      return { code: EXIT.toolError, data: null };
-    }
-    // The dead-class flagger's one full census is dev-instrument work. requestIdleCallback can postpone it
-    // until the first later mutation, so explicitly settle it outside the product interaction window.
-    const settled = await barrier(
-      url,
-      "the motion flagger settle barrier",
-      (m) => `motionFlaggersSettled failed before measurement — the dead-class census is incomplete, so this run refuses: ${m}`,
-      () => page.evaluate(SETTLE_FLAGGERS),
-    );
-    if (!settled.ok) {
-      return { code: EXIT.toolError, data: null };
-    }
-    const measuredClick = await prepareMeasuredClick(page, opts.selector);
-    if (!(await resetBeforeMeasuredClick(page, url, opts.selector))) {
-      return { code: EXIT.toolError, data: null };
-    }
-
-    const data = await runAudit(page, cdp, opts, measuredClick);
-    // THE RATE WITHHOLD (#1232 §7.1), judged HERE — after every apparatus barrier, immediately before the
-    // verdict. This instrument's only verdict members are measured RATES (dropped-frame %, CLS, LoAF), and
-    // load does not scale a rate, it destroys it: identical code read 47.54% at per-core 1.04, then 10%,
-    // then clean (#1040). So on a contended box it declines to vote — exit 2, "could not measure", naming
-    // the box.
-    //
-    // WHY NOT BEFORE THE BROWSER (which would be cheaper): the apparatus refusals above are facts about the
-    // PAGE — no `__orb` bridge, no composited frame, a failed evidence reset — and each is strictly more
-    // specific than "the box was busy". Withholding first would replace every one of them with a load
-    // message on a contended box, which is the same information loss as the false verdict this prevents.
-    // The page's own refusal wins; the box only gets to speak when the page had nothing wrong with it.
-    const load = withholdRate("motion-audit's dropped-frame rate");
-    if (load.withheld) {
-      reportInstrumentError(url, loadWithholdGap(load.reason));
-      return { code: EXIT.toolError, data: null };
-    }
-    const applicationMotion = await readApplicationMotion(page, opts, session.contexts[0]?.settingsEvidence.appearanceApplied ?? null);
-    const withErrors: AuditData = {
-      ...data,
-      environment: environment.value,
-      applicationMotion,
-      pageErrors: [...session.pageErrors],
-      reachFailures: reach.value,
-    };
-    return { code: report(url, opts, withErrors), data: withErrors };
-  });
+  return await withProbeSession(session, async () => await measureMotionRun(opts, url, session));
 }
 
 export async function runMotionAudit(opts: Args): Promise<number> {

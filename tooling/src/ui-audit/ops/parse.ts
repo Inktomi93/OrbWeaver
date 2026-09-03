@@ -9,11 +9,10 @@ import {
   loadAppearancePreset,
   parseAppearancePatch,
 } from "@orb/tooling/_shared/appearance-flags";
-import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
-import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
-import { aliasRefusal, crossToolAdminRefusal, HELP_FLAGS, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
+import { DEFAULT_VIEWPORT, MOBILE_DEVICE, WIDE_VIEWPORT } from "@orb/tooling/_shared/browser-environment";
+import { aliasRefusal, crossToolAdminRefusal, HELP_FLAGS, REDUCED_MOTION_FLAG, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
 import type { NavMethod } from "@orb/tooling/_shared/nav";
 import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS } from "@orb/tooling/_shared/panel-flags";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS } from "@orb/tooling/_shared/theme";
@@ -25,7 +24,6 @@ import { stageArgErrors } from "../lib/stage-request.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
-const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 type FlagHandler = (args: Args, rest: string[]) => void;
 
 function pushNav(args: Args, method: NavMethod, rest: string[]): void {
@@ -93,6 +91,9 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--out": (a, rest) => {
     a.out = rest.shift() ?? null;
   },
+  "--json": (a) => {
+    a.json = true;
+  },
   "--base": (a, rest) => {
     a.base = rest.shift() ?? DEFAULT_BASE;
     a.baseExplicit = true;
@@ -128,9 +129,22 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--mobile": (a) => {
     a.device = MOBILE_DEVICE;
   },
+  "--wide": (a) => {
+    a.viewport = WIDE_VIEWPORT;
+    a.device = null;
+  },
   "--desktop": (a) => {
     a.viewport = DEFAULT_VIEWPORT;
     a.device = null;
+  },
+  "--dark": (a) => {
+    a.colorScheme = "dark";
+  },
+  "--light": (a) => {
+    a.colorScheme = "light";
+  },
+  [REDUCED_MOTION_FLAG]: (a) => {
+    a.reducedMotion = true;
   },
   "--matrix": (a) => {
     a.matrix = true;
@@ -245,8 +259,11 @@ export function parseAuditArgs(argv: string[]): Args {
     actions: [],
     waitMs: DEFAULT_SETTLE_MS,
     out: null,
+    json: false,
     viewport: DEFAULT_VIEWPORT,
     device: null,
+    colorScheme: null,
+    reducedMotion: false,
     failOn: DEFAULT_FAIL_ON,
     appearance: null,
     theme: null,
@@ -267,9 +284,19 @@ export function parseAuditArgs(argv: string[]): Args {
   // still before anything runs, so a conflicting pair never boots a stage or a browser.
   args.errors.push(...stageArgErrors(args));
   if (args.matrix) {
-    const overridden = ["--viewport", "--mobile", "--desktop", "--appearance", "--appearance-preset", "--full-motion", "--theme"].filter((flag) =>
-      argv.includes(flag),
-    );
+    const overridden = [
+      "--viewport",
+      "--wide",
+      "--mobile",
+      "--desktop",
+      "--dark",
+      "--light",
+      REDUCED_MOTION_FLAG,
+      "--appearance",
+      "--appearance-preset",
+      "--full-motion",
+      "--theme",
+    ].filter((flag) => argv.includes(flag));
     if (overridden.length > 0) {
       args.errors.push(`--matrix owns appearance/theme/device axes; drop: ${overridden.join(", ")}`);
     }

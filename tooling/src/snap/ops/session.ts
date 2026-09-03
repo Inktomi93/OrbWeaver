@@ -5,8 +5,9 @@ import { unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { artifactDir } from "../../_shared/artifact-out.ts";
-import type { LocalStorageSeed, ProbeLaunchOptions, ProbeSession } from "../../_shared/browser.ts";
 import { closeProbeSession, closeProbeSessionAfterError, launchProbeSession } from "../../_shared/browser.ts";
+import { openProbeContext, probeSessionForContext } from "../../_shared/browser-context.ts";
+import type { LocalStorageSeed, ProbeContext, ProbeLaunchOptions, ProbeSession } from "../../_shared/browser-contract.ts";
 import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
 import { readBrowserEnvironment } from "../../_shared/browser-environment.ts";
 import type { DebuggingProfile } from "../../_shared/debugging-endpoint.ts";
@@ -89,6 +90,30 @@ export async function finishSession(session: ProbeSession, failed: boolean, name
   }
   await Promise.all(recordedHars.map(async (path) => (existsSync(path) ? await unlink(path) : undefined)));
   return { traces, hars: [] };
+}
+
+/** A matrix cell owns one disposable context inside a daemon browser. Its trace/HAR contract stays the
+ *  ordinary one-shot contract, but closing this context must never close the session browser. */
+export async function finishSnapContext(context: ProbeContext, failed: boolean, name: string, enabled: boolean): Promise<FailureArtifacts> {
+  let traces: string[] = [];
+  if (enabled) {
+    const traceDir = await artifactDir("traces");
+    const tracePath = join(traceDir, `${name}.zip`);
+    if (failed) {
+      await context.context.tracing.stop({ path: tracePath });
+      traces = [tracePath];
+    } else {
+      await context.context.tracing.stop();
+    }
+  }
+  await context.context.close();
+  if (failed) {
+    return { traces, hars: context.harPath === null ? [] : [context.harPath] };
+  }
+  if (context.harPath !== null && existsSync(context.harPath)) {
+    await unlink(context.harPath);
+  }
+  return { traces: [], hars: [] };
 }
 
 type LaunchExtras = Partial<Pick<ProbeLaunchOptions, "pages" | "contexts" | "contextCookies" | "cookieDomain">> & {
@@ -189,6 +214,28 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
     return await closeProbeSessionAfterError(session, error);
   }
   return session;
+}
+
+/** Build one isolated matrix-cell context within the daemon's already-launched Chromium. The context gets
+ *  its own emulation, settings shim, capture rings and optional failure artifacts; the returned view keeps
+ *  existing capture operations honest about which cell they are reading. */
+export async function openSnapMatrixContext(
+  owner: ProbeSession,
+  opts: Args,
+  name: string,
+): Promise<{ readonly context: ProbeContext; readonly session: ProbeSession }> {
+  const traceDir = opts.failureEvidence ? await artifactDir("traces") : null;
+  const context = await openProbeContext(owner.browser, buildLaunchOptions(opts, name, traceDir, { cascade: null, debugging: null }), 0);
+  const session = probeSessionForContext(owner, context);
+  const cascade = CASCADE_RUNTIMES.get(owner);
+  if (cascade !== undefined) {
+    CASCADE_RUNTIMES.set(session, cascade);
+  }
+  const profile = DEBUG_PROFILES.get(owner);
+  if (profile !== undefined) {
+    DEBUG_PROFILES.set(session, profile);
+  }
+  return { context, session };
 }
 
 /** Read the live identity of every context through the shared #977 rail. Requested/applied launcher

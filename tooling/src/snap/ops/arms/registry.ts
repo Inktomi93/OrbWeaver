@@ -8,7 +8,7 @@
 // value module in a cycle with every arm — the types stay import-cycle-free where they are, and this file
 // is the composition root, which is exactly the ops/contract split the tool template already draws.
 import type { ResultPair } from "../../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../../_shared/browser.ts";
+import type { ProbeSession } from "../../../_shared/browser-contract.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import type { VerdictDenominator } from "../../../_shared/evidence.ts";
 import type {

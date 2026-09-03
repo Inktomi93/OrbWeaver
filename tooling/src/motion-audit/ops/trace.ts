@@ -2,8 +2,8 @@
 // instrument (the audit owns the ground truth here), the __orb snapshot read after.
 import { errorMessage } from "@orb/kit/error-message";
 import { print } from "@orb/tooling/_shared/artifacts";
-import type { ProbeSession } from "@orb/tooling/_shared/browser";
 import { settle } from "@orb/tooling/_shared/browser";
+import type { ProbeSession } from "@orb/tooling/_shared/browser-contract";
 import type { Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, AuditData, MeasuredClick, TraceEvent } from "../contract/types.ts";

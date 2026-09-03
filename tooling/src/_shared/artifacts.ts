@@ -199,6 +199,18 @@ export function openRunSlot(root: string, instrument: string): RunSlot {
   return { instrument, runId: id, dir, relDir: reportsRelPath(RUNS_SEGMENT, instrument, id), racing };
 }
 
+/** Transfer an already-open slot's in-flight marker to this process without minting another run id. */
+export function transferRunSlotOwnership(root: string, slot: RunSlot): RunSlot {
+  const marker: InflightMarker = {
+    runId: slot.runId,
+    pid: process.pid,
+    checkout: checkoutName(root),
+    startedAt: new Date().toISOString(),
+  };
+  writeFileSync(join(slot.dir, INFLIGHT_MARKER), `${JSON.stringify(marker, null, 2)}\n`);
+  return slot;
+}
+
 /** An absolute path inside the slot, with its parent directory created. */
 export function runFile(slot: RunSlot, ...segments: readonly string[]): string {
   const path = join(slot.dir, ...segments);

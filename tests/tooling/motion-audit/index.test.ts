@@ -844,3 +844,19 @@ test("#1127 a single frame is UNCOMPUTABLE, not 0% -- `raw-frames=1` never print
   expect(framePopulationBasis(FRAME_POPULATION_RESOLUTION_FLOOR - 1)).toBe("collapsed");
   expect(framePopulationBasis(FRAME_POPULATION_RESOLUTION_FLOOR)).toBe("verdict");
 });
+
+test("phase-four where, environment, and artifact flags retain one parsed contract", () => {
+  expect(parseMotionArgs(["/", "--isolated", "--ref", "HEAD", "--wide", "--dark", "--reduced-motion", "--out", "motion", "--json"])).toMatchObject({
+    isolated: true,
+    ref: "HEAD",
+    viewport: { width: 1920, height: 1080 },
+    colorScheme: "dark",
+    osReducedMotion: true,
+    out: "motion",
+    json: true,
+    errors: [],
+  });
+  expect(parseMotionArgs(["--session", "demo", "--isolated"]).errors).toContain(
+    "--session attaches to a live session's browser; --isolated/--ref/--dirty/--fresh boot a stage — pass one",
+  );
+});

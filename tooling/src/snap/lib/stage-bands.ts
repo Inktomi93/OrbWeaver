@@ -88,6 +88,11 @@ export function stageSweepVerdict(evidence: StageSweepEvidence, ttlMs: number): 
   if (!evidence.bandIsStageRooted) {
     return "live";
   }
+  // A live daemon normally fences its band. Once that daemon has recorded the stage DEAD, the fence has
+  // served its purpose: the stage is unusable and sweep must free it immediately, not one TTL later.
+  if (evidence.row?.dead !== undefined) {
+    return "stranded";
+  }
   if (evidence.liveSessions.length > 0) {
     return "live";
   }
@@ -114,6 +119,9 @@ export function rowIsDangling(row: StageRow | null, verdict: StageSweepVerdict):
 function viewIsStranded(view: StageBandView, nowMs: number, ttlMs: number): boolean {
   if (view.row === null) {
     return false;
+  }
+  if (view.row.dead !== undefined) {
+    return true;
   }
   return (
     stageSweepVerdict(
@@ -197,9 +205,10 @@ export function describeStageBandRow(view: StageBandView, nowMs: number): string
     return `  band ${view.band}  ${view.bandBound ? "BOUND by a process no row accounts for — `--stage-sweep` identifies it" : "free"}`;
   }
   const sessions = view.liveSessions.length === 0 ? "no live sessions" : `sessions ${view.liveSessions.join(",")}`;
+  const dead = view.row.dead === undefined ? "" : ` · DEAD since ${view.row.dead.detectedAt} during \`${view.row.dead.op}\``;
   return (
     `  band ${view.band}  ${shortSha(view.row.sha)}  owner ${view.row.checkout} · pid ${view.row.ownerPid ?? "unknown"} · ` +
-    `idle ${describeStageAgePhrase(view.row.lastUsedAt, nowMs)} · ${sessions}`
+    `idle ${describeStageAgePhrase(view.row.lastUsedAt, nowMs)} · ${sessions}${dead}`
   );
 }
 

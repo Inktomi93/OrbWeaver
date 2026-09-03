@@ -88,7 +88,7 @@
     "test": "node scripts/vitest-supervised.mjs run --project unit --project integration --project integration-serial --project contract --project live-drive --reporter=default --reporter=json --outputFile.json=reports/test-report.json && pnpm test:ct --retries=2",
     "test:types": "nice -n 19 vitest run --project types",
     "test:coverage": "nice -n 19 vitest run --coverage",
-    "test:ct": "rm -rf playwright/.cache && nice -n 19 playwright test -c playwright-ct.config.ts",
+    "test:ct": "nice -n 19 node tooling/src/verify/cli.ts scoped-test ct",
     "test:scoped": "nice -n 19 node tooling/src/verify/cli.ts scoped-test node",
     "ct:scoped": "nice -n 19 node tooling/src/verify/cli.ts scoped-test ct",
     "e2e": "nice -n 19 playwright test -c playwright.config.ts",

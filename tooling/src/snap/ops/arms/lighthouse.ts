@@ -31,7 +31,7 @@ import type { Page as PuppeteerPage } from "puppeteer-core";
 import { artifactFile } from "../../../_shared/artifact-out.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { print } from "../../../_shared/artifacts.ts";
-import type { ProbeSession } from "../../../_shared/browser.ts";
+import type { ProbeSession } from "../../../_shared/browser-contract.ts";
 import { MOBILE_DEVICE } from "../../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import type { EvidenceGap } from "../../../_shared/evidence.ts";

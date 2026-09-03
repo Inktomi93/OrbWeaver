@@ -28,6 +28,7 @@ import {
   SHORT_SHA_LEN,
   STAGE_INHERITED_ENV_KEYS,
   STAGE_LAUNCHER_RELS,
+  selectsTeardownRow,
   shortSha,
   stageBandClaim,
   stageBandRefusal,
@@ -341,6 +342,15 @@ test("teardown consent REFUSES a foreign stage that is still in use — until --
   expect(teardownConsent({ ...foreign, force: false })).toBe("refuse");
   // #108's mechanism SURVIVES: any checkout can still tear down any stage — it just has to say so.
   expect(teardownConsent({ ...foreign, force: true })).toBe("allow");
+});
+
+test("F7 teardown selection is owner-targeted per band — bare --force never widens the owned-row default", () => {
+  const ours = active({ checkout: MAIN_CHECKOUT });
+  const sibling = active({ checkout: LANE_CHECKOUT });
+  expect(selectsTeardownRow(ours, MAIN_CHECKOUT, null)).toBe(true);
+  expect(selectsTeardownRow(sibling, MAIN_CHECKOUT, null)).toBe(false);
+  expect(selectsTeardownRow(ours, MAIN_CHECKOUT, LANE_CHECKOUT)).toBe(false);
+  expect(selectsTeardownRow(sibling, MAIN_CHECKOUT, LANE_CHECKOUT)).toBe(true);
 });
 
 test("the foreign-teardown refusal names the owner, the idle age, and the flag that overrides it", () => {

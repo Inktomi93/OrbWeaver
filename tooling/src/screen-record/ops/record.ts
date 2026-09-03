@@ -2,8 +2,8 @@
 // transcribe the perf/motion console channels alongside the step timeline.
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
-import type { ProbeSession } from "@orb/tooling/_shared/browser";
 import { attachProbeSession, buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
+import type { ProbeSession } from "@orb/tooling/_shared/browser-contract";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -44,8 +44,9 @@ async function launchOrAttach(opts: Args, videoDir: string): Promise<Attached | 
     const session = await launchProbeSession({
       headless: true,
       viewport: opts.viewport,
-      colorScheme: null,
-      reducedMotion: false, // a motion probe wants the real animations
+      device: opts.device,
+      colorScheme: opts.colorScheme,
+      reducedMotion: opts.reducedMotion,
       localStorage: [],
       recordVideoDir: videoDir,
     });
@@ -60,8 +61,8 @@ async function launchOrAttach(opts: Args, videoDir: string): Promise<Attached | 
   return { session, base: opts.baseExplicit ? opts.base : attach.row.binding.url };
 }
 
-export async function recordVideo(opts: Args, outDir: string): Promise<Recording> {
-  const videoDir = join(outDir, `.video-${opts.out}`);
+export async function recordVideo(opts: Args, outDir: string, outStem: string = opts.out): Promise<Recording> {
+  const videoDir = join(outDir, `.video-${outStem}`);
   await rm(videoDir, { recursive: true, force: true });
 
   const attached = await launchOrAttach(opts, videoDir);

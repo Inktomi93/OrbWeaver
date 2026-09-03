@@ -38,3 +38,17 @@ test("viewport accepts exact ASCII decimal dimensions only", () => {
     expect(parseRecordArgs(["--viewport", raw]).errors).toContain("--viewport requires WIDTHxHEIGHT positive integers");
   }
 });
+
+test("phase-four where, environment, and artifact flags feed the recording launch contract", () => {
+  expect(parseRecordArgs(["/", "--ref", "HEAD", "--wide", "--mobile", "--dark", "--reduced-motion", "--out", "./tmp/tape", "--json"])).toMatchObject({
+    isolated: true,
+    ref: "HEAD",
+    device: "iPhone 14 Pro Max",
+    colorScheme: "dark",
+    reducedMotion: true,
+    out: "./tmp/tape",
+    json: true,
+    errors: [],
+  });
+  expect(parseRecordArgs(["--dirty", "--ref", "HEAD"]).errors).toContain("--dirty stages the WORKING TREE and --ref stages a commit — pass one");
+});
