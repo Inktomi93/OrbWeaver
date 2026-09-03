@@ -8,10 +8,18 @@
 // `record` cannot each mint their own copy of its name or its help text. `--base`/`--isolated`/`--ref`/
 // `--dirty`/`--fresh` — WHERE_FLAGS' other §4.3 members — stay hand-spelled per tool for now: moving them
 // here is a BYTE-STABILITY-checked migration of its own (a value change owes the `tests/**` literal
-// sweep), not a side effect of adding one new flag. §4.3's remaining families land here in slice 2 of
-// #1290 (ENVIRONMENT_FLAGS + its alias resolution, SESSION_ADMIN_FLAGS/STAGE_ADMIN_FLAGS refusal-with-
-// pointer, ARTIFACT_FLAGS, and WHERE_FLAGS' other members) — this commit (slice 1) adds HELP_FLAGS and
-// ALIAS_REFUSALS only, the two families the pain census (§1 P5) measured the most hits against.
+// sweep), not a side effect of adding one new flag. Slice 1 (#1290) added HELP_FLAGS and ALIAS_REFUSALS
+// (the two families the pain census, §1 P5, measured the most hits against) and design-audit's --wait ->
+// --settle rename (F1). Slice 2 adds SESSION_ADMIN_FLAGS/STAGE_ADMIN_FLAGS refusal-with-pointer.
+//
+// ENVIRONMENT_FLAGS and ARTIFACT_FLAGS are DEFERRED (not slice 2): unlike HELP_FLAGS/ALIAS_REFUSALS/the
+// admin families above, most of their §4.3 members (--dark/--light/--wide/--reduced-motion; --json) exist
+// on SNAP ONLY today — design-audit/motion-audit/perf-meter/record never had them. Promoting them into a
+// shared table those tools' parsers then wire is not a spelling refactor, it is GRANTING each sibling tool
+// flags it never had — a real feature addition with its own byte-stability receipt and its own case for
+// why that tool needs OS dark/light emulation or a --json manifest, not a side effect of unifying names
+// that already agree. `--viewport`/`--mobile`/`--desktop` DO already agree across all five tools and are
+// safe to promote later as a pure-spelling move; the fork is reported in #1290's closing note.
 
 /** HELP_FLAGS (§4.3): every tool prints its help and exits 0 on either spelling. Before this family,
  *  `--help`/`-h` was an UNKNOWN FLAG (exit 3) on every tool but snap — measured 34 hits across
@@ -48,6 +56,34 @@ export const SESSION_FLAG = "--session";
 /** WHERE_FLAGS (§4.3): today this family has exactly one member a sibling tool's parser wires — see the
  *  header note on why `--base`/`--isolated`/`--ref`/`--dirty`/`--fresh` are not here yet. */
 export const WHERE_FLAGS: ReadonlySet<string> = new Set([SESSION_FLAG]);
+
+/** SESSION_ADMIN_FLAGS (§4.3): snap-only — the sibling four are refused BY NAME with a pointer (below),
+ *  never a bare "unknown flag". */
+export const SESSION_ADMIN_FLAGS: ReadonlySet<string> = new Set([
+  "--session-status",
+  "--session-close",
+  "--session-sweep",
+  "--session-export",
+  "--session-ttl",
+]);
+
+/** STAGE_ADMIN_FLAGS (§4.3): snap-only (unchanged ruling: one lifecycle owner). `--force` is shared with
+ *  SESSION_ADMIN_FLAGS' teardown-consent shape (#447) rather than doubled in both sets. */
+export const STAGE_ADMIN_FLAGS: ReadonlySet<string> = new Set(["--stage-status", "--stage-down", "--stage-sweep", "--force"]);
+
+/** A sibling tool's scanArgv calls this on every unknown flag BEFORE the generic "unknown flag" and before
+ *  `aliasRefusal` (session/stage admin is a STRONGER refusal than "did you mean" — it names the one home,
+ *  not a synonym). Snap itself never calls this: it owns SESSION_ADMIN_FLAGS/STAGE_ADMIN_FLAGS, so they
+ *  are never unknown there and this branch is unreached. */
+export function crossToolAdminRefusal(flag: string): string | null {
+  if (SESSION_ADMIN_FLAGS.has(flag)) {
+    return `unknown flag ${flag} — session admin is snap's: pnpm snap --session-status|--session-close|--session-sweep|--session-export|--session-ttl`;
+  }
+  if (STAGE_ADMIN_FLAGS.has(flag)) {
+    return `unknown flag ${flag} — stage admin is snap's: pnpm snap --stage-status|--stage-down|--stage-sweep`;
+  }
+  return null;
+}
 
 /** The `--session <name>` help row, shared verbatim so the four sibling `--help` blocks describe the
  *  identical contract instead of four hand-written paraphrases drifting apart. */

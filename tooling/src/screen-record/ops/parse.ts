@@ -4,7 +4,7 @@
 import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
-import { aliasRefusal, HELP_FLAGS, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
+import { aliasRefusal, crossToolAdminRefusal, HELP_FLAGS, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { DEFAULT_FRAMES_OFFSET_MS, DEFAULT_SETTLE_MS } from "../contract/defaults.ts";
 import type { Args, Step } from "../contract/types.ts";
@@ -127,7 +127,7 @@ const KNOWN_FLAGS = new Set([...VALUE_FLAGS, ...HELP_FLAGS]);
 
 function scanValueFlag(token: string, value: string | undefined): readonly [error: string | null, consumesValue: boolean] {
   if (!VALUE_FLAGS.has(token)) {
-    return [aliasRefusal(token, KNOWN_FLAGS) ?? `unknown flag ${token}`, false];
+    return [crossToolAdminRefusal(token) ?? aliasRefusal(token, KNOWN_FLAGS) ?? `unknown flag ${token}`, false];
   }
   if (value === undefined || value.startsWith("--")) {
     return [`${token} requires a value`, false];
