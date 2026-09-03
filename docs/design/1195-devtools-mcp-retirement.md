@@ -56,7 +56,7 @@ dominating — the period before snap grew its drive arms.
    THAT browser and hands Lighthouse the handle for the exact target Playwright is driving (matched by CDP
    target id) — one browser, one page, one device story. Findings RED the run (exit 1) like `--contrast`;
    a not-ready page, a Lighthouse throw or a truncated report REFUSE with exit 2. Pins:
-   `tests/tooling/snap/ops/lighthouse.int.test.ts` (planted `label-content-name-mismatch` reported by name
+   `tests/tooling/snap/ops/arms/lighthouse.int.test.ts` (planted `label-content-name-mismatch` reported by name
 
    - clean twin at `failed-audits=0` over `audited=19` + the not-ready refusal),
      `tests/tooling/snap/lib/lighthouse-report.test.ts`. Live receipt (isolated stage, plugins pane,
@@ -78,7 +78,7 @@ dominating — the period before snap grew its drive arms.
    SECOND, ordered log rather than a widening of `_shared/browser-capture.ts`'s URL-keyed map: the question
    is "which reads did this surface issue", and a re-read of the same route is the answer. An undeclared
    `content-length` prints `size=unknown` and an unfinished request `ms=unfinished` — never 0. Pins:
-   `tests/tooling/snap/ops/request-log.int.test.ts` (a fixture whose requests are known by name, the filter
+   `tests/tooling/snap/ops/arms/requests.int.test.ts` (a fixture whose requests are known by name, the filter
    arm, the no-match arms, and a body cut at `truncatedAt=16384`),
    `tests/tooling/snap/lib/request-log.test.ts`. Live receipt (same stage run): `requests=2445`, 18 of them
    matching `--requests trpc`, with per-request status/size/timing and the aborted vite-dep re-reads shown
