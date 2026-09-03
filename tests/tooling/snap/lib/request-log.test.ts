@@ -1,6 +1,6 @@
 // The PURE half of snap's request-log arm (#1199): the URL-substring filter, the body cap's truncation
 // ACCOUNTING, and the printed block. The browser-backed proof that the recorder sees a real page's
-// requests is the sibling tests/tooling/snap/ops/request-log.int.test.ts.
+// requests is the sibling tests/tooling/snap/ops/arms/requests.int.test.ts.
 import type { RequestLogEntry, RequestLogReceipt } from "../../../../tooling/src/snap/index.ts";
 import { capBody, filterRequests, matchesRequestFilter, REQUEST_BODY_CAP_BYTES, requestLogLines } from "../../../../tooling/src/snap/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

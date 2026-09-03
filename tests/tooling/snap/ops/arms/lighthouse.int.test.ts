@@ -13,8 +13,8 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { vi } from "vitest";
-import { expect, test } from "../../../support/tool-fixtures.ts";
-import { scaledBudget } from "../../_load-budget.ts";
+import { expect, test } from "../../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(180_000);
 vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });

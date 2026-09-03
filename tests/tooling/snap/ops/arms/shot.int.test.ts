@@ -9,8 +9,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { vi } from "vitest";
-import { expect, test } from "../../../support/tool-fixtures.ts";
-import { scaledBudget } from "../../_load-budget.ts";
+import { expect, test } from "../../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../../_load-budget.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);
 
