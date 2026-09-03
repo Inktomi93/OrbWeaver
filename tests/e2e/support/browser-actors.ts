@@ -3,10 +3,11 @@
 // as the host and as a member in one run and compare what each actually SEES.
 //
 // WHY IT EXISTS: `snap --contexts N` is the ordinary tool for two-human pixels, but it targets the
-// multi-user FIXTURE stack, which reuses the SHARED dev ports 8788/5173 verbatim
-// (tooling/src/snap/ops/fixture.ts: `FIXTURE_SERVER_PORT = 8788`, and its header — "it must be running
-// INSTEAD of the shared stack, never alongside it"). So `--contexts` is unusable whenever the operator's
-// dev stack is up, and using it means stopping their box. The `local` Playwright project already boots a
+// multi-user FIXTURE stack, which is a MANUALLY-RAISED sidecar — `pnpm fixture up`, never something a
+// screenshot tool boots (tooling/src/snap/ops/fixture.ts only DETECTS it). So `--contexts` yields nothing
+// in an unattended run. (Its ports stopped colliding with the dev pair in 2026-08-03 and both pairs are
+// registry rows now — `tooling/src/_shared/ports.ts` `DEV_PORTS`/`FIXTURE_PORTS`, #1271 — so the old
+// "it reuses the dev ports" reason recorded here was stale.) The `local` Playwright project already boots a
 // genuinely isolated multi-human stack (own ports, own DB, `E2E_HARNESS=on`, seeded owner+member), so the
 // two-human PIXELS belong here, next to the two-human wire drives.
 //

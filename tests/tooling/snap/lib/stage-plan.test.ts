@@ -8,11 +8,10 @@
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DEV_PORTS } from "../../../../tooling/src/_shared/ports.ts";
 import type { ActiveStage } from "../../../../tooling/src/snap/contract/stage.ts";
 import {
   bandAccess,
-  DEV_SERVER_PORT,
-  DEV_VITE_PORT,
   DIRTY_STAGE_KEY,
   describeStageAge,
   describeStageAgePhrase,
@@ -66,9 +65,9 @@ test("stagePorts offsets BOTH dev ports into the free band by default (8788→88
 
 test("stagePorts honors a custom offset and never overlaps the dev pair", () => {
   const ports = stagePorts(250);
-  expect(ports).toEqual({ server: DEV_SERVER_PORT + 250, vite: DEV_VITE_PORT + 250 });
-  expect(ports.server).not.toBe(DEV_SERVER_PORT);
-  expect(ports.vite).not.toBe(DEV_VITE_PORT);
+  expect(ports).toEqual({ server: DEV_PORTS.server + 250, vite: DEV_PORTS.vite + 250 });
+  expect(ports.server).not.toBe(DEV_PORTS.server);
+  expect(ports.vite).not.toBe(DEV_PORTS.vite);
 });
 
 test("stageBaseUrl uses localhost (vite v8 binds [::1] only), not 127.0.0.1", () => {

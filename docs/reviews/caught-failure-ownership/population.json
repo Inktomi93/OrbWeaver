@@ -5051,7 +5051,7 @@
     {
       "siteId": "tooling/src/snap/ops/fixture.ts::default:catch::1",
       "path": "tooling/src/snap/ops/fixture.ts",
-      "line": 94,
+      "line": 95,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5059,12 +5059,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "fail-closed floor — a parse failure returns null, and fixtureStatus() below turns any null into `{ up: false, reason: \"… unreachable\" }`, never a silent pass. Ends if that fail-closed mapping is removed.",
-      "markerLine": 89
+      "markerLine": 90
     },
     {
       "siteId": "tooling/src/snap/ops/fixture.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/fixture.ts",
-      "line": 74,
+      "line": 75,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5072,7 +5072,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented fail-safe floor — keeps the default port, and the status probe below refuses loudly on the same bad URL with a readable reason (see the doc comment above). Ends if that downstream refusal is removed.",
-      "markerLine": 70
+      "markerLine": 71
     },
     {
       "siteId": "tooling/src/snap/ops/guards.ts::empty:e::1",

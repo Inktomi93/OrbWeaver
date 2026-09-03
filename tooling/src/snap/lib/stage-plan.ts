@@ -3,6 +3,7 @@
 // rule, and the DB-bound inherited-env allowlist. The imperative half is ops/stage.ts.
 import { basename, dirname, join } from "node:path";
 import { parseEnv } from "node:util";
+import { DEV_PORTS } from "../../_shared/ports.ts";
 import type {
   ActiveStage,
   BandAccess,
@@ -14,9 +15,8 @@ import type {
   StageSweepVerdict,
 } from "../contract/stage.ts";
 
-// The canonical dev ports (mirrors stack.sh BACKEND_PORT + vite.config strictPort). The stage offsets both.
-export const DEV_SERVER_PORT = 8788;
-export const DEV_VITE_PORT = 5173;
+// The dev pair the stage offsets comes from the ONE port registry (_shared/ports.ts) — it used to be two
+// literals respelled here, which is the hand-picked-pair class the registry was minted to end (#1271).
 // Offset both dev ports into a free band (8788→8888, 5173→5273): dodges the live dev pair. The vLLM engine
 // ports 8701-8703 sit outside this band anyway (the stage ADOPTS the shared fleet — see bootStage's
 // ENGINES_POSTURE pin — it never offsets or spawns engines). One stage runs at a time, so a single fixed
@@ -39,7 +39,7 @@ export function shortSha(sha: string): string {
 }
 
 export function stagePorts(offset: number = STAGE_PORT_OFFSET): StagePorts {
-  return { server: DEV_SERVER_PORT + offset, vite: DEV_VITE_PORT + offset };
+  return { server: DEV_PORTS.server + offset, vite: DEV_PORTS.vite + offset };
 }
 
 /** `localhost`, NOT 127.0.0.1 — vite v8 binds [::1] only (see stack.sh vite_ok()); the IPv4 loopback
