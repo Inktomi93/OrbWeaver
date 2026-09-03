@@ -27,7 +27,8 @@ import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import type { ProbeSession } from "@orb/tooling/_shared/browser";
-import { closeProbeSession, launchProbeSession } from "@orb/tooling/_shared/browser";
+import { attachProbeSession, closeProbeSession, launchProbeSession } from "@orb/tooling/_shared/browser";
+import { reassertOwnerViewport } from "@orb/tooling/_shared/browser-emulation-guard";
 import { chromium } from "@playwright/test";
 import { snapshot } from "lighthouse";
 import puppeteer from "puppeteer-core";
@@ -266,4 +267,97 @@ test("lighthouse audits the page in the session's own browser (snapshot mode, no
 test("an unreachable debugging port THROWS instead of reporting zero failed audits", async () => {
   const port = await freePort();
   await expect(puppeteer.connect({ browserURL: `http://127.0.0.1:${port}`, defaultViewport: null })).rejects.toThrow();
+});
+
+// #1287: PROVEN LIVE against the real `snap --session`/`design-audit --session` pair (not inferred) — an
+// attached sibling's own operations on the page it did not create (a bare `page.screenshot()` is enough)
+// silently re-issue Chromium's device-metrics override without `screenWidth`/`screenHeight`, and the
+// SCREEN half reverts to Chromium's compiled 800x600 default the instant that sibling's CDP session
+// detaches, while `window.innerWidth/innerHeight` (the CSS viewport) survive untouched. The corruption is
+// invisible to the sibling's own run and lands on the OWNER's next read of the same session.
+const CORRUPTIBLE_VIEWPORT = { width: 700, height: 900 } as const;
+const READ_SCREEN_JS = "({w: window.screen.width, h: window.screen.height, iw: window.innerWidth, ih: window.innerHeight})";
+
+async function launchDebuggableAtViewport(profileDir: string): Promise<ProbeSession> {
+  return await launchProbeSession({
+    headless: true,
+    viewport: CORRUPTIBLE_VIEWPORT,
+    colorScheme: null,
+    reducedMotion: false,
+    localStorage: [],
+    persistentProfileDir: profileDir,
+    browserArgs: ["--remote-debugging-port=0"],
+  });
+}
+
+test("#1287: an attached sibling's screenshot corrupts window.screen after it disconnects, and reassertOwnerViewport (the OWNER's own persistent connection) repairs it", async ({
+  scratch,
+}) => {
+  const { server, base } = await startOrigin();
+  const session = await launchDebuggableAtViewport(scratch);
+  try {
+    const endpoint = await debuggingEndpoint(scratch);
+    await session.page.goto(`${base}/owner.html`);
+    const boot = await session.page.evaluate(READ_SCREEN_JS);
+    expect(boot).toStrictEqual({ w: 700, h: 900, iw: 700, ih: 900 });
+
+    // Attach through the ONE real production door (gate arm H) — the same call every sibling instrument
+    // makes (design-audit/motion-audit/perf-meter/record, ops/session-attach.ts).
+    const sibling = await attachProbeSession(endpoint, {
+      viewport: CORRUPTIBLE_VIEWPORT,
+      device: null,
+      colorScheme: null,
+      reducedMotion: false,
+      contrast: null,
+      reducedTransparency: false,
+    });
+    try {
+      await sibling.page.goto(`${base}/sibling.html`);
+      // The proven corrupting op: a screenshot on a page THIS connection did not create (design-audit's
+      // own `resolvePixelBackdrops`, ui-audit/ops/pixels.ts).
+      await sibling.page.screenshot({ animations: "disabled", scale: "css" });
+    } finally {
+      await closeProbeSession(sibling);
+    }
+
+    // PLANTED CONTROL — the defect, still unrepaired: `window.screen` has reverted to Chromium's compiled
+    // 800x600 default while the CSS viewport (`innerWidth`/`innerHeight`) survives untouched. Without this
+    // arm the repair below would prove nothing — the "before" state was never actually shown broken.
+    const corrupted = await session.page.evaluate(READ_SCREEN_JS);
+    expect(corrupted).toStrictEqual({ w: 800, h: 600, iw: 700, ih: 900 });
+
+    // THE FIX — a forced round trip on the OWNER's own persistent connection (session-daemon-call.ts
+    // calls this on every request it serves; the ATTACHING side cannot do this durably — see the file
+    // header of browser-emulation-guard.ts and the "made it worse" note in the issue body).
+    await reassertOwnerViewport(session.page, CORRUPTIBLE_VIEWPORT);
+    const repaired = await session.page.evaluate(READ_SCREEN_JS);
+    expect(repaired).toStrictEqual({ w: 700, h: 900, iw: 700, ih: 900 });
+  } finally {
+    await closeProbeSession(session);
+    await closeOrigin(server);
+  }
+});
+
+test("reassertOwnerViewport refuses to run against a page it did not create — the attached-connection shape it exists to protect FROM, not repair through", async ({
+  scratch,
+}) => {
+  const session = await launchDebuggableAtViewport(scratch);
+  try {
+    const endpoint = await debuggingEndpoint(scratch);
+    const sibling = await attachProbeSession(endpoint, {
+      viewport: CORRUPTIBLE_VIEWPORT,
+      device: null,
+      colorScheme: null,
+      reducedMotion: false,
+      contrast: null,
+      reducedTransparency: false,
+    });
+    try {
+      await expect(reassertOwnerViewport(sibling.page, CORRUPTIBLE_VIEWPORT)).rejects.toThrow(/did not create/u);
+    } finally {
+      await closeProbeSession(sibling);
+    }
+  } finally {
+    await closeProbeSession(session);
+  }
 });
