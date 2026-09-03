@@ -225,7 +225,7 @@ describe("design-audit contrast — #624: ONE classifier, shared with snap", () 
     expect(INACTIVE_KIND_EXPR).toContain('aria-labelledby~="');
     expect(INACTIVE_KIND_EXPR).toContain(".control");
     // The BEHAVIOURAL proof of every arm above is the int fixtures
-    // (tests/tooling/ui-audit/ops/walker/census-text.int.test.ts, tests/tooling/snap/ops/contrast.int.test.ts);
+    // (tests/tooling/ui-audit/ops/walker/census-text.int.test.ts, tests/tooling/snap/ops/arms/contrast.int.test.ts);
     // this is the cheap spelling guard that catches a narrowing edit before those have to run a browser.
   });
 });

@@ -12,7 +12,7 @@
 // `--help`, and an arm whose pairs the RESULT spine never claims still reaches the RESULT line. A
 // derivation that silently omitted an arm would read as a clean, complete instrument.
 import type { ResultPair } from "../../../../../tooling/src/_shared/artifacts.ts";
-import type { Arm, ArmPairInput } from "../../../../../tooling/src/snap/contract/arms.ts";
+import type { Arm, ArmArgs, ArmPairInput } from "../../../../../tooling/src/snap/contract/arms.ts";
 import { ARMS } from "../../../../../tooling/src/snap/contract/arms.ts";
 import { SNAP_HELP } from "../../../../../tooling/src/snap/contract/help.ts";
 import { SESSION_ONLY_FLAGS } from "../../../../../tooling/src/snap/lib/session-plan.ts";
@@ -90,10 +90,9 @@ test("the session-level flag set derives from each arm's declared level, not fro
 
 test("every arm defaults its own slice of Args, and parseSnapArgs takes those defaults verbatim", () => {
   const defaults = armArgDefaults();
-  const parsed = parseSnapArgs(["/x"]) as unknown as Record<string, unknown>;
-  const fresh = defaults as unknown as Record<string, unknown>;
-  for (const key of Object.keys(fresh)) {
-    expect(parsed[key], key).toEqual(fresh[key]);
+  const parsed = parseSnapArgs(["/x"]);
+  for (const key of Object.keys(defaults) as (keyof ArmArgs)[]) {
+    expect(parsed[key], key).toEqual(defaults[key]);
   }
   // The factory shape is load-bearing: two parses must not share one arm's queue array.
   const a = parseSnapArgs(["/x", "--eval", "1"]);

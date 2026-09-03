@@ -148,7 +148,7 @@
     "tests/tooling/_shared/browser.int.test.ts",
     "tests/tooling/design-audit-walker.ct.tsx",
     "tests/tooling/snap/cascade.suite.int.test.ts",
-    "tests/tooling/snap/ops/contrast.int.test.ts",
+    "tests/tooling/snap/ops/arms/contrast.int.test.ts",
     // Same #1228 leak, node-fetch-lib flavor: this file's planted `fetch` stand-in types against
     // `RequestInfo` (the whatwg fetch surface tsc sources from lib.dom, not `@types/node`). Homed at
     // tsconfig.tests-dom.json.
