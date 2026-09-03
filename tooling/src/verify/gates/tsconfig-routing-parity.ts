@@ -29,6 +29,10 @@ const CANDIDATE_TSCONFIGS: readonly string[] = [
   "packages/kit/tsconfig.json",
   "packages/contracts/tsconfig.json",
   "tooling/tsconfig.json",
+  // #1274: the DOM-coupled test-escapee program (tsconfig.tests-dom.json) — omitted before, so its 312
+  // roots never entered this gate's reconciliation universe and the routing algebra was never asked
+  // about them at all (the router carried no route for the config either — see program-routing.ts rule 3d).
+  "tsconfig.tests-dom.json",
 ];
 
 const TS_SRC_RE = /\.(?:ts|tsx|mts|cts)$/u;
