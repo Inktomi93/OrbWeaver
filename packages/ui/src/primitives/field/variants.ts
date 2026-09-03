@@ -5,7 +5,17 @@ export const fieldVariants = tv({
     root: "flex w-full flex-col gap-field",
     label: "text-label font-medium leading-label text-foreground data-disabled:opacity-50",
     // inline-flex so the hint trigger sits on the label's baseline instead of dropping to its own line.
-    labelRow: "inline-flex items-center gap-field",
+    // FINE-POINTER-ONLY WIDENING (#1286): HintTrigger renders `size="inline"` here — a 12px icon box whose
+    // layout-neutral touch-target pseudo (button/variants.ts's `inline` arm) is centered on the box and
+    // reaches (--spacing-touch-target − 12px) / 2 past each edge. At a fine pointer that pseudo is 28px,
+    // an 8px reach; the shared `gap-field` (6px, D3 — NOT touched by this fix) left 2px of the pseudo
+    // painted over the label's own text, so `elementFromPoint` at the pseudo's edge resolved to the label
+    // instead of the button (measured live, #1286). At a coarse pointer HintTrigger swaps to a REAL
+    // `size-touch-target` box (hint-trigger/variants.ts) that occupies actual flex space, so 6px is
+    // already correct there — this widening is pointer-fine only. `gap-row` (8px) is the exact next step
+    // on the spacing scale and closes the reach to flush (8 − 8 = 0px overlap) without touching the
+    // `field` intent token, which stays 6px everywhere else it is used (D3).
+    labelRow: "inline-flex items-center gap-field pointer-fine:gap-row",
     hintTrigger: "text-muted-foreground hover:text-foreground",
     description: "text-label leading-label text-muted-foreground",
     error: "text-label leading-label text-destructive",
