@@ -34,6 +34,7 @@ import {
   writeBands,
   writeRow,
 } from "../../../../tooling/src/snap/ops/stage-marker.ts";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -50,6 +51,15 @@ const CONCURRENT_CLAIMERS = 4;
 /** Long enough that four children genuinely overlap inside the critical section on a loaded box — the
  *  whole point is that the lock, not luck, is what serializes them. */
 const CLAIM_HOLD_MS = 150;
+/** EVERY timestamp in this file is stamped from the house frozen instant, and the two arms that judge an
+ *  IDLE AGE hand the verdict the same instant — so "six hours idle" is exactly six hours rather than six
+ *  hours minus however long the run took, and a re-run cannot drift. Nothing here has elapsed WALL CLOCK
+ *  as its subject: the concurrency arm's overlap is enforced by a held lock (`Atomics.wait` inside the
+ *  child's critical section), not by reading a clock, and the live-session fence's subject is a DAEMON PID's
+ *  liveness. The child scripts interpolate this same number, so both processes agree on "now". */
+const FROZEN_ISO = new Date(FROZEN_AT_MS).toISOString();
+/** Six hours before the frozen instant — past every TTL these arms use. */
+const AGED_ISO = new Date(FROZEN_AT_MS - 6 * 60 * MS_PER_MINUTE).toISOString();
 /** The session registry's scratch-home knob (ops/session-registry.ts) — spelled once, so the fence arms
  *  point the REAL `liveSessionNames` reader at a tmpdir instead of the box's live session registry. */
 const SESSION_HOME_KEY = "ORB_SNAP_SESSION_HOME";
@@ -71,8 +81,8 @@ function row(band: number, over: Partial<StageRow> = {}): StageRow {
     vitePort: ports.vite,
     checkout: MAIN_CHECKOUT,
     ownerPid: 4242,
-    startedAt: new Date().toISOString(),
-    lastUsedAt: new Date().toISOString(),
+    startedAt: FROZEN_ISO,
+    lastUsedAt: FROZEN_ISO,
     sessions: [],
     dbProvenance: null,
     rsyncs: 0,
@@ -130,9 +140,10 @@ test("writeRow REPLACES one band and leaves every sibling row standing — a bli
 
 test("touchRow stamps the heartbeat and disturbs NOTHING else the row says", () => {
   const home = scratchHome("touch");
-  const original = row(3, { lastUsedAt: new Date(Date.now() - 6 * 60 * MS_PER_MINUTE).toISOString(), rsyncs: 7 });
+  const original = row(3, { lastUsedAt: AGED_ISO, rsyncs: 7 });
   writeRow(home, original);
-  const stamped = new Date().toISOString();
+  // A DIFFERENT instant from the row's, or "the heartbeat moved" would pass on an unchanged field.
+  const stamped = new Date(FROZEN_AT_MS + MS_PER_MINUTE).toISOString();
   touchRow(home, 3, stamped);
   const after = readBands(home)[0];
   expect(after?.lastUsedAt).toBe(stamped);
@@ -211,6 +222,7 @@ test("a legacy marker on a band the table already holds is dropped — the live 
 // ── concurrency: the mutex is what makes "a band of your own" true ────────────────────────────────────
 
 const CLAIM_CHILD = (home: string, holdMs: number): string => `
+const FROZEN = ${FROZEN_AT_MS};
 import { readBands, withBandsLock, writeRow } from ${JSON.stringify(MARKER_SRC)};
 import { allocateStageBand } from ${JSON.stringify(BANDS_SRC)};
 import { STAGE_BANDS, stageBandPorts } from ${JSON.stringify(PORTS_SRC)};
@@ -233,7 +245,7 @@ const claimed = withBandsLock(HOME, () => {
     dirty: false,
     fresh: false,
     limits: { ttlMs: 3_600_000, cap: 10 },
-    nowMs: Date.now(),
+    nowMs: FROZEN,
   });
   if (allocation.kind !== "free") {
     return -1;
@@ -250,8 +262,8 @@ const claimed = withBandsLock(HOME, () => {
     vitePort: ports.vite,
     checkout: process.argv[2],
     ownerPid: process.pid,
-    startedAt: new Date().toISOString(),
-    lastUsedAt: new Date().toISOString(),
+    startedAt: new Date(FROZEN).toISOString(),
+    lastUsedAt: new Date(FROZEN).toISOString(),
     sessions: [],
     dbProvenance: null,
     rsyncs: 0,
@@ -301,19 +313,20 @@ import { liveSessionNames } from ${JSON.stringify(REGISTRY_SRC)};
 
 const HOME = ${JSON.stringify(home)};
 const NAME = "p-live-lane";
+const FROZEN = ${FROZEN_AT_MS};
 // The daemon's own call: bind the session name onto the band row it drives. Binding is itself an
 // interaction, so it stamps the heartbeat — which would hide the very thing this arm measures. Re-age the
 // row afterwards so the ONLY thing that can save it is the session ref.
-bindSessionToBand(HOME, 0, NAME, new Date().toISOString());
+bindSessionToBand(HOME, 0, NAME, new Date(FROZEN).toISOString());
 const bound = readBands(HOME).find((r) => r.band === 0);
-writeRow(HOME, { ...bound, lastUsedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString() });
+writeRow(HOME, { ...bound, lastUsedAt: new Date(FROZEN - 6 * 60 * 60 * 1000).toISOString() });
 // …and the registry row a live daemon would have written. A pid of 1 is alive but not ours; ${alive ? "this child's own pid IS the daemon" : "a pid nothing owns is DEAD"}.
 const daemonPid = ${alive ? "process.pid" : "2147483646"};
 writeFileSync(join(${JSON.stringify(sessionHome)}, NAME + ".json"), JSON.stringify({
   v: 1, name: NAME, ownerCheckout: "/repo", daemonPid, pgid: daemonPid, socket: "/tmp/x.sock",
   cdpEndpoint: null, slotDir: "/tmp/slot", binding: { kind: "stage", url: "http://localhost:5273" },
   environment: { viewport: { width: 1280, height: 720 }, device: null, colorScheme: null, reducedMotion: false, deviceScaleFactor: null },
-  bootArgv: [], createdAt: new Date().toISOString(), lastUsedAt: new Date().toISOString(),
+  bootArgv: [], createdAt: new Date(FROZEN).toISOString(), lastUsedAt: new Date(FROZEN).toISOString(),
   inflightOp: null, lastOp: null, ttlMs: 1800000, headless: true, calls: 0,
 }));
 
@@ -325,7 +338,7 @@ const verdict = stageSweepVerdict({
   bandIsStageRooted: true,
   bandProcessAgeSeconds: null,
   liveSessions: row.sessions.filter((n) => live.has(n)),
-  nowMs: Date.now(),
+  nowMs: FROZEN,
 }, 60 * 60 * 1000);
 console.log("BOUND " + row.sessions.join(","));
 console.log("VERDICT " + verdict);
@@ -335,7 +348,7 @@ test("A STAGE WITH A LIVE SESSION SURVIVES ITS IDLE TTL — the binding, the reg
   const home = scratchHome("fence-live");
   const sessionHome = scratchHome("fence-live-sessions");
   // The row is SIX HOURS idle: nothing but the session ref can save it.
-  writeRow(home, row(0, { lastUsedAt: new Date(Date.now() - 6 * 60 * MS_PER_MINUTE).toISOString() }));
+  writeRow(home, row(0, { lastUsedAt: AGED_ISO }));
   const child = await runChild({ home, name: "fence", body: FENCE_CHILD(home, sessionHome, true), env: { [SESSION_HOME_KEY]: sessionHome } });
   expect(child.code, child.stdout).toBe(0);
   // The daemon's bind really landed on the row…
@@ -347,7 +360,7 @@ test("A STAGE WITH A LIVE SESSION SURVIVES ITS IDLE TTL — the binding, the reg
 test("…and the SAME six-hour-idle row is STRANDED the moment that daemon is gone", async () => {
   const home = scratchHome("fence-dead");
   const sessionHome = scratchHome("fence-dead-sessions");
-  writeRow(home, row(0, { lastUsedAt: new Date(Date.now() - 6 * 60 * MS_PER_MINUTE).toISOString() }));
+  writeRow(home, row(0, { lastUsedAt: AGED_ISO }));
   const child = await runChild({ home, name: "fence", body: FENCE_CHILD(home, sessionHome, false), env: { [SESSION_HOME_KEY]: sessionHome } });
   expect(child.code, child.stdout).toBe(0);
   expect(child.stdout).toContain("BOUND p-live-lane");
@@ -364,7 +377,7 @@ test("unbindSessionFromBand releases the fence without disturbing the row", () =
   // Idempotent: a close that runs twice must not fail or corrupt the list.
   unbindSessionFromBand(home, 0, "a");
   expect(readBands(home)[0]?.sessions).toEqual(["b"]);
-  bindSessionToBand(home, 0, "b", new Date().toISOString());
+  bindSessionToBand(home, 0, "b", FROZEN_ISO);
   expect(readBands(home)[0]?.sessions).toEqual(["b"]);
 });
 

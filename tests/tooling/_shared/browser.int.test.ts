@@ -10,7 +10,7 @@ import { MOBILE_DEVICE, readBrowserEnvironment } from "@orb/tooling/_shared/brow
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { chromium } from "@playwright/test";
-import { afterAll } from "vitest";
+import { afterAll, vi } from "vitest";
 import type { ChromiumIdentity } from "../../support/chromium-processes.ts";
 import {
   chromiumDescendantIdentities,
@@ -20,6 +20,15 @@ import {
 } from "../../support/chromium-processes.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
+
+// THE FILE-LEVEL CEILING (#1232 residue, measured 2026-09-03). vitest.config.ts states the law for this
+// lane in as many words: its own `testTimeout` is a BACKSTOP and "every file in this lane sets its own
+// `vi.setConfig` from `scaledBudget(...)`". This file declared scaled ceilings for its CHILD PROCESSES
+// and never for the TESTS, so every arm here drove a real Chromium under the parallel lane's unscaled 5 s
+// default and timed out under whole-suite contention while passing standalone. A per-test annotation is
+// not the fix — the arms without one are exactly the ones that flaked.
+// 2x this file's 30 s child ceiling, so a test always outlives the CLI it is waiting on.
+vi.setConfig({ testTimeout: scaledBudget(60_000), hookTimeout: scaledBudget(60_000) });
 
 // 3-up: tests/tooling/_shared → repo root (re-derived at the P2 relocation — the depth-derived-root class).
 const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
