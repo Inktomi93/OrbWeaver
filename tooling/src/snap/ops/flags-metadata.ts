@@ -25,7 +25,7 @@ export interface NonArmFlagMeta {
 }
 
 /** Every flag NOT owned by an arm — the union of the three hand-listed dispatch tables. */
-export const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
+const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--help": { group: "Maintainers only", summary: "print the contract and exit 0" },
   "-h": { group: "Maintainers only", summary: "print the contract and exit 0" },
   "--materialize-devtools-assets": {
@@ -125,10 +125,6 @@ export function nonArmFlagKind(flag: string): "boolean" | "required-value" | "op
     return "optional-name";
   }
   return "boolean";
-}
-
-export function nonArmFlagPageTargetable(flag: string): boolean {
-  return PAGE_TARGET_FLAGS.has(flag);
 }
 
 /** Every flag dispatched by the three hand-listed non-arm tables, deduped, `-h` and `--session-daemon`
