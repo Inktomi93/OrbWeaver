@@ -20,6 +20,27 @@ describe("authorGlobals", () => {
     const fixture = await ruleFixture();
     await expect(authorGlobals(fixture.db, fixture.host)).resolves.toEqual({});
   });
+
+  // #1420 — RESERVED PROPERTY NAMES SURVIVE THE PROJECTION. The key schema is length-bounded and nothing
+  // else, so a user may name a global `__proto__` — and building the map with `out[key] = value` hits the
+  // setter INHERITED from Object.prototype, creating no own property at all. The row existed and `list`/`get`
+  // showed it, while every CEL predicate and every template render saw nothing: a variable that reads as set
+  // everywhere except where it is used. `Object.hasOwn` is the assertion because `toEqual` alone cannot tell
+  // an own `__proto__` from an inherited one.
+  test("a global named __proto__ lands as an OWN key (a reserved name is not a vanishing act)", async () => {
+    const fixture = await ruleFixture();
+    await fixture.db.insert(globalVariables).values([
+      { ownerId: fixture.host, key: "__proto__", value: "sneaky" },
+      { ownerId: fixture.host, key: "constructor", value: "also-fine" },
+      { ownerId: fixture.host, key: "streak", value: "3" },
+    ]);
+    const globals = await authorGlobals(fixture.db, fixture.host);
+    expect(Object.hasOwn(globals, "__proto__")).toBe(true);
+    expect(globals["__proto__"]).toBe("sneaky");
+    expect(globals["constructor"]).toBe("also-fine");
+    // The ordinary key is unaffected — the fix is about which keys survive, not about how they are read.
+    expect(globals["streak"]).toBe("3");
+  });
 });
 
 describe("buildCelEnv", () => {

@@ -6,11 +6,15 @@
 import type { AutomationActionType, ChatTriggerType, DomainTriggerType, TriggerFact } from "@orb/contracts/automation";
 import {
   AUTOMATION_ACTION_TYPES,
+  AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR,
+  AUTOMATION_CHAT_BUDGET_DEFAULTS,
   AUTOMATION_FIRE_OUTCOMES,
+  AUTOMATION_OWNER_BUDGET_DEFAULTS,
   AUTOMATION_TRIGGER_BUSES,
   automationActionSchema,
   automationActionsSchema,
   automationFireOutcomeSchema,
+  automationTriggerFor,
   automationTriggerSchema,
   CHAT_TRIGGER_TYPES,
   DOMAIN_TRIGGER_TYPES,
@@ -20,9 +24,11 @@ import {
   LIVE_TRIGGERS,
   QUICK_REPLY_MODES,
   SPEND_ARM_TYPES,
+  triggerBusOf,
   triggerFactSchema,
 } from "@orb/contracts/automation";
 import { DOMAIN_EVENT_TYPES } from "@orb/contracts/events";
+import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("CHAT_TRIGGER_TYPES is the pinned 16-member chat-bus subset (v1 + reserved, 01 §1)", () => {
@@ -396,4 +402,56 @@ test("triggerFactSchema refuses a malformed / off-taxonomy fact at the trust edg
   expect(triggerFactSchema.safeParse({ type: "character.updated", bus: "chat", chatId: "c" }).success).toBe(false);
   expect(triggerFactSchema.safeParse({ type: "messageCommitted", bus: "domain", chatId: null }).success).toBe(false);
   expect(triggerFactSchema.safeParse({ type: "invented", bus: "chat", chatId: "c" }).success).toBe(false);
+});
+
+// #1433 — `triggerBusOf` is the ONE bus classification, and it reads TUPLE MEMBERSHIP. The watcher front
+// door and `automationTriggerFor` both used to test `type.includes(".")`, which is a claim about today's
+// NAMES rather than about the taxonomy: nothing makes every DomainEventType dot-namespaced or forbids a
+// ChatBusEvent from carrying a dot, and the day either changed, an event would route through the wrong
+// pre-check and the wrong rule loader while sitting correctly in the trigger map.
+describe("triggerBusOf", () => {
+  test("classifies EVERY member of both tuples by membership, and nothing else", () => {
+    for (const type of CHAT_TRIGGER_TYPES) {
+      expect(triggerBusOf(type)).toBe("chat");
+    }
+    for (const type of DOMAIN_TRIGGER_TYPES) {
+      expect(triggerBusOf(type)).toBe("domain");
+    }
+  });
+
+  test("answers NULL for an event on neither tuple — a bus member automation does not trigger on", () => {
+    // A real ChatBusEvent that is not trigger vocabulary, a real DomainEvent mirror that is not either, and
+    // an invented name: none of them can be a stored rule's trigger (the db CHECK derives from the tuples).
+    expect(triggerBusOf("messagesReordered")).toBeNull();
+    expect(triggerBusOf("crew.joined")).toBeNull();
+    expect(triggerBusOf("invented")).toBeNull();
+    // THE PLANTED CONTROL for the punctuation coincidence this classifier replaced: a dotted name that is
+    // NOT domain trigger vocabulary answers null rather than "domain", which is exactly what the old
+    // `includes(".")` test got wrong.
+    expect(triggerBusOf("rpg.somethingNew")).toBeNull();
+  });
+
+  test("the two tuples are DISJOINT — membership order can never silently decide a shared member's bus", () => {
+    const chat = new Set<string>(CHAT_TRIGGER_TYPES);
+    const shared = DOMAIN_TRIGGER_TYPES.filter((type) => chat.has(type));
+    expect(shared).toEqual([]);
+  });
+
+  test("automationTriggerFor derives its bus from the same classifier (one home for the pairing)", () => {
+    for (const type of CHAT_TRIGGER_TYPES) {
+      expect(automationTriggerFor(type)).toEqual({ bus: "chat", type });
+    }
+    for (const type of DOMAIN_TRIGGER_TYPES) {
+      expect(automationTriggerFor(type)).toEqual({ bus: "domain", type });
+    }
+  });
+});
+
+// #1430 — the two fire-rate belts have a CEILING. The constant is the one home; the domain verbs hold the
+// authoritative bound and the tRPC schema mirrors it.
+test("the budget ceiling is a whole number above both plane defaults and above the per-rule cap", () => {
+  expect(Number.isInteger(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR)).toBe(true);
+  // A ceiling at or below a default would make the shipped default itself unsettable.
+  expect(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR).toBeGreaterThan(AUTOMATION_CHAT_BUDGET_DEFAULTS.maxFiresPerHour);
+  expect(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR).toBeGreaterThan(AUTOMATION_OWNER_BUDGET_DEFAULTS.maxFiresPerHour);
 });

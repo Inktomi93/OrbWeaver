@@ -322,8 +322,14 @@ export interface EnabledRuleIndex {
   readonly has: (chatId: ChatId) => boolean;
   /** Whether any enabled rule triggers on the domain bus — the domain-bus fast path. */
   readonly hasDomainRules: () => boolean;
-  /** Recompute both sets from canon (boot + after each enable/disable/delete/trigger-change). */
+  /** #1431 — whether the snapshot is known BEHIND canon (a `refresh` failed). While true both reads above
+   *  answer TRUE (fail open ⇒ canon decides) and the watcher front door rebuilds on the next event. */
+  readonly isStale: () => boolean;
+  /** Recompute both sets from canon, THROWING on failure — the BOOT call. */
   readonly reload: () => Promise<void>;
+  /** The post-MUTATION recompute: never rejects (the durable write already committed), latching stale on
+   *  failure instead. See {@link EnabledRuleIndex.isStale}. */
+  readonly refresh: () => Promise<void>;
 }
 
 /** One arm-template render request (the shared render seam `substrate/macro-render` consumes). The CEL
@@ -364,7 +370,15 @@ export interface PromptTransformIndexDeps {
  *  rule deregisters. `ASSUMES(single-replica)`: the registry is a per-process Map (the enabled-index / chat
  *  replay-ring annotation). */
 export interface PromptTransformIndex {
+  /** Reconcile the registry against canon, THROWING on failure — the BOOT call. */
   readonly reload: () => Promise<void>;
+  /** The post-MUTATION reconcile: never rejects (the durable write already committed), latching stale on
+   *  failure instead. Unlike the enabled index there is no read to fail OPEN — a registered transform is a
+   *  live closure the turn pipeline calls — so the latch's only remedy is the retry the watcher front door
+   *  drives on the next event. See {@link PromptTransformIndex.isStale}. */
+  readonly refresh: () => Promise<void>;
+  /** #1431 — whether the registered set is known BEHIND canon (a `refresh` failed). */
+  readonly isStale: () => boolean;
 }
 
 /** C6 — the inputs a `NotificationRecipient` selector resolves against (`substrate/notification-recipients`).

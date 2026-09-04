@@ -46,7 +46,6 @@ import { AUTOMATION_SUGGESTION_TTL_MS, summarizeSuggestibleArm } from "../substr
 import { runRunAnalysis } from "./analysis-arm.ts";
 import { applyRuleLoreWrite } from "./lore-write.ts";
 
-const DECIMAL_RADIX = 10;
 const DEFAULT_INC_DEC_OPERAND = 1;
 
 const OK: ArmOutcome = { ok: true };
@@ -74,14 +73,59 @@ function chatRequiredRefusal(type: AutomationAction["type"]): ArmOutcome {
 }
 
 // ── 1.1 set_variable ──────────────────────────────────────────────────────────────────────────────
-/** Resolve the final value string for a `set`/`inc`/`dec` op given the current value + the rendered operand.
+/** A COMPLETE DECIMAL integer spelling, or null (#1420).
+ *
+ *  `Number.parseInt` is a PREFIX parser: it reads as far as it can and discards the rest, so `"5cats"` was 5
+ *  and `"3.9"` was 3 — values the author did not write, applied silently to a counter the room's later
+ *  predicates read. The shape test is a decimal REGEX rather than a bare `Number()` because `Number` is
+ *  generous in the other direction: it reads `"0x10"` as 16 and `"1e3"` as 1000, and a rendered template
+ *  producing either of those is far more likely to be junk than to be a host asking for hexadecimal.
+ *  `Number.isSafeInteger` then rejects the magnitudes at which arithmetic starts rounding.
+ *
+ *  Leading/trailing whitespace is TRIMMED first — a rendered template legitimately carries it — but the empty
+ *  string is NOT a zero: "the author rendered nothing" is a mistake to name, not a value to invent. */
+const DECIMAL_INTEGER_RE = /^[+-]?\d+$/;
+
+function parseCompleteInteger(text: string): number | null {
+  const trimmed = text.trim();
+  if (!DECIMAL_INTEGER_RE.test(trimmed)) {
+    return null;
+  }
+  const value = Number(trimmed);
+  return Number.isSafeInteger(value) ? value : null;
+}
+
+/** Resolve the final value string for a `set`/`inc`/`dec` op given the current value + the rendered operand,
+ *  or NULL when either input is not a complete integer (the caller turns that into an `arm_error`).
  *  `inc`/`dec` compute against the CURRENT value (the standalone chat-fold cache or the author's global) — the
- *  VarOp vocabulary's `inc`/`dec` are ±1 only, so an operand-bearing inc/dec resolves to a computed `set`. */
-function resolveNumericValue(op: "inc" | "dec", current: string, operandText: string): string {
-  const parsedOperand = Number.parseInt(operandText, DECIMAL_RADIX);
-  const operand = Number.isNaN(parsedOperand) ? DEFAULT_INC_DEC_OPERAND : parsedOperand;
-  const base = Number.parseInt(current, DECIMAL_RADIX) || 0;
+ *  VarOp vocabulary's `inc`/`dec` are ±1 only, so an operand-bearing inc/dec resolves to a computed `set`.
+ *
+ *  BOTH INPUTS ARE VALIDATED, NOT COERCED (#1420). An absent operand is the arm's documented default of 1 and
+ *  reaches here as the rendered `"1"`; an operand the author wrote and mis-spelled used to collapse to that
+ *  SAME 1, so a typo was indistinguishable from writing nothing. And a non-numeric CURRENT value used to mean
+ *  0 — silently rebasing a counter off whatever a `set` arm or a plugin had put in the variable. Both are now
+ *  refusals the host reads on the fire log. (An ABSENT variable is still 0: the call site passes `"0"` for it,
+ *  which is a fresh counter rather than a corrupt one.) */
+function resolveNumericValue(op: "inc" | "dec", current: string, operandText: string): string | null {
+  const operand = parseCompleteInteger(operandText);
+  const base = parseCompleteInteger(current);
+  if (operand === null || base === null) {
+    return null;
+  }
   return String(op === "inc" ? base + operand : base - operand);
+}
+
+/** Write `key` as an OWN property of a string-keyed plane, whatever the key is called (#1420).
+ *
+ *  A PLAIN ASSIGNMENT CANNOT DO THIS. The variable key vocabulary is length-bounded and nothing else, so a
+ *  host may legitimately name a variable `__proto__` — and `map[key] = value` for that name hits the setter
+ *  INHERITED from `Object.prototype` and silently creates no own property at all. The write reports success,
+ *  the DB row exists, and the CEL env this plane feeds cannot see it: the variable is invisible to every
+ *  predicate and every later `inc`. `defineProperty` writes the own data property regardless of the name.
+ *  (`constructor`/`toString` and friends are ordinary shadowable data-property names and were never broken —
+ *  the accessor is the one hazard, but defining is correct for all of them.) */
+function setOwnKey(target: Record<string, string>, key: string, value: string): void {
+  Object.defineProperty(target, key, { value, writable: true, enumerable: true, configurable: true });
 }
 
 /** THE ONE variable-WRITE seam an arm uses (`set_variable` writes here; `run_tool` captures its result here).
@@ -112,11 +156,33 @@ async function writeArmVariable(
     }
     const ops: readonly VarOp[] = [{ op: "set", key, value }];
     await deps.ops.chat.applyVariableOps(chatId, ops);
-    frame.env.vars[key] = value;
+    setOwnKey(frame.env.vars, key, value);
     return OK;
   }
   await upsertGlobalVariable(deps.db, { ownerId: frame.authorUserId, key, value, updatedAt: frame.now });
   return OK;
+}
+
+/** The `inc`/`dec` half of `set_variable`, split out so the arm's own body stays one decision deep.
+ *
+ *  It computes against the CURRENT value. Chat scope reads the SHARED env `vars` (so an earlier arm's write in
+ *  this same batch composes — `[set hp=5, inc hp]` ⇒ 6); global scope reads the DB fresh (globals aren't
+ *  env-cached, so they already compose across arms). An ABSENT variable is a fresh counter at 0; a variable
+ *  holding something that is not a whole number is a REFUSAL, not a silent rebase (#1420). */
+async function runIncDec(
+  deps: ArmExecutorDeps,
+  frame: DispatchFrame,
+  args: { readonly scope: AutomationVariableScope; readonly key: string; readonly op: "inc" | "dec"; readonly operandText: string },
+): Promise<ArmOutcome> {
+  const { scope, key, op, operandText } = args;
+  const current = scope === "chat" ? (frame.env.vars[key] ?? "0") : ((await selectGlobalVariable(deps.db, frame.authorUserId, key)) ?? "0");
+  const value = resolveNumericValue(op, current, operandText);
+  if (value === null) {
+    // It names BOTH operands because either one can be the bad half.
+    // PROSE-OK: a host-facing typed refusal read on the fire log (see `chatRequiredRefusal`), never model-facing bytes.
+    return armError(`'${op}' needs whole numbers: operand '${operandText}' on current value '${current}'`);
+  }
+  return await writeArmVariable(deps, frame, { scope, key, value });
 }
 
 async function runSetVariable(deps: ArmExecutorDeps, action: Extract<AutomationAction, { type: "set_variable" }>, frame: DispatchFrame): Promise<ArmOutcome> {
@@ -149,18 +215,10 @@ async function runSetVariable(deps: ArmExecutorDeps, action: Extract<AutomationA
   if (rendered.error !== undefined) {
     return armError(rendered.error);
   }
-  let value: string;
   if (op === "set") {
-    value = rendered.text;
-  } else {
-    // inc/dec compute against the CURRENT value. Chat scope reads the SHARED env `vars` (so an earlier arm's
-    // write in this same batch composes — `[set hp=5, inc hp]` ⇒ 6); global scope reads the DB fresh (globals
-    // aren't env-cached, so they already compose across arms).
-    const current = scope === "chat" ? (frame.env.vars[key] ?? "0") : ((await selectGlobalVariable(deps.db, frame.authorUserId, key)) ?? "0");
-    value = resolveNumericValue(op, current, rendered.text);
+    return await writeArmVariable(deps, frame, { scope, key, value: rendered.text });
   }
-
-  return await writeArmVariable(deps, frame, { scope, key, value });
+  return await runIncDec(deps, frame, { scope, key, op, operandText: rendered.text });
 }
 
 // ── 1.3 insert_world_info_entry ─────────────────────────────────────────────────────────────────────

@@ -17,7 +17,7 @@ import type { PromptTransform } from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { PromptTransformIndex, PromptTransformIndexDeps, RuleRow } from "../contract/ops.ts";
 import { countChatMessages } from "../persistence/canon-reads.ts";
-import { loadEnabledTurnStartedRules } from "../persistence/rules.ts";
+import { loadEnabledTurnStartedRules, recordRuleError } from "../persistence/rules.ts";
 import { authorGlobals } from "../substrate/cel-env.ts";
 import { evaluatePredicate, nowFields } from "../substrate/dry-run.ts";
 import { renderArmTemplate } from "../substrate/macro-render.ts";
@@ -60,13 +60,37 @@ interface TransformArmSpec {
   readonly armIndex: number;
 }
 
+/** How far the error ledger of a chronically broken transform is allowed to climb (#1422). It is a WRITE
+ *  bound, not a disable threshold: past this the row already reads "this rule fails every turn", so further
+ *  ticks buy nothing and would put one UPDATE per turn per broken transform on the pipeline's error path. */
+const TRANSFORM_ERROR_LEDGER_MAX = 20;
+
 /** Build ONE `PromptTransform` from a rule's `transform_draft` arm. The `apply` closure re-reads room state
  *  every turn (the rule's config is captured; the state is live) and: (1) self-guards on chatId — the registry
  *  is a shared, chat-blind Map, so a transform must ignore other chats' turns; (2) evaluates the rule's
- *  predicate over the event-less env — false OR error ⇒ the draft passes through UNCHANGED; (3) renders the
+ *  predicate over the event-less env — false is a quiet skip, an ERROR is recorded; (3) renders the
  *  template with `{{draft}}` = the current target text; a strict-arg render error passes the draft through
- *  UNCHANGED (a broken rule must never eat the user's message). */
+ *  UNCHANGED (a broken rule must never eat the user's message) and is recorded.
+ *
+ *  THE PASS-THROUGH STAYS AND THE SILENCE GOES (#1422). Returning the draft unchanged on any failure is the
+ *  ruling — prompt mutation is synchronous inside the turn, so a broken rule must never cost the user their
+ *  message. But a transform-only rule is SKIPPED by `dispatch` before its `consecutive_errors` logic, so
+ *  nothing else in the system could ever notice: a dynamically broken transform failed on every turn forever
+ *  with no fire row, no counter and no operator signal, reading exactly like a rule whose predicate is simply
+ *  false. So the failure paths now tick the SAME error ledger the dispatch plane uses
+ *  (`consecutive_errors`/`last_error`, both already on `RuleView`) — the surface a host already reads to
+ *  answer "why isn't my rule doing anything". It does NOT auto-disable: that is dispatch's call about acts
+ *  with side effects, and a transform's failure is inert by construction. */
 function buildRuleTransform(deps: PromptTransformIndexDeps, rule: RuleRow, spec: TransformArmSpec): PromptTransform {
+  // Per-registration, process-local: the ledger tick stops climbing at the bound above. Reset by a
+  // re-register (a rule edit re-mints the closure), which is also when the stored counter is reset.
+  let recordedErrors = 0;
+  const note = async (reason: string): Promise<void> => {
+    if (recordedErrors >= TRANSFORM_ERROR_LEDGER_MAX) {
+      return;
+    }
+    recordedErrors = await recordRuleError(deps.db, rule.id, `transform_error: ${reason}`, deps.now());
+  };
   return {
     id: `${AUTOMATION_TRANSFORM_ID_PREFIX}${rule.id}:${spec.armIndex}`,
     point: spec.target,
@@ -76,7 +100,13 @@ function buildRuleTransform(deps: PromptTransformIndexDeps, rule: RuleRow, spec:
         return draft;
       }
       const celEnv = await buildTransformEnv(deps, spec.chatId, rule.ownerId, env.vars);
-      if (evaluatePredicate(rule.predicateCel, celEnv, true) !== true) {
+      const verdict = evaluatePredicate(rule.predicateCel, celEnv, true);
+      if (verdict !== true) {
+        // A FALSE predicate is the rule working — it is the whole point of having one, and recording it would
+        // make "did not apply this turn" indistinguishable from "is broken". Only the error arm ticks.
+        if (verdict !== false) {
+          await note(`predicate: ${verdict.error}`);
+        }
         return draft;
       }
       const rendered = renderArmTemplate({
@@ -87,7 +117,11 @@ function buildRuleTransform(deps: PromptTransformIndexDeps, rule: RuleRow, spec:
         template: spec.template,
         macroEnv: { [DRAFT_MACRO_KEY]: draft },
       });
-      return rendered.error === undefined ? rendered.text : draft;
+      if (rendered.error !== undefined) {
+        await note(`render: ${rendered.error}`);
+        return draft;
+      }
+      return rendered.text;
     },
   };
 }
@@ -120,24 +154,42 @@ function ruleTransforms(deps: PromptTransformIndexDeps, rule: RuleRow): PromptTr
 export function createPromptTransformIndex(deps: PromptTransformIndexDeps): PromptTransformIndex {
   // ASSUMES(single-replica): the id set is a per-process snapshot, eventually-consistent within one reload.
   let registeredIds = new Set<string>();
+  // #1431 — the STALE latch, the enabled index's twin (that file's header carries the two-door argument).
+  let stale = false;
+
+  const reconcile = async (): Promise<void> => {
+    const rules = await loadEnabledTurnStartedRules(deps.db);
+    const desired = new Map<string, PromptTransform>();
+    for (const rule of rules) {
+      for (const transform of ruleTransforms(deps, rule)) {
+        desired.set(transform.id, transform);
+      }
+    }
+    for (const id of registeredIds) {
+      if (!desired.has(id)) {
+        deps.unregister(id);
+      }
+    }
+    for (const transform of desired.values()) {
+      deps.register(transform);
+    }
+    registeredIds = new Set(desired.keys());
+    stale = false;
+  };
+
   return {
-    reload: async (): Promise<void> => {
-      const rules = await loadEnabledTurnStartedRules(deps.db);
-      const desired = new Map<string, PromptTransform>();
-      for (const rule of rules) {
-        for (const transform of ruleTransforms(deps, rule)) {
-          desired.set(transform.id, transform);
-        }
+    reload: reconcile,
+    isStale: (): boolean => stale,
+    refresh: async (): Promise<void> => {
+      // @orb-gate-ignore caught-failure-ownership(empty:catch): DELIBERATE ABSORBER, the enabled index's twin
+      // (`substrate/enabled-index.ts` carries the full argument). The owner is the stale latch plus the
+      // watcher front door's retry; propagating would reject a rule mutation that already committed (#1431).
+      // Ends when a transform registration stops being reconcilable from canon.
+      try {
+        await reconcile();
+      } catch {
+        stale = true;
       }
-      for (const id of registeredIds) {
-        if (!desired.has(id)) {
-          deps.unregister(id);
-        }
-      }
-      for (const transform of desired.values()) {
-        deps.register(transform);
-      }
-      registeredIds = new Set(desired.keys());
     },
   };
 }

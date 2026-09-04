@@ -34,6 +34,32 @@ export class RuleValidationError extends DomainOperationError {
   }
 }
 
+/** `reorderRules` refused: the supplied id list is not a TOTAL, unique order over the chat's current rule
+ *  set (#1429). The verb rewrites `position = array index` per id, so anything less than the complete set
+ *  leaves the chat with duplicate positions and a non-total order while reporting success — and order IS
+ *  semantics here (arms mutate the shared variable env in position order). The three codes name what the
+ *  editor got wrong: `duplicate` (an id twice), `foreign` (an id that is not this chat's rule — the batch's
+ *  chat predicate already makes it touch no row, so it is a caller BUG, not a leak), `incomplete` (a rule of
+ *  this chat is missing from the list). Never a leak: `foreign` names no id, because a caller who guessed a
+ *  rule id must not learn from the refusal whether it exists. */
+export class RuleReorderError extends DomainOperationError {
+  constructor(code: string, reason: string) {
+    super(`automation_reorder_${code}`, reason);
+    this.name = this.constructor.name;
+  }
+}
+
+/** `setBudgets`/`setOwnerBudgets` refused: the fire-rate ceiling is not an integer in
+ *  `0..AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR` (#1430). The AUTHORITATIVE bound lives at the verb — the wire
+ *  schema mirrors it — because the belt is loop safety and a caller reaching the domain from compose without
+ *  the transport must meet the same ceiling a host does. */
+export class BudgetValidationError extends DomainOperationError {
+  constructor(reason: string) {
+    super("automation_budget_invalid", reason);
+    this.name = this.constructor.name;
+  }
+}
+
 /** A rule id names no row the caller may act on — collapses "no such rule" and "not a present member of
  *  its chat" into ONE leak-free answer (the chat-membership precedent). */
 export class RuleNotFoundError extends DomainNotFoundError {

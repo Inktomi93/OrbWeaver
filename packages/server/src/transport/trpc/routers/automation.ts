@@ -18,6 +18,7 @@
 // response only, and the `single-stream-transport` gate keeps a `.subscription(` from coming back to it.
 
 import {
+  AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR,
   AUTOMATION_FIRES_LIST_MAX_LIMIT,
   automationActionsSchema,
   automationTriggerSchema,
@@ -186,7 +187,11 @@ export const automationRouter = t.router({
     .input(
       z.object({
         chatId: brandedId<ChatId>(),
-        maxFiresPerHour: z.number().int().min(0).optional(),
+        // The WIRE MIRROR of the domain verb's authoritative bound (#1430) — the belt had a floor and no
+        // ceiling, so a host could set a nine-digit "cap" that bounds nothing. `substrate/validate.ts`'s
+        // `assertFireRateCap` is the authority (compose can reach the verb without this schema); this makes
+        // the same refusal a BAD_REQUEST at the trust boundary instead of a domain throw.
+        maxFiresPerHour: z.number().int().min(0).max(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR).optional(),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -214,10 +219,13 @@ export const automationRouter = t.router({
 
   getOwnerBudgets: authedProcedure.query(({ ctx }) => ctx.services.automation.getOwnerBudgets({ principal: ctx.auth })),
 
-  setOwnerBudgets: authedProcedure.input(z.object({ maxFiresPerHour: z.number().int().min(0).optional() })).mutation(({ ctx, input }) =>
-    ctx.services.automation.setOwnerBudgets({
-      principal: ctx.auth,
-      ...(input.maxFiresPerHour === undefined ? {} : { maxFiresPerHour: input.maxFiresPerHour }),
-    }),
-  ),
+  // The owner-plane twin of the per-chat mirror above (#1430) — same authority, same ceiling.
+  setOwnerBudgets: authedProcedure
+    .input(z.object({ maxFiresPerHour: z.number().int().min(0).max(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR).optional() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.automation.setOwnerBudgets({
+        principal: ctx.auth,
+        ...(input.maxFiresPerHour === undefined ? {} : { maxFiresPerHour: input.maxFiresPerHour }),
+      }),
+    ),
 });

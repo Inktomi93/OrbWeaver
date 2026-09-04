@@ -985,3 +985,53 @@ describe("#1423 same-chat events are serialized at the front door", () => {
     expect(order).toEqual(["e1:enter", "e1:exit", "e2:enter", "e2:exit"]);
   });
 });
+
+// #1433 — WHICH BUS AN EVENT IS ON IS TUPLE MEMBERSHIP, not punctuation. The front door used to classify with
+// `event.type.includes(".")`, which is a property of today's NAMES: nothing makes every DomainEventType
+// dot-namespaced or forbids a ChatBusEvent from carrying a dot, so a future member of either union would take
+// the wrong pre-check and the wrong rule loader and never dispatch despite sitting in the trigger map.
+//
+// THESE ARE FENCES, NOT RED-FIRST DEFECT PROOFS, and the label is deliberate: the two tuples happen to be
+// dot-disjoint TODAY, so both arms pass against the pre-fix source too and a planted punctuation classifier
+// does NOT make them fail (measured — the misroute needs a dotless domain event, which the closed unions
+// make unconstructable from a test). They are REGRESSION fences over the routing rewrite: both lanes still
+// dispatch, and a non-taxonomy event still drops. The CLASSIFIER's own contract — including the case the
+// punctuation test got wrong — is pinned where a planted mutation does bite:
+// `tests/contracts/automation/index.contract.test.ts` > "triggerBusOf".
+describe("#1433 - bus routing derives from the trigger tuples", () => {
+  test("a DOMAIN-bus rule fires on its domain event and a CHAT-bus rule on its chat event", async () => {
+    const f = await setup();
+    const p = principal(f.host);
+    const chatRule = await f.svc.createRule({
+      principal: p,
+      chatId: f.chatId,
+      name: "chat-lane",
+      trigger: CHAT_OPENED,
+      predicateCel: null,
+      actions: [{ ...SET_VAR, key: "fromChat" }],
+    });
+    await f.svc.setRuleEnabled({ principal: p, ruleId: chatRule.id, enabled: true });
+    const domainRule = await f.svc.createRule({
+      principal: p,
+      chatId: f.chatId,
+      name: "domain-lane",
+      trigger: { bus: "domain", type: "character.updated" },
+      predicateCel: null,
+      actions: [{ ...SET_VAR, key: "fromDomain" }],
+    });
+    await f.svc.setRuleEnabled({ principal: p, ruleId: domainRule.id, enabled: true });
+
+    await f.svc.handleEvent(chatOpened(f.chatId));
+    await f.svc.handleEvent({ type: "character.updated", characterId: mintTypeId(ID_PREFIX.character), contentChanged: true });
+    expect(f.calls).toEqual(["fromChat", "fromDomain"]);
+  });
+
+  test("an event on NEITHER trigger tuple dispatches nothing, even in a chat that has enabled rules", async () => {
+    const f = await setup();
+    await armRule(f, { name: "listener" });
+    // `messagesReordered` is a real ChatBusEvent and is NOT automation trigger vocabulary, so no stored rule
+    // can name it (the db CHECK binds `trigger_type` to the tuples). The honest answer is a drop.
+    await f.svc.handleEvent({ type: "messagesReordered", chatId: f.chatId });
+    expect(f.calls).toEqual([]);
+  });
+});

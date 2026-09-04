@@ -26,6 +26,11 @@ export interface RuleView {
   readonly trigger: AutomationTrigger;
   readonly predicateCel: string | null;
   readonly actions: readonly AutomationAction[];
+  /** #1422 — the stored `actions` blob did not parse, so {@link RuleView.actions} above is EMPTY BECAUSE IT
+   *  IS UNREADABLE, not because the rule has no arms. Without this the two states projected identically and a
+   *  broken rule read as benign in management until an event happened to dispatch it (which is where the
+   *  auto-disable lives). A surface renders the difference; nothing else about the row is changed by it. */
+  readonly actionsCorrupt: boolean;
   /** Mint provenance (§3-S3 flip shape): the rule preset this rule was minted from, or NULL for a
    *  hand-authored/hand-EDITED rule (`updateRule` clears the pair). Both-or-neither with
    *  {@link RuleView.rulePresetKnobs} (db CHECK). The saved-cast capture + B2's knob editor read these. */

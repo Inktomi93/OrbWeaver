@@ -120,6 +120,9 @@ export function seededRuleView(args: {
     trigger: automationTriggerFor("messageCommitted"),
     predicateCel: null,
     actions: [],
+    // #1422 — an EMPTY arm list that parsed fine. The flag is what tells that apart from a blob nothing
+    // could read, and a fixture must not claim the corrupt state it is not modelling.
+    actionsCorrupt: false,
     rulePresetId: args.rulePresetId,
     rulePresetKnobs: args.rulePresetKnobs,
     matchAutomationEvents: false,
