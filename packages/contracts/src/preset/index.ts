@@ -45,6 +45,38 @@ const MIN_QUESTION_LENGTH = 1;
 const MAX_QUESTION_LENGTH = 2000;
 const MAX_SEPARATOR_LENGTH = 64;
 
+/**
+ * The deploy's OWN `CLAUDE_CODE_*` pins — the isolation set the subprocess builder writes
+ * (`infra/providers/backends/agent-sdk/env.ts` `ISOLATION_PINS`, which is typed BY this tuple, so the two
+ * cannot drift) plus the CLAUDE.md suppression each builder sets. THE NAMES LIVE HERE, IN CONTRACTS,
+ * BECAUSE THE WRITE SCHEMA MUST REFUSE THEM (#1536): they sit inside the `CLAUDE_*` namespace the hatch
+ * admits, so an allowlist that stopped at the namespace let a preset re-enable auto-memory, background
+ * tasks, cron, the full system prompt, CLAUDE.md injection or the cache-churning attribution header inside
+ * the RP subprocess — or UNSET any of them with `null`. Their VALUES stay in the server: what the pin is
+ * set to is a deploy decision, only WHICH NAMES are host-owned is shared vocabulary.
+ */
+export const CLAUDE_ISOLATION_PIN_KEYS = [
+  "CLAUDE_CODE_DISABLE_1M_CONTEXT",
+  "CLAUDE_CODE_DISABLE_AUTO_MEMORY",
+  "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT",
+  "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS",
+  "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS",
+  "CLAUDE_CODE_DISABLE_CRON",
+  "CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING",
+  "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS",
+  "CLAUDE_CODE_DISABLE_ATTACHMENTS",
+  "CLAUDE_CODE_DISABLE_ADVISOR_TOOL",
+  "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY",
+  "CLAUDE_CODE_DISABLE_AGENT_VIEW",
+  "CLAUDE_CODE_ATTRIBUTION_HEADER",
+] as const;
+/** The pin names the server's `ISOLATION_PINS` record is keyed by — a missing or extra pin is a tsc error. */
+export type ClaudeIsolationPinKey = (typeof CLAUDE_ISOLATION_PIN_KEYS)[number];
+/** Every `CLAUDE_*` name a preset may neither set nor unset: the isolation pins plus the CLAUDE.md
+ *  suppression (set per-builder rather than through the pin record, hence the append). */
+export const HOST_OWNED_CLAUDE_ENV_KEYS = [...CLAUDE_ISOLATION_PIN_KEYS, "CLAUDE_CODE_DISABLE_CLAUDE_MDS"] as const;
+const HOST_OWNED_CLAUDE_ENV_KEY_SET: ReadonlySet<string> = new Set<string>(HOST_OWNED_CLAUDE_ENV_KEYS);
+
 // A preset value reaches the Agent SDK CHILD PROCESS, which runs tools as the host — so `claudeEnv` is a
 // process-execution boundary, not ordinary advanced tuning, and it is an ALLOWLIST (#1472). A deny set was
 // tried and lost: it enumerated loader/search/proxy/CA names and never carried `PATH` (which picks the
@@ -54,7 +86,9 @@ const MAX_SEPARATOR_LENGTH = 64;
 // namespace is all it admits:
 //   • host process variables (execution, filesystem, locale, proxy, CA) are HOST-owned — the subprocess
 //     builder's own `SUPPORTED_HOST_ENV_KEYS` baseline supplies them from the operator's environment;
-//   • auth / routing / model selection (`ANTHROPIC_*`) is RUNNER-owned and pinned after the overlay.
+//   • auth / routing / model selection (`ANTHROPIC_*`) is RUNNER-owned and pinned after the overlay;
+//   • the deploy's own isolation pins are HOST-owned too (`HOST_OWNED_CLAUDE_ENV_KEYS` above) — they live
+//     INSIDE this namespace, so admitting the namespace wholesale re-opened them (#1536).
 // Matching is CASE-SENSITIVE because POSIX environment keys are: `path` is a different key from `PATH`,
 // and neither is admitted. Exported so the write schema and the final subprocess builder read one
 // vocabulary (validation plus defense in depth).
@@ -64,6 +98,9 @@ const CLAUDE_RUNTIME_ENV_NAMESPACE = /^CLAUDE_[A-Z0-9_]+$/;
 const CLAUDE_RUNTIME_ENV_EXACT_KEYS: ReadonlySet<string> = new Set(["MAX_THINKING_TOKENS", "DISABLE_AUTO_COMPACT"]);
 
 export function isAllowedClaudeRuntimeEnvKey(key: string): boolean {
+  if (HOST_OWNED_CLAUDE_ENV_KEY_SET.has(key)) {
+    return false;
+  }
   return CLAUDE_RUNTIME_ENV_NAMESPACE.test(key) || CLAUDE_RUNTIME_ENV_EXACT_KEYS.has(key);
 }
 

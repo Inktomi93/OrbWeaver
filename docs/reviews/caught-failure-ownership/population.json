@@ -1502,7 +1502,7 @@
     {
       "siteId": "packages/contracts/src/preset/index.ts::default:catch::1",
       "path": "packages/contracts/src/preset/index.ts",
-      "line": 3063,
+      "line": 3100,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1510,7 +1510,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "ST mirror — JSON.parse of custom_stopping_strings",
-      "markerLine": 3058
+      "markerLine": 3095
     },
     {
       "siteId": "packages/contracts/src/rpg/extraction.ts::default:catch::1",
@@ -3465,7 +3465,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/env.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/backends/agent-sdk/env.ts",
-      "line": 210,
+      "line": 223,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3473,7 +3473,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort temp-dir cleanup on the symlink-failure path — the symlink already failed so `dir` holds no credential; a cleanup miss leaks only an empty tmp dir, never an auth decision. Ends if this cleanup becomes load-bearing or `dir` can ever hold a live credential.",
-      "markerLine": 207
+      "markerLine": 220
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/host-token.ts::default:catch::1",

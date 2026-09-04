@@ -6,6 +6,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
+import { HOST_OWNED_CLAUDE_ENV_KEYS } from "@orb/contracts/preset";
 import { buildClaudeAnthEnv, buildClaudeOpenRouterEnv, buildClaudeSdkEnv, RESERVED_CLAUDE_ENV_KEYS } from "@orb/server/infra/providers/backends/agent-sdk";
 import { afterEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
@@ -262,6 +263,52 @@ describe("the escape hatch is allowlisted to the Claude runtime knob namespace",
     expect(env["CLAUDE_CODE_CUSTOM_KNOB"]).toBe("ok");
     expect(env["MAX_THINKING_TOKENS"]).toBe("4096");
     expect(env["DISABLE_AUTO_COMPACT"]).toBe("1");
+  });
+});
+
+// #1536 — THE ALLOWLIST'S RESIDUE. Flipping the hatch to the `CLAUDE_*` namespace (#1472) admitted the
+// namespace the APP'S OWN deploy pins live in: `ISOLATION_PINS` + the CLAUDE.md suppression are all
+// `CLAUDE_CODE_*`, and `RESERVED_CLAUDE_ENV_KEYS` covered only auth/routing/config-dir — so a preset could
+// re-enable auto-memory, background tasks, cron, the full system prompt, CLAUDE.md injection and the
+// cache-churning attribution header inside the (potentially adversarial) RP subprocess, or UNSET any of
+// them with `null`. These are HOST/deploy decisions, not generation knobs: the value is compared against
+// the un-hatched baseline rather than re-spelled, so the pin holds whatever the deploy chose.
+const POISON = "0";
+
+describe("host-owned isolation pins survive the escape hatch (#1536)", () => {
+  test("mode-1: neither a value nor a null can move a single host-owned pin", () => {
+    const baseline = buildClaudeSdkEnv();
+    const poisoned = buildClaudeSdkEnv({ userEnv: Object.fromEntries(HOST_OWNED_CLAUDE_ENV_KEYS.map((k) => [k, POISON])) });
+    const nulled = buildClaudeSdkEnv({ userEnv: Object.fromEntries(HOST_OWNED_CLAUDE_ENV_KEYS.map((k) => [k, null])) });
+    for (const key of HOST_OWNED_CLAUDE_ENV_KEYS) {
+      expect(baseline[key], `${key} must be pinned in the baseline at all`).toBeDefined();
+      expect(poisoned[key], `${key} must keep the deploy's value against a preset override`).toBe(baseline[key]);
+      expect(nulled[key], `${key} must survive a preset UNSET`).toBe(baseline[key]);
+    }
+  });
+
+  test("mode-2 and mode-4 hold the same pins (the hatch reaches every builder)", () => {
+    const poison = Object.fromEntries(HOST_OWNED_CLAUDE_ENV_KEYS.map((k) => [k, POISON]));
+    const or = { base: buildClaudeOpenRouterEnv(OR_KEY, TIER_MODELS), hatched: buildClaudeOpenRouterEnv(OR_KEY, TIER_MODELS, { userEnv: poison }) };
+    const anth = { base: buildClaudeAnthEnv(ANTH_KEY), hatched: buildClaudeAnthEnv(ANTH_KEY, { userEnv: poison }) };
+    for (const key of HOST_OWNED_CLAUDE_ENV_KEYS) {
+      expect(or.hatched[key], `mode-2 ${key}`).toBe(or.base[key]);
+      expect(anth.hatched[key], `mode-4 ${key}`).toBe(anth.base[key]);
+    }
+  });
+
+  test("RESERVED_CLAUDE_ENV_KEYS names every host-owned pin (the builder's own belt, not just the schema)", () => {
+    for (const key of HOST_OWNED_CLAUDE_ENV_KEYS) {
+      expect(RESERVED_CLAUDE_ENV_KEYS.has(key), `${key} must be reserved at the builder`).toBe(true);
+    }
+  });
+
+  // POSITIVE CONTROL — narrowing the namespace must not close the hatch it exists to keep open.
+  test("a non-pin CLAUDE knob still passes through beside the pins", () => {
+    const env = buildClaudeSdkEnv({
+      userEnv: Object.fromEntries([...HOST_OWNED_CLAUDE_ENV_KEYS.map((k) => [k, POISON]), ["CLAUDE_CODE_CUSTOM_KNOB", "ok"]]),
+    });
+    expect(env["CLAUDE_CODE_CUSTOM_KNOB"]).toBe("ok");
   });
 });
 
