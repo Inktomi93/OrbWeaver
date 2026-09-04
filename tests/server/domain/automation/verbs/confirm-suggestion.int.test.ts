@@ -13,7 +13,7 @@
 // It drives the REAL dispatch with the REAL arm executors over a real db: the only fake is the injected
 // cross-feature op bundle (a capturing `requestTurn`), because "the op did not fire" is the assertion.
 
-import { automationBudgets, chatParticipants } from "@orb/db";
+import { automationBudgets, automationFires, chatParticipants } from "@orb/db";
 import type { AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AutomationOps, AutomationTurnRequest, ExecutePluginSuggestion } from "@orb/server/domain/automation";
@@ -588,5 +588,59 @@ describe('S5 — an ANALYSIS-origin confirm (the {via:"analysis"} payload arm)',
     const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId: rule.id });
     expect(fires[0]?.outcome).toBe("fired");
     expect(fires[0]?.detail).toMatchObject({ confirmedByUserId: fixture.host, suggestionId, armType: "run_analysis", analysisAct: "steer" });
+  });
+});
+
+// -- #1425: the confirmed terminal is ONE write ------------------------------------------------------------
+// A confirmed act has ALREADY happened by the time the terminal is written, and the ask is spent take-once --
+// so there is no retry and no rollback. `stampRuleFired` and `insertFire` used to be two sequential awaited
+// writes: a failure between them left an APPLIED action with `last_fired_at` moved and no fire row, i.e. a
+// cooldown the host cannot see the reason for, in the one log that exists to answer "why did this run".
+// They are one batch now, and this is the case that tells the two shapes apart.
+describe("#1425 the confirmed fire row and the rule stamp land together or not at all", () => {
+  test("a fire row the DB refuses leaves the rule UNSTAMPED — no half terminal", async () => {
+    const base = await ruleFixture();
+    const { ops, turns } = capturingOps(base.ctx.ops);
+    // A FIXED fire id, so the row the confirm is about to write collides with one already in the table. This
+    // is the "the second write fails" arm, made deterministic: the batch must take the stamp down with it.
+    const collidingId = mintTypeId(ID_PREFIX.automationFire);
+    const ctx: AutomationContext = {
+      ...base.ctx,
+      ops,
+      newFireId: () => collidingId,
+      runArm: createArmExecutors({
+        db: base.db,
+        ops,
+        prng: () => 0.42,
+        notify: base.ctx.notify,
+        suggestions: base.ctx.suggestions,
+        newSuggestionId: base.ctx.newSuggestionId,
+      }),
+    };
+    const fixture = { ...base, ctx, svc: createAutomationService(ctx) };
+    const ruleId = await enableConfirmFirstRule(fixture);
+    await fireChatOpened(fixture);
+    const [ask] = fixture.ctx.suggestions.listForChat(fixture.chatId, FIXED_NOW_MS);
+    // Occupy the id the confirm will mint (a `test_run` row — an ordinary terminal, not a reservation).
+    await fixture.db.insert(automationFires).values({
+      id: collidingId,
+      ruleId: castId(ruleId),
+      chatId: fixture.chatId,
+      triggerType: "chatOpened",
+      outcome: "test_run",
+      detail: null,
+      automationDepth: 0,
+      firedAt: FIXED_NOW_MS,
+    });
+
+    await expect(
+      fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion) }),
+    ).rejects.toThrow();
+
+    // The arm DID run (that is what makes the half-terminal unrecoverable) -- the control for the assertion below.
+    expect(turns).toHaveLength(1);
+    // And the rule is untouched: no cooldown stamp for a fire the log never recorded.
+    const rows = await fixture.svc.listRules({ principal: principal(fixture.host), chatId: fixture.chatId });
+    expect(rows.find((row) => row.id === castId(ruleId))?.lastFiredAt).toBeNull();
   });
 });

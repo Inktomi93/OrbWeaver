@@ -57,10 +57,41 @@ function toFireView(row: FireRow): FireView {
   };
 }
 
-export async function insertFire(db: Db, row: FireInsert): Promise<void> {
+function insertFireStatement(db: Db, row: FireInsert): AwaitableBatchStmt<{ id: AutomationFireId }[]> {
   // `triggerType` is denormalized as a plain string on the log; the column types it to the closed tuple
   // (the CHECK is the guard). The write always passes a real tuple member (the rule's own trigger).
-  await db.insert(automationFires).values({ ...row, triggerType: row.triggerType as FireRow["triggerType"] });
+  return db
+    .insert(automationFires)
+    .values({ ...row, triggerType: row.triggerType as FireRow["triggerType"] })
+    .returning({ id: automationFires.id });
+}
+
+export async function insertFire(db: Db, row: FireInsert): Promise<void> {
+  await insertFireStatement(db, row);
+}
+
+/**
+ * THE CONFIRM PATH'S TERMINAL, written ATOMICALLY — the fire row, and (only for a clean `fired`) the rule's
+ * cooldown/error stamp beside it. The confirm twin of {@link commitReservedFire}, which does the same job for
+ * the reservation the autonomous dispatch holds.
+ *
+ * It exists because a confirmed act has ALREADY HAPPENED by the time either write runs (the arm ran, the prose
+ * landed), and the ask is spent take-once — so a failure between two sequential writes leaves an applied
+ * effect with no terminal in the one log that answers "why did this run", and, worse, a `last_fired_at` stamp
+ * with no fire row (or a fire row the cooldown never saw). One batch makes both visible together or neither.
+ *
+ * THE STAMP RIDES `changes() > 0` and the INSERT is statement 1: SQLite's `changes()` is connection-local and
+ * reports the immediately preceding statement, so the stamp lands IF AND ONLY IF the fire row did. That is the
+ * invariant this seam wants stated in SQL rather than assumed. (Writes only — no SELECT ahead of them; see
+ * `@orb/db/kit`'s transaction-mode note.)
+ */
+export async function insertFireWithRuleStamp(db: Db, row: FireInsert, stampFiredAt: number | null): Promise<void> {
+  const insert = insertFireStatement(db, row);
+  if (stampFiredAt === null) {
+    await insert;
+    return;
+  }
+  await db.batch([insert, stampRuleFiredAfterReservationStatement(db, row.ruleId, stampFiredAt)]);
 }
 
 /**

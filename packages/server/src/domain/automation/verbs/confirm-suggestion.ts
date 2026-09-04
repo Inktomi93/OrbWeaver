@@ -48,8 +48,8 @@ import type { ConfirmSuggestionParams } from "../contract/params.ts";
 import type { ConfirmSuggestionResult } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { loadCallerRole } from "../persistence/canon-reads.ts";
-import { insertFire } from "../persistence/fires.ts";
-import { selectRuleRow, stampRuleFired } from "../persistence/rules.ts";
+import { insertFireWithRuleStamp } from "../persistence/fires.ts";
+import { selectRuleRow } from "../persistence/rules.ts";
 import { runAnalysisConfirm } from "../substrate/analysis-confirm.ts";
 import { holdsChatHostAuthority } from "../substrate/authority.ts";
 import { dispatchRuleNow } from "../substrate/run-now.ts";
@@ -160,25 +160,28 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
     outcome = "action_error";
     error = err instanceof Error ? err.message : String(err);
   }
-  if (outcome === "fired") {
-    await stampRuleFired(ctx.db, rule.id, nowMs);
-  }
-  await insertFire(ctx.db, {
-    id: ctx.newFireId(),
-    ruleId: rule.id,
-    chatId: pending.chatId,
-    triggerType: rule.triggerType,
-    outcome,
-    detail: {
-      confirmedByUserId: confirmer.userId,
-      suggestionId: pending.id,
-      armType: "run_analysis",
-      analysisAct: payload.act.kind,
-      ...(error === null ? {} : { error }),
+  // ONE batch: the act already landed, so the terminal and the cooldown stamp must become visible together
+  // (`persistence/fires.ts::insertFireWithRuleStamp` states why the confirm path cannot afford two writes).
+  await insertFireWithRuleStamp(
+    ctx.db,
+    {
+      id: ctx.newFireId(),
+      ruleId: rule.id,
+      chatId: pending.chatId,
+      triggerType: rule.triggerType,
+      outcome,
+      detail: {
+        confirmedByUserId: confirmer.userId,
+        suggestionId: pending.id,
+        armType: "run_analysis",
+        analysisAct: payload.act.kind,
+        ...(error === null ? {} : { error }),
+      },
+      automationDepth: 0,
+      firedAt: nowMs,
     },
-    automationDepth: 0,
-    firedAt: nowMs,
-  });
+    outcome === "fired" ? nowMs : null,
+  );
   ctx.notify(
     outcome === "fired" ? { type: "ruleFired", chatId: pending.chatId, ruleId: rule.id } : { type: "ruleErrored", chatId: pending.chatId, ruleId: rule.id },
   );
@@ -209,24 +212,27 @@ async function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion,
   }
   const outcome: AutomationRunOutcome = armOutcome.ok ? "fired" : "action_error";
   const nowMs = ctx.now();
-  if (armOutcome.ok) {
-    await stampRuleFired(ctx.db, rule.id, nowMs);
-  }
-  await insertFire(ctx.db, {
-    id: ctx.newFireId(),
-    ruleId: rule.id,
-    chatId: pending.chatId,
-    triggerType: rule.triggerType,
-    outcome,
-    detail: {
-      confirmedByUserId: confirmer.userId,
-      suggestionId: pending.id,
-      armType: stashed.action.type,
-      ...(armOutcome.ok ? {} : { error: armOutcome.detail }),
+  // ONE batch — the arm already ran and the ask is spent, so a terminal without its stamp (or a stamp without
+  // its terminal) is unrecoverable state; `persistence/fires.ts::insertFireWithRuleStamp` carries the argument.
+  await insertFireWithRuleStamp(
+    ctx.db,
+    {
+      id: ctx.newFireId(),
+      ruleId: rule.id,
+      chatId: pending.chatId,
+      triggerType: rule.triggerType,
+      outcome,
+      detail: {
+        confirmedByUserId: confirmer.userId,
+        suggestionId: pending.id,
+        armType: stashed.action.type,
+        ...(armOutcome.ok ? {} : { error: armOutcome.detail }),
+      },
+      automationDepth: stashed.frame.origin.automationDepth,
+      firedAt: nowMs,
     },
-    automationDepth: stashed.frame.origin.automationDepth,
-    firedAt: nowMs,
-  });
+    armOutcome.ok ? nowMs : null,
+  );
   ctx.notify(armOutcome.ok ? { type: "ruleFired", chatId: pending.chatId, ruleId: rule.id } : { type: "ruleErrored", chatId: pending.chatId, ruleId: rule.id });
   return outcome;
 }
@@ -250,6 +256,14 @@ export function createConfirmSuggestion(ctx: AutomationContext): AutomationServi
     // retires the card (the ask is spent either way). The acting tab also drops it optimistically via the
     // mutation's onSuccess, but the host's OTHER tabs/devices have no query and no replay behind this
     // live-only room, so this host-only event is their only retirement channel (§3-S4 spec delta).
+    //
+    // IT IS A RETIREMENT, NOT A TERMINAL, and the distinction is why it stays ahead of the re-checks (#1425
+    // read the position as "announcing the outcome early"). The payload is `{chatId, suggestionId}` — no
+    // outcome, no verdict — and the client fold does exactly one thing with it: drop the ask with that id
+    // (`features/automation/lib/apply-automation-bus-event.ts`). The OUTCOME is announced only after
+    // execution, by `ruleFired`/`ruleErrored` plus the fire row. Moving this after the re-checks would leave a
+    // REFUSED confirm's card sitting live on the host's other tabs against a store entry the claim already
+    // deleted — unanswerable, and the only thing the ask could still do is mislead.
     ctx.notify({ type: "suggestionResolved", chatId: claimed.chatId, suggestionId });
     // BRANCH ON THE ORIGIN, not on the class — the liveness question and the executor are both origin-owned.
     // A plugin ask has no rule to re-read and no `runRuleNow` to fall back on: the invitation class is

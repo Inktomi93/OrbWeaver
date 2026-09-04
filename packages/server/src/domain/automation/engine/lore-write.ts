@@ -11,6 +11,7 @@
 import type { RuleLoreWriteArgs, RuleLoreWriteOutcome } from "../contract/analysis.ts";
 import type { ArmExecutorDeps } from "../contract/ops.ts";
 import { isBookAttachedToChat, isBookOwnedBy, listRuleEntryTitles } from "../persistence/canon-reads.ts";
+import { runInLane } from "../substrate/serial-lanes.ts";
 
 /** A rule's `insert_world_info_entry`/analysis-lore entries are title-namespaced by the ruleId so a
  *  re-upsert with the same key UPDATES its own prior entry and two rules never collide on one title. */
@@ -25,8 +26,25 @@ function ruleLoreTitle(ruleId: string, entryKey: string): string {
 
 /** Apply one rule-origin lore write through ALL the belts. Re-checked at EVERY call — including a confirm
  *  that stashed its entries minutes ago: the attach gate and the cap answer for the room's state NOW, so a
- *  book detached (or filled) between fire and confirm refuses instead of writing on stale consent. */
-export async function applyRuleLoreWrite(deps: Pick<ArmExecutorDeps, "db" | "ops">, args: RuleLoreWriteArgs): Promise<RuleLoreWriteOutcome> {
+ *  book detached (or filled) between fire and confirm refuses instead of writing on stale consent.
+ *
+ *  SERIALIZED PER (rule × book), because the cap is a READ-THEN-WRITE and the entries it counts are written by
+ *  an INJECTED cross-domain op — so there is no statement this belt could push the ceiling into (the reachable
+ *  atomic shapes are a subquery inside our OWN write or a batch, and world-info owns this write). Two
+ *  dispatches for one rule both read `owned.length` below 64, both pass, and both write; the lane makes the
+ *  count and the write one indivisible step against every other writer THIS process runs — the arm, the
+ *  `run_analysis` confirm route and `runRuleNow` all land here. Process-local, like every lane (see
+ *  `substrate/serial-lanes.ts`): a second app process would still race, which is the separately-filed
+ *  process-locality row and not something an in-RAM queue can honestly claim to solve.
+ *
+ *  THE KEY IS THE CAP'S OWN SCOPE — the cap counts one rule's titles in one book, so a different rule or a
+ *  different book is a different lane and runs in parallel. Keying wider would serialize unrelated books
+ *  behind a slow world-info write for no correctness gain. */
+export function applyRuleLoreWrite(deps: Pick<ArmExecutorDeps, "db" | "ops">, args: RuleLoreWriteArgs): Promise<RuleLoreWriteOutcome> {
+  return runInLane(`lore:${args.ruleId}:${args.bookId}`, () => writeUnderTheBelts(deps, args));
+}
+
+async function writeUnderTheBelts(deps: Pick<ArmExecutorDeps, "db" | "ops">, args: RuleLoreWriteArgs): Promise<RuleLoreWriteOutcome> {
   // THE CONSENT GATE, one question answered by the rule's own SCOPE (the RULED book-ownership call,
   // interaction-direction-spec §3-S3). A ROOM's rule asks the room: the attachment IS its consent, and it is
   // re-read HERE (not trusted from the mint) so a book detached between fire and confirm refuses. A GLOBAL

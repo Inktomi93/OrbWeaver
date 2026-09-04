@@ -14,6 +14,9 @@
 //     `resumable: false` half of the correspondence pinned in `../room-sources.test.ts`.
 //   • THE GATE RE-RUNS IN THE PUMP (that is where the tier comes from), and a throw there is a per-ROOM
 //     `roomFailed` frame — the socket and every other room survive it.
+//
+// Since #1407 it re-runs PER EVENT as well, not only at pump start: the tier is a live role, and a cached
+// boolean kept feeding a demoted host the hidden hand until reconnect. That pair of rows is at the foot.
 
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { StreamFrame } from "@orb/contracts/stream";
@@ -180,6 +183,66 @@ describe("the pump re-runs the gate, and its throw is one room's fault", () => {
     });
     expect(frames).toContainEqual({ channel: "control", type: "detached", ref: { channel: "automation", chatId: CHAT } });
     // The socket is ALIVE: the unrelated room's event still arrives.
+    expect(frames).toContainEqual({ channel: "user", event: { type: "tagsChanged" } });
+  });
+});
+
+// #1407 -- THE TIER IS RE-RESOLVED PER EVENT. Pump-start resolution alone was a cached verdict: a host demoted
+// mid-subscription kept receiving `ruleFired` and the rest of the hidden hand until they happened to
+// reconnect. The sibling sources re-check per yield (`sources/chat.ts`, `sources/rpg.ts`); this room now does
+// too, and these two rows are the difference between "narrows on the next event" and "narrows on reconnect".
+describe("the authority tier follows a role change mid-subscription (#1407)", () => {
+  test("a host DEMOTED after attach stops receiving host-only events from the very next one", async () => {
+    // host at attach and at pump start, `member` from then on -- the shape of an `acceptHostHandoff` landing
+    // under an open subscription.
+    const resolveStreamAuthority = vi
+      .fn<AutomationService["resolveStreamAuthority"]>()
+      .mockResolvedValueOnce("host")
+      .mockResolvedValueOnce("host")
+      .mockResolvedValue("member");
+    const iterator = await openAutomationRoom(ctxWith({ resolveStreamAuthority }));
+
+    const frame = await nextFrameAfter(iterator, () => {
+      publishAutomationEvent(HOST_ONLY); // no longer theirs to see
+      publishAutomationEvent(CHIPS); // still room-visible
+    });
+    await iterator.return?.(undefined);
+
+    // The FIRST frame after the ack is the chips one: the host-only event was filtered by the FRESH verdict.
+    expect(frame).toEqual({ channel: "automation", chatId: CHAT, event: CHIPS });
+  });
+
+  test("a subscriber KICKED mid-subscription fails its room rather than draining stale events", async () => {
+    const socketId = nextSocket();
+    const resolveStreamAuthority = vi
+      .fn<AutomationService["resolveStreamAuthority"]>()
+      .mockResolvedValueOnce("host")
+      .mockResolvedValueOnce("host")
+      .mockRejectedValue(new AutomationChatNotFoundError(CHAT));
+    const call = caller(ctxWith({ resolveStreamAuthority }));
+    await call.stream.attach({ socketId, ref: { channel: "automation", chatId: CHAT } });
+    await call.stream.attach({ socketId, ref: { channel: "user" } });
+
+    const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
+    const iterator = socket[Symbol.asyncIterator]();
+    const frames: StreamFrame[] = [];
+    const first = iterator.next();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    publishAutomationEvent(CHIPS); // even the MEMBER-visible chip is withheld -- they are not a member any more
+    publishUserEvent(MEMBER, { type: "tagsChanged" });
+    frames.push(frameOf((await first).value));
+    for (let i = 1; i < 5; i++) {
+      const result = await iterator.next();
+      frames.push(frameOf(result.value));
+    }
+    await iterator.return?.(undefined);
+
+    // The CODE is the contract (the leak-free not-found); the message is copy, so it is matched loosely.
+    expect(frames).toContainEqual(
+      expect.objectContaining({ channel: "control", type: "roomFailed", ref: { channel: "automation", chatId: CHAT }, code: "NOT_FOUND" }),
+    );
+    // No automation frame was ever delivered after the kick, and the socket's other room is unharmed.
+    expect(frames.filter((f) => "channel" in f && f.channel === "automation")).toEqual([]);
     expect(frames).toContainEqual({ channel: "user", event: { type: "tagsChanged" } });
   });
 });

@@ -821,6 +821,7 @@
     "tests/server/domain/automation/substrate/presets.test.ts",
     "tests/server/domain/automation/substrate/rule-feed.test.ts",
     "tests/server/domain/automation/substrate/run-now.int.test.ts",
+    "tests/server/domain/automation/substrate/serial-lanes.test.ts",
     "tests/server/domain/automation/substrate/suggestions.test.ts",
     "tests/server/domain/automation/substrate/validate.int.test.ts",
     "tests/server/domain/automation/teaching-contribution.int.test.ts",

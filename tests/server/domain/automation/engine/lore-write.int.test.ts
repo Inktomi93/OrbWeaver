@@ -10,6 +10,7 @@ import { mintTypeId } from "@orb/kit/ids";
 import type { AutomationOps } from "@orb/server/domain/automation";
 import { describe } from "vitest";
 import { applyRuleLoreWrite } from "../../../../../packages/server/src/domain/automation/engine/lore-write.ts";
+import { listRuleEntryTitles } from "../../../../../packages/server/src/domain/automation/persistence/canon-reads.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { ruleFixture, seedUser } from "../_support.ts";
 
@@ -138,4 +139,76 @@ test("the per-rule ≤64-entries cap counts only NET-NEW titles — an update of
   );
   expect(overflow).toMatchObject({ ok: false, refused: expect.stringContaining("64") });
   expect(callsB).toHaveLength(0);
+});
+
+// -- #1421: the 64-entry ceiling under CONCURRENCY ----------------------------------------------------------
+// The cap was a read-then-write with nothing between the count and the world-info upsert: two dispatches for
+// one rule/book both read `owned.length` below 64, both passed, and both wrote. It is not fixable inside one
+// statement -- the entries are written by an INJECTED cross-domain op, so there is no write of ours for a
+// subquery to ride -- so the belt is a per-(rule x book) lane, and this is the case that proves it.
+//
+// THE INTERLEAVING IS REAL, not simulated: the first writer is HELD inside `upsertEntries`, between its own
+// count and its own write, which is exactly the window the defect lived in. The capturing op also INSERTS the
+// rows, because a fake that only records calls would let the second read see 63 either way and the test would
+// pass without the fix.
+describe("#1421 the per-rule ceiling holds against a concurrent writer", () => {
+  /** A world-info op that really writes the entries AND parks its FIRST call until `release` resolves. */
+  function heldWritingOps(db: Db, base: AutomationOps, release: Promise<void>): { ops: AutomationOps; calls: UpsertEntriesArgs[] } {
+    const calls: UpsertEntriesArgs[] = [];
+    const ops: AutomationOps = {
+      ...base,
+      worldInfo: {
+        upsertEntries: async (args): Promise<{ inserted: number; updated: number; skippedHandEdited: number }> => {
+          calls.push(args);
+          if (calls.length === 1) {
+            await release;
+          }
+          await db
+            .insert(worldEntries)
+            .values(args.entries.map((entry) => ({ id: mintTypeId("world_entry"), worldBookId: args.bookId, title: entry.title, content: entry.content })));
+          return { inserted: args.entries.length, updated: 0, skippedHandEdited: 0 };
+        },
+      },
+    };
+    return { ops, calls };
+  }
+
+  test("two concurrent writes at 63 owned entries land exactly ONE new title -- the second reads 64 and refuses", async () => {
+    const fixture = await ruleFixture();
+    const bookId = await seedBook(fixture.db, fixture.host);
+    await fixture.db.insert(chatBooks).values({ chatId: fixture.chatId, worldBookId: bookId });
+    const ruleId = mintTypeId("automation_rule") as AutomationRuleId;
+    await fixture.db.insert(worldEntries).values(
+      Array.from({ length: 63 }, (_, i) => ({
+        id: mintTypeId("world_entry"),
+        worldBookId: bookId,
+        title: `auto/${ruleId}:seed${i}`,
+        content: "x",
+      })),
+    );
+
+    let release = (): void => undefined;
+    const held = new Promise<void>((done) => {
+      release = done;
+    });
+    const { ops, calls } = heldWritingOps(fixture.db, fixture.ctx.ops, held);
+    const write = (entryKey: string): Promise<{ ok: boolean }> =>
+      applyRuleLoreWrite(
+        { db: fixture.db, ops },
+        { authorUserId: fixture.host, chatId: fixture.chatId, ruleId, bookId, entries: [{ entryKey, keys: [], content: "y" }] },
+      );
+
+    // Both are in flight before either finishes -- the shape the watcher produced on rapid same-chat events.
+    const first = write("sixty-fourth");
+    const second = write("sixty-fifth");
+    release();
+    const [a, b] = await Promise.all([first, second]);
+
+    // Exactly one write reached world-info; the loser refused on the cap it would have breached.
+    expect(calls).toHaveLength(1);
+    expect(a).toEqual({ ok: true });
+    expect(b).toMatchObject({ ok: false, refused: expect.stringContaining("64") });
+    const owned = await listRuleEntryTitles(fixture.db, bookId, `auto/${ruleId}:`);
+    expect(owned).toHaveLength(64);
+  });
 });

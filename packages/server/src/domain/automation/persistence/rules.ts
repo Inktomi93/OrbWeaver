@@ -252,14 +252,18 @@ function stampRuleFiredStatement(db: Db, ruleId: AutomationRuleId, now: number):
 }
 
 /**
- * The success-finalization batch's second statement. SQLite `changes()` is connection-local and reports the
- * immediately preceding reservation UPDATE, so a vanished reservation makes this stamp a zero-row no-op while
- * both statements still commit atomically.
+ * A fire-terminal batch's SECOND statement — "stamp the rule iff the statement before me wrote its row".
+ * SQLite `changes()` is connection-local and reports the immediately preceding statement, so the stamp is a
+ * zero-row no-op exactly when that write did nothing, while both still commit atomically. TWO batches use it,
+ * and both pass a write as statement 1: the autonomous dispatch's reservation finalization
+ * (`commitReservedFire` — a vanished reservation must not stamp) and the CONFIRM path's fire insert
+ * (`insertFireWithRuleStamp` — a rejected insert must not stamp).
  */
 // @owner-scope-write-ok: the DISPATCH plane (D20 un-principal) — the ruleId comes from the engine's loaded
-// rule and the immediately preceding reservation finalization authorizes this bookkeeping write. The
-// connection-local `changes()` condition prevents a stamp when that reservation did not finalize. Ends if a
-// user-facing door calls this or the reservation statement stops preceding it in the same batch.
+// rule (or, on the confirm path, from the re-read rule row the verb's host gate already authorized), and the
+// immediately preceding write in the same batch authorizes this bookkeeping stamp. The connection-local
+// `changes()` condition prevents a stamp when that write did nothing. Ends if a user-facing door calls this
+// with a caller-supplied ruleId, or if a statement stops preceding it in the same batch.
 export function stampRuleFiredAfterReservationStatement(db: Db, ruleId: AutomationRuleId, now: number): AwaitableBatchStmt<{ id: AutomationRuleId }[]> {
   return db
     .update(automationRules)

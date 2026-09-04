@@ -20,12 +20,15 @@
 //
 // THE GATE ALSO RUNS INSIDE THE PUMP, because it is where the TIER comes from: the same call returns
 // `host` | `member`, and a `member`-tier subscriber receives ONLY the room-visible `quickReplySurfaced` chips
-// — every other event (rule fire/error/disable/config-change) is the host's hidden hand. Resolving it in the
-// pump also keeps the pre-fold ORDERING exact (gate first, bus tail second — this bus, unlike chat's, never
-// promised the gate→listen gap loses nothing), and it re-derives the tier on every pump START: a reconnect or
-// a lag-restart therefore re-reads membership, so a demoted host is narrowed and a kicked member's pump
-// throws into a `roomFailed` instead of silently keeping a stale verdict. Cached-verdict-in-the-cell is
-// exactly the failure mode this design forbids.
+// — every other event (rule fire/error/disable/config-change) is the host's hidden hand. Resolving it at pump
+// START keeps the pre-fold ORDERING exact (gate first, bus tail second — this bus, unlike chat's, never
+// promised the gate→listen gap loses nothing) and fails a broken read fast even in a silent room.
+//
+// AND THE TIER IS RE-RESOLVED PER EVENT. Pump-start alone was a cached verdict with a longer leash: it
+// re-derived on reconnect and lag-restart, so a host demoted mid-subscription kept receiving the whole hidden
+// hand until they happened to reconnect — the exact cached-verdict-in-the-cell failure this design forbids at
+// the attach, simply not carried one loop further in. `sources/chat.ts` (per-yield membership probe) and
+// `sources/rpg.ts` (`isChatMember` inside the loop) are the house idiom; automation was the outlier.
 
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { StreamDataFrame } from "@orb/contracts/stream";
@@ -49,13 +52,23 @@ export const automationRoomSource: RoomSourceDef<"automation"> = {
   },
 
   async *run({ ref, principal, services, signal }): AsyncGenerator<StreamDataFrame> {
-    // Re-resolved here for the TIER (and so a restarted pump re-reads membership) — see the header.
-    const authority = await services.automation.resolveStreamAuthority({ principal, chatId: ref.chatId });
-    const isHost = authority === "host";
+    // The PUMP-START resolve, kept: it is the gate→listen ORDERING (this bus never promised the gap loses
+    // nothing) and it fails a broken/kicked attach fast, even in a room that never emits another event.
+    await services.automation.resolveStreamAuthority({ principal, chatId: ref.chatId });
     for await (const event of subscribeAutomation(ref.chatId, signal)) {
+      // THE TIER IS RE-RESOLVED PER EVENT, not once per pump. A subscription is open for as long as a tab is,
+      // and the host role moves underneath it: `acceptHostHandoff` swaps the roster atomically, a kick removes
+      // the seat. A cached `isHost` boolean kept feeding a DEMOTED host every rule fire/error/disable — the
+      // whole hidden hand — until they happened to reconnect, which is the cached-verdict-in-the-cell failure
+      // the header already forbids for the ATTACH verdict; it was simply not being kept one loop further in.
+      // This is the house idiom, not a new one: `sources/chat.ts` re-probes membership on every live yield and
+      // `sources/rpg.ts` calls `isChatMember` inside its loop. Automation was the outlier. A KICK now throws
+      // here exactly as it does at pump start (→ this room's `roomFailed`); a DEMOTION narrows to `member`
+      // from the very next event. The read is one indexed roster lookup on a low-frequency bus.
+      const authority = await services.automation.resolveStreamAuthority({ principal, chatId: ref.chatId });
       // A `member`-tier subscriber receives ONLY the room-visible chips; every other event is the host's
       // hidden hand (rule fire/error/disable/config-change), filtered out here per subscriber.
-      if (!isHost && event.type !== MEMBER_VISIBLE_EVENT) {
+      if (authority !== "host" && event.type !== MEMBER_VISIBLE_EVENT) {
         continue;
       }
       yield { channel: "automation", chatId: ref.chatId, event };

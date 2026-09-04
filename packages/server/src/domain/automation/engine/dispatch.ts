@@ -289,7 +289,20 @@ const ARMS_START: ArmsResult & { i: number } = { i: 0, detail: null, suggested: 
  *
  *  BOTH non-ok kinds abort, and they diverge only in what the rule is CHARGED: an `arm_error` carries a detail
  *  that becomes the `action_error` fire row (and one tick of the error budget); a `paused` carries no detail at
- *  all, because there is nothing to log — the rule did not do anything wrong (D146-d). */
+ *  all, because there is nothing to log — the rule did not do anything wrong (D146-d).
+ *
+ *  A RAISED CONFIRMATION ABORTS TOO, and it is the one abort whose outcome is `ok`. A confirm-first arm did
+ *  not act — it ASKED (the S4 stash) — so the arms behind it are a continuation of an act that has not
+ *  happened yet. Running them anyway is the same partial-execution rot D146-d's rule-level pause gate exists
+ *  to prevent, one step further in: the bookkeeping arm increments while the act it exists to accompany waits
+ *  on a human, and it does so with no `fired` row and no rate charge (the `suggested` terminal writes
+ *  nothing). Order IS semantics here, so "skip the gated arm and carry on" is not a smaller version of the
+ *  rule — it is a different rule, run without the yes.
+ *
+ *  WHAT THIS DOES NOT CHANGE: an arm BEFORE the confirm-first one has already acted, and the rule still lands
+ *  on the `suggested` terminal for it (`finalizeRule` states why that is the honest terminal). The confirm
+ *  itself runs exactly ONE arm — the stashed one (`verbs/confirm-suggestion.ts`) — so the trailing arms are
+ *  dropped for this event rather than deferred; the next event dispatches the rule whole. */
 async function runArms(
   ctx: AutomationContext,
   actions: readonly AutomationAction[],
@@ -306,7 +319,10 @@ async function runArms(
       ? { detail: null, suggested: from.suggested, paused: true }
       : { detail: { armIndex: from.i, armType: arm.type, error: outcome.detail }, suggested: from.suggested, paused: false };
   }
-  return runArms(ctx, actions, frame, { i: from.i + 1, detail: null, suggested: from.suggested || outcome.suggested === true, paused: false });
+  if (outcome.suggested === true) {
+    return { detail: null, suggested: true, paused: false };
+  }
+  return runArms(ctx, actions, frame, { i: from.i + 1, detail: null, suggested: from.suggested, paused: false });
 }
 
 /** The env for a rule's SCOPE AND AUTHOR — built once per (chat|global × author) per dispatch batch (fold
@@ -471,9 +487,11 @@ async function dispatchRule(rc: RuleCtx, actions: readonly AutomationAction[]): 
  *  `last_fired_at` (it consumed no cooldown), and must not count toward the per-hour rate cap (only `fired`
  *  terminal rows do — `persistence/fires.ts`; its in-flight reservation is released). The CONFIRM writes the
  *  `fired` row, stamped with the confirmer, when the host says yes. A rule that mixed postures — a direct arm
- *  beside a confirm-first one — still lands
+ *  ahead of a confirm-first one — still lands
  *  here as `suggested`: the direct arm's own effect already happened, and claiming the RULE fired would
- *  overstate what a host will see. */
+ *  overstate what a host will see. (Arms BEHIND the confirm-first one no longer run at all — `runArms` aborts
+ *  on the raised ask — so the unlogged effect set is bounded by what preceded the question, not by the whole
+ *  action list.) */
 async function finalizeRule(rc: RuleCtx, armsResult: ArmsResult, reservationId: AutomationFireId | null): Promise<RuleResult> {
   if (armsResult.detail !== null) {
     return onRuleError(rc, "action_error", armsResult.detail, reservationId);
