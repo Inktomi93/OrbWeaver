@@ -2,7 +2,7 @@
 // mutability matrix (add / referenced-remove refused). Mutations asserted at the ROW (assert-the-mutation-fired).
 
 import { userMacroSchema } from "@orb/contracts/preset";
-import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgTrackerDefSchema, rpgUpdateConfigInputSchema } from "@orb/contracts/rpg";
+import { RPG_CONFIG_MAX_TRACKERS, RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgTrackerDefSchema, rpgUpdateConfigInputSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -341,6 +341,65 @@ describe("updateConfig — knobs + profile mutability", () => {
     await expect(
       h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { statProfile: RPG_PROFILE_FREEFORM } }),
     ).rejects.toThrow(REFERENCED_RE);
+  });
+
+  // ── the profile/tracker COHERENCE floor (#1371 items 2/3) ──────────────────────────────────────────
+  // These are refused HERE, at the producer verb, and deliberately NOT as zod refines: the whole
+  // `rpgGameConfigSchema` is parse-on-read (`parseGameRow` → `RpgStateCorruptError`), so a schema-level
+  // bound would not reject a bad write — it would make every already-stored blob that predates the rule
+  // permanently unreadable. `assertProfileCoherent`/`assertTrackersCoherent` close the state going forward
+  // without bricking a stored game; the contract headers record the trade.
+
+  test("a DUPLICATE attribute key is refused — a sheet's record can only hold one", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    const dup = { ...RPG_PROFILE_D20, attributes: [...RPG_PROFILE_D20.attributes, { key: "str", label: "Might", hint: "" }] };
+    await expect(h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { statProfile: dup } })).rejects.toThrow(
+      /declared twice/i,
+    );
+  });
+
+  test("an INVERTED range is refused", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    const inverted = { ...RPG_PROFILE_D20, range: { min: 20, max: 1 } };
+    await expect(h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { statProfile: inverted } })).rejects.toThrow(
+      /exceeds max/i,
+    );
+  });
+
+  test("a defaultAttribute naming an UNDECLARED key is refused; the empty 'unset' spelling stays legal", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    const host = principal(castId<Handle>("host"));
+    const dangling = { ...RPG_PROFILE_D20, defaultAttribute: "gone" };
+    await expect(h.service.updateConfig({ principal: host, chatId, patch: { statProfile: dangling } })).rejects.toThrow(/undeclared attribute/i);
+    // `freeform` ships both keys empty — the packaged profile must still be writable.
+    await h.service.updateConfig({ principal: host, chatId, patch: { statProfile: RPG_PROFILE_FREEFORM } });
+    expect((await findGameByChat(db, chatId))?.config.statProfile.defaultAttribute).toBe("");
+  });
+
+  test("a DUPLICATE tracker key is refused — the def a stored value belongs to must be unambiguous", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    const def = (key: string): unknown => ({ key, label: key, shape: "meter", write: "delta", subject: "actor", appliesTo: "party" });
+    await expect(
+      h.service.updateConfig({
+        principal: principal(castId<Handle>("host")),
+        chatId,
+        patch: { trackers: [rpgTrackerDefSchema.parse(def("grit")), rpgTrackerDefSchema.parse(def("grit"))] },
+      }),
+    ).rejects.toThrow(/defined twice/i);
+  });
+
+  test("the tracker COUNT cap is refused past RPG_CONFIG_MAX_TRACKERS, and accepted at it", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    const host = principal(castId<Handle>("host"));
+    const many = (n: number): unknown[] =>
+      Array.from({ length: n }, (_, i) =>
+        rpgTrackerDefSchema.parse({ key: `t${i}`, label: `T${i}`, shape: "meter", write: "delta", subject: "actor", appliesTo: "party" }),
+      );
+    await h.service.updateConfig({ principal: host, chatId, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS) as never } });
+    expect((await findGameByChat(db, chatId))?.config.trackers.length).toBe(RPG_CONFIG_MAX_TRACKERS);
+    await expect(h.service.updateConfig({ principal: host, chatId, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS + 1) as never } })).rejects.toThrow(
+      /exceeds the cap/i,
+    );
   });
 
   test("a non-member cannot updateConfig (leak-free)", async () => {

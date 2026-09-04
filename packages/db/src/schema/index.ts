@@ -7,6 +7,23 @@
 // freshDb helper imports it to push the DDL. The list is ALPHABETICAL (biome's import-organize sorts it)
 // and MUST stay complete — every schema file + relations. Reserved cross-cutting: users, audit,
 // relations. Wave-1 producers: everything else (currently stubs).
+//
+// ── `json_valid` ON THE JSON COLUMNS: DECIDED, AND THE DECISION IS NO (#1378 item 12) ────────────────
+// 72 `mode:"json"` columns across this package carry zero `json_valid(...)` CHECKs. The finding is real
+// and its mechanism is worth knowing: byte-level corruption throws inside DRIZZLE'S OWN `JSON.parse` on
+// read, BEFORE `kit/parsers.ts`'s zod `.catch()` recovery can see it — so that recovery only ever helps
+// the valid-JSON/wrong-shape case, never the corrupt-bytes one.
+//
+// It is still a POSTURE question rather than a defect, and the posture is unchanged: this package
+// deliberately trusts its OWN db files (D20/D23 — functional ownership and centralized mutation seams
+// over physical constraints), every writer serialises through drizzle rather than hand-writing text, and
+// there is no untrusted producer of these columns. Against that, 72 CHECKs is a real migration cost and a
+// permanent per-write validation cost on the hottest tables in the schema (`messages`, `message_variants`,
+// `rpg_snapshots`), bought against a failure mode — on-disk byte rot — that a CHECK cannot prevent either,
+// since it validates at WRITE time and the corruption happens after. The honest guard for that failure is
+// the backup/restore path, which exists.
+// REVISIT IF: an external producer ever writes one of these columns directly, or a corrupt-blob read is
+// ever actually observed. Until then, recorded and closed — not re-derived.
 
 export * from "./assets.ts";
 export * from "./audit.ts";

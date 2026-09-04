@@ -74,11 +74,20 @@ export const assetIdSchema = typeIdSchema(ID_PREFIX.asset);
 /** A `character_…` TypeID — the gallery `subjectCharacterId` association ref. */
 export const characterIdSchema = typeIdSchema(ID_PREFIX.character);
 
-/** Parses {@link StoredAsset} — the client `uploadAsset` helper's response-boundary validator. */
+/** The sha-256 hex digest length the CAS emits — 32 bytes, two hex chars each. */
+const CAS_HASH_HEX_LENGTH = 64;
+
+/** Parses {@link StoredAsset} — the client `uploadAsset` helper's response-boundary validator.
+ *
+ *  The floor matches what the producer can actually emit (#1371 item 5): `infra/storage/cas.ts` always
+ *  returns a 64-char sha-256 hex and a real buffer length, so an empty hash or a negative size was a state
+ *  no live path could reach and the schema accepted anyway. This is a RESPONSE validator over our own
+ *  server's reply, not an input boundary — the tightening buys a louder failure if the reply ever stops
+ *  being what the CAS promises, nothing more, and it is free. */
 export const storedAssetSchema = z.object({
   assetId: assetIdSchema,
-  hash: z.string(),
-  size: z.number().int(),
+  hash: z.string().length(CAS_HASH_HEX_LENGTH),
+  size: z.number().int().nonnegative(),
   created: z.boolean(),
 });
 /** A `gallery_item_…` TypeID — the gallery v2 curation row id. */

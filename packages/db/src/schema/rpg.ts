@@ -118,6 +118,23 @@ export const rpgGames = sqliteTable(
 // Born WHOLE — full grafts ZERO columns here. `quests` folds INTO the snapshot (§2.5). `committed` births 0
 // at a turn flush; the NEXT user send's `onUserCommit` locks it to 1 (a hand row is born committed=1).
 // Ambient `clock`/`weather`/`calendarDate` are born nullable (§2.7).
+//
+// ── THE LINEAGE INVARIANT, stated (#1380) ─────────────────────────────────────────────────────────────
+// A row's THREE references must meet at ONE chat: `game_id`'s game, `message_id`'s message and
+// `variant_id`'s variant all belong to the same `chats.id`. SQLite cannot express that as a constraint
+// (a CHECK cannot join, and the FKs point at three different tables), so it is NOT enforced by the
+// schema — and every writer on the tree satisfies it the stronger way: BY DERIVATION, never by
+// validation. The turn, hand and fork arms take `gameId`/`messageId`/`variantId` off ONE
+// `findEngagedGame(chatId)` result or one fork's own id maps, so a mismatched tuple is not rejected, it
+// is UNCONSTRUCTIBLE. The import arm (`persistence/portability-write.ts`) is the one that inserts a
+// caller-supplied pair verbatim, and it is safe because the PORTABLE form carries INDICES rather than
+// ids: `remapRpg` (`domain/import/verbs/import-chat-bundle.ts`) can only resolve them against the target
+// chat's freshly-minted `identity`, so a source-chat id has no path into the write.
+//
+// ENFORCER (constitution §2.3 — a boundary held by convention is a wish): the negative tests in
+// the "cross-chat lineage invariant" blocks in `tests/server/domain/rpg/persistence/{snapshots,turn-tool-calls,checkpoints}.int.test.ts`, which plant a cross-chat pair and
+// pin that today's writers refuse to produce it. A future arm that ACCEPTS a `(gameId, messageId)` pair
+// inherits no belt from the schema — it must validate, and that suite is where it says so.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const rpgSnapshots = sqliteTable(
@@ -162,6 +179,11 @@ export const rpgSnapshots = sqliteTable(
     // `widget_values`, which keyed by widget LABEL against defs in a whole separate table — both gone.
     trackerValues: text("tracker_values", { mode: "json" }).$type<RpgTrackerValues>(),
     // The swipe-consistent quest plane (§2.5) — folded into the snapshot, clone-forward like inventory/cast.
+    // NULLABLE DESPITE THE `'[]'` DEFAULT, and that is ACCEPTED rather than a defect (#1378 item 10): a
+    // writer that states the column explicitly can still store NULL, so readers pay a coalesce. They ALL
+    // pay it, consistently and deliberately — `contract/service.ts`, `persistence/portability-write.ts` and
+    // `persistence/snapshots.ts` each read `quests ?? []`. Making it NOT NULL would be the tidier shape and
+    // is not worth a baseline squash on its own; the tax is real, uniform and paid.
     quests: text("quests", { mode: "json" }).$type<readonly RpgQuest[]>().default(sql`'[]'`),
     // The P5 plot plane (parity-plus — snapshot-resident `{act,title,acts}`, clone-forward like quests;
     // the act rail's datum). Born nullable: null = no plot authored yet.
@@ -294,6 +316,12 @@ export const rpgJournal = sqliteTable(
 //
 // CASCADE on the variant, like `rpg_journal`'s model entries: a record whose swipe died is unreachable
 // forever, so keeping it is a leak rather than history.
+//
+// LINEAGE (#1380): `game_id`, `message_id` and `variant_id` must meet at ONE chat, exactly as on
+// `rpg_snapshots` — and for the same reason it is not a constraint (a CHECK cannot join three tables).
+// Held by DERIVATION at every writer; the enforcer is
+// the "cross-chat lineage invariant" block in `tests/server/domain/rpg/persistence/turn-tool-calls.int.test.ts`. `rpg_snapshots`'s header states
+// the rule in full; do not re-derive it, and do not add an accept-shaped writer without validating.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const rpgTurnToolCalls = sqliteTable(
@@ -337,6 +365,12 @@ export const rpgTurnToolCalls = sqliteTable(
 // rpg_checkpoints — a labeled snapshot bookmark (restore = clone forward). RESTRICT on snapshot delete:
 // "restore broken because the snapshot vanished" must be a constraint error, not a silent dangle. Lite
 // only ever writes trigger "manual"; full ADDS the session/combat arms (additive tuple). CHECK-derived.
+//
+// LINEAGE (#1380): `game_id` and `snapshot_id`'s OWN `game_id` must be the same game — two FKs to two
+// tables, which SQLite cannot pair. Unlike the derive-only arms this pair IS caller-supplied on the
+// restore path, and it IS validated there: `verbs/game/restore-checkpoint.ts` compares
+// `checkpoint.gameId !== game.id` before use. Enforcer: that guard's suite plus
+// the "cross-chat lineage invariant" block in `tests/server/domain/rpg/persistence/checkpoints.int.test.ts`.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const rpgCheckpoints = sqliteTable(

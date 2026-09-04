@@ -264,6 +264,20 @@ export const pluginKv = sqliteTable(
       .notNull()
       .references(() => plugins.id, { onDelete: "cascade" }),
     // Denormalized guard column (belt: every query filters WHERE plugin_id AND owner_id).
+    //
+    // NOTHING TIES IT TO `plugins.owner_id`, AND THAT IS ACCEPTED (#1378 item 11 — the review's strongest
+    // DB claim, and reachability-traced to nil). The PK is `(plugin_id, key)`, so a row could in principle
+    // name plugin P while carrying a DIFFERENT user's `owner_id`, and SQLite cannot express a CHECK against
+    // another table. UNREACHABLE today: every traced writer derives `ownerId` from a caller already gated
+    // by `getById(db, callerUserId, pluginId)`, whose predicate is `WHERE id = ? AND owner_id = ?` — so the
+    // pair is produced together from one authorization, never assembled.
+    //
+    // The honest CLOSURES were both weighed and refused for this lane: dropping the column (it IS derivable
+    // through `plugins`) costs every KV query a join onto the hot host-fn path and deletes the belt the
+    // comment above describes; adding it to the PK changes the table's identity and every upsert's conflict
+    // target. Either is a design change, not a floor — file one if the join cost is ever measured as
+    // acceptable. What is NOT acceptable is a future writer that takes `ownerId` as a parameter beside a
+    // `pluginId` it did not authorize together.
     ownerId: text("owner_id")
       .$type<UserId>()
       .notNull()

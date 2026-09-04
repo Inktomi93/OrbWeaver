@@ -148,6 +148,33 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 export type NotificationType = NotificationEvent["type"];
 
+// ── the RUNTIME tuple (#1379 item 3) ─────────────────────────────────────────────────────────────────
+// The union above exported only its derived TYPE, so `@orb/db`'s `notifications` schema — which needs the
+// members as VALUES to build its `type in (…)` CHECK — hand-spelled its own tuple, and the db test then
+// proved the two agreed by reaching into zod's internal discriminated-union option shape
+// (`.options[].shape.type.value`, flagged FABRICATION-OK). A respelling plus an introspection test is what
+// this package exports real tuples to avoid (`USER_ROLES`, `PARTICIPANT_KINDS` and friends).
+//
+// BOTH DIRECTIONS ARE COMPILE-TIME, and it takes two halves because a drizzle `text({ enum })` column
+// needs a NON-EMPTY TUPLE type, which rules out deriving the values from a mapped Record at runtime:
+//   • NO NON-MEMBER — `satisfies readonly NotificationType[]` here (a typo fails `tsc` on this line);
+//   • NO MISSING MEMBER — the `Exclude<NotificationType, …>` proof in
+//     `tests/contracts/notifications/index.test-d.ts`, which `pnpm check`'s `types:testd` stage runs.
+// Between them the tuple cannot drift from the union, which is strictly stronger than the runtime
+// assertion (over zod's internal option shape) this replaces.
+
+/** Every `NotificationEvent` discriminant as VALUES — the db `notifications.type` column's enum + CHECK
+ *  list, and anything else that needs to enumerate the axis at runtime. Provably the whole union. */
+export const NOTIFICATION_TYPES = [
+  "invite",
+  "kicked",
+  "handoff-nominated",
+  "handoff-accepted",
+  "deferred-turn-dropped",
+  "automation-notice",
+  "plugin-disabled",
+] as const satisfies readonly NotificationType[];
+
 /** One stored notification as its recipient reads it — the closed `NotificationEvent` wire union paired with
  *  the durable inbox columns the client needs to render + page. A cross-boundary READ MODEL (it is what the
  *  `notifications.list` query returns AND what the multiplexed socket's `notifications` room frame nests, so

@@ -12,6 +12,7 @@ import type { CelValue } from "#cel";
 import { evalCel, isCelParseError, parseCel } from "#cel";
 import { BUILTIN_MACRO_METADATA } from "./builtin-metadata.ts";
 import { isIfTruthy } from "./metadata.ts";
+import { unitDraw } from "./prng.ts";
 import type { MacroAST, MacroContext, MacroHandler, MacroMetadata, MacroMetadataInput, MacroRegisterOptions, MacroRegistry, VarOp } from "./types.ts";
 import { applyVarOp } from "./variables.ts";
 
@@ -48,14 +49,28 @@ export class SimpleMacroRegistry implements MacroRegistry {
   // register()'s `options.metadata` (extensions) and setMetadata() (the builtin backfill).
   private metadata = new Map<string, MacroMetadataInput>();
 
+  /** Register (or REPLACE) a macro. All three maps move together — #1360 item 4: the handler used to be
+   *  replaced unconditionally while `options`/`metadata` were only overwritten when new ones were passed,
+   *  so a bare-handler re-registration left the PREVIOUS macro's `volatile` flag, `requires` gate and
+   *  browser metadata attached to a different implementation. Replacing atomically means the registration
+   *  is always internally consistent; a re-registration that means to keep the old options states them.
+   *
+   *  Duplicates are not REJECTED here on purpose: `registerUserMacros` already refuses collisions at the
+   *  layer that owns user-authored names, and this registry is also the seam a host uses to override a
+   *  builtin outright. */
   register(name: string, handler: MacroHandler, options?: MacroRegisterOptions): void {
     const key = name.toLowerCase();
     this.handlers.set(key, handler);
-    if (options) {
-      this.options.set(key, options);
-      if (options.metadata) {
-        this.metadata.set(key, options.metadata);
-      }
+    if (options === undefined) {
+      this.options.delete(key);
+      this.metadata.delete(key);
+      return;
+    }
+    this.options.set(key, options);
+    if (options.metadata === undefined) {
+      this.metadata.delete(key);
+    } else {
+      this.metadata.set(key, options.metadata);
     }
   }
 
@@ -225,7 +240,9 @@ const ifHandler: MacroHandler = (args, ctx, children) => {
 
 // {{random}} → 0..100; {{random::X::Y}} → integer in [X,Y]; {{random::A::B::C}} → pick one option.
 const randomHandler: MacroHandler = (args, ctx) => {
-  const random = ctx.random ?? Math.random;
+  // Every draw below rides the ONE normalising seam — an injected PRNG is untrusted (#1359, ./prng.ts).
+  const source = ctx.random ?? Math.random;
+  const random = (): number => unitDraw(source);
   if (args.length === 0) {
     return String(Math.floor(random() * RANDOM_DEFAULT_CEIL));
   }
@@ -259,7 +276,9 @@ function rollDice(dice: RegExpMatchArray, random: () => number): string {
 
 // {{roll::NdM}} (sum of N M-sided dice) or {{roll::N}} (1..N). Empty/invalid → "".
 const rollHandler: MacroHandler = (args, ctx) => {
-  const random = ctx.random ?? Math.random;
+  // Every draw below rides the ONE normalising seam — an injected PRNG is untrusted (#1359, ./prng.ts).
+  const source = ctx.random ?? Math.random;
+  const random = (): number => unitDraw(source);
   const spec = args[0]?.trim().toLowerCase();
   if (spec === undefined || spec === "") {
     return "";
@@ -283,7 +302,9 @@ const pickHandler: MacroHandler = (args, ctx) => {
   if (args.length === 0) {
     return "";
   }
-  const random = ctx.random ?? Math.random;
+  // Every draw below rides the ONE normalising seam — an injected PRNG is untrusted (#1359, ./prng.ts).
+  const source = ctx.random ?? Math.random;
+  const random = (): number => unitDraw(source);
   const index = Math.floor(random() * args.length);
   return args[index] ?? "";
 };

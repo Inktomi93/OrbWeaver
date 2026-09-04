@@ -67,3 +67,14 @@ test("the global sweep drops keys whose newest entry has aged out", () => {
   expect(buf.snapshot("k1")).toEqual([]);
   expect(buf.snapshot("k2")).toEqual(["e2"]);
 });
+
+// ── TTL boundary (#1359) ────────────────────────────────────────────────────────────────────────────
+// `@orb/kit/bounded-ring` next door already throws `RangeError` on a nonsense capacity; the two rings
+// are one family and had two different failure modes. A zero/negative/NaN TTL retains NOTHING and an
+// infinite one never expires — both read exactly like a bus nobody wired.
+test("createReplayBuffer REFUSES a non-finite or non-positive TTL", () => {
+  expect(() => createReplayBuffer<string, string>(0)).toThrow(RangeError);
+  expect(() => createReplayBuffer<string, string>(-1)).toThrow(RangeError);
+  expect(() => createReplayBuffer<string, string>(Number.NaN)).toThrow(RangeError);
+  expect(() => createReplayBuffer<string, string>(Number.POSITIVE_INFINITY)).toThrow(RangeError);
+});

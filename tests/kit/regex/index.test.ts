@@ -118,6 +118,57 @@ test("MAX_FIND_REGEX_LENGTH guard: an over-long pattern is rejected and reported
   expect(onScriptFailure).toHaveBeenCalledTimes(1);
 });
 
+// ── the ReDoS heuristic's ACTUAL coverage (#1360 item 6) ─────────────────────────────────────────────
+// The suite covered only the length cap and syntax errors, so the complexity boundary's real shape was
+// assumed rather than known. These pins state it. DO NOT "fix" the heuristic to make the first arm below
+// reject: it counts quantifier-stack OCCURRENCES, not nesting depth, and the module's own header says so
+// — the real boundary is the server's node:vm-sandboxed `applyReplace` timeout
+// (`packages/server/src/kit/regex/index.ts`, `vm.Script` with `timeout: 50`), which stays the boundary.
+// The value of pinning is that a future edit to the counter shows up as a CHANGED verdict here rather
+// than as silence.
+
+/** Does `findRegex` survive compilation? (`onScriptFailure` fires for over-complex AND invalid patterns.) */
+function compiles(findRegex: string): boolean {
+  const onScriptFailure = vi.fn();
+  executeRegexScripts({ text: "x", scripts: [script({ findRegex, replaceString: "Z" })], placement: "AI_OUTPUT", ctx: macroOpts(), onScriptFailure });
+  return onScriptFailure.mock.calls.length === 0;
+}
+
+test("the heuristic PASSES the canonical catastrophic shapes — one quantifier stack is not three", () => {
+  // `(a+)+$` is the textbook ReDoS pattern and it compiles fine here: matching it against a long
+  // non-matching subject backtracks catastrophically, which is exactly why the vm watchdog exists and
+  // why this filter is documented as defense-in-depth rather than a guarantee. NOT RUN against a
+  // pathological subject — an unguarded run wedges the test runner (the probe that established this was
+  // killed at a 5s timeout).
+  expect(compiles("(a+)+$")).toBe(true);
+  expect(compiles("(a|a)+$")).toBe(true);
+  expect(compiles("(\\s*\\w)+$")).toBe(true);
+});
+
+test("the heuristic REJECTS at three stacked quantifiers, and two still pass", () => {
+  expect(compiles("(a+)+")).toBe(true); // one stack
+  expect(compiles("(a+)+(b+)+")).toBe(true); // two stacks
+  expect(compiles("(a+)+(b+)+(c+)+")).toBe(false); // three — the cap
+});
+
+test("the counter is ASYMMETRIC about brace quantifiers — `{n,}` closes a stack but cannot open one", () => {
+  // MEASURED, not assumed. The counter is /[*+?}][)\]]*[*+?]/g: `}` is in the FIRST class (so `a{2,}+`
+  // reads as a stack) but `{` is NOT in the SECOND, so `(a{2,}){2,}` — a genuinely catastrophic nested
+  // form — contributes ZERO stacks and three of them still compile. This is not a defect to fix here:
+  // widening the counter changes a defense-in-depth heuristic whose real boundary is the vm watchdog,
+  // and a wider net would start rejecting ordinary authored patterns. It is pinned so the gap is
+  // LEGIBLE — the next reader learns it from a passing test instead of re-deriving it from the regex.
+  expect(compiles("(a{2,}){2,}(b{2,}){2,}(c{2,}){2,}")).toBe(true);
+  expect(compiles("(a{2,}){2,}(b+)+(c+)+")).toBe(true); // only the two `+)+` stacks count
+});
+
+test("ordinary authoring patterns are unaffected by the complexity filter", () => {
+  // The shapes real scripts use: alternation, groups, lazy quantifiers, anchors, classes.
+  expect(compiles("^\\*(.+?)\\*$")).toBe(true);
+  expect(compiles("<thinking>[\\s\\S]*?</thinking>")).toBe(true);
+  expect(compiles("(?<speaker>\\w+): (?<line>.*)")).toBe(true);
+});
+
 test("an invalid regex is caught and reported, not thrown", () => {
   const onScriptFailure = vi.fn();
   const out = executeRegexScripts({

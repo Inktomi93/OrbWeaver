@@ -37,6 +37,7 @@
 import type { CharacterId, CharacterStatId, DailyStatId, ModelStatId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+
 import { characters } from "./character.ts";
 import { users } from "./users.ts";
 
@@ -47,6 +48,32 @@ const PROVIDER_FALLBACK = "(unknown)";
 // Born-at-insert epoch-ms clock for `computedAt` (the live delta always supplies `delta.now`; this default
 // only covers a bare insert). SQL `unixepoch()`, never a JS clock (the determinism gate).
 const NOW_MS = sql`(unixepoch() * 1000)`;
+
+// ── NO NON-NEGATIVE COUNTER CHECK HERE, AND THE PREMISE THAT ASKED FOR ONE IS REFUTED (#1378 item 8) ──
+//
+// The finding was: ~40 additive counters across these four tables, zero `check(` references, so a
+// reconciliation bug could store a negative total and every reader would render it as fact. The whole
+// #1378 sweep rested on one stated premise — *"in every case the application layer currently prevents the
+// bad row"* — and for the stats rollups THAT IS FALSE. Measured, not reasoned:
+// `check("character_stats_counters_check", …)` was written, the baseline regenerated, and FOUR existing
+// integration tests went red on `SQLITE_CONSTRAINT: character_stats_counters_check` — ordinary chat
+// editing, not an edge case (`verbs/edit.int.test.ts` editReasoning/clearReasoning, selectVariant,
+// applyProseRewrite; `engine/engine-stats.suite.int.test.ts` the swipe/continue/impersonate drift gate).
+//
+// THE MECHANISM, source-pinned: `domain/stats/write/apply-delta.ts` plants THE DELTA ITSELF as the
+// inserted row (`chats: n(delta.characterChats)`, …) and only the ON CONFLICT arm accumulates
+// (`col + excluded.col`). So a NEGATIVE delta — clearing reasoning, deleting a slot, moving a selection —
+// against a character with no rollup row yet inserts a negative row DIRECTLY, and against an existing one
+// can dip a column below zero between the live write and the reconcile that repairs it. A transiently
+// negative counter is not a corruption in this design; it is the accumulator mid-flight, and reconcile
+// (`write/rebuild-from-canon.ts`) is the thing that makes it true again.
+//
+// So the honest verdict is that "every counter is always >= 0" is NOT an invariant of these tables, and a
+// CHECK asserting it does not harden the schema — it breaks message editing. The floor was REFUSED rather
+// than shipped, and clamping the writers instead would be a behaviour change to the economics domain that
+// also masks the very drift reconcile exists to surface. If a stats-drift row ever wants a physical guard,
+// the constrainable property is the RECONCILED state, not the live one — which is a trigger or a verify
+// gate over `rebuild-from-canon`'s output, not a column CHECK.
 
 // stats_canon_versions — monotonic per-owner mutation fence for the two stats writers. Every live delta
 // increments this row in the SAME batch as canon + rollups; reconcile snapshots it around its streamed

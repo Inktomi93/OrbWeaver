@@ -759,6 +759,12 @@ export const chatInvites = sqliteTable(
     // (`fk-columns-indexed` gate).
     index("chat_invites_invited_user_idx").on(t.invitedUserId),
     check("chat_invites_status_check", sql.raw(`status in (${checkList(INVITE_STATUSES)})`)),
+    // #1378 item 7 — the redemption counters, physically. The `uses < max_uses` admission itself stays an
+    // application conditional-UPDATE (the comment above `chat_invites` states why: it must be atomic with
+    // the seat write), and this does NOT replace it. What it closes is the shape that guard cannot see: a
+    // NEGATIVE `uses` makes an exhausted invite redeemable again, and a `max_uses <= 0` is a cap that
+    // admits nobody — a link that looks live and refuses everyone. `null` max_uses stays the unlimited arm.
+    check("chat_invites_uses_check", sql.raw("uses >= 0 and (max_uses is null or max_uses > 0)")),
   ],
 );
 
@@ -843,6 +849,21 @@ export const chatEvents = sqliteTable(
 // chat_stream_events — the RESUMABLE SSE token log. Each row is one
 // streamed delta; `seq` is the resume cursor (`replayStreamEvents`/`streamEventBounds`). `kind` mirrors the
 // `ChatDeltaEvent` discriminant (text | reasoning) — tied to the contract wire type via `satisfies`.
+//
+// NO PRODUCTION WRITER YET — RETAINED, and this is the decision, not an oversight (#1379 item 1, swept:
+// zero inserts across 1451 server `.ts` files; the only writer on the tree is the test fixture
+// `seedStreamEvent`). "Unwired ≠ worthless" (constitution §1) is the rule, and here the READ half is not
+// scaffolding — it is BUILT AND WIRED: `loadStreamReplay`/`loadStreamBounds`
+// (`domain/chat/persistence/queries.ts`) back the `replayStreamEvents`/`streamEventBounds` verbs
+// (`domain/chat/verbs/read.ts`), the id minter is declared on `ChatContext` and wired at
+// `entry/compose/chat.ts`, and the D16 join-history-floor clamp is implemented AGAINST THIS TABLE as the
+// row-level twin of the bus `delta` check. Dropping the table would delete that clamp and the resume
+// shape with it. What is missing is exactly one thing: the append verb.
+//
+// WHOEVER BUILDS IT: `chatId` and `messageId` are two references that must meet at ONE chat, and the
+// fixture is the place that used to model them as independent parameters — it now derives and refuses a
+// cross-chat pair (see `tests/server/domain/chat/_support.ts` `seedStreamEvent`). Derive both arms from
+// one server-trusted root, as every other chat writer does (#1380).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 // The stream-delta kind tuple — tied to the contract `ChatDeltaEvent["kind"]` (compile-time validity; a

@@ -37,8 +37,16 @@ const DEFAULT_REPLAY_TTL_MS = 5000;
  * TTL the worst case is dozens of entries; a key's ring is deleted outright once every entry has
  * expired, so idle keys don't accumulate. Cleared on process restart (subscribers re-attach and
  * re-snapshot). `now` is the injectable clock (default `Date.now`).
+ *
+ * `ttlMs` must be a finite positive number, and throws `RangeError` otherwise (#1359). A zero/negative
+ * TTL retains NOTHING and an infinite one never expires — either reads exactly like a bus nobody wired,
+ * and `bounded-ring` next door already refuses a nonsense capacity the same way. One ring family, one
+ * failure mode.
  */
 export function createReplayBuffer<K, E>(ttlMs: number = DEFAULT_REPLAY_TTL_MS, now: () => number = Date.now): ReplayBuffer<K, E> {
+  if (!Number.isFinite(ttlMs) || ttlMs <= 0) {
+    throw new RangeError(`replay-buffer ttlMs must be a finite positive number, got ${ttlMs}`);
+  }
   const rings = new Map<K, BufferedEvent<E>[]>();
 
   // ── Global stale sweep ──

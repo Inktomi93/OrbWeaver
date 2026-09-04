@@ -585,3 +585,43 @@ describe("the two-arm CHECK", () => {
     ).rejects.toThrow();
   });
 });
+
+// ── THE LINEAGE INVARIANT (#1380) — the named ENFORCER for a boundary the schema cannot express ─────────
+// A snapshot's THREE references must meet at ONE chat: `game_id`'s game, `message_id`'s message and
+// `variant_id`'s variant. SQLite cannot pair them (a CHECK cannot join; the FKs point at three tables), so
+// the schema permits a cross-chat row and always will. A full verification pass found every writer SAFE
+// for a stronger reason than validation — the turn, hand and fork arms take all three off ONE
+// `findEngagedGame(chatId)` result or one fork's own id maps, so a mismatched tuple is UNCONSTRUCTIBLE,
+// and the import arm's portable form carries INDICES that `remapRpg` can only resolve against the target
+// chat's freshly-minted identity. But "today's code happens to derive" is code shape, not a boundary
+// (constitution §2.3), and this arm had no negative test at all.
+//
+// THIS DOES NOT CLAIM THE DB REFUSES THE ROW — it does not, and pretending otherwise is the false clean
+// the pin exists to prevent. It states WHERE the line actually is, so nobody deletes a derivation
+// believing the schema has their back.
+describe("the cross-chat lineage invariant", () => {
+  test("a snapshot whose game and turn belong to DIFFERENT chats is STORABLE — derivation is the only belt", async () => {
+    const chatA = await seedChat(db, "a");
+    const chatB = await seedChat(db, "b");
+    const gameA = await seedGame(db, chatA, "ga");
+    await seedGame(db, chatB, "gb");
+    const slotA = await seedMessage(db, chatA, 1, { role: "assistant" });
+    const slotB = await seedMessage(db, chatB, 1, { role: "assistant" });
+
+    // Room A's game anchored to room B's turn. Every FK resolves, so the write SUCCEEDS.
+    await insertSnapshot(db, { id: snapshotId("cross"), gameId: gameA, messageId: slotB.messageId, variantId: slotB.variantId, createdAt: FROZEN_AT });
+    const stored = (
+      await db
+        .select()
+        .from(rpgSnapshots)
+        .where(eq(rpgSnapshots.id, snapshotId("cross")))
+    )[0];
+    expect(stored?.gameId).toBe(gameA);
+    expect(stored?.variantId).toBe(slotB.variantId);
+    expect(stored?.messageId).not.toBe(slotA.messageId);
+
+    // THE DAY a constraint lands (a trigger, or a composite FK via a unique key on `messages(id, chat_id)`)
+    // this goes red and is rewritten as a refusal — on purpose. Until then the honest statement is:
+    // incoherent is storable, and the writers are what keep it unreached.
+  });
+});

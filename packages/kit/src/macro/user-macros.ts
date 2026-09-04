@@ -27,6 +27,7 @@
 import { neutralizeMacros } from "./content.ts";
 import { isIfTruthy } from "./metadata.ts";
 import { MACRO_NAME_RE, parseMacros } from "./parser.ts";
+import { unitDraw } from "./prng.ts";
 import type { MacroArgDef, MacroContext, MacroHandler, MacroRegistry, MacroSourceRef } from "./types.ts";
 
 // ── the definition vocabulary ────────────────────────────────────────────────────────────────────
@@ -164,7 +165,11 @@ function resolveRandomPick(
   if (pool.length === 0) {
     return ""; // an option-less input — nothing to draw from
   }
-  const drawn = pool[Math.floor(opts.prng() * pool.length)] ?? "";
+  // `opts.prng` is caller-supplied and untrusted — the draw rides the ONE normalising seam (#1359,
+  // ./prng.ts). Pre-guard, an out-of-range draw indexed past the pool and the `?? ""` below bound the
+  // macro to the empty string AND recorded "" as the frozen draw, so a silently deleted option then
+  // REPLAYED on every swipe of that turn.
+  const drawn = pool[Math.floor(unitDraw(opts.prng) * pool.length)] ?? "";
   draws[input.name] = drawn;
   return drawn;
 }

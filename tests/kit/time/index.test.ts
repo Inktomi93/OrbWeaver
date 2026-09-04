@@ -49,6 +49,16 @@ test("secondsToMs scales known-seconds and passes nullish through as undefined",
   expect(secondsToMs(Number.NaN)).toBeUndefined();
 });
 
+// #1359: every caller is a provider SDK field documented as a forward epoch (Agent SDK `resetsAt`,
+// OpenRouter `created`). A negative reading is a pre-1970 instant none of them can honestly mean, and
+// `epochToMs` right next door already refuses `<= 0` — the two parsers now agree on the sign.
+test("secondsToMs refuses a NEGATIVE epoch, matching epochToMs's own sign floor", () => {
+  expect(secondsToMs(-1)).toBeUndefined();
+  expect(secondsToMs(-1_700_000_000)).toBeUndefined();
+  // 0 still passes: it is a real (if degenerate) epoch and no caller reads it as a sentinel.
+  expect(secondsToMs(0)).toBe(0);
+});
+
 test("isoToMs reads a Z-suffixed instant as UTC", () => {
   expect(isoToMs("1970-01-01T00:00:00Z")).toBe(0);
   expect(isoToMs("2001-09-09T01:46:40Z")).toBe(1_000_000_000_000);

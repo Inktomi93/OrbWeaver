@@ -39,16 +39,25 @@ export interface TextChunk {
 
 const PERCENT = 100;
 
+/** The floor for `chunkSize`. TWO, not one (#1359): at size 1 the surrogate-pair guard in
+ *  `splitRecursive` cannot run — there is no second code unit left to keep a pair together — so an astral
+ *  character splits into lone surrogates, and the trade is FORCED once 1 is accepted (no cut value
+ *  satisfies both the stated bound and the totality guarantee). Accepting 1 was a chosen gap, not a
+ *  requirement: the only production caller's zod floor (`@orb/contracts/databank` chunkParamsSchema) is
+ *  200, so the floor costs nothing and closes the case where the module cannot keep its own promise. */
+const MIN_CHUNK_SIZE = 2;
+
 /** Pure, deterministic, total over valid parameters. Throws unless `chunkSize` is a finite integer at
- *  least 1 so recursive splitting always advances with integral offsets.
+ *  least {@link MIN_CHUNK_SIZE} so recursive splitting always advances with integral offsets AND can
+ *  always keep a surrogate pair whole.
  *
  *  Properties (the property tests): (1) lossless partition — slicing the input by every chunk's `[start, end)`
  *  in `idx` order reproduces it; (2) bound — every `content` fits `chunkSize` plus the overlap chars
  *  (whole-file case exempt); (3) contiguity — `idx` is `0..n-1` and chunks abut (`chunks[i].end` equals
  *  `chunks[i+1].start`); (4) determinism; (5) totality. */
 export function chunkText(text: string, params: ChunkParams): TextChunk[] {
-  if (!Number.isInteger(params.chunkSize) || params.chunkSize < 1) {
-    throw new RangeError(`chunkText: chunkSize must be a finite integer at least 1 (got ${params.chunkSize})`);
+  if (!Number.isInteger(params.chunkSize) || params.chunkSize < MIN_CHUNK_SIZE) {
+    throw new RangeError(`chunkText: chunkSize must be a finite integer at least ${MIN_CHUNK_SIZE} (got ${params.chunkSize})`);
   }
   if (text.length === 0) {
     return [];

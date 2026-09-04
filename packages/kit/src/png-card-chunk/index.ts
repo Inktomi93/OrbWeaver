@@ -74,22 +74,43 @@ function collectCardChunks(data: Uint8Array, want: string): CardChunkCandidate[]
       break; // truncated → stop walking
     }
     const type = latin1Decode(data.subarray(offset + LENGTH_FIELD_BYTES, offset + LENGTH_AND_TYPE));
-    const body = data.subarray(offset + LENGTH_AND_TYPE, offset + LENGTH_AND_TYPE + length);
-    if (type === TEXT_TYPE) {
-      const plain = plainValueFor(body, want);
-      if (plain !== null) {
-        found.push({ compressed: false, value: plain });
-      }
+    // IEND is the LOGICAL END OF THE IMAGE (#1360 item 2). The walk used to run to the end of the byte
+    // array, so a card chunk APPENDED PAST IEND — bytes no PNG decoder will ever look at, and the easiest
+    // place for a hostile or merely broken producer to hide one — was read as if it were part of the file.
+    // Stop here; a card that is not inside the image is not this image's card.
+    if (type === IEND_TYPE) {
+      break;
     }
-    if (type === ZTEXT_TYPE) {
-      const deflated = compressedValueFor(body, want);
-      if (deflated !== null) {
-        found.push({ compressed: true, value: deflated });
-      }
+    const candidate = cardCandidateAt({ data, view, offset, length, type }, want);
+    if (candidate !== null) {
+      found.push(candidate);
     }
     offset += CHUNK_OVERHEAD + length;
   }
   return found;
+}
+
+/** The card-chunk candidate at `offset`, or `null` when this chunk is not one: a wrong type, a wrong
+ *  keyword, a missing NUL separator, an undefined zTXt compression method — or a FAILED CRC.
+ *
+ *  THE CRC ARM IS #1360 item 2: the reader ignored CRCs entirely, so corrupt metadata was collected as if
+ *  it were authentic and then either exploded downstream or, worse, decoded into something that parses. A
+ *  bad CRC makes the chunk not-a-candidate, exactly like an undecodable one — the precedence rule above
+ *  already says a later intact `chara`/`ccv3` wins, so this just adds "corrupt bytes" to the list of
+ *  things that stop a chunk counting. Only the chunks this module READS are verified; verifying IDAT would
+ *  be image-integrity work it does not do and could not act on. */
+function cardCandidateAt(at: ChunkCursor, want: string): CardChunkCandidate | null {
+  const { data, offset, length, type } = at;
+  if ((type !== TEXT_TYPE && type !== ZTEXT_TYPE) || !chunkCrcValid(at)) {
+    return null;
+  }
+  const body = data.subarray(offset + LENGTH_AND_TYPE, offset + LENGTH_AND_TYPE + length);
+  if (type === TEXT_TYPE) {
+    const plain = plainValueFor(body, want);
+    return plain === null ? null : { compressed: false, value: plain };
+  }
+  const deflated = compressedValueFor(body, want);
+  return deflated === null ? null : { compressed: true, value: deflated };
 }
 
 /** Read a `tEXt` (plain) or `zTXt` (zlib-compressed) chunk value by keyword (case-insensitive),
@@ -118,6 +139,31 @@ export async function readCardChunk(data: Uint8Array, keyword: string): Promise<
     }
   }
   return null;
+}
+
+/** One position in a chunk walk — the whole file plus where this chunk starts and what it is. Bundled
+ *  rather than passed as five positionals so the two readers below stay inside the parameter cap. */
+interface ChunkCursor {
+  readonly data: Uint8Array;
+  readonly view: DataView;
+  readonly offset: number;
+  readonly length: number;
+  readonly type: string;
+}
+
+/** True when the chunk at `offset` carries the CRC-32 the PNG spec says it must (computed over
+ *  `type + data`, stored in the 4 bytes after the payload).
+ *
+ *  #1360 item 2: the reader IGNORED CRCs entirely, so a corrupt card chunk was handed back as if it were
+ *  authentic — it then either exploded further downstream or, worse, decoded into something that parses.
+ *  Only the chunks this module actually READS are verified: verifying IDAT would be image-integrity work
+ *  this module does not do and could not act on. */
+function chunkCrcValid(at: ChunkCursor): boolean {
+  const { data, view, offset, length, type } = at;
+  const crcInput = new Uint8Array(TYPE_FIELD_BYTES + length);
+  crcInput.set(latin1ToBytes(type), 0);
+  crcInput.set(data.subarray(offset + LENGTH_AND_TYPE, offset + LENGTH_AND_TYPE + length), TYPE_FIELD_BYTES);
+  return view.getUint32(offset + LENGTH_AND_TYPE + length, BIG_ENDIAN) === crc32(crcInput);
 }
 
 /** Split a text-chunk body at its NUL separator, returning the lowercased keyword + the bytes after
@@ -189,7 +235,7 @@ export function writeCardChunk(basePng: Uint8Array, cardJson: string): Uint8Arra
   if (!isPng(basePng)) {
     throw new Error("base image is not a PNG");
   }
-  const { kept, iend } = splitChunks(basePng);
+  const { kept, iend, trailing } = splitChunks(basePng);
   if (iend === null) {
     throw new Error("PNG missing IEND chunk");
   }
@@ -200,13 +246,21 @@ export function writeCardChunk(basePng: Uint8Array, cardJson: string): Uint8Arra
   const v3Chunk = makeTextChunk(CCV3_KEY, cardJson);
 
   // ST's chunk order: V2 first, V3 second, both before IEND. A V3-aware reader scans all tEXt chunks
-  // and prefers ccv3; a V2-only reader stops at chara.
-  return concatChunks([PNG_SIGNATURE, ...kept, v2Chunk, v3Chunk, iend]);
+  // and prefers ccv3; a V2-only reader stops at chara. Anything the source file carried AFTER IEND is
+  // re-appended after IEND, never folded into the image stream — see `splitChunks`.
+  return concatChunks([PNG_SIGNATURE, ...kept, v2Chunk, v3Chunk, iend, ...(trailing === null ? [] : [trailing])]);
 }
 
-/** Walk `png`, dropping stale `chara`/`ccv3` card chunks of BOTH types, separating IEND from everything else
- *  kept. */
-function splitChunks(png: Uint8Array): { kept: Uint8Array[]; iend: Uint8Array | null } {
+/** Walk `png` up to IEND, dropping stale `chara`/`ccv3` card chunks of BOTH types and separating IEND from
+ *  everything else kept. Anything AFTER IEND is returned VERBATIM as `trailing`.
+ *
+ *  #1360 item 2 — the walk used to run to the end of the byte array and push post-IEND chunks onto `kept`,
+ *  which the rewrite then RELOCATED to before IEND. That takes bytes a PNG decoder ignores and splices them
+ *  into the image stream, which is corruption rather than preservation; and a post-IEND `chara` chunk was
+ *  promoted into a real card chunk on every rewrite. Preserving the tail WHERE IT ALREADY WAS is the honest
+ *  arm: the file round-trips byte-for-byte outside the card chunks, and nothing outside the image ever
+ *  becomes part of it. */
+function splitChunks(png: Uint8Array): { kept: Uint8Array[]; iend: Uint8Array | null; trailing: Uint8Array | null } {
   const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
   const kept: Uint8Array[] = [];
   let iend: Uint8Array | null = null;
@@ -219,16 +273,16 @@ function splitChunks(png: Uint8Array): { kept: Uint8Array[]; iend: Uint8Array | 
     const type = latin1Decode(png.subarray(offset + LENGTH_FIELD_BYTES, offset + LENGTH_AND_TYPE));
     const whole = png.slice(offset, offset + CHUNK_OVERHEAD + length);
     offset += CHUNK_OVERHEAD + length;
+    if (type === IEND_TYPE) {
+      iend = whole;
+      break; // the logical end of the image — everything past here is `trailing`, not a chunk of ours
+    }
     if ((type === TEXT_TYPE || type === ZTEXT_TYPE) && isStaleCardChunk(whole, length)) {
       continue; // drop the stale card chunks
     }
-    if (type === IEND_TYPE) {
-      iend = whole;
-    } else {
-      kept.push(whole);
-    }
+    kept.push(whole);
   }
-  return { kept, iend };
+  return { kept, iend, trailing: iend !== null && offset < png.length ? png.slice(offset) : null };
 }
 
 /** True when a text chunk's keyword is `chara`/`ccv3` (a previously embedded card to be replaced).
@@ -477,7 +531,8 @@ const CRC32_POLYNOMIAL = 0xed_b8_83_20;
 const CRC32_INIT = 0xff_ff_ff_ff;
 const CRC_TABLE_SIZE = 256;
 
-// Per-byte CRC table, built once. The reader ignores CRCs; a writer must compute them.
+// Per-byte CRC table, built once. Used by the writer (every chunk it emits) AND, since #1360, by the
+// reader's `chunkCrcValid` for the tEXt/zTXt chunks it actually consumes.
 const CRC_TABLE: Uint32Array = ((): Uint32Array => {
   const table = new Uint32Array(CRC_TABLE_SIZE);
   for (let n = 0; n < CRC_TABLE_SIZE; n += 1) {

@@ -51,8 +51,18 @@ export function batchStmt(stmt: BatchStmt): BatchStmt {
 
 /**
  * Bridge a plain array of statements into the non-empty tuple `Db.batch` wants — the ONE sanctioned
- * cast (the array's non-emptiness is the caller's invariant; `batch()` itself rejects an empty list at
- * runtime). Replaces the scattered inline `as BatchItem[]` casts.
+ * cast. Replaces the scattered inline `as BatchItem[]` casts.
+ *
+ * AN EMPTY LIST IS A NO-OP, NOT AN ERROR — and this doc used to claim the opposite (#1377 item 3). The
+ * previous sentence here asserted "`batch()` itself rejects an empty list at runtime"; MEASURED against a
+ * real migrated libSQL db, `db.batch([])` RESOLVES with `[]`. So the lie was the CONTRACT, not the
+ * behaviour: the type says non-empty, the runtime is total, and ~90 call sites hand this a computed array
+ * whose empty case is a legitimate "nothing to write" (`setTagOrderBatch` among them). Refusing `[]` here
+ * would convert every one of those silent no-ops into a crash, which is a regression wearing a
+ * hardening's clothes — so the fix is to make the stated contract true rather than to narrow the runtime.
+ *
+ * A caller that needs "at least one statement" is asserting a DOMAIN invariant and must say so at its own
+ * seam, where it knows what an empty list would mean.
  */
 export function batchMany(stmts: readonly BatchStmt[]): DbBatchInput {
   return stmts as unknown as DbBatchInput;

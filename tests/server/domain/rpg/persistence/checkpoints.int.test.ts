@@ -114,3 +114,46 @@ describe("the RESTRICT belt", () => {
     await expect(db.delete(rpgSnapshots).where(eq(rpgSnapshots.id, snap.id))).rejects.toThrow();
   });
 });
+
+// ── THE LINEAGE INVARIANT (#1380) ─────────────────────────────────────────────────────────────────────
+// A checkpoint's `game_id` and its snapshot's OWN `game_id` must be the same game — two FKs to two tables,
+// which SQLite cannot pair. UNLIKE the derive-only snapshot/tool-call arms, this pair IS caller-supplied on
+// the restore path, and it IS validated there (`verbs/game/restore-checkpoint.ts` compares
+// `checkpoint.gameId !== game.id` before use). This pins that the SCHEMA does not hold the line, so nobody
+// deletes that compare believing the db has their back.
+describe("the cross-game lineage invariant", () => {
+  test("a bookmark into ANOTHER game's snapshot is STORABLE — the restore verb's compare is the real belt", async () => {
+    const chatA = await seedChat(db, "a");
+    const chatB = await seedChat(db, "b");
+    const gameA = await seedGame(db, chatA, "ga");
+    const gameB = await seedGame(db, chatB, "gb");
+    const beatB = await seedMessage(db, chatB, 1, { role: "assistant" });
+    const foreign = await insertSnapshot(db, {
+      id: snapshotId("b1"),
+      gameId: gameB,
+      messageId: beatB.messageId,
+      variantId: beatB.variantId,
+      location: "room B camp",
+      committed: 1,
+      createdAt: FROZEN_AT,
+    });
+
+    // Both FKs resolve; nothing pairs them. The write goes through.
+    await insertCheckpoint(db, {
+      id: castId<RpgCheckpointId>("rpg_checkpoint_cross"),
+      gameId: gameA,
+      snapshotId: foreign.id,
+      label: "a bookmark into someone else's game",
+      trigger: "manual",
+      createdAt: FROZEN_AT,
+    });
+
+    const stored = await listCheckpoints(db, gameA);
+    expect(stored).toHaveLength(1);
+    expect(stored[0]?.snapshotId).toBe(foreign.id);
+    // The incoherence, stated: the bookmark's game is not the snapshot's game.
+    const snap = await findCheckpoint(db, castId<RpgCheckpointId>("rpg_checkpoint_cross"));
+    expect(snap?.gameId).toBe(gameA);
+    expect(foreign.gameId).toBe(gameB);
+  });
+});

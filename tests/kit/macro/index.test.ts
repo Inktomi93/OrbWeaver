@@ -344,6 +344,43 @@ test("random option-pick mode (non-integer 2-arg / 3+ args) uses the injected in
   expect(processMacros("{{random::a::b::c}}", opts({ random: () => ALMOST_ONE }))).toBe("c");
 });
 
+// ── the injected PRNG is UNTRUSTED (#1359) ─────────────────────────────────────────────────────
+// `ctx.random` is caller-supplied and, once plugins ship one, adversary-supplied. Every handler here
+// assumed `[0, 1)` without checking: a generator returning exactly 1 made `{{random}}` yield 101 and
+// `{{random::1::10}}` yield 11 — outside the range the macro's own documentation promises — while
+// NaN/Infinity rendered as the literal text "NaN"/"Infinity" and the array-index paths degraded to ""
+// through `?? ""`. The draw is now normalised ONCE at the seam, so the documented range holds for
+// every handler rather than per-handler.
+const HOSTILE_DRAWS: readonly number[] = [1, 1.5, -0.5, -1, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
+
+test.each(HOSTILE_DRAWS)("bare random stays inside 0..100 under an out-of-range draw (%s)", (draw) => {
+  const out = Number(processMacros("{{random}}", opts({ random: () => draw })));
+  expect(Number.isInteger(out)).toBe(true);
+  expect(out).toBeGreaterThanOrEqual(0);
+  expect(out).toBeLessThanOrEqual(100);
+});
+
+test.each(HOSTILE_DRAWS)("random::1::10 stays inside its declared bounds under draw %s", (draw) => {
+  const out = Number(processMacros("{{random::1::10}}", opts({ random: () => draw })));
+  expect(Number.isInteger(out)).toBe(true);
+  expect(out).toBeGreaterThanOrEqual(1);
+  expect(out).toBeLessThanOrEqual(10);
+});
+
+test.each(HOSTILE_DRAWS)("roll::2d6 stays inside 2..12 under draw %s", (draw) => {
+  const out = Number(processMacros("{{roll::2d6}}", opts({ random: () => draw })));
+  expect(Number.isInteger(out)).toBe(true);
+  expect(out).toBeGreaterThanOrEqual(2);
+  expect(out).toBeLessThanOrEqual(12);
+});
+
+test.each(HOSTILE_DRAWS)("pick and option-mode random still return a REAL option under draw %s", (draw) => {
+  // The `?? ""` fallbacks made an out-of-range index render as nothing at all — a silently deleted
+  // option, indistinguishable from an author writing an empty branch.
+  expect(["a", "b", "c"]).toContain(processMacros("{{pick::a::b::c}}", opts({ random: () => draw })));
+  expect(["x", "y"]).toContain(processMacros("{{random::x::y}}", opts({ random: () => draw })));
+});
+
 // ── default registry: formatting blocks + char-field recursion ─────────────────────────────────
 
 test("trim and case-folding blocks transform their evaluated body", () => {
@@ -390,6 +427,35 @@ test("a throwing handler degrades to a literal and reports via onWarn", () => {
   const out = processMacros("{{boom}}", opts({ onWarn: (m) => warnings.push(m) }), registry);
   expect(out).toBe("{{boom}}");
   expect(warnings.some((w) => w.includes("boom"))).toBe(true);
+});
+
+// #1360 item 5: only the INLINE throw path was covered. For an inline macro "fail open" means the reader
+// sees the literal macro and loses nothing; for a BLOCK the same code deleted the author's body and
+// closing tag — opposite outcomes sharing one name, and the comment asserted the equivalence rather than
+// defending it. A block now degrades to exactly what an UNRECOGNIZED block degrades to: both tags with
+// the body between them.
+test("a throwing BLOCK handler keeps the author's BODY and closing tag, not just the open tag", () => {
+  const registry = createDefaultRegistry();
+  registry.register(
+    "boomblock",
+    () => {
+      throw new Error("kaboom");
+    },
+    { blockChildren: true },
+  );
+  const warnings: string[] = [];
+  const out = processMacros("{{boomblock}}the body the author wrote{{/boomblock}}", opts({ onWarn: (m) => warnings.push(m) }), registry);
+  expect(out).toBe("{{boomblock}}the body the author wrote{{/boomblock}}");
+  expect(warnings.some((w) => w.includes("boomblock"))).toBe(true);
+});
+
+test("a throwing NON-block handler's resolved body survives too, and inner macros still resolve", () => {
+  const registry = createDefaultRegistry();
+  registry.register("boombody", () => {
+    throw new Error("kaboom");
+  });
+  const out = processMacros("{{boombody}}hello {{user}}{{/boombody}}", opts(), registry);
+  expect(out).toBe("{{boombody}}hello Bob{{/boombody}}");
 });
 
 // ── registry surface ───────────────────────────────────────────────────────────────────────────

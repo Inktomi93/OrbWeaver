@@ -303,6 +303,15 @@ describe("random-pick — determinism + freeze-at-commit", () => {
     expect(draws).toEqual({ twist: "reunion" });
   });
 
+  // #1359: the prng here is caller-supplied too. An out-of-range draw indexed past the pool and the
+  // `?? ""` fallback bound the macro to the empty string AND recorded "" as the frozen draw — a silently
+  // deleted option that then REPLAYS on every swipe of that turn.
+  test.each([1, 1.5, -0.5, Number.NaN, Number.POSITIVE_INFINITY])("an out-of-range draw (%s) still picks a REAL option", (draw) => {
+    const { bindings, draws } = resolveUserMacroInputs([pool], {}, { prng: () => draw });
+    expect(["betrayal", "storm", "reunion"]).toContain(bindings["twist"]);
+    expect(draws["twist"]).toBe(bindings["twist"]);
+  });
+
   test("an empty/foreign-only selection falls back to ALL options (a pool can never be dead)", () => {
     expect(resolveUserMacroInputs([pool], {}, { prng: seq(0) }).bindings).toEqual({ twist: "betrayal" });
     expect(resolveUserMacroInputs([pool], { twist: ["nonsense"] }, { prng: seq(0.99) }).bindings).toEqual({ twist: "reunion" });

@@ -35,7 +35,22 @@ export type RpgStatResolution = z.infer<typeof rpgStatResolutionSchema>;
 /** A `statProfile` — the full mechanical vocabulary, shipped whole. Lite exercises only `attributes`
  *  (via the sheet); the rest is the graft contract. `skillGoverning` maps a skill name → the attribute
  *  key that governs it; `defaultAttribute`/`perceptionAttribute` name attribute keys; `resolution` is the
- *  reserved check-engine discriminant. */
+ *  reserved check-engine discriminant.
+ *
+ *  ── THE COHERENCE INVARIANTS ARE ENFORCED AT THE WRITE DOOR, NOT HERE (#1371 items 2/3) ──
+ *  Four states this schema permits are incoherent: duplicate `attributes` keys, an inverted
+ *  `range` (`min > max`), and a `defaultAttribute`/`perceptionAttribute` naming a key the profile does not
+ *  declare. They are REFUSED — by `assertProfileMutable` in `domain/rpg/verbs/game/update-config.ts`,
+ *  which is already this class's chosen enforcer (it refuses a dangling `skillGoverning` entry with
+ *  `rpg_profile_dangling_skill`, and a referenced attribute removal), and pinned by that verb's suite.
+ *
+ *  They are deliberately NOT `.refine()`s on this schema, and the reason is the read path: the whole
+ *  `rpgGameConfigSchema` is PARSE-ON-READ (`domain/rpg/persistence/games.ts` `parseGameRow`) and a parse
+ *  failure raises `RpgStateCorruptError` — so a refine added here does not reject a bad WRITE, it makes
+ *  every EXISTING game whose stored blob predates the rule permanently unreadable. A host who deleted the
+ *  attribute their `defaultAttribute` named has such a blob today, and the read path handles it gracefully
+ *  on purpose (`attributeReading` prints the raw key). Tier-4 refusal at the producer verb closes the state
+ *  going forward without bricking a stored one; that is the trade, stated. */
 export const rpgStatProfileSchema = z.object({
   attributes: z.array(rpgStatAttributeDefSchema).max(RPG_PROFILE_MAX_ATTRIBUTES),
   range: z.object({ min: z.number().int(), max: z.number().int() }),

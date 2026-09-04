@@ -157,7 +157,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     // The cross-domain avatar-pointer write, delivered as the OWNING domain's op (character owns
     // `characters.avatarAssetId`) — the persona `createBulkImportPersonas` shape. Built from character's
     // own persistence factory, not re-implemented here.
-    linkCharacterAvatars: createLinkCharacterAvatars({ db }),
+    linkCharacterAvatars: createLinkCharacterAvatars({ db, now }),
     assertCharacterOwned: async (ownerId, characterId) => {
       const rows = await db
         .select({ id: charactersTable.id })

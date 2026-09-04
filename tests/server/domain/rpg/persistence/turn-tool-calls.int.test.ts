@@ -158,3 +158,35 @@ describe("recordTurnToolCalls", () => {
     expect(new Set(window.map((r) => r.variantId))).toEqual(new Set(slotVariants));
   });
 });
+
+// ── THE LINEAGE INVARIANT (#1380) ─────────────────────────────────────────────────────────────────────
+// `game_id`, `message_id` and `variant_id` must meet at ONE chat — the same rule `rpg_snapshots` carries,
+// unenforceable for the same reason (a CHECK cannot join three tables). Held by DERIVATION at every
+// writer; `snapshots.int.test.ts`'s lineage block states the full argument. This is the tool-call plane's
+// half: the reachability property the record's readers actually depend on.
+describe("the cross-chat lineage invariant", () => {
+  test("a record is reachable ONLY through its own game, and its three refs answer as one tuple", async () => {
+    const chatA = await seedChat(db, "a");
+    const chatB = await seedChat(db, "b");
+    const gameA = await seedGame(db, chatA, "ga");
+    const gameB = await seedGame(db, chatB, "gb");
+    const slotA = await seedMessage(db, chatA, 1, { role: "assistant" });
+
+    await recordTurnToolCalls(db, {
+      id: castId<RpgTurnToolCallsId>("rpg_turn_tool_calls_lineage"),
+      gameId: gameA,
+      messageId: slotA.messageId,
+      variantId: slotA.variantId,
+      calls: callsFor("update_scene", "applied"),
+      createdAt: FROZEN_AT,
+    });
+
+    // Room B's window never sees room A's record — the property a cross-chat `game_id` would break.
+    expect(await listTurnToolCalls(db, gameA, { turnLimit: 10 })).toHaveLength(1);
+    expect(await listTurnToolCalls(db, gameB, { turnLimit: 10 })).toHaveLength(0);
+    // And the variant the record names really is the one on the message it names.
+    const found = await findTurnToolCallsByVariant(db, slotA.variantId);
+    expect(found[0]?.gameId).toBe(gameA);
+    expect(found[0]?.messageId).toBe(slotA.messageId);
+  });
+});

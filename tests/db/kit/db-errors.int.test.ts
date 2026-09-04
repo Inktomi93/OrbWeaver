@@ -35,3 +35,33 @@ test("returns undefined for a non-constraint error", () => {
   expect(isConstraintViolation(new Error("just a plain error"))).toBeUndefined();
   expect(isConstraintViolation("not even an error")).toBeUndefined();
 });
+
+// ── the cause walk is CYCLE-SAFE, not depth-4 (#1377 item 4) ─────────────────────────────────────────
+// Four was an arbitrary number chosen off "every observed shape". Past it the classifier returned
+// undefined and a caller branching on `.kind` (e.g. `domain/tag/verbs/update.ts`) fell through to
+// `throw err`, so a deeply-wrapped constraint violation surfaced as a raw opaque error instead of a typed
+// domain conflict. The honest bound is the one the walk genuinely needs: stop when a cause repeats.
+
+/** An error chain `depth` links long whose DEEPEST link is the real constraint error. */
+function wrapped(depth: number): unknown {
+  let err: unknown = Object.assign(new Error("UNIQUE constraint failed: users.handle"), { code: "SQLITE_CONSTRAINT_UNIQUE" });
+  for (let i = 0; i < depth; i += 1) {
+    err = Object.assign(new Error(`wrapper ${i}`), { cause: err });
+  }
+  return err;
+}
+
+test("a constraint error found at ANY cause depth is classified, not lost past four levels", () => {
+  expect(isConstraintViolation(wrapped(0))?.kind).toBe("unique");
+  expect(isConstraintViolation(wrapped(3))?.kind).toBe("unique");
+  // Depth 4+ used to return undefined — the exact case that reached a caller as an opaque throw.
+  expect(isConstraintViolation(wrapped(4))?.kind).toBe("unique");
+  expect(isConstraintViolation(wrapped(12))?.kind).toBe("unique");
+});
+
+test("a CYCLIC cause chain terminates instead of spinning", () => {
+  const a: { message: string; cause?: unknown } = { message: "a" };
+  const b: { message: string; cause?: unknown } = { message: "b", cause: a };
+  a.cause = b;
+  expect(isConstraintViolation(a)).toBeUndefined();
+});

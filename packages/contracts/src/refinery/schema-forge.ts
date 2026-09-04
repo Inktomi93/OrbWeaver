@@ -113,30 +113,47 @@ const PATH_SEGMENT_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*(\[\])?$/;
 
 /** One authored leaf. Every optional here is a real "the author had nothing to say" — under the hosted
  *  strict shape they arrive as explicit `null`s and `dropNullValues` restores absence at the parse seam. */
-export const forgeFieldRowSchema = z.object({
-  /** Dot path to the leaf; a `[]` suffix on a segment makes that level an array. */
-  path: z.string().max(REFINERY_SCHEMA_NAME_MAX * REFINERY_FORGE_MAX_PATH_SEGMENTS),
-  type: z.enum(FORGE_FIELD_TYPES),
-  description: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX),
-  required: z.boolean(),
-  /** String leaves only — the closed member list that makes this field an enum. */
-  enum: z.array(z.string().max(REFINERY_SCHEMA_NAME_MAX)).min(1).max(REFINERY_SCHEMA_MAX_ENUM).optional(),
-  minimum: z.number().optional(),
-  maximum: z.number().optional(),
-  maxLength: z.number().int().min(1).optional(),
-  // ── the display vocabulary — flat here, assembled into one `x-orb-ui` by the
-  //    transpiler, because a nested hint object is another closed-object level the hosted wires charge for.
-  role: z.enum(RENDER_HINT_ROLES).optional(),
-  group: z.string().max(REFINERY_SCHEMA_NAME_MAX).optional(),
-  label: z.string().max(REFINERY_SCHEMA_NAME_MAX).optional(),
-  chart: z.enum(["bars", "radar"]).optional(),
-  /** Enum MEMBER → tone word. A PAIR LIST, not a map: an open key map is the exact construct the live probe
-   *  showed hosted grammars collapse to "no keys permitted" (header). */
-  tones: z
-    .array(z.object({ member: z.string().max(REFINERY_SCHEMA_NAME_MAX), tone: z.enum(RENDER_HINT_TONES) }))
-    .max(REFINERY_SCHEMA_MAX_ENUM)
-    .optional(),
-});
+export const forgeFieldRowSchema = z
+  .object({
+    /** Dot path to the leaf; a `[]` suffix on a segment makes that level an array. */
+    path: z.string().max(REFINERY_SCHEMA_NAME_MAX * REFINERY_FORGE_MAX_PATH_SEGMENTS),
+    type: z.enum(FORGE_FIELD_TYPES),
+    description: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX),
+    required: z.boolean(),
+    /** String leaves only — the closed member list that makes this field an enum. */
+    enum: z.array(z.string().max(REFINERY_SCHEMA_NAME_MAX)).min(1).max(REFINERY_SCHEMA_MAX_ENUM).optional(),
+    minimum: z.number().optional(),
+    maximum: z.number().optional(),
+    maxLength: z.number().int().min(1).optional(),
+    // ── the display vocabulary — flat here, assembled into one `x-orb-ui` by the
+    //    transpiler, because a nested hint object is another closed-object level the hosted wires charge for.
+    role: z.enum(RENDER_HINT_ROLES).optional(),
+    group: z.string().max(REFINERY_SCHEMA_NAME_MAX).optional(),
+    label: z.string().max(REFINERY_SCHEMA_NAME_MAX).optional(),
+    chart: z.enum(["bars", "radar"]).optional(),
+    /** Enum MEMBER → tone word. A PAIR LIST, not a map: an open key map is the exact construct the live probe
+     *  showed hosted grammars collapse to "no keys permitted" (header). */
+    tones: z
+      .array(z.object({ member: z.string().max(REFINERY_SCHEMA_NAME_MAX), tone: z.enum(RENDER_HINT_TONES) }))
+      .max(REFINERY_SCHEMA_MAX_ENUM)
+      .optional(),
+  })
+  // #1371 item 1 — `minimum`/`maximum` were independent optionals with no pairing check, and
+  // `writeNumericBounds` wrote both VERBATIM, so a design carrying `minimum: 10, maximum: 5` transpiled to
+  // `{"type":"number","minimum":10,"maximum":5}` with an empty `dropped` list. That output becomes
+  // `ResponseFormat.schema` for provider-constrained decoding, where an UNSATISFIABLE range leaves a
+  // guided-decoding backend with no legal token for the field — a stall or a 500 — or, on a loosely
+  // validating provider, a value that fails every strict validator downstream.
+  //
+  // REJECT, never swap: swapping the two would silently rewrite the author's stated intent, and this
+  // schema is also what the AUTHORING belt validates through, so the author is the one who should hear
+  // about it. Lives on the ROW rather than on each envelope so all three call arms (design, per-field,
+  // and the belt) inherit one check. `.refine` on a zod-4 object keeps the object class and its `shape`,
+  // so `projectJsonSchema` still walks it — pinned in the suite.
+  .refine((row) => row.minimum === undefined || row.maximum === undefined || row.minimum <= row.maximum, {
+    error: "minimum must be less than or equal to maximum",
+    path: ["maximum"],
+  });
 export type ForgeFieldRow = z.infer<typeof forgeFieldRowSchema>;
 
 /** The `single` arm's payload, and the `two-stage` arm's first call: a whole design.

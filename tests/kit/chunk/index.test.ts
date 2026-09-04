@@ -47,6 +47,11 @@ describe("chunkText — edge inputs (totality)", () => {
     -1,
     0.5,
     1.5,
+    // 1 joined the refusal set with #1359: at size 1 the surrogate-pair guard cannot run (there is no
+    // second unit to keep the pair together), so an astral character splits into lone surrogates. The
+    // trade is FORCED once 1 is accepted — no cut satisfies both the stated bound and totality — so the
+    // floor moved to 2. Costs nothing: the only production caller's zod floor is 200.
+    1,
     Number.NaN,
     Number.POSITIVE_INFINITY,
     Number.NEGATIVE_INFINITY,

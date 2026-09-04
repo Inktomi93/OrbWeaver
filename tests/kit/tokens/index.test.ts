@@ -99,3 +99,35 @@ test("safeTokenWindow is monotonic and never negative", () => {
   expect(safeTokenWindow(2000)).toBeGreaterThan(safeTokenWindow(1000));
   expect(safeTokenWindow(0)).toBe(0);
 });
+
+// ── budget boundaries (#1359) ───────────────────────────────────────────────────────────────────────
+
+test("safeTokenWindow REFUSES a non-finite window rather than returning NaN", () => {
+  // Pre-guard `Math.max(0, NaN)` is NaN, and the NaN then flowed into every downstream budget
+  // subtraction as a silently-poisoned number. The window comes from provider/model config, so a
+  // non-finite value is a config-ingestion bug and belongs loud at this seam.
+  expect(() => safeTokenWindow(Number.NaN)).toThrow(RangeError);
+  expect(() => safeTokenWindow(Number.POSITIVE_INFINITY)).toThrow(RangeError);
+  // A negative window still floors at 0 — that arm is a stated part of the contract, not nonsense.
+  expect(safeTokenWindow(-5)).toBe(0);
+});
+
+test("a FRACTIONAL budget yields no pieces rather than violating the every-piece-fits bound", () => {
+  // `splitToTokenBudget("hello world", 0.5)` used to emit single-character pieces each estimated at one
+  // token — every one of them over the stated budget. No piece can fit a sub-1 budget, so the honest
+  // answer is the same as `maxTokens <= 0`: an empty result the caller must read as "this cannot be
+  // chunked" (the contract `splitToTokenBudget`'s JSDoc already states for that arm).
+  expect(splitToTokenBudget("hello world", 0.5)).toEqual([]);
+  expect(clampToTokenBudget("hello world", 0.5)).toBe("");
+  expect(splitToTokenBudget("hello world", Number.NaN)).toEqual([]);
+  expect(clampToTokenBudget("hello world", Number.NaN)).toBe("");
+});
+
+test("every piece of a fractional-adjacent budget still fits the FLOOR of that budget", () => {
+  // 1.9 tokens is a 1-token budget: pieces must fit 1, never 1.9.
+  const pieces = splitToTokenBudget("hello world this is a longer body", 1.9);
+  expect(pieces.length).toBeGreaterThan(0);
+  for (const piece of pieces) {
+    expect(estimateTokens(piece)).toBeLessThanOrEqual(1);
+  }
+});
