@@ -5,7 +5,7 @@
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { withInstrumentRun } from "../_shared/artifact-out.ts";
-import { print, REPO_ROOT } from "../_shared/artifacts.ts";
+import { print, prunedRuns, REPO_ROOT } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
 import type { Args } from "./index.ts";
@@ -85,7 +85,7 @@ async function runReportReader(argv: readonly string[]): Promise<number | null> 
     return EXIT.misuse;
   }
   if (report.list !== null) {
-    return await printSnapReports(REPO_ROOT, report.list);
+    return await printSnapReports(REPO_ROOT, report.list, prunedRuns(REPO_ROOT, "snap"));
   }
   if (report.query === null) {
     print("INSTRUMENT ERROR  report mode resolved without a list or query");
