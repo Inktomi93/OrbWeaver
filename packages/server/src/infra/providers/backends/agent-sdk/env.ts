@@ -10,7 +10,8 @@ import { existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { isAllowedClaudeRuntimeEnvKey } from "@orb/contracts/preset";
+import type { ClaudeIsolationPinKey } from "@orb/contracts/preset";
+import { HOST_OWNED_CLAUDE_ENV_KEYS, isAllowedClaudeRuntimeEnvKey } from "@orb/contracts/preset";
 import { processEnvSnapshot } from "#foundation/env";
 import type { OrSkinTierModels } from "../../contract/index.ts";
 import { ProviderError } from "../../contract/index.ts";
@@ -102,7 +103,11 @@ export interface ClaudeRuntimeOverrides {
 
 // Deploy-only isolation pins, read by the BUNDLED claude runtime binary (not grep-able in the JS wrapper) —
 // don't remove one because it "looks unused"; each was verified via DISCOVER=<filter> pnpm sdk:play.
-const ISOLATION_PINS: Readonly<Record<string, string>> = {
+// KEYED BY THE CONTRACTS TUPLE (`ClaudeIsolationPinKey`) so the record and the name list that makes these
+// preset-unsettable cannot drift: a pin added here without a row there is an excess-property tsc error, a
+// name added there without a pin here is a missing-property one. The VALUES stay here — what a pin is set
+// to is this deploy's decision; only the NAMES are shared vocabulary (#1536).
+const ISOLATION_PINS: Readonly<Record<ClaudeIsolationPinKey, string>> = {
   CLAUDE_CODE_DISABLE_1M_CONTEXT: "1",
   CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1",
   CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT: "1",
@@ -125,8 +130,12 @@ const ISOLATION_PINS: Readonly<Record<string, string>> = {
   CLAUDE_CODE_ATTRIBUTION_HEADER: "0",
 };
 
-// Keys a preset's escape hatch can never set or unset — auth, credential isolation, OR-skin routing.
+// Keys a preset's escape hatch can never set or unset — auth, credential isolation, OR-skin routing, AND
+// every host-owned pin above (#1536: those are `CLAUDE_CODE_*`, i.e. inside the namespace the hatch admits,
+// so the write schema's refusal needs this second belt behind it for an already-persisted row). The list is
+// spread from the contracts vocabulary rather than re-spelled — one home, no drift.
 export const RESERVED_CLAUDE_ENV_KEYS: ReadonlySet<string> = new Set<string>([
+  ...HOST_OWNED_CLAUDE_ENV_KEYS,
   "ANTHROPIC_API_KEY",
   "ANTHROPIC_AUTH_TOKEN",
   "ANTHROPIC_BASE_URL",
@@ -158,9 +167,13 @@ function claudeRuntimeEnv(overrides: ClaudeRuntimeOverrides): Record<string, str
   };
 }
 
-// The overlay is RESERVED-filtered, then ALLOWLISTED (#1472). Both belts are load-bearing:
-// RESERVED_CLAUDE_ENV_KEYS drops the auth/isolation/routing keys SILENTLY (the recorded behavior — a preset
-// carrying a stale one is not a defect, and the firewall re-pins them last regardless); everything else must
+// The overlay is RESERVED-filtered, then ALLOWLISTED (#1472, #1536). Both belts are load-bearing and the
+// belt each key gets is DIFFERENT, so state it exactly: RESERVED_CLAUDE_ENV_KEYS drops SILENTLY the
+// auth/config-dir/OR-routing keys AND the deploy's own isolation pins (the recorded behavior — a preset
+// carrying a stale one is not a defect). The auth half is ALSO re-pinned last by every builder, so the drop
+// is its second belt; the isolation pins are written BEFORE this overlay, so for them the drop is the ONLY
+// thing standing between a preset and re-enabled auto-memory/cron/CLAUDE.md in the RP subprocess (the write
+// schema refuses them at the boundary, which is the other half). Everything else must
 // be a Claude RUNTIME KNOB (`@orb/contracts/preset`, the same predicate the write schema enforces) or it
 // THROWS. That polarity is the point: this overlay is spread OVER the host baseline, so a settable `PATH`
 // would have chosen which binary the child executes and a settable `HOME` where it reads its credentials —

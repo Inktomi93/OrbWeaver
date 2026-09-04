@@ -15,6 +15,7 @@ import {
   GUIDED_ACTION_KINDS,
   guidedActionConfigSchema,
   guidedActionsSchema,
+  HOST_OWNED_CLAUDE_ENV_KEYS,
   importStChatCompletionPreset,
   isVllmBeltOwnedParameterKey,
   MAX_INJECTION_TEMPLATE_LENGTH,
@@ -426,6 +427,18 @@ test("userIntentSchema admits only the Claude runtime knob namespace into claude
   ]) {
     const parsed = userIntentSchema.safeParse({ advanced: { claudeEnv: { [key]: "attacker-controlled" } } });
     expect(parsed.success, `${key} must be rejected at the write schema`).toBe(false);
+  }
+});
+
+// #1536: the `CLAUDE_*` namespace also holds the app's OWN deploy pins (isolation + the CLAUDE.md
+// suppression). Those are host decisions, not generation knobs, so the write schema refuses them by name —
+// the builder's `RESERVED_CLAUDE_ENV_KEYS` drop is the second belt, not the only one.
+test("userIntentSchema refuses the host-owned isolation pins even though they are in the CLAUDE namespace", () => {
+  for (const key of HOST_OWNED_CLAUDE_ENV_KEYS) {
+    const set = userIntentSchema.safeParse({ advanced: { claudeEnv: { [key]: "0" } } });
+    expect(set.success, `${key} must be rejected at the write schema`).toBe(false);
+    const unset = userIntentSchema.safeParse({ advanced: { claudeEnv: { [key]: null } } });
+    expect(unset.success, `${key} must not be UNSETTABLE at the write schema either`).toBe(false);
   }
 });
 
