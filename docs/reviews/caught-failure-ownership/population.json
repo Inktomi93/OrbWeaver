@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 533,
-    "enforced": 529,
+    "sites": 535,
+    "enforced": 530,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 529,
-      "detached-owned": 4,
+      "deliberate-absorb": 530,
+      "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
-      "promise": 138,
+      "promise": 140,
       "default": 144,
       "empty": 251
     }
@@ -1849,6 +1849,32 @@
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — a raced delete / a bad id / any",
       "markerLine": 159
+    },
+    {
+      "siteId": "packages/server/src/domain/automation/substrate/serial-lanes.ts::promise:run::1",
+      "path": "packages/server/src/domain/automation/substrate/serial-lanes.ts",
+      "line": 45,
+      "column": 16,
+      "grammar": "promise",
+      "position": "promise:run",
+      "ordinal": 1,
+      "snippet": "const tail = run.catch(() => undefined);",
+      "verdict": "deliberate-absorb",
+      "reason": "this swallow LOSES NOTHING — the rejection it",
+      "markerLine": 40
+    },
+    {
+      "siteId": "packages/server/src/domain/automation/substrate/serial-lanes.ts::promise:tail::1",
+      "path": "packages/server/src/domain/automation/substrate/serial-lanes.ts",
+      "line": 50,
+      "column": 3,
+      "grammar": "promise",
+      "position": "promise:tail",
+      "ordinal": 1,
+      "snippet": "tail",
+      "verdict": "detached-owned",
+      "reason": null,
+      "markerLine": null
     },
     {
       "siteId": "packages/server/src/domain/automation/verbs/confirm-suggestion.ts::empty:err::1",
