@@ -16,9 +16,13 @@ export function createDeleteRule(ctx: AutomationContext): AutomationService["del
     // them); drop them with it. The in-RAM store has no FK to cascade for it.
     ctx.suggestions.voidRule(ruleId);
     // Deleting an enabled rule can empty a chat's rule set (or the last domain rule) — refresh the pre-check.
-    await ctx.enabled.reload();
+    // `refresh`, not `reload` (#1431): the DELETE is already committed, so an index failure must not reject an
+    // operation that SUCCEEDED — it latches stale (reads fail OPEN, so canon decides) and the watcher front
+    // door rebuilds on the next event. The alternative shipped the worst pair: a caller told the delete
+    // failed, and an index that keeps dispatching the deleted rule.
+    await ctx.enabled.refresh();
     // Deleting an enabled transform_draft rule must deregister its pipeline transform.
-    await ctx.transforms.reload();
+    await ctx.transforms.refresh();
     // The roster announces itself (survey H2/F5). D50 rules out per-entity DELETION events, and this is not
     // one: `rulesChanged` is the coarse "this chat's rule set moved" member — the same event a create sends.
     // `chatId` is read off the guard-loaded row BEFORE the delete; the row is gone by the time this fires.

@@ -11,7 +11,8 @@
 // racing, unrelated chats stay parallel. Process-local by construction — see the export's own comment for the
 // key and `substrate/serial-lanes.ts` for what a lane does and does not promise.
 
-import type { AutomationTrigger } from "@orb/contracts/automation";
+import type { AutomationTrigger, AutomationTriggerBus } from "@orb/contracts/automation";
+import { triggerBusOf } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { ChatId } from "@orb/kit/ids";
@@ -26,28 +27,45 @@ import { runInLane } from "./serial-lanes.ts";
 
 type BusEvent = ChatBusEvent | DomainEvent;
 
-/** A domain-bus event's type is dot-namespaced (character.updated / crew.*); a ChatBusEvent is a bare word. */
-function isDomainEvent(event: BusEvent): event is DomainEvent {
-  return event.type.includes(".");
-}
-
 /** The cheap in-process gate — whether ANY enabled RULE could match this event without a DB
- *  read. The plugin fan-out has its own (also in-process) interest pre-check (`hasSubscriberFor`). */
-function rulesInterested(ctx: AutomationContext, domain: boolean, chatId: ChatId | null): boolean {
-  if (domain) {
+ *  read. The plugin fan-out has its own (also in-process) interest pre-check (`hasSubscriberFor`).
+ *
+ *  A `null` bus is an event on NEITHER trigger tuple, and `false` is then a FACT rather than an optimisation:
+ *  `automation_rules.trigger_type` is bound to those tuples by a db CHECK, so no stored rule can name it. */
+function rulesInterested(ctx: AutomationContext, bus: AutomationTriggerBus | null, chatId: ChatId | null): boolean {
+  if (bus === null) {
+    return false;
+  }
+  if (bus === "domain") {
     return ctx.enabled.hasDomainRules();
   }
   return chatId !== null && ctx.enabled.has(chatId);
 }
 
+/** #1431 — the STALE-INDEX retry. Both in-process indexes latch stale when a post-mutation refresh failed
+ *  (the write committed, the snapshot did not follow); this is the "mandatory rebuild" that clears it. The
+ *  watcher front door is the right place for it because it is the ONE path every bus event takes, so a stale
+ *  latch survives at most one event — no timer, no process handle, and no clock this domain does not inject.
+ *  A retry that fails again simply re-latches; the enabled index keeps failing OPEN in the meantime. */
+async function healStaleIndexes(ctx: AutomationContext): Promise<void> {
+  const pending: Promise<void>[] = [];
+  if (ctx.enabled.isStale()) {
+    pending.push(ctx.enabled.refresh());
+  }
+  if (ctx.transforms.isStale()) {
+    pending.push(ctx.transforms.refresh());
+  }
+  await Promise.all(pending);
+}
+
 /** Load the enabled rules matching this event's trigger — domain rules span chats, chat rules are chat-scoped. */
 function loadMatchedRules(
   ctx: AutomationContext,
-  domain: boolean,
+  bus: AutomationTriggerBus,
   chatId: ChatId | null,
   triggerType: AutomationTrigger["type"],
 ): ReturnType<typeof loadEnabledDomainRules> {
-  if (domain) {
+  if (bus === "domain") {
     return loadEnabledDomainRules(ctx.db, triggerType);
   }
   if (chatId === null) {
@@ -91,12 +109,17 @@ async function voidAsksOnLostAuthority(ctx: AutomationContext, chatId: ChatId): 
 }
 
 async function handle(ctx: AutomationContext, event: BusEvent): Promise<void> {
-  const domain = isDomainEvent(event);
+  await healStaleIndexes(ctx);
+  // WHICH BUS, by TUPLE MEMBERSHIP (#1433) — `triggerBusOf` is the contracts home the db's bus↔type CHECK is
+  // generated from. It replaced a `event.type.includes(".")` punctuation test here, which was a claim about
+  // today's NAMES rather than about the taxonomy: a domain event without a dot would have taken the chat
+  // pre-check and never dispatched, and a chat event with one would have gone looking for domain rules.
+  const bus = triggerBusOf(event.type);
   const chatId: ChatId | null = "chatId" in event ? event.chatId : null;
   if (event.type === "chatUpdated" && chatId !== null) {
     await voidAsksOnLostAuthority(ctx, chatId);
   }
-  const wantRules = rulesInterested(ctx, domain, chatId);
+  const wantRules = rulesInterested(ctx, bus, chatId);
   const wantPlugins = ctx.pluginSubscribers.hasSubscriberFor(event.type);
   if (!(wantRules || wantPlugins)) {
     return;
@@ -120,10 +143,10 @@ async function handle(ctx: AutomationContext, event: BusEvent): Promise<void> {
       resolved,
     );
   }
-  if (!wantRules) {
+  if (!wantRules || bus === null) {
     return;
   }
-  const rules = await loadMatchedRules(ctx, domain, chatId, event.type as AutomationTrigger["type"]);
+  const rules = await loadMatchedRules(ctx, bus, chatId, event.type as AutomationTrigger["type"]);
   if (rules.length === 0) {
     return;
   }

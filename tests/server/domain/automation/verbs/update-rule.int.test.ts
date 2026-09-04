@@ -2,11 +2,13 @@
 
 import { chatParticipants } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import { RuleValidationError } from "@orb/server/domain/automation";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createAutomationService, createEnabledRuleIndex, RuleValidationError } from "@orb/server/domain/automation";
 import { and, eq, isNull } from "drizzle-orm";
+import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedParticipant } from "../../chat/_support.ts";
-import { MSG_COMMITTED, principal, ruleFixture, SET_VAR, seedUser } from "../_support.ts";
+import { FIXED_NOW_MS, MSG_COMMITTED, makeAutomationHarness, principal, readFailingDb, ruleFixture, SET_VAR, seedHostChat, seedUser } from "../_support.ts";
 
 test("updateRule replaces the editable fields and announces the edit", async () => {
   const { host, chatId, svc, events } = await ruleFixture();
@@ -43,6 +45,64 @@ test("an update that fails validation writes nothing and announces nothing", asy
   expect(events).toEqual([{ type: "rulesChanged", chatId }]);
   const [listed] = await svc.listRules({ principal: principal(host), chatId });
   expect(listed?.name).toBe("greet");
+});
+
+// #1424 — AN EDIT VOIDS THE RULE'S PENDING ASKS. A confirm card stores the arm AS IT RESOLVED at fire time and
+// executing it runs that STASHED arm, so a host who edits a dangerous action away must not be able to confirm
+// the card still sitting in their room and run the PRE-EDIT act. The confirm's own liveness re-check cannot
+// close this: it asks exists/enabled/author-still-hosts, all still true after an edit.
+//
+// Asserted through the STORE the card is read from (`ctx.suggestions`) — the same map the confirm verb takes
+// its record from and the same one `setRuleEnabled(false)`/`deleteRule` already clear.
+test("editing a rule VOIDS its pending confirmation cards — the stale card cannot run the pre-edit action", async () => {
+  const fx = await ruleFixture();
+  const rule = await fx.svc.createRule({ principal: principal(fx.host), chatId: fx.chatId, name: "greet", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const suggestionId = mintTypeId(ID_PREFIX.automationSuggestion);
+  fx.ctx.suggestions.raise({
+    id: suggestionId,
+    kind: "confirm",
+    chatId: fx.chatId,
+    source: { kind: "rule", ruleId: rule.id },
+    actorUserId: fx.host,
+    summary: "Take a turn in the room?",
+    expiresAt: FIXED_NOW_MS + 60_000,
+    payload: null,
+  });
+  // THE PREMISE, proven: the card is live before the edit, so its absence after is the edit's doing.
+  expect(fx.ctx.suggestions.peek(suggestionId, FIXED_NOW_MS)).not.toBeNull();
+
+  await fx.svc.updateRule({ principal: principal(fx.host), ruleId: rule.id, name: "greet", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+
+  expect(fx.ctx.suggestions.peek(suggestionId, FIXED_NOW_MS)).toBeNull();
+});
+
+// #1431 — the durable write is the SOURCE OF TRUTH and an in-process index rebuild is derived state. A failed
+// rebuild must not reject an operation that already committed, and the stale index must fail OPEN so canon
+// decides. The read facade fails the INDEX's reads only; the verb's own write goes to the real db.
+test("an index-refresh failure does NOT reject the committed edit, and the stale index falls back to the DB", async () => {
+  const db = await freshDb();
+  const host = await seedUser(db, "user_host");
+  const chatId = await seedHostChat(db, host);
+  const failing = { fail: false };
+  const enabled = createEnabledRuleIndex(readFailingDb(db, failing));
+  const ctx = makeAutomationHarness(db, { enabled });
+  const svc = createAutomationService(ctx);
+  const rule = await svc.createRule({ principal: principal(host), chatId, name: "greet", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  await enabled.reload();
+
+  failing.fail = true;
+  // The edit RESOLVES — the row is written, and a caller told "failed" for a change that landed is the worse
+  // half of the defect (the other half is the index that keeps dispatching the pre-edit rule).
+  const updated = await svc.updateRule({ principal: principal(host), ruleId: rule.id, name: "greet2", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  expect(updated.name).toBe("greet2");
+  expect(enabled.isStale()).toBe(true);
+  // FAIL OPEN: while stale the pre-check claims interest in every chat, so the authoritative DB read runs.
+  expect(enabled.has(chatId)).toBe(true);
+
+  // And the front door REBUILDS on the next event it sees — the stale latch survives at most one event.
+  failing.fail = false;
+  await svc.handleEvent({ type: "chatOpened", chatId });
+  expect(enabled.isStale()).toBe(false);
 });
 
 // D146-b — WHOSE reachability the mint gate asks about, pinned at the one state where the editor and the

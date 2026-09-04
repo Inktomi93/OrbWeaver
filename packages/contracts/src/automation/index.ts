@@ -70,6 +70,30 @@ export const automationTriggerSchema = z.discriminatedUnion("bus", [
 ]);
 export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
 
+/** The two trigger tuples as MEMBERSHIP sets — the one mechanism every bus classification reads.
+ *  Built once at module load; the tuples are `as const`, so a widening is a tuple edit and nothing else. */
+const CHAT_TRIGGER_SET: ReadonlySet<string> = new Set(CHAT_TRIGGER_TYPES);
+const DOMAIN_TRIGGER_SET: ReadonlySet<string> = new Set(DOMAIN_TRIGGER_TYPES);
+
+/** WHICH BUS an event type is trigger vocabulary on — `null` when it is on NEITHER tuple (a bus member
+ *  automation does not trigger on: a `delta`/`warning` chat beat, a `crew.*`/`rpg.*` domain mirror).
+ *
+ *  IT IS TUPLE MEMBERSHIP, NEVER PUNCTUATION (#1433). Both this and the watcher front door previously
+ *  classified by "does the type contain a dot", which is a property of today's NAMES rather than of the
+ *  taxonomy: nothing makes every `DomainEventType` dot-namespaced or forbids a `ChatBusEvent` from carrying a
+ *  dot, so a future member of either union would silently route through the WRONG pre-check and rule loader
+ *  while sitting correctly in the trigger map. The tuples above are the authority the db's bus↔type CHECK is
+ *  generated from; reading them is the only classification that cannot drift from what a rule can store.
+ *
+ *  The two tuples are DISJOINT — pinned in `tests/contracts/automation/index.contract.test.ts`, because
+ *  membership order would otherwise decide a shared member's bus silently. */
+export function triggerBusOf(type: string): AutomationTriggerBus | null {
+  if (CHAT_TRIGGER_SET.has(type)) {
+    return "chat";
+  }
+  return DOMAIN_TRIGGER_SET.has(type) ? "domain" : null;
+}
+
 /** The `AutomationTrigger` for one trigger TYPE — the bus DERIVED from which tuple the member belongs to.
  *
  *  ONE HOME FOR THE PAIRING (C5). The db binds `trigger_bus` to `trigger_type` with a CHECK generated from
@@ -77,13 +101,10 @@ export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
  *  it at the insert. Preset defs name a TYPE and let this answer for the bus, which makes a cross-bus pair
  *  unrepresentable rather than merely refused.
  *
- *  The chat tuple is checked FIRST and the two are disjoint by construction — a domain member is
- *  dot-namespaced (`character.updated`) and a chat member never is, which is the same tell the fact resolver
- *  and the watcher front door use to route an event. */
+ *  Closed input, total answer: the parameter is the union of both tuples, so {@link triggerBusOf} cannot
+ *  return `null` here and the `domain` test is the whole branch. */
 export function automationTriggerFor(type: ChatTriggerType | DomainTriggerType): AutomationTrigger {
-  return (CHAT_TRIGGER_TYPES as readonly string[]).includes(type)
-    ? { bus: "chat", type: type as ChatTriggerType }
-    : { bus: "domain", type: type as DomainTriggerType };
+  return triggerBusOf(type) === "domain" ? { bus: "domain", type: type as DomainTriggerType } : { bus: "chat", type: type as ChatTriggerType };
 }
 
 /** The two source buses — tied to the trigger union's discriminant. */
@@ -145,6 +166,20 @@ export interface GlobalVariableView {
 export const AUTOMATION_CHAT_BUDGET_DEFAULTS = {
   maxFiresPerHour: 120,
 } as const;
+
+/** The CEILING on either rate-cap belt — the per-chat one and its per-owner twin (#1430).
+ *
+ *  A BELT NEEDS A TOP OR IT IS NOT A BELT. The per-RULE cap is 0..240 (`substrate/validate.ts`), and the two
+ *  budget planes had no upper bound at all: the wire took `int().min(0)` and the verbs took whatever arrived,
+ *  so a host could set a nine-digit ceiling and the loop-safety belt would bound nothing while still reading
+ *  as configured. 3600 = one fire per second, the rate past which "cap" stops describing anything a runaway
+ *  rule could be held to — well above the 120 default and above any plausible sum of a room's per-rule caps.
+ *
+ *  ONE HOME, TWO ENFORCERS (the `AUTOMATION_VARIABLE_VALUE_MAX` posture): the domain verbs
+ *  (`setBudgets`/`setOwnerBudgets`) hold the AUTHORITATIVE bound — they are reachable from compose without the
+ *  transport — and the tRPC input schema mirrors it so an over-bound ask is a BAD_REQUEST at the trust
+ *  boundary rather than a domain throw. */
+export const AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR = 3600;
 
 /** The rate-cap panel read model (`getBudgets`) — the host-editable per-chat fire-rate ceiling. An absent
  *  row projects to `AUTOMATION_CHAT_BUDGET_DEFAULTS`. */

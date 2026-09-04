@@ -17,9 +17,11 @@ export function createSetRuleEnabled(ctx: AutomationContext): AutomationService[
       // whose confirm the re-check now refuses; the honest surface is no card at all.
       ctx.suggestions.voidRule(ruleId);
     }
-    await ctx.enabled.reload();
+    // `refresh`, not `reload` (#1431): the flip above is durable, so an index failure must not reject an
+    // operation that SUCCEEDED — it latches stale (reads fail OPEN) and the watcher rebuilds on the next event.
+    await ctx.enabled.refresh();
     // A transform_draft rule's registration into the turn pipeline follows enablement — reconcile it.
-    await ctx.transforms.reload();
+    await ctx.transforms.refresh();
     // Enablement is the CONSENT act, so it is the one rule write a second host tab most needs announced
     // (survey H2/F5). Emitted after both indexes reconcile — a re-read on this event sees the settled state.
     notifyRulesChanged(ctx, rule.chatId);

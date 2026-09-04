@@ -4,6 +4,8 @@
 // ZERO is a real, useful value and is pinned as such: "stop all of my library rules" without disabling each
 // one, and a verb that treated 0 as "unset" would silently ignore the strongest thing a host can ask for.
 
+import { AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR } from "@orb/contracts/automation";
+import { DomainOperationError } from "@orb/kit/errors";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { principal, ruleFixture, seedUser } from "../_support.ts";
@@ -31,6 +33,27 @@ describe("setOwnerBudgets", () => {
     await f.svc.setOwnerBudgets({ principal: principal(f.host), maxFiresPerHour: 42 });
     await f.svc.setOwnerBudgets({ principal: principal(f.host) });
     await expect(f.svc.getOwnerBudgets({ principal: principal(f.host) })).resolves.toEqual({ maxFiresPerHour: 42 });
+  });
+
+  // #1430 — the owner plane carries the SAME ceiling as the per-chat belt, and for a stronger reason: an
+  // owner-global rule fans across the author's whole library rather than one room, so an unbounded ceiling
+  // here bounds even less.
+  test("a cap above the ceiling is refused, and the previously stored one stands", async () => {
+    const f = await ruleFixture();
+    await f.svc.setOwnerBudgets({ principal: principal(f.host), maxFiresPerHour: 60 });
+    for (const cap of [AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR + 1, 1.5]) {
+      // The CODE, not the class: it is what the transport maps, and asserting it keeps this pin runnable
+      // against a tree that does not have the class yet (so a red-first receipt is a defect proof, not a
+      // module that failed to load).
+      let code = "resolved";
+      try {
+        await f.svc.setOwnerBudgets({ principal: principal(f.host), maxFiresPerHour: cap });
+      } catch (err) {
+        code = err instanceof DomainOperationError ? err.code : `not-a-domain-error: ${String(err)}`;
+      }
+      expect(code).toBe("automation_budget_invalid");
+    }
+    await expect(f.svc.getOwnerBudgets({ principal: principal(f.host) })).resolves.toEqual({ maxFiresPerHour: 60 });
   });
 
   test("writes the caller's OWN row and no other — the single-owned partition, on the WRITE side", async () => {

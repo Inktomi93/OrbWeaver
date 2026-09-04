@@ -7,9 +7,11 @@
 import type { SetOwnerBudgetsParams } from "../contract/params.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { upsertOwnerBudget } from "../persistence/budgets.ts";
+import { assertFireRateCap } from "../substrate/validate.ts";
 
 export function createSetOwnerBudgets(ctx: AutomationContext): AutomationService["setOwnerBudgets"] {
   return async ({ principal, maxFiresPerHour }: SetOwnerBudgetsParams): Promise<void> => {
+    assertFireRateCap(maxFiresPerHour);
     await upsertOwnerBudget(ctx.db, principal.userId, { maxFiresPerHour }, ctx.now());
   };
 }

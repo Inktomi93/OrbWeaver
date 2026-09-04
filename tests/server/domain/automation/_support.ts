@@ -17,8 +17,10 @@ import type {
   ApplyProseRewrite,
   ArmDispatch,
   AutomationOps,
+  EnabledRuleIndex,
   ExecutePluginSuggestion,
   IsPluginLive,
+  PromptTransformIndex,
   SuggestionStore,
   TurnOriginRead,
 } from "../../../../packages/server/src/domain/automation/contract/ops.ts";
@@ -97,6 +99,32 @@ export interface HarnessOverrides {
    *  tool PAUSES. A test that exercises the arm passes a stub naming exactly the tools it pretends are
    *  installed, for exactly the author it pretends installed them. */
   readonly tools?: AutomationOps["tools"];
+  /** #1431 — the in-process enabled-rule index. Pass one in to drive the REFRESH-FAILURE path: the real index
+   *  only fails when the db does, and the invariant under test (a durable mutation must not be rejected by a
+   *  failed index rebuild, and the stale index must fail OPEN) is unreachable otherwise. */
+  readonly enabled?: EnabledRuleIndex;
+  /** #1431 — the prompt-transform index, same reason. */
+  readonly transforms?: PromptTransformIndex;
+}
+
+/** #1431 — a `Db` FACADE whose READS throw while `state.fail` is true; writes are untouched.
+ *
+ *  It is handed ONLY to the in-process indexes (`createEnabledRuleIndex` / `createPromptTransformIndex`), never
+ *  to the context, so a verb's durable write still commits against the real db while its index rebuild fails.
+ *  That is the exact interleaving the defect lives in, and it exercises the REAL index — a hand-rolled index
+ *  double would prove the double's behavior and nothing about the production stale latch or its fail-open reads. */
+export function readFailingDb(db: Db, state: { fail: boolean }): Db {
+  const refuse = (): never => {
+    throw new Error("test: db read refused");
+  };
+  return new Proxy(db, {
+    get: (target, prop, receiver): unknown => {
+      if (state.fail && (prop === "select" || prop === "selectDistinct")) {
+        return refuse;
+      }
+      return Reflect.get(target, prop, receiver) as unknown;
+    },
+  });
 }
 
 /** The FAIL-CLOSED tool seam, and the honest default for every harness that registers no plugin: no name is
@@ -191,19 +219,21 @@ export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}):
     can,
     ops,
     runArm: overrides.runArm ?? NOT_WIRED_DISPATCH,
-    enabled: createEnabledRuleIndex(db),
+    enabled: overrides.enabled ?? createEnabledRuleIndex(db),
     // S4 — ONE store per harness (the compose posture): a test that raises through the dispatch and confirms
     // through the verbs must be looking at the same map, or every confirm would refuse as not-found.
     suggestions: overrides.suggestions ?? createSuggestionStore(),
     pluginSubscribers: overrides.pluginSubscribers ?? createPluginSubscriberRegistry(),
-    transforms: createPromptTransformIndex({
-      db,
-      ops,
-      prng: () => FIXED_PRNG,
-      now: () => FIXED_NOW_MS,
-      register: promptRegistry.register,
-      unregister: promptRegistry.unregister,
-    }),
+    transforms:
+      overrides.transforms ??
+      createPromptTransformIndex({
+        db,
+        ops,
+        prng: () => FIXED_PRNG,
+        now: () => FIXED_NOW_MS,
+        register: promptRegistry.register,
+        unregister: promptRegistry.unregister,
+      }),
     // C5 — the owner-GLOBAL lane's standing-authority read, over the REAL `users` row (compose wires
     // sessions' own `loadUserById` here). Never a stub `true`: the whole point of the predicate is that a
     // disabled author's chat-less rules stop firing, and a harness that answered `true` unconditionally

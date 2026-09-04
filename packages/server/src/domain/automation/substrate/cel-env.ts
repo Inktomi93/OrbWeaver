@@ -13,14 +13,17 @@ import { countChatMessages } from "../persistence/canon-reads.ts";
 import { listGlobalVariables } from "../persistence/queries.ts";
 import { nowFields } from "./dry-run.ts";
 
-/** The author's per-user globals as the CEL `global` map. */
+/** The author's per-user globals as the CEL `global` map.
+ *
+ *  BUILT WITH `Object.fromEntries`, NOT A LOOP OF ASSIGNMENTS (#1420). The global-variable key schema is
+ *  length-bounded and nothing else (`globalVariableKeySchema`), so a user may legitimately name a global
+ *  `__proto__` — and `out[row.key] = row.value` for that name hits the setter INHERITED from
+ *  `Object.prototype`, creating no own property. The row existed, `get`/`list` showed it, and CEL could not
+ *  see it: a variable that reads as set everywhere except where it is used. `fromEntries` DEFINES each
+ *  property, so every legal key survives the projection. */
 export async function authorGlobals(db: Db, authorUserId: UserId): Promise<Record<string, string>> {
   const rows = await listGlobalVariables(db, authorUserId);
-  const out: Record<string, string> = {};
-  for (const row of rows) {
-    out[row.key] = row.value;
-  }
-  return out;
+  return Object.fromEntries(rows.map((row) => [row.key, row.value]));
 }
 
 /** Build the live CEL activation for a rule dispatch. `chatId` is the RULE's chat (a domain-bus event has no

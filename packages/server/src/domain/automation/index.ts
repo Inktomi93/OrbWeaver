@@ -7,8 +7,10 @@ export type { AutomationContext } from "./context.ts";
 export {
   AutomationChatNotFoundError,
   AutomationReservedTriggerError,
+  BudgetValidationError,
   GlobalVariableInvalidError,
   RuleNotFoundError,
+  RuleReorderError,
   RuleValidationError,
   SuggestionNotFoundError,
   SuggestionRefusedError,

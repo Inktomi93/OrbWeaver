@@ -5,7 +5,8 @@
 // attachment for a room's rule, OWNERSHIP for a global one), the S5 analysis admission rows (≥1 route · ≤1
 // confirm-class route · the active-game fence), and `run_tool` tool reachability. Throws a
 // TYPED refusal (AutomationReservedTriggerError / RuleValidationError) — a rule with any violation is never
-// stored. The db CHECKs + the `actions` zod are the ultimate guards; this gives a clean, user-visible refusal
+// stored. It also holds `assertFireRateCap`, the authoritative bound on the two BUDGET planes (#1430): a
+// belt's ceiling belongs beside the per-rule ceiling it has to cohere with, not only on the wire. The db CHECKs + the `actions` zod are the ultimate guards; this gives a clean, user-visible refusal
 // first.
 //
 // D146-b — WHERE THE BOOT-FATAL POSTURE WENT. A first-party contributor seam asserts exhaustive-and-unique
@@ -17,14 +18,14 @@
 // opposite things by a `false`: here it means "you never had this", there it means "it went away".
 
 import type { AutomationAction, AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
-import { AUTOMATION_ARM_SCOPE, automationActionsSchema, LIVE_TRIGGERS } from "@orb/contracts/automation";
+import { AUTOMATION_ARM_SCOPE, AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR, automationActionsSchema, LIVE_TRIGGERS } from "@orb/contracts/automation";
 import { MULTIMODAL_MODES } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { isCelParseError, parseCel } from "@orb/kit/cel";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
-import { AutomationReservedTriggerError, RuleValidationError } from "../contract/errors.ts";
+import { AutomationReservedTriggerError, BudgetValidationError, RuleValidationError } from "../contract/errors.ts";
 import type { AutomationOps } from "../contract/ops.ts";
 import { hasActiveGame, isBookAttachedToChat, isBookOwnedBy } from "../persistence/canon-reads.ts";
 
@@ -35,6 +36,27 @@ const POST_NOTIFICATION_COOLDOWN_FLOOR = AUTOMATION_NOTICE_COOLDOWN_SECONDS;
 /** The per-rule fires/hour ceiling (default 30, cap 240). */
 const RULE_MAX_FIRES_CAP = 240;
 export const RULE_MAX_FIRES_DEFAULT = 30;
+
+/** THE AUTHORITATIVE BOUND on either fire-rate BELT — the per-chat cap (`setBudgets`) and its per-owner twin
+ *  (`setOwnerBudgets`) — #1430.
+ *
+ *  A rule's OWN `maxFiresPerHour` has been 0..240 since v1 (`validateRuleInput` below); the two budget planes
+ *  had no ceiling at all, and the wire's `int().min(0)` let a host set a nine-digit "cap" that bounds nothing
+ *  while the panel reads as configured. The belt exists to make a runaway rule stop hammering a paid API, so a
+ *  cap that cannot be exceeded is not a cap.
+ *
+ *  IT LIVES AT THE VERB, not only on the wire, because the wire is not the only door: compose can reach these
+ *  verbs directly, and the transport schema's `int()`/`min(0)` half is a MIRROR of this one (the header of
+ *  `AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR` states the pairing). `undefined` is the "keep the current value"
+ *  patch and is admitted untouched. */
+export function assertFireRateCap(maxFiresPerHour: number | undefined): void {
+  if (maxFiresPerHour === undefined) {
+    return;
+  }
+  if (!Number.isInteger(maxFiresPerHour) || maxFiresPerHour < 0 || maxFiresPerHour > AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR) {
+    throw new BudgetValidationError(`maxFiresPerHour must be a whole number in 0..${AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR}`);
+  }
+}
 
 /** The PARSED arms — the stored/dispatched shape, with every default filled. This is what the caller
  *  persists; a verb never writes its own params (see `AutomationActionInput`'s header). */

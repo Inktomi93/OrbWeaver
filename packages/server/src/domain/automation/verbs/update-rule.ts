@@ -56,10 +56,20 @@ export function createUpdateRule(ctx: AutomationContext): AutomationService["upd
     if (row === undefined) {
       throw new Error(`updateRule: row ${params.ruleId} vanished immediately after update`);
     }
+    // S4 — AN EDIT VOIDS THIS RULE'S PENDING ASKS (#1424), the same call `setRuleEnabled(false)` and
+    // `deleteRule` make, for the same reason one step further on. A pending card stores the arm as it RESOLVED
+    // at fire time, and confirming it executes that STASHED arm — so without this, a host who edited a
+    // dangerous or obsolete action away could still confirm the card sitting in their room and run the
+    // PRE-EDIT act. The confirm's own liveness re-check cannot catch it: it asks whether the rule exists, is
+    // enabled and its author still hosts — all still true after an edit, none of them a question about WHICH
+    // act was approved. The honest surface for a rule that no longer says what the card says is no card.
+    ctx.suggestions.voidRule(params.ruleId);
     // An enabled rule's trigger BUS can change (chat↔domain) — refresh the pre-check's domain-rule flag.
-    await ctx.enabled.reload();
+    // `refresh`, not `reload` (#1431): the row above is already written, so an index failure must not reject
+    // an operation that SUCCEEDED — it latches stale and the watcher front door rebuilds on the next event.
+    await ctx.enabled.refresh();
     // A rule edit can add/remove transform_draft arms or change their target/template/predicate/order.
-    await ctx.transforms.reload();
+    await ctx.transforms.refresh();
     // The roster announces itself AFTER the write AND after both in-process indexes reconcile (survey H2/F5):
     // a subscriber that re-reads on this event must not observe a rule whose transform registration is still
     // the pre-edit one. `chatId` comes off the guard-loaded row (the rule's chat is immutable here).

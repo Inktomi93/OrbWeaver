@@ -69,10 +69,19 @@ function toTrigger(row: RuleRow): AutomationTrigger {
 
 /** Project a row onto `RuleView`, LAZY-PARSING `actions` with fault isolation: a corrupt blob yields `[]`
  *  (the read never throws; the chat's rule list survives — the active disable-on-corrupt is dispatch-time,
- *  A5). */
+ *  A5) AND sets `actionsCorrupt` (#1422).
+ *
+ *  THE FLAG IS THE HALF THAT WAS MISSING. The fault isolation is right and stays: one unreadable blob must not
+ *  cost a host their whole rule list. But `[]` alone is a LIE the surface cannot see through — an unreadable
+ *  rule projected identically to a rule whose author had simply not added an arm yet, with `enabled` still
+ *  true and the error ledger still clean, because the disable-on-corrupt only happens the next time an event
+ *  DISPATCHES it. So a rule that can never do anything read as benign in management, indefinitely, until an
+ *  event happened to arrive. The list is still empty (there is nothing honest to put in it) and the flag says
+ *  the emptiness is a FAILURE rather than a configuration. */
 export function toRuleView(row: RuleRow): RuleView {
   const parsed = automationActionsSchema.safeParse(row.actions);
   return {
+    actionsCorrupt: !parsed.success,
     id: row.id,
     chatId: row.chatId,
     name: row.name,
@@ -133,6 +142,13 @@ export async function insertRule(db: Db, row: RuleInsert): Promise<void> {
 export async function selectRuleRow(db: Db, ruleId: AutomationRuleId): Promise<RuleRow | undefined> {
   const rows = await db.select().from(automationRules).where(eq(automationRules.id, ruleId)).limit(LIMIT_ONE);
   return rows[0];
+}
+
+/** JUST the ids of a chat's rules — the reorder verb's totality check (#1429), which compares the requested
+ *  set against the chat's complete current one and needs nothing else off the rows. */
+export async function listRuleIdsForChat(db: Db, chatId: ChatId): Promise<AutomationRuleId[]> {
+  const rows = await db.select({ id: automationRules.id }).from(automationRules).where(eq(automationRules.chatId, chatId));
+  return rows.map((row) => row.id);
 }
 
 /** A chat's rules in dispatch/list order — `position` then `created_at` (stable tie-break, 04 §3). */

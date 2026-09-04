@@ -5,10 +5,12 @@ import type { SetBudgetsParams } from "../contract/params.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { requireChatHost } from "../guard.ts";
 import { upsertBudget } from "../persistence/budgets.ts";
+import { assertFireRateCap } from "../substrate/validate.ts";
 
 export function createSetBudgets(ctx: AutomationContext): AutomationService["setBudgets"] {
   return async ({ principal, chatId, maxFiresPerHour }: SetBudgetsParams): Promise<void> => {
     await requireChatHost(ctx, principal, chatId);
+    assertFireRateCap(maxFiresPerHour);
     await upsertBudget(ctx.db, chatId, { maxFiresPerHour }, ctx.now());
   };
 }

@@ -245,6 +245,68 @@ test("set_variable chat scope WRITES THROUGH the shared env: [set hp=5, inc hp] 
   expect(frame.env.vars["hp"]).toBe("6");
 });
 
+// #1420 — `inc`/`dec` VALIDATE their inputs rather than coercing them. `Number.parseInt` is a PREFIX parser:
+// it reads as far as it can and throws the rest away, so `"5cats"` silently became 5, `"3.9"` became 3, a
+// wholly invalid operand collapsed to the default 1 (making a typo indistinguishable from writing nothing),
+// and a non-numeric CURRENT value silently rebased the counter at 0. All four are now typed `arm_error`s the
+// host reads on the fire log, and — the load-bearing half — NOTHING IS WRITTEN.
+test("set_variable 'inc' REFUSES a junk operand instead of silently truncating it", async () => {
+  const { db, host, chatId } = await setup();
+  const { dispatch, captured } = makeHarness(db);
+  const frame = makeFrame({ chatId, authorUserId: host, vars: { score: "10" } });
+
+  for (const operand of ["5cats", "3.9", "", "  ", "1e3", "0x10", "nope"]) {
+    const outcome = await dispatch({ type: "set_variable", scope: "chat", key: "score", op: "inc", value: operand }, frame);
+    expect(outcome).toEqual({ ok: false, kind: "arm_error", detail: expect.stringContaining("needs whole numbers") });
+  }
+  // Not one write reached the plane, and the counter still reads its pre-arm value.
+  expect(captured.varOps).toEqual([]);
+  expect(frame.env.vars["score"]).toBe("10");
+});
+
+test("set_variable 'inc' REFUSES a non-numeric CURRENT value instead of rebasing the counter at 0", async () => {
+  const { db, host, chatId } = await setup();
+  const { dispatch, captured } = makeHarness(db);
+  const frame = makeFrame({ chatId, authorUserId: host, vars: { score: "many" } });
+
+  const outcome = await dispatch({ type: "set_variable", scope: "chat", key: "score", op: "inc", value: "1" }, frame);
+
+  expect(outcome).toEqual({ ok: false, kind: "arm_error", detail: expect.stringContaining("current value 'many'") });
+  expect(captured.varOps).toEqual([]);
+});
+
+test("set_variable 'inc'/'dec' still accept the legitimate spellings — signed, padded and whitespaced integers", async () => {
+  const { db, host, chatId } = await setup();
+  const { dispatch, captured } = makeHarness(db);
+  // An ABSENT variable is a fresh counter at 0 (the call site's `?? "0"`), which is a configuration and not a
+  // corruption — the refusal above is about junk, never about a rule firing for the first time.
+  await dispatch({ type: "set_variable", scope: "chat", key: "fresh", op: "inc", value: " 7 " }, makeFrame({ chatId, authorUserId: host }));
+  await dispatch(
+    { type: "set_variable", scope: "chat", key: "score", op: "dec", value: "-2" },
+    makeFrame({ chatId, authorUserId: host, vars: { score: "010" } }),
+  );
+
+  expect(captured.varOps.map((v) => v.ops)).toEqual([[{ op: "set", key: "fresh", value: "7" }], [{ op: "set", key: "score", value: "12" }]]);
+});
+
+// #1420, the write-through half of the same reserved-key defect the global plane had. A plain
+// `env.vars[key] = value` for the key `__proto__` hits Object.prototype's inherited SETTER and creates no own
+// property, so the DB write lands and the shared env — every later predicate, template and `inc` in the
+// batch — cannot see it.
+test("a chat variable named __proto__ lands as an OWN key on the shared env", async () => {
+  const { db, host, chatId } = await setup();
+  const { dispatch, captured } = makeHarness(db);
+  const frame = makeFrame({ chatId, authorUserId: host });
+
+  await dispatch({ type: "set_variable", scope: "chat", key: "__proto__", op: "set", value: "5" }, frame);
+
+  expect(captured.varOps[0]?.ops).toEqual([{ op: "set", key: "__proto__", value: "5" }]);
+  expect(Object.hasOwn(frame.env.vars, "__proto__")).toBe(true);
+  // And the write-through composes: a later `inc` reads the value this arm just wrote.
+  await dispatch({ type: "set_variable", scope: "chat", key: "__proto__", op: "inc" }, frame);
+  expect(captured.varOps[1]?.ops).toEqual([{ op: "set", key: "__proto__", value: "6" }]);
+});
+
 test("set_variable chat-scope delete write-through clears the shared env (F2 — a later has()/read sees it gone)", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch } = makeHarness(db);

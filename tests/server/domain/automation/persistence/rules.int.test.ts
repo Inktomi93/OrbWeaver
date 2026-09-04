@@ -7,6 +7,7 @@ import { describe } from "vitest";
 import {
   applyReorder,
   insertRule,
+  listRuleIdsForChat,
   listRuleRowsForChat,
   maxPosition,
   selectRuleRow,
@@ -82,5 +83,27 @@ describe("automation_rules persistence", () => {
     const corrupt = { ...good, actions: [{ not: "an arm" }] };
     expect(toRuleView(good).actions).toEqual([SET_ARM]);
     expect(toRuleView(corrupt).actions).toEqual([]);
+    // #1422 — the empty list is FLAGGED, not fabricated. Without this a rule nothing can read projects
+    // identically to a rule whose author has not added an arm yet: same `[]`, same `enabled: true`, same
+    // clean error ledger (the disable-on-corrupt is dispatch-time), so the management surface reads it as
+    // benign until an event happens to arrive.
+    expect(toRuleView(corrupt).actionsCorrupt).toBe(true);
+    expect(toRuleView(good).actionsCorrupt).toBe(false);
+    // The fault isolation itself is unchanged: nothing threw, and every other field passes through.
+    expect(toRuleView(corrupt).enabled).toBe(good.enabled);
+  });
+
+  // #1429's read — the reorder verb's totality check compares against the chat's COMPLETE current id set.
+  test("listRuleIdsForChat returns exactly that chat's rule ids, and no other chat's", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const chatId = await seedHostChat(db, owner);
+    const otherChat = await seedHostChat(db, owner, "other");
+    const a = await seedRule(db, { ownerId: owner, chatId, name: "a", position: 0 });
+    const b = await seedRule(db, { ownerId: owner, chatId, name: "b", position: 1 });
+    await seedRule(db, { ownerId: owner, chatId: otherChat, name: "elsewhere", position: 0 });
+
+    expect((await listRuleIdsForChat(db, chatId)).toSorted()).toEqual([a, b].toSorted());
+    expect(await listRuleIdsForChat(db, otherChat)).toHaveLength(1);
   });
 });
