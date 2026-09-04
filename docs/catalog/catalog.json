@@ -4699,9 +4699,9 @@
       "path": "docs/architecture/proposed/INDEX.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 36,
-      "bytes": 2574,
-      "sha256": "4d1a2806e2443d8bf2795a0aea635e40b92cd5ef918051499031c0a3672263b2",
+      "lines": 37,
+      "bytes": 2678,
+      "sha256": "117fbbb14ee0eca15cef6f14c1ab7910de58b39c38dbb748056009ea21c382ae",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -4714,13 +4714,13 @@
       },
       "receipt": {
         "path": "docs/architecture/proposed/INDEX.md",
-        "assignedSha256": "4d1a2806e2443d8bf2795a0aea635e40b92cd5ef918051499031c0a3672263b2",
+        "assignedSha256": "117fbbb14ee0eca15cef6f14c1ab7910de58b39c38dbb748056009ea21c382ae",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "4d1a2806e2443d8bf2795a0aea635e40b92cd5ef918051499031c0a3672263b2",
-        "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-        "verifiedAt": "2026-08-31",
+        "verifiedSha256": "117fbbb14ee0eca15cef6f14c1ab7910de58b39c38dbb748056009ea21c382ae",
+        "verifiedCommit": "19751fc25624428d89f5c31ddd588446a664d00c",
+        "verifiedAt": "2026-09-04",
         "evidence": [
           "re-attested at bbecbfc78 — full-file read under #930; the superseded D66 program row moved out of proposed with the document, leaving no duplicate lifecycle status",
           "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
@@ -4728,7 +4728,8 @@
           "2026-08-23 re-derivations: databank-design REALIZED (DB1-DB8 slice-by-slice tree receipts incl. DB6 byte-identity + DB5 scope-leak tests, #19 closed); automation-design PARTIAL (A1-A7 + transport symbol-verified built, A8 client surface unbuilt, #15 corrected, #592 filed); plugin-design PARTIAL (P1-P4+P6 built: infra/plugin-host membrane+realm+budgets, domain/plugin 8-slot, contracts/plugin host-v1, escape.suite.test.ts, entry/compose/automation-plugin.ts; client echo + manager UI absent)",
           "git:88022d21a85ea44894b3d23aa071caa224fe391e contains the exact program-index blob",
           "re-attested after the #26 B10 reconciliation retired saved-rosters-design.md (row struck + repointed) at d760c3bad",
-          "docs/architecture/proposed/INDEX.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+          "docs/architecture/proposed/INDEX.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
+          "docs/architecture/proposed/INDEX.md:37 (re-attest: FUTURE row added for type-worlds-program.md routing to sprint #1351)"
         ],
         "summary": "Current three-column routing index for committed programs; code/tests own built state and Project owns mutable lifecycle.",
         "claims": [
@@ -10716,6 +10717,58 @@
               {
                 "kind": "test",
                 "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/architecture/proposed/type-worlds-program.md",
+      "lane": "architecture-proposed",
+      "issue": 4,
+      "lines": 184,
+      "bytes": 11334,
+      "sha256": "5c9e42c5eb459a696a14d6a533983c349b5352591df76dd161516b06e20af6e7",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "spec",
+          "status": "active",
+          "updated": "2026-09-04"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/architecture/proposed/type-worlds-program.md",
+        "assignedSha256": "5c9e42c5eb459a696a14d6a533983c349b5352591df76dd161516b06e20af6e7",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "5c9e42c5eb459a696a14d6a533983c349b5352591df76dd161516b06e20af6e7",
+        "verifiedCommit": "19751fc25624428d89f5c31ddd588446a664d00c",
+        "verifiedAt": "2026-09-04",
+        "evidence": [
+          "docs/architecture/proposed/type-worlds-program.md:1 (full read; authored this session against main, frontmatter + lifecycle evaluated)",
+          "docs/architecture/proposed/INDEX.md:1 (FUTURE row added, routing to sprint #1351)",
+          "tsconfig.json / tsconfig.tests-dom.json / all 6 package tsconfigs + tooling/tsconfig.json (read in full; 26+25 per-file test entries, 4-of-9 program coverage in tests-type-membership.ts)",
+          "packages/client/src/{lib,state,data}/pure.ts (read in full; 524 lines, 55 consumers, 1 production)",
+          "pnpm check:docs (2026-09-04: 2 file(s) formatted)"
+        ],
+        "summary": "Committed-not-built program: make test type-program membership derivable from package + directory + suffix and delete the per-file escapee ledger. Owns durable shape and the delete-ordered phase plan; Project 1 #1351 owns lifecycle.",
+        "claims": [
+          {
+            "claim": "This receipt is governed by D139: GitHub issue #4 owns the mutable migration work while the receipt records a hash-bound durable review result.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#4"
+              },
+              {
+                "kind": "ruling",
+                "target": "D139"
               }
             ]
           }
