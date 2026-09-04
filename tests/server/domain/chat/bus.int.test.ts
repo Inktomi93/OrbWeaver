@@ -92,6 +92,54 @@ function deltaEvent(chatId: ChatId): DurableChatBusEvent {
 // `chats` row, the in-flight turn's NEXT `delta` INSERT trips the `chat_events.chat_id` FK, and because the
 // engine emits deltas fire-and-forget (`void deps.emit(…)`) the rejection was UNHANDLED — the node process
 // exited, taking every user's server with it. `emit` is therefore TOTAL (bus.ts FLAG[emit-is-total]).
+/** A Db whose FIRST `insert` fails — either before the write reaches SQLite (`before-commit`) or after it has
+ *  already landed (`after-commit`, the driver/transport dying on the way back). Everything else delegates
+ *  untouched, and every later insert is real. The two flavours are the whole point: only one of them leaves a
+ *  row behind, and a retry must be safe for both. */
+function faultyAppendDb(real: Db, mode: "before-commit" | "after-commit"): Db {
+  let inserts = 0;
+  return new Proxy(real, {
+    get(target, prop, receiver): unknown {
+      const value = Reflect.get(target, prop, receiver) as unknown;
+      if (prop !== "insert" || typeof value !== "function") {
+        return value;
+      }
+      return (...args: unknown[]): unknown => {
+        const builder = (value as (...a: unknown[]) => object).apply(target, args);
+        inserts += 1;
+        return inserts === 1 ? failingBuilder(builder, mode) : builder;
+      };
+    },
+  }) as Db;
+}
+
+/** Wrap a drizzle builder so the awaited chain throws — running the real statement first for `after-commit`. */
+function failingBuilder(node: object, mode: "before-commit" | "after-commit"): object {
+  const boom = new Error("driver died mid-append");
+  return new Proxy(node, {
+    get(target, prop, receiver): unknown {
+      if (prop === "then") {
+        return (onFulfilled: unknown, onRejected: ((reason: unknown) => unknown) | undefined): Promise<unknown> => {
+          void onFulfilled;
+          const ran = mode === "after-commit" ? Promise.resolve(target as PromiseLike<unknown>) : Promise.resolve();
+          return ran.then(
+            () => (onRejected === undefined ? Promise.reject(boom) : onRejected(boom)),
+            () => (onRejected === undefined ? Promise.reject(boom) : onRejected(boom)),
+          );
+        };
+      }
+      const value = Reflect.get(target, prop, receiver) as unknown;
+      if (typeof value !== "function") {
+        return value;
+      }
+      return (...args: unknown[]): unknown => {
+        const next = (value as (...a: unknown[]) => unknown).apply(target, args);
+        return typeof next === "object" && next !== null ? failingBuilder(next, mode) : next;
+      };
+    },
+  });
+}
+
 describe("createChatBus.emit — a failed durable append never rejects (the process-kill floor)", () => {
   test("the raw append into a DELETED chat is a FOREIGN-KEY violation — the exact crash `emit` must absorb", async () => {
     const chatId = await seedChat(db, "a");
@@ -145,33 +193,46 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
     debugSpy.mockRestore();
   });
 
-  test("a TRANSIENT live-chat append failure is retried and the event survives (#1454)", async () => {
+  test("a TRANSIENT live-chat append failure — one that never committed — is retried and the event survives (#1454)", async () => {
     const chatId = await seedChat(db, "retry");
-    // The first append collides on the PK; the retry mints a fresh id and lands. A lost durable event on a
-    // LIVE chat is a permanent replay gap — a missing turn terminal, a missed automation trigger, a stranded
-    // client — so the transient half of that class must not be reported as a drop and forgotten.
-    const taken = castId<ChatEventId>("chat_event_taken");
-    let mints = 0;
-    const newEventId = (): ChatEventId => {
-      mints += 1;
-      return mints === 1 ? taken : castId<ChatEventId>(`chat_event_fresh_${mints}`);
-    };
-    const bus = createChatBus({ ...makeChatContext(db), newEventId });
+    // A lost durable event on a LIVE chat is a permanent replay gap — a missing turn terminal, a missed
+    // automation trigger, a stranded client — so the transient half of that class must not be reported as a
+    // drop and forgotten. This fault dies BEFORE the write, so a replay is the whole recovery.
+    const bus = createChatBus(makeChatContext(faultyAppendDb(db, "before-commit")));
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
     const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
-
-    // Occupy the id the first attempt will mint.
-    await appendChatEvent(db, { id: taken, chatId, event: { type: "chatUpdated", chatId }, createdAt: FROZEN_AT });
 
     const emitted = await bus.emit(deltaEvent(chatId));
 
     expect(emitted).not.toBeNull();
-    expect((await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId))).map((r) => r.type)).toEqual(["chatUpdated", "delta"]);
+    expect((await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId))).map((r) => r.type)).toEqual(["delta"]);
     // The ring carries it too — a recovered event is a fanned event.
     expect(bus.readRing(chatId).map((e) => e.event.type)).toEqual(["delta"]);
     // Warned (a live-chat fault happened), never errored (it did not stay lost).
     expect(warnSpy).toHaveBeenCalledTimes(1);
     expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  test("an append that COMMITS and then reports failure is never duplicated by the retry (#1537)", async () => {
+    const chatId = await seedChat(db, "retry-dup");
+    // The dangerous half of a retry: the row LANDED and the driver/transport died on the way back. Because
+    // the whole retry re-uses ONE event id, the second attempt trips the `chat_events` PK instead of writing
+    // a second row under a fresh id — the durable log keeps exactly one copy, and durable-first replay
+    // therefore delivers the event exactly once.
+    const bus = createChatBus(makeChatContext(faultyAppendDb(db, "after-commit")));
+    const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+
+    const emitted = await bus.emit(deltaEvent(chatId));
+
+    const rows = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId));
+    expect(rows.map((r) => r.type)).toEqual(["delta"]);
+    // The live fan is skipped (we cannot prove what seq landed), but the ROW stands — the recoverable half.
+    expect(emitted).toBeNull();
+    expect(bus.readRing(chatId)).toEqual([]);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
     errorSpy.mockRestore();
     warnSpy.mockRestore();
   });

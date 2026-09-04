@@ -25,7 +25,7 @@ import {
   worldEntries,
 } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, Handle, PersonaId, PresetId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatInviteId, Handle, PersonaId, PresetId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
 import { activePersonaIdFor } from "@orb/server/entry/compose";
@@ -35,7 +35,7 @@ import { createActiveTurns } from "../../../../../packages/server/src/domain/cha
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus.ts";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import { upsertMemberOnJoin } from "../../../../../packages/server/src/domain/chat/persistence/participant.ts";
+import { insertInvite, redeemInviteAtomic } from "../../../../../packages/server/src/domain/chat/persistence/invites.ts";
 import { loadMessageView } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle.ts";
 import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read.ts";
@@ -1158,9 +1158,10 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     expect(JSON.stringify(replayed)).toContain("pre-join greeting");
   });
 
-  // RE-JOIN semantics, driven through the REAL membership write (`upsertMemberOnJoin` — the one human-join
-  // path both invite redeem and accept-by-id call). A human's membership is ONE upserted row: the re-join
-  // re-stamps `joinSeq` to the current head, clears `leftSeq`, and does NOT touch `joinHistoryVisibility`.
+  // RE-JOIN semantics, driven through the REAL membership write (`redeemInviteAtomic` → the DO UPDATE arm of
+  // `insertMemberAfterInviteClaimStatement`, the one human-join path both invite doors share). A human's
+  // membership is ONE upserted row: the re-join re-stamps `joinSeq` to the current head, clears `leftSeq`,
+  // and does NOT touch `joinHistoryVisibility`.
   // So a `from-join` member who left and came back is floored at their LATEST join and loses their PREVIOUS
   // era — the row retains no era history, so that is the only reading it can support (and the conservative
   // one). Pinned because it is surprising, not because it is a preference.
@@ -1172,10 +1173,24 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     await seedParticipant(db, { chatId, key: "jhrj_m", userId: joiner, role: "member", joinSeq: 1, leftSeq: 2, joinHistoryVisibility: "from-join" });
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
-    // Re-invited at the current head (4) — the same write a redeem performs.
-    const rejoined = await upsertMemberOnJoin(db, { participantId: castId("chat_participant_unused"), chatId, userId: joiner, joinSeq: 4, now: FROZEN_AT });
-    expect(rejoined?.joinSeq).toBe(4);
-    expect(rejoined?.joinHistoryVisibility).toBe("from-join"); // untouched by the re-join upsert
+    // Re-invited: the redeem stamps the floor from the canon head (4) inside its own claim batch.
+    await insertInvite(db, {
+      id: castId<ChatInviteId>("chat_invite_jhrj"),
+      chatId,
+      tokenHash: "hash_jhrj",
+      maxUses: null,
+      expiresAt: null,
+      createdAt: FROZEN_AT,
+    });
+    const rejoined = await redeemInviteAtomic(db, {
+      tokenHash: "hash_jhrj",
+      userId: joiner,
+      participantId: castId("chat_participant_unused"),
+      activePersonaId: null,
+      now: FROZEN_AT,
+    });
+    expect(rejoined?.participant.joinSeq).toBe(4);
+    expect(rejoined?.participant.joinHistoryVisibility).toBe("from-join"); // untouched by the re-join upsert
 
     expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([4]);
   });

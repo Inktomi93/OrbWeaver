@@ -1,5 +1,5 @@
 import type { Db } from "@orb/db";
-import { chatInvites } from "@orb/db";
+import { chatInvites, chatParticipants } from "@orb/db";
 import type { ChatId, ChatInviteId, ChatParticipantId, Handle, PendingTurnId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -177,6 +177,35 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       now: FROZEN_AT,
     });
     expect(result?.participant.joinSeq).toBe(2);
+  });
+
+  test("a previously-LEFT member re-joins through the same claim: joinSeq re-stamped, leftSeq cleared, row id kept", async () => {
+    const joiner = await seedUser(db, castId<Handle>("returner"));
+    const chatId = await seedChat(db, "rejoin");
+    await seedMessage(db, chatId, 1);
+    await seedMessage(db, chatId, 2);
+    const existing = await seedParticipant(db, { chatId, key: "r", userId: joiner, role: "member", joinSeq: 0, leftSeq: 1 });
+    const hash = await seedInvite(db, chatId, "i", { maxUses: 5 });
+
+    const result = await redeemInviteAtomic(db, {
+      tokenHash: hash,
+      userId: joiner,
+      participantId: castId<ChatParticipantId>("chat_participant_ignored"),
+      activePersonaId: null,
+      now: FROZEN_AT,
+    });
+
+    // ONE upserted row per human membership (conflict target: chatId+userId): the re-join re-stamps the floor
+    // to the canon head and clears the leave, so a returning member is floored at their LATEST join and their
+    // previous era is not re-granted — the storage shape `substrate/auth/clamp.ts` reads that rule off.
+    // The claim also re-stamps the row's own `id` to the caller's freshly-minted participantId; asserted
+    // here as the OBSERVED behaviour of the live door, not as a preference.
+    expect(await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId))).toHaveLength(1);
+    expect(existing).not.toBe(result?.participant.id);
+    expect(result?.participant.id).toBe("chat_participant_ignored");
+    expect(result?.participant.joinSeq).toBe(2);
+    expect(result?.participant.leftSeq).toBeNull();
+    expect(result?.participant.role).toBe("member");
   });
 
   test("redeem closes the maxUses TOCTOU: the over-cap attempt yields undefined", async () => {

@@ -2119,8 +2119,12 @@ describe("createTurnEngine — the commit fence (#1393)", () => {
       })();
     const h = harness(db, { runChatTurn: stealingTurn });
 
-    await expect(h.engine.runTurn(prepOf(chatId))).rejects.toBeInstanceOf(ChatOperationError);
+    const outcome = await h.engine.runTurn(prepOf(chatId));
 
+    // A lost lock is an ABORT, not a provider fault — and it is labelled "stale" even though the heartbeat
+    // (TTL/3 away) never ticked, so the operator is told what actually happened (#1537).
+    expect(outcome).toMatchObject({ aborted: true, abortReason: "stale", messages: [] });
+    expect(h.events.filter((e) => e.type === "turnAborted")).toEqual([{ type: "turnAborted", chatId, intent: "send", reason: "stale", automationDepth: 0 }]);
     const rows = await db.select({ id: messages.id }).from(messages).where(eq(messages.chatId, chatId));
     expect(rows).toEqual([]);
     // And the lock is left for its NEW holder — releaseLock is holder-scoped, so the abandoned turn never
