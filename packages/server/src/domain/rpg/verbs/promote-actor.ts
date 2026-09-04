@@ -19,7 +19,9 @@
 // and becomes unaddressable by every tool write. So a promotion that would mint the second "Vesna" refuses with
 // a sentence the host can act on (rename her first — `patchActor`'s `setIdentityText` is exactly that gesture,
 // and the slug key makes it safe). The card HANDLE collides in a different namespace (the host's own library)
-// where nothing addresses by it, so the compose impl uniquifies that one silently.
+// where nothing addresses by it, so the compose impl uniquifies that one silently — and because that
+// namespace belongs to the character domain, the handle is minted by THAT namespace's engine
+// (`slugifyHandle`), never by the actor-key engine (#1386; the reasoning sits on the mint below).
 //
 // WHAT DOES NOT SURVIVE, AND WHY IT IS NOT A LEAK: the identity HALF. A roster actor carries none by R2 law —
 // her name is the chat roster's and her standing prose the sheet's — so the durable content is carried onto the
@@ -27,9 +29,10 @@
 // `rpgPromotedCardDescription` home) and `mood`/`relationship` are dropped. The panel's promotion affordance
 // names that drop out loud; a host who learns it afterwards learns it as a bug.
 
-import { actorRefKey, rpgCastSlug, rpgPromotedCardDescription } from "@orb/contracts/rpg";
+import { actorRefKey, rpgPromotedCardDescription } from "@orb/contracts/rpg";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { slugifyHandle } from "@orb/kit/slug";
 import type { PromoteActorParams } from "../contract/params.ts";
 import type { HandDoorResult } from "../contract/results.ts";
 import type { RpgContext, RpgService } from "../contract/service.ts";
@@ -68,7 +71,16 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
       sourceActorKey: fromKey,
       roster,
       name,
-      handle: castId<CharacterHandle>(rpgCastSlug(name)),
+      // THE HANDLE IS THE CHARACTER NAMESPACE'S, SO ITS OWN ENGINE MINTS IT (#1386). `rpgCastSlug` is the
+      // ACTOR-KEY engine — its whole job is "never merge two people", so it is NFC-preserving, keeps every
+      // mark and NEVER truncates. A card handle answers to different law: the per-owner
+      // `characters_owner_handle_unique` index and the 200-char wire cap on `createCharacterSchema.handle`,
+      // which is what `slugifyHandle` (the handle namespace's one home) folds and bounds for. Minting with
+      // the actor engine let a model-authored NPC name — `rpgActorIdentitySchema.name` carries NO max —
+      // produce a handle the character namespace's own create schema refuses, i.e. a row no import could
+      // ever re-create. The two engines deliberately stay separate (`rpgCastSlug`'s header states why);
+      // what crosses here is the VALUE, minted on the receiving side's terms.
+      handle: castId<CharacterHandle>(slugifyHandle(name)),
       description: rpgPromotedCardDescription(identity),
     });
     if (!minted.ok) {
