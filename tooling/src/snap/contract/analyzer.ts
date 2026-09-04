@@ -6,7 +6,7 @@ import type { Arm } from "./arm-vocabulary.ts";
  * stays with the analyzer writer; the report reader validates and renders this evidence without
  * re-deriving private budgets. */
 export interface SnapAnalyzerProblem {
-  readonly arm: Extract<Arm, "motion" | "interaction-perf" | "heap">;
+  readonly arm: Extract<Arm, "motion" | "interaction-perf" | "heap" | "design-audit">;
   readonly kind: "threshold" | "failure" | "evidence-gap";
   readonly metric: string;
   readonly subject: string;
@@ -15,7 +15,7 @@ export interface SnapAnalyzerProblem {
   readonly detail: string;
 }
 
-const SNAP_ANALYZER_PRODUCERS = ["motion", "perf", "heap"] as const;
+const SNAP_ANALYZER_PRODUCERS = ["motion", "perf", "heap", "design-audit"] as const;
 export type SnapAnalyzerProducer = (typeof SNAP_ANALYZER_PRODUCERS)[number];
 
 export function isSnapAnalyzerProducer(value: string): value is SnapAnalyzerProducer {

@@ -1,53 +1,19 @@
-// Compatibility refusal only. The browser/stage/parser/run doors live exclusively in Snap; pure perf
-// collectors and verdicts remain importable through ./index.ts for Snap's --perf/--boot-trace arms.
-import process from "node:process";
+// NOT A PROGRAM. Snap is the sole rendered-instrument front door (docs/design/1208-instrument-substrate.md
+// §12.3); this dir is the perf collectors and verdicts Snap's `--perf/--cpu-profile` arm runs, entered through ./index.ts.
+//
+// THIS FILE EXISTS ONLY BECAUSE THE TEMPLATE REQUIRES AN ARGV DOOR (gate `tooling-slot-template` arm B:
+// every tool dir owns cli.ts + index.ts, or a BASH_FRONTED_TOOLS row it does not qualify for). It carries
+// NO argv translation and NO migration recipe beyond the one spelling below — the owner's 2026-09-04
+// ruling on #1315: the product is unlaunched, so a retired spelling is GREP-FIXED at its call sites, not
+// kept alive behind a door that has to be maintained, tested and eventually retired a second time.
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
 
-const LEGACY_VALUE_FLAGS = new Map([
-  ["--settle", "--pause"],
-  ["--cycles", "--perf-cycles"],
-  ["--jsclick", "--dom-click"],
-  ["--wheelburst", "--wheel-burst"],
-]);
-
-function translatedArgs(argv: readonly string[]): { readonly args: string[]; readonly cpu: boolean } {
-  const args: string[] = [];
-  let cpu = false;
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index] as string;
-    if (token === "--cpuprofile") {
-      cpu = true;
-    } else {
-      const replacement = LEGACY_VALUE_FLAGS.get(token);
-      args.push(replacement ?? token);
-      if (replacement !== undefined && argv[index + 1] !== undefined) {
-        index += 1;
-        args.push(argv[index] as string);
-      }
-    }
-  }
-  return { args, cpu };
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", `'"'"'`)}'`;
-}
-
-function snapCommand(args: readonly string[], arm: string): string {
-  return ["pnpm", "snap", ...args, arm].map(shellQuote).join(" ");
-}
-
 function main(): number {
-  const translated = translatedArgs(process.argv.slice(2));
-  print("RETIRED      pnpm perf-meter has no execution path; Snap is the sole rendered-instrument CLI.");
-  print(`REPLACEMENT  ${snapCommand(translated.args, "--perf")}`);
-  if (translated.cpu) {
-    const cpuArgs = translated.args.filter((token, index, args) => token !== "--perf-cycles" && args[index - 1] !== "--perf-cycles");
-    print(`CPU PROFILE  ${snapCommand(cpuArgs, "--cpu-profile")}`);
-  }
+  print("NOT A CLI    this tool has no program; Snap is the sole rendered-instrument front door.");
+  print("RUN INSTEAD  pnpm snap <route> --perf   ·   pnpm snap <route> --cpu-profile");
   return EXIT.misuse;
 }
 
-await runTool(main);
+await runTool(() => Promise.resolve(main()));

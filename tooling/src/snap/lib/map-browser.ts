@@ -1,10 +1,19 @@
 // Browser-realm source for --map. Kept out of the arm orchestration so the public map contract does not
 // push one file past the tooling cap. Returned values are untrusted until ops/page-validate.ts accepts them.
+//
+// THE ACCESSIBLE NAME IS NOT COMPUTED HERE (#1324). This file used to spell its own resolver, reading
+// `aria-label` BEFORE `aria-labelledby` — the reverse of accname 1.2 (2B precedes 2C) — and the walker's
+// door census had the identical inversion in its own copy. Two homes, one bug, and a planted pair proved
+// both wrong on the same page (docs/reviews/stickler/2026-09-04-snap-ui-audit-capability-census.md §2.2).
+// The map now composes the walker's ONE spec-ordered key through ui-audit's front door; `--aria`
+// (Playwright's `ariaSnapshot`) stays the oracle both were measured against.
+import { WALKER_ACCESSIBLE_NAME } from "../../ui-audit/index.ts";
 
 const MAP_TARGET_SELECTOR = "a,button,[role],input,select,textarea,[tabindex],[aria-label],main,nav,aside,form";
 
 export function buildSurfaceMapScript(selector: string, includeHidden: boolean): string {
   return `(() => {
+${WALKER_ACCESSIBLE_NAME}
     var root = document.querySelector(${JSON.stringify(selector)});
     if (!root) return null;
     var TARGET_SELECTOR = ${JSON.stringify(MAP_TARGET_SELECTOR)};
@@ -44,49 +53,18 @@ export function buildSurfaceMapScript(selector: string, includeHidden: boolean):
       if (IMPLICIT_ROLE[tag]) return IMPLICIT_ROLE[tag];
       return el.hasAttribute("tabindex") ? "generic" : "";
     }
-    function associatedLabel(el) {
-      if (!el.labels || el.labels.length === 0) return "";
-      return Array.from(el.labels).map(function (label) { return (label.textContent || "").trim(); }).filter(Boolean).join(" ").trim();
-    }
+    // The spec-ordered chain is \`accessibleNameOf\` (composed above). A text input's PLACEHOLDER is the
+    // one source below it the map has always read, and it stays below it: HTML-AAM offers the placeholder
+    // only when every accname source is empty, so applying it after an empty key is where it belongs —
+    // never inside the shared key, where it would hand the walker's door census a name the spec has not.
     function accessibleName(el) {
-      var al = el.getAttribute("aria-label");
-      if (al && al.trim()) return al.trim();
-      var lbId = el.getAttribute("aria-labelledby");
-      if (lbId) {
-        var text = lbId.split(/\\s+/).map(function (id) {
-          var target = document.getElementById(id);
-          return target ? (target.textContent || "").trim() : "";
-        }).filter(Boolean).join(" ").trim();
-        if (text) return text;
-      }
-      var label = associatedLabel(el);
-      if (label) return label;
-      var rootVisibilityHidden = getComputedStyle(el).visibility === "hidden";
-      var textNodes = [];
-      var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-      var node;
-      while ((node = walker.nextNode())) {
-        var hidden = false;
-        var cur = node.parentElement;
-        while (cur) {
-          if (cur.getAttribute && cur.getAttribute("aria-hidden") === "true") { hidden = true; break; }
-          if (cur === el) break;
-          var style = getComputedStyle(cur);
-          if (cur.hidden || style.display === "none" || (!rootVisibilityHidden && style.visibility === "hidden")) { hidden = true; break; }
-          cur = cur.parentElement;
-        }
-        if (!hidden) textNodes.push(node.textContent || "");
-      }
-      var text = textNodes.join("").trim().replace(/\\s+/g, " ");
-      if (text) return text;
-      var title = el.getAttribute("title");
-      if (title && title.trim()) return title.trim();
+      var name = accessibleNameOf(el);
+      if (name) return name;
       if (el.tagName === "INPUT") {
         var placeholder = el.getAttribute("placeholder");
         if (placeholder && placeholder.trim()) return placeholder.trim();
       }
-      var alt = el.getAttribute("alt");
-      return alt && alt.trim() ? alt.trim() : "";
+      return "";
     }
     function stateOf(el) {
       var disabled = "disabled" in el ? Boolean(el.disabled) : null;

@@ -1,12 +1,14 @@
-// The shared flag-FAMILY tables every public rendered tool's own `ops/parse.ts` consumes
+// The shared flag-FAMILY tables a public rendered tool's own `ops/parse.ts` consumes
 // (docs/design/1208-instrument-substrate.md §4.2/§4.3). `Core-Tooling-Law.md` §4.9 refuses a generic
-// `parseArgv(spec)` — each tool keeps its own byte-stable parser and scanner — so this file holds only
-// the DATA a family shares (the flag's name, its help line, its required-value shape), never a parser.
+// `parseArgv(spec)` — a tool keeps its own byte-stable parser and scanner — so this file holds only
+// the DATA a family shares (the flag's name, its required-value shape), never a parser.
 //
-// The family tables below are the accepted-vocabulary source for Snap, design-audit, and record. Each
-// parser still owns what a flag DOES; `instrumentFamilyRosterErrors` only makes a missing family member
-// fail loud before a browser boots. A new tuple member therefore changes the union, the runtime table,
-// and every parser's enforcement input in one edit without flattening the five grammars into one parser.
+// THERE IS ONE PARSER LEFT (#1315). The family tables were the accepted-vocabulary source for Snap AND
+// its four sibling CLIs; the siblings are folded into Snap arms and their argv doors are gone, so this
+// file is now Snap's own enforcement input plus the two tests that pin the vocabulary. It is kept rather
+// than inlined because the FAMILY is the contract: `instrumentFamilyRosterErrors` still makes a missing
+// shared member fail loud before a browser boots, which is what caught a parser that quietly stopped
+// accepting `--isolated`.
 
 /** HELP_FLAGS (§4.3): every tool prints its help and exits 0 on either spelling. Before this family,
  *  `--help`/`-h` was an UNKNOWN FLAG (exit 3) on every tool but snap — measured 34 hits across
@@ -16,28 +18,27 @@ export const HELP_FLAGS: ReadonlySet<string> = new Set(["--help", "-h"]);
 /** ALIAS_REFUSALS (§4.3): an unknown flag that matches a KNOWN ASK refuses NAMING the real flag instead
  *  of the generic "unknown flag" — measured asks (§1 P5): `--full-page` (snap has `--full`),
  *  `--watch-every` (it is `--every`), `--name` (it is `--out`), `--screenshot` (it is `--shot-of`).
- *  `--os-reduced-motion`/`--os-full-motion` (owner ruling 2026-09-03): motion-audit's RENAMED spellings —
  *  THIS IS A REFUSAL TABLE, NOT AN ALIAS TABLE. The old flag stops working outright; it is never quietly
  *  accepted as a second spelling for the same thing (Core-Tooling-Law.md §1's half-migration ban).
  *  A consuming tool passes ITS OWN known-flag set to `aliasRefusal` so the suggestion never names a flag
- *  that tool does not actually have (`--full`/`--every`/`--shot-of` are snap-only; `--out` is shared). */
+ *  that tool does not actually have (`--full`/`--every`/`--shot-of` are snap-only; `--out` is shared).
+ *
+ *  EVERY ROW IS ONE OF SNAP'S OWN HISTORICAL SPELLINGS. The rows that named a RETIRED SIBLING CLI's
+ *  vocabulary (`--os-reduced-motion`/`--os-full-motion` from motion-audit, `--cpuprofile`/`--jsclick`/
+ *  `--wheelburst`/`--cycles` from perf-meter) went with those CLIs at #1315: the owner's ruling is that an
+ *  unlaunched product GREP-FIXES a retired spelling at its call sites rather than keeping a translation
+ *  layer alive. A stale recipe now gets the generic unknown-flag refusal — still exit 3, still loud. */
 export const ALIAS_REFUSALS: ReadonlyMap<string, string> = new Map([
   ["--full-page", "--full"],
   ["--watch-every", "--every"],
   ["--name", "--out"],
   ["--screenshot", "--shot-of"],
-  ["--os-reduced-motion", "--reduced-motion"],
-  ["--os-full-motion", "--reduced-motion"],
   ["--profile", "--react-profile"],
-  ["--cpuprofile", "--cpu-profile"],
-  ["--jsclick", "--dom-click"],
   ["--press", "--force-click"],
-  ["--wheelburst", "--wheel-burst"],
   ["--ls", "--local-storage"],
   ["--sse", "--stream-settle"],
   ["--summary", "--scenario-summary"],
   ["--owner", "--stage-owner"],
-  ["--cycles", "--perf-cycles"],
 ]);
 
 /** Returns the "unknown flag X — did you mean Y?" refusal for a token in `ALIAS_REFUSALS`, but ONLY when
@@ -45,20 +46,12 @@ export const ALIAS_REFUSALS: ReadonlyMap<string, string> = new Map([
  *  so the generic "unknown flag" applies rather than a suggestion that names a flag the tool never had. */
 export function aliasRefusal(flag: string, knownFlags: ReadonlySet<string>): string | null {
   const real = ALIAS_REFUSALS.get(flag);
-  if (real === undefined || !knownFlags.has(real)) {
-    return null;
-  }
-  if (flag === "--os-full-motion") {
-    return "unknown flag --os-full-motion — full motion is already the default; omit the flag";
-  }
-  return `unknown flag ${flag} — did you mean ${real}?`;
+  return real === undefined || !knownFlags.has(real) ? null : `unknown flag ${flag} — did you mean ${real}?`;
 }
 
-/** The substrate's sibling-attach flag (design §3.4/§5, #1285): `--session <name>` on
- *  design-audit/record resolves through `snap`'s front door
- *  (`resolveSessionAttach`) instead of launching a fresh browser. Snap's own `--session` predates this
- *  file (phase 1, `snap/ops/flags-session.ts`) and is unchanged — this constant is for the remaining
- *  siblings only, so the name is spelled once for them rather than once each. */
+/** `--session <name>` (design §3.4/§5, #1285). The sibling tools this constant was minted for are gone
+ *  (#1315) and Snap owns the flag outright (`snap/ops/flags-session.ts`); it stays a named member of
+ *  `WHERE_FLAGS` below because the family roster is what `instrumentFamilyRosterErrors` enforces. */
 export const SESSION_FLAG = "--session";
 
 /** WHERE_FLAGS (§4.3): the complete shared location/session vocabulary for all public rendered tools. */
@@ -66,10 +59,8 @@ const WHERE_FLAG_NAMES = ["--base", "--isolated", "--ref", "--dirty", "--fresh",
 export type WhereFlag = (typeof WHERE_FLAG_NAMES)[number];
 export const WHERE_FLAGS: ReadonlySet<WhereFlag> = new Set(WHERE_FLAG_NAMES);
 
-/** The canonical `--reduced-motion` spelling — motion-audit's RENAME target (owner ruling 2026-09-03) for
- *  its retired `--os-reduced-motion`/`--os-full-motion`; snap has carried this spelling since phase 1. A
- *  named constant (SESSION_FLAG's shape) rather than a bare literal so a future consumer of this same
- *  member never re-spells it. */
+/** The canonical `--reduced-motion` spelling; snap has carried it since phase 1. A named constant
+ *  (SESSION_FLAG's shape) rather than a bare literal so a second consumer never re-spells it. */
 export const REDUCED_MOTION_FLAG = "--reduced-motion";
 
 /** ENVIRONMENT_FLAGS (§4.3): one spelling, no aliases, and one accepted roster across all public rendered tools. */

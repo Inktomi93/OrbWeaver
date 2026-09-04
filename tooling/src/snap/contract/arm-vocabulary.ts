@@ -7,6 +7,7 @@ export const ARMS = [
   "contrast",
   "map",
   "assert",
+  "design-audit",
   "app-snapshot",
   "heap",
   "filmstrip",

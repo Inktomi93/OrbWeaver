@@ -7,7 +7,14 @@ import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
-export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button],input,select,[tabindex]";
+/** THE SIDE-EFFECT-FREE HALF of the walker core: the selector vocabulary, the locatable-selector
+ *  (describe/anchorOf) machinery, and the opacity/visibility/visually-hidden predicates. Nothing here
+ *  touches the document at declaration time, which is what makes it composable OUTSIDE the whole-page
+ *  walk — `WALKER_RESOLVE`'s backdrop resolver needs exactly `RGB_RE` + `isVisible` from this segment,
+ *  and snap's per-selector `--contrast` arm composes the pair for ONE element (#1325). Running the
+ *  census half for a single target would walk every node on the page and install this walk's mutation
+ *  observer on a live `--session` page, which is why the split exists rather than a second resolver. */
+export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = "a,button,[role=button],input,select,[tabindex]";
   // AN OVERLAY SURFACE IS NAMED BY ITS ROLE, NEVER BY A WORD IN ITS CLASS STRING (#1317 item 7, the
   // #552 shape). The old word regex was tested against el.className, so any Tailwind utility CONTAINING
   // one of the six words excluded the element, while a word-boundary test over a role attribute was a
@@ -45,47 +52,6 @@ export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button]
     if (el.closest && el.closest(DEV_CHROME_SEL)) return true;
     return typeof el.className === "string" && GOOBER_CLASS_RE.test(el.className);
   }
-  // ONE settled identity snapshot is the denominator for every family below (#976). The generic
-  // getComputedStyle read is the common "walk attempted" operation: visibility changes which specialised
-  // facts apply, never whether a rendered document subject silently disappears from accounting.
-  var settledSubjects = [].slice.call(document.querySelectorAll("*"));
-  var allEls = [];
-  var documentHeadSkips = 0;
-  var devChromeSkips = 0;
-  var inaccessibleSubjects = 0;
-  var walkMutationCount = 0;
-  // THE OBSERVER OUTLIVES A THROW (#1317 item 10). Both disconnect sites are on the walk's happy path
-  // (ops/walker/returns.ts and ops/hover-walker-read.ts), so a segment that throws mid-walk leaves a live
-  // subtree MutationObserver on the page forever. Harmless on a launched browser we are about to close;
-  // on an attached --session it accumulates on the OWNER's page, one per failed run, each firing on every
-  // DOM change for the rest of that session. The walk cannot wrap itself in try/finally without changing
-  // the segment concatenation contract, so the install is made SELF-HEALING instead: the previous run's
-  // observer is disconnected here before this one is armed, which bounds the leak at one.
-  if (window.__orbWalkObserver) window.__orbWalkObserver.disconnect();
-  var walkObserver = new MutationObserver(function (records) {
-    for (var wm = 0; wm < records.length; wm += 1) {
-      if (mutationCarriesElement(records[wm])) walkMutationCount += 1;
-    }
-  });
-  window.__orbWalkObserver = walkObserver;
-  walkObserver.observe(document.documentElement, { childList: true, subtree: true });
-  for (var subjectIndex = 0; subjectIndex < settledSubjects.length; subjectIndex += 1) {
-    var subject = settledSubjects[subjectIndex];
-    if (document.head && document.head.contains(subject)) {
-      documentHeadSkips += 1;
-      continue;
-    }
-    if (isDevChrome(subject)) {
-      devChromeSkips += 1;
-      continue;
-    }
-    try {
-      getComputedStyle(subject);
-      allEls.push(subject);
-    } catch (subjectError) {
-      inaccessibleSubjects += 1;
-    }
-  }
   // Rendered is an ANCESTOR property. React Activity retains inactive subtrees under display:none;
   // a leaf's own computed style does not name that retained state, so every rendered-only family shares
   // this one walk rather than growing subtly different leaf predicates. Opacity is accumulated because
@@ -118,46 +84,6 @@ export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button]
   function isOperable(el) {
     return isVisible(el) && el.closest("[inert],[aria-hidden='true']") === null;
   }
-  var renderedSubjects = 0;
-  var retainedHiddenSubjects = 0;
-  for (var renderIndex = 0; renderIndex < allEls.length; renderIndex += 1) {
-    if (isVisible(allEls[renderIndex])) renderedSubjects += 1;
-    else retainedHiddenSubjects += 1;
-  }
-  // Render provenance and WHOLE computed color-scheme values over the exact walked population. The source
-  // is structural: seed block on <html>, an inline ThemeScope custom-property carrier, or the base default.
-  var rootDataTheme = document.documentElement.getAttribute("data-theme");
-  var shellThemeScope = null;
-  var shellThemeScopes = document.querySelectorAll("[data-slot='theme-scope']");
-  for (var scopeIndex = 0; scopeIndex < shellThemeScopes.length; scopeIndex += 1) {
-    if (isVisible(shellThemeScopes[scopeIndex])) { shellThemeScope = shellThemeScopes[scopeIndex]; break; }
-  }
-  var shellInlineBackground = shellThemeScope ? shellThemeScope.style.getPropertyValue("--color-background").trim() || null : null;
-  var shellColorScheme = shellThemeScope ? getComputedStyle(shellThemeScope).colorScheme || null : null;
-  var themeSubjectSources = { default: 0, seed: 0, custom: 0, unknown: 0 };
-  var themeSubjectPolarities = { light: 0, dark: 0, mixed: 0, unknown: 0 };
-  for (var themeIndex = 0; themeIndex < allEls.length; themeIndex += 1) {
-    var themeSubject = allEls[themeIndex];
-    if (!isVisible(themeSubject)) continue;
-    var carryingScope = themeSubject.closest ? themeSubject.closest("[data-slot='theme-scope']") : null;
-    var carriedBackground = carryingScope ? carryingScope.style.getPropertyValue("--color-background").trim() : "";
-    if (carriedBackground !== "") themeSubjectSources.custom += 1;
-    else if (rootDataTheme !== null && rootDataTheme !== "") themeSubjectSources.seed += 1;
-    else themeSubjectSources.default += 1;
-    var schemeWords = (getComputedStyle(themeSubject).colorScheme || "").toLowerCase().split(/\\s+/).filter(Boolean);
-    var schemeHasLight = schemeWords.indexOf("light") !== -1;
-    var schemeHasDark = schemeWords.indexOf("dark") !== -1;
-    if (schemeHasLight && schemeHasDark) themeSubjectPolarities.mixed += 1;
-    else if (schemeHasLight) themeSubjectPolarities.light += 1;
-    else if (schemeHasDark) themeSubjectPolarities.dark += 1;
-    else themeSubjectPolarities.unknown += 1;
-  }
-  var themeRender = {
-    rootDataTheme: rootDataTheme,
-    shellScope: { present: shellThemeScope !== null, inlineBackground: shellInlineBackground, colorScheme: shellColorScheme },
-    subjectSources: themeSubjectSources,
-    subjectPolarities: themeSubjectPolarities,
-  };
   // Motion-law sanctioned measured-var height panels (motion guide §3.7).
   var PANEL_EXEMPT_SEL = "[data-slot='accordion-panel'],[data-slot='collapsible-panel']";
   // The owner-RATIFIED ListRow selection accent (2026-08-22, issue #485): a 2px left ember bar on the
@@ -259,6 +185,19 @@ export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button]
     if (slot) {
       var slotSel = attrSel("data-slot", slot);
       if (matchCount(slotSel) === 1) return slotSel;
+    }
+    // THE ARIA-LABEL ANCHOR (#1326) — the anchor snap's surface map has always used and this walk did
+    // not (tooling/src/snap/lib/map-browser.ts bestSelector). It obeys the SAME uniqueness rule as the
+    // three above, so it is an anchor only where it resolves to one node. Measured 2026-09-04: two
+    // identical seven-deep subtrees whose only distinguishing mark was an aria-label produced ONE
+    // six-step path matching both, and the finding was unforwardable. A label is authored, stable across
+    // mounts (unlike a React id), and CSS-pasteable — which the map's \`role=name\` spelling is not, and
+    // is why that one is deliberately NOT adopted here: every selector this walk emits must be a
+    // selector a reader can paste into the page.
+    var ariaLabel = el.getAttribute("aria-label");
+    if (ariaLabel && ariaLabel.trim()) {
+      var labelSel = attrSel("aria-label", ariaLabel.trim());
+      if (matchCount(labelSel) === 1) return labelSel;
     }
     return null;
   }
@@ -380,3 +319,94 @@ export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button]
     return isVisuallyHidden(el) || (box.width <= SR_ONLY_MAX_BOX_PX && box.height <= SR_ONLY_MAX_BOX_PX);
   }
 `;
+
+/** THE WHOLE-PAGE CENSUS half: the settled identity snapshot, the walk observer, the rendered/retained
+ *  split and the theme-provenance census. Top-level statements, so composing it IS running it — only
+ *  the full design-audit walk (and the forced-state pass that mirrors it) may. */
+const WALKER_CORE_CENSUS = `  // ONE settled identity snapshot is the denominator for every family below (#976). The generic
+  // getComputedStyle read is the common "walk attempted" operation: visibility changes which specialised
+  // facts apply, never whether a rendered document subject silently disappears from accounting.
+  var settledSubjects = [].slice.call(document.querySelectorAll("*"));
+  var allEls = [];
+  var documentHeadSkips = 0;
+  var devChromeSkips = 0;
+  var inaccessibleSubjects = 0;
+  var walkMutationCount = 0;
+  // THE OBSERVER OUTLIVES A THROW (#1317 item 10). Both disconnect sites are on the walk's happy path
+  // (ops/walker/returns.ts and ops/hover-walker-read.ts), so a segment that throws mid-walk leaves a live
+  // subtree MutationObserver on the page forever. Harmless on a launched browser we are about to close;
+  // on an attached --session it accumulates on the OWNER's page, one per failed run, each firing on every
+  // DOM change for the rest of that session. The walk cannot wrap itself in try/finally without changing
+  // the segment concatenation contract, so the install is made SELF-HEALING instead: the previous run's
+  // observer is disconnected here before this one is armed, which bounds the leak at one.
+  if (window.__orbWalkObserver) window.__orbWalkObserver.disconnect();
+  var walkObserver = new MutationObserver(function (records) {
+    for (var wm = 0; wm < records.length; wm += 1) {
+      if (mutationCarriesElement(records[wm])) walkMutationCount += 1;
+    }
+  });
+  window.__orbWalkObserver = walkObserver;
+  walkObserver.observe(document.documentElement, { childList: true, subtree: true });
+  for (var subjectIndex = 0; subjectIndex < settledSubjects.length; subjectIndex += 1) {
+    var subject = settledSubjects[subjectIndex];
+    if (document.head && document.head.contains(subject)) {
+      documentHeadSkips += 1;
+      continue;
+    }
+    if (isDevChrome(subject)) {
+      devChromeSkips += 1;
+      continue;
+    }
+    try {
+      getComputedStyle(subject);
+      allEls.push(subject);
+    } catch (subjectError) {
+      inaccessibleSubjects += 1;
+    }
+  }
+  var renderedSubjects = 0;
+  var retainedHiddenSubjects = 0;
+  for (var renderIndex = 0; renderIndex < allEls.length; renderIndex += 1) {
+    if (isVisible(allEls[renderIndex])) renderedSubjects += 1;
+    else retainedHiddenSubjects += 1;
+  }
+  // Render provenance and WHOLE computed color-scheme values over the exact walked population. The source
+  // is structural: seed block on <html>, an inline ThemeScope custom-property carrier, or the base default.
+  var rootDataTheme = document.documentElement.getAttribute("data-theme");
+  var shellThemeScope = null;
+  var shellThemeScopes = document.querySelectorAll("[data-slot='theme-scope']");
+  for (var scopeIndex = 0; scopeIndex < shellThemeScopes.length; scopeIndex += 1) {
+    if (isVisible(shellThemeScopes[scopeIndex])) { shellThemeScope = shellThemeScopes[scopeIndex]; break; }
+  }
+  var shellInlineBackground = shellThemeScope ? shellThemeScope.style.getPropertyValue("--color-background").trim() || null : null;
+  var shellColorScheme = shellThemeScope ? getComputedStyle(shellThemeScope).colorScheme || null : null;
+  var themeSubjectSources = { default: 0, seed: 0, custom: 0, unknown: 0 };
+  var themeSubjectPolarities = { light: 0, dark: 0, mixed: 0, unknown: 0 };
+  for (var themeIndex = 0; themeIndex < allEls.length; themeIndex += 1) {
+    var themeSubject = allEls[themeIndex];
+    if (!isVisible(themeSubject)) continue;
+    var carryingScope = themeSubject.closest ? themeSubject.closest("[data-slot='theme-scope']") : null;
+    var carriedBackground = carryingScope ? carryingScope.style.getPropertyValue("--color-background").trim() : "";
+    if (carriedBackground !== "") themeSubjectSources.custom += 1;
+    else if (rootDataTheme !== null && rootDataTheme !== "") themeSubjectSources.seed += 1;
+    else themeSubjectSources.default += 1;
+    var schemeWords = (getComputedStyle(themeSubject).colorScheme || "").toLowerCase().split(/\\s+/).filter(Boolean);
+    var schemeHasLight = schemeWords.indexOf("light") !== -1;
+    var schemeHasDark = schemeWords.indexOf("dark") !== -1;
+    if (schemeHasLight && schemeHasDark) themeSubjectPolarities.mixed += 1;
+    else if (schemeHasLight) themeSubjectPolarities.light += 1;
+    else if (schemeHasDark) themeSubjectPolarities.dark += 1;
+    else themeSubjectPolarities.unknown += 1;
+  }
+  var themeRender = {
+    rootDataTheme: rootDataTheme,
+    shellScope: { present: shellThemeScope !== null, inlineBackground: shellInlineBackground, colorScheme: shellColorScheme },
+    subjectSources: themeSubjectSources,
+    subjectPolarities: themeSubjectPolarities,
+  };
+`;
+
+/** The composition the design-audit walk evaluates: declarations first, then the censuses that read
+ *  them. Byte-for-byte the same program the pre-split single literal produced — only the ORDER of the
+ *  two halves is fixed, and no census ever read a declaration that follows it. */
+export const WALKER_CORE = `${WALKER_PRIMITIVES}${WALKER_CORE_CENSUS}`;

@@ -18,6 +18,7 @@ export const DESIGN_AUDIT_RULES = [
   { id: "control-aspect", family: "a11y", severity: ["P2"] },
   { id: "obscured-target", family: "a11y", severity: ["P0", "P1"] },
   { id: "aria-name", family: "a11y", severity: ["P1"] },
+  { id: "border-contrast", family: "a11y", severity: ["P2"] },
   { id: "landmark-missing", family: "a11y", severity: ["P2"] },
   { id: "tabindex-positive", family: "a11y", severity: ["P2"] },
   { id: "skipped-heading", family: "a11y", severity: ["P2"] },

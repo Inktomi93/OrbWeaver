@@ -1,6 +1,5 @@
 import { ARTIFACT_FLAGS, ENVIRONMENT_FLAGS, WHERE_FLAGS } from "@orb/tooling/_shared/instrument-argv";
 import { parseSnapArgs } from "../../../tooling/src/snap/index.ts";
-import { parseAuditArgs } from "../../../tooling/src/ui-audit/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const VALUE_BY_FLAG: Readonly<Record<string, string>> = {
@@ -11,10 +10,11 @@ const VALUE_BY_FLAG: Readonly<Record<string, string>> = {
   "--out": "family-control",
 };
 
-const PARSERS = [
-  ["snap", parseSnapArgs],
-  ["design-audit", parseAuditArgs],
-] as const;
+// ONE PARSER, and that IS the fold's receipt (#1315). This roster carried snap + design-audit while the
+// sibling CLIs existed; every one of them is now a snap ARM, so a second parser here would be a second
+// argv grammar the fold exists to delete. The family enforcement is unchanged and still two-sided: a
+// planted member reds the parser that does not consume it, and every real member must parse clean.
+const PARSERS = [["snap", parseSnapArgs]] as const;
 
 test("a planted shared-family member reds every parser until it is consumed", () => {
   const plantedFlag = "--__planted-family-control";

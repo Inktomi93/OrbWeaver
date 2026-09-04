@@ -48,6 +48,7 @@ export const WALKER_RETURNS = `  var pendingWalkMutations = walkObserver.takeRec
     accessibleNames: accessibleNames,
     actionDoors: actionDoors,
     controlAspects: controlAspects,
+    borderContrasts: borderContrasts,
     censusReach: censusReach,
     mainLandmarkPresent: mainLandmarkPresent,
     tabIndexes: tabIndexes,

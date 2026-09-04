@@ -288,6 +288,8 @@ export type ArmArgs = Pick<
   | "contrastPixel"
   | "contrastEdge"
   | "assertions"
+  | "designAudit"
+  | "failOn"
   | "map"
   | "mapSelector"
   | "mapPage"

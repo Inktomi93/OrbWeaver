@@ -6,6 +6,9 @@
 // samples.ts re-exports every name below, so no importer moves and `contract/samples.ts` remains the one
 // door onto the walker's sample vocabulary.
 
+import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
+import type { Backdrop } from "./backdrop.ts";
+
 // ── ARIA navigability ────────────────────────────────────────────────────────
 export interface TapTargetInput {
   /** Per-walk identity used only to prove nested ownership; never serialized into a grouping key. */
@@ -109,6 +112,31 @@ export interface ControlAspectInput {
    *  measurement of a moment, not of a design — the check declines rather than judging it (the same
    *  mid-transition trap that produced a retracted "widening does not restore travel" reading in #420). */
   readonly animating: boolean;
+}
+
+// ── Form-control boundary (border-contrast, WCAG 1.4.11 — #1361/#1315) ──────────────────────────────
+// The DECLARED boundary of a form control and the paint it is declared against. `sides` carries only the
+// sides that actually paint (a `none`/`hidden` style or a zero width is not a declared boundary), so an
+// EMPTY array is the closed `noDeclaredBorder` exclusion rather than a silent pass — the control made no
+// boundary claim. `surround` is `resolveBackdropUnder`'s answer, which is the paint OUTSIDE the control's
+// box; the control's own fill is the inside of the boundary and is not what 1.4.11 compares against here.
+export interface BorderContrastSide {
+  readonly side: "top" | "right" | "bottom" | "left";
+  readonly widthPx: number;
+  readonly style: string;
+  /** null when the authored colour did not survive the canvas probe — a WITHHELD side, never a pass. */
+  readonly color: Rgb | null;
+}
+
+export interface BorderContrastInput {
+  readonly selector: string;
+  readonly tag: string;
+  /** The explicit `role`, or null for a native control whose tag carries the role implicitly. */
+  readonly role: string | null;
+  /** WCAG 1.4.11 exempts an inactive component; the fleet-shared classifier decides which spelling. */
+  readonly inactiveKind: InactiveKind;
+  readonly sides: readonly BorderContrastSide[];
+  readonly surround: Backdrop;
 }
 
 // ── Census reach — the interactive census's own denominator (#653) ───────────────────────────────────

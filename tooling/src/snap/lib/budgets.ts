@@ -47,3 +47,12 @@ export const NETWORKIDLE_BASE_MS = 10_000;
 export const NETWORKIDLE_TIMEOUT_MS = budget(NETWORKIDLE_BASE_MS);
 // Default post-nav settle so onMount queries have a chance to fire.
 export const MOUNT_SETTLE_MS = 500;
+// How many DISTINCT emitted design-audit finding selectors are proven unique in Node (#1326). Each proof
+// is a Playwright round trip, so the sweep is bounded and the remainder is published as UNPROVEN rather
+// than counted as unique — an unasked question must never render like a clean answer. Comfortably above
+// the worst real surface measured 2026-09-04 (13 distinct selectors on /corpus).
+export const DESIGN_AUDIT_SELECTOR_PROOF_CAP = 64;
+// The daemon's outer watchdog base for a non-navigating `--session … --design-audit` call. The walk is a
+// full-page census plus a pixel settle plus a forced-state pass; the shared load scaler is applied once
+// by the daemon on top of this (contract/arms.ts sessionCallBaseMs).
+export const DESIGN_AUDIT_SESSION_CALL_BASE_MS = 120_000;

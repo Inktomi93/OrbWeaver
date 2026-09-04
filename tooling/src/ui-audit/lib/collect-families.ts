@@ -20,6 +20,7 @@ import {
   checkTapTargetPopulations,
   classifyControlAspect,
 } from "./checks-a11y.ts";
+import { classifyBorderContrast } from "./checks-border.ts";
 import { classifyCaveatHierarchy } from "./checks-caveat.ts";
 import { checkContrast, checkGrayOnColor, checkQuietState, colorTextPopulations } from "./checks-color.ts";
 import { classifyAccentBorder, classifyGlowShadow } from "./checks-decor.ts";
@@ -112,10 +113,15 @@ export function a11yFindings(samples: RawSamples): FamilyCheckResult {
   // The roled-element census is EVERY explicitly-roled visible box, so `control-aspect` publishes a
   // partition (the roles this lens does not govern are a closed exclusion) rather than a bare zero.
   const controlAspects = partitionedFindings("control-aspect", samples.controlAspects ?? [], classifyControlAspect);
+  // The boundary census is the SAME shape one rule over (#1361/#1315): every censused form control is
+  // partitioned, so a surface whose fields all declare no border prints `excluded(noDeclaredBorder=N)`
+  // rather than a zero a reader cannot tell from a census that never ran.
+  const borderContrasts = partitionedFindings("border-contrast", samples.borderContrasts ?? [], classifyBorderContrast);
   const names = totalJudge("aria-name", samples.accessibleNames, checkAccessibleName);
   const tabIndexes = totalJudge("tabindex-positive", samples.tabIndexes, checkTabIndexSmell);
   runArray(state, () => tapTargets.findings);
   runArray(state, () => controlAspects.findings);
+  runArray(state, () => borderContrasts.findings);
   runArray(state, () => names.findings);
   runNullable(state, () => checkMainLandmark({ main: samples.mainLandmarkPresent }));
   runArray(state, () => tabIndexes.findings);
@@ -125,6 +131,7 @@ export function a11yFindings(samples: RawSamples): FamilyCheckResult {
     ...state,
     populationAccounting: {
       "aria-name": names.accounting,
+      "border-contrast": borderContrasts.accounting,
       "control-aspect": controlAspects.accounting,
       "obscured-target": obscured.accounting,
       "tabindex-positive": tabIndexes.accounting,

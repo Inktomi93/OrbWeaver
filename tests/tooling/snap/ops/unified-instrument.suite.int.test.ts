@@ -1,6 +1,7 @@
 // @instrument-proof: the sole rendered-instrument CLI owns one selective analyzer vocabulary, one
-// argv-ordered tape, explicit interference refusals, and exact hard migration refusals. The browser arm
-// below plants real motion/perf subjects; the corpus arm plants a stale command so a zero cannot pass.
+// argv-ordered tape, explicit interference refusals, and — since #1315 — the only argv door in the
+// fleet. The browser arm below plants real motion/perf subjects; the corpus arm plants a retired
+// command spelling in the same invocation so a zero cannot pass for a search that never looked.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
@@ -32,15 +33,6 @@ function resultValue(stdout: string, key: string): string {
   const token = stdout.split(/\s+/u).find((entry) => entry.startsWith(prefix));
   expect(token, `missing ${key} in:\n${stdout}`).toBeTypeOf("string");
   return String(token).slice(prefix.length);
-}
-
-function emittedRecipe(stdout: string, prefix: string): string[] {
-  const lines = stdout.split("\n").filter((line) => line.startsWith(prefix));
-  expect(lines, `expected exactly one ${prefix.trim()} line in:\n${stdout}`).toHaveLength(1);
-  const recipe = String(lines[0]).slice(prefix.length);
-  const parsed = runNicedSync("bash", ["-c", 'eval "set -- $1"; printf "%s\\0" "$@"', "retired-recipe", recipe]);
-  expect(parsed.status, parsed.stderr).toBe(0);
-  return parsed.stdout.split("\0").filter(Boolean);
 }
 
 function cleanStep(overrides: Partial<StepReport> = {}): StepReport {
@@ -424,57 +416,56 @@ test("the CPU arm profiles the shared action tape and refuses an empty tape", as
   expect(empty.stdout).toContain("cpu-profile=REFUSED");
 });
 
-test("the retired commands hard-refuse with exact Snap replacements and never open a run slot", async ({ runCli }) => {
-  const { parseSnapArgs } = await import("../../../../tooling/src/snap/index.ts");
-  const motion = await runCli("motion-audit", ["/chats", "--selector", "#send", "--window", "900"]);
-  await expect(motion).toExitWith(EXIT.misuse);
-  expect(motion.stdout).not.toContain("run slot");
-  const motionWords = emittedRecipe(motion.stdout, "REPLACEMENT  ");
-  expect(motionWords.slice(0, 2)).toEqual(["pnpm", "snap"]);
-  const motionArgs = parseSnapArgs(motionWords.slice(2));
-  expect(motionArgs.errors).toEqual([]);
-  expect(motionArgs).toMatchObject({ route: "/chats", motion: true, motionWindowMs: 900 });
-  expect(JSON.stringify(motionArgs.actions)).toMatch(/"kind":"motion-click".*"selector":"#send"/u);
+// ── THE FOLD'S OWN RECEIPTS (#1315) ─────────────────────────────────────────────────────────────────
+// The four sibling CLIs are not programs any more, and — owner ruling 2026-09-04 — they are not doors
+// either: no argv translation, no alias table, no retirement census. What replaces all of that is these
+// two proofs. The first is that each argv door REFUSES and opens no run slot (the old failure mode was a
+// library module run as a program: it executed nothing and exited 0, a green that never ran). The second
+// is that the retired spellings are actually GONE from the corpus, which is the whole premise of
+// grep-fixing instead of keeping a door.
 
-  const perf = await runCli("cpu-profile", ["/chats", "--click", "#send", "--cpuprofile"]);
-  await expect(perf).toExitWith(EXIT.misuse);
-  expect(perf.stdout).not.toContain("run slot");
-  const perfWords = emittedRecipe(perf.stdout, "REPLACEMENT  ");
-  expect(perfWords.slice(0, 2)).toEqual(["pnpm", "snap"]);
-  const perfArgs = parseSnapArgs(perfWords.slice(2));
-  expect(perfArgs.errors).toEqual([]);
-  expect(perfArgs).toMatchObject({ route: "/chats", interactionPerf: true, cpuProfile: false });
-  expect(JSON.stringify(perfArgs.actions)).toMatch(/"kind":"click".*"selector":"#send"/u);
+const FOLDED_TOOLS: readonly (readonly [string, string])[] = [
+  ["ui-audit", "--design-audit"],
+  ["motion-audit", "--motion"],
+  ["cpu-profile", "--perf"],
+];
 
-  const cpuWords = emittedRecipe(perf.stdout, "CPU PROFILE  ");
-  expect(cpuWords.slice(0, 2)).toEqual(["pnpm", "snap"]);
-  const cpuArgs = parseSnapArgs(cpuWords.slice(2));
-  expect(cpuArgs.errors).toEqual([]);
-  expect(cpuArgs).toMatchObject({ route: "/chats", interactionPerf: false, cpuProfile: true });
-  expect(JSON.stringify(cpuArgs.actions)).toMatch(/"kind":"click".*"selector":"#send"/u);
+test("the folded tool dirs are NOT programs: every argv door refuses, names the snap arm, and opens no run slot", async ({ runCli }) => {
+  for (const [tool, arm] of FOLDED_TOOLS) {
+    const refused = await runCli(tool, ["/chats", "--whatever"]);
+    await expect(refused, tool).toExitWith(EXIT.misuse);
+    expect(refused.stdout, tool).toContain("NOT A CLI");
+    expect(refused.stdout, tool).toContain("pnpm snap");
+    expect(refused.stdout, tool).toContain(arm);
+    // A refusal that opened a slot would leave an artifact directory claiming a run that never measured.
+    expect(refused.stdout, tool).not.toContain("run slot");
+  }
 });
 
-test("the tracked active corpus has no stale command/flag recipes and the planted stale recipe is detected", async ({ repoRoot }) => {
-  const { retiredInstrumentCensus } = await import("../../../../tooling/src/snap/index.ts");
+/** The spellings that no longer name anything runnable. `pnpm snap` is deliberately absent — it is the
+ *  one that survived — and each is anchored on `pnpm ` so a prose mention of the ENGINE dir (which is
+ *  still called `ui-audit`, and still carries the rules) is not a false positive. */
+const RETIRED_COMMANDS = ["pnpm design-audit", "pnpm motion-audit", "pnpm perf-meter", "pnpm record"] as const;
+
+test("no tracked file still tells a reader to run a retired instrument command, and the sweep can see one when it is there", async ({ repoRoot }) => {
   const listed = runNicedSync("git", ["ls-files", "-z"], { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024 });
   expect(listed.status).toBe(0);
   const files = listed.stdout.split("\0").filter((path) => path !== "");
-  const receipt = retiredInstrumentCensus(
-    await Promise.all(
-      files.map(async (path) => ({
-        path,
-        text: await readFile(join(repoRoot, path), "utf8").catch(() => ""),
-      })),
-    ),
-  );
-  expect(receipt.scannedFileCount).toBeGreaterThan(7000);
-  expect(receipt.findings).toEqual([]);
-
-  const planted = retiredInstrumentCensus([
-    { path: ".claude/skills/planted.md", text: "Run `pnpm motion-audit / --selector #x --window 900` then `pnpm perf-meter / --cpuprofile`." },
-  ]);
-  expect(planted.scannedFileCount).toBe(1);
-  expect(planted.findings.map((finding: { readonly token: string }) => finding.token)).toEqual(
-    expect.arrayContaining(["pnpm motion-audit", "pnpm perf-meter", "--selector", "--window", "--cpuprofile"]),
-  );
+  // THIS FILE IS ITS OWN EXCEPTION and says so: the roster above is the literal set being searched for.
+  const corpus = files.filter((path) => path !== "tests/tooling/snap/ops/unified-instrument.suite.int.test.ts");
+  expect(corpus.length).toBeGreaterThan(7000);
+  const hits: string[] = [];
+  for (const path of corpus) {
+    const text = await readFile(join(repoRoot, path), "utf8").catch(() => "");
+    for (const command of RETIRED_COMMANDS) {
+      if (text.includes(command)) {
+        hits.push(`${path}: ${command}`);
+      }
+    }
+  }
+  expect(hits).toEqual([]);
+  // THE PLANTED POSITIVE CONTROL, in the same invocation: a bare zero above must mean "it is not there",
+  // never "the search could not look" (_shared/evidence.ts's law, applied to a corpus sweep).
+  const planted = "Run `pnpm design-audit /chats --fail-on P2` and then `pnpm perf-meter /`.";
+  expect(RETIRED_COMMANDS.filter((command) => planted.includes(command))).toEqual(["pnpm design-audit", "pnpm perf-meter"]);
 });
