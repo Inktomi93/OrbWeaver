@@ -152,6 +152,39 @@ describe("hidden-class tags (§3.2a — registry-driven)", () => {
     expect(scanHiddenSpans(body)).toHaveLength(1);
   });
 
+  // #1524 — a hidden tag whose ATTR VALUE opens a markdown fence. No size involved: the fence-blind stream
+  // walker saw one complete tag, while the line-anchored strip let the ``` toggle code state and cut the tag
+  // into unscannable pieces, so it was never classified and the whole `truth` reached the member verbatim on
+  // BOTH planes with `hadHidden=false`. The tag begins OUTSIDE any fence — it opens one from inside itself —
+  // so this is not the ratified §3.2.1 #3 hole, whose control is the next test.
+  test("SECURITY: a ``` INSIDE a hidden tag's attr value does not split the tag out of the strip's reach", () => {
+    const fence = "`".repeat(3);
+    const raw = `<lie truth="SECRET\n${fence}\nmore"/>`;
+    const body = `before ${raw} after`;
+    const stripped = stripHiddenSpans(body);
+    expect(stripped.content).toBe("before  after");
+    expect(stripped.hadHidden).toBe(true);
+    expect(stripped.content).not.toContain("SECRET");
+    // The host reveal sees the WHOLE tag, fence bytes and all — the two twins agree on one span.
+    expect(scanHiddenSpans(body)).toEqual([{ kind: "hidden", tag: "lie", attrs: { truth: `SECRET\n${fence}\nmore` }, raw }]);
+    // …and the same for a second fence-opening attr later in the body (the runs are a set, not a first match).
+    const two = `a ${raw} b ${raw} c`;
+    expect(stripHiddenSpans(two).content).toBe("a  b  c");
+    expect(scanHiddenSpans(two)).toHaveLength(2);
+  });
+
+  test("the RATIFIED §3.2.1 #3 hole is untouched: a tag the AUTHOR fenced stays literal, and a fence the tag spans stays the author's", () => {
+    const fence = "`".repeat(3);
+    // The author is SHOWING the tag — the reader sees it, so it is a visible model bug, never a silent leak.
+    const shown = `${fence}\n<lie truth="SHOWN"/>\n${fence}`;
+    expect(stripHiddenSpans(shown)).toEqual({ content: shown, hadHidden: false });
+    expect(scanHiddenSpans(shown)).toHaveLength(0);
+    // A tag OPENED inside the author's fence whose attr swallows the CLOSING fence line stays inside it too —
+    // suppressing a toggle can only ever un-fence, never re-open a block the author already opened.
+    const spansClose = `${fence}\n<lie truth="x\n${fence}\ny"/>\ntail`;
+    expect(stripHiddenSpans(spansClose)).toEqual({ content: spansClose, hadHidden: false });
+  });
+
   test("the over-cap arm is HIDDEN-ONLY: an oversized UNREGISTERED tag keeps its literal / unknown-directive verdict", () => {
     const unregistered = `<gmnote note="${"n".repeat(6000)}"/>`;
     expect(tokenizeContent(unregistered)).toEqual<ContentSpan[]>([{ kind: "text", text: unregistered }]);
@@ -687,6 +720,21 @@ describe("createHiddenSpanStreamScrubber — the §3.6 MID-STREAM member scrubbe
         expect(p).not.toContain("<lie");
         expect(p).not.toContain("truth=");
       }
+    }
+  });
+
+  // #1524's stream half. The scrubber released this body because its own walker saw a complete tag and handed
+  // it to `stripHiddenSpans`, which could not classify it — so the leak needed BOTH passes to agree.
+  test("SECURITY: a ``` inside a hidden tag's attr value never leaks the tag mid-stream (char-by-char)", () => {
+    const fence = "`".repeat(3);
+    const body = `before <lie truth="SECRET\n${fence}\nmore"/> after`;
+    const { observed, prefixes } = scrubCharByChar(body);
+    expect(observed).toBe(stripHiddenSpans(body).content);
+    expect(observed).toBe("before  after");
+    for (const p of prefixes) {
+      expect(p).not.toContain("SECRET");
+      expect(p).not.toContain("<lie");
+      expect(p).not.toContain("truth=");
     }
   });
 

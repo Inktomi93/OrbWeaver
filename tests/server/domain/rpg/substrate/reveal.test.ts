@@ -23,6 +23,26 @@ test("a body with no hidden spans yields no reveal message; an empty transcript 
   expect(clean.standingLies).toEqual([]);
 });
 
+// #1526 — a hidden span with NO attrs projects every field as "", which used to mint a phantom
+// `character:""` bucket in the host's standing inventory: a row naming nobody and revealing nothing, which
+// then swallowed every other empty-character lie most-recent-wins. Two shapes reach here that way — a
+// literal attr-less `<lie/>`, and the OVER-CAP concealed span (#1352, `attrs:{}` by construction).
+test("an all-empty hidden span shows on its MESSAGE but never mints a standing lie", () => {
+  const overCap = `<lie truth="${"S".repeat(20 * 1024)} and no close`;
+  const view = buildRevealView([body(castId<MessageId>("m1"), 1, "<lie/>"), body(castId<MessageId>("m2"), 2, overCap)]);
+  // The host still learns that something was concealed on each message — that is the useful signal.
+  expect(view.messages.map((m) => m.messageId)).toEqual(["m1", "m2"]);
+  expect(view.messages[0]?.spans[0]?.tag).toBe("lie");
+  expect(view.messages[1]?.spans[0]?.tag).toBe("lie");
+  // …and the inventory stays empty: a lie with no character and no truth cannot STAND.
+  expect(view.standingLies).toEqual([]);
+});
+
+test("a lie with a character but no truth is still inventory (only the wholly empty span is dropped)", () => {
+  const view = buildRevealView([body(castId<MessageId>("m1"), 1, '<lie character="Mari"/>')]);
+  expect(view.standingLies.map((g) => g.character)).toEqual(["Mari"]);
+});
+
 test("a lie span is parsed into its registry fields (character/type/truth/reason), in order", () => {
   const view = buildRevealView([body(castId<MessageId>("m1"), 1, `Mari smiles. ${LIE("Mari", "she wants the gold")}`)]);
   expect(view.messages).toHaveLength(1);

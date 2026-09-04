@@ -64,6 +64,16 @@ function buildStandingLies(messages: readonly RpgRevealedMessage[]): RpgRevealVi
       const field = (key: string): string => span.fields.find((f) => f.key === key)?.value ?? "";
       const character = field("character");
       const truth = field("truth");
+      // A span with NEITHER a character NOR a truth carries no deception that can STAND, so it is not
+      // inventory — it stays on its message's reveal row (the host still sees that something was concealed
+      // there) and out of this list. Two shapes reach here that way: a literal attr-less `<lie/>`, and the
+      // OVER-CAP concealed span (#1352 — a registered hidden open too long to parse is concealed whole with
+      // `attrs:{}`). Without this they both projected every field as `""` and minted a phantom
+      // `character:""` bucket, which then swallowed each other most-recent-wins: a blank row in the host's
+      // standing inventory that names nobody and reveals nothing.
+      if (character === "" && truth === "") {
+        continue;
+      }
       const lie: RpgStandingLie = { character, type: field("type"), truth, reason: field("reason"), messageId: message.messageId };
       const lies = byCharacter.get(character) ?? new Map<string, RpgStandingLie>();
       lies.set(truth, lie); // most-recent-wins per truth (later message overwrites; Map keeps first-insert order)

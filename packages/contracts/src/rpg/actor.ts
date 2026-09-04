@@ -50,6 +50,22 @@ const CAST_SLUG_TRIM = /^-+|-+$/g;
  *  keeps the bare word: one nameless bucket is a necessity, not a collision. */
 const CAST_SLUG_FALLBACK = "unnamed";
 
+/** The marker joining the fallback word to its code points. `+` is OUTSIDE the kept class, so the FOLD can
+ *  never emit it — every real name's `+` becomes a `-`. That is what separates `rpgCastSlug("🐉")` from
+ *  `rpgCastSlug("Unnamed 1f409")`, which used to be the SAME key (#1530): the fold reaches `unnamed-1f409`,
+ *  the fallback mints `unnamed+1f409`, and no name can fold into the second. */
+const CAST_SLUG_FALLBACK_MARK = "+";
+
+/** An ALREADY-MINTED fallback key, recognised so it can short-circuit the fold and stay its own slug.
+ *  WHY A SHORT-CIRCUIT AND NOT A CLEVERER ALPHABET: the wire predicate is `key === rpgCastSlug(key)`, so a
+ *  fallback that is not idempotent is unrepresentable — and everything idempotent under a fold that collapses
+ *  non-kept runs to one `-` and trims the edges is, by construction, also REACHABLE from some name. Total
+ *  unreachability and the refine cannot both hold. Recognising the minted shape up front is what buys the
+ *  separation instead: the marker survives its own second pass without the fold ever emitting it. The residue
+ *  is one exact literal — an NPC named, lowercase, `unnamed+1f409` — and it collides with itself, not with a
+ *  class of names. */
+const CAST_SLUG_FALLBACK_RE = /^unnamed(\+[0-9a-f]+)*$/;
+
 /** The radix the fallback renders a code point in — hex, so the disambiguator stays short and ASCII. */
 const CODE_POINT_RADIX = 16;
 
@@ -67,14 +83,17 @@ const CODE_POINT_RADIX = 16;
  *  in its own terms, which is why this one does not call the other. */
 export function rpgCastSlug(name: string): string {
   const trimmed = name.trim();
+  if (CAST_SLUG_FALLBACK_RE.test(trimmed)) {
+    return trimmed; // an already-minted fallback key — idempotent by recognition (see the regex's note).
+  }
   // NFC last, so the output is normalized whatever the input's composition was: a combining-accent "café"
   // and a precomposed "café" are one person, not two rows.
   const slug = trimmed.toLowerCase().normalize("NFC").replace(CAST_SLUG_STRIP, "-").replace(CAST_SLUG_TRIM, "");
   if (slug !== "") {
     return slug;
   }
-  const points = [...trimmed].map((ch) => (ch.codePointAt(0) ?? 0).toString(CODE_POINT_RADIX)).join("-");
-  return points === "" ? CAST_SLUG_FALLBACK : `${CAST_SLUG_FALLBACK}-${points}`;
+  const points = [...trimmed].map((ch) => (ch.codePointAt(0) ?? 0).toString(CODE_POINT_RADIX)).join(CAST_SLUG_FALLBACK_MARK);
+  return points === "" ? CAST_SLUG_FALLBACK : `${CAST_SLUG_FALLBACK}${CAST_SLUG_FALLBACK_MARK}${points}`;
 }
 
 /** A durable/scene actor identity. `character`/`user` = roster identities; `cast` = a scene-only NPC by
