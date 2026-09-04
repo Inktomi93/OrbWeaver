@@ -173,16 +173,56 @@ describe("hidden-class tags (§3.2a — registry-driven)", () => {
     expect(scanHiddenSpans(two)).toHaveLength(2);
   });
 
-  test("the RATIFIED §3.2.1 #3 hole is untouched: a tag the AUTHOR fenced stays literal, and a fence the tag spans stays the author's", () => {
+  // FENCE (not a red-first proof): both assertions below hold byte-identically on the pre-#1524 source. They
+  // are non-regression guards for the ratified hole, and they are labelled so no reader mistakes them for
+  // evidence that the fix works — the pin that IS red-first is the one after them.
+  test("FENCE — the RATIFIED §3.2.1 #3 hole is untouched: a tag the AUTHOR fenced stays literal", () => {
     const fence = "`".repeat(3);
     // The author is SHOWING the tag — the reader sees it, so it is a visible model bug, never a silent leak.
     const shown = `${fence}\n<lie truth="SHOWN"/>\n${fence}`;
     expect(stripHiddenSpans(shown)).toEqual({ content: shown, hadHidden: false });
     expect(scanHiddenSpans(shown)).toHaveLength(0);
-    // A tag OPENED inside the author's fence whose attr swallows the CLOSING fence line stays inside it too —
-    // suppressing a toggle can only ever un-fence, never re-open a block the author already opened.
+    // A fenced tag whose attr swallows the CLOSING fence line, with prose after and NO later tag: nothing
+    // leaks and — the half this guards — nothing is over-concealed either.
     const spansClose = `${fence}\n<lie truth="x\n${fence}\ny"/>\ntail`;
     expect(stripHiddenSpans(spansClose)).toEqual({ content: spansClose, hadHidden: false });
+    expect(stripHiddenSpans(`${fence}\n<lie truth="SHOWN"/>\nmore`).hadHidden).toBe(false); // fence never closed
+  });
+
+  // #1524 SECOND PASS — the leak the first fix INTRODUCED, caught by review. A run computed fence-blind
+  // covers an author-fenced tag through the author's own CLOSING ``` line; suppressing that close left
+  // `inCode` true to end of body, so every LATER hidden tag was emitted `allowTags:false` and never
+  // classified. Only an OPENING toggle may be suppressed.
+  test("SECURITY: an author-fenced tag that swallows its own closing fence does not blind the strip to LATER tags", () => {
+    const fence = "`".repeat(3);
+    const fenced = `<lie truth="x\n${fence}\ny"/>`;
+    const body = `${fence}\n${fenced}\ntail\n<lie truth="SECRET"/>\nbye`;
+    const stripped = stripHiddenSpans(body);
+    expect(stripped.content).not.toContain("SECRET");
+    expect(stripped.hadHidden).toBe(true);
+    // The author's own fenced tag is still LITERAL — this narrows what leaks, it does not widen what hides.
+    expect(stripped.content).toBe(`${fence}\n${fenced}\ntail\n\nbye`);
+    // The host reveal sees exactly the ONE real hidden span, not the shown one and not zero.
+    expect(scanHiddenSpans(body).map((span) => span.attrs["truth"])).toEqual(["SECRET"]);
+    // The stream plane is fence-BLIND by design (the ratified hole is a commit-plane concession), so it drops
+    // the shown tag too — more conservative, never less. What it must never do is carry the real secret.
+    const scrubber = createHiddenSpanStreamScrubber();
+    let observed = "";
+    for (const ch of body) {
+      observed += scrubber.push(ch);
+      expect(observed).not.toContain("SECRET");
+    }
+    observed += scrubber.flush();
+    expect(observed).not.toContain("SECRET");
+  });
+
+  test("SECURITY: a suppressed fence OPEN inside an attr value does not blind the strip to later tags either", () => {
+    const fence = "`".repeat(3);
+    const body = `<lie truth="a\n${fence}\nb"/>\n<lie truth="SECRET"/>\nx`;
+    const stripped = stripHiddenSpans(body);
+    expect(stripped.content).toBe("\n\nx");
+    expect(stripped.hadHidden).toBe(true);
+    expect(scanHiddenSpans(body)).toHaveLength(2);
   });
 
   test("the over-cap arm is HIDDEN-ONLY: an oversized UNREGISTERED tag keeps its literal / unknown-directive verdict", () => {
