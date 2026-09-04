@@ -35,13 +35,21 @@ type BoundedOutcome = { readonly kind: "ok"; readonly text: string } | { readonl
 
 const SKIP: BoundedOutcome = { kind: "skip" };
 
-/** Classify a transform's raw answer. A plain string is the rewritten draft; a `{abort}` object is the typed
- *  refusal, its reason capped here (it is untrusted text — a guest writes it — and it reaches a refusal
+/** Classify a transform's raw answer. A NON-EMPTY string is the rewritten draft; a `{abort}` object is the
+ *  typed refusal, its reason capped here (it is untrusted text — a guest writes it — and it reaches a refusal
  *  surface). Anything else is treated as a SKIP rather than trusted: a registrar that returns garbage has
- *  malfunctioned, and a malfunction is exactly the D53 case, never an abort. */
+ *  malfunctioned, and a malfunction is exactly the D53 case, never an abort.
+ *
+ *  AN EMPTY (or whitespace-only) ANSWER IS A SKIP, NOT A REWRITE (#1368). D53's rule is that a broken
+ *  transform never eats a turn, and the emptiness cases are exactly the broken ones: an automation
+ *  `transform_draft` whose template is blank, or whose macros all render to nothing, silently REPLACED the
+ *  user's typed message with "" — as did a guest plugin transform returning "". A transform that produced
+ *  nothing has not rewritten the draft; it has failed to render, so it takes the same road as a timeout and
+ *  the same `prompt_transform_skipped` warning. Deliberately emptying a draft is not expressible here, and
+ *  should not be: the arm that wants a turn stopped has `{abort}`. */
 function classify(answer: PromptTransformOutcome): BoundedOutcome {
   if (typeof answer === "string") {
-    return { kind: "ok", text: answer };
+    return answer.trim() === "" ? SKIP : { kind: "ok", text: answer };
   }
   if (typeof answer.abort === "string") {
     return { kind: "abort", reason: answer.abort.slice(0, PROMPT_TRANSFORM_ABORT_REASON_MAX) };
@@ -106,7 +114,7 @@ export function createPromptTransformRegistry(
         getLog().info({ chatId, transformId: transform.id, point }, "chat: prompt transform ABORTED the generation");
         return { aborted: true, transformId: transform.id, reason: result.reason };
       }
-      getLog().warn({ chatId, transformId: transform.id, point }, "chat: prompt transform SKIPPED (deadline/throw) — draft unchanged");
+      getLog().warn({ chatId, transformId: transform.id, point }, "chat: prompt transform SKIPPED (deadline/throw/empty render) — draft unchanged");
       skipped.push(transform.id);
       return foldFrom(index + 1, current);
     };

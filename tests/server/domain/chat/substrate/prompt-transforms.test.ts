@@ -30,6 +30,28 @@ function appender(id: string, order: number, marker: string): PromptTransform {
   return { id, point: "user_input", order, apply: (draft) => Promise.resolve(`${draft}${marker}`) };
 }
 
+// #1368 — a transform that renders to NOTHING used to be classified as a clean rewrite, so a blank (or
+// all-macros-render-empty) `transform_draft` template REPLACED the user's typed message with "". D53's rule
+// is that a broken transform never eats a turn; producing nothing is the broken case, not a rewrite.
+test("a transform that returns an EMPTY answer is SKIPPED, not applied — the draft survives + one warning", async () => {
+  for (const empty of ["", "   ", "\n\t"]) {
+    const { emit, warnings } = recorder();
+    const reg = createPromptTransformRegistry(emit);
+    reg.register({ id: "blank", point: "user_input", order: 0, apply: () => Promise.resolve(empty) });
+    const out = await reg.apply("user_input", CHAT, "the user's message", {});
+    expect(out).toEqual({ aborted: false, text: "the user's message" });
+    expect(warnings).toEqual([{ type: "warning", chatId: CHAT, code: "prompt_transform_skipped" }]);
+  }
+});
+
+test("an empty answer does not break the FOLD — a later transform still sees the surviving draft", async () => {
+  const { emit } = recorder();
+  const reg = createPromptTransformRegistry(emit);
+  reg.register({ id: "blank", point: "user_input", order: 0, apply: () => Promise.resolve("") });
+  reg.register(appender("after", 1, "!"));
+  expect(await reg.apply("user_input", CHAT, "hello", {})).toEqual({ aborted: false, text: "hello!" });
+});
+
 test("zero registrants is a byte-identical no-op (returns the draft unchanged)", async () => {
   const { emit, warnings } = recorder();
   const reg = createPromptTransformRegistry(emit);

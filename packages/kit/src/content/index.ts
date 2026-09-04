@@ -92,6 +92,10 @@ export const HIDDEN_TAGS: readonly HiddenTagDef[] = [
   { tag: "ofilter", fields: ["event", "reason"], revealLabel: "Unperceived" },
 ];
 
+/** The registered hidden-tag NAMES, derived from the registry above — the membership test the tokenizer and
+ *  the §3.6 trust boundary both dispatch on (a new registrant is a row above, never a second list). */
+const HIDDEN_TAG_NAMES: ReadonlySet<string> = new Set(HIDDEN_TAGS.map((d) => d.tag));
+
 /** The directive-fence registry — card/choices are the FIRST TWO REGISTRANTS (graft #V3: a new fence is a
  *  member here + a `FENCE_BUILDERS` row + a render/wire projection arm; the fence recognizer is shared). */
 export const DIRECTIVE_FENCE_NAMES = ["card", "choices"] as const;
@@ -162,6 +166,20 @@ function tokenizeImages(text: string): ContentSpan[] {
 
 // Caps the tag walker so a stray `<name ` in a huge body never scans the whole document (linear + bounded).
 const MAX_TAG_SCAN = 4096;
+// The same bound RAISED, for a REGISTERED HIDDEN tag only (§3.6). The general cap is about walk COST; a
+// hidden tag that outruns it is a CONFIDENTIALITY question, because an unrecognised `<lie …/>` degrades to
+// literal text and hands the member its `truth` attr verbatim (#1352 — measured: a 4269-byte tag leaked on
+// BOTH planes and reported `hadHidden=false`). So the hidden walker escalates to this bound before any
+// verdict, and PAST it the run is concealed rather than released — fail-closed, never fail-open.
+// WHY 16 KiB and not "unbounded": the mid-stream scrubber re-walks the held run on every delta, so the
+// per-turn cost of a never-closing open is bound² / delta-size. At 16 KiB with token-sized deltas that is
+// ~10⁷ char steps (tens of ms); unbounded, it is the whole turn squared. A keyed secret field four times
+// past the "model garbage" line is garbage either way — the question this constant answers is only how much
+// we are willing to PARSE before we conceal, never how much we are willing to emit.
+// ONE constant, read by BOTH planes (the tokenizer and the member stream scrubber). They previously carried
+// two independent 4096 literals whose comments claimed to "mirror" each other, which is exactly how they
+// came to disagree; the mirror is now structural.
+const MAX_HIDDEN_TAG_SCAN = 16_384;
 // The window a tag/attr identifier is matched inside (identifiers are short; the window bounds the regex).
 const IDENT_WINDOW = 64;
 
@@ -197,22 +215,44 @@ function scanQuotedValue(src: string, openQuote: number, limit: number): { reado
   return null;
 }
 
-/** One `key="value"` attr pair starting at `from` (which must be at the key). Null = not an attr pair. */
-function scanAttrPair(src: string, from: number, limit: number): { readonly key: string; readonly value: string; readonly end: number } | null {
+/** One attr-pair walk's outcome. `truncated` (the pair ran off the END OF THE WINDOW — cursor at `limit`, or
+ *  a quoted value still open there) is kept APART from `malformed` (the bytes are not an attr pair) because
+ *  the distinction is load-bearing at the §3.6 trust boundary: window exhaustion inside a hidden tag means
+ *  "the tag is longer than we looked", which must NOT degrade to literal text; malformed bytes mean "not a
+ *  tag", which must (D51). */
+type AttrPairScan =
+  | { readonly kind: "pair"; readonly key: string; readonly value: string; readonly end: number }
+  | { readonly kind: "truncated" }
+  | { readonly kind: "malformed" };
+
+const ATTR_TRUNCATED: AttrPairScan = { kind: "truncated" };
+const ATTR_MALFORMED: AttrPairScan = { kind: "malformed" };
+
+/** One `key="value"` attr pair starting at `from` (which must be at the key), bounded by `limit`. */
+function scanAttrPair(src: string, from: number, limit: number): AttrPairScan {
+  if (from >= limit) {
+    return ATTR_TRUNCATED;
+  }
   const key = ATTR_KEY_RE.exec(src.slice(from, Math.min(limit, from + IDENT_WINDOW)));
   if (key === null) {
-    return null;
+    return ATTR_MALFORMED;
   }
   let i = skipSpaces(src, from + key[0].length, limit);
+  if (i >= limit) {
+    return ATTR_TRUNCATED;
+  }
   if (src[i] !== "=") {
-    return null;
+    return ATTR_MALFORMED;
   }
   i = skipSpaces(src, i + 1, limit);
+  if (i >= limit) {
+    return ATTR_TRUNCATED;
+  }
   if (src[i] !== '"') {
-    return null;
+    return ATTR_MALFORMED;
   }
   const value = scanQuotedValue(src, i, limit);
-  return value === null ? null : { key: key[0], value: value.value, end: value.end };
+  return value === null ? ATTR_TRUNCATED : { kind: "pair", key: key[0], value: value.value, end: value.end };
 }
 
 interface TagScan {
@@ -223,32 +263,54 @@ interface TagScan {
   readonly end: number;
 }
 
-/** The quote/escape-aware self-closing-tag walker (§3.2.1 #1): `<name key="value" …/>`. Newlines are legal
- *  INSIDE a quoted value, illegal between attrs. Returns null on ANY malformed/unclosed shape — the caller
- *  leaves the bytes as literal text (stream-truncation survival). */
-function scanSelfClosingTag(content: string, start: number): TagScan | null {
+/** The outcome of ONE bounded tag walk. `capped` is the distinction the §3.6 trust boundary needs: the walk
+ *  was still consuming a WELL-FORMED attr list when it ran off the scan bound, so the tag is too LONG rather
+ *  than broken. Collapsing those two into "null = literal text" is the #1352 leak. */
+type TagScanOutcome = { readonly kind: "tag"; readonly scan: TagScan } | { readonly kind: "capped"; readonly tag: string } | { readonly kind: "malformed" };
+
+const TAG_MALFORMED: TagScanOutcome = { kind: "malformed" };
+
+/** The quote/escape-aware self-closing-tag walker (§3.2.1 #1): `<name key="value" …/>`, bounded by `limit`.
+ *  Newlines are legal INSIDE a quoted value, illegal between attrs. A walk that runs out of window reports
+ *  `capped` only when there ARE bytes past the bound; at the true end of input an unterminated tag is
+ *  ordinary stream truncation and stays `malformed` → literal (D51, unchanged). */
+function walkSelfClosingTag(content: string, start: number, limit: number): TagScanOutcome {
   const name = TAG_NAME_RE.exec(content.slice(start, start + IDENT_WINDOW));
   if (name === null) {
-    return null;
+    return TAG_MALFORMED;
   }
   const tag = name[1] ?? "";
-  const limit = Math.min(content.length, start + MAX_TAG_SCAN);
+  const outOfWindow: TagScanOutcome = limit < content.length ? { kind: "capped", tag } : TAG_MALFORMED;
   let i = start + 1 + tag.length;
   const attrs: Record<string, string> = {};
   let attrCount = 0;
   for (;;) {
     i = skipSpaces(content, i, limit);
     if (content[i] === "/" && content[i + 1] === ">") {
-      return { tag, attrs, attrCount, end: i + "/>".length };
+      return { kind: "tag", scan: { tag, attrs, attrCount, end: i + "/>".length } };
     }
     const pair = scanAttrPair(content, i, limit);
-    if (pair === null) {
-      return null;
+    if (pair.kind !== "pair") {
+      return pair.kind === "truncated" ? outOfWindow : TAG_MALFORMED;
     }
     attrs[pair.key] = pair.value;
     attrCount += 1;
     i = pair.end;
   }
+}
+
+/** The walk both planes call, WITH the §3.6 hidden escalation (#1352). A REGISTERED hidden name capped at the
+ *  general bound is re-walked at `MAX_HIDDEN_TAG_SCAN` before any verdict, so an oversized-but-well-formed
+ *  `<lie …/>` is recognised (and therefore stripped from members, and counted by `hadHidden`) instead of
+ *  released verbatim. Still capped past the hidden bound ⇒ the verdict STAYS `capped`, and both callers
+ *  conceal from the `<` rather than emitting it. A capped NON-hidden tag is literal text exactly as before —
+ *  it carries no secret, so cost wins there. */
+function scanSelfClosingTag(content: string, start: number): TagScanOutcome {
+  const bounded = walkSelfClosingTag(content, start, Math.min(content.length, start + MAX_TAG_SCAN));
+  if (bounded.kind !== "capped") {
+    return bounded;
+  }
+  return HIDDEN_TAG_NAMES.has(bounded.tag) ? walkSelfClosingTag(content, start, Math.min(content.length, start + MAX_HIDDEN_TAG_SCAN)) : TAG_MALFORMED;
 }
 
 // The MEASURED OPEN-LINE reflex (spike §4h) — the `committed` EOF-close's sibling: another measured-leniency
@@ -287,7 +349,9 @@ function parseFenceAttrs(rest: string, lenient: boolean): Record<string, string>
       return attrs;
     }
     const pair = scanAttrPair(rest, i, rest.length);
-    if (pair === null) {
+    // A fence-open line is walked to its own end, so `truncated` here means an unterminated quote on the
+    // line — not-a-directive-open exactly like malformed bytes (the fence grammar is unchanged by #1352).
+    if (pair.kind !== "pair") {
       return lenient && FENCE_OPEN_TAG_CLOSE_RE.test(rest.slice(i)) ? attrs : null;
     }
     attrs[pair.key] = pair.value;
@@ -609,8 +673,6 @@ function structuralPass(env: ScanEnv): Piece[] {
 
 // ── The inline tag pass ──────────────────────────────────────────────────────────────────────────────────
 
-const HIDDEN_TAG_NAMES: ReadonlySet<string> = new Set(HIDDEN_TAGS.map((d) => d.tag));
-
 /** Classify a balanced self-closing tag: registered → hidden span; unregistered WITH attrs → the
  *  allowlist-strip class (`unknown-directive` — command-shaped); unregistered WITHOUT attrs (a `<br/>`, an
  *  `<hr/>`) → null = literal text (ordinary prose markup, never stripped). */
@@ -628,9 +690,21 @@ function scanTags(text: string): Expanded[] {
   let last = 0;
   let i = text.indexOf("<");
   while (i !== -1) {
-    const scan = scanSelfClosingTag(text, i);
-    const span = scan === null ? null : classifyTag(scan, text.slice(i, scan.end));
-    if (scan === null || span === null) {
+    const outcome = scanSelfClosingTag(text, i);
+    // FAIL-CLOSED (#1352): a registered hidden open too long to parse cannot be literal text — that is the
+    // `truth` attr reaching the member verbatim — so it becomes ONE hidden span running to the end of this
+    // text run. The member strip drops it, the host reveal lists it, and `hadHidden` stops lying. Its attrs
+    // are deliberately empty: nothing inside the bound is a trustworthy parse of the whole tag, and `raw`
+    // carries the bytes for the host eye.
+    if (outcome.kind === "capped") {
+      if (i > last) {
+        out.push({ kind: "text", text: text.slice(last, i) });
+      }
+      out.push({ kind: "span", span: { kind: "hidden", tag: outcome.tag, attrs: {}, raw: text.slice(i) } });
+      return out;
+    }
+    const span = outcome.kind === "tag" ? classifyTag(outcome.scan, text.slice(i, outcome.scan.end)) : null;
+    if (outcome.kind !== "tag" || span === null) {
       i = text.indexOf("<", i + 1);
       continue;
     }
@@ -638,8 +712,8 @@ function scanTags(text: string): Expanded[] {
       out.push({ kind: "text", text: text.slice(last, i) });
     }
     out.push({ kind: "span", span });
-    last = scan.end;
-    i = text.indexOf("<", scan.end);
+    last = outcome.scan.end;
+    i = text.indexOf("<", outcome.scan.end);
   }
   if (last < text.length) {
     out.push({ kind: "text", text: text.slice(last) });
@@ -805,15 +879,20 @@ export function scanHiddenSpans(content: string): readonly HiddenContentSpan[] {
 // and DROP any hidden tag that completes. FAIL-CLOSED by construction: an unclosed potential-open is withheld
 // (never released as "malformed-so-literal" — mid-stream "unclosed" means "the close hasn't arrived yet"); at
 // stream end whatever is still held is dropped, and the member keeps the at-commit-stripped committed view.
-// Allocation-sane: the held buffer is bounded by ONE tag's in-progress length (a runaway attr value holds only
-// until the tag closes or the turn ends), never the whole ghost.
+// Allocation-sane: the held buffer is bounded by ONE tag's in-progress length, and a run that outgrows the
+// hidden-tag scan bound stops being buffered at all (it is CONCEALED — see below), never the whole ghost.
 
 /** The longest hidden-tag name (`ofilter`) bounds how far past a `<` we must look before a name is decidable. */
 const MAX_HIDDEN_TAG_NAME_LEN = Math.max(...HIDDEN_TAGS.map((d) => d.tag.length));
-// A hold-back run longer than this cannot be a legitimate in-progress hidden tag (an attr value that huge is
-// model garbage, not a keyed secret field); force-release it so a stray unclosed `<` never wedges the stream.
-// Mirrors the tokenizer's `MAX_TAG_SCAN` bound.
-const MAX_HELD_RUN = 4096;
+// THE OVER-CAP RUN (#1352 — this replaces a force-RELEASE). A hold-back run that outgrows `MAX_HIDDEN_TAG_SCAN`
+// is indeed model garbage rather than a keyed secret field — but "garbage" is a claim about the tag's SHAPE,
+// never a licence to emit its bytes, and the bytes past `truth="` are the secret whatever their length. The
+// old branch released the whole run, opening tag included, so a 4269-byte `<lie truth="…"/>` reached every
+// non-host member verbatim and (because the tokenizer's own bound hid it too) committed with `hadHidden=false`.
+// It also contradicted this section's own two rules: fail-closed on an unclosed potential-open, and drop at
+// stream end. The anti-wedge property that branch was written for survives without it — the stream is never
+// BLOCKED, it just stops carrying the concealed run, and the member's authoritative view is the at-commit
+// strip either way (which now conceals the same run — one rule, both planes).
 // The leading tag-name identifier of a hold-back run (same shape as the tokenizer's `TAG_NAME_RE` body).
 const HELD_NAME_RE = /^[A-Za-z][A-Za-z0-9_-]*/;
 
@@ -837,28 +916,37 @@ function startsViableHiddenName(text: string, lt: number): boolean {
  *  a quoted attr value never mis-splits the tag). Everything before that `<` is `safe`. When no in-progress
  *  hidden open exists, the whole buffer is safe. FAIL-CLOSED: once a viable hidden open begins, the ENTIRE run
  *  from its `<` is held until the quote-aware walker sees a real close — a `<` inside its attr value can never
- *  release the enclosing tag's prefix (the D106 leak the rightmost-cut logic had). Bounded: past `MAX_HELD_RUN`
- *  a still-open run is released (a keyed secret field never runs that long; mirrors the tokenizer cap). */
-function cutAtIncompleteOpen(text: string): { readonly safe: string; readonly held: string } {
+ *  release the enclosing tag's prefix (the D106 leak the rightmost-cut logic had). Past the hidden scan bound
+ *  the run turns `conceal`: it can never complete inside the bound, so it can never be released, and holding
+ *  it further only re-walks a growing buffer — the scrubber stops emitting for the rest of the turn.
+ *
+ *  (The `StreamCut` type below carries that second verdict; the walk itself is `cutAtIncompleteOpen`.) */
+type StreamCut = { readonly kind: "cut"; readonly safe: string; readonly held: string } | { readonly kind: "conceal"; readonly safe: string };
+
+/** The split itself — the walk whose two verdicts {@link StreamCut} names (documented in full above it). */
+function cutAtIncompleteOpen(text: string): StreamCut {
   let lt = text.indexOf("<");
   while (lt !== -1) {
     // A COMPLETE self-closing tag (hidden OR not) is consumed WHOLE: skip PAST its `/>` so an inner `<` in its
     // attr value is never mistaken for a new open (the D106 mid-stream leak). `stripHiddenSpans` on the released
     // `safe` prefix drops it if it was hidden; a non-hidden complete tag stays literal — both handled downstream.
-    const scan = scanSelfClosingTag(text, lt);
-    if (scan !== null) {
-      lt = text.indexOf("<", scan.end);
+    const outcome = scanSelfClosingTag(text, lt);
+    if (outcome.kind === "tag") {
+      lt = text.indexOf("<", outcome.scan.end);
       continue;
     }
+    // An over-cap REGISTERED hidden open: the tokenizer conceals it at commit, so the stream conceals it too.
+    if (outcome.kind === "capped") {
+      return { kind: "conceal", safe: text.slice(0, lt) };
+    }
     // Not a complete tag. If this `<` begins a VIABLE hidden-tag name still growing toward a close, HOLD the
-    // whole run from here (fail-closed — the close hasn't arrived). Past the cap, release (fail-open bound: a
-    // keyed secret field never runs that long; mirrors the tokenizer's `MAX_TAG_SCAN`).
+    // whole run from here (fail-closed — the close hasn't arrived).
     if (startsViableHiddenName(text, lt)) {
-      return text.length - lt > MAX_HELD_RUN ? { safe: text, held: "" } : { safe: text.slice(0, lt), held: text.slice(lt) };
+      return { kind: "cut", safe: text.slice(0, lt), held: text.slice(lt) };
     }
     lt = text.indexOf("<", lt + 1);
   }
-  return { safe: text, held: "" };
+  return { kind: "cut", safe: text, held: "" };
 }
 
 /** A stateful per-subscriber scrubber over ONE turn's text-delta stream (§3.6). Feed each delta's text; get
@@ -867,7 +955,9 @@ function cutAtIncompleteOpen(text: string): { readonly safe: string; readonly he
  *  open (an unclosed hidden open is DROPPED — the member keeps the at-commit-stripped view). ONE scrubber per
  *  subscriber per turn; a host subscriber never constructs one (they read the stream verbatim). */
 export interface HiddenSpanStreamScrubber {
-  /** Feed a text-channel delta; returns the substring safe to forward to the member this tick (may be `""`). */
+  /** Feed a text-channel delta; returns the substring safe to forward to the member this tick (may be `""`).
+   *  Once an over-cap hidden open is seen this returns `""` for the rest of the turn (#1352) — the run cannot
+   *  be parsed and must not be released, and the member's committed view conceals the same bytes. */
   readonly push: (text: string) => string;
   /** Turn/stream end: release the held tail IFF it holds no in-progress hidden open, else drop it. */
   readonly flush: () => string;
@@ -875,12 +965,19 @@ export interface HiddenSpanStreamScrubber {
 
 export function createHiddenSpanStreamScrubber(): HiddenSpanStreamScrubber {
   let held = "";
+  // Terminal for the turn once set: an over-cap hidden open has no close we are willing to look for, so every
+  // later byte of this stream is potentially still inside its attr value. Fail-closed beats clever.
+  let concealing = false;
   return {
     push(text: string): string {
-      const { safe, held: nextHeld } = cutAtIncompleteOpen(held + text);
-      held = nextHeld;
+      if (concealing) {
+        return "";
+      }
+      const cut = cutAtIncompleteOpen(held + text);
+      held = cut.kind === "cut" ? cut.held : "";
+      concealing = cut.kind === "conceal";
       // `safe` may contain COMPLETE hidden tags (a `<lie …/>` that finished this tick) — strip them.
-      return safe.length > 0 ? stripHiddenSpans(safe).content : "";
+      return cut.safe.length > 0 ? stripHiddenSpans(cut.safe).content : "";
     },
     flush(): string {
       // `held` is, BY CONSTRUCTION (`cutAtIncompleteOpen`), always an UNCLOSED viable hidden open starting at

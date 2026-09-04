@@ -22,6 +22,7 @@ import {
   RPG_NO_CHANGES_TOOL,
   RPG_TOOL_ROUND_TOOL_NAMES,
   RPG_WEATHER_TYPES,
+  recordToolCalls,
   rpgExtractionSchema,
   rpgGameConfigSchema,
   rpgPopulateSchema,
@@ -855,6 +856,38 @@ test("TOOLDROP-BLIND: droppedIssues names the field, the reason, and the value t
 test("TOOLDROP-BLIND: non-JSON arguments carry their own single issue, not a field path", () => {
   const details = malformedToolCallDetails([{ name: "update_party", arguments: "{not json" }]);
   expect(details).toEqual([{ name: "update_party", issues: ["arguments: not valid JSON"] }]);
+});
+
+// ── recordToolCalls — the verdict is PER CALL, not per tool NAME (#1370) ────────────────────────────────
+// The record is what `rpg_turn_tool_calls` stores and the user-facing disclosure reads. It used to join the
+// loss lenses by `call.name` through a `Map`, so a turn with two `update_party` calls — one malformed, one
+// valid — reported BOTH as dropped, with the malformed one's issues attached to the valid one. The fold
+// applied the valid call's changes, so the row claimed a loss that never happened.
+
+test("two calls to the SAME tool get independent verdicts — one dropped, one applied", () => {
+  const good = JSON.stringify({ targetRef: "Kael", status: "wounded" });
+  const bad = JSON.stringify({ status: "wounded" }); // no targetRef — a whole-call drop
+  const record = recordToolCalls([
+    { name: "update_party", arguments: bad },
+    { name: "update_party", arguments: good },
+  ]);
+  expect(record.map((r) => r.verdict)).toEqual(["dropped", "applied"]);
+  expect(record[0]?.issues[0]).toContain("targetRef");
+  expect(record[1]?.issues).toEqual([]);
+  expect(record[1]?.args).toBe(good);
+});
+
+test("the same independence holds for SALVAGED — a salvaged call does not paint its twin", () => {
+  const clean = JSON.stringify({ location: "Throne Room", weather: { type: "indoors", label: "dim" } });
+  // `location` survives, so the unnameable weather costs the FIELD, not the call (the salvage class).
+  const salvageable = JSON.stringify({ location: "Throne Room", weather: { type: "sideways" } });
+  const record = recordToolCalls([
+    { name: "update_scene", arguments: salvageable },
+    { name: "update_scene", arguments: clean },
+  ]);
+  expect(record.map((r) => r.verdict)).toEqual(["salvaged", "applied"]);
+  expect([...(record[0]?.issues ?? [])]).toEqual(["update_scene.weather"]);
+  expect(record[1]?.issues).toEqual([]);
 });
 
 // ── strippedToolCallKeys (D112 (3) — the SILENT class the drop predicate can't see) ─────────────────────

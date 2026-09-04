@@ -27,26 +27,54 @@ import { z } from "zod";
 import { RPG_RELATIONSHIP_KINDS } from "./enums.ts";
 import { rpgTrackerValueSchema, rpgTrackerValuesSchema } from "./tracker.ts";
 
-// The slug grammar (ASCII match, no `u` flag — `useUnicodeRegex` is deliberately absent from biome.json).
-// Hoisted to module scope (the top-level-regex rule) and deliberately LOSSY: it folds case, collapses every
-// non-alphanumeric run to one hyphen, and trims the ends, so "Sister Vesna" / "sister  vesna" / "Sister
-// Vesna." all address ONE actor. The DISPLAY name is never derived back from it — it rides `identity.name`.
-const CAST_SLUG_STRIP = /[^a-z0-9]+/g;
+// The slug grammar. Hoisted to module scope (the top-level-regex rule) and deliberately LOSSY IN ONE
+// DIRECTION ONLY: it folds case, collapses every run of non-identity characters to one hyphen, and trims the
+// ends, so "Sister Vesna" / "sister  vesna" / "Sister Vesna." all address ONE actor. The DISPLAY name is
+// never derived back from it — it rides `identity.name`.
+//
+// THE KEPT SET IS UNICODE (#1366). It used to be `[^a-z0-9]`, which is not "lossy", it is DESTRUCTIVE for
+// every script without ASCII letters: 李明, 田中太郎, محمد, Мария and 🐉 ALL folded to the empty string and
+// therefore to one fallback key, and `apply.ts` matches existing actor rows by exactly that key — so two
+// NPCs with different Chinese names resolved onto ONE row and the second overwrote the first's identity,
+// trackers, inventory and wallet. A key that merges two people is not a normalization, it is data loss.
+// `\p{M}` rides along with `\p{L}` because in many scripts a mark is part of the letter, not punctuation.
+const CAST_SLUG_STRIP = /[^\p{L}\p{N}\p{M}]+/gu;
 const CAST_SLUG_TRIM = /^-+|-+$/g;
 
-/** The FALLBACK slug for a name that carries no slug-able character at all (an emoji-only or punctuation-only
- *  name). A cast key must be non-empty (`rpgActorRefSchema`), and a refused write on an exotic name would be a
- *  worse answer than one stable bucket the host can rename later. */
+/** The FALLBACK for a name that carries no letter, digit or mark AT ALL (emoji-only, punctuation-only). A
+ *  cast key must be non-empty (`rpgActorRefSchema`), and a refused write on an exotic name would be a worse
+ *  answer than a stable key the host can rename later — but a SHARED fallback bucket is the very merge this
+ *  function was fixed for, so the bucket is per-name: the fallback word plus the name's code points in hex.
+ *  Lossless ⇒ two symbol-only names can never collide, and the result is already its own slug (ASCII + `-`)
+ *  so idempotency — the wire's canonicality predicate — still holds. A blank name has no code points and
+ *  keeps the bare word: one nameless bucket is a necessity, not a collision. */
 const CAST_SLUG_FALLBACK = "unnamed";
+
+/** The radix the fallback renders a code point in — hex, so the disambiguator stays short and ASCII. */
+const CODE_POINT_RADIX = 16;
 
 /** THE cast key: a display NAME → its stable normalized slug. The ONE home for cast-key normalization — the
  *  tool appliers mint through it, the ghost guard matches through it, the wire REFUSES anything else
  *  ({@link rpgActorRefSchema}), and promotion re-keys through it, so "which spelling is this NPC" is decided
  *  once. IDEMPOTENT by construction: `rpgCastSlug(rpgCastSlug(x)) === rpgCastSlug(x)`, which is what makes it
- *  usable as the wire's own canonicality predicate. */
+ *  usable as the wire's own canonicality predicate.
+ *
+ *  NOT the same function as kit's `slugifyHandle`, and deliberately NOT unified here (#1366 / #1355). They
+ *  encode one idea against opposite requirements: that one mints a USER-VISIBLE character handle living in a
+ *  per-owner unique index and folds aggressively; this one mints an INTERNAL actor key whose only job is to
+ *  never merge two people, so it NFC-PRESERVES (marks kept — in many scripts a mark is part of the letter)
+ *  and never truncates. What they shared was the BUG, an ASCII-only kept set; the fix belongs on each side
+ *  in its own terms, which is why this one does not call the other. */
 export function rpgCastSlug(name: string): string {
-  const slug = name.trim().toLowerCase().replace(CAST_SLUG_STRIP, "-").replace(CAST_SLUG_TRIM, "");
-  return slug === "" ? CAST_SLUG_FALLBACK : slug;
+  const trimmed = name.trim();
+  // NFC last, so the output is normalized whatever the input's composition was: a combining-accent "café"
+  // and a precomposed "café" are one person, not two rows.
+  const slug = trimmed.toLowerCase().normalize("NFC").replace(CAST_SLUG_STRIP, "-").replace(CAST_SLUG_TRIM, "");
+  if (slug !== "") {
+    return slug;
+  }
+  const points = [...trimmed].map((ch) => (ch.codePointAt(0) ?? 0).toString(CODE_POINT_RADIX)).join("-");
+  return points === "" ? CAST_SLUG_FALLBACK : `${CAST_SLUG_FALLBACK}-${points}`;
 }
 
 /** A durable/scene actor identity. `character`/`user` = roster identities; `cast` = a scene-only NPC by

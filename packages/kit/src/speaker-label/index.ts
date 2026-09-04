@@ -19,9 +19,14 @@ const SPEAKER_TAG_PAIR = /<\s*speaker\b[^>]*>([^<>]{0,200})<\s*\/\s*speaker\s*>\
  *  per-call regex isn't recompiled (and so it satisfies the no-regex-in-function gate). */
 const START_SENTINEL = /^\s*<START>/i;
 
-/** A markdown code fence. Counted (not parsed) so a label INSIDE a fenced block can't split a span and
- *  tear the block in half — an odd count before a position means that position is inside a fence. */
+/** A markdown code fence OPENER/closer. Counted per LINE (not parsed) so a label INSIDE a fenced block
+ *  can't split a span and tear the block in half — an odd count of fence LINES before a position means that
+ *  position is inside a fence. */
 const CODE_FENCE = "```";
+
+/** CommonMark lets a fence line carry up to three leading spaces; past that it is an indented code block,
+ *  not a fence. Bounds what counts as a fence LINE (the anchor that stray inline backticks lack). */
+const MAX_FENCE_INDENT = 3;
 
 /** The tolerated-emphasis alternation every label regex below wraps around a name: `**`/`*`/`__`/`_`.
  *  Named once (was spelled 4×) so the tolerated-markdown set changes in one place. Bare alternation
@@ -101,13 +106,31 @@ function plainLabelRe(characterNames: readonly string[]): RegExp | null {
   return new RegExp(`(?:^|\\n)[ \\t]*(?:${EMPHASIS_ALT})?(${names.join("|")})(?:${EMPHASIS_ALT})?[ \\t]*:`, "g");
 }
 
-// True when `index` sits inside a fenced code block — an ODD number of ``` fences opened before it.
+// True when `index` sits inside a fenced code block — an ODD number of fence LINES opened before it.
+//
+// THE GRAMMAR IS LINE-LEVEL, and this used to count raw ``` OCCURRENCES anywhere (#1354): one stray inline
+// triple-backtick in prose flipped the state and suppressed EVERY later speaker label in the message, which
+// is the fail-open direction for label suppression (a real `Tom:` line silently stopped splitting). A fence
+// is a LINE whose first non-space run is ```, indented at most three spaces — nothing mid-line counts.
+//
+// AN UNCLOSED FENCE EXTENDS TO THE END OF THE MESSAGE (the odd-count arm), which is what a markdown renderer
+// does with it and is the direction that never tears a code block in half. That choice is deliberate: the
+// cost is suppressed labels after a genuinely unterminated fence; the alternative cost is splitting a span
+// inside a code block the reader sees as one unit.
 function insideCodeFence(text: string, index: number): boolean {
   let fences = 0;
-  let at = text.indexOf(CODE_FENCE);
-  while (at >= 0 && at < index) {
-    fences += 1;
-    at = text.indexOf(CODE_FENCE, at + CODE_FENCE.length);
+  let lineStart = 0;
+  while (lineStart < index) {
+    const newline = text.indexOf("\n", lineStart);
+    const line = text.slice(lineStart, newline === -1 ? text.length : newline);
+    const body = line.trimStart();
+    if (body.startsWith(CODE_FENCE) && line.length - body.length <= MAX_FENCE_INDENT) {
+      fences += 1;
+    }
+    if (newline === -1) {
+      break;
+    }
+    lineStart = newline + 1;
   }
   return fences % 2 === 1;
 }
@@ -255,9 +278,25 @@ export function stripSelfSpeakerLabel(content: string, speakerName: string): str
 function inlineLabelRe(name: string): RegExp {
   const n = RegExp.escape(name.trim());
   // NO leading whitespace grab (that would delete a word separator, gluing `one JFC: two` → `onetwo`); the
-  // TRAILING whitespace + dash run IS consumed — the model's aborted turn-opener dash (`Name: —`) — so a
-  // mid-word `dumJFC: —b` collapses to `dumb`, while a space-separated `one JFC: two` becomes `one two`.
-  return new RegExp(`(?:${EMPHASIS_ALT})?${n}(?:${EMPHASIS_ALT})?\\s*:(?:${EMPHASIS_ALT})?\\s*[—–-]*\\s*`, "g");
+  // TRAILING whitespace + dash run IS consumed — the model's aborted turn-opener dash (`Name: —`).
+  const emph = `(?:${EMPHASIS_ALT})`;
+  // The name (optionally emphasised) then its colon (optionally emphasised) then any run-in whitespace.
+  const label = `${n}${emph}?\\s*:${emph}?\\s*`;
+  // THREE ARMS, because "a label" and "a name that happens to END an ordinary word" are the same bytes
+  // (#1354: `stripInlineSpeakerLabel("I told SusAnn: watch out.", "Ann")` deleted from the middle of
+  // `SusAnn` and returned `"I told Suswatch out."` — the user's prose, altered on the way into canon).
+  // Mid-word matching still HAPPENS, but only for a shape that is unambiguously a torn tag rather than
+  // ordinary text; that is the grammar this file always meant by "a label at the start of an utterance":
+  //   A. AT A WORD BOUNDARY — start of content, or after anything that is not a letter, a digit or an
+  //      emphasis byte — the label needs no other evidence (`one JFC: two` → `one two`, unchanged).
+  //   B. WRAPPED IN MARKDOWN anywhere, even mid-word (`dum**JFC:**b` → `dumb`): prose does not emphasise a
+  //      fragment inside a word, a torn `<speaker>` echo does.
+  //   C. FOLLOWED BY THE TURN-OPENER DASH run anywhere, even mid-word — the `dumJFC: —b` token-boundary
+  //      splice this file was written for (→ `dumb`).
+  // A bare `SusAnn: ` has none of the three and is therefore prose. The boundary class is `\p{L}\p{N}`,
+  // not `\b`: `\b` is ASCII-only, so a CJK or Cyrillic cast name would still splice mid-word. The
+  // emphasis bytes are excluded from it too, or the boundary is satisfied by the inner `*` of a `**` pair.
+  return new RegExp(`(?:(?<![\\p{L}\\p{N}*_])${emph}?${label}[—–-]*|${emph}${label}[—–-]*|${emph}?${label}[—–-]+)\\s*`, "gu");
 }
 
 /** Remove a leaked SELF speaker label anywhere in a per-speaker reply — the mid-content twin of

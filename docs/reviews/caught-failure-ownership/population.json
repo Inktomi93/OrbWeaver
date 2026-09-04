@@ -1983,7 +1983,7 @@
     {
       "siteId": "packages/server/src/domain/chat/substrate/prompt-transforms.ts::empty:catch::1",
       "path": "packages/server/src/domain/chat/substrate/prompt-transforms.ts",
-      "line": 64,
+      "line": 72,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1991,7 +1991,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "D53 — a throw resolves to SKIP exactly like a",
-      "markerLine": 59
+      "markerLine": 67
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/claim-chat.ts::promise:incumbent::1",
