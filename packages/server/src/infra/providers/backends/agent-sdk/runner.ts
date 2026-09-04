@@ -372,7 +372,15 @@ async function probeContextUsage(query: Query): Promise<ContextUsage | undefined
   return usage;
 }
 
-/** Reduce an SDK message stream into a {@link ChatResult}; throws {@link ProviderError} on any failure result. */
+/** Reduce an SDK message stream into a {@link ChatResult}; throws {@link ProviderError} on any failure result.
+ *
+ *  TRUNCATION FAILS CLOSED (#1400). A `result` frame is the SDK's turn terminal — every completed turn emits
+ *  one, and `handleResult` is the ONLY writer of `numTurns`/`terminalReason`/the usage fold. A transport or
+ *  subprocess that emits assistant deltas and then simply ENDS produced no terminal, and reducing that into a
+ *  `finish()` returned a normal success carrying a PARTIAL reply (`numTurns:0`, `stopReason:null`) which the
+ *  engine commits as a completed turn — canon corruption indistinguishable from a short reply. So a stream
+ *  that ends without a terminal frame is a retryable provider fault, matching what the sibling summarize
+ *  reducer has always done with a missing result (`summarize.ts` — "no result frame"). */
 export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: TurnStreamContext): Promise<ChatResult> {
   const acc = new TurnAccumulator(ctx);
   try {
@@ -385,8 +393,25 @@ export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: 
   } catch (error) {
     return acc.finishWithError(error);
   }
+  if (!acc.sawTerminalFrame) {
+    return acc.finishWithError(
+      new ProviderError({
+        kind: "server",
+        retryable: true,
+        message: "agent-sdk: the message stream ended without a result frame (truncated turn)",
+        model: ctx.model,
+        terminalReason: TRUNCATED_TERMINAL_REASON,
+        ...(acc.errorSessionId !== undefined ? { sessionId: acc.errorSessionId } : {}),
+      }),
+    );
+  }
   return acc.finish(await runContextUsageProbe(ctx.probeContextUsage));
 }
+
+/** The `terminalReason` a truncated (terminal-frame-less) stream is classified under — a provider-faithful
+ *  string like every other terminal reason, so `/api/_debug/wire/outcomes` can tell this apart from a real
+ *  upstream terminal the backend named. */
+const TRUNCATED_TERMINAL_REASON = "stream_truncated";
 
 // Split out so `await` sees a concrete Promise (biome's useAwaitThenable can't resolve an optional callback property inline).
 async function runContextUsageProbe(probe: (() => Promise<ContextUsage | undefined>) | undefined): Promise<ContextUsage | undefined> {
@@ -446,6 +471,10 @@ class TurnAccumulator {
   sessionId = "";
   stopReason: string | null = null;
   terminalReason: string | null = null;
+  /** How many `result` frames — the SDK's turn terminal — this stream carried (#1400). A COUNTER rather than a
+   *  boolean flag so the read below is a computed `boolean`: an `= false` field initializer makes biome's type
+   *  service narrow every later read to the literal `false` and call the truncation check unreachable. */
+  private terminalFrames = 0;
   ttftMs: number | null = null;
   durationApiMs: number | null = null;
   apiErrorStatus: number | null = null;
@@ -499,6 +528,16 @@ class TurnAccumulator {
       costDetails: null,
       isByok: null,
     };
+  }
+
+  /** A `result` frame arrived — see {@link terminalFrames}. */
+  markTerminalFrame(): void {
+    this.terminalFrames += 1;
+  }
+
+  /** Did this stream reach its terminal? False ⇒ the transport ended mid-turn (#1400). */
+  get sawTerminalFrame(): boolean {
+    return this.terminalFrames > 0;
   }
 
   observeSessionId(id: string): void {
@@ -859,6 +898,7 @@ function checkPermissionDenials(acc: TurnAccumulator, message: Narrow<"result">)
 }
 
 function handleResult(acc: TurnAccumulator, message: Narrow<"result">): void {
+  acc.markTerminalFrame();
   acc.numTurns = message.num_turns;
   acc.terminalReason = message.terminal_reason ?? null;
   acc.stopReason = message.stop_reason ?? acc.stopReason;

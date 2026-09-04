@@ -4,28 +4,40 @@
 // principal-free (rpg gated host authority in createGame): the `getMembership`/`postNarratorMessage`
 // injected-op precedent — a compose-built factory, not a `ChatService` verb (it takes no principal).
 //
-// The write MERGES into the sibling sub-blobs (`...metadata`) so the pointer never nukes roomOverrides/group/
-// background — the `setChatDocumentVisibility`/`setChatBackground` merge precedent. A missing chat is a no-op
+// The write touches the `$.rpg` JSON PATH ONLY (`persistence/chat-metadata-write.ts`), so the pointer never
+// nukes roomOverrides/group/background AND never re-asserts a stale copy of them over a racing host knob
+// (#1450 — the in-memory merge this replaced was a lost-update on every sibling). A missing chat is a no-op
 // (createGame FKs a real chat, so this is a racing-delete guard, not a normal path).
 //
 // NULL = DETACH (the dangling-pointer heal §3.3): a `null` pointer DROPS the `metadata.rpg` sub-blob entirely
 // (never writes `rpg: null` — the takeover gate reads `metadata.rpg` presence, so the healed chat must look
-// byte-identical to a never-a-game chat). The sibling sub-blobs are preserved (the same merge that guards a
-// normal write).
+// byte-identical to a never-a-game chat). Siblings survive a detach for the same reason a set leaves them:
+// `json_remove` names one path.
 
+import type { ChatMetadata } from "@orb/contracts/chat";
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import { chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { ChatId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
 import type { SetRpgPointer } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import { carriedBackgroundAvailable } from "../persistence/background-write.ts";
+import { chatMetadataDropStatement, chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
 import { loadChatRow } from "../persistence/queries.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
+
+/** The metadata a DETACH leaves behind — the `rpg` sub-blob stripped so the chat reads byte-identically to a
+ *  never-a-game chat (the takeover gate reads PRESENCE, never `rpg === null`). Used only to compute the
+ *  background-availability guard; the durable write is a `json_remove` of that one path. */
+function dropRpgPointer(metadata: ChatMetadata): ChatMetadata {
+  const { rpg: _droppedGamePointer, ...rest } = metadata;
+  void _droppedGamePointer;
+  return rest;
+}
 
 export function createSetRpgPointer(ctx: ChatContext): SetRpgPointer {
   return async (chatId: ChatId, pointer: ChatRpgPointer | null): Promise<void> => {
@@ -33,22 +45,19 @@ export function createSetRpgPointer(ctx: ChatContext): SetRpgPointer {
     if (chat === undefined) {
       return; // racing delete — nothing to point at
     }
-    let nextMetadata: typeof chat.metadata;
-    if (pointer === null) {
-      // Detach: strip the `rpg` sub-blob so the chat is byte-identical to a never-a-game chat (the gate reads
-      // presence, not `rpg === null`). The `rpg` binding names the dropped field; the rest is the kept metadata.
-      const { rpg: _droppedGamePointer, ...rest } = chat.metadata;
-      void _droppedGamePointer;
-      nextMetadata = rest;
-    } else {
-      nextMetadata = { ...chat.metadata, rpg: pointer };
-    }
+    // ONE JSON PATH, NEVER THE WHOLE BLOB (#1450). The old shape read the row, merged `rpg` in memory and
+    // wrote the ENTIRE metadata column back, so a host knob written between that read and this write was
+    // silently discarded — and a DETACH re-asserted the stale siblings it had read. `chatMetadataSetStatement`
+    // / `chatMetadataDropStatement` touch `$.rpg` alone; the guard still reads the effective metadata because
+    // the background predicate is about what will be in force after the write.
+    const effective: typeof chat.metadata = pointer === null ? dropRpgPointer(chat.metadata) : { ...chat.metadata, rpg: pointer };
     const hostUserId = hostUserIdOf(await loadRoster(ctx.db, chatId));
-    const statement = ctx.db
-      .update(chats)
-      .set({ metadata: nextMetadata, updatedAt: ctx.now() })
-      .where(and(eq(chats.id, chatId), carriedBackgroundAvailable(ctx.db, nextMetadata)))
-      .returning({ id: chats.id });
+    const guard = carriedBackgroundAvailable(ctx.db, effective);
+    const now = ctx.now();
+    const statement =
+      pointer === null
+        ? chatMetadataDropStatement(ctx.db, { chatId, key: "rpg", guard, now })
+        : chatMetadataSetStatement(ctx.db, { chatId, key: "rpg", value: pointer, guard, now });
     const statements: BatchStmt[] = [statement];
     if (hostUserId !== null) {
       ctx.bumpStatsCanonVersion(statements, ctx.db, hostUserId);

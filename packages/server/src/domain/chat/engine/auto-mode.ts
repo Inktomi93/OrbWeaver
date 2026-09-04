@@ -32,8 +32,12 @@ function isLockedRefusal(err: unknown): boolean {
   return err instanceof ChatOperationError && err.code === CHAT_OP_CODES.locked;
 }
 
-/** One chained turn: arbitrate → run. Non-lock turn errors propagate. */
-type StepResult = { readonly done: AutoModeStopReason } | { readonly committed: readonly MessageView[]; readonly speakerRef: SpeakerRef };
+/** One chained turn: arbitrate → run. Non-lock turn errors propagate. A `done` arm still carries whatever the
+ *  step committed before it stopped — an ABORTED round returns its partial rows through the normal result
+ *  channel (`driveRound`'s `{messages, aborted}`), and those rows are canon whether or not the chain goes on. */
+type StepResult =
+  | { readonly done: AutoModeStopReason; readonly committed: readonly MessageView[] }
+  | { readonly committed: readonly MessageView[]; readonly speakerRef: SpeakerRef };
 
 async function step(params: AutoModeParams, last: SpeakerRef | null): Promise<StepResult> {
   const speaker = await params.nextSpeaker(last);
@@ -41,14 +45,23 @@ async function step(params: AutoModeParams, last: SpeakerRef | null): Promise<St
     // `nextSpeaker` is now CANCELLABLE (the `smart` side-LLM arbitration reads this same signal), and a
     // cancelled arbitration yields no speaker. A settled signal means the caller interrupted — report that,
     // not the "everyone is muted/left" story `no-eligible` tells.
-    return { done: params.signal?.aborted === true ? "interrupt" : "no-eligible" };
+    return { done: params.signal?.aborted === true ? "interrupt" : "no-eligible", committed: [] };
   }
   try {
     const outcome = await params.runTurn(speaker);
+    if (outcome.aborted) {
+      // AN ABORT IS A STOP CONDITION (#1453). `TurnOutcome` carries abortion as RESULT state, not a throw
+      // (`engine/result.ts` — the owner-ruled return-based shape), and the engine's OWN abort paths (a caller
+      // Stop that raced this turn, the heartbeat's stale-lock kill) never touch the chain's outer signal. So
+      // reading only `outcome.messages` fed a dead turn forward as if it had committed: the last speaker
+      // advanced, the turn count grew, and the chain arbitrated and GENERATED the next speaker on top of a
+      // turn the user had just cancelled. Keep the rows that genuinely landed; stop the chain.
+      return { done: "interrupt", committed: outcome.messages };
+    }
     return { committed: outcome.messages, speakerRef: speaker.ref };
   } catch (err) {
     if (isLockedRefusal(err)) {
-      return { done: "locked" };
+      return { done: "locked", committed: [] };
     }
     throw err;
   }
@@ -72,6 +85,10 @@ export async function runAutoMode(params: AutoModeParams): Promise<AutoModeResul
     }
     const r = await step(params, last);
     if ("done" in r) {
+      // The rows a stopping step committed are canon and belong in the chain's report — the caller renders
+      // `messages`, so dropping them here would hide a landed reply behind the stop reason. `turns` is NOT
+      // incremented: the turn did not complete.
+      messages.push(...r.committed);
       return stop(r.done);
     }
     messages.push(...r.committed);

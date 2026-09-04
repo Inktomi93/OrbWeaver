@@ -2,7 +2,7 @@
 // Isolation seam: openrouter/custom-byo (and any future OpenAI-compatible backend) import these down.
 
 import type { ChatResult, ChatUsage, ToolCallInput } from "../../../contract/index.ts";
-import { normalizeFinishReason } from "../../../contract/index.ts";
+import { normalizeFinishReason, ProviderError } from "../../../contract/index.ts";
 import type {
   ChatCompletionResult,
   ChatCompletionStreamChunk,
@@ -32,6 +32,10 @@ export interface MapTurnContext {
   readonly maxOutputTokens: number | null;
   readonly reasoning?: string | undefined;
 }
+
+/** The `terminalReason` a truncated (finish-reason-less) OpenAI-compatible turn is classified under — the
+ *  same string the agent-sdk reducer stamps, so one debug filter finds every truncated turn (#1400). */
+const TRUNCATED_TERMINAL_REASON = "stream_truncated";
 
 /** Latch the generation handle (`gen-…`) on first non-empty sight; every chunk repeats the same id. */
 function latchGenerationId(current: string | undefined, chunkId: string | undefined): string | undefined {
@@ -69,6 +73,19 @@ export async function reduceChatCompletionStream(
     if (chunkFinish !== null && chunkFinish !== undefined && chunkFinish.length > 0) {
       finishReason = chunkFinish;
     }
+  }
+  // TRUNCATION FAILS CLOSED (#1400). `finish_reason` is the chat-completions terminal: the last chunk of a
+  // completed generation carries one (`stop`/`length`/`tool_calls`/…), and a provider, proxy or transport that
+  // emits deltas and then simply CLOSES carries none. Returning the accumulated text anyway produced a normal
+  // success whose `finishReason` was null — which the engine commits as a finished reply, indistinguishable
+  // downstream from a short one. A turn with no terminal is a retryable provider fault instead.
+  if (finishReason === null) {
+    throw new ProviderError({
+      kind: "server",
+      retryable: true,
+      message: "OpenAI-compatible response carried no finish reason — the stream ended before the turn terminated (truncated turn)",
+      terminalReason: TRUNCATED_TERMINAL_REASON,
+    });
   }
   const assembled = assembleToolCalls(toolCalls);
   return {

@@ -4,7 +4,7 @@
 // verbs are reached through the grouped-file BUNDLE (`createRoster(ctx, { emit, claimChat: noClaim })`).
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent, DurableChatBusEvent, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatMetadata, DurableChatBusEvent, RoomOverrides } from "@orb/contracts/chat";
 import { roomOverridesSchema } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
@@ -112,6 +112,64 @@ function ownedCard(): (params: { readonly ownerId: UserId; readonly characterId:
     return row !== undefined && row.ownerId === ownerId ? card(row.name) : null;
   };
 }
+
+describe("chatMetadata writers — concurrent knobs do not erase each other (#1450)", () => {
+  /** The room's metadata as stored (the typed column — never a fabricated shape). */
+  async function metadataOf(chatId: ChatId): Promise<ChatMetadata> {
+    const [row] = await db.select({ metadata: chats.metadata }).from(chats).where(eq(chats.id, chatId));
+    return row?.metadata ?? {};
+  }
+
+  test("two host knobs written concurrently BOTH survive", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "meta-race");
+    await seedParticipant(db, { chatId, key: "mr", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+
+    // Both verbs read the row, merge their own key, and write. Under the old whole-blob write each one
+    // re-asserted its OWN stale copy of the other's key, so the later commit silently discarded the earlier.
+    await Promise.all([
+      roster.setOfferChoices({ principal: principal(host), chatId, enabled: true }),
+      roster.setReactionsEnabled({ principal: principal(host), chatId, enabled: false }),
+    ]);
+
+    const metadata = await metadataOf(chatId);
+    expect(metadata.offerChoices).toBe(true);
+    expect(metadata.reactionsEnabled).toBe(false);
+  });
+
+  test("a knob write does not resurrect a sibling that changed after its own read", async () => {
+    const host = await seedUser(db, castId<Handle>("host2"));
+    const chatId = await seedChat(db, "meta-stale");
+    await seedParticipant(db, { chatId, key: "ms", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+
+    await roster.setOfferChoices({ principal: principal(host), chatId, enabled: true });
+    // A writer whose read of the room happened BEFORE the flip below must not carry the pre-flip value back.
+    await Promise.all([
+      roster.setToolRecurseLimit({ principal: principal(host), chatId, limit: 7 }),
+      roster.setOfferChoices({ principal: principal(host), chatId, enabled: false }),
+    ]);
+
+    const metadata = await metadataOf(chatId);
+    expect(metadata.toolRecurseLimit).toBe(7);
+    expect(metadata.offerChoices).toBe(false);
+  });
+
+  test("a sibling key survives a write to an ABSENT key (the json_set create arm)", async () => {
+    const host = await seedUser(db, castId<Handle>("host3"));
+    const chatId = await seedChat(db, "meta-fresh");
+    await seedParticipant(db, { chatId, key: "mf", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+
+    await roster.setHostDisplayScripts({ principal: principal(host), chatId, enabled: true });
+    await roster.setCharactersCanReact({ principal: principal(host), chatId, enabled: true });
+
+    const metadata = await metadataOf(chatId);
+    expect(metadata.hostDisplayScripts).toBe(true);
+    expect(metadata.charactersCanReact).toBe(true);
+  });
+});
 
 describe("setGroupConfig — host-only metadata write", () => {
   test("the host writes a fully-defaulted GroupConfig + emits chatUpdated", async () => {

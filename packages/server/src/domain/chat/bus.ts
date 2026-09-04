@@ -21,10 +21,21 @@
 // user. It happened: deleting a chat mid-turn cascade-drops the `chats` row, the next `delta` INSERT trips the
 // `chat_events.chat_id` FK, and the process exited. A failed append is therefore CLASSIFIED, never thrown:
 //   • the chat row is gone  → the expected delete-mid-turn race: drop at debug, return `null`.
-//   • anything else         → a real fault: LOG AT ERROR (observable), drop, return `null`.
+//   • anything else         → a real fault on a LIVE chat: warn, RETRY the append once, and only then drop at
+//     ERROR (#1454). Totality is the mechanism and it stands; what changed is that "the append failed" stopped
+//     being one undifferentiated `null`. A lost event on a live chat is a permanent replay gap — a missing turn
+//     terminal, a missed automation trigger, a stranded client — so the transient half of that class (write
+//     contention) is now recovered instead of merely logged.
 // `null` ⇒ the event was not durably logged, so the composition root must not fan it either (a fanned event
 // with no `chat_events` row would be un-replayable). Aborting the turn at delete (verbs/chat-lifecycle) stops
 // the emits at the SOURCE; this classification is the floor under every other cause.
+//
+// STILL OPEN (#1454, reported as a fork rather than decided here): `ChatServiceDeps.emit` is typed
+// `Promise<void>` and `entry/compose/services::emitChatEvent` awaits the checked variant and DISCARDS its
+// boolean, so an ordinary send/turn caller cannot see a post-retry loss. Propagating it collides with
+// FLAG[emit-is-total] above (three domain service contracts cite the `void emit()` unhandled-rejection kill as
+// the reason this seam is total), and widening the return with no reader would be ceremony — the owner picks
+// between "typed verdict every caller may ignore" and "an outbox".
 
 import type { ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
@@ -79,15 +90,23 @@ type ChatBusDeps = Pick<ChatContext, "db" | "now" | "newEventId">;
 /** How many recent events the in-process ring retains per chat; a deeper resume falls back to `chat_events`. */
 const RING_CAPACITY = 256;
 
-/** Classify + report a dropped append (FLAG[emit-is-total]). The verdict is read off GROUND TRUTH — does the
- *  `chats` row still exist — never off the driver's error code: an FK violation is only ever a symptom, and a
- *  probe that itself fails means the db is unwell, which is exactly the unexpected arm. Never throws. */
-async function reportDroppedAppend(db: Db, event: ChatBusEvent, err: unknown): Promise<void> {
+/** Classify a failed append (FLAG[emit-is-total]). The verdict is read off GROUND TRUTH — does the `chats` row
+ *  still exist — never off the driver's error code: an FK violation is only ever a symptom, and a probe that
+ *  itself fails means the db is unwell, which is exactly the unexpected arm. Never throws.
+ *
+ *  RETURNS THE VERDICT, does not just log it (#1454): "the chat was deleted mid-turn" is a BENIGN race with
+ *  nothing to recover, while "the append failed on a live chat" is a permanent replay gap — a missing turn
+ *  terminal, a missed automation trigger, a stranded client — and the two must not share a fate.
+ *
+ *  It reports ONLY the benign arm. The live-fault arm's report belongs to the CALLER, because what that
+ *  failure MEANS differs by door: `emit` can retry (so the first look is a warn and only the last is an
+ *  error), while `emitAfterClaim` carries a single-consumption claim statement and is terminal on sight. */
+async function classifyFailedAppend(db: Db, event: ChatBusEvent): Promise<"chat-gone" | "live-fault"> {
   const chatId = event.chatId;
   let chatGone = false;
   // @orb-gate-ignore caught-failure-ownership(empty:catch): the ground-truth probe failing means the db is
-  // unwell — fall through to the loud arm below (getLog().error), which reports the original `err`. Ends if
-  // the probe grows its own retry/backoff (then it owns classifying its own failure).
+  // unwell — fall through to the `live-fault` verdict, which the CALLER reports with the original `err`. Ends
+  // if the probe grows its own retry/backoff (then it owns classifying its own failure).
   try {
     chatGone = (await loadChatRow(db, chatId)) === undefined;
   } catch {
@@ -95,10 +114,17 @@ async function reportDroppedAppend(db: Db, event: ChatBusEvent, err: unknown): P
   }
   if (chatGone) {
     getLog().debug({ chatId, type: event.type }, "chat bus: event dropped — the chat was deleted mid-turn (expected race)");
-    return;
+    return "chat-gone";
   }
-  getLog().error({ err, chatId, type: event.type }, "chat bus: DURABLE APPEND FAILED on a live chat — event dropped");
+  return "live-fault";
 }
+
+/** How many times a live-chat append is attempted before the event is declared lost. TWO: the realistic
+ *  live-chat failure is a transient write contention (`busy_timeout` exhausted under a concurrent workload
+ *  batch), and one immediate replay is what converts that from a permanent replay gap into a hiccup. More
+ *  attempts would sit on the hot turn path for a db that is genuinely down, which the loud drop below is
+ *  the honest answer to. */
+const LIVE_APPEND_ATTEMPTS = 2;
 
 /** Build the per-process chat bus (ONE instance, wired at the composition root). */
 export function createChatBus(deps: ChatBusDeps): ChatBus {
@@ -138,17 +164,35 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
     const event = stamper.stamp(raw);
     // Durable-first: commit the INSERT before the in-memory push so a crash can never leave a
     // delivered-but-unlogged event.
-    let seq: number;
-    // @orb-gate-ignore caught-failure-ownership(default:err): reported via reportDroppedAppend (classifies +
-    // logs/errors) per FLAG[emit-is-total] above — never rethrown so a fire-and-forget delta emit can't kill
-    // the process. Ends if a caller needs the durable-write failure to propagate (then it owns its own retry).
-    try {
-      const args = { id: deps.newEventId(), chatId, event, createdAt: deps.now() };
-      seq = await appendChatEvent(deps.db, args);
-    } catch (err) {
-      // FLAG[emit-is-total]: a failed durable write is classified + reported, never rethrown — the engine's
-      // delta emits are fire-and-forget, so a rejection here kills the process.
-      await reportDroppedAppend(deps.db, event, err);
+    // FLAG[emit-is-total]: a failed durable write is classified, RETRIED on a live chat, and finally dropped —
+    // never rethrown, because the engine's delta emits are fire-and-forget and a rejection here kills the
+    // process. `null` still means "not durably logged, do not fan".
+    let seq: number | undefined;
+    for (let attempt = 1; attempt <= LIVE_APPEND_ATTEMPTS; attempt += 1) {
+      // @orb-gate-ignore caught-failure-ownership(default:err): classified by classifyFailedAppend (ground-truth
+      // probe + log) per FLAG[emit-is-total] above — never rethrown, and the final attempt's failure is reported
+      // loudly below. Ends if a caller needs the durable-write failure to propagate.
+      try {
+        seq = await appendChatEvent(deps.db, { id: deps.newEventId(), chatId, event, createdAt: deps.now() });
+        break;
+      } catch (err) {
+        // A deleted chat is terminal on the first look (a cascade-dropped row does not come back), so only the
+        // live-chat arm is worth another attempt — and only while attempts remain.
+        if ((await classifyFailedAppend(deps.db, event)) === "chat-gone") {
+          return null;
+        }
+        if (attempt < LIVE_APPEND_ATTEMPTS) {
+          getLog().warn({ err, chatId, type: event.type, attempt }, "chat bus: durable append failed on a live chat — retrying");
+        } else {
+          getLog().error(
+            { err, chatId, type: event.type, attempts: attempt },
+            "chat bus: DURABLE APPEND FAILED on a live chat — event dropped, its replay slot is permanently missing",
+          );
+          return null;
+        }
+      }
+    }
+    if (seq === undefined) {
       return null;
     }
 
@@ -159,8 +203,9 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
     const chatId = raw.chatId;
     const event = stamper.stamp(raw);
     // @orb-gate-ignore caught-failure-ownership(default:err): same FLAG[emit-is-total] contract as `emit`
-    // above — reportDroppedAppend classifies + reports, never rethrown. Ends if a caller needs the durable
-    // write failure to propagate.
+    // above — classifyFailedAppend classifies + reports, never rethrown. Ends if a caller needs the durable
+    // write failure to propagate. NOT retried, unlike `emit`: the batch carries the caller's CLAIM statement,
+    // which is single-consumption by construction — a replay could apply it twice.
     try {
       const append = appendChatEventAfterClaimStatement(deps.db, {
         id: deps.newEventId(),
@@ -176,7 +221,10 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
       }
       return publishCommitted(seq, event);
     } catch (err) {
-      await reportDroppedAppend(deps.db, event, err);
+      // Terminal on sight — the claim statement is single-consumption, so a replay could apply it twice.
+      if ((await classifyFailedAppend(deps.db, event)) === "live-fault") {
+        getLog().error({ err, chatId, type: event.type }, "chat bus: DURABLE APPEND FAILED on a live chat — claimed event dropped");
+      }
       return null;
     }
   };

@@ -2,12 +2,20 @@
 // preference, in-band error promotion, sentinel usage), the deterministic view→ChatResult mapper (injected
 // clock), and the tolerant raw-SSE parser.
 
+import { ProviderError } from "@orb/server/infra/providers";
 import type { ChatCompletionResult, ChatCompletionStreamChunk, ChatToolCallDelta, StreamDelta } from "@orb/server/infra/providers/backends/kit";
 import { mapChatCompletionToTurnResult, parseOpenAiSse, reduceChatCompletionStream } from "@orb/server/infra/providers/backends/kit/openai-compat";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../../support/fixtures.ts";
 
 const SSE_LIMIT_ERROR = /SSE.*limit/i;
+const TRUNCATED_ERROR = /no finish reason/i;
+
+/** The terminal chunk EVERY completed chat-completions generation ends with. The accumulation fixtures below
+ *  append it because the reducer now REFUSES a stream that never terminated (#1400) — they are about what the
+ *  reducer accumulates, not about how a stream ends, and a fixture that stops mid-stream would be asserting
+ *  the truncated shape by accident. */
+const TERMINAL_CHUNK: ChatCompletionStreamChunk = { choices: [{ delta: {}, finishReason: "stop" }] };
 
 async function* streamOf(items: readonly ChatCompletionStreamChunk[]): AsyncGenerator<ChatCompletionStreamChunk> {
   await Promise.resolve(); // yields control once so this is a genuine async stream
@@ -78,6 +86,7 @@ describe("reduceChatCompletionStream", () => {
             },
           ],
         },
+        TERMINAL_CHUNK,
       ]),
       {
         onDelta: (delta): void => {
@@ -90,7 +99,7 @@ describe("reduceChatCompletionStream", () => {
 
   test("falls back to the legacy reasoning string when details carry no text", async () => {
     const deltas: StreamDelta[] = [];
-    await reduceChatCompletionStream(streamOf([{ choices: [{ delta: { reasoning: "legacy CoT", reasoningDetails: [] } }] }]), {
+    await reduceChatCompletionStream(streamOf([{ choices: [{ delta: { reasoning: "legacy CoT", reasoningDetails: [] } }] }, TERMINAL_CHUNK]), {
       onDelta: (delta): void => {
         deltas.push(delta);
       },
@@ -313,6 +322,7 @@ describe("the D48 tool-call delta accumulator (T2 — tool-use-design/02 §6)", 
           { index: 0, id: "call_a", function: { name: "a", arguments: "{}" } },
         ]),
         chunkWithToolCalls([{ index: 1, function: { arguments: "}" } }]),
+        TERMINAL_CHUNK,
       ]),
     );
     expect(view.choices?.[0]?.message?.toolCalls).toEqual([
@@ -326,6 +336,7 @@ describe("the D48 tool-call delta accumulator (T2 — tool-use-design/02 §6)", 
       streamOf([
         chunkWithToolCalls([{ index: 0, id: "call_first", function: { name: "real" } }]),
         chunkWithToolCalls([{ index: 0, id: "call_second", function: { name: "fake", arguments: "{}" } }]),
+        TERMINAL_CHUNK,
       ]),
     );
     expect(view.choices?.[0]?.message?.toolCalls).toEqual([{ id: "call_first", function: { name: "real", arguments: "{}" } }]);
@@ -359,5 +370,32 @@ describe("the D48 tool-call delta accumulator (T2 — tool-use-design/02 §6)", 
       maxOutputTokens: null,
     });
     expect(bareTurn).not.toHaveProperty("toolCalls");
+  });
+});
+
+describe("reduceChatCompletionStream — truncation fails closed (#1400)", () => {
+  test("a stream that ends after deltas WITHOUT a finish reason is a typed provider error, not a short reply", async () => {
+    // The defect: a provider/proxy/transport that emits content and then closes produced a normal success
+    // whose finishReason was null — the engine committed that partial text as the finished reply, and nothing
+    // downstream could tell it from a genuinely short one.
+    const reduced = reduceChatCompletionStream(streamOf([{ choices: [{ delta: { content: "half a sen" } }] }]));
+    await expect(reduced).rejects.toThrow(TRUNCATED_ERROR);
+  });
+
+  test("the refusal is retryable (nothing was committed) and names the truncation as its terminal reason", async () => {
+    const err: unknown = await reduceChatCompletionStream(streamOf([{ choices: [{ delta: { content: "x" } }] }])).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ProviderError);
+    expect((err as ProviderError).retryable).toBe(true);
+    expect((err as ProviderError).terminalReason).toBe("stream_truncated");
+  });
+
+  test("an EMPTY stream is truncation too — a turn that produced nothing at all never terminated", async () => {
+    await expect(reduceChatCompletionStream(streamOf([]))).rejects.toThrow(TRUNCATED_ERROR);
+  });
+
+  test("CONTROL: the same content WITH a terminal chunk still reduces to a success", async () => {
+    const view = await reduceChatCompletionStream(streamOf([{ choices: [{ delta: { content: "half a sen" } }] }, TERMINAL_CHUNK]));
+    expect(view.choices?.[0]?.message?.content).toBe("half a sen");
+    expect(view.choices?.[0]?.finishReason).toBe("stop");
   });
 });

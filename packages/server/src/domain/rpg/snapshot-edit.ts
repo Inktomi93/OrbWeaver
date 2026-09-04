@@ -253,11 +253,31 @@ async function writeOwnedHandState(ctx: RpgContext, game: RpgGameRow, derive: (h
  *  superseded by the beats after it. Injecting an old beat's consequences into the present would be the
  *  resurrection bug wearing the fix's clothes, and shouting about it would be noise about the normal case.
  *
- *  IT RIDES `writeHandState`, WHICH IS WHY IT IS SAFE UNDER A SECOND EDIT. The fold derives INSIDE its own head
- *  resolve, and the per-game owner spans that resolve through its write. A hand edit already queued ahead is
- *  therefore the base it replays onto; one queued behind derives from the fold's result. The in-process chain
- *  closes the old same-head continuation window under the standing single-replica assumption. */
-export async function foldTurnWriteIntoHandHead(
+ *  THE WHOLE FOLD OWNS THE PER-GAME SECTION, WHICH IS WHY IT IS SAFE UNDER A SECOND EDIT *AND* A SECOND FLUSH.
+ *  Every question above — is a newer row head, is this slot still the current beat, what does the hand head
+ *  hold — is asked inside `serializeHandWrite`, and the replay writes without leaving it. A hand edit already
+ *  queued ahead is therefore the base it replays onto; one queued behind derives from the fold's result; and a
+ *  NEWER FLUSH that landed while this one waited is seen by the supersede check rather than rebased over (the
+ *  bug the pre-section check had: it measured the beat, then queued, then re-resolved the head without
+ *  re-measuring). The in-process chain closes that window under the standing single-replica assumption. */
+export function foldTurnWriteIntoHandHead(
+  ctx: RpgContext,
+  game: RpgGameRow,
+  written: { readonly patches: readonly StagedPatch[]; readonly snapshotId: RpgSnapshotId },
+  slotSeq: number,
+): Promise<TurnWriteFoldOutcome> {
+  // THE WHOLE DECISION IS SERIALIZED (#1458), not just the write. The head resolve, the supersede check and
+  // the replay are ONE read-modify-write against the per-game chain: run outside it, the supersede check
+  // answered about a head that a newer flush replaced while this call waited its turn in the queue, and the
+  // queued callback re-resolved the head WITHOUT re-asking whether this slot was still the current beat — so
+  // a superseded turn's patches were rebased onto the newer head instead of being refused. The body calls
+  // `writeOwnedHandState` (the un-serialized half) precisely because the chain is not re-entrant: nesting a
+  // `writeHandState` inside its own critical section would wait on a tail that only this call can settle.
+  return serializeHandWrite(game.id, () => foldOwnedTurnWrite(ctx, game, written, slotSeq));
+}
+
+/** The owned body of {@link foldTurnWriteIntoHandHead} — runs INSIDE the per-game critical section. */
+async function foldOwnedTurnWrite(
   ctx: RpgContext,
   game: RpgGameRow,
   written: { readonly patches: readonly StagedPatch[]; readonly snapshotId: RpgSnapshotId },
@@ -289,7 +309,7 @@ export async function foldTurnWriteIntoHandHead(
   // flush, which puts it on the turn's tool-call record. The human keeps their field either way; the trail is
   // what stops the record from claiming the model's write landed.
   const suppressed: string[] = [];
-  const folded = await writeHandState(ctx, game, (hand) => {
+  const folded = await writeOwnedHandState(ctx, game, (hand) => {
     // Replayed in STAGE ORDER against the hand head's CURRENT locks — the identical composition the accumulator
     // performed over the pre-slot base, differing only in which state it starts from and whose locks arbitrate.
     //

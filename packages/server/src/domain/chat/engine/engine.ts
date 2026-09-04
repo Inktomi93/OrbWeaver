@@ -65,7 +65,7 @@ import {
   insertCanonMessageStatements,
 } from "../persistence/canon-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
-import { refreshLock, releaseLock, tryAcquireLock } from "../persistence/lock.ts";
+import { holdsLock, refreshLock, releaseLock, tryAcquireLock } from "../persistence/lock.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import {
   loadCanonHistory,
@@ -542,9 +542,6 @@ async function commitGeneration(args: {
   const { ctx, deps, prep, persist, target, result, nextSeq, genStartedAt, genFinishedAt } = args;
   const now = ctx.now();
   const variant = variantPayloadOf(prep, result, genStartedAt, genFinishedAt);
-  // A group round reuses one assembleContext across its speakers, so the by-reference op-log accumulates;
-  // clear it now that this turn's ops are snapshotted, so the next speaker's delta starts empty.
-  prep.assembleContext.opLog?.splice(0);
 
   const attempt = async (seq: number): Promise<MessageView> => {
     const { statements, speakerCharacterId, loadView } = buildCommitPlan({
@@ -583,6 +580,9 @@ async function commitGeneration(args: {
         : currentDeltas.map((e) => (e.messageId === target.messageId ? { seq: e.seq, delta: turnDelta } : e));
     statements.push(runtimeVariablesUpdateStatement(ctx.db, prep.chatId, foldChain(postEntries)));
 
+    // THE WRITE FENCE (#1393) — the LAST thing before the batch, and re-run on the seq-retry. Everything
+    // above is in-memory statement building; this is where the turn stops being reversible.
+    await assertTurnMayCommit(ctx, deps, prep);
     await ctx.db.batch(batchMany(statements));
     return loadView();
   };
@@ -596,8 +596,54 @@ async function commitGeneration(args: {
     }
     throw err;
   });
+  // A group round reuses ONE assembleContext across its speakers, so the by-reference op-log accumulates;
+  // clear it now that this turn's ops are COMMITTED, so the next speaker's delta starts empty.
+  //
+  // AFTER THE WRITE, NEVER BEFORE (#1437). Clearing it up front — while `variant` already held the
+  // spread-copy — mutated a context the CALLER owns before anything durable existed: any throw out of
+  // `attempt` (the fence above, a DB fault, a stats read) left the round's shared log emptied with nothing
+  // committed, and a retry on that same context wrote an empty `variableDelta`. The snapshot is taken at
+  // `variantPayloadOf`; only the producer-state reset belongs here, and only on success.
+  prep.assembleContext.opLog?.splice(0);
   await deps.emit({ type: "messageCommitted", chatId: prep.chatId, messageId: view.id, view });
   return view;
+}
+
+/**
+ * THE PRE-WRITE FENCE (#1393): may this turn still commit canon?
+ *
+ * Cancellation is not a write barrier. The heartbeat ({@link runInLockWithHeartbeat}) aborts the turn's
+ * composed signal the moment it finds the lock stolen or gone, but the ONLY thing that honors an abort
+ * mid-turn is the provider stream — a generation that had already finished streaming was past its last
+ * cancellation point and went on to write, under a lock a different holder now owned. Both halves are
+ * checked here, immediately before the batch:
+ *
+ *  • the SIGNAL — covers the caller's Stop and the heartbeat's stale-lock abort. `throwIfAborted` carries
+ *    the signal's own reason, so `abortReasonFor` still classifies it "user" vs "stale" downstream.
+ *  • the LOCK HOLDER — the fact the abort is a proxy for. A `lockFree` turn has no lock to hold (it runs
+ *    concurrent with a locked send BY DESIGN — its seq-unique retry is what makes that safe), so it is
+ *    fenced by the signal alone.
+ *
+ * NOT A TRANSACTION-LEVEL FENCE, deliberately. `db.transaction()` is banned in product code and
+ * `@orb/db/kit::batchMany`'s header bans batching a SELECT ahead of writes (a DEFERRED batch that reads
+ * first must upgrade its snapshot → an unretryable SQLITE_BUSY_SNAPSHOT), so the ownership predicate
+ * cannot ride inside the commit batch. What remains is the batch's own latency instead of a whole
+ * generation's — and {@link runInLockWithHeartbeat} no longer releases the lock while this body is still
+ * live, so the same-process half of the race is closed outright.
+ */
+async function assertTurnMayCommit(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<void> {
+  prep.signal?.throwIfAborted();
+  if (prep.lockFree === true) {
+    return;
+  }
+  if (await holdsLock(ctx.db, prep.chatId, deps.holder)) {
+    return;
+  }
+  getLog().error(
+    { chatId: prep.chatId, holder: deps.holder },
+    "chat: turn-lock NOT held at the commit fence — refusing the canon write (stolen or gone mid-turn)",
+  );
+  throw new ChatOperationError(CHAT_OP_CODES.aborted, "turn-lock lost before the canon write (stolen or gone)");
 }
 
 /** The expressions classify's own trace root (I-7: it ran under NO live span — same outlives-the-request class
@@ -1725,11 +1771,31 @@ async function runInLockWithHeartbeat(ctx: ChatContext, deps: EngineDeps, prep: 
     rejectLockLost(new ChatOperationError(CHAT_OP_CODES.aborted, "turn-lock lost mid-turn (stolen or gone)"));
   };
   const beat = setInterval((): void => void tick(), Math.floor(deps.lockTtlMs / LOCK_HEARTBEAT_DIVISOR));
+  // THE RELEASE IS BOUND TO THE BODY, NOT TO THE CALLER (#1393). Releasing the lock while the turn body is
+  // still live hands the next holder a room a zombie can still write to — the exact canon race the lock
+  // exists to prevent — so the release rides the body's settlement on EVERY path. It is deliberately NOT in
+  // a `finally` around the race: when the barrier wins, the caller must still get its loud `aborted` at once
+  // rather than waiting behind a body that may be ignoring its abort (a wedged provider stream would
+  // otherwise hold the request open for as long as it wedges).
+  const releasedBody = executeTurn(ctx, deps, { ...prep, signal: composedSignal }).then(
+    async (outcome): Promise<TurnOutcome> => {
+      await releaseLock(ctx.db, prep.chatId, deps.holder);
+      return outcome;
+    },
+    async (err: unknown): Promise<never> => {
+      await releaseLock(ctx.db, prep.chatId, deps.holder);
+      throw err;
+    },
+  );
   try {
-    return await Promise.race([executeTurn(ctx, deps, { ...prep, signal: composedSignal }), lockLostBarrier]);
+    return await Promise.race([releasedBody, lockLostBarrier]);
   } finally {
     clearInterval(beat);
-    await releaseLock(ctx.db, prep.chatId, deps.holder);
+    // @swallowed-ok(releasedBody): this is not a second dispatch — it is the SAME promise the race above
+    // returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's
+    // `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still
+    // pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.
+    void releasedBody.catch((): undefined => undefined);
   }
 }
 
