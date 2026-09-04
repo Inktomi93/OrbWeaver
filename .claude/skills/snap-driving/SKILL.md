@@ -85,8 +85,8 @@ has a fixed shape; use the shape.
 
 `pnpm design-audit <route>` (the deterministic UI defect scanner: 59 rules, population accounting,
 `--mobile` for tap targets) is still its own command until #1315 folds it in as `--design-audit`; it shares
-every reach/environment flag above and prints the same kind of end card. `pnpm record`, `pnpm motion-audit`
-and `pnpm perf-meter` are RETIRED — their doors print the snap spelling.
+every reach/environment flag above and prints the same kind of end card. The old record, motion-audit and
+perf-meter commands are RETIRED — snap's `--filmstrip`, `--motion` and `--perf` arms are their homes.
 
 Preconditions and geography:
 
