@@ -10,11 +10,19 @@
 // refuses on the SECOND one, so a user importing a pack of Japanese-named cards failed at card two. A handle
 // is an identity VALUE, so the fold must be total: distinct names get distinct, stable handles.
 //
-// SAFE FOR THE SEAMS IT REACHES because the output alphabet is exactly `\p{L}\p{N}\p{M}` plus the `-` separator:
-// no `/`, `\`, `.`, quote, control or bidi-format character can survive the fold (they are not letters or
-// digits), so a handle can never traverse a path, break out of the `Content-Disposition` filename it is
-// never used in (that is `domain/export`'s own ASCII `slug()`), or occupy the reserved `__group__*`
-// namespace (`_` is not in the alphabet either).
+// WHERE A HANDLE ACTUALLY GOES, and why that is safe. Besides the `characters.handle` column it is a
+// FILENAME at five portability sites — `domain/{persona,preset,world-info}/verbs/export.ts`,
+// `domain/{databank,regex}/persistence/portability-write.ts` — and a descriptor PATH SEGMENT at
+// `entry/http/import-chat.ts`. Those filenames become zip entry paths and tRPC JSON fields; the one place a
+// filename reaches an HTTP header (`entry/http/export.ts`'s `Content-Disposition`) is fed by
+// `domain/export/substrate/download-slug.ts`'s ASCII-only `slug()`, never by this function.
+//
+// The safety argument is the OUTPUT ALPHABET — exactly `\p{L}\p{N}\p{M}` plus the `-` separator — and it
+// survives NFKD, which is the part that is easy to get wrong: NFKD EXPANDS compatibility characters, so a
+// fullwidth solidus `／` decomposes to a real `/` mid-fold. It is then stripped like everything else that is
+// not a letter, digit or mark, so no separator, quote, CR/LF, NUL or bidi-format character can reach the
+// output, a handle can never traverse a path, and `_` being outside the alphabet is what keeps it out of the
+// reserved `__group__*` namespace. Verified per-character against that list, not asserted.
 
 /** Runs of anything that is not a Unicode letter, digit or combining mark (post-fold) → a single hyphen
  *  separator. Marks are IN the alphabet because outside Latin they are letters' vowels (see below); a
@@ -35,11 +43,15 @@ const EDGE_HYPHENS = /^[-\p{M}]+|-+$/gu;
  *  meaning "anonymous", so it stays a bare constant). A non-empty name that folds to nothing gets this plus
  *  the disambiguator below. */
 const FALLBACK_HANDLE = "unnamed";
-/** Length ceiling for the folded part. Well under the wire `handle` cap (200, `@orb/contracts/character` —
- *  which kit sits below and cannot import), with room for the disambiguator: NFKD can EXPAND a name several
- *  times over (one Arabic ligature decomposes into a dozen letters), so an in-bounds name can otherwise fold
- *  to an out-of-bounds handle and be refused at the create boundary. */
-const MAX_FOLDED_LENGTH = 96;
+/** Ceiling for the folded part, counted in CODE POINTS. Why the unit matters: the cut has to land on a code
+ *  POINT boundary or a non-BMP letter is severed into half a surrogate pair and the handle comes out
+ *  ill-formed (`isWellFormed()` false) — a string that then breaks every byte-oriented consumer downstream.
+ *  The number is set against the wire `handle` cap (200 UTF-16 units, `@orb/contracts/character` — which kit
+ *  sits below and cannot import): 64 code points is at most 128 units, leaving room for the `-<tag>` suffix
+ *  with margin. The ceiling exists at all because NFKD can EXPAND a name several times over (one Arabic
+ *  ligature decomposes into a dozen letters), so an in-bounds NAME can otherwise fold to an out-of-bounds
+ *  handle and be refused at the create boundary. */
+const MAX_FOLDED_POINTS = 64;
 // FNV-1a's constants, driving an FNV-SHAPED multiplicative hash: the disambiguator is an identity tag, never
 // a security digest (nothing authenticates on it), so it only has to be pure, stable and cheap — kit is
 // isomorphic and has no hash primitive below it. A genuine collision is still caught loudly by the DB's
@@ -81,8 +93,11 @@ export function slugifyHandle(name: string): string {
     // An empty name has nothing to disambiguate; anything else (emoji, punctuation, symbols) does.
     return name.length === 0 ? FALLBACK_HANDLE : `${FALLBACK_HANDLE}-${nameTag(name)}`;
   }
-  if (folded.length > MAX_FOLDED_LENGTH) {
-    return `${folded.slice(0, MAX_FOLDED_LENGTH).replace(EDGE_HYPHENS, "")}-${nameTag(name)}`;
+  // Cut on CODE POINTS, never UTF-16 units: `"あ".length` is 1 but `"\u{13000}".length` is 2, so a unit slice
+  // through a non-BMP letter leaves half a surrogate pair behind (#1525).
+  const points = [...folded];
+  if (points.length > MAX_FOLDED_POINTS) {
+    return `${points.slice(0, MAX_FOLDED_POINTS).join("").replace(EDGE_HYPHENS, "")}-${nameTag(name)}`;
   }
   return folded;
 }

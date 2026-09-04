@@ -107,7 +107,18 @@ function isValidUtf8(bytes: Uint8Array): boolean {
   }
 }
 
-/** The `image/*` arm — sniff the bytes and require they equal the claim, with the one animated-PNG edge. */
+/** The `image/*` arm — sniff the bytes and require they equal the claim, with the one animated-PNG edge.
+ *
+ *  AVIF IS REFUSED HERE ON PURPOSE, and the asymmetry with `infra/network/image-guard` is the policy, not an
+ *  oversight (#1527). `@orb/kit/image-sniff` KNOWS AVIF — `sniffImageBytes` parses its `ispe` extents
+ *  structurally for the remote-fetch guard — but `sniffMime`'s union deliberately stops at PNG/JPEG/GIF/WebP,
+ *  so a claimed `image/avif` upload fails the "no known image signature" arm above. The two belts answer
+ *  different questions: this one is an ALLOW-LIST over bytes a user hands the CAS, where the accepted set is
+ *  what the app is prepared to store, serve and re-encode through the variant pipeline; the image guard is a
+ *  CAP over bytes the app fetched itself from a URL it did not choose, where AVIF is simply a fact of the web
+ *  and the only question is "is this a decompression bomb". Widening the upload set is a product decision with
+ *  four coupled sites (this arm, `SniffedMime`'s union, `domain/plugin`'s bundle-asset set, `entry/http/blob`),
+ *  so it belongs in a row of its own — never as a side effect of teaching the sniff a new signature. */
 function assertImageMagic(bytes: Uint8Array, base: string, claimedMime: string): void {
   const sniffed = sniffMime(bytes);
   if (sniffed === OCTET_STREAM) {

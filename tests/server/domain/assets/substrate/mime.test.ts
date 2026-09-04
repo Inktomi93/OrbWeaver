@@ -24,6 +24,24 @@ describe("assertMagicMatches — image family", () => {
     expect(() => assertMagicMatches(GIF89, "image/gif")).not.toThrow();
   });
 
+  test("#1527 a real AVIF upload is REFUSED — the upload allow-list is narrower than the remote-fetch cap", () => {
+    // The asymmetry is policy, pinned so it cannot drift into an accident either way: `@orb/kit/image-sniff`
+    // parses AVIF structurally for `infra/network/image-guard` (bytes the app FETCHED — the question there is
+    // "decompression bomb?"), while `sniffMime`'s union stops at PNG/JPEG/GIF/WebP, so an AVIF a user HANDS
+    // the CAS fails the "no known image signature" arm. These bytes are the encoder-produced 3×2 AVIF from
+    // `tests/kit/image-sniff` (sharp 0.35.3 / libheif), not a hand-built header — a synthetic one could pass
+    // this test while a real file failed it.
+    const avif = Uint8Array.from(
+      Buffer.from(
+        "AAAAHGZ0eXBhdmlmAAAAAG1pZjFhdmlmbWlhZgAAANZtZXRhAAAAAAAAACFoZGxyAAAAAAAAAABwaWN0AAAAAAAAAAAAAAAAAAAAACJpbG9jAAAAAERAAAEAAQAAAAAA+gABAAAAAAAAAB8AAAAjaWluZgAAAAAAAQAAABVpbmZlAgAAAAABAABhdjAxAAAAAA5waXRtAAAAAAABAAAAVmlwcnAAAAA4aXBjbwAAAAxhdjFDgSACAAAAABRpc3BlAAAAAAAAAAMAAAACAAAAEHBpeGkAAAAAAwgICAAAABZpcG1hAAAAAAAAAAEAAQOBAgMAAAAnbWRhdBIACgg4BCtICGg0gDIRHYJixO4444FlYACQNY48fsQ=",
+        "base64",
+      ),
+    );
+    expect(() => assertMagicMatches(avif, "image/avif")).toThrow("no known image signature");
+    // …and it is not smuggled in under a claim the sniff DOES know either.
+    expect(() => assertMagicMatches(avif, "image/png")).toThrow("no known image signature");
+  });
+
   test("image/apng over PNG-signature bytes is accepted (the animated-background edge)", () => {
     expect(() => assertMagicMatches(PNG, "image/apng")).not.toThrow();
     // the charset-parametered browser form too
