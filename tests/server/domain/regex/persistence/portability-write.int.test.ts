@@ -389,3 +389,71 @@ describe("the single-script export door", () => {
     expect(await importOne({ ownerId: target, bytes: (file as NonNullable<typeof file>).bytes })).toEqual({ created: false });
   });
 });
+
+// #1414 seam 4: the ATTACHMENT TARGET. These factories are wired at compose and consumed by import, so their
+// SIGNATURE is the whole promise the next wiring inherits — "every current caller passes an owned id" is a
+// comment, not a placement (AGENTS §2.3). The script side was already owner-gated by `loadOwnedScriptsByIds`
+// / `listOwnedScripts`; the character and preset sides now run the domain's own `persistence/ownership` gates,
+// the same ones the hand-attach verbs have always used.
+describe("#1414 — the attachment TARGET is owner-gated, not just the scripts", () => {
+  test("SECURITY: the card LIFT refuses a FOREIGN character — no library rows, no junction rows", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+    const theirCharacter = await seedCharacter(db, stranger, "theirs");
+
+    await expect(
+      createImportCardScripts(ctxOf(db, "fc"))({ ownerId: owner, characterId: theirCharacter, scripts: [cardScript("st-1", "x", "a")], carried: [] }),
+    ).rejects.toThrow();
+
+    // The whole lift is refused BEFORE the batch: no script row minted under the caller, no junction written.
+    expect(await db.select().from(regexScripts)).toEqual([]);
+    expect(await db.select().from(characterRegexScripts)).toEqual([]);
+  });
+
+  test("SECURITY: the PRESET lift refuses a foreign preset AND the shared system preset (null owner)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+    const theirPreset = await seedPreset(db, stranger, "theirs");
+    // A null-owner preset is the SHARED system default: it matches no caller, so it is un-attachable — which
+    // is correct, it is read-only by construction.
+    const systemPreset = await seedPreset(db, null, "system");
+
+    await expect(
+      createImportPresetScripts(ctxOf(db, "fp"))({ ownerId: owner, presetId: theirPreset, scripts: [cardScript("st-1", "x", "a")] }),
+    ).rejects.toThrow();
+    await expect(
+      createImportPresetScripts(ctxOf(db, "sp"))({ ownerId: owner, presetId: systemPreset, scripts: [cardScript("st-2", "y", "b")] }),
+    ).rejects.toThrow();
+
+    expect(await db.select().from(presetRegexScripts)).toEqual([]);
+    expect(await db.select().from(regexScripts)).toEqual([]);
+  });
+
+  test("SECURITY: the card RE-EMBED reads only the CALLER'S OWN card — a foreign id is an empty export", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+    const theirCharacter = await seedCharacter(db, stranger, "theirs");
+    // The SCRIPT is the caller's own, so the pre-existing `regexScripts.ownerId` filter cannot be what
+    // refuses this — only the character-side predicate can. The old read answered
+    // "which of MY scripts hang off THAT card", for any card id in the box.
+    const mine = await seedScript(db, { ownerId: owner, id: "regex_script_mine", name: "mine" });
+    await db.insert(characterRegexScripts).values({ characterId: theirCharacter, regexScriptId: mine, position: 0, createdAt: FROZEN });
+
+    expect(await createExportCardScripts({ db })({ ownerId: owner, characterId: theirCharacter })).toEqual({ scripts: [], carried: [] });
+  });
+
+  test("the OWNER's own card still re-embeds (the predicate is a gate, not a removal)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const characterId = await seedCharacter(db, owner, "mine");
+    const mine = await seedScript(db, { ownerId: owner, id: "regex_script_mine", name: "mine" });
+    await db.insert(characterRegexScripts).values({ characterId, regexScriptId: mine, position: 0, createdAt: FROZEN });
+
+    const exported = await createExportCardScripts({ db })({ ownerId: owner, characterId });
+    expect(exported.carried).toEqual([mine]);
+    expect(exported.scripts.map((s) => s.name)).toEqual(["mine"]);
+  });
+});

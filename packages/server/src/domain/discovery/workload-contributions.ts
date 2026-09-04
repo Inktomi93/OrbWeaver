@@ -145,6 +145,13 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
           report({ message: "computing keyword cooccurrence" });
           const stats = await deps.discovery.computeCooccurrence({
             signal,
+            // THE OWNER BELT (#1397), forwarded exactly as compute-themes/find-duplicates/csls do. An ABSENT
+            // owner is `computeCooccurrence`'s documented ALL-OWNERS mode: it drops the host predicate from
+            // `readOwnedDigestKeywords` and then DELETE-and-REINSERTs `keyword_cooccurrence` +
+            // `character_keyword_profiles` per owner found. Omitting it here made a per-user SCOPED run read
+            // every tenant's digests and destructively recompute every tenant's derived rows. A BULK row
+            // (`ctx.ownerId === null`) still reaches that mode — on purpose, which is the only way it should.
+            ownerId: ctx.ownerId,
             ...(workloads.maxPairs !== undefined ? { maxPairs: workloads.maxPairs } : {}),
             ...(workloads.hubFraction !== undefined ? { hubFraction: workloads.hubFraction } : {}),
           });

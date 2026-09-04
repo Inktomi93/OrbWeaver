@@ -623,6 +623,41 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
     expect(row?.anchorPersonaId).toBe(fallback);
   });
+
+  // ── #1447: the EXPLICIT anchor is a wire parameter, so it is OWNERSHIP-CHECKED ────────────────────
+  // The three fallback arms are internally scoped to `hostUserId`; the explicit arm returned its input
+  // untouched, so any caller could pin a FOREIGN persona as the new room's `{{user}}` — writing a
+  // cross-tenant reference into both `chats.anchorPersonaId` and the host seat's `activePersonaId`. The
+  // sibling `setChatAnchorPersona` has always run `verifyPersonaOwned`; the two paths disagreed.
+  test("SECURITY: a FOREIGN persona as the explicit anchor is refused and NO room is created", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
+    const aria = await seedCharacter(db, host, "aria");
+    const theirs = await seedPersona(stranger, "persona_theirs");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "hi")) });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    await expect(startChat({ principal: principal(host), characterIds: [aria], anchorPersonaId: theirs })).rejects.toMatchObject({
+      code: "not_persona_owner",
+    });
+
+    // The check runs BEFORE the roster/insert batch: nothing committed, not even a husk.
+    expect(await db.select().from(chats)).toEqual([]);
+    expect(await db.select().from(chatParticipants)).toEqual([]);
+  });
+
+  test("SECURITY: a DANGLING persona id is refused IDENTICALLY (no existence oracle) and creates no room", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "hi")) });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    await expect(
+      startChat({ principal: principal(host), characterIds: [aria], anchorPersonaId: castId<PersonaId>("persona_nonexistent") }),
+    ).rejects.toMatchObject({ code: "not_persona_owner" });
+
+    expect(await db.select().from(chats)).toEqual([]);
+  });
 });
 
 // R2 retired the creation-time draft carry (seedGreetings/rosterOverrides/groupConfig/roomOverrides —

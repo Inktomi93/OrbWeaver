@@ -130,15 +130,18 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   // The on-demand arm: this pass is ONE named card the caller is waiting on, so a failure is theirs to see.
   const onDemand = opts.characterId !== undefined;
   signal?.throwIfAborted();
-  const targets = await readCardDistillTargets(db, {
-    ...(opts.characterId !== undefined ? { characterId: opts.characterId } : {}),
-    ...(opts.ownerId !== undefined ? { ownerId: opts.ownerId } : {}),
-  });
+  // `opts` IS the narrow (#1414 seam 1): `DistillCharactersOptions` intersects `DistillTargetNarrow`, so the
+  // `characterId`↔`ownerId` pairing is already carried by the type and the old key-by-key rebuild — which
+  // could drop the owner while keeping the id — has nothing left to get wrong.
+  const targets = await readCardDistillTargets(db, opts);
   // The on-demand narrow resolved NO ROW — foreign / deleted / synthetic. Collapses to NOT_FOUND so a
   // stranger's rejection is indistinguishable from a miss (the cross-tenant sweep enforces exactly this): any
   // verdict about the CARD's content would confirm the card exists, so this belt runs before all of them.
   if (onDemand && targets.length === 0) {
-    throw new DomainNotFoundError("character", opts.characterId ?? "");
+    // No `?? ""` fallback: the two-arm narrow (#1414 seam 1) makes `onDemand` a real discriminant, so tsc
+    // knows the id is present here. The old fallback was reachable-looking dead code that would have named
+    // the empty string in the error.
+    throw new DomainNotFoundError("character", opts.characterId);
   }
   // THE CONTENT FLOOR (owner ruling 2026-08-03). A card with nothing but a name is not distillable: the
   // payload schema REQUIRES genre/tone/setting/pitch/overview/3-8 tags, so the model would invent every facet

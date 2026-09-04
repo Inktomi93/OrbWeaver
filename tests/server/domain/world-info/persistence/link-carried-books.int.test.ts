@@ -100,6 +100,37 @@ describe("createLinkCarriedBooks", () => {
     expect(await junctionsFor(db, character)).toEqual([]);
   });
 
+  // #1414 seam 3: the TARGET side. The source gate above proves a foreign BOOK never links; this proves a
+  // foreign CHARACTER is never linked ONTO. Every live caller mints the target under the same principal a
+  // few lines earlier — the point is that the op's own signature no longer depends on that.
+  test("LEAK GUARD: a target character owned by ANOTHER user is never linked onto (every ref skipped)", async () => {
+    const db = await freshDb();
+    const importer = (await seedUser(db, { id: castId<UserId>("user_importer"), handle: castId("importer") })).id;
+    const stranger = (await seedUser(db, { id: castId<UserId>("user_stranger"), handle: castId("stranger") })).id;
+    const theirCharacter = (await seedCharacter(db, { ownerId: stranger })).id;
+    // The BOOK is the importer's own, so only the target gate can refuse this.
+    const myBook = await seedBook(db, "world_book_mine", importer);
+
+    const result = await link(db)({ ownerId: importer, characterId: theirCharacter, refs: [{ worldBookId: myBook, role: "primary" }] });
+
+    expect(result).toEqual({ linked: 0, skipped: 1 });
+    expect(await junctionsFor(db, theirCharacter)).toEqual([]);
+  });
+
+  test("a target character that does not exist links nothing (same silence as a foreign one)", async () => {
+    const db = await freshDb();
+    const owner = (await seedUser(db, {})).id;
+    const book = await seedBook(db, "world_book_orphan", owner);
+
+    const result = await link(db)({
+      ownerId: owner,
+      characterId: castId<CharacterId>("character_nope"),
+      refs: [{ worldBookId: book, role: "primary" }],
+    });
+
+    expect(result).toEqual({ linked: 0, skipped: 1 });
+  });
+
   test("is PK-collision-safe: a re-link onto an already-linked character is idempotent", async () => {
     const db = await freshDb();
     const owner = (await seedUser(db, {})).id;

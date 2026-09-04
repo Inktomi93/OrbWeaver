@@ -5,14 +5,31 @@
 // the import/character domains never write character_books themselves (world-info owns that junction, D28),
 // so import consumes this as an INJECTED op wired at the compose root.
 //
-// THE OWNED-SOURCE GATE (security-load-bearing): a carried id is a plain string from an untrusted card — it
-// links ONLY when a world_book with that id EXISTS and is OWNED by the importing user. An absent or
-// cross-tenant id is skipped (and counted), never linked — this is what stops a crafted card from attaching
-// another tenant's book to the importer's character. Books are NEVER cloned — references only.
+// TWO GATES, BOTH SECURITY-LOAD-BEARING — the SOURCE side and the TARGET side (#1414 seam 3):
+//   • SOURCE: a carried id is a plain string from an untrusted card — it links ONLY when a world_book with
+//     that id EXISTS and is OWNED by the importing user. An absent or cross-tenant id is skipped (and
+//     counted), never linked — this is what stops a crafted card from attaching another tenant's book to the
+//     importer's character. Books are NEVER cloned — references only.
+//   • TARGET: `characterId` is likewise verified as the importer's own before any junction row is written.
+//     Its only live caller mints that character under the same principal a few lines earlier, so this was
+//     never exploitable — but "safe because of who calls it" is a comment, not a placement (AGENTS §2.3),
+//     and an injected op's signature is the whole promise the NEXT wiring inherits.
 
-import { characterBooks, worldBooks } from "@orb/db";
+import type { Db } from "@orb/db";
+import { characterBooks, characters, worldBooks } from "@orb/db";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import type { LinkCarriedBooks, WorldInfoDuplicateCarryContext } from "../contract/import.ts";
+
+const LIMIT_ONE = 1;
+
+/** Is the TARGET character the importer's own? (#1414 seam 3.) The op is a DOMAIN BOUNDARY: its signature is
+ *  the only promise the next call site inherits, and the source side alone being gated says nothing about
+ *  where the junction lands. Its twin `duplicate-carry` already re-checks its own target for this reason. */
+async function targetOwned(db: Db, ownerId: UserId, characterId: CharacterId): Promise<boolean> {
+  const rows = await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, characterId)).limit(LIMIT_ONE);
+  return rows[0]?.ownerId === ownerId;
+}
 
 export function createLinkCarriedBooks(ctx: WorldInfoDuplicateCarryContext): LinkCarriedBooks {
   return async ({ ownerId, characterId, refs }) => {
@@ -20,6 +37,11 @@ export function createLinkCarriedBooks(ctx: WorldInfoDuplicateCarryContext): Lin
       return { linked: 0, skipped: 0 };
     }
     const { db } = ctx;
+    // A foreign/absent target links NOTHING and reports every ref skipped — the same best-effort silence the
+    // owned-source gate below already gives a foreign BOOK (this op answers a caller, it is not a door).
+    if (!(await targetOwned(db, ownerId, characterId))) {
+      return { linked: 0, skipped: refs.length };
+    }
     // The owned-source gate: resolve which of the carried ids are books this user actually owns.
     const owned = await db
       .select({ id: worldBooks.id })

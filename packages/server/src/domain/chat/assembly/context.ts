@@ -841,10 +841,15 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   const prose = composeProse({ user: await ctx.resolveChatProse(input.chatId), preset: input.promptConfig.prose });
 
   // ── GATHER — the 4-scope WI pool (memory/recall/vars are engine-supplied inputs). ──
+  // The cast ids handed to the pool are the OWNER-VERIFIED ones (#1396) — `present`, not `input.characterIds`.
+  // Every id above was already resolved through the owner-scoped `getCard`, and the ones that came back empty
+  // are exactly the cards this turn refuses to speak for; feeding the raw list let a card the ownership read
+  // REFUSED still contribute its character-scope lore. The pool's own per-arm owner predicates are the second
+  // belt (`world-info/pool.ts` FLAG[attachment-scope]) — this one decides WHICH IDS, that one WHOSE BOOK.
   const pool = await loadWorldInfoPool(ctx.db, {
     chatId: input.chatId,
     ownerId: input.ownerId,
-    characterIds: input.characterIds,
+    characterIds: present.map((p) => p.characterId),
     personaIds: input.personaIds,
   });
 

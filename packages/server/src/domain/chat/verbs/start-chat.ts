@@ -42,7 +42,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext, ChatServiceDeps } from "../context.ts";
 import type { ChatRpgGameBirthPlan } from "../contract/context.ts";
-import { ChatNotFoundError } from "../contract/errors.ts";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { StartChatParams } from "../contract/params.ts";
 import type { StartChatResult, TurnOutcome } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
@@ -118,15 +118,28 @@ async function loadGreetings(
 }
 
 /** One home for the persona precedence chain; keeping each async fallback sequential avoids reads whose
- * result cannot be used once an earlier source resolves. */
+ * result cannot be used once an earlier source resolves.
+ *
+ * THE EXPLICIT ARM IS THE ONLY UNTRUSTED ONE (#1447). The three fallbacks are internally scoped to
+ * `hostUserId` and can only ever return the starter's own persona; `anchorPersonaId` arrives straight off the
+ * wire (`transport/trpc/routers/chat.ts`'s `startChatSchema`) and used to be returned untouched — pinning a
+ * FOREIGN persona as the room's `{{user}}` in both `chats.anchorPersonaId` and the host seat's
+ * `activePersonaId`. The founding room has exactly one present human, the host, so the sibling
+ * `setChatAnchorPersona`'s "owned by a present, enabled human participant" rule reduces here to the host.
+ * A foreign id and a dangling id both answer `false`, so the refusal carries no existence oracle. */
 async function resolveFoundingAnchor(
   ctx: ChatContext,
   hostUserId: UserId,
   characterIds: readonly CharacterId[],
   anchorPersonaId: StartChatParams["anchorPersonaId"],
 ): Promise<PersonaId | null> {
+  if (anchorPersonaId !== null && anchorPersonaId !== undefined) {
+    if (!(await ctx.verifyPersonaOwned({ ownerId: hostUserId, personaId: anchorPersonaId }))) {
+      throw new ChatOperationError(CHAT_OP_CODES.notPersonaOwner, "the founding anchor persona must be owned by the caller");
+    }
+    return anchorPersonaId;
+  }
   return (
-    anchorPersonaId ??
     (await ctx.resolveConnectedPersona(hostUserId, characterIds)) ??
     (await ctx.resolveCurrentPersona(hostUserId)) ??
     (await ctx.resolveDefaultPersona(hostUserId))

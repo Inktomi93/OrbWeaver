@@ -12,11 +12,16 @@
 // is play, and re-deriving state from play is `resyncFromStory` — a different verb with a different window.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import type { chatParticipants } from "@orb/db";
+import type { CharacterId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import type { ResolveRpgCardCorpus } from "../contract/context.ts";
+import { classifyParticipant } from "../persistence/participant.ts";
 import { loadCanonHistory } from "../persistence/queries.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
+
+type ChatParticipantRow = typeof chatParticipants.$inferSelect;
 
 /** The card sections the round reads, in the order a human reads a card. A section with no prose is OMITTED
  *  (a thin card yields a short corpus, never a scaffold of empty headings that teaches the model to invent). */
@@ -25,6 +30,15 @@ const CARD_SECTIONS: readonly { readonly label: string; readonly of: (card: Char
   { label: "PERSONALITY", of: (card) => card.personality },
   { label: "SCENARIO", of: (card) => card.scenario },
 ];
+
+/** Does `characterId` hold a PRESENT character seat in this roster? `loadRoster` already filters departed
+ *  seats (`leftSeq IS NULL`), so a character that left the room is not seated. */
+function isSeatedCharacter(roster: readonly ChatParticipantRow[], characterId: CharacterId): boolean {
+  return roster.some((row) => {
+    const actor = classifyParticipant(row);
+    return actor?.kind === "character" && actor.characterId === characterId;
+  });
+}
 
 /** Render the card's authored prose as labeled blocks. */
 function renderCard(card: CharacterCard): string {
@@ -44,6 +58,14 @@ export function createResolveRpgCardCorpus(ctx: ChatContext): ResolveRpgCardCorp
     const roster = await loadRoster(ctx.db, chatId);
     const hostUserId = hostUserIdOf(roster);
     if (hostUserId === null) {
+      return null;
+    }
+    // THE SEAT IS THE SCOPE (#1448). `characterId` reaches here from `params.actorRef.characterId` — a wire
+    // parameter on `rpg.populateFromCharacter`, validated only for `kind === "character"`. Owner-scoping the
+    // CARD read alone let a host name any card in their library and pull its prose into THIS room's corpus
+    // (and mint an `rpg_sheets` row against a character with no seat). D18: membership is the scope of a
+    // room-scoped read, so the room's own present roster decides, exactly as this file's header always said.
+    if (!isSeatedCharacter(roster, characterId)) {
       return null;
     }
     const card = await ctx.getCard({ ownerId: hostUserId, characterId });
