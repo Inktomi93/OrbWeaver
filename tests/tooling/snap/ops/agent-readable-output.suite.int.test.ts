@@ -4,7 +4,7 @@
 // token among ~40 on the RESULT line, and ten run slots that could not be mapped back to the ten commands
 // that made them. They assert through STDOUT — the surface the reader actually has — never through a
 // printer's internals.
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { vi } from "vitest";
@@ -17,8 +17,11 @@ vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 const QUIET = ["--no-shot", "--no-deadcss", "--no-failure-evidence"];
 
 /** The stdout budget a single-action run must stay inside. The Bash tool truncates long output, and a
- *  truncated snap run loses its END CARD — the one block that carries the verdict and the findings. */
-const STDOUT_BUDGET_BYTES = 8192;
+ *  truncated snap run loses its END CARD — the one block that carries the verdict and the findings.
+ *  4 KB, not 8 (#1369): at 8 KB the four annotation rows of a real /chats run were 42% of the file,
+ *  because each printed the run's absolute index path TWICE. The rows are unchanged; their citations
+ *  are now the run id the reader can hand straight back to `--report`. */
+const STDOUT_BUDGET_BYTES = 4096;
 /** Where the answer to a one-action run has to be. Line 61 (measured, /chats `--eval`) is a scroll. */
 const ANSWER_LINE_CEILING = 12;
 
@@ -50,13 +53,48 @@ test("an eval-only run answers inside one screen and points at its console inste
   expect(answer, `the --eval value was at line ${String(answer + 1)}:\n${run.stdout}`).toBeGreaterThan(-1);
   expect(answer).toBeLessThan(ANSWER_LINE_CEILING);
   // ONE console line that names the artifact and the exact reader, never the block.
-  expect(run.stdout).toMatch(/^console {6}errors=0 warnings=\d+ messages=\d+ → \S+run\.json; read: pnpm snap --report \S+ --all --channel console$/mu);
+  expect(run.stdout).toMatch(
+    /^console {6}errors=0 warnings=\d+ messages=\d+ → browser-diagnostics\/ in run \S+; read: pnpm snap --report \S+ --all --channel console$/mu,
+  );
   expect(run.stdout).not.toContain("--- console ---");
   expect(run.stdout).not.toContain("ordinary chatter nobody asked for");
   // The derived arm line, before the RESULT line's forty tokens.
   expect(run.stdout).toContain("SUMMARY eval values=1 errors=0");
   // The retention promise rides beside the evidence path it qualifies.
   expect(run.stdout).toMatch(/^RETAINED {3}this run slot is kept for at least 24h/mu);
+});
+
+test("a FINDING row cites the run by id, not by twice the absolute index path", async ({ runCli, scratch }) => {
+  const file = join(scratch, "agent-readable-citation.html");
+  await writeFile(file, FIXTURE);
+
+  const run = await runCli("snap", ["--file", file, "--eval", "1", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  const runId = /^RUN {8}(\S+) /mu.exec(run.stdout)?.[1];
+  expect(runId, run.stdout).toBeTypeOf("string");
+
+  const findings = run.stdout.split("\n").filter((line) => line.startsWith("FINDING"));
+  expect(findings, run.stdout).not.toHaveLength(0);
+  for (const row of findings) {
+    // The citation is the id `--report` already resolves, and the artifact is named relative to the slot
+    // the RUN line above just printed.
+    expect(row).toContain(`next=pnpm snap --report ${String(runId)} --problems`);
+    expect(row, "no absolute run.json on a printed row").not.toContain("/run.json");
+    expect(row).toMatch(/evidence=\S+@(?!\/)/u);
+  }
+
+  // …and the id round-trips through the reader, whose own rows carry the same short form.
+  const reader = await runCli("snap", ["--report", String(runId), "--problems"], { timeoutMs: CLI_TIMEOUT_MS });
+  await expect(reader).toExitWith(EXIT.clean);
+  for (const row of reader.stdout.split("\n").filter((line) => line.startsWith("FINDING"))) {
+    expect(row).toContain(`next=pnpm snap --report ${String(runId)} --problems`);
+  }
+  // The PERSISTED shape is untouched — run.json keeps the absolute path its own validator requires.
+  const index = JSON.parse(await readFile(/^INDEX {8}(\S+)$/mu.exec(reader.stdout)?.[1] ?? "", "utf8")) as {
+    readonly findings?: readonly { readonly next: string }[];
+  };
+  for (const finding of index.findings ?? []) {
+    expect(finding.next).toMatch(/^pnpm snap --report \/\S+\/run\.json --problems/u);
+  }
 });
 
 test("the console channel the digest line advertises is the one the reader accepts", async ({ runCli, scratch }) => {
