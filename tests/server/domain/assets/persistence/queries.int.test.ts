@@ -14,7 +14,7 @@ import { describe, onTestFinished } from "vitest";
 import { assetIdForHash, metadataForOwnedHash, storeBlob } from "../../../../../packages/server/src/domain/assets/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { pngBytes, seedUser } from "../_support.ts";
+import { pngBytes, pngBytesWithDims, seedUser } from "../_support.ts";
 
 const PNG = "image/png";
 const NOW = 1_750_000_000_000;
@@ -48,6 +48,54 @@ describe("storeBlob", () => {
     const rows = await db.select().from(assets).where(eq(assets.id, stored.assetId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.uploadedAt).toBe(NOW);
+  });
+
+  // #1529 — the CHECK `assets_measurements_check` (#1378 item 1) says a STORED dimension is positive, and
+  // it is right. What was wrong was the value reaching it: `sniffImageBytes` returned a header-declared 0
+  // verbatim for PNG/GIF/WebP/JPEG (only the AVIF arm had a `MIN_DIMENSION` floor), `storeAsset` wrote
+  // `sniffed?.width ?? null`, and libSQL rejected the INSERT — so a 0-extent upload failed outright rather
+  // than storing as dimensions-unknown. The floor moved to the sniffer; these pin the seam end to end.
+  test("a 0x0 header STORES as dimensions-unknown — it never reaches the positive-dimension CHECK", async () => {
+    const db = await freshDb();
+    const cas = await freshCas();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+    const stored = await storeBlob(db, cas, {
+      ownerId: owner,
+      bytes: pngBytesWithDims(0, 0, 9),
+      kind: "avatar",
+      mime: PNG,
+      candidateId: castId<AssetId>("asset_zero"),
+      now: NOW,
+      enforceMagic: false,
+    });
+
+    const rows = await db.select().from(assets).where(eq(assets.id, stored.assetId));
+    expect(rows).toHaveLength(1);
+    // NULL, not 0: "the header declared something impossible" is the same fact as "unreadable header",
+    // and the renderer's `auto 16 / 9` fallback already covers it.
+    expect(rows[0]?.width).toBeNull();
+    expect(rows[0]?.height).toBeNull();
+  });
+
+  test("a REAL dimension still stores as itself (the floor is not a blanket null)", async () => {
+    const db = await freshDb();
+    const cas = await freshCas();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+    const stored = await storeBlob(db, cas, {
+      ownerId: owner,
+      bytes: pngBytesWithDims(100, 50, 7),
+      kind: "avatar",
+      mime: PNG,
+      candidateId: castId<AssetId>("asset_sized"),
+      now: NOW,
+      enforceMagic: false,
+    });
+
+    const rows = await db.select().from(assets).where(eq(assets.id, stored.assetId));
+    expect(rows[0]?.width).toBe(100);
+    expect(rows[0]?.height).toBe(50);
   });
 
   test("dedups within an owner: second store of the same bytes is one row, created:false", async () => {

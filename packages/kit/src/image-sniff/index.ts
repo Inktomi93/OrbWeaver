@@ -349,7 +349,9 @@ const BOX_BUDGET = 256;
 const ISPE_BODY_LEN = 12;
 /** The one `ispe` version this parser reads; a future version may re-lay the fields, so it is a refusal. */
 const ISPE_VERSION = 0;
-/** A declared extent below this is not an image (0 would also pass every pixel cap for free). */
+/** A declared extent below this is not an image (0 would also pass every pixel cap for free). MODULE-WIDE
+ *  since #1529 — {@link withDimensionFloor} applies it to every format arm, not just the `ispe` read that
+ *  first needed it; it lives here because this is where it was first spelled. */
 const MIN_DIMENSION = 1;
 
 /** A child box's payload span — `[start, end)` of the bytes INSIDE its header. */
@@ -439,23 +441,60 @@ function isAvif(bytes: Uint8Array): boolean {
   return false;
 }
 
+/** A parsed extent pair with the POSITIVITY floor applied: either dimension below {@link MIN_DIMENSION}
+ *  collapses the PAIR to unknown.
+ *
+ *  #1529 — the floor was applied in exactly ONE of the five format arms. `avifDimensions` refused a
+ *  zero-extent `ispe` (see {@link MIN_DIMENSION}: "a declared extent below this is not an image"), while
+ *  PNG/JPEG/GIF/WebP returned whatever their header math produced — so a COMPLETE, well-formed header
+ *  DECLARING `0` sniffed to `{width: 0, height: 0}`. That is a measurement no image can have, and it
+ *  travelled: `assets.storeAsset` writes `sniffed?.width ?? null` verbatim, where the `> 0` column CHECK
+ *  rejected the whole INSERT and failed the upload outright. Reachable by any upload or fetched image.
+ *
+ *  APPLIED AT THE DISPATCH, not in four parsers: the format arms do header MATH and this is the one
+ *  semantic rule about what a dimension may be, so it belongs where every arm passes through — one home,
+ *  and a sixth format inherits it for free.
+ *
+ *  BOTH-OR-NEITHER, deliberately: a `100 × 0` image is no more measurable than a `0 × 0` one, and every
+ *  consumer already branches on `width === null || height === null` as a pair (`isAllowedImageBuffer`'s
+ *  dimensions-unknown arm, `imageBelowFloor`, the renderer's reservation). Returning one real number and
+ *  one null would invent a third state all three would have to learn.
+ *
+ *  THE CONSEQUENCES, stated because they are behaviour changes at two seams and both are the right way:
+ *   • `infra/network/image-guard`'s `isAllowedImageBuffer` now REJECTS a 0-extent remote image as
+ *     `dimensions-unknown` (its `requireDimensions` default is true), where before the 0s passed every cap
+ *     comparison. More fail-closed at a network boundary, which is that guard's stated posture.
+ *   • `domain/embeddings`'s `imageBelowFloor` no longer classifies a 0-extent image as below-floor (its
+ *     documented rule is that unknown dimensions are NOT below-floor), so such an asset proceeds to embed
+ *     exactly as a truncated header already does. That ruling is preserved as written, not reversed. */
+function withDimensionFloor(dimensions: Dimensions): Dimensions {
+  const { width, height } = dimensions;
+  if (width === null || height === null || width < MIN_DIMENSION || height < MIN_DIMENSION) {
+    return NO_DIMENSIONS;
+  }
+  return dimensions;
+}
+
 /** The full byte-facts of an image buffer — `{mime, ext, width, height, animated}` — or `null` when no
  *  known signature matches (PNG/JPEG/GIF/WebP/AVIF). Pure: never throws, never decodes, never reads past the
- *  bounded header window. The remote `Content-Type` is NEVER consulted — these bytes are the truth. */
+ *  bounded header window. The remote `Content-Type` is NEVER consulted — these bytes are the truth.
+ *
+ *  Every arm's extents pass {@link withDimensionFloor}: a declared dimension below 1 is not a small image,
+ *  it is a header saying something impossible, and that is the same fact as an unreadable header. */
 export function sniffImageBytes(bytes: Uint8Array): SniffedImage | null {
   const animated = isAnimated(bytes);
   switch (sniffMime(bytes)) {
     case PNG_MIME:
-      return { mime: PNG_MIME, ext: "png", ...pngDimensions(bytes), animated };
+      return { mime: PNG_MIME, ext: "png", ...withDimensionFloor(pngDimensions(bytes)), animated };
     case JPEG_MIME:
-      return { mime: JPEG_MIME, ext: "jpg", ...jpegDimensions(bytes), animated };
+      return { mime: JPEG_MIME, ext: "jpg", ...withDimensionFloor(jpegDimensions(bytes)), animated };
     case GIF_MIME:
-      return { mime: GIF_MIME, ext: "gif", ...gifDimensions(bytes), animated };
+      return { mime: GIF_MIME, ext: "gif", ...withDimensionFloor(gifDimensions(bytes)), animated };
     case WEBP_MIME:
-      return { mime: WEBP_MIME, ext: "webp", ...webpDimensions(bytes), animated };
+      return { mime: WEBP_MIME, ext: "webp", ...withDimensionFloor(webpDimensions(bytes)), animated };
     case OCTET_STREAM:
       if (isAvif(bytes)) {
-        return { mime: AVIF_MIME, ext: "avif", ...avifDimensions(bytes), animated };
+        return { mime: AVIF_MIME, ext: "avif", ...withDimensionFloor(avifDimensions(bytes)), animated };
       }
       return null;
   }

@@ -179,6 +179,48 @@ describe("sniffImageBytes", () => {
     expect(sniffImageBytes(new TextEncoder().encode("plain text"))).toBeNull();
     expect(sniffImageBytes(new Uint8Array([]))).toBeNull();
   });
+
+  // ── A ZERO EXTENT IS NOT A DIMENSION (#1529) ──────────────────────────────────────────────────────
+  // The AVIF arm already refused a zero-extent `ispe` (`MIN_DIMENSION`, "a declared extent below this is
+  // not an image"); PNG/GIF/WebP/JPEG returned whatever their header said, so a well-formed header
+  // DECLARING 0 sniffed to `{width: 0, height: 0}` — a measurement no image can have. It reached
+  // `assets.width/height` verbatim through `storeAsset`, where `assets_measurements_check` (`> 0`)
+  // rejected the whole upload. The floor is the sniffer's, not the column's: the column is right that a
+  // stored dimension is positive, and "the header declared something impossible" is the same fact as
+  // "the header is unreadable" — which every consumer already handles as `null`.
+
+  test("a PNG whose IHDR declares 0x0 reads UNKNOWN, not zero", () => {
+    // A complete, well-formed IHDR — length 13, type IHDR, width 0, height 0. Nothing is truncated here;
+    // the header parses and says the image has no pixels.
+    const zeroPng = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ]);
+    expect(sniffImageBytes(zeroPng)).toEqual({ mime: "image/png", ext: "png", width: null, height: null, animated: false });
+  });
+
+  test("a GIF87a whose logical-screen descriptor is zeros reads UNKNOWN, not zero", () => {
+    const zeroGif = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x37, 0x61, 0x00, 0x00, 0x00, 0x00]);
+    // `animated: true` is NOT collateral from this floor — `isAnimated` returns true for EVERY GIF by
+    // design (its own JSDoc: a display hint, never an admission decision). The dimension axis is what
+    // moved; the animation axis is untouched and asserted here so the two stay legible as separate facts.
+    expect(sniffImageBytes(zeroGif)).toEqual({ mime: "image/gif", ext: "gif", width: null, height: null, animated: true });
+  });
+
+  test("ONE zero is enough — a half-zero extent is not half a measurement", () => {
+    const halfZeroPng = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00,
+    ]);
+    expect(sniffImageBytes(halfZeroPng)).toMatchObject({ width: null, height: null });
+  });
+
+  test("the floor does not touch a REAL measurement — 1x1 is a legal image", () => {
+    const onePng = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+    ]);
+    expect(sniffImageBytes(onePng)).toMatchObject({ width: 1, height: 1 });
+    // And the arm that already had the floor is unchanged.
+    expect(sniffImageBytes(avifFile([avifBox("ispe", ispeBody(1, 1))]))).toMatchObject({ width: 1, height: 1 });
+  });
 });
 
 // ── The AVIF dimension read feeds the decompression-bomb cap, so it is STRUCTURAL (#1357) ────────────────
