@@ -944,16 +944,16 @@
       "path": "docs/architecture/core/Core-Tooling-Law.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 404,
-      "bytes": 45171,
-      "sha256": "b10518e145053ff6f5bd6a7f38c1d02c6835b5fd830cc74630ae89638f69d93b",
+      "lines": 422,
+      "bytes": 47179,
+      "sha256": "27dad2bcda4be6ac6e7d4fa09341969488933fbfcad80a628f8d597139e250e6",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-02"
+          "updated": "2026-09-04"
         },
         "errors": []
       },
@@ -1004,7 +1004,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Documentation-Law.md",
@@ -4420,8 +4420,8 @@
       "lane": "architecture-history",
       "issue": 3,
       "lines": 676,
-      "bytes": 56621,
-      "sha256": "a67374831598e23feca556335a447d81c912d437575a768086c8ab70020e8c3a",
+      "bytes": 56633,
+      "sha256": "625f8d9409b5549c1a0bfa7178ed07d52dcbde1cfe0daa781437a8c3173300f5",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -4448,7 +4448,7 @@
         ],
         "summary": "Full-read D66 UI-cohesion program archive retained for provenance; current law and lifecycle route to core docs and Project 1."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/history/ui-gates-lessons-archaeology-record.md",
@@ -10918,8 +10918,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 144,
-      "bytes": 12825,
-      "sha256": "71c9d3f8659fbd8e49a69150d186b3bbcf0c46dcac5eb0981d728d3cc7609b0c",
+      "bytes": 12826,
+      "sha256": "25b5d8b179a07aa87c6b039df54facab2d49919e9c2127fc0f6f748664733e85",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10977,7 +10977,7 @@
           "born-reviewed by the primary orchestrator (author) 2026-09-02 at 33d7067f0: the two-account, 14-day transcript census of chrome-devtools MCP tool calls (176 calls, 719 jsonl files) mapped to snap arms; two gaps named (a Lighthouse arm, a request log) and the retirement step; owner-directed program (#1195)."
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/1208-heap-memory-arm.md",
@@ -11044,9 +11044,9 @@
       "path": "docs/design/1208-instrument-substrate.md",
       "lane": "design",
       "issue": 5,
-      "lines": 1424,
-      "bytes": 178059,
-      "sha256": "97d2c2b92c17b3a05a3bf196099039bd8cfcc7f100482639d2b5f23103b124ad",
+      "lines": 1491,
+      "bytes": 184467,
+      "sha256": "5ede9cac227e412b9e2c023167a91499ff6ab3b95f5b47770dcd5b53f25407d6",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11116,7 +11116,7 @@
         ],
         "summary": "Landed instrument substrate program (#1208): stateful Snap sessions, registered stage bands, shared browser/environment/artifact seams, a total five-tool CLI grammar, Lighthouse and request-log arms, load-aware watchdogs, one-browser matrix contexts, and the reconciled phase 0–4 control set."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/1208-request-result-truth-repair.md",
@@ -11402,16 +11402,16 @@
       "path": "docs/design/1310-snap-filmstrip.md",
       "lane": "design",
       "issue": 5,
-      "lines": 93,
-      "bytes": 8518,
-      "sha256": "77a3d55542d73d802c8a5777f7d5b2c33617a69b6fdbdb68ddbd81378b65291e",
+      "lines": 101,
+      "bytes": 9232,
+      "sha256": "9fce97e2c7d7a717e96a68621afbb4dbc12fa40f2271f7695b0af1bf31827195",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-03"
+          "updated": "2026-09-04"
         },
         "errors": []
       },
@@ -11453,7 +11453,7 @@
         ],
         "summary": "Snap filmstrip design: one bounded PNG contact-sheet arm over the existing run-arm lifecycle (new `afterSettle` seam), replacing Record's WebM/GIF path entirely."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/885-884-boundary-reservation-and-touch-floor.md",
@@ -11772,16 +11772,16 @@
       "path": "docs/design/983-984-ui-audit-population-semantics.md",
       "lane": "design",
       "issue": 5,
-      "lines": 716,
-      "bytes": 54382,
-      "sha256": "fac14e74cdf5a7c33dccb0d64d0b028e6904ff64df8e7c942d826a7eaacddd49",
+      "lines": 723,
+      "bytes": 54881,
+      "sha256": "d72515b14ba7a8f886b8cfa3a7065cc2214b4f3fe118ecb3bb09e247b8b9f838",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-02"
+          "updated": "2026-09-04"
         },
         "errors": []
       },
@@ -11835,7 +11835,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/995-production-boot-boundary.md",
@@ -12362,15 +12362,15 @@
       "lane": "design",
       "issue": 5,
       "lines": 164,
-      "bytes": 9755,
-      "sha256": "ddfe683a142a68e88fa736e74be5999ce58282c22da54f50455f3e39e2fb85d3",
+      "bytes": 9827,
+      "sha256": "52e04c6221e4615f18a800130d46fafabbf6ef967618112fcab8f087bf18b854",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "complete",
-          "updated": "2026-08-31"
+          "updated": "2026-09-04"
         },
         "errors": []
       },
@@ -12404,7 +12404,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/docker-modern-practices-research.md",
@@ -13675,15 +13675,15 @@
       "lane": "design",
       "issue": 5,
       "lines": 258,
-      "bytes": 20362,
-      "sha256": "3a7417189d8223a177788f5b5b1a89b3f25070317f86bbd722c5e55a0ad68ec8",
+      "bytes": 20369,
+      "sha256": "c081b43956b30ac599190d828145d912a13d4b969b2a861804a2a59a43872171",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "archived",
-          "updated": "2026-09-01"
+          "updated": "2026-09-04"
         },
         "errors": []
       },
@@ -13733,7 +13733,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/streaming-shape-churn.md",
@@ -32939,16 +32939,16 @@
       "path": "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 396,
-      "bytes": 41419,
-      "sha256": "4f474254c6ba07e2fe070ff5dc4699ed4d775de52e5aa9e14ccf3dcc52f92aaa",
+      "lines": 398,
+      "bytes": 41805,
+      "sha256": "2e8b99ce270e9805fde18ee1406d82ba01294fb23208c8241887490c3c7043d7",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "review",
           "status": "active",
-          "updated": "2026-09-03"
+          "updated": "2026-09-04"
         },
         "errors": []
       },
@@ -32990,7 +32990,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-09-03-unified-snap-instrument-program.md",
