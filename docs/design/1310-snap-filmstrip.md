@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 
 # 1310 — Snap filmstrip
@@ -11,6 +11,8 @@ updated: 2026-09-03
 `pnpm snap … --filmstrip` is the one transition-capture spelling. It captures the exact Playwright page already being driven and emits one bounded PNG contact sheet with ordered frames, relative timestamps, and argv action labels. No aliases, GIF, second browser, new context, re-emulation, hidden eval, or hidden screenshot action.
 
 The old `pnpm record` surface retires to a loud recipe redirect. Its duplicate parser, driver, Playwright-video context, WebM/GIF render path, and ffmpeg strip code are deleted after parity tests pass. The shared ffmpeg primitive remains because Snap visual diff still imports it.
+
+**SUPERSEDED 2026-09-04 (#1315, owner ruling).** There is no recipe redirect and no `pnpm record` script: the whole `tooling/src/screen-record/` dir is gone. The product is unlaunched, so a retired spelling is grep-fixed at its call sites rather than kept alive behind a translator that has to be maintained, tested and retired a second time. Everything else in this document stands — `pnpm snap … --filmstrip` is unchanged and is still the one transition-capture spelling.
 
 ## Empirical boundary
 

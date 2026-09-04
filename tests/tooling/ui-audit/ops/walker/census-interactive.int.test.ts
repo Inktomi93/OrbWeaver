@@ -20,7 +20,7 @@ import { join } from "node:path";
 import type { CliResult, RunCliOpts } from "../../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import type { RelationalPopulationReport } from "../../../../support/ui-audit-relational.ts";
-import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 /** The proof denominator the `design-audit-rule-proof` gate reads — the sibling census suites' shape. */
 interface AuditRuleProof {
@@ -42,10 +42,9 @@ function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (co
 }
 
 async function auditFixture(scratch: string, runCli: ToolContext["runCli"], name: string, body: string): Promise<RelationalPopulationReport> {
-  const reportPath = join(scratch, `${name}.json`);
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  await runCli("ui-audit", ["/" + name + ".html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-  return JSON.parse(await readFile(reportPath, "utf8")) as RelationalPopulationReport;
+  const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  return JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
 }
 
 /** The control paints a box and carries no text of its own — the switch/checkbox shape exactly. */

@@ -1,10 +1,16 @@
 ---
 kind: design
 status: active
-updated: 2026-09-02
+updated: 2026-09-04
 ---
 
 # UI-audit population semantics (#983 and #984)
+
+> **THE DOOR MOVED (#1315, 2026-09-04).** Every `$ pnpm design-audit …` transcript below is a DATED
+> RECEIPT — the command that produced the output printed under it — and is left verbatim for that reason.
+> The spelling to TYPE today is `pnpm snap <route> [flags] --design-audit`: same walker, same rule
+> engine, same printed blocks, one argv door. Everything this document rules about populations,
+> withholding and the rest/driven regimes is unchanged.
 
 Status: implementation contract for the two instrument repairs that must precede #953's appearance
 matrix acceptance. #983 lands first as the tap-target population contract. #984 then repairs the six

@@ -9,7 +9,7 @@
 // not a function). Concatenated into the same IIFE as census-interactive.ts by ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_TARGET_IDENTITY = `  // ── authored target identity (#983) ───────────────────────────────────────
   var targetIdentityEls = [];

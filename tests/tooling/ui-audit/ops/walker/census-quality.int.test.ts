@@ -21,7 +21,7 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CliResult, RunCliOpts } from "../../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 interface AuditRuleProof {
   readonly rule: string;
@@ -43,7 +43,7 @@ function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (co
 
 async function auditStdout(scratch: string, runCli: ToolContext["runCli"], name: string, body: string): Promise<string> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const res = await runCli("ui-audit", [`/${name}.html`, "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return res.stdout;
 }
 

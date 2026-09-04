@@ -3,7 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import type { RelationalPopulationReport } from "../../../../support/ui-audit-relational.ts";
-import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 test("every capped relational census publishes the complete candidate, judged, emitted, and cap-withheld population", async ({ runCli, scratch }) => {
   const cohorts = Array.from(
@@ -20,12 +20,11 @@ test("every capped relational census publishes the complete candidate, judged, e
     { length: 8 },
     (_unused, index) => `<section role="region" aria-label="pane ${String(index)}" style="height:500px;overflow:hidden"><p>a</p><p>b</p><p>c</p></section>`,
   ).join("");
-  const reportPath = join(scratch, "relational-accounting.json");
   await writeFile(join(scratch, "relational-accounting.html"), relationalDocument(`${cohorts}${rows}${panes}`));
-  await runCli("ui-audit", ["/relational-accounting.html", "--base", `file://${scratch}`, "--out", reportPath], {
+  const res = await runCli("snap", ["--file", join(scratch, "relational-accounting.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as RelationalPopulationReport;
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
   expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({
     candidates: 14,
     judged: 14,

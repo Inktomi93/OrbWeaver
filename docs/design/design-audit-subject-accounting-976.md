@@ -1,7 +1,7 @@
 ---
 kind: design
 status: complete
-updated: 2026-08-31
+updated: 2026-09-04
 ---
 
 # Design audit subject-accounting proof (#976)
@@ -14,7 +14,7 @@ appearance matrix owned by #953.
 The current source can report a clean Light-theme audit after judging only part of the final surface:
 
 ```text
-pnpm design-audit --theme Light
+pnpm snap --theme Light --design-audit       # then: pnpm design-audit --theme Light (#1315)
 RESULT ... dom-walk=285 dom-settled=381 ... census=173 ...
 ```
 

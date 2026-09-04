@@ -10,8 +10,17 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");
 const RUN_INDEX = "run.json";
 const WORKTREE_OUTPUT_MAX_BYTES = 4_194_304;
 
+/** ENOTDIR IS "ABSENT", NOT "BROKEN". `reports/runs/<instrument>/` holds one directory per run slot AND
+ *  the retention ring's `.pruned.jsonl` ledger (`_shared/run-retention.ts`), so statting `<entry>/run.json`
+ *  over that ledger raises ENOTDIR — the parent is a file. Treating it as an error made `pnpm snap
+ *  --reports` throw TOOL ERROR on every checkout whose ring had ever fired, which is a reader crashing on
+ *  a file its own writer put there. A non-directory entry simply has no run index. */
 function isMissingPath(error: unknown): boolean {
-  return typeof error === "object" && error !== null && Reflect.get(error, "code") === "ENOENT";
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const code = Reflect.get(error, "code");
+  return code === "ENOENT" || code === "ENOTDIR";
 }
 
 export function snapWorktreeRoots(root: string): readonly string[] {

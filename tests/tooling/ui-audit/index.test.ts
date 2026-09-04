@@ -91,16 +91,17 @@ type Assert<Condition extends true> = Condition;
 type ContrastSeverityIsOnlyP1 = Assert<Equal<Extract<Finding, { readonly rule: "contrast" }>["severity"], "P1">>;
 const CONTRAST_SEVERITY_IS_ONLY_P1: ContrastSeverityIsOnlyP1 = true;
 
-test("the design-audit rule denominator is closed at the 59 live ids", () => {
+test("the design-audit rule denominator is closed at the 60 live ids", () => {
   expect(CONTRAST_SEVERITY_IS_ONLY_P1).toBe(true);
-  expect(DESIGN_AUDIT_RULES).toHaveLength(59);
-  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(59);
+  expect(DESIGN_AUDIT_RULES).toHaveLength(60);
+  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(60);
   expect(DESIGN_AUDIT_RULES.filter((rule) => rule.id === "side-tab" || rule.id === "border-accent-on-rounded")).toHaveLength(2);
   expect(DESIGN_AUDIT_RULES.map(({ id, severity }) => `${id}:${severity.join("/")}`)).toEqual([
     "tap-target:P1/P2",
     "control-aspect:P2",
     "obscured-target:P0/P1",
     "aria-name:P1",
+    "border-contrast:P2",
     "landmark-missing:P2",
     "tabindex-positive:P2",
     "skipped-heading:P2",
@@ -2233,7 +2234,9 @@ test("collectFindings on an all-clean bundle (incl. a present main landmark) ret
 
 test("family populations are the exact detector dispatches, including both decor detectors", () => {
   expect(collectAudit(EMPTY_SAMPLES).familyScans).toEqual({
-    a11y: 7,
+    // 8 since border-contrast joined the a11y family with #1315's --contrast-edge carry-over: its
+    // per-side border ink vs the composited surround is a WCAG 1.4.11 non-text-contrast judgement.
+    a11y: 8,
     // 4 since the forced-state family joined colour: contrast · gray-on-color · quiet-state · hover-contrast.
     color: 4,
     // 3 since #1027 split the accent-border detector into its two RULE dispatches (side-tab ·

@@ -1,7 +1,7 @@
 ---
 kind: review
 status: active
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 
 # Snap CLI argv audit
@@ -181,6 +181,8 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--cpu-profile` | `B` | capture; DevTools CPU profile | checkpoint/arm | not `--react-profile`/`--perf` | owned | KEEP |
 | `--cpu-throttle` | `V,L` numeric multiplier | boot environment; DevTools throttle | outer; one shared scenario/session browser lifetime; raw checkpoint drift refused | not perf cycle count | owned | KEEP |
 | `--crop` | `V,L` geometry | capture modifier; screenshot crop | checkpoint | shot modifier | owned | KEEP; refused when no screenshot is produced |
+| `--design-audit` | `B` | analyzer; the deterministic UI defect scan over the settled surface | checkpoint/arm | the folded design-audit engine, not a second parser | owned | KEEP; added #1315 |
+| `--fail-on` | `V,L` severity | analyzer modifier; the severity `--design-audit` exits 1 at | checkpoint/arm | child of design-audit, not a run-wide threshold | owned | KEEP; added #1315 |
 | `--perf-cycles` | `V,L` integer | analyzer modifier; repeat perf tape | checkpoint/arm | perf-specific, not scenario repetitions | owned | KEEP; old `--cycles` refuses by name |
 | `--dark` | `B` | boot environment; OS color scheme dark | outer | same slot as `--light`, different values | owned | KEEP |
 | `--debug-token` | `V,L` token | boot/admin; debug authorization | outer | no alias | owned | KEEP |

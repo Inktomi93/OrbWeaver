@@ -135,5 +135,6 @@ Zustand stores carry the `devtools` middleware → visible in Redux DevTools.
 
 `pnpm snap <route>` (headless screenshot + aria/console/network/deadcss; default-waits on
 `data-app-ready`) · `pnpm snap --perf` (per-step responsiveness) · `pnpm snap --motion` (smoothness
-ground-truth: LoAF/CLS/compositor-clean + CDP dropped-frame %) · `pnpm record` (gifs) ·
+ground-truth: LoAF/CLS/compositor-clean + CDP dropped-frame %) · `pnpm snap --filmstrip` (a labelled
+contact sheet of a transition) · `pnpm snap --design-audit` (the deterministic UI defect scan) ·
 `trace:render/tail/fire` · `sse-tap`.

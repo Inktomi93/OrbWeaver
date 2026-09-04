@@ -115,8 +115,20 @@ export function isFileOriginRequest(request: CapturedRequest): boolean {
   return request.failed === REQUEST_ORIGIN_BLOCKED && request.url.startsWith(FILE_SCHEME);
 }
 
+/** The `file-origin-noise=` RESULT value: BOTH halves of the one browser event, counted together. Three
+ *  hosts print this pair (run, scenario, contexts) and a per-host spelling is how two of them drift. */
+export function fileOriginNoiseCount(messages: readonly CapturedConsole[], requests: readonly CapturedRequest[]): number {
+  return messages.filter(isFileOriginNoise).length + requests.length;
+}
+
+/** THE console errors that DECIDE a verdict — every harness-induced class above fenced out. One home,
+ *  so the scenario's per-checkpoint count and the run's summary cannot disagree about what an error is. */
+export function verdictConsoleErrors(messages: readonly CapturedConsole[]): number {
+  return messages.filter((entry) => entry.type === "error" && !isSandboxTraceNoise(entry) && !isFileOriginNoise(entry)).length;
+}
+
 export function consoleFailureCounts(messages: readonly CapturedConsole[], strict: boolean): ConsoleFailureCounts {
-  const errors = messages.filter((entry) => entry.type === "error" && !isSandboxTraceNoise(entry) && !isFileOriginNoise(entry)).length;
+  const errors = verdictConsoleErrors(messages);
   const warnings = strict ? messages.filter((entry) => entry.type === "warning").length : 0;
   return { errors, warnings };
 }

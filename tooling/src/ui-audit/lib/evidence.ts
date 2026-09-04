@@ -141,7 +141,7 @@ export function censusTotal(samples: RawSamples): number {
  *  `partitionedFindings`' `capExceeded` is the per-rule half, and the redundancy is deliberate — a reader
  *  looking at the rule table and a reader looking at the verdict line must each be told.
  *
- *  MEASURED HEADROOM, so the bounds are a judgment and not a guess (2026-09-01, `pnpm design-audit`
+ *  MEASURED HEADROOM, so the bounds are a judgment and not a guess (2026-09-01, the design-audit scan
  *  against the live dev stack): Home at 1280x800 (381 walked) censused 16 shadow glows and nothing else;
  *  `--goto settings:appearance --viewport 1280x2200` (1319 walked — the heaviest surface in the product)
  *  censused 44 shadow glows, 15 radial washes, 1 accent border, 0 patterns, 0 motion statics. Every family
@@ -224,7 +224,8 @@ export function actionsFailedGap(actionsFailed: number, actionCount: number): Ev
 
 /** THE FAILURE-SURFACE GAP (#1081) — the arm that made this file's own opening paragraph literally true.
  *
- *  MEASURED 2026-09-01 through the real CLI against the dev stack: `pnpm design-audit /__no-such-route__`
+ *  MEASURED 2026-09-01 through the real CLI against the dev stack (then `pnpm design-audit`, now
+ *  `pnpm snap /__no-such-route__ --design-audit`): the run
  *  printed all 48 POPULATION rows, filed `landmark-missing` P2 against the router's not-found boundary and
  *  exited 0 — "a swallowed error boundary … audits as the cleanest page in the product", six lines up.
  *  Nothing above catches it and nothing above can: the route RESOLVED (so `data-app-ready` went up and

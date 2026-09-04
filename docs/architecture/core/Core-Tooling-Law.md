@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-02
+updated: 2026-09-04
 ---
 
 # `@orb/tooling` — tooling-tree law
@@ -95,14 +95,22 @@ Navigation is mechanical, mirroring the domain template: what does it do → `in
 
 Every row is reached by the pnpm script name in the last column, never by path.
 
+**A TOOL DIR IS NOT A COMMAND (#1315, owner ruling 2026-09-04).** `ui-audit/`, `motion-audit/` and
+`cpu-profile/` are ENGINES: Snap is the only rendered front door, they are entered through their own
+`index.ts`, and each keeps a three-line `cli.ts` for one reason only — gate `tooling-slot-template` arm B
+requires an argv door per tool dir. Those files carry NO argv translation and NO migration recipe beyond
+the one Snap spelling. The product is unlaunched, so a retired command is GREP-FIXED at its call sites
+rather than kept alive behind a redirect that must be maintained, tested and retired a second time; that
+is why `screen-record/` (which was nothing BUT a redirect) is gone from this roster entirely, along with
+the `design-audit` / `record` / `perf-meter` / `motion-audit` pnpm scripts.
+
 | tooling/src/ | owns | pnpm scripts |
 | - | - | - |
 | `bug-reports/` | the READER for the dev bug button's gitignored captures (list + show) — the artifacts have no tree presence, so the script name IS their discoverability | `bug:reports` |
-| `snap/` | the sole rendered-instrument CLI: capture + evidence, labelled transition filmstrips, motion/perf/CPU/boot/React analyzers, scenarios, sessions, and the isolated stage | `snap` |
-| `ui-audit/` | the design/a11y walker + its rule families | `design-audit` |
+| `snap/` | the sole rendered-instrument CLI — and since #1315 the sole rendered-instrument ARGV DOOR: capture + evidence, labelled transition filmstrips, motion/perf/CPU/boot/React analyzers, the deterministic design/a11y scan, scenarios, sessions, and the isolated stage | `snap` |
+| `ui-audit/` | the design/a11y walker + its rule families — the ENGINE behind Snap's `--design-audit` arm (#1315); it has no program of its own, and `cli.ts` is a bare argv refusal the five-slot template requires | (none — `snap --design-audit`) |
 | `render-trace/` | render/tail/fire — three ops behind one dispatcher | `trace:render` `trace:tail` `trace:fire` |
 | `wire-tap/` | the server-wire incident toolkit (sse · captures · trpc) | `sse-tap` |
-| `screen-record/` | retired Record compatibility door; prints the exact `snap --filmstrip` recipe and opens no browser | `record` |
 | `ast/` | the structural-search + rot-lens engine | `ast` · `check:respell/swallowed/typeonly/columns/regkeys/chains` |
 | `codemod/` | the ts-morph codemod kit | `codemod` |
 | `verify/` | the whole verification system + the gate corpus + `GATE-AUTHORING.md` | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:tests-membership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` |
@@ -142,6 +150,16 @@ Explicitly throwaway probes, one-shot lenses, launcher shims, operator scripts. 
 Two merges are REFUSED with receipts — do not re-propose without new evidence:
 
 - **accname engine → `@orb/ui`: refused.** There is no accname engine in `@orb/ui` to sit beside; `UI-Primitives-and-Reuse.md` §13.10 is the authority and its mechanical half (`tests/support/ct/accessible-names.ts`) carries the OPPOSITE ruling — a hand-rolled in-page name computation is banned, which is why it reads Playwright's `ariaSnapshot()`. The two tooling sites are not one engine either (snap resolves a NAME for a selector; ui-audit emits raw ATTRIBUTES and never computes what the name IS). If the two tool-side resolvers are ever merged, `tooling/src/_shared/` is the home `tooling-shared-plumbing` already guards.
+  **THE TWO TOOL-SIDE RESOLVERS WERE MERGED (#1324, 2026-09-04) — and the refusal above is unchanged.**
+  The ruling survives; its INPUT changed. What the merge folded is not an accname ENGINE but a
+  COMPARISON KEY that both sites already computed and both computed wrong the same way: snap's surface
+  map and the walker's door census each read `aria-label` BEFORE `aria-labelledby`, the reverse of accname
+  1.2 (2B precedes 2C). A planted pair produced a false `duplicate-action-door` and hid a real one. The
+  key is now spelled once, in spec order, in the walker's `ops/walker/accessible-name.ts` segment and
+  composed by both consumers through `ui-audit/index.ts`. No WCAG name is COMPUTED for a verdict — the
+  `aria-name` rule still tests PRESENCE (`RULE-AUTHORING.md` row 8) — and `pnpm snap … --aria`
+  (Playwright's `ariaSnapshot`) remains the only spec-correct name source in the fleet and the oracle the
+  merged key is proven against.
 - **trpc/bus devlog merge: refused.** `trpc-devlog.ts` is a tRPC op formatter with key redaction that SHIPS (loggerLink calls it in prod for errors); `bus-devlog.ts` is an IS\_DEV-gated subscription ring. They share only the house console `%c` palette, which is deliberately identical across every dev channel. Merging drags a dev-only ring into the prod bundle.
 
 ## 3. Coupled sites of a tooling change
@@ -258,7 +276,7 @@ Everything else — `ops/`, `lib/`, `contract/`, and every `ops/parse.ts` — ta
 
 Arms: **(A)** the read outside a sanctioned home, both spellings (an element-access-blind matcher would be the loophole); **(B)** the two-sided `ARGV_ENTRIES` stale sweep — a `seen` set populated only by a live match, so a row whose file merely stopped reading argv and a row whose file is GONE collapse to one check (§4.4a); **(C)** the §4.6 blindness tripwire — zero `cli.ts` readers on a real-tree run means the matcher stopped recognising the shape, and every arm above is vacuously green. Arms B and C are anchored on `_shared/exit-contract.ts` via `fileLoaded`, never on `scope.kind`.
 
-**DECLARED LIMIT (its own `mustPass` row): this gate pins WHERE argv is read, never HOW STRICTLY each tool's grammar parses it.** The 27-reader census behind #971 classified each CLI's real grammar — strict-ordered (`snap`/`ui-audit`), positional/subcommand (`ast`/`verify`/`workboard`/`doc-catalog`/`seed`/`wire-tap`/`render-trace`), flag-bag, and `--`-forwarding (`stack`) — and closed the lenient ones by hand. The retired `motion-audit`/`perf-meter` scripts and `screen-record` command are hard-refusal redirects, not parsers or browser doors. There is deliberately NO generic `parseArgv(spec)`: flattening the remaining grammars into one would change every tool's contract, and each existing contract stays byte-stable.
+**DECLARED LIMIT (its own `mustPass` row): this gate pins WHERE argv is read, never HOW STRICTLY each tool's grammar parses it.** The 27-reader census behind #971 classified each CLI's real grammar — strict-ordered (`snap`), positional/subcommand (`ast`/`verify`/`workboard`/`doc-catalog`/`seed`/`wire-tap`/`render-trace`), flag-bag, and `--`-forwarding (`stack`) — and closed the lenient ones by hand. `ui-audit`'s strict-ordered parser was the second rendered grammar and is GONE with its CLI (#1315): the scan rides snap's, so there is one rendered-argv reader left rather than two byte-stable ones. The engine dirs' `cli.ts` files parse nothing at all. There is deliberately NO generic `parseArgv(spec)`: flattening the remaining grammars into one would change every tool's contract, and each existing contract stays byte-stable.
 
 ### 4.6 dep-cruiser stanzas
 

@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { RELATIONAL_CLI_TIMEOUT_MS } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS } from "../../../../support/ui-audit-relational.ts";
 
 interface ActivityAuditReport {
   readonly findings: readonly { readonly rule: string; readonly selector?: string }[];
@@ -28,7 +28,6 @@ function activityDocument(activeBody: string, retainedBody: string): string {
 }
 
 test("retained Activity-shaped DOM stays in identity accounting but outside the rendered verdict", async ({ runCli, scratch }) => {
-  const reportPath = join(scratch, "activity-retained.json");
   const retained = `<div data-slot="theme-scope" style="--color-background:#fff"></div><main data-testid="hidden-main"><h3>Skipped heading</h3>
     <button data-testid="hidden-control" tabindex="3" style="position:relative;z-index:9999;width:8px;height:8px"></button>
     <p data-testid="hidden-contrast" style="color:#fff;background:#fff">invisible bad contrast</p></main>`;
@@ -36,10 +35,10 @@ test("retained Activity-shaped DOM stays in identity accounting but outside the 
     <section inert data-testid="visible-inert"><button data-testid="inert-control" style="width:8px;height:8px"></button>
     <span data-testid="inert-paint" style="color:#fff;background:#fff">Visible inert paint</span></section>`;
   await writeFile(join(scratch, "activity-retained.html"), activityDocument(active, retained));
-  const result = await runCli("ui-audit", ["/activity-retained.html", "--base", `file://${scratch}`, "--out", reportPath, "--fail-on", "P3"], {
+  const result = await runCli("snap", ["--file", join(scratch, "activity-retained.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as ActivityAuditReport;
+  const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as ActivityAuditReport;
 
   expect(report.findings.some(({ selector }) => selector?.includes("retained") ?? false)).toBe(false);
   expect(
@@ -66,18 +65,16 @@ test("retained Activity-shaped DOM stays in identity accounting but outside the 
 });
 
 test("a retained main landmark cannot satisfy the rendered-surface landmark rule", async ({ runCli, scratch }) => {
-  const reportPath = join(scratch, "hidden-main.json");
   await writeFile(
     join(scratch, "hidden-main.html"),
     '<!doctype html><html data-app-ready="settled" style="color-scheme:dark"><head><meta charset="utf-8"><title>hidden main</title></head><body style="margin:0;background:#000;color:#fff;font:16px system-ui"><section role="region" aria-label="Active"><h1>Active surface</h1></section><section style="display:none"><main>retained</main></section></body></html>',
   );
-  await runCli("ui-audit", ["/hidden-main.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as ActivityAuditReport;
+  const auditRun = await runCli("snap", ["--file", join(scratch, "hidden-main.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const report = JSON.parse(await readFile(auditReport(auditRun.stdout), "utf8")) as ActivityAuditReport;
   expect(report.findings.some(({ rule }) => rule === "landmark-missing")).toBe(true);
 });
 
 test("a visibility-visible descendant is rendered and operable while its non-overridden sibling stays retained", async ({ runCli, scratch }) => {
-  const reportPath = join(scratch, "visibility-override.json");
   const body = `<h1>Active surface</h1><section style="visibility:hidden">
     <button data-testid="restored-control" style="visibility:visible;width:8px;height:8px"></button>
     <button data-testid="still-hidden-control" style="width:8px;height:8px"></button>
@@ -85,10 +82,10 @@ test("a visibility-visible descendant is rendered and operable while its non-ove
     <span data-testid="still-hidden-paint" style="color:#fff;background:#fff">hidden paint</span>
   </section>`;
   await writeFile(join(scratch, "visibility-override.html"), activityDocument(body, ""));
-  await runCli("ui-audit", ["/visibility-override.html", "--base", `file://${scratch}`, "--out", reportPath, "--fail-on", "P3"], {
+  const auditRun = await runCli("snap", ["--file", join(scratch, "visibility-override.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as ActivityAuditReport;
+  const report = JSON.parse(await readFile(auditReport(auditRun.stdout), "utf8")) as ActivityAuditReport;
 
   expect(report.populationAccounting["aria-name"]?.candidates).toBe(1);
   expect(report.populationAccounting["tap-target"]?.candidates).toBe(1);

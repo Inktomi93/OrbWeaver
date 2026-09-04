@@ -5,7 +5,7 @@
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_RETURNS = `  var pendingWalkMutations = walkObserver.takeRecords();
   for (var pwm = 0; pwm < pendingWalkMutations.length; pwm += 1) {

@@ -83,7 +83,7 @@ const SERIAL_INT = [
   // test-presence: a whole-tree scanner (same class as gate-conformance above) that flaked on the parallel
   // 5s timeout under verify --push's full-suite load — the plugin train grew the tree past the edge (it
   // passes alone ~3.4s but exceeds 5s under fork contention). Serial + 30s covers the scan weight.
-  // (`tests/tooling/motion-audit/cli.int.test.ts` sat here until #1040 and now lives in LIVE_DRIVE below —
+  // (the motion-audit CLI suite sat here until #1040, then LIVE_DRIVE, and was deleted with that CLI at #1315 —
   // serial was the right SCHEDULE for it but the wrong lane: its problem is a measured RATE, not scan
   // weight, and no timeout in this lane can make a dropped-frame percentage honest.)
   "tests/tooling/verify/gates/test-presence.int.test.ts",
@@ -155,10 +155,8 @@ const SERIAL_INT = [
 const LIVE_DRIVE = [
   // The #1040 case itself: a dropped-frame PERCENTAGE, a CLS total and a LoAF blocking duration, all
   // measured out of a real headless Chromium's CDP trace and all gated by budgets (lib/verdicts.ts).
-  "tests/tooling/motion-audit/cli.int.test.ts",
   // The same class one instrument over: the idle twin asserts `breach-steps=0` over a real metered step,
   // i.e. that a click on an idle page produced NO long task — which contention alone can falsify.
-  "tests/tooling/cpu-profile/cli.int.test.ts",
   // The two settings-shim proofs: a real snap browser run against an in-process stub origin, held to a
   // FIXED 60s run budget that was not load-scaled. They are here for the wall-clock half — six of them
   // timed out in one battery under lane load (2026-09-01) — and their budgets are now `scaledBudget`.

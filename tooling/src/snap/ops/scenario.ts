@@ -22,7 +22,7 @@ import { beginRunArms, disabledRunArmFailures, pageArmExit, pageArmFailures } fr
 import { capture } from "./capture.ts";
 import { snapDestination } from "./guards.ts";
 import { appliedAcrossContexts, writeManifestIfRequested } from "./manifest.ts";
-import { consoleFailureCounts, isFileOriginNoise, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
+import { consoleFailureCounts, fileOriginNoiseCount, partitionFailedRequests, verdictConsoleErrors } from "./noise.ts";
 import { consoleForEvidence, pageErrorsForEvidence, printCaptureLog, printCheckpointScope, printPageReport, sessionForEvidence } from "./report.ts";
 import { registerSnapDiagnosticCompleteness, registerSnapResultPairs } from "./run-bundle.ts";
 import { registerScenarioFacts, scenarioFilmstripFrameCount, scenarioFilmstripPairs } from "./scenario-facts.ts";
@@ -52,7 +52,7 @@ function scenarioFailureSummary(input: ScenarioSummaryInput): SnapFailureSummary
   const strictConsole = opts.strictConsole;
   // Every ARM-owned member comes from the arm that measures it (contract/arms.ts). The scenario keeps its
   // own literal because its non-arm members are scoped differently (per-checkpoint console/page-error
-  // windows, no watch, no diff) — but the arm halves must not be a second implementation.
+  // windows, no watch, no diff) — the arm halves must never be a second implementation.
   const arms = {
     ...pageArmFailures({ opts, outcomes, ctx: { ...input.plan, failed: [...failedRequests], totalPages: 1 } }),
     ...disabledRunArmFailures(opts, ["cascade", "filmstrip"]),
@@ -106,8 +106,7 @@ function scenarioValue<T>(values: readonly T[], index: number, label: string): T
   return value;
 }
 
-// Raw string, not a function — the tooling program is DOM-less and carries no __orb ambient (the
-// browser owns both; see _shared/browser.ts's raw-string note).
+// Raw string, not a function: the tooling program is DOM-less and has no __orb ambient (_shared/browser.ts).
 async function resetScenarioEvidence(page: Page): Promise<void> {
   await page.evaluate("window.__orb && window.__orb.resetEvidence()");
 }
@@ -234,9 +233,7 @@ function printScenarioReports(args: ScenarioReportArgs): void {
     const checkpointSession = scenarioCheckpointSession(session, outcome, range);
     if (checkpoint.summary) {
       const failedAssertions = outcome.assertions.filter((entry) => entry.failed).length;
-      const errors = checkpointSession.consoleMessages.filter(
-        (message) => message.type === "error" && !isSandboxTraceNoise(message) && !isFileOriginNoise(message),
-      ).length;
+      const errors = verdictConsoleErrors(checkpointSession.consoleMessages);
       const warnings = checkpointSession.consoleMessages.filter((message) => message.type === "warning").length;
       const failed =
         outcome.navError !== null ||
@@ -395,7 +392,7 @@ export async function runScenarioDetailed(opts: Args, host: ScenarioHost | null 
         ["har", artifacts.hars[0] ?? "none"],
         ["json", manifestPath ?? "none"],
         ["vite-dep-churn", viteChurn.length],
-        ["file-origin-noise", session.consoleMessages.filter(isFileOriginNoise).length + fileOrigin.length],
+        ["file-origin-noise", fileOriginNoiseCount(session.consoleMessages, fileOrigin)],
         ...scenarioFilmstripPairs(runArms, checkpoints),
         ...ratePostureResultPairs(ratePosture),
       ],

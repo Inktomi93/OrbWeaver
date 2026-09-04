@@ -29,7 +29,7 @@ import { aggregateScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../../_shared/browser-contract.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import type { VerdictDenominator } from "../../../_shared/evidence.ts";
+import type { EvidenceGap, VerdictDenominator } from "../../../_shared/evidence.ts";
 import { EXIT } from "../../../_shared/exit-contract.ts";
 import type { DesignAuditSeverity } from "../../../ui-audit/index.ts";
 import { isAtOrAboveSeverity, isValidSeverity } from "../../../ui-audit/index.ts";
@@ -69,6 +69,12 @@ function failOnHandler(args: Args, rest: string[]): void {
  *  arm's fact and `--report … --problems` can read it without the source (#1342). `completeness` is
  *  BOUNDED exactly when the walker truncated a census: a `censusCaps` row with `dropped > 0` means the
  *  scan completed but only `cap` carriers left the page, which makes the verdict partial (#1038). */
+/** `complete`, or the gap with a `verdict` discriminator in front of it — the exact shape the retired
+ *  CLI's artifact carried, so every downstream reader of a design-audit report survives the fold. */
+function verdictField(gap: EvidenceGap | null): "complete" | { readonly verdict: "NO VERDICT"; readonly evidence: string; readonly detail: string } {
+  return gap === null ? "complete" : { verdict: "NO VERDICT", ...gap };
+}
+
 async function writeAuditArtifact(name: string, opts: Args, measurement: DesignAuditMeasurement): Promise<string> {
   const caps = measurement.samples === null ? null : measurement.samples.censusCaps;
   const truncated = Object.values(caps ?? {}).some((row) => row.dropped > 0);
@@ -111,7 +117,15 @@ async function writeAuditArtifact(name: string, opts: Args, measurement: DesignA
         hoverPass: measurement.hover,
         populationAccounting: measurement.populationAccounting,
         censusCaps: caps,
-        populationVerdict: measurement.populationComplete ? "complete" : "NO VERDICT",
+        // THE FIVE NAMED CHANNELS (#1087 F1). One field per channel, because "NO VERDICT" without
+        // WHICH-half is not actionable: a truncated census is repaired by raising a bound, a broken
+        // forced-state pass by fixing the harness. `complete` is only ever written over a channel the
+        // walk actually reached — a terminal run stamps its own gap into all five.
+        censusCapVerdict: verdictField(measurement.verdicts.censusCap),
+        populationVerdict: verdictField(measurement.verdicts.population),
+        hoverVerdict: verdictField(measurement.verdicts.hover),
+        forceVerdict: verdictField(measurement.verdicts.force),
+        instrumentPageErrorVerdict: verdictField(measurement.verdicts.instrumentPageError),
         evidenceGaps: measurement.gaps,
         terminalGap: measurement.terminalGap,
         themeEvidence: measurement.themeEvidence,
@@ -246,7 +260,7 @@ export const DESIGN_AUDIT_ARM = {
                 p3: measurement?.counts.P3 ?? 0,
                 census: measurement?.census ?? 0,
                 failOn: opts.failOn,
-                populationVerdict: measurement?.populationComplete === true ? "complete" : "no-verdict",
+                populationVerdict: measurement !== null && measurement.verdicts.population === null ? "complete" : "no-verdict",
                 ambiguousSelectors: measurement?.selectorProof.filter((proof) => proof.matches !== 1).length ?? 0,
                 artifact: null,
               },

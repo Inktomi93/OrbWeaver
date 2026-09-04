@@ -10,9 +10,18 @@ updated: 2026-09-04
 >
 > **Current transition-capture ruling (#1310, 2026-09-03):** Snap's `--filmstrip` run arm owns the
 > existing exact page from before its argv action tape through bounded settle and emits one labelled PNG
-> contact sheet plus typed facts/artifact scope. The former Record parser/browser/WebM/GIF path is deleted;
-> `pnpm record` only prints the equivalent Snap recipe and exits misuse. Historical inventories below
-> retain the pre-unification paths as dated evidence, not current executable topology.
+> contact sheet plus typed facts/artifact scope. The former Record parser/browser/WebM/GIF path is deleted.
+> Historical inventories below retain the pre-unification paths as dated evidence, not current executable
+> topology.
+>
+> **THE FOLD IS COMPLETE (#1315, 2026-09-04 — §10.10).** `pnpm snap` is the ONE rendered-instrument argv
+> door. `design-audit` was the last sibling and is now the `--design-audit` arm; `motion-audit`,
+> `perf-meter` and `record` no longer exist as scripts at all. Owner ruling of the same day: an unlaunched
+> product GREP-FIXES a retired spelling rather than keeping a refusal door, an alias table or a retirement
+> census, so §4.1's retirement order and every "prints the equivalent recipe and exits misuse" sentence in
+> this document are SUPERSEDED — the engine dirs keep a bare `cli.ts` only because the five-slot template
+> requires one. Wherever a table below lists five flag dialects or five parsers, read it as the dated
+> inventory it is: there is one parser left.
 
 ## 1. Pain-point inventory (receipts)
 
@@ -365,7 +374,7 @@ Inventory (receipts):
 | `tests/ui/variant-arm-parity.suite.test.ts:103` | fixed `{ timeout: 30_000 }` | the same class, one file |
 | `tests/tooling/gate-ignore-grammar.int.test.ts:154` | fixed 300 s `beforeAll` hook (\~60 s quiet) | 470–485 s at load 40+ with five lanes live — red on both sides of any change (#1174) |
 | `tests/tooling/ui-audit/**` CLI int tests | fixed child budgets, no withhold | different tests exit 2 each run at `--maxWorkers=4` and `=2`, clean standalone (#1222) |
-| `tests/tooling/motion-audit/cli.int.test.ts:136,161` | `withholdMeasurement` on the in-budget twin AND the mobile arm (landed after #1040; the brief's "mobile arm lacks it" premise is stale at this tip) | withholds with the loadavg receipt — the shape the rest lacks |
+| the motion-audit CLI suite (deleted at #1315), lines 136,161 | `withholdMeasurement` on the in-budget twin AND the mobile arm (landed after #1040; the brief's "mobile arm lacks it" premise is stale at this tip) | withholds with the loadavg receipt — the shape the rest lacks |
 | `tests/tooling/_load-budget.ts` | THE existing mechanism: `computeLoadFactor` (per-core 1-min loadavg, cap 8), `scaledBudget`, `judgeMeasurementLoad`/`withholdMeasurement` (`ORB-LOAD-WITHHOLD`), `runNodeWithBudget`/`spawnNodeWithBudget` (`ORB-LOAD-KILL`), `isTimeoutKill` (both node kill shapes); the supervisor counts withheld arms per shard (`scripts/vitest-supervised.mjs`) | correct, but TEST-ONLY: 11 suites import it; no instrument, no daemon, no CT config, no launcher reads it |
 | instrument budgets: `snap/lib/budgets.ts` (nav 15 s · wait 10 s · step 5 s · stage nav/ready 90/60 s · throttled 90/60 s), `snap/lib/throttle.ts:94-99` `driveBudgets` (widest independent cause wins — memory `throttle-arms-need-their-own-budgets`), `ui-audit/lib/budgets.ts` (nav 15 · wait 10 · click 5 · census observe 2–5 s), `motion-audit/lib/budgets.ts` (nav 20 · ready 10 · step 5), `cpu-profile/lib/budgets.ts`, and — refuted on the tree 2026-09-02 — `screen-record` has NO `lib/budgets.ts` at all: its two ceilings are module consts inside `ops/record.ts:12` and `ops/drive.ts:13` (nav 20 · step 5), `_shared/proc.ts` `spawnNiced` default 120 s | fixed ceilings; load turns a slow-but-fine surface into `app never signalled data-app-ready` / `STEP FAILED … Timeout` — a false red about the app | |
 | the readiness ladder `snap/ops/drive.ts:41-55` (`settled` / `degraded` / `dataless` / `absent`) | `degraded` is the APP's own ceiling (`app-ready-signal`) handing over with reads in flight | already an honest NAV ERROR, but nothing says WHY it degraded — a loaded box and a slow query read the same |
@@ -448,7 +457,7 @@ Every phase is one lane, one commit, scoped floors; whole-tree gates are the orc
 | - | - | - | - | - |
 | 0 spike | executor, 1 lane | (a) CDP multi-client: daemon-owned `page.route` shim keeps applying while a second Playwright `connectOverCDP` client drives the same page — a planted int test; (b) `lighthouse` snapshot against a `--remote-debugging-port` browser over a `--file` fixture. Decides fork F3's fallback | tests/tooling/\_shared/browser-attach.int.test.ts (planned) ‖ none | that test + `tests/tooling/_shared/browser.int.test.ts` |
 | 1 sessions | forge (the design is the risk), 1 lane | the daemon + client + protocol + TTL + cap + sweep + status + export over `--base`/`--file`; `runOnSession` split; the scenario partition promoted to `lib/session-plan.ts`; per-call slots with explicit `slotDir`; the session run slot + `abandonedRuns` reader; `attachProbeSession` + gate arm H; help/session flags | `snap/ops/session-daemon.ts`, `session-client.ts`, `flags-session.ts`, `contract/session.ts`, `lib/session-plan.ts`, tests/tooling/snap/ops/session-daemon.int.test.ts + tests/tooling/snap/lib/session-plan.test.ts (both planned) ‖ `snap/cli.ts`, `ops/run.ts`, `ops/parse.ts`, `ops/scenario.ts`, `contract/help.ts`, `_shared/browser.ts`, `_shared/artifact-out.ts`, gate `tooling-shared-plumbing` | T1 T2 T3 T5 T6 T9; `tests/tooling/snap/**`, `tests/tooling/_shared/{browser,artifacts,artifact-out}*.test.ts`, `check-gates.int` |
-| 1b load budgets | executor, 1 lane (∥ 1) | §7.1: `_shared/load-budget.ts` (the core promoted DOWN), `budget()` through every instrument's `lib/budgets.ts` + `driveBudgets` + `_shared/proc.ts`, the `load=`/`budget-factor=` RESULT pairs in `printVerdict`, RATE-arm withholds (motion-audit, perf-meter, snap's perf pair), CT config + `withholdRate`, vitest config budgets (#1174), the ui-audit suites (#1222), the launcher ceilings; gate arm J | `_shared/load-budget.ts`, tests/support/ct/withhold-rate.ts (planned), tests/tooling/\_shared/load-budget.test.ts (planned) ‖ `tests/tooling/_load-budget.ts`, the five `lib/budgets.ts`, `snap/lib/throttle.ts`, `_shared/evidence.ts`, `_shared/proc.ts`, `playwright-ct.config.ts`, `vitest.config.ts`, `tooling/src/stack/stack.sh`, `tooling/src/verify/ops/ct-flaky-reporter.ts`, gate `tooling-shared-plumbing` | T14 T15 T16 T17; `tests/tooling/load-budget.int.test.ts`, `tests/tooling/motion-audit/cli.int.test.ts`, `tests/tooling/cpu-profile/cli.int.test.ts`, `tests/tooling/ui-audit/cli.int.test.ts`, `check-gates.int`; the two config literals via `check:structure` |
+| 1b load budgets | executor, 1 lane (∥ 1) | §7.1: `_shared/load-budget.ts` (the core promoted DOWN), `budget()` through every instrument's `lib/budgets.ts` + `driveBudgets` + `_shared/proc.ts`, the `load=`/`budget-factor=` RESULT pairs in `printVerdict`, RATE-arm withholds (motion-audit, perf-meter, snap's perf pair), CT config + `withholdRate`, vitest config budgets (#1174), the ui-audit suites (#1222), the launcher ceilings; gate arm J | `_shared/load-budget.ts`, tests/support/ct/withhold-rate.ts (planned), tests/tooling/\_shared/load-budget.test.ts (planned) ‖ `tests/tooling/_load-budget.ts`, the five `lib/budgets.ts`, `snap/lib/throttle.ts`, `_shared/evidence.ts`, `_shared/proc.ts`, `playwright-ct.config.ts`, `vitest.config.ts`, `tooling/src/stack/stack.sh`, `tooling/src/verify/ops/ct-flaky-reporter.ts`, gate `tooling-shared-plumbing` | T14 T15 T16 T17; `tests/tooling/load-budget.int.test.ts`, the motion-audit CLI suite (deleted at #1315), the cpu-profile CLI suite (deleted at #1315), `tests/tooling/ui-audit/cli.int.test.ts`, `check-gates.int`; the two config literals via `check:structure` |
 | 2 stages | forge, 1 lane | `_shared/ports.ts` + gate arm I; `bands.json` table; allocation + lazy reap + TTL arms; health = three probes + the dirty era rule; `--stage-status` lists all bands; `--base` fencing; #1162 survivors fix at the launcher; `ensureStage({ band, session })`; sibling tools gain `--session` (attach) — motion-audit/perf-meter/record therefore gain a branch-side arm without new stage code | `_shared/ports.ts`, tests/tooling/\_shared/ports.test.ts, tests/tooling/snap/ops/stage-bands.int.test.ts, tests/tooling/stack/stop-survivors.int.test.ts (all planned) ‖ `snap/lib/stage-plan.ts`, `ops/stage*.ts`, `ops/guards.ts`, `ui-audit/ops/stage.ts`, `motion-audit/ops/{parse,run}.ts`, `cpu-profile/ops/{parse,run}.ts`, `screen-record/ops/{parse,record}.ts`, `tooling/src/stack/{stack.sh,multi-user-fixture.sh}`, `tests/e2e/support/modes.ts`, `playwright-ct.config.ts`, `model-ab/ops/serve.ts` | T4 T7 T8 T11 T13; `stage-plan.test.ts`, `stage.test.ts`, `tests/tooling/stack/**`, `tests/tooling/dependency-cruiser.int.test.ts`; a live landing receipt on three bands |
 | 3 arms | executor, 1 lane (after 1) | `contract/arms.ts` registry + `ops/arms/*` (existing arms re-homed by nature, byte-stable flags); `lighthouse` (#1198) + `requests` (#1199) with both proof classes; help derived | `snap/contract/arms.ts`, `snap/ops/arms/{shot,aria,map,eval,contrast,cascade,dead-css,assert,perf,requests,lighthouse}.ts`, the arm pins under tests/tooling/snap/ops/arms/ (planned) ‖ `ops/capture.ts`, `ops/parse.ts`, `contract/help.ts`, `_shared/browser-capture.ts`, `tooling/package.json` (+ catalog pin) | T10; `tests/tooling/snap/**`; `tooling-instrument-proof` conformance |
 | 4 grammar + retirement | executor, 1 lane (after 3) | `_shared/instrument-argv.ts` families consumed by the five parsers; `--help` everywhere; alias refusals; F1's `--wait` decision; CT slot helper + gate arm (#1201); MCP retirement (#1195 §2.3: side-eye def, settings, skill rows); the P11 stale-path sweep in skills/rules/memory index. The proposed `agent-def-no-browser-mcp` gate was later ruled out by the owner (#1279), not left pending. | `_shared/instrument-argv.ts`, tests/support/ct/snap-out.ts (planned), gates ‖ the five `ops/parse.ts`, `.claude/agents/side-eye.md`, `.claude/skills/{snap-driving,side-eye-design-review}/**`, `.claude/rules/browser-and-instruments.md`, `docs/architecture/core/Core-Tooling-Law.md` §2.4/§4.4/§4.9 | T12; each tool's `parse.test.ts` + `cli.int.test.ts`; `check:agents`; scoped `check:docs`; the `tests/**` literal sweep for every renamed flag |
@@ -1370,6 +1379,56 @@ omits it and `--include-hidden` retains it only as hidden/inactive/locator-only.
 arm missing `exit`, while the existing map corpus keeps duplicate-name, hidden-node, SVG, fallback and
 selector-executability controls. The React fixture plants a hidden Activity descendant with duration and
 proves it remains labelled in raw evidence but cannot enter the active ranked table.
+
+### 10.10 `--design-audit` as built (lane p-snap-fold, #1315 + #1324/#1325/#1326/#1361, 2026-09-04)
+
+The last sibling. `pnpm design-audit` has no execution path; the scan is
+`pnpm snap <route> --design-audit [--fail-on P0..P3]`. The 14k-line detector engine stayed a sibling tool
+dir entered through `ui-audit/index.ts` — the motion precedent (§10.6) — and the parser, stage door, drive
+queue, matrix projection, run path and operator help were DELETED rather than deprecated.
+
+**Where §4.1's retirement order had to change.** Owner ruling 2026-09-04: no doors, no shims, no census
+tokens, no migration-spec allowances. The product is unlaunched, so a retired spelling is grep-fixed at
+its call sites. `snap/lib/retired-instruments.ts` and the whole `screen-record/` dir are gone with it, as
+are the four pnpm scripts and the `ALIAS_REFUSALS` rows that named a retired sibling's own vocabulary.
+Each folded tool dir keeps a three-line `cli.ts` for ONE reason: gate `tooling-slot-template` arm B
+requires an argv door per tool dir. Those files carry no translation and no recipe beyond the one snap
+spelling.
+
+**Where §6's lifecycle union had to be READ rather than widened.** The census's plan called the arm a
+PAGE arm. `ArmPageContext` carries no session, no settings-shim evidence and no environment contract, and
+the walk needs all three (page-error rings for `script-error` and the instrument-page-error gap; theme
+provenance; the hover capability the forced-state pass is gated on). A RUN arm receives the session at
+`begin()` — exactly why `ops/arms/motion.ts` is one — and its `afterSettle` hook runs on the settled page
+after the drive queue and BEFORE the settled-surface page arms. So the pass order is the one the census
+asked for and only the union member differs. Nothing widened.
+
+**What the arm publishes.** `ARMS` gains `design-audit` (after `assert`); the fact is
+`snap-arm-design-audit-v1` with `state ∈ {passed, failed, withheld, off}` — any EvidenceGap, terminal or
+partial, is `withheld` + exit 2, and `--fail-on` decides the rest; the report is one artifact
+`<name>-design-audit.json` registered with `producerArm: "design-audit"`, so `ops/run-bundle.ts` binds it
+to that fact and `--report … --problems` reads it browser-free through `designAuditProblems()`. The
+printed blocks and every RESULT pair name are ui-audit's own, imported unchanged — which is what makes
+the byte-stability receipt §10.3 demands provable at all.
+
+**The three merges the fold was the moment for**, each with a same-page A/B receipt rather than a claim:
+
+| # | The defect | The retired logic, re-evaluated in-page | The arm today |
+| - | - | - | - |
+| #1325 | snap's `--contrast` had its own DOM-ancestor resolver and its own comment naming the gap | `flat rgb(0, 0, 0)` under a `position:fixed; z-index:-1` white band → 21:1 PASS | `CONTRAST #layer-text: 1.00:1 FAIL (pixel-sample)` — `WALKER_PRIMITIVES` + `WALKER_RESOLVE` |
+| #1324 | BOTH homes read `aria-label` before `aria-labelledby` (accname 1.2 has 2B before 2C) | `["same label","same label","open menu","close menu"]` — a false duplicate, a real one missed | one spec-ordered key; `duplicate-action-door` fires on `menu` ×2 and not on the shared label |
+| #1326 | `describe()` returns a six-step path whether or not it is unique | `div:nth-of-type(1) > … > button.tiny:nth-of-type(1) MATCHES 2` | `[aria-label="First tiny"]` / `"Second tiny"`, `selectors-proven=2 selectors-ambiguous=0` |
+
+`border-contrast` (WCAG 1.4.11) lands with them: every form control's DECLARED boundary is swept against
+the paint outside it, which is #1361's class made a rule instead of a per-selector ask.
+
+**Two false verdicts the new pins found, both fixed at the source.** A CDP attach against a `file://`
+document makes Chromium log `Unsafe attempt to load URL <U> from frame with URL <U>` and fail one request
+with `origin`; snap counts both, so every `--file` mock audit exited 1 on an artifact of the instrument's
+own attach. Fenced in `ops/noise.ts` beside the sandbox-trace and vite-churn precedents — identical URLs
+and `file:` only, never dropped, counted as `file-origin-noise`. And the selector proof reported the
+page-subject sentinel (`script-error` / `off-theme-font` / `flat-type-hierarchy` all name the DOCUMENT) as
+unlocatable; `PAGE_SUBJECT_SELECTOR` is now named in `contract/findings.ts` and skipped by the proof.
 
 ## 11. Cost
 

@@ -48,7 +48,9 @@ const AUDIT_FIXTURE_HTML =
   '<!doctype html><html lang="en" data-app-ready="settled"><head><meta charset="utf-8"><title>audit fixture</title></head>' +
   '<body style="margin:0;background:#000;color:#fff"><main><p style="font-size:16px;margin:24px">the reading surface under audit</p>' +
   '<button type="button" aria-label="Only action" style="width:48px;height:48px;background:#fff;color:#000">Go</button></main>' +
-  "<script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{}}</script></body></html>";
+    // `shell` is part of the bridge the --design-audit arm reads for the panel axis (#148 item 2); a
+  // fixture that publishes __orb WITHOUT it is a partial bridge, which the arm reports as a nav failure.
+  "<script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{},shell:()=>null}</script></body></html>";
 /** The same WCAG-failing plant tests/tooling/snap/cli.int.test.ts uses for the one-shot contrast proof. */
 const BAD_CONTRAST_HTML =
   '<!doctype html><html data-app-ready="settled"><body style="background:#8a8a8a"><p style="color:#7a7a7a;font-size:16px">barely there text</p><script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{}}</script></body></html>';

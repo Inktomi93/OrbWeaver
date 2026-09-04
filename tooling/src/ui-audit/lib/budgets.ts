@@ -1,18 +1,15 @@
-// The drive/settle wall-clock budgets — ceilings, not sleeps (a warm surface returns fast). Every CEILING
-// is LOAD-SCALED at module load through the one policy (`@orb/tooling/_shared/load-budget`, #1232): the
-// literal is the QUIET-BOX BASE and a contended box stretches it, so the CLI int suites stop exiting 2 on
-// synthetic pages purely because five lanes were live (#1222). The observation WINDOW below is not a
-// ceiling and is not scaled — see its own note.
+// The census-stability window — a floor and a ceiling, not sleeps. The CEILING is LOAD-SCALED at module
+// load through the one policy (`@orb/tooling/_shared/load-budget`, #1232): the literal is the QUIET-BOX
+// BASE and a contended box stretches it, so the int suites stop exiting 2 on synthetic pages purely
+// because five lanes were live (#1222).
+//
+// THE NAV / WAIT-SELECTOR / CLICK CEILINGS ARE GONE (#1315), with the drive queue they belonged to: this
+// dir stopped navigating and clicking when the scan became a Snap arm, and Snap's own `lib/budgets.ts`
+// owns those three (nav 15 s · wait 10 s · step 5 s) plus the throttled and isolated-stage variants a
+// drive actually needs. One drive, one budget table.
 import { budget } from "@orb/tooling/_shared/load-budget";
 
-const NAV_BASE_MS = 15_000;
-const WAIT_SELECTOR_BASE_MS = 10_000;
-const CLICK_BASE_MS = 5000;
 const CENSUS_OBSERVE_CEILING_BASE_MS = 5000;
-
-export const NAV_TIMEOUT_MS = budget(NAV_BASE_MS);
-export const WAIT_SELECTOR_TIMEOUT_MS = budget(WAIT_SELECTOR_BASE_MS);
-export const CLICK_TIMEOUT_MS = budget(CLICK_BASE_MS);
 
 // ── the CENSUS-STABILITY window (#808) ──────────────────────────────────────
 // `data-app-ready` is a ONE-SHOT BOOT signal (packages/client/src/lib/app-ready-signal.ts resolves a

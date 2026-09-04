@@ -37,7 +37,7 @@ const ABSENT = -1;
 
 /** `#1326`'s row. Printed only when something is NOT locatable — a clean sweep is already implied by the
  *  findings table, and a line per run saying "all 2 selectors resolve" is noise a reader learns to skip. */
-export function printSelectorProof(proofs: readonly SelectorProof[]): void {
+function printSelectorProof(proofs: readonly SelectorProof[]): void {
   const ambiguous = proofs.filter((proof) => proof.matches !== 1);
   if (ambiguous.length === 0) {
     return;
@@ -97,7 +97,7 @@ export function designAuditDenominators(measurement: DesignAuditMeasurement | nu
 function severityPairs(measurement: DesignAuditMeasurement, failOn: string): readonly ResultPair[] {
   return [
     ["findings", measurement.findings.length],
-    ["population-verdict", measurement.populationComplete ? "complete" : "NO-VERDICT"],
+    ["population-verdict", measurement.verdicts.population === null ? "complete" : "NO-VERDICT"],
     ["population-withheld", populationWithheldSummary(measurement.populationAccounting)],
     ["no-verdict-reasons", backdropRefusalSummary(measurement.backdropRefusals)],
     ["p0", measurement.counts.P0],

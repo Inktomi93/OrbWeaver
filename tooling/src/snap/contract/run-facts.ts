@@ -6,6 +6,7 @@ import { artifactRefSchema, factBatchIdSchema, instrumentCurrentScopeSchema } fr
 import type { DiagnosticRetentionSummary } from "../../_shared/browser-evidence-ring.ts";
 import { browserEvidenceRetentionBatchSchema, diagnosticRetentionSummary } from "../../_shared/browser-evidence-ring.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { DESIGN_AUDIT_SEVERITIES } from "../../ui-audit/index.ts";
 import type { Arm } from "./arm-vocabulary.ts";
 import { snapRatePostureSchema } from "./rate-posture.ts";
 
@@ -46,7 +47,7 @@ export const ARM_FACT_DATA_SCHEMAS = {
     p2: count,
     p3: count,
     census: count,
-    failOn: z.enum(["P0", "P1", "P2", "P3"]),
+    failOn: z.enum(DESIGN_AUDIT_SEVERITIES),
     populationVerdict: z.enum(["complete", "no-verdict"]),
     ambiguousSelectors: count,
     artifact,

@@ -18,7 +18,7 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CliResult, RunCliOpts } from "../../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 interface AuditRuleProof {
   readonly rule: string;
@@ -78,7 +78,7 @@ auditRuleTest(
   <div id="inner-realmenu" role="menu" style="${CARD};width:200px;height:80px">nested panel body</div>
 </div>`;
     await writeFile(join(scratch, "overlay-exemption.html"), relationalDocument(body));
-    const res = await runCli("ui-audit", ["/overlay-exemption.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    const res = await runCli("snap", ["--file", join(scratch, "overlay-exemption.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
     // One and only one: the class-word coincidence is judged (it was silently exempt before), and the
     // real popup role stays exempt — the rewrite must not trade one error for the other.

@@ -1,7 +1,7 @@
 ---
 kind: design
 status: archived
-updated: 2026-09-01
+updated: 2026-09-04
 ---
 
 # The state-paint census — one predicate, one forcing pass, three ex-blind sites
@@ -218,7 +218,7 @@ state-paint.int.test.ts fixtures, real CLI over file:// (the census-glow harness
 Floor: scoped biome · `node scripts/ts7.cjs --noEmit -p tsconfig.json` · `pnpm test:scoped`
 (state-paint.int, cli.int, census-glow\.int, index) `--maxWorkers=4` · `pnpm check:structure` (json
 verdict). Live acceptance: `/`=1, `config`=4, `settings:appearance`=14 hold (or a new REAL finding
-is reported, never tuned away); isolated stage `pnpm design-audit config --dirty` before/after — the
+is reported, never tuned away); isolated stage `pnpm snap config --dirty --design-audit` before/after — the
 escape fix should collapse `noHoverPaintUnproven=58`.
 
 ## Forks / walls / stated limits

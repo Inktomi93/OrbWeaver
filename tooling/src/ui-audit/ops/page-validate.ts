@@ -27,7 +27,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { RawSamples } from "../contract/samples.ts";
 import type { ShellStateSnapshot } from "../contract/types.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 /** `?` = optional (the field is absent from sample sets that predate its family, which every consumer
  *  already reads as "not censused"); the bare kinds are required and their absence is an instrument gap.

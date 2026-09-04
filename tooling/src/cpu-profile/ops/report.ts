@@ -3,7 +3,7 @@ import { print } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { LongTask, MeterData, PerfEvent, StepReport } from "../contract/types.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm perf-meter");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --perf");
 
 const LABEL_MAX = 70;
 const IDX_PAD = 3;

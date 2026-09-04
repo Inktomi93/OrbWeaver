@@ -11,7 +11,7 @@ import { TraceEngineResult } from "lighthouse/core/computed/trace-engine-result.
 import type { BootTraceReceipt } from "../contract/types.ts";
 import { summarizeBootTrace } from "../lib/boot-trace.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm perf-meter --boot-trace");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --boot-trace");
 
 interface TraceDataCollected {
   readonly value?: readonly unknown[];

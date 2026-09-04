@@ -6,7 +6,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 interface StatePaintReport {
   readonly findings: readonly { readonly rule: string; readonly selector: string; readonly value: string }[];
@@ -29,7 +29,6 @@ test("an escaped Tailwind class name no longer mangles the :hover strip — the 
   // on — so this planted hover-only contrast defect was invisible and the whole population collapsed
   // to withheld(noHoverPaintUnproven), exit 2. RED-FIRST: on the pre-fix source this test fails on
   // every assertion below (unparseable=1, no finding, NO VERDICT).
-  const reportPath = join(scratch, "escape-fix.json");
   await writeFile(
     join(scratch, "escape-fix.html"),
     relationalDocument(`<style>
@@ -39,8 +38,8 @@ test("an escaped Tailwind class name no longer mangles the :hover strip — the 
 <a class="dark:hover:bg-light" href="#">Continue the story</a>
 <p style="padding:12px">a paragraph no state rule touches</p>`),
   );
-  const res = await runCli("ui-audit", ["/escape-fix.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as StatePaintReport;
+  const res = await runCli("snap", ["--file", join(scratch, "escape-fix.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;
   const row = report.populationAccounting?.["hover-contrast"];
 
   expect(hoverRow(res.stdout, "selectors-unparseable")).toBe("0");
@@ -58,7 +57,6 @@ test("the attribute census forces Base-UI state paint: a failing pair fires, the
   // Base UI expresses interaction state as data-* attributes, never :hover — before this census the
   // pass published excluded(noHoverPaint) for every one of these, a FALSE measurement claim.
   // RED-FIRST: on the pre-fix source no hover-contrast finding exists on this page.
-  const reportPath = join(scratch, "attr-census.json");
   await writeFile(
     join(scratch, "attr-census.html"),
     relationalDocument(`<style>
@@ -73,8 +71,8 @@ test("the attribute census forces Base-UI state paint: a failing pair fires, the
 <div class="row cmd" id="valued">the cmdk valued form</div>
 <p style="padding:12px">a paragraph no state rule touches</p>`),
   );
-  const res = await runCli("ui-audit", ["/attr-census.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as StatePaintReport;
+  const res = await runCli("snap", ["--file", join(scratch, "attr-census.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;
   const row = report.populationAccounting?.["hover-contrast"];
   const hover = report.findings.filter(({ rule }) => rule === "hover-contrast");
 
@@ -104,7 +102,6 @@ test("a listener re-arming the forced attribute is caught by the pass-final veri
   // clean here (the observer fires a microtask LATER), so if the pass-final verify were dropped this
   // page would publish a P1 from a state no interaction produces — the exact dead-join defect class
   // this pass's contract exists to prevent (samples-hover.ts, the `as number[]` history).
-  const reportPath = join(scratch, "attr-stuck.json");
   await writeFile(
     join(scratch, "attr-stuck.html"),
     relationalDocument(`<style>
@@ -121,8 +118,8 @@ test("a listener re-arming the forced attribute is caught by the pass-final veri
   }).observe(document.getElementById("stuck"), { attributes: true, attributeFilter: ["data-highlighted"] });
 </script>`),
   );
-  const res = await runCli("ui-audit", ["/attr-stuck.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as StatePaintReport;
+  const res = await runCli("snap", ["--file", join(scratch, "attr-stuck.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;
   const row = report.populationAccounting?.["hover-contrast"];
 
   expect(Number(hoverRow(res.stdout, "not-restored"))).toBeGreaterThan(0);
@@ -140,7 +137,6 @@ test("state-gated glow is read under force: a non-house layer under [data-select
   // The glow doctrine (checks-decor.ts) sanctions the layered glow on selected/active carriers ONLY —
   // which means the paint it judges is gated behind exactly the states a static read never enters.
   // RED-FIRST: on the pre-fix source all three glows below are invisible (zero glow-shadow findings).
-  const reportPath = join(scratch, "state-glow.json");
   await writeFile(
     join(scratch, "state-glow.html"),
     relationalDocument(`<style>
@@ -165,10 +161,10 @@ test("state-gated glow is read under force: a non-house layer under [data-select
 <div class="curscope" id="scopeA"><div class="gbox gcur" id="gcurA">token-exact under scope A</div></div>
 <div class="curscope" id="scopeB"><div class="gbox gcur" id="gcurB">token-exact under scope B</div></div>`),
   );
-  const res = await runCli("ui-audit", ["/state-glow.html", "--base", `file://${scratch}`, "--fail-on", "P3", "--out", reportPath], {
+  const res = await runCli("snap", ["--file", join(scratch, "state-glow.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as StatePaintReport;
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;
   const glow = report.findings.filter(({ rule }) => rule === "glow-shadow").map(({ selector }) => selector);
 
   expect(glow, "a state-gated glow painting OVER content fires, with the state in the selector").toContain("#gbad[data-selected]::before");

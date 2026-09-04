@@ -38,7 +38,7 @@
 // line-height per fragment however many lines it wraps to; only a leak clears the bar.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_CENSUS_OCCLUSION = `  // ── painted geometry: what actually survives to the screen ────────────────
   // THE REASONING HOME FOR THIS WALK IS tooling/src/snap/ops/overflow.ts, and the code cannot be shared

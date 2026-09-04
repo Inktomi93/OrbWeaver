@@ -5,7 +5,7 @@ import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
 // USE it, and re-exported below so its consumers keep one import.
 import type { Backdrop, GlowShadowInput, RadialGlowInput } from "./backdrop.ts";
 import type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
-// `RawSamples` at the bottom COMPOSES the interactive-census shapes, so they are imported here as well as
+// `RawSamples` at the bottom COMPOSES the split families' shapes, so they are imported here as well as
 // re-exported below: a bare `export … from` re-exports a name without binding it locally (tsc catches
 // that; biome's type service does not).
 import type {
@@ -17,6 +17,7 @@ import type {
   TabIndexInput,
   TapTargetInput,
 } from "./samples-interactive.ts";
+import type { BgPatternInput, IconTileInput, MotionStaticInput } from "./samples-ornament.ts";
 import type { CensusCapAccountingInput, RelationalSamples } from "./samples-populations.ts";
 
 export type { Backdrop, GlowShadowInput, RadialGlowInput } from "./backdrop.ts";
@@ -250,40 +251,12 @@ export interface AccentBorderInput {
 // as `Backdrop`: samples-hover.ts carries glow rows on its read results, and importing them from this
 // aggregator closed a type-only `no-circular` loop. Re-exported here so existing consumers are unchanged.
 
-// ── Decorative background patterns (impeccable stripes / grid fields) ────────
-export interface BgPatternInput {
-  readonly selector: string;
-  readonly kind: "stripe" | "grid";
-  readonly backgroundSize: string;
-  readonly width: number;
-  readonly height: number;
-}
-
-// ── Icon tile stacked above a heading (impeccable `icon-tile-stack`) ─────────
-export interface IconTileInput {
-  readonly headingTag: string;
-  readonly headingText: string;
-  readonly headingTop: number;
-  readonly siblingSelector: string;
-  readonly siblingWidth: number;
-  readonly siblingHeight: number;
-  readonly siblingBottom: number;
-  readonly siblingBgAlpha: number;
-  readonly siblingHasBgImage: boolean;
-  readonly siblingBorderWidth: number;
-  readonly siblingRadiusPx: number;
-  readonly hasIconChild: boolean;
-  readonly iconChildWidth: number;
-}
-
-// ── Static motion offenders (impeccable `bounce-easing` / `layout-transition`) ──
-export interface MotionStaticInput {
-  readonly selector: string;
-  readonly kind: "bounce-name" | "overshoot-bezier" | "layout-transition";
-  readonly value: string;
-  /** Inside an accordion/collapsible panel — motion law §3.7 sanctions measured-var height there. */
-  readonly panelExempt: boolean;
-}
+// ── Ornament censuses (patterns · icon tiles · static motion) ────────────────────────────────────────
+// `BgPatternInput` / `IconTileInput` / `MotionStaticInput` MOVED to contract/samples-ornament.ts (#1315) —
+// the #797 split reason, one family over: this file was AT the 450-line cap and the boundary census needed
+// room. Re-exported below beside the other family doors; the import is load-bearing because `RawSamples`
+// composes these names (a bare `export … from` re-exports without binding them locally).
+export type { BgPatternInput, IconTileInput, MotionStaticInput } from "./samples-ornament.ts";
 
 // ── Page censuses: fonts + type-scale spread (impeccable adapted, ramp-bound) ──
 /** One face the cascade names FIRST on some element, paired with whether this environment can PAINT it.

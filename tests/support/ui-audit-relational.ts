@@ -1,7 +1,23 @@
+import { expect } from "./fixtures.ts";
 import { vi } from "vitest";
 
 export const RELATIONAL_CLI_TIMEOUT_MS = 90_000;
 vi.setConfig({ testTimeout: RELATIONAL_CLI_TIMEOUT_MS, hookTimeout: RELATIONAL_CLI_TIMEOUT_MS });
+
+/** THE ARGV every walker suite adds (#1315). The scan is `pnpm snap <route> --design-audit`; a local
+ *  fixture is `--file <path>` rather than a `file://` BASE plus a route, because snap tells the two apart
+ *  on purpose — a `--base` origin is an APP origin and owes the `__orb` bridge, a `--file` document does
+ *  not. The three suppressed defaults are snap's own: none of these suites asserts a pixel. */
+export const AUDIT_ARGV = ["--design-audit", "--no-shot", "--no-deadcss", "--no-failure-evidence"] as const;
+
+/** The `report <path>` line the arm prints — the ONE door onto its filed JSON. The retired CLI took
+ *  `--out <path>` and wrote the report exactly there; snap's `--out` names the SHOT base, and the arm
+ *  files its report inside the run slot under its own producer arm (#1342). */
+export function auditReport(stdout: string): string {
+  const line = stdout.split("\n").find((entry) => entry.startsWith("report "));
+  expect(line, `no report line in:\n${stdout}`).toBeTypeOf("string");
+  return String(line).slice("report".length).trim();
+}
 
 export function relationalDocument(body: string): string {
   return `<!doctype html>

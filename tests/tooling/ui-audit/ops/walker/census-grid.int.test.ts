@@ -13,7 +13,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 interface GridReport {
   readonly findings: readonly { readonly rule: string; readonly value: string; readonly selector: string }[];
@@ -35,9 +35,8 @@ const LAW4_FIXTURE = `<style>
 <p class="plain">text with no promoting ancestor</p>`;
 
 test("Law 4 judges promoted text and counts BOTH exclusions into the same denominator", async ({ runCli, scratch }) => {
-  const reportPath = join(scratch, "law4.json");
   await writeFile(join(scratch, "law4.html"), relationalDocument(LAW4_FIXTURE));
-  const res = await runCli("ui-audit", ["/law4.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "law4.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // THREE text candidates, ONE judged. `readingSurface` is the mirrored gate exemption and `snapped` is the
   // polarity ruling (no promoting ancestor = the browser re-snaps every paint = the rule does not apply);
@@ -45,7 +44,7 @@ test("Law 4 judges promoted text and counts BOTH exclusions into the same denomi
   expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=3 judged=1 .*excluded\(readingSurface=1 snapped=1\)/u);
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as GridReport;
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
   const law4 = report.findings.filter((finding) => finding.rule === "off-grid-text");
   expect(law4, "the promoted text is the one candidate the rule applies to").toHaveLength(1);
   // The finding must name the LAYER KIND (`gridPromotionKind`) and the fraction in DEVICE px at the live
@@ -74,16 +73,15 @@ const SR_ONLY_FIXTURE = `<style>
 </div>`;
 
 test("Law 4 EXCLUDES screen-reader-only text and still judges its painted twin in the same layer", async ({ runCli, scratch }) => {
-  const reportPath = join(scratch, "sr-only.json");
   await writeFile(join(scratch, "sr-only.html"), relationalDocument(SR_ONLY_FIXTURE));
-  const res = await runCli("ui-audit", ["/sr-only.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "sr-only.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // PRINTED, never a silent drop: the two excluded candidates stay in the denominator under their own
   // reason, and the identity candidates = judged + withheld + excluded still closes.
   expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=3 judged=1 .*excluded\(srOnly=2\)/u);
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as GridReport;
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
   // SERIALIZED, not only printed — the JSON is what a consumer reads.
   const row = report.populationAccounting?.["off-grid-text"];
   expect(row?.excluded["srOnly"], "the exclusion is carried in the report, not only in stdout").toBe(2);
@@ -116,14 +114,13 @@ const PROMOTION_KIND_FIXTURE = `<style>
 <div class="host" id="three-d" data-slot="preserve-3d-host"><p>text under preserve-3d</p></div>`;
 
 test("Law 3 recognises all three promotion shapes and names each one in its Law-4 finding", async ({ runCli, scratch }) => {
-  const reportPath = join(scratch, "promotion-kinds.json");
   await writeFile(join(scratch, "promotion-kinds.html"), relationalDocument(PROMOTION_KIND_FIXTURE));
-  const res = await runCli("ui-audit", ["/promotion-kinds.html", "--base", `file://${scratch}`, "--out", reportPath], {
+  const res = await runCli("snap", ["--file", join(scratch, "promotion-kinds.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
 
   expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=3 judged=3 /u);
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as GridReport;
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
   const kinds = report.findings.filter((finding) => finding.rule === "off-grid-text").map((finding) => finding.value);
   for (const kind of ["backdrop-filter", "will-change", "3d"]) {
     expect(
@@ -143,7 +140,7 @@ const ANIMATING_FIXTURE = `<style>
 
 test("Law 2 WITHHOLDS a transform that is mid-animation — a moving element has no rest landing", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "animating.html"), relationalDocument(ANIMATING_FIXTURE));
-  const res = await runCli("ui-audit", ["/animating.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "animating.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // WITHHELD, not excluded: the rule APPLIES to this element and the instrument could not read its rest
   // landing, which is a NO VERDICT rather than a clean pass.
@@ -164,17 +161,17 @@ test("Law 2 WITHHOLDS a transform that is mid-animation — a moving element has
  *  epsilon rests on. */
 test("the landing fraction is measured in DEVICE pixels, so the same CSS offset reads differently by DPR", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "dpr.html"), relationalDocument(LAW4_FIXTURE));
-  const desktopPath = join(scratch, "dpr-desktop.json");
-  const mobilePath = join(scratch, "dpr-mobile.json");
-  const desktop = await runCli("ui-audit", ["/dpr.html", "--base", `file://${scratch}`, "--out", desktopPath], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-  const mobile = await runCli("ui-audit", ["/dpr.html", "--base", `file://${scratch}`, "--mobile", "--out", mobilePath], {
+  const desktop = await runCli("snap", ["--file", join(scratch, "dpr.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const mobile = await runCli("snap", ["--file", join(scratch, "dpr.html"), "--mobile", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   expect(desktop.stdout).not.toContain("INSTRUMENT ERROR");
   expect(mobile.stdout).not.toContain("INSTRUMENT ERROR");
 
-  const desktopValue = (JSON.parse(await readFile(desktopPath, "utf8")) as GridReport).findings.find((finding) => finding.rule === "off-grid-text")?.value;
-  const mobileValue = (JSON.parse(await readFile(mobilePath, "utf8")) as GridReport).findings.find((finding) => finding.rule === "off-grid-text")?.value;
+  const desktopReport = JSON.parse(await readFile(auditReport(desktop.stdout), "utf8")) as GridReport;
+  const mobileReport = JSON.parse(await readFile(auditReport(mobile.stdout), "utf8")) as GridReport;
+  const desktopValue = desktopReport.findings.find((finding) => finding.rule === "off-grid-text")?.value;
+  const mobileValue = mobileReport.findings.find((finding) => finding.rule === "off-grid-text")?.value;
   expect(desktopValue, "at DPR 1 a quarter-CSS-pixel offset is a quarter DEVICE pixel").toContain("top 0.250 / left 0.000 device px off the grid at DPR 1");
   expect(mobileValue, "at DPR 3 the same CSS offset is 30.75 device px — a quarter pixel the OTHER side of the grid line").toContain(
     "top -0.250 / left 0.000 device px off the grid at DPR 3",

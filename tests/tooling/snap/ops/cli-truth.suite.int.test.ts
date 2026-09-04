@@ -63,33 +63,13 @@ test("the public report arm spelling perf canonicalizes to the typed interaction
   expect(parseSnapReportArgs(["--report", "latest", "--arm", "interaction-perf"]).query?.arm).toBe("interaction-perf");
 });
 
-function shellWords(recipe: string): string[] {
-  const parsed = spawnSync("bash", ["-c", 'eval "set -- $1"; printf "%s\\0" "$@"', "retired-recipe", recipe], { encoding: "buffer" });
-  expect(parsed.status, parsed.stderr.toString()).toBe(0);
-  return parsed.stdout.toString().split("\0").filter(Boolean);
-}
-
-test("the retired perf-meter door emits shell-safe modern Snap recipes for its full legacy dialect", async ({ runCli }) => {
-  const legacy = ["/", "--settle", "900", "--cycles", "2", "--jsclick", "#target[data-label='a b']", "--wheelburst", "#list=40:3", "--cpuprofile"];
-  const retired = await runCli("cpu-profile", legacy);
-  await expect(retired).toExitWith(3);
-  for (const prefix of ["REPLACEMENT  ", "CPU PROFILE  "]) {
-    const recipe = retired.stdout
-      .split("\n")
-      .find((line) => line.startsWith(prefix))
-      ?.slice(prefix.length);
-    expect(recipe).toBeDefined();
-    const words = shellWords(recipe as string);
-    expect(words.slice(0, 2)).toEqual(["pnpm", "snap"]);
-    const parsed = parseSnapArgs(words.slice(2));
-    expect(parsed.errors).toEqual([]);
-  }
-  expect(retired.stdout).not.toMatch(/--settle|--cycles|--jsclick|--wheelburst|--cpuprofile/u);
-  expect(retired.stdout).toContain("--pause");
-  expect(retired.stdout).toContain("--perf-cycles");
-  expect(retired.stdout).toContain("--dom-click");
-  expect(retired.stdout).toContain("--wheel-burst");
-});
+/** THE PERF-METER DOOR'S RECIPE PIN IS RETIRED WITH THE DOOR (#1315). It asserted that
+ *  `pnpm perf-meter … --cycles --jsclick --wheelburst --cpuprofile` printed a shell-safe modern Snap
+ *  recipe for every legacy word — an argv TRANSLATION layer, which is exactly what the owner's
+ *  no-doors/no-shims ruling deleted. What survives is one rung weaker and one rung honester: the door
+ *  refuses by name and points at the arm, pinned once for every folded tool in
+ *  `unified-instrument.suite.int.test.ts` ("the folded tool dirs are NOT programs"), and the retired
+ *  FLAG spellings still refuse naming their replacement — which the next test below still proves. */
 
 test("scenario checkpoints refuse every explicit browser-lifetime flag while outer load and call work survive into each plan", async ({ scratch }) => {
   const path = `${scratch}/truth.json`;

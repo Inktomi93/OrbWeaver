@@ -3,10 +3,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import type { RelationalPopulationReport } from "../../../../support/ui-audit-relational.ts";
-import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 test("row-void rejects an unbound title/actions topbar even when its rendered gap is enormous", async ({ runCli, scratch }) => {
-  const reportPath = join(scratch, "unbound-topbar.json");
   await writeFile(
     join(scratch, "unbound-topbar.html"),
     relationalDocument(`<header style="display:flex;justify-content:space-between;align-items:center;width:1000px;height:48px">
@@ -14,10 +13,10 @@ test("row-void rejects an unbound title/actions topbar even when its rendered ga
   <div><button style="width:80px;height:32px">Reset</button><button style="width:80px;height:32px">Save</button></div>
 </header>`),
   );
-  const res = await runCli("ui-audit", ["/unbound-topbar.html", "--base", `file://${scratch}`, "--out", reportPath], {
+  const res = await runCli("snap", ["--file", join(scratch, "unbound-topbar.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as RelationalPopulationReport;
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
   expect(report.populationAccounting?.["row-void"]).toMatchObject({
     candidates: 1,
     judged: 0,
@@ -34,7 +33,6 @@ test("row-void rejects an unbound title/actions topbar even when its rendered ga
 });
 
 test("cohort-anatomy withholds an actively animating cohort instead of counting it judged", async ({ runCli, scratch }) => {
-  const reportPath = join(scratch, "animating-cohort.json");
   await writeFile(
     join(scratch, "animating-cohort.html"),
     relationalDocument(`<style>@keyframes hold { from { opacity:.99 } to { opacity:1 } }</style><section>
@@ -43,10 +41,10 @@ test("cohort-anatomy withholds an actively animating cohort instead of counting 
   <div data-slot="setting-row" style="height:16px">c</div>
 </section>`),
   );
-  const res = await runCli("ui-audit", ["/animating-cohort.html", "--base", `file://${scratch}`, "--out", reportPath], {
+  const res = await runCli("snap", ["--file", join(scratch, "animating-cohort.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as RelationalPopulationReport;
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
   expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 1, judged: 0, withheld: { animating: 1 } });
   expect(report.findings.map(({ rule }) => rule)).not.toContain("cohort-anatomy");
   expect(res.stdout).toContain("INSTRUMENT ERROR");
@@ -54,7 +52,6 @@ test("cohort-anatomy withholds an actively animating cohort instead of counting 
 });
 
 test("cohort-anatomy judges a retained animation after its play state is finished", async ({ runCli, scratch }) => {
-  const reportPath = join(scratch, "finished-cohort.json");
   await writeFile(
     join(scratch, "finished-cohort.html"),
     relationalDocument(`<style>@keyframes done { from { opacity:.99 } to { opacity:1 } }</style><section>
@@ -63,10 +60,10 @@ test("cohort-anatomy judges a retained animation after its play state is finishe
   <div data-slot="setting-row" style="height:32px">c</div>
 </section>`),
   );
-  const res = await runCli("ui-audit", ["/finished-cohort.html", "--base", `file://${scratch}`, "--out", reportPath], {
+  const res = await runCli("snap", ["--file", join(scratch, "finished-cohort.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as RelationalPopulationReport;
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
   expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 1, judged: 1, withheld: {} });
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 });
