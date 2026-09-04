@@ -291,6 +291,7 @@ export type ArmArgs = Pick<
   | "map"
   | "mapSelector"
   | "mapPage"
+  | "atlas"
   | "lighthouse"
   | "lighthouseMode"
   | "requests"

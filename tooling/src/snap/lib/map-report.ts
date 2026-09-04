@@ -20,6 +20,52 @@ function printGroup(name: string, values: readonly string[], render: (value: str
   }
 }
 
+/** The last section this SESSION printed an atlas for. Module state is correct here and only here: a
+ *  session's calls all run inside the daemon's one process (ops/session-daemon-call.ts), and a one-shot
+ *  run is a fresh process that never reads it. */
+let lastAtlasFor: { readonly session: string; readonly section: string | null } | null = null;
+
+function atlasTargetCount(atlas: Extract<MapAtlasEvidence, { status: "available" }>): number {
+  const { capabilities } = atlas;
+  return (
+    capabilities.sections.length +
+    capabilities.modalSlots.length +
+    capabilities.configGroups.length +
+    capabilities.contextTabs.length +
+    capabilities.chatPositions.length
+  );
+}
+
+/** WHEN the whole atlas is worth its 2.1 KB (#1372): when it was asked for, and when it is NEWS — the
+ *  first map of a named session, or one taken after the section changed under it. Everything else is a
+ *  reprint of what the caller's previous call already said, and it is one flag away. */
+export function atlasIsNews(opts: Args, atlas: Extract<MapAtlasEvidence, { status: "available" }>): boolean {
+  if (opts.atlas) {
+    return true;
+  }
+  const session = opts.session;
+  if (session === null) {
+    return false;
+  }
+  const section = atlas.place.section;
+  const previous = lastAtlasFor;
+  lastAtlasFor = { session, section };
+  return previous === null || previous.session !== session || previous.section !== section;
+}
+
+/** The one line that replaces the block: every count a reader needs to know whether the full list is
+ *  worth a call, plus the flag that prints it. */
+export function atlasSummaryLine(atlas: Extract<MapAtlasEvidence, { status: "available" }>): string {
+  const { capabilities, place } = atlas;
+  return `atlas: ${String(atlasTargetCount(atlas))} SPA targets (${String(capabilities.sections.length)} sections, ${String(capabilities.modalSlots.length)} modals, ${String(capabilities.configGroups.length)} settings, ${String(capabilities.contextTabs.length)} context tabs, ${String(capabilities.chatPositions.length)} chat positions) at section=${place.section ?? "(unpublished)"} — list them with --map --atlas`;
+}
+
+/** Exported for the unit pin: the module state below makes the session arm untestable through a one-shot
+ *  CLI, and the decision is the whole point of the change. */
+export function resetAtlasSessionMemory(): void {
+  lastAtlasFor = null;
+}
+
 function printAtlas(atlas: MapAtlasEvidence | null, error: string | null): void {
   print("\n--- SPA NAV TARGETS ---");
   if (error !== null) {
@@ -142,7 +188,14 @@ export function printMapBlock({ opts, atlas, atlasError, shell, shellError, entr
   if (atlas === null && atlasError === null && shell === null && shellError === null && entries === null && surfaceError === null) {
     return;
   }
-  printAtlas(atlas, atlasError);
+  // The atlas is the APP's inventory, not this surface's: it prints in full when it was asked for or when
+  // it is news to this session, and as one line otherwise (#1372). A refusal or an instrument error is
+  // never collapsed — that is the run failing to answer, and it always prints.
+  if (atlas !== null && atlasError === null && atlas.status === "available" && !atlasIsNews(opts, atlas)) {
+    print(`\n${atlasSummaryLine(atlas)}`);
+  } else {
+    printAtlas(atlas, atlasError);
+  }
   printShell(shell, shellError);
   printSurface(opts, entries, surfaceError);
 }

@@ -989,16 +989,20 @@ test("composite findings correlate the same unsafe-port failure across diagnosti
   });
   expect(unsafe?.evidence.map((evidence) => evidence.source).toSorted()).toEqual(["console-api", "core-capture", "har", "network"]);
   expect(unsafe?.evidence.every((evidence) => scopeMatches(evidence.scope, { context: 0, page: 0, window: "7" }))).toBe(true);
-  expect(index.findings.find((finding) => finding.what.startsWith("%c12:34:56.789 [perf]%c"))).toMatchObject({
-    severity: "annotation",
-    arms: ["react-profile"],
-    channels: ["orb-attribution"],
-  });
-  expect(index.findings.find((finding) => finding.what.includes("[input]"))).toMatchObject({
+  // #1372 — an instrumentation line is TYPED at the producer: the `%c` timestamp prefix and the trailing
+  // colour arguments are terminal configuration, not evidence, and carrying them cost ~250 bytes a row.
+  // The attribution (arm + channel) is unchanged; what the row SAYS is now the reading.
+  const perfRow = index.findings.find((finding) => finding.what.startsWith("perf slow commit Region"));
+  expect(perfRow).toMatchObject({ severity: "annotation", arms: ["react-profile"], channels: ["orb-attribution"] });
+  expect(perfRow?.what).toBe("perf slow commit Region value=31ms");
+  expect(index.findings.find((finding) => finding.what.startsWith("input click #save"))).toMatchObject({
     severity: "annotation",
     arms: ["interaction-perf"],
     channels: ["orb-attribution"],
   });
+  // Narrow on purpose: only an ATTRIBUTED instrumentation line is re-typed. Ordinary console prose that
+  // happens to carry the same words keeps its own text verbatim (the negative control two rows below).
+  expect(index.findings.filter((finding) => finding.channels.includes("orb-attribution")).some((finding) => finding.what.includes("color:red"))).toBe(false);
   expect(index.findings.find((finding) => finding.what.startsWith("User preference: [perf]"))).toMatchObject({
     severity: "warning",
     arms: [],

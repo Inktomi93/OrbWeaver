@@ -11,6 +11,7 @@ import { findingEvidenceDisplay, findingNextDisplay } from "../lib/run-finding-d
 import { reportAnalyzerProblems } from "../lib/run-report-analyzers.ts";
 import type { SnapRunRegression } from "../lib/run-report-columns.ts";
 import { runArms, runOutName, runRoute } from "../lib/run-report-columns.ts";
+import { evalArtifactPaths, readSnapEvalValues } from "../lib/run-report-evals.ts";
 import { artifactMatches, diagnosticMatches, findingMatches } from "../lib/run-report-query.ts";
 import { readSnapDiagnosticArtifact } from "./run-bundle.ts";
 
@@ -144,6 +145,25 @@ async function reportReactProfileSummary(index: SnapRunIndex, query: SnapReportQ
   }
 }
 
+/** `--report --arm eval` prints the VALUES, not just the artifact that holds them — the one thing an
+ *  `--eval` run exists to produce. An arm that measured nothing wrote no file, and a run with no eval
+ *  artifact prints nothing rather than an error: absence here is a legitimate outcome, not a gap. */
+async function reportEvalValues(index: SnapRunIndex, query: SnapReportQuery): Promise<void> {
+  if (query.arm !== "eval") {
+    return;
+  }
+  for (const path of evalArtifactPaths(index)) {
+    // @orb-gate-ignore caught-failure-ownership(empty:error): a PRESENT-but-unreadable values artifact is an instrument defect, printed as EVAL REFUSED and never as an empty value set; the strict index reader above still owns the run's verdict. Ends if that refusal line disappears.
+    try {
+      for (const row of await readSnapEvalValues(path)) {
+        print(`EVAL         p${String(row.page)} ${row.expression} ${row.error === null ? `= ${String(row.value)}` : `→ ${row.error}`}`);
+      }
+    } catch (error) {
+      print(`EVAL REFUSED ${path} — ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+}
+
 function reportIdentity(index: SnapRunIndex, query: SnapReportQuery): void {
   print(`RUN REPORT   ${index.identity.runId} checkout=${index.identity.checkout} sha=${index.identity.sha} lane=${index.process.lane ?? "none"}`);
   if (query.mode !== "all") {
@@ -205,6 +225,7 @@ export async function renderSnapRunReport(index: SnapRunIndex, path: string, que
   );
   print(`VERDICT      ${index.verdict.state} exit=${index.verdict.exit}`);
   reportFacts(index, query);
+  await reportEvalValues(index, query);
   await reportReactProfileSummary(index, query);
   reportFindings(index, path, query);
   const arms = index.verdict.arms.filter(

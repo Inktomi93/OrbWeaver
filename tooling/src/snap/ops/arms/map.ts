@@ -153,11 +153,21 @@ export const MAP_ARM = {
         }
       },
     },
+    {
+      flag: "--atlas",
+      kind: "boolean",
+      pageTargetable: false,
+      group: "Look",
+      summary: "with --map: print the whole SPA destination atlas (default is one line — the atlas is global, not this surface)",
+      handler: (args): void => {
+        args.atlas = true;
+      },
+    },
   ],
   level: "call",
   needs: (): ArmNeeds => ({}),
   sessionCallBaseMs: (): null => null,
-  defaults: (): Pick<ArmArgs, "map" | "mapSelector" | "mapPage"> => ({ map: false, mapSelector: "body", mapPage: 0 }),
+  defaults: (): Pick<ArmArgs, "map" | "mapSelector" | "mapPage" | "atlas"> => ({ map: false, mapSelector: "body", mapPage: 0, atlas: false }),
   help: `  --map [selector]        print BOTH the global Orbweaver SPA destination atlas and the current
                           rendered shell/surface map with unique locators and useful control state.
                           The selector scopes only the surface; atlas stays global. Static files are a

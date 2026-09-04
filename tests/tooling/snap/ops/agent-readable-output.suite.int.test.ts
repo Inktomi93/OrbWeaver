@@ -31,7 +31,10 @@ const FIXTURE = `<!doctype html>
 <html lang="en" data-app-ready="settled"><head><meta charset="utf-8"><title>agent readable</title>
 <script>
 globalThis.__orb={ snap:()=>({fixture:true}), flags:()=>[], resetEvidence:()=>{},
-  consoleErrors:()=>({records:[],dropped:0,cap:128}) };
+  consoleErrors:()=>({records:[],dropped:0,cap:128}),
+  motion:()=>({loafs:[],cls:0,virtualizedCls:0,nonVirtualizedCls:0,observedCls:0,observedVirtualizedCls:0,
+    observedNonVirtualizedCls:0,worstBlocking:0,worstShift:0}),
+  animations:()=>[], motionFlaggersSettled:()=>true, setMotionAuditDropTrackingPaused:()=>{} };
 console.log("ordinary chatter nobody asked for");
 console.warn("%c10:02:23.842 [perf]%c slow commit region:content 30ms (mount)","color:#c60","color:#888");
 </script></head><body><main><button id="present">present</button></main></body></html>`;
@@ -68,7 +71,9 @@ test("a FINDING row cites the run by id, not by twice the absolute index path", 
   const file = join(scratch, "agent-readable-citation.html");
   await writeFile(file, FIXTURE);
 
-  const run = await runCli("snap", ["--file", file, "--eval", "1", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  // `--motion` so an annotation prints as a ROW rather than collapsing (#1372) — the citation claim is
+  // about the rows, so the run has to have one.
+  const run = await runCli("snap", ["--file", file, "--eval", "1", "--motion", "#present", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   const runId = /^RUN {8}(\S+) /mu.exec(run.stdout)?.[1];
   expect(runId, run.stdout).toBeTypeOf("string");
 
@@ -112,11 +117,33 @@ test("the console channel the digest line advertises is the one the reader accep
   expect(reader.stdout).toContain("ordinary chatter nobody asked for");
 });
 
+test("console annotations yield to the arm the argv asked for, and stay one call away", async ({ runCli, scratch }) => {
+  const file = join(scratch, "agent-readable-annotations.html");
+  await writeFile(file, FIXTURE);
+
+  // NO measuring arm was requested, so the app's own [perf]/[frame]/[cls] lines are not this run's
+  // subject: they collapse to one line naming the reader that expands them.
+  const quiet = await runCli("snap", ["--file", file, "--eval", "1", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  const runId = /^RUN {8}(\S+) /mu.exec(quiet.stdout)?.[1];
+  expect(quiet.stdout).toMatch(/^annotations {2}perf=\d+ .*worst=\S+ → pnpm snap --report \S+ --problems --arm \S+$/mu);
+  expect(quiet.stdout, "no annotation row survives the collapse").not.toMatch(/^FINDING {4}annotation/mu);
+  // The CSS colour codes the app prints for the terminal are stripped from the typed row.
+  expect(quiet.stdout).not.toContain("color:#c60");
+
+  // …and the reader still has every row, typed.
+  const reader = await runCli("snap", ["--report", String(runId), "--problems", "--arm", "react-profile"], { timeoutMs: CLI_TIMEOUT_MS });
+  await expect(reader).toExitWith(EXIT.clean);
+  expect(reader.stdout).toMatch(/^FINDING {6}annotation \| perf slow commit .*value=30ms/mu);
+  expect(reader.stdout).not.toContain("color:#c60");
+});
+
 test("a failed step is its own FINDING row, ranked above every console annotation", async ({ runCli, scratch }) => {
   const file = join(scratch, "agent-readable-wait.html");
   await writeFile(file, FIXTURE);
 
-  const run = await runCli("snap", ["--file", file, "--wait-for", "article#never", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  // `--motion` so the annotations are the asked-for arm and DO print as rows — the ranking claim needs
+  // both kinds on the card at once (#1372 collapses them only when nothing asked).
+  const run = await runCli("snap", ["--file", file, "--wait-for", "article#never", "--motion", "#present", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
 
   await expect(run).toExitWith(EXIT.violations);
   // The row names the argv to correct — the flag, the index and the selector — not just a count.
@@ -128,6 +155,25 @@ test("a failed step is its own FINDING row, ranked above every console annotatio
   expect(failure, "a failed step outranks the annotations it invalidates").toBeLessThan(annotation);
   // `next=` is the corrected reader for the drive, never a perf drill-down.
   expect(run.stdout).toMatch(/FINDING {4}error \| step 0 --wait-for .*next=pnpm snap --report \S+ --problems --channel drive/u);
+});
+
+test("--map prints the surface it mapped; the global atlas is one line until it is asked for", async ({ runCli, scratch }) => {
+  const file = join(scratch, "agent-readable-map.html");
+  await writeFile(file, FIXTURE);
+
+  const map = await runCli("snap", ["--file", file, "--map", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+
+  await expect(map).toExitWith(EXIT.clean);
+  expect(map.stdout).toContain("--- SURFACE MAP");
+  expect(map.stdout).toContain("--- CURRENT SHELL / REGIONS ---");
+  // A file:// mock HAS no atlas, and an UNAVAILABLE atlas is a refusal: it always prints in full. The
+  // summary/full decision for an AVAILABLE one is pinned where it lives (tests/tooling/snap/lib/
+  // map-report.test.ts) because it depends on session state a one-shot CLI cannot reach.
+  expect(map.stdout).toContain("NAV TARGETS unavailable");
+
+  const atlas = await runCli("snap", ["--file", file, "--map", "--atlas", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  await expect(atlas).toExitWith(EXIT.clean);
+  expect(atlas.stdout).toContain("--- SPA NAV TARGETS ---");
 });
 
 test("--reports is navigable: every row says what it was for, and --last windows it", async ({ runCli, scratch }) => {

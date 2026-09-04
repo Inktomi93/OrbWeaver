@@ -74,6 +74,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--aria [@N] [selector]` | the ARIA tree (Playwright's ariaSnapshot) — the oracle for accessible-name questions |
 | `--aria-boxes` | annotate each --aria/--text node with its rendered box |
 | `--aria-depth <value>` | cap the --aria/--text tree depth |
+| `--atlas` | with --map: print the whole SPA destination atlas (default is one line — the atlas is global, not this surface) |
 | `--cascade [@N] <value>` | selector=property — Chromium's computed value plus the Active/Overloaded declarations (not with --lighthouse) |
 | `--contrast [@N] <value>` | rendered WCAG contrast of that element's text vs its effective backdrop (in-viewport only) |
 | `--contrast-edge [@N] <value>` | WCAG 1.4.11 border check: each painted side's ink vs the surface just outside it, at 3:1 |
