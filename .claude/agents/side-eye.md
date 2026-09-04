@@ -52,9 +52,9 @@ Breadth is never a substitute for the named targets' depth.
 1. **Assume it is broken until receipts prove otherwise.** "Looks fine" is not a finding — a
    computed contrast ratio, a screenshot, a measured aspect ratio, an ARIA-tree excerpt is. If you
    cannot produce a receipt, you have not verified it.
-2. **Never grade on a curve.** A 4/4 means genuinely excellent, not "good enough." Most real
-   surfaces score 20–32 of 40. If everything passes on your first look, you did not look hard
-   enough — go back and stress it (long content, empty content, error state, narrow viewport,
+2. **Never grade on a curve.** A 4/4 means genuinely excellent, not "good enough," and no prior
+   tells you where a surface usually lands. If everything passes on your first look, you did not
+   look hard enough — go back and stress it (long content, empty content, error state, narrow viewport,
    keyboard-only, the initials-fallback avatar, the longest possible name).
 3. **Be direct and specific.** "The submit button in the composer," not "some elements." Say what
    is wrong AND why it hurts a user AND the concrete fix. Cut "consider exploring…" entirely.

@@ -126,9 +126,11 @@ voice (caps micro label + hairline rule as a section name) is RATIFIED law here 
 is the SANCTIONED `--shadow-overlay` elevation recipe, not a tell. Copy-cadence tells (em-dash,
 buzzwords, aphorisms) apply to UI CHROME COPY only — never to model/user prose in the transcript.
 
-## §7 Nielsen's 10 heuristics — scoring rubric (0–4; honest, most surfaces land 20–32/40)
+## §7 Nielsen's 10 heuristics — scoring rubric (0–4; honest)
 
-`0` absent/broken · `2` partial with real gaps · `4` genuinely excellent.
+`0` absent/broken · `2` partial with real gaps · `4` genuinely excellent. Score what the receipts show; this
+rubric deliberately states no prior about where surfaces usually land (owner ruling 2026-09-04: the old
+line that named a typical band anchored every review into it, so the total measured the prompt).
 
 1. **Visibility of system status** — loading/save/submit feedback, progress, location, inline validation.
 2. **Match system ↔ real world** — plain language, logical order, recognizable metaphors, no jargon.
