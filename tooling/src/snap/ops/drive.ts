@@ -17,6 +17,7 @@ import { HOVER_REVEAL_MS, MOUNT_SETTLE_MS, NETWORKIDLE_TIMEOUT_MS, STEP_SETTLE_M
 import { CHURN_LINE, isContextChurn } from "../lib/eval-text.ts";
 import { driveBudgets } from "../lib/throttle.ts";
 import { captureEvals } from "./arms/eval.ts";
+import { navDriveFailure, stepDriveFailure, stepLabel, waitDriveFailure } from "./drive-failure-naming.ts";
 import { MS_PER_SECOND } from "./flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -67,13 +68,6 @@ const UNSETTLED_REASON: Record<Exclude<AppReadiness, "settled">, string> = {
     "data-app-ready came up settled but the query cache is EMPTY — the app never reached its data layer, so this capture is a boot placeholder (the router's pending glyph), not the app. On `--isolated` the usual cause is the stage's vite still serving `/`'s lazy component chunk; check the stage's stack log and re-run against the now-warm stage.",
 };
 
-/** `--wait`'s own failure row (#1344). It is index -1 because it runs BEFORE the argv queue exists: it is
- *  the readiness precondition, not a queued action, and a reader who sees `step 0` beside it should not
- *  believe the queue ran at all. */
-function waitDriveFailure(selector: string, message: string): DriveFailure {
-  return { index: -1, kind: "wait", flag: "--wait", subject: selector, reason: failureReason(message) };
-}
-
 export async function navigate(page: Page, opts: Args, url: string, failures?: DriveFailure[]): Promise<string | null> {
   // The ceilings are a function of the STAGE (a cold vite) AND of the declared LOAD ARM (#836) — see
   // lib/throttle.ts driveBudgets for why a throttled run cannot be held to the un-throttled budget.
@@ -110,7 +104,6 @@ export async function navigate(page: Page, opts: Args, url: string, failures?: D
     // The throw still propagates (ops/capture.ts owns it as outcome.navError and screenshots wherever the
     // page got to) — but the STRUCTURED row is minted here, where the selector that never appeared is
     // still in hand, so the end card names the argv to correct instead of a `nav/wait threw:` prose blob.
-    // @orb-gate-ignore caught-failure-ownership(rethrow:error): the caught failure is recorded as the run's own --wait DriveFailure row and RE-THROWN unchanged; ops/capture.ts still converts it into outcome.navError. Ends if the rethrow is dropped.
     try {
       await page.locator(opts.waitSelector).first().waitFor({ state: "visible", timeout: WAIT_SELECTOR_TIMEOUT_MS });
     } catch (error) {
@@ -202,74 +195,6 @@ async function runStep(page: Page, step: Step): Promise<FileActionReceipt | null
     return null;
   }
   return await runLocatedStep(page, step);
-}
-
-/** The FLAG each queued action was typed as (#1344). A failure row names the argv the operator must
- *  correct, not the internal kind — `--wait-for`, not `waitfor`. Mapped-Record, so a new step kind cannot
- *  ship without its spelling. */
-const STEP_FLAG: Record<Step["kind"], string> = {
-  click: "--click",
-  "motion-click": "--motion",
-  jsclick: "--dom-click",
-  press: "--force-click",
-  hover: "--hover",
-  fill: "--fill",
-  key: "--key",
-  keyboard: "--key",
-  waitfor: "--wait-for",
-  pause: "--pause",
-  wheel: "--wheel",
-  wheelburst: "--wheel-burst",
-  upload: "--upload",
-  "drop-files": "--drop-files",
-};
-
-const NAV_METHOD_FLAG: Record<NavAction["kind"], string> = {
-  goto: "--goto",
-  "open-chat": "--open-chat",
-  "open-character": "--open-character",
-  "context-tab": "--context-tab",
-  panel: "--panel",
-  focus: "--focus",
-};
-
-const FAILURE_REASON_MAX = 220;
-
-/** One line, bounded: a Playwright timeout's own message is a multi-paragraph call log, and a FINDING row
- *  that wraps six times is the noise this row exists to replace. The full text stays in the inline
- *  `STEP FAILED` line and in the run's trace. */
-function failureReason(message: string): string {
-  const collapsed = message.replace(/\s+/gu, " ").trim();
-  return collapsed.length > FAILURE_REASON_MAX ? `${collapsed.slice(0, FAILURE_REASON_MAX)}…` : collapsed;
-}
-
-function stepSubject(step: Step): string | null {
-  if (step.kind === "keyboard") {
-    return step.key;
-  }
-  if (step.kind === "pause") {
-    return null;
-  }
-  return step.selector;
-}
-
-function stepDriveFailure(index: number, step: Step, message: string): DriveFailure {
-  return { index, kind: "step", flag: STEP_FLAG[step.kind], subject: stepSubject(step), reason: failureReason(message) };
-}
-
-function navDriveFailure(index: number, action: NavAction, message: string): DriveFailure {
-  return { index, kind: "nav", flag: NAV_METHOD_FLAG[action.kind], subject: action.target, reason: failureReason(message) };
-}
-
-// What a step failure names: every arm but the bare-key one is addressed by a selector.
-function stepLabel(step: Step): string {
-  if (step.kind === "keyboard") {
-    return `keyboard ${step.key}`;
-  }
-  if (step.kind === "pause") {
-    return `pause ${String(step.ms)}ms`;
-  }
-  return `${step.kind} ${step.selector ?? "(entry window)"}`;
 }
 
 // One step attempt + its settle. Returns the failure count (0 or 1) and prints its own reason —

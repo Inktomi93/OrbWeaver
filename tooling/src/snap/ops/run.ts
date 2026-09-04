@@ -30,7 +30,6 @@ import {
   extendEvidenceThroughWatch,
   motionResultValue,
   navResultVerdict,
-  printArmSummaries,
   printCaptureLog,
   printCheckpointScope,
   printCropNote,
@@ -40,6 +39,7 @@ import {
   scaleResultValue,
   sessionForEvidence,
 } from "./report.ts";
+import { printArmSummaries } from "./report-summary-blocks.ts";
 import { registerSnapDiagnosticCompleteness, registerSnapFactBatch, registerSnapResultPairs, writeSnapDiagnosticEvidence } from "./run-bundle.ts";
 import { cascadeRuntimeFor, debuggingPortFor, finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
 import { themeStampExit } from "./theme-stamp.ts";
