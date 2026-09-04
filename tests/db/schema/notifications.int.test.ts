@@ -5,8 +5,8 @@
 // user → inbox gone), and the secret-unrepresentable belt (a credential-shaped payload is STRIPPED by
 // the closed union, never representable).
 
-import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
-import { notificationEventSchema } from "@orb/contracts/notifications";
+import type { NotificationEvent } from "@orb/contracts/notifications";
+import { NOTIFICATION_TYPES, notificationEventSchema } from "@orb/contracts/notifications";
 import { notifications, users } from "@orb/db";
 import type { Handle, NotificationId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -49,13 +49,14 @@ test("notifications insert→select round-trips (payload JSON + discriminant + d
   expect(row?.createdAt).toBeTypeOf("number");
 });
 
-test("test-mirror: the `type` column accepts EXACTLY the contract union members", async () => {
-  // Derive the canonical discriminant set from the closed union (the column's one home). A structural
-  // cast reads each member's `type` literal without depending on zod's internal option typing.
-  const unionTypes = notificationEventSchema.options
-    // FABRICATION-OK: reaches into zod's internal discriminated-union option shape — no typed accessor exists for this introspection.
-    .map((member) => (member as unknown as { shape: { type: { value: NotificationType } } }).shape.type.value)
-    .sort();
+test("the `type` column accepts EXACTLY the contract union members", async () => {
+  // #1379 item 3: this used to read the discriminants out of zod's internal option shape
+  // (`.options[].shape.type.value`, flagged FABRICATION-OK) to prove the db's own respelled tuple was
+  // complete. Both are gone — `NOTIFICATION_TYPES` is now the contract's exported tuple, provably the
+  // whole union at COMPILE time (a mapped-Record `satisfies`, failing in both directions), and the db
+  // schema imports it. What is left for a runtime test is the part tsc cannot see: that the CHECK the
+  // tuple generated actually admits every member against a real libSQL.
+  const unionTypes = [...NOTIFICATION_TYPES].sort();
   expect(unionTypes).toEqual(["automation-notice", "deferred-turn-dropped", "handoff-accepted", "handoff-nominated", "invite", "kicked", "plugin-disabled"]);
 
   // Every union member inserts cleanly (the column enum + CHECK derive the same set). Batched (one

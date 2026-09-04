@@ -99,7 +99,7 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
     // The cross-domain avatar-pointer write, wired as the REAL character-owned factory (mirrors
     // `entry/compose/assets-character.ts`) — so `backfillAvatars` exercises the actual owning-domain write,
     // not a stub that would pass while writing nothing.
-    linkCharacterAvatars: createLinkCharacterAvatars({ db }),
+    linkCharacterAvatars: createLinkCharacterAvatars({ db, now: clock.now }),
     // The gallery owner-only gate, wired as the real owner-scoped `characters` read (mirrors compose) so
     // the addToGallery character-ownership rejection is exercised for real, not stubbed.
     assertCharacterOwned: async (ownerId: UserId, characterId: CharacterId): Promise<boolean> => {

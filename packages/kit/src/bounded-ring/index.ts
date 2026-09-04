@@ -25,8 +25,15 @@
 // server consumers.
 
 /** A fixed-capacity circular buffer. Reads are NEWEST-FIRST — every consumer of these rings is a
- *  troubleshooting tail ("what just happened"), never a chronological log. */
-export interface BoundedRing<T> {
+ *  troubleshooting tail ("what just happened"), never a chronological log.
+ *
+ *  `T` EXCLUDES `undefined` (`NonNullable<unknown>` — the "anything but null/undefined" constraint), and
+ *  that is load-bearing rather than tidiness (#1359): the empty slots of the preallocated buffer ARE
+ *  `undefined`, so `newestFirst` skips them while `size()` counts them, and a ring holding a legitimate
+ *  `undefined` would report a count its own iteration cannot produce. The bound is FREE — all four
+ *  instantiations hold concrete non-optional records — and it makes the disagreement unrepresentable at
+ *  compile time (tier 2) rather than a documented footgun. */
+export interface BoundedRing<T extends NonNullable<unknown>> {
   /** Append one value, evicting the oldest when the ring is full. */
   readonly push: (value: T) => void;
   /** Iterate retained values NEWEST-FIRST, lazily — the door for a filtered read that stops as soon as it
@@ -42,7 +49,7 @@ export interface BoundedRing<T> {
 
 /** Build a ring retaining the most recent `capacity` values. `capacity` must be a positive integer — a
  *  zero/negative ring would silently retain nothing, which reads exactly like a recorder nobody wired. */
-export function createBoundedRing<T>(capacity: number): BoundedRing<T> {
+export function createBoundedRing<T extends NonNullable<unknown>>(capacity: number): BoundedRing<T> {
   if (!Number.isInteger(capacity) || capacity <= 0) {
     throw new RangeError(`bounded-ring capacity must be a positive integer, got ${capacity}`);
   }

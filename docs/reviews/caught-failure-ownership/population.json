@@ -1528,7 +1528,7 @@
     {
       "siteId": "packages/db/src/client/index.ts::default:catch::1",
       "path": "packages/db/src/client/index.ts",
-      "line": 177,
+      "line": 178,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1536,12 +1536,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the QUESTION this function asks IS \"does this",
-      "markerLine": 170
+      "markerLine": 171
     },
     {
       "siteId": "packages/db/src/client/index.ts::promise:execute::1",
       "path": "packages/db/src/client/index.ts",
-      "line": 645,
+      "line": 686,
       "column": 11,
       "grammar": "promise",
       "position": "promise:execute",
@@ -1549,7 +1549,7 @@
       "snippet": "await client.execute(\"ROLLBACK\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "the rollback is best-effort BY DESIGN —",
-      "markerLine": 641
+      "markerLine": 682
     },
     {
       "siteId": "packages/kit/src/cel/index.ts::empty:err::1",
@@ -1619,7 +1619,7 @@
     {
       "siteId": "packages/kit/src/macro/registry.ts::default:err::1",
       "path": "packages/kit/src/macro/registry.ts",
-      "line": 332,
+      "line": 353,
       "column": 5,
       "grammar": "default",
       "position": "default:err",
@@ -1627,12 +1627,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "documented — macros never throw into assembly;",
-      "markerLine": 328
+      "markerLine": 349
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::default:catch::1",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 172,
+      "line": 218,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1640,12 +1640,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — this module's shared fail-soft",
-      "markerLine": 167
+      "markerLine": 213
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::default:catch::2",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 360,
+      "line": 414,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1653,12 +1653,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — corrupt zlib payload returns",
-      "markerLine": 347
+      "markerLine": 401
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::empty:catch::1",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 295,
+      "line": 349,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1666,12 +1666,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — falls back to the original string",
-      "markerLine": 290
+      "markerLine": 344
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::promise:close::1",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 343,
+      "line": 397,
       "column": 8,
       "grammar": "promise",
       "position": "promise:close",
@@ -1679,12 +1679,12 @@
       "snippet": "void writer.close().catch(swallow);",
       "verdict": "deliberate-absorb",
       "reason": "same reasoning as the write above — the",
-      "markerLine": 341
+      "markerLine": 395
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::promise:write::1",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 340,
+      "line": 394,
       "column": 8,
       "grammar": "promise",
       "position": "promise:write",
@@ -1692,7 +1692,7 @@
       "snippet": "void writer.write(compressed).catch(swallow);",
       "verdict": "deliberate-absorb",
       "reason": "documented above — the reader is the sole",
-      "markerLine": 337
+      "markerLine": 391
     },
     {
       "siteId": "packages/kit/src/regex/index.ts::empty:err::1",
@@ -1710,7 +1710,7 @@
     {
       "siteId": "packages/kit/src/time/index.ts::default:catch::1",
       "path": "packages/kit/src/time/index.ts",
-      "line": 55,
+      "line": 60,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1718,12 +1718,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented in the function's JSDoc — null",
-      "markerLine": 50
+      "markerLine": 55
     },
     {
       "siteId": "packages/kit/src/time/index.ts::default:catch::2",
       "path": "packages/kit/src/time/index.ts",
-      "line": 68,
+      "line": 73,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1731,12 +1731,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — null on an invalid/impossible",
-      "markerLine": 63
+      "markerLine": 68
     },
     {
       "siteId": "packages/kit/src/time/index.ts::default:catch::3",
       "path": "packages/kit/src/time/index.ts",
-      "line": 141,
+      "line": 146,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1744,12 +1744,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented in the JSDoc — null when the",
-      "markerLine": 133
+      "markerLine": 138
     },
     {
       "siteId": "packages/kit/src/time/index.ts::default:catch::4",
       "path": "packages/kit/src/time/index.ts",
-      "line": 164,
+      "line": 169,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1757,12 +1757,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented in the JSDoc — null when the",
-      "markerLine": 156
+      "markerLine": 161
     },
     {
       "siteId": "packages/kit/src/time/index.ts::empty:catch::1",
       "path": "packages/kit/src/time/index.ts",
-      "line": 47,
+      "line": 52,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1770,7 +1770,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — no [IANA/Zone] annotation falls",
-      "markerLine": 43
+      "markerLine": 48
     },
     {
       "siteId": "packages/kit/src/world-info/index.ts::default:err::1",

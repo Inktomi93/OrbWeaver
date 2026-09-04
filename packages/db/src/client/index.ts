@@ -12,6 +12,7 @@ import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Client } from "@libsql/client";
 import { createClient } from "@libsql/client";
+import { isPlainObject } from "@orb/kit/guards";
 import { sql } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { drizzle } from "drizzle-orm/libsql";
@@ -258,6 +259,15 @@ const MS_PER_DAY = 86_400_000;
  * A marker for a stamp with no base copy pins nothing (the orphan sidecars are still swept); the marker
  * file itself is never matched by the sweep's own pattern, so it is never deleted either — an intentional
  * one-way act, removable only by hand.
+ *
+ * THE ORPHANED MARKER ACCUMULATES, AND THAT IS THE DECISION (#1377 item 7, re-derived and CONFIRMED — the
+ * pin regex and the backup-group regex are structurally disjoint, so a `.keep` file never enters `groups`
+ * and {@link pruneDbBackups} never considers it). Sweeping a marker whose base copy is gone was weighed
+ * and REFUSED: the file is a zero-byte human intent, the ONE artefact in this directory the automation is
+ * forbidden to touch, and a sweep of it would have to decide "gone" from a directory listing taken while
+ * another boot may be mid-copy. An empty `.keep` beside no backup costs nothing and says something true —
+ * that someone once pinned that instant. Deleting a human's marker to tidy a byte is the wrong trade in a
+ * mechanism whose entire existence is the #533 data loss.
  */
 const PIN_SUFFIX = ".keep";
 
@@ -449,11 +459,42 @@ async function readAppliedBaseline(db: Db): Promise<{ hash: string; folderMillis
 }
 
 // The migrations journal drizzle itself reads: one `{ when, tag }` per migration file, in apply order.
+//
+// VALIDATED, not cast (#1377 item 5). This used to trust `JSON.parse` as the entry shape outright, so a
+// truncated or hand-edited journal produced entries whose `when` was `undefined` — and every comparison
+// against it (`entry.when > applied.folderMillis`) is then silently `false`, which reads as "no pending
+// migrations" rather than as a broken journal. Both consumers below decide whether the DEV DB gets
+// migrated (and therefore dropped), so a wrong-shaped journal must be loud here rather than quiet there.
+// A hand-rolled check, not zod: `@orb/db` sits below `@orb/contracts` in the cake.
 function readJournalEntries(migrationsFolder: string): readonly { readonly when: number; readonly tag: string }[] {
-  const journal = JSON.parse(readFileSync(join(migrationsFolder, "meta", "_journal.json"), "utf-8")) as {
-    entries?: readonly { readonly when: number; readonly tag: string }[];
-  };
-  return journal.entries ?? [];
+  const path = join(migrationsFolder, "meta", "_journal.json");
+  const parsed: unknown = JSON.parse(readFileSync(path, "utf-8"));
+  if (!isPlainObject(parsed)) {
+    throw new Error(`@orb/db: migrations journal at ${path} is not an object`);
+  }
+  const raw = parsed["entries"];
+  if (raw === undefined) {
+    return [];
+  }
+  if (!Array.isArray(raw)) {
+    throw new Error(`@orb/db: migrations journal at ${path} has a non-array 'entries'`);
+  }
+  const entries = raw.map((entry: unknown, index): { readonly when: number; readonly tag: string } => {
+    if (!(isPlainObject(entry) && typeof entry["when"] === "number" && Number.isFinite(entry["when"]) && typeof entry["tag"] === "string")) {
+      throw new Error(`@orb/db: migrations journal entry ${index} is not { when: number, tag: string }`);
+    }
+    return { when: entry["when"], tag: entry["tag"] };
+  });
+  // ORDER IS AN ASSUMPTION EVERY CONSUMER MAKES (#1377 item 6) — `shippedBaselineIdentity` takes `.at(-1)`
+  // as "the newest". Drizzle generates the file in apply order, so this asserts an invariant rather than
+  // imposing one; stating it means a regenerator that ever stopped sorting is a loud error instead of a
+  // baseline identity computed off the wrong migration.
+  for (let i = 1; i < entries.length; i += 1) {
+    if ((entries[i]?.when ?? 0) < (entries[i - 1]?.when ?? 0)) {
+      throw new Error(`@orb/db: migrations journal at ${path} is not ordered by 'when' (entry ${i} predates ${i - 1})`);
+    }
+  }
+  return entries;
 }
 
 /**

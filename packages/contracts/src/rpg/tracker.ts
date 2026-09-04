@@ -328,8 +328,19 @@ export function trackerNumber(value: RpgTrackerValue | undefined): number | null
     return Number.isFinite(raw) ? raw : null;
   }
   if (typeof raw === "string") {
-    const parsed = Number.parseInt(raw, 10);
-    return Number.isNaN(parsed) ? null : parsed;
+    // WHOLLY-NUMERIC OR NOTHING (#1371 item 4, and the contract this function always meant). It used to
+    // run `parseInt`, which is lenient in the two directions that are actually WRONG here:
+    //   • PREFIX-STOP — `"5garbage"` read as `5`. That is fabrication, not leniency: the reading is
+    //     indistinguishable from a meter the model genuinely set to 5, and it then feeds the delta
+    //     applier. A value we cannot read is `null`, which every caller already handles ("no reading").
+    //   • TRUNCATION — `"1.9"` read as `1`. The stored union is `number | string` and nothing downstream
+    //     needs an integer, so discarding the fraction threw away what the model actually said.
+    // A decimal literal only — no hex (`parseInt`'s `0x` arm), no exponent, no whitespace-only. `"5"`,
+    // the case this function exists for (a model writing a number as text), still reads 5.
+    return NUMERIC_LITERAL.test(raw.trim()) ? Number(raw.trim()) : null;
   }
   return null;
 }
+
+/** A complete decimal reading — sign optional, fraction optional, nothing else in the string. */
+const NUMERIC_LITERAL = /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/u;

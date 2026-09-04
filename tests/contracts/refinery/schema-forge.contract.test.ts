@@ -186,6 +186,37 @@ test("two-stage hints merge by path; a hint for an unknown path is counted, neve
   expect(merged.design.fields[1]?.role).toBeUndefined();
 });
 
+// ── the numeric range must be SATISFIABLE (#1371 item 1) ─────────────────────────────────────────────
+// `minimum`/`maximum` were independent optionals and `writeNumericBounds` wrote both verbatim, so an
+// inverted pair transpiled straight into `ResponseFormat.schema`. A guided-decoding backend then has no
+// legal token for that field — a stall or a 500 — and a loosely-validating one emits a value that fails
+// every strict validator downstream. The refusal is at AUTHORING, never a silent swap: swapping would
+// rewrite the author's stated intent without telling them.
+
+test("an inverted minimum/maximum is REFUSED by the grammar, not transpiled", () => {
+  const inverted = design([row({ path: "pace", type: "number", minimum: 10, maximum: 5 })]);
+  const parsed = forgeDesignEnvelopeSchema.safeParse(inverted);
+  expect(parsed.success).toBe(false);
+  expect(parsed.error?.issues[0]?.message).toContain("minimum must be less than or equal to maximum");
+});
+
+test("the bounds a design MAY carry are unchanged — equal bounds and one-sided bounds still pass", () => {
+  for (const bounds of [{ minimum: 1, maximum: 5 }, { minimum: 5, maximum: 5 }, { minimum: 5 }, { maximum: 5 }, {}]) {
+    expect(forgeDesignEnvelopeSchema.safeParse(design([row({ path: "pace", type: "number", ...bounds })])).success).toBe(true);
+  }
+});
+
+test("the ordering check does NOT disturb the projection — the row is still a walkable closed object", () => {
+  // A zod-4 `.refine()` keeps the object class and its `shape`, so `projectJsonSchema` still descends into
+  // the field row. This is the arm that would have broken silently (an unwalkable row projects to `{}`,
+  // which is the "no keys permitted" collapse the whole grammar exists to avoid).
+  const projected = projectJsonSchema(forgeDesignEnvelopeSchema);
+  const text = JSON.stringify(projected);
+  for (const key of ["path", "type", "description", "required", "minimum", "maximum"]) {
+    expect(text).toContain(`"${key}"`);
+  }
+});
+
 test("the projected grammar is servable: no $ref, no open key maps, and it survives both wire scrubs", () => {
   const projected = projectJsonSchema(forgeDesignEnvelopeSchema);
   const text = JSON.stringify(projected);

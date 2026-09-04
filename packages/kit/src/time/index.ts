@@ -29,9 +29,14 @@ export function epochToMs(value: number): number | null {
 }
 
 /** A value KNOWN to be epoch seconds → ms. For documented-seconds fields (Agent SDK rate-limit
- *  `resetsAt`, OpenRouter `created`). Passes through undefined so it composes with optional fields. */
+ *  `resetsAt`, OpenRouter `created`). Passes through undefined so it composes with optional fields.
+ *
+ *  A NEGATIVE reading is undefined too (#1359): every caller is a provider SDK field contractually
+ *  documented as a forward epoch, so a pre-1970 instant is a corrupt payload rather than a date, and
+ *  {@link epochToMs} right next door already refuses `<= 0`. The two parsers now agree on the sign. `0`
+ *  still passes — it is a real (if degenerate) epoch and no caller reads it as a sentinel. */
 export function secondsToMs(seconds: number | null | undefined): number | undefined {
-  if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) {
+  if (seconds === null || seconds === undefined || !Number.isFinite(seconds) || seconds < 0) {
     return;
   }
   return Math.round(seconds * MS_PER_SECOND);

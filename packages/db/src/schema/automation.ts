@@ -150,6 +150,11 @@ export const automationRules = sqliteTable(
         `(trigger_bus = 'chat' AND trigger_type in (${checkList(CHAT_TRIGGER_TYPES)})) OR (trigger_bus = 'domain' AND trigger_type in (${checkList(DOMAIN_TRIGGER_TYPES)}))`,
       ),
     ),
+    // #1378 item 2 — the rate/health counters. Zero references existed and all three are magnitudes: a
+    // negative cooldown is a cooldown that already elapsed, a negative budget admits nothing coherent,
+    // and a negative error count cannot be reached by an increment-or-reset counter. The physical floor
+    // under what `engine/dispatch.ts` already maintains.
+    check("automation_rules_counters_check", sql.raw("cooldown_seconds >= 0 and max_fires_per_hour >= 0 and consecutive_errors >= 0")),
   ],
 );
 
@@ -180,16 +185,21 @@ export const automationBudgets = sqliteTable("automation_budgets", {
 // per-day $/spend ceilings were stripped 2026-07-24 and nothing here re-introduces them.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const automationOwnerBudgets = sqliteTable("automation_owner_budgets", {
-  // NATURAL PK: the owner's own id + CASCADE FK (the `automation_budgets` chatId-PK pattern) — the PK is
-  // also the child-FK index in one column (`fk-columns-indexed` satisfied).
-  ownerId: text("owner_id")
-    .$type<UserId>()
-    .primaryKey()
-    .references(() => users.id, { onDelete: "cascade" }),
-  maxFiresPerHour: integer("max_fires_per_hour").notNull().default(AUTOMATION_OWNER_BUDGET_DEFAULTS.maxFiresPerHour),
-  updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
-});
+export const automationOwnerBudgets = sqliteTable(
+  "automation_owner_budgets",
+  {
+    // NATURAL PK: the owner's own id + CASCADE FK (the `automation_budgets` chatId-PK pattern) — the PK is
+    // also the child-FK index in one column (`fk-columns-indexed` satisfied).
+    ownerId: text("owner_id")
+      .$type<UserId>()
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    maxFiresPerHour: integer("max_fires_per_hour").notNull().default(AUTOMATION_OWNER_BUDGET_DEFAULTS.maxFiresPerHour),
+    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  // #1378 item 2 — the owner-wide budget is a magnitude like the per-rule one above.
+  () => [check("automation_owner_budgets_budget_check", sql.raw("max_fires_per_hour >= 0"))],
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // automation_fires — the fire ledger: audit + atomic budget admission + testRun provenance. Public terminals
@@ -227,6 +237,15 @@ export const automationFires = sqliteTable(
     // (ruleId, firedAt) index cannot serve a chatId-only predicate (`fk-columns-indexed` gate).
     index("automation_fires_chat_idx").on(t.chatId),
     check("automation_fires_outcome_check", sql.raw(`outcome in (${checkList(AUTOMATION_FIRE_STORAGE_OUTCOMES)})`)),
+    // #1378 item 3 — the HISTORICAL table was looser than the live one. `automation_rules.trigger_type`
+    // is bus-paired above; the fire ledger's denormalized copy had no CHECK at all, so the audit trail
+    // could record a trigger name the rules table would refuse. It carries no `trigger_bus` column of its
+    // own, so the pairing is not available here — the honest constraint is membership of the UNION of
+    // both tuples, which is still the whole vocabulary and closes the gap between the two tables.
+    check("automation_fires_trigger_type_check", sql.raw(`trigger_type in (${checkList([...CHAT_TRIGGER_TYPES, ...DOMAIN_TRIGGER_TYPES])})`)),
+    // #1378 item 2 (the fire ledger's half) — the cascade-depth ledger is a count of nested automation
+    // hops. 0 is human-initiated and it only ever increments.
+    check("automation_fires_depth_check", sql.raw("automation_depth >= 0")),
   ],
 );
 

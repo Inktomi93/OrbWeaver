@@ -7,11 +7,11 @@
 //
 // `type` + `payload` store the CLOSED `NotificationEvent` discriminated union (`@orb/contracts/notifications`):
 //   • `type`    — the discriminant column (denormalized `payload.type`), so the inbox can filter/index by
-//                 reason without parsing JSON. It DERIVES the union's member set: `NOTIFICATION_TYPES` is a
-//                 local tuple `satisfies readonly NotificationType[]` (compile-time validity — no typo, no
-//                 non-member), and a TEST-MIRROR (`tests/db/notifications.int.test.ts`) asserts it equals
-//                 the set derived from `notificationEventSchema.options` (completeness — a new contract
-//                 variant fails the mirror until the column learns it). Column enum + a tuple-derived CHECK.
+//                 reason without parsing JSON. It IMPORTS the union's member set: `NOTIFICATION_TYPES`
+//                 comes from `@orb/contracts/notifications`, where a mapped-Record `satisfies` makes the
+//                 tuple provably the WHOLE union at compile time in both directions. It used to be a local
+//                 respelling checked by a test that read zod's internal option shape (#1379 item 3) —
+//                 one home, and `tsc` instead of an assertion. Column enum + a tuple-derived CHECK.
 //   • `payload` — the full `NotificationEvent` JSON, branded `$type<NotificationEvent>()`. The union is the
 //                 phishing/exfil belt: it is built from `z.object` members that STRIP unknown keys (no
 //                 `.loose()`/`.catchall()`/`z.unknown()`), so credentials / baseUrls are TYPE-LEVEL
@@ -22,28 +22,23 @@
 // `unique(recipientUserId, seq)` enforces no duplicate cursor per inbox. `readAt`/`dismissedAt` are
 // nullable timestamps (null = unread / not dismissed). `recipientUserId` FK users CASCADE.
 
-import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
+import type { NotificationEvent } from "@orb/contracts/notifications";
+import { NOTIFICATION_TYPES } from "@orb/contracts/notifications";
 import type { NotificationId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { checkList } from "../kit/check-list.ts";
 import { users } from "./users.ts";
 
-// The delivery-reason discriminant set. `satisfies readonly NotificationType[]` ties every member to the
-// contract's one-home union (rejects a typo / non-member at compile time); the test-mirror asserts the
-// tuple is COMPLETE vs `notificationEventSchema.options` (catches a contract variant the column forgot).
-const NOTIFICATION_TYPES = [
-  "invite",
-  "kicked",
-  "handoff-nominated",
-  "handoff-accepted",
-  "deferred-turn-dropped",
-  "automation-notice",
-  "plugin-disabled",
-] as const satisfies readonly NotificationType[];
-
-// CHECK list derived from the same tuple (NOT re-spelled): `type in ('invite', …)`. Raw fragment — a
-// CHECK is static DDL and cannot carry bound parameters (users.ts pattern).
+// CHECK list derived from the CONTRACT'S OWN tuple (`@orb/contracts/notifications` NOTIFICATION_TYPES),
+// never re-spelled here: `type in ('invite', …)`. Raw fragment — a CHECK is static DDL and cannot carry
+// bound parameters (users.ts pattern).
+//
+// #1379 item 3: this file used to hand-spell the member list, because the contract exported only the
+// derived TYPE and a DDL fragment needs VALUES. The db test then proved the two agreed by reaching into
+// zod's internal option shape. The tuple now lives at its one home, where a mapped-Record `satisfies`
+// makes completeness a `tsc` obligation rather than an assertion — so the respelling and the
+// introspection are both gone.
 const TYPE_CHECK_LIST = checkList(NOTIFICATION_TYPES);
 
 export const notifications = sqliteTable(

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d1d63209-8074-4c8d-8d1a-140125b33647",
+  "id": "75a05def-faec-43cc-8a6a-431f682dc6a2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -104,6 +104,10 @@
         "assets_kind_check": {
           "name": "assets_kind_check",
           "value": "kind in ('card', 'avatar', 'export', 'generated', 'gallery', 'attachment', 'document', 'background', 'plugin')"
+        },
+        "assets_measurements_check": {
+          "name": "assets_measurements_check",
+          "value": "size >= 0 and (width is null or width > 0) and (height is null or height > 0)"
         }
       }
     },
@@ -335,6 +339,14 @@
         "automation_fires_outcome_check": {
           "name": "automation_fires_outcome_check",
           "value": "outcome in ('fired', 'predicate_false', 'predicate_error', 'budget_refused', 'depth_refused', 'action_error', 'authority_refused', 'test_run', 'reserved')"
+        },
+        "automation_fires_trigger_type_check": {
+          "name": "automation_fires_trigger_type_check",
+          "value": "trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'reactionsChanged', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached', 'character.updated', 'asset.created', 'persona.updated', 'world-info.updated')"
+        },
+        "automation_fires_depth_check": {
+          "name": "automation_fires_depth_check",
+          "value": "automation_depth >= 0"
         }
       }
     },
@@ -379,7 +391,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "automation_owner_budgets_budget_check": {
+          "name": "automation_owner_budgets_budget_check",
+          "value": "max_fires_per_hour >= 0"
+        }
+      }
     },
     "automation_rule_state": {
       "name": "automation_rule_state",
@@ -652,6 +669,10 @@
         "automation_rules_trigger_type_check": {
           "name": "automation_rules_trigger_type_check",
           "value": "(trigger_bus = 'chat' AND trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'reactionsChanged', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached')) OR (trigger_bus = 'domain' AND trigger_type in ('character.updated', 'asset.created', 'persona.updated', 'world-info.updated'))"
+        },
+        "automation_rules_counters_check": {
+          "name": "automation_rules_counters_check",
+          "value": "cooldown_seconds >= 0 and max_fires_per_hour >= 0 and consecutive_errors >= 0"
         }
       }
     },
@@ -1572,6 +1593,10 @@
         "chat_invites_status_check": {
           "name": "chat_invites_status_check",
           "value": "status in ('pending', 'accepted', 'declined', 'revoked', 'expired')"
+        },
+        "chat_invites_uses_check": {
+          "name": "chat_invites_uses_check",
+          "value": "uses >= 0 and (max_uses is null or max_uses > 0)"
         }
       }
     },
@@ -4374,7 +4399,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "chat_segments_span_check": {
+          "name": "chat_segments_span_check",
+          "value": "block_idx >= 0 and chunk_idx >= 0 and seq_start >= 0 and seq_end >= seq_start"
+        }
+      }
     },
     "document_chunks": {
       "name": "document_chunks",
@@ -4490,7 +4520,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "document_chunks_span_check": {
+          "name": "document_chunks_span_check",
+          "value": "chunk_idx >= 0 and char_start >= 0 and char_end >= char_start"
+        }
+      }
     },
     "image_embeddings": {
       "name": "image_embeddings",
@@ -5650,7 +5685,12 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "rate_limit_buckets_window_check": {
+          "name": "rate_limit_buckets_window_check",
+          "value": "count >= 0 and expires_at > 0"
+        }
+      }
     },
     "refinery_runs": {
       "name": "refinery_runs",

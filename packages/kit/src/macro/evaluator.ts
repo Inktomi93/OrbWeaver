@@ -180,10 +180,28 @@ function evalKnownBlock(handler: MacroHandler, node: MacroBlockNode, registry: M
     const val = handler(padded, ctx);
     return ctx.postProcess ? ctx.postProcess(val) : val;
   } catch (err) {
-    // Same fail-open policy as inline calls: degrade to the OPEN tag's literal bytes, body dropped.
+    // FAIL-OPEN, and #1360 item 5 is what "open" has to mean for a BLOCK. This used to return the open
+    // tag alone, and the comment justified it as "the same fail-open policy as inline calls" — but those
+    // are opposite outcomes wearing one name: for an inline macro fail-open means the reader sees the
+    // literal macro text and loses nothing, while for a block it DELETED the author's body and closing
+    // tag. Degrade to the same shape an UNRECOGNIZED block already degrades to (`evalBlockNode` below):
+    // both literal tags with the body between them. Nothing the author wrote disappears because a
+    // handler threw.
     ctx.onWarn?.(`[Macro Engine] Error evaluating block ${node.name}`, err);
-    return reconstruct(node.name, node.args, node.raw, node.flags);
+    return reconstructBlock(node, ctx);
   }
+}
+
+/** A block re-emitted as literal source: both original tags with the body evaluated between them. The ONE
+ *  spelling of "this block did not run" — shared by the unrecognized-block arm and the throwing-handler
+ *  fallback above, so the two cannot drift into different degradations. */
+function reconstructBlock(node: MacroBlockNode, ctx: MacroContext): string {
+  // Route the child evaluation through ctx.evaluateAST so the depth guard (engine.ts) fires; the direct
+  // `evaluateMacros` call would skip it and a deeply nested unknown-block tree could blow the stack
+  // before the output budget tripped. (Review V10-10: raw spans, never normalized args.)
+  const open = reconstruct(node.name, node.args, node.raw, node.flags);
+  const close = node.closeRaw ?? `{{/${node.name}}}`;
+  return `${open}${ctx.evaluateAST(node.children)}${close}`;
 }
 
 function evalBlockNode(node: MacroBlockNode, registry: MacroRegistry, ctx: MacroContext): string {
@@ -192,12 +210,8 @@ function evalBlockNode(node: MacroBlockNode, registry: MacroRegistry, ctx: Macro
     return evalKnownBlock(handler, node, registry, ctx);
   }
   // Unrecognized block — re-emit BOTH tags from their original bytes (flags verbatim) + recurse into
-  // children. Route the child evaluation through ctx.evaluateAST so the depth guard (engine.ts) fires;
-  // the direct `evaluateMacros` call would skip it and a deeply nested unknown-block tree could blow
-  // the stack before the output budget tripped. (Review V10-10: raw spans, never normalized args.)
-  const open = reconstruct(node.name, node.args, node.raw, node.flags);
-  const close = node.closeRaw ?? `{{/${node.name}}}`;
-  return `${open}${ctx.evaluateAST(node.children)}${close}`;
+  // children, through the ONE shared spelling a throwing handler also degrades to.
+  return reconstructBlock(node, ctx);
 }
 
 export function evaluateMacros(ast: MacroAST, registry: MacroRegistry, ctx: MacroContext): string {

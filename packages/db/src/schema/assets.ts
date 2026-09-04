@@ -53,5 +53,11 @@ export const assets = sqliteTable(
     // D21 — within-user dedup: the SAME bytes can exist once per owner (was a bare global `hash` unique).
     uniqueIndex("assets_owner_hash_unique").on(table.ownerId, table.hash),
     check("assets_kind_check", sql.raw(`kind in (${ASSET_KIND_CHECK_LIST})`)),
+    // #1378 item 1 — the PHYSICAL floor under what the writers already refuse to produce. `size` is a
+    // buffer length and `width`/`height` are header-parsed pixel counts; a negative one is not a small
+    // image, it is a corrupt row, and a zero-dimension one is an image with no pixels. NULL stays legal
+    // for the dimensions (a zip, a pdf, an unrecognized signature — see the column comment); the CHECK
+    // constrains only the values that ARE present, which is what `is null or` buys.
+    check("assets_measurements_check", sql.raw("size >= 0 and (width is null or width > 0) and (height is null or height > 0)")),
   ],
 );

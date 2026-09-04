@@ -3,8 +3,8 @@
 // {{time}}/{{date}}/…) against the turn's pinned clock/PRNG and re-emits IDENTITY + everything else verbatim,
 // so a committed row's volatile VALUE is baked once while its {{user}}/{{char}} stay raw/per-view.
 
-import type { MacroFreeze, ProcessMacroOptions } from "@orb/kit/macro";
-import { createVolatileOnlyRegistry, processMacros } from "@orb/kit/macro";
+import type { MacroFreeze, MacroMetadataInput, ProcessMacroOptions } from "@orb/kit/macro";
+import { createVolatileOnlyRegistry, processMacros, SimpleMacroRegistry } from "@orb/kit/macro";
 import { expect, test } from "../../support/fixtures.ts";
 
 // 2021-01-02T03:04:05Z — a fixed epoch so every clock assertion is deterministic (no `Date.now`, per the gate).
@@ -153,4 +153,48 @@ test("REPLAY is POSITIONAL: a divergence abandons the replay rather than mis-pai
 
 test("a context with NO ledger fields is byte-identical to the pre-ledger freeze (the live-render path)", () => {
   expect(processMacros("{{user}} rolled {{roll:d20}} at {{time}}", opts(), REGISTRY)).toBe("{{user}} rolled 11 at 03:04:05");
+});
+
+// ── SimpleMacroRegistry.register replaces ATOMICALLY (#1360 item 4) ─────────────────────────────────
+// The handler was replaced unconditionally while `options`/`metadata` were only overwritten when new
+// ones were passed — so a bare-handler re-registration left the PREVIOUS macro's `volatile` flag,
+// `requires` gate and browser metadata attached to a different implementation. All three move together.
+
+const META: MacroMetadataInput = {
+  name: "probe",
+  description: "first",
+  category: "system",
+  args: [],
+  returnType: "string",
+  aliases: [],
+  variadic: false,
+};
+
+test("re-registering with NO options clears the previous options AND metadata", () => {
+  const registry = new SimpleMacroRegistry();
+  registry.register("probe", () => "one", { volatile: true, requires: "chat", metadata: { ...META } });
+  expect(registry.getOptions("probe")?.volatile).toBe(true);
+  expect(registry.getMetadata("probe")?.description).toBe("first");
+
+  registry.register("probe", () => "two");
+  expect(registry.getOptions("probe")).toBeUndefined();
+  expect(registry.getMetadata("probe")).toBeUndefined();
+  expect(registry.volatileNames()).not.toContain("probe");
+  expect(registry.requirementsOf("probe")).toBeUndefined();
+});
+
+test("re-registering with options but no metadata clears the STALE metadata", () => {
+  const registry = new SimpleMacroRegistry();
+  registry.register("probe", () => "one", { volatile: true, metadata: { ...META } });
+  registry.register("probe", () => "two", { volatile: false });
+  expect(registry.getMetadata("probe")).toBeUndefined();
+  expect(registry.getOptions("probe")?.volatile).toBe(false);
+});
+
+test("the builtin backfill order still holds — setMetadata AFTER register survives", () => {
+  const registry = new SimpleMacroRegistry();
+  registry.register("probe", () => "one", { volatile: true });
+  registry.setMetadata("probe", { ...META });
+  expect(registry.getMetadata("probe")?.description).toBe("first");
+  expect(registry.getMetadata("probe")?.volatile).toBe(true);
 });

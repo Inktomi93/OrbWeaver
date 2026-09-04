@@ -79,6 +79,7 @@ export type { RpgDateMode, RpgDeliveryPath, RpgExtractionContext, RpgExtractionM
 export {
   isDeceptionActive,
   RPG_CARD_KEEP_LAST_DEFAULT,
+  RPG_CONFIG_MAX_TRACKERS,
   RPG_DATE_MODES,
   RPG_DELIVERY_PATHS,
   RPG_EXTRACTION_CONTEXTS,

@@ -234,6 +234,51 @@ test("a non-card zTXt chunk SURVIVES the write (only card keywords are stale)", 
   expect(await readCardChunk(kept, "ccv3")).toBe(v3Json("X"));
 });
 
+// ── the reader's two hardening gaps (#1360 item 2) ───────────────────────────────────────────────────
+
+/** A PNG whose tEXt card chunk carries a WRONG CRC — the shape a corrupt download/edit produces. */
+function makeCorruptCrcPng(keyword: string, json: string): Uint8Array {
+  const body = Uint8Array.from([...Buffer.from(`${keyword}\0`, "latin1"), ...Buffer.from(Buffer.from(json, "utf8").toString("base64"), "latin1")]);
+  const chunk = chunkBytes(TEXT_TYPE_BYTES, body);
+  // Corrupt the stored CRC's last byte (255 minus it is always a different value in 0..255).
+  chunk[chunk.length - 1] = 0xff - (chunk.at(-1) ?? 0);
+  return Uint8Array.from([...PNG_SIG, ...chunk, ...chunkBytes(IEND_TYPE_BYTES, new Uint8Array())]);
+}
+
+test("a card chunk whose CRC does not check out reads as ABSENT, not as authentic", async () => {
+  // The reader used to ignore CRCs entirely, so corrupt metadata was handed back as if it were real.
+  expect(await readCardChunk(makeCorruptCrcPng("ccv3", v3Json("X")), "ccv3")).toBeNull();
+});
+
+test("a corrupt card chunk does not shadow a LATER intact one (fail-soft, not fail-stop)", async () => {
+  const json = v3Json("Good");
+  const corrupt = makeCorruptCrcPng("ccv3", v3Json("Bad"));
+  const good = writeCardChunk(makeBasePng(), json);
+  // corrupt's chunk (past the signature, before its IEND) spliced ahead of the intact card chunks.
+  const decoy = corrupt.subarray(PNG_SIG.length, corrupt.length - 12);
+  const spliced = Uint8Array.from([...good.subarray(0, PNG_SIG.length), ...decoy, ...good.subarray(PNG_SIG.length)]);
+  expect(await readCardChunk(spliced, "ccv3")).toBe(json);
+});
+
+test("a card chunk appended PAST IEND is not read — IEND ends the image", async () => {
+  const trailing = writeCardChunk(makeBasePng(), v3Json("Hidden"));
+  // Everything after the base PNG's own IEND: the two card chunks + a second IEND, appended whole.
+  const base = makeBasePng();
+  const smuggled = Uint8Array.from([...base, ...trailing.subarray(PNG_SIG.length)]);
+  expect(await readCardChunk(smuggled, "ccv3")).toBeNull();
+});
+
+test("post-IEND bytes are PRESERVED AFTER IEND on rewrite, never relocated into the image", () => {
+  const tail = Uint8Array.from([0xde, 0xad, 0xbe, 0xef]);
+  const withTail = Uint8Array.from([...makeBasePng(), ...tail]);
+  const written = writeCardChunk(withTail, v3Json("X"));
+  // The tail is still the last bytes of the file (it used to be spliced in BEFORE IEND, which takes
+  // bytes a decoder ignores and folds them into the image stream).
+  expect([...written.subarray(written.length - tail.length)]).toEqual([...tail]);
+  const types = walk(written).map((c) => c.type);
+  expect(types.at(-1)).toBe("IEND");
+});
+
 test("writeCardChunk throws on a non-PNG and on a PNG with no IEND", () => {
   expect(() => writeCardChunk(Uint8Array.from([1, 2, 3]), "{}")).toThrow("not a PNG");
   const noIend = Uint8Array.from([...PNG_SIG, 0, 0, 0, 1, ...TEXT_TYPE_BYTES, 0x41, 0, 0, 0, 0]);

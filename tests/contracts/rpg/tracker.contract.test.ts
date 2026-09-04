@@ -185,3 +185,23 @@ test("trackerNumber is the ONE narrowing of the stored union — a string meter 
   expect(trackerNumber({ value: null, items: null, max: null })).toBeNull();
   expect(trackerNumber(undefined)).toBeNull();
 });
+
+// #1371 item 4 — the reading is WHOLLY-NUMERIC OR NOTHING. `parseInt` used to be lenient in the two
+// directions that are wrong for a value the model authored and the delta applier then consumes.
+test("a PARTIALLY-numeric string is a refusal, not a fabricated prefix reading", () => {
+  // `"5garbage"` read as `5` before: indistinguishable from a meter genuinely set to 5.
+  expect(trackerNumber({ value: "5garbage", items: null, max: null })).toBeNull();
+  expect(trackerNumber({ value: "5 hp", items: null, max: null })).toBeNull();
+  expect(trackerNumber({ value: "", items: null, max: null })).toBeNull();
+  expect(trackerNumber({ value: "  ", items: null, max: null })).toBeNull();
+  // `parseInt`'s hex arm is not part of this contract either.
+  expect(trackerNumber({ value: "0x10", items: null, max: null })).toBeNull();
+});
+
+test("a FRACTIONAL string keeps its fraction — nothing downstream needs an integer", () => {
+  // `"1.9"` truncated to `1` before, discarding what the model actually said.
+  expect(trackerNumber({ value: "1.9", items: null, max: null })).toBe(1.9);
+  expect(trackerNumber({ value: "-3", items: null, max: null })).toBe(-3);
+  expect(trackerNumber({ value: "+7", items: null, max: null })).toBe(7);
+  expect(trackerNumber({ value: " 12 ", items: null, max: null })).toBe(12);
+});

@@ -17,10 +17,25 @@ const BYTES_PER_UNIT = 1024;
 const SIZE_UNITS = ["B", "KB", "MB", "GB"] as const;
 const ONE_DECIMAL = 10;
 
+// ── the numeric boundary both formatters share (#1359) ───────────────────────────────────────────────
+// Every caller of both functions below hands over a SERVER-SUPPLIED count — a stored `byteSize`, a chunk
+// or token tally. A non-finite value there is a bug upstream, and the un-guarded versions laundered it
+// into a string that reads exactly like a real measurement ("NaN B", "Infinity GB", "-1024 B" for a
+// negative that never entered the unit loop). REFUSAL, not laundering: the failure mode is `RangeError`,
+// matching `@orb/kit/bounded-ring`'s existing capacity guard so the whole family fails one way.
+
+function assertDisplayableCount(fn: string, value: number, allowNegative: boolean): void {
+  if (!Number.isFinite(value) || (!allowNegative && value < 0)) {
+    throw new RangeError(`${fn}: expected a finite ${allowNegative ? "" : "non-negative "}number, got ${value}`);
+  }
+}
+
 /** Human byte size (binary-scale steps, one decimal, locale-agnostic): 0 B · 512 B · 24.5 KB · 3.1 MB.
  *  Sub-KB sizes stay whole (a "0.5 KB" reads worse than "512 B"); GB is the ceiling — nothing this app
- *  stores is measured in TB. */
+ *  stores is measured in TB. Throws `RangeError` on a non-finite or negative size (no stored byte count
+ *  can be either, so the value is a defect and belongs loud rather than rendered). */
 export function formatBytes(bytes: number): string {
+  assertDisplayableCount("formatBytes", bytes, false);
   if (bytes < BYTES_PER_UNIT) {
     return `${bytes} B`;
   }
@@ -49,10 +64,26 @@ export function formatBytes(bytes: number): string {
 //
 // `.toLocaleString()` stays banned repo-wide (`no-raw-intl-time` — un-memoized Intl by the back door), so
 // this is the hand-rolled spelling all three sites already shared, verbatim.
+//
+// THE REGEX GROUPS AN INTEGER RUN, NOT A NUMBER. `\B(?=(\d{3})+(?!\d))` is anchored on digit runs alone,
+// so applied to the whole `String(value)` it grouped the FRACTIONAL digits too and `1234.5678` read
+// `1,234.5,678` (#1359 — the one wrong-output defect in that row, and the function had no direct test at
+// all). The fix is positional, not a new engine: split the sign and the fraction off, group only the
+// integer run, reassemble. `.toLocaleString()`/`Intl.NumberFormat` stay banned repo-wide
+// (`no-raw-intl-time` — un-memoized Intl by the back door), so the hand-rolled spelling stays.
 const THOUSANDS_RE = /\B(?=(\d{3})+(?!\d))/gu;
 
-/** Group a count for display, locale-agnostically: `1170` → `1,170`, `999` → `999`. The house separator is
- *  the comma — one convention, so a token count reads the same in the band, the save bar and the bank. */
+/** Group a count for display, locale-agnostically: `1170` → `1,170`, `999` → `999`, `-1234` → `-1,234`,
+ *  `1234.5678` → `1,234.5678` (the fraction is never grouped). The house separator is the comma — one
+ *  convention, so a token count reads the same in the band, the save bar and the bank. Throws
+ *  `RangeError` on a non-finite count, for the reason stated above {@link formatBytes}. */
 export function groupThousands(value: number): string {
-  return String(value).replace(THOUSANDS_RE, ",");
+  assertDisplayableCount("groupThousands", value, true);
+  const text = String(value);
+  const negative = text.startsWith("-");
+  const unsigned = negative ? text.slice(1) : text;
+  const dot = unsigned.indexOf(".");
+  const whole = dot === -1 ? unsigned : unsigned.slice(0, dot);
+  const fraction = dot === -1 ? "" : unsigned.slice(dot);
+  return `${negative ? "-" : ""}${whole.replace(THOUSANDS_RE, ",")}${fraction}`;
 }

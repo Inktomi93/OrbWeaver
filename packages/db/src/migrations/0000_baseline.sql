@@ -10,7 +10,8 @@ CREATE TABLE `assets` (
 	`height` integer,
 	`uploaded_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "assets_kind_check" CHECK(kind in ('card', 'avatar', 'export', 'generated', 'gallery', 'attachment', 'document', 'background', 'plugin'))
+	CONSTRAINT "assets_kind_check" CHECK(kind in ('card', 'avatar', 'export', 'generated', 'gallery', 'attachment', 'document', 'background', 'plugin')),
+	CONSTRAINT "assets_measurements_check" CHECK(size >= 0 and (width is null or width > 0) and (height is null or height > 0))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `assets_owner_hash_unique` ON `assets` (`owner_id`,`hash`);--> statement-breakpoint
@@ -46,7 +47,9 @@ CREATE TABLE `automation_fires` (
 	`fired_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`rule_id`) REFERENCES `automation_rules`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "automation_fires_outcome_check" CHECK(outcome in ('fired', 'predicate_false', 'predicate_error', 'budget_refused', 'depth_refused', 'action_error', 'authority_refused', 'test_run', 'reserved'))
+	CONSTRAINT "automation_fires_outcome_check" CHECK(outcome in ('fired', 'predicate_false', 'predicate_error', 'budget_refused', 'depth_refused', 'action_error', 'authority_refused', 'test_run', 'reserved')),
+	CONSTRAINT "automation_fires_trigger_type_check" CHECK(trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'reactionsChanged', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached', 'character.updated', 'asset.created', 'persona.updated', 'world-info.updated')),
+	CONSTRAINT "automation_fires_depth_check" CHECK(automation_depth >= 0)
 );
 --> statement-breakpoint
 CREATE INDEX `automation_fires_rule_time` ON `automation_fires` (`rule_id`,`fired_at`);--> statement-breakpoint
@@ -55,7 +58,8 @@ CREATE TABLE `automation_owner_budgets` (
 	`owner_id` text PRIMARY KEY NOT NULL,
 	`max_fires_per_hour` integer DEFAULT 120 NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "automation_owner_budgets_budget_check" CHECK(max_fires_per_hour >= 0)
 );
 --> statement-breakpoint
 CREATE TABLE `automation_rule_state` (
@@ -95,7 +99,8 @@ CREATE TABLE `automation_rules` (
 	CONSTRAINT "automation_rules_name_check" CHECK(length(name) <= 120),
 	CONSTRAINT "automation_rules_rule_preset_check" CHECK((rule_preset_id IS NULL) = (rule_preset_knobs IS NULL)),
 	CONSTRAINT "automation_rules_trigger_bus_check" CHECK(trigger_bus in ('chat', 'domain')),
-	CONSTRAINT "automation_rules_trigger_type_check" CHECK((trigger_bus = 'chat' AND trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'reactionsChanged', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached')) OR (trigger_bus = 'domain' AND trigger_type in ('character.updated', 'asset.created', 'persona.updated', 'world-info.updated')))
+	CONSTRAINT "automation_rules_trigger_type_check" CHECK((trigger_bus = 'chat' AND trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'reactionsChanged', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached')) OR (trigger_bus = 'domain' AND trigger_type in ('character.updated', 'asset.created', 'persona.updated', 'world-info.updated'))),
+	CONSTRAINT "automation_rules_counters_check" CHECK(cooldown_seconds >= 0 and max_fires_per_hour >= 0 and consecutive_errors >= 0)
 );
 --> statement-breakpoint
 CREATE INDEX `automation_rules_chat_enabled` ON `automation_rules` (`chat_id`,`enabled`,`trigger_type`);--> statement-breakpoint
@@ -237,7 +242,8 @@ CREATE TABLE `chat_invites` (
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`invited_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
-	CONSTRAINT "chat_invites_status_check" CHECK(status in ('pending', 'accepted', 'declined', 'revoked', 'expired'))
+	CONSTRAINT "chat_invites_status_check" CHECK(status in ('pending', 'accepted', 'declined', 'revoked', 'expired')),
+	CONSTRAINT "chat_invites_uses_check" CHECK(uses >= 0 and (max_uses is null or max_uses > 0))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_invites_token_hash_unique` ON `chat_invites` (`token_hash`);--> statement-breakpoint
@@ -674,7 +680,8 @@ CREATE TABLE `chat_segments` (
 	`model` text NOT NULL,
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "chat_segments_span_check" CHECK(block_idx >= 0 and chunk_idx >= 0 and seq_start >= 0 and seq_end >= seq_start)
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_segments_chat_block_chunk_unique` ON `chat_segments` (`chat_id`,`block_idx`,`chunk_idx`,`model`);--> statement-breakpoint
@@ -691,7 +698,8 @@ CREATE TABLE `document_chunks` (
 	`model` text NOT NULL,
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "document_chunks_span_check" CHECK(chunk_idx >= 0 and char_start >= 0 and char_end >= char_start)
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `document_chunks_doc_chunk_model_unique` ON `document_chunks` (`document_id`,`chunk_idx`,`model`);--> statement-breakpoint
@@ -876,7 +884,8 @@ CREATE INDEX `presets_forked_from_idx` ON `presets` (`forked_from`);--> statemen
 CREATE TABLE `rate_limit_buckets` (
 	`key` text PRIMARY KEY NOT NULL,
 	`count` integer DEFAULT 0 NOT NULL,
-	`expires_at` integer NOT NULL
+	`expires_at` integer NOT NULL,
+	CONSTRAINT "rate_limit_buckets_window_check" CHECK(count >= 0 and expires_at > 0)
 );
 --> statement-breakpoint
 CREATE TABLE `refinery_runs` (

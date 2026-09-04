@@ -98,6 +98,18 @@ test("storedAssetSchema parses a well-formed upload response and rejects a malfo
   expect(storedAssetSchema.safeParse({ assetId: "not_an_asset_id", hash: SAMPLE_HASH }).success).toBe(false);
 });
 
+// #1371 item 5 — the floor now matches what `infra/storage/cas.ts` can actually emit: a 64-char sha-256
+// hex and a real buffer length. An empty hash / a negative size were states no live path could reach and
+// this response validator accepted anyway.
+test("storedAssetSchema refuses a hash that is not a full sha-256 digest, and a negative size", () => {
+  const base = { assetId: mintTypeId(ID_PREFIX.asset), hash: SAMPLE_HASH, size: 4096, created: true };
+  expect(storedAssetSchema.safeParse({ ...base, hash: "" }).success).toBe(false);
+  expect(storedAssetSchema.safeParse({ ...base, hash: "ab".repeat(31) }).success).toBe(false);
+  expect(storedAssetSchema.safeParse({ ...base, size: -1 }).success).toBe(false);
+  // Zero is a real (empty-file) size and stays legal.
+  expect(storedAssetSchema.safeParse({ ...base, size: 0 }).success).toBe(true);
+});
+
 // ── The variant KIND axis (#67 Phase 1 — the portrait smart-crop variant; the immersive-chat redo adds
 //    `banner`, Whisper's header-art band) ────
 test("VARIANT_KINDS is exactly [icon, portrait, banner] and variantKindSchema derives from it", () => {

@@ -176,6 +176,13 @@ export const RPG_RECONCILE_EVERY_BEATS_DEFAULT = 10;
 export const RPG_DATE_MODES = ["narrated", "structured"] as const;
 export type RpgDateMode = (typeof RPG_DATE_MODES)[number];
 
+/** How many tracker DEFINITIONS one game may carry (#1371 item 3 — the array had no cap at all while every
+ *  sibling vocabulary has one). Sized off what the trackers actually feed: every def can reach the model's
+ *  reminder and the panel, so the ceiling is a prompt-budget shape constant like
+ *  {@link RPG_PROFILE_MAX_ATTRIBUTES}, generous enough that no real game meets it (the packaged d20 seed is
+ *  a handful) and low enough that an editor bug or a runaway import cannot make a turn unpromptable. */
+export const RPG_CONFIG_MAX_TRACKERS = 64;
+
 /** The `rpg_games.config` blob. `lite.steeringNote` is the always-wins user tuning slot (§4.11 #2 — a
  *  real shipped knob). `statProfile` defaults to `freeform` (lite's create default). `extractionMode` is the
  *  delivery-model knob (the amendment), default `"folded"` (the one-call fold — owner ruling 2026-08-01, on
@@ -202,6 +209,11 @@ export const rpgGameConfigSchema = z.object({
   // the whole `rpg_hud_widgets` TABLE. Values are keyed by `key` on the snapshot — actor-subject under
   // `actorState[].trackerValues`, game-subject under `snapshotState.trackerValues`. Empty = a game that tracks
   // nothing but the built-in planes (hp/wallet/inventory/conditions stay first-class, never trackers).
+  // The COUNT CAP ({@link RPG_CONFIG_MAX_TRACKERS}) and the per-`key` uniqueness rule are enforced at the write door
+  // (`assertTrackersCoherent`, `domain/rpg/verbs/game/update-config.ts`), NOT as `.max()`/`.refine()` here —
+  // this whole schema is parse-on-read and a bound added here would make an over-cap or duplicate-keyed
+  // STORED blob permanently unreadable (`RpgStateCorruptError`). Same trade, same reason as the statProfile
+  // invariants; `rpg/profile.ts`'s schema header states it once (#1371 items 2/3).
   trackers: z.array(rpgTrackerDefSchema).default([]),
   lite: z
     .object({

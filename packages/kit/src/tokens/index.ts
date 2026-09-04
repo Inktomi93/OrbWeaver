@@ -58,7 +58,24 @@ export function estimateTokens(text: string): number {
  * home and cannot drift between them.
  */
 export function safeTokenWindow(windowTokens: number): number {
+  // #1359: `Math.max(0, NaN)` is NaN, so an un-guarded non-finite window used to leave HERE as a number
+  // that poisons every downstream budget subtraction silently (`safeTokenWindow(x) - RESERVE` stays NaN
+  // and every `<=` comparison against it reads false). The window arrives from provider/model config, so
+  // a non-finite value is a config-ingestion defect and this is the seam that can still name it. A
+  // NEGATIVE window is NOT nonsense — it floors at 0, which is the stated contract.
+  if (!Number.isFinite(windowTokens)) {
+    throw new RangeError(`safeTokenWindow: windowTokens must be finite, got ${windowTokens}`);
+  }
   return Math.max(0, Math.floor(windowTokens * TOKENIZER_HEADROOM_FACTOR));
+}
+
+/** The effective integer budget for a cut. A FRACTIONAL `maxTokens` breaks the "every piece fits" bound
+ *  outright — `estimateTokens` is integer-valued and its floor for any non-empty piece is 1, so a 0.5
+ *  budget admits no piece at all while the pre-guard loop happily emitted single-character ones (#1359).
+ *  Flooring makes the two cutters agree with the estimator they measure against, and `NaN` collapses to
+ *  the same "nothing can fit" arm `maxTokens <= 0` already had. */
+function effectiveBudget(maxTokens: number): number {
+  return Number.isNaN(maxTokens) ? 0 : Math.floor(maxTokens);
 }
 
 /** The longest CODEPOINT prefix of `text` that fits `maxTokens` — the shared search {@link clampToTokenBudget}
@@ -81,21 +98,23 @@ function longestFittingPrefix(codepoints: readonly string[], maxTokens: number):
 
 /**
  * Clamp `text` to at most `maxTokens` — the HEAD survives, the tail is dropped. Returns the input unchanged
- * when it already fits, and `""` when `maxTokens <= 0`.
+ * when it already fits, and `""` when the budget admits nothing ({@link effectiveBudget}: `<= 0`, a
+ * fraction below 1, or `NaN`).
  *
  * A clamp LOSES content, so it belongs only where the input is transient (a scoring pass, a query, an
  * already-chunked body). Content that FEEDS MEMORY is chunked instead — {@link splitToTokenBudget} — because a
  * vector built from the head of a block claims a span it never read (owner ruling, #165).
  */
 export function clampToTokenBudget(text: string, maxTokens: number): string {
-  if (maxTokens <= 0) {
+  const budget = effectiveBudget(maxTokens);
+  if (budget <= 0) {
     return "";
   }
-  if (estimateTokens(text) <= maxTokens) {
+  if (estimateTokens(text) <= budget) {
     return text;
   }
   const codepoints = Array.from(text);
-  return codepoints.slice(0, longestFittingPrefix(codepoints, maxTokens)).join("");
+  return codepoints.slice(0, longestFittingPrefix(codepoints, budget)).join("");
 }
 
 /**
@@ -103,14 +122,16 @@ export function clampToTokenBudget(text: string, maxTokens: number): string {
  * reproduces the input exactly. The lossless twin of {@link clampToTokenBudget} — this is what memory-feeding
  * content gets (a 200k-char message becomes N in-budget pieces, each an honest verbatim span).
  *
- * Greedy head-first, cutting on codepoints. Empty input ⇒ `[]`; `maxTokens <= 0` ⇒ `[]` (no piece could ever
- * fit, and the caller must treat an empty result as "this cannot be chunked" rather than as "nothing to do").
+ * Greedy head-first, cutting on codepoints. Empty input ⇒ `[]`; a budget that admits nothing
+ * ({@link effectiveBudget}: `<= 0`, a fraction below 1, or `NaN`) ⇒ `[]` (no piece could ever fit, and the
+ * caller must treat an empty result as "this cannot be chunked" rather than as "nothing to do").
  */
 export function splitToTokenBudget(text: string, maxTokens: number): string[] {
-  if (maxTokens <= 0 || text.length === 0) {
+  const budget = effectiveBudget(maxTokens);
+  if (budget <= 0 || text.length === 0) {
     return [];
   }
-  if (estimateTokens(text) <= maxTokens) {
+  if (estimateTokens(text) <= budget) {
     return [text];
   }
   const codepoints = Array.from(text);
@@ -118,8 +139,8 @@ export function splitToTokenBudget(text: string, maxTokens: number): string[] {
   let cursor = 0;
   while (cursor < codepoints.length) {
     const rest = codepoints.slice(cursor);
-    // At least one codepoint always advances: a single codepoint estimates to 1 token, and maxTokens >= 1.
-    const take = Math.max(1, longestFittingPrefix(rest, maxTokens));
+    // At least one codepoint always advances: a single codepoint estimates to 1 token, and budget >= 1.
+    const take = Math.max(1, longestFittingPrefix(rest, budget));
     pieces.push(rest.slice(0, take).join(""));
     cursor += take;
   }

@@ -75,6 +75,14 @@ import { documents } from "./databank.ts";
 
 // The one 1024-dim space (Qwen3-VL, text↔image cosine-comparable — core/Knowledge-Cluster.md §1). Every
 // `embedding` column is F32_BLOB(1024); the row's `dim` column records it for the `(model, dim)` space tag.
+//
+// `dim` IS DELIBERATELY UNCONSTRAINED against the physical F32_BLOB width, and this is a recorded
+// ACCEPTANCE rather than a gap (#1378 item 5, reachability traced): a writer cannot diverge — every store
+// goes through `domain/embeddings/verbs/store.ts`, whose `assertSpace` THROWS on a mismatch before the
+// insert — and the only reader of `dim` uses it as a filter TAG (`domain/search/persistence/nearest.ts`
+// scopes a query to a `(model, dim)` space), never to size-decode a blob. A CHECK pinning `dim = 1024`
+// would also have to be edited the day a second space is added, which is exactly the migration the tag
+// exists to make possible. Not worth a constraint; worth not re-deriving.
 const VECTOR_DIM = 1024;
 
 // CHECK list derived from the canonical tuple (NOT re-spelled): `lens in ('image-raw', 'image-captioned')`.
@@ -294,6 +302,11 @@ export const chatSegments = sqliteTable(
     // in the key (PD-104) so a `(model, dim)` change writes a NEW space additively rather than overwriting
     // the old one in place; the old space is reclaimed by the purge+reindex path. Uniform with all 5 producers.
     uniqueIndex("chat_segments_chat_block_chunk_unique").on(t.chatId, t.blockIdx, t.chunkIdx, t.model),
+    // #1378 item 4 — the span this chunk claims must be a real span. `seq` is a monotonic per-chat message
+    // ordinal, so a negative bound names no message, and `start > end` claims a backwards range that every
+    // reader resolving a hit back to canon would read as empty. `chunk_idx`/`block_idx` are reading-order
+    // ordinals from 0. All four are maintained by the chunker; this is the physical floor under it.
+    check("chat_segments_span_check", sql.raw("block_idx >= 0 and chunk_idx >= 0 and seq_start >= 0 and seq_end >= seq_start")),
   ],
 );
 
@@ -366,6 +379,10 @@ export const documentChunks = sqliteTable(
     // The idempotent upsert key: one chunk per (document, chunkIdx, model).
     uniqueIndex("document_chunks_doc_chunk_model_unique").on(t.documentId, t.chunkIdx, t.model),
     index("document_chunks_document_idx").on(t.documentId),
+    // #1378 item 4 (the document half) — `char_start`/`char_end` are offsets into
+    // `documents.extractedText` with an exclusive end, so a negative offset points outside the text and
+    // `start > end` is a backwards slice. Equal bounds stay legal: an empty span is representable.
+    check("document_chunks_span_check", sql.raw("chunk_idx >= 0 and char_start >= 0 and char_end >= char_start")),
   ],
 );
 
