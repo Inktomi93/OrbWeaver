@@ -157,6 +157,22 @@ describe("consumeTurnStream", () => {
     await expect(consumeTurnStream(streamOf([initMsg, errorResult]), baseCtx)).rejects.toBeInstanceOf(ProviderError);
   });
 
+  test("a stream that ENDS without a result frame is a truncated turn, never a success (#1400)", async () => {
+    // The defect: plain EOF fell out of the `for await` into `acc.finish(...)`, so a subprocess or transport
+    // that died mid-turn produced a normal ChatResult carrying the PARTIAL assistant text (numTurns 0,
+    // stopReason null) — which the engine commits as the finished reply.
+    const err: unknown = await consumeTurnStream(streamOf([initMsg, assistantMsg]), baseCtx).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ProviderError);
+    expect((err as ProviderError).terminalReason).toBe("stream_truncated");
+    // Retryable: nothing durable happened, so a replay is safe — the same posture the sibling summarize
+    // reducer already took for a missing result frame.
+    expect((err as ProviderError).retryable).toBe(true);
+  });
+
+  test("a stream carrying ONLY the init frame is truncation too", async () => {
+    await expect(consumeTurnStream(streamOf([initMsg]), baseCtx)).rejects.toBeInstanceOf(ProviderError);
+  });
+
   test("the init shape guard fires when session_id is missing", async () => {
     const badInit = { type: "system", subtype: "init", apiKeySource: "oauth" };
     await expect(consumeTurnStream(streamOf([badInit]), baseCtx)).rejects.toThrow(MISSING_SESSION_ID_RE);

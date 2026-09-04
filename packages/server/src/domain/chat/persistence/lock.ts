@@ -59,6 +59,21 @@ export async function refreshLock(db: Db, chatId: ChatId, holder: string, expire
   return refreshed.length > 0;
 }
 
+/** Does THIS holder still own the lock? The turn's PRE-WRITE fence (#1393): cancellation is not a write
+ *  barrier — a generation that finished streaming before the heartbeat noticed the loss would otherwise
+ *  reach `commitGeneration` and write canon under a lock another holder now owns. Read immediately before
+ *  the commit batch, so the window it leaves is the batch's own latency rather than a whole generation.
+ *  Deliberately NOT a TTL check: the horizon is what makes a lock STEALABLE, and the steal rewrites
+ *  `holder` — so "the row still names me" is the same fact {@link refreshLock} tests, without the write. */
+export async function holdsLock(db: Db, chatId: ChatId, holder: string): Promise<boolean> {
+  const rows = await db
+    .select({ chatId: chatLocks.chatId })
+    .from(chatLocks)
+    .where(and(eq(chatLocks.chatId, chatId), eq(chatLocks.holder, holder)))
+    .limit(1);
+  return rows.length > 0;
+}
+
 /** Release the lock — ONLY if THIS holder owns it (a stolen lock is left for its new holder, never deleted out
  *  from under them). Idempotent: a no-op if already released/stolen. */
 export async function releaseLock(db: Db, chatId: ChatId, holder: string): Promise<void> {

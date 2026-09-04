@@ -120,6 +120,9 @@ function harness(
     expressions?: ChatContext["expressions"];
     /** Override the durable chat emitter while preserving the harness recorder. */
     emit?: Parameters<typeof createTurnEngine>[1]["emit"];
+    /** Override the stats-delta sink — the one seam that can fail INSIDE `commitGeneration` but BEFORE its
+     *  batch, which is exactly the window #1437 is about. */
+    applyStatsDelta?: ChatContext["applyStatsDelta"];
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
@@ -130,9 +133,11 @@ function harness(
     ...(over.now !== undefined ? { now: over.now } : {}),
     ...(over.rpg !== undefined ? { rpg: over.rpg } : {}),
     ...(over.expressions !== undefined ? { expressions: over.expressions } : {}),
-    applyStatsDelta: (_batch: unknown, _db: Db, delta: StatsDelta): void => {
-      deltas.push(delta);
-    },
+    applyStatsDelta:
+      over.applyStatsDelta ??
+      ((_batch: unknown, _db: Db, delta: StatsDelta): void => {
+        deltas.push(delta);
+      }),
     emitChatChanged: (chatId, options): Promise<void> => {
       chatChangedFans.push({ chatId, options });
       return Promise.resolve();
@@ -2091,5 +2096,87 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
     // Names the budget AND the lever — a host told "no text" has no way to find the setting that fixes it.
     expect(err instanceof Error ? err.message : "").toContain("output limit of 4096 tokens");
     expect(err instanceof Error ? err.message : "").toContain("raise the preset's max output tokens");
+  });
+});
+
+describe("createTurnEngine — the commit fence (#1393)", () => {
+  /** Steal the per-chat lock out from under the running turn — the exact state the heartbeat's TTL steal
+   *  produces, minus the timing. The heartbeat itself cannot help here: at a 60s TTL it never ticks inside
+   *  the turn, so the ONLY thing standing between a stolen lock and a canon write is the commit fence. */
+  async function stealLock(chatId: ChatId): Promise<void> {
+    await db.update(chatLocks).set({ holder: "replica-2" }).where(eq(chatLocks.chatId, chatId));
+  }
+
+  test("a turn whose lock was stolen mid-generation writes NO canon", async () => {
+    const chatId = await seedChat(db, "fence-steal");
+    // The steal lands while the generation is streaming — i.e. AFTER the last cancellation point the
+    // provider stream honors, which is the whole defect: cancellation is not a write barrier.
+    const stealingTurn: ChatContext["runChatTurn"] = () =>
+      (async function* (): AsyncGenerator<TurnStreamChunk> {
+        yield { kind: "text", text: "Hi" };
+        await stealLock(chatId);
+        yield { kind: "final", economics: { content: "Hi there", tokensIn: 4, tokensOut: 2, model: "test-model" } };
+      })();
+    const h = harness(db, { runChatTurn: stealingTurn });
+
+    await expect(h.engine.runTurn(prepOf(chatId))).rejects.toBeInstanceOf(ChatOperationError);
+
+    const rows = await db.select({ id: messages.id }).from(messages).where(eq(messages.chatId, chatId));
+    expect(rows).toEqual([]);
+    // And the lock is left for its NEW holder — releaseLock is holder-scoped, so the abandoned turn never
+    // deletes a row it no longer owns.
+    const locks = await db.select({ holder: chatLocks.holder }).from(chatLocks).where(eq(chatLocks.chatId, chatId));
+    expect(locks.at(0)?.holder).toBe("replica-2");
+  });
+
+  test("CONTROL: the same turn with the lock intact commits normally", async () => {
+    const chatId = await seedChat(db, "fence-ok");
+    const h = harness(db);
+    const outcome = await h.engine.runTurn(prepOf(chatId));
+    expect(outcome.messages).toHaveLength(1);
+  });
+
+  test("a LOCK-FREE turn is fenced by its signal alone — it holds no lock to check", async () => {
+    const chatId = await seedChat(db, "fence-lockfree");
+    const h = harness(db);
+    // No lock row exists at all for a lockFree turn; the fence must not read that as "stolen".
+    const outcome = await h.engine.runTurn(prepOf(chatId, { lockFree: true }));
+    expect(outcome.messages).toHaveLength(1);
+  });
+});
+
+describe("createTurnEngine — the op-log survives a failed commit (#1437)", () => {
+  test("a commit that throws BEFORE the write leaves the caller's op-log intact for the retry", async () => {
+    const chatId = await seedChat(db, "oplog-retry");
+    // ONE assembleContext, shared across a round's speakers (the `round.ts` pattern) — the op-log is the
+    // by-reference array assembly pushed this turn's setvars onto.
+    const shared: AssembleContext = { ...ASSEMBLE_CTX, opLog: [{ op: "set", key: "hp", value: "1" }] };
+    // A COUNTER, not a boolean flag: an `= true` initializer makes biome's type service narrow every later
+    // read to the literal and call the branch unreachable.
+    let sinkCalls = 0;
+    const h = harness(db, {
+      applyStatsDelta: (_batch: unknown, _db: Db, _delta: StatsDelta): void => {
+        sinkCalls += 1;
+        if (sinkCalls === 1) {
+          throw new Error("stats sink exploded");
+        }
+      },
+    });
+
+    await expect(h.engine.runTurn(prepOf(chatId, { assembleContext: shared }))).rejects.toThrow("stats sink exploded");
+    // NOTHING committed — so the ops the caller staged are still owed to the canon.
+    expect(await db.select({ id: messages.id }).from(messages).where(eq(messages.chatId, chatId))).toEqual([]);
+    expect(shared.opLog).toEqual([{ op: "set", key: "hp", value: "1" }]);
+
+    // The retry on the SAME context therefore still carries them.
+    await h.engine.runTurn(prepOf(chatId, { assembleContext: shared }));
+    const history = await loadCanonHistory(db, chatId);
+    const [variant] = await db
+      .select({ variableDelta: messageVariants.variableDelta })
+      .from(messageVariants)
+      .where(eq(messageVariants.id, castId(history[0]?.selectedVariantId ?? "")));
+    expect(variant?.variableDelta).toEqual([{ op: "set", key: "hp", value: "1" }]);
+    // …and the clear still happens on the SUCCESSFUL commit (no double-count for the next speaker).
+    expect(shared.opLog).toEqual([]);
   });
 });

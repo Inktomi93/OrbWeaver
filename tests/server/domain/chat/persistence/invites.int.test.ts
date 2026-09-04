@@ -99,6 +99,22 @@ describe("persistence/invites — reads + lifecycle", () => {
   });
 });
 
+/** A Db that commits one more canon message IMMEDIATELY BEFORE the redeem's claim batch runs — the window a
+ *  pre-read `joinSeq` could not see. Everything else delegates untouched. */
+function raceDb(real: Db, chatId: ChatId, seq: number): Db {
+  return new Proxy(real, {
+    get(target, prop, receiver): unknown {
+      if (prop !== "batch") {
+        return Reflect.get(target, prop, receiver) as unknown;
+      }
+      return async (...args: Parameters<Db["batch"]>): Promise<unknown> => {
+        await seedMessage(real, chatId, seq);
+        return await (Reflect.get(target, prop, receiver) as Db["batch"]).apply(target, args);
+      };
+    },
+  }) as Db;
+}
+
 describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
   test("redeem inserts the member at the current canon head (joinSeq), increments uses", async () => {
     const joiner = await seedUser(db, castId<Handle>("joiner"));
@@ -118,6 +134,49 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
     expect(result?.participant.role).toBe("member");
     expect(result?.participant.joinSeq).toBe(2);
     expect((await findInviteByTokenHash(db, hash))?.uses).toBe(1);
+  });
+
+  test("a message committed just before the claim batch lands BELOW the seat's joinSeq (#1403)", async () => {
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
+    const chatId = await seedChat(db, "race");
+    await seedMessage(db, chatId, 1);
+    const hash = await seedInvite(db, chatId, "i", { maxUses: 5 });
+
+    // THE RACE, made deterministic: a message commits in the window between the redeem's own view of the
+    // canon head and the claim batch. `joinSeq` is a HISTORY FLOOR — a message committed BEFORE the member
+    // was seated must never sit above it, or history-floor readers show the new member a pre-join message.
+    const result = await redeemInviteAtomic(raceDb(db, chatId, 2), {
+      tokenHash: hash,
+      userId: joiner,
+      participantId: castId<ChatParticipantId>("chat_participant_j"),
+      activePersonaId: null,
+      now: FROZEN_AT,
+    });
+    expect(result?.participant.joinSeq).toBe(2);
+  });
+
+  test("the accept-by-id door closes the same window (#1403)", async () => {
+    const joiner = await seedUser(db, castId<Handle>("joiner2"));
+    const chatId = await seedChat(db, "race2");
+    await seedMessage(db, chatId, 1);
+    await insertInvite(db, {
+      id: castId<ChatInviteId>("chat_invite_byid"),
+      chatId,
+      tokenHash: "hash_byid",
+      invitedUserId: joiner,
+      maxUses: null,
+      expiresAt: null,
+      createdAt: FROZEN_AT,
+    });
+
+    const result = await acceptInviteByIdAtomic(raceDb(db, chatId, 2), {
+      inviteId: castId<ChatInviteId>("chat_invite_byid"),
+      userId: joiner,
+      participantId: castId<ChatParticipantId>("chat_participant_j2"),
+      activePersonaId: null,
+      now: FROZEN_AT,
+    });
+    expect(result?.participant.joinSeq).toBe(2);
   });
 
   test("redeem closes the maxUses TOCTOU: the over-cap attempt yields undefined", async () => {

@@ -464,8 +464,20 @@ async function fetchAndReduce(args: {
     let view: Awaited<ReturnType<typeof reduceChatCompletionStream>>;
     try {
       if (nonStreamJson) {
-        // @orb-gate-ignore caught-failure-ownership(promise:json): a non-stream JSON body that fails to parse collapses to null → an empty reduced view; the request already passed auth (res.ok checked above), so no credential/auth failure is hidden and no secret leaks — only a malformed post-auth provider body is absorbed. Ends if this runs before the res.ok/auth check.
-        const json: unknown = await res.json().catch((): null => null);
+        // A DECLARED-JSON BODY THAT DOES NOT PARSE IS A PROVIDER ERROR, NEVER `null` (#1400). The endpoint
+        // announced `application/json` on a 200; an HTML error page, a proxy interstitial or a truncated body
+        // therefore means the turn did NOT happen. Collapsing it to `null` fed `reshapeChunk(null, …)` an
+        // all-null chunk that reduced to an EMPTY SUCCESSFUL turn — a silent empty reply committed as canon.
+        // Typed + retryable (an interstitial is transient); the parse cause rides for diagnosis, and the
+        // message names no body text (it can carry the endpoint's own secrets).
+        const json: unknown = await res.json().catch((cause: unknown) => {
+          throw new ProviderError({
+            kind: "server",
+            retryable: true,
+            message: `${errorPrefix(baseUrl)}: the endpoint declared a JSON body that did not parse`,
+            cause,
+          });
+        });
         view = await reduceChatCompletionStream(oneChunk(reshapeChunk(json, withResponseMap(BODY_DEFAULT_MAP, responseMap))), reduceOpts);
       } else {
         view = await reduceChatCompletionStream(reshapeSse(parseOpenAiSse(res.body), withResponseMap(STREAM_DEFAULT_MAP, responseMap)), reduceOpts);

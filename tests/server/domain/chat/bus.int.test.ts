@@ -145,6 +145,54 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
     debugSpy.mockRestore();
   });
 
+  test("a TRANSIENT live-chat append failure is retried and the event survives (#1454)", async () => {
+    const chatId = await seedChat(db, "retry");
+    // The first append collides on the PK; the retry mints a fresh id and lands. A lost durable event on a
+    // LIVE chat is a permanent replay gap — a missing turn terminal, a missed automation trigger, a stranded
+    // client — so the transient half of that class must not be reported as a drop and forgotten.
+    const taken = castId<ChatEventId>("chat_event_taken");
+    let mints = 0;
+    const newEventId = (): ChatEventId => {
+      mints += 1;
+      return mints === 1 ? taken : castId<ChatEventId>(`chat_event_fresh_${mints}`);
+    };
+    const bus = createChatBus({ ...makeChatContext(db), newEventId });
+    const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+
+    // Occupy the id the first attempt will mint.
+    await appendChatEvent(db, { id: taken, chatId, event: { type: "chatUpdated", chatId }, createdAt: FROZEN_AT });
+
+    const emitted = await bus.emit(deltaEvent(chatId));
+
+    expect(emitted).not.toBeNull();
+    expect((await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId))).map((r) => r.type)).toEqual(["chatUpdated", "delta"]);
+    // The ring carries it too — a recovered event is a fanned event.
+    expect(bus.readRing(chatId).map((e) => e.event.type)).toEqual(["delta"]);
+    // Warned (a live-chat fault happened), never errored (it did not stay lost).
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  test("a DELETED chat is still terminal on the first look — never retried (#1454)", async () => {
+    const chatId = await seedChat(db, "gone-noretry");
+    const bus = createChatBus(makeChatContext(db));
+    await db.delete(chats).where(eq(chats.id, chatId));
+    const debugSpy = vi.spyOn(getLog(), "debug").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+
+    await expect(bus.emit(deltaEvent(chatId))).resolves.toBeNull();
+
+    // Exactly ONE classification: a cascade-dropped row does not come back, so a retry would be pure noise
+    // on the hot delta path.
+    expect(debugSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).not.toHaveBeenCalled();
+    debugSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
   test("a claimed marker rolls back when the following append fails", async () => {
     const chatId = await seedChat(db, "atomic-fault");
     const fixedEventId = castId<ChatEventId>("chat_event_fixed_claim");

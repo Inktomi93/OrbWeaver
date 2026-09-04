@@ -25,6 +25,17 @@ function committed(): TurnOutcome {
   return { messages: [view], aborted: false, abortReason: undefined };
 }
 
+function viewDouble(): MessageView {
+  mintCounter += 1;
+  // FABRICATION-OK: the loop only ever reads these views back out of `result.messages`.
+  return { id: castId<MessageId>(`message_${mintCounter}`) } as unknown as MessageView;
+}
+
+/** The engine's own abort shape (`engine/result.ts::abortedOutcome`) — a lifecycle OUTCOME, never a throw. */
+function abortedNoRows(reason: "user" | "stale"): TurnOutcome {
+  return { messages: [], aborted: true, abortReason: reason };
+}
+
 const noDelay = (): Promise<void> => Promise.resolve();
 
 describe("runAutoMode — max-turns (the dual-bound cap)", () => {
@@ -190,5 +201,54 @@ describe("runAutoMode — re-arbitration + delay + error propagation", () => {
         runTurn: (): Promise<TurnOutcome> => Promise.reject(new Error("model exploded")),
       }),
     ).rejects.toThrow("model exploded");
+  });
+});
+
+describe("runAutoMode — an aborted turn stops the chain (#1453)", () => {
+  test("a resolved-abort outcome stops with interrupt instead of generating the next speaker", async () => {
+    const nextSpeaker = vi.fn((): Promise<SpeakerCandidate | null> => Promise.resolve(sp("a")));
+    const runTurn = vi.fn((): Promise<TurnOutcome> => Promise.resolve(abortedNoRows("user")));
+    const result = await runAutoMode({
+      maxTurns: 5,
+      delayMs: 0,
+      delay: noDelay,
+      nextSpeaker,
+      runTurn,
+    });
+    // The engine represents an abort through the RESULT channel, not a throw, and the chain's own signal
+    // never fired — so nothing but `outcome.aborted` can stop the loop here.
+    expect(result.stopReason).toBe("interrupt");
+    expect(result.turns).toBe(0);
+    expect(result.messages).toEqual([]);
+    expect(runTurn).toHaveBeenCalledTimes(1);
+    expect(nextSpeaker).toHaveBeenCalledTimes(1);
+  });
+
+  test("a stale-lock abort that DID commit rows keeps them and still stops", async () => {
+    const view = viewDouble();
+    const runTurn = vi.fn((): Promise<TurnOutcome> => Promise.resolve({ messages: [view], aborted: true, abortReason: "stale" }));
+    const result = await runAutoMode({
+      maxTurns: 4,
+      delayMs: 0,
+      delay: noDelay,
+      nextSpeaker: (): Promise<SpeakerCandidate | null> => Promise.resolve(sp("a")),
+      runTurn,
+    });
+    expect(result.stopReason).toBe("interrupt");
+    expect(result.messages).toEqual([view]);
+    expect(runTurn).toHaveBeenCalledTimes(1);
+  });
+
+  test("an un-aborted outcome still chains (the fix does not stop a healthy round)", async () => {
+    const runTurn = vi.fn((): Promise<TurnOutcome> => Promise.resolve(committed()));
+    const result = await runAutoMode({
+      maxTurns: 2,
+      delayMs: 0,
+      delay: noDelay,
+      nextSpeaker: (): Promise<SpeakerCandidate | null> => Promise.resolve(sp("a")),
+      runTurn,
+    });
+    expect(result.stopReason).toBe("max-turns");
+    expect(result.turns).toBe(2);
   });
 });

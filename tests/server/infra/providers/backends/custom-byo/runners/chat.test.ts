@@ -108,6 +108,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** The terminal SSE chunk a completed chat-completions generation ends with. Request-shaping fixtures carry
+ *  it because the reducer refuses a terminal-less stream as a truncated turn (#1400) — a fixture that stopped
+ *  after its content delta would be asserting the truncated shape by accident. */
+const TERMINAL_SSE = 'data: {"choices":[{"finish_reason":"stop"}]}';
+
 describe("createCustomByoBackend — request mapping", () => {
   test("merges customParameters + credential headers + bearer auth; targets <baseUrl>/chat/completions", async () => {
     let capturedUrl = "";
@@ -154,7 +159,7 @@ describe("createCustomByoBackend — request mapping", () => {
     let capturedBody: Record<string, unknown> = {};
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
       capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
-      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', "data: [DONE]"]);
+      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', TERMINAL_SSE, "data: [DONE]"]);
     });
 
     const poison = JSON.parse('{"reasoning_effort":"high","__proto__":{"polluted":true},"nested":{"constructor":{"polluted":true},"ok":1}}') as Record<
@@ -205,7 +210,7 @@ describe("createCustomByoBackend — request mapping", () => {
     let capturedHeaders = new Headers();
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
       capturedHeaders = new Headers(init?.headers);
-      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', "data: [DONE]"]);
+      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', TERMINAL_SSE, "data: [DONE]"]);
     });
     const keyless = makeCustomOpenAiCredential({ ...CRED_BASE, apiKey: null, headers: null });
     await runTurn(makeRequest({ credential: keyless }));
@@ -443,6 +448,29 @@ describe("createCustomByoBackend — streaming + non-streaming + the user-declar
     expect(result.usage.tokensOut).toBe(3);
   });
 
+  test("a declared-JSON body that does NOT parse is a typed provider error, never an empty success (#1400)", async () => {
+    // The defect: `res.json().catch(() => null)` fed `reshapeChunk(null, …)` an all-null chunk that reduced to
+    // an EMPTY successful turn — so an HTML error page or a proxy interstitial served as a 200
+    // `application/json` committed a blank reply as if the model had answered.
+    vi.stubGlobal(
+      "fetch",
+      (): Response =>
+        new Response("<html><body>502 Bad Gateway</body></html>", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    // The MESSAGE matters: the reducer's own truncation fence would also refuse this body (an all-null chunk
+    // carries no finish reason), so a bare 'it threw' pin would pass with the `.catch(() => null)` still in
+    // place — one correct fix masking the other. This asserts the JSON-parse arm specifically.
+    await expect(runTurn(makeRequest())).rejects.toThrow(/declared a JSON body that did not parse/i);
+  });
+
+  test("a streamed body that ends before any finish reason is refused, not committed as a short reply (#1400)", async () => {
+    vi.stubGlobal("fetch", (): Response => sseResponse(['data: {"choices":[{"delta":{"content":"half a sen"}}]}']));
+    await expect(runTurn(makeRequest())).rejects.toMatchObject({ name: "ProviderError" });
+  });
+
   test("threads the credential's responseMap over the streaming defaults (PD-13)", async () => {
     vi.stubGlobal("fetch", (): Response => sseResponse(['data: {"out":{"text":"mapped "}}', 'data: {"out":{"text":"hi"},"done":"stop"}', "data: [DONE]"]));
     // Only `contentPath`/`finishReasonPath` overridden — the untouched default paths still apply.
@@ -459,7 +487,7 @@ describe("createCustomByoBackend — streaming + non-streaming + the user-declar
     let capturedBody: Record<string, unknown> = {};
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
       capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
-      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', "data: [DONE]"]);
+      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', TERMINAL_SSE, "data: [DONE]"]);
     });
     const cred = makeCustomOpenAiCredential({
       ...CRED_BASE,
@@ -485,7 +513,7 @@ describe("createCustomByoBackend — captured wire scrubs credential literals (F
     let sentBody: Record<string, unknown> = {};
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
       sentBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
-      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', "data: [DONE]"]);
+      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', TERMINAL_SSE, "data: [DONE]"]);
     });
     const captured: Record<string, unknown>[] = [];
     // The user pastes their key into the body (a real nonstandard-endpoint pattern) AND a secret-valued header.
@@ -507,7 +535,7 @@ describe("createCustomByoBackend — captured wire scrubs credential literals (F
   });
 
   test("a secret-free body round-trips unchanged (scrub is a no-op when no secrets are present)", async () => {
-    vi.stubGlobal("fetch", (): Response => sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', "data: [DONE]"]));
+    vi.stubGlobal("fetch", (): Response => sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', TERMINAL_SSE, "data: [DONE]"]));
     const captured: Record<string, unknown>[] = [];
     // Keyless endpoint, no secret headers → no secret literals to scrub.
     const cred = makeCustomOpenAiCredential({ ...CRED_BASE, apiKey: null, headers: null, includeBody: { safety: "off" } });

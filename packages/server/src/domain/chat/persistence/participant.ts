@@ -12,10 +12,11 @@ import type { HandoffOffer, ParticipantKind } from "@orb/contracts/chat";
 import { isUserBacked } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { chatInvites, chatParticipants, chats } from "@orb/db";
+import { chatInvites, chatParticipants, chats, messages } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, ChatInviteId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AnyColumn, SQL } from "drizzle-orm";
 import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
 type ParticipantActor = { readonly kind: "human"; readonly userId: UserId } | { readonly kind: "character"; readonly characterId: CharacterId };
@@ -149,17 +150,31 @@ export async function upsertMemberOnJoin(
   return rows.at(0);
 }
 
+/** The canon head the seat is stamped against, as SQL — evaluated INSIDE the claim batch (#1403).
+ *
+ *  `joinSeq` is a HISTORY FLOOR: `substrate/auth::isBelowHistoryFloor` withholds every message at or below it
+ *  from the joining member. Reading the head with a standalone `loadMaxMessageSeq` and baking the NUMBER into
+ *  these params left a window — a message committed between that read and the batch got a seq ABOVE the stored
+ *  floor although it was committed BEFORE the member was seated, so history-floor readers exposed a pre-join
+ *  message to the new member. The claim UPDATE is the batch's first statement and is a WRITE, so the batch
+ *  already holds SQLite's write lock by the time this subquery runs: no concurrent message can land between
+ *  the head read and the seat insert. (Not a SELECT statement AHEAD of the writes -- `@orb/db/kit::batchMany`'s
+ *  DEFERRED-snapshot rule bans that shape; this is a scalar subquery inside a write.) */
+function canonHeadSeq(chatId: AnyColumn): SQL<number> {
+  return sql<number>`(select coalesce(max(${messages.seq}), 0) from ${messages} where ${messages.chatId} = ${chatId})`;
+}
+
 /** Invite-only conditional seat statement. It runs immediately after the conditional invite UPDATE in one
  * `db.batch`: SQLite `changes()` is 1 only when that exact preceding claim incremented a row, so a zero-row
  * claim makes this INSERT zero-row too. A seat constraint failure aborts the batch and rolls the increment
- * back. This is intentionally one connection-local primitive, not a pre-read inference. */
+ * back. This is intentionally one connection-local primitive, not a pre-read inference. The join floor is
+ * resolved in-batch too -- see {@link canonHeadSeq}. */
 export function insertMemberAfterInviteClaimStatement(
   db: Db,
   params: {
     readonly participantId: ChatParticipantId;
     readonly inviteId: ChatInviteId;
     readonly userId: UserId;
-    readonly joinSeq: number;
     readonly now: number;
     readonly activePersonaId: PersonaId | null;
   },
@@ -179,7 +194,7 @@ export function insertMemberAfterInviteClaimStatement(
           talkativeness: sql<number>`0.5`.as("talkativeness"),
           disabled: sql<boolean>`false`.as("disabled"),
           joinedAt: sql<number>`${params.now}`.as("joined_at"),
-          joinSeq: sql<number>`${params.joinSeq}`.as("join_seq"),
+          joinSeq: canonHeadSeq(chatInvites.chatId).as("join_seq"),
           leftSeq: sql<null>`null`.as("left_seq"),
           joinHistoryVisibility: sql<"full">`'full'`.as("join_history_visibility"),
         })
@@ -192,7 +207,9 @@ export function insertMemberAfterInviteClaimStatement(
         id: params.participantId,
         activePersonaId: params.activePersonaId,
         joinedAt: params.now,
-        joinSeq: params.joinSeq,
+        // The re-add arm stamps the SAME in-batch head (`chatParticipants.chatId` is the conflicting row's
+        // own chat -- the one the invite named), so a rejoin's floor is as race-free as a first join's.
+        joinSeq: canonHeadSeq(chatParticipants.chatId),
         leftSeq: null,
         role: "member",
       },

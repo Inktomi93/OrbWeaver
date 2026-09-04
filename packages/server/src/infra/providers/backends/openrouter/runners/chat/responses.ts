@@ -300,6 +300,12 @@ async function reduceResponsesStream(
       final = effect.final;
     }
   }
+  // TRUNCATION FAILS CLOSED (#1400). `final` is set ONLY by a TERMINAL_TYPES event; a stream that emits
+  // deltas and then ends carries none, and `mapResponsesToTurnResult` built a normal `ChatResult` out of
+  // `undefined` (rawFinish/stopReason null) — a partial reply the engine commits as the finished turn.
+  if (final === undefined) {
+    throwResponsesError("openrouter responses: the stream ended without a terminal response event (truncated turn)");
+  }
   return { reply, reasoning, final };
 }
 

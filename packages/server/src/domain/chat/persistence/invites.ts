@@ -2,6 +2,10 @@
 // participant-insert chokepoint) + pending_turns host-offline deferred-turn reads/writes. The redeem's
 // maxUses/expiry/targeting TOCTOU is closed by a single conditional UPDATE … RETURNING. The token is never
 // raw here — lookups key on the peppered `tokenHash` the verb computes.
+//
+// THE JOIN FLOOR IS RESOLVED IN-BATCH (#1403), never pre-read: `insertMemberAfterInviteClaimStatement`
+// stamps `joinSeq` from a scalar subquery over `messages`, so a message committed while the redeem is in
+// flight can never land ABOVE the floor the seat records. Both redeem doors below share that builder.
 
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, pendingTurns } from "@orb/db";
@@ -9,7 +13,6 @@ import { batchMany } from "@orb/db/kit";
 import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, asc, count, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
 import { insertMemberAfterInviteClaimStatement } from "./participant.ts";
-import { loadMaxMessageSeq } from "./queries.ts";
 
 /** Lookup an invite by its peppered token hash. The validity gate is the verb's + {@link redeemInviteAtomic}. */
 export async function findInviteByTokenHash(db: Db, tokenHash: string): Promise<typeof chatInvites.$inferSelect | undefined> {
@@ -62,7 +65,6 @@ export async function redeemInviteAtomic(
   if (candidate === undefined) {
     return;
   }
-  const joinSeq = await loadMaxMessageSeq(db, candidate.chatId);
   const eligible = and(
     eq(chatInvites.tokenHash, params.tokenHash),
     eq(chatInvites.status, "pending"),
@@ -88,7 +90,6 @@ export async function redeemInviteAtomic(
     inviteId: candidate.id,
     userId: params.userId,
     activePersonaId: params.activePersonaId,
-    joinSeq,
     now: params.now,
   });
   const results = await db.batch(batchMany([claimedStatement, seatedStatement]));
@@ -121,7 +122,6 @@ export async function acceptInviteByIdAtomic(
   if (candidate === undefined) {
     return;
   }
-  const joinSeq = await loadMaxMessageSeq(db, candidate.chatId);
   const eligible = and(
     eq(chatInvites.id, params.inviteId),
     eq(chatInvites.status, "pending"),
@@ -147,7 +147,6 @@ export async function acceptInviteByIdAtomic(
     inviteId: candidate.id,
     userId: params.userId,
     activePersonaId: params.activePersonaId,
-    joinSeq,
     now: params.now,
   });
   const results = await db.batch(batchMany([claimedStatement, seatedStatement]));

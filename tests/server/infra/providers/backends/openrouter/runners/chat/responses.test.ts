@@ -413,6 +413,27 @@ describe("runResponsesTurn — stream reduce → ChatResult", () => {
     expect(result.usage).toMatchObject({ tokensIn: null, tokensOut: null, costUsd: null });
   });
 
+  test("a stream that ends WITHOUT a terminal response event is a truncated turn, not a short reply (#1400)", async () => {
+    // `final` is set only by a TERMINAL_TYPES event. Without one, `mapResponsesToTurnResult` used to build a
+    // perfectly normal ChatResult out of `undefined` — rawFinish/stopReason null, the partial deltas as the
+    // reply — and the engine committed it as the finished turn.
+    const { client } = streamingClient([
+      { type: "response.output_text.delta", delta: "Hello" },
+      { type: "response.output_text.delta", delta: ", wor" },
+    ]);
+    await expect(runResponsesTurn(client, makeRequest(), DEPS)).rejects.toMatchObject({ name: "ProviderError" });
+  });
+
+  test("CONTROL: the same deltas WITH response.completed still reduce to a success", async () => {
+    const { client } = streamingClient([
+      { type: "response.output_text.delta", delta: "Hello" },
+      { type: "response.completed", response: { status: "completed", incompleteDetails: null, outputText: "Hello", output: [] } },
+    ]);
+    const result = await runResponsesTurn(client, makeRequest(), DEPS);
+    expect(result.reply).toBe("Hello");
+    expect(result.finishReason).toBe("stop");
+  });
+
   test("a response.failed event becomes a thrown ProviderError", async () => {
     const { client } = streamingClient([{ type: "response.failed", response: { error: { code: "server_error", message: "boom" } } }]);
     await expect(runResponsesTurn(client, makeRequest(), DEPS)).rejects.toMatchObject({

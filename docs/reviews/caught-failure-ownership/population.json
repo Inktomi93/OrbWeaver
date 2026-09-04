@@ -3,11 +3,11 @@
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
     "sites": 535,
-    "enforced": 532,
+    "enforced": 531,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 532,
-      "detached-owned": 3,
+      "deliberate-absorb": 531,
+      "detached-owned": 4,
       "unproven": 0
     },
     "byGrammar": {
@@ -1892,20 +1892,20 @@
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 148,
-      "column": 7,
+      "line": 178,
+      "column": 9,
       "grammar": "default",
       "position": "default:err",
       "ordinal": 1,
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
-      "reason": "reported via reportDroppedAppend (classifies +",
-      "markerLine": 142
+      "reason": "classified by classifyFailedAppend (ground-truth",
+      "markerLine": 172
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::2",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 178,
+      "line": 223,
       "column": 7,
       "grammar": "default",
       "position": "default:err",
@@ -1913,12 +1913,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "same FLAG[emit-is-total] contract as `emit`",
-      "markerLine": 161
+      "markerLine": 205
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::empty:catch::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 93,
+      "line": 112,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1926,12 +1926,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the ground-truth probe failing means the db is",
-      "markerLine": 88
+      "markerLine": 107
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:catch::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 862,
+      "line": 908,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1939,12 +1939,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "`deps.emit` is the chat bus, which already",
-      "markerLine": 857
+      "markerLine": 903
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:catch::2",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1621,
+      "line": 1667,
       "column": 13,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1957,7 +1957,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:deltaErr::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1647,
+      "line": 1693,
       "column": 7,
       "grammar": "empty",
       "position": "empty:deltaErr",
@@ -1965,7 +1965,20 @@
       "snippet": "} catch (deltaErr) {",
       "verdict": "deliberate-absorb",
       "reason": "explicitly classified below — a `deltaErr` equal",
-      "markerLine": 1641
+      "markerLine": 1687
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/engine/engine.ts::promise:releasedBody::1",
+      "path": "packages/server/src/domain/chat/engine/engine.ts",
+      "line": 1798,
+      "column": 10,
+      "grammar": "promise",
+      "position": "promise:releasedBody",
+      "ordinal": 1,
+      "snippet": "void releasedBody.catch((): undefined => undefined);",
+      "verdict": "detached-owned",
+      "reason": null,
+      "markerLine": null
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/smart-arbitrate.ts::empty:catch::1",
@@ -3528,19 +3541,6 @@
       "markerLine": 116
     },
     {
-      "siteId": "packages/server/src/infra/providers/backends/custom-byo/runners/chat.ts::promise:json::1",
-      "path": "packages/server/src/infra/providers/backends/custom-byo/runners/chat.ts",
-      "line": 468,
-      "column": 37,
-      "grammar": "promise",
-      "position": "promise:json",
-      "ordinal": 1,
-      "snippet": "const json: unknown = await res.json().catch((): null => null);",
-      "verdict": "deliberate-absorb",
-      "reason": "a non-stream JSON body that fails to parse collapses to null → an empty reduced view; the request already passed auth (res.ok checked above), so no credential/auth failure is hidden and no secret leaks — only a malformed post-auth provider body is absorbed. Ends if this runs before the res.ok/auth check.",
-      "markerLine": 467
-    },
-    {
       "siteId": "packages/server/src/infra/providers/backends/custom-byo/runners/chat.ts::promise:readErrorBody::1",
       "path": "packages/server/src/infra/providers/backends/custom-byo/runners/chat.ts",
       "line": 452,
@@ -3634,7 +3634,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/openrouter/runners/chat/responses.ts::empty:err::1",
       "path": "packages/server/src/infra/providers/backends/openrouter/runners/chat/responses.ts",
-      "line": 494,
+      "line": 500,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -3642,7 +3642,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught error drives a single reasoning-fallback retry ONLY for the mandatory-reasoning rejection; every other error is re-thrown verbatim (else → throw err) — propagated, not swallowed. Ends if the else branch stops re-throwing.",
-      "markerLine": 491
+      "markerLine": 497
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/client.ts::promise:text::1",

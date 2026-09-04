@@ -12,7 +12,7 @@
 // non-nominee accept is refused with not_turn_owner.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { DurableChatBusEvent, GroupConfig, MessageView, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatMetadata, DurableChatBusEvent, GroupConfig, MessageView, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
 import {
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
@@ -65,6 +65,7 @@ import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
 import { carriedBackgroundAvailable, ownedBackgroundAvailable } from "../persistence/background-write.ts";
 import { restampChatCharacterStatement } from "../persistence/canon-write.ts";
+import { chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
 import { clearHandoffResumptionStatement, insertHandoffResumptionStatement, loadHandoffResumption } from "../persistence/handoff-resume.ts";
 import {
   acceptHostHandoffSwapStatements,
@@ -131,20 +132,23 @@ async function commitStatsFencedChatUpdate(ctx: ChatContext, ownerId: UserId, st
   await ctx.db.batch(batchMany(statements));
 }
 
-async function commitMetadataUpdate(args: {
+/** Write ONE metadata key (#1450). The whole-blob read-modify-write this replaced made every host knob a
+ *  lost-update race against every other one — see `persistence/chat-metadata-write.ts`. The availability guard
+ *  is still computed from the EFFECTIVE metadata (the row's siblings plus this key's new value), because that
+ *  is the background that will be in force after the write. */
+async function commitMetadataUpdate<K extends keyof ChatMetadata>(args: {
   readonly ctx: ChatContext;
   readonly ownerId: UserId;
   readonly chatId: ChatId;
-  readonly metadata: typeof chats.$inferInsert.metadata;
+  readonly key: K;
+  readonly value: NonNullable<ChatMetadata[K]>;
+  /** The effective post-write metadata — read ONLY by the background-availability guard, never written. */
+  readonly effective: ChatMetadata;
   readonly authority: "carried" | "owned";
 }): Promise<void> {
-  const { ctx, ownerId, chatId, metadata, authority } = args;
-  const available = authority === "owned" ? ownedBackgroundAvailable(ctx.db, ownerId, metadata ?? null) : carriedBackgroundAvailable(ctx.db, metadata ?? null);
-  const statement = ctx.db
-    .update(chats)
-    .set({ metadata, updatedAt: ctx.now() })
-    .where(and(eq(chats.id, chatId), available))
-    .returning({ id: chats.id });
+  const { ctx, ownerId, chatId, effective, authority } = args;
+  const available = authority === "owned" ? ownedBackgroundAvailable(ctx.db, ownerId, effective) : carriedBackgroundAvailable(ctx.db, effective);
+  const statement = chatMetadataSetStatement(ctx.db, { chatId, key: args.key, value: args.value, guard: available, now: ctx.now() });
   const statements: BatchStmt[] = [statement];
   ctx.bumpStatsCanonVersion(statements, ctx.db, ownerId);
   const results = await ctx.db.batch(batchMany(statements));
@@ -238,7 +242,15 @@ function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent, claimChat: 
         );
       }
     }
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: { ...chat.metadata, group: parsed }, authority: "carried" });
+    await commitMetadataUpdate({
+      ctx,
+      ownerId: principal.userId,
+      chatId,
+      key: "group",
+      value: parsed,
+      effective: { ...chat.metadata, group: parsed },
+      authority: "carried",
+    });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -267,7 +279,15 @@ function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent, claimChat
         `chat ${chatId}: room overrides accept only the three-field allowlist (scenario / mainPrompt / postHistory)`,
       );
     }
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: { ...chat.metadata, roomOverrides: parsed.data }, authority: "carried" });
+    await commitMetadataUpdate({
+      ctx,
+      ownerId: principal.userId,
+      chatId,
+      key: "roomOverrides",
+      value: parsed.data,
+      effective: { ...chat.metadata, roomOverrides: parsed.data },
+      authority: "carried",
+    });
     await emit({ type: "chatUpdated", chatId });
     // Field labels only, never the override bodies (card-body-like text must not leak into a log row).
     await ctx.audit(
@@ -299,10 +319,10 @@ function createSetChatDocumentVisibility(ctx: ChatContext, emit: EmitChatEvent, 
     if (!parsed.success) {
       throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: databank visibility accepts only a { hidden: DocumentId[] } set`);
     }
-    // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
-    // spread and the freshness excess-property check never fires on the new key.
-    const nextMetadata = { ...chat.metadata, databankVisibility: parsed.data };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "carried" });
+    // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
+    // JSON path and never re-asserts the siblings (#1450).
+    const effective: ChatMetadata = { ...chat.metadata, databankVisibility: parsed.data };
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "databankVisibility", value: parsed.data, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -336,10 +356,10 @@ function createSetHostDisplayScripts(ctx: ChatContext, emit: EmitChatEvent, clai
   return async ({ principal, chatId, enabled }: SetHostDisplayScriptsParams): Promise<boolean> => {
     const { chat } = await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
-    // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
-    // spread and the freshness excess-property check never fires on the new key.
-    const nextMetadata = { ...chat.metadata, hostDisplayScripts: enabled };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "carried" });
+    // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
+    // JSON path and never re-asserts the siblings (#1450).
+    const effective: ChatMetadata = { ...chat.metadata, hostDisplayScripts: enabled };
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "hostDisplayScripts", value: enabled, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       { actorUserId: principal.userId, action: "chat.setHostDisplayScripts", entityType: "chat", entityId: chatId, metadata: { enabled } },
@@ -366,10 +386,10 @@ function createSetOfferChoices(ctx: ChatContext, emit: EmitChatEvent, claimChat:
   return async ({ principal, chatId, enabled }: SetOfferChoicesParams): Promise<boolean> => {
     const { chat } = await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
-    // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
-    // spread and the freshness excess-property check never fires on the new key.
-    const nextMetadata = { ...chat.metadata, offerChoices: enabled };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "carried" });
+    // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
+    // JSON path and never re-asserts the siblings (#1450).
+    const effective: ChatMetadata = { ...chat.metadata, offerChoices: enabled };
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "offerChoices", value: enabled, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit({ actorUserId: principal.userId, action: "chat.setOfferChoices", entityType: "chat", entityId: chatId, metadata: { enabled } }, ctx.now());
     return enabled;
@@ -385,8 +405,8 @@ function createSetCharactersCanReact(ctx: ChatContext, emit: EmitChatEvent, clai
   return async ({ principal, chatId, enabled }: SetCharactersCanReactParams): Promise<boolean> => {
     const { chat } = await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
-    const nextMetadata = { ...chat.metadata, charactersCanReact: enabled };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "carried" });
+    const effective: ChatMetadata = { ...chat.metadata, charactersCanReact: enabled };
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "charactersCanReact", value: enabled, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       { actorUserId: principal.userId, action: "chat.setCharactersCanReact", entityType: "chat", entityId: chatId, metadata: { enabled } },
@@ -406,8 +426,8 @@ function createSetReactionsEnabled(ctx: ChatContext, emit: EmitChatEvent, claimC
   return async ({ principal, chatId, enabled }: SetReactionsEnabledParams): Promise<boolean> => {
     const { chat } = await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
-    const nextMetadata = { ...chat.metadata, reactionsEnabled: enabled };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "carried" });
+    const effective: ChatMetadata = { ...chat.metadata, reactionsEnabled: enabled };
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "reactionsEnabled", value: enabled, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       { actorUserId: principal.userId, action: "chat.setReactionsEnabled", entityType: "chat", entityId: chatId, metadata: { enabled } },
@@ -474,10 +494,10 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimCha
         throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: an asset background must reference an asset you own`);
       }
     }
-    // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
-    // spread and the freshness excess-property check never fires on the new key (the databankVisibility precedent).
-    const nextMetadata = { ...chat.metadata, background: source };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "owned" });
+    // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
+    // JSON path and never re-asserts the siblings (#1450).
+    const effective: ChatMetadata = { ...chat.metadata, background: source };
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "background", value: source, effective, authority: "owned" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -507,8 +527,8 @@ function createSetToolRecurseLimit(ctx: ChatContext, emit: EmitChatEvent, claimC
         `chat ${chatId}: toolRecurseLimit must be an integer between ${TOOL_RECURSE_LIMIT_MIN} and ${TOOL_RECURSE_LIMIT_MAX}`,
       );
     }
-    const nextMetadata = { ...chat.metadata, toolRecurseLimit: parsed.data };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, metadata: nextMetadata, authority: "carried" });
+    const effective: ChatMetadata = { ...chat.metadata, toolRecurseLimit: parsed.data };
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "toolRecurseLimit", value: parsed.data, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
