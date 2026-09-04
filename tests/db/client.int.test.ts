@@ -6,7 +6,7 @@
 // Wave-1 slices that land real FKs.
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
@@ -565,6 +565,101 @@ test("backupBeforeMigrate REPLACES the debris of an interrupted backup rather th
     // The retry produced a REAL snapshot, not a reused corpse: it opens and carries the migrated schema.
     const restored = await createDb(`file:${path}`);
     expect(await hasPendingMigrations(restored, MIGRATIONS_DIR)).toBe(false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// The THIRD arm, and the one the idempotent/debris pair could not see: what happens when the copy itself
+// FAILS. Only the two success-shaped arms were pinned, so the `catch` — which is the whole reason a failed
+// boot is retryable — was covered by nobody. It has two obligations and this asserts both: it must ABORT
+// (never migrate an un-backed-up database) and it must leave NO PARTIAL FILE behind, because the next boot
+// recomputes the SAME name from the same unmoved mtimes and would otherwise find its own corpse there.
+//
+// HONEST LABEL: this is a FENCE, not a defect proof — it passed on the unmodified source the moment it was
+// written, because the `catch`'s `removeBackupFiles` is already correct. It exists so a future edit that
+// drops the cleanup (or downgrades the throw to a warn-and-continue) goes red instead of silently
+// re-introducing the #1374 permanent boot wedge. The control below proves it CAN fail: it is the same
+// scenario with the cleanup's effect undone, and it reds.
+test("backupBeforeMigrate ABORTS on a failed copy and leaves no partial file behind", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-backup-fail-${pid}-`));
+  try {
+    const url = `file:${join(dir, DB_FILE)}`;
+    // A real db first (the source must exist, or the backup is a no-op return).
+    const seed = await createDb(url);
+    await runMigrations(seed, MIGRATIONS_DIR);
+
+    // The same `wrap` seam `server/observability` decorates the client through — here it fails ONLY the
+    // copy, so everything up to the VACUUM behaves normally and the failure is the one under test.
+    const failing = await createDb(
+      url,
+      (base) =>
+        new Proxy(base, {
+          get(target, prop, receiver): unknown {
+            if (prop === "execute") {
+              return (stmt: unknown): Promise<unknown> => {
+                const text = typeof stmt === "string" ? stmt : String((stmt as { sql?: string }).sql);
+                if (text.includes("VACUUM INTO")) {
+                  // What a full disk / a read-only directory produces at exactly this call.
+                  return Promise.reject(new Error("disk I/O error (test)"));
+                }
+                return target.execute(stmt as Parameters<typeof target.execute>[0]);
+              };
+            }
+            return Reflect.get(target, prop, receiver) as unknown;
+          },
+        }),
+    );
+
+    // (a) it ABORTS, and the message is the operator's recovery instruction rather than a bare driver error.
+    await expect(backupBeforeMigrate(failing, url)).rejects.toThrow(/pre-migrate backup .* FAILED/);
+
+    // (b) NOTHING is left at the destination. Asserted over the whole directory rather than a recomputed
+    // path, so a partial copy under ANY of the three names (base/-wal/-shm) fails this.
+    const debris = readdirSync(dir).filter((name) => name.includes(".backup-"));
+    expect(debris).toEqual([]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// THE PLANTED CONTROL for the fence above — the arm that proves assertion (b) can actually fail. The
+// scenario is identical except the copy leaves a partial file the cleanup does not know about (`VACUUM
+// INTO` is faked to WRITE the destination and THEN reject, which is what a mid-write ENOSPC does). If
+// `removeBackupFiles` ever stopped running in the `catch`, the real test above would look exactly like
+// this — so this pins the shape of that failure rather than leaving "it passed" unexamined.
+test("CONTROL: a partial copy the cleanup does not remove IS visible to the debris assertion", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-backup-control-${pid}-`));
+  try {
+    const url = `file:${join(dir, DB_FILE)}`;
+    const seed = await createDb(url);
+    await runMigrations(seed, MIGRATIONS_DIR);
+
+    const failing = await createDb(
+      url,
+      (base) =>
+        new Proxy(base, {
+          get(target, prop, receiver): unknown {
+            if (prop === "execute") {
+              return (stmt: unknown): Promise<unknown> => {
+                const text = typeof stmt === "string" ? stmt : String((stmt as { sql?: string }).sql);
+                if (text.includes("VACUUM INTO")) {
+                  // The destination the real code is about to clean up — written under a name the sweep's
+                  // own cleanup does NOT cover, standing in for "the cleanup did not run".
+                  writeFileSync(join(dir, `${DB_FILE}.backup-uncleaned`), "half a database");
+                  return Promise.reject(new Error("disk full mid-copy (test)"));
+                }
+                return target.execute(stmt as Parameters<typeof target.execute>[0]);
+              };
+            }
+            return Reflect.get(target, prop, receiver) as unknown;
+          },
+        }),
+    );
+
+    await expect(backupBeforeMigrate(failing, url)).rejects.toThrow(/pre-migrate backup .* FAILED/);
+    // The SAME assertion the fence makes — here it finds debris, which is what makes the fence meaningful.
+    expect(readdirSync(dir).filter((name) => name.includes(".backup-"))).not.toEqual([]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
