@@ -5519,7 +5519,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/profile.ts::empty:error::1",
       "path": "tooling/src/snap/ops/arms/profile.ts",
-      "line": 123,
+      "line": 122,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -5527,12 +5527,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught page read becomes a hookInstalled:false evidence row; profileGaps prints it and forces exit 2. Ends if missingPage stops carrying the caught detail or profileGaps stops refusing it.",
-      "markerLine": 120
+      "markerLine": 119
     },
     {
       "siteId": "tooling/src/snap/ops/arms/profile.ts::empty:error::2",
       "path": "tooling/src/snap/ops/arms/profile.ts",
-      "line": 144,
+      "line": 143,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5540,12 +5540,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught install failure is returned in errors; profileGaps prints it and forces exit 2. Ends if the error stops entering this return or gaps stop voting.",
-      "markerLine": 141
+      "markerLine": 140
     },
     {
       "siteId": "tooling/src/snap/ops/arms/profile.ts::empty:error::3",
       "path": "tooling/src/snap/ops/arms/profile.ts",
-      "line": 151,
+      "line": 150,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -5553,7 +5553,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught call-window mark failure is returned in errors; profileGaps prints it and forces exit 2 rather than mixing prior commits into this call. Ends if the detail stops entering this return or gaps stop voting.",
-      "markerLine": 148
+      "markerLine": 147
     },
     {
       "siteId": "tooling/src/snap/ops/arms/shot.ts::empty:catch::1",
