@@ -41,6 +41,7 @@ const RAW_SAMPLE_SHAPE: Record<keyof RawSamples, SeamKind> = {
   actionDoors: "array?",
   animatedImgHovers: "array",
   bgPatterns: "array",
+  borderContrasts: "array?",
   brokenImages: "array",
   buriedRasters: "array?",
   censusCaps: "object",

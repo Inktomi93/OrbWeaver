@@ -44,6 +44,7 @@ import { CASCADE_ARM } from "./cascade.ts";
 import { CONTRAST_ARM } from "./contrast.ts";
 import { CPU_PROFILE_ARM } from "./cpu-profile.ts";
 import { DEAD_CSS_ARM } from "./dead-css.ts";
+import { DESIGN_AUDIT_ARM } from "./design-audit.ts";
 import { EVAL_ARM } from "./eval.ts";
 import { FILMSTRIP_ARM } from "./filmstrip.ts";
 import { HEAP_ARM } from "./heap.ts";
@@ -67,6 +68,7 @@ export const ARM_DEFS = {
   contrast: CONTRAST_ARM,
   map: MAP_ARM,
   assert: ASSERT_ARM,
+  "design-audit": DESIGN_AUDIT_ARM,
   "app-snapshot": APP_SNAPSHOT_ARM,
   heap: HEAP_ARM,
   filmstrip: FILMSTRIP_ARM,
@@ -126,6 +128,7 @@ export function armArgDefaults(): ArmArgs {
     ...CONTRAST_ARM.defaults(),
     ...MAP_ARM.defaults(),
     ...ASSERT_ARM.defaults(),
+    ...DESIGN_AUDIT_ARM.defaults(),
     ...APP_SNAPSHOT_ARM.defaults(),
     ...HEAP_ARM.defaults(),
     ...FILMSTRIP_ARM.defaults(),

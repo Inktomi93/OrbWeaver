@@ -61,7 +61,6 @@ import {
   isValidSeverity,
   LEADING_FLOOR,
   LEADING_FLOOR_EPSILON,
-  parseAuditArgs,
   TEXT_MICRO_PX,
 } from "../../../tooling/src/ui-audit/index.ts";
 import { checkHoverContrast, hoverContrastPopulations } from "../../../tooling/src/ui-audit/lib/checks-hover.ts";
@@ -2259,49 +2258,12 @@ test("family populations are the exact detector dispatches, including both decor
   });
 });
 
-// ── CLI contract (tooling/src/ui-audit/cli.ts) ───────────────────────────────
-// The scanner could reach no surface but home and swallowed unknown flags until 2026-08-16 — a typo'd
-// audit scanned the landing page and reported it clean under the name of the surface you asked for.
-
-test("design-audit queues nav flags and clicks in ONE argv order, so a chat room is reachable", () => {
-  const args = parseAuditArgs(["/", "--goto", "modal:newChat", "--click", "[data-create]", "--open-chat", "current", "--context-tab", "rpg.game"]);
-
-  expect(args.errors).toEqual([]);
-  expect(args.actions).toEqual([
-    { kind: "nav", method: "goto", target: "modal:newChat" },
-    { kind: "click", selector: "[data-create]" },
-    { kind: "nav", method: "open-chat", target: "current" },
-    { kind: "nav", method: "context-tab", target: "rpg.game" },
-  ]);
-});
-
-test("design-audit refuses an unknown flag instead of ignoring it", () => {
-  expect(parseAuditArgs(["/", "--gotoo", "presets"]).errors).toContain("unknown flag --gotoo");
-  expect(parseAuditArgs(["/one", "/two"]).errors).toContain("expected at most one route, got 2");
-  expect(parseAuditArgs(["--goto"]).errors).toContain("--goto requires a value");
-  expect(parseAuditArgs(["--viewport", "wide"]).errors).toContain('--viewport expects positive WxH, got "wide"');
-  expect(parseAuditArgs(["--viewport", "1e3x768"]).errors).toContain('--viewport expects positive WxH, got "1e3x768"');
-  expect(parseAuditArgs(["--fail-on", "P9"]).errors).toContain('--fail-on expects P0|P1|P2|P3, got "P9"');
-});
-
-test("--mobile selects a coarse-pointer DEVICE, not a narrow viewport; --viewport/--desktop clear it", () => {
-  // The tap-target floor is pointer-conditional: a bare narrow viewport still renders pointer:fine and
-  // judges every control against 24px instead of the 44px touch minimum (0 of 13 real failures seen).
-  expect(parseAuditArgs(["/", "--mobile"]).device).toBe("iPhone 14 Pro Max");
-  expect(parseAuditArgs(["/", "--mobile", "--viewport", "800x600"]).device).toBeNull();
-  expect(parseAuditArgs(["/", "--mobile", "--desktop"]).device).toBeNull();
-  expect(parseAuditArgs(["/"]).device).toBeNull();
-});
-
-test("the shared environment and artifact flags parse into executable launch/output options", () => {
-  expect(parseAuditArgs(["/", "--wide", "--dark", "--reduced-motion", "--json"])).toMatchObject({
-    viewport: { width: 1920, height: 1080 },
-    colorScheme: "dark",
-    reducedMotion: true,
-    json: true,
-    errors: [],
-  });
-});
+// ── THE CLI CONTRACT MOVED (#1315) ──────────────────────────────────────────────────────────────
+// This dir has no argv door any more: the scan is `pnpm snap <route> --design-audit`, so the grammar
+// pins that lived here (the argv-ordered nav/click queue, the unknown-flag refusal, `--mobile`'s
+// device-not-viewport rule, the shared environment/artifact families) are snap's parser's — they are
+// in tests/tooling/snap/ops/parse.test.ts, where the arm's own two flags now sit beside them. Nothing
+// was dropped: every one of those behaviours was ALREADY pinned there for snap's identical spelling.
 
 // ── hover-contrast (the FORCED-STATE family) ──────────────────────────────────
 // The rule impeccable emits under its EXISTING `low-contrast` id, which is why our 59-rule adoption

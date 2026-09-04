@@ -8,7 +8,15 @@ import type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from
 // `RawSamples` at the bottom COMPOSES the interactive-census shapes, so they are imported here as well as
 // re-exported below: a bare `export … from` re-exports a name without binding it locally (tsc catches
 // that; biome's type service does not).
-import type { AccessibleNameInput, ActionDoorInput, CensusReachInput, ControlAspectInput, TabIndexInput, TapTargetInput } from "./samples-interactive.ts";
+import type {
+  AccessibleNameInput,
+  ActionDoorInput,
+  BorderContrastInput,
+  CensusReachInput,
+  ControlAspectInput,
+  TabIndexInput,
+  TapTargetInput,
+} from "./samples-interactive.ts";
 import type { CensusCapAccountingInput, RelationalSamples } from "./samples-populations.ts";
 
 export type { Backdrop, GlowShadowInput, RadialGlowInput } from "./backdrop.ts";
@@ -80,6 +88,8 @@ export type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from
 export type {
   AccessibleNameInput,
   ActionDoorInput,
+  BorderContrastInput,
+  BorderContrastSide,
   CensusReachInput,
   ControlAspectInput,
   LandmarkInput,
@@ -406,6 +416,10 @@ export interface RawSamples extends RelationalSamples {
   /** Every explicitly-roled visible element's rendered box — the silhouette lens (#430). Optional: absent
    *  from the fixture sample sets that predate it, where it reads as "no roled controls censused". */
   readonly controlAspects?: readonly ControlAspectInput[];
+  /** Form-control DECLARED boundaries and the paint outside them (border-contrast, WCAG 1.4.11).
+   *  Optional: absent from the fixture sample sets that predate the census, where it reads as "no
+   *  boundary censused" and the rule publishes no row rather than a fabricated clean one. */
+  readonly borderContrasts?: readonly BorderContrastInput[];
   /** How much of the OFFERED control population the viewport-bound censuses actually reached (#653).
    *  Optional: absent from the fixture sample sets that predate it, where the runner prints the reach
    *  line as `unreported` rather than fabricating a complete-looking zero. */

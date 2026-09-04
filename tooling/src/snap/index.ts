@@ -88,7 +88,6 @@ export {
   REQUEST_RING_CAPACITY,
   requestLogLines,
 } from "./lib/request-log.ts";
-export { retiredInstrumentCensus } from "./lib/retired-instruments.ts";
 export { parseSnapReportArgs } from "./lib/run-report-query.ts";
 export { SELECTOR_VALUE_FLAGS, selectorRefusalForFlag, unmatchableSelectorRefusal } from "./lib/selector-shape.ts";
 export { allocateStageBand, resolveStageLimits, stageHealthVerdict, stageSweepVerdict } from "./lib/stage-bands.ts";
@@ -125,14 +124,11 @@ export { prepareScenario } from "./ops/scenario-prepare.ts";
 // The stateful-session substrate (docs/design/1208-instrument-substrate.md §10.1): the admin verbs, the
 // client (boot + call + export), and the daemon's own entry — all three dispatched by cli.ts.
 export { runSessionAdmin } from "./ops/session-admin.ts";
-// The sibling-attach door (#1285, §3.4 F3): design-audit/motion-audit/perf-meter/record resolve a
-// `--session <name>` through this ONE function rather than reading the registry themselves.
-export { attachResolvedSession, resolveSessionAttach } from "./ops/session-attach.ts";
 export { runSessionCall } from "./ops/session-client.ts";
 export { runSessionDaemon } from "./ops/session-daemon.ts";
-// The isolated stage is snap-OWNED plumbing with a SECOND consumer (#678): design-audit boots the same
-// stage so a rendered fix can be audited BRANCH-SIDE. Cross-tool consumption enters here, through the
-// front door — the stage set stays one home in snap/ (docs/architecture/core/Core-Tooling-Law.md §2.4 + §4.2).
+// The isolated stage is snap-OWNED plumbing. Its second consumer (#678, design-audit's own `--isolated`)
+// went away when that CLI folded into the `--design-audit` arm (#1315) — the arm rides snap's stage the
+// way every other arm does. The export stays a front-door member for scripts and tests.
 export { ensureStage } from "./ops/stage.ts";
 export { tryResolveRef } from "./ops/stage-git.ts";
 // #1186: the band-ownership door — perf-meter/motion-audit ask it before they trust a `--base`. The table

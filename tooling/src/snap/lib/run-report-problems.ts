@@ -51,7 +51,8 @@ export async function readSnapAnalyzerProblems(artifact: SnapRunArtifact): Promi
     schema === "json" ||
     (artifact.producer === "motion" && schema === "snap-motion-v1") ||
     (artifact.producer === "perf" && schema === "snap-interaction-perf-v1") ||
-    (artifact.producer === "heap" && ["snap-heap-snapshot-v1", "snap-heap-comparison-v1", "snap-heap-retainers-v1"].includes(schema ?? ""));
+    (artifact.producer === "heap" && ["snap-heap-snapshot-v1", "snap-heap-comparison-v1", "snap-heap-retainers-v1"].includes(schema ?? "")) ||
+    (artifact.producer === "design-audit" && schema === "snap-design-audit-v1");
   if (producer === null || !compatibleSchema) {
     return null;
   }

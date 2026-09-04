@@ -29,7 +29,6 @@ import { vi } from "vitest";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_INSTRUMENT } from "../../../../tooling/src/snap/lib/session-plan.ts";
 import { readSessionRow, resultPairsOf } from "../../../../tooling/src/snap/lib/session-wire.ts";
-import { beginSessionAttachLease } from "../../../../tooling/src/snap/ops/session-attach.ts";
 import type { CliResult } from "../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -43,6 +42,13 @@ vi.setConfig({ testTimeout: CASE_BUDGET_MS, hookTimeout: CASE_BUDGET_MS });
 
 const FIXTURE_HTML =
   '<!doctype html><html lang="en" data-app-ready="settled"><head><meta charset="utf-8"><title>fixture</title></head><body><main id="m">fixture</main><script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{}}</script></body></html>';
+/** T8's subject: a real surface for the design-audit arm — a landmark, prose for the colour/type
+ *  families, and one sized, named control so the interactive census has a non-empty denominator. */
+const AUDIT_FIXTURE_HTML =
+  '<!doctype html><html lang="en" data-app-ready="settled"><head><meta charset="utf-8"><title>audit fixture</title></head>' +
+  '<body style="margin:0;background:#000;color:#fff"><main><p style="font-size:16px;margin:24px">the reading surface under audit</p>' +
+  '<button type="button" aria-label="Only action" style="width:48px;height:48px;background:#fff;color:#000">Go</button></main>' +
+  "<script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{}}</script></body></html>";
 /** The same WCAG-failing plant tests/tooling/snap/cli.int.test.ts uses for the one-shot contrast proof. */
 const BAD_CONTRAST_HTML =
   '<!doctype html><html data-app-ready="settled"><body style="background:#8a8a8a"><p style="color:#7a7a7a;font-size:16px">barely there text</p><script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{}}</script></body></html>';
@@ -104,6 +110,7 @@ function pairsOf(stdout: string): Record<string, string> {
 interface Rig {
   readonly home: string;
   readonly fixture: string;
+  readonly auditFixture: string;
   readonly bad: string;
   readonly env: Readonly<Record<string, string>>;
   readonly snap: (args: readonly string[], env?: Readonly<Record<string, string>>) => Promise<CliResult>;
@@ -117,7 +124,7 @@ async function rig(
   runCli: (tool: string, args: readonly string[], opts?: { cwd?: string; env?: Readonly<Record<string, string>>; timeoutMs?: number }) => Promise<CliResult>,
   extraEnv: Readonly<Record<string, string>> = {},
 ): Promise<Rig> {
-  const root = await plantedTree({ "fixture.html": FIXTURE_HTML, "bad.html": BAD_CONTRAST_HTML, "registry/.keep": "" });
+  const root = await plantedTree({ "fixture.html": FIXTURE_HTML, "audit.html": AUDIT_FIXTURE_HTML, "bad.html": BAD_CONTRAST_HTML, "registry/.keep": "" });
   const home = join(root, "registry");
   const env = { ...envOf([[SESSION_HOME_KEY, home]]), ...extraEnv };
   const snap = (args: readonly string[], over: Readonly<Record<string, string>> = {}): Promise<CliResult> =>
@@ -128,7 +135,7 @@ async function rig(
     }
     await snap(["--session-sweep"]);
   };
-  return { home, fixture: join(root, "fixture.html"), bad: join(root, "bad.html"), env, snap, close };
+  return { home, fixture: join(root, "fixture.html"), auditFixture: join(root, "audit.html"), bad: join(root, "bad.html"), env, snap, close };
 }
 
 const uniq = (tag: string): string => `p-s1-${tag}-${process.pid}`;
@@ -529,22 +536,22 @@ test("session evidence — enabled sessions retain and export a readable trace a
   }
 });
 
-test("attach lease — a sibling heartbeat keeps a tiny-TTL session alive through a run longer than the TTL", async ({ plantedTree, runCli, repoRoot }) => {
-  const r = await rig(plantedTree, runCli, envOf([[SESSION_TTL_KEY, "0.02"]]));
-  const a = uniq("attach-ttl");
+test("T8 — a --design-audit session call measures the session's DECLARED viewport, not the caller's default", async ({ plantedTree, runCli }) => {
+  const r = await rig(plantedTree, runCli);
+  const a = uniq("audit-viewport");
   try {
-    await expect(await r.snap(["--session", a, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
-    const booted = rowOf(r.home, a);
-    const before = booted.lastUsedAt;
-    const lease = await beginSessionAttachLease(booted, repoRoot);
-    await sleep(2600);
-    await lease.close();
-    const afterHeartbeat = rowOf(r.home, a);
-    expect(Date.parse(afterHeartbeat.lastUsedAt)).toBeGreaterThan(Date.parse(before));
-    expect(pidAlive(afterHeartbeat.daemonPid)).toBe(true);
-    const after = await r.snap(["--session", a, "--eval", "document.title", ...QUIET]);
-    await expect(after).toExitWith(EXIT.clean);
-    expect(after.stdout).toContain("fixture");
+    // The promise #1321 made and the fold has to keep: the audit describes the environment the SESSION
+    // was booted with. Before the fold this was a second CDP client attaching to the daemon's browser and
+    // re-declaring the viewport; now the arm runs inside the daemon's own call, so the only way it can
+    // measure 700x900 is if the daemon's page really is 700x900.
+    await expect(await r.snap(["--session", a, "--viewport", "700x900", "--file", r.auditFixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
+    const audited = await r.snap(["--session", a, "--design-audit", ...QUIET]);
+    expect(audited.stdout).toContain("viewport-actual=700x900");
+    expect(audited.stdout).toContain("environment-fails=0");
+    // A real verdict, not a refusal: the census denominator is non-zero and the population settled.
+    expect(audited.stdout).toMatch(/census=[1-9]\d*/u);
+    expect(audited.stdout).toContain("population-verdict=complete");
+    await expect(audited).toExitWith(EXIT.clean);
   } finally {
     await r.close([a]);
   }

@@ -8,6 +8,7 @@ import type { BrowserDiagnostic, OrbConsoleCompleteness } from "../../_shared/br
 import type { EvidenceGap } from "../../_shared/evidence.ts";
 import type { ThemeRequest } from "../../_shared/theme.ts";
 import type { FileActionReceipt } from "../../_shared/upload.ts";
+import type { DesignAuditSeverity } from "../../ui-audit/index.ts";
 import type { Assertion, DriveFailure, PagedExpr, SnapAction } from "./actions.ts";
 import type { CssCascadeQuery, CssEvidenceReceipt } from "./cascade.ts";
 // ONE DIRECTION, `types.ts → contrast.ts`: the printed line (`ContrastOutcome`) and the structured reading
@@ -190,6 +191,12 @@ export interface Args {
   contrastEdge: PagedSelector[];
   /** First-class post-settle assertions; selector assertions target visible/rendered matches by default. */
   assertions: Assertion[];
+  /** `--design-audit`: the deterministic UI defect scan over the settled surface — the whole ui-audit
+   *  walker + rule engine, entered through that tool's front door (ops/arms/design-audit.ts). Folded in
+   *  at #1315; `pnpm design-audit` no longer exists. */
+  designAudit: boolean;
+  /** `--fail-on <P0..P3>`: the severity `--design-audit` exits 1 at (default P1). Only that arm reads it. */
+  failOn: DesignAuditSeverity;
   /** Print the whole SPA destination atlas rather than its one-line summary (#1372). The atlas is a
    *  property of the APP, not of the surface under test: reprinting all ~27 targets on every `--map` call
    *  cost 2.1 KB a run to say what the previous call already said. */

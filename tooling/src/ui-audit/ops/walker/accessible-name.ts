@@ -1,23 +1,38 @@
-// ui-audit in-page walker — segment: THE ACCESSIBLE-NAME SOURCE RESOLVERS.
+// ui-audit in-page walker — segment: THE ACCESSIBLE-NAME SOURCE SET **and the one name KEY over it**.
 //
-// Split out of census-interactive.ts at #1009 (the tooling 450-line cap): the three functions below are
+// Split out of census-interactive.ts at #1009 (the tooling 450-line cap): the resolvers below are
 // not a census, they are the SOURCE SET the accessible-name census and the door census both read — one
 // resolver per way a control can carry a name, so neither consumer re-derives one and the two cannot
 // drift apart (the door census reading a different source set than the name census is exactly the shape
 // that let a `<label for>`-named control be filed unnamed AND be an unnameable door at the same time).
 //
+// #1324 — THE PRECEDENCE WAS INVERTED IN BOTH HOMES, AND THIS SEGMENT IS NOW THE ONE KEY. The door
+// census composed its comparison key `aria-label || labelledby || …` and snap's surface map composed
+// `aria-label` before `aria-labelledby` too (tooling/src/snap/lib/map-browser.ts). accname 1.2 puts
+// step 2B (aria-labelledby) BEFORE step 2C (aria-label), so both homes had it backwards, identically.
+// MEASURED (2026-09-04 census, docs/reviews/stickler/2026-09-04-snap-ui-audit-capability-census.md §2.2):
+// a planted pair sharing `aria-label="Same label"` under DIFFERENT `aria-labelledby` targets produced a
+// FALSE `duplicate-action-door` P3, while a pair carrying different `aria-label`s under the SAME
+// `aria-labelledby` — a REAL duplicate — was missed. `accessibleNameOf` below is the single spec-ordered
+// key; `pnpm snap <route> --aria` (Playwright's `ariaSnapshot`) remains the ORACLE this was proved against,
+// because it is the only spec-correct name engine in the fleet. This is NOT the `@orb/ui` accname-engine
+// merge Core-Tooling-Law.md §2.8 refuses: the `aria-name` RULE still tests presence only (RULE-AUTHORING
+// row 8), and no name is COMPUTED for a WCAG verdict — this is a comparison key two censuses already
+// computed, computed once and in the right order.
+//
 // DECLARES ONLY, exactly like state-paint.ts: no census runs here, so composing it costs nothing but its
-// declarations. It must sit BEFORE census-interactive.ts in the composition (ops/walker.ts) — these are
-// `var f = function …` assignments, so they exist only after their lines have EXECUTED, the same
-// hoists-undefined ordering rule that file's header states.
+// declarations — which is what lets snap's surface map compose this segment ALONE. It must sit BEFORE
+// census-interactive.ts in the walker composition (ops/walker.ts) — these are `var f = function …`
+// assignments, so they exist only after their lines have EXECUTED, the same hoists-undefined ordering
+// rule that file's header states.
 //
 // Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string,
 // not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
-export const WALKER_ACCESSIBLE_NAME = `  // ── accessible-name source resolvers (shared by the name census and the door census) ──
+export const WALKER_ACCESSIBLE_NAME = `  // ── accessible-name source resolvers + the ONE spec-ordered key (#1324) ──
   var labelledbyText = function (el) {
     var attr = el.getAttribute("aria-labelledby") || "";
     var ids = attr.split(/\\s+/).filter(Boolean);
@@ -69,5 +84,51 @@ export const WALKER_ACCESSIBLE_NAME = `  // ── accessible-name source resolv
     if (el.tagName === "IMG") return el.getAttribute("alt");
     var inner = el.querySelector("img[alt]");
     return inner ? inner.getAttribute("alt") : null;
+  };
+  // NAME FROM CONTENT (accname 1.2 step 2F). THE SOURCE IS NOT textContent (#1317 item 8): accname 2A
+  // excludes an aria-hidden="true" subtree from the computation, so a button whose only text is a
+  // decorative glyph span marked aria-hidden — the house shape for an icon-only control — exposes NO
+  // accessible name while textContent reads non-empty. That was a FALSE CLEAN on the aria-name rule.
+  // Nor is a NOT-RENDERED branch content: step 2F reads rendered text, and snap's surface map already
+  // skipped display:none / visibility:hidden / [hidden] branches — folding the two homes onto one key
+  // (#1324) folds that filter in too rather than losing it.
+  // sr-only text is DELIBERATELY still counted: it is not aria-hidden and it IS rendered (clip-path, not
+  // display), a screen reader reads it, and it is the sanctioned way to name an icon-only control here.
+  // Excluding it would trade this false clean for a false P1 on every correctly-named icon button.
+  var accNameOwnText = function (root) {
+    var collected = "";
+    var visit = function (node) {
+      for (var ni = 0; ni < node.childNodes.length; ni += 1) {
+        var child = node.childNodes[ni];
+        if (child.nodeType === 3) { collected += child.textContent; continue; }
+        if (child.nodeType !== 1) continue;
+        if (child.getAttribute("aria-hidden") === "true") continue;
+        if (child.hidden) continue;
+        var childStyle = getComputedStyle(child);
+        if (childStyle.display === "none" || childStyle.visibility === "hidden") continue;
+        visit(child);
+      }
+    };
+    visit(root);
+    return collected.replace(/\\s+/g, " ").trim();
+  };
+  // THE ONE ACCESSIBLE-NAME KEY (#1324) — accname 1.2 order, exactly: 2B aria-labelledby, 2C aria-label,
+  // 2D the native host-language label, 2F name from content, then the two last-resort sources this fleet
+  // has always read (title, alt). Returns "" for an unnamed control — the ABSENCE the aria-name rule and
+  // the door census both key on. A caller needing a source BELOW this chain (the surface map's
+  // placeholder-of-last-resort for a text input) applies it after an empty answer, never inside the key.
+  var accessibleNameOf = function (el) {
+    var byLabelledby = labelledbyText(el);
+    if (byLabelledby) return byLabelledby;
+    var byLabel = (el.getAttribute("aria-label") || "").trim();
+    if (byLabel) return byLabel;
+    var byNativeLabel = nativeLabelText(el);
+    if (byNativeLabel) return byNativeLabel;
+    var byContent = accNameOwnText(el);
+    if (byContent) return byContent;
+    var byTitle = (el.getAttribute("title") || "").trim();
+    if (byTitle) return byTitle;
+    var byAlt = altTextOf(el);
+    return byAlt ? byAlt.trim() : "";
   };
 `;

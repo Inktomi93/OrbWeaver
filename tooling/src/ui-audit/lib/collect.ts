@@ -52,6 +52,9 @@
 // RUNG 2b · partitionedFindings — the checker itself names each candidate's disposition, because `null`
 // meant two different things and a bare zero conflated them:
 //   control-aspect            excluded(roleWithoutSilhouette) · withheld(animating, degenerateBox)
+//   border-contrast           excluded(noDeclaredBorder, inactiveExempt) · withheld(the backdrop's own
+//                             unresolved reason, borderColorUnreadable) — a control that declared no
+//                             boundary made no claim, and an unresolvable surround is not a clean edge
 //   side-tab                  excluded(statusRegionAccent, ratifiedListRowSelection)
 //   border-accent-on-rounded  same census, same two ratified exemptions, its own affected count
 //   glow-shadow               excluded(sanctionedGlowCarrier) — keeps the exemption's REACH visible

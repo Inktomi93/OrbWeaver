@@ -102,3 +102,24 @@ test("every accepted public Snap flag derives exactly one grammar descriptor, in
   }
   expect(liveHelp.stdout).toContain("developer fixture stack");
 });
+
+// ── the design-audit arm's grammar (#1315) ───────────────────────────────────────────────────────────
+// The two flags the folded scan brought with it. `--fail-on` is a REQUIRED-VALUE flag over a closed
+// severity ladder, and a bad value has to be CLI misuse rather than a silent default: the alternative is
+// a run that audits the right surface at the wrong threshold and reports it clean, which is the exact
+// class the retired parser refused with `--fail-on expects P0|P1|P2|P3`.
+
+test("--design-audit and --fail-on parse into the arm's own Args slice, and a bad severity is misuse", () => {
+  const on = parseSnapArgs(["/chats", "--design-audit", "--fail-on", "P2"]);
+  expect(on.errors).toEqual([]);
+  expect(on).toMatchObject({ route: "/chats", designAudit: true, failOn: "P2" });
+
+  // The default is P1 — the severity the scan has always exited 1 at — and it survives the fold.
+  expect(parseSnapArgs(["/chats", "--design-audit"])).toMatchObject({ designAudit: true, failOn: "P1" });
+  // Off by default: an ordinary snap run must not grow a full-page census nobody asked for.
+  expect(parseSnapArgs(["/chats"])).toMatchObject({ designAudit: false, failOn: "P1" });
+
+  expect(parseSnapArgs(["/chats", "--fail-on", "P9"]).errors).toContain('--fail-on takes a severity (P0|P1|P2|P3), got "P9"');
+  expect(parseSnapArgs(["/chats", "--fail-on"]).errors).toContain('--fail-on takes a severity (P0|P1|P2|P3), got ""');
+});
+

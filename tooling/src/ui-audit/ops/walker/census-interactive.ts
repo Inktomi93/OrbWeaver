@@ -73,28 +73,11 @@ refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap targets + accessible names + action doors ──
   var tapTargets = [];
   var accessibleNames = [];
-  // THE NAME-TEXT SOURCE IS NOT textContent (#1317 item 8). accname step 2A excludes an
-  // aria-hidden="true" subtree from the name computation, so a button whose only text is a decorative
-  // glyph span marked aria-hidden - the house shape for an icon-only control - exposes NO accessible
-  // name while textContent reads non-empty. That was a FALSE CLEAN on the aria-name rule: the exact
-  // class RULE-AUTHORING.md row 8 names, one source over.
-  // sr-only text is DELIBERATELY still counted: it is not aria-hidden, a screen reader reads it, and it
-  // is the sanctioned way to name an icon-only control here. Excluding it would trade this false clean
-  // for a false P1 on every correctly-named icon button, which is the worse trade.
-  var accNameOwnText = function (root) {
-    var collected = "";
-    var visit = function (node) {
-      for (var ni = 0; ni < node.childNodes.length; ni += 1) {
-        var child = node.childNodes[ni];
-        if (child.nodeType === 3) { collected += child.textContent; continue; }
-        if (child.nodeType !== 1) continue;
-        if (child.getAttribute("aria-hidden") === "true") continue;
-        visit(child);
-      }
-    };
-    visit(root);
-    return collected.trim();
-  };
+  // The name-text source, the native-label / labelledby / alt resolvers and the ONE spec-ordered
+  // comparison key all live in the PRECEDING segment (ops/walker/accessible-name.ts) — same function
+  // scope. \`accNameOwnText\` moved there at #1324 so snap's surface map could compose the key without
+  // composing this census: two homes for one accessible name is what put \`aria-label\` ahead of
+  // \`aria-labelledby\` in both of them.
   // issue #252 — the RUNTIME half of the dual-home detector. The static gate (duplicate-action-doors)
   // censuses tRPC call sites per rail section and is blind by construction to a REGISTRY-RENDERED action:
   // one call site behind N rendered slots, which is exactly how the founding "new chat lives in three
@@ -327,11 +310,13 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     // into duplicate generic doors (issue #370). This excludes role="generic" whether implicit OR
     // explicit — doorRole does not distinguish the two — so only non-generic roles and any tabindex
     // other than -1 remain judged.
-    // The native label sits between the aria overrides and the control's own content — where the accname
-    // spec puts it, and where the two existing neighbours already implied it. No existing pair in this
-    // chain is reordered. Without it a label-named switch was a NAMELESS door: invisible to the
-    // duplicate-door lens as well as filed as a false aria-name P1 (#1009, both halves of one blindness).
-    var doorName = doorNameKey(iel.getAttribute("aria-label") || labelledbyText(iel) || nativeLabelText(iel) || (iel.textContent || "") || iel.getAttribute("title") || altTextOf(iel));
+    // THE NAME IS NOT COMPOSED HERE ANY MORE (#1324). This chain put \`aria-label\` ahead of
+    // \`aria-labelledby\` — the reverse of accname 1.2 (2B precedes 2C) — and read raw \`textContent\` for
+    // the content step, so a planted pair sharing an aria-label under different labelledby targets was
+    // filed a duplicate door and a real duplicate under one labelledby was missed. \`accessibleNameOf\`
+    // (ops/walker/accessible-name.ts) is the ONE spec-ordered key; \`doorNameKey\` still folds it to a
+    // COMPARISON key (case, whitespace, trailing punctuation) — a comparison, never a WCAG computation.
+    var doorName = doorNameKey(accessibleNameOf(iel));
     var resolvedDoorRole = doorRole(iel);
     var programmaticGeneric = resolvedDoorRole === "generic" && String(iel.getAttribute("tabindex") || "").trim() === "-1";
     if (doorName.length > 0 && onScreen && !hiddenStub && !programmaticGeneric) {

@@ -71,6 +71,9 @@ const COUNTED_FLAT_FAMILIES: Readonly<Record<FlatSampleFamily, boolean>> = {
   actionDoors: true,
   animatedImgHovers: false,
   bgPatterns: false,
+  // A form control is ALREADY a censused subject through accessibleNames/tapTargets; counting its
+  // boundary a second time would inflate the one denominator a reader uses to size `findings=0`.
+  borderContrasts: false,
   brokenImages: false,
   buriedRasters: false,
   clippedOverflows: false,
