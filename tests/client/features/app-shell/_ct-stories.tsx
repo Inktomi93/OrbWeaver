@@ -637,7 +637,16 @@ export function AppShellChatsProjectionIntentStory(): ReactElement {
  *  contents to a character's CHATS when one is opened, at which point "Characters list" was a lie. The
  *  landmark points at the band's heading now; this story is the band, with a caller-chosen title/accent so
  *  one CT can walk both arms of the swap. */
-export function AppShellNamedListBandStory({ title, accent }: { readonly title: string; readonly accent?: string }): ReactElement {
+export function AppShellNamedListBandStory({
+  title,
+  accent,
+  count,
+}: {
+  readonly title: string;
+  readonly accent?: string;
+  /** A live census in the band — the half of the landmark's name that used to run into the noun (#1349). */
+  readonly count?: number;
+}): ReactElement {
   return (
     <CtDataProviders>
       <CtFakeSectionRegistry
@@ -645,7 +654,7 @@ export function AppShellNamedListBandStory({ title, accent }: { readonly title: 
           chats: {
             content: <p>chats content pane</p>,
             list: <p>chats list pane</p>,
-            listHeader: <ListPaneHeader title={title} {...(accent === undefined ? {} : { accent })} />,
+            listHeader: <ListPaneHeader title={title} {...(accent === undefined ? {} : { accent })} {...(count === undefined ? {} : { count })} />,
           },
         }}
       >

@@ -65,6 +65,14 @@ export interface ShellLayout {
    *  something, it IS the screen), yet the content behind it must still go `inert`, so the keyboard agrees
    *  with the pointer (item 22). ONE flag, so the shell renders the fact instead of re-deriving it. */
   readonly contentInert: boolean;
+  /** THE ONE-SHELL RULE'S OTHER HALF, AS A LANDMARK FACT (#1349). On a phone with the roster showing as
+   *  the screen, shell.css `display:none`s `.shell-content` behind it — so the document's only `main`
+   *  landmark was an unrendered node, the skip link's target was inert and zero-wide, and design-audit
+   *  fired `landmark-missing` on 8 of 10 sections. `true` ⇒ THE LIST PANE IS THE PRIMARY CONTENT of this
+   *  screen and carries `main`; the content column has none to carry. Published here rather than
+   *  re-derived at the two consumers because it is the same fact `contentInert` already states from the
+   *  keyboard's side — one truth, two consequences. */
+  readonly listIsPrimaryContent: boolean;
   /** In an overlay regime (mobile OR narrow-desktop — neither can resolve a dock): flips `openOverlayPanel`
    *  ephemeral open/close. In the wide regime: flips the persisted override docked ⇄ collapsed. */
   readonly togglePanel: (panel: PanelName) => void;
@@ -151,7 +159,11 @@ export function useShellLayout(): ShellLayout {
   const activeSectionLabel = activeDef.rail.label;
   const anyPanelAvailable = listAvailable || contextAvailable;
   const scrimVisible = listMode === "overlay" || contextMode === "overlay";
-  const contentInert = scrimVisible || (isMobile && listMode === "docked");
+  // The ONE-SHELL screen: a phone, a list-bearing section, nothing selected. shell.css keys the same arm
+  // off `data-list-mode="docked"` inside its one `@media`, so the two never disagree about what "the
+  // roster IS the screen" means.
+  const listIsPrimaryContent = isMobile && listMode === "docked";
+  const contentInert = scrimVisible || listIsPrimaryContent;
 
   // Closing a panel in an overlay regime RELEASES the request (`null`) unless it is the LIST, which is the
   // one panel with a regime DEFAULT to suppress: on mobile with nothing selected the roster is the screen,
@@ -259,6 +271,7 @@ export function useShellLayout(): ShellLayout {
     openModalId,
     scrimVisible,
     contentInert,
+    listIsPrimaryContent,
     mobileViewport: isMobile,
     togglePanel,
     collapsePanel,

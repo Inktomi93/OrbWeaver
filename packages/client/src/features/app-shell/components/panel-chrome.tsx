@@ -14,6 +14,10 @@
 // A COLLAPSED BODY IS DEFERRED PAST THE BOOT COMMIT, AND ITS MOUNT DOES NOT RIDE THE OPEN'S CLICK FRAME
 // (#895) — see `bodyMounted` below for the measurement that split those into two different requirements.
 //
+// A PANE CAN BE THE SCREEN'S PRIMARY CONTENT, AND THEN IT IS THE `main` LANDMARK (#1349) — see
+// `primaryContent` below. This is a RENDERING of the shell's own one-shell fact, never a second guess at
+// what "mobile" means: `ShellLayout.listIsPrimaryContent` decides, one flag, for every section at once.
+//
 // AN OVERLAY IS DIFFERENT AND CARRIES ITS OWN DISMISS (side-eye 2026-08-06 P2). A floating panel's only
 // exits were the scrim and Escape — and on a phone the panel is 100dvw, so the scrim it floats over has NO
 // reachable pixel and Escape needs a keyboard. That left the topbar toggle as the sole way out: a control
@@ -22,7 +26,7 @@
 
 import { Button } from "@orb/ui/button";
 import { Icon, X } from "@orb/ui/icons";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, Ref } from "react";
 import { startTransition, useEffect, useState } from "react";
 import { LIST_PANE_TITLE_ID } from "#lib";
 import type { PanelMode, PanelName } from "#state";
@@ -48,10 +52,17 @@ export interface PanelChromeProps {
   readonly available: boolean;
   /** Close THIS panel — the band's own dismiss, rendered only while the panel FLOATS (see the header). */
   readonly onDismiss: () => void;
+  /** IS THIS PANE THE SCREEN'S PRIMARY CONTENT right now (#1349 — `ShellLayout.listIsPrimaryContent`)?
+   *  `true` ⇒ the aside carries `main` instead of its `complementary` role and becomes the skip link's
+   *  target, because on the phone landing the content column it would otherwise defer to is
+   *  `display:none` behind this pane. The shell decides; this component only renders the decision. */
+  readonly primaryContent?: boolean;
+  /** The pane element itself — the skip link needs to move focus onto it in the `primaryContent` state. */
+  readonly ref?: Ref<HTMLElement>;
   readonly children: ReactNode;
 }
 
-export function PanelChrome({ panel, label, header, mode, available, onDismiss, children }: PanelChromeProps): ReactElement {
+export function PanelChrome({ panel, label, header, mode, available, onDismiss, primaryContent = false, ref, children }: PanelChromeProps): ReactElement {
   // A collapsed panel is translated out of the shell and inert, so its first body mount cannot be seen or
   // reached — it must not ride the boot commit (4a6c54cdf). THAT RULING SURVIVES; ITS INPUT CHANGED (#895).
   // Latching the mount DURING RENDER (`if (mode !== "collapsed") setBodyMounted(true)`) satisfied it and
@@ -78,6 +89,11 @@ export function PanelChrome({ panel, label, header, mode, available, onDismiss, 
   return (
     <aside
       className="shell-panel"
+      ref={ref}
+      // THE PANE THAT IS THE SCREEN IS THE MAIN LANDMARK (#1349). Not a second `main`: in this state the
+      // content column is `display:none` (shell.css's ONE-SHELL arm), so exactly one main is EXPOSED in
+      // either state. `tabIndex={-1}` for the same reason `<main>` carries it — the skip link lands here.
+      {...(primaryContent ? { role: "main", tabIndex: -1 } : {})}
       aria-label={label}
       // THE LIST LANDMARK FOLLOWS ITS OWN BAND (#493, side-eye 2026-08-22 rail-characters P2-3). `label` is
       // derived from the ACTIVE SECTION, so it announced "Characters list" over a pane that had swapped to a

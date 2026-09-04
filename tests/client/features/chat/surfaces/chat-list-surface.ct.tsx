@@ -211,7 +211,7 @@ test("jumping to a month resets loaded pages and lands its newest old row withou
     }, evictionPoll())
     .toBeGreaterThan(0);
 
-  const month = component.getByLabel("Show chats from");
+  const month = component.getByLabel("Show chats up to");
   await month.fill("2020-06");
 
   await expect(component.getByText("June 2020 anchor")).toBeVisible();
@@ -243,7 +243,7 @@ test.describe("date jump coarse pointer", () => {
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const component = await mount(<ChatListSurfaceStory width={320} />);
 
-    const month = component.getByLabel("Show chats from");
+    const month = component.getByLabel("Show chats up to");
     await month.fill("2020-06");
     const clear = component.getByRole("button", { name: "Clear the month" });
     const floor = await resolvedPx(page, "--spacing-touch-target");
@@ -279,7 +279,7 @@ test.describe("date jump coarse pointer", () => {
     const scroll = component.locator('[data-slot="virtual-list-scroll"]');
     await scroll.evaluate((node) => node.setAttribute("data-remount-probe", "preserved"));
 
-    await component.getByLabel("Show chats from").fill("2020-06");
+    await component.getByLabel("Show chats up to").fill("2020-06");
     await expect(component.getByText("Compact old 00")).toBeVisible();
     await expect(scroll).toHaveAttribute("data-remount-probe", "preserved");
 
@@ -376,7 +376,7 @@ for (const trigger of ["hover", "focus"] as const) {
 test("the icon-only month clear exposes pointer copy byte-equal to its accessible name", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
-  await component.getByLabel("Show chats from").fill("2020-06");
+  await component.getByLabel("Show chats up to").fill("2020-06");
 
   const clear = component.getByRole("button", { name: "Clear the month" });
   await expect(clear).toHaveAttribute("aria-label", "Clear the month");
@@ -387,7 +387,7 @@ for (const width of [1280, 720, 430, 390, 320] as const) {
   test(`@${String(width)}: the month clear aligns to the input control rather than the label-and-field block`, async ({ mount, page }) => {
     await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
     const component = await mount(<ChatListSurfaceStory width={width} />);
-    const month = component.getByLabel("Show chats from");
+    const month = component.getByLabel("Show chats up to");
     await month.fill("2020-06");
     const clear = component.getByRole("button", { name: "Clear the month" });
     const [monthBox, clearBox] = await Promise.all([month.boundingBox(), clear.boundingBox()]);
@@ -401,10 +401,76 @@ for (const width of [1280, 720, 430, 390, 320] as const) {
 test("month-scoped empty copy names the localized human month and year", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([]), "character.list": { items: [], nextCursor: null } });
   const component = await mount(<ChatListSurfaceStory />);
-  await component.getByLabel("Show chats from").fill("2020-06");
+  await component.getByLabel("Show chats up to").fill("2020-06");
 
   await expect(component.getByText("No chats found by June 2020.")).toBeVisible();
   await expect(component.getByText(RAW_MONTH_COPY)).toHaveCount(0);
+});
+
+// #1348 — THE LABEL RUNS THE DIRECTION THE PREDICATE RUNS. The pane's bound is `monthExclusiveUpperBound`,
+// an EXCLUSIVE UPPER ceiling, and that mechanism is the recorded #490 ruling (it is what makes the keyset
+// page cheap and it does not move). What ran backwards was the SENTENCE over it: the old label said *from*,
+// which is heard as on-or-AFTER, so a reader hunting "my chat from August" picked a month BEFORE their
+// library, got an
+// empty list and concluded the chats were gone (measured on live main 2026-09-04: `2020-01` → 0 of 6,
+// `2030-01` → 6 of 6). The empty copy already said "by". Both arms are pinned through the ACCESSIBLE NAME,
+// because the rows were never wrong — the name over them was.
+test("#1348 the month bound's label states the direction its predicate runs — both arms", async ({ mount, page }) => {
+  // Every fixture chat sits at FROZEN_AT (June 2025), so `2026-01` is a ceiling ABOVE the whole library and
+  // `2020-01` one BELOW it.
+  await routeTrpc(page, {
+    ...CHAT_ROOM_ROUTES,
+    "chat.listChats": datedChatListResponder([ADVENTURE, UNTITLED]),
+    "character.list": { items: [], nextCursor: null },
+  });
+  const component = await mount(<ChatListSurfaceStory />);
+  const month = component.getByLabel("Show chats up to");
+
+  // A ceiling ABOVE the library keeps every chat — "up to January 2026" includes June 2025.
+  await month.fill("2026-01");
+  await expect(component.getByText("A grand adventure")).toBeVisible();
+
+  // A ceiling BELOW it keeps none, and the empty sentence says the SAME direction the label does.
+  await month.fill("2020-01");
+  await expect(component.getByText("No chats found by January 2020.")).toBeVisible();
+});
+
+// #1350 — THE PHONE FOLDS THE SECONDARY FILTER. Measured at 430×740 on live main 2026-09-04: 299 of 740px
+// (40% of the viewport) was filter chrome before the first chat row. The month bound is the secondary of the
+// two filters, so on the phone it becomes a disclosure — the character strip's own `+N More` posture. Two
+// claims, because a fold that hides state is worse than the chrome it saved: the field is NOT rendered while
+// folded, and the TRIGGER names the bound in force whenever one is set.
+test("#1350 @mobile: the month bound folds behind a disclosure, and the trigger carries the bound in force", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_ROOM_ROUTES,
+    "chat.listChats": datedChatListResponder([ADVENTURE]),
+    "character.list": { items: [], nextCursor: null },
+  });
+  const component = await mount(<ChatListSurfaceStory mobile={true} />);
+  await expect(component.getByText("A grand adventure")).toBeVisible();
+
+  // FOLDED: no month field on the screen, and the search field — the primary — still is.
+  await expect(component.getByRole("textbox", { name: "Search chats" })).toBeVisible();
+  await expect(component.getByLabel("Show chats up to")).toBeHidden();
+
+  // Opening it reveals the SAME control, named the same way.
+  const trigger = component.getByRole("button", { name: "Show chats up to", exact: true });
+  await trigger.click();
+  const month = component.getByLabel("Show chats up to");
+  await expect(month).toBeVisible();
+  await month.fill("2020-06");
+
+  // …and the bound rides the TRIGGER, so folding it away never hides what is narrowing the list.
+  await expect(component.getByRole("button", { name: "Show chats up to June 2020", exact: true })).toBeVisible();
+});
+
+// The DESKTOP twin: the pane is a 300px column with vertical room to spare, so the same control renders
+// outright under its `<Field>` label. This is the arm that goes red if the fold leaks past its applicability.
+test("#1350 @desktop: the month bound renders as a plain labelled field, with no disclosure", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": { items: [], nextCursor: null } });
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByLabel("Show chats up to")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Show chats up to", exact: true })).toHaveCount(0);
 });
 
 test("a SEARCH that matches nothing says NO MATCHES — never the library-empty copy", async ({ mount, page }) => {
@@ -438,7 +504,7 @@ test("a search AND a month empty offers BOTH exits, and each one really widens t
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
 
-  await component.getByLabel("Show chats from").fill("2020-06");
+  await component.getByLabel("Show chats up to").fill("2020-06");
   await component.getByRole("textbox", { name: "Search chats" }).fill("zzz-no-such-thread");
 
   // SETTLED barrier: the debounced search has landed as its own empty page, so the arm below is the steady
@@ -452,7 +518,7 @@ test("a search AND a month empty offers BOTH exits, and each one really widens t
   // The MONTH exit widens by exactly one axis: the month bound drops, the search's own claim stands, and the
   // empty state re-states the narrowing that is actually still on.
   await clearMonth.click();
-  await expect(component.getByLabel("Show chats from")).toHaveValue("");
+  await expect(component.getByLabel("Show chats up to")).toHaveValue("");
   await expect(component.getByText('No chat matches "zzz-no-such-thread".')).toBeVisible();
 
   // …and the remaining exit is the last one, which restores the list.
@@ -465,7 +531,7 @@ test("a month-only empty offers the CHARACTER exit too when a character scope is
   const component = await mount(<ChatListSurfaceStory />);
   await component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true }).click();
   await expect(component.getByText("Filtered:")).toBeVisible();
-  await component.getByLabel("Show chats from").fill("2020-06");
+  await component.getByLabel("Show chats up to").fill("2020-06");
 
   await expect(component.getByText("No chats with Aria Nightshade found by June 2020.")).toBeVisible();
   await expect(component.getByRole("button", { name: "Clear month", exact: true })).toBeVisible();
@@ -1223,7 +1289,7 @@ test("#385 a December jump rolls the exclusive bound into the following January 
   const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
 
-  await component.getByLabel("Show chats from").fill("2020-12");
+  await component.getByLabel("Show chats up to").fill("2020-12");
 
   await expect
     .poll(() => trpc.inputs("chat.listChats").some((input) => (input as { beforeRecencyAt?: number } | undefined)?.beforeRecencyAt === Date.UTC(2021, 0, 1)))
@@ -1307,7 +1373,7 @@ test("#525 both filter clears sit INSIDE their field's box, and the field never 
   const component = await mount(<ChatListSurfaceStory width={320} />);
 
   const search = component.getByRole("textbox", { name: "Search chats" });
-  const month = component.getByLabel("Show chats from");
+  const month = component.getByLabel("Show chats up to");
   const restingSearch = await search.boundingBox();
   const restingMonth = await month.boundingBox();
 
