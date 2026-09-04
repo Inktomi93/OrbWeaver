@@ -45,7 +45,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
-import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
+import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { READY_DOC, stubDatabank } from "../../databank/fixtures.ts";
 import { HomeBalanceStory } from "../_ct-stories.tsx";
 
@@ -233,6 +233,7 @@ test("#226 the shelf stops deciding the page's height — level columns wherever
   await page.setViewportSize({ width: 2560, height: 1000 });
   await stubDatabank(page, {
     "chat.listChats": chatListResponder(ROOMS),
+    "chat.getChat": CHAT_ROOM_ROUTES["chat.getChat"],
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characterListResponder(FACES),
     "databank.bankHealth": HEALTH,

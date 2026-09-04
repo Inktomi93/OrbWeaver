@@ -30,6 +30,7 @@ test("a failing section renders inline at its anchor WITH a retry, even while ho
     "regex.listScripts": [],
     "worldInfo.listBooksWithUsage": [],
     "rosterPreset.list": [],
+    "settings.listThemes": [],
   });
   await mount(<ConfigHostStory />);
   await page.getByRole("button", { name: "Chat behavior" }).click();

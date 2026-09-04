@@ -7,6 +7,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { LatencyStats, ModelStatRow } from "@orb/server/domain/stats";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { AnalyticsContextHeaderStory, AnalyticsListHeaderStory } from "../_ct-stories.tsx";
@@ -37,17 +38,33 @@ function leaderboardRow(characterId: CharacterId, name: string): Record<string, 
 }
 const LEADERBOARD_ROWS = [leaderboardRow(castId<CharacterId>("char_a"), "Aria"), leaderboardRow(castId<CharacterId>("char_b"), "Bolt")];
 
+/** The real CONTEXT host opens the Models tab by default. These are its honest fresh-library views: no
+ * model buckets and a correctly shaped latency population with no recorded samples. */
+const EMPTY_CONTEXT_ROUTES: Readonly<Record<string, unknown>> = {
+  "stats.byModel": [] satisfies ModelStatRow[],
+  "stats.latency": {
+    avgTtftMs: null,
+    p50TtftMs: null,
+    p90TtftMs: null,
+    avgGenMs: null,
+    p50GenMs: null,
+    p90GenMs: null,
+  } satisfies LatencyStats,
+};
+
 test("the CONTEXT band names the drilled leaderboard character (P4)", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.get": () => DRILLED_CHARACTER });
+  await routeTrpc(page, { ...EMPTY_CONTEXT_ROUTES, "character.get": () => DRILLED_CHARACTER });
   const component = await mount(<AnalyticsContextHeaderStory drilled={true} />);
 
   await expect(component.getByText("Aria Nightshade")).toBeVisible();
 });
 
-test("the CONTEXT band shows the neutral Analytics identity when nothing is drilled", async ({ mount }) => {
+test("the CONTEXT band shows the neutral Analytics identity when nothing is drilled", async ({ mount, page }) => {
+  await routeTrpc(page, EMPTY_CONTEXT_ROUTES);
   const component = await mount(<AnalyticsContextHeaderStory drilled={false} />);
 
-  await expect(component.getByText("Analytics")).toBeVisible();
+  const band = component.locator('[data-slot="context-bracket-band"]');
+  await expect(band.getByText("Analytics", { exact: true })).toBeVisible();
   await expect(component.getByText("Aria Nightshade")).toHaveCount(0);
 });
 

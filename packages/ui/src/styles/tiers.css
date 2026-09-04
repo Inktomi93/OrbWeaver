@@ -29,6 +29,7 @@
   --spacing-row: var(--orb-density-comfortable-row);
   --spacing-block: var(--orb-density-comfortable-block);
   --spacing-section: var(--orb-density-comfortable-section);
+  --orb-grid-cell-fixed: var(--orb-density-comfortable-cell-fixed);
 }
 
 [data-density="compact"] {
@@ -36,6 +37,7 @@
   --spacing-row: var(--orb-density-compact-row);
   --spacing-block: var(--orb-density-compact-block);
   --spacing-section: var(--orb-density-compact-section);
+  --orb-grid-cell-fixed: var(--orb-density-compact-cell-fixed);
 }
 
 [data-surface-tier="instrument"] {

@@ -68,13 +68,19 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // unpassable by tuning. A `-foreground` pair is the shape that census can read (tokens.json).
   // +1 (2026-09-02, #1204): `--dimension-shell-content-floor` — the chat-width dial's floor derived from the
   // Geist reading measure (650 + 40 gutter + 48 flat insets = 738px) instead of the pre-Geist 680px literal.
-  [THEME]: 300,
+  // +5 (2026-09-04): the density-selected fixed grid cell — `width.cell-fixed` + `width.cell-fixed-compact`
+  // (2 direct @theme, tokens.json) and `--orb-grid-cell-fixed` with its comfortable/compact density aliases
+  // (3 rules), so Grid `cellFixed` reads one density-selected track instead of a raw minmax literal
+  // (tests/ui/tokens/index.test.ts pins the pair; `cellShelf` keeps its independent 8.5rem track).
+  [THEME]: 305,
   // +2 (2026-09-02, #1128): `--scroll-fade-depth` / `--scroll-fade-floor` on `.scroll-fade-y`. The block
   // -axis fade ramped to ZERO alpha over 10% of the pane and measured two live buttons at 1.75:1 at the
   // shipped 1280x800 default; a bounded band plus an alpha floor needs two locals, and they deliberately
   // mint no `--fade-*` family (that one is generated — see LOCAL_FADE_STOP_RE below).
   [UI_GLOBALS]: 189,
-  [TIERS]: 45,
+  // +2 (2026-09-04): `[data-density="comfortable"]` / `[data-density="compact"]` each set
+  // `--orb-grid-cell-fixed` to its density alias — the tier map is where the density selection lives.
+  [TIERS]: 47,
   // +1 (2026-09-02, #1120): the collapsed panel's `backdrop-filter: none`. A section that declares a pane
   // "unavailable" still renders it collapsed (owner decision H3 / arm L-b), and the off-screen box was
   // keeping the most expensive paint primitive in the browser for a box that blurs nothing.
@@ -97,8 +103,8 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // overrides are one declaration each before and after — they now answer their own stop, not the property.
   [SHELL]: 337,
 };
-export const EXPECTED_DECLARATION_TOTAL = 996;
-export const EXPECTED_DIRECT_THEME_DECLARATIONS = 197;
+export const EXPECTED_DECLARATION_TOTAL = 1003;
+export const EXPECTED_DIRECT_THEME_DECLARATIONS = 199;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",
   [UI_GLOBALS]: "census:ui-globals",

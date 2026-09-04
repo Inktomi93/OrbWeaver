@@ -23,9 +23,15 @@ import { GATE_PHASES } from "../contract/pass.ts";
  *  250-gate artifact readable while still separating a 0.1ms gate from a 0.001ms one. */
 const MS_SCALE = 1000;
 
-/** Round DOWN — a per-gate/per-phase number may only ever understate. */
-function floorMs(ms: number): number {
-  return Math.floor(ms * MS_SCALE) / MS_SCALE;
+/** Round DOWN into the INTEGER unit the ledger sums. Keeping the arithmetic integer until the published
+ *  boundary prevents `40.329 + 0.001 + 0.001` becoming `40.330999…` and losing another microsecond when
+ *  the already-floored parts are floored a second time. */
+function floorMicros(ms: number): number {
+  return Math.floor(ms * MS_SCALE);
+}
+
+function fromMicros(micros: number): number {
+  return micros / MS_SCALE;
 }
 
 /** Round UP — the enclosing whole may only ever overstate, the mirror of `floorMs`. */
@@ -59,12 +65,13 @@ export function newPhaseClock(): PhaseClock {
     },
     finish: (): GateTiming => {
       const phaseMs: Record<GatePhase, number> = { begin: 0, visit: 0, visitFile: 0, run: 0, finalize: 0 };
-      let totalMs = 0;
+      let totalMicros = 0;
       for (const phase of GATE_PHASES) {
-        phaseMs[phase] = floorMs(ms[phase]);
-        totalMs += phaseMs[phase];
+        const phaseMicros = floorMicros(ms[phase]);
+        phaseMs[phase] = fromMicros(phaseMicros);
+        totalMicros += phaseMicros;
       }
-      return { totalMs: floorMs(totalMs), phaseMs };
+      return { totalMs: fromMicros(totalMicros), phaseMs };
     },
   };
 }
@@ -73,7 +80,8 @@ export function newPhaseClock(): PhaseClock {
  *  exact numbers the artifact publishes — a reader subtracts them and gets the harness's own share (the
  *  walk, the dispatch, the sort) without re-deriving anything. */
 export function passTiming(startedAt: number, gates: readonly GatePassResult[]): PassTiming {
-  return { totalMs: ceilMs(nowMs() - startedAt), gateMs: floorMs(gates.reduce((sum, g) => sum + g.timing.totalMs, 0)) };
+  const gateMicros = gates.reduce((sum, gate) => sum + Math.round(gate.timing.totalMs * MS_SCALE), 0);
+  return { totalMs: ceilMs(nowMs() - startedAt), gateMs: fromMicros(gateMicros) };
 }
 
 /** The phase the pass is CURRENTLY in. Module state, written only by `chargedPhase` below. */

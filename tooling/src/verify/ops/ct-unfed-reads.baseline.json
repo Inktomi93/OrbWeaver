@@ -4,11 +4,5 @@
     "ratified": 1,
     "why": "the NO-EMPTY-WINDOW test (header §3) deliberately withholds this read forever — a settled fallback to the builtin catalog is the behavior under test, not an incidental gap. Feeding it would test a different arm than the one this test names.",
     "cite": ["tests/client/data/use-prompt-macro-suggestions.ct.tsx"]
-  },
-  "tests/client/data/use-session-recovery.ct.tsx :: sessions.me": {
-    "count": 1,
-    "ratified": 1,
-    "why": "the in-flight-identity test deliberately withholds `sessions.me` — an unresolved read that leaves the hook unbound (never suspending, never navigating) IS the subject under test, distinct from the sibling test that feeds a viewer.",
-    "cite": ["tests/client/data/use-session-recovery.ct.tsx"]
   }
 }

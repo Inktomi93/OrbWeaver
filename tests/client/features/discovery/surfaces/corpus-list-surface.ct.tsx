@@ -373,8 +373,11 @@ test("…and the list is WINDOWED: sixty rows, a bounded DOM (C5)", async ({ mou
   // of page one immediately (and 60 after the tail fetch). The 640px story pane holds ~11 rows at the 60px
   // estimate; the bound is generous so a row-height change cannot make this flap, and it still fails
   // outright the moment the list stops windowing.
-  const rendered = await list.getByRole("listitem").count();
-  expect(rendered, `the catalog rendered ${rendered} of ${PAGE_SIZE} loaded rows — a windowed list renders its viewport`).toBeLessThan(PAGE_SIZE);
+  const rendered = list.getByRole("listitem");
+  await expect.poll(async () => await rendered.count()).toBeGreaterThan(0);
+  await expect
+    .poll(async () => await rendered.count(), { message: "the catalog rendered every loaded row — a windowed list renders its viewport" })
+    .toBeLessThan(PAGE_SIZE);
 
   // A6 SURVIVES THE MECHANISM CHANGE: the role chain is `VirtualList`'s own now (it emits role=list on the
   // scroller and role=listitem + setsize/posinset on every measured row shell), not a hand-wrapped Stack.
