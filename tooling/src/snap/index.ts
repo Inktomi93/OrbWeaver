@@ -110,7 +110,7 @@ export { OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS } from "./ops/flags-class
 export { configureStage, refuseFileMode } from "./ops/guards.ts";
 export { materializeDevToolsAssets } from "./ops/materialize-devtools.ts";
 export { snapMatrix } from "./ops/matrix.ts";
-export { isSandboxTraceNoise, isViteDepChurn, partitionFailedRequests, SANDBOX_TRACE_NOISE_RE } from "./ops/noise.ts";
+export { isFileOriginNoise, isFileOriginRequest, isSandboxTraceNoise, isViteDepChurn, partitionFailedRequests, SANDBOX_TRACE_NOISE_RE } from "./ops/noise.ts";
 // The in-page sweep is exported so a browser test can run the SHIPPED body over a mounted frame.
 export { OVERFLOW_MAX_ESCAPES, OVERFLOW_TOLERANCE_PX, sweepOverflowEscapes } from "./ops/overflow.ts";
 export { parseSnapArgs } from "./ops/parse.ts";

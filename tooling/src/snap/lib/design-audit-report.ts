@@ -123,63 +123,116 @@ function environmentPairs(measurement: DesignAuditMeasurement): readonly ResultP
   ];
 }
 
+/** THE `-1` BRANCH IS SPELLED, NOT COALESCED. `population === null` is one fact about the whole run (the
+ *  walk never produced an identity snapshot), so it is decided ONCE and every row states the absent
+ *  sentinel — rather than thirteen optional chains each re-asking a question the first line answered. */
+function absentDomPairs(census: number): readonly ResultPair[] {
+  const keys = [
+    "dom-walk",
+    "dom-settled",
+    "dom-walked",
+    "dom-rendered",
+    "dom-retained-hidden",
+    "dom-skip-head",
+    "dom-skip-dev",
+    "dom-inaccessible",
+    "dom-added",
+    "dom-detached",
+    "dom-mutations",
+    "dom-settle-mutations",
+  ] as const;
+  return [["census", census], ...keys.map((key): ResultPair => [key, ABSENT])];
+}
+
 function domPairs(measurement: DesignAuditMeasurement): readonly ResultPair[] {
   const population = measurement.population;
+  if (population === null) {
+    return absentDomPairs(measurement.census);
+  }
+  const accounting = population.accounting;
   return [
     ["census", measurement.census],
-    ["dom-walk", population?.duringWalk ?? ABSENT],
-    ["dom-settled", population === null ? ABSENT : `${String(population.settled)}${population.stabilized ? "" : "+"}`],
-    ["dom-walked", population?.accounting.walked ?? ABSENT],
-    ["dom-rendered", population?.accounting.renderedSubjects ?? ABSENT],
-    ["dom-retained-hidden", population?.accounting.retainedHiddenSubjects ?? ABSENT],
-    ["dom-skip-head", population?.accounting.skipped.documentHead ?? ABSENT],
-    ["dom-skip-dev", population?.accounting.skipped.devChrome ?? ABSENT],
-    ["dom-inaccessible", population?.accounting.inaccessible ?? ABSENT],
-    ["dom-added", population?.accounting.added ?? ABSENT],
-    ["dom-detached", population?.accounting.detached ?? ABSENT],
-    ["dom-mutations", population?.accounting.walkMutations ?? ABSENT],
-    ["dom-settle-mutations", population?.accounting.settleMutations ?? ABSENT],
+    ["dom-walk", population.duringWalk],
+    ["dom-settled", `${String(population.settled)}${population.stabilized ? "" : "+"}`],
+    ["dom-walked", accounting.walked],
+    ["dom-rendered", accounting.renderedSubjects],
+    ["dom-retained-hidden", accounting.retainedHiddenSubjects],
+    ["dom-skip-head", accounting.skipped.documentHead],
+    ["dom-skip-dev", accounting.skipped.devChrome],
+    ["dom-inaccessible", accounting.inaccessible],
+    ["dom-added", accounting.added],
+    ["dom-detached", accounting.detached],
+    ["dom-mutations", accounting.walkMutations],
+    ["dom-settle-mutations", accounting.settleMutations],
   ];
 }
 
 function tapPairs(measurement: DesignAuditMeasurement): readonly ResultPair[] {
   const row = measurement.populationAccounting["tap-target"];
+  if (row === undefined) {
+    return (
+      ["tap-candidates", "tap-judged", "tap-affected", "tap-populations", "tap-representatives", "tap-collapsed-same-owner", "tap-withheld-cap"] as const
+    ).map((key): ResultPair => [key, ABSENT]);
+  }
   return [
-    ["tap-candidates", row?.candidates ?? ABSENT],
-    ["tap-judged", row?.judged ?? ABSENT],
-    ["tap-affected", row?.affected ?? ABSENT],
-    ["tap-populations", row?.populations ?? ABSENT],
-    ["tap-representatives", row?.emitted ?? ABSENT],
-    ["tap-collapsed-same-owner", row?.collapsed["sameOwner"] ?? ABSENT],
-    ["tap-withheld-cap", row?.withheld[WITHHELD_REASONS.representativeCap] ?? ABSENT],
+    ["tap-candidates", row.candidates],
+    ["tap-judged", row.judged],
+    ["tap-affected", row.affected],
+    ["tap-populations", row.populations],
+    ["tap-representatives", row.emitted],
+    ["tap-collapsed-same-owner", row.collapsed["sameOwner"] ?? ABSENT],
+    ["tap-withheld-cap", row.withheld[WITHHELD_REASONS.representativeCap] ?? ABSENT],
   ];
 }
 
 function hoverPairs(measurement: DesignAuditMeasurement): readonly ResultPair[] {
-  const scan = measurement.samples?.hoverScan;
+  const scan = measurement.samples === null ? undefined : measurement.samples.hoverScan;
+  const hover = measurement.hover;
+  const pass: readonly ResultPair[] = hover === null ? [["hover-pass", "absent"]] : [["hover-pass", hover.label]];
+  const wall: readonly ResultPair[] = hover === null ? [["hover-ms", ABSENT]] : [["hover-ms", hover.wallMs]];
+  if (scan === undefined) {
+    return [
+      ...pass,
+      ["hover-candidates", ABSENT],
+      ["hover-rules", ABSENT],
+      ["hover-judged", ABSENT],
+      ["hover-subjects-forced", ABSENT],
+      ["hover-not-restored", ABSENT],
+      ["hover-sheets-unreadable", ABSENT],
+      ["hover-selectors-unparseable", ABSENT],
+      ...wall,
+    ];
+  }
   return [
-    ["hover-pass", measurement.hover?.label ?? "absent"],
-    ["hover-candidates", scan?.census.candidates ?? ABSENT],
-    ["hover-rules", scan?.hoverRules ?? ABSENT],
-    ["hover-judged", scan?.census.judged ?? ABSENT],
-    ["hover-subjects-forced", scan?.subjectsForced ?? ABSENT],
-    ["hover-not-restored", scan?.notRestored ?? ABSENT],
-    ["hover-sheets-unreadable", scan?.sheetsUnreadable ?? ABSENT],
-    ["hover-selectors-unparseable", scan?.unparseableSelectors ?? ABSENT],
-    ["hover-ms", measurement.hover?.wallMs ?? ABSENT],
+    ...pass,
+    ["hover-candidates", scan.census.candidates],
+    ["hover-rules", scan.hoverRules],
+    ["hover-judged", scan.census.judged],
+    ["hover-subjects-forced", scan.subjectsForced],
+    ["hover-not-restored", scan.notRestored],
+    ["hover-sheets-unreadable", scan.sheetsUnreadable],
+    ["hover-selectors-unparseable", scan.unparseableSelectors],
+    ...wall,
   ];
 }
 
 function themePairs(measurement: DesignAuditMeasurement): readonly ResultPair[] {
   const theme = measurement.themeEvidence;
-  return [
+  const render = measurement.samples === null ? null : measurement.samples.themeRender;
+  const requested: readonly ResultPair[] = [
     ["theme-request", theme.request ?? "account"],
     ["theme-id", theme.resolution?.id ?? (theme.request === null ? "account" : "none")],
     ["theme-source", theme.resolution?.source ?? (theme.request === null ? "account" : "unresolved")],
-    ["theme-root", measurement.samples?.themeRender.rootDataTheme ?? "default"],
-    ["theme-light", measurement.samples?.themeRender.subjectPolarities.light ?? ABSENT],
-    ["theme-dark", measurement.samples?.themeRender.subjectPolarities.dark ?? ABSENT],
-    ["theme-polarity-unknown", measurement.samples?.themeRender.subjectPolarities.unknown ?? ABSENT],
+  ];
+  if (render === null) {
+    return [...requested, ["theme-root", "default"], ["theme-light", ABSENT], ["theme-dark", ABSENT], ["theme-polarity-unknown", ABSENT]];
+  }
+  return [
+    ...requested,
+    ["theme-root", render.rootDataTheme ?? "default"],
+    ["theme-light", render.subjectPolarities.light],
+    ["theme-dark", render.subjectPolarities.dark],
+    ["theme-polarity-unknown", render.subjectPolarities.unknown],
   ];
 }
 

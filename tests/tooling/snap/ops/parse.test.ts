@@ -122,4 +122,3 @@ test("--design-audit and --fail-on parse into the arm's own Args slice, and a ba
   expect(parseSnapArgs(["/chats", "--fail-on", "P9"]).errors).toContain('--fail-on takes a severity (P0|P1|P2|P3), got "P9"');
   expect(parseSnapArgs(["/chats", "--fail-on"]).errors).toContain('--fail-on takes a severity (P0|P1|P2|P3), got ""');
 });
-

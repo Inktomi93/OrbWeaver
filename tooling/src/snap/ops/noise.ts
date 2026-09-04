@@ -1,5 +1,6 @@
 // Harness-induced noise, named and fenced OUT of the verdict but never dropped: the sandboxed-frame
-// tracing error and vite's cold-stage dep-optimizer aborts. One partition, every snap path judges alike.
+// tracing error, vite's cold-stage dep-optimizer aborts, and the file:// unique-origin note a CDP
+// attach provokes. One partition, every snap path judges alike.
 import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-capture.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 
@@ -59,20 +60,63 @@ export function isViteDepChurn(request: CapturedRequest): boolean {
 export function partitionFailedRequests(requests: Iterable<CapturedRequest>): {
   readonly failed: CapturedRequest[];
   readonly viteChurn: CapturedRequest[];
+  readonly fileOrigin: CapturedRequest[];
 } {
   const failed: CapturedRequest[] = [];
   const viteChurn: CapturedRequest[] = [];
+  const fileOrigin: CapturedRequest[] = [];
   for (const request of requests) {
     if (request.failed === null && (request.status ?? 0) < HTTP_ERROR_STATUS_MIN) {
       continue;
     }
-    (isViteDepChurn(request) ? viteChurn : failed).push(request);
+    if (isViteDepChurn(request)) {
+      viteChurn.push(request);
+    } else if (isFileOriginRequest(request)) {
+      fileOrigin.push(request);
+    } else {
+      failed.push(request);
+    }
   }
-  return { failed, viteChurn };
+  return { failed, viteChurn, fileOrigin };
+}
+
+/** HARNESS-INDUCED again, and the one the design-audit fold surfaced (#1315). Chromium treats every
+ *  `file://` document as its own opaque origin, and a CDP domain attach against one makes it log
+ *  `Unsafe attempt to load URL <U> from frame with URL <U>` — where BOTH urls are the document itself —
+ *  plus a matching request whose failure text is the bare `origin`. MEASURED 2026-09-04: `pnpm snap
+ *  --file mock.html` alone produces neither; adding `--design-audit` produces both, because the walk's
+ *  forced-state pass opens a CDP session and enables the CSS domain (ui-audit/ops/hover.ts). Nothing was
+ *  loaded, nothing is missing, and the page renders identically — but snap counts console errors and
+ *  failed requests into its verdict, so every `--file` mock audit exited 1 on an artifact of the
+ *  instrument's own attach.
+ *
+ *  NARROW BY CONSTRUCTION, both halves, and that is what keeps it from blinding a real defect: the two
+ *  URLs must be IDENTICAL (a mock genuinely loading a sibling `file:///other.png` names two different
+ *  URLs and stays a failure) and the scheme must be `file:`. Never dropped: the report prints these lines,
+ *  the manifest keeps them, and the RESULT line counts them under `file-origin-noise`. */
+const FILE_ORIGIN_NOISE_RE = /^Unsafe attempt to load URL (\S+) from frame with URL (\S+)\. 'file:' URLs are treated as unique security origins\.$/u;
+const FILE_SCHEME = "file://";
+
+export function isFileOriginNoise(entry: CapturedConsole): boolean {
+  if (entry.type !== "error") {
+    return false;
+  }
+  // The MESSAGE TEXT, not `line`: `wireProbePage` composes `line` as `[error] <text> (url:line:col)`, and
+  // the browser's own text ends in a newline, so an anchored match against `line` never fires. The sandbox
+  // twin above reads `line` because its match is anchored at the START only.
+  const match = FILE_ORIGIN_NOISE_RE.exec(entry.text.trim());
+  return match !== null && match[1] === match[2] && String(match[1]).startsWith(FILE_SCHEME);
+}
+
+/** The REQUEST half of the same browser event. `origin` is Chromium's own failure text for the block. */
+const REQUEST_ORIGIN_BLOCKED = "origin";
+
+export function isFileOriginRequest(request: CapturedRequest): boolean {
+  return request.failed === REQUEST_ORIGIN_BLOCKED && request.url.startsWith(FILE_SCHEME);
 }
 
 export function consoleFailureCounts(messages: readonly CapturedConsole[], strict: boolean): ConsoleFailureCounts {
-  const errors = messages.filter((entry) => entry.type === "error" && !isSandboxTraceNoise(entry)).length;
+  const errors = messages.filter((entry) => entry.type === "error" && !isSandboxTraceNoise(entry) && !isFileOriginNoise(entry)).length;
   const warnings = strict ? messages.filter((entry) => entry.type === "warning").length : 0;
   return { errors, warnings };
 }

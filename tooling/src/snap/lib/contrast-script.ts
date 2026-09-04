@@ -3,20 +3,43 @@
 // classifies NOTHING. Lifted out of ops/contrast.ts when the fill arm (#1111) pushed that file past
 // the 450-line tooling cap; it is a pure string builder, which is what lib/ is for.
 //
+// THE BACKDROP RESOLVER IS NOT SPELLED HERE ANY MORE (#1325). This file used to carry its own DOM-ANCESTOR
+// walk, and its own comment named the gap: "GENERIC GAP not covered: any app that paints a fixed sibling
+// over the body without this signal would still fool the root-base trust". REPRODUCED 2026-09-04
+// (docs/reviews/stickler/2026-09-04-snap-ui-audit-capability-census.md §2.1): white text over a
+// `position:fixed; z-index:-1; background:#fff` band read **21.00:1 PASS** through `--contrast`, 1.00:1
+// through `--contrast-pixel`, and P1 through design-audit. The walker's resolver answers it GENERICALLY —
+// it censuses every fixed/absolute CONTENTLESS painted layer and vetoes a base one of them sits over — so
+// this script now composes `WALKER_PRIMITIVES` + `WALKER_RESOLVE` from `ui-audit/index.ts` and asks THAT.
+// The app-specific `[data-has-bg-image]` hint is subsumed and gone with it: the census sees the shell's
+// art layer without being told about it.
+//
+// WHAT STAYED SNAP'S, deliberately (the census's MERGE verdict, not a takeover): the per-selector
+// addressing, the OFF-SCREEN/OCCLUDED refusal vocabulary, the icon-ink classifier, the control-track
+// exemption, the placeholder read, the accumulated foreground opacity, the corner radii for the FILL arm,
+// and `--contrast-pixel`. The walker has no per-selector door and no notion of any of those.
+//
+// THE FOUR-ARM BACKDROP UNION COLLAPSES TO SNAP'S THREE at the seam below, and each mapping is a decision:
+// `flat` is a css-resolve verdict; `image-indeterminate` and `gradient` are `indeterminate` (Node pixel-
+// samples — the census records the ui-audit/snap divergence on gradients and rules that the ARM keeps
+// sampling); `unresolved` (no opaque base, OR a paint layer over the base it found) is `transparent`,
+// which is this script's existing "do not invent a baseline, sample the real pixels" arm.
+//
 // RAW STRING (JSON.stringify-interpolated selector), not a function reference. The surviving reason (the
 // original was tsx keepNames — tsx was SHED 2026-08-03, node runs the .ts source): the body executes in
 // the BROWSER, and tsc checks a function body against tooling's NODE lib, where every DOM name is TS2584.
 // This IIFE gathers RAW facts only (colours as strings, size, weight); ALL classification
-// (large-text/ratio/pass-fail) happens back in Node, reusing design-audit-checks.ts's WCAG math — the same
-// split design-audit.ts's walker uses.
+// (large-text/ratio/pass-fail) happens back in Node, reusing the same WCAG kernel design-audit uses.
 //
 // A LITERAL BACKTICK IN THIS STRING ENDS IT — every one inside the script (including inside its own
 // comments) is escaped `\``, and an unescaped one turns the rest of the file into code the parser reads as
 // nonsense (paid 2026-09-02 while adding the icon-ink classifier).
 import { INACTIVE_KIND_EXPR, MEASURABLE_OPACITY_MIN } from "../../_shared/wcag.ts";
+import { WALKER_PRIMITIVES, WALKER_RESOLVE } from "../../ui-audit/index.ts";
 
 export function buildContrastScript(selector: string): string {
   return `(() => {
+${WALKER_PRIMITIVES}${WALKER_RESOLVE}
     // THE FIRST DOM MATCH IS NOT THE ONE THE USER SEES (2026-08-16). In a virtualized transcript the
     // first match is routinely a recycled, off-viewport, mid-fade node — measuring it produced two
     // retracted contrast P0s (it even printed "dimmed α0.50" while emitting FAIL). Walk to the first
@@ -26,43 +49,13 @@ export function buildContrastScript(selector: string): string {
     if (all.length === 0) return null;
     var vw = window.innerWidth;
     var vh = window.innerHeight;
+    // \`isVisible\` is the walker's (display/visibility/accumulated-opacity/zero-box, composed above); the
+    // VIEWPORT half is snap's own question and stays here — the walk judges a whole document, this arm
+    // judges the one target a caller named and must refuse a target nobody can look at.
     function inViewport(node) {
-      var s = getComputedStyle(node);
-      if (s.display === "none" || s.visibility === "hidden") return false;
+      if (!isVisible(node)) return false;
       var r = node.getBoundingClientRect();
-      if (r.width <= 0 || r.height <= 0) return false;
       return r.bottom > 0 && r.right > 0 && r.top < vh && r.left < vw;
-    }
-    // IN THE VIEWPORT IS NOT VISIBLE (2026-08-18, #211). An element whose box is in the viewport but sits
-    // BEHIND fixed chrome — text at y=38 under a 48px topbar — passed the rect test, and the sample ring
-    // was then drawn over the CHROME's pixels: the reported ratio measured the topbar. Ask the compositor
-    // who owns the box's visible centre, the same ownership test design-audit-walker's ownsPoint uses:
-    // the hit must BE the candidate, be inside it, or be an ancestor of it (an ancestor answers when the
-    // candidate takes no pointer of its own, and it is still what is painted there).
-    function describeNode(n) {
-      var slot = n.getAttribute("data-slot");
-      var label = n.getAttribute("aria-label");
-      var cls = typeof n.className === "string" && n.className ? "." + n.className.trim().split(/\\s+/).slice(0, 2).join(".") : "";
-      return n.tagName.toLowerCase() + (n.id ? "#" + n.id : "") + (slot ? "[data-slot=" + slot + "]" : "") + cls + (label ? " (" + label + ")" : "");
-    }
-    // elementFromPoint is BLIND to a pointer-events:none subtree, so its silence there means "I cannot
-    // tell", not "occluded" — a tooltip/overlay label would otherwise be refused a verdict it deserves.
-    // Inconclusive keeps the OLD behaviour (measure it); only a KNOWN foreign owner rejects.
-    function pointerTransparent(node) {
-      var n = node;
-      while (n) { if (getComputedStyle(n).pointerEvents === "none") return true; n = n.parentElement; }
-      return false;
-    }
-    function occluderOf(node) {
-      if (pointerTransparent(node)) return null;
-      var r = node.getBoundingClientRect();
-      var x = (Math.max(0, r.left) + Math.min(vw, r.right)) / 2;
-      var y = (Math.max(0, r.top) + Math.min(vh, r.bottom)) / 2; // the VISIBLE box's centre — a half-scrolled
-      if (x < 0 || y < 0 || x >= vw || y >= vh) return null;     // element must not be judged by an off-screen point
-      var hit = document.elementFromPoint(x, y);
-      if (hit === null) return null;
-      if (hit === node || node.contains(hit) || hit.contains(node)) return null;
-      return describeNode(hit);
     }
     var el = null;
     var matchIndex = -1;
@@ -71,6 +64,8 @@ export function buildContrastScript(selector: string): string {
     for (var mi = 0; mi < all.length; mi += 1) {
       if (!inViewport(all[mi])) continue;
       inViewportCount += 1;
+      // ONE occluder test, the walker's (\`resolve.ts\` occluderOf) — snap's byte-similar twin retired with
+      // the resolver. Same ownership question, same pointer-events:none blindness caveat, one home.
       var blocker = occluderOf(all[mi]);
       // An occluded candidate is SKIPPED, not fatal — the next match may be the one on screen.
       if (blocker !== null) { if (firstOccluder === null) firstOccluder = blocker; continue; }
@@ -85,81 +80,22 @@ export function buildContrastScript(selector: string): string {
     // so style.color can read "oklch(0.7 0.1 200)". Round-tripping through fillStyle does NOT
     // fix this (Chromium 149 preserves oklch() there too, verified empirically) — but actually
     // COMPOSITING to a canvas pixel and reading the byte values back DOES force real sRGB
-    // conversion (canvas is an 8-bit raster surface; un-premultiply cancels any source alpha,
-    // so this is accurate even for translucent colors). One shared 1x1 probe canvas, reused
-    // across every color this script converts.
-    var probeCanvas = document.createElement("canvas");
-    probeCanvas.width = 1;
-    probeCanvas.height = 1;
-    var probeCtx = probeCanvas.getContext("2d", { willReadFrequently: true });
+    // conversion. \`probeColor\` (composed above, from the walker's resolver) is that probe, memoized
+    // through \`parseRgb\`; this arm only needs the rgb STRING the Node side already speaks.
+    function rgbText(parsed) {
+      return "rgb(" + parsed.r + ", " + parsed.g + ", " + parsed.b + ")";
+    }
     function toRgbString(cssColor) {
-      probeCtx.clearRect(0, 0, 1, 1);
-      probeCtx.fillStyle = cssColor;
-      probeCtx.fillRect(0, 0, 1, 1);
-      var d = probeCtx.getImageData(0, 0, 1, 1).data;
-      return "rgb(" + d[0] + ", " + d[1] + ", " + d[2] + ")";
+      var parsed = parseRgb(cssColor);
+      return parsed === null ? cssColor : rgbText(parsed);
     }
     function isTransparent(c) { return c === "rgba(0, 0, 0, 0)" || c === "transparent"; }
-    // TRUE opacity test: composite the color over pure black AND pure white; identical bytes ⇒ alpha 1.
-    // (Avoids parsing oklch()/oklab() alpha in-page.)
-    function compositeOver(cssColor, baseRgb) {
-      probeCtx.clearRect(0, 0, 1, 1);
-      probeCtx.fillStyle = baseRgb;
-      probeCtx.fillRect(0, 0, 1, 1);
-      probeCtx.fillStyle = cssColor; // source-over IS alpha compositing
-      probeCtx.fillRect(0, 0, 1, 1);
-      var d = probeCtx.getImageData(0, 0, 1, 1).data;
-      return "rgb(" + d[0] + ", " + d[1] + ", " + d[2] + ")";
-    }
-    function isOpaque(cssColor) {
-      return compositeOver(cssColor, "rgb(0,0,0)") === compositeOver(cssColor, "rgb(255,255,255)");
-    }
-    // Walk ancestors collecting every non-transparent background from the element DOWN to the first
-    // OPAQUE one (the real base), then composite the translucent layers over it bottom-to-top. A glass
-    // panel (color-mix at 0.7 alpha) over a dark base now yields the VISUAL backdrop the eye sees — the
-    // old code took a translucent layer's own rgb as if opaque (the 1.11-vs-2.6 false-FAIL side-eye hit).
-    //
-    // THE FALSE-FLAT BLIND SPOT: this ancestor walk sees only the DOM chain — a FIXED-position sibling
-    // layer (the app's ThemeBackgroundLayer photo, or a scrim painting under .shell-grid) is invisible
-    // to it. If the chain resolves with NO opaque background found, the old code fabricated a white base
-    // and passed text that was actually ~1.8:1 over a bright photo. We now REFUSE that: a walk that
-    // never hits an opaque bg returns "transparent" (Node pixel-samples the real composite), and a
-    // background-image ancestor returns "indeterminate" (Node pixel-samples too) — never a fake baseline.
-    //
-    // FIXED SIBLING OVER AN OPAQUE ROOT (blind-spot round 2): ThemeBackgroundLayer paints its photo as a
-    // fixed z-base sibling OVER the opaque <body>/<html>. So an "opaque base" found only at the root is
-    // NOT what's visually behind the element — the photo occludes it. When the app's bg-image is active
-    // (its own [data-has-bg-image] shell signal), a root-level base is untrustworthy → pixel-sample.
-    // (GENERIC GAP not covered: any app that paints a fixed sibling over the body without this signal
-    // would still fool the root-base trust — a generic "root base + a fixed painted layer exists" →
-    // indeterminate rule could catch it, but is left out here as it can't be verified app-agnostically.)
-    var bgImageActive = document.querySelector("[data-has-bg-image]") !== null;
-    function resolveBackdrop(node) {
-      var layers = []; // element-first (topmost) → base-last (bottommost non-transparent)
-      var base = null;
-      while (node) {
-        var s = getComputedStyle(node);
-        if (s.backgroundImage && s.backgroundImage !== "none") return { kind: "indeterminate" };
-        var bc = s.backgroundColor;
-        if (!isTransparent(bc)) {
-          if (isOpaque(bc)) {
-            if (bgImageActive && (node === document.body || node === document.documentElement)) {
-              return { kind: "transparent" };
-            }
-            base = toRgbString(bc);
-            break;
-          }
-          layers.push(bc);
-        }
-        node = node.parentElement;
-      }
-      // No opaque base anywhere in the chain — a fixed/sibling layer may be painting behind, unseen.
-      // Don't invent white; tell Node to pixel-sample the actual rendered pixels.
-      if (base === null) return { kind: "transparent" };
-      // Paint the opaque base, then the translucent layers bottom-up (reverse of the element-first array).
-      var acc = base;
-      for (var i = layers.length - 1; i >= 0; i--) acc = compositeOver(layers[i], acc);
-      return { kind: "flat", color: acc };
+    // THE ONE RESOLVER, four arms mapped onto this arm's three (see the header for why each way).
+    function snapBackdrop(node) {
+      var resolved = resolveBackdrop(node);
+      if (resolved.kind === "flat") return { kind: "flat", color: rgbText(resolved.color) };
+      if (resolved.kind === "unresolved") return { kind: "transparent" };
+      return { kind: "indeterminate" };
     }
     var style = getComputedStyle(el);
     var fw = style.fontWeight;
@@ -257,7 +193,7 @@ export function buildContrastScript(selector: string): string {
       color: toRgbString(colorSource),
       fontSizePx: Number.parseFloat(style.fontSize) || 16,
       fontWeight: fontWeight,
-      backdrop: resolveBackdrop(el),
+      backdrop: snapBackdrop(el),
       hasText: hasText,
       hasIconInk: hasIconInk,
       inactive: inactive,
