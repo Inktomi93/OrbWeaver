@@ -1932,6 +1932,7 @@
     "tests/server/transport/trpc/stream/sources/chat.int.test.ts",
     "tests/server/transport/trpc/stream/sources/chat.test.ts",
     "tests/server/transport/trpc/stream/sources/notifications.test.ts",
+    "tests/server/transport/trpc/stream/sources/rpg.test.ts",
     "tests/server/transport/trpc/stream/sources/workloads.test.ts",
     "tests/server/transport/trpc/subscriptions.test.ts",
     "tests/server/transport/trpc/trpc.test.ts",

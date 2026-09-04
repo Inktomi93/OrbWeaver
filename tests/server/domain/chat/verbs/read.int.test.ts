@@ -1170,6 +1170,37 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([4]);
   });
 
+  // #1399 — the variant-ID ORACLE. `listMessageVariants` gated on membership alone: a from-join member who
+  // names a PRE-JOIN slot learned its sibling-variant ids and swipe COUNT, which is exactly the identifier
+  // set the floored `listMessages` withholds from them. The floor now rides the persistence WHERE (the
+  // `loadVariantSlotInChat` shape one plane over), so the below-floor slot is indistinguishable from an
+  // absent one: the SAME leak-free NOT_FOUND a foreign-chat messageId gives.
+  test("listMessageVariants OBEYS THE D16 FLOOR — a from-join member probing a PRE-JOIN slot gets NOT_FOUND, never its sibling variant ids", async () => {
+    const host = await seedUser(db, castId<Handle>("jhv_host"));
+    const joiner = await seedUser(db, castId<Handle>("jhv_joiner"));
+    const chatId = await seedRoom("jhv", host);
+    const pre = await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join" });
+    const preSwipe = await addVariant(db, pre.messageId, 1, "pre-join swipe");
+    const post = await seedMessage(db, chatId, 5, { role: "assistant", content: "post-join" });
+    const postSwipe = await addVariant(db, post.messageId, 1, "post-join swipe");
+    await seedParticipant(db, { chatId, key: "jhv_m", userId: joiner, role: "member", joinSeq: 5, joinHistoryVisibility: "from-join" });
+
+    const { listMessageVariants } = createRead(makeChatContext(db), makeDeps());
+
+    // The POSITIVE CONTROL first — the same caller, the same verb, a slot AT their floor: two ids, in order.
+    expect(await listMessageVariants({ principal: principal(joiner), chatId, messageId: post.messageId })).toStrictEqual([
+      { variantId: post.variantId, idx: 0 },
+      { variantId: postSwipe, idx: 1 },
+    ]);
+    // The pre-join slot: refused, and its ids never cross.
+    await expect(listMessageVariants({ principal: principal(joiner), chatId, messageId: pre.messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
+    // The HOST is unclamped — the same slot still resolves for them (the floor is per-CALLER, not a delete).
+    expect((await listMessageVariants({ principal: principal(host), chatId, messageId: pre.messageId })).map((v) => v.variantId)).toEqual([
+      pre.variantId,
+      preSwipe,
+    ]);
+  });
+
   test("the SSE token-log replay is clamped too (raw transcript text anchored to a pre-join slot)", async () => {
     const host = await seedUser(db, castId<Handle>("jhs_host"));
     const joiner = await seedUser(db, castId<Handle>("jhs_joiner"));

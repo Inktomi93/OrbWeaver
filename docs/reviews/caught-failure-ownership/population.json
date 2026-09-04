@@ -1840,7 +1840,7 @@
     {
       "siteId": "packages/server/src/domain/automation/substrate/plugin-subscribers.ts::empty:catch::1",
       "path": "packages/server/src/domain/automation/substrate/plugin-subscribers.ts",
-      "line": 126,
+      "line": 165,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1848,7 +1848,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — a raced delete / a bad id / any",
-      "markerLine": 120
+      "markerLine": 159
     },
     {
       "siteId": "packages/server/src/domain/automation/verbs/confirm-suggestion.ts::empty:err::1",

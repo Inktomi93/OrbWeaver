@@ -940,11 +940,17 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
 }
 
 /** `listMessageVariants` — the full sibling-variant set for one slot, ordered by idx, no content. A
- *  foreign-chat/unknown `messageId` collapses to a leak-free NOT_FOUND. */
+ *  foreign-chat/unknown `messageId` collapses to a leak-free NOT_FOUND.
+ *
+ *  D16: the set is FLOORED at the caller's own `historyFloorSeq` (#1399). No content crosses here, but the
+ *  ids and the swipe COUNT are exactly the identifiers the floored `listMessages` withholds — an unfloored
+ *  read let a `from-join` member name any pre-join slot and learn its shape. The floor rides the persistence
+ *  WHERE (`loadMessageVariantSummaries`) rather than a check here, so a below-floor slot is byte-identical to
+ *  an absent one on this path and the next caller of that query inherits the belt. */
 function createListMessageVariants(ctx: ChatContext): ChatService["listMessageVariants"] {
   return async ({ principal, chatId, messageId }: ListMessageVariantsParams): Promise<MessageVariantSummary[]> => {
-    await requireParticipant(ctx, principal, chatId);
-    const rows = await loadMessageVariantSummaries(ctx.db, chatId, messageId);
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const rows = await loadMessageVariantSummaries(ctx.db, chatId, messageId, membership.historyFloorSeq);
     if (rows.length === 0) {
       throw new ChatNotFoundError(chatId);
     }

@@ -381,6 +381,71 @@ describe("createReactAsCharacter", () => {
     expect(await db.select().from(messageReactions)).toHaveLength(0);
     expect(emitted).toHaveLength(0);
   });
+
+  // #1402a — THE D16 FLOOR ON THE TOOL'S OWN TARGET RESOLUTION. `loadNewestSelectedSlot` took the room's
+  // newest slot with no floor predicate, while the sibling human path (`toggleReaction` →
+  // `loadVariantSlotInChat`) has carried one since B6. Today's executing principal is the TURN's resolved
+  // HOST (floor 0 — `entry/compose/chat-tools.ts`), so this is the op's OWN contract being held rather than a
+  // live leak: `ReactAsCharacterParams` admits any member principal and the verb gates with
+  // `requireParticipant`, so the target read must obey the CALLER's floor like every other canon read in the
+  // domain (D106: membership and visibility are ONE answer). A clamped caller whose whole readable window is
+  // empty gets the same "nothing to react to" answer an empty room gives — never a pre-join slot's ids.
+  test("reactAsCharacter OBEYS THE D16 FLOOR — a from-join caller cannot react to (or learn of) a PRE-JOIN newest slot", async () => {
+    const host = await seedUser(db, castId<Handle>("host-fl"));
+    const late = await seedUser(db, castId<Handle>("late-fl"));
+    const chatId = await seedChat(db, "fl", { metadata: { charactersCanReact: true } });
+    const alice = await seedCharacter(db, host, "Alice-fl");
+    await seedParticipant(db, { chatId, key: "fl-h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "fl-l", userId: late, role: "member", joinSeq: 5, joinHistoryVisibility: "from-join" });
+    await seedParticipant(db, { chatId, key: "fl-alice", characterId: alice });
+    const pre = await seedMessage(db, chatId, 1, { content: "before they walked in" });
+    const op = reactOp();
+
+    // The clamped caller: the room's newest slot is BELOW their floor, so there is nothing they may target.
+    expect(await op({ principal: principal(late), chatId, characterName: "Alice-fl", emoji: "🔥" })).toEqual({
+      ok: false,
+      reason: "There is no message to react to yet.",
+    });
+    expect(await db.select().from(messageReactions)).toHaveLength(0);
+    expect(emitted).toEqual([]);
+
+    // POSITIVE CONTROL 1 — the HOST is unclamped, so the same call on the same slot lands.
+    expect(await op({ principal: principal(host), chatId, characterName: "Alice-fl", emoji: "🔥" })).toMatchObject({ ok: true });
+    expect((await db.select().from(messageReactions))[0]?.variantId).toBe(pre.variantId);
+
+    // POSITIVE CONTROL 2 — a slot AT the clamped caller's own floor is theirs, and the tool works for them.
+    const post = await seedMessage(db, chatId, 5, { content: "after they walked in" });
+    expect(await op({ principal: principal(late), chatId, characterName: "Alice-fl", emoji: "😂" })).toMatchObject({ ok: true });
+    expect(emitted.at(-1)).toMatchObject({ type: "reactionsChanged", messageId: post.messageId, variantId: post.variantId, emoji: "😂" });
+  });
+
+  // #1402b — A DISABLED (muted) CHARACTER SEAT MAY NOT AUTHOR. `disabled` is the seat kill-switch every
+  // other speaking path honors (`isArbiterEligible` — never arbiter-selected, out of `{{groupNotMuted}}`),
+  // and the react tool's attach gate is knob-level only (`teaching-contribution.ts` reads
+  // `reactionsEnabled && charactersCanReact`, never a seat), so nothing upstream of this verb knows the seat
+  // is muted. A muted character putting a reaction on the transcript is that seat SPEAKING.
+  test("a DISABLED character seat cannot author a reaction — errors-as-data, while the enabled seat beside it works", async () => {
+    const host = await seedUser(db, castId<Handle>("host-mu"));
+    const chatId = await seedChat(db, "mu", { metadata: { charactersCanReact: true } });
+    const muted = await seedCharacter(db, host, "Muted-mu");
+    const live = await seedCharacter(db, host, "Live-mu");
+    await seedParticipant(db, { chatId, key: "mu-h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "mu-muted", characterId: muted, disabled: true });
+    await seedParticipant(db, { chatId, key: "mu-live", characterId: live });
+    await seedMessage(db, chatId, 1, { content: "the last word" });
+    const op = reactOp();
+
+    expect(await op({ principal: principal(host), chatId, characterName: "Muted-mu", emoji: "🔥" })).toEqual({
+      ok: false,
+      reason: 'The character "Muted-mu" is muted in this chat and cannot react.',
+    });
+    expect(await db.select().from(messageReactions)).toHaveLength(0);
+    expect(emitted).toEqual([]);
+
+    // POSITIVE CONTROL — the un-muted seat in the same room, same call shape, still reacts.
+    expect(await op({ principal: principal(host), chatId, characterName: "Live-mu", emoji: "🔥" })).toMatchObject({ ok: true });
+    expect(await db.select().from(messageReactions)).toHaveLength(1);
+  });
 });
 
 describe("the VARIANT anchor (D26)", () => {

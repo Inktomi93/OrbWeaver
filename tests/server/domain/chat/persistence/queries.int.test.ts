@@ -351,7 +351,7 @@ describe("persistence/queries — canon reads (D26)", () => {
     const v1 = await addVariant(db, messageId, 1, "second");
     const v2 = await addVariant(db, messageId, 2, "third");
 
-    const rows = await loadMessageVariantSummaries(db, chatId, messageId);
+    const rows = await loadMessageVariantSummaries(db, chatId, messageId, 0);
     expect(rows).toStrictEqual([
       { variantId, idx: 0 },
       { variantId: v1, idx: 1 },
@@ -364,7 +364,20 @@ describe("persistence/queries — canon reads (D26)", () => {
     const other = await seedChat(db, "b");
     const { messageId } = await seedMessage(db, chatId, 1);
 
-    expect(await loadMessageVariantSummaries(db, other, messageId)).toStrictEqual([]);
+    expect(await loadMessageVariantSummaries(db, other, messageId, 0)).toStrictEqual([]);
+  });
+
+  // #1399 — the floor is the query's OWN belt, so a below-floor slot and an absent one are one answer.
+  test("loadMessageVariantSummaries is FLOORED: a slot below floorSeq matches nothing, the slot AT it resolves", async () => {
+    const chatId = await seedChat(db, "a");
+    const below = await seedMessage(db, chatId, 1);
+    const atFloor = await seedMessage(db, chatId, 5);
+    await addVariant(db, below.messageId, 1, "a pre-join swipe");
+
+    expect(await loadMessageVariantSummaries(db, chatId, below.messageId, 5)).toStrictEqual([]);
+    expect(await loadMessageVariantSummaries(db, chatId, atFloor.messageId, 5)).toStrictEqual([{ variantId: atFloor.variantId, idx: 0 }]);
+    // The unclamped read (floor 0 — a host / a `full` member) still sees the same pre-join slot whole.
+    expect(await loadMessageVariantSummaries(db, chatId, below.messageId, 0)).toHaveLength(2);
   });
 });
 

@@ -110,14 +110,19 @@ export async function loadPresentHostUserId(db: Db, chatId: ChatId): Promise<Use
 
 /** A PRESENT character seat by its character's EXACT (trimmed) name — the `react` tool's actor resolution
  *  (the model speaks names, never ids). `undefined` for an absent/departed/non-character match; the tool
- *  narrates that as errors-as-data. */
+ *  narrates that as errors-as-data.
+ *
+ *  `disabled` RIDES ALONG rather than being a WHERE predicate (#1402), because the two misses are different
+ *  answers to a MODEL: "there is nobody by that name here" routes it to another cast member, "that one is
+ *  muted" tells it the seat exists and is switched off. The verb owns the refusal words; the seat's mute is
+ *  the same kill-switch `participant::isArbiterEligible` applies to speaking. */
 export async function loadCharacterSeatByName(
   db: Db,
   chatId: ChatId,
   name: string,
-): Promise<{ readonly participantId: ChatParticipantId; readonly characterName: string } | undefined> {
+): Promise<{ readonly participantId: ChatParticipantId; readonly characterName: string; readonly disabled: boolean } | undefined> {
   const rows = await db
-    .select({ participantId: chatParticipants.id, characterName: characters.name })
+    .select({ participantId: chatParticipants.id, characterName: characters.name, disabled: chatParticipants.disabled })
     .from(chatParticipants)
     .innerJoin(characters, eq(characters.id, chatParticipants.characterId))
     .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq), eq(characters.name, name.trim())))
@@ -125,18 +130,25 @@ export async function loadCharacterSeatByName(
   return rows.at(0);
 }
 
-/** The room's NEWEST committed slot with its SELECTED variant — the `react` tool's one target (the model
- *  reacts to what just happened; it cannot name a message id and is not taught one). `undefined` for an
- *  empty room or a slot whose selection pointer is unset/dangling. */
+/** The room's NEWEST committed slot AT OR ABOVE `floorSeq`, with its SELECTED variant — the `react` tool's one
+ *  target (the model reacts to what just happened; it cannot name a message id and is not taught one).
+ *  `undefined` for an empty room, a slot whose selection pointer is unset/dangling, and — the same answer, on
+ *  purpose — a room whose whole visible window is below the CALLER's D16 floor (#1402).
+ *
+ *  The floor is a required parameter for the reason the file header gives about the toggle's belt: a reaction
+ *  is a fact ABOUT a canon row, so the read that picks the row obeys the caller's own floor rather than
+ *  trusting the verb to remember. Today's caller is the turn's resolved HOST (floor 0, so this is identity for
+ *  it), but the op's contract admits any member principal and its guard is `requireParticipant`. */
 export async function loadNewestSelectedSlot(
   db: Db,
   chatId: ChatId,
+  floorSeq: number,
 ): Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId; readonly kind: MessageKind; readonly content: string } | undefined> {
   const rows = await db
     .select({ messageId: messages.id, variantId: messageVariants.id, kind: messages.kind, content: messageVariants.content })
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(eq(messages.chatId, chatId))
+    .where(and(eq(messages.chatId, chatId), gte(messages.seq, floorSeq)))
     .orderBy(desc(messages.seq))
     .limit(LIMIT_ONE);
   return rows.at(0);

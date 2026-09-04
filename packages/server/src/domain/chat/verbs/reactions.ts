@@ -21,6 +21,11 @@
 // errors-as-data. The host default arrives through the injected `ctx.readReactionDefaults` op — no
 // ForeignInputs exists outside the turn path, and chat never imports settings.
 //
+// THE POSTURE GATE IS ROOM-LEVEL; THE SEAT GATE IS THIS FILE'S ALONE (#1402, resolved 2026-09-04). The attach
+// side (`teaching-contribution.ts`) puts the react tool on the wire when the ROOM's two knobs resolve on — it
+// knows no seat, and the model names the character at CALL time — so `reactAsCharacter` is the only place a
+// `disabled` (muted) character seat can be refused. That refusal is enforcement, not defence in depth.
+//
 // THE SEGMENT ANCHOR (MR3) is server-derived, claim-validated: the wire carries an index + the client's
 // claimed speaker; this verb re-parses the variant's CANON with the room's present characters names
 // (`loadPresentCastNames` — the client mirror is `speakerThemesByName`'s key set) and stores ITS OWN
@@ -304,7 +309,18 @@ export function createReactAsCharacter(ctx: ChatContext, deps: ReactionsDeps): R
     if (seat === undefined) {
       return { ok: false, reason: `No present character named "${characterName}" in this chat — use a cast member's exact name.` };
     }
-    const slot = await loadNewestSelectedSlot(ctx.db, chatId);
+    // THE SEAT KILL-SWITCH (#1402). `disabled` is the host's per-seat mute: the arbiter never selects that
+    // character (`participant::isArbiterEligible`) and `{{groupNotMuted}}` excludes it. A reaction is that seat
+    // SPEAKING onto the transcript, so a muted seat may not author one — and nothing upstream enforces it: the
+    // attach gate is knob-level only (`teaching-contribution.ts` attaches the tool when the ROOM's
+    // `reactionsEnabled && charactersCanReact` resolve on; it knows no seat, and the model picks the name at
+    // call time). Errors-as-data with the seat's real state, so the model routes to another cast member.
+    if (seat.disabled) {
+      return { ok: false, reason: `The character "${seat.characterName}" is muted in this chat and cannot react.` };
+    }
+    // The target read obeys the CALLER's own D16 floor — the `toggleReaction`/`loadVariantSlotInChat` shape.
+    // A caller whose visible window is empty gets the empty-room answer, never a pre-join slot's ids.
+    const slot = await loadNewestSelectedSlot(ctx.db, chatId, membership.historyFloorSeq);
     if (slot === undefined) {
       return { ok: false, reason: "There is no message to react to yet." };
     }
