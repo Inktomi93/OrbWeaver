@@ -99,12 +99,12 @@ function reportOneContext(args: ContextReportArgs, i: number): { readonly failed
   const ctxSession = contextAt(session, i);
   const outcome = outcomeAt(outcomes, i);
   const evidenceSession = sessionForEvidence(ctxSession, [outcome]);
-  const { failed, viteChurn } = partitionFailedRequests(ctxSession.requests.values());
+  const { failed, viteChurn, fileOrigin } = partitionFailedRequests(ctxSession.requests.values());
   const ctx: ReportCtx = { ...plan, out: contextOut(out, i, totalContexts), failed, totalPages: totalContexts, label: "CONTEXT" };
   print(`\nuser         ${users[i]?.handle} (context ${i})`);
   printPageReport(evidenceSession, outcome, opts, ctx);
   printCheckpointScope(ctxSession, evidenceSession);
-  printCaptureLog(evidenceSession, failed, viteChurn);
+  printCaptureLog(evidenceSession, failed, viteChurn, fileOrigin);
   printCropNote(opts, ctx);
   printProbeMotionWarning(opts);
   return { failedReq: failed.length, pageErrors: evidenceSession.pageErrors.length, viteChurn: viteChurn.length };

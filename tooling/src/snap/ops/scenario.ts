@@ -22,7 +22,7 @@ import { beginRunArms, disabledRunArmFailures, pageArmExit, pageArmFailures } fr
 import { capture } from "./capture.ts";
 import { snapDestination } from "./guards.ts";
 import { appliedAcrossContexts, writeManifestIfRequested } from "./manifest.ts";
-import { consoleFailureCounts, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
+import { consoleFailureCounts, isFileOriginNoise, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
 import { consoleForEvidence, pageErrorsForEvidence, printCaptureLog, printCheckpointScope, printPageReport, sessionForEvidence } from "./report.ts";
 import { registerSnapDiagnosticCompleteness, registerSnapResultPairs } from "./run-bundle.ts";
 import { registerScenarioFacts, scenarioFilmstripFrameCount, scenarioFilmstripPairs } from "./scenario-facts.ts";
@@ -234,7 +234,9 @@ function printScenarioReports(args: ScenarioReportArgs): void {
     const checkpointSession = scenarioCheckpointSession(session, outcome, range);
     if (checkpoint.summary) {
       const failedAssertions = outcome.assertions.filter((entry) => entry.failed).length;
-      const errors = checkpointSession.consoleMessages.filter((message) => message.type === "error" && !isSandboxTraceNoise(message)).length;
+      const errors = checkpointSession.consoleMessages.filter(
+        (message) => message.type === "error" && !isSandboxTraceNoise(message) && !isFileOriginNoise(message),
+      ).length;
       const warnings = checkpointSession.consoleMessages.filter((message) => message.type === "warning").length;
       const failed =
         outcome.navError !== null ||
@@ -299,7 +301,7 @@ export async function runScenarioDetailed(opts: Args, host: ScenarioHost | null 
     const reportPlan = plans[0] ?? { url: spec.name, out: spec.name, produceShot: false };
     const evidenceConsole = consoleForEvidence(session, outcomes);
     const evidencePageErrors = pageErrorsForEvidence(session, outcomes);
-    const { failed: failedRequests, viteChurn } = partitionFailedRequests(session.requests.values());
+    const { failed: failedRequests, viteChurn, fileOrigin } = partitionFailedRequests(session.requests.values());
     const browserEnvironment = await readSnapEnvironmentEvidence(session);
     const environmentFailures = snapEnvironmentMismatchCount(browserEnvironment);
     const failureSummary = {
@@ -393,6 +395,7 @@ export async function runScenarioDetailed(opts: Args, host: ScenarioHost | null 
         ["har", artifacts.hars[0] ?? "none"],
         ["json", manifestPath ?? "none"],
         ["vite-dep-churn", viteChurn.length],
+        ["file-origin-noise", session.consoleMessages.filter(isFileOriginNoise).length + fileOrigin.length],
         ...scenarioFilmstripPairs(runArms, checkpoints),
         ...ratePostureResultPairs(ratePosture),
       ],

@@ -250,12 +250,21 @@ function printRequestLines(requests: readonly CapturedRequest[]): void {
   }
 }
 
-export function printCaptureLog(session: SessionCounts, failed: CapturedRequest[], viteChurn: readonly CapturedRequest[] = []): void {
+export function printCaptureLog(
+  session: SessionCounts,
+  failed: CapturedRequest[],
+  viteChurn: readonly CapturedRequest[] = [],
+  fileOrigin: readonly CapturedRequest[] = [],
+): void {
   if (failed.length > 0) {
     print("\n--- failed requests ---");
     printRequestLines(failed);
   }
   // Printed, never counted against the run — see isViteDepChurn.
+  if (fileOrigin.length > 0) {
+    print(`\n--- file:// unique-origin notes (${fileOrigin.length}, NOT a failure — a CDP attach against a file:// document, ops/noise.ts) ---`);
+    printRequestLines(fileOrigin);
+  }
   if (viteChurn.length > 0) {
     print(`\n--- vite dep-optimizer churn (${viteChurn.length}, NOT a failure — cold-stage re-bundle aborts, re-requested and served) ---`);
     printRequestLines(viteChurn);

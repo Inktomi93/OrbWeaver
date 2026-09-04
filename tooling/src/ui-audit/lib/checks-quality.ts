@@ -4,6 +4,7 @@
 // overhanging an opaque card, and an `inline` element whose padding leaks off its line (#816 arms ii and
 // iii; their walker is ops/walker/census-occlusion.ts). Pure. Provenance: lib/collect.ts header.
 import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
+import { PAGE_SUBJECT_SELECTOR } from "../contract/findings.ts";
 import type {
   ActionDoorInput,
   ClippedOverflowInput,
@@ -164,7 +165,7 @@ export function checkScriptErrors(pageErrors: readonly string[]): Finding[] {
     findings.push({
       rule: "script-error",
       severity: "P0",
-      selector: "page",
+      selector: PAGE_SUBJECT_SELECTOR,
       value: message,
       message:
         "a script threw an uncaught exception while the page loaded — broken JS silently kills interactions and can blank whole surfaces; fix this before judging anything else",

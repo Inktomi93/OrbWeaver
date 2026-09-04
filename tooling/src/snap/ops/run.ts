@@ -25,7 +25,7 @@ import { capturePages } from "./capture.ts";
 import { runBaselineOrDiff } from "./diff.ts";
 import { snapDestination } from "./guards.ts";
 import { appliedAcrossContexts, writeCoreCaptureEvidence, writeManifestIfRequested } from "./manifest.ts";
-import { isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
+import { isFileOriginNoise, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
 import {
   extendEvidenceThroughWatch,
   motionResultValue,
@@ -131,7 +131,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
     }
     const watchTicks = opts.watchMs > 0 ? await runWatchSeries(firstPage, opts, pageOut(out, 0, totalPages)) : [];
     extendEvidenceThroughWatch(outcomes, session);
-    const { failed, viteChurn } = partitionFailedRequests(session.requests.values());
+    const { failed, viteChurn, fileOrigin } = partitionFailedRequests(session.requests.values());
     // What every arm computes its totals over: the per-page outcomes plus the run's artifact naming (the
     // pixel arm's `out=`/`crop=` read it).
     const pairInput: ArmPairInput = { opts, outcomes, ctx: { ...plan, out: pageOut(out, 0, totalPages), failed, totalPages } };
@@ -141,7 +141,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
     }
     printWatchBlock(watchTicks);
     printCheckpointScope(session, evidenceSession);
-    printCaptureLog(evidenceSession, failed, viteChurn);
+    printCaptureLog(evidenceSession, failed, viteChurn, fileOrigin);
     await arms.report(armCtx);
     printCropNote(opts, { ...plan, failed, totalPages });
     printProbeMotionWarning(opts);
@@ -246,6 +246,8 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       ["appearance-fails", failureSummary.appearance] as const,
       ["console-errors", failureSummary.consoleErrors] as const,
       ["sandbox-trace-noise", session.consoleMessages.filter(isSandboxTraceNoise).length] as const,
+      // #1315: the file:// unique-origin note a CDP attach provokes — counted, printed, never judged.
+      ["file-origin-noise", session.consoleMessages.filter(isFileOriginNoise).length + fileOrigin.length] as const,
       ["console-warnings", evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length] as const,
       [
         "boot-console-warnings",

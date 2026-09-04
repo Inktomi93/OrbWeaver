@@ -138,6 +138,13 @@ Sessions:
                           tear down this checkout's stages; name an owner and --force for deliberate,
                           per-band cross-checkout teardown (it kills that checkout's run — measured, #447)
   --stage-sweep           reap a stage nothing has used past the idle TTL + prune orphan dirs
+
+  STAGE DB: the stage serves its OWN db — a FRESH stage sha copies the dev db at boot; a stage dir that
+  already exists KEEPS the db it had (possibly older/thinner than dev). A corpus-dependent finding, or its
+  absence, is a claim about THAT db, not about the app: verify provenance before treating it as a verdict.
+  This is the ONE place that caveat is stated (it moved here from the retired design-audit help at #1315,
+  where it was already load-bearing for the --design-audit arm and for every rendered receipt beside it).
+
   --scenario <json|preset> sequential checkpoints in one browser lifetime
                            presets: ${SNAP_SCENARIO_PRESET_NAMES.join(" | ")}
 

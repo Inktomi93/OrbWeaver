@@ -4,6 +4,7 @@
 // tooling-size cap: these two judge the PAGE as one subject, while everything left in that file judges
 // one text element at a time. Provenance/attribution: lib/collect.ts header.
 import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
+import { PAGE_SUBJECT_SELECTOR } from "../contract/findings.ts";
 import type { FontCensusInput, FontFaceInput } from "../contract/samples.ts";
 import { settledPopulationAccounting } from "./population.ts";
 import { RAMP_FONT_FACES } from "./ramp.ts";
@@ -58,7 +59,7 @@ function strayFaceFinding(face: FontFaceInput, probeUsable: boolean): Finding {
   return {
     rule: "off-theme-font",
     severity: "P2",
-    selector: "page",
+    selector: PAGE_SUBJECT_SELECTOR,
     value: `${face.name} (${tag})`,
     message: `font face "${face.name}" is outside the token stacks (${TOKEN_STACKS()}) — ${paints}; a stray face means a missing font-family token application`,
     origin: "impeccable",
@@ -69,7 +70,7 @@ function unpaintableTokenFinding(face: FontFaceInput): Finding {
   return {
     rule: "off-theme-font",
     severity: "P2",
-    selector: "page",
+    selector: PAGE_SUBJECT_SELECTOR,
     value: `${face.name} (token face, not paintable)`,
     message: `token font face "${face.name}" is declared (${TOKEN_STACKS()}) but MEASURABLY does not paint here — no registered @font-face and no installed face answers to it, so the surface renders the next fallback in the stack and the token names a face the reader never sees; ship the face or retoken the stack to what actually paints`,
     origin: "orbweaver",
@@ -131,7 +132,7 @@ export function checkFontCensus(census: FontCensusInput): Finding[] {
       findings.push({
         rule: "flat-type-hierarchy",
         severity: "P3",
-        selector: "page",
+        selector: PAGE_SUBJECT_SELECTOR,
         value: `${sorted.map((s) => `${s}px`).join(", ")} (ratio ${(max / min).toFixed(1)}:1)`,
         message:
           "page font sizes are too close together for a visible hierarchy — use fewer steps with more contrast (the ramp spans micro 10.5 → display 24 for a reason)",

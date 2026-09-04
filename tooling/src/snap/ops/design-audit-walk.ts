@@ -36,22 +36,25 @@ import type {
   Severity,
   ShellStateSnapshot,
   SurfaceStateAccounting,
+  ThemeRenderInput,
 } from "../../ui-audit/index.ts";
 import {
   actionsFailedGap,
   appFailureSurface,
   buildSurfaceStateAccounting,
+  COLLECT_SAMPLES_JS,
   censusCapGap,
   censusGap,
   censusThinGap,
   censusTotal,
   checkScriptErrors,
-  COLLECT_SAMPLES_JS,
   collectAudit,
   countBySeverity,
   failureSurfaceGap,
+  hoverPassLabel,
   instrumentPageErrorGap,
   navErrorGap,
+  PAGE_SUBJECT_SELECTOR,
   populationEvidenceGap,
   rawSamples,
   reachGap,
@@ -111,10 +114,15 @@ export interface DesignAuditMeasurement {
   readonly surfaceState: SurfaceStateAccounting | null;
   readonly drive: "rest" | "driven";
   readonly population: DomPopulation | null;
+  /** All FOUR halves of the theme claim, and the fourth is the load-bearing one: `rendered` is what the
+   *  walk actually SAW (the root stamp, the inline carrier, the per-subject polarity census), against
+   *  which the other three are only a request. A receipt carrying the request without the render is the
+   *  ambiguity `themeProvenanceGap` exists to refuse. */
   readonly themeEvidence: {
     readonly request: string | null;
     readonly applied: boolean | null;
     readonly resolution: SettingsShimEvidence["themeResolution"];
+    readonly rendered: ThemeRenderInput | null;
   };
   readonly navError: string | null;
   readonly actionsFailed: number;
@@ -151,7 +159,7 @@ function terminalMeasurement(url: string, gap: EvidenceGap, input: Pick<WalkInpu
     surfaceState: null,
     drive: "rest",
     population: null,
-    themeEvidence: { request: null, applied: null, resolution: null },
+    themeEvidence: { request: null, applied: null, resolution: null, rendered: null },
     navError: input.navError,
     actionsFailed: input.actionsFailed,
     gaps: [gap],
@@ -164,7 +172,15 @@ function terminalMeasurement(url: string, gap: EvidenceGap, input: Pick<WalkInpu
  *  rows and each proof is a round trip, so the cap is declared and the remainder is reported UNPROVEN
  *  rather than silently counted as unique — an unasked question must never read like a clean answer. */
 async function proveSelectors(page: Page, findings: readonly Finding[]): Promise<readonly SelectorProof[]> {
-  const distinct = [...new Set(findings.map((finding) => finding.selector))].slice(0, DESIGN_AUDIT_SELECTOR_PROOF_CAP);
+  // A PAGE-SUBJECT finding names the DOCUMENT, not an element (contract/findings.ts) — asking Playwright
+  // to count `page` would report every stray-font run as unlocatable, which is the false positive this
+  // proof exists to avoid rather than to create.
+  // REPRESENTATIVES COUNT. A rung-4 rule collapses N rendered instances of one authored decision into one
+  // row and lists the others under `representatives` — those are emitted selectors a reader will paste
+  // exactly like the row's own, and on the #1326 twin-subtree control they are the ONLY place the second
+  // instance appears. Proving the row alone would have been a proof of the easy half.
+  const emitted = findings.flatMap((finding) => [finding.selector, ...(finding.representatives ?? [])]);
+  const distinct = [...new Set(emitted)].filter((selector) => selector !== PAGE_SUBJECT_SELECTOR).slice(0, DESIGN_AUDIT_SELECTOR_PROOF_CAP);
   const proofs: SelectorProof[] = [];
   for (const selector of distinct) {
     // @orb-gate-ignore caught-failure-ownership(empty:catch): a selector the browser refuses to parse is reported as matches=-1, which the arm prints as UNPROVEN and counts as non-unique — the failure IS the published value. Ends if -1 stops being read as "not proven".
@@ -288,29 +304,17 @@ export async function walkDesignAudit(input: WalkInput): Promise<DesignAuditMeas
       subjectsForced: hover.subjectsForced,
       forceFailedGroups: hover.forceFailedGroups,
       forceFailures: hover.forceFailures,
-      label: hoverPassLabelOf(hover.outcome.kind, hover.forceFailedGroups),
+      label: hoverPassLabel(hover),
     },
     shellState,
     surfaceState,
     drive,
     population: walk.population,
-    themeEvidence: { request: opts.theme, applied: settingsEvidence.themeApplied, resolution: settingsEvidence.themeResolution },
+    themeEvidence: { request: opts.theme, applied: settingsEvidence.themeApplied, resolution: settingsEvidence.themeResolution, rendered: samples.themeRender },
     navError,
     actionsFailed,
     gaps,
     populationComplete: populationGap === null,
     selectorProof: await proveSelectors(page, findings),
   };
-}
-
-/** The pass label the RESULT line publishes. Kept here rather than imported so the arm's transcript
- *  cannot drift from the receipt object it is derived from. */
-function hoverPassLabelOf(kind: string, forceFailedGroups: number): string {
-  if (kind === "not-applicable") {
-    return "not-applicable";
-  }
-  if (kind === "broke") {
-    return "BROKE";
-  }
-  return forceFailedGroups > 0 ? "partial" : "ok";
 }

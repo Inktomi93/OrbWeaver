@@ -71,7 +71,7 @@ function failOnHandler(args: Args, rest: string[]): void {
  *  scan completed but only `cap` carriers left the page, which makes the verdict partial (#1038). */
 async function writeAuditArtifact(name: string, opts: Args, measurement: DesignAuditMeasurement): Promise<string> {
   const caps = measurement.samples === null ? null : measurement.samples.censusCaps;
-  const truncated = Object.values(caps === null ? {} : caps).some((row) => row.dropped > 0);
+  const truncated = Object.values(caps ?? {}).some((row) => row.dropped > 0);
   const path = await artifactFile("design-audit", `${name}-design-audit`, ".json", {
     producer: "design-audit",
     producerArm: "design-audit",

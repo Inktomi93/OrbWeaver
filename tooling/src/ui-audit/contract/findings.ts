@@ -100,6 +100,15 @@ export type CandidateDisposition =
   | { readonly kind: "withheld"; readonly reason: string }
   | { readonly kind: "excluded"; readonly reason: string };
 
+/** THE PAGE-SUBJECT SENTINEL. Three rules judge the DOCUMENT, not an element — `script-error` (an
+ *  uncaught exception belongs to the page), `off-theme-font` (the page's censused face set) and
+ *  `flat-type-hierarchy` (the page's size set) — and they have always spelled their `selector` as the
+ *  literal word `page`. It is named here, beside the field it fills, because a READER now depends on
+ *  telling it from a CSS selector: Snap's design-audit arm proves every emitted selector resolves to
+ *  exactly one element (#1326), and `page` resolves to none — which is correct, not a defect, and would
+ *  otherwise be reported as an unlocatable finding on every surface with a stray font face. */
+export const PAGE_SUBJECT_SELECTOR = "page";
+
 interface FindingFields {
   readonly selector: string;
   readonly value: string;
