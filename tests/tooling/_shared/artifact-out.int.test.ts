@@ -116,8 +116,13 @@ test("the 10-run ring never deletes evidence a published pointer still names", {
   for (const name of keepers) {
     expect(readFileSync(join(root, "reports", "snaps", `${name}.png`), "utf8")).toBe(`pixels-${name}`);
   }
-  // The churn DID prune: the slots nothing points at are gone, so retention is still bounded.
-  expect(readdirSync(join(root, "reports", "runs", "snap")).length).toBeLessThan(keepers.length + 12);
+  // RETENTION IS AGE-FIRST SINCE #1341, so nothing here is pruned at all: every one of these slots was
+  // published inside the last minute, and a slot younger than the 24h floor is kept whether or not a
+  // pointer names it — that floor exists because the UNREFERENCED runs (`--no-shot`/`--eval`) were exactly
+  // the ones a review cited and the count-only ring deleted within minutes. The count cap still applies
+  // PAST the floor; that half is pinned in tests/tooling/_shared/artifacts.int.test.ts, where the fixture
+  // can age a slot.
+  expect(readdirSync(join(root, "reports", "runs", "snap"))).toHaveLength(keepers.length + 12);
   expect(readFileSync(join(root, "reports", "snaps", "churn.png"), "utf8")).toBe("pixels-churn");
 });
 

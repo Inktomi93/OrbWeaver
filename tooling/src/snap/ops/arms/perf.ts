@@ -16,6 +16,7 @@ import type { PerfEvidence } from "../../contract/types.ts";
 import type { SnapRatePosture } from "../../lib/rate-posture.ts";
 import { ratePostureDisposition } from "../../lib/rate-posture.ts";
 import { perfEvidence } from "../page-validate.ts";
+import { writeArmEvidenceFile } from "./evidence-file.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -86,6 +87,22 @@ export const APP_SNAPSHOT_ARM = {
     // The pair states whether the RATE was measured or withheld. It never contributes a failure count:
     // navigation timing has no snap threshold, and the other arms keep their independent verdicts.
     pairs: ({ outcomes }): readonly ResultPair[] => [appSnapshotResultPair(outcomes.map((outcome) => outcome.perf))],
+    // #1342: the app snapshot's own bytes are filed by `writeCoreCaptureEvidence` (ops/manifest.ts) under
+    // this same arm, so the fact already carries a reference — but the PERF READ it prints (navigation
+    // timing + the `window.__orb` snapshot) is in neither. It goes here.
+    evidence: async ({ outcomes }, slug): Promise<void> => {
+      const rows = outcomes.filter((outcome) => outcome.perf !== null).map((outcome) => ({ page: outcome.pageIndex, perf: outcome.perf }));
+      await writeArmEvidenceFile({
+        arm: "app-snapshot",
+        name: "app-snapshot-perf",
+        slug,
+        schema: "snap-app-snapshot-perf-v1",
+        records: rows.length,
+        completeness: "complete",
+        completenessDetail: "the navigation timing, acceleration posture and window.__orb snapshot this run printed, per page",
+        body: { v: 1, pages: rows },
+      });
+    },
     facts: ({ outcomes }): readonly ArmFactEmission<"app-snapshot">[] => {
       const snapshots = outcomes.filter((outcome) => outcome.perf?.rate.status === "measured").length;
       const withheld = outcomes.some((outcome) => outcome.perf?.rate.status === "withheld");

@@ -10,6 +10,7 @@ import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmP
 import type { Args } from "../../contract/types.ts";
 import { WAIT_SELECTOR_TIMEOUT_MS } from "../../lib/budgets.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
+import { writeArmEvidenceFile } from "./evidence-file.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --text");
 
@@ -116,6 +117,23 @@ export const ARIA_ARM = {
       ["aria", input.outcomes.some((outcome) => outcome.ariaText !== null) ? "yes" : "no"],
       ["aria-fails", ariaFailures(input)],
     ],
+    // #1342: the a11y TREE, not just "aria=yes". Without `--json` the printed snapshot lived only on the
+    // terminal, so a review citing the accessible name of a control had nothing behind the run path.
+    evidence: async ({ outcomes }, slug): Promise<void> => {
+      const rows = outcomes
+        .filter((outcome) => outcome.ariaText !== null || outcome.ariaError !== null)
+        .map((outcome) => ({ page: outcome.pageIndex, tree: outcome.ariaText, error: outcome.ariaError }));
+      await writeArmEvidenceFile({
+        arm: "aria",
+        name: "aria",
+        slug,
+        schema: "snap-aria-tree-v1",
+        records: rows.length,
+        completeness: "bounded",
+        completenessDetail: "the printed accessibility snapshot per page, bounded by the run's --aria depth and selector scope",
+        body: { v: 1, pages: rows },
+      });
+    },
     facts: (input): readonly ArmFactEmission<"aria">[] => {
       const failures = ariaFailures(input);
       const captures = input.outcomes.filter((outcome) => outcome.ariaText !== null).length;

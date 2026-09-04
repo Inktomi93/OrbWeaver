@@ -76,6 +76,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--aria-depth <value>` | cap the --aria/--text tree depth |
 | `--cascade [@N] <value>` | Chromium's computed value plus the Active/Overloaded declarations for one property (not with --lighthouse) |
 | `--contrast [@N] <value>` | rendered WCAG contrast of that element's text vs its effective backdrop (in-viewport only) |
+| `--contrast-edge [@N] <value>` | WCAG 1.4.11 border check: each painted side's ink vs the surface just outside it, at 3:1 |
 | `--contrast-pixel` | force the framebuffer sample instead of the CSS resolve (requires --contrast) |
 | `--diagnostics <value>` | print deduped structured browser diagnostics |
 | `--eval [@N] <value>` | any in-page JS to JSON (repeatable, IN the tape); pass a bare arrow with no trailing () |

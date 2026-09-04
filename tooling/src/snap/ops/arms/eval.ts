@@ -15,6 +15,7 @@ import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmP
 import type { EvalOutcome } from "../../contract/types.ts";
 import { CHURN_LINE, capEvalText, isContextChurn, wrapEvalExpr } from "../../lib/eval-text.ts";
 import { pushEval } from "../flags-support.ts";
+import { writeArmEvidenceFile } from "./evidence-file.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --eval <expression>");
 
@@ -40,6 +41,29 @@ export async function captureEvals(page: Page, exprs: readonly string[]): Promis
 
 function evalFailures({ outcomes }: ArmPairInput): number {
   return outcomes.reduce((count, outcome) => count + outcome.evalResults.filter((entry) => entry.failed).length, 0);
+}
+
+/** The `evidence/evals.json` schema id — the run index's eval fact points at this file, and the report
+ *  reader replays it. Versioned like every other snap artifact schema. */
+const EVAL_EVIDENCE_SCHEMA = "snap-eval-values-v1";
+
+/** THE VALUES, filed (#1342). What stdout printed, per page, in argv order: the expression, WHICH page tab
+ *  produced it, and the JSON text or the `EVAL ERROR:` message. This is the whole receipt — a reviewer
+ *  quoting "Chats 0 of 6" from a run must be able to find that string in the cited slot. */
+function evalEvidenceRows({ outcomes }: ArmPairInput): readonly {
+  readonly page: number;
+  readonly expression: string;
+  readonly value: string | null;
+  readonly error: string | null;
+}[] {
+  return outcomes.flatMap((outcome) =>
+    outcome.evalResults.map((entry) => ({
+      page: outcome.pageIndex,
+      expression: entry.expr,
+      value: entry.failed ? null : entry.text,
+      error: entry.failed ? entry.text : null,
+    })),
+  );
 }
 
 export const EVAL_ARM = {
@@ -79,6 +103,19 @@ export const EVAL_ARM = {
       ["evals", input.outcomes.reduce((count, outcome) => count + outcome.evalResults.length, 0)],
       ["eval-fails", evalFailures(input)],
     ],
+    evidence: async (input, slug): Promise<void> => {
+      const rows = evalEvidenceRows(input);
+      await writeArmEvidenceFile({
+        arm: "eval",
+        name: "evals",
+        slug,
+        schema: EVAL_EVIDENCE_SCHEMA,
+        records: rows.length,
+        completeness: "bounded",
+        completenessDetail: "every expression the run evaluated, in argv order; each value carries the arm's 20 000-char both-ends cap",
+        body: { v: 1, evals: rows },
+      });
+    },
     facts: (input): readonly ArmFactEmission<"eval">[] => {
       const expressions = input.outcomes.reduce((count, outcome) => count + outcome.evalResults.length, 0);
       const failures = evalFailures(input);

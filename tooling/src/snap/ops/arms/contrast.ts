@@ -9,8 +9,7 @@ import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import { compositeForeground, contrastRatio, FOREGROUND_OPACITY_EPS, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../../_shared/wcag.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
-import type { ContrastCapture, ContrastFacts, ContrastMeasured } from "../../contract/contrast.ts";
-import type { ContrastOutcome } from "../../contract/types.ts";
+import type { ContrastCapture, ContrastFacts, ContrastMeasured, ContrastOutcome } from "../../contract/contrast.ts";
 import { buildContrastScript } from "../../lib/contrast-script.ts";
 import {
   BOLD_WEIGHT,
@@ -22,9 +21,11 @@ import {
   terminalEvidence,
   UI_COMPONENT_MIN_RATIO,
 } from "../../lib/contrast-verdict.ts";
+import { measureEdgeContrast } from "../contrast-edge.ts";
 import { measureFillContrast } from "../contrast-fill.ts";
 import { resolveContrastBackdrop } from "../contrast-pixels.ts";
 import { contrastFacts } from "../page-validate.ts";
+import { writeArmEvidenceFile } from "./evidence-file.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -210,10 +211,6 @@ async function measureInkContrast(
   };
 }
 
-async function captureContrasts(page: Page, selectors: readonly string[], forcePixel: boolean, viewport: Viewport): Promise<ContrastOutcome[]> {
-  return (await captureContrastEvidence(page, selectors, forcePixel, viewport)).map((capture) => capture.outcome);
-}
-
 export async function captureContrastEvidence(
   page: Page,
   selectors: readonly string[],
@@ -256,36 +253,83 @@ export const CONTRAST_ARM = {
         a.contrastPixel = true;
       },
     },
+    {
+      flag: "--contrast-edge",
+      kind: "required-value",
+      pageTargetable: true,
+      group: "Look",
+      summary: "WCAG 1.4.11 border check: each painted side's ink vs the surface just outside it, at 3:1",
+      handler: (a, rest, page): void => {
+        const selector = rest.shift();
+        if (selector !== undefined && selector !== "") {
+          a.contrastEdge.push({ selector, page });
+        }
+      },
+    },
   ],
   level: "call",
   needs: (): ArmNeeds => ({}),
   sessionCallBaseMs: (): null => null,
-  defaults: (): Pick<ArmArgs, "contrast" | "contrastPixel"> => ({ contrast: [], contrastPixel: false }),
+  defaults: (): Pick<ArmArgs, "contrast" | "contrastPixel" | "contrastEdge"> => ({ contrast: [], contrastPixel: false, contrastEdge: [] }),
   help: `  --contrast <selector>   rendered WCAG contrast check (repeatable)
-  --contrast-pixel        force the framebuffer sample instead of the CSS resolve (requires --contrast)`,
+  --contrast-pixel        force the framebuffer sample instead of the CSS resolve (requires --contrast)
+  --contrast-edge <selector>
+                          WCAG 1.4.11 BORDER check (repeatable): each painted side's border ink against
+                          the surface immediately outside it, at 3:1. This is the arm --contrast's
+                          fill-only refusal points at — use it on fields, cards and inputs whose
+                          affordance IS their outline`,
   result: {
     schema: "snap-arm-contrast-v1",
     source: "computed style + framebuffer contrast",
     lifetime: "settled page capture",
-    enabled: (opts): boolean => opts.contrast.length > 0,
+    enabled: (opts): boolean => opts.contrast.length + opts.contrastEdge.length > 0,
   },
   lifecycle: {
     at: "page",
-    enabled: ({ opts, pageIndex }): boolean => opts.contrast.some((entry) => entry.page === pageIndex),
+    enabled: ({ opts, pageIndex }): boolean => [...opts.contrast, ...opts.contrastEdge].some((entry) => entry.page === pageIndex),
     run: async ({ page, opts, pageIndex, outcome }): Promise<void> => {
-      outcome.contrastResults = await captureContrasts(
-        page,
-        opts.contrast.filter((entry) => entry.page === pageIndex).map((entry) => entry.selector),
-        opts.contrastPixel,
-        page.viewportSize() ?? opts.viewport,
-      );
+      const viewport = page.viewportSize() ?? opts.viewport;
+      // The edge readings join the SAME outcome list: one `contrast-fails` count, one evidence file, one
+      // fact. `--contrast-edge` is a second QUESTION about contrast, not a second instrument.
+      const edges: ContrastCapture[] = [];
+      for (const entry of opts.contrastEdge.filter((row) => row.page === pageIndex)) {
+        edges.push(await measureEdgeContrast(page, entry.selector, viewport));
+      }
+      const captures = [
+        ...(await captureContrastEvidence(
+          page,
+          opts.contrast.filter((entry) => entry.page === pageIndex).map((entry) => entry.selector),
+          opts.contrastPixel,
+          viewport,
+        )),
+        ...edges,
+      ];
+      outcome.contrastResults = captures.map((capture) => capture.outcome);
+      // Both halves are kept: the LINES are what prints, the READINGS are what a later reader can measure
+      // against (#1342 — a ratio quoted from a run had no copy in the run's own slot).
+      outcome.contrastEvidence = captures.map((capture) => capture.evidence);
     },
     pairs: (input): readonly ResultPair[] => [["contrast-fails", contrastFailures(input)]],
+    evidence: async ({ outcomes }, slug): Promise<void> => {
+      const rows = outcomes.flatMap((outcome) =>
+        outcome.contrastEvidence.map((entry, index) => ({ page: outcome.pageIndex, line: outcome.contrastResults[index]?.line ?? null, reading: entry })),
+      );
+      await writeArmEvidenceFile({
+        arm: "contrast",
+        name: "contrast",
+        slug,
+        schema: "snap-contrast-readings-v1",
+        records: rows.length,
+        completeness: "complete",
+        completenessDetail: "every --contrast subject this run measured or refused, with its printed line and the structured reading behind it",
+        body: { v: 1, contrast: rows },
+      });
+    },
     facts: (input): readonly ArmFactEmission<"contrast">[] => {
       const checks = input.outcomes.reduce((count, outcome) => count + outcome.contrastResults.length, 0);
       const failures = contrastFailures(input);
       let state: "off" | "failed" | "passed" = "off";
-      if (input.opts.contrast.length > 0) {
+      if (input.opts.contrast.length + input.opts.contrastEdge.length > 0) {
         state = failures > 0 ? "failed" : "passed";
       }
       return [

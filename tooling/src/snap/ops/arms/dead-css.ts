@@ -11,6 +11,7 @@ import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
 import type { DeadCssEvidence } from "../../contract/dead-css.ts";
 import { deadCssCensus, deadCssDrain } from "../page-validate.ts";
+import { writeArmEvidenceFile } from "./evidence-file.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -196,6 +197,24 @@ export const DEAD_CSS_ARM = {
         ["deadcss", counts.dead],
         ["emptycss", counts.empty],
       ];
+    },
+    // #1342: WHICH tokens are dead and WHICH rules are empty. The counts reached the index; the census a
+    // fixer needs — the names — was terminal-only.
+    evidence: async ({ outcomes }, slug): Promise<void> => {
+      const rows = outcomes
+        .filter((outcome) => outcome.deadCss.length > 0 || outcome.emptyCss.length > 0)
+        .map((outcome) => ({ page: outcome.pageIndex, deadTokens: outcome.deadCss, emptyRules: outcome.emptyCss, census: outcome.deadCssEvidence }));
+      await writeArmEvidenceFile({
+        arm: "dead-css",
+        name: "dead-css",
+        slug,
+        schema: "snap-dead-css-v1",
+        records: rows.length,
+        completeness: "bounded",
+        completenessDetail:
+          "the dead-token and empty-rule findings per page, over the sheets this run could read (the CSS census line states the unreadable count)",
+        body: { v: 1, pages: rows },
+      });
     },
     facts: (input): readonly ArmFactEmission<"dead-css">[] => {
       const counts = deadCssCounts(input);

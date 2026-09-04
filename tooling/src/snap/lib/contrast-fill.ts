@@ -177,7 +177,10 @@ export function readFillChannels(image: ContrastPixelImage, geometry: ContrastFi
   if (neighbour.share < MIN_SURROUND_SHARE) {
     return {
       kind: "refused",
-      refusal: `the subject borders more than one surface — its largest neighbour is only ${(neighbour.share * PERCENT).toFixed(0)}% of the band, so any single ratio would average colours nothing on screen paints; measure the specific edge (or a child that sits on one surface)`,
+      // NAMES A FLAG THAT EXISTS (#1346). This sentence used to end at "measure the specific edge", which
+      // no arm could do — a reviewer hand-rolled luminance in `--eval` and got garbage off a transparent
+      // pane. `--contrast-edge` is that measurement, per side.
+      refusal: `the subject borders more than one surface — its largest neighbour is only ${(neighbour.share * PERCENT).toFixed(0)}% of the band, so any single ratio would average colours nothing on screen paints; measure the boundary itself with --contrast-edge <selector> (per side, WCAG 1.4.11), or target a child that sits on one surface`,
     };
   }
   const surround: Rgb = neighbour.rgb;

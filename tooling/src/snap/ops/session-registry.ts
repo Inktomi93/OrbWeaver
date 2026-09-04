@@ -8,9 +8,10 @@ import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { adoptRunSlot } from "../../_shared/artifact-out.ts";
-import { pidAlive, publishRunSlot } from "../../_shared/artifacts.ts";
+import { publishRunSlot } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { killPidGroup } from "../../_shared/proc.ts";
+import { pidAlive } from "../../_shared/run-retention.ts";
 import type { SessionLimits, SessionRow } from "../contract/session.ts";
 import {
   resolveSessionLimits,

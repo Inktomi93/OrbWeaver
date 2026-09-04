@@ -20,7 +20,7 @@ import { throttleResultValue } from "../lib/throttle.ts";
 import { captureAppearanceInvariantRows } from "./appearance-invariant-runtime.ts";
 import { evaluateAppearanceInvariantCell } from "./appearance-invariants.ts";
 import { motionReceiptFor } from "./arms/motion.ts";
-import { armPairLedger, beginRunArms, pageArmExit, pageArmFacts, pageArmFailures } from "./arms/registry.ts";
+import { armPairLedger, beginRunArms, pageArmExit, pageArmFacts, pageArmFailures, writePageArmEvidence } from "./arms/registry.ts";
 import { capturePages } from "./capture.ts";
 import { runBaselineOrDiff } from "./diff.ts";
 import { snapDestination } from "./guards.ts";
@@ -214,6 +214,10 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       ...(watchTicks.length === 0 ? {} : { watch: { totalMs: opts.watchMs, intervalMs: opts.watchEveryMs, ticks: watchTicks } }),
     } as const;
     await writeCoreCaptureEvidence(manifestInput);
+    // #1342: every page arm files what it PRINTED, before the facts are registered — the run index binds
+    // each artifact to its producer arm's fact, so `EVIDENCE <run.json>` names a slot a second reader can
+    // actually open.
+    await writePageArmEvidence(pairInput);
     const manifestPath = await writeManifestIfRequested(opts, name, manifestInput);
     // THE RESULT LINE. Every arm-owned field comes from the arm that measured it (contract/arms.ts) — the
     // ledger hands each one back at the position it has always printed in, because the line's field order

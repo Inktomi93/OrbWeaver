@@ -10,6 +10,9 @@ import type { ThemeRequest } from "../../_shared/theme.ts";
 import type { FileActionReceipt } from "../../_shared/upload.ts";
 import type { Assertion, PagedExpr, SnapAction } from "./actions.ts";
 import type { CssCascadeQuery, CssEvidenceReceipt } from "./cascade.ts";
+// ONE DIRECTION, `types.ts → contrast.ts`: the printed line (`ContrastOutcome`) and the structured reading
+// (`ContrastEvidence`) both live in ./contrast.ts, and the capture sheet below holds them side by side.
+import type { ContrastEvidence, ContrastOutcome } from "./contrast.ts";
 import type { DeadCssEvidence } from "./dead-css.ts";
 import type { DiagnosticQuery } from "./diagnostics.ts";
 import type { HeapCaptureRequest, HeapComparisonRequest, HeapPageEvidence, HeapRetainerRequest } from "./heap.ts";
@@ -182,6 +185,9 @@ export interface Args {
   /** Force PIXEL-SAMPLE for every --contrast target (even ones the css walk could resolve) — verify a
    *  css-resolve number against the real composite, or sample when you already know a layer paints behind. */
   contrastPixel: boolean;
+  /** Selectors whose BORDER is measured per side against the surface outside it (WCAG 1.4.11, 3:1) — the
+   *  boundary question neither the ink nor the fill arm can answer (#1346). `@<idx>` targets a --pages tab. */
+  contrastEdge: PagedSelector[];
   /** First-class post-settle assertions; selector assertions target visible/rendered matches by default. */
   assertions: Assertion[];
   /** Emit a selector map (role · accessible name · best stable selector) of interactive/
@@ -315,6 +321,10 @@ export interface CaptureOutcome {
   ariaError: string | null;
   evalResults: EvalOutcome[];
   contrastResults: ContrastOutcome[];
+  /** The STRUCTURED reading behind each printed CONTRAST line — ratio, threshold, the two colours, the
+   *  sampling method, the refusal reason. Kept beside the lines because only this half is filable
+   *  evidence (#1342): a reviewer taking a colour to the token vault needs the numbers, not the sentence. */
+  contrastEvidence: ContrastEvidence[];
   mapResult: MapEntry[] | null;
   mapError: string | null;
   mapAtlas: MapAtlasEvidence | null;
@@ -352,6 +362,11 @@ export interface EvalOutcome {
 export interface AssertionOutcome {
   readonly line: string;
   readonly failed: boolean;
+  /** The requirement was never ASKED — its selector matched nothing rendered (#1343). Distinct from
+   *  `failed` on purpose: a violated requirement is a verdict about the app (exit 1), an unasked one is an
+   *  instrument refusal (exit 2), and printing both as FAIL is how "the composer does not overflow" was
+   *  nearly published about a selector that matched no composer at all. */
+  readonly refused: boolean;
 }
 
 // `--expect-no-overflow`'s shapes (OverflowSide/OverflowEscape/OverflowProbe) live in ./overflow.ts.
@@ -364,10 +379,9 @@ export interface PerfEvidence {
   readonly orb: unknown;
 }
 
-export interface ContrastOutcome {
-  line: string;
-  failed: boolean;
-}
+// `ContrastOutcome` moved to ./contrast.ts with #1346: this file now holds the STRUCTURED reading on
+// `CaptureOutcome`, and a shape cannot live here while its own contract imports back — one direction,
+// `types.ts → contrast.ts` (dep-cruiser `no-circular` is the enforcer).
 
 /** Which page this evidence pass belongs to, plus the evals the drive queue deliberately LEFT for it
  *  (the ones written after the last step/nav — they observe the settled surface). */

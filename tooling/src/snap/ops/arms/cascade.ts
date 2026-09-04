@@ -11,7 +11,9 @@ import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunContext, ArmRunInstance } from "../../contract/arms.ts";
 import type { CssCascadeDeclaration, CssCascadeQuery, CssCascadeReceipt, CssEvidenceReceipt } from "../../contract/cascade.ts";
 import { cssMergeTraceStatusSchema } from "../../contract/cascade.ts";
+import type { CaptureOutcome } from "../../contract/types.ts";
 import { classifyCascadeSource, REPOSITORY_CASCADE_SOURCES } from "../../lib/cascade-source.ts";
+import { writeArmEvidenceFile } from "./evidence-file.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -193,6 +195,25 @@ async function captureCssEvidence(ctx: ArmRunContext): Promise<void> {
     }
     outcome.cssEvidence = await capturePageCssEvidence({ runtime: provisions.cascadeRuntime, session, queries, pageIndex });
   }
+  await fileCssEvidence(outcomes);
+}
+
+/** #1342: the CASCADE RECEIPT, filed. This arm is a RUN arm, so it has no page-lifecycle `evidence` hook —
+ *  it files from its own measure step, which is the same contract: an artifact declared under `cascade`
+ *  becomes this arm's fact reference in `ops/run-bundle.ts`. Before this, `--cascade`'s winning
+ *  declarations and merge trace printed and then existed nowhere a cited run.json could reach. */
+async function fileCssEvidence(outcomes: readonly CaptureOutcome[]): Promise<void> {
+  const rows = outcomes.filter((outcome) => outcome.cssEvidence !== null).map((outcome) => ({ page: outcome.pageIndex, cssEvidence: outcome.cssEvidence }));
+  await writeArmEvidenceFile({
+    arm: "cascade",
+    name: "cascade",
+    slug: "",
+    schema: "snap-cascade-receipts-v1",
+    records: rows.length,
+    completeness: "complete",
+    completenessDetail: "every --cascade query's receipt for this run: the winning declaration chain, the merge trace and any instrument error",
+    body: { v: 1, pages: rows },
+  });
 }
 
 /** THE CASCADE ARM. A RUN arm rather than a page arm because one query set spans the tabs it named and the

@@ -62,6 +62,7 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
     ariaError: null,
     evalResults: [],
     contrastResults: [],
+    contrastEvidence: [],
     mapResult: null,
     mapError: null,
     mapAtlas: null,
