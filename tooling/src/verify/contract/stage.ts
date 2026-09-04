@@ -36,6 +36,21 @@ export interface StageDef {
   readonly classify: (status: number | null) => 0 | 1 | 2 | 3;
   /** For `manual`-tier stages: WHY it isn't automated (rendered in `verify --list`). */
   readonly manualReason?: string;
+  /** CONDITIONAL MEMBERSHIP AT A WHOLE TIER (#1523). `tiers` is the ladder; this narrows one rung of it
+   *  by a fact about the RUN rather than about a Selection — a whole-tier run carries no Selection, so
+   *  `scopedArgv` (which is the scoped-tier hook) cannot express "run at `push` only when the branch
+   *  touched an instrument". Membership stays DATA: the tiers list still names every tier the stage can
+   *  run at, and this row states, in one place, the condition under which one of them applies.
+   *
+   *  `satisfied` returns `null` for CANNOT-TELL, and the runner treats that as RUN — an expensive stage
+   *  skipped because its precondition could not be computed is a false clean wearing a tier's clothes. */
+  readonly tierPrecondition?: {
+    /** The tiers this precondition narrows. Every other tier in `tiers` runs unconditionally. */
+    readonly tiers: readonly Tier[];
+    /** Rendered in `verify --list` and as the skip reason, so the ladder reads honestly either way. */
+    readonly reason: string;
+    readonly satisfied: (root: string) => boolean | null;
+  };
 }
 
 const STAGE_MODES = ["full", "scoped", "deferred", "skipped"] as const;

@@ -16,6 +16,7 @@ import type {
   Finding,
   IconTileInput,
   RawSamples,
+  RulePopulationAccounting,
   TapTargetInput,
   TextStyleInput,
 } from "../../../tooling/src/ui-audit/index.ts";
@@ -2097,7 +2098,7 @@ test("settled population accounting closes explicit semantic exclusions without 
 // source to learn whether the run was recoverable at all. The selection-idiom withhold on a rest-arm audit
 // is the recurring instance (#1114 makes it STRUCTURAL there), so it names the driven arm that closes it.
 test("a withheld reason with a known remedy prints it; one without keeps the bare NO-VERDICT text", () => {
-  const withheldAs = (reason: string): Parameters<typeof populationEvidenceGap>[0][string] => ({
+  const withheldAs = (reason: string): RulePopulationAccounting => ({
     candidates: 1,
     judged: 0,
     affected: 0,

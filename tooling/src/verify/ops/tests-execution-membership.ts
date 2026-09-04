@@ -44,8 +44,11 @@ type RunnerFiles = { readonly files: ReadonlySet<string> } | { readonly error: s
 // is deliberately excluded: its `test.include` is `[]` (typecheck-ONLY via `typecheck.include`, no runtime
 // pass — see the config's own comment on that project) — so a `.test-d.ts` file listed under `types` is not
 // a second EXECUTOR of anything, and must not count toward the "claimed by two runtime views" direction
-// below. The other five (unit/integration/integration-serial/live-drive/contract) all run real assertions.
-const VITEST_RUNTIME_PROJECTS: ReadonlySet<string> = new Set(["unit", "integration", "integration-serial", "live-drive", "contract"]);
+// below. The other six (unit/integration/integration-serial/live-drive/contract/tooling) all run real
+// assertions. `tooling` is the instrument battery, split out of unit+integration by #1523 so `verify
+// --push` can gate it on a diff that touched an instrument; membership here is what keeps that split from
+// silently orphaning a file.
+const VITEST_RUNTIME_PROJECTS: ReadonlySet<string> = new Set(["unit", "integration", "integration-serial", "live-drive", "contract", "tooling"]);
 
 type VitestFilesResult =
   | { readonly files: ReadonlySet<string>; readonly runtimeByProject: ReadonlyMap<string, ReadonlySet<string>> }

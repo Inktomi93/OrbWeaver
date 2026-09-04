@@ -38,7 +38,7 @@ test("a line with no budget and no separate subject states only what it measured
 /** The redaction receipt every disk-safe record carries — a real empty one, so the fixture is the
  *  contract's own shape rather than a cast past it. */
 const NO_LIMITS = {
-  policy: { maxRecords: 128, maxTextChars: 4096, maxBodyBytes: 0, allowBodies: false },
+  policy: { maxDepth: 8, maxFields: 256, maxStringBytes: 4096, maxBodyBytes: 0, maxEntries: 128, maxUrlBytes: 2048 },
   events: [],
 } satisfies DiskSafeBrowserDiagnostic["_orbMeasuredLimit"];
 

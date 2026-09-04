@@ -39,7 +39,7 @@ import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import type { RunHistoryEntry } from "../contract/history.ts";
 import type { Selection } from "../contract/selection.ts";
-import type { StageDef, StageMode, StageResult, VerifyReport } from "../contract/stage.ts";
+import type { StageDef, StageMode, StageResult, Tier, VerifyReport } from "../contract/stage.ts";
 import { aggregateExit } from "../lib/exit-classifiers.ts";
 import { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, slowdowns } from "../lib/history.ts";
 import { stagesForTier } from "../lib/registry.ts";
@@ -52,12 +52,21 @@ refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--fu
 function planStage(
   stage: StageDef,
   selection: Selection | undefined,
+  tier?: Tier,
+  root?: string,
 ): {
   readonly mode: StageMode;
   readonly argv: readonly [string, ...string[]] | null;
   readonly runsAt: string | null;
 } {
   if (selection === undefined) {
+    // CONDITIONAL TIER MEMBERSHIP (#1523). A whole-tier run has no Selection, so a stage that belongs to
+    // this tier only under a condition asks its own precondition here. `null` (cannot tell) RUNS: an
+    // expensive stage skipped on an unanswerable question is a false clean wearing a tier's clothes.
+    const precondition = stage.tierPrecondition;
+    if (precondition !== undefined && tier !== undefined && precondition.tiers.includes(tier) && precondition.satisfied(root ?? process.cwd()) === false) {
+      return { mode: "skipped", argv: null, runsAt: unconditionalTier(stage) };
+    }
     return { mode: "full", argv: stage.argv, runsAt: null };
   }
   // Scoped run: a stage with no scopedArgv is whole-only ⇒ deferred.
@@ -72,6 +81,18 @@ function planStage(
     return { mode: "skipped", argv: null, runsAt: null };
   }
   return { mode: "scoped", argv: scoped, runsAt: null };
+}
+
+/** Where a precondition-skipped stage DOES run unconditionally — the notice must name a tier that will
+ *  actually run it, never the one that just declined. */
+function unconditionalTier(stage: StageDef): string {
+  const conditional = new Set(stage.tierPrecondition?.tiers ?? []);
+  for (const t of ["static", "push", "full"] as const) {
+    if (stage.tiers.includes(t) && !conditional.has(t)) {
+      return `verify --${t}`;
+    }
+  }
+  return "verify --full";
 }
 
 /** The tier a deferred stage runs at — the lowest non-changed tier it belongs to (for the notice). */
@@ -156,9 +177,9 @@ interface RunContext {
   readonly verbose: boolean;
 }
 
-async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selection | undefined): Promise<StageResult> {
+async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selection | undefined, tier: Tier): Promise<StageResult> {
   const { root, slot, verbose } = ctx;
-  const plan = planStage(stage, selection);
+  const plan = planStage(stage, selection, tier, root);
   if (plan.mode === "deferred" || plan.mode === "skipped") {
     return {
       name: stage.name,
@@ -267,7 +288,7 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
   const stages = stagesForTier(parsed.tier);
   const results: StageResult[] = [];
   for (const stage of stages) {
-    const plan = planStage(stage, parsed.selection);
+    const plan = planStage(stage, parsed.selection, parsed.tier, root);
     // --strict-scope: a whole-only stage under a scoped tier is a REFUSAL (misuse), not a deferral.
     if (parsed.strictScope && plan.mode === "deferred") {
       results.push({
@@ -286,7 +307,7 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
     }
     // Sequential BY DESIGN: stages share the CPU, the reports dir and the console — they run one at a
     // time in registry order, exactly as the old sync loop ran them. The await IS the ordering.
-    results.push(await runOneStage({ root, slot, verbose: parsed.verbose }, stage, parsed.selection));
+    results.push(await runOneStage({ root, slot, verbose: parsed.verbose }, stage, parsed.selection, parsed.tier));
   }
 
   const exitCode = aggregateExit(results.map((s) => s.exitCode));
