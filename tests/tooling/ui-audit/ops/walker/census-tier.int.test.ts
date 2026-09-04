@@ -16,7 +16,7 @@ import { join } from "node:path";
 import type { CliResult, RunCliOpts } from "../../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import type { RelationalPopulationReport } from "../../../../support/ui-audit-relational.ts";
-import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 /** The proof denominator the `design-audit-rule-proof` gate reads: every live rule id owes an executable
  *  FIRING proof and an executable SILENCE proof for each way it must decline, attached to the test that
@@ -53,12 +53,11 @@ interface AuditFixture {
 }
 
 async function auditFixture({ scratch, runCli, name, body }: AuditFixture): Promise<AuditRun> {
-  const reportPath = join(scratch, `${name}.json`);
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const result = await runCli("ui-audit", ["/" + name + ".html", "--base", `file://${scratch}`, "--out", reportPath], {
+  const result = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  return { report: JSON.parse(await readFile(reportPath, "utf8")) as RelationalPopulationReport, code: result.code };
+  return { report: JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport, code: result.code };
 }
 
 /** The tiers.css mechanism, reproduced in miniature: an "instrument" tier declaring one pair of

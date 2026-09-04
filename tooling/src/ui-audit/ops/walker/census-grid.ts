@@ -29,7 +29,7 @@
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import { GRID_READING_SURFACE_SELECTOR_JS } from "../../lib/checks-grid.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crispness Laws 2-4) ──────────────────────
   var offGridTexts = [];

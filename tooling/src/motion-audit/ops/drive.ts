@@ -10,7 +10,7 @@ import type { AnimationRecord, MeasuredClick, MotionFlagRecord, MotionSnapshot }
 import { STEP_TIMEOUT_MS } from "../lib/budgets.ts";
 import { animationRecords, bridgePresence, flagRecords, motionSnapshot } from "./page-validate.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --motion");
 
 /** Is the app's in-page instrument present at all? Checked BEFORE anything is measured: without it every
  *  `__orb` read below answers null/[] and each budget arm reads that as a clean zero (#409). */

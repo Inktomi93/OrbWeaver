@@ -12,7 +12,7 @@
 // not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does not earn its height ──────────────────────
   // "The panes are 60-90% empty and nothing designed lives in the void. Personas: content ends y=347 of

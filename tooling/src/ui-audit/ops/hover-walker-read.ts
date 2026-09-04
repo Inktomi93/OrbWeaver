@@ -11,7 +11,7 @@
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { HOVER_SUBJECT_BUDGET } from "./hover-walker.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const HOVER_FORCE_READ = `
   // ── glow members: state-gated shadow/radial rules ride the SAME forces ───────────────────────

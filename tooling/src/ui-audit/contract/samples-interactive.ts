@@ -120,8 +120,14 @@ export interface ControlAspectInput {
 // EMPTY array is the closed `noDeclaredBorder` exclusion rather than a silent pass — the control made no
 // boundary claim. `surround` is `resolveBackdropUnder`'s answer, which is the paint OUTSIDE the control's
 // box; the control's own fill is the inside of the boundary and is not what 1.4.11 compares against here.
+/** THE SIDE AXIS, once. The walker interpolates this tuple into its census loop and the shape below
+ *  derives its member from it, so the four spellings cannot drift apart across the page boundary
+ *  (`no-inline-union-redecl` is the enforcer). */
+export const BORDER_CONTRAST_SIDES = ["top", "right", "bottom", "left"] as const;
+type BorderContrastSideName = (typeof BORDER_CONTRAST_SIDES)[number];
+
 export interface BorderContrastSide {
-  readonly side: "top" | "right" | "bottom" | "left";
+  readonly side: BorderContrastSideName;
   readonly widthPx: number;
   readonly style: string;
   /** null when the authored colour did not survive the canvas probe — a WITHHELD side, never a pass. */

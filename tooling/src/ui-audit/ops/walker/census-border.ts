@@ -28,6 +28,7 @@
 // dollar-brace — see _shared/browser.ts for why a string, not a function). Provenance: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import { INACTIVE_KIND_EXPR } from "../../../_shared/wcag.ts";
+import { BORDER_CONTRAST_SIDES } from "../../contract/samples-interactive.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
@@ -37,7 +38,7 @@ export const WALKER_CENSUS_BORDER = `  // ── form-control boundary census (b
   // the composite triggers Base UI renders as a div carrying the role (a bare <div role=combobox> is
   // structurally invisible to a tag-only selector — RULE-AUTHORING.md row 3's class, one axis over).
   var BORDER_CONTROL_SEL = "input,textarea,select,[role=combobox],[role=textbox],[role=searchbox],[role=spinbutton],[role=listbox]";
-  var BORDER_SIDES = ["top", "right", "bottom", "left"];
+  var BORDER_SIDES = ${JSON.stringify(BORDER_CONTRAST_SIDES)};
   var borderControls = document.querySelectorAll(BORDER_CONTROL_SEL);
   for (var bc = 0; bc < borderControls.length; bc += 1) {
     var bel = borderControls[bc];

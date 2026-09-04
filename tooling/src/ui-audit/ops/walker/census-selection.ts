@@ -43,7 +43,7 @@
 // not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored STATE DELTAS, surface-wide ────────────────
   // Absolute paint is not a selection idiom: cards have fills, borders, and shadows while unselected.

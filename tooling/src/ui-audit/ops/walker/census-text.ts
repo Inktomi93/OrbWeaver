@@ -7,7 +7,7 @@ import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import { INACTIVE_KIND_EXPR } from "../../../_shared/wcag.ts";
 import { TRANSCRIPT_SURFACE_SELECTOR_JS } from "../../lib/checks-typography.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_CENSUS_TEXT = `
   // ── text / contrast / typography ─────────────────────────────────────────

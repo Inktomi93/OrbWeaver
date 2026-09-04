@@ -45,7 +45,7 @@ import { WALKER_RESOLVE } from "./walker/resolve.ts";
 import { WALKER_STATE_PAINT } from "./walker/state-paint.ts";
 import { WALKER_MUTATION_CARRIES } from "./walker.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 /** WALKER_CORE + WALKER_RESOLVE give this pass the SAME `describe` / `isVisible` / `parseRgb` /
  *  `resolveBackdrop` machinery the main walk uses — never a second colour reader or a second backdrop

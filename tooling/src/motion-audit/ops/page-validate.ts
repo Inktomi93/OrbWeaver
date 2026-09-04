@@ -15,7 +15,7 @@ import { pageArray, pageBoolean, pageNumber, pageNumberFields, pageObject, pageS
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { AnimationRecord, MotionFlagRecord, MotionSnapshot } from "../contract/types.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --motion");
 
 /** Is the app's in-page instrument present at all? A non-boolean here would be read as truthy and let
  *  every downstream read proceed against a bridge that is not there. */

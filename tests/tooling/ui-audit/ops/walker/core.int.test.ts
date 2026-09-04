@@ -26,7 +26,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 /** `census-glow.ts`'s own bound. Hardcoded rather than imported: the value lives inside a template
  *  literal the type system cannot reach, and a test that derived it from the same string could never
@@ -44,7 +44,7 @@ function shadowCarriers(count: number): string {
 test("a census past its bound publishes the exact overflow and refuses the run", async ({ runCli, scratch }) => {
   const over = SHADOW_GLOW_CAP + 3;
   await writeFile(join(scratch, "cap-exceeded.html"), relationalDocument(shadowCarriers(over)));
-  const res = await runCli("ui-audit", ["/cap-exceeded.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "cap-exceeded.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // THE DENOMINATOR IS COMPLETE. Pre-#1038 this line read `candidates=200 judged=200` — the truncated
   // count wearing the shape of a whole page. The scan now runs past the bound, so the overflow is EXACT.
@@ -76,11 +76,10 @@ function spillCarriers(count: number): string {
 
 test("a truncated rung-1 census reaches the JSON artifact, which has no population row to fall back on", async ({ runCli, scratch }) => {
   const over = OVERFLOW_CAP + 1;
-  const reportPath = join(scratch, "overflow-cap.json");
   await writeFile(join(scratch, "overflow-cap.html"), relationalDocument(spillCarriers(over)));
-  const res = await runCli("ui-audit", ["/overflow-cap.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "overflow-cap.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as {
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as {
     readonly censusCaps: Readonly<Record<string, { readonly cap: number; readonly dropped: number }>> | null;
     readonly censusCapVerdict: unknown;
     readonly populationVerdict: unknown;
@@ -101,7 +100,7 @@ test("a truncated rung-1 census reaches the JSON artifact, which has no populati
 
 test("a census that fits inside its bound keeps judging and publishes no cap arm", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "cap-fits.html"), relationalDocument(shadowCarriers(SHADOW_GLOW_CAP)));
-  const res = await runCli("ui-audit", ["/cap-fits.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "cap-fits.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // The negative control the doctrine owes: the refusal must be a TRIPWIRE, not a tax every run pays.
   expect(res.stdout).toContain(`POPULATION   glow-shadow candidates=${String(SHADOW_GLOW_CAP)} judged=${String(SHADOW_GLOW_CAP)}`);
@@ -111,11 +110,10 @@ test("a census that fits inside its bound keeps judging and publishes no cap arm
 });
 
 test("the artifact carries the cap ledger and a complete verdict when nothing truncated", async ({ runCli, scratch }) => {
-  const reportPath = join(scratch, "cap-fits.json");
   await writeFile(join(scratch, "cap-fits-json.html"), relationalDocument(shadowCarriers(SHADOW_GLOW_CAP)));
-  const res = await runCli("ui-audit", ["/cap-fits-json.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "cap-fits-json.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as {
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as {
     readonly censusCaps: Readonly<Record<string, { readonly cap: number; readonly dropped: number }>> | null;
     readonly censusCapVerdict: unknown;
     readonly hoverPass: { readonly forceFailedGroups: number } | null;

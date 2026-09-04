@@ -10,7 +10,7 @@ import { instrumentRefusal } from "../../_shared/page-validate.ts";
 import type { VariantAssignment, VariantAxis, VariantMatrixPlan, VariantRequiredTwin } from "../../_shared/variant-matrix.ts";
 import { planVariantMatrix, variantArtifactId } from "../../_shared/variant-matrix.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm motion-audit --matrix");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --matrix --motion");
 
 const APP_MOTION_AXIS = "appearance.reducedMotion";
 const SCENARIO_AXIS = "scenario";

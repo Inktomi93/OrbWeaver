@@ -8,7 +8,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { GlowShadowInput, RadialGlowInput } from "../contract/samples.ts";
 import type { HoverCensusResult, HoverForcedReadRow, HoverGroupReadResult } from "../contract/samples-hover.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 /** The page hands its results back as JSON TEXT (`JSON.stringify(window.__orbHover…)`), and every reader
  *  below starts with `JSON.parse`. A non-string here means the in-page object was gone or the expression

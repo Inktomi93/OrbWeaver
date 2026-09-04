@@ -25,7 +25,7 @@ import { capturePages } from "./capture.ts";
 import { runBaselineOrDiff } from "./diff.ts";
 import { snapDestination } from "./guards.ts";
 import { appliedAcrossContexts, writeCoreCaptureEvidence, writeManifestIfRequested } from "./manifest.ts";
-import { isFileOriginNoise, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
+import { fileOriginNoiseCount, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
 import {
   extendEvidenceThroughWatch,
   motionResultValue,
@@ -247,7 +247,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       ["console-errors", failureSummary.consoleErrors] as const,
       ["sandbox-trace-noise", session.consoleMessages.filter(isSandboxTraceNoise).length] as const,
       // #1315: the file:// unique-origin note a CDP attach provokes — counted, printed, never judged.
-      ["file-origin-noise", session.consoleMessages.filter(isFileOriginNoise).length + fileOrigin.length] as const,
+      ["file-origin-noise", fileOriginNoiseCount(session.consoleMessages, fileOrigin)] as const,
       ["console-warnings", evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length] as const,
       [
         "boot-console-warnings",

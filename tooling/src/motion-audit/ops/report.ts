@@ -7,7 +7,7 @@ import { animationTotals } from "../lib/animations.ts";
 import { motionEvidenceGaps } from "../lib/evidence.ts";
 import { clsOverBudget, DROPPED_FRAME_BUDGET_PCT, framePopulationBasis, loafOverBudget } from "../lib/verdicts.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --motion");
 
 function framesBudgetJudgeable(data: AuditData): boolean {
   return framePopulationBasis(data.frames.budgeted.total) === "verdict";

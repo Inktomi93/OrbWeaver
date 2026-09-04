@@ -2,7 +2,7 @@
 // surfaces. Two renders qualify and they are the only two: the router's not-found boundary
 // (`routes/__root.tsx`) and the app-level crash fallback (`main.tsx`).
 //
-// WHY IT EXISTS (#1081, measured 2026-09-01 through the real CLI against the dev stack): `pnpm design-audit
+// WHY IT EXISTS (#1081, measured 2026-09-01 through the real CLI against the dev stack): the design-audit scan of
 // /__no-such-route__` printed a full 48-row POPULATION table, filed a `landmark-missing` P2 against the
 // not-found boundary and exited 0 — a clean verdict over a page that is the app's way of saying there is
 // nothing here. Every zero-hygiene arm the instrument owns is structurally blind to it: the route RESOLVED,

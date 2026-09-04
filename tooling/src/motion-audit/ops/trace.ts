@@ -10,7 +10,7 @@ import type { Args, AuditData, MeasuredClick, TraceEvent } from "../contract/typ
 import { calibratedDroppedFramePct } from "../lib/frames.ts";
 import { readAnimations, readFlags, readMotion } from "./drive.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --motion");
 
 export async function runAudit(
   page: Page,

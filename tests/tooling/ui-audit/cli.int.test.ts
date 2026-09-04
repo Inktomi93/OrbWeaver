@@ -624,7 +624,7 @@ test("the SAME page over the SAME origin with the readiness flag audits normally
 // ── #1081: an ERROR BOUNDARY IS NOT A SURFACE, and neither is a page that never loaded ───────────────
 //
 // @instrument-absence-proof: THE LIE, reproduced 2026-09-01 through the real CLI against the dev stack —
-// `pnpm design-audit /__no-such-route__` printed all 48 POPULATION rows, filed `landmark-missing` P2
+// the scan of `/__no-such-route__` printed all 48 POPULATION rows, filed `landmark-missing` P2
 // against the router's not-found boundary and exited 0. Every arm above passes on that page: the route
 // RESOLVED so `data-app-ready` went up, the census was 11 (not 0) and one control was reached. The
 // discriminator is the app's own declare — `data-app-failure`, stamped by the not-found boundary and the
@@ -1705,6 +1705,56 @@ auditRuleTest(
     expect(res.stdout, "the content-driven cohort itself must have reached the detector").toContain(
       "POPULATION   cohort-anatomy candidates=1 judged=1 affected=0 populations=0 representatives=0",
     );
+  },
+);
+
+// ── border-contrast (#1361 folded into #1315): WCAG 1.4.11 over a form control's DECLARED boundary ───
+//
+// @instrument-proof: the failing and the clearing field differ ONLY in `border-color` — same tag, same
+// fill, same surround, same box — so a rule that fired on the shape rather than on the measurement would
+// fail the silence half. The borderless fixture is the biggest false-positive class this rule could carry
+// (a control separated by fill, elevation or a label makes no boundary claim) and it must be a NAMED,
+// printed exclusion rather than a quiet pass.
+const BORDER_FIELDS = `<!doctype html>
+<html lang="en" data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0"><main style="background:#232323;color:#fff;padding:24px">
+<label for="quiet">Quiet</label><input id="quiet" style="border:1px solid #2a2a2a;background:#232323;color:#fff;width:200px;height:32px">
+<label for="loud">Loud</label><input id="loud" style="border:1px solid #cccccc;background:#232323;color:#fff;width:200px;height:32px">
+</main></body></html>`;
+
+const BORDERLESS_FIELD = `<!doctype html>
+<html lang="en" data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0"><main style="background:#232323;color:#fff;padding:24px">
+<label for="bare">Bare</label><input id="bare" style="border:none;background:#333333;color:#fff;width:200px;height:32px">
+</main></body></html>`;
+
+auditRuleTest(
+  [
+    { rule: "border-contrast", kind: "fires", reason: "a 1px boundary at ~1.1:1 against the surface outside it is not perceivable" },
+    { rule: "border-contrast", kind: "silent", reason: "the twin's boundary clears 1.4.11's 3:1 and is judged, not skipped" },
+  ],
+  "a declared field boundary below WCAG 1.4.11's 3:1 REDs, and the clearing twin is silent over a judged population",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "border-fields.html"), BORDER_FIELDS);
+    const res = await runCli("snap", ["--file", join(scratch, "border-fields.html"), "--fail-on", "P2", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+    const rows = findingRows(res.stdout, "border-contrast");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toContain("#quiet");
+    expect(rows[0]).not.toContain("#loud");
+    // The DENOMINATOR is what makes the silence a measurement: both fields judged, neither withheld.
+    expect(res.stdout).toMatch(/POPULATION\s+border-contrast candidates=2 judged=2 affected=1/u);
+    await expect(res).toExitWith(1);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "border-contrast", kind: "silent", reason: "a control that declares no border made no boundary claim — a closed, printed exclusion" }],
+  "a borderless control is excluded by name, never a silent pass",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "borderless.html"), BORDERLESS_FIELD);
+    const res = await runCli("snap", ["--file", join(scratch, "borderless.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(findingRows(res.stdout, "border-contrast")).toEqual([]);
+    expect(res.stdout).toMatch(/POPULATION\s+border-contrast candidates=1 judged=0 .*excluded\(noDeclaredBorder=1\)/u);
   },
 );
 

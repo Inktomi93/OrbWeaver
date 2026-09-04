@@ -65,6 +65,7 @@ export type {
   TruncatedTextInput,
   ZIndexInput,
 } from "./contract/samples.ts";
+export { BORDER_CONTRAST_SIDES } from "./contract/samples-interactive.ts";
 export type { BuriedRasterInput } from "./contract/samples-media.ts";
 export type { RelationalCensusAccountingInput } from "./contract/samples-populations.ts";
 export type { DriveStateCandidate, FocusStateCandidate, PanelModeCandidate, SurfaceStateAccounting } from "./contract/surface-state.ts";

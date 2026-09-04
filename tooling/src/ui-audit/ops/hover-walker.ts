@@ -41,7 +41,7 @@
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { INACTIVE_KIND_EXPR } from "../../_shared/wcag.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 /** How many distinct subjects one run will force, per mechanism. Generous by design: it is a REFUSAL
  *  threshold, not a sampling cap — candidates past it are withheld by name, which makes the run a NO

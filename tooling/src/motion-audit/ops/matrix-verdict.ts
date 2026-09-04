@@ -9,7 +9,7 @@ import type { AuditData } from "../contract/types.ts";
 import type { MotionMatrixVariant, MotionStaticExpectedLink } from "./matrix-contract.ts";
 import { evaluateMotionAudit } from "./report.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm motion-audit --matrix");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --matrix --motion");
 
 export interface MotionMatrixCellEvidence {
   readonly id: string;

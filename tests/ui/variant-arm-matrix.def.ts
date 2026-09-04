@@ -12,7 +12,7 @@
 // • This CT suite answers "DOES THIS ARM FAIL INTRINSICALLY": each arm is rendered in isolation on the
 //   token background, under each shipped theme, and judged with design-audit's own pure check kernels.
 //   It is the ratchet that catches a bad arm BEFORE any surface adopts it.
-// • The LIVE audit (pnpm design-audit) answers "ON THIS SURFACE": composition-dependent verdicts —
+// • The LIVE audit (pnpm snap <route> --design-audit) answers "ON THIS SURFACE": composition-dependent verdicts —
 //   text-over-art above all — belong to it and are deliberately OUT OF SCOPE here.
 //
 // ── ARCHITECTURE (chosen), with the rejected alternatives ─────────────────────────────────────────

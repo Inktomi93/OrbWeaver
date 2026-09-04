@@ -1,3 +1,12 @@
+// @instrument-proof: every budget rule below is exercised by a PLANTED breach — an app-owned dirty
+// animation, a counterfeit Base UI attribution tuple, a real non-virtualized shift, a blocking LoAF past
+// 50ms — and each must come back FAILING. The markers moved here at #1315 when `pnpm motion-audit`'s
+// argv door was deleted: the engine's proofs never lived in that CLI, and the gate's question is whether
+// this mirror carries both classes (docs/architecture/core/Core-Tooling-Law.md §4.5).
+// @instrument-absence-proof: an ABSENT apparatus and an EMPTY population are proven not to read clean —
+// no `__orb` bridge is zeros that are explicitly NOT a verdict, an empty raw frame population is an
+// evidence gap, and a null percentage is never rendered as 0%.
+//
 // The CLS verdict rule retained by Snap's motion arm (issue #109, 2026-08-16): the budget gates on the
 // NON-VIRTUALIZED total, while raw + virtualized stay printed. Found by lane ae-shell-motion — a no-probe
 // home→chat journey measured ~0.26 of CLS that was purely the message list settling on mount, which

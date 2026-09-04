@@ -83,13 +83,28 @@ export interface SelectorProof {
   readonly matches: number;
 }
 
-export interface DesignAuditHoverReceipt {
+interface DesignAuditHoverReceipt {
   readonly outcome: { readonly kind: string; readonly reason?: string };
   readonly wallMs: number;
   readonly subjectsForced: number;
   readonly forceFailedGroups: number;
   readonly forceFailures: readonly string[];
   readonly label: string;
+}
+
+/** THE FIVE PARTIAL-VERDICT CHANNELS, EACH NAMED (#1038 · #1031 · #1087 F1 · #1317 item 1). `gaps`
+ *  above is their filtered concatenation — what the printed receipt and the exit code ride — but a JSON
+ *  consumer needs to know WHICH half of the run is unproven, and a flat list cannot answer that: a
+ *  truncated census and a broken forced-state pass are both "NO VERDICT" and require different repairs.
+ *  A `null` channel means COMPLETE. On a terminal run (`terminalGap`) every channel carries that gap:
+ *  the walk never reached any of them, and "complete" over an unwalked page is the exact lie #1087 F1
+ *  was minted to end. */
+export interface DesignAuditVerdicts {
+  readonly population: EvidenceGap | null;
+  readonly censusCap: EvidenceGap | null;
+  readonly hover: EvidenceGap | null;
+  readonly force: EvidenceGap | null;
+  readonly instrumentPageError: EvidenceGap | null;
 }
 
 export interface DesignAuditMeasurement {
@@ -128,7 +143,7 @@ export interface DesignAuditMeasurement {
   readonly actionsFailed: number;
   /** Partial-verdict gaps — the tables still print, the run still exits 2 (`_shared/evidence.ts`). */
   readonly gaps: readonly EvidenceGap[];
-  readonly populationComplete: boolean;
+  readonly verdicts: DesignAuditVerdicts;
   readonly selectorProof: readonly SelectorProof[];
 }
 
@@ -163,7 +178,7 @@ function terminalMeasurement(url: string, gap: EvidenceGap, input: Pick<WalkInpu
     navError: input.navError,
     actionsFailed: input.actionsFailed,
     gaps: [gap],
-    populationComplete: false,
+    verdicts: { population: gap, censusCap: gap, hover: gap, force: gap, instrumentPageError: gap },
     selectorProof: [],
   };
 }
@@ -194,7 +209,7 @@ async function proveSelectors(page: Page, findings: readonly Finding[]): Promise
 }
 
 async function readSamples(page: Page): Promise<{ readonly samples: RawSamples; readonly population: DomPopulation } | { readonly walkError: string }> {
-  // @orb-gate-ignore caught-failure-ownership(empty:e): the walk throwing is an INSTRUMENT failure, returned as walkError and turned into walkFailureGap (exit 2) by the caller. Ends if walkError stops reaching the gap ladder.
+  // @orb-gate-ignore caught-failure-ownership(empty:error): the walk throwing is an INSTRUMENT failure, returned as walkError and turned into walkFailureGap (exit 2) by the caller. Ends if walkError stops reaching the gap ladder.
   try {
     const samples = rawSamples(await page.evaluate(COLLECT_SAMPLES_JS));
     const accounting = samples.subjectAccounting;
@@ -207,21 +222,28 @@ async function readSamples(page: Page): Promise<{ readonly samples: RawSamples; 
   }
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the gap LADDER is one linear sequence of terminal refusals in a fixed order (#1081) — splitting it would put the order in two files and the order is the contract.
-export async function walkDesignAudit(input: WalkInput): Promise<DesignAuditMeasurement> {
-  const { session, page, opts, navError, actionsFailed } = input;
-  const url = page.url();
-  // THE THREE PRE-MEASUREMENT REFUSALS (#1081), terminal for one reason: past this point every table is a
-  // fold over the samples, and in each of these cases those samples describe nothing or the wrong surface.
+/** THE THREE PRE-MEASUREMENT REFUSALS (#1081), in their fixed order and terminal for one reason: past
+ *  this point every table the arm prints is a fold over the samples, and in each of these cases those
+ *  samples describe either nothing at all or a surface nobody asked for. Split out of the walk so the
+ *  ORDER is one readable sequence rather than a branch inside a long function. */
+async function preMeasurementRefusal(input: WalkInput, url: string): Promise<EvidenceGap | null> {
+  const { page, opts, navError, actionsFailed } = input;
   if (navError !== null) {
-    return terminalMeasurement(url, navErrorGap(navError), input);
+    return navErrorGap(navError);
   }
   if (actionsFailed > 0) {
-    return terminalMeasurement(url, actionsFailedGap(actionsFailed, opts.actions.length), input);
+    return actionsFailedGap(actionsFailed, opts.actions.length);
   }
   const failureKind = appFailureSurface(await page.evaluate(READ_FAILURE_SURFACE_JS));
-  if (failureKind !== null) {
-    return terminalMeasurement(url, failureSurfaceGap(url, failureKind), input);
+  return failureKind === null ? null : failureSurfaceGap(url, failureKind);
+}
+
+export async function walkDesignAudit(input: WalkInput): Promise<DesignAuditMeasurement> {
+  const { session, page, opts } = input;
+  const url = page.url();
+  const refusal = await preMeasurementRefusal(input, url);
+  if (refusal !== null) {
+    return terminalMeasurement(url, refusal, input);
   }
   const walk = await readSamples(page);
   if ("walkError" in walk) {
@@ -277,13 +299,16 @@ export async function walkDesignAudit(input: WalkInput): Promise<DesignAuditMeas
           evidence: "the forced-state pass's per-group completeness",
           detail: `${String(hover.forceFailedGroups)} state group(s) failed to force or read (${hover.forceFailures.join("; ")}) — their members' hover paint and state-gated glow were never measured, so hover-contrast and the state glow arms are partial on this surface`,
         };
-  const gaps = [
-    populationGap,
-    censusCapGap(samples),
-    hoverGap,
-    forceGap,
-    instrumentPageErrorGap(session.pageErrors.filter((error) => error.kind === "instrument").map(pageErrorText)),
-  ].filter((gap): gap is EvidenceGap => gap !== null);
+  const verdicts: DesignAuditVerdicts = {
+    population: populationGap,
+    censusCap: censusCapGap(samples),
+    hover: hoverGap,
+    force: forceGap,
+    instrumentPageError: instrumentPageErrorGap(session.pageErrors.filter((error) => error.kind === "instrument").map(pageErrorText)),
+  };
+  const gaps = [verdicts.population, verdicts.censusCap, verdicts.hover, verdicts.force, verdicts.instrumentPageError].filter(
+    (gap): gap is EvidenceGap => gap !== null,
+  );
 
   return {
     url,
@@ -311,10 +336,10 @@ export async function walkDesignAudit(input: WalkInput): Promise<DesignAuditMeas
     drive,
     population: walk.population,
     themeEvidence: { request: opts.theme, applied: settingsEvidence.themeApplied, resolution: settingsEvidence.themeResolution, rendered: samples.themeRender },
-    navError,
-    actionsFailed,
+    navError: input.navError,
+    actionsFailed: input.actionsFailed,
     gaps,
-    populationComplete: populationGap === null,
+    verdicts,
     selectorProof: await proveSelectors(page, findings),
   };
 }

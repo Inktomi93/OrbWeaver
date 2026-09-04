@@ -52,7 +52,7 @@ import { WALKER_RETURNS } from "./walker/returns.ts";
 import { WALKER_STATE_PAINT } from "./walker/state-paint.ts";
 import { WALKER_TARGET_IDENTITY } from "./walker/target-identity.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 /** WALKER_CORE's mutation observer calls this, but the declaration lived inside PRE_WALK_SETTLE — so any
  *  OTHER page pass that reuses WALKER_CORE (ops/hover.ts's forced-state pass) would install an observer

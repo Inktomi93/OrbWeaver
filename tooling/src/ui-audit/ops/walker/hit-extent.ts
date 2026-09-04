@@ -26,7 +26,7 @@
 // is not recoverable by any downstream reader.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe ────────────────────────────────────────────────────────────
   // THE HIT AREA IS NOT THE BOX (2026-08-16 — 10 of 13 "sub-target" findings in one audit were this).

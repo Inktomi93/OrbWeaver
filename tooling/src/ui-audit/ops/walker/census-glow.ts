@@ -22,7 +22,7 @@
 // Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_CENSUS_GLOW = `  // ── chromatic glow shadows incl. pseudo-elements (impeccable dark-glow) ──
   // THE PSEUDO LAYER IS WHERE OUR GLOWS LIVE, SO IT IS WHERE THE RULE MUST LOOK (2026-09-01). This

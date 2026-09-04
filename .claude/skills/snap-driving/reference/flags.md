@@ -12,6 +12,13 @@ Exit codes everywhere: `0` clean · `1` red (a finding, a failed assertion, a fa
 · `2` REFUSAL / tool error (the instrument could not measure — never a product verdict) · `3` misuse (your
 argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 
+## Judge
+
+| Flag | What it does |
+| - | - |
+| `--design-audit` | the deterministic UI defect scan — the whole ui-audit rule engine over the settled surface |
+| `--fail-on <value>` | --design-audit exits 1 at this severity or worse (P0|P1|P2|P3, default P1) |
+
 ## Where
 
 | Flag | What it does |

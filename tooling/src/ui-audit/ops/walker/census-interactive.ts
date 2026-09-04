@@ -68,7 +68,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap targets + accessible names + action doors ──
   var tapTargets = [];

@@ -11,7 +11,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 /** The exact live house pattern, in CSS: `relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-… before:shadow-glow before:content-['']` — the shape all
  *  six real carriers share (discovery/corpus-family-map, discovery/corpus-understanding-invitation,
@@ -35,13 +35,12 @@ const GLOW_FIXTURE = `<style>
 <div class="box" id="sanctioned-cell" data-slot="media-grid-cell">owner effect carrier</div>`;
 
 test("the glow census sweeps pseudo layers, exempting the house discipline and judging every deviation from it", async ({ runCli, scratch }) => {
-  const reportPath = join(scratch, "pseudo-glow.json");
   await writeFile(join(scratch, "pseudo-glow.html"), relationalDocument(GLOW_FIXTURE));
-  const res = await runCli("ui-audit", ["/pseudo-glow.html", "--base", `file://${scratch}`, "--fail-on", "P3", "--out", reportPath], {
+  const res = await runCli("snap", ["--file", join(scratch, "pseudo-glow.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as { readonly findings: readonly { readonly rule: string; readonly selector: string }[] };
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as { readonly findings: readonly { readonly rule: string; readonly selector: string }[] };
   const glowSelectors = report.findings.filter((finding) => finding.rule === "glow-shadow").map((finding) => finding.selector);
 
   // FIRES — the whole point of the sweep: a chromatic glow on a pseudo was invisible to the old

@@ -115,11 +115,10 @@ export function armFlagHandlers(): Record<string, ArmFlagSpec["handler"]> {
 
 /** THE TSC FENCE FOR `ArmArgs`. Every arm's defaults are spread by NAME and the result is annotated
  *  `ArmArgs`, so tsc refuses this file when a field of the arm-owned half of `Args` has no arm defaulting
- *  it (and when an arm defaults a field it does not own). The eleven-way spread is the point: a
- *  `reduce` over `ARMS` would type as `Partial` and the compiler would have nothing to check.
- *
- *  Called PER PARSE, never memoised — several arms default to a fresh array, and one shared literal would
- *  leak one parse's queue into the next. */
+ *  it (and when an arm defaults a field it does not own). The one-row-per-arm spread is the point: a
+ *  `reduce` over `ARMS` would type as `Partial` and the compiler would have nothing to check. Called PER
+ *  PARSE, never memoised — several arms default to a fresh array, and one shared literal would leak one
+ *  parse's queue into the next. */
 export function armArgDefaults(): ArmArgs {
   return {
     ...DEAD_CSS_ARM.defaults(),

@@ -9,7 +9,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument, stateTwin } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument, stateTwin } from "../../../../support/ui-audit-relational.ts";
 
 test("selection-idiom ignores invariant base paint when selected and unselected twins use the same channel", async ({ runCli, scratch }) => {
   const invariant = [
@@ -18,7 +18,7 @@ test("selection-idiom ignores invariant base paint when selected and unselected 
     stateTwin("selected", "", "box-shadow:0 0 5px #fff"),
   ].join("");
   await writeFile(join(scratch, "invariant-selection-paint.html"), relationalDocument(invariant));
-  const res = await runCli("ui-audit", ["/invariant-selection-paint.html", "--base", `file://${scratch}`, "--fail-on", "P2"], {
+  const res = await runCli("snap", ["--file", join(scratch, "invariant-selection-paint.html"), "--fail-on", "P2", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   expect(res.stdout, "absolute card paint is not a selection treatment when the unselected twin shares it").not.toMatch(/^P2\s+selection-idiom/mu);
@@ -34,12 +34,11 @@ for (const [label, attribute] of [
   ["unselected", 'aria-selected="false"'],
 ] as const) {
   test(`selection-idiom records a one-member ${label}-only group as an explicit closed exclusion`, async ({ runCli, scratch }) => {
-    const reportPath = join(scratch, `${label}-only-selection.json`);
     await writeFile(
       join(scratch, `${label}-only-selection.html`),
       relationalDocument(`<section data-slot="choice-group"><div data-slot="choice" ${attribute} style="width:120px;height:40px">orphan</div></section>`),
     );
-    const res = await runCli("ui-audit", [`/${label}-only-selection.html`, "--base", `file://${scratch}`, "--out", reportPath], {
+    const res = await runCli("snap", ["--file", join(scratch, `${label}-only-selection.html`), ...AUDIT_ARGV], {
       timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
     });
     expect(res.stdout).toContain(
@@ -62,7 +61,7 @@ for (const [label, attribute, withheldReason] of [
 <div data-slot="choice" ${attribute} style="width:120px;height:40px">two</div>
 </section>`),
     );
-    const res = await runCli("ui-audit", [`/comparable-${label}-only-selection.html`, "--base", `file://${scratch}`], {
+    const res = await runCli("snap", ["--file", join(scratch, `comparable-${label}-only-selection.html`), ...AUDIT_ARGV], {
       timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
     });
     expect(res.stdout).toContain(
@@ -80,7 +79,7 @@ test("selection-idiom aggregates delta vocabularies across checked, selected, an
     stateTwin("current", "border-left:3px solid orange"),
   ].join("");
   await writeFile(join(scratch, "cross-kind-selection.html"), relationalDocument(vocabularies));
-  const res = await runCli("ui-audit", ["/cross-kind-selection.html", "--base", `file://${scratch}`, "--fail-on", "P2"], {
+  const res = await runCli("snap", ["--file", join(scratch, "cross-kind-selection.html"), "--fail-on", "P2", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   expect(res.stdout, "three surface-wide delta vocabularies cannot hide in three one-item state buckets").toContain("selection-idiom");
@@ -102,7 +101,7 @@ function gridRows(selectedFirst: boolean): string {
 
 test("a selected twin in a SIBLING presentation wrapper is one cohort and judged, not a phantom missing twin", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "wrapped-selection-twin.html"), relationalDocument(gridRows(true)));
-  const res = await runCli("ui-audit", ["/wrapped-selection-twin.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "wrapped-selection-twin.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   // One authored cohort across both row wrappers — judged, and NOT a second withheld row for the wrapper
   // whose slice happens to hold no selected cell.
   expect(res.stdout).toContain("POPULATION   selection-idiom candidates=1 judged=1 affected=0 populations=0 representatives=0 withheld() excluded()");
@@ -113,7 +112,7 @@ test("a selected twin in a SIBLING presentation wrapper is one cohort and judged
 
 test("a cohort that is genuinely one-sided ACROSS those wrappers is still withheld — #987 :208 survives the regrouping", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "wrapped-selection-orphan.html"), relationalDocument(gridRows(false)));
-  const res = await runCli("ui-audit", ["/wrapped-selection-orphan.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "wrapped-selection-orphan.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   expect(res.stdout).toContain(
     "POPULATION   selection-idiom candidates=1 judged=0 affected=0 populations=0 representatives=0 withheld(unmatchedUnselected=1) excluded()",
   );
@@ -155,7 +154,7 @@ test("a radiogroup picker's own delta channels are counted while its checked-onl
     radioGroupPicker("elevation-cards", "border-left:3px solid orange"),
   ].join("");
   await writeFile(join(scratch, "radiogroup-picker-selection.html"), relationalDocument(pickers));
-  const res = await runCli("ui-audit", ["/radiogroup-picker-selection.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "radiogroup-picker-selection.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   // Three picker cohorts (one per radiogroup home) are JUDGED; the three indicators share ONE cohort — a
   // component part cannot own a choice, so it is excluded with a closed reason rather than withheld.
   expect(res.stdout).toContain(
@@ -179,7 +178,7 @@ test("a NESTED control that owns its own aria state is a carrier, not a part —
       `<section data-slot="tile-group">${tile("data-checked", "true", mark, "outline:2px solid orange")}${tile("data-unchecked", "false", "", "")}</section>`,
     ),
   );
-  const res = await runCli("ui-audit", ["/nested-aria-carrier-selection.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "nested-aria-carrier-selection.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   // Two judged cohorts: the tiles, AND the nested lock buttons — a real control inside a selected ancestor
   // keeps its own aria state and therefore its own comparison. Only the paint-hook-only mark is excluded.
   expect(res.stdout).toContain(
@@ -193,7 +192,7 @@ test("the aria-pressed toolbar idiom keeps registering after the part partition"
     `<button data-slot="toolbar-toggle" aria-pressed="${pressed}" style="color:#fff;width:80px;height:48px;background:#111;${paint}">B</button>`;
   const toolbar = `<section data-slot="toolbar">${toggle(true, "outline:2px solid orange")}${toggle(false, "")}${toggle(true, "background:#402000")}${toggle(false, "")}${toggle(true, "border-left:3px solid orange")}${toggle(false, "")}</section>`;
   await writeFile(join(scratch, "pressed-toolbar-selection.html"), relationalDocument(toolbar));
-  const res = await runCli("ui-audit", ["/pressed-toolbar-selection.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "pressed-toolbar-selection.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("POPULATION   selection-idiom candidates=1 judged=1 affected=1 populations=1 representatives=1 withheld() excluded()");
   expect(res.stdout).toContain("ringx1 · fillx1 · bar-leftx1");
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");

@@ -31,7 +31,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "../../../support/tool-fixtures.ts";
-import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../support/ui-audit-relational.ts";
 
 const GROUP_HOVER_FIXTURE = `<style>
 .label { color: #8a8a8a; }
@@ -66,7 +66,7 @@ const GROUP_ATTR_FIXTURE = `<style>
 
 test("a compiled group-hover rule is JUDGED against its resolved ancestor, not the painted element", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "group-hover.html"), relationalDocument(GROUP_HOVER_FIXTURE));
-  const res = await runCli("ui-audit", ["/group-hover.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "group-hover.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // JUDGED — the whole point of #1084. Pre-#1073 this read `judged=1 … excluded(noHoverChange=1)` (a lie:
   // the forced element was the painted one); post-#1073 and pre-#1084 it read
@@ -80,7 +80,7 @@ test("a compiled group-hover rule is JUDGED against its resolved ancestor, not t
 
 test("the ATTRIBUTE twin of the group variant is judged the same way", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "group-attr.html"), relationalDocument(GROUP_ATTR_FIXTURE));
-  const res = await runCli("ui-audit", ["/group-attr.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "group-attr.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   expect(res.stdout, "the attr half resolves the same anchor and forces it in page").toMatch(/POPULATION\s+hover-contrast candidates=1 judged=1 /u);
   expect(res.stdout).not.toContain("complexStateSelector");
@@ -90,7 +90,7 @@ test("the ATTRIBUTE twin of the group variant is judged the same way", async ({ 
 
 test("a SIBLING-combinator group variant stays WITHHELD — closest() has no answer for it", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "peer-hover.html"), relationalDocument(PEER_HOVER_FIXTURE));
-  const res = await runCli("ui-audit", ["/peer-hover.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "peer-hover.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // The refusal control. A derivation that accepted this would resolve the WRONG ancestor (or none) and
   // put the census straight back into publishing measurements it never took.
@@ -103,7 +103,7 @@ test("a SIBLING-combinator group variant stays WITHHELD — closest() has no ans
 
 test("a plain :hover rule on the painted element itself keeps being judged", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "plain-hover.html"), relationalDocument(PLAIN_HOVER_FIXTURE));
-  const res = await runCli("ui-audit", ["/plain-hover.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runCli("snap", ["--file", join(scratch, "plain-hover.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // The fence that has been green on both sides of both fixes: a top-level `:hover` names its own
   // subject, and neither the depth guard nor the anchor derivation may swallow it.

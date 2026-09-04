@@ -5,7 +5,7 @@
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 /** THE SIDE-EFFECT-FREE HALF of the walker core: the selector vocabulary, the locatable-selector
  *  (describe/anchorOf) machinery, and the opacity/visibility/visually-hidden predicates. Nothing here

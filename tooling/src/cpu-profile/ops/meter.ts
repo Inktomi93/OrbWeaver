@@ -1,7 +1,7 @@
 // The in-page collector. Raw string, not a function — see _shared/browser.ts.
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm perf-meter");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --perf");
 
 export const METER_INIT_JS = `(() => {
   const m = (window.__perfMeter = {

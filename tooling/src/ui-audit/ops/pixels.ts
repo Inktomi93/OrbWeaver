@@ -18,7 +18,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ContrastInput, RawSamples } from "../contract/samples.ts";
 import type { BackdropRefusal, PixelPass } from "../contract/types.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 function isUnresolved(text: ContrastInput): boolean {
   return text.backdrop.kind === "unresolved";
