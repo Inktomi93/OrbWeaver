@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 531,
-    "enforced": 527,
+    "sites": 532,
+    "enforced": 528,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 527,
+      "deliberate-absorb": 528,
       "detached-owned": 4,
       "unproven": 0
     },
     "byGrammar": {
-      "promise": 137,
+      "promise": 138,
       "default": 143,
       "empty": 251
     }
@@ -1502,7 +1502,7 @@
     {
       "siteId": "packages/contracts/src/preset/index.ts::default:catch::1",
       "path": "packages/contracts/src/preset/index.ts",
-      "line": 3072,
+      "line": 3063,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1510,7 +1510,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "ST mirror — JSON.parse of custom_stopping_strings",
-      "markerLine": 3067
+      "markerLine": 3058
     },
     {
       "siteId": "packages/contracts/src/rpg/extraction.ts::default:catch::1",
@@ -2330,6 +2330,19 @@
       "verdict": "deliberate-absorb",
       "reason": "pure `JSON.parse` over untrusted upload",
       "markerLine": 80
+    },
+    {
+      "siteId": "packages/server/src/domain/import/workload-contributions.ts::promise:lstat::1",
+      "path": "packages/server/src/domain/import/workload-contributions.ts",
+      "line": 120,
+      "column": 22,
+      "grammar": "promise",
+      "position": "promise:lstat",
+      "ordinal": 1,
+      "snippet": "const link = await lstat(resolved).catch(() => null);",
+      "verdict": "deliberate-absorb",
+      "reason": "both arms of this stat converge on \"remove nothing\" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed.",
+      "markerLine": 119
     },
     {
       "siteId": "packages/server/src/domain/plugin/substrate/plugin-macros.ts::default:catch::1",
@@ -3179,7 +3192,7 @@
     {
       "siteId": "packages/server/src/foundation/observability/debug/routes.ts::default:catch::1",
       "path": "packages/server/src/foundation/observability/debug/routes.ts",
-      "line": 80,
+      "line": 92,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3187,12 +3200,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a malformed body is a 400 the caller sees, and",
-      "markerLine": 76
+      "markerLine": 88
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/routes.ts::empty:catch::1",
       "path": "packages/server/src/foundation/observability/debug/routes.ts",
-      "line": 271,
+      "line": 287,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3200,7 +3213,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented below — a checker error falls",
-      "markerLine": 265
+      "markerLine": 281
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/wire-capture.ts::default:catch::1",
@@ -3452,7 +3465,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/env.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/backends/agent-sdk/env.ts",
-      "line": 200,
+      "line": 210,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3460,7 +3473,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort temp-dir cleanup on the symlink-failure path — the symlink already failed so `dir` holds no credential; a cleanup miss leaks only an empty tmp dir, never an auth decision. Ends if this cleanup becomes load-bearing or `dir` can ever hold a live credential.",
-      "markerLine": 197
+      "markerLine": 207
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/host-token.ts::default:catch::1",
