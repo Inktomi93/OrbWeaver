@@ -8,7 +8,9 @@
 // volatility is irrelevant); the DURABLE-WRITE route reads a SETTLED span behind the protect tail, cursored
 // by the state row's HIGH-WATER MARK — advanced ONLY on a successful apply, so a failed or unconfirmed pass
 // re-covers its span (what makes C2's re-run idempotency mechanically true; the lore keys are span-stamped
-// so the re-covered write UPDATES its own titles).
+// so the re-covered write UPDATES its own titles). #1416 refined the SETTLED read's slice end: cold keeps
+// the recorded freshest-slice posture, warm reads the earliest slice and covers only what it read — the
+// argument is at `readPassInputs`.
 //
 // CONTENT PLANES, the two laws this file is built around:
 //   • HOST-authored fields (`brief`, `steer`) are TEMPLATES — rendered through the one arm-render home
@@ -28,8 +30,16 @@
 //
 // STATE WRITE DISCIPLINE: every route's SIDE effects run first; the rule-state row is written ONCE at the
 // end, and ONLY when no route hard-failed. A failed pass therefore moves nothing durable in the state row —
-// the retry re-runs the whole pass, and the span-stamped lore keys make any already-landed entry write an
-// UPDATE, not a duplicate.
+// the retry re-runs the whole pass.
+//
+// WITH ONE EXCEPTION, AND IT IS THE ORIGINAL RULE'S OWN PREMISE FAILING (#1418). The discipline above was
+// justified by "the span-stamped lore keys make any already-landed entry write an UPDATE, not a duplicate".
+// That is true of an IDENTICAL key and false of a retry: the re-run is a fresh model call over the same span
+// and its differently-worded keys land BESIDE the originals. So the ONE route that commits durable bytes
+// into another domain's store — the lore write — records its coverage AT THE COMMIT (an atomic monotonic
+// `advanceSettledWatermark` on that one JSON path), not at the end of the pass. Everything else about the
+// discipline stands: the pass's CONCLUSIONS (arc, twists, guidance) still write once, at the end, only when
+// no route failed. See the `upsertLoreEntry` applier.
 
 import type { SuggestionCardDetail } from "@orb/contracts/automation";
 import { ANALYSIS_GUIDANCE_MAX, ANALYSIS_REWRITE_MAX, ANALYSIS_SCORE_MAX } from "@orb/contracts/automation";
@@ -63,7 +73,7 @@ import {
 } from "../contract/analysis.ts";
 import type { ArmExecutorDeps, ArmOutcome, ChatScopedDispatchFrame } from "../contract/ops.ts";
 import { latestAuditableReply, listAnalysisWindow, maxVisibleSeq } from "../persistence/canon-reads.ts";
-import { selectRuleState, upsertRuleState } from "../persistence/rule-state.ts";
+import { advanceSettledWatermark, selectRuleState, upsertRuleState } from "../persistence/rule-state.ts";
 import { renderArmTemplate } from "../substrate/macro-render.ts";
 import { AUTOMATION_SUGGESTION_TTL_MS } from "../substrate/suggestions.ts";
 import { applyRuleLoreWrite } from "./lore-write.ts";
@@ -282,7 +292,20 @@ const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
       bookId: route.bookId,
       entries,
     });
-    return written.ok ? { ok: true, watermark: pass.span.end } : { ok: false, detail: written.refused };
+    if (!written.ok) {
+      return { ok: false, detail: written.refused };
+    }
+    // #1418 — THE COVERAGE RECORD RIDES WITH THE COMMIT. These bytes are now in a world book: another
+    // domain's store, reached through an injected op, with no transaction that could also carry this
+    // domain's state row. Leaving the mark for the end of the pass meant any later failure — a card raise,
+    // a variable write, the state write itself — aborted with the lore committed and the span still
+    // uncovered, and the next pass re-distilled it. The old idempotency argument (span-stamped keys make a
+    // re-cover an UPDATE) only holds for IDENTICAL keys; a retry is a fresh model call, so its differently
+    // worded keys land BESIDE the originals as divergent duplicates. So the watermark is advanced HERE,
+    // monotonically and on its own JSON path, the moment the write it describes has landed. The end-of-pass
+    // write sets the same value again (idempotent) along with the pass's conclusions.
+    await advanceSettledWatermark(deps.db, { ruleId: frame.origin.ruleId, throughSeq: pass.span.end, nowMs: frame.now });
+    return { ok: true, watermark: pass.span.end };
   },
 
   // Model-suggested guided turns — confirm-class BY NATURE. The suggested steer is machine-authored text
@@ -393,13 +416,35 @@ async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, 
   if (through === null || through <= state.settledThroughSeq) {
     return { state, fresh, settled: null, span: null, audited };
   }
+  // #1416 — THE RULING SURVIVES, ITS INPUT CHANGED. The recorded posture ("a cold start over a long chat
+  // reads what is freshest and the watermark still advances over the whole span", `canon-reads.ts`) is kept
+  // EXACTLY for a COLD start: no prior mark, an arbitrarily deep backlog, and the useful answer is the recent
+  // arc rather than a distillation of a chat's first hour. But a WARM pass is a CURSOR, and the same slice
+  // rule there is not a posture — it is data loss: the pass took the NEWEST 300 of the bounded span and then
+  // moved the mark to the span's END, so every older row in that span was skipped by this pass and is
+  // unreachable to every later one (they all start after the mark). Whenever the settled span outgrew
+  // ANALYSIS_SETTLED_SLICE_MAX between passes — a long backlog, a slow cadence — the middle of the story was
+  // silently never analyzed.
+  //
+  // So the CONDITION changed, not the mechanism: cold keeps the freshest slice and covers the whole span;
+  // warm reads the EARLIEST slice ascending and covers only what it actually read. `span.end` is therefore
+  // the last seq RETURNED on a warm pass — a partial cover the next pass resumes from — and `through` only
+  // when the read is complete (nothing was truncated) or the pass is cold.
+  const cold = state.settledThroughSeq <= NO_SETTLED_WATERMARK;
   const settled = await listAnalysisWindow(deps.db, frame.chatId, {
     afterSeq: state.settledThroughSeq,
     throughSeq: through,
     limit: ANALYSIS_SETTLED_SLICE_MAX,
+    slice: cold ? "newest" : "earliest",
   });
-  return { state, fresh, settled, span: settled.length > 0 ? { start: state.settledThroughSeq, end: through } : null, audited };
+  const lastRead = settled.at(-1)?.seq ?? through;
+  const end = cold ? through : lastRead;
+  return { state, fresh, settled, span: settled.length > 0 ? { start: state.settledThroughSeq, end } : null, audited };
 }
+
+/** A rule whose state row has never recorded a covered span — a COLD analysis start (`EMPTY_ANALYSIS_STATE`
+ *  seeds the watermark at 0, and seq numbering starts at 1, so 0 is "no pass has covered anything"). */
+const NO_SETTLED_WATERMARK = 0;
 
 /** Run the model pass (ONE bounded retry — `runStructuredTurn`) and validate through the SAME composed zod
  *  the wire schema projects from: the two halves of the needle wall are one composition. Throws on the

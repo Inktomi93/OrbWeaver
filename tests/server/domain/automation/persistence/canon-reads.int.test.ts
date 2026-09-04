@@ -8,6 +8,7 @@ import { describe } from "vitest";
 import {
   countChatMessages,
   isBookAttachedToChat,
+  listAnalysisWindow,
   loadCallerRole,
   loadPresentHumanMemberIds,
 } from "../../../../../packages/server/src/domain/automation/persistence/canon-reads.ts";
@@ -60,6 +61,20 @@ describe("automation canon-reads", () => {
     const orphan = await seedMessage(db, chatId, 3, { role: "assistant", content: "later" });
     await db.update(messages).set({ selectedVariantId: null }).where(eq(messages.id, orphan.messageId));
     await expect(countChatMessages(db, chatId)).resolves.toBe(2);
+  });
+
+  test("listAnalysisWindow: both slice ends of an over-long bounded span, each returned OLDEST-FIRST (#1416)", async () => {
+    const db = await freshDb();
+    const host = await seedUser(db);
+    const chatId = await seedHostChat(db, host);
+    for (let seq = 1; seq <= 6; seq += 1) {
+      await seedMessage(db, chatId, seq, { role: "user", content: `beat ${seq}` });
+    }
+    const bounds = { afterSeq: 1, throughSeq: 6, limit: 2 } as const;
+    // "newest" — the legacy freshest-slice posture (the cold-start arm + the fresh tip's only reading).
+    await expect(listAnalysisWindow(db, chatId, bounds).then((r) => r.map((w) => w.seq))).resolves.toEqual([5, 6]);
+    // "earliest" — the cursor arm: the span's oldest unread rows, so a pass can consume a prefix and resume.
+    await expect(listAnalysisWindow(db, chatId, { ...bounds, slice: "earliest" }).then((r) => r.map((w) => w.seq))).resolves.toEqual([2, 3]);
   });
 
   test("isBookAttachedToChat reflects the chat_books junction", async () => {

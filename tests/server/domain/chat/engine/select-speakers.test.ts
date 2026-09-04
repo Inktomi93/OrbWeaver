@@ -294,4 +294,31 @@ describe("resolveMentions — @mention extraction (human-authored text only)", (
     expect(resolveMentions("", cast)).toEqual([]);
     expect(resolveMentions("@Aria", [])).toEqual([]);
   });
+
+  // #1439 — the boundary was `\b`, which JavaScript defines over ASCII `\w` even under the `u` flag. A cast
+  // name whose LAST character is not an ASCII word character therefore had no letter→non-letter transition
+  // to assert at an ordinary `@Name ` and the mention silently did not resolve. This runs on every human turn.
+  describe("Unicode cast names resolve (the boundary is a property class, not \\b)", () => {
+    const world = [
+      { ref: charRef("cyr"), name: "Аня" },
+      { ref: charRef("cjk"), name: "結衣" },
+      { ref: charRef("acc"), name: "Chloé" },
+      { ref: charRef("emo"), name: "Nova🌙" },
+      { ref: charRef("cyrlong"), name: "Анятолия" },
+    ];
+
+    test("Cyrillic, CJK, accented and emoji-suffixed names all resolve at a plain space", () => {
+      expect(resolveMentions("@Аня открыла дверь", world)).toEqual([cid("cyr")]);
+      expect(resolveMentions("@結衣 が入ってきた", world)).toEqual([cid("cjk")]);
+      expect(resolveMentions("@Chloé arrive", world)).toEqual([cid("acc")]);
+      expect(resolveMentions("@Nova🌙 waves", world)).toEqual([cid("emo")]);
+    });
+
+    test("…and at punctuation, at end-of-text, and NOT inside a longer Unicode word", () => {
+      expect(resolveMentions("@Аня, стой!", world)).toEqual([cid("cyr")]);
+      expect(resolveMentions("@結衣", world)).toEqual([cid("cjk")]);
+      // The long name wins its own span; the short one must NOT also fire off the prefix inside it.
+      expect(resolveMentions("@Анятолия смотрит", world)).toEqual([cid("cyrlong")]);
+    });
+  });
 });

@@ -28,6 +28,52 @@ const CODE_FENCE = "```";
  *  not a fence. Bounds what counts as a fence LINE (the anchor that stray inline backticks lack). */
 const MAX_FENCE_INDENT = 3;
 
+/** THE ONE NAME-BOUNDARY CLASS (#1354, #1530, #1439). A cast name is a whole word when neither neighbour is
+ *  a letter, a digit or a COMBINING MARK — BY UNICODE PROPERTY, never `\b` and never `[a-z0-9]`:
+ *   · `\b` is defined over ASCII `\w` regardless of the `u` flag, so a name ending in a CJK character, an
+ *     accented letter or an emoji has no boundary to assert at an ordinary name/space transition and the
+ *     match simply FAILS (#1439's `@Аня` miss, on every human turn);
+ *   · an ASCII-only word-char TEST has the opposite failure — every non-ASCII neighbour reads as a
+ *     separator, so a short Unicode name matches INSIDE a longer Unicode word (#1439's `Анятолия` overmatch);
+ *   · and without `\p{M}` a DECOMPOSED letter ENDS the word for this test — `caféAnn:` written as
+ *     `cafe`+U+0301+`Ann` puts a combining mark immediately before the name, the boundary passes, and the
+ *     stripper eats `Ann: ` out of the middle of the word (#1530). In many scripts a mark IS part of the
+ *     letter; `rpgCastSlug` reasons the same way.
+ *  Spelled once here as CLASS BYTES so a regex builder can embed it and a runtime predicate can test one
+ *  character against it. The EMPHASIS bytes are NOT in it — only `inlineLabelRe`'s lookbehind adds those. */
+const NAME_WORD_CHARS = "\\p{L}\\p{N}\\p{M}";
+
+/** `NAME_WORD_CHARS` as a lookahead — the RIGHT boundary of a name inside a built pattern (the LEFT one is
+ *  usually a literal sigil like `@`, or the lookbehind {@link inlineLabelRe} builds). Exported as pattern
+ *  BYTES rather than a compiled regex because every consumer interpolates a per-name escaped literal, and
+ *  the pattern must be compiled with the `u` flag for the property escapes to mean anything. */
+export const NAME_END_BOUNDARY = `(?![${NAME_WORD_CHARS}])`;
+
+/** One character's word-ness by the {@link NAME_END_BOUNDARY} class. Top-level regex (the
+ *  no-regex-in-function gate); `undefined` = a string edge, which is always a boundary. */
+const NAME_WORD_CHAR_RE = new RegExp(`[${NAME_WORD_CHARS}]`, "u");
+function isNameWordChar(ch: string | undefined): boolean {
+  return ch !== undefined && NAME_WORD_CHAR_RE.test(ch);
+}
+
+/** Does `needle` occur in `haystack` as a WHOLE name — bounded by non-name characters or string edges?
+ *  Case is the caller's to normalize (both sides lowercased is the house idiom). Substring-scan rather
+ *  than a built regex so a name carrying its own punctuation ("Dr. Vane") needs no escaping, and so the
+ *  boundary question is asked of exactly two characters. */
+export function includesWholeName(haystack: string, needle: string): boolean {
+  if (needle.length === 0) {
+    return false;
+  }
+  let from = haystack.indexOf(needle);
+  while (from !== -1) {
+    if (!(isNameWordChar(haystack[from - 1]) || isNameWordChar(haystack[from + needle.length]))) {
+      return true;
+    }
+    from = haystack.indexOf(needle, from + 1);
+  }
+  return false;
+}
+
 /** The tolerated-emphasis alternation every label regex below wraps around a name: `**`/`*`/`__`/`_`.
  *  Named once (was spelled 4×) so the tolerated-markdown set changes in one place. Bare alternation
  *  bytes — callers wrap it `(?:…)` (non-capturing) or `(…)` (the one backref-capturing use). */
@@ -296,17 +342,19 @@ function inlineLabelRe(name: string): RegExp {
   // A bare `SusAnn: ` has none of the three and is therefore prose.
   //
   // TWO THINGS THE BOUNDARY AND THE DASH ARM BOTH HAD TO NARROW (#1530, the residue of the #1354 fix):
-  //   · the boundary class carries `\p{M}`. It is `\p{L}\p{N}\p{M}` and not `\b`, because `\b` is
-  //     ASCII-only (a CJK or Cyrillic name would still splice mid-word) — and without the MARKS a DECOMPOSED
-  //     letter ends the word for this test: `caféAnn:` written as `cafe`+U+0301+`Ann` put a combining mark
-  //     immediately before the name, the lookbehind passed, and the stripper ate `Ann: ` out of the middle of
-  //     the word again. Same reasoning `rpgCastSlug` uses: in many scripts a mark IS part of the letter.
-  //     The emphasis bytes are excluded too, or the boundary is satisfied by the inner `*` of a `**` pair.
+  //   · the boundary class is the shared {@link NAME_WORD_CHARS} — `\p{L}\p{N}\p{M}`, not `\b`, because `\b`
+  //     is ASCII-only (a CJK or Cyrillic name would still splice mid-word) — and it carries the MARKS
+  //     because without them a DECOMPOSED letter ends the word for this test: `caféAnn:` written as
+  //     `cafe`+U+0301+`Ann` put a combining mark immediately before the name, the lookbehind passed, and the
+  //     stripper ate `Ann: ` out of the middle of the word again. Same reasoning `rpgCastSlug` uses: in many
+  //     scripts a mark IS part of the letter. That class is SHARED with the mention/arbitration matchers
+  //     (#1439) so all three ask the same question of the same bytes; the EMPHASIS bytes are added HERE and
+  //     only here, or the boundary would be satisfied by the inner `*` of a `**` pair.
   //   · arm C takes the EM/EN dash only, never the ASCII hyphen. `Name: -` is ordinary prose punctuation
   //     ("I told SusAnn: -bring it" was collapsing to "I told Susbring it"), while `Name: —` is the measured
   //     artifact this arm exists for. Arm A keeps the hyphen — at a word boundary the label is already
   //     established, and the trailing run is just its whitespace.
-  return new RegExp(`(?:(?<![\\p{L}\\p{N}\\p{M}*_])${emph}?${label}[—–-]*|${emph}${label}[—–-]*|${emph}?${label}[—–]+)\\s*`, "gu");
+  return new RegExp(`(?:(?<![${NAME_WORD_CHARS}*_])${emph}?${label}[—–-]*|${emph}${label}[—–-]*|${emph}?${label}[—–]+)\\s*`, "gu");
 }
 
 /** Remove a leaked SELF speaker label anywhere in a per-speaker reply — the mid-content twin of

@@ -2,10 +2,15 @@
 // builds a TurnRequest from the assembly producer's output + SHAPE, calls the injected runChatTurn role,
 // reduces the stream, and applies the history-budget fit. Returns a result the engine lifecycle persists.
 //
-// Order (read top to bottom in runTurnPipeline): BUILD (assemblePrompt) → SHAPE (wire history + cache
-// breakpoint) → FIT (history-budget tail) → REQUEST (assemble the TurnRequest) → REDUCE (iterate
-// runChatTurn, fan deltas, fold economics, then the tool-recurse loop on finishReason:"tool" up to
-// toolRecurseLimit).
+// Order (read top to bottom in runTurnPipeline): BUILD (assemblePrompt) → SHAPE (string history + cache
+// breakpoint) → CONVERT (the §3.5 wire plane: string bodies → content-parts) → FIT (history-budget tail,
+// priced against the CONVERTED rows) → REQUEST (assemble the TurnRequest) → REDUCE (iterate runChatTurn,
+// fan deltas, fold economics, then the tool-recurse loop on finishReason:"tool" up to toolRecurseLimit).
+//
+// CONVERT PRECEDES FIT (#1434) and that order is load-bearing: the conversion is LOSSY on purpose (cards
+// collapse to a stub, choices drop, display-only images become a marker), so fitting the pre-conversion
+// bytes charged the budget for content the provider never receives — evicting real turns to make room for
+// deleted ones, and overstating `fitUsedTokens`, which is the managed-compaction trigger.
 //
 // Single-speaker core: output is pinned per-speaker/merged (no narrator, no scoped egocentric fold); the
 // arbitration/auto-mode chunk extends this via the `shape` argument.
@@ -601,14 +606,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     prose: ctx.prose,
   });
 
-  // FIT — the history-budget tail.
-  const systemTokens = estimateTokens([assembled.static, assembled.dynamic].join("\n\n"));
-  const budget = fitBudget(args, effectiveIntent, systemTokens);
-  const fitted = fitHistory(shaped.history, budget);
-  // Total context consumption for the managed-compaction trigger: kept history + system + reserved output.
-  const fitUsedTokens = fitted.usedTokens + systemTokens + budget.reserveOutputTokens;
-
-  // REQUEST — the one seam where the shaped string body becomes content-parts (§3.5, the WIRE plane of the
+  // REQUEST (conversion half) — the one seam where the shaped string body becomes content-parts (§3.5, the WIRE plane of the
   // content-class visibility registry): tokenize each row's spans, resolve USER-ATTACHMENT media refs by
   // the asset's kind — input.vision for images, input.video for mp4/webm/animated-gif (#317); every other
   // embedded image is display-only and collapses to its marker (`isUserAttachment`),
@@ -618,7 +616,28 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // regex pass (§3.9 pin: a promptOnly/AI_OUTPUT script sees the FULL card bytes; the stub replaces them for
   // the wire below it). All six connection modes consume the resulting TurnMessage[], so the collapse is
   // uniform per backend.
-  const { history, imageDropped, videoDropped } = await buildWireHistory(args, fitted.history);
+  const converted = await buildWireHistory(args, shaped.history);
+
+  // FIT — the history-budget tail, priced against the CONVERTED rows (#1434: the fitter used to run before
+  // this conversion and charge card bodies and choice blocks the provider never receives).
+  const systemTokens = estimateTokens([assembled.static, assembled.dynamic].join("\n\n"));
+  const budget = fitBudget(args, effectiveIntent, systemTokens);
+  const fitted = fitHistory(
+    converted.map((w) => w.costRow),
+    budget,
+  );
+  // The fit's contract is "drop the OLDEST `droppedCount` rows", so the same slice recovers the kept wire
+  // rows without re-deriving anything — one conversion, one ordering, no parallel bookkeeping to drift.
+  const kept = dropEmptyWireRows(converted.slice(fitted.droppedCount));
+  const history = kept.map((w) => w.row);
+  // Total context consumption for the managed-compaction trigger: kept history + system + reserved output.
+  // `fitted.usedTokens` is now the WIRE cost, so this is what the request actually weighs.
+  const fitUsedTokens = fitted.usedTokens + systemTokens + budget.reserveOutputTokens;
+  // The media verdicts fold over the KEPT rows only: an image on a row the fit dropped never reached the
+  // request, and warning that the model could not see it would be a lie about this turn.
+  const imageDropped = kept.some((w) => w.imageDropped);
+  const videoDropped = kept.some((w) => w.videoDropped);
+
   const baseRequest: TurnRequest = {
     connection: args.connection,
     chatId: args.chatId,
@@ -1150,33 +1169,86 @@ async function toContentParts(
   };
 }
 
-/** The REQUEST-step history build (extracted): tokenize each fitted row ONCE, resolve the keep-last-X card
- *  window over the whole assembly, then project every row through the ONE span→part seam. */
-async function buildWireHistory(
-  args: RunTurnPipelineArgs,
-  fittedHistory: readonly {
-    readonly role: TurnMessage["role"];
-    readonly content: string;
-    readonly name?: string | undefined;
-    readonly messageId?: MessageId | undefined;
-  }[],
-): Promise<{ history: TurnMessage[]; imageDropped: boolean; videoDropped: boolean }> {
+/** One row of SHAPE's output — derived from `shapeTurn`, never re-spelled, so the fit and the conversion
+ *  both consume exactly what SHAPE produced (`fitHistory` takes the same rows). */
+type ShapedHistoryRow = ReturnType<typeof shapeTurn>["history"][number];
+
+/** One shaped row after the WIRE conversion: the provider row itself, the string the FIT prices it by, and
+ *  the per-row media verdicts. `costRow` re-states the row's canon identity because the fit reads it (the
+ *  irreducible-tail anchor + the context-boundary id), and carries the WIRE text as its `content`. */
+interface WireRow {
+  readonly row: TurnMessage;
+  readonly costRow: ShapedHistoryRow;
+  readonly imageDropped: boolean;
+  readonly videoDropped: boolean;
+}
+
+/** The wire text a row costs the model — the concatenation of its TEXT parts, and nothing else (#1434).
+ *  A resolved image/video part carries a URL or a data payload the token estimator cannot price and the
+ *  provider does not charge as prompt text, so it contributes ZERO here; what it replaced (a multi-KB
+ *  `![alt](orb://…)` blob, or a card body collapsed to `[card: Title]`) is gone by construction because
+ *  this reads the CONVERTED parts, not the shaped body. */
+function wireCostText(parts: readonly ChatContentPart[]): string {
+  return parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("");
+}
+
+/** The REQUEST-step history build: tokenize each shaped row ONCE, resolve the keep-last-X card window over
+ *  the whole assembly, then project every row through the ONE span→part seam (§3.5).
+ *
+ *  THIS RUNS BEFORE THE FIT (#1434). It used to run after, which meant the token fitter priced bytes the
+ *  provider never sees: it charged the full multi-KB body of every stored card that the very next step
+ *  collapsed to `[card: Title]`, and charged every choices block that the next step DROPPED — so a
+ *  card-heavy chat evicted useful older turns to make room for content it was about to delete, and
+ *  `fitUsedTokens` (the managed-compaction trigger) overstated the real request. Converting first costs one
+ *  extra media resolve for rows the fit then drops — rare, since only a deliberate user ATTACHMENT resolves
+ *  anything — and buys a fit and a boundary that describe the actual wire. The card window is resolved over
+ *  the WHOLE shaped assembly rather than the fitted tail for the same reason it always was: it is the last-X
+ *  cards in document order, and the fit only ever removes OLDER rows, which can only be stub-zone cards. */
+async function buildWireHistory(args: RunTurnPipelineArgs, shapedHistory: readonly ShapedHistoryRow[]): Promise<WireRow[]> {
   const visionOk = args.connection.capability.input?.vision === true;
   const videoOk = args.connection.capability.input?.video === true;
-  // COMMITTED canon (the fitted history is stored rows, never the in-flight stream), so an unterminated
+  // COMMITTED canon (the shaped history is stored rows, never the in-flight stream), so an unterminated
   // card closes at EOF and STUBS like any other card instead of riding the wire as a multi-KB raw blob.
-  const tokenized = fittedHistory.map((h) => ({ h, spans: tokenizeContent(h.content, { committed: true }) }));
+  const tokenized = shapedHistory.map((h) => ({ h, spans: tokenizeContent(h.content, { committed: true }) }));
   const env: WirePartsEnv = { visionOk, videoOk, resolveImageUrl: args.resolveImageUrl, fullCards: resolveFullCards(tokenized, args.cardKeepLastX) };
   // The canon rows a SHAPE fold may have re-roled to `user` (`scopeToSpeaker` stamps another character's
   // assistant line as `Name: …`) — their images stay character-authored, so they never count as attachments.
   const assistantMessageIds = new Set(args.canon.filter((m) => m.role === "assistant").map((m) => m.id));
-  const built = await Promise.all(
-    tokenized.map(async ({ h, spans }) => {
+  return await Promise.all(
+    tokenized.map(async ({ h, spans }): Promise<WireRow> => {
       const userAuthored = h.messageId === undefined || !assistantMessageIds.has(h.messageId);
       const { parts, imageDropped, videoDropped } = await toContentParts(spans, env, { role: h.role, userAuthored });
       const row: TurnMessage = h.name === undefined ? { role: h.role, content: parts } : { role: h.role, content: parts, name: h.name };
-      return { row, imageDropped, videoDropped };
+      const costRow: ShapedHistoryRow = {
+        role: h.role,
+        content: wireCostText(parts),
+        ...(h.name === undefined ? {} : { name: h.name }),
+        messageId: h.messageId,
+      };
+      return { row, costRow, imageDropped, videoDropped };
     }),
   );
-  return { history: built.map((b) => b.row), imageDropped: built.some((b) => b.imageDropped), videoDropped: built.some((b) => b.videoDropped) };
+}
+
+/** A converted row that carries NOTHING for the provider: one empty text part, which is what
+ *  `toContentParts` emits when every span was `wire:"drop"`ped and no media drop left a placeholder. */
+function isEmptyWireRow(wire: WireRow): boolean {
+  const parts = wire.row.content;
+  return parts.length === 1 && parts[0]?.type === "text" && parts[0].text.length === 0;
+}
+
+/** Drop the rows that converted to nothing (#1438).
+ *
+ *  A CHOICES-ONLY canon row is the reachable case: the `choices` handler returns `null` for every span
+ *  (the CYOA fence — unselected options must not re-pile into context), `toContentParts` skips nulls, and
+ *  with no dropped media to placeholder the row falls through to `{type:"text", text:""}`. Providers reject
+ *  empty messages, and shipping one contradicts the fence's own intent to remove the block entirely.
+ *
+ *  THE FINAL ROW IS NEVER DROPPED. It is the turn's own tail — the user's message, the regen/continue
+ *  synthetic, or the assistant prefill — and its POSITION is load-bearing to every wire (`acceptsAssistantPrefill`,
+ *  the continuation nudge, the cache breakpoint's offset-from-end). An empty tail is a different defect and
+ *  silently deleting it would hide it. */
+function dropEmptyWireRows(built: readonly WireRow[]): WireRow[] {
+  const lastIdx = built.length - 1;
+  return built.filter((wire, i) => i === lastIdx || !isEmptyWireRow(wire));
 }

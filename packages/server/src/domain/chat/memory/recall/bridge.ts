@@ -36,9 +36,32 @@ export function resolveTier0Range(
   return tier0RangeOf(resolveCfg(config).fanOut, tier, blockIdx);
 }
 
-/** Compute the tiered bridge block-keys (chronological) from a scope's digests. The most-recent `fanOut`
- *  tier-0 blocks stay fine; everything older is covered by the highest available non-overlapping tier. */
+/** Compute the tiered bridge block-keys (chronological) from a recall pool's digests.
+ *
+ *  THE POOL IS A UNION OF BUCKETS, AND THE GRID IS PER BUCKET (#1394). `recallMemory` hands over
+ *  `[...shared, ...own]` — two INDEPENDENTLY BUILT histories that both start at tier 0 block 0, so
+ *  `(tier, blockIdx)` alone is not a position: it names one block PER BUCKET. Keying the coverage math on
+ *  the bare pair collapsed the two, last-writer-wins, and emitted a single key for a position that has
+ *  two — silently dropping the shared digest from `tiered`/`mixB`/`mixC` (only `mixA`, which bypasses the
+ *  bridge, was unaffected). So the walk runs ONCE PER BUCKET over that bucket's own digests, and the
+ *  results are concatenated: each bucket's fine/coarse zones are decided by its own `lastTier0`, which is
+ *  the only reading under which "the most-recent `fanOut` tier-0 blocks" means anything for a sparse
+ *  witnessing-filtered bucket. */
 export function computeBridge(scope: MemoryScope, digests: readonly DigestRow[], fanOut: number): BlockKey[] {
+  const buckets = new Map<CharacterId, DigestRow[]>();
+  for (const d of digests) {
+    const rows = buckets.get(d.scopedCharacterId) ?? [];
+    rows.push(d);
+    buckets.set(d.scopedCharacterId, rows);
+  }
+  // Concatenated in first-seen bucket order (the pool's own order: shared then own), each bucket's keys
+  // chronological within itself — `formatMemory` renders in the order it is handed, and `recallMemory`
+  // re-sorts chronologically for the embedding modes.
+  return [...buckets.values()].flatMap((rows) => bucketBridge(scope, rows, fanOut));
+}
+
+/** The coverage walk for ONE bucket (every row here shares a `scopedCharacterId`) — the pre-#1394 body. */
+function bucketBridge(scope: MemoryScope, digests: readonly DigestRow[], fanOut: number): BlockKey[] {
   const present = new Set<string>();
   const scopeOf = new Map<string, CharacterId>();
   let maxTier = 0;

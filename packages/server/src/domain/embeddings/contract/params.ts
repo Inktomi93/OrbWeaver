@@ -193,7 +193,20 @@ interface PruneSegmentBlocksParams {
   readonly chunkCounts: readonly { readonly blockIdx: number; readonly chunkCount: number }[];
 }
 
-export type PruneMemoryBlocksParams = PruneDigestBlocksParams | PruneSegmentBlocksParams;
+/** THE STALENESS-INVALIDATION arm (#1395) — a third `lens` value on the prune seam rather than a third verb,
+ *  because it is the same question asked about a different reason for a row to be wrong: the shrink arm above
+ *  reclaims blocks that stopped EXISTING, this one reclaims blocks whose stored digest the build has already
+ *  PROVEN stale (hash mismatch) and then failed to replace (an empty/failed summarize). Without it the
+ *  known-stale row keeps serving recall until some later pass happens to succeed — see
+ *  `persistence/clear.ts::dropChatDigestKeys`. `keys` is exactly the set the caller attempted and abandoned. */
+interface PruneStaleDigestsParams {
+  readonly lens: "digest-stale";
+  readonly chatId: ChatId;
+  readonly scopedCharacterId: CharacterId;
+  readonly keys: readonly { readonly tier: number; readonly blockIdx: number }[];
+}
+
+export type PruneMemoryBlocksParams = PruneDigestBlocksParams | PruneSegmentBlocksParams | PruneStaleDigestsParams;
 
 /** The databank chunk-count read (the DocumentView `chunkCount`/`embeddedCount` derivation). embeddings owns
  *  `document_chunks`, so databank reaches this count through the injected op — never a direct table import. */

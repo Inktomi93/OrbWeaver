@@ -13,7 +13,17 @@ import { DEFAULT_GUIDED_ACTIONS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFI
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
-import { characterBooks, chatParticipants, chats as chatsTable, messages, messageVariants, personas as personasTable, worldBooks, worldEntries } from "@orb/db";
+import {
+  characterBooks,
+  chatParticipants,
+  chats as chatsTable,
+  messages,
+  messageVariants,
+  personaBooks,
+  personas as personasTable,
+  worldBooks,
+  worldEntries,
+} from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, PersonaId, PresetId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -1883,6 +1893,45 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     expect(presentHumanUserIds).toContain(host);
     expect(presentHumanUserIds).not.toContain(member);
+  });
+
+  // #1401 — the PREVIEW's `personaIds` had NO presence filter while the live turn's (`verbs/turn.ts`'s
+  // `loadRoom`) does, and `personaIds` is exactly what gates which persona-scope world-info books join the
+  // pool. So a host's preview assembled an OFFLINE member's persona lore that the next real turn would not
+  // send — the divergence axis is PRESENCE, not the enabled/consent gate the sibling list applies.
+  test("an OFFLINE member's persona-scope world-info stays OUT of the host preview (the turn's own presence rule)", async () => {
+    const host = await seedUser(db, castId<Handle>("wi_pres_host"));
+    const chatId = await seedRoom("wi_presence", host);
+    const member = await seedUser(db, castId<Handle>("wi_pres_member"));
+    const memberPersona = await seedPersona(db, member, "Offline Player", { description: "a member who is not in the room" });
+    await seedParticipant(db, { chatId, key: "wi_pres_member", userId: member, role: "member", activePersonaId: memberPersona });
+
+    const bookId = castId<WorldBookId>("world_book_wi_presence");
+    await db.insert(worldBooks).values({ id: bookId, ownerId: member, name: "offline persona lore", createdAt: FROZEN_AT });
+    await db.insert(worldEntries).values({
+      id: castId<WorldEntryId>("world_entry_wi_presence"),
+      worldBookId: bookId,
+      title: "presence probe",
+      content: "THE OFFLINE MEMBERS PRIVATE LORE",
+      keys: null,
+      enabled: true,
+      priority: 0,
+      ignoreBudget: false,
+      metadata: null,
+      createdAt: FROZEN_AT,
+    });
+    await db.insert(personaBooks).values({ personaId: memberPersona, worldBookId: bookId, createdAt: FROZEN_AT });
+
+    const previewWith = async (online: boolean): Promise<string> => {
+      const ctx = makeChatContext(db, { readPresence: (userId) => Promise.resolve({ userId, online: online || userId === host, lastSeenAt: null }) });
+      const preview = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(host), chatId });
+      return `${preview.prompt.static}\n${preview.prompt.dynamic}`;
+    };
+
+    // ONLINE: the book is in the pool — this is the positive control that proves the probe can even fire.
+    expect(await previewWith(true)).toContain("THE OFFLINE MEMBERS PRIVATE LORE");
+    // OFFLINE: it is out, exactly as the live turn would have it.
+    expect(await previewWith(false)).not.toContain("THE OFFLINE MEMBERS PRIVATE LORE");
   });
 
   test("getActivePresetConfig returns the resolved PromptConfig", async () => {

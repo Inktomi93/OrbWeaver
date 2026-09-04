@@ -149,7 +149,7 @@ import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisi
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
-import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
+import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
@@ -428,7 +428,12 @@ async function resolvePreviewInputs(
     speakerCharacterId !== null && speakerCharacterId !== undefined && castIds.includes(speakerCharacterId)
       ? [speakerCharacterId, ...castIds.filter((id) => id !== speakerCharacterId)]
       : castIds;
-  const personaIds = roster.flatMap((r) => (classifyParticipant(r)?.kind === "human" && r.activePersonaId !== null ? [r.activePersonaId] : []));
+  // #1401 — the SAME derivation the live turn runs (`verbs/turn.ts::loadRoom`), through the one substrate
+  // lens. This used to take every present human's active persona with no filter at all, so a preview
+  // assembled the persona-scope world-info of members who were not in the room — an honesty instrument
+  // reporting a prompt the next real turn would not send. Presence is the axis here (not the enabled
+  // consent gate `previewPresentHumanUserIds` applies below); the two answer different questions.
+  const personaIds = await onlinePersonaIdsOf(ctx, roster);
   const hostPersonaId =
     roster.find((r) => {
       const actor = classifyParticipant(r);

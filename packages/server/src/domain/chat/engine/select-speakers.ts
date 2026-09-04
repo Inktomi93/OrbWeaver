@@ -22,6 +22,7 @@
 import type { GroupConfig, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
+import { NAME_END_BOUNDARY } from "@orb/kit/speaker-label";
 import type { ArbiterCandidate, SpeakerCandidate } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
 
@@ -187,7 +188,8 @@ function cap(refs: SpeakerRef[], maxSpeakers: number | undefined): SpeakerRef[] 
 /**
  * Extract `@mention` targets from human-authored trigger text (the caller must pass a human post's body,
  * never an AI reply). Matches `@Name` against the present characters' display names (longest-name-first so
- * `@Aria Stormborn` wins over `@Aria`), word-boundary-anchored, case-insensitive.
+ * `@Aria Stormborn` wins over `@Aria`), case-insensitive, and bounded by the shared UNICODE name class
+ * (`@orb/kit/speaker-label::NAME_END_BOUNDARY`) rather than `\b` — see the call site.
  */
 export function resolveMentions(triggerText: string, candidates: readonly SpeakerCandidate[]): CharacterId[] {
   if (triggerText.length === 0 || candidates.length === 0) {
@@ -211,7 +213,10 @@ export function resolveMentions(triggerText: string, candidates: readonly Speake
     if (member.name.length === 0) {
       continue;
     }
-    const spans = [...triggerText.matchAll(new RegExp(`@${RegExp.escape(member.name)}\\b`, "giu"))].map((m) => ({
+    // The right boundary is the SHARED Unicode name class (#1439), never `\b`: `\b` is defined over ASCII
+    // `\w` even under `u`, so `@Аня ` (Cyrillic) or `@結衣 ` had no letter→non-letter transition to assert
+    // and the mention silently did not resolve — on every human turn. The leading `@` is the left boundary.
+    const spans = [...triggerText.matchAll(new RegExp(`@${RegExp.escape(member.name)}${NAME_END_BOUNDARY}`, "giu"))].map((m) => ({
       at: m.index,
       end: m.index + member.name.length + 1, // include the leading `@`
     }));

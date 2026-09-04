@@ -1245,6 +1245,16 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         });
         return;
       }
+      // #1395 — the KNOWN-stale invalidation arm (a proven-stale row whose replacement came back empty).
+      if (params.lens === "digest-stale") {
+        await input.embeddings.pruneMemoryBlocks({
+          lens: "digest-stale",
+          chatId: params.chatId,
+          scopedCharacterId: params.scopedCharacterId,
+          keys: params.keys,
+        });
+        return;
+      }
       await input.embeddings.pruneMemoryBlocks({
         lens: "segment",
         chatId: params.chatId,

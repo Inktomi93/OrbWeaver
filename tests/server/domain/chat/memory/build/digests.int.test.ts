@@ -10,7 +10,7 @@ import type { EmbeddingsStoreOp, StoreDigestParams } from "../../../../../../pac
 import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/build/digests.ts";
 import { consolidationSystemPrompt } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/prompts.ts";
 import { blockHash } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/transcript.ts";
-import { loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
+import { loadDigestsForScope, loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import type { MemoryLogEntry, MsgRow } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
@@ -851,6 +851,42 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
     });
     expect(store2.digests.filter((d) => d.key.tier === 1)).toHaveLength(1);
     expect(counts2.written).toBe(1); // tier-0 blocks unchanged (same content hash) — only the parent writes
+  });
+
+  test("#1395 — a re-digest that comes back EMPTY invalidates the row it proved stale (recall stops serving it)", async () => {
+    const chatId = await seedChat(db, "staleinvalidate");
+    await seedTurns(db, chatId, aria, 4); // blockSize 2 → tier-0 blocks 0 and 1
+    const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 } as const;
+    const pass1 = upsertingStore(db);
+    await generateDigests(ctx1(pass1.store), { scope: sharedScope(chatId), config: cfg });
+    expect((await loadDigestsForScope(db, chatId, GROUP_CHAR, 0)).map((d) => d.blockIdx)).toEqual([0, 1]);
+
+    // EDIT block 0 → its content hash changes, which is the build PROVING the stored digest stale. The
+    // re-summarize then fails (whitespace): the block is skipped, and the digest summarized from the
+    // PRE-EDIT bytes must not keep serving {{memory}} as if it were current.
+    await db
+      .update(messageVariants)
+      .set({ content: "EDITED — the reveal that changes the scene" })
+      .where(eq(messageVariants.id, castId<MessageVariantId>(`variant_${chatId}_1_0`)));
+
+    const pass2 = upsertingStore(db);
+    const counts = await generateDigests(makeChatContext(db, { summarize: emptySummarize, embeddingsStore: pass2.store }), {
+      scope: sharedScope(chatId),
+      config: cfg,
+    });
+    expect(counts.written).toBe(0);
+    const surviving = await loadDigestsForScope(db, chatId, GROUP_CHAR, 0);
+    // Block 0's known-stale row is GONE; block 1 (never re-queued, still current) is untouched.
+    expect(surviving.map((d) => d.blockIdx)).toEqual([1]);
+
+    // …and the block is still RETRYABLE: nothing was keyed under the new hash, so a working summarizer
+    // rebuilds it (the skip-and-flag contract survives the invalidation).
+    const pass3 = upsertingStore(db);
+    await generateDigests(makeChatContext(db, { summarize: fakeSummarize().fn, embeddingsStore: pass3.store }), {
+      scope: sharedScope(chatId),
+      config: cfg,
+    });
+    expect((await loadDigestsForScope(db, chatId, GROUP_CHAR, 0)).map((d) => d.blockIdx)).toEqual([0, 1]);
   });
 
   test("mode 'off' logs the zero-work note (observability)", async () => {

@@ -85,6 +85,41 @@ describe("smartArbitrate — the validated side-LLM pick", () => {
   });
 });
 
+// #1439 — the whole-word test was `[a-z0-9]`, which reads EVERY non-ASCII character as a separator. A short
+// Cyrillic/CJK name embedded in a longer Cyrillic/CJK word therefore satisfied both neighbour checks and the
+// arbiter returned a speaker the model never named (the opposite failure to the `\b` MISS in resolveMentions
+// — one class, two symptoms). The boundary now comes from `@orb/kit/speaker-label::includesWholeName`.
+describe("smartArbitrate — the roster-validating parse is Unicode-aware", () => {
+  const uniSpeakers = [
+    { ref: charRef("cyr"), name: "Аня" },
+    { ref: charRef("cjk"), name: "結衣" },
+  ];
+  const uniCandidates = [candidate("cyr"), candidate("cjk")];
+
+  async function pick(text: string): Promise<SpeakerRef | undefined> {
+    const out = await smartArbitrate({
+      summarize: summarizeReturning(text),
+      candidates: uniCandidates,
+      speakerCandidates: uniSpeakers,
+      recentHistory: "...",
+      lastSpeaker: null,
+      rng,
+      sampling: ARB_SAMPLING,
+      prose: {},
+    });
+    return out.degraded ? undefined : out.speakers[0];
+  }
+
+  test("a Unicode name named on its own is the validated pick", async () => {
+    await expect(pick("Аня")).resolves.toEqual(charRef("cyr"));
+    await expect(pick("結衣")).resolves.toEqual(charRef("cjk"));
+  });
+
+  test("the SAME name buried inside a longer Unicode word is NOT a whole-word hit (it degrades instead)", async () => {
+    await expect(pick("Анятолия")).resolves.toBeUndefined();
+  });
+});
+
 describe("smartArbitrate — the deterministic fallback", () => {
   test("an off-roster reply falls back to the natural pick (validating parse)", async () => {
     const out = await smartArbitrate({

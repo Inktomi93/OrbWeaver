@@ -92,7 +92,7 @@ import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
-import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
+import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access.ts";
@@ -247,13 +247,9 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   const cards = await Promise.all(charRows.map((r) => ctx.getCard({ ownerId: hostUserId, characterId: r.characterId })));
 
   // An offline human's persona drops from the present-cast set for this round, since presence gates
-  // which persona-book world-info joins the pool (a server-derived signal, never client-asserted).
-  const humanPersonas = roster.flatMap((r) => {
-    const actor = classifyParticipant(r);
-    return actor?.kind === "human" && r.activePersonaId !== null ? [{ userId: actor.userId, personaId: r.activePersonaId }] : [];
-  });
-  const online = await Promise.all(humanPersonas.map((h) => ctx.readPresence(h.userId).then((p) => p.online)));
-  const personaIds = humanPersonas.filter((_h, i) => online[i] === true).map((h) => h.personaId);
+  // which persona-book world-info joins the pool (a server-derived signal, never client-asserted). Derived
+  // through the ONE substrate lens (#1401) — the preview's own copy of this rule had drifted unfiltered.
+  const personaIds = await onlinePersonaIdsOf(ctx, roster);
   // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`), further narrowed by the
   // disabled-account containment gate (owner-ruled 2026-08-15) — see `presentAndEnabledHumanUserIdsOf`'s own
   // header for why every consumer routes through the ONE async narrowing rather than re-deriving it.

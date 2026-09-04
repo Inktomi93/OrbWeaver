@@ -1888,6 +1888,45 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
   const lieTag = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="the heist"/>';
   const cardFence = ':::card title="Terminal"\n<div style="color:red">multi-KB html blob</div>\n:::';
 
+  // #1434 — CONVERT runs before FIT. The conversion is LOSSY on purpose, so pricing the pre-conversion
+  // bytes charged the budget for content the provider never receives: a stored card's multi-KB body cost
+  // the fit thousands of tokens and then collapsed to `[card: title]` on the way out, evicting real turns
+  // to make room for something already deleted — and `fitUsedTokens` (the managed-compaction trigger)
+  // reported the phantom weight. The existing card tests prove the collapse; none of them ever combined it
+  // with a constrained window, which is the only place the ordering is observable.
+  test("#1434: a stubbed card is priced by its STUB, so a tight window keeps the older turns it used to evict", async () => {
+    const huge = ':::card title="c1"\n<div>'.concat("x".repeat(200_000), "</div>\n:::");
+    const canon = [userRow(huge), rowOf("assistant", "the reply that matters"), userRow("and the follow-up"), rowOf("assistant", "the newest beat")];
+    // A window that comfortably fits four short turns and could never fit 200KB of html.
+    const capability = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 8192 } });
+    const result = await runTurnPipeline(
+      baseArgs({ canon, ...stub0, connection: { ...CONNECTION, capability }, intent: { maxOutputTokens: 128 } satisfies UserIntent }).args,
+    );
+    // Nothing was evicted, and the card is on the wire as its stub — the two halves of the same claim.
+    expect(result.droppedCount).toBe(0);
+    expect(result.request.history).toHaveLength(canon.length + 1); // + SHAPE's trailing continuation synthetic
+    expect(result.request.history[0]?.content).toEqual([{ type: "text", text: "[card: c1]" }]);
+    // …and the boundary the fit reports is the honest one: nothing fell out of context.
+    expect(result.contextBoundaryMessageId).toBeNull();
+    // `fitUsedTokens` describes the ACTUAL request: it must not carry the 200KB the wire never saw.
+    expect(result.fitUsedTokens).toBeLessThan(8192);
+  });
+
+  // #1438 — every span in the row is a `choices` span, the handler drops all of them, and with no dropped
+  // MEDIA to placeholder the row fell through to `{type:"text", text:""}`. Providers reject empty messages,
+  // and shipping one also contradicts the fence's own intent to remove the block. The existing choices tests
+  // all wrap the fence in prose, so the all-choices row was uncovered.
+  test("#1438: a CHOICES-ONLY row does not reach the provider as an empty text message", async () => {
+    const choicesOnly = ":::choices\n1. Enter the crypt\n2. Flee\n:::";
+    const canon = [rowOf("assistant", choicesOnly), userRow("I flee."), rowOf("assistant", "You run.")];
+    const result = await runTurnPipeline(baseArgs({ canon }).args);
+    expect(result.request.history.map((m) => m.content)).not.toContainEqual([{ type: "text", text: "" }]);
+    // 3 canon rows − the emptied one + SHAPE's trailing continuation synthetic (the tail is never dropped).
+    expect(result.request.history).toHaveLength(3);
+    // The surrounding turns are untouched — this drops the empty row, never the conversation around it.
+    expect(result.request.history.map((m) => m.content)).toContainEqual([{ type: "text", text: "You run." }]);
+  });
+
   test("a hidden tag rides the wire VERBATIM ({wire: full} — the model keeps its own lie), byte-identical single text part", async () => {
     const body = `He nods. ${lieTag} "Nothing," he says.`;
     const { args } = baseArgs({ canon: [userRow(body)] });

@@ -1983,7 +1983,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/smart-arbitrate.ts::empty:catch::1",
       "path": "packages/server/src/domain/chat/engine/smart-arbitrate.ts",
-      "line": 120,
+      "line": 121,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1991,12 +1991,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "classified below by signal state — a settled",
-      "markerLine": 110
+      "markerLine": 111
     },
     {
       "siteId": "packages/server/src/domain/chat/memory/build/digests.ts::empty:catch::1",
       "path": "packages/server/src/domain/chat/memory/build/digests.ts",
-      "line": 84,
+      "line": 90,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2004,12 +2004,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a batch rejection falls back to ISOLATED",
-      "markerLine": 78
+      "markerLine": 84
     },
     {
       "siteId": "packages/server/src/domain/chat/memory/build/digests.ts::empty:err::1",
       "path": "packages/server/src/domain/chat/memory/build/digests.ts",
-      "line": 98,
+      "line": 104,
       "column": 9,
       "grammar": "empty",
       "position": "empty:err",
@@ -2017,7 +2017,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "reported via `onItemError(i, err)` (the",
-      "markerLine": 92
+      "markerLine": 98
     },
     {
       "siteId": "packages/server/src/domain/chat/substrate/prompt-transforms.ts::empty:catch::1",
@@ -2048,7 +2048,7 @@
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::default:catch::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 1218,
+      "line": 1214,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2056,12 +2056,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — non-fatal, mirrors neo: the",
-      "markerLine": 1212
+      "markerLine": 1208
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::empty:err::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2449,
+      "line": 2445,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -2069,7 +2069,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "fully classified below — a permanent verdict",
-      "markerLine": 2443
+      "markerLine": 2439
     },
     {
       "siteId": "packages/server/src/domain/connection/verbs/get-models-for-source.ts::empty:err::1",
