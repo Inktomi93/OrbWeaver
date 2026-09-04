@@ -213,7 +213,12 @@ run prints them (`console-errors` / `page-errors`); `--strict-console` reds on t
 
 **Probes** (Bash, own headless browser, output under `reports/` — gitignored; one call, no context
 dump). **There is no browser MCP — these ARE the browser** (the chrome-devtools MCP was retired
-2026-09-02, #1255; census: `docs/design/1195-devtools-mcp-retirement.md`):
+2026-09-02, #1255; census: `docs/design/1195-devtools-mcp-retirement.md`). **How to read what they
+print is the `snap-driving` skill §0** (redirect to a log and `Read` it whole; the END CARD is the verdict —
+`RESULT` axes, `FINDING` rows with `evidence=` and an exact `next=` reader command, `EVIDENCE <run.json>`;
+exit 2 is a REFUSAL, never a clean row); **every accepted flag, one line each, is
+`.claude/skills/snap-driving/reference/flags.md`** — read it before your first probe rather than guessing a
+flag. A run you already took replays browser-free: `pnpm snap --report <run.json> --problems`.
 
 - `pnpm snap <route>` — capture + introspection flags: **`--map [sel]`** (selector map — every element
   → its stable selector; discover targets, never grep source) · **`--contrast <sel>`** (WCAG ratio,

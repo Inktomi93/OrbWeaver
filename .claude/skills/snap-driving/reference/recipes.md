@@ -1,9 +1,9 @@
 # snap driving recipes
 
 Worked chains for the recurring drive shapes. Every recipe is one Bash call unless stated. Flags
-are current as of the `--scenario`/`--matrix`/`--expect-*` generation of the CLI — reconcile
-against `pnpm snap --help` / the `pnpm snap --help` (source: `tooling/src/snap/contract/help.ts`) before copying blindly; the
-header outranks this file.
+are current as of 2026-09-04 — reconcile against `pnpm snap --help` (source:
+`tooling/src/snap/contract/help.ts`) and `flags.md` beside this file before copying blindly; the help
+outranks this file. Redirect every run to a log and Read it (SKILL.md §0); never pipe snap into head/tail.
 
 ## Reach + inspect one surface (the default drive)
 
@@ -80,15 +80,28 @@ the outer command. Durability across a RELOAD is a separate, later plain call (a
 the honest persistence test): `pnpm snap / --open-chat latest --expect-visible '[role=article]'`
 — `latest` works there because the committed room is listed by then.
 
-## Matrix: the 8-variant sweep
-
-Desktop/mobile × light/dark × motion/reduced-motion, one command, each variant its own report and
-`<out>-<variant>.png`:
+## Read a finished run without a browser
 
 ```bash
-pnpm snap / --goto chats --matrix
-pnpm snap / --scenario "$SCRATCHPAD/skill-author-flow.json" --matrix   # composes
+pnpm snap --reports                                   # every indexed run: id · checkout · sha · lane · verdict
+pnpm snap --report latest --problems                  # the newest run's findings (default view)
+pnpm snap --report <abs run.json> --all --arm contrast  # everything one arm produced
 ```
+
+The `FINDING` rows carry `next=` — the exact reader command narrowed to that finding's arm. Free: no
+browser, no stage, no run slot.
+
+## Matrix: the pairwise appearance-invariant sweep
+
+16 rated cells derived from the live Appearance carrier contract (theme × device × OS media × the app's
+own rows, pairwise-planned — not the retired 8-variant Cartesian sweep). Needs a stage:
+
+```bash
+pnpm snap / --isolated --goto chats --matrix
+pnpm snap / --isolated --scenario "$SCRATCHPAD/skill-author-flow.json" --matrix   # composes
+```
+
+Read `MATRIX PLAN … cells=N pairs-uncovered=M` first: uncovered pairs are a stated hole.
 
 Refuses `--pages`/`--contexts`/`--as`/`--watch`/`--baseline`/`--diff`.
 Each cell is a disposable device/theme/media environment context, not a user identity; the owning

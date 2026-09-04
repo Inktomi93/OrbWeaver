@@ -1,15 +1,92 @@
 ---
 name: snap-driving
-description: "Drive and verify the live Orbweaver app with `pnpm snap`: selector discipline, argv-ordered actions, picker affordances, room/session state, cheap evidence before pixels, appearance and theme arms, scenario/matrix/watch recipes, virtualized targeting, isolated stages, and exit-code triage. Use when composing a snap invocation, navigating to a section/room/modal, checking rendered behavior, watching streams or transients, diagnosing dead controls or NAV/ARG errors, handling wrong-room or stale-selector failures, or running multi-user and staged drives."
+description: "Drive and verify the live Orbweaver app with `pnpm snap` and READ what it produced: the run slot + run.json + browser-free `--report` reader, the 18 evidence arms, selector discipline, argv-ordered actions, picker affordances, room/session state, cheap evidence before pixels, appearance and theme arms, scenario/matrix/watch recipes, virtualized targeting, isolated stages, and exit-code triage. Use when composing a snap invocation, reading a snap result or run.json, navigating to a section/room/modal, checking rendered behavior, watching streams or transients, diagnosing dead controls or NAV/ARG errors, handling wrong-room or stale-selector failures, or running multi-user and staged drives."
 ---
 
 # Driving the app with snap
 
 One Bash call, snap's own headless browser, evidence out — no MCP in the loop. The FLAG CONTRACT
-(every flag, current semantics, refusal combinations) is `pnpm snap --help` (generated from `tooling/src/snap/contract/help.ts`) plus
-`pnpm snap --help` — read those fresh; they change faster than any distillation. This skill is the
-driving course: where drives go wrong, and how to get receipts cheaply. **On any disagreement, the
-header wins.** Worked end-to-end recipes: `reference/recipes.md` in this skill dir.
+(every flag, current semantics, refusal combinations) is `pnpm snap --help`, generated from the executable
+registry (`tooling/src/snap/contract/help.ts` + `ops/flag-grammar.ts`) — it changes faster than any
+distillation, and **on any disagreement the help wins.** This skill is the driving course: where drives go
+wrong, how to get receipts cheaply, and how to READ what a run produced. Worked end-to-end chains:
+`reference/recipes.md`. **Every accepted flag, one line each: `reference/flags.md` — Read it in full
+once at the start of any drive; it is the only way to know the whole vocabulary without scrolling 400
+lines of help.**
+
+## §0 Read the output the snap way — never scroll it, never head/tail it
+
+A snap run prints a LOT, and a lazy read of the top or bottom of it is how findings get missed. The output
+has a fixed shape; use the shape.
+
+1. **The first line is the run slot** (`run slot reports/runs/snap/<runId>`). Every artifact of THIS run
+   lives inside it, immutable; `reports/snaps/<name>.png` and friends are mutable "latest" pointers a later
+   run re-aims. Cite the slot, not the pointer.
+2. **The end card is the verdict.** The last block is always: `RESULT snap key=value …` (one line, every
+   axis: `nav=`, `steps-failed=`, `assertion-fails=`, `contrast-fails=`, `console-errors=`, `page-errors=`,
+   `population-verdict=` where an arm has one), then `RUN <runId> checkout= sha= lane=`, then zero or more
+   `FINDING <severity> | what | where | evidence=<path> confidence= completeness= | next=<exact command>`
+   rows, then `PROVENANCE …` and `EVIDENCE <abs path to run.json>`. Read every FINDING row; each carries a
+   copy-pasteable `next=` reader command narrowed to its arm.
+3. **Every structured line has an UPPERCASE prefix at column 0**, so you can pull exactly what you need
+   from a long log: `RESULT`, `ASSERT`, `CONTRAST`, `MAP`, `ARIA`, `EVAL`, `CHECKPOINT`, `MATRIX PLAN`,
+   `POPULATION`, `REACH`, `FINDING`, `ARTIFACT`, `INDEX`, `READ`, `ARG ERROR`, `NAV ERROR`/`NAV FAILED`,
+   `SESSION DEAD`/`SESSION BUSY`, `THEME SHIM WARNING` (stderr), `*REFUSED`.
+4. **How to run it so you can read it** (the Bash tool truncates long output, and the tool-guard REWRITES
+   `pnpm snap … | head` into a redirect anyway):
+
+   ```bash
+   pnpm snap / --goto presets --map --text > "$SCRATCHPAD/<lane>-presets.log" 2>&1; echo "EXIT=$?"
+   ```
+
+   then `Read` the log file (the Read tool pages with offset/limit — read ALL of it for a verdict), or
+   pull the structured lines: `grep -nE '^(RESULT|ASSERT|FINDING|CONTRAST|POPULATION|ARG ERROR|NAV)' <log>`.
+   Never `| tail`, never `| head` — a pipeline's exit code is the reader's, and the reader eats the list.
+5. **The durable receipt is `run.json`** (the `EVIDENCE`/`INDEX` path). It carries the verdict, a typed
+   fact per arm (`snap-arm-<arm>-v1`: state `passed|failed|refused|withheld|absent|off` + data), the
+   artifact inventory, and the findings. Replay it WITHOUT a browser:
+
+   ```bash
+   pnpm snap --report <run.json path | run-id | latest> --problems      # findings only (default)
+   pnpm snap --report <…> --all --arm contrast                           # everything, narrowed
+   pnpm snap --reports                                                    # every indexed run: id · sha · lane · verdict
+   ```
+
+   `--report`/`--reports` never start a browser, stage, session or run slot — they are free.
+6. **Exit codes are the first triage, before you read anything else:** `0` clean · `1` red (a finding, a
+   failed assertion, a failed step, a console error) · `2` REFUSAL / tool error — the instrument COULD NOT
+   MEASURE (a withheld arm, a dead session, a cold stage, load); never a product verdict and never a clean
+   row · `3` misuse — your argv is wrong, nothing ran, the `ARG ERROR` line names the fix.
+7. **`--help` is 400+ lines.** `pnpm snap --help > "$SCRATCHPAD/snap-help.txt"` then `Read` the file when
+   you need the exact contract; `reference/flags.md` is the one-line-per-flag index for everything else.
+
+### The 18 arms (each is its own typed fact in `run.json`; "arm" = one kind of evidence)
+
+| Arm | Flag | What it answers | Refuses to combine with |
+| - | - | - | - |
+| shot | (default) / `--shot-of` / `--full` / `--crop` | what it looks like (PNG, 1 image px per CSS px) | — |
+| dead-css | on by default (`--no-deadcss`) | Tailwind classes that never compiled, used-but-empty rules | — |
+| aria | `--aria` / `--text` | the accessible tree — the ORACLE for names, roles, landmarks | — |
+| map | `--map [sel]` | every control → a unique validated locator + actionability; the SPA destination atlas | — |
+| eval | `--eval <js>` | any in-page value, incl. `__orb.*` | — |
+| contrast | `--contrast <sel>` (+`--contrast-pixel`) | WCAG ratio vs the effective backdrop | — |
+| cascade | `--cascade <sel=prop>` | why a property has that value (Active/Overloaded declarations) | `--lighthouse` |
+| assert | `--expect-*` | a rendered fact, as a PASS/FAIL receipt | — |
+| app-snapshot | always on | coarse boot timing + `__orb.snap()` overview | withheld under load |
+| motion | `--motion [sel]` | one motion window: LoAF, CLS (judge non-virtualized), dirty animations, dropped frames | `--filmstrip`, `--cpu-profile` |
+| perf | `--perf` | per-step input delay, long tasks, rAF gaps, CLS over the action tape (a meter, not a gate) | `--filmstrip`, `--cpu-profile` |
+| cpu-profile | `--cpu-profile` | who burns the frame (V8 sampling profile) | `--perf`, `--motion`, `--filmstrip` |
+| boot-trace | `--boot-trace` | the boot as a Chromium trace + DevTools insights (LCP required) | `--filmstrip` |
+| react-profile | `--react-profile` | hottest components, commit topology, render reasons (boot call on a session) | — |
+| heap | `--heap <label>` / `--heap-compare` / `--heap-retainers` | memory growth, detached trees, retainers (diagnostic, never a budget) | `--filmstrip` |
+| lighthouse | `--lighthouse desktop\|mobile` | axe/best-practices/seo audits on THIS run's settled page | `--cascade`; mobile fills the device slot |
+| requests | `--requests [url]` / `--request-body <url>` | which reads the surface issued, and one JSON body | — |
+| filmstrip | `--filmstrip` | a transition as a labelled contact sheet | every profiler/measurement arm |
+
+`pnpm design-audit <route>` (the deterministic UI defect scanner: 59 rules, population accounting,
+`--mobile` for tap targets) is still its own command until #1315 folds it in as `--design-audit`; it shares
+every reach/environment flag above and prints the same kind of end card. `pnpm record`, `pnpm motion-audit`
+and `pnpm perf-meter` are RETIRED — their doors print the snap spelling.
 
 Preconditions and geography:
 
@@ -264,11 +341,15 @@ theme-polarity coverage rode only on chat rooms whose card carries a theme.
   compact `CHECKPOINT <name> PASS/FAIL` line each; pair with `--json` for the full evidence.
   Checkpoints cannot carry `--pages`/`--contexts`/`--as`/`--watch`/`--baseline`/`--diff`, cannot
   nest scenarios, and stage flags go on the OUTER command.
-- **`--matrix`** = the bounded 8-variant sweep (desktop/mobile × light/dark × motion/reduced-
-  motion) in one command, each variant its own report + `<out>-<variant>.png`. Composes with
-  `--scenario`; refuses `--pages`/`--contexts`/`--as`/`--watch`/`--baseline`/`--diff`. Its motion axis
-  is the OS MEDIA QUERY only — the app's own setting rides the run's `--appearance`/`--full-motion`
-  (§5b) across all 8 variants, so a "motion" variant of a reduced ACCOUNT is still reduced.
+- **`--matrix`** = the rated PAIRWISE appearance-invariant matrix (16 representative cells derived from
+  the live 36-axis Appearance carrier contract — theme × device × os-color × os-motion × contrast ×
+  transparency × the app's own Appearance rows; never a Cartesian product, and no longer the old
+  "8-variant desktop/mobile × light/dark × motion" sweep). Requires `--isolated`/`--dirty`/`--ref`; each
+  cell is a disposable context in the one browser and gets its own report + `<out>-<variant>.png`. Read the
+  plan receipt, not the cell count: `MATRIX PLAN … cells=N pairs-uncovered=M` — a non-empty
+  `uncoveredPairs` is a stated hole in your sweep. Composes with `--scenario`; refuses
+  `--pages`/`--contexts`/`--as`/`--watch`/`--baseline`/`--diff`. Its OS-motion axis is the media query;
+  the app's own setting rides `--appearance`/`--full-motion` (§5b) across every cell.
 - **`--watch <totalMs> [--every <ms>]`** = timed series after nav+steps settle: per-tick
   screenshot + a re-run of every `--eval`, labeled by elapsed ms. THE instrument for streaming
   turns and transient states. It observes PAGE 0 only; `--no-shot --watch` is the cheap
