@@ -33055,6 +33055,84 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-09-04-snap-ui-audit-capability-census.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 700,
+      "bytes": 61686,
+      "sha256": "ae2315150a87537220d6987b5fcac2ebaa595b85a1dabade4b5e868b36dc23d3",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-04"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-04-snap-ui-audit-capability-census.md",
+        "assignedSha256": "ae2315150a87537220d6987b5fcac2ebaa595b85a1dabade4b5e868b36dc23d3",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "ae2315150a87537220d6987b5fcac2ebaa595b85a1dabade4b5e868b36dc23d3",
+        "verifiedCommit": "928dc5e05aa9450ab14b24d268f2496bda72eb5a",
+        "verifiedAt": "2026-09-04",
+        "summary": "Stickler census for #1322 (prep for #1315): for each of eight capabilities both snap and ui-audit implement, which implementation survives the fold, judged on planted controls run through both homes where a rendered run was possible; finding 10 (extentTruncated permanent NO VERDICT) refuted on 20 live runs; a nine-step fold plan.",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-04-snap-ui-audit-capability-census.md:1 read in full (701 lines) at 928dc5e05 by the orchestrator: §0 verdict table, §2 per-capability controls with exit ledger, §3 the 20-run sweep table, §4 the fold order, §5 the issue summary pasted into #1322."
+        ],
+        "claims": [
+          {
+            "claim": "snap's css-resolve contrast reads 21.00:1 PASS for white text over a fixed contentless white layer while --contrast-pixel and design-audit read 1.00:1 — the gap the resolver's own comment names.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "tooling/src/snap/lib/contrast-script.ts:133"
+              },
+              {
+                "kind": "issue",
+                "target": "#1322"
+              }
+            ]
+          },
+          {
+            "claim": "Both in-page accessible-name keys read aria-label before aria-labelledby, the reverse of accname 1.2; a planted pair produced a false duplicate-action-door and hid a real one, while snap --aria named all four correctly.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "tooling/src/snap/lib/map-browser.ts:52"
+              },
+              {
+                "kind": "code",
+                "target": "tooling/src/ui-audit/ops/walker/census-interactive.ts:334"
+              },
+              {
+                "kind": "issue",
+                "target": "#1322"
+              }
+            ]
+          },
+          {
+            "claim": "extentTruncated never withheld a surface: 20 live design-audit runs (10 desktop, 10 --mobile) over the 11 sections all report extentTruncated=0 and no-probe-frame=0; the three exit-2 surfaces are selection-idiom rest-regime withholds.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1322"
+              },
+              {
+                "kind": "issue",
+                "target": "#1114"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/verifier/2026-09-02-941-semantic-denominator-closure.md",
       "lane": "reviews",
       "issue": 7,
