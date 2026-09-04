@@ -198,19 +198,27 @@ function claudeUserEnv(userOverrides: Record<string, string | null> | undefined)
 
 // mode-1 ephemeral CLAUDE_CONFIG_DIR with ONLY .credentials.json symlinked in — the default ~/.claude
 // also holds skills/memory/settings that leak into the spawned (potentially adversarial) RP subprocess.
-// Memoized one-per-process. TWO no-symlink outcomes, kept DISTINCT (owner ruling, #751 — FAIL CLOSED):
+// TWO no-symlink outcomes, kept DISTINCT (owner ruling, #751 — FAIL CLOSED):
 //   • host creds ABSENT   → nothing to isolate; degrade to the un-isolated default (still firewalled).
 //   • host creds PRESENT but the symlink FAILED → isolation could NOT be established; REFUSE the spawn.
 //     Silently degrading here would run the RP subprocess against the REAL ~/.claude — the leak. The
 //     refusal is a ProviderError the caller (disciplineOptions / fetchAgentSdkModels) surfaces as a turn
-//     error. NOT memoized: a transient FS failure self-heals on the next turn (the throw leaves
-//     `mode1IsolatedDir === undefined`, so this recomputes), and every attempt stays fail-closed.
-let mode1IsolatedDir: string | undefined | null;
+//     error.
+//
+// ONLY SUCCESS IS MEMOIZED (#1406). The memo used to carry a third state — `null` for "checked, absent" —
+// and because `null !== undefined` it LATCHED: credentials mounted or created after the first mode-1 build
+// (a container secret landing late, an operator running `claude login` on a live box) were never seen
+// again, and every later spawn ran against the host `~/.claude`. So absence is NOT a cached answer, it is
+// simply "no dir yet": the probe re-runs on the next build. Same for the symlink refusal — a transient FS
+// failure self-heals on the next turn, and every attempt stays fail-closed.
+// The re-probe costs ONE `existsSync` per env build while unisolated, and only while unisolated. No TTL:
+// this function runs immediately before forking the bundled Claude runtime, so a stat is noise beside the
+// spawn it gates — and a TTL would re-introduce a window in which the isolation is known-stale on purpose.
+let mode1IsolatedDir: string | undefined;
 function mode1IsolatedConfigDir(): string | undefined {
   if (mode1IsolatedDir === undefined) {
     const credSrc = join(homedir(), ".claude", ".credentials.json");
     if (!existsSync(credSrc)) {
-      mode1IsolatedDir = null;
       return;
     }
     const dir = mkdtempSync(join(tmpdir(), "orbweaver-claude-sub-"));
@@ -233,13 +241,13 @@ function mode1IsolatedConfigDir(): string | undefined {
       });
     }
     mode1IsolatedDir = dir;
+    // Closes over THIS dir rather than re-reading the memo: the handler is registered exactly once, on the
+    // one build that establishes isolation, and it must remove the dir it created.
     process.on("exit", () => {
-      if (mode1IsolatedDir !== undefined && mode1IsolatedDir !== null) {
-        rmSync(mode1IsolatedDir, { recursive: true, force: true });
-      }
+      rmSync(dir, { recursive: true, force: true });
     });
   }
-  return mode1IsolatedDir ?? undefined;
+  return mode1IsolatedDir;
 }
 
 // mode-2/4 ephemeral CLAUDE_CONFIG_DIR is EMPTY (no symlink) — the asymmetry with mode-1 IS the firewall.

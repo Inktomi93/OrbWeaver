@@ -3465,7 +3465,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/env.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/backends/agent-sdk/env.ts",
-      "line": 223,
+      "line": 231,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3473,7 +3473,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort temp-dir cleanup on the symlink-failure path — the symlink already failed so `dir` holds no credential; a cleanup miss leaks only an empty tmp dir, never an auth decision. Ends if this cleanup becomes load-bearing or `dir` can ever hold a live credential.",
-      "markerLine": 220
+      "markerLine": 228
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/host-token.ts::default:catch::1",

@@ -3,7 +3,7 @@
 // escape hatch can NEVER set/strip a reserved (auth/routing/isolation) key. If any of these flip, the sub
 // token can leak to a paid endpoint — a ban-risk hole.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { HOST_OWNED_CLAUDE_ENV_KEYS } from "@orb/contracts/preset";
@@ -378,6 +378,65 @@ describe("mode-1 isolation FAIL-CLOSED (host creds present, symlink fails → re
     // Firewall semantics: a fail-closed denial, non-retryable (an auto-retry can't fix a broken isolation FS).
     expect((thrown as { kind?: string }).kind).toBe("forbidden");
     expect((thrown as { retryable?: boolean }).retryable).toBe(false);
+  });
+
+  // #1406 — THE ABSENT PATH MUST NOT LATCH. The memo starts `undefined`, and the credentials probe runs
+  // only under `=== undefined`; storing `null` for "absent" made every later build short-circuit, so a
+  // credentials file mounted or created after the FIRST mode-1 build (a container secret landing late, an
+  // operator running `claude login` on a live box) was never observed — and an un-isolated spawn is exactly
+  // the #751 leak: the real `~/.claude` carries skills/memory/settings into the RP subprocess.
+  test("credentials appearing AFTER the first build are observed — the absent path is re-probed, never latched", async () => {
+    let credsPresent = false;
+    vi.doMock("node:fs", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("node:fs")>();
+      return {
+        ...actual,
+        // The ONLY faked answer: whether the host credentials file is there right now. mkdtempSync,
+        // symlinkSync and rmSync stay real, so the isolated dir and its link are genuinely created.
+        existsSync: (p: Parameters<typeof actual.existsSync>[0]) => (typeof p === "string" && p.endsWith(CREDS_SUFFIX) ? credsPresent : actual.existsSync(p)),
+      };
+    });
+    vi.resetModules();
+    const mod = await import(AGENT_SDK_BARREL);
+
+    const before = mod.buildClaudeSdkEnv();
+    expect(before["CLAUDE_CONFIG_DIR"], "no creds yet ⇒ the documented degrade").toBeUndefined();
+
+    credsPresent = true;
+    const after = mod.buildClaudeSdkEnv();
+    const dir = after["CLAUDE_CONFIG_DIR"] as string | undefined;
+    expect(dir, "creds that appeared after the first build MUST be picked up, or the spawn reads host ~/.claude").toBeDefined();
+    expect(after["ANTHROPIC_CONFIG_DIR"]).toBe(dir);
+    // …and the isolation is real, not just an env var: the dir holds a LINK to the credentials and nothing else.
+    expect(lstatSync(join(dir as string, CREDS_SUFFIX)).isSymbolicLink()).toBe(true);
+    // Once established it is stable — the re-probe is only for the absent state.
+    expect(mod.buildClaudeSdkEnv()["CLAUDE_CONFIG_DIR"]).toBe(dir);
+  });
+
+  // CONTROL — the re-probe must not turn into a fresh temp dir (and a fresh symlink) per turn.
+  test("a present-from-the-start credentials file is memoized ONCE across builds (one mkdtemp, one dir)", async () => {
+    let mkdtempCalls = 0;
+    vi.doMock("node:fs", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("node:fs")>();
+      return {
+        ...actual,
+        existsSync: (p: Parameters<typeof actual.existsSync>[0]) => (typeof p === "string" && p.endsWith(CREDS_SUFFIX) ? true : actual.existsSync(p)),
+        mkdtempSync: (prefix: string) => {
+          mkdtempCalls += 1;
+          return actual.mkdtempSync(prefix);
+        },
+      };
+    });
+    vi.resetModules();
+    const mod = await import(AGENT_SDK_BARREL);
+
+    const first = mod.buildClaudeSdkEnv()["CLAUDE_CONFIG_DIR"];
+    const second = mod.buildClaudeSdkEnv()["CLAUDE_CONFIG_DIR"];
+    const third = mod.buildClaudeSdkEnv({ maxOutputTokens: 512 })["CLAUDE_CONFIG_DIR"];
+    expect(first).toBeDefined();
+    expect(second).toBe(first);
+    expect(third).toBe(first);
+    expect(mkdtempCalls, "three builds must share ONE isolated config dir").toBe(1);
   });
 
   test("PATH 1 — host creds ABSENT still degrades to the un-isolated default (no throw, no CLAUDE_CONFIG_DIR)", async () => {
