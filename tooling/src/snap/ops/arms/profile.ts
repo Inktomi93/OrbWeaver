@@ -3,7 +3,7 @@
 // React DevTools UI/backend and never calls the injected renderer's mutation methods. Design/capability
 // census: docs/design/1208-instrument-substrate.md §10.5.
 import { errorMessage } from "@orb/kit/error-message";
-import type { CDPSession, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import type { EvidenceWindowId } from "../../../_shared/artifact-scope.ts";
 import { aggregateScope, evidenceWindowId } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
@@ -11,167 +11,17 @@ import type { ProbeSession } from "../../../_shared/browser-contract.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import { printEvidenceGaps } from "../../../_shared/evidence.ts";
 import { EXIT } from "../../../_shared/exit-contract.ts";
-import { budget } from "../../../_shared/load-budget.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
 import type { ReactCommitEvidence, ReactCommitPayload, ReactFiberEvidence, ReactProfilePageEvidence } from "../../contract/react-profile.ts";
 import { reactProfilePagePayloadSchema } from "../../contract/react-profile.ts";
 import type { Args } from "../../contract/types.ts";
 import { REACT_PROFILE_LIMITS, READ_REACT_PROFILE_SCRIPT, reactProfileInitScript, readReactProfileCommitScript } from "../../lib/react-profile.ts";
-import type { ReactProfileReceipt, ReactTraceEvent, TraceCalibration } from "../../lib/react-profile-receipt.ts";
+import type { ReactProfileReceipt } from "../../lib/react-profile-receipt.ts";
 import { reportReactProfile, writeReactProfileReceipt } from "../../lib/react-profile-receipt.ts";
+import type { TraceCapture } from "../../lib/react-profile-trace.ts";
+import { numberOf, reactTraceEvents, recordOf, startTrace, stopTrace } from "../../lib/react-profile-trace.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --react-profile");
-
-const TRACE_COMPLETE_BASE_MS = 30_000;
-const MICROSECONDS_PER_MILLISECOND = 1000;
-
-interface TraceCapture {
-  readonly cdp: CDPSession;
-  readonly events: unknown[];
-  readonly complete: Promise<void>;
-  readonly calibration: TraceCalibration | null;
-  started: boolean;
-}
-
-function recordOf(value: unknown): Readonly<Record<string, unknown>> | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Readonly<Record<string, unknown>>) : null;
-}
-
-function stringOf(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-function numberOf(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-function traceEpochMs(
-  timestampUs: number | null,
-  calibration: TraceCalibration | null,
-  originTs: number | null,
-  originWallSeconds: number | null,
-): number | null {
-  if (timestampUs === null) {
-    return null;
-  }
-  if (calibration !== null) {
-    const epochMs = calibration.epochMs + (timestampUs - calibration.timestampUs) / MICROSECONDS_PER_MILLISECOND;
-    return Math.round(epochMs * MICROSECONDS_PER_MILLISECOND) / MICROSECONDS_PER_MILLISECOND;
-  }
-  if (originTs === null || originWallSeconds === null) {
-    return null;
-  }
-  const epochMs = originWallSeconds * MICROSECONDS_PER_MILLISECOND + (timestampUs - originTs) / MICROSECONDS_PER_MILLISECOND;
-  return Math.round(epochMs * MICROSECONDS_PER_MILLISECOND) / MICROSECONDS_PER_MILLISECOND;
-}
-
-function reactTraceEvents(events: readonly unknown[], calibration: TraceCalibration | null): readonly ReactTraceEvent[] {
-  const rows: ReactTraceEvent[] = [];
-  const origin = events
-    .map(recordOf)
-    .find((event) => event?.["name"] === "TracingStartedInBrowser" && recordOf(recordOf(event["args"])?.["data"])?.["wallTime"] !== undefined);
-  const originData = recordOf(recordOf(origin?.["args"])?.["data"]);
-  const originTs = numberOf(origin?.["ts"]);
-  const originWallSeconds = numberOf(originData?.["wallTime"]);
-  for (const raw of events) {
-    const event = recordOf(raw);
-    if (event === null) {
-      continue;
-    }
-    const name = stringOf(event["name"]);
-    const args = recordOf(event["args"]);
-    const data = recordOf(args?.["data"]);
-    const message = stringOf(data?.["message"]);
-    const detailText = `${name} ${message} ${JSON.stringify(args ?? {})}`;
-    if (!(detailText.includes("Components ⚛") || detailText.includes("Scheduler ⚛") || detailText.includes("react-component"))) {
-      continue;
-    }
-    const timestampUs = numberOf(event["ts"]);
-    rows.push({
-      name: name || message || "React track event",
-      category: stringOf(event["cat"]),
-      phase: stringOf(event["ph"]),
-      timestampUs,
-      durationUs: numberOf(event["dur"]),
-      epochMs: traceEpochMs(timestampUs, calibration, originTs, originWallSeconds),
-      detail: args,
-    });
-  }
-  return rows;
-}
-
-async function stopTrace(capture: TraceCapture): Promise<string | null> {
-  if (!capture.started) {
-    return null;
-  }
-  let endSent = false;
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the caught trace failure is returned as traceError, filed in the profile artifact and printed as `track limit`; Fiber evidence remains independently valid. Ends if stopTrace stops returning the caught detail or reportReactProfile stops printing traceError.
-  try {
-    await capture.cdp.send("Tracing.end");
-    endSent = true;
-    const timeoutMs = budget(TRACE_COMPLETE_BASE_MS);
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    try {
-      await Promise.race([
-        capture.complete,
-        new Promise<never>((_resolve, reject) => {
-          timeout = setTimeout(() => reject(new Error(`Chromium did not finish the React trace within ${String(timeoutMs)}ms`)), timeoutMs);
-        }),
-      ]);
-    } finally {
-      clearTimeout(timeout);
-    }
-    return null;
-  } catch (error) {
-    const failure = errorMessage(error);
-    if (!endSent) {
-      try {
-        await capture.cdp.send("Tracing.end");
-      } catch (cleanupError) {
-        return `${failure}; cleanup retry failed: ${errorMessage(cleanupError)}`;
-      }
-    }
-    return failure;
-  } finally {
-    capture.started = false;
-    // Tracing.end above owns browser-side trace shutdown; detaching releases the transport. The retained
-    // traceError remains explicit without replacing independently valid Fiber evidence.
-    // @orb-gate-ignore caught-failure-ownership(promise:detach): Tracing.end is the terminal browser-side cleanup owner; the caught measurement/retry detail above is retained for the operator. Ends if stopTrace stops sending Tracing.end before detach.
-    await capture.cdp.detach().catch(() => undefined);
-  }
-}
-
-async function startTrace(page: Page): Promise<{ readonly capture: TraceCapture | null; readonly error: string | null }> {
-  let cdp: CDPSession | null = null;
-  try {
-    cdp = await page.context().newCDPSession(page);
-    const events: unknown[] = [];
-    const complete = Promise.withResolvers<void>();
-    cdp.on("Tracing.dataCollected", (payload: { readonly value?: readonly unknown[] }) => events.push(...(payload.value ?? [])));
-    cdp.once("Tracing.tracingComplete", () => complete.resolve());
-    const before = Date.now();
-    await cdp.send("Performance.enable");
-    const metrics = await cdp.send("Performance.getMetrics");
-    const after = Date.now();
-    const timestampSeconds = metrics.metrics.find((metric) => metric.name === "Timestamp")?.value;
-    const calibration =
-      timestampSeconds === undefined
-        ? null
-        : { timestampUs: timestampSeconds * MICROSECONDS_PER_MILLISECOND * MICROSECONDS_PER_MILLISECOND, epochMs: (before + after) / 2 };
-    const capture: TraceCapture = { cdp, events, complete: complete.promise, calibration, started: false };
-    await cdp.send("Tracing.start", {
-      categories: "-*,devtools.timeline,disabled-by-default-devtools.timeline,blink.user_timing,blink.console",
-      transferMode: "ReportEvents",
-    });
-    capture.started = true;
-    return { capture, error: null };
-  } catch (error) {
-    if (cdp !== null) {
-      // @orb-gate-ignore caught-failure-ownership(promise:detach): a failed trace start owns no later measurement; detaching is best-effort and the caught start error is returned as the operator-visible track limit. Ends if this catch stops returning the start error.
-      await cdp.detach().catch(() => undefined);
-    }
-    return { capture: null, error: errorMessage(error) };
-  }
-}
 
 function missingPage(contextIndex: number, pageIndex: number, url: string, detail: string): ReactProfilePageEvidence {
   return {

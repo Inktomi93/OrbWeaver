@@ -16,8 +16,8 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import type { SnapFlagDescriptor } from "../../../snap/ops/flag-grammar.ts";
-import { SNAP_FLAG_GROUP_ORDER, snapFlagDescriptors } from "../../../snap/ops/flag-grammar.ts";
+import type { SnapFlagDescriptor } from "../../../snap/index.ts";
+import { SNAP_FLAG_GROUP_ORDER, snapFlagDescriptors } from "../../../snap/index.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline snap-flags-index");
 
