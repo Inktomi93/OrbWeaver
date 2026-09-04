@@ -347,7 +347,7 @@ function hiddenTagRuns(content: string): readonly HiddenRun[] {
 
 /** Is `offset` STRICTLY inside one of the runs — past a hidden tag's `<` and before its close? Strictly,
  *  because a line that merely BEGINS a hidden tag keeps every other job it had; only a line the tag has
- *  already swallowed loses its power to open or close a markdown fence. */
+ *  already swallowed can lose its power to OPEN a markdown fence. */
 function insideHiddenRun(runs: readonly HiddenRun[], offset: number): boolean {
   return runs.some((run) => offset > run.start && offset < run.end);
 }
@@ -680,16 +680,31 @@ function stepCodeFenceLine(env: ScanEnv, i: number, inCode: boolean): StepState 
 function stepLine(env: ScanEnv, i: number, inCode: boolean): StepState {
   const line = env.lines[i];
   const text = line === undefined ? "" : matchText(line);
-  // #1524 — A ``` A HIDDEN TAG HAS ALREADY SWALLOWED IS NOT A FENCE. `<lie truth="SECRET\n```\nmore"/>` opens
-  // the fence from INSIDE its own attr value, and the two passes then disagreed about where that tag lived:
-  // the fence-blind stream walker saw one complete tag and released it, while this line-anchored pass let the
-  // ``` toggle code state and cut the tag into `allowTags:false` pieces, so it was never classified — the
-  // whole `truth` attr reached the member verbatim on BOTH planes with `hadHidden=false`. This is NOT the
-  // ratified code-fence hole (§3.2.1 #3): there the AUTHOR opens a fence and the reader SEES the tag they are
-  // being shown; here the tag opens the fence itself, and nobody ever sees it. When the two passes disagree
-  // about where a fence starts, the trust boundary wins — so the tag pass's fence-blind reading is the one
-  // that decides, and the toggle is suppressed for the lines it covers.
-  if (text.startsWith(CODE_FENCE_MARK) && !(line !== undefined && insideHiddenRun(env.hiddenRuns, line.start))) {
+  // #1524 — A ``` A HIDDEN TAG HAS ALREADY SWALLOWED IS NOT A FENCE OPENER. `<lie truth="SECRET\n```\nmore"/>`
+  // opens the fence from INSIDE its own attr value, and the two passes then disagreed about where that tag
+  // lived: the fence-blind tag walker saw one complete tag, while this line-anchored pass let the ``` toggle
+  // code state and cut the tag into `allowTags:false` pieces, so it was never classified — the whole `truth`
+  // attr reached the member verbatim on BOTH planes with `hadHidden=false`. That is NOT the ratified
+  // code-fence hole (§3.2.1 #3): there the AUTHOR opens a fence and the reader SEES the tag they are being
+  // shown; here the tag opens the fence itself and nobody ever sees it.
+  //
+  // ONLY AN OPENING TOGGLE MAY BE SUPPRESSED — `!inCode` is the whole of that rule, and it is load-bearing
+  // (#1524 second pass, caught by review). Without it, a run computed FENCE-BLIND covers an author-fenced tag
+  // through the author's own CLOSING ``` line; suppressing that close leaves `inCode` true to end of body, so
+  // every LATER hidden tag is emitted `allowTags:false` and never classified. Measured on
+  // "```\n<lie truth=\"x\n```\ny\"/>\ntail\n<lie truth=\"SECRET\"/>\nbye": the second tag's `truth` reached the
+  // member with `hadHidden=false` and zero scanned spans — a NEW leak of the same class as the one being
+  // fixed, and worse, `tokenizeContent` still classified that tag, so the two passes disagreed again in the
+  // leaking direction. An earlier comment here claimed suppression "can only ever un-fence, never re-open a
+  // block the author already opened"; the truth is the opposite — unguarded it never CLOSES one.
+  //
+  // Gating on `!inCode` resolves the recursion (which ``` is real depends on the runs, and which runs are real
+  // depends on the fence state) at the one point where it bites, and the safety argument is monotone:
+  // suppressing an OPEN can only turn code regions into scannable ones, so the strip classifies MORE, never
+  // fewer, hidden tags. A tag the author genuinely fenced still sits inside a block this pass opened and
+  // closed normally, so it stays literal — the ratified hole is untouched.
+  const swallowedOpener = line !== undefined && !inCode && insideHiddenRun(env.hiddenRuns, line.start);
+  if (text.startsWith(CODE_FENCE_MARK) && !swallowedOpener) {
     return stepCodeFenceLine(env, i, inCode);
   }
   if (inCode) {
