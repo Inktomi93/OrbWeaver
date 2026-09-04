@@ -43,6 +43,63 @@ const RELATIONAL_SAMPLE_FAMILIES: Readonly<Record<RelationalSampleFamily, true>>
 // key type the map was declared with (the house idiom — snap/contract/scenario-presets.ts).
 const RELATIONAL_FAMILY_KEYS = Object.keys(RELATIONAL_SAMPLE_FAMILIES) as readonly RelationalSampleFamily[];
 
+/** Every NON-relational array family the walker returns, derived from `RawSamples` the same way the
+ *  relational half above is derived from `RelationalSamples` (#1317 item 6). The relational members are
+ *  excluded because `RawSamples extends RelationalSamples`, so the two maps stay disjoint and no family
+ *  can be counted twice. */
+type FlatSampleFamily = Exclude<
+  {
+    [K in keyof RawSamples]-?: NonNullable<RawSamples[K]> extends readonly unknown[] ? K : never;
+  }[keyof RawSamples],
+  RelationalSampleFamily
+>;
+
+/** WHICH flat families the census DENOMINATOR counts — the half that used to be a hand-written sum whose
+ *  own comment ("the counted set is exactly `censusTotal`'s, and it has to stay that way") was the only
+ *  thing holding it. It is now the same enforcement the relational half carries: a mapped-type Record
+ *  over the derived union, so a family added to `RawSamples` REDs tsc HERE with a missing property and
+ *  its author must decide `true`/`false` rather than have it silently omitted.
+ *
+ *  `false` is a REAL classification, not a leftover: those families are DETECTOR inputs whose members are
+ *  already findings or already counted as one of the counted families' subjects (a shadow glow is a
+ *  `textStyles`/`texts` subject read a second way), so adding them would double-count the same node and
+ *  inflate the one denominator a reader uses to decide whether `findings=0` means anything. The counted
+ *  ten are the SUBJECT censuses — one member per censused element. */
+const COUNTED_FLAT_FAMILIES: Readonly<Record<FlatSampleFamily, boolean>> = {
+  accentBorders: false,
+  accessibleNames: true,
+  actionDoors: true,
+  animatedImgHovers: false,
+  bgPatterns: false,
+  brokenImages: false,
+  buriedRasters: false,
+  clippedOverflows: false,
+  controlAspects: true,
+  edgeFlushCards: false,
+  gradientTexts: false,
+  headings: true,
+  hoverStates: false,
+  iconTiles: false,
+  images: true,
+  motionStatics: false,
+  nestedCards: false,
+  obscuredTargets: false,
+  overflows: false,
+  radialGlows: false,
+  repeatedTexts: false,
+  shadowGlows: false,
+  tabIndexes: true,
+  tapTargets: true,
+  textStyles: true,
+  texts: true,
+  truncatedTexts: false,
+  zIndexes: true,
+};
+
+// Same cast idiom as `RELATIONAL_FAMILY_KEYS` above: `Object.keys` widens to string[], and the record is
+// the exhaustive home the key type is read back from.
+const FLAT_CENSUS_KEYS = Object.keys(COUNTED_FLAT_FAMILIES) as readonly FlatSampleFamily[];
+
 /** How many nodes the in-page walk actually censused, across every family it collects. This is the
  *  number the RESULT line publishes as `census=` — a clean verdict with `census=0` is not a verdict.
  *
@@ -61,19 +118,8 @@ const RELATIONAL_FAMILY_KEYS = Object.keys(RELATIONAL_SAMPLE_FAMILIES) as readon
  *  this number at all. */
 export function censusTotal(samples: RawSamples): number {
   const relational = RELATIONAL_FAMILY_KEYS.reduce((total, family) => total + (samples[family]?.length ?? 0), 0);
-  return (
-    samples.texts.length +
-    samples.textStyles.length +
-    samples.images.length +
-    samples.tapTargets.length +
-    samples.accessibleNames.length +
-    samples.headings.length +
-    samples.tabIndexes.length +
-    samples.zIndexes.length +
-    (samples.actionDoors?.length ?? 0) +
-    (samples.controlAspects?.length ?? 0) +
-    relational
-  );
+  const flat = FLAT_CENSUS_KEYS.reduce((total, family) => total + (COUNTED_FLAT_FAMILIES[family] ? (samples[family]?.length ?? 0) : 0), 0);
+  return flat + relational;
 }
 
 /** THE CAP GAP (#1038) — a census that stopped PUSHING and reads complete.
@@ -111,6 +157,28 @@ export function censusCapGap(samples: RawSamples): EvidenceGap | null {
   return {
     evidence: "the capped censuses' completeness",
     detail: `${truncated.join("; ")} — the in-page census counted more carriers than it could carry out, so every rule over those families judged a representative sample and this run has NO VERDICT for them. Narrow the surface (a smaller viewport, a --goto onto one pane) or raise the family's bound in ops/walker/census-*.ts`,
+  };
+}
+
+/** THE INSTRUMENT-ORIGIN PAGE ERROR (#1317 item 1). `session.pageErrors` carries two KINDS
+ *  (`_shared/browser-contract.ts` `BrowserPageError`): `runtime` — an uncaught exception the APP threw,
+ *  which `checkScriptErrors` files as a `script-error` P0 — and `instrument`, which is this harness
+ *  announcing that ITS OWN setup failed (`_shared/browser-capture.ts` pushes
+ *  `instrumentPageError("browser diagnostic setup failed: …")` from a wire-up promise with no awaiter).
+ *
+ *  Before this arm the two were flattened to text by `pageErrorText` and handed to `checkScriptErrors`
+ *  together, so a broken CDP diagnostic wire-up was filed as a P0 DEFECT OF THE APP and exited 1 — the
+ *  instrument blaming the product for its own failure, which is the exact polarity the exit-code
+ *  contract exists to prevent (0 clean · 1 violations · 2 the run is NOT a verdict). Typing the channel
+ *  (Codex, 2026-09-04) made the two distinguishable; this is the ui-audit consumer that reads the kind.
+ *  Exit 2, never a finding. */
+export function instrumentPageErrorGap(messages: readonly string[]): EvidenceGap | null {
+  if (messages.length === 0) {
+    return null;
+  }
+  return {
+    evidence: "the browser capture harness",
+    detail: `${messages.join("; ")} — the instrument's own wiring failed on this page, so the console/diagnostic evidence behind every quality verdict is incomplete and this run has NO VERDICT. This is a defect of the probe, never of the surface: it is deliberately NOT filed as a script-error finding`,
   };
 }
 

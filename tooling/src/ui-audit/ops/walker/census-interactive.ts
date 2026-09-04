@@ -73,6 +73,28 @@ refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap targets + accessible names + action doors ──
   var tapTargets = [];
   var accessibleNames = [];
+  // THE NAME-TEXT SOURCE IS NOT textContent (#1317 item 8). accname step 2A excludes an
+  // aria-hidden="true" subtree from the name computation, so a button whose only text is a decorative
+  // glyph span marked aria-hidden - the house shape for an icon-only control - exposes NO accessible
+  // name while textContent reads non-empty. That was a FALSE CLEAN on the aria-name rule: the exact
+  // class RULE-AUTHORING.md row 8 names, one source over.
+  // sr-only text is DELIBERATELY still counted: it is not aria-hidden, a screen reader reads it, and it
+  // is the sanctioned way to name an icon-only control here. Excluding it would trade this false clean
+  // for a false P1 on every correctly-named icon button, which is the worse trade.
+  var accNameOwnText = function (root) {
+    var collected = "";
+    var visit = function (node) {
+      for (var ni = 0; ni < node.childNodes.length; ni += 1) {
+        var child = node.childNodes[ni];
+        if (child.nodeType === 3) { collected += child.textContent; continue; }
+        if (child.nodeType !== 1) continue;
+        if (child.getAttribute("aria-hidden") === "true") continue;
+        visit(child);
+      }
+    };
+    visit(root);
+    return collected.trim();
+  };
   // issue #252 — the RUNTIME half of the dual-home detector. The static gate (duplicate-action-doors)
   // censuses tRPC call sites per rail section and is blind by construction to a REGISTRY-RENDERED action:
   // one call site behind N rendered slots, which is exactly how the founding "new chat lives in three
@@ -290,7 +312,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     accessibleNames.push({
       selector: describe(iel),
       tag: iel.tagName.toLowerCase(),
-      hasVisibleText: (iel.textContent || "").trim().length > 0,
+      hasVisibleText: accNameOwnText(iel).length > 0,
       ariaLabel: iel.getAttribute("aria-label"),
       ariaLabelledbyText: labelledbyText(iel),
       nativeLabelText: nativeLabelText(iel),

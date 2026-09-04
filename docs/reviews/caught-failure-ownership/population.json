@@ -6520,7 +6520,7 @@
     {
       "siteId": "tooling/src/ui-audit/ops/matrix.ts::empty:error::1",
       "path": "tooling/src/ui-audit/ops/matrix.ts",
-      "line": 204,
+      "line": 201,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -6528,12 +6528,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.",
-      "markerLine": 200
+      "markerLine": 197
     },
     {
       "siteId": "tooling/src/ui-audit/ops/matrix.ts::empty:error::2",
       "path": "tooling/src/ui-audit/ops/matrix.ts",
-      "line": 211,
+      "line": 208,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -6541,7 +6541,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.",
-      "markerLine": 208
+      "markerLine": 205
     },
     {
       "siteId": "tooling/src/ui-audit/ops/stage.ts::empty:error::1",

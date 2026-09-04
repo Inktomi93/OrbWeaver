@@ -93,6 +93,11 @@ export type { CohortAnatomyInput, EmptyStateInput, PaneInkInput, QuietStateInput
 
 // ── Heading order (impeccable `skipped-heading`; UIP §13.10 N7 is law here) ──
 export interface HeadingSample {
+  /** The walker's locatable selector for THIS heading (#1317 item 5). cli.ts's own law is that every
+   *  finding carries a locatable selector; a skipped-heading whose selector read "h3" named a TAG, not
+   *  an element, so a reader could not open the offender on any page with more than one h3 — which is
+   *  every page. The walker holds the element and already spends describe() on every other family. */
+  readonly selector: string;
   readonly level: number;
   readonly text: string;
 }

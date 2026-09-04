@@ -4,10 +4,12 @@
 // is to be true when the two count-based arms cannot see the problem.
 
 import type { SettingsShimEvidence } from "../../../../tooling/src/_shared/appearance.ts";
+import { instrumentPageError, pageErrorText, runtimePageError } from "../../../../tooling/src/_shared/browser-contract.ts";
 import type { RowVoidInput } from "../../../../tooling/src/ui-audit/contract/samples-layout.ts";
 import type { TierDriftInput } from "../../../../tooling/src/ui-audit/contract/samples-populations.ts";
 import type { DomPopulation, RawSamples, ThemeRenderInput } from "../../../../tooling/src/ui-audit/index.ts";
-import { censusThinGap, censusTotal, readinessGap, themeProvenanceGap } from "../../../../tooling/src/ui-audit/index.ts";
+import { censusThinGap, censusTotal, instrumentPageErrorGap, readinessGap, themeProvenanceGap } from "../../../../tooling/src/ui-audit/index.ts";
+import { checkScriptErrors } from "../../../../tooling/src/ui-audit/lib/checks-quality.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function population(duringWalk: number, settled: number, stabilized = true): DomPopulation {
@@ -228,6 +230,43 @@ test("every relational family counts, and each sample counts once", () => {
 // or relational — is still a zero census, and a zero census is still an instrument failure.
 test("a walk that collected nothing in ANY family is still zero — the refusal keeps its teeth", () => {
   expect(censusTotal(NOTHING_WALKED)).toBe(0);
+});
+
+// A REGRESSION FENCE, honestly labelled (#1317 item 6): the flat half of `censusTotal` moved from a
+// hand-written sum to a mapped-type Record whose enforcement is tsc (a family added to `RawSamples`
+// without a counted/not-counted classification REDs the compiler). That enforcement is not runtime-
+// observable, so these two arms pin only that the MEANING did not move with the shape: a SUBJECT census
+// counts, a DETECTOR family does not — the second is the arithmetic that would double-count a node the
+// text census already counted and quietly inflate the one denominator a `findings=0` verdict rests on.
+test("the census denominator counts subject families and not detector families", () => {
+  const oneText = { ...NOTHING_WALKED, headings: [{ selector: "main h1", level: 1, text: "Library" }] };
+  expect(censusTotal(oneText)).toBe(1);
+  expect(censusTotal({ ...oneText, shadowGlows: [{ selector: "div", boxShadow: "0 0 8px red", textShadow: "none", backdropColor: null }] })).toBe(1);
+});
+
+// @instrument-absence-proof: THE INSTRUMENT BLAMING THE APP (#1317 item 1). `session.pageErrors` carries
+// two kinds and ops/run.ts used to flatten both through `pageErrorText` into `checkScriptErrors`, so a
+// FAILURE OF THIS HARNESS ("browser diagnostic setup failed: …", pushed by _shared/browser-capture.ts
+// from a wire-up promise with no awaiter) was filed as a `script-error` P0 DEFECT OF THE PAGE and exited
+// 1. The first arm is the receipt that the old flattening really did mint an app finding out of an
+// instrument failure; the second is the polarity that replaces it — exit-2 class, no finding.
+test("an instrument-origin page error is a NO VERDICT, never a script-error finding", () => {
+  const instrument = instrumentPageError("browser diagnostic setup failed: CDP detached");
+  const runtime = runtimePageError(Object.assign(new Error("boom"), { name: "TypeError" }));
+
+  // the receipt: text-flattened, an instrument failure is indistinguishable from an app crash
+  expect(checkScriptErrors([instrument, runtime].map(pageErrorText))).toHaveLength(2);
+
+  // the polarity: split by kind, only the RUNTIME error is the page's fault …
+  const findings = checkScriptErrors([instrument, runtime].filter((error) => error.kind === "runtime").map(pageErrorText));
+  expect(findings).toHaveLength(1);
+  expect(findings[0]?.rule).toBe("script-error");
+
+  // … and the instrument half is a gap, which ops/run.ts renders as EXIT.toolError
+  const gap = instrumentPageErrorGap([instrument].map(pageErrorText));
+  expect(gap?.evidence).toBe("the browser capture harness");
+  expect(gap?.detail).toContain("NO VERDICT");
+  expect(instrumentPageErrorGap([])).toBeNull();
 });
 
 test("unknown catalog source and unknown subject polarity are never inferred", () => {

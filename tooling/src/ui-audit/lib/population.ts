@@ -2,7 +2,12 @@
 // its arithmetic closes exactly; partial evidence is a NO VERDICT, never a clean result.
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
 import type { PopulationAccounting, RulePopulationAccounting } from "../contract/findings.ts";
+import { PRESENTATION_WITHHELD_REASONS, WITHHELD_REASONS } from "../contract/findings.ts";
 import type { RelationalCensusAccountingInput } from "../contract/samples-populations.ts";
+
+/** The presentation-only reasons, as a lookup — one derivation of the contract tuple for both the
+ *  settlement arithmetic and the completeness verdict, so the two can never disagree. */
+const PRESENTATION_WITHHELD: ReadonlySet<string> = new Set<string>(PRESENTATION_WITHHELD_REASONS);
 
 function assertCount(label: string, value: number): void {
   if (!Number.isSafeInteger(value) || value < 0) {
@@ -38,7 +43,7 @@ export function assertCensusAccounting(rule: string, census: RelationalCensusAcc
   assertCount(`${rule} candidates`, census.candidates);
   assertCount(`${rule} judged`, census.judged);
   assertCarried(rule, census.carried, census.candidates);
-  if (Object.hasOwn(census.withheld, "cap")) {
+  if (Object.hasOwn(census.withheld, WITHHELD_REASONS.representativeCap)) {
     throw new Error(`INSTRUMENT ERROR: ${rule} walker supplied Node-owned cap accounting`);
   }
   const withheld = sumCounts(rule, "withheld", census.withheld);
@@ -69,8 +74,8 @@ function assertPopulationAccounting(rule: string, row: RulePopulationAccounting)
     assertCount(`${rule} ${label}`, value);
   }
   assertCarried(rule, row.carried, row.candidates);
-  const cap = row.withheld["cap"] ?? 0;
-  const unjudged = sumCounts(rule, "withheld", row.withheld, new Set(["cap"]));
+  const cap = row.withheld[WITHHELD_REASONS.representativeCap] ?? 0;
+  const unjudged = sumCounts(rule, "withheld", row.withheld, PRESENTATION_WITHHELD);
   const excluded = sumCounts(rule, "excluded", row.excluded);
   const collapsed = sumCounts(rule, "collapsed", row.collapsed);
   if (row.candidates !== row.judged + unjudged + excluded) {
@@ -99,7 +104,7 @@ export function settledPopulationAccounting(rule: string, row: RulePopulationAcc
 export function populationEvidenceGap(accounting: PopulationAccounting): EvidenceGap | null {
   const incomplete: string[] = [];
   for (const [rule, row] of Object.entries(accounting)) {
-    const reasons = Object.entries(row.withheld).filter(([reason, count]) => reason !== "cap" && count > 0);
+    const reasons = Object.entries(row.withheld).filter(([reason, count]) => !PRESENTATION_WITHHELD.has(reason) && count > 0);
     if (reasons.length > 0) {
       incomplete.push(`${rule}: ${reasons.map(([reason, count]) => `${reason}=${String(count)}`).join(" ")}`);
     }

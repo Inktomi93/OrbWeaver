@@ -13,6 +13,7 @@ import { readBrowserEnvironment } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { instrumentRefusal } from "../../_shared/page-validate.ts";
 import { provisionRatedStageThemes } from "../../_shared/rated-theme-fixture.ts";
 import type { ThemeEntry } from "../../_shared/theme.ts";
 import { NO_THEME } from "../../_shared/theme.ts";
@@ -59,10 +60,6 @@ export function aggregateUiAuditMatrixExit(codes: readonly number[]): UiAuditMat
   };
 }
 
-function instrumentError(message: string): never {
-  throw new Error(`INSTRUMENT ERROR: ${message}`);
-}
-
 async function discoverMatrix(opts: Args): Promise<MatrixDiscovery> {
   const discoveryArgs: Args = {
     ...opts,
@@ -84,26 +81,26 @@ async function discoverMatrix(opts: Args): Promise<MatrixDiscovery> {
   return await withProbeSession(session, async () => {
     const outcome = await navigateAndReveal(session.page, discoveryArgs, buildUrl(discoveryArgs.base, discoveryArgs.route));
     if (outcome.navError !== null || outcome.actionsFailed > 0 || !outcome.appReady) {
-      return instrumentError(
+      return instrumentRefusal(
         `design-audit matrix discovery did not reach the settled surface (nav=${outcome.navError ?? "ok"}, actions=${outcome.actionsFailed}, ready=${String(outcome.appReady)})`,
       );
     }
     const environment = await readBrowserEnvironment(session.page, session.environmentContract);
     if (environment.mismatches.length > 0) {
-      return instrumentError(`design-audit matrix discovery browser mismatch: ${environment.mismatches.join("; ")}`);
+      return instrumentRefusal(`design-audit matrix discovery browser mismatch: ${environment.mismatches.join("; ")}`);
     }
     const contract = await readRuntimeAppearanceContract(session.page);
     const reached = appearanceReachReceipt(contract);
     const settings = session.contexts[0]?.settingsEvidence;
     if (settings === undefined) {
-      return instrumentError("design-audit matrix discovery has no settings-evidence owner");
+      return instrumentRefusal("design-audit matrix discovery has no settings-evidence owner");
     }
     if (settings.themeApplied !== true || settings.themeResolution?.request !== NO_THEME) {
-      return instrumentError("design-audit matrix discovery did not resolve its authenticated theme-catalog request");
+      return instrumentRefusal("design-audit matrix discovery did not resolve its authenticated theme-catalog request");
     }
     const themes = settings.themeCatalog;
     if (themes === null || themes.length === 0) {
-      return instrumentError("design-audit matrix discovery returned an empty authenticated theme catalog");
+      return instrumentRefusal("design-audit matrix discovery returned an empty authenticated theme catalog");
     }
     return { contract, themes, settings, reachedRows: reached.rows, reachedSubjects: reached.subjects };
   });
@@ -112,7 +109,7 @@ async function discoverMatrix(opts: Args): Promise<MatrixDiscovery> {
 function cellArgs(opts: Args, baseName: string, matrix: UiAuditAppearanceMatrix, index: number): Args {
   const cell = matrix.plan.cells[index];
   if (cell === undefined) {
-    return instrumentError(`design-audit matrix is missing cell ${String(index)}`);
+    return instrumentRefusal(`design-audit matrix is missing cell ${String(index)}`);
   }
   const variant = uiAuditMatrixVariant(matrix, cell, index);
   return {
@@ -129,7 +126,7 @@ async function runCells(opts: Args, baseName: string, matrix: UiAuditAppearanceM
   const results: MatrixCellResult[] = [];
   for (let index = 0; index < matrix.plan.cells.length; index += 1) {
     const args = cellArgs(opts, baseName, matrix, index);
-    const id = args.out?.slice(`${baseName}-`.length) ?? instrumentError(`design-audit matrix cell ${String(index)} has no artifact id`);
+    const id = args.out?.slice(`${baseName}-`.length) ?? instrumentRefusal(`design-audit matrix cell ${String(index)} has no artifact id`);
     print(`\n========== DESIGN MATRIX ${id} ==========`);
     results.push({ id, code: await runUiAudit(args) });
   }

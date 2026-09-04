@@ -2,6 +2,7 @@
 // OBSCURED targets (#816) + accessible names + landmark + tabindex + heading order. Pure; thresholds cited.
 // Provenance: lib/collect.ts header.
 import type { CandidateDisposition, Finding, RulePopulationAccounting, Severity } from "../contract/findings.ts";
+import { WITHHELD_REASONS } from "../contract/findings.ts";
 import type {
   AccessibleNameInput,
   ControlAspectInput,
@@ -176,7 +177,7 @@ export function checkTapTargetPopulations(inputs: readonly TapTargetInput[], poi
     affected: result.affected + nestedOwned.size,
     populations: result.findings.length,
     emitted: result.representatives,
-    withheld: { extentTruncated, cap: result.capped },
+    withheld: { extentTruncated, [WITHHELD_REASONS.representativeCap]: result.capped },
     excluded: {},
     collapsed: { sameOwner: nestedOwned.size },
   });
@@ -368,7 +369,9 @@ export function checkHeadingOrder(headings: readonly HeadingSample[]): Finding[]
       findings.push({
         rule: "skipped-heading",
         severity: "P2",
-        selector: `h${h.level}`,
+        // The OFFENDING heading's own locatable selector, never the tag (#1317 item 5): "h3" is not a
+        // selector a reader can open on a page with more than one h3, which is every page.
+        selector: h.selector,
         value: `h${prevLevel} "${prevText}" → h${h.level} "${h.text}"`,
         message: `heading level skips from h${prevLevel} to h${h.level} (missing h${prevLevel + 1}) — screen readers navigate by heading hierarchy (UIP §13.10 N7)`,
         origin: "impeccable",

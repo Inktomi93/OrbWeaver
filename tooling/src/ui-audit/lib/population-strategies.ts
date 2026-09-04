@@ -24,7 +24,8 @@
 // checks-font-census.ts's four-arm header is the precedent for NOT routing a ubiquitous measured
 // absence to `withheld` and burying every run in NO VERDICT.
 // population.ts's reason maps are NOT interchangeable: withheld = a candidate the instrument COULD
-// NOT JUDGE (+ the presentation-only "cap" reason; non-cap withholding is a NO VERDICT run, see
+// NOT JUDGE (+ the presentation-only reasons the contract's `PRESENTATION_WITHHELD_REASONS` tuple
+// closes; any other withholding is a NO VERDICT run, see
 // populationEvidenceGap); excluded = measured facts PROVE the rule does not apply; collapsed =
 // adjudicated by a same-owner decision (rung 4's grouping). settledPopulationAccounting THROWS on
 // arithmetic that doesn't close (candidates = judged + withheld[non-cap] + excluded; affected =
@@ -34,6 +35,7 @@
 // denominator was lost upstream — relational families carry `relationalAccounting` FROM the walker
 // instead (contract/samples-populations.ts); a filtered census keeps its accounting there, not here.
 import type { CandidateDisposition, Finding, RulePopulationAccounting } from "../contract/findings.ts";
+import { WITHHELD_REASONS } from "../contract/findings.ts";
 import type { DesignAuditRuleId } from "../contract/rules.ts";
 import type { RelationalCensusAccountingInput } from "../contract/samples-populations.ts";
 import { assertCensusAccounting, assertRelationalCensus, settledPopulationAccounting } from "./population.ts";
@@ -70,7 +72,7 @@ export function cappedRelationalFindings<T>(
   const capWithheld = affected.length - emitted.length;
   const withheld = { ...(census?.withheld ?? {}) };
   if (capWithheld > 0) {
-    withheld["cap"] = capWithheld;
+    withheld[WITHHELD_REASONS.representativeCap] = capWithheld;
   }
   return {
     findings: emitted,
@@ -138,7 +140,7 @@ export function partitionedFindings<T>(
   capExceeded = 0,
 ): { readonly accounting: RulePopulationAccounting; readonly findings: readonly Finding[] } {
   const findings: Finding[] = [];
-  const withheld: Record<string, number> = capExceeded > 0 ? { capExceeded } : {};
+  const withheld: Record<string, number> = capExceeded > 0 ? { [WITHHELD_REASONS.censusCapExceeded]: capExceeded } : {};
   const excluded: Record<string, number> = {};
   let judged = 0;
   for (const item of items) {
@@ -218,7 +220,7 @@ export function decisionPopulationFindings<T extends { readonly selector: string
   const cap = affected - emitted;
   const withheld = { ...(census?.withheld ?? {}) };
   if (cap > 0) {
-    withheld["cap"] = cap;
+    withheld[WITHHELD_REASONS.representativeCap] = cap;
   }
   return {
     findings,
