@@ -1,11 +1,12 @@
 ---
-title: "1208 request-ring and RESULT-truth repair"
-status: implementation-design
-date: 2026-09-03
-parent: docs/design/1208-instrument-substrate.md
+kind: design
+status: active
+updated: 2026-09-03
 ---
 
 # 1208 request-ring and RESULT-truth repair
+
+> Parent design: `docs/design/1208-instrument-substrate.md`
 
 ## Decision
 

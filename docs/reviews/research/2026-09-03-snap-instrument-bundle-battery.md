@@ -1,3 +1,9 @@
+---
+kind: research
+status: active
+updated: 2026-09-03
+---
+
 # Snap instrument bundle operator battery — 2026-09-03
 
 ## Scope and acceptance

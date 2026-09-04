@@ -1,12 +1,12 @@
 ---
-title: "1208 heap and browser-memory arm"
-status: implementation-design
-date: 2026-09-04
-parent: docs/design/1208-instrument-substrate.md
-issue: 1300
+kind: design
+status: active
+updated: 2026-09-04
 ---
 
 # 1208 heap and browser-memory arm
+
+> Parent design: `docs/design/1208-instrument-substrate.md` · Issue: #1300
 
 ## Decision
 

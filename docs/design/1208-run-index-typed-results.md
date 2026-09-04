@@ -1,12 +1,12 @@
 ---
-title: "1208 typed run results and artifact scope"
-status: implementation-design
-date: 2026-09-04
-parent: docs/design/1208-instrument-substrate.md
-issue: 1301
+kind: design
+status: active
+updated: 2026-09-04
 ---
 
 # 1208 typed run results and artifact scope
+
+> Parent design: `docs/design/1208-instrument-substrate.md` · Issue: #1301
 
 ## Decision
 
