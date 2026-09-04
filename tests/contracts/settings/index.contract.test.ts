@@ -3,6 +3,7 @@ import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES } from "@orb/con
 import type { AppSettings, UserSettings } from "@orb/contracts/settings";
 import {
   APP_SETTINGS_SCHEMA_VERSION,
+  appSettingsConfig,
   appSettingsSchema,
   DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
   DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
@@ -18,6 +19,7 @@ import {
   STREAM_SCROLL_MODES,
   USER_SETTINGS_SCHEMA_VERSION,
   USER_SETTINGS_SECTIONS,
+  userSettingsConfig,
   userSettingsSchema,
 } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -684,6 +686,19 @@ test("imagery override self-heals an over-cap value to the default (never nukes 
   const parsed = parseUserSettings({ schemaVersion: SCHEMA_VERSION_V6, imagery: { templates: { character: "x".repeat(4001) } } });
   // The over-cap string trips the field's `.catch(undefined)` → the mode falls back to the shipped default.
   expect(resolveImageryTemplate(parsed.imagery, "character")).toBe(DEFAULT_PROMPT_TEMPLATES.character);
+});
+
+// #1364 — the production tenants, not a hand-built config: a blob a NEWER build wrote reports NOT intact,
+// so `requireIntactStoredConfig` refuses the read-modify-write instead of persisting the truncation.
+test("both settings tiers refuse to call a newer-than-current blob intact (#1364)", () => {
+  for (const config of [userSettingsConfig, appSettingsConfig]) {
+    const version = config.currentVersion + 3;
+    const outcome = config.parseOutcome({ ...structuredClone(config.default), schemaVersion: version, orbFutureField: "newer build" }, version);
+    expect(outcome.intact).toBe(false);
+    expect(outcome).toMatchObject({ failure: "version-from-future" });
+  }
+  // The CURRENT version still reads intact — the guard only refuses what it genuinely cannot represent.
+  expect(userSettingsConfig.parseOutcome(structuredClone(userSettingsConfig.default), USER_SETTINGS_SCHEMA_VERSION).intact).toBe(true);
 });
 
 test("AppSettings v2→v3 lift is a no-op passthrough that stamps the version (engineLaunch is additive)", () => {

@@ -13,6 +13,34 @@
 // the proven cause of the #461 settings wipe). `parseOutcome` is that discriminator: same value as
 // `parse`, plus whether it is the stored blob or a stand-in for one that could not be read. Every write
 // seam branches on it (`domain/settings/substrate/stored-config.ts`); read seams keep using `parse`.
+//
+// TWO ways `intact: true` used to LIE, both fixed here (#1364/#1365 — the same wipe family as #461):
+//
+//  1. A blob from the FUTURE (a newer build wrote it; a rollback / branch switch / older client reads it).
+//     There is no lift for a version ABOVE `def.version`, so the walk never runs and the current
+//     (non-strict) schema simply STRIPS every field this build has never heard of — a successful parse
+//     over a truncated blob. READ POSTURE (chosen deliberately, #1364): serve the stripped value so the
+//     session stays usable, but report `intact: false` + `versionFromFuture` so every write seam REFUSES.
+//     Degrading the VALUE to `default` instead would read to the user as "my settings reset", which is the
+//     visible half of the very failure this guard exists to prevent; the write refusal is the load-bearing
+//     half. (A future blob the current schema cannot parse at all still falls back to `default`.)
+//  2. A leaf that SELF-HEALS with `.catch()`. `intact` is decided by `def.schema.safeParse`, so a leaf
+//     that catches its own failure makes the parse succeed over data the blob no longer carries —
+//     `intact: true` cannot mean "the stored blob was fully read" while any `.catch()` sits below it.
+//     A whole-COLLECTION `.catch([])` therefore erases every good row with the one bad one, invisibly to
+//     the guard (#1365, `appearance.backgroundLibrary`). Collection leaves under a versioned config use
+//     {@link tolerantArray} — one bad element costs one element. SWEEP RECORDED 2026-09-04 over the three
+//     tenants (`appSettingsConfig`, `userSettingsConfig`, `promptConfigConfig`) — four array leaves, three
+//     verdicts. `appearance.backgroundLibrary` + `chat.customStoppingStrings` carry user CONTENT and moved
+//     to `tolerantArray`; `appearance.blurSurfaces` KEEPS its whole-collection self-heal because an empty
+//     set is itself a meaningful stored value there (filtering would fabricate a deliberate opt-out — the
+//     reasoning is at its own leaf); `appSettings.importSkipCharacters` keeps `.catch(undefined)` because
+//     `undefined` there is the CLEAR sentinel ("unset — inherit the env floor", `settings/index.ts:363`),
+//     not an empty list, so its degrade is visible as "unset" on the admin surface rather than as silent
+//     loss; the object-valued `.catch(undefined)` override groups (`memoryDefaults`, `rateLimits`,
+//     `memorySummarizer`, `engineLaunch`, …) keep their documented whole-group self-heal — they are
+//     re-enterable admin overrides, and the file states that tradeoff at `settings/index.ts:59,87,198`.
+//     Scalar `.catch()` leaves are unchanged: self-heal is right for a scalar.
 
 import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
@@ -28,14 +56,21 @@ export const VERSIONED_PARSE_FAILURES = {
   liftBrokeShape: "lift-broke-shape",
   /** The final-version schema rejected the (possibly lifted) blob. */
   schemaRejected: "schema-rejected",
+  /**
+   * The blob's version is NEWER than this build knows: there is no lift for it, so the current schema
+   * would silently STRIP every field this build has never heard of (#1364). The value is still served
+   * (see the read posture in the header) but no write may be derived from it.
+   */
+  versionFromFuture: "version-from-future",
 } as const;
 
 export type VersionedParseFailure = (typeof VERSIONED_PARSE_FAILURES)[keyof typeof VERSIONED_PARSE_FAILURES];
 
 /**
  * `parse`'s value plus its PROVENANCE. `intact: true` ⇒ `value` IS the stored blob (lifted + validated);
- * `intact: false` ⇒ `value` is the `default` standing in for a blob that could not be read, and
- * overwriting storage with anything derived from it would destroy the real data (#471).
+ * `intact: false` ⇒ `value` is a STAND-IN for a blob that could not be read faithfully — the `default`,
+ * or (for `version-from-future` only) the stored blob minus the fields this build cannot represent — and
+ * overwriting storage with anything derived from it would destroy the real data (#471/#1364).
  */
 export type VersionedParseOutcome<T> =
   | { readonly intact: true; readonly value: T }
@@ -79,6 +114,16 @@ export interface VersionedConfig<T> {
 
 const versionProbeSchema = z.object({ schemaVersion: z.number().int().optional() });
 
+/**
+ * The version the walk STARTS from: the externally-recorded version (a storage column) beats the in-blob
+ * probe; garbage (non-positive / non-integer) falls back to the probe rather than poisoning the walk.
+ */
+function startVersion(raw: Record<string, unknown>, storedVersion: number | undefined): number {
+  const probe = versionProbeSchema.safeParse(raw);
+  const probedVersion = probe.success ? (probe.data.schemaVersion ?? INITIAL_VERSION) : INITIAL_VERSION;
+  return storedVersion !== undefined && Number.isInteger(storedVersion) && storedVersion >= INITIAL_VERSION ? storedVersion : probedVersion;
+}
+
 export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedConfig<T> {
   const degraded = (failure: VersionedParseFailure): VersionedParseOutcome<T> => ({ intact: false, value: def.default, failure });
 
@@ -87,11 +132,7 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
     if (!isPlainObject(raw)) {
       return degraded(VERSIONED_PARSE_FAILURES.notAnObject);
     }
-    const probe = versionProbeSchema.safeParse(raw);
-    const probedVersion = probe.success ? (probe.data.schemaVersion ?? INITIAL_VERSION) : INITIAL_VERSION;
-    // Externally-recorded version (a storage column) beats the in-blob probe; garbage
-    // (non-positive / non-integer) falls back to the probe rather than poisoning the walk.
-    let version = storedVersion !== undefined && Number.isInteger(storedVersion) && storedVersion >= INITIAL_VERSION ? storedVersion : probedVersion;
+    let version = startVersion(raw, storedVersion);
     let config: Record<string, unknown> = raw;
     let lift = def.lifts[version];
     while (lift !== undefined) {
@@ -104,6 +145,12 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
       lift = def.lifts[version];
     }
     const parsed = def.schema.safeParse(config);
+    if (version > def.version) {
+      // A blob from a NEWER build (#1364). The walk above cannot have lifted it — lifts only go forward —
+      // so `parsed.data` is the stored blob with every unknown field stripped. Serve it (the session stays
+      // usable) and mark it NOT intact so the write seams refuse; header §1 states the posture.
+      return { intact: false, value: parsed.success ? parsed.data : def.default, failure: VERSIONED_PARSE_FAILURES.versionFromFuture };
+    }
     return parsed.success ? { intact: true, value: parsed.data } : degraded(VERSIONED_PARSE_FAILURES.schemaRejected);
   };
 
@@ -118,4 +165,30 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
     default: def.default,
     currentVersion: def.version,
   };
+}
+
+/**
+ * A COLLECTION leaf for a versioned config: element-wise tolerance instead of a whole-array `.catch()`.
+ * One malformed element costs THAT element; every readable element survives (#1365 — a single malformed
+ * `backgroundLibrary` row erased the whole library, and because the array's own `.catch([])` made the
+ * parse succeed, `parseOutcome` reported `intact: true` and the #471 write guard persisted the erasure).
+ *
+ * `whenNotAnArray` is the only whole-collection fallback left, and it fires ONLY when the stored value is
+ * not an array at all — a shape with no element-wise reading. It exists because
+ * `appearanceSettingsSchema.parse()` is contractually TOTAL (the client's device-local boot hint parses an
+ * untrusted localStorage blob through it and must not throw — `client/src/state/appearance-boot-hint.ts:90`).
+ *
+ * Lives here rather than in a schema module because it is the other half of the `intact` contract above:
+ * this is what a leaf must use so `intact: true` keeps meaning "the stored blob was fully read".
+ */
+export function tolerantArray<T>(entry: z.ZodType<T>, whenNotAnArray: readonly T[]): z.ZodType<T[], unknown> {
+  return z
+    .array(z.unknown())
+    .transform((rows): T[] =>
+      rows.flatMap((row): T[] => {
+        const parsed = entry.safeParse(row);
+        return parsed.success ? [parsed.data] : [];
+      }),
+    )
+    .catch([...whenNotAnArray]);
 }

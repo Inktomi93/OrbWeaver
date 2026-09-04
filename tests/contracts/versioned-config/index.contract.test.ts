@@ -1,4 +1,4 @@
-import { defineVersionedConfig } from "@orb/contracts/versioned-config";
+import { defineVersionedConfig, tolerantArray } from "@orb/contracts/versioned-config";
 import { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -86,6 +86,39 @@ test("parse is parseOutcome minus the provenance (the two can never disagree)", 
   for (const raw of [null, "nope", 42, { schemaVersion: 1 }, { schemaVersion: 3, count: 5, label: "kept" }, { schemaVersion: 3, count: "bad" }]) {
     expect(config.parse(raw)).toEqual(config.parseOutcome(raw).value);
   }
+});
+
+// #1364 — a blob written by a NEWER build has no lift (lifts only go forward), so the current non-strict
+// schema simply STRIPPED every field this build never heard of and the parse SUCCEEDED. `intact: true` over
+// a truncated blob is the #471 wipe class through a different door: the write seam round-trips the
+// truncation. Read posture (header): serve the stripped value, refuse the write.
+test("a NEWER-than-current blob is served but never reported intact (#1364)", () => {
+  const outcome = config.parseOutcome({ schemaVersion: 9, count: 5, label: "kept", futureField: "written by a newer build" });
+  expect(outcome.intact).toBe(false);
+  expect(outcome).toMatchObject({ failure: "version-from-future" });
+  // The SESSION stays usable — the value is the stored blob (minus what this build cannot represent), not
+  // the default, so the user does not see "my settings reset".
+  expect(outcome.value).toEqual({ count: 5, label: "kept" });
+  // The storage column wins over the in-blob probe here exactly as it does for older versions.
+  expect(config.parseOutcome({ count: 5, label: "kept" }, 9).intact).toBe(false);
+  // A future blob the current schema cannot read at all still falls back to the default.
+  expect(config.parseOutcome({ schemaVersion: 9, count: "not a number" })).toEqual({
+    intact: false,
+    value: DEFAULT,
+    failure: "version-from-future",
+  });
+  // The CURRENT version is untouched by the comparison.
+  expect(config.parseOutcome({ schemaVersion: 3, count: 5, label: "kept" }).intact).toBe(true);
+});
+
+// #1365 — `intact: true` cannot mean "the stored blob was fully read" while a leaf self-heals, so a
+// collection leaf gets element-wise tolerance instead of a whole-array `.catch()`.
+test("tolerantArray keeps every readable element and costs only the malformed ones (#1365)", () => {
+  const rows = tolerantArray(z.object({ id: z.string() }), []);
+  expect(rows.parse([{ id: "a" }, { id: 7 }, { id: "c" }])).toEqual([{ id: "a" }, { id: "c" }]);
+  // The whole-collection fallback fires ONLY when there is no element-wise reading at all.
+  expect(rows.parse("not an array")).toEqual([]);
+  expect(tolerantArray(z.string(), ["fallback"]).parse(42)).toEqual(["fallback"]);
 });
 
 test("serialize round-trips through parse, and default / currentVersion are exposed", () => {

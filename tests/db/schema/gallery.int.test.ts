@@ -60,7 +60,12 @@ test("gallery_items: unique(assetId, subjectCharacterId) REJECTS a duplicate cha
   ).rejects.toThrow();
 });
 
-test("gallery_items: NULL subjects are DISTINCT — duplicate un-charactered adds stay possible", async () => {
+// PREMISE FLIPPED (#1375). This used to pin "NULL subjects are DISTINCT — duplicate un-charactered adds
+// stay possible", which is SQLite's default and was true of the composite index alone. But one layer up,
+// `addToGallery` documents itself as idempotent, and the product answer is that an asset appears ONCE in
+// the unscoped gallery — so the storage layer now carries a PARTIAL unique index that says so, and the
+// verb's conflict guard finally has a target that fires on the common path.
+test("gallery_items: the partial unique index makes un-charactered rows unique per asset", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_gal_b", handle: castId<Handle>("gal-b") });
   const assetId = await seedAsset(db, ownerId, "asset_gal_b");
@@ -69,15 +74,33 @@ test("gallery_items: NULL subjects are DISTINCT — duplicate un-charactered add
     id: castId<GalleryItemId>("gallery_item_gal_b1"),
     assetId,
   });
-  // Second un-charactered row on the SAME asset — SQLite treats NULL subjects as distinct, so no conflict.
-  await db.insert(galleryItems).values({
-    id: castId<GalleryItemId>("gallery_item_gal_b2"),
-    assetId,
-  });
+  // Second un-charactered row on the SAME asset — the composite index cannot see it (NULLs are distinct),
+  // `gallery_items_asset_unsubjected_unique` can.
+  await expect(
+    db.insert(galleryItems).values({
+      id: castId<GalleryItemId>("gallery_item_gal_b2"),
+      assetId,
+    }),
+  ).rejects.toThrow();
+
+  const rows = await db.select().from(galleryItems).where(eq(galleryItems.assetId, assetId));
+  expect(rows).toHaveLength(1);
+  expect(rows.every((r) => r.subjectCharacterId === null)).toBe(true);
+});
+
+// A FENCE, not a defect proof (it passes pre-fix): the partial index is SCOPED to the NULL half, so the
+// same asset may still carry one row per character.
+test("gallery_items: a character-scoped row coexists with the un-charactered one for the same asset", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_gal_b2", handle: castId<Handle>("gal-b2") });
+  const characterId = await seedCharacter(db, ownerId, "character_gal_b2");
+  const assetId = await seedAsset(db, ownerId, "asset_gal_b2");
+
+  await db.insert(galleryItems).values({ id: castId<GalleryItemId>("gallery_item_gal_b3"), assetId });
+  await db.insert(galleryItems).values({ id: castId<GalleryItemId>("gallery_item_gal_b4"), assetId, subjectCharacterId: characterId });
 
   const rows = await db.select().from(galleryItems).where(eq(galleryItems.assetId, assetId));
   expect(rows).toHaveLength(2);
-  expect(rows.every((r) => r.subjectCharacterId === null)).toBe(true);
 });
 
 test("gallery_items: character delete SET NULLs the subject (item survives un-charactered)", async () => {

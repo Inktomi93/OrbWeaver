@@ -2,8 +2,10 @@
 // character's subject. Owner-only posture (§1.3 `can()`): the asset MUST be owned by the actor (the
 // assetId-keyed owner gate `ownedAssetForGallery`); the subject character, when given AND when the
 // `assertCharacterOwned` op is wired, must also be owned — a gallery row must never reference another
-// user's asset or character. Upsert-guarded on `(assetId, subjectCharacterId)` → a duplicate add returns
-// the existing item (idempotent). Deterministic via the injected `newGalleryItemId`/`now`.
+// user's asset or character. Upsert-guarded on the subject: a duplicate add returns the existing item
+// (idempotent) — for the un-charactered add too, which needs its own partial unique index because SQLite
+// treats NULL subjects as distinct (#1375; `persistence/queries.ts#insertGalleryItem` owns the mechanics).
+// Deterministic via the injected `newGalleryItemId`/`now`.
 //
 // Degradation (documented): when `assertCharacterOwned` is absent (non-HTTP/DR/workload contexts that never
 // call this verb), the subject-character ownership check is skipped and the add gates on the asset only.

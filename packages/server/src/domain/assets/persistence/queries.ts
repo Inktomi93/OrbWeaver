@@ -205,19 +205,38 @@ interface InsertGalleryItemInput {
   readonly now: number;
 }
 
-/** Insert a gallery item, upsert-guarded on `(assetId, subjectCharacterId)`; idempotent on conflict.
- *  SQLite treats NULL subjects as distinct under the unique index, so un-charactered adds always insert. */
+/** Insert a gallery item, upsert-guarded; idempotent on conflict — for BOTH subject shapes (#1375).
+ *
+ *  TWO conflict targets because SQLite treats NULLs as DISTINCT: the composite unique index guards the
+ *  character-scoped add, and it structurally cannot fire when `subjectCharacterId IS NULL` — which is the
+ *  ordinary "add to gallery, not tied to a character" case, so every repeat un-charactered add inserted a
+ *  duplicate while the verb's docstring promised idempotence. The un-charactered branch targets the PARTIAL
+ *  unique index (`gallery_items_asset_unsubjected_unique`) instead, and expresses it as a DO UPDATE that
+ *  re-sets `assetId` to the value it already holds: the row is unchanged, and (SQLite RETURNING is
+ *  POST-update) the RETURNING hands back the EXISTING row's id in the same statement. */
 export async function insertGalleryItem(db: Db, input: InsertGalleryItemInput): Promise<GalleryItemId> {
-  const inserted = await db
-    .insert(galleryItems)
-    .values({
-      id: input.id,
-      assetId: input.assetId,
-      subjectCharacterId: input.subjectCharacterId ?? null,
-      createdAt: input.now,
-    })
-    .onConflictDoNothing({ target: [galleryItems.assetId, galleryItems.subjectCharacterId] })
-    .returning({ id: galleryItems.id });
+  const values = {
+    id: input.id,
+    assetId: input.assetId,
+    subjectCharacterId: input.subjectCharacterId ?? null,
+    createdAt: input.now,
+  };
+  const inserted =
+    input.subjectCharacterId === undefined
+      ? await db
+          .insert(galleryItems)
+          .values(values)
+          .onConflictDoUpdate({
+            target: galleryItems.assetId,
+            targetWhere: isNull(galleryItems.subjectCharacterId),
+            set: { assetId: input.assetId },
+          })
+          .returning({ id: galleryItems.id })
+      : await db
+          .insert(galleryItems)
+          .values(values)
+          .onConflictDoNothing({ target: [galleryItems.assetId, galleryItems.subjectCharacterId] })
+          .returning({ id: galleryItems.id });
   if (inserted[0] !== undefined) {
     return inserted[0].id;
   }

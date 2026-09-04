@@ -15,7 +15,7 @@ import type { StructuredOutputVehicle } from "#role-clients";
 import { structuredOutputVehicleSchema } from "#role-clients";
 import { MEMORY_RETRIEVAL_MODES } from "#search";
 import { DATABANK_UPLOAD_MAX_BYTES } from "#uploads";
-import { defineVersionedConfig } from "#versioned-config";
+import { defineVersionedConfig, tolerantArray } from "#versioned-config";
 import type { AppearanceSettings } from "./appearance.ts";
 import { appearanceSettingsSchema } from "./appearance.ts";
 
@@ -654,7 +654,8 @@ const chatSchema = z
         maxRetries: z.number().int().min(AUTO_SWIPE_MAX_RETRIES_MIN).max(AUTO_SWIPE_MAX_RETRIES_MAX).default(AUTO_SWIPE_MAX_RETRIES_DEFAULT),
       })
       .prefault({}),
-    customStoppingStrings: z.array(z.string()).catch([]).default([]),
+    // Element-wise (#1365): a non-string element costs THAT entry, not every stop string the user wrote.
+    customStoppingStrings: tolerantArray(z.string(), []).default([]),
     // ⑧(a) — how long a temporary chat lives before the per-user reaper (`reapTemporaryChats`, scoped to the
     // caller's hosted chats) may delete it. Was the engine's TEMPORARY_CHAT_REAP_TTL_MS=24h const; per-user
     // because the reaper runs under the caller's principal over THEIR chats. A value outside the bounds

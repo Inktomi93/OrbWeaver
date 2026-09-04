@@ -81,8 +81,10 @@ function parsePresetExtensions(raw: Record<string, unknown>): {
 }
 
 /** Map an already-JSON-parsed ST chat-completion preset → the portable orb file + its unmapped-field list, or
- *  null when the object is not a recognizable chat-completion preset. Never throws (the shared mapper DOES
- *  throw on a non-preset, which is contained here).
+ *  null when the object is not a recognizable chat-completion preset, OR when it maps to a config orb cannot
+ *  store (#1363 — the mapper now REFUSES rather than returning orb's default preset dressed as the import).
+ *  Never throws (the shared mapper DOES throw on both of those, which is contained here); a refused preset is
+ *  reported to the operator as not-imported, never as imported-with-someone-else's-content.
  *
  *  `powerUser` is ST's GLOBAL `settings.json.power_user` blob — the OTHER half of what orb calls generation
  *  config (stop strings, the four post-process switches, the inline-reasoning tag pair). Supplied ONLY for the

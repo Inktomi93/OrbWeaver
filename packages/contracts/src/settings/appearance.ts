@@ -10,7 +10,9 @@
 // siblings out once the module is reached. Importing the section barrel for ONE schema therefore cost the
 // boot chunk the entire prose corpus (~215 kB rendered). The schema lives here, `@orb/contracts` names
 // `"./settings/appearance"` as an EXACT exports entry, and the boot hint reaches the contract's own schema
-// object through a door whose graph is `#theme` + `@orb/kit/ids` + zod.
+// object through a door whose graph is `#theme` + `@orb/kit/ids` + `#versioned-config` + zod. (That last
+// one is the boot-critical leaf primitive itself — `@orb/kit/guards` + zod, no prose, no siblings; it is
+// here for `tolerantArray`, the element-wise collection leaf the #471 write guard depends on.)
 //
 // The exports entry is exact, not a `"./*/*"` pattern, on purpose: the cake packages publish ONE door per
 // domain (`"./*": "./src/*/index.ts"`), and a deep-file pattern would silently make every internal contracts
@@ -24,6 +26,7 @@ import { z } from "zod";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS`) is homed in `#theme` (shared with
 // the carried `ThemeBackground` twin); consumers import it from `@orb/contracts/theme`.
 import { BACKGROUND_IMAGE_KINDS, THEME_CHAT_STYLES, THEME_DENSITIES } from "#theme";
+import { tolerantArray } from "#versioned-config";
 
 const CHAT_WIDTH_PCT_MIN = 30;
 const CHAT_WIDTH_PCT_MAX = 100;
@@ -157,6 +160,10 @@ export const appearanceSettingsSchema = z
     // ST parity: imported cards carry their structure in quoted speech, which ST colors — default ON is
     // the ST-expat expectation. Paints the theme's `dialogueColor` (per-character themeOverride wins).
     colorQuotedSpeech: z.boolean().catch(true).default(true),
+    // KEEPS its whole-collection self-heal, deliberately, against the #1365 sweep: an EMPTY set is itself a
+    // meaningful stored value here ("blur nothing" — the opt-out documented at DEFAULT_BLUR_SURFACES), so
+    // element-wise filtering of an unreadable `["fog"]` would FABRICATE a deliberate opt-out. The members
+    // are a closed enum carrying no user content, so the reset costs a re-tick, not data.
     blurSurfaces: z
       .array(z.enum(BLUR_SURFACES))
       .catch([...DEFAULT_BLUR_SURFACES])
@@ -190,7 +197,12 @@ export const appearanceSettingsSchema = z
     backgroundAssetMime: z.string().catch("").default(""),
     // BG-D: the saved background library the picker chooses from. Additive + prefaulted (an old blob reads
     // `[]` with no version bump — the persona/appearance precedent). Every entry's asset is GC-rooted.
-    backgroundLibrary: z.array(backgroundLibraryEntrySchema).catch([]).default([]),
+    // ELEMENT-WISE (#1365, was a whole-array `.catch([])`): one malformed row dropped the ENTIRE library,
+    // and because the catch made the parse succeed, `parseOutcome` said `intact: true`, so the #471 write
+    // guard could not see it and the next unrelated settings save persisted the erasure. One bad row now
+    // costs one row. (RECOVERY of a library already emptied by the old behaviour is NOT attempted here —
+    // the bytes are gone from the blob; the assets themselves survive in the CAS and can be re-added.)
+    backgroundLibrary: tolerantArray(backgroundLibraryEntrySchema, []).default([]),
     backgroundFit: z.enum(APPEARANCE_BACKGROUND_FITS).catch("cover").default("cover"),
     backgroundDim: z.number().min(BACKGROUND_DIM_MIN).max(BACKGROUND_DIM_MAX).catch(BACKGROUND_DIM_DEFAULT).default(BACKGROUND_DIM_DEFAULT),
     backgroundBlur: z.number().min(BACKGROUND_BLUR_MIN).max(BACKGROUND_BLUR_MAX).catch(BACKGROUND_BLUR_DEFAULT).default(BACKGROUND_BLUR_DEFAULT),
