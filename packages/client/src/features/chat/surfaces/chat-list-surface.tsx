@@ -30,8 +30,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { Field } from "@orb/ui/field";
-import { Icon, MessagesSquare, Plus, X } from "@orb/ui/icons";
+import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack, Surface } from "@orb/ui/layout";
 import { VirtualList } from "@orb/ui/virtual-list";
@@ -53,6 +52,8 @@ import {
 } from "#state";
 import { ChatListFacesStrip, ChatListFilterChip } from "../components/chat-list-character-filter.tsx";
 import { FilterExits } from "../components/chat-list-filter-exits.tsx";
+import { CLEAR_INSET_RESERVE, ClearFilterGlyph } from "../components/chat-list-filter-field.tsx";
+import { ChatListMonthFilter } from "../components/chat-list-month-filter.tsx";
 import { ChatListRow } from "../components/chat-list-row.tsx";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
@@ -77,58 +78,12 @@ const SKELETON_ROW_COUNT = 5;
 /** Row-height guess for the virtualizer; every row re-measures itself after mount. */
 const ESTIMATED_ROW_PX = 44;
 
-// THE MONTH CONTROL SAYS WHAT IT DOES (#490). It read "Jump to month", and the verb was a promise the
-// mechanism does not keep: `beforeRecencyAt` is an EXCLUSIVE UPPER BOUND, so picking a month RE-ROOTS the
-// list at that month and pages OLDER from there — measured, nothing newer than the anchor is reachable by
-// scrolling, and the ✕ is the only way back. "Jump" means move-within (a scroll target you can leave by
-// scrolling); "Show chats from" is what a bound actually is, and it makes the one-way behaviour the copy's
-// own statement rather than a surprise. The BOUND is not the defect and does not move: it is what makes the
-// keyset page cheap, and re-rooting a 896-row virtualized list is the only honest way to reach 2024.
-//
-// THE MONTH CONTROL IS DELIBERATELY THE NATIVE PICKER (#500 item 2, side-eye 2026-08-22 rail-chats P3 —
-// "polish, or accept-and-record in the component header"; this is the RECORD). `input[type=month]` renders
-// its interior as UA chrome (`--------- ----` plus the browser's calendar glyph on an empty value), which
-// reads unlike its two house-styled siblings in this column. Accepted, because every alternative is worse
-// for the one job this control does: the native control already types (`2024-06` straight from the
-// keyboard), already localizes its own display, already opens the OS wheel picker on a phone, is already
-// correctly labelled (`aria-labelledby` → the visible label below) and already passes contrast at 13.29:1.
-// A house-built month picker would be a NEW @orb/ui primitive carrying its own popup, roving keyboard model
-// and locale table, minted for a single secondary filter — and it would be the only date affordance in the
-// app that is not the platform's. The `Input` primitive's box (border, radius, focus ring, instrument-tier
-// font step) is applied, so the control's OUTSIDE is house voice; only its interior is the UA's.
-//
-// THE UNSET INTERIOR IS GLOSSED, NOT REPLACED (#522 — the follow-on the record above invited). Accepting the
-// native control never meant accepting that an EMPTY one shouts: the UA prints `--------- ----` at full
-// foreground, so the loudest text in this column was the field that had nothing to say. The `Input` primitive
-// now marks a date-family control with no value (`data-empty`) and `@orb/ui`'s globals tint
-// `::-webkit-datetime-edit` to the muted tone — the same tone `placeholder:` already gives every text field,
-// which is exactly what those dashes are. Colour only: no custom primitive, no overlay, no relabelling.
-const MONTH_LABEL = "Show chats from";
+// THE MONTH BOUND LIVES IN ITS OWN COMPONENT (`components/chat-list-month-filter.tsx`) since #1350 — the
+// direction ruling (#490/#1348), the native-picker record (#500/#522) and the phone's folded arm are all
+// stated there, at the code that carries them. This surface composes it beside the search field.
 const SKIP_TO_LIST_LABEL = "Skip to chats";
-const CLEAR_MONTH_LABEL = "Clear the month";
 const SEARCH_LABEL = "Search chats";
 const CLEAR_SEARCH_LABEL = "Clear the search";
-
-/** The inline-end room BOTH filter fields keep for their inset clear glyph. It is EXACTLY the glyph's own
- *  box (`icon-sm` is `size-control-sm`, the same pointer-conditional token as the field's height), so the
- *  value can never run under the control and the control can never spill past the field. Held CONSTANT
- *  rather than gated on the value, so typing the first character does not reflow the text under the cursor;
- *  on the month field the same padding also walks the UA's own `::-webkit-calendar-picker-indicator` inboard
- *  by that much (measured in chromium 2026-08-22), which is what keeps the two glyphs from stacking. */
-const CLEAR_INSET_RESERVE = "pe-control-sm";
-
-/** The way OUT of a narrowing filter, inset at the field's own inline end (#525 — see the reset-contract
- *  note at the call sites). `icon-sm` is the `control-sm` SQUARE, i.e. the field's own height at either
- *  pointer: the button fills the field's inner end rather than hanging in the column gutter, and it clears
- *  the coarse tap floor by construction instead of by a hit-area pseudo. The absolute box takes its vertical
- *  static position from the row's `align="center"`, so it needs no inset of its own. */
-function ClearFilterGlyph({ label, onClick }: { readonly label: string; readonly onClick: () => void }): ReactElement {
-  return (
-    <Button aria-label={label} className="absolute end-0" intent="ghost" onClick={onClick} size="icon-sm" title={label} type="button">
-      <Icon icon={X} size="sm" />
-    </Button>
-  );
-}
 
 export interface ChatListSurfaceProps {
   readonly onSelect: (chatId: ChatId) => void;
@@ -215,12 +170,7 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
           />
           {query === "" ? null : <ClearFilterGlyph label={CLEAR_SEARCH_LABEL} onClick={clearSearch} />}
         </Row>
-        <Field label={MONTH_LABEL}>
-          <Row align="center" className="relative">
-            <Input className={`min-w-0 flex-1 ${CLEAR_INSET_RESERVE}`} onValueChange={setChatListMonth} type="month" value={month} />
-            {month === "" ? null : <ClearFilterGlyph label={CLEAR_MONTH_LABEL} onClick={clearMonth} />}
-          </Row>
-        </Field>
+        <ChatListMonthFilter />
         <Stack className="min-h-0 flex-1">
           <ChatListBody
             activeChatId={activeChatId}

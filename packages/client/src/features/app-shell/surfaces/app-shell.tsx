@@ -210,6 +210,9 @@ export function AppShell(): ReactElement {
       );
   }
   const mainRef = useRef<HTMLElement>(null);
+  // #1349: on the ONE-SHELL phone screen the LIST pane IS the main landmark, so it is also what the skip
+  // link has to reach — `.shell-content` is display:none behind it and focusing it moved nothing.
+  const listPaneRef = useRef<HTMLElement>(null);
   // The FLIP that keeps the docked-panel push compositor-only (shell.css "THE PANEL PUSH IS A FLIP"):
   // stamps the direction on the grid in the same commit that resizes the LIST track.
   const gridRef = useRef<HTMLDivElement>(null);
@@ -278,6 +281,14 @@ export function AppShell(): ReactElement {
                 control inside it, so the next Tab lands on the section's first real affordance whatever
                 that section is. `absolute` keeps it out of the shell grid's track flow when revealed.
 
+                …AND ON THE PHONE LANDING IT TARGETS THE ROSTER, BECAUSE THAT IS WHAT `main` IS THERE
+                (#1349). The ONE-SHELL rule makes the LIST pane the screen and shell.css `display:none`s
+                `.shell-content` behind it, so this control was pointing at an unrendered, inert, zero-wide
+                node: measured on live main 2026-09-04 at `--mobile`, Tab reached "Skip to content" and
+                Enter left focus exactly where it was. The skip does not learn about phones — it follows
+                the SAME flag that decides which region carries the landmark
+                (`ShellLayout.listIsPrimaryContent`), so the two can never disagree.
+
                 `not-focus-visible:sr-only`, NOT `sr-only focus-visible:not-sr-only` (side-eye rail-home
                 P3-7, 2026-08-22). The pair reads right and renders wrong: Tailwind's `not-sr-only` is a
                 RESET, and its reset includes `padding: 0` and `height: auto` — which land in the same layer
@@ -291,7 +302,7 @@ export function AppShell(): ReactElement {
             <Button
               className="not-focus-visible:sr-only focus-visible:absolute focus-visible:start-row focus-visible:top-row focus-visible:z-(--z-overlay)"
               intent="secondary"
-              onClick={(): void => mainRef.current?.focus()}
+              onClick={(): void => (layout.listIsPrimaryContent ? listPaneRef : mainRef).current?.focus()}
               size="sm"
               type="button"
             >
@@ -306,6 +317,8 @@ export function AppShell(): ReactElement {
               header={activeDef.listHeader?.()}
               mode={layout.listMode}
               onDismiss={(): void => layout.collapsePanel("list")}
+              primaryContent={layout.listIsPrimaryContent}
+              ref={listPaneRef}
             >
               <RegionAnchor region="list">{listContent}</RegionAnchor>
             </PanelChrome>

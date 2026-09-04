@@ -1297,6 +1297,21 @@ test("#493 the LIST landmark is named by its own band, and follows it when the p
   await expect(page.getByRole("complementary", { name: "Chats list", exact: true })).toHaveCount(0);
 });
 
+// #1349 — A FENCE, NOT A DEFECT PROOF, AND IT SAYS SO. The row filed the LIST landmark's name as `Chats6`
+// (noun and census run together) because the band's heading holds two inline spans with no text node
+// between them. It is not true of the BROWSER: measured here 2026-09-04 through Chromium's own name
+// computation (CDP `Accessibility.getFullAXTree` on this exact story) the node reads
+// `complementary|Chats 6`, with the space, and Playwright's role engine agrees. The `Chats6` receipt came
+// from an in-page hand-rolled name key that concatenates textContent — the already-filed instrument defect
+// (snap `map-browser.ts` + the walker's `doorNameKey`). So nothing was changed for it; this pin exists to
+// hold the browser-true name against a future edit to the band's structure, and it was GREEN before it.
+test("#1349 fence: the LIST landmark's name keeps the census a separate word from the noun", async ({ mount, page }) => {
+  await mount(<AppShellNamedListBandStory count={6} title="Chats" />);
+  await expect(page.getByText("chats list pane")).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Chats 6", exact: true })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Chats6", exact: true })).toHaveCount(0);
+});
+
 // The FALLBACK arm, and it is load-bearing rather than belt-and-braces: a section whose band is not a
 // `ListPaneHeader` (refinery) renders no such heading, and an `aria-labelledby` that resolves to nothing
 // falls through to `aria-label` per the accessible-name computation. `AppShellStory` supplies no band at
@@ -4925,6 +4940,52 @@ test("ONE-SHELL: the rule is applicability, not a mode — at 1280px the config 
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
   await expect(page.getByRole("button", { name: "Back to Settings" })).toHaveCount(0);
   await expect(shell.getByRole("button", { name: LIST_TOGGLE_RE })).toBeVisible();
+});
+
+// ── #1349: THE ROSTER SCREEN IS THE MAIN LANDMARK, AND THE SKIP LANDS ON IT ──────────────────────────
+// The ONE-SHELL rule made the roster the screen and shell.css `display:none`s `.shell-content` behind it —
+// so on the phone landing the ONLY `main` landmark in the document was an unrendered node. Measured on live
+// main 2026-09-04 at `--mobile`: the first Tab stop was "Skip to content", Enter left focus exactly where it
+// was (its target measured `{display:"none", inert:true, width:0}`), and design-audit fired
+// `landmark-missing body` on 8 of 10 sections. The fix is the shell's, once, for every section: whichever
+// region IS the screen carries `main`. Pinned as a per-state count, because "exactly one" is the claim in
+// BOTH states — the roster screen and the pushed detail.
+test("#1349 @320: the roster screen is the ONE main landmark and the skip link lands focus on it", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE_NARROW);
+  const shell = await mount(<AppShellMobileRuleStory section="chats" />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+
+  // ONE main, and it is the roster pane — `getByRole` ignores the `display:none` content column exactly as
+  // the a11y tree does, which is the whole defect stated positively.
+  await expect(page.getByRole("main")).toHaveCount(1);
+  await expect(page.getByRole("main")).toHaveAttribute("data-panel-side", "list");
+
+  // …and the skip control reaches it. A real Tab first so the page is in keyboard modality (the reveal is
+  // `:focus-visible`), then activate the control the way a keyboard user does.
+  await page.keyboard.press("Tab");
+  const skip = shell.getByRole("button", { name: "Skip to content", exact: true });
+  await skip.focus();
+  await skip.press("Enter");
+  await expect(page.getByRole("main")).toBeFocused();
+
+  // A SELECTION pushes the detail: CONTENT is the screen again, and it is again the one main.
+  await shell.getByRole("button", { name: "open a member" }).click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(page.getByRole("main")).toHaveCount(1);
+  await expect(page.getByRole("main")).toHaveClass(/shell-content/u);
+});
+
+// The DESKTOP twin of the same claim: the roster is a complementary pane beside CONTENT there, so the
+// content column keeps `main` and the skip keeps landing on it. One shell rule, two regimes, no per-section
+// exception — and this is the arm that would go red if the mobile fix leaked into the wide layout.
+test("#1349 @1280: the content column keeps the ONE main landmark and the roster stays complementary", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellMobileRuleStory section="chats" />);
+
+  await expect(page.getByRole("main")).toHaveCount(1);
+  await expect(page.getByRole("main")).toHaveClass(/shell-content/u);
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).not.toHaveAttribute("role", "main");
 });
 
 // ── THE MOBILE TOPBAR BUDGET (side-eye P1) — a COARSE-POINTER frame, because the geometry depends on it ──

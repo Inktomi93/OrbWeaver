@@ -67,6 +67,7 @@ import {
   SlashCommandRegistryProvider,
   selectChat,
   setFocusMode,
+  setMobileViewport,
   startEditingMessage,
   toggleMessageSelected,
   useActiveSection,
@@ -1458,12 +1459,20 @@ export interface ChatListSurfaceStoryProps {
   /** Pin the LIST panel width — the row's width budget (text column vs. trailing cluster) is only
    *  observable at a real pane width. Omitted = the 320px default. */
   readonly width?: number;
+  /** Publish the MOBILE viewport regime BEFORE first render (#1350 — the config-host precedent). The month
+   *  bound's folded arm is chosen on the regime, and its `defaultOpen` is a FIRST-COMMIT decision, so a flag
+   *  flipped in an effect afterwards would mount the desktop arm and then swap it. */
+  readonly mobile?: boolean;
 }
 
 /** The Chats-section LIST surface + its anchor, wired to the real data layer (routeTrpc stubs
  *  `chat.listChats`). Records select / new-chat clicks into visible markers so a CT can assert the
  *  callbacks fire with the right id. */
-export function ChatListSurfaceStory({ activeChatId = null, width = 320 }: ChatListSurfaceStoryProps): ReactElement {
+export function ChatListSurfaceStory({ activeChatId = null, width = 320, mobile = false }: ChatListSurfaceStoryProps): ReactElement {
+  useState(() => {
+    setMobileViewport(mobile);
+    return null;
+  });
   return (
     <CtDataProviders>
       <ChatListInner activeChatId={activeChatId} width={width} />
