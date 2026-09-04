@@ -39,7 +39,7 @@ const CODE_EXT_RE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 // (@foreign-id-ok, @owner-scope-write-ok, @finding-overload-ok, @swallowed-ok, @nullable-cmp-ok), plus SAFE:.
 // Extend for any new custom marker.
 const DIRECTIVE_RE =
-  /\b(biome-ignore|eslint-(disable|enable)|prettier-ignore|v8 ignore|c8 ignore|istanbul ignore|knip)\b|@(ts-expect-error|ts-ignore|ts-nocheck|public|alias|internal|deprecated|dsCard)\b|[\w-]+-(ok|exempt|allow)\b|@ds-[\w-]+|\bSAFE:/i;
+  /\b(biome-ignore|eslint-(disable|enable)|prettier-ignore|v8 ignore|c8 ignore|istanbul ignore|knip)\b|@(ts-expect-error|ts-ignore|ts-nocheck|public|alias|internal|deprecated|dsCard)\b|[\w-]+-(ok|exempt|allow)\b|@ds-[\w-]+|@orb-[\w-]+|@instrument-[\w-]+|\bSAFE:/i;
 // Copied VERBATIM even though they are JS/TS: drizzle migrations (SQL markers are load-bearing) + every
 // flavour of config (a reviewer needs the real, commented config).
 const VERBATIM_RE =
