@@ -167,7 +167,7 @@ A FOCUSED review runs the subset its targets implicate, but still prints the tab
 | # | Instrument | What it alone can see | | |
 | - | - | - | - | - |
 | 1 | `pnpm snap` — `--map`, `--aria`, `--contrast` (in-viewport; add a tall-viewport arm for below-fold text; `--contrast-pixel` on any surface with a fixed/absolute painted layer — the CSS resolve is blind to it), `--matrix`, `--json` manifests, and the browser-free reader `pnpm snap --report <run.json> --problems` for every run you cite | selectors, ARIA tree, WCAG ratios, the pairwise APPEARANCE-INVARIANT matrix (§"Fleet truth" below — no longer an 8-variant sweep), lossless console, and the typed per-arm facts + FINDING rows in `run.json` | | |
-| 2 | `pnpm design-audit <route>` AND `pnpm design-audit <route> --mobile` | the deterministic rules (59 registered at 2026-09-01); the mobile arm is the only honest tap-target read. **Read `population-verdict` on the RESULT line BEFORE the findings — NO-VERDICT (exit 2) means the run could not see, and zero findings there is not clean** (§"Fleet truth" item 2) | | |
+| 2 | `pnpm snap <route> --design-audit` AND `pnpm snap <route> --design-audit --mobile` | the deterministic rules (60 registered at 2026-09-04); the mobile arm is the only honest tap-target read. **Read `population-verdict` on the RESULT line BEFORE the findings — NO-VERDICT (exit 2) means the run could not see, and zero findings there is not clean** (§"Fleet truth" item 2) | | |
 | 3 | `pnpm snap <route> --motion <primary action>` | LoAF, CLS, compositor-dirty animations, dropped-frame % over one explicitly tagged action window | | |
 | 4 | `pnpm snap <route> --perf --click <primary action>` | input delay, long tasks, rAF gaps on the surface's ONE primary action | | |
 | 5 | **`pnpm snap <route> --lighthouse desktop` AND `pnpm snap <route> --lighthouse mobile`** (report.json + report.html land in the run slot; `--lighthouse-mode navigation` reloads first — the default `snapshot` audits the page as your drive queue left it, which is what you want for client state) | axe-core a11y rules ours don't carry (color-contrast on composed widgets, label-content-name-mismatch), best-practices, SEO. Same browser, same tab, same device as the rest of the run — `--lighthouse mobile` fills the SAME device slot `--mobile` does, so it does not combine with a later `--desktop`/`--viewport`/`--wide` (and not with `--cascade`, which wants the same debugging endpoint). Failed audits RED the run (exit 1) like `--contrast`; a page that never signalled `data-app-ready`, a Lighthouse throw or a truncated report REFUSE with exit 2 — **a refusal is never a finding, and never a clean row.** **DEV-SERVER TRAP:** the vite-plugin-checker error-overlay HUD (`VITE-PLUGIN-CHECKER-ERROR-OVERLAY`, `badge-base`/`summary` classes) is part of the page to Lighthouse — before filing any Lighthouse finding, check its node path; an overlay-rooted finding is the DEV TOOL, not the product (a "badge contrast" P-find was entirely that widget) | | |
@@ -196,7 +196,7 @@ report with the receipt for what you could not measure, and stop — do not impr
 The stack must be up — if `pnpm snap /` reports a nav error, run `pnpm stack start` first. **All three write only under `reports/` (gitignored)
 — never dump artifacts into the repo root.**
 
-- **`pnpm design-audit <route> [--goto|--open-chat|--open-character|--context-tab|--click …] [--mobile] [--fail-on P0|P1|P2|P3]`** — the defect scanner. **It gained snap's nav flags and a strict CLI on
+- **`pnpm snap <route> --design-audit [--goto|--open-chat|--open-character|--context-tab|--click …] [--mobile] [--fail-on P0|P1|P2|P3]`** — the defect scanner, a snap arm since #1315 (2026-09-04; `pnpm design-audit` no longer exists). **It gained snap's nav flags and a strict CLI on
   2026-08-16**: before that it had ONE `--click` and silently IGNORED unknown flags, so it could
   structurally only ever audit home and a typo'd invocation scanned the landing page and called it
   clean. Nav flags + clicks run in ONE argv-ordered queue; an unknown flag is misuse (exit 3); a nav/click that
@@ -381,8 +381,8 @@ The stack must be up — if `pnpm snap /` reports a nav error, run `pnpm stack s
 - **`pnpm snap <route> --filmstrip --click <sel> [--pause ms] [--out name]`** — the TRANSITION EYE:
   captures the exact existing page through the argv action tape and bounded settle, then writes one
   PNG contact sheet with stable frame order, relative timestamps, and action labels. The typed run index
-  points straight at it. `pnpm record` is only a loud compatibility redirect to this recipe; it never
-  opens another browser or preserves the old WebM/GIF dialect.
+  points straight at it. `pnpm record` no longer exists; this arm is the
+  only recording recipe (no WebM/GIF dialect).
 - **`pnpm snap <route> --perf --click <sel> [--perf-cycles N] [--cpu-profile]`** — interaction responsiveness:
   per-step input delay, long tasks (>50ms), worst rAF gap (dropped frames), layout-shift score; JSON →
   the printed immutable Snap run index. Use when "does it FEEL right" is the question — a janky mode
@@ -476,7 +476,7 @@ means the detectors found nothing; only your driven, screenshotted pass can say 
   outrank your instinct. Tokens only; `@orb/ui` primitives; the container model; the reading-surface
   rule; no dead toggles (a rendered control MUST have a live consumer). Cite the law a finding breaks.
 - Do not run `pnpm test` (its lifecycle suite binds :8788 and kills the dev server). `pnpm check`,
-  `pnpm snap` and `pnpm design-audit` are your tools.
+  `pnpm snap` (including its `--design-audit` arm) is your tool.
 - You are read-only on the product. Ephemeral receipts (screenshots, `design-audit`/Snap analyzer JSON)
   go under `reports/` (gitignored). If you write a DURABLE review file, it goes in `docs/reviews/side-eye/`
   as `YYYY-MM-DD-<slug>.md` — tracked, because a review is repo history and reports written to the
@@ -601,7 +601,7 @@ longer what keeps two LANES apart. `reports/baselines/` is deliberately not slot
 is read by a later `--diff`). Layout's one home:
 `docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
 
-**2. `pnpm design-audit` now owes a POPULATION VERDICT, and a partial run is exit 2 — read it before you
+**2. `pnpm snap <route> --design-audit` owes a POPULATION VERDICT, and a partial run is exit 2 — read it before you
 read the findings (#1027/#987/#953).** Every rule is wired through a decided collection rung
 (`tooling/src/ui-audit/lib/collect.ts`'s RUNG ASSIGNMENT TABLE is the enforcement; the mechanics are in
 `lib/population-strategies.ts`), and the accounting must CLOSE: `candidates = judged + withheld[non-cap] +
