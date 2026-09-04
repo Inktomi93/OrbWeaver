@@ -18,6 +18,18 @@ function slotPrefix(indexPath: string): string {
   return `${dirname(indexPath)}/`;
 }
 
+/** The row's VERDICT DISPOSITION, inline (#1385 item 4) — one whitespace-free token, so a reader deciding
+ *  whether to file a `FINDING error` printed beside `console-errors=0` has the answer on the row rather
+ *  than in the source of `ops/noise.ts`. Absent only on immutable indices written before it landed, where
+ *  the honest print is that the run never recorded one. */
+export function findingDispositionDisplay(finding: SnapCompositeFinding): string {
+  const disposition = finding.disposition;
+  if (disposition === undefined) {
+    return "unrecorded";
+  }
+  return `${disposition.counted ? "counted" : "excluded-from-verdict"}(${disposition.reason})`;
+}
+
 /** `<source>@<path>` for every evidence ref, with THIS run's slot prefix dropped. An artifact from
  *  somewhere else keeps its absolute path: a shortened path that is not slot-relative would be a lie. */
 export function findingEvidenceDisplay(finding: SnapCompositeFinding, indexPath: string): string {

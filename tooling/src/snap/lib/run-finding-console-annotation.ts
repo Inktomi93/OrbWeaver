@@ -3,7 +3,7 @@
 import { exactScope } from "../../_shared/artifact-scope.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { DiskSafeBrowserDiagnostic } from "../contract/browser-evidence-redaction.ts";
-import type { SnapRunArtifact, SnapRunIndex } from "../contract/run-index.ts";
+import type { SnapFindingDisposition, SnapRunArtifact, SnapRunIndex } from "../contract/run-index.ts";
 import type { FindingDraft } from "./run-finding-common.ts";
 import { findingLocation, findingRef, findingSymptom } from "./run-finding-common.ts";
 
@@ -112,6 +112,30 @@ function diagnosticCorrelation(row: DiskSafeBrowserDiagnostic): string {
   return `symptom:${findingSymptom(row.text)}`;
 }
 
+/** WHICH RESULT COUNTER, IF ANY, THIS DIAGNOSTIC ENTERED (#1385 item 4).
+ *
+ *  A dogfood run printed `FINDING error | ResizeObserver loop …` beside `RESULT console-errors=0` and
+ *  exited 0, and nothing on the row said whether the reader should file it. That pairing is not a
+ *  contradiction: `console-errors` counts PAGE-CONSOLE errors (ops/noise.ts's `verdictConsoleErrors`) and
+ *  `page-errors` counts uncaught exceptions, while the diagnostics ring ALSO carries browser-log lines,
+ *  CDP audit issues, the app's own console ring and the instrument's own limit receipts — none of which
+ *  any counter counts. `origin` is the fact that decides it, so the row states it rather than implying it.
+ *
+ *  An ANNOTATION row (the app's instrumentation grammar) is never a verdict input either; it is attributed
+ *  to an arm for reading, and that arm's own budget — not this line — is what votes. */
+function diagnosticDisposition(row: DiskSafeBrowserDiagnostic, attribution: DiagnosticAttribution | null): SnapFindingDisposition {
+  if (attribution !== null) {
+    return { counted: false, reason: `${attribution.arm}-annotation` };
+  }
+  if (row.origin === "page-console") {
+    return row.level === "error" ? { counted: true, reason: "console-errors" } : { counted: false, reason: "console-warning" };
+  }
+  if (row.origin === "page-error") {
+    return { counted: true, reason: "page-errors" };
+  }
+  return { counted: false, reason: row.origin };
+}
+
 function diagnosticSeverity(row: DiskSafeBrowserDiagnostic, attribution: DiagnosticAttribution | null): FindingDraft["severity"] {
   if (attribution !== null) {
     return "annotation";
@@ -141,6 +165,7 @@ export function diagnosticFindingDrafts(
         completeness: diagnosticsState === "complete" ? "bounded" : "incomplete",
         conflicts: [],
         occurrences: 1,
+        disposition: diagnosticDisposition(row, attribution),
         correlation: attribution === null ? diagnosticCorrelation(row) : `attribution:${attribution.arm}:${attribution.tag}`,
       };
     });

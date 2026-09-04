@@ -111,8 +111,20 @@ export interface SnapFindingEvidenceRef {
 }
 
 /** A display-only correlation over producer-owned evidence. It never contributes an exit vote. */
+/** WHETHER THIS ROW'S EVIDENCE VOTED (#1385 item 4). A composite finding is display-only correlation, so
+ *  a `FINDING error` printed beside `console-errors=0` is not a contradiction — it means the row's
+ *  evidence reached snap through a channel that counter does not count (a page error, a CDP audit issue,
+ *  the app's own console ring). Saying nothing left the reader to decide whether to file it; the row now
+ *  states it inline. `reason` names the COUNTER when counted, and the ORIGIN when not. */
+export interface SnapFindingDisposition {
+  readonly counted: boolean;
+  readonly reason: string;
+}
+
 export interface SnapCompositeFinding {
   readonly severity: "error" | "warning" | "annotation";
+  /** Optional only for immutable indices written before the disposition landed; current writers always emit it. */
+  readonly disposition?: SnapFindingDisposition;
   readonly arms: readonly Arm[];
   readonly channels: readonly string[];
   readonly what: string;

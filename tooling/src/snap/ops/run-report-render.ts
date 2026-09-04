@@ -7,7 +7,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { snapDiagnosticRetention } from "../contract/run-facts.ts";
 import type { SnapPrunedRun, SnapReportQuery, SnapRunIndex, SnapRunListQuery } from "../contract/run-index.ts";
 import { readReactProfileSummary } from "../lib/react-profile-receipt.ts";
-import { findingEvidenceDisplay, findingNextDisplay } from "../lib/run-finding-display.ts";
+import { findingDispositionDisplay, findingEvidenceDisplay, findingNextDisplay } from "../lib/run-finding-display.ts";
 import { reportAnalyzerProblems } from "../lib/run-report-analyzers.ts";
 import type { SnapRunRegression } from "../lib/run-report-columns.ts";
 import { runArms, runOutName, runRoute } from "../lib/run-report-columns.ts";
@@ -193,7 +193,7 @@ function reportFindings(index: SnapRunIndex, path: string, query: SnapReportQuer
     const evidence = findingEvidenceDisplay(finding, path);
     const conflicts = finding.conflicts.length === 0 ? "none" : finding.conflicts.join("; ");
     print(
-      `FINDING      ${finding.severity} | ${finding.what.replace(/\s+/gu, " ")} | ${finding.where.replace(/\s+/gu, " ")} | evidence=${evidence} confidence=${finding.confidence} completeness=${finding.completeness} conflicts=${JSON.stringify(conflicts)} occurrences=${String(finding.occurrences)} | next=${findingNextDisplay(finding, index, path)}`,
+      `FINDING      ${finding.severity} | ${finding.what.replace(/\s+/gu, " ")} | ${finding.where.replace(/\s+/gu, " ")} | evidence=${evidence} confidence=${finding.confidence} completeness=${finding.completeness} disposition=${findingDispositionDisplay(finding)} conflicts=${JSON.stringify(conflicts)} occurrences=${String(finding.occurrences)} | next=${findingNextDisplay(finding, index, path)}`,
     );
   }
   if (rows.length > FINDING_DISPLAY_CAP) {
@@ -214,7 +214,7 @@ export function renderSnapRunDelta(current: SnapRunIndex, previous: SnapRunIndex
   }
   const what = regressions.map((row) => `${row.label} ${String(row.before)}→${String(row.after)}`).join(", ");
   print(
-    `FINDING      warning | regressed: ${what} | vs ${previous.identity.runId} (same --out name, finished ${previous.process.finishedAt}) | evidence=run-index@${current.identity.runId} confidence=direct completeness=complete conflicts="none" occurrences=${String(regressions.length)} | next=pnpm snap --report ${previous.identity.runId} --problems`,
+    `FINDING      warning | regressed: ${what} | vs ${previous.identity.runId} (same --out name, finished ${previous.process.finishedAt}) | evidence=run-index@${current.identity.runId} confidence=direct completeness=complete disposition=excluded-from-verdict(run-comparison) conflicts="none" occurrences=${String(regressions.length)} | next=pnpm snap --report ${previous.identity.runId} --problems`,
   );
 }
 

@@ -164,6 +164,10 @@ test("#1326 — every emitted finding selector resolves to exactly one element, 
   // emitted selector matches. A `-1`/`>1` row would print a SELECTOR block naming it.
   expect(audited.stdout).toMatch(/selectors-proven=[1-9]\d*/u);
   expect(audited.stdout).toContain("selectors-ambiguous=0");
+  // #1538: the proof cap's remainder is published on EVERY run, including the zero. Without the pair a
+  // truncated proof list is indistinguishable from a complete one on the machine line.
+  expect(audited.stdout).toContain("selectors-unproven=0");
+  expect(audited.stdout).not.toContain("proof cap truncated the list");
   expect(audited.stdout).not.toContain("do NOT resolve to exactly one element");
   // The two twins are now told apart by the aria-label anchor rather than by an identical six-step path.
   // The SECOND one lives in `representatives` (both instances share one authored target-size decision, so
@@ -172,7 +176,9 @@ test("#1326 — every emitted finding selector resolves to exactly one element, 
   const report = JSON.parse(await readFile(reportPath(audited.stdout), "utf8")) as {
     readonly findings: readonly { readonly rule: string; readonly selector: string; readonly representatives?: readonly string[] }[];
     readonly selectorProof: readonly { readonly selector: string; readonly matches: number }[];
+    readonly selectorsUnproven: number;
   };
+  expect(report.selectorsUnproven).toBe(0);
   const tap = report.findings.find((finding) => finding.rule === "tap-target");
   expect(tap?.representatives).toEqual(['[aria-label="First tiny"]', '[aria-label="Second tiny"]']);
   expect(report.selectorProof).toEqual([
@@ -239,6 +245,42 @@ test("a page the app declares a FAILURE SURFACE is refused on sight, tables and 
   await expect(refused).toExitWith(EXIT.toolError);
   expect(refused.stdout).toContain("INSTRUMENT ERROR");
   expect(refused.stdout).not.toMatch(/^POPULATION/mu);
+});
+
+// ── #1538: the typed FACT names WHICH verdict channel, and the help text stops overclaiming ──────────
+
+test("#1538 — the typed run fact carries ALL FIVE verdict channels, not populationVerdict alone", async ({ runCli, scratch }) => {
+  const file = await plant(scratch, "channels.html", page('<main style="background:#000;color:#fff"><p style="font-size:16px">legible copy here</p></main>'));
+  const audited = await runCli("snap", ["--file", file, "--design-audit", "--json", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+
+  const indexPath = /\bindex=(\/\S+\/run\.json)\b/u.exec(audited.stdout)?.[1];
+  expect(indexPath, `no run index in:\n${audited.stdout}`).toBeTypeOf("string");
+  const index = JSON.parse(await readFile(String(indexPath), "utf8")) as {
+    readonly results?: { readonly batches: readonly { readonly arms: readonly { readonly arm: string; readonly data: Record<string, unknown> }[] }[] };
+  };
+  const fact = index.results?.batches.flatMap((batch) => batch.arms).find((arm) => arm.arm === "design-audit");
+
+  // A fact-only consumer must be able to tell a truncated census from a broken forced-state pass — one
+  // boolean cannot say which half was withheld, which is the whole point of the five named channels.
+  expect(fact?.data).toMatchObject({
+    censusCapVerdict: expect.stringMatching(/^(?:complete|no-verdict)$/u),
+    populationVerdict: expect.stringMatching(/^(?:complete|no-verdict)$/u),
+    hoverVerdict: expect.stringMatching(/^(?:complete|no-verdict)$/u),
+    forceVerdict: expect.stringMatching(/^(?:complete|no-verdict)$/u),
+    instrumentPageErrorVerdict: expect.stringMatching(/^(?:complete|no-verdict)$/u),
+    unprovenSelectors: 0,
+  });
+});
+
+test("#1538 — --design-audit's help states the selector proof's LIMIT instead of promising locatability", async ({ runCli }) => {
+  const help = await runCli("snap", ["--help"], { timeoutMs: CLI_TIMEOUT_MS });
+
+  // The old text promised "each with a locatable selector" while `/config` printed two unresolvable ones
+  // and exited 0 (deliberately — #1326 keeps an instrument limit out of the app's verdict). The claim
+  // moves, not the exit code.
+  expect(help.stdout).not.toContain("each with a locatable selector");
+  expect(help.stdout).toContain("selectors-ambiguous / selectors-unproven");
+  expect(help.stdout).toContain("not the app's verdict, so it does not change the exit code");
 });
 
 test("the arm is OFF by default: an ordinary snap run neither walks nor claims a design verdict", async ({ runCli, scratch }) => {

@@ -145,6 +145,8 @@ export interface DesignAuditMeasurement {
   readonly gaps: readonly EvidenceGap[];
   readonly verdicts: DesignAuditVerdicts;
   readonly selectorProof: readonly SelectorProof[];
+  /** Distinct emitted selectors the proof cap never asked about (#1538) — published, never assumed unique. */
+  readonly selectorsUnproven: number;
 }
 
 interface WalkInput {
@@ -180,13 +182,21 @@ function terminalMeasurement(url: string, gap: EvidenceGap, input: Pick<WalkInpu
     gaps: [gap],
     verdicts: { population: gap, censusCap: gap, hover: gap, force: gap, instrumentPageError: gap },
     selectorProof: [],
+    selectorsUnproven: 0,
   };
 }
 
 /** Prove every DISTINCT emitted selector in Node. Bounded: a pathological surface could emit hundreds of
  *  rows and each proof is a round trip, so the cap is declared and the remainder is reported UNPROVEN
- *  rather than silently counted as unique — an unasked question must never read like a clean answer. */
-async function proveSelectors(page: Page, findings: readonly Finding[]): Promise<readonly SelectorProof[]> {
+ *  rather than silently counted as unique — an unasked question must never read like a clean answer.
+ *
+ *  #1538: the promise above was PROSE ONLY until now — the slice truncated and returned, nothing carried
+ *  the dropped count, and above the cap the 65th selector onward read exactly like a clean sweep. The
+ *  count now rides out with the proofs and is published (`selectors-unproven`, the SELECTOR line, and a
+ *  problem row). It is deliberately NOT a run-level gap: #1326 ruled that selector locatability is an
+ *  INSTRUMENT concern which rides as its own row rather than reddening the app's verdict, and a bound this
+ *  instrument chose for itself is the same class of fact. */
+async function proveSelectors(page: Page, findings: readonly Finding[]): Promise<{ readonly proofs: readonly SelectorProof[]; readonly unproven: number }> {
   // A PAGE-SUBJECT finding names the DOCUMENT, not an element (contract/findings.ts) — asking Playwright
   // to count `page` would report every stray-font run as unlocatable, which is the false positive this
   // proof exists to avoid rather than to create.
@@ -195,7 +205,8 @@ async function proveSelectors(page: Page, findings: readonly Finding[]): Promise
   // exactly like the row's own, and on the #1326 twin-subtree control they are the ONLY place the second
   // instance appears. Proving the row alone would have been a proof of the easy half.
   const emitted = findings.flatMap((finding) => [finding.selector, ...(finding.representatives ?? [])]);
-  const distinct = [...new Set(emitted)].filter((selector) => selector !== PAGE_SUBJECT_SELECTOR).slice(0, DESIGN_AUDIT_SELECTOR_PROOF_CAP);
+  const askable = [...new Set(emitted)].filter((selector) => selector !== PAGE_SUBJECT_SELECTOR);
+  const distinct = askable.slice(0, DESIGN_AUDIT_SELECTOR_PROOF_CAP);
   const proofs: SelectorProof[] = [];
   for (const selector of distinct) {
     // @orb-gate-ignore caught-failure-ownership(empty:catch): a selector the browser refuses to parse is reported as matches=-1, which the arm prints as UNPROVEN and counts as non-unique — the failure IS the published value. Ends if -1 stops being read as "not proven".
@@ -205,7 +216,7 @@ async function proveSelectors(page: Page, findings: readonly Finding[]): Promise
       proofs.push({ selector, matches: -1 });
     }
   }
-  return proofs;
+  return { proofs, unproven: askable.length - distinct.length };
 }
 
 async function readSamples(page: Page): Promise<{ readonly samples: RawSamples; readonly population: DomPopulation } | { readonly walkError: string }> {
@@ -309,6 +320,7 @@ export async function walkDesignAudit(input: WalkInput): Promise<DesignAuditMeas
   const gaps = [verdicts.population, verdicts.censusCap, verdicts.hover, verdicts.force, verdicts.instrumentPageError].filter(
     (gap): gap is EvidenceGap => gap !== null,
   );
+  const proven = await proveSelectors(page, findings);
 
   return {
     url,
@@ -340,6 +352,7 @@ export async function walkDesignAudit(input: WalkInput): Promise<DesignAuditMeas
     actionsFailed: input.actionsFailed,
     gaps,
     verdicts,
-    selectorProof: await proveSelectors(page, findings),
+    selectorProof: proven.proofs,
+    selectorsUnproven: proven.unproven,
   };
 }

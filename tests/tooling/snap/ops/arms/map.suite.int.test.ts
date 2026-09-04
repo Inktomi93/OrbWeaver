@@ -102,13 +102,13 @@ test("live map prints executable SPA atlas, factual desktop shell geometry, and 
   });
 
   await expect(run).toExitWith(0);
-  expect(run.stdout).toContain("--- SPA NAV TARGETS");
-  expect(run.stdout).toContain('pnpm snap --goto "chats" --map');
-  expect(run.stdout).toContain('pnpm snap --goto "modal:command" --map');
-  expect(run.stdout).toContain('pnpm snap --goto "settings:appearance" --map');
-  expect(run.stdout).toContain('pnpm snap --context-tab "game" --map');
-  expect(run.stdout).toContain('pnpm snap --open-chat "latest" --map');
-  expect(run.stdout).toContain("choose a NAV TARGET, then map that settled destination");
+  // #1372: a plain --map states the atlas as ONE line and keeps the 2.1 KB block one flag away (#1515 —
+  // this suite pinned the pre-#1372 block and went red on main without `pnpm check` ever running it).
+  expect(run.stdout).toContain(
+    "atlas: 8 SPA targets (2 sections, 1 modals, 1 settings, 1 context tabs, 3 chat positions) at section=Chats — list them with --map --atlas",
+  );
+  expect(run.stdout).not.toContain("--- SPA NAV TARGETS");
+  expect(run.stdout).not.toContain('pnpm snap --goto "chats" --map');
   expect(run.stdout).toContain("--- CURRENT SHELL / REGIONS");
   expect(run.stdout).toContain("regime=wide");
   expect(run.stdout).toContain("content=Chats content");
@@ -153,18 +153,27 @@ test("static maps stay DOM-only while malformed live bridge evidence refuses", a
   const malformedShellPage = await fixture(scratch, "malformed-shell", document(shellBody(), validBridge(undefined, "docked", false)));
   const shellRefused = await runCli("snap", ["--file", malformedShellPage, "--no-shot", "--map", "--no-failure-evidence"], { timeoutMs: TIMEOUT_MS });
   await expect(shellRefused).toExitWith(EXIT.toolError);
-  expect(shellRefused.stdout).toContain('pnpm snap --goto "chats" --map');
+  // The atlas resolved and still states itself (as the one line a plain --map prints) while the SHELL half
+  // refuses — the two halves of --map fail independently.
+  expect(shellRefused.stdout).toContain("atlas: 8 SPA targets (2 sections, 1 modals, 1 settings, 1 context tabs, 3 chat positions) at section=Chats");
   expect(shellRefused.stdout).toContain("must publish exactly one list and one context panel");
 });
 
-test("atlas caps each group exactly and remains global when the surface map is scoped", async ({ runCli, scratch }) => {
+test("--atlas prints the executable block, caps each group exactly, and stays global when the surface map is scoped", async ({ runCli, scratch }) => {
   const sections = Array.from({ length: 12 }, (_, index) => `section-${String(index + 1)}`);
   const page = await fixture(scratch, "bounded", document(shellBody(), validBridge(sections)));
-  const run = await runCli("snap", ["--file", page, "--no-shot", "--map", "main", "--no-failure-evidence"], { timeoutMs: TIMEOUT_MS });
+  const run = await runCli("snap", ["--file", page, "--no-shot", "--map", "main", "--atlas", "--no-failure-evidence"], { timeoutMs: TIMEOUT_MS });
   await expect(run).toExitWith(0);
+  // --atlas is the flag the one-line summary names: it prints the full block for every group, capped.
+  expect(run.stdout).toContain("--- SPA NAV TARGETS");
   expect(run.stdout).toContain("SECTIONS total=12 shown=10 omitted=2");
   expect(run.stdout).toContain('pnpm snap --goto "section-10" --map');
   expect(run.stdout).not.toContain('pnpm snap --goto "section-11" --map');
+  expect(run.stdout).toContain('pnpm snap --goto "modal:command" --map');
+  expect(run.stdout).toContain('pnpm snap --goto "settings:appearance" --map');
+  expect(run.stdout).toContain('pnpm snap --context-tab "game" --map');
+  expect(run.stdout).toContain('pnpm snap --open-chat "latest" --map');
+  expect(run.stdout).toContain("choose a NAV TARGET, then map that settled destination");
   expect(run.stdout).toContain("--- SURFACE MAP (scope=main");
   expect(run.stdout).not.toContain('navigation  "Orbweaver"');
 });

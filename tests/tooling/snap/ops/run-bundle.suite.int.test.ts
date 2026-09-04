@@ -2,7 +2,7 @@
 // prints a bounded receipt card, and can be read browser-free by absolute path, exact id, or local latest.
 // Corrupt/missing/ambiguous evidence refuses rather than becoming a false-clean summary.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import type { InstrumentArtifactMetadata } from "@orb/tooling/_shared/artifact-out";
 import { beginInstrumentRun, finishInstrumentRun, registerInstrumentArtifact } from "@orb/tooling/_shared/artifact-out";
 import type { BrowserDiagnostic } from "@orb/tooling/_shared/browser-diagnostics";
@@ -166,6 +166,20 @@ function git(root: string, args: readonly string[]): void {
   expect(result.status, result.stderr).toBe(0);
 }
 
+/** The checkout identity this suite is RUNNING in, derived independently of the code under test (#1333):
+ *  `git worktree list --porcelain` names the PRIMARY checkout first, where run-bundle-files.ts derives the
+ *  same fact from `--git-common-dir`. Hard-coding `kind: "primary"` made the round-trip case red inside
+ *  every lane worktree — the identity was correct on both sides, only the premise was. */
+function runningCheckout(root: string): { readonly primaryPath: string; readonly kind: "primary" | "linked" } {
+  const result = runNicedSync("git", ["-C", root, "worktree", "list", "--porcelain"]);
+  expect(result.status, result.stderr).toBe(0);
+  const primaryPath = /^worktree (.+)$/mu.exec(result.stdout)?.[1];
+  if (primaryPath === undefined) {
+    throw new Error(`git worktree list named no primary checkout: ${result.stdout}`);
+  }
+  return { primaryPath, kind: resolve(primaryPath) === resolve(root) ? "primary" : "linked" };
+}
+
 async function initializeRepository(root: string): Promise<void> {
   await mkdir(root, { recursive: true });
   git(root, ["init", "-b", "main"]);
@@ -247,10 +261,11 @@ test("a completed run writes a self-consistent index and its receipt READ comman
   expect(index.v).toBe(1);
   expect(path).toContain(index.identity.runId);
   expect(index.identity.root).toBe(repoRoot);
+  const checkout = runningCheckout(repoRoot);
   expect(index.identity).toMatchObject({
     indexPath: path,
     slotPath: path.slice(0, -"/run.json".length),
-    checkouts: { primary: { path: repoRoot }, subject: { kind: "primary", path: repoRoot } },
+    checkouts: { primary: { path: checkout.primaryPath }, subject: { kind: checkout.kind, path: repoRoot } },
   });
   expect(index.identity.sha).toMatch(/^[0-9a-f]{40}$/u);
   expect(index.identity.dirty.digest).not.toBe("");

@@ -22,7 +22,21 @@ const TAP_COARSE_WARN_PX = 44; // WCAG 2.5.5 (AAA) — recommended touch target 
 const TAP_COARSE_FAIL_PX = 32; // below this even a coarse pointer can't reliably hit — hard floor
 const TAP_FINE_MIN_PX = 24; // WCAG 2.5.8 (AA) — the only target-size floor a mouse actually owes
 
+/** The one declaration this rule honours (#1381). Spelled once; the client stamps the same literal. */
+const RULED_SUB_FLOOR = "sub-floor-ok";
+
+/** A PRICED, RECORDED sub-floor decision, declared on the control itself — and honoured at FINE POINTER
+ *  ONLY. Coarse is where the floor is a reachability fact rather than a density preference (the transcript
+ *  disclosure takes the real 44px floor there through a shared fragment), so a coarse regression must
+ *  still fire; a declaration that silenced both would be an off switch, not a ruling. */
+function isRuledSubFloor(input: TapTargetInput, pointerCoarse: boolean): boolean {
+  return !pointerCoarse && input.ruledTargetFloor === RULED_SUB_FLOOR;
+}
+
 export function checkTapTarget(input: TapTargetInput, pointerCoarse: boolean): Finding | null {
+  if (isRuledSubFloor(input, pointerCoarse)) {
+    return null;
+  }
   // A LOWER BOUND IS NOT A SIZE (#797). The walker flags a measurement whose outward probe ring fell off
   // the viewport with no in-frame radius having genuinely failed: the control may own more than the number
   // below, so a sub-target verdict here is the phantom P1 that made this rule's raw count untrustworthy for
@@ -168,17 +182,22 @@ export function checkTapTargetPopulations(inputs: readonly TapTargetInput[], poi
   const nestedOwned = nestedOwnedTargets(judged);
   const result = targetPopulationFindings(targetDecisionGroups(judged, nestedOwned));
   const extentTruncated = inputs.filter((input) => input.extentTruncated === true).length;
-  if (result.affected > inputs.length - extentTruncated || result.representatives + result.capped !== result.affected) {
+  // EXCLUDED, NOT WITHHELD, and never a silent skip (#1381): the control MEASURED fine and declared a
+  // recorded ruling placing it outside this rule's population at fine pointer — that is proof of
+  // inapplicability, the exact polarity `excluded` carries. A truncated extent, by contrast, is an absent
+  // measurement and stays `withheld`. Both are counted, so the denominator still names every candidate.
+  const ruledSubFloor = inputs.filter((input) => input.extentTruncated !== true && isRuledSubFloor(input, pointerCoarse)).length;
+  if (result.affected > inputs.length - extentTruncated - ruledSubFloor || result.representatives + result.capped !== result.affected) {
     throw new Error("INSTRUMENT ERROR: tap-target population accounting does not settle");
   }
   const accounting = settledPopulationAccounting("tap-target", {
     candidates: inputs.length,
-    judged: inputs.length - extentTruncated,
+    judged: inputs.length - extentTruncated - ruledSubFloor,
     affected: result.affected + nestedOwned.size,
     populations: result.findings.length,
     emitted: result.representatives,
     withheld: { extentTruncated, [WITHHELD_REASONS.representativeCap]: result.capped },
-    excluded: {},
+    excluded: { ruledSubFloor },
     collapsed: { sameOwner: nestedOwned.size },
   });
   return {

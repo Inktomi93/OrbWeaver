@@ -7,7 +7,17 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { DriveFailure } from "../contract/actions.ts";
 import type { SnapFindingEvidenceRef, SnapRunArtifact } from "../contract/run-index.ts";
 import type { FindingDraft } from "./run-finding-common.ts";
-import { findingCompleteness, findingIdentity, findingLocation, findingRef, findingSymptom, malformedFinding, readJson, record } from "./run-finding-common.ts";
+import {
+  countedBy,
+  findingCompleteness,
+  findingIdentity,
+  findingLocation,
+  findingRef,
+  findingSymptom,
+  malformedFinding,
+  readJson,
+  record,
+} from "./run-finding-common.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");
 
@@ -102,6 +112,7 @@ function corePageErrorDrafts(path: string, rows: readonly unknown[], diagnostics
       completeness: "complete",
       conflicts: [],
       occurrences: 1,
+      disposition: countedBy("page-errors"),
       correlation: `symptom:${findingSymptom(text)}`,
     };
   });
@@ -129,6 +140,7 @@ function coreRequestDrafts(path: string, rows: readonly unknown[], diagnostics: 
       completeness: "bounded",
       conflicts: [],
       occurrences: 1,
+      disposition: countedBy("failed-req"),
       correlation: `symptom:${findingSymptom(failure)}`,
     });
   }
@@ -210,6 +222,7 @@ function coreDriveFailureDrafts(artifact: SnapRunArtifact, rows: readonly unknow
         completeness: "complete",
         conflicts: ["every capture taken after this action describes a surface the drive never reached"],
         occurrences: 1,
+        disposition: countedBy("steps-failed"),
         correlation: `drive:${String(page)}:${String(failure.index)}:${failure.flag}`,
       });
     }
@@ -247,6 +260,7 @@ function coreMapDrafts(artifact: SnapRunArtifact, rows: readonly unknown[]): Fin
         completeness: "complete",
         conflicts: [],
         occurrences: 1,
+        disposition: countedBy("map-fails"),
         correlation: `map:${field}:${findingSymptom(message)}`,
       });
     }
@@ -313,6 +327,7 @@ function harEntryDraft(value: unknown, artifact: SnapRunArtifact): FindingDraft 
     completeness: findingCompleteness(artifact),
     conflicts: [],
     occurrences: 1,
+    disposition: countedBy("failed-req"),
     correlation,
   };
 }

@@ -30,6 +30,7 @@ import {
   prepareMeasuredClick,
   runAudit,
 } from "../../../motion-audit/index.ts";
+import type { SnapAction } from "../../contract/actions.ts";
 import type {
   ArmActionContext,
   ArmActionDisposition,
@@ -120,6 +121,32 @@ function rateEvidenceGaps(ratePosture: SnapRatePosture): EvidenceGap[] {
   return [{ evidence: accelerationMissing ? "hardware browser acceleration" : "a quiet rate-measurement host", detail: disposition.reason }];
 }
 
+/** How many later queue entries the hint names before it stops listing them. */
+const MOTION_QUEUE_HINT_ENTRIES = 3;
+
+function actionLabel(entry: SnapAction): string {
+  return entry.type === "eval" ? "--eval" : `--${entry.action.kind}`;
+}
+
+/** THE QUEUE POSITION, SAID OUT LOUD (#1385 item 1). `pnpm snap / --goto chats --motion '[sel]' --open-chat X`
+ *  measures the surface that exists BEFORE `--open-chat` runs, because snap's action queue is argv-ordered
+ *  and `--motion` takes its position in it like every other step. The measurement is therefore correct and
+ *  the refusal ("nothing composited") is correct — and neither says the thing the operator needs, which is
+ *  that they wrote the flag too early. This is not a misuse to reject at parse time: measuring a surface
+ *  and THEN navigating away is legitimate. It is a hint, and only on a run that already has a gap. */
+function motionQueueHint(opts: Args, actionIndex: number): EvidenceGap | null {
+  const later = opts.actions.slice(actionIndex + 1).filter((entry) => entry.type !== "eval");
+  if (later.length === 0) {
+    return null;
+  }
+  const shown = later.slice(0, MOTION_QUEUE_HINT_ENTRIES).map(actionLabel);
+  const omitted = later.length - shown.length;
+  return {
+    evidence: "a settled surface to measure",
+    detail: `--motion ran at queue position ${String(actionIndex + 1)} of ${String(opts.actions.length)}, and ${String(later.length)} nav/step action(s) follow it (${shown.join(", ")}${omitted > 0 ? `, +${String(omitted)} more` : ""}) — snap runs the queue in ARGV ORDER, so the window opened on the surface those actions had not reached yet. Write --motion after the last nav/step if you meant to measure the destination.`,
+  };
+}
+
 async function measureMotionAction(
   input: Readonly<{
     session: ProbeSession;
@@ -131,9 +158,10 @@ async function measureMotionAction(
 ): Promise<MotionMeasurement> {
   const { session, opts, ctx, selector, ratePosture } = input;
   const page = ctx.page;
+  const queueHint = motionQueueHint(opts, ctx.actionIndex);
   const gap = apparatusGap({ url: page.url(), ready: true, bridge: await hasOrbBridge(page), readyTimeoutMs: 0 });
   if (gap !== null) {
-    return { data: null, gaps: [gap], pass: false, artifact: null };
+    return { data: null, gaps: queueHint === null ? [gap] : [gap, queueHint], pass: false, artifact: null };
   }
   const cdp = await page.context().newCDPSession(page);
   // @orb-gate-ignore caught-failure-ownership(empty:error): the caught measurement failure becomes a named evidence gap, printed as REFUSED and forced to exit 2 by the arm. Ends if the returned gaps stop feeding report/pairs/exit.
@@ -154,11 +182,19 @@ async function measureMotionAction(
     };
     const evaluated = evaluateMotionAudit(data, opts.motionWindowMs);
     const gaps: EvidenceGap[] = [...evaluated.gaps, ...rateEvidenceGaps(ratePosture)];
+    // Only a run that ALREADY could not measure gets the hint — on a clean window, measure-then-navigate
+    // is an ordinary chain and a lecture about argv order would be noise.
+    if (gaps.length > 0 && queueHint !== null) {
+      gaps.push(queueHint);
+    }
     return { data, gaps, pass: evaluated.budgetsPass, artifact: null };
   } catch (error) {
     return {
       data: null,
-      gaps: [{ evidence: "the motion measurement window", detail: error instanceof Error ? error.message : String(error) }],
+      gaps: [
+        { evidence: "the motion measurement window", detail: error instanceof Error ? error.message : String(error) },
+        ...(queueHint === null ? [] : [queueHint]),
+      ],
       pass: false,
       artifact: null,
     };

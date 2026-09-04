@@ -228,6 +228,18 @@ function contrastFailures({ outcomes }: ArmPairInput): number {
   return outcomes.reduce((count, outcome) => count + outcome.contrastResults.filter((entry) => entry.failed).length, 0);
 }
 
+/** How many failing lines the fact quotes verbatim before it summarizes the rest. A fact `detail` is read
+ *  in a terminal end card, so it is bounded — but the bound is DECLARED in the text it produces. */
+const CONTRAST_DETAIL_LINES = 3;
+
+/** The failing `CONTRAST …` lines, as the arm printed them, for the fact's `detail` (#1385 item 5). */
+function contrastFailureDetail({ outcomes }: ArmPairInput): string {
+  const failed = outcomes.flatMap((outcome) => outcome.contrastResults.filter((entry) => entry.failed).map((entry) => entry.line));
+  const shown = failed.slice(0, CONTRAST_DETAIL_LINES);
+  const omitted = failed.length - shown.length;
+  return `${String(failed.length)} contrast check(s) failed: ${shown.join(" · ")}${omitted > 0 ? ` · +${String(omitted)} more in the arm's evidence file` : ""}`;
+}
+
 export const CONTRAST_ARM = {
   flags: [
     {
@@ -335,7 +347,12 @@ export const CONTRAST_ARM = {
       return [
         {
           scope: aggregateScope(),
-          data: { state, detail: null, checks, failures },
+          // #1385 item 5: the FAILING LINES, not `null`. A red contrast run printed two `CONTRAST … FAIL`
+          // lines and then a composite finding reading "run failed with no structured problem row" —
+          // because this detail was empty, nothing carried the failure into the findings layer, and the
+          // unstructured fallback fired over evidence that plainly existed. The arm's own lines ARE the
+          // actionable evidence; a voting arm owes them to its fact.
+          data: { state, detail: state === "failed" ? contrastFailureDetail(input) : null, checks, failures },
         },
       ];
     },
