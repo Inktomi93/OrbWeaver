@@ -67,7 +67,7 @@ incomplete even when its retained suffix is non-empty.
 
 ## Proof
 
-`tests/tooling/_shared/browser-retention.suite.int.test.ts` plants every channel above a small injected
+`tests/tooling/snap/lib/browser-retention.suite.int.test.ts` plants every channel above a small injected
 cap, redirect and active-request overflow, selected-body completion, clean below-cap twins, and a
 checkpoint cursor spanning wraparound. The unit proofs compose same-key replacement with distinct-key
 eviction and another replacement, and hang both CDP body reads to prove timeout omissions release the
