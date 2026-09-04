@@ -2,6 +2,7 @@
 // owns validation, completion, coverage, and minimization so the shared door remains readable and both
 // files stay below the tooling-size law without weakening it.
 
+import { instrumentRefusal } from "./page-validate.ts";
 import type {
   VariantAssignment,
   VariantAxis,
@@ -17,31 +18,27 @@ import type { MatrixRequirements } from "./variant-matrix-requirements.ts";
 import { requirementKeys, requirementObligations, requirementReceipts } from "./variant-matrix-requirements.ts";
 import { assignmentForPair, sampledAssignments } from "./variant-matrix-sampling.ts";
 
-function instrumentError(message: string): never {
-  throw new Error(`INSTRUMENT ERROR: ${message}`);
-}
-
 function own(object: VariantAssignment, key: string): boolean {
   return Object.hasOwn(object, key);
 }
 
 function validateAxis(axis: VariantAxis, axes: ReadonlyMap<string, VariantAxis>): void {
   if (axis.id.trim() === "") {
-    instrumentError("variant matrix has an empty axis id");
+    instrumentRefusal("variant matrix has an empty axis id");
   }
   if (axes.has(axis.id)) {
-    instrumentError(`duplicate axis ${axis.id}`);
+    instrumentRefusal(`duplicate axis ${axis.id}`);
   }
   if (axis.values.length === 0) {
-    instrumentError(`axis ${axis.id} has no values`);
+    instrumentRefusal(`axis ${axis.id} has no values`);
   }
   const values = new Set<string>();
   for (const value of axis.values) {
     if (value.id.trim() === "") {
-      instrumentError(`axis ${axis.id} has an empty value id`);
+      instrumentRefusal(`axis ${axis.id} has an empty value id`);
     }
     if (values.has(value.id)) {
-      instrumentError(`duplicate value ${axis.id}=${value.id}`);
+      instrumentRefusal(`duplicate value ${axis.id}=${value.id}`);
     }
     values.add(value.id);
   }
@@ -49,7 +46,7 @@ function validateAxis(axis: VariantAxis, axes: ReadonlyMap<string, VariantAxis>)
 
 function validateSpec(spec: VariantMatrixSpec): Map<string, VariantAxis> {
   if (spec.axes.length === 0) {
-    instrumentError("variant matrix has no axes");
+    instrumentRefusal("variant matrix has no axes");
   }
   const axes = new Map<string, VariantAxis>();
   for (const axis of spec.axes) {
@@ -63,10 +60,10 @@ function validateAssignment(axes: ReadonlyMap<string, VariantAxis>, assignment: 
   for (const [axisId, valueId] of Object.entries(assignment)) {
     const axis = axes.get(axisId);
     if (axis === undefined) {
-      instrumentError(`${owner} names unknown axis ${axisId}`);
+      instrumentRefusal(`${owner} names unknown axis ${axisId}`);
     }
     if (!axis.values.some((value) => value.id === valueId)) {
-      instrumentError(`${owner} names unknown value ${axisId}=${valueId}`);
+      instrumentRefusal(`${owner} names unknown value ${axisId}=${valueId}`);
     }
   }
 }
@@ -76,7 +73,7 @@ export function variantCellId(axes: readonly VariantAxis[], assignment: VariantA
     .map((axis) => {
       const value = assignment[axis.id];
       if (value === undefined) {
-        instrumentError(`cell identity is missing axis ${axis.id}`);
+        instrumentRefusal(`cell identity is missing axis ${axis.id}`);
       }
       return `${axis.id}=${value}`;
     })
@@ -192,7 +189,7 @@ function cellPairs(axes: readonly VariantAxis[], assignment: VariantAssignment):
 }
 
 function cellValues(axes: readonly VariantAxis[], assignment: VariantAssignment): string[] {
-  return axes.map((axis) => valueKey(axis, assignment[axis.id] ?? instrumentError(`cell is missing axis ${axis.id}`)));
+  return axes.map((axis) => valueKey(axis, assignment[axis.id] ?? instrumentRefusal(`cell is missing axis ${axis.id}`)));
 }
 
 function coveredBy(cells: readonly VariantCell[], axes: readonly VariantAxis[]): { pairs: Set<string>; values: Set<string> } {
@@ -219,7 +216,7 @@ function validateRequirementIds(requirements: MatrixRequirements): void {
   const requirementIds = new Set<string>();
   for (const requirement of [...requirements.rows, ...requirements.twins]) {
     if (requirementIds.has(requirement.id)) {
-      instrumentError(`duplicate requirement ${requirement.id}`);
+      instrumentRefusal(`duplicate requirement ${requirement.id}`);
     }
     requirementIds.add(requirement.id);
   }
@@ -229,18 +226,18 @@ function validateTwin(axesById: ReadonlyMap<string, VariantAxis>, twin: VariantR
   validateAssignment(axesById, twin.where, `required twin ${twin.id}`);
   const axis = axesById.get(twin.axis);
   if (axis === undefined) {
-    instrumentError(`required twin ${twin.id} names unknown axis ${twin.axis}`);
+    instrumentRefusal(`required twin ${twin.id} names unknown axis ${twin.axis}`);
   }
   if (own(twin.where, twin.axis)) {
-    instrumentError(`required twin ${twin.id} repeats its varied axis ${twin.axis}`);
+    instrumentRefusal(`required twin ${twin.id} repeats its varied axis ${twin.axis}`);
   }
   for (const value of [twin.left, twin.right]) {
     if (!axis.values.some((candidate) => candidate.id === value)) {
-      instrumentError(`required twin ${twin.id} names unknown value ${twin.axis}=${value}`);
+      instrumentRefusal(`required twin ${twin.id} names unknown value ${twin.axis}=${value}`);
     }
   }
   if (twin.left === twin.right) {
-    instrumentError(`required twin ${twin.id} does not vary ${twin.axis}`);
+    instrumentRefusal(`required twin ${twin.id} does not vary ${twin.axis}`);
   }
 }
 
@@ -307,7 +304,7 @@ function seedRequiredRows(state: MatrixState, rows: readonly VariantRequiredRow[
   for (const row of rows) {
     const completed = findCompletion(state.spec, row.assignment, state.uncoveredPairs, row.id);
     if (completed === null) {
-      instrumentError(`required row impossible (${row.id})`);
+      instrumentRefusal(`required row impossible (${row.id})`);
     }
     addCell(state, completed);
   }
@@ -317,7 +314,7 @@ function seedRequiredTwins(state: MatrixState, twins: readonly VariantRequiredTw
   for (const twin of twins) {
     const completed = findTwinCompletion(state.spec, twin, twin.where);
     if (completed === null) {
-      instrumentError(`required twin impossible (${twin.id})`);
+      instrumentRefusal(`required twin impossible (${twin.id})`);
     }
     addCell(state, completed.left);
     addCell(state, completed.right);
@@ -334,7 +331,7 @@ function coverReachablePairs(state: MatrixState): readonly VariantAssignment[] {
     add: (assignment) => {
       addCell(state, assignment);
     },
-    impossible: (pair) => instrumentError(`reachable pair became impossible (${pair})`),
+    impossible: (pair) => instrumentRefusal(`reachable pair became impossible (${pair})`),
   });
 }
 
@@ -348,7 +345,7 @@ function coverReachableValues(state: MatrixState, reachableValues: ReadonlySet<s
       }
       const completed = findCompletion(state.spec, { [axis.id]: value.id }, state.uncoveredPairs);
       if (completed === null) {
-        instrumentError(`reachable value became impossible (${key})`);
+        instrumentRefusal(`reachable value became impossible (${key})`);
       }
       addCell(state, completed);
       valueCoverage = coveredBy([...state.cells.values()], state.spec.axes).values;
@@ -365,11 +362,11 @@ function finalCoverage(
   const coverage = coveredBy(minimized, spec.axes);
   const uncovered = reachablePairs.filter((pair) => !coverage.pairs.has(pair));
   if (uncovered.length > 0) {
-    instrumentError(`matrix left ${uncovered.length} reachable pairs uncovered`);
+    instrumentRefusal(`matrix left ${uncovered.length} reachable pairs uncovered`);
   }
   for (const value of reachableValues) {
     if (!coverage.values.has(value)) {
-      instrumentError(`matrix left reachable value uncovered (${value})`);
+      instrumentRefusal(`matrix left reachable value uncovered (${value})`);
     }
   }
   return coverage;
@@ -381,7 +378,7 @@ export function planVariantMatrix(spec: VariantMatrixSpec): VariantMatrixPlan {
   const reachablePairs = reachablePairKeys(spec);
   const reachableValues = reachableValueKeys(spec);
   if (reachableValues.size === 0) {
-    instrumentError("variant matrix has no legal cells");
+    instrumentRefusal("variant matrix has no legal cells");
   }
   const state: MatrixState = {
     spec,

@@ -4,6 +4,7 @@
 import { appearanceArmValueId, appearancePatchForAssignment, deriveAppearanceContract, representativeMatrixThemes } from "../../_shared/appearance-matrix.ts";
 import { MOBILE_DEVICE } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { instrumentRefusal } from "../../_shared/page-validate.ts";
 import type { ThemeEntry } from "../../_shared/theme.ts";
 import type { VariantAssignment, VariantAxis, VariantMatrixPlan, VariantRequiredRow, VariantRequiredTwin } from "../../_shared/variant-matrix.ts";
 import { planVariantMatrix, variantArtifactId } from "../../_shared/variant-matrix.ts";
@@ -23,10 +24,6 @@ const ENVIRONMENT_AXIS = {
   contrast: "contrast",
   transparency: "transparency",
 } as const;
-
-function instrumentError(message: string): never {
-  throw new Error(`INSTRUMENT ERROR: ${message}`);
-}
 
 function environmentAxes(themes: Readonly<Record<string, ThemeEntry>>): readonly VariantAxis[] {
   return [
@@ -194,7 +191,7 @@ export function historicalRowsForCell(matrix: SnapAppearanceMatrix, cellId: stri
   ]);
   const rows = matrix.historicalRows.filter((row) => ids.has(row.id));
   if (rows.length !== ids.size) {
-    return instrumentError(`cell ${cellId} cannot resolve every required historical row`);
+    return instrumentRefusal(`cell ${cellId} cannot resolve every required historical row`);
   }
   return rows;
 }
@@ -204,7 +201,7 @@ function payloadForCell<T>(axes: readonly VariantAxis[], assignment: VariantAssi
   const valueIdForCell = assignment[axisId];
   const value = axis?.values.find((candidate) => candidate.id === valueIdForCell);
   if (value === undefined || !accepts(value.payload)) {
-    return instrumentError(`cell is missing or has malformed ${axisId}`);
+    return instrumentRefusal(`cell is missing or has malformed ${axisId}`);
   }
   return value.payload;
 }

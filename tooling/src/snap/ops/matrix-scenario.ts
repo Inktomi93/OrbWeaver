@@ -3,6 +3,7 @@
 // actual browser/settings evidence and, when requested, a durable per-cell manifest.
 
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { instrumentRefusal } from "../../_shared/page-validate.ts";
 import type { SnapRunReceipt } from "../contract/run.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix --scenario <json|preset>");
@@ -24,14 +25,10 @@ export interface ScenarioMatrixAggregate {
   readonly manifests: number;
 }
 
-function instrumentError(message: string): never {
-  throw new Error(`INSTRUMENT ERROR: ${message}`);
-}
-
 export function scenarioMatrixCellEvidence(cellId: string, receipt: SnapRunReceipt): ScenarioMatrixCellEvidence {
   const scenario = receipt.scenario;
   if (scenario === null) {
-    return instrumentError(`scenario matrix cell ${cellId} returned no scenario receipt`);
+    return instrumentRefusal(`scenario matrix cell ${cellId} returned no scenario receipt`);
   }
   return {
     cellId,
@@ -46,22 +43,22 @@ export function scenarioMatrixCellEvidence(cellId: string, receipt: SnapRunRecei
 
 function reconcileScenarioCell(cell: ScenarioMatrixCellEvidence, requireManifest: boolean): void {
   if (cell.declaredCheckpointNames.length === 0) {
-    instrumentError(`scenario matrix cell ${cell.cellId} has zero declared checkpoints`);
+    instrumentRefusal(`scenario matrix cell ${cell.cellId} has zero declared checkpoints`);
   }
   if (JSON.stringify(cell.declaredCheckpointNames) !== JSON.stringify(cell.capturedCheckpointNames)) {
-    instrumentError(
+    instrumentRefusal(
       `scenario matrix cell ${cell.cellId} declared checkpoints=${JSON.stringify(cell.declaredCheckpointNames)} ` +
         `captured=${JSON.stringify(cell.capturedCheckpointNames)}`,
     );
   }
   if (cell.browserEvidence <= 0 || cell.settingsEvidence <= 0) {
-    instrumentError(`scenario matrix cell ${cell.cellId} has blind browser/settings evidence=${cell.browserEvidence}/${cell.settingsEvidence}`);
+    instrumentRefusal(`scenario matrix cell ${cell.cellId} has blind browser/settings evidence=${cell.browserEvidence}/${cell.settingsEvidence}`);
   }
   if (cell.appearanceReceipts !== 0) {
-    instrumentError(`scenario matrix cell ${cell.cellId} returned ${cell.appearanceReceipts} accidental R1-R7 appearance receipts`);
+    instrumentRefusal(`scenario matrix cell ${cell.cellId} returned ${cell.appearanceReceipts} accidental R1-R7 appearance receipts`);
   }
   if (requireManifest && cell.manifestPath === null) {
-    instrumentError(`scenario matrix cell ${cell.cellId} did not retain its requested JSON manifest`);
+    instrumentRefusal(`scenario matrix cell ${cell.cellId} did not retain its requested JSON manifest`);
   }
 }
 
@@ -71,10 +68,10 @@ export function reconcileScenarioMatrixEvidence(
   requireManifest: boolean,
 ): ScenarioMatrixAggregate {
   if (expectedCells <= 0 || cells.length !== expectedCells) {
-    return instrumentError(`scenario matrix cells=${cells.length} expected=${expectedCells}`);
+    return instrumentRefusal(`scenario matrix cells=${cells.length} expected=${expectedCells}`);
   }
   if (new Set(cells.map((cell) => cell.cellId)).size !== cells.length) {
-    return instrumentError("scenario matrix cell identities are not unique");
+    return instrumentRefusal("scenario matrix cell identities are not unique");
   }
   for (const cell of cells) {
     reconcileScenarioCell(cell, requireManifest);

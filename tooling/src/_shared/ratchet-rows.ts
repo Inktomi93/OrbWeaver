@@ -25,6 +25,7 @@
 //     row is one membership (count 1) carrying its reason as its `why`.
 import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isPlainObject } from "./page-validate.ts";
 import { execNicedSync } from "./proc.ts";
 
 /** The class AXIS, homed as one `as const` tuple so the union derives instead of being re-spelled
@@ -79,10 +80,6 @@ interface RawObjectRow {
   readonly ratified?: unknown;
   readonly why?: unknown;
   readonly cite?: unknown;
-}
-
-function isPlainObject(v: unknown): v is Readonly<Record<string, unknown>> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 function requireCount(subject: string, raw: unknown): number {

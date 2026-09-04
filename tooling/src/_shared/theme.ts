@@ -10,6 +10,7 @@
 
 import { parseCssColorToSrgb } from "@orb/kit/safe-color";
 import { srgbToOklch, surfacePolarity } from "@orb/kit/theme-derivation";
+import { isPlainObject } from "./page-validate.ts";
 //
 // THE MECHANISM (source-pinned): `use-selected-theme.ts` reads `settings.getUserSettings` →
 // `config.theme.selectedThemeId`, then fetches `settings.getTheme({id})` for that row; app-shell derives
@@ -119,10 +120,6 @@ export function applyThemeFlag(target: { theme: ThemeRequest | null; errors: str
     return;
   }
   target.theme = parsed.theme;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**

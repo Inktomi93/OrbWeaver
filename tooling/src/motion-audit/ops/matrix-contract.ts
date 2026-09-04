@@ -6,6 +6,7 @@ import type { RuntimeAppearanceContract } from "../../_shared/appearance-matrix.
 import { deriveAppearanceContract } from "../../_shared/appearance-matrix.ts";
 import { MOBILE_DEVICE } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { instrumentRefusal } from "../../_shared/page-validate.ts";
 import type { VariantAssignment, VariantAxis, VariantMatrixPlan, VariantRequiredTwin } from "../../_shared/variant-matrix.ts";
 import { planVariantMatrix, variantArtifactId } from "../../_shared/variant-matrix.ts";
 
@@ -35,15 +36,11 @@ export interface MotionMatrixVariant {
   readonly device: string | null;
 }
 
-function instrumentError(message: string): never {
-  throw new Error(`INSTRUMENT ERROR: ${message}`);
-}
-
 function motionAxes(contract: RuntimeAppearanceContract, selector: string): readonly VariantAxis[] {
   const appearance = deriveAppearanceContract(contract);
   const applicationMotion = appearance.axes.find((axis) => axis.id === APP_MOTION_AXIS);
   if (applicationMotion === undefined) {
-    return instrumentError("live Appearance contract has no reducedMotion axis");
+    return instrumentRefusal("live Appearance contract has no reducedMotion axis");
   }
   return [
     {
@@ -73,7 +70,7 @@ function motionAxes(contract: RuntimeAppearanceContract, selector: string): read
 
 function valueId(axes: readonly VariantAxis[], axisId: string, payload: unknown): string {
   const value = axes.find((axis) => axis.id === axisId)?.values.find((candidate) => Object.is(candidate.payload, payload));
-  return value?.id ?? instrumentError(`motion matrix cannot resolve ${axisId}=${JSON.stringify(payload)}`);
+  return value?.id ?? instrumentRefusal(`motion matrix cannot resolve ${axisId}=${JSON.stringify(payload)}`);
 }
 
 function motionTwins(axes: readonly VariantAxis[]): readonly VariantRequiredTwin[] {
@@ -106,7 +103,7 @@ function motionTwins(axes: readonly VariantAxis[]): readonly VariantRequiredTwin
 
 export function planMotionAppearanceMatrix(contract: RuntimeAppearanceContract, selector: string | null): MotionAppearanceMatrix {
   if (selector === null || selector.trim() === "") {
-    return instrumentError("motion matrix requires --selector so both entry and interaction scenarios are executable");
+    return instrumentRefusal("motion matrix requires --selector so both entry and interaction scenarios are executable");
   }
   const axes = motionAxes(contract, selector);
   const plan = planVariantMatrix({ axes, isLegal: () => true, requiredTwins: motionTwins(axes) });
@@ -119,7 +116,7 @@ export function planMotionAppearanceMatrix(contract: RuntimeAppearanceContract, 
     (variant) => variant.selector === selector && !variant.appReducedMotion && !variant.osReducedMotion && variant.device === MOBILE_DEVICE,
   );
   if (candidate === undefined || control === undefined) {
-    return instrumentError("motion matrix did not retain the reduced-static candidate and full-motion mobile control");
+    return instrumentRefusal("motion matrix did not retain the reduced-static candidate and full-motion mobile control");
   }
   return { ...provisional, staticExpected: { candidateId: candidate.id, controlId: control.id } };
 }
@@ -127,7 +124,7 @@ export function planMotionAppearanceMatrix(contract: RuntimeAppearanceContract, 
 function payloadFor<T>(matrix: Pick<MotionAppearanceMatrix, "axes">, assignment: VariantAssignment, axisId: string): T {
   const axis = matrix.axes.find((candidate) => candidate.id === axisId);
   const value = axis?.values.find((candidate) => candidate.id === assignment[axisId]);
-  return value === undefined ? instrumentError(`motion cell is missing ${axisId}`) : (value.payload as T);
+  return value === undefined ? instrumentRefusal(`motion cell is missing ${axisId}`) : (value.payload as T);
 }
 
 export function motionMatrixVariant(matrix: Pick<MotionAppearanceMatrix, "axes">, cell: VariantMatrixPlan["cells"][number], index = 0): MotionMatrixVariant {
