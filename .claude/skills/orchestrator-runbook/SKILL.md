@@ -188,7 +188,7 @@ mechanics are here.
   then run one consolidated barrier on the integrated tree.
 - **WHEN READY RUNS DRY (owner, 2026-08-22)** — the scoring posture behind the rules file's one-liner:
   side-eye every RAIL item and the home screen, one surface per lane-slot, full-battery lens. On the
-  aesthetic/Nielsen scoring: a default-tier score (a "30/40") is NOT acceptance — every IDENTIFIED
+  aesthetic/Nielsen scoring: a respectable-looking total is NOT acceptance — every IDENTIFIED
   issue gets fixed or filed with a receipt; but do not score-chase perfection (no re-review loops
   hunting points; the finding list, not the number, is the deliverable). Findings → file-claim-fix per
   lifecycle; fixes verified by the side-eye lens before Done.
