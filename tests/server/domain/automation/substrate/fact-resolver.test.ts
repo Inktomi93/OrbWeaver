@@ -29,11 +29,29 @@ describe("resolveTrigger", () => {
     expect(result?.automationDepth).toBe(0);
   });
 
-  test("a message id naming no live slot (raced delete) still resolves — the fact carries no message field", async () => {
+  // #1417 — this case previously resolved to a depth-0 fact with no `message` field, and the depth was the
+  // defect: `runGates` and the plugin fan-out both gate on the NUMBER, so a vanished automation-authored slot
+  // arrived as human-originated and reached rules/subscribers that had opted OUT of automation events. There
+  // is no honest depth to report once the row is gone, so the event is skipped.
+  test("a message id naming no live slot (raced delete) resolves to NULL — the event is skipped, never read as depth 0", async () => {
     const fixture = await ruleFixture();
     const event: ChatBusEvent = { type: "messageCommitted", chatId: fixture.chatId, messageId: castId<MessageId>("message_ghost") };
     const result = await resolveTrigger(fixture.ctx.ops, event);
-    expect(result?.fact.message).toBeUndefined();
+    expect(result).toBeNull();
+  });
+
+  test("a turnCompleted naming a vanished reply slot resolves to NULL too — the same fail-closed depth ruling", async () => {
+    const fixture = await ruleFixture();
+    const event: ChatBusEvent = { type: "turnCompleted", chatId: fixture.chatId, messageId: castId<MessageId>("message_ghost"), intent: "send" };
+    const result = await resolveTrigger(fixture.ctx.ops, event);
+    expect(result).toBeNull();
+  });
+
+  test("a turnCompleted over a LIVE human slot still resolves at depth 0 — the guard does not over-suppress", async () => {
+    const fixture = await ruleFixture();
+    const { messageId } = await seedMessage(fixture.db, fixture.chatId, 1, { content: "hi" });
+    const event: ChatBusEvent = { type: "turnCompleted", chatId: fixture.chatId, messageId, intent: "send" };
+    const result = await resolveTrigger(fixture.ctx.ops, event);
     expect(result?.automationDepth).toBe(0);
   });
 

@@ -7,6 +7,12 @@
 // `turnAborted` (the abort commits nothing) and `worldInfoActivated` (raised mid-assembly, before the reply
 // commits) — both are the generating turn's own depth, threaded by chat's engine.
 //
+// THE DEPTH IS FAIL-CLOSED, not defaulted. A `message`/`turn` event whose slot has been deleted by the time
+// this asynchronous resolve runs resolves to `null` (skip) rather than to a depth-0 fact: 0 is not "unknown",
+// it is the claim that a human did this, and both consumers of the number — the rule cascade gate and the
+// plugin fan-out's opt-in gate — would then hand an automation-authored event to subscribers that opted OUT.
+// `resolveMessage` carries the full argument.
+//
 // `FACT_SHAPE` is the taxonomy filter: a mapped-type `Record` over BOTH trigger tuples (exhaustive-dispatch —
 // a new tuple member without a shape entry fails tsc). A non-taxonomy event (delta/warning/…) is not a key ⇒
 // `resolveTrigger` returns null (skip).
@@ -59,13 +65,16 @@ function eventChatId(event: BusEvent): ChatId | null {
   return "chatId" in event ? event.chatId : null;
 }
 
-/** Read the cascade depth off a committed reply slot — 0 when the slot is human-plane / absent. */
-async function depthOf(ops: AutomationOps, chatId: ChatId | null, messageId: MessageId | null): Promise<number> {
+/** Read the cascade depth off a committed reply slot. `0` when the event names NO slot (nothing generated it —
+ *  the human plane); `null` when it names one that no longer exists, which is UNKNOWN and never 0: chat's
+ *  `loadTurnOrigin` returns null only for a vanished (or foreign-chat) row, and the stamped depth of a live
+ *  human slot is a real 0 read off the row. Callers fail closed on `null` — see {@link resolveMessage}. */
+async function depthOf(ops: AutomationOps, chatId: ChatId | null, messageId: MessageId | null): Promise<number | null> {
   if (chatId === null || messageId === null) {
     return 0;
   }
   const origin = await ops.chat.getTurnOrigin(chatId, messageId);
-  return origin?.automationDepth ?? 0;
+  return origin === null ? null : origin.automationDepth;
 }
 
 /** The scalar fact skeleton every branch extends. */
@@ -73,20 +82,45 @@ function baseFact(event: BusEvent): AutomationTrigger & Pick<TriggerFact, "chatI
   return { ...automationTriggerFor(event.type as TriggerType), chatId: eventChatId(event) };
 }
 
-async function resolveMessage(ops: AutomationOps, event: BusEvent): Promise<ResolvedTrigger> {
+/** A message-shaped event whose slot is NAMED but no longer readable — the canon row was deleted between the
+ *  emit and this (asynchronous) resolve. It resolves to `null`: the event is SKIPPED, exactly like a
+ *  non-taxonomy one.
+ *
+ *  FAIL CLOSED, because the alternative is a depth LIE. The cascade belt is a NUMBER: `runGates` suppresses a
+ *  depth ≥ 1 event for a rule that did not opt into automation events, and the plugin fan-out's cheap gate
+ *  reads the same field. Depth is read off the slot's own `getTurnOrigin`, so a vanished slot yields `0` — and
+ *  `0` is not "unknown", it is the affirmative claim THIS EVENT CAME FROM A HUMAN. An automation-authored
+ *  message that a rule deletes as it works (a summarize-then-prune rule is the shipped case) therefore
+ *  re-entered every rule and every plugin subscriber that had explicitly opted OUT of automation events.
+ *  There is no third answer available here: the row that carried the depth is gone, so the honest resolution
+ *  is no fact at all. The cost is a dropped trigger for a message nobody can read any more. */
+async function resolveMessage(ops: AutomationOps, event: BusEvent): Promise<ResolvedTrigger | null> {
   const chatId = eventChatId(event);
   if (chatId === null || !("messageId" in event) || event.messageId === null) {
+    // NOT the raced-away case: the event names no slot at all, so there is no origin to have lost. These are
+    // the message-shaped members that legitimately carry no id, and their human-plane depth 0 is a fact.
     return { fact: baseFact(event), automationDepth: 0 };
   }
   const [message, automationDepth] = await Promise.all([ops.chat.getMessageFact(chatId, event.messageId), depthOf(ops, chatId, event.messageId)]);
-  return { fact: { ...baseFact(event), ...(message !== null ? { message } : {}) }, automationDepth };
+  if (message === null || automationDepth === null) {
+    return null;
+  }
+  return { fact: { ...baseFact(event), message }, automationDepth };
 }
 
-async function resolveTurn(ops: AutomationOps, event: BusEvent): Promise<ResolvedTrigger> {
+/** The `turn` shape's twin of {@link resolveMessage}'s fail-closed arm, and the same ruling: the two members
+ *  that READ their depth off a slot (`turnStarted`'s target, `turnCompleted`'s reply) resolve to `null` when
+ *  that slot is gone, because an unknown depth presented as 0 is the affirmative claim that a human started
+ *  this. The two that CARRY their depth on the event (`turnAborted`, `worldInfoActivated`) can never be
+ *  unknown and are untouched. */
+async function resolveTurn(ops: AutomationOps, event: BusEvent): Promise<ResolvedTrigger | null> {
   const base = baseFact(event);
   const chatId = eventChatId(event);
   if (event.type === "turnStarted") {
     const automationDepth = await depthOf(ops, chatId, event.targetMessageId);
+    if (automationDepth === null) {
+      return null;
+    }
     const turn = {
       intent: event.intent,
       api: event.api,
@@ -99,6 +133,9 @@ async function resolveTurn(ops: AutomationOps, event: BusEvent): Promise<Resolve
   }
   if (event.type === "turnCompleted") {
     const automationDepth = await depthOf(ops, chatId, event.messageId);
+    if (automationDepth === null) {
+      return null;
+    }
     return { fact: { ...base, turn: { intent: event.intent, api: "", source: "", model: "", speakerCharacterId: null, automationDepth } }, automationDepth };
   }
   if (event.type === "turnAborted") {

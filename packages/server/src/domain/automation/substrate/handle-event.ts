@@ -6,6 +6,10 @@
 // body is caught + logged, so it NEVER throws into the fire-and-forget bus loop (the buddy `react()` rule). A
 // rule that disables itself (corrupt blob / error ceiling) reloads the enabled index so the pre-check stays
 // accurate.
+//
+// SERIALIZED PER SCOPE at this door (`createHandleEvent`): same-chat events queue behind each other instead of
+// racing, unrelated chats stay parallel. Process-local by construction — see the export's own comment for the
+// key and `substrate/serial-lanes.ts` for what a lane does and does not promise.
 
 import type { AutomationTrigger } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
@@ -18,6 +22,7 @@ import { loadEnabledChatRules, loadEnabledDomainRules } from "../persistence/rul
 import { holdsChatHostAuthority } from "./authority.ts";
 import { resolveTrigger } from "./fact-resolver.ts";
 import { fanOutToPluginSubscribers } from "./plugin-subscribers.ts";
+import { runInLane } from "./serial-lanes.ts";
 
 type BusEvent = ChatBusEvent | DomainEvent;
 
@@ -128,12 +133,44 @@ async function handle(ctx: AutomationContext, event: BusEvent): Promise<void> {
   }
 }
 
+/** THE SERIALIZATION KEY — one lane per CHAT, and ONE lane for the whole domain bus.
+ *
+ *  A chat's key is obvious: the state two same-chat events contend over (the chat variable plane, the rules'
+ *  `last_fired_at`/error ledger, the rate window) is chat-scoped, and two different rooms share none of it.
+ *
+ *  THE DOMAIN BUS GETS A SINGLE LANE, deliberately, and NOT one per subject id. The domain bus is a global
+ *  firehose whose matched rules span EVERY owner (`loadEnabledDomainRules`), and what those rules contend
+ *  over is their AUTHOR's own variable plane — which is not knowable here, before the rule read. Keying by
+ *  `characterId`/`assetId`/… would look like scope and buy nothing: two events about different subjects still
+ *  drive the same owner-global rule through the same read-modify-write. The cost is head-of-line latency on a
+ *  low-frequency bus (card/persona/book/asset writes), which is the same trade the per-chat lane makes. */
+function laneKeyFor(event: BusEvent): string {
+  const chatId = "chatId" in event ? event.chatId : null;
+  return chatId === null ? "automation:domain" : `automation:chat:${chatId}`;
+}
+
+/** The front door, and the ONE place the ordering promise is kept.
+ *
+ *  EVERY entry lands here — both watcher taps AND the D81 `chatOpened` tap, which the composition root feeds
+ *  directly and which therefore never passes through `watcher/start-automation-watcher.ts`. That is why the
+ *  queue is here and not in the watcher: a watcher-side queue would leave a whole trigger unserialized.
+ *
+ *  Dispatch is written as if order were semantics (arms mutate a shared env; `runDispatch` recurses rather
+ *  than loops; clock/callback presets count beats), but each event arrived DETACHED, so that promise held
+ *  inside one event and nowhere between two: two same-chat events read one variable snapshot, computed one
+ *  increment, and wrote one value. Serializing here keeps the whole resolve → fan-out → dispatch sequence
+ *  indivisible per key. It is PROCESS-LOCAL (`substrate/serial-lanes.ts`) — a second app process would still
+ *  interleave, which is the separately-filed process-locality row, not something an in-RAM queue can claim.
+ *
+ *  Still self-safe and still fire-and-forget for the caller: the lane never surfaces a throw (the catch is
+ *  INSIDE the queued job, so a failing event neither escapes nor blocks its successor). */
 export function createHandleEvent(ctx: AutomationContext): AutomationService["handleEvent"] {
-  return async (event: BusEvent): Promise<void> => {
-    try {
-      await handle(ctx, event);
-    } catch (err) {
-      getLog().warn({ err: err instanceof Error ? err.message : String(err), type: event.type }, "automation handleEvent failed (isolated)");
-    }
-  };
+  return (event: BusEvent): Promise<void> =>
+    runInLane(laneKeyFor(event), async (): Promise<void> => {
+      try {
+        await handle(ctx, event);
+      } catch (err) {
+        getLog().warn({ err: err instanceof Error ? err.message : String(err), type: event.type }, "automation handleEvent failed (isolated)");
+      }
+    });
 }

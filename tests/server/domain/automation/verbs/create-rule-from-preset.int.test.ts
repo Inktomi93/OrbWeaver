@@ -116,8 +116,11 @@ async function setup(setupOverrides: SetupOverrides = {}): Promise<Fixture> {
     chat: {
       getMessageFact: (): Promise<NonNullable<TriggerFact["message"]> | null> =>
         Promise.resolve({ id: "message_probe", role: "user", authorUserId: host, characterId: null, seq: 1, content: messageContent }),
-      // No committed reply slot behind these synthetic events ⇒ depth 0 (the human plane).
-      getTurnOrigin: () => Promise.resolve(null),
+      // These synthetic events stand for HUMAN-plane messages, so the origin read answers what production's
+      // `loadTurnOrigin` answers for a live human slot: a ROW stamped depth 0. It must not answer `null` —
+      // that is production's "the row is gone", and since #1417 an unresolvable origin fails closed (the event
+      // is skipped) rather than being read as a human 0.
+      getTurnOrigin: () => Promise.resolve({ initiator: "human" as const, automationDepth: 0 }),
       resolveViewerVisibility: () => Promise.resolve(null),
       readVariables: () => Promise.resolve({ ...vars }),
       readChoicePicks: () => Promise.resolve({}),

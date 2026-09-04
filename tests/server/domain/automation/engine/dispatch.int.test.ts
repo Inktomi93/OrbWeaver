@@ -23,6 +23,8 @@ import { describe } from "vitest";
 import type { ArmExecutorDeps, AutomationImageRequest, DispatchFrame } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
 import type { AutomationContext, AutomationService } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
 import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
+import { runDispatch } from "../../../../../packages/server/src/domain/automation/engine/dispatch.ts";
+import { loadEnabledChatRules } from "../../../../../packages/server/src/domain/automation/persistence/rules.ts";
 import { createAutomationService } from "../../../../../packages/server/src/domain/automation/service.ts";
 import { seedCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -517,5 +519,120 @@ describe("C5 engine — the chat plane is UNBOUND on a global frame, never faked
     const authorPlane = await runArm({ type: "set_variable", scope: "global", key: "copy", op: "set", value: "{{expr::global.note}}" }, frame);
     expect(authorPlane.ok).toBe(true);
     await expect(f.svc.getGlobalVariable({ principal: principal(f.host), key: "copy" })).resolves.toBe("kept");
+  });
+});
+
+// -- #1419: a raised CONFIRMATION aborts the arm chain ------------------------------------------------------
+// `runArms` used to abort only on `!outcome.ok`, and a confirm-first arm returns `{ok: true, suggested: true}`
+// WITHOUT acting -- so the loop read the ask as an ordinary success and ran the arms behind it anyway. The
+// gated act waited on a human while its continuation executed immediately, and `finalizeRule` then routed the
+// whole rule to the `suggested` terminal: no `fired` row, no rate charge, nothing in the log a host could read.
+// The terminal ruling is UNCHANGED (a direct arm AHEAD of the ask still lands `suggested`); what changed is
+// that the arms BEHIND the ask no longer run.
+describe("#1419 a confirm-first arm stops the chain", () => {
+  /** A dispatcher that records every arm it is handed and STASHES (asks) on the arm named by `askAt`. */
+  function chainDispatch(seen: string[], askAt: string): AutomationContext["runArm"] {
+    return (action): Promise<{ readonly ok: true; readonly suggested?: true }> => {
+      const key = action.type === "set_variable" ? action.key : action.type;
+      seen.push(key);
+      return Promise.resolve(key === askAt ? { ok: true, suggested: true } : { ok: true });
+    };
+  }
+
+  async function fireChain(seen: string[], askAt: string): Promise<{ readonly fixture: Fixture; readonly ruleId: AutomationRuleId }> {
+    const base = await ruleFixture();
+    const ctx: AutomationContext = { ...base.ctx, runArm: chainDispatch(seen, askAt) };
+    const fixture: Fixture = { ...base, ctx, svc: createAutomationService(ctx) };
+    const rule = await fixture.svc.createRule({
+      principal: principal(fixture.host),
+      chatId: fixture.chatId,
+      name: "mixed postures",
+      trigger: { bus: "chat", type: "chatOpened" },
+      actions: [
+        { type: "set_variable", scope: "chat", key: "before", op: "inc" },
+        { type: "set_variable", scope: "chat", key: "asks", op: "inc" },
+        { type: "set_variable", scope: "chat", key: "after", op: "inc" },
+      ],
+    });
+    await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId: rule.id, enabled: true });
+    await ctx.enabled.reload();
+    await fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
+    return { fixture, ruleId: rule.id };
+  }
+
+  test("CONTROL: with no arm asking, every arm in the list runs and the rule FIRES", async () => {
+    const seen: string[] = [];
+    const { fixture, ruleId } = await fireChain(seen, "nothing-asks");
+    expect(seen).toEqual(["before", "asks", "after"]);
+    const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId });
+    expect(fires.map((row) => row.outcome)).toEqual(["fired"]);
+  });
+
+  test("the arms BEHIND the confirm-first one never run -- the continuation waits for the human, it does not race ahead", async () => {
+    const seen: string[] = [];
+    const { fixture, ruleId } = await fireChain(seen, "asks");
+    // `after` is absent: the chain stopped at the ask. `before` ran -- it is ahead of the question, and the
+    // `suggested` terminal's own doc states why the rule still reports `suggested` for it.
+    expect(seen).toEqual(["before", "asks"]);
+    // The terminal writes NOTHING (S4 fire-log honesty) -- unchanged by this fix, and asserted here so a
+    // future "just log the partial fire" edit reds against the ruling rather than against a comment.
+    expect(await fixture.svc.listFires({ principal: principal(fixture.host), ruleId })).toEqual([]);
+  });
+});
+
+// -- The RESERVATION belt, under REAL concurrency -----------------------------------------------------------
+// #1423 put a per-chat queue at the `handleEvent` front door, so two same-chat bus events can no longer
+// overlap and the front-door suite can no longer prove this. The belt still matters and is still the only
+// thing that holds where the lane does not reach: the lane is PROCESS-LOCAL, and `confirmSuggestion`/`runNow`
+// enter the engine from their own requests. So the overlap is driven HERE, one layer below the queue.
+describe("the fire reservation admits exactly one of two overlapping dispatches", () => {
+  test("a second dispatch entered while the first holds its reservation is budget_refused, and no second arm runs", async () => {
+    const base = await ruleFixture();
+    const entered = { resolve: (): void => undefined, promise: Promise.resolve() };
+    entered.promise = new Promise<void>((done) => {
+      entered.resolve = done;
+    });
+    const release = { resolve: (): void => undefined, promise: Promise.resolve() };
+    release.promise = new Promise<void>((done) => {
+      release.resolve = done;
+    });
+    let attempts = 0;
+    const ctx: AutomationContext = {
+      ...base.ctx,
+      runArm: async (): Promise<{ readonly ok: true }> => {
+        attempts += 1;
+        if (attempts === 1) {
+          entered.resolve();
+          await release.promise;
+        }
+        return { ok: true };
+      },
+    };
+    const svc = createAutomationService(ctx);
+    const rule = await svc.createRule({
+      principal: principal(base.host),
+      chatId: base.chatId,
+      name: "reserved",
+      trigger: { bus: "chat", type: "chatOpened" },
+      actions: [{ type: "set_variable", scope: "chat", key: "ticks", op: "inc" }],
+      cooldownSeconds: 60,
+    });
+    await svc.setRuleEnabled({ principal: principal(base.host), ruleId: rule.id, enabled: true });
+    const rules = await loadEnabledChatRules(base.db, base.chatId, "chatOpened");
+    const resolved = { fact: { bus: "chat" as const, type: "chatOpened" as const, chatId: base.chatId }, automationDepth: 0 };
+
+    // TRUE overlap: the second dispatch starts while the first is parked inside its arm.
+    const first = runDispatch(ctx, rules, resolved);
+    await entered.promise;
+    const second = await runDispatch(ctx, rules, resolved);
+    const attemptsWhileHeld = attempts;
+    release.resolve();
+    await first;
+
+    expect(attemptsWhileHeld).toBe(1); // the second never reached the arm -- the HELD reservation refused it
+    expect(second.outcomes).toEqual(["budget_refused"]);
+    const outcomes = (await svc.listFires({ principal: principal(base.host), ruleId: rule.id })).map((row) => row.outcome);
+    expect(outcomes).toContain("fired");
+    expect(outcomes).toContain("budget_refused");
   });
 });

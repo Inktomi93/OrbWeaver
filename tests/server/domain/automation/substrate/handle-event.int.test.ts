@@ -22,7 +22,7 @@ import { createSuggestionStore } from "../../../../../packages/server/src/domain
 import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, seedAsset, seedCharacter } from "../../chat/_support.ts";
+import { makeChatContext, seedAsset, seedCharacter, seedMessage } from "../../chat/_support.ts";
 import type { HarnessOverrides } from "../_support.ts";
 import { makeAutomationHarness, NO_TOOLS, principal, seedHostChat, seedUser } from "../_support.ts";
 
@@ -233,7 +233,12 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     expect(outcomes).toContain("budget_refused");
   });
 
-  test("a held autonomous fire reserves cooldown before a concurrent event can reach the arm", async () => {
+  // #1423 — the front door SERIALIZES same-chat events, so a second event raised while the first is mid-arm
+  // is QUEUED, not concurrent: it cannot reach the arm because it has not started, and when it does start the
+  // first rule's cooldown is already committed. (The reservation belt these two cases used to prove at this
+  // seam is still proven under REAL concurrency, one layer down where the lane does not reach —
+  // `engine/dispatch.int.test.ts`'s held-reservation case. The lane is process-local; the reservation is not.)
+  test("a second same-chat event raised mid-arm never runs beside the first — it is queued, and lands on the committed cooldown", async () => {
     const entered = deferred();
     const release = deferred();
     let attempts = 0;
@@ -251,10 +256,12 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
 
     const first = f.svc.handleEvent(chatOpened(f.chatId));
     await entered.promise;
-    await f.svc.handleEvent(chatOpened(f.chatId));
+    // NOT awaited here: the second event is queued behind the first, so awaiting it before releasing the arm
+    // would deadlock — which is the serialization, observed.
+    const second = f.svc.handleEvent(chatOpened(f.chatId));
     const attemptsWhileHeld = attempts;
     release.resolve();
-    await first;
+    await Promise.all([first, second]);
 
     expect(attemptsWhileHeld).toBe(1);
     expect(attempts).toBe(1);
@@ -263,7 +270,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     expect(outcomes).toContain("budget_refused");
   });
 
-  test("a held failure refuses overlap, releases its reservation, and permits a later retry", async () => {
+  test("a queued event behind a FAILED one still runs — the failure released its reservation and the retry fires", async () => {
     const entered = deferred();
     const release = deferred();
     let attempts = 0;
@@ -282,10 +289,10 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
 
     const first = f.svc.handleEvent(chatOpened(f.chatId));
     await entered.promise;
-    await f.svc.handleEvent(chatOpened(f.chatId));
+    const second = f.svc.handleEvent(chatOpened(f.chatId)); // queued behind `first` (#1423) — see the case above.
     const attemptsWhileHeld = attempts;
     release.resolve();
-    await first;
+    await Promise.all([first, second]);
     await f.svc.handleEvent(chatOpened(f.chatId));
 
     expect(attemptsWhileHeld).toBe(1);
@@ -645,8 +652,19 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
     const ops: AutomationOps = {
       tools: NO_TOOLS,
       chat: {
-        // Read ops off the REAL db (the fact resolver reads `getTurnOrigin` back off the posted slot).
-        getMessageFact: () => Promise.resolve(null),
+        // Read ops off the REAL db (the fact resolver reads `getTurnOrigin` back off the posted slot). The
+        // message projection must resolve too: since #1417 a `messageCommitted` whose slot cannot be read is
+        // SKIPPED (an unknown cascade depth never degrades to a human-plane 0), so a `null` here would make
+        // the re-fire path under test unreachable and this suite green for the wrong reason.
+        getMessageFact: async (_chatId, messageId) => {
+          const rows = await db
+            .select({ id: messages.id, role: messages.role, authorUserId: messages.authorUserId, characterId: messages.characterId, seq: messages.seq })
+            .from(messages)
+            .where(eq(messages.id, messageId))
+            .limit(1);
+          const row = rows[0];
+          return row === undefined ? null : { ...row, content: "" };
+        },
         // The visibility op is inert (fail-closed) — this suite never drives the plugin fan-out that consumes it.
         resolveViewerVisibility: () => Promise.resolve(null),
         getTurnOrigin: async (_chatId, messageId) => {
@@ -730,8 +748,11 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
     });
     await svc.setRuleEnabled({ principal: p, ruleId: rule.id, enabled: true });
 
-    // A HUMAN message (depth 0) triggers the rule → it generates + posts one image (stamped depth 1).
-    await svc.handleEvent({ type: "messageCommitted", chatId, messageId: mintTypeId(ID_PREFIX.message) });
+    // A HUMAN message (depth 0) triggers the rule → it generates + posts one image (stamped depth 1). The
+    // row is SEEDED, not merely named: since #1417 a `messageCommitted` whose slot cannot be read back is
+    // skipped, so a minted-but-absent id would make this whole chain unreachable.
+    const human = await seedMessage(db, chatId, 1, { content: "look at this" });
+    await svc.handleEvent({ type: "messageCommitted", chatId, messageId: human.messageId });
     expect(posts).toHaveLength(1); // exactly ONE post from the human-triggered fire
 
     // The posted image's own `messageCommitted` — the self-loop trigger. Depth-1 (automation) origin ⇒ the
@@ -766,7 +787,8 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
     // Drain the cascade to a FIXED ceiling: each re-fire raises a deeper `messageCommitted`; a real self-loop
     // would never stop appending. `cursor` catching up to `posts.length` before the ceiling proves termination.
     const drainCeiling = 20;
-    await svc.handleEvent({ type: "messageCommitted", chatId, messageId: mintTypeId(ID_PREFIX.message) });
+    const human = await seedMessage(db, chatId, 1, { content: "look at this" }); // a REAL slot — see the case above (#1417).
+    await svc.handleEvent({ type: "messageCommitted", chatId, messageId: human.messageId });
     const cursor = await drainPosts(svc, posts, 0, drainCeiling);
 
     // Human msg (depth 0) → post @depth1 → post @depth2 → post @depth3 → depth-3 event REFUSED (no post).
@@ -924,5 +946,42 @@ describe("W1 world-info-activation cascade guard (self-chain closed, #704)", () 
     const fires = await svc.listFires({ principal: p, ruleId: rule.id });
     expect(fires.filter((x) => x.outcome === "fired")).toHaveLength(3);
     expect(fires.some((x) => x.outcome === "depth_refused")).toBe(true);
+  });
+});
+
+// -- #1423: the front door SERIALIZES a chat's events --------------------------------------------------------
+// The watcher detached one `handleEvent` per bus event, so two events for one chat ran concurrently: both read
+// the same variable snapshot, both computed an increment, both wrote the same next value. Dispatch is written
+// throughout as if order were semantics (arms share a mutable env, `runDispatch` recurses, clock presets count
+// beats) -- that promise held INSIDE one event and nowhere between two. The queue lives at this door, not in
+// the watcher, because the D81 `chatOpened` tap feeds `handleEvent` straight from the composition root.
+describe("#1423 same-chat events are serialized at the front door", () => {
+  test("a second event never interleaves with the first -- it starts only after the first dispatch finishes", async () => {
+    const order: string[] = [];
+    const gate = deferred();
+    let n = 0;
+    const f = await setup({
+      runArm: async (): Promise<{ readonly ok: true }> => {
+        n += 1;
+        const tag = `e${n}`;
+        order.push(`${tag}:enter`);
+        if (n === 1) {
+          await gate.promise;
+        }
+        order.push(`${tag}:exit`);
+        return { ok: true };
+      },
+    });
+    await armRule(f, { name: "ordered" });
+
+    // BOTH events are raised before either dispatch can finish -- the exact shape two rapid bus events have.
+    const first = f.svc.handleEvent(chatOpened(f.chatId));
+    const second = f.svc.handleEvent(chatOpened(f.chatId));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    gate.resolve();
+    await Promise.all([first, second]);
+
+    // Unserialized this reads ["e1:enter", "e2:enter", "e2:exit", "e1:exit"] -- the interleave, observed.
+    expect(order).toEqual(["e1:enter", "e1:exit", "e2:enter", "e2:exit"]);
   });
 });
