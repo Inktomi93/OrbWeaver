@@ -21,6 +21,8 @@ export const BOOT_TRACE_ARM = {
       flag: "--boot-trace",
       kind: "boolean",
       pageTargetable: false,
+      group: "Measure",
+      summary: "Chromium tracing from before navigation; requires positive LCP and all six DevTools insight families",
       handler: (args): void => {
         args.bootTrace = true;
       },

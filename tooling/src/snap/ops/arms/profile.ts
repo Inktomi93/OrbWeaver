@@ -318,6 +318,8 @@ export const PROFILE_ARM = {
       flag: "--react-profile",
       kind: "boolean",
       pageTargetable: false,
+      group: "Measure",
+      summary: "read-only React dev-renderer hook installed before mount (session-level: put it on the boot call)",
       handler: (args): void => {
         args.reactProfile = true;
       },

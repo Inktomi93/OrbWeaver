@@ -66,13 +66,23 @@ test("retired profiler spellings refuse by name instead of becoming generic unkn
 test("every accepted public Snap flag derives exactly one grammar descriptor, including a planted handler", () => {
   expect(undocumentedAcceptedFlags()).toEqual([]);
 
+  // #1329: a summary/group is now REQUIRED for every non-arm flag (ops/flags-metadata.ts's completeness
+  // door). A flag handler with no metadata row no longer goes silently undocumented — it makes
+  // `snapFlagDescriptors()` THROW naming the flag, which is the stronger guarantee: nothing can ship
+  // without its row (mirrors `ArmDef.help`'s "required" contract on the arm side).
   const planted = "--__planted-undocumented-snap-flag";
   FLAG_HANDLERS[planted] = (): void => undefined;
   try {
-    expect(undocumentedAcceptedFlags()).toEqual([]);
-    expect(snapFlagDescriptors().filter((row) => row.flag === planted)).toEqual([{ flag: planted, grammar: "boolean", pageTargetable: false }]);
+    expect(() => snapFlagDescriptors()).toThrow(/--__planted-undocumented-snap-flag has no summary\/group/u);
   } finally {
     delete FLAG_HANDLERS[planted];
+  }
+  expect(undocumentedAcceptedFlags()).toEqual([]);
+
+  for (const row of snapFlagDescriptors()) {
+    expect(row.summary.length, row.flag).toBeGreaterThan(0);
+    expect(row.summary.endsWith("."), row.flag).toBe(false);
+    expect(row.group.length, row.flag).toBeGreaterThan(0);
   }
 
   const liveHelp = runSnap(["--help"]);

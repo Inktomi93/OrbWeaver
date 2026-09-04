@@ -32,12 +32,14 @@ import type { LedgerFreshness } from "../contract/scoped.ts";
 import type { TestBaselineManifest } from "../contract/test-baseline.ts";
 import { TEST_BASELINE_REL } from "../contract/test-baseline.ts";
 import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
+import { deriveSnapFlagsIndexMarkdown, SNAP_FLAGS_INDEX_REL } from "./gen/snap-flags-index.ts";
 import { deriveTestBaselineManifest } from "./gen/test-baseline-manifest.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:ledgers-fresh");
 
 const REGEN_CENSUS = "pnpm exec node tooling/src/verify/cli.ts baseline caught-failure-population";
 const REGEN_MANIFEST = "pnpm exec node tooling/src/verify/cli.ts baseline test-baseline-manifest";
+const REGEN_SNAP_FLAGS_INDEX = "pnpm exec node tooling/src/verify/cli.ts baseline snap-flags-index";
 
 /** How many drift lines to print before summarising the tail. A re-line after a big merge moves dozens of
  *  rows; the reader needs enough to recognise the shape, not the whole diff (the file is the diff). */
@@ -122,12 +124,27 @@ function readCommitted<T>(root: string, rel: string): T | undefined {
   return existsSync(abs) ? (JSON.parse(readFileSync(abs, "utf8")) as T) : undefined;
 }
 
-/** Both ledgers' freshness, cheap half first. The derivations run unconditionally — a stage that
- *  short-circuited on the first drift would hide the second one from the same barrier run. */
+/** The generated snap flag index vs a fresh derivation — a byte-for-byte text ledger (no line/fileset
+ *  keying, unlike the two JSON ledgers above), so drift is either "missing" or "the whole file differs". */
+export function snapFlagsIndexDrift(root: string): LedgerFreshness {
+  const abs = join(root, SNAP_FLAGS_INDEX_REL);
+  const derivedText = deriveSnapFlagsIndexMarkdown();
+  const derivedRows = derivedText.split("\n").filter((line) => line.startsWith("| `")).length;
+  const base = { ledger: SNAP_FLAGS_INDEX_REL, regen: REGEN_SNAP_FLAGS_INDEX, derived: derivedRows } as const;
+  if (!existsSync(abs)) {
+    return { ...base, drift: [MISSING(REGEN_SNAP_FLAGS_INDEX)] };
+  }
+  const committedText = readFileSync(abs, "utf8");
+  return { ...base, drift: committedText === derivedText ? [] : ["the committed file differs from a fresh derivation (byte-for-byte)"] };
+}
+
+/** All three ledgers' freshness, cheap half first. The derivations run unconditionally — a stage that
+ *  short-circuited on the first drift would hide the others from the same barrier run. */
 export function ledgerFreshness(root: string): readonly LedgerFreshness[] {
   const manifest = manifestDrift(readCommitted<TestBaselineManifest>(root, TEST_BASELINE_REL), deriveTestBaselineManifest(root));
   const census = censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root));
-  return [manifest, census];
+  const snapFlagsIndex = snapFlagsIndexDrift(root);
+  return [manifest, census, snapFlagsIndex];
 }
 
 /** A derivation that came back EMPTY is blindness, not cleanliness: a broken `scanRoot`, a `git ls-files`
@@ -188,4 +205,5 @@ export const LEDGER_CHECKS: Readonly<Record<string, (root: string) => number>> =
   "caught-failure-population": (root) =>
     verdict([censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root))]),
   "test-baseline-manifest": (root) => verdict([manifestDrift(readCommitted<TestBaselineManifest>(root, TEST_BASELINE_REL), deriveTestBaselineManifest(root))]),
+  "snap-flags-index": (root) => verdict([snapFlagsIndexDrift(root)]),
 };

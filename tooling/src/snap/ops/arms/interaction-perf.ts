@@ -178,6 +178,8 @@ export const INTERACTION_PERF_ARM = {
       flag: "--perf",
       kind: "boolean",
       pageTargetable: false,
+      group: "Measure",
+      summary: "per-step LoAF/long-task attribution, input delay, rAF gaps and CLS over the action tape",
       handler: (args): void => {
         args.interactionPerf = true;
       },
@@ -186,12 +188,16 @@ export const INTERACTION_PERF_ARM = {
       flag: "--pause",
       kind: "required-value",
       pageTargetable: true,
+      group: "Reach",
+      summary: "an ordered pause in the tape (not a measurement window)",
       handler: (args, rest, page): void => pushStep(args, { kind: "pause", ms: Number(rest.shift() ?? "0"), page }),
     },
     {
       flag: "--wheel",
       kind: "required-value",
       pageTargetable: true,
+      group: "Reach",
+      summary: "one ordered wheel input",
       handler: (args, rest, page): void => {
         const value = splitLastEq(rest.shift() ?? "");
         pushStep(args, { kind: "wheel", selector: value.head, dy: Number(value.tail), page });
@@ -201,6 +207,8 @@ export const INTERACTION_PERF_ARM = {
       flag: "--wheel-burst",
       kind: "required-value",
       pageTargetable: true,
+      group: "Reach",
+      summary: "repeated wheel inputs with a 30ms tick",
       handler: (args, rest, page): void => {
         const value = splitLastEq(rest.shift() ?? "");
         const [dy = "", count = ""] = value.tail.split(":");
@@ -211,6 +219,8 @@ export const INTERACTION_PERF_ARM = {
       flag: "--perf-cycles",
       kind: "required-value",
       pageTargetable: false,
+      group: "Measure",
+      summary: "repeat the whole tape N times with stable step indexes (jank that repeats)",
       handler: (args, rest): void => {
         args.perfCycles = Number(rest.shift() ?? "0");
       },

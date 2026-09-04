@@ -52,12 +52,28 @@ function ariaFailures({ outcomes }: ArmPairInput): number {
 
 export const ARIA_ARM = {
   flags: [
-    { flag: "--aria", kind: "optional-selector", pageTargetable: true, handler: (a, rest, page): void => ariaFlag(a, rest, false, page) },
-    { flag: "--text", kind: "optional-selector", pageTargetable: true, handler: (a, rest, page): void => ariaFlag(a, rest, true, page) },
+    {
+      flag: "--aria",
+      kind: "optional-selector",
+      pageTargetable: true,
+      group: "Look",
+      summary: "the ARIA tree (Playwright's ariaSnapshot) — the oracle for accessible-name questions",
+      handler: (a, rest, page): void => ariaFlag(a, rest, false, page),
+    },
+    {
+      flag: "--text",
+      kind: "optional-selector",
+      pageTargetable: true,
+      group: "Look",
+      summary: "same as --aria but drops the primary PNG",
+      handler: (a, rest, page): void => ariaFlag(a, rest, true, page),
+    },
     {
       flag: "--aria-depth",
       kind: "required-value",
       pageTargetable: false,
+      group: "Look",
+      summary: "cap the --aria/--text tree depth",
       handler: (a, rest): void => {
         a.ariaDepth = Number(rest.shift() ?? "0") || null;
       },
@@ -66,6 +82,8 @@ export const ARIA_ARM = {
       flag: "--aria-boxes",
       kind: "boolean",
       pageTargetable: false,
+      group: "Look",
+      summary: "annotate each --aria/--text node with its rendered box",
       handler: (a): void => {
         a.ariaBoxes = true;
       },

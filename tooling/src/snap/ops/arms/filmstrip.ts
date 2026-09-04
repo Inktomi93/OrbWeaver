@@ -144,6 +144,8 @@ export const FILMSTRIP_ARM = {
       flag: "--filmstrip",
       kind: "boolean",
       pageTargetable: false,
+      group: "Measure",
+      summary: "labelled PNG contact sheet from before the tape through settle, one per page/context",
       handler: (args): void => {
         args.filmstrip = true;
       },
