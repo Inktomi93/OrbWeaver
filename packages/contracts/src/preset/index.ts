@@ -45,42 +45,32 @@ const MIN_QUESTION_LENGTH = 1;
 const MAX_QUESTION_LENGTH = 2000;
 const MAX_SEPARATOR_LENGTH = 64;
 
-// A preset value reaches the Agent SDK child process, so runtime loader/search variables are a code-
-// execution boundary rather than ordinary advanced tuning. Keep this vocabulary exported so the write
-// schema and the final subprocess builder enforce the same deny set (validation plus defense in depth).
-const UNSAFE_CLAUDE_RUNTIME_ENV_KEYS: ReadonlySet<string> = new Set([
-  "BASH_ENV",
-  "DYLD_INSERT_LIBRARIES",
-  "DYLD_LIBRARY_PATH",
-  "ENV",
-  "HTTP_PROXY",
-  "HTTPS_PROXY",
-  "ALL_PROXY",
-  "NO_PROXY",
-  "GCONV_PATH",
-  "LD_LIBRARY_PATH",
-  "LD_PRELOAD",
-  "NODE_OPTIONS",
-  "NODE_PATH",
-  "PERL5LIB",
-  "PERL5OPT",
-  "PYTHONHOME",
-  "PYTHONPATH",
-  "RUBYLIB",
-  "RUBYOPT",
-  "SSL_CERT_FILE",
-  "SSL_CERT_DIR",
-  "NODE_EXTRA_CA_CERTS",
-]);
+// A preset value reaches the Agent SDK CHILD PROCESS, which runs tools as the host — so `claudeEnv` is a
+// process-execution boundary, not ordinary advanced tuning, and it is an ALLOWLIST (#1472). A deny set was
+// tried and lost: it enumerated loader/search/proxy/CA names and never carried `PATH` (which picks the
+// binary the child executes), `HOME` (which picks where the runtime reads config + credentials), `SHELL`,
+// `TMPDIR` — nor `LD_AUDIT`, `GIT_SSH_COMMAND`, `JAVA_TOOL_OPTIONS`, and whatever the next runtime adds.
+// The hatch's job is reaching CLAUDE RUNTIME KNOBS the typed `UserIntent` fields don't model, so that
+// namespace is all it admits:
+//   • host process variables (execution, filesystem, locale, proxy, CA) are HOST-owned — the subprocess
+//     builder's own `SUPPORTED_HOST_ENV_KEYS` baseline supplies them from the operator's environment;
+//   • auth / routing / model selection (`ANTHROPIC_*`) is RUNNER-owned and pinned after the overlay.
+// Matching is CASE-SENSITIVE because POSIX environment keys are: `path` is a different key from `PATH`,
+// and neither is admitted. Exported so the write schema and the final subprocess builder read one
+// vocabulary (validation plus defense in depth).
+const CLAUDE_RUNTIME_ENV_NAMESPACE = /^CLAUDE_[A-Z0-9_]+$/;
+/** The Claude runtime knobs that break the `CLAUDE_` prefix — read by the BUNDLED runtime binary, verified
+ *  there rather than in the JS wrapper (`MAX_THINKING_TOKENS`, `DISABLE_AUTO_COMPACT`). */
+const CLAUDE_RUNTIME_ENV_EXACT_KEYS: ReadonlySet<string> = new Set(["MAX_THINKING_TOKENS", "DISABLE_AUTO_COMPACT"]);
 
-export function isUnsafeClaudeRuntimeEnvKey(key: string): boolean {
-  return UNSAFE_CLAUDE_RUNTIME_ENV_KEYS.has(key.toUpperCase());
+export function isAllowedClaudeRuntimeEnvKey(key: string): boolean {
+  return CLAUDE_RUNTIME_ENV_NAMESPACE.test(key) || CLAUDE_RUNTIME_ENV_EXACT_KEYS.has(key);
 }
 
 const claudeEnvSchema = z.record(z.string(), z.string().nullable()).superRefine((env, ctx): void => {
   for (const key of Object.keys(env)) {
-    if (isUnsafeClaudeRuntimeEnvKey(key)) {
-      ctx.addIssue({ code: "custom", path: [key], message: "unsafe runtime environment key is forbidden" });
+    if (!isAllowedClaudeRuntimeEnvKey(key)) {
+      ctx.addIssue({ code: "custom", path: [key], message: "unsafe runtime environment key is forbidden (only Claude runtime knobs may be set here)" });
     }
   }
 });
@@ -340,8 +330,9 @@ export const userIntentSchema = z.strictObject({
     })
     .optional(),
 
-  // Escape hatch — loader/search variables are rejected here; reserved auth/routing keys are filtered at
-  // the env-builder / runner-translate seam where the runner-owned values are known.
+  // Escape hatch — allowlisted to the Claude runtime knob namespace here (see `claudeEnvSchema`); the
+  // reserved auth/routing keys inside that namespace are filtered at the env-builder / runner-translate
+  // seam, where the runner-owned values are known.
   advanced: z
     .object({
       claudeEnv: claudeEnvSchema.optional(),

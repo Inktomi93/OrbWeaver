@@ -12,7 +12,7 @@
 // only c.req.header(), c.json(body,status), and next() — all mocked here — plus whatever the injected
 // `isAdmin` reads off the context, which in production is the request's already-resolved principal.
 import type { DebugAuthOptions } from "@orb/server/foundation/observability/debug";
-import { createDebugAuthMiddleware, tokenMatches } from "@orb/server/foundation/observability/debug";
+import { createDebugAuthMiddleware, toDebugLimit, tokenMatches } from "@orb/server/foundation/observability/debug";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -147,5 +147,31 @@ describe("createDebugAuthMiddleware (admin-session tier)", () => {
 
   test("isAdmin THROWING falls through to the token check — correct token → authorized", async () => {
     expect(await runGate({ expectedToken: "secret", adminAuth: { isAdmin: blowUp } }, "secret")).toEqual({ passed: true, status: OK });
+  });
+});
+
+// The `?limit=` reader every probe funnels through. It reaches ring reads and array slices, so a
+// non-integer is a shape nothing downstream is written for — `Array.slice(0, 1.5)` and a
+// `length >= 1.5` loop guard both "work" while meaning something nobody asked for.
+const FALLBACK = 100;
+const RING_CEILING = 2000;
+
+describe("toDebugLimit", () => {
+  test("a fractional ask is floored, never passed through to a ring/array slice", () => {
+    expect(toDebugLimit("1.5", FALLBACK)).toBe(1);
+    expect(toDebugLimit("2.999", FALLBACK)).toBe(2);
+  });
+
+  test("a sub-1 fraction falls back rather than resolving to an empty read", () => {
+    expect(toDebugLimit("0.5", FALLBACK)).toBe(FALLBACK);
+  });
+
+  test("the existing bounds still hold — junk/zero/negative fall back, and the ceiling clamps", () => {
+    expect(toDebugLimit(undefined, FALLBACK)).toBe(FALLBACK);
+    expect(toDebugLimit("not-a-number", FALLBACK)).toBe(FALLBACK);
+    expect(toDebugLimit("0", FALLBACK)).toBe(FALLBACK);
+    expect(toDebugLimit("-5", FALLBACK)).toBe(FALLBACK);
+    expect(toDebugLimit("Infinity", FALLBACK)).toBe(FALLBACK);
+    expect(toDebugLimit("999999", FALLBACK)).toBe(RING_CEILING);
   });
 });

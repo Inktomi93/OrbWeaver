@@ -60,6 +60,34 @@ describe("recordClientError", () => {
     expect(stack.endsWith("…")).toBe(true);
   });
 
+  // A URL is not a redactable FIELD: the logger's key-based redaction cannot see inside the string, and a
+  // client error thrown on an OAuth callback / invite-accept route carries the code or token in its query.
+  // Truncation at 4000 does not help a short URL. So the query and fragment are dropped, not truncated.
+  test("the URL query string and fragment are DROPPED before logging (a callback code is not a log line)", () => {
+    const spy = vi.spyOn(logger, "error");
+    recordClientError(report({ url: "https://example.test/auth/callback?code=SECRET-OAUTH-CODE&state=xyz#tok=SECRET-FRAGMENT" }));
+    const [fields] = spy.mock.calls[0] as [Record<string, unknown>, string];
+    expect(fields["url"]).toBe("https://example.test/auth/callback");
+    expect(String(fields["url"])).not.toContain("SECRET-OAUTH-CODE");
+    expect(String(fields["url"])).not.toContain("SECRET-FRAGMENT");
+  });
+
+  test("a non-absolute URL still degrades to its path — never logged whole, never dropped entirely", () => {
+    const spy = vi.spyOn(logger, "error");
+    recordClientError(report({ url: "/chats/abc?invite=SECRET-INVITE#x" }));
+    const [fields] = spy.mock.calls[0] as [Record<string, unknown>, string];
+    expect(fields["url"]).toBe("/chats/abc");
+  });
+
+  test("the client-supplied requestId is bounded and charset-checked (it had NO cap at all)", () => {
+    const spy = vi.spyOn(logger, "error");
+    recordClientError(report({ requestId: `${"r".repeat(5000)}\nX-Injected: 1\u0000` }));
+    const [fields] = spy.mock.calls[0] as [Record<string, unknown>, string];
+    const id = fields["clientRequestId"] as string;
+    expect(id.length).toBeLessThanOrEqual(200);
+    expect(id).toMatch(/^[A-Za-z0-9._:-]*$/u);
+  });
+
   test("an oversized message is truncated in the log line too", () => {
     const spy = vi.spyOn(logger, "error");
     recordClientError(report({ message: "y".repeat(5000) }));

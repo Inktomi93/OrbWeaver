@@ -1,14 +1,16 @@
 // THE CREDENTIAL FIREWALL. The per-turn subprocess-env builders: mode-1 Max sub + mode-2 OpenRouter skin
 // (both LIVE) + mode-4 first-party Anthropic (buildClaudeAnthEnv, dormant W11 agent-principal path). mode-3
 // local vLLM was RETIRED 2026-07-27 (owner ruling — see the note where buildClaudeVllmEnv was). Ordering is
-// the security: host baseline → runtime knobs → escape hatch
-// (RESERVED_CLAUDE_ENV_KEYS filtered first) → auth firewall applied LAST so nothing above can override it.
+// the security: host baseline → runtime knobs → escape hatch (ALLOWLISTED to the Claude runtime knob
+// namespace, then RESERVED_CLAUDE_ENV_KEYS filtered) → auth firewall applied LAST so nothing above can
+// override it. The hatch is spread OVER the host baseline, which is exactly why it may not name a host
+// process variable: see `claudeUserEnv`.
 
 import { existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { isUnsafeClaudeRuntimeEnvKey } from "@orb/contracts/preset";
+import { isAllowedClaudeRuntimeEnvKey } from "@orb/contracts/preset";
 import { processEnvSnapshot } from "#foundation/env";
 import type { OrSkinTierModels } from "../../contract/index.ts";
 import { ProviderError } from "../../contract/index.ts";
@@ -93,7 +95,8 @@ export interface ClaudeRuntimeOverrides {
   disableAutoCompact?: boolean | undefined;
   /** When auto-compaction fires, as a percent of the window (0-100). Only meaningful in mode "auto". */
   autoCompactPct?: number | undefined;
-  /** Power-user escape hatch; RESERVED_CLAUDE_ENV_KEYS are stripped before merge. */
+  /** Power-user escape hatch for CLAUDE RUNTIME KNOBS only — allowlisted (`isAllowedClaudeRuntimeEnvKey`),
+   *  then RESERVED_CLAUDE_ENV_KEYS stripped before merge. Never a way to set the child's process env. */
   userEnv?: Record<string, string | null> | undefined;
 }
 
@@ -155,18 +158,25 @@ function claudeRuntimeEnv(overrides: ClaudeRuntimeOverrides): Record<string, str
   };
 }
 
-// Filters RESERVED_CLAUDE_ENV_KEYS first so a preset can never override auth/firewall/routing env; a reserved-key attempt drops silently.
+// The overlay is RESERVED-filtered, then ALLOWLISTED (#1472). Both belts are load-bearing:
+// RESERVED_CLAUDE_ENV_KEYS drops the auth/isolation/routing keys SILENTLY (the recorded behavior — a preset
+// carrying a stale one is not a defect, and the firewall re-pins them last regardless); everything else must
+// be a Claude RUNTIME KNOB (`@orb/contracts/preset`, the same predicate the write schema enforces) or it
+// THROWS. That polarity is the point: this overlay is spread OVER the host baseline, so a settable `PATH`
+// would have chosen which binary the child executes and a settable `HOME` where it reads its credentials —
+// and no deny set stays ahead of the next such name. A loud refusal, because a preset asking for an
+// out-of-namespace variable is a defect a silent drop would hide.
 function claudeUserEnv(userOverrides: Record<string, string | null> | undefined): Record<string, string | undefined> {
   if (userOverrides === undefined) {
     return {};
   }
   const out: Record<string, string | undefined> = {};
   for (const [k, v] of Object.entries(userOverrides)) {
-    if (isUnsafeClaudeRuntimeEnvKey(k)) {
-      throw new Error(`agent-sdk env: unsafe runtime environment key "${k}" is forbidden`);
-    }
     if (RESERVED_CLAUDE_ENV_KEYS.has(k)) {
       continue;
+    }
+    if (!isAllowedClaudeRuntimeEnvKey(k)) {
+      throw new Error(`agent-sdk env: unsafe runtime environment key "${k}" is forbidden (only Claude runtime knobs may be set from a preset)`);
     }
     out[k] = v ?? undefined;
   }

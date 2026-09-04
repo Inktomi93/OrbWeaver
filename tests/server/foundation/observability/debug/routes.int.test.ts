@@ -13,7 +13,7 @@
 import { automationFires, automationRules, chats, users } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { registerDebugRoutes } from "@orb/server/foundation/observability/debug";
+import { BUG_REPORT_MAX_BODY_BYTES, registerDebugRoutes } from "@orb/server/foundation/observability/debug";
 import { Hono } from "hono";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -23,6 +23,8 @@ const TOKEN = "operator-token";
 const UNAUTHORIZED = 401;
 const OK = 200;
 const NOT_FOUND = 404;
+const BAD_REQUEST = 400;
+const PAYLOAD_TOO_LARGE = 413;
 
 /** The port's own filter shape — `chatId` BRANDED, because the entry seam applies the brand before the ring
  *  ever sees it (`lifecycle.ts`), and a bare `string` here would let a wrong-id call type-check. */
@@ -190,5 +192,48 @@ describe("/api/_debug/automation/fires — the durable fire log behind the gate"
     const app = new Hono();
     registerDebugRoutes(app, { auth: { expectedToken: TOKEN } });
     expect((await app.request("/api/_debug/automation/fires", { headers: { "x-debug-token": TOKEN } })).status).toBe(NOT_FOUND);
+  });
+});
+
+// THE ONE WRITE ON THIS SURFACE (#1473). `client` is deliberately `z.unknown()` — the page owns its own
+// bundle shape — so the SCHEMA bounds nothing about its size, and `readJsonBody` calls `c.req.json()`
+// BEFORE validation runs. Without a byte cap in front of the parse, a caller past the gate turns one POST
+// into unbounded buffering, JSON parsing and (on a valid note) an unbounded artifact on disk. The sibling
+// ingest routes all carry `bodyLimit`; this one did not.
+describe("POST /api/_debug/bug-report — the body cap in front of the JSON parse", () => {
+  function capApp(): Hono {
+    const app = new Hono();
+    registerDebugRoutes(app, { auth: { expectedToken: TOKEN } });
+    return app;
+  }
+
+  async function post(app: Hono, body: string): Promise<Response> {
+    return await app.request("/api/_debug/bug-report", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-debug-token": TOKEN },
+      body,
+    });
+  }
+
+  test("an over-cap body is refused with 413 BEFORE it is parsed", async () => {
+    // An empty note, so that if the cap is missing the body still parses to a 400 and never writes a file —
+    // the failure mode this pin distinguishes is "413 refused" vs "400 parsed the whole thing".
+    const oversized = JSON.stringify({ note: "", windowMinutes: null, client: "x".repeat(BUG_REPORT_MAX_BODY_BYTES) });
+    expect(oversized.length).toBeGreaterThan(BUG_REPORT_MAX_BODY_BYTES);
+    expect((await post(capApp(), oversized)).status).toBe(PAYLOAD_TOO_LARGE);
+  });
+
+  // POSITIVE CONTROL — a cap that refused everything would pass the pin above. A real report's client bundle
+  // is capped rings (128 flags, 64 bus events, …), so a legitimately sized capture must still reach the
+  // handler: an empty note proves admission by failing the SCHEMA (400), writing nothing.
+  test("a legitimately sized report still reaches the schema (400 from the note, not 413 from the cap)", async () => {
+    const realistic = JSON.stringify({ note: "", windowMinutes: null, client: { rings: "y".repeat(64_000) } });
+    expect((await post(capApp(), realistic)).status).toBe(BAD_REQUEST);
+  });
+
+  test("the cap does not open the gate — an un-credentialed over-cap POST is still refused as unauthorized", async () => {
+    const oversized = JSON.stringify({ note: "", windowMinutes: null, client: "x".repeat(BUG_REPORT_MAX_BODY_BYTES) });
+    const res = await capApp().request("/api/_debug/bug-report", { method: "POST", headers: { "content-type": "application/json" }, body: oversized });
+    expect(res.status).toBe(UNAUTHORIZED);
   });
 });
