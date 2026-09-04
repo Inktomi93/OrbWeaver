@@ -5,6 +5,7 @@
 import { randomUUID } from "node:crypto";
 import { errorMessage } from "@orb/kit/error-message";
 import { refuseDirectInvocation } from "./entrypoint.ts";
+import { instrumentRefusal } from "./page-validate.ts";
 import type { ThemeEntry } from "./theme.ts";
 import { readThemeList } from "./theme.ts";
 
@@ -26,10 +27,6 @@ export interface RatedThemeFixture {
   readonly cleanup: () => Promise<void>;
 }
 
-function instrumentError(message: string): never {
-  throw new Error(`INSTRUMENT ERROR: ${message}`);
-}
-
 function provisioningCleanupError(primary: unknown, cleanup: unknown): AggregateError {
   return new AggregateError([primary, cleanup], "INSTRUMENT ERROR: rated theme provisioning and exact cleanup both failed", { cause: primary });
 }
@@ -46,12 +43,12 @@ async function trpc(baseUrl: string, procedure: string, input?: unknown): Promis
   const response = await fetch(`${baseUrl}/api/trpc/${procedure}`, init);
   const text = await response.text();
   if (!response.ok) {
-    return instrumentError(`rated theme ${procedure} failed (HTTP ${response.status}): ${text}`);
+    return instrumentRefusal(`rated theme ${procedure} failed (HTTP ${response.status}): ${text}`);
   }
   try {
     return JSON.parse(text) as unknown;
   } catch (error) {
-    return instrumentError(`rated theme ${procedure} returned invalid JSON: ${errorMessage(error)}`);
+    return instrumentRefusal(`rated theme ${procedure} returned invalid JSON: ${errorMessage(error)}`);
   }
 }
 
@@ -60,7 +57,7 @@ function createdTheme(body: unknown, capability: "custom-light" | "custom-dark")
   const entries = readThemeList({ result: { data: data === undefined ? [] : [data] } });
   const entry = entries?.[0];
   if (entry === undefined || entry.isSeed !== false || entry.polarity !== capability.slice("custom-".length) || entry.hasCustomCss !== true) {
-    return instrumentError(`settings.createTheme did not return a rated ${capability} row`);
+    return instrumentRefusal(`settings.createTheme did not return a rated ${capability} row`);
   }
   return entry;
 }
@@ -68,7 +65,7 @@ function createdTheme(body: unknown, capability: "custom-light" | "custom-dark")
 async function listThemes(baseUrl: string): Promise<readonly ThemeEntry[]> {
   const entries = readThemeList(await trpc(baseUrl, "settings.listThemes"));
   if (entries === null) {
-    return instrumentError("settings.listThemes returned an unreadable catalog during rated-theme lifecycle");
+    return instrumentRefusal("settings.listThemes returned an unreadable catalog during rated-theme lifecycle");
   }
   return entries;
 }
@@ -80,7 +77,7 @@ async function removeAndProveAbsent(baseUrl: string, entries: readonly ThemeEntr
   const remaining = await listThemes(baseUrl);
   const leaked = entries.filter((entry) => remaining.some((candidate) => candidate.id === entry.id));
   if (leaked.length > 0) {
-    instrumentError(`rated theme cleanup left ${leaked.map((entry) => entry.id).join(", ")} in the staged catalog`);
+    instrumentRefusal(`rated theme cleanup left ${leaked.map((entry) => entry.id).join(", ")} in the staged catalog`);
   }
 }
 
@@ -116,7 +113,7 @@ export async function provisionRatedStageThemes(baseUrl: string, staged: boolean
     const catalog = await listThemes(baseUrl);
     for (const entry of created) {
       if (!catalog.some((candidate) => candidate.id === entry.id)) {
-        return instrumentError(`rated theme ${entry.id} was not readable after creation`);
+        return instrumentRefusal(`rated theme ${entry.id} was not readable after creation`);
       }
     }
     const rated = created as [ThemeEntry, ThemeEntry];

@@ -3,6 +3,7 @@
 import { listSeededBackgrounds } from "@orb/contracts/theme";
 import type { Page } from "@playwright/test";
 import { z } from "zod";
+import { instrumentRefusal } from "./page-validate.ts";
 import type { ThemeEntry } from "./theme.ts";
 import { themeCatalogCapabilities } from "./theme.ts";
 import type { VariantAssignment, VariantAxis } from "./variant-matrix.ts";
@@ -156,21 +157,17 @@ export interface AppearanceReachReceipt {
   readonly subjects: number;
 }
 
-function instrumentError(message: string): never {
-  throw new Error(`INSTRUMENT ERROR: ${message}`);
-}
-
 export function appearanceArmId(value: unknown): string {
   const encoded: unknown = JSON.stringify(value);
   if (typeof encoded !== "string") {
-    return instrumentError("Appearance arm is not JSON-serializable");
+    return instrumentRefusal("Appearance arm is not JSON-serializable");
   }
   return encoded;
 }
 
 function appearanceAxis(row: RuntimeAppearanceContractRow): VariantAxis {
   if (row.arms === null || row.arms.length !== 2 || row.observable === null) {
-    return instrumentError(`executable Appearance row ${row.key} does not carry two arms and one observable`);
+    return instrumentRefusal(`executable Appearance row ${row.key} does not carry two arms and one observable`);
   }
   return {
     id: `appearance.${row.key}`,
@@ -183,7 +180,7 @@ export function deriveAppearanceContract(contract: RuntimeAppearanceContract): D
   const executable = contract.rows.filter((row) => row.arms !== null);
   const dependencies = contract.rows.filter((row) => row.arms === null);
   if (new Set(keys).size !== keys.length) {
-    instrumentError("Appearance contract contains duplicate keys");
+    instrumentRefusal("Appearance contract contains duplicate keys");
   }
   if (
     contract.declared !== contract.rows.length ||
@@ -193,12 +190,12 @@ export function deriveAppearanceContract(contract: RuntimeAppearanceContract): D
     contract.executable !== EXPECTED_EXECUTABLE_APPEARANCE ||
     contract.dependencies !== EXPECTED_DEPENDENCIES
   ) {
-    instrumentError(
+    instrumentRefusal(
       `Appearance contract population drift: declared=${contract.declared}/${contract.rows.length}, executable=${contract.executable}/${executable.length}, dependencies=${contract.dependencies}/${dependencies.length}`,
     );
   }
   if (Object.keys(contract.themeObservables).length === 0) {
-    instrumentError("Appearance contract has no theme observables");
+    instrumentRefusal("Appearance contract has no theme observables");
   }
   if (
     contract.historicalRows.length !== EXPECTED_HISTORICAL_ROWS ||
@@ -227,7 +224,7 @@ export function deriveAppearanceContract(contract: RuntimeAppearanceContract): D
         !row.subjects.some((subject) => subject.selector === row.merge.selector),
     )
   ) {
-    instrumentError(`Appearance contract historical-row population drift: rows=${contract.historicalRows.length}`);
+    instrumentRefusal(`Appearance contract historical-row population drift: rows=${contract.historicalRows.length}`);
   }
   return { axes: executable.map(appearanceAxis), dependencies, historicalRows: contract.historicalRows };
 }
@@ -246,7 +243,7 @@ function assertMessageRegistryReceipt(registry: RuntimeMessageRegistryReceipt | 
     registry !== undefined &&
     (registry.staleIds.length > 0 || registry.missingIds.length > 0 || registry.matched + registry.staleIds.length !== registry.registered)
   ) {
-    instrumentError(
+    instrumentRefusal(
       `live message registry does not reconcile: mounted=${registry.mounted}, registered=${registry.registered}, matched=${registry.matched}, missing=${registry.missingIds.join(",") || "none"}, stale=${registry.staleIds.join(",") || "none"}`,
     );
   }
@@ -258,38 +255,38 @@ export function appearanceReachReceipt(contract: RuntimeAppearanceContract): App
   let subjects = 0;
   for (const row of contract.rows) {
     if (typeof row.reached !== "number" || !Number.isInteger(row.reached) || row.reached < 0) {
-      instrumentError(`live Appearance row ${row.key} omitted a valid reached-subject count`);
+      instrumentRefusal(`live Appearance row ${row.key} omitted a valid reached-subject count`);
     }
     if (row.reached > 0) {
       if (row.samples === undefined || row.samples.length !== row.reached || row.samples.some((sample) => sample === undefined)) {
-        instrumentError(`live Appearance row ${row.key} samples do not reconcile with reached=${row.reached}`);
+        instrumentRefusal(`live Appearance row ${row.key} samples do not reconcile with reached=${row.reached}`);
       }
       rows += 1;
       subjects += row.reached;
     }
   }
   if (rows === 0 || subjects === 0) {
-    instrumentError("live Appearance bridge reached zero carrier subjects");
+    instrumentRefusal("live Appearance bridge reached zero carrier subjects");
   }
   return { rows, subjects };
 }
 
 function firstTheme(entries: readonly ThemeEntry[], capability: string): ThemeEntry {
   const first = [...entries].sort((left, right) => left.id.localeCompare(right.id))[0];
-  return first ?? instrumentError(`theme catalog is missing ${capability}`);
+  return first ?? instrumentRefusal(`theme catalog is missing ${capability}`);
 }
 
 function preferredCustomTheme(entries: readonly ThemeEntry[], preferred: readonly [ThemeEntry, ThemeEntry], polarity: "dark" | "light"): ThemeEntry {
   const claimed = preferred.find((entry) => entry.polarity === polarity);
   if (claimed === undefined) {
-    return instrumentError(`preferred custom-${polarity} fixture omitted that polarity`);
+    return instrumentRefusal(`preferred custom-${polarity} fixture omitted that polarity`);
   }
   const authenticated = entries.find((entry) => entry.id === claimed.id);
   if (authenticated === undefined) {
-    return instrumentError(`preferred custom-${polarity} theme ${claimed.id} is absent from the authenticated catalog`);
+    return instrumentRefusal(`preferred custom-${polarity} theme ${claimed.id} is absent from the authenticated catalog`);
   }
   if (authenticated.isSeed === true || authenticated.polarity !== polarity || authenticated.hasCustomCss !== true) {
-    return instrumentError(`preferred custom-${polarity} theme ${claimed.id} does not carry the rated capability`);
+    return instrumentRefusal(`preferred custom-${polarity} theme ${claimed.id} does not carry the rated capability`);
   }
   return authenticated;
 }
@@ -322,7 +319,7 @@ export function appearanceArmValueId(axes: readonly VariantAxis[], key: string, 
   const axis = axes.find((candidate) => candidate.id === `appearance.${key}`);
   const id = appearanceArmId(payload);
   if (axis === undefined || !axis.values.some((value) => value.id === id)) {
-    return instrumentError(`required risk row cannot resolve Appearance arm ${key}=${id}`);
+    return instrumentRefusal(`required risk row cannot resolve Appearance arm ${key}=${id}`);
   }
   return id;
 }
@@ -333,7 +330,7 @@ export function appearancePatchForAssignment(axes: readonly VariantAxis[], assig
       const valueIdForCell = assignment[axis.id];
       const value = axis.values.find((candidate) => candidate.id === valueIdForCell);
       if (value === undefined) {
-        return instrumentError(`cell is missing ${axis.id}`);
+        return instrumentRefusal(`cell is missing ${axis.id}`);
       }
       return [axis.id.slice("appearance.".length), value.payload];
     }),
@@ -343,7 +340,7 @@ export function appearancePatchForAssignment(axes: readonly VariantAxis[], assig
   }
   const seeded = [...listSeededBackgrounds()].sort((left, right) => left.id.localeCompare(right.id))[0];
   if (seeded === undefined) {
-    return instrumentError("seeded Appearance arm has no real seeded-background catalog member");
+    return instrumentRefusal("seeded Appearance arm has no real seeded-background catalog member");
   }
   // backgroundSeededId is a declared dependency, not an axis. Complete the selected `seeded` carrier
   // from its one real catalog rather than copying a slug or promoting the dependency into fake pairwise

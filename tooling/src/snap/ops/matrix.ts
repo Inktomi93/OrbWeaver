@@ -14,6 +14,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdictReceipt } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { loadResultPairs } from "../../_shared/load-budget.ts";
+import { instrumentRefusal } from "../../_shared/page-validate.ts";
 import { provisionRatedStageThemes } from "../../_shared/rated-theme-fixture.ts";
 import type { ThemeEntry } from "../../_shared/theme.ts";
 import { NO_THEME } from "../../_shared/theme.ts";
@@ -54,10 +55,6 @@ interface MatrixCellResult {
     | { readonly mode: "scenario-checkpoints"; readonly appearance: "not-applicable"; readonly reason: "scenario-owned-drive" };
 }
 
-function instrumentError(message: string): never {
-  throw new Error(`INSTRUMENT ERROR: ${message}`);
-}
-
 function discoveryArgs(opts: Args): Args {
   return {
     ...opts,
@@ -76,20 +73,20 @@ async function readMatrixDiscovery(session: ProbeSession, args: Args): Promise<M
   const navError = await navigate(session.page, args, buildUrl(args.base, args.route));
   await settlePage(session.page, args);
   if (navError !== null) {
-    return instrumentError(`matrix discovery did not reach a settled app: ${navError}`);
+    return instrumentRefusal(`matrix discovery did not reach a settled app: ${navError}`);
   }
   const contract: SnapAppearanceContract = await readRuntimeAppearanceContract(session.page);
   const reached = appearanceReachReceipt(contract);
   const settings = session.contexts[0]?.settingsEvidence;
   if (settings === undefined) {
-    return instrumentError("matrix discovery has no settings-evidence owner");
+    return instrumentRefusal("matrix discovery has no settings-evidence owner");
   }
   if (settings.themeApplied !== true || settings.themeResolution?.request !== NO_THEME) {
-    return instrumentError("matrix discovery did not resolve its authenticated theme-catalog request");
+    return instrumentRefusal("matrix discovery did not resolve its authenticated theme-catalog request");
   }
   const themes = settings.themeCatalog;
   if (themes === null || themes.length === 0) {
-    return instrumentError("matrix discovery returned an empty authenticated theme catalog");
+    return instrumentRefusal("matrix discovery returned an empty authenticated theme catalog");
   }
   return { contract, themes, reachedRows: reached.rows, reachedSubjects: reached.subjects, settings };
 }
@@ -178,7 +175,7 @@ async function runMatrixCells(opts: Args, baseName: string, matrix: SnapAppearan
       result = await runSnapDetailed(runArgs, { appearanceRows });
     }
     if (result.receipt === null) {
-      return instrumentError(`matrix cell ${variant.id} returned no browser receipt`);
+      return instrumentRefusal(`matrix cell ${variant.id} returned no browser receipt`);
     }
     const invariants =
       runArgs.scenario === null
@@ -300,7 +297,7 @@ async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry,
   const appearance = cells.flatMap((cell) => cell.receipt.appearance);
   const expectedAppearanceReceipts = matrix.plan.receipt.requiredRows.length + matrix.plan.receipt.requiredTwins.length * 2;
   if (appearance.length !== expectedAppearanceReceipts) {
-    return instrumentError(`matrix appearance receipt population=${appearance.length} expected=${expectedAppearanceReceipts}`);
+    return instrumentRefusal(`matrix appearance receipt population=${appearance.length} expected=${expectedAppearanceReceipts}`);
   }
   const expectedRowIds = [
     ...matrix.plan.receipt.requiredRows.map((row) => appearancePolicyIdForRequirement(row.id)),
@@ -311,7 +308,7 @@ async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry,
   ];
   const actualRowIds = appearance.map((result) => result.receipt.rowId);
   if (!sameAppearanceReceiptPopulation(expectedRowIds, actualRowIds)) {
-    return instrumentError(`matrix historical receipt membership differs: expected=${expectedRowIds.join(",")} actual=${actualRowIds.join(",")}`);
+    return instrumentRefusal(`matrix historical receipt membership differs: expected=${expectedRowIds.join(",")} actual=${actualRowIds.join(",")}`);
   }
   const aggregate = aggregateAppearance(appearance);
   reconcileAppearanceAggregate(aggregate);
@@ -320,7 +317,7 @@ async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry,
   const mergeRequired = appearance.reduce((sum, result) => sum + result.evaluation.mergeRequired, 0);
   const mergeDirectCarrier = appearance.reduce((sum, result) => sum + result.evaluation.mergeDirectCarrier, 0);
   if (mergeRequired + mergeDirectCarrier !== appearance.length) {
-    return instrumentError(`matrix merge accounting required=${mergeRequired} direct=${mergeDirectCarrier} receipts=${appearance.length}`);
+    return instrumentRefusal(`matrix merge accounting required=${mergeRequired} direct=${mergeDirectCarrier} receipts=${appearance.length}`);
   }
   const receipt = await writeMatrixReceipt({ opts, baseName, discovery, matrix, cells, mode: "route-invariants", aggregate });
   let verdict: number = EXIT.clean;

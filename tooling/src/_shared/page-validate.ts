@@ -46,6 +46,10 @@ export function isPageObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Generic alias of `isPageObject` for callers whose values never touch a `page.evaluate()` boundary
+ *  (a settings/theme/ratchet-row predicate) — same body, a name that does not lie about the source (#1319). */
+export const isPlainObject = isPageObject;
+
 export function pageObject(value: unknown, label: string): Record<string, unknown> {
   if (!isPageObject(value)) {
     instrumentRefusal(`${label} returned ${describePageValue(value)}, not an object`);

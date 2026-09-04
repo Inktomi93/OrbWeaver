@@ -7,6 +7,7 @@ import { isDeepStrictEqual } from "node:util";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { AppearancePatch } from "./appearance.ts";
 import { mergeAppearancePatches } from "./appearance.ts";
+import { isPlainObject } from "./page-validate.ts";
 
 /** Parse outcome: a patch, or a stated reason (the caller turns it into an ARG ERROR — EXIT.misuse). */
 export type AppearanceParse = { readonly patch: AppearancePatch } | { readonly error: string };
@@ -21,10 +22,6 @@ const PRESETS_PATH = new URL("./appearance-presets.json", import.meta.url);
 
 interface PresetFile {
   readonly presets?: Record<string, { readonly why?: string; readonly appearance?: unknown }>;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** Refuse keys the shared schema strips and values its `.catch()` clauses would silently replace. A

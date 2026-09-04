@@ -2,18 +2,15 @@
 // extracted before variant-matrix-engine.ts crossed the tooling-size cap; it does not own coverage,
 // minimization, or tool policy.
 
+import { instrumentRefusal } from "./page-validate.ts";
 import type { VariantAssignment, VariantAxis, VariantMatrixSpec } from "./variant-matrix-contract.ts";
-
-function instrumentError(message: string): never {
-  throw new Error(`INSTRUMENT ERROR: ${message}`);
-}
 
 export function assignmentForPair(pair: string): VariantAssignment {
   const [left, right] = pair.split("|");
   const leftSplit = left?.indexOf("=") ?? -1;
   const rightSplit = right?.indexOf("=") ?? -1;
   if (left === undefined || right === undefined || leftSplit < 1 || rightSplit < 1) {
-    instrumentError(`invalid reachable pair ${pair}`);
+    instrumentRefusal(`invalid reachable pair ${pair}`);
   }
   return {
     [left.slice(0, leftSplit)]: left.slice(leftSplit + 1),

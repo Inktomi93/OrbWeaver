@@ -1,4 +1,5 @@
 // Pure aggregate and reconciliation for the rated matrix's appearance evidence population.
+import { instrumentRefusal } from "../../_shared/page-validate.ts";
 import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
 
 export interface AppearanceAggregate {
@@ -33,10 +34,6 @@ export function aggregateAppearance(results: readonly AppearanceInvariantResult[
   };
 }
 
-function instrumentError(message: string): never {
-  throw new Error(`INSTRUMENT ERROR: ${message}`);
-}
-
 export function reconcileAppearanceAggregate(aggregate: AppearanceAggregate): void {
   if (
     aggregate.receipts <= 0 ||
@@ -47,20 +44,20 @@ export function reconcileAppearanceAggregate(aggregate: AppearanceAggregate): vo
     aggregate.pixels <= 0 ||
     aggregate.cascades <= 0
   ) {
-    instrumentError(`matrix appearance aggregate has a blind denominator: ${JSON.stringify(aggregate)}`);
+    instrumentRefusal(`matrix appearance aggregate has a blind denominator: ${JSON.stringify(aggregate)}`);
   }
   if (aggregate.subjects !== aggregate.declared) {
-    instrumentError(`matrix appearance subjects=${aggregate.subjects} != declared=${aggregate.declared}`);
+    instrumentRefusal(`matrix appearance subjects=${aggregate.subjects} != declared=${aggregate.declared}`);
   }
   if (aggregate.candidates !== aggregate.reached + aggregate.skipped) {
-    instrumentError(`matrix appearance candidates=${aggregate.candidates} != reached=${aggregate.reached} + skipped=${aggregate.skipped}`);
+    instrumentRefusal(`matrix appearance candidates=${aggregate.candidates} != reached=${aggregate.reached} + skipped=${aggregate.skipped}`);
   }
   if (aggregate.reached !== aggregate.sampled + aggregate.occluded + aggregate.offViewport) {
-    instrumentError(
+    instrumentRefusal(
       `matrix appearance reached=${aggregate.reached} != sampled=${aggregate.sampled} + occluded=${aggregate.occluded} + offViewport=${aggregate.offViewport}`,
     );
   }
   if (aggregate.pixelSamples !== aggregate.pixels) {
-    instrumentError(`matrix appearance pixel samples=${aggregate.pixelSamples} != declared pixels=${aggregate.pixels}`);
+    instrumentRefusal(`matrix appearance pixel samples=${aggregate.pixelSamples} != declared pixels=${aggregate.pixels}`);
   }
 }

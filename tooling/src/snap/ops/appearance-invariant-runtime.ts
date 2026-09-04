@@ -1,7 +1,7 @@
 // Live browser owner for #953's literal row receipts: reach the named surface, take checkpoint-scoped
 // subject/pixel/cascade/merge evidence, then hand the complete receipt to the pure strict reconciler.
 
-import { navResultShape } from "@orb/tooling/_shared/page-validate";
+import { instrumentRefusal, navResultShape } from "@orb/tooling/_shared/page-validate";
 import type { Page, Route } from "@playwright/test";
 import type { RuntimeAppearanceHistoricalRow } from "../../_shared/appearance-matrix.ts";
 import { appearanceReachReceipt, readRuntimeAppearanceContract } from "../../_shared/appearance-matrix.ts";
@@ -34,10 +34,6 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
 const DIALOG_ATTACH_BASE_MS = 5000;
 const DIALOG_ATTACH_TIMEOUT_MS = budget(DIALOG_ATTACH_BASE_MS);
 
-function instrumentError(message: string): never {
-  throw new Error(`INSTRUMENT ERROR: ${message}`);
-}
-
 async function resetCheckpoint(page: Page): Promise<void> {
   // #1004 — each read below already had an INSTRUMENT ERROR arm for a FALSE answer and none for a
   // wrong SHAPE, which is the arm that reads as success (a non-boolean is truthy).
@@ -49,7 +45,7 @@ async function resetCheckpoint(page: Page): Promise<void> {
   })()`),
   );
   if (!reset) {
-    instrumentError("Appearance row cannot reset checkpoint evidence");
+    instrumentRefusal("Appearance row cannot reset checkpoint evidence");
   }
 }
 
@@ -64,7 +60,7 @@ async function resetMeasuredEvidence(page: Page): Promise<void> {
   })()`),
   );
   if (failures.length > 0) {
-    instrumentError(`Appearance row cannot reset measured evidence: ${failures.join(", ")}`);
+    instrumentRefusal(`Appearance row cannot reset measured evidence: ${failures.join(", ")}`);
   }
 }
 
@@ -73,11 +69,11 @@ async function readMessageCarrierEvidence(page: Page): Promise<NonNullable<Appea
   appearanceReachReceipt(contract);
   const registry = contract.messageRegistry;
   if (registry === undefined) {
-    return instrumentError("mobile document row has no live MessageRow registry receipt");
+    return instrumentRefusal("mobile document row has no live MessageRow registry receipt");
   }
   const chatStyle = contract.rows.find((candidate) => candidate.key === "chatStyle");
   if (chatStyle === undefined || chatStyle.observable?.kind !== "message-prop" || chatStyle.samples === undefined) {
-    return instrumentError("mobile document row has no live chatStyle message-prop samples");
+    return instrumentRefusal("mobile document row has no live chatStyle message-prop samples");
   }
   return { registry, chatStyles: chatStyle.samples };
 }
@@ -94,7 +90,7 @@ async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalRow): Pr
   const [kind, target, waitSelector] = nav;
   const result = navResultShape(await page.evaluate(buildNavScript(kind, target)), `nav ${kind} ${target}`);
   if (!result.ok) {
-    instrumentError(`Appearance row ${row.id} navigation refused: ${result.reason ?? "unknown"}`);
+    instrumentRefusal(`Appearance row ${row.id} navigation refused: ${result.reason ?? "unknown"}`);
   }
   await page.locator(waitSelector).first().waitFor({ state: "attached", timeout: DIALOG_ATTACH_TIMEOUT_MS });
   await settle(page, MOUNT_SETTLE_MS);
@@ -102,7 +98,7 @@ async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalRow): Pr
     const subjectId = row.id === "dark-name-time-short-bubble" ? "attribution" : "bubble";
     const selector = row.subjects.find((subject) => subject.id === subjectId)?.selector;
     if (selector === undefined) {
-      instrumentError(`Appearance row ${row.id} has no ${subjectId} drive subject`);
+      instrumentRefusal(`Appearance row ${row.id} has no ${subjectId} drive subject`);
     }
     // The chat list virtualizes around the latest turn, and a merely-visible header can sit under the
     // shell's fixed chrome. Center the client-declared relational subject so the pixel census judges the
@@ -121,7 +117,7 @@ async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalRow): Pr
   if (row.id === "opposite-os-app-prepaint") {
     const selector = row.subjects.find((subject) => subject.id === "theme-ink")?.selector;
     if (selector === undefined) {
-      instrumentError("opposite-os-app-prepaint policy is missing its theme-ink subject");
+      instrumentRefusal("opposite-os-app-prepaint policy is missing its theme-ink subject");
     }
     await page
       .locator(selector)
@@ -138,7 +134,7 @@ async function openPortalDialog(page: Page, row: RuntimeAppearanceHistoricalRow)
   // R6 closes/reopens it around the real sizing control so popup tokens cannot inherit the draft preview.
   const result = navResultShape(await page.evaluate(buildNavScript("goto", "modal:command")), "nav goto modal:command");
   if (!result.ok) {
-    instrumentError(`Appearance row ${row.id} dialog navigation refused: ${result.reason ?? "unknown"}`);
+    instrumentRefusal(`Appearance row ${row.id} dialog navigation refused: ${result.reason ?? "unknown"}`);
   }
   await page.locator('[data-slot="portal-root"] [data-slot="dialog-popup"]').waitFor({ state: "attached", timeout: DIALOG_ATTACH_TIMEOUT_MS });
   await settle(page, STEP_SETTLE_MS);
@@ -160,7 +156,7 @@ async function revealHoverPointer(page: Page, row: RuntimeAppearanceHistoricalRo
   const bubbleSelector = row.subjects.find((subject) => subject.id === "bubble")?.selector;
   const actionSelector = row.subjects.find((subject) => subject.id === "action-buttons")?.selector;
   if (bubbleSelector === undefined || actionSelector === undefined) {
-    instrumentError("hover-pointer policy is missing its bubble or action-button subject");
+    instrumentRefusal("hover-pointer policy is missing its bubble or action-button subject");
   }
   const bubble = page.locator(bubbleSelector).filter({ visible: true }).first();
   if (coarse) {
@@ -220,7 +216,7 @@ async function installDensityPersistenceGuard(page: Page, expectedDensity: strin
 async function driveOppositeDensity(page: Page, before: AppearanceDomSnapshot): Promise<AppearanceMutationIsolationEvidence> {
   const outer = before.subjects.find((subject) => subject.id === "outer-scope")?.facts?.attributes["data-density"];
   if (outer !== "compact" && outer !== "comfortable") {
-    instrumentError(`density-preview outer carrier is ${String(outer)}`);
+    instrumentRefusal(`density-preview outer carrier is ${String(outer)}`);
   }
   const label = outer === "compact" ? "Comfortable" : "Compact";
   const guard = await installDensityPersistenceGuard(page, label.toLowerCase());
@@ -267,13 +263,13 @@ function cascadeExpectations(row: RuntimeAppearanceHistoricalRow, snapshot: Appe
     if (expectedValue === "" || subject?.matchIndex === null || subject?.matchIndex === undefined) {
       const accounting = subject === undefined ? "missing subject policy" : JSON.stringify(subject.accounting);
       const obstruction = subject?.withheldFacts?.centerHit;
-      return instrumentError(
+      return instrumentRefusal(
         `Appearance row ${row.id} cannot resolve expected ${query.selector}=${query.property}; ${accounting}; center-hit=${JSON.stringify(obstruction ?? null)}`,
       );
     }
     const source = expectedSource(row, query.selector, query.property);
     if (!query.sources.includes(source)) {
-      return instrumentError(`Appearance row ${row.id} source policy excludes ${source} for ${query.selector}=${query.property}`);
+      return instrumentRefusal(`Appearance row ${row.id} source policy excludes ${source} for ${query.selector}=${query.property}`);
     }
     return {
       selector: query.selector,
@@ -292,7 +288,7 @@ function mergeExpectation(row: RuntimeAppearanceHistoricalRow, snapshot: Appeara
   }
   const expectedOutput = snapshot.subjects.find((subject) => subject.selector === row.merge.selector)?.facts?.className ?? "";
   if (expectedOutput === "") {
-    return instrumentError(`Appearance row ${row.id} cannot resolve configured merge output for ${row.merge.selector}`);
+    return instrumentRefusal(`Appearance row ${row.id} cannot resolve configured merge output for ${row.merge.selector}`);
   }
   return { ...row.merge, expectedOutput };
 }
@@ -331,7 +327,7 @@ async function animationEvidence(page: Page): Promise<{ readonly total: number; 
     return { total: rows.length, dirty: rows.filter((row) => !row.compositorClean).length, properties: [...new Set(rows.flatMap((row) => row.properties))] };
   })()`),
   );
-  return evidence ?? instrumentError("Appearance row cannot read active-animation evidence");
+  return evidence ?? instrumentRefusal("Appearance row cannot read active-animation evidence");
 }
 
 async function prepaintEvidence(page: Page, snapshot: AppearanceDomSnapshot): Promise<{ sampled: number; continuous: boolean; actual: string }> {
@@ -375,7 +371,7 @@ async function captureRowSnapshots(
   }
   if (row.id === "density-preview") {
     if (before === undefined) {
-      instrumentError("density-preview lost its before snapshot");
+      instrumentRefusal("density-preview lost its before snapshot");
     }
     await closePortalDialog(page);
     const mutationIsolation = await driveOppositeDensity(page, before);
@@ -394,7 +390,7 @@ async function captureAppearanceInvariantRow(session: ProbeSession, opts: Args, 
     const environment = await readBrowserEnvironment(page, session.environmentContract);
     const settings = session.contexts[0]?.settingsEvidence;
     if (settings === undefined) {
-      instrumentError(`Appearance row ${row.id} has no settings provenance`);
+      instrumentRefusal(`Appearance row ${row.id} has no settings provenance`);
     }
     const cascade = cascadeExpectations(row, snapshots.current);
     const queries = cascade.map(({ selector, property, matchIndex }) => ({ selector, property, matchIndex, page: 0 }));

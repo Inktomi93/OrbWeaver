@@ -34,6 +34,7 @@
 import type { BrowserContext, Route } from "@playwright/test";
 import { installAppearancePrepaintRecorder } from "./appearance-prepaint.ts";
 import { warn } from "./log.ts";
+import { isPlainObject } from "./page-validate.ts";
 import type { ThemeEntry, ThemeRequest } from "./theme.ts";
 import { LIST_THEMES_PROCEDURE, readThemeList, resolveTheme, themeConfigPatch, themeWarning } from "./theme.ts";
 
@@ -98,10 +99,6 @@ async function seedAppearanceBootHint(context: BrowserContext, patch: Appearance
     },
     { axes, key: APPEARANCE_BOOT_HINT_KEY, version: APPEARANCE_BOOT_HINT_VERSION },
   );
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
