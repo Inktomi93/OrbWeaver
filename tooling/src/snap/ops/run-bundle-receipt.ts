@@ -2,7 +2,7 @@
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { snapDiagnosticRetention } from "../contract/run-facts.ts";
-import type { SnapRunIndex } from "../contract/run-index.ts";
+import type { SnapCompositeFinding, SnapRunIndex } from "../contract/run-index.ts";
 import { findingEvidenceDisplay, findingNextDisplay } from "../lib/run-finding-display.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -24,8 +24,49 @@ function printRawFallback(artifact: SnapRunIndex["artifacts"][number]): void {
   print(`FORENSICS  open the raw ${artifact.channel ?? artifact.schema ?? "artifact"} at ${artifact.path}`);
 }
 
+/** The arms whose SUBJECT is the app's own instrumentation. If none of them was asked for, the
+ *  `[perf]`/`[frame]`/`[cls]` rows are not this run's evidence — they are ambient. */
+const ANNOTATION_ARMS = new Set(["motion", "interaction-perf", "react-profile", "cpu-profile", "boot-trace"]);
+
+function measuringArmRequested(index: SnapRunIndex): boolean {
+  return index.verdict.arms.some((arm) => ANNOTATION_ARMS.has(arm.arm) && arm.state !== "off");
+}
+
+/** The worst measured value across a set of annotation rows, as the row printed it. Ordering by the
+ *  NUMBER (not the string) so `9ms` never reads as worse than `192ms`. */
+function worstAnnotation(rows: readonly SnapCompositeFinding[]): string {
+  let worst: { readonly text: string; readonly value: number } | null = null;
+  for (const row of rows) {
+    const measured = /value=(\d+(?:\.\d+)?)(\S*)/u.exec(row.what);
+    const value = Number(measured?.[1] ?? Number.NaN);
+    if (Number.isFinite(value) && (worst === null || value > worst.value)) {
+      worst = { text: `${measured?.[1] ?? ""}${measured?.[2] ?? ""}`, value };
+    }
+  }
+  return worst?.text ?? "unstated";
+}
+
+/** ONE line for every ambient annotation (#1372) — counts by tag, the worst value, and the reader that
+ *  expands them. They stay in run.json in full; what changes is whether an unasked-for measurement gets
+ *  to outweigh the evidence the argv actually requested. */
+function printAnnotationCollapse(rows: readonly SnapCompositeFinding[], index: SnapRunIndex): void {
+  if (rows.length === 0) {
+    return;
+  }
+  const byTag = new Map<string, number>();
+  for (const row of rows) {
+    const tag = row.what.split(" ")[0] ?? "other";
+    byTag.set(tag, (byTag.get(tag) ?? 0) + row.occurrences);
+  }
+  const counts = [...byTag].map(([tag, count]) => `${tag}=${String(count)}`).join(" ");
+  const arm = rows.flatMap((row) => row.arms)[0] ?? "motion";
+  print(`annotations  ${counts} worst=${worstAnnotation(rows)} → pnpm snap --report ${index.identity.runId} --problems --arm ${arm}`);
+}
+
 function printFindingReceipt(index: SnapRunIndex, path: string): void {
-  const findings = index.findings ?? [];
+  const all = index.findings ?? [];
+  const collapse = !measuringArmRequested(index);
+  const findings = collapse ? all.filter((row) => row.severity !== "annotation") : all;
   for (const finding of findings.slice(0, FINDING_DISPLAY_CAP)) {
     // #1369 — cite the run by the id the RUN line above just printed, not by its absolute index path
     // twice per row. `run.json` keeps the absolute form.
@@ -37,6 +78,12 @@ function printFindingReceipt(index: SnapRunIndex, path: string): void {
   }
   if (findings.length > FINDING_DISPLAY_CAP) {
     print(`FINDINGS   omitted=${String(findings.length - FINDING_DISPLAY_CAP)} of ${String(findings.length)}; full population in run.json and READ below`);
+  }
+  if (collapse) {
+    printAnnotationCollapse(
+      all.filter((row) => row.severity === "annotation"),
+      index,
+    );
   }
 }
 

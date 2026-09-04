@@ -190,6 +190,10 @@ export interface Args {
   contrastEdge: PagedSelector[];
   /** First-class post-settle assertions; selector assertions target visible/rendered matches by default. */
   assertions: Assertion[];
+  /** Print the whole SPA destination atlas rather than its one-line summary (#1372). The atlas is a
+   *  property of the APP, not of the surface under test: reprinting all ~27 targets on every `--map` call
+   *  cost 2.1 KB a run to say what the previous call already said. */
+  atlas: boolean;
   /** Emit a selector map (role · accessible name · best stable selector) of interactive/
    *  labeled elements within `mapSelector` — "how do I reach this" instead of grepping source. */
   map: boolean;

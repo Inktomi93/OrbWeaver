@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 530,
-    "enforced": 527,
+    "sites": 531,
+    "enforced": 528,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 527,
+      "deliberate-absorb": 528,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 137,
       "default": 141,
-      "empty": 252
+      "empty": 253
     }
   },
   "rows": [
@@ -5116,7 +5116,7 @@
     {
       "siteId": "tooling/src/snap/lib/run-finding-browser.ts::empty:error::1",
       "path": "tooling/src/snap/lib/run-finding-browser.ts",
-      "line": 346,
+      "line": 410,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5124,12 +5124,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 343
+      "markerLine": 407
     },
     {
       "siteId": "tooling/src/snap/lib/run-finding-browser.ts::empty:error::2",
       "path": "tooling/src/snap/lib/run-finding-browser.ts",
-      "line": 414,
+      "line": 478,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5137,7 +5137,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 411
+      "markerLine": 475
     },
     {
       "siteId": "tooling/src/snap/lib/session-wire.ts::default:catch::1",
@@ -5905,6 +5905,19 @@
       "verdict": "deliberate-absorb",
       "reason": "#reject persists the explicit read-error",
       "markerLine": 285
+    },
+    {
+      "siteId": "tooling/src/snap/ops/run-report-render.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/run-report-render.ts",
+      "line": 161,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "a PRESENT-but-unreadable values artifact is an instrument defect, printed as EVAL REFUSED and never as an empty value set; the strict index reader above still owns the run's verdict. Ends if that refusal line disappears.",
+      "markerLine": 156
     },
     {
       "siteId": "tooling/src/snap/ops/run-report.ts::empty:catch::1",

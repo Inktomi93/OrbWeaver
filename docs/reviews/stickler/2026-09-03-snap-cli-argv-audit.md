@@ -166,6 +166,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--aria-boxes` | `B` | analyzer modifier; bounds | checkpoint/arm | child of `--aria` | owned | KEEP; refused without `--aria`/`--text` |
 | `--aria-depth` | `V,L` integer | analyzer modifier; depth | checkpoint/arm | child of `--aria` | owned | KEEP; refused without `--aria`/`--text` |
 | `--as` | `V,L` fixture name | boot; fixture/context target | outer | pairs with fixture URLs | owned | KEEP |
+| `--atlas` | `B` | look; with `--map`, print the whole SPA destination atlas | checkpoint/arm | child of `--map`; the default is the one-line summary (#1372) | owned | KEEP |
 | `--base` | `V,L` URL | boot; app base URL | outer | mutually exclusive environment slot with isolated target selection | owned | KEEP |
 | `--baseline` | `B` | capture modifier; save shot as baseline | checkpoint | different operation from `--diff` | owned | KEEP |
 | `--boot-trace` | `B` | capture; browser boot trace arm | checkpoint/arm | not CPU/perf profile | owned | KEEP |
