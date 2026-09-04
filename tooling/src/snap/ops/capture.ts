@@ -53,6 +53,7 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
     navError: null,
     stepFailures: 0,
     navFailures: 0,
+    driveFailures: [],
     fileActions: [],
     heap: null,
     deadCss: [],
@@ -79,7 +80,7 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
   const armPlan: ShotPlan = { url: plan.url, out, produceShot: plan.produceShot };
   // @orb-gate-ignore caught-failure-ownership(empty:e): captured into outcome.navError, which the caller counts into the verdict's navigation total and prints as NAV ERROR. Ends if navError stops being read.
   try {
-    outcome.navError = plan.navigatePage === false ? null : await navigate(page, opts, plan.url);
+    outcome.navError = plan.navigatePage === false ? null : await navigate(page, opts, plan.url, outcome.driveFailures);
     // #1227: `data-app-ready` is not the whole readiness contract when a THEME was requested — the stamp
     // lands one settings hop later, and everything below (the drive queue, every capture, the shot) would
     // otherwise sample the default palette under a themed label.
@@ -108,6 +109,7 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
     const driven = await driveActions({ page, actions: split.drive, opts, pageIndex, ...(runArms === null ? {} : { lifecycle: runArms }) });
     outcome.navFailures = driven.navFailures;
     outcome.stepFailures = driven.stepFailures;
+    outcome.driveFailures.push(...driven.driveFailures);
     outcome.evalResults = driven.evalResults;
     outcome.fileActions = driven.fileActions;
     await settlePage(page, opts);

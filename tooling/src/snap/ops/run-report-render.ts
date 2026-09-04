@@ -5,9 +5,11 @@ import { scopeLabel, scopeMatches } from "../../_shared/artifact-scope.ts";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { snapDiagnosticRetention } from "../contract/run-facts.ts";
-import type { SnapReportQuery, SnapRunIndex } from "../contract/run-index.ts";
+import type { SnapPrunedRun, SnapReportQuery, SnapRunIndex, SnapRunListQuery } from "../contract/run-index.ts";
 import { readReactProfileSummary } from "../lib/react-profile-receipt.ts";
 import { reportAnalyzerProblems } from "../lib/run-report-analyzers.ts";
+import type { SnapRunRegression } from "../lib/run-report-columns.ts";
+import { runArms, runOutName, runRoute } from "../lib/run-report-columns.ts";
 import { artifactMatches, diagnosticMatches, findingMatches } from "../lib/run-report-query.ts";
 import { readSnapDiagnosticArtifact } from "./run-bundle.ts";
 
@@ -180,6 +182,21 @@ function reportFindings(index: SnapRunIndex, query: SnapReportQuery): void {
   }
 }
 
+/** THE RUN-OVER-RUN DELTA (#1345), as a derived FINDING rather than a table nobody reads.
+ *
+ *  It is display-only and never votes: the counters it compares already carried their own exit votes in
+ *  the runs they came from. What it adds is the thing a single run cannot say — that this surface used to
+ *  be better — which is exactly the question an agent re-running the same `--out` name is asking. */
+export function renderSnapRunDelta(previous: SnapRunIndex, regressions: readonly SnapRunRegression[], path: string): void {
+  if (regressions.length === 0) {
+    return;
+  }
+  const what = regressions.map((row) => `${row.label} ${String(row.before)}→${String(row.after)}`).join(", ");
+  print(
+    `FINDING      warning | regressed: ${what} | vs ${previous.identity.runId} (same --out name, finished ${previous.process.finishedAt}) | evidence=run-index@${path} confidence=direct completeness=complete conflicts="none" occurrences=${String(regressions.length)} | next=pnpm snap --report ${previous.identity.runId} --problems`,
+  );
+}
+
 export async function renderSnapRunReport(index: SnapRunIndex, path: string, query: SnapReportQuery): Promise<void> {
   reportIdentity(index, query);
   print(
@@ -203,15 +220,41 @@ export async function renderSnapRunReport(index: SnapRunIndex, path: string, que
   print(`INDEX        ${path}`);
 }
 
-export function renderSnapRunList(scan: SnapRunIndexScan): void {
-  for (const row of scan.rows.slice(0, RUN_LIST_DISPLAY_CAP)) {
+/** A CITATION THAT NO LONGER RESOLVES MUST SAY WHY. A run id in a review, a report or a board row outlives
+ *  the bytes it names; without this row the reader cannot tell a pruned slot from a typo or a lost run. */
+function printPrunedRun(row: SnapPrunedRun): void {
+  print(`PRUNED     ${row.runId}  ran ${row.ranAt}  removed ${row.prunedAt}  (past the 24h retention floor; the slot's bytes are gone)`);
+}
+
+export function renderSnapRunList(scan: SnapRunIndexScan, query: SnapRunListQuery = { last: null, lane: null }, pruned: readonly SnapPrunedRun[] = []): void {
+  // `out=`/`route=`/`arms=` are what make the list navigable (#1345): the run id and sha are identity, but
+  // an agent mapping ten slots back to the ten commands that made them was grepping its own logs to do it.
+  const matching = query.lane === null ? scan.rows : scan.rows.filter((row) => row.process.lane === query.lane);
+  const window = query.last ?? RUN_LIST_DISPLAY_CAP;
+  // PRUNED rows share the window with live ones and are ordered by the same clock: `--last 3` answers
+  // "the last three runs", and a run whose slot was swept is still one of them.
+  const timeline = [
+    ...matching.map((row) => ({ at: row.process.finishedAt, live: row, gone: null as SnapPrunedRun | null })),
+    ...(query.lane === null ? pruned.map((row) => ({ at: row.ranAt, live: null as SnapRunIndex | null, gone: row })) : []),
+  ].toSorted((left, right) => right.at.localeCompare(left.at));
+  for (const entry of timeline.slice(0, window)) {
+    const row = entry.live;
+    if (row === null) {
+      if (entry.gone !== null) {
+        printPrunedRun(entry.gone);
+      }
+      continue;
+    }
     print(
-      `RUN ${row.identity.runId} checkout=${row.identity.checkout} sha=${row.identity.sha.slice(0, IDENTITY_PREFIX_LENGTH)} lane=${row.process.lane ?? "none"} verdict=${row.verdict.state} time=${row.process.finishedAt}`,
+      `RUN ${row.identity.runId} checkout=${row.identity.checkout} sha=${row.identity.sha.slice(0, IDENTITY_PREFIX_LENGTH)} lane=${row.process.lane ?? "none"} verdict=${row.verdict.state} out=${runOutName(row)} route=${runRoute(row)} arms=${runArms(row)} time=${row.process.finishedAt}`,
     );
   }
-  if (scan.rows.length > RUN_LIST_DISPLAY_CAP) {
+  if (query.lane !== null) {
+    print(`RUNS FILTERED lane=${query.lane} matched=${String(matching.length)} of ${String(scan.rows.length)} valid run(s)`);
+  }
+  if (timeline.length > window) {
     print(
-      `RUNS OMITTED valid=${String(scan.rows.length - RUN_LIST_DISPLAY_CAP)} total=${String(scan.rows.length)} showing-newest=${String(RUN_LIST_DISPLAY_CAP)}; inspect a known run with pnpm snap --report <exact-run-id> --problems`,
+      `RUNS OMITTED valid=${String(timeline.length - window)} total=${String(timeline.length)} showing-newest=${String(window)}; widen with --last N, narrow with --lane <name>, or inspect a known run with pnpm snap --report <exact-run-id> --problems`,
     );
   }
   if (scan.invalid.length > 0) {

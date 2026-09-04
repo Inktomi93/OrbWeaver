@@ -429,7 +429,8 @@ test("same-SHA worktrees retain checkout and byte-sensitive dirty identity; exac
   expect(runLines.at(-1)).toContain("RUN history-03 ");
   expect(runLines.some((line) => line.includes("history-02"))).toBe(false);
   expect(lines.filter((line) => line.startsWith("RUNS OMITTED"))).toEqual([
-    "RUNS OMITTED valid=7 total=27 showing-newest=20; inspect a known run with pnpm snap --report <exact-run-id> --problems",
+    // #1345 — the omission line now names the two filters that widen/narrow the window.
+    "RUNS OMITTED valid=7 total=27 showing-newest=20; widen with --last N, narrow with --lane <name>, or inspect a known run with pnpm snap --report <exact-run-id> --problems",
   ]);
   expect(lines.filter((line) => line.startsWith("RUN INDEX SKIPPED"))).toEqual([
     expect.stringMatching(/invalid=5 scanned=\d+ examples=3 omitted=2 .*pnpm snap --report/u),
@@ -978,7 +979,10 @@ test("composite findings correlate the same unsafe-port failure across diagnosti
   expect(unsafe).toMatchObject({
     severity: "error",
     arms: ["requests"],
-    channels: ["browser-diagnostics", "requests", "har"],
+    // Channel order follows the DRAFT order, and #1344 moved the core-capture producer to the head of it
+    // so a run's own drive failures cannot lose a severity tie to a console row. Same finding, same
+    // channels, same correlation — only the union's insertion order moved.
+    channels: ["requests", "browser-diagnostics", "har"],
     confidence: "correlated",
     completeness: "bounded",
     occurrences: 4,

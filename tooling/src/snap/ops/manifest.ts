@@ -13,7 +13,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ThemeRequest } from "../../_shared/theme.ts";
 import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
 import type { DiskSafeBrowserPageError, DiskSafeLimitReceipt } from "../contract/browser-evidence-redaction.ts";
-import type { Args, CaptureOutcome, WatchTick } from "../contract/types.ts";
+import type { Args, CaptureOutcome, DriveFailure, WatchTick } from "../contract/types.ts";
 import type { SnapFailureSummary } from "../contract/verdict.ts";
 import {
   redactBrowserDiagnostics,
@@ -111,6 +111,8 @@ interface SnapCoreCaptureEvidence {
     readonly navError: string | null;
     readonly stepFailures: number;
     readonly navFailures: number;
+    /** #1344 — the structured, redacted rows behind those two counters. */
+    readonly driveFailures: readonly DriveFailure[];
     readonly fileActions: CaptureOutcome["fileActions"];
     readonly mapError: string | null;
     readonly mapAtlasError: string | null;
@@ -296,6 +298,15 @@ export async function writeCoreCaptureEvidence(input: ManifestInput): Promise<st
       navError: capture.navError === null ? null : redactEvidenceText(capture.navError).text,
       stepFailures: capture.stepFailures,
       navFailures: capture.navFailures,
+      // #1344: the structured half of those two counters, so the browser-free reader can mint one FINDING
+      // row per failed action instead of leaving the cause as a token on the RESULT line.
+      driveFailures: capture.driveFailures.map((failure) => ({
+        index: failure.index,
+        kind: failure.kind,
+        flag: failure.flag,
+        subject: failure.subject === null ? null : redactEvidenceText(failure.subject).text,
+        reason: redactEvidenceText(failure.reason).text,
+      })),
       fileActions: capture.fileActions,
       mapError: capture.mapError === null ? null : redactEvidenceText(capture.mapError).text,
       mapAtlasError: capture.mapAtlasError === null ? null : redactEvidenceText(capture.mapAtlasError).text,

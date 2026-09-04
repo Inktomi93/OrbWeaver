@@ -25,7 +25,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--force` | confirmation half of --stage-down --stage-owner and --session-close on a foreign live session |
 | `--fresh` | rebuild the isolated stage instead of reusing the warm one (implies --isolated) |
 | `--isolated` | boot/reuse snap's isolated stage: a detached worktree served on an offset port pair |
-| `--local-storage <value>` | seed localStorage before navigation (first = splits, value is JSON) |
+| `--local-storage <value>` | key=json — seed localStorage before navigation (the FIRST = splits; the value is JSON) |
 | `--ref <value>` | pin the isolated stage to a commit (implies --isolated; survives a merge train) |
 | `--stage-down` | tear down this checkout's stages |
 | `--stage-owner <value>` | names the owner for a cross-checkout --stage-down |
@@ -43,29 +43,29 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--context-tab [@N] <value>` | switch the context panel's tab |
 | `--contexts <value>` | N isolated fixture users in separate contexts (one-direction comparison) |
 | `--dom-click [@N] <value>` | in-page el.click(), bypasses actionability — the click for virtualized/composite rows |
-| `--drop-files [@N] <value>` | dispatch dragenter/dragover/drop with a real DataTransfer |
-| `--every <value>` | the tick interval for --watch |
-| `--fill [@N] <value>` | type into a field; the selector may be an engine form |
+| `--drop-files [@N] <value>` | selector=path[,path] — dispatch dragenter/dragover/drop with a real DataTransfer |
+| `--every <value>` | ms — the tick interval for --watch |
+| `--fill [@N] <value>` | selector=value — type into a field; the selector may be an engine form |
 | `--focus [@N] <value>` | the shell's zen/focus-mode toggle |
 | `--force-click [@N] <value>` | hover-then-forced pointer click for hover-revealed/overlaid controls |
 | `--goto [@N] <value>` | SPA navigation through __orb.nav — a section id, settings category, or modal slot |
 | `--hover [@N] <value>` | synthetic hover (loses :hover on any list re-render) |
 | `--idle` | bounded network-idle settle instead of the default fixed mount settle |
-| `--key [@N] <value>` | bare form walks focus without re-focusing; selector= form focuses then presses |
+| `--key [@N] <value>` | Key or selector=Key — the bare form walks focus without re-focusing; the selector form focuses then presses |
 | `--open-character [@N] <value>` | Characters section + select by id or name |
 | `--open-chat [@N] <value>` | open a room by id, exact title, latest, or current |
 | `--pages <value>` | N tabs in ONE browser context (shared cookies, independent DOM) |
-| `--panel [@N] <value>` | drive one shell pane's layout mode (also the docked <-> collapsed FLIP) |
+| `--panel [@N] <value>` | name=mode — drive one shell pane's layout mode (also the docked <-> collapsed FLIP) |
 | `--panels <value>` | a named pane configuration in one flag (composes over --panel) |
 | `--pause [@N] <value>` | an ordered pause in the tape (not a measurement window) |
 | `--scenario <value>` | sequential checkpoints in ONE browser lifetime (json file or a named preset) |
 | `--scenario-summary` | one CHECKPOINT name PASS/FAIL line per checkpoint (pair with --json) |
 | `--stream-settle <value>` | fixed post-drive settle for a streaming surface |
-| `--upload [@N] <value>` | choose file(s) through an input or a trigger's filechooser |
-| `--wait-for [@N] <value>` | wait for a selector, or rendered text via text=phrase |
+| `--upload [@N] <value>` | selector=path[,path] — choose file(s) through an input or a trigger's filechooser |
+| `--wait-for [@N] <value>` | selector or text=phrase — wait for a selector to become visible, or for rendered text |
 | `--watch <value>` | per-tick screenshot and re-run of every --eval over a total window (page 0 only) |
-| `--wheel [@N] <value>` | one ordered wheel input |
-| `--wheel-burst [@N] <value>` | repeated wheel inputs with a 30ms tick |
+| `--wheel [@N] <value>` | selector=dy — one ordered wheel input |
+| `--wheel-burst [@N] <value>` | selector=dy:count — repeated wheel inputs with a 30ms tick |
 
 ## Look
 
@@ -74,7 +74,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--aria [@N] [selector]` | the ARIA tree (Playwright's ariaSnapshot) — the oracle for accessible-name questions |
 | `--aria-boxes` | annotate each --aria/--text node with its rendered box |
 | `--aria-depth <value>` | cap the --aria/--text tree depth |
-| `--cascade [@N] <value>` | Chromium's computed value plus the Active/Overloaded declarations for one property (not with --lighthouse) |
+| `--cascade [@N] <value>` | selector=property — Chromium's computed value plus the Active/Overloaded declarations (not with --lighthouse) |
 | `--contrast [@N] <value>` | rendered WCAG contrast of that element's text vs its effective backdrop (in-viewport only) |
 | `--contrast-edge [@N] <value>` | WCAG 1.4.11 border check: each painted side's ink vs the surface just outside it, at 3:1 |
 | `--contrast-pixel` | force the framebuffer sample instead of the CSS resolve (requires --contrast) |
@@ -90,10 +90,10 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 
 | Flag | What it does |
 | - | - |
-| `--expect-count [@N] <value>` | exactly N rendered matches (virtualized lists count mounted rows) |
+| `--expect-count [@N] <value>` | selector=N — exactly N rendered matches (virtualized lists count mounted rows) |
 | `--expect-focus [@N] <value>` | the active element matches (pair with bare --key Tab walks) |
 | `--expect-no-overflow [@N] [selector]` | scroll bounds fit client bounds and no descendant box exits the clip |
-| `--expect-text [@N] <value>` | rendered text contains the value |
+| `--expect-text [@N] <value>` | selector=text — rendered text contains the value |
 | `--expect-url [@N] <value>` | the final browser URL (only ever / or /login here) |
 | `--expect-visible [@N] <value>` | a rendered, visible element exists |
 
@@ -124,8 +124,8 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--cpu-profile` | V8 sampling profile across the post-navigation tape; run it separately from --perf/--motion |
 | `--filmstrip` | labelled PNG contact sheet from before the tape through settle, one per page/context |
 | `--heap [@N] <value>` | force GC and capture the settled page's V8 heap plus parsed sidecar |
-| `--heap-compare [@N] <value>` | growth/detached findings between two heap labels or snapshot paths (diagnostic, never a budget gate) |
-| `--heap-retainers [@N] <value>` | retaining paths, dominators and outgoing edges for a snapshot node |
+| `--heap-compare [@N] <value>` | left=right — growth/detached findings between two heap labels or snapshot paths (diagnostic, never a budget gate) |
+| `--heap-retainers [@N] <value>` | snapshot=selector — retaining paths, dominators and outgoing edges for a snapshot node |
 | `--lighthouse <value>` | Lighthouse (accessibility + best-practices + seo) on this run's settled page; not with --cascade |
 | `--lighthouse-mode <value>` | default snapshot audits the page as your tape left it; navigation reloads first and loses the drive |
 | `--motion [selector]` | one motion window: LoAF, CLS, compositor-dirty animations, dropped frames |

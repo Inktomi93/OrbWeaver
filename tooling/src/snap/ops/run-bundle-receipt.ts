@@ -64,6 +64,9 @@ export function printRunReceipt(index: SnapRunIndex, path: string): void {
   );
   print(`EVIDENCE   ${path}`);
   print(
+    "RETAINED   this run slot is kept for at least 24h; after that the newest 10 per instrument survive and the rest are listed by `pnpm snap --reports` as PRUNED",
+  );
+  print(
     `VERDICT    exit=${index.verdict.exit} diagnostics=${index.diagnostics.records.total} dropped=${String(dropped)} diagnostics-state=${index.diagnostics.state} disk-complete=${index.diagnostics.records.complete ? "yes" : "no"} ${Object.entries(
       counts,
     )

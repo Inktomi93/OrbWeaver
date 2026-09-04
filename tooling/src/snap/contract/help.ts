@@ -46,7 +46,10 @@ ${armHelp("assert")}
                                     display-only: producer-owned arms/thresholds still own the exit vote.
                                     Core page/capture rows are complete; failed-request summaries are a
                                     declared latest-per-URL projection, while HAR remains the event record.
-  --reports                         list indexed runs across registered worktrees with identity and verdict
+  --reports [--last N] [--lane x]   list indexed runs across registered worktrees: identity, verdict, and
+                                    out= / route= / arms= — what each run was FOR, so a slot maps back to
+                                    the command that made it. --last N windows it (pruned runs count);
+                                    --lane x keeps one lane's.
                                     Report readers never start a browser, stage, session, or run slot.
   --checkpoint                      reset __orb evidence after readiness; scope console verdicts to actions
   --include-hidden                  include attached hidden/inert DOM in map, CSS, and counts; map rows
@@ -197,10 +200,22 @@ Failure evidence:
 Complete accepted flag grammar (generated from the executable registry; @N marks page-targetable flags):
 ${snapFlagGrammarHelp()}
 
+Reading a run (the terminal shape — #1345):
+  A run prints what the argv asked for, then the end card, and nothing else inline: the run slot, then
+  the action blocks (EVAL / CONTRAST / MAP / ASSERT), then one SUMMARY line per arm that measured
+  something, then RESULT, the FINDING rows, PROVENANCE and EVIDENCE. Console messages and the CSS census
+  live in the run's artifacts behind ONE 'console errors=… warnings=… → <run.json>' line — console
+  ERRORS always print inline, and everything else is one browser-free read away:
+      pnpm snap --report <run.json> --all --channel console
+  A failed step, nav or wait is its own FINDING row, ranked above every console annotation, naming the
+  flag and selector to correct (#1344). --json stays lossless.
+
 Artifacts:
   Every run writes inside its own slot (reports/runs/snap/<runId>/, printed as the run's first
   line) and publishes reports/snaps/<name>.png, reports/traces/… etc. as pointers into it when it
   finishes, so a concurrent snap cannot overwrite yours (#1164). --baseline is the exception: a
   golden lands in reports/baselines/ directly, because a later --diff reads it.
+  A slot is retained at least 24h; after that the newest 10 per instrument survive and the rest are
+  listed by 'pnpm snap --reports' as PRUNED.
 
 Run pnpm snap --help (or -h) from the repository for this contract; the source header contains the full cookbook.`;

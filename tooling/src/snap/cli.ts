@@ -75,7 +75,7 @@ async function runResolvedMode(opts: Args): Promise<number> {
 
 async function runReportReader(argv: readonly string[]): Promise<number | null> {
   const report = parseSnapReportArgs(argv);
-  if (!(report.list || report.query !== null || report.errors.length > 0)) {
+  if (!(report.list !== null || report.query !== null || report.errors.length > 0)) {
     return null;
   }
   if (report.errors.length > 0) {
@@ -84,8 +84,8 @@ async function runReportReader(argv: readonly string[]): Promise<number | null> 
     }
     return EXIT.misuse;
   }
-  if (report.list) {
-    return await printSnapReports(REPO_ROOT);
+  if (report.list !== null) {
+    return await printSnapReports(REPO_ROOT, report.list);
   }
   if (report.query === null) {
     print("INSTRUMENT ERROR  report mode resolved without a list or query");

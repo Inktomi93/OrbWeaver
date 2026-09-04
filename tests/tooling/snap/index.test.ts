@@ -357,6 +357,19 @@ test("--out with a text-only run WARNS instead of silently writing nothing", () 
   expect(parseSnapArgs(["/", "--out", "run", "--text", "--json"]).warnings[0]).toContain("--json manifest");
 });
 
+test("--out is silent on the cheap-ladder rungs the lost-capture incident never named", () => {
+  // #1347's half of the fork above: `--out` on an eval/map/contrast/assert run names the run's artifacts,
+  // and warning about a PNG nobody asked for cost five false ARG lines in one review.
+  for (const ladder of [["--eval", "1"], ["--map"], ["--contrast", "main"], ["--expect-visible", "main"], ["--cascade", "main=color"]]) {
+    expect(parseSnapArgs(["/", "--out", "x", "--no-shot", ...ladder]).warnings, ladder.join(" ")).toEqual([]);
+  }
+  // …and the incident's own argv still warns: `--text`/`--aria` keep it.
+  expect(parseSnapArgs(["/", "--out", "x", "--text"]).warnings).toHaveLength(1);
+  // `--aria` alone still SHOOTS (only `--text` drops the PNG), so its warning needs --no-shot to be about
+  // a suppressed image at all.
+  expect(parseSnapArgs(["/", "--out", "x", "--no-shot", "--aria", "main"]).warnings).toHaveLength(1);
+});
+
 test("--out stays silent whenever the run actually produces pixels", () => {
   const producingRuns = [
     ["--out", "x"],
@@ -374,8 +387,11 @@ test("--out stays silent whenever the run actually produces pixels", () => {
 
 test("snap CLI prints the --out warning before booting chromium", () => {
   // Warnings print ahead of the error/help gates, so this never reaches a browser: the run is refused for
-  // the unrelated page-target error, and the caller STILL learns the --out did nothing.
-  const result = runSnap(["--out", "lost-capture", "--text", "--eval@1", "document.title"]);
+  // the unrelated flag error, and the caller STILL learns the --out did nothing.
+  // The refusing flag is `--contrast-pixel` (was `--eval@1`): since #1347 an `--eval` run's `--out` names
+  // the run's artifacts rather than a lost image, so it no longer warns — see lib/parse-warnings.ts for
+  // which rungs of the cheap ladder still do. The PROPERTY under test is unchanged.
+  const result = runSnap(["--out", "lost-capture", "--text", "--contrast-pixel"]);
 
   expect(result.status).toBe(3);
   expect(result.stdout).toContain("ARG WARNING  ");

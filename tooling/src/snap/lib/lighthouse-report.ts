@@ -8,7 +8,14 @@
 // real finding; the structural readers below simply see nothing, and the node COUNT they report is the
 // count they actually read.
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { LighthouseCategoryScore, LighthouseDevice, LighthouseFailedAudit, LighthouseMode, LighthouseReceipt } from "../contract/lighthouse.ts";
+import type {
+  LighthouseAuditNode,
+  LighthouseCategoryScore,
+  LighthouseDevice,
+  LighthouseFailedAudit,
+  LighthouseMode,
+  LighthouseReceipt,
+} from "../contract/lighthouse.ts";
 import { LIGHTHOUSE_CATEGORIES, LIGHTHOUSE_DEVICES, LIGHTHOUSE_MODES } from "../contract/lighthouse.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -47,15 +54,33 @@ function scoreOf(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+/** How much of a node's outer HTML the row carries. Long enough to recognize the element, short enough
+ *  that three of them still fit on one FINDING row. */
+const SNIPPET_CAP = 120;
+
+function auditNodeText(node: Record<string, unknown> | null, key: string, cap: number | null = null): string | null {
+  const value = node?.[key];
+  if (typeof value !== "string" || value === "") {
+    return null;
+  }
+  const collapsed = value.replace(/\s+/gu, " ").trim();
+  return cap !== null && collapsed.length > cap ? `${collapsed.slice(0, cap)}…` : collapsed;
+}
+
 /** Every `{ node: { selector } }` row an audit's details blamed, plus how many rows there were. Reads the
  *  two shapes Lighthouse actually emits for a11y findings: a top-level `items` array, and a `list` whose
- *  own items each carry a table. */
-export function auditNodes(details: unknown): { readonly count: number; readonly selectors: readonly string[] } {
+ *  own items each carry a table. Each sampled node keeps axe's `explanation` and `snippet` (#1347) —
+ *  they are already in the LHR and were being thrown away. */
+export function auditNodes(details: unknown): {
+  readonly count: number;
+  readonly selectors: readonly string[];
+  readonly nodes: readonly LighthouseAuditNode[];
+} {
   const items = record(details)?.["items"];
   if (!Array.isArray(items)) {
-    return { count: 0, selectors: [] };
+    return { count: 0, selectors: [], nodes: [] };
   }
-  const selectors: string[] = [];
+  const nodes: LighthouseAuditNode[] = [];
   let count = 0;
   for (const item of items) {
     const row = record(item);
@@ -63,16 +88,18 @@ export function auditNodes(details: unknown): { readonly count: number; readonly
     if (Array.isArray(nested)) {
       const inner = auditNodes(record(row?.["value"]));
       count += inner.count;
-      selectors.push(...inner.selectors);
+      nodes.push(...inner.nodes);
       continue;
     }
     count += 1;
-    const selector = record(row?.["node"])?.["selector"];
-    if (typeof selector === "string" && selector !== "") {
-      selectors.push(selector);
+    const node = record(row?.["node"]);
+    const selector = auditNodeText(node, "selector");
+    if (selector !== null) {
+      nodes.push({ selector, explanation: auditNodeText(node, "explanation"), snippet: auditNodeText(node, "snippet", SNIPPET_CAP) });
     }
   }
-  return { count, selectors: selectors.slice(0, SELECTOR_SAMPLE) };
+  const sample = nodes.slice(0, SELECTOR_SAMPLE);
+  return { count, selectors: sample.map((node) => node.selector), nodes: sample };
 }
 
 function auditRows(lhr: unknown): readonly Record<string, unknown>[] {
@@ -107,6 +134,7 @@ export function failedAudits(lhr: unknown): readonly LighthouseFailedAudit[] {
         scoreDisplayMode: text(audit["scoreDisplayMode"], "binary"),
         nodeCount: nodes.count,
         selectors: nodes.selectors,
+        nodes: nodes.nodes,
       };
     })
     .sort((left, right) => left.id.localeCompare(right.id));

@@ -59,6 +59,26 @@ export interface PagedExpr {
   page: number;
 }
 
+/** One drive-queue action that FAILED, structured (#1344).
+ *
+ *  Until 2026-09-04 a failed step left exactly two traces: a `STEP FAILED` line buried in the inline log,
+ *  and `steps-failed=1` among the ~40 tokens of the RESULT line. A cold agent whose `--wait-for` selector
+ *  was simply wrong therefore read the end card's `[perf]` console annotations as the run's findings and
+ *  spent two extra calls discovering the real cause. The failure now carries enough identity to become
+ *  its own FINDING row, ranked above every annotation — a failed step invalidates every capture after it.
+ *  Persisted per capture in `evidence/core-capture.json`; read back by `lib/run-finding-browser.ts`. */
+export interface DriveFailure {
+  /** Position in this page's argv-ordered drive queue. `--wait` is -1: it runs before the queue exists. */
+  readonly index: number;
+  readonly kind: "step" | "nav" | "wait";
+  /** The flag the operator actually typed, so the row names the argv to correct. */
+  readonly flag: string;
+  /** The selector/target that flag carried; null for the bare-key and pause forms, which have none. */
+  readonly subject: string | null;
+  /** One line: why it failed, as the browser/bridge reported it. */
+  readonly reason: string;
+}
+
 export type Assertion =
   | { kind: "visible"; selector: string; page: number }
   | { kind: "text"; selector: string; expected: string; page: number }

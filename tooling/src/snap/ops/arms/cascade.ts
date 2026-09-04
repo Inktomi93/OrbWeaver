@@ -231,7 +231,7 @@ export const CASCADE_ARM = {
       kind: "required-value",
       pageTargetable: true,
       group: "Look",
-      summary: "Chromium's computed value plus the Active/Overloaded declarations for one property (not with --lighthouse)",
+      summary: "selector=property — Chromium's computed value plus the Active/Overloaded declarations (not with --lighthouse)",
       handler: (a, rest, page): void => {
         const value = splitLastEq(rest.shift() ?? "");
         a.cascade.push({ selector: value.head, property: value.tail, page });

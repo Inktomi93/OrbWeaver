@@ -165,7 +165,7 @@ export const ASSERT_ARM = {
       kind: "required-value",
       pageTargetable: true,
       group: "Assert",
-      summary: "rendered text contains the value",
+      summary: "selector=text — rendered text contains the value",
       handler: (a, rest, page): void => {
         const value = splitLastEq(rest.shift() ?? "");
         a.assertions.push({ kind: "text", selector: value.head, expected: value.tail, page });
@@ -176,7 +176,7 @@ export const ASSERT_ARM = {
       kind: "required-value",
       pageTargetable: true,
       group: "Assert",
-      summary: "exactly N rendered matches (virtualized lists count mounted rows)",
+      summary: "selector=N — exactly N rendered matches (virtualized lists count mounted rows)",
       handler: (a, rest, page): void => {
         const value = splitLastEq(rest.shift() ?? "");
         a.assertions.push({ kind: "count", selector: value.head, expected: Number(value.tail), page });

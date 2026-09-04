@@ -2,7 +2,7 @@
 
 import { scopeMatches } from "../../_shared/artifact-scope.ts";
 import type { DiskSafeBrowserDiagnostic } from "../contract/browser-evidence-redaction.ts";
-import type { SnapCompositeFinding, SnapReportQuery, SnapRunArtifact } from "../contract/run-index.ts";
+import type { SnapCompositeFinding, SnapReportQuery, SnapRunArtifact, SnapRunListQuery } from "../contract/run-index.ts";
 
 interface ReportParseState {
   mode: SnapReportQuery["mode"];
@@ -22,6 +22,13 @@ const REPORT_LEVELS = ["error", "warning", "info", "verbose"] as const satisfies
 
 function reportArm(value: string | null): string | null {
   return value === "perf" ? "interaction-perf" : value;
+}
+
+/** `--channel console` is the spelling every printed reader command uses and the word an operator has in
+ *  mind; `browser-diagnostics` is the channel the writer stamps. Normalized ONCE here so the finding,
+ *  diagnostic and artifact filters cannot drift apart on it. */
+function reportChannel(value: string | null): string | null {
+  return value === "console" ? "browser-diagnostics" : value;
 }
 
 function takeValue(flag: string, rest: string[], errors: string[]): string | null {
@@ -66,7 +73,7 @@ function parseStringFilter(flag: string, rest: string[], state: ReportParseState
     return true;
   }
   if (flag === "--channel") {
-    state.channel = takeValue(flag, rest, errors);
+    state.channel = reportChannel(takeValue(flag, rest, errors));
     return true;
   }
   if (flag === "--source") {
@@ -117,29 +124,53 @@ function parseReportFilter(flag: string, rest: string[], state: ReportParseState
   errors.push(`unknown report flag ${flag}`);
 }
 
+/** `--reports [--last N] [--lane <x>]`. Unknown flags still REFUSE by name: the list used to accept
+ *  nothing at all, and silently ignoring a filter would print a full window that reads as a filtered one. */
+function takeWindow(rest: string[], errors: string[]): number | null {
+  const raw = rest[0] === undefined || rest[0].startsWith("--") ? undefined : rest.shift();
+  const value = raw === undefined ? Number.NaN : Number(raw);
+  if (Number.isInteger(value) && value > 0) {
+    return value;
+  }
+  errors.push(`--last expects a positive integer, got ${raw ?? "(missing)"}`);
+  return null;
+}
+
+function parseRunListArgs(rest: string[], errors: string[]): SnapRunListQuery {
+  const query = { last: null as number | null, lane: null as string | null };
+  while (rest.length > 0) {
+    const flag = rest.shift();
+    if (flag === "--last") {
+      query.last = takeWindow(rest, errors);
+    } else if (flag === "--lane") {
+      query.lane = takeValue(flag, rest, errors);
+    } else if (flag !== undefined) {
+      errors.push(`unknown --reports flag ${flag} (accepted: --last N, --lane <name>)`);
+    }
+  }
+  return query;
+}
+
 export function parseSnapReportArgs(argv: readonly string[]): {
   readonly query: SnapReportQuery | null;
-  readonly list: boolean;
+  readonly list: SnapRunListQuery | null;
   readonly errors: readonly string[];
 } {
   if (!(argv.includes("--report") || argv.includes("--reports"))) {
-    return { query: null, list: false, errors: [] };
+    return { query: null, list: null, errors: [] };
   }
   const rest = [...argv];
   const errors: string[] = [];
   if (rest[0] === "--reports") {
     rest.shift();
-    if (rest.length > 0) {
-      errors.push(`--reports accepts no additional arguments: ${rest.join(" ")}`);
-    }
-    return { query: null, list: true, errors };
+    return { query: null, list: parseRunListArgs(rest, errors), errors };
   }
   if (rest.shift() !== "--report") {
-    return { query: null, list: false, errors: ["--report must be the first argument in browser-free report mode"] };
+    return { query: null, list: null, errors: ["--report must be the first argument in browser-free report mode"] };
   }
   const target = rest.shift();
   if (target === undefined || target.startsWith("--")) {
-    return { query: null, list: false, errors: ["--report requires <absolute-index|exact-run-id|latest>"] };
+    return { query: null, list: null, errors: ["--report requires <absolute-index|exact-run-id|latest>"] };
   }
   const state: ReportParseState = {
     mode: "problems",
@@ -161,7 +192,7 @@ export function parseSnapReportArgs(argv: readonly string[]): {
     }
   }
   const { explicitMode: _explicitMode, ...query } = state;
-  return { query: { target, ...query }, list: false, errors };
+  return { query: { target, ...query }, list: null, errors };
 }
 
 export function diagnosticMatches(row: DiskSafeBrowserDiagnostic, query: SnapReportQuery): boolean {

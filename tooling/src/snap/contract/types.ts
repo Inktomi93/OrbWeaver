@@ -8,7 +8,7 @@ import type { BrowserDiagnostic, OrbConsoleCompleteness } from "../../_shared/br
 import type { EvidenceGap } from "../../_shared/evidence.ts";
 import type { ThemeRequest } from "../../_shared/theme.ts";
 import type { FileActionReceipt } from "../../_shared/upload.ts";
-import type { Assertion, PagedExpr, SnapAction } from "./actions.ts";
+import type { Assertion, DriveFailure, PagedExpr, SnapAction } from "./actions.ts";
 import type { CssCascadeQuery, CssEvidenceReceipt } from "./cascade.ts";
 // ONE DIRECTION, `types.ts → contrast.ts`: the printed line (`ContrastOutcome`) and the structured reading
 // (`ContrastEvidence`) both live in ./contrast.ts, and the capture sheet below holds them side by side.
@@ -20,7 +20,7 @@ import type { LighthouseDevice, LighthouseMode } from "./lighthouse.ts";
 import type { NetworkProfileName } from "./load-emulation.ts";
 import type { MapAtlasEvidence, MapEntry, MapShellEvidence } from "./map.ts";
 
-export type { Assertion, NavAction, PagedExpr, SnapAction, Step } from "./actions.ts";
+export type { Assertion, DriveFailure, NavAction, PagedExpr, SnapAction, Step } from "./actions.ts";
 
 /** `--scale`'s resolved shape. `mode` is what Playwright's `screenshot({ scale })` receives — it accepts
  *  ONLY "css" | "device", so a numeric ask reaches the pixels through `deviceScaleFactor`, which raises
@@ -308,6 +308,9 @@ export interface CaptureOutcome {
   pageIndex: number;
   navError: string | null;
   stepFailures: number;
+  /** The structured half of `stepFailures`/`navFailures` (#1344): one row per failed drive action, which
+   *  becomes its own FINDING row instead of a single token on the RESULT line. */
+  driveFailures: DriveFailure[];
   /** --goto/--open-chat/--context-tab actions that failed on this page (reddens exit). */
   navFailures: number;
   /** Successful browser file actions, including the exact feeder and complete selected identity/tree. */

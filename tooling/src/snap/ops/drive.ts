@@ -12,7 +12,7 @@ import { buildNavScript } from "../../_shared/nav.ts";
 import type { FileActionReceipt } from "../../_shared/upload.ts";
 import { driveFileDrop, driveFileUpload, fileActionReceiptLine } from "../../_shared/upload.ts";
 import type { ArmActionContext, ArmActionDisposition, ArmTapeContext } from "../contract/arms.ts";
-import type { Args, EvalOutcome, NavAction, SnapAction, Step } from "../contract/types.ts";
+import type { Args, DriveFailure, EvalOutcome, NavAction, SnapAction, Step } from "../contract/types.ts";
 import { HOVER_REVEAL_MS, MOUNT_SETTLE_MS, NETWORKIDLE_TIMEOUT_MS, STEP_SETTLE_MS, STEP_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
 import { CHURN_LINE, isContextChurn } from "../lib/eval-text.ts";
 import { driveBudgets } from "../lib/throttle.ts";
@@ -67,7 +67,14 @@ const UNSETTLED_REASON: Record<Exclude<AppReadiness, "settled">, string> = {
     "data-app-ready came up settled but the query cache is EMPTY — the app never reached its data layer, so this capture is a boot placeholder (the router's pending glyph), not the app. On `--isolated` the usual cause is the stage's vite still serving `/`'s lazy component chunk; check the stage's stack log and re-run against the now-warm stage.",
 };
 
-export async function navigate(page: Page, opts: Args, url: string): Promise<string | null> {
+/** `--wait`'s own failure row (#1344). It is index -1 because it runs BEFORE the argv queue exists: it is
+ *  the readiness precondition, not a queued action, and a reader who sees `step 0` beside it should not
+ *  believe the queue ran at all. */
+function waitDriveFailure(selector: string, message: string): DriveFailure {
+  return { index: -1, kind: "wait", flag: "--wait", subject: selector, reason: failureReason(message) };
+}
+
+export async function navigate(page: Page, opts: Args, url: string, failures?: DriveFailure[]): Promise<string | null> {
   // The ceilings are a function of the STAGE (a cold vite) AND of the declared LOAD ARM (#836) — see
   // lib/throttle.ts driveBudgets for why a throttled run cannot be held to the un-throttled budget.
   const budgets = driveBudgets({ isolated: opts.isolated, cpuRate: opts.cpuThrottle, network: opts.network });
@@ -100,7 +107,16 @@ export async function navigate(page: Page, opts: Args, url: string): Promise<str
   }
   // Even a non-OK nav may still render something worth waiting for (SPA error page).
   if (opts.waitSelector !== null) {
-    await page.locator(opts.waitSelector).first().waitFor({ state: "visible", timeout: WAIT_SELECTOR_TIMEOUT_MS });
+    // The throw still propagates (ops/capture.ts owns it as outcome.navError and screenshots wherever the
+    // page got to) — but the STRUCTURED row is minted here, where the selector that never appeared is
+    // still in hand, so the end card names the argv to correct instead of a `nav/wait threw:` prose blob.
+    // @orb-gate-ignore caught-failure-ownership(rethrow:error): the caught failure is recorded as the run's own --wait DriveFailure row and RE-THROWN unchanged; ops/capture.ts still converts it into outcome.navError. Ends if the rethrow is dropped.
+    try {
+      await page.locator(opts.waitSelector).first().waitFor({ state: "visible", timeout: WAIT_SELECTOR_TIMEOUT_MS });
+    } catch (error) {
+      failures?.push(waitDriveFailure(opts.waitSelector, errorMessage(error)));
+      throw error;
+    }
   }
   return navError;
 }
@@ -188,6 +204,63 @@ async function runStep(page: Page, step: Step): Promise<FileActionReceipt | null
   return await runLocatedStep(page, step);
 }
 
+/** The FLAG each queued action was typed as (#1344). A failure row names the argv the operator must
+ *  correct, not the internal kind — `--wait-for`, not `waitfor`. Mapped-Record, so a new step kind cannot
+ *  ship without its spelling. */
+const STEP_FLAG: Record<Step["kind"], string> = {
+  click: "--click",
+  "motion-click": "--motion",
+  jsclick: "--dom-click",
+  press: "--force-click",
+  hover: "--hover",
+  fill: "--fill",
+  key: "--key",
+  keyboard: "--key",
+  waitfor: "--wait-for",
+  pause: "--pause",
+  wheel: "--wheel",
+  wheelburst: "--wheel-burst",
+  upload: "--upload",
+  "drop-files": "--drop-files",
+};
+
+const NAV_METHOD_FLAG: Record<NavAction["kind"], string> = {
+  goto: "--goto",
+  "open-chat": "--open-chat",
+  "open-character": "--open-character",
+  "context-tab": "--context-tab",
+  panel: "--panel",
+  focus: "--focus",
+};
+
+const FAILURE_REASON_MAX = 220;
+
+/** One line, bounded: a Playwright timeout's own message is a multi-paragraph call log, and a FINDING row
+ *  that wraps six times is the noise this row exists to replace. The full text stays in the inline
+ *  `STEP FAILED` line and in the run's trace. */
+function failureReason(message: string): string {
+  const collapsed = message.replace(/\s+/gu, " ").trim();
+  return collapsed.length > FAILURE_REASON_MAX ? `${collapsed.slice(0, FAILURE_REASON_MAX)}…` : collapsed;
+}
+
+function stepSubject(step: Step): string | null {
+  if (step.kind === "keyboard") {
+    return step.key;
+  }
+  if (step.kind === "pause") {
+    return null;
+  }
+  return step.selector;
+}
+
+function stepDriveFailure(index: number, step: Step, message: string): DriveFailure {
+  return { index, kind: "step", flag: STEP_FLAG[step.kind], subject: stepSubject(step), reason: failureReason(message) };
+}
+
+function navDriveFailure(index: number, action: NavAction, message: string): DriveFailure {
+  return { index, kind: "nav", flag: NAV_METHOD_FLAG[action.kind], subject: action.target, reason: failureReason(message) };
+}
+
 // What a step failure names: every arm but the bare-key one is addressed by a selector.
 function stepLabel(step: Step): string {
   if (step.kind === "keyboard") {
@@ -204,14 +277,16 @@ function stepLabel(step: Step): string {
 interface DrivenStep {
   readonly failures: number;
   readonly fileAction: FileActionReceipt | null;
+  /** Non-null on failure: the structured row the end card turns into its own FINDING (#1344). */
+  readonly failure: DriveFailure | null;
 }
 
-async function driveStep(page: Page, step: Step): Promise<DrivenStep> {
+async function driveStep(page: Page, step: Step, index: number): Promise<DrivenStep> {
   // @orb-gate-ignore caught-failure-ownership(empty:e): printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.
   try {
     const fileAction = await runStep(page, step);
     await settle(page, STEP_SETTLE_MS);
-    return { failures: 0, fileAction };
+    return { failures: 0, fileAction, failure: null };
   } catch (e) {
     const msg = errorMessage(e);
     // Dev-server churn (HMR/restart/5xx) tears down the realm mid-run — say so distinctly and give the
@@ -222,19 +297,19 @@ async function driveStep(page: Page, step: Step): Promise<DrivenStep> {
       try {
         await settle(page, STEP_SETTLE_MS);
         const fileAction = await runStep(page, step);
-        return { failures: 0, fileAction };
+        return { failures: 0, fileAction, failure: null };
       } catch (retryErr) {
         print(`STEP FAILED (after churn retry)  ${stepLabel(step)}: ${errorMessage(retryErr)}`);
-        return { failures: 1, fileAction: null };
+        return { failures: 1, fileAction: null, failure: stepDriveFailure(index, step, `${errorMessage(retryErr)} (after a dev-server churn retry)`) };
       }
     }
     print(`STEP FAILED  ${stepLabel(step)}: ${msg}`);
-    return { failures: 1, fileAction: null };
+    return { failures: 1, fileAction: null, failure: stepDriveFailure(index, step, msg) };
   }
 }
 
 // One nav action + its settle. Returns the failure count (0 or 1); each failure prints + reddens exit.
-async function driveNav(page: Page, action: NavAction): Promise<number> {
+async function driveNav(page: Page, action: NavAction, index: number): Promise<DriveFailure | null> {
   // Every nav action needs the app hydrated AND the bridge installed — wait on both, gracefully bounded.
   // @orb-gate-ignore caught-failure-ownership(promise:waitFor): gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures.
   await page
@@ -251,15 +326,15 @@ async function driveNav(page: Page, action: NavAction): Promise<number> {
     result = navResultShape(await page.evaluate(buildNavScript(action.kind, action.target)), `nav ${action.kind} ${action.target}`);
   } catch (e) {
     print(`NAV FAILED  ${action.kind} ${action.target}: ${errorMessage(e)}`);
-    return 1;
+    return navDriveFailure(index, action, errorMessage(e));
   }
   if (!result.ok) {
     print(`NAV FAILED  ${action.kind} ${action.target}: ${result.reason ?? "rejected"}`);
-    return 1;
+    return navDriveFailure(index, action, result.reason ?? "rejected");
   }
   // Let the store write + view transition settle before the next action / the shot.
   await settle(page, STEP_SETTLE_MS);
-  return 0;
+  return null;
 }
 
 /** Nav and step failures are counted SEPARATELY (they surface as distinct RESULT fields and distinct
@@ -270,6 +345,8 @@ interface DriveFailures {
   stepFailures: number;
   evalResults: EvalOutcome[];
   fileActions: FileActionReceipt[];
+  /** One row per failed nav/step, in queue order (#1344). */
+  driveFailures: DriveFailure[];
 }
 
 // THE drive loop: one page's queued actions — bridge navs and interaction steps alike — in TRUE argv
@@ -301,19 +378,25 @@ function applyHandledDisposition(failures: DriveFailures, entry: SnapAction, dis
   return disposition.failures > 0;
 }
 
-async function dispatchOrdinaryAction(page: Page, entry: SnapAction, failures: DriveFailures): Promise<boolean> {
+async function dispatchOrdinaryAction(page: Page, entry: SnapAction, failures: DriveFailures, index: number): Promise<boolean> {
   if (entry.type === "nav") {
-    const count = await driveNav(page, entry.action);
-    failures.navFailures += count;
-    return count > 0;
+    const failure = await driveNav(page, entry.action, index);
+    if (failure !== null) {
+      failures.navFailures += 1;
+      failures.driveFailures.push(failure);
+    }
+    return failure !== null;
   }
   if (entry.type === "eval") {
     const results = await captureEvals(page, [entry.action.expr]);
     failures.evalResults.push(...results);
     return results.some((result) => result.failed);
   }
-  const driven = await driveStep(page, entry.action);
+  const driven = await driveStep(page, entry.action, index);
   failures.stepFailures += driven.failures;
+  if (driven.failure !== null) {
+    failures.driveFailures.push(driven.failure);
+  }
   if (driven.fileAction !== null) {
     failures.fileActions.push(driven.fileAction);
   }
@@ -323,14 +406,16 @@ async function dispatchOrdinaryAction(page: Page, entry: SnapAction, failures: D
 export async function driveActions(input: DriveActionsInput): Promise<DriveFailures> {
   const { page, actions, opts, lifecycle } = input;
   const pageIndex = input.pageIndex ?? 0;
-  const failures: DriveFailures = { navFailures: 0, stepFailures: 0, evalResults: [], fileActions: [] };
+  const failures: DriveFailures = { navFailures: 0, stepFailures: 0, evalResults: [], fileActions: [], driveFailures: [] };
   for (const [actionIndex, entry] of actions.entries()) {
     const ctx =
       opts === undefined
         ? null
         : { page, opts, pageIndex, actionIndex, action: entry, navFailuresBefore: failures.navFailures, stepFailuresBefore: failures.stepFailures };
     const disposition = ctx === null || lifecycle === undefined ? { handled: false, failures: 0 } : await lifecycle.beforeAction(ctx);
-    const failed = disposition.handled ? applyHandledDisposition(failures, entry, disposition) : await dispatchOrdinaryAction(page, entry, failures);
+    const failed = disposition.handled
+      ? applyHandledDisposition(failures, entry, disposition)
+      : await dispatchOrdinaryAction(page, entry, failures, actionIndex);
     if (ctx !== null && lifecycle !== undefined) {
       await lifecycle.afterAction({ ...ctx, failed, handled: disposition.handled });
     }

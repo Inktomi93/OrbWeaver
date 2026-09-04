@@ -44,8 +44,10 @@ import { hoverPassLabel, resolveHoverStates } from "./hover.ts";
 import { appFailureSurface, shellStateSnapshot } from "./page-validate.ts";
 import { resolvePixelBackdrops } from "./pixels.ts";
 import {
+  backdropRefusalSummary,
   countBySeverity,
   navVerdict,
+  populationWithheldSummary,
   printBackdropRefusals,
   printCensusReach,
   printFindingsTable,
@@ -347,6 +349,11 @@ export async function runUiAudit(opts: Args): Promise<number> {
       pairs: [
         ["stage", stageLabel(opts.stageShortSha)],
         ["findings", findings.length],
+        // THE VERDICT AND ITS REASONS TOGETHER, at the head of the line (#1345): a NO-VERDICT that does not
+        // name the withheld rules and the distinct refusal reasons costs its reader three more calls.
+        ["population-verdict", populationGap === null ? "complete" : "NO-VERDICT"],
+        ["population-withheld", populationWithheldSummary(populationAccounting)],
+        ["no-verdict-reasons", backdropRefusalSummary(pixels.refusals)],
         ["p0", counts.P0],
         ["p1", counts.P1],
         ["p2", counts.P2],
@@ -362,7 +369,6 @@ export async function runUiAudit(opts: Args): Promise<number> {
         ["touch", browserEnvironment.actual.hasTouch ? "yes" : "no"],
         ["environment-fails", browserEnvironment.mismatches.length],
         ...surfaceStateRows(shellState, surfaceStateAccounting, drive),
-        ["population-verdict", populationGap === null ? "complete" : "NO-VERDICT"],
         ["tap-candidates", populationAccounting["tap-target"]?.candidates ?? -1],
         ["tap-judged", populationAccounting["tap-target"]?.judged ?? -1],
         ["tap-affected", populationAccounting["tap-target"]?.affected ?? -1],
