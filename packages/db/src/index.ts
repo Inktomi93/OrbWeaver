@@ -18,6 +18,7 @@ export type { BaselineCheck, Db, DevDbResetForecast, LibSqlWrap, ReadOnlyDb } fr
 export {
   assertReferentialIntegrity,
   backupBeforeMigrate,
+  buildResetDropScript,
   checkBaseline,
   createDb,
   forecastDevDbReset,

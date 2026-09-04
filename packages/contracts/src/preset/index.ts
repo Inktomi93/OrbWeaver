@@ -2778,14 +2778,37 @@ function triggerOf(prompt: StPrompt): GenerationType[] | undefined {
   return valid.length > 0 ? valid : undefined;
 }
 
-/** Absolute-depth injection (ST injection_position === ABSOLUTE) → `inject`. */
-function injectOf(prompt: StPrompt): SectionInject | undefined {
+/**
+ * Clamp ONE foreign ST number into the bound the orb schema actually stores, recording every adjustment on
+ * `dropped` (#1363). A foreign value carried through unclamped fails the whole-config schema at the parse
+ * seam below, and the lenient parser answers that by returning DEFAULT_PROMPT_CONFIG — so before this, an
+ * `injection_depth` of MAX_INJECTION_DEPTH + 1 silently replaced the user's entire preset with orb's
+ * default while `dropped` stayed empty. A per-value clamp degrades ONE field, visibly.
+ */
+function clampForeignValue(value: number, [min, max]: readonly [number, number], field: string, dropped: StDroppedField[]): number {
+  const clamped = Math.min(Math.max(Math.round(value), min), max);
+  if (clamped !== value) {
+    dropped.push({
+      field,
+      reason: `SillyTavern sent ${value}; orb stores a whole number between ${min} and ${max}, so it was imported as ${clamped}.`,
+    });
+  }
+  return clamped;
+}
+
+/** Absolute-depth injection (ST injection_position === ABSOLUTE) → `inject`. Foreign values are CLAMPED to
+ *  the schema's bounds ({@link clampForeignValue}), never carried through to sink the whole import. */
+function injectOf(prompt: StPrompt, dropped: StDroppedField[]): SectionInject | undefined {
   if (prompt.injection_position !== ST_INJECTION_ABSOLUTE) {
     return;
   }
-  const depth = Number.isFinite(prompt.injection_depth) ? (prompt.injection_depth as number) : ST_DEFAULT_DEPTH;
+  const rawDepth = Number.isFinite(prompt.injection_depth) ? (prompt.injection_depth as number) : ST_DEFAULT_DEPTH;
+  const depth = clampForeignValue(rawDepth, [MIN_INJECT_DEPTH, MAX_INJECTION_DEPTH], `prompts.${prompt.identifier}.injection_depth`, dropped);
   const order = prompt.injection_order;
-  return order !== undefined && order !== ST_DEFAULT_ORDER ? { depth, order } : { depth };
+  if (order === undefined || order === ST_DEFAULT_ORDER) {
+    return { depth };
+  }
+  return { depth, order: clampForeignValue(order, [INJECT_ORDER_MIN, INJECT_ORDER_MAX], `prompts.${prompt.identifier}.injection_order`, dropped) };
 }
 
 /** The optional `inject`/`trigger` fields, present only when set (shared by both section branches). */
@@ -2808,12 +2831,13 @@ function overrideFields(prompt: StPrompt, marker: MarkerType): { template?: stri
   };
 }
 
-/** Build ONE section from an ST prompt + its prompt_order enabled flag. */
-function sectionFromPrompt(prompt: StPrompt, enabled: boolean): PromptSection {
+/** Build ONE section from an ST prompt + its prompt_order enabled flag. `dropped` collects the per-value
+ *  clamps this section's foreign numbers needed (#1363). */
+function sectionFromPrompt(prompt: StPrompt, enabled: boolean, dropped: StDroppedField[]): PromptSection {
   const id = prompt.identifier;
   const name = resolveSectionName(prompt.name, id);
   const marker = ST_IDENTIFIER_TO_MARKER[id];
-  const inject = injectOf(prompt);
+  const inject = injectOf(prompt, dropped);
   const trigger = triggerOf(prompt);
   const role = roleOf(prompt);
 
@@ -2978,12 +3002,12 @@ function buildWalk(order: StOrderGroup["order"], prompts: StPrompt[]): { identif
 }
 
 /** Build the section list from the id→prompt map walked in the authored order. */
-function buildSections(byId: Map<string, StPrompt>, walk: { identifier: string; enabled: boolean }[]): PromptSection[] {
+function buildSections(byId: Map<string, StPrompt>, walk: { identifier: string; enabled: boolean }[], dropped: StDroppedField[]): PromptSection[] {
   const sections: PromptSection[] = [];
   for (const entry of walk) {
     const prompt = byId.get(entry.identifier);
     if (prompt !== undefined) {
-      sections.push(sectionFromPrompt(prompt, entry.enabled));
+      sections.push(sectionFromPrompt(prompt, entry.enabled, dropped));
     }
   }
   return sections;
@@ -3149,9 +3173,9 @@ export function importStChatCompletionPreset(raw: unknown, powerUser?: unknown):
   const prompts = data.prompts ?? [];
   const byId = new Map<string, StPrompt>(prompts.map((p): [string, StPrompt] => [p.identifier, p]));
   const walk = buildWalk(pickOrder(data.prompt_order ?? []), prompts);
-  const sections = buildSections(byId, walk);
 
   const dropped: StDroppedField[] = [];
+  const sections = buildSections(byId, walk, dropped);
   const params = mapParams(rawObj);
   dropped.push(...collectDroppableFields(rawObj));
 
@@ -3164,9 +3188,13 @@ export function importStChatCompletionPreset(raw: unknown, powerUser?: unknown):
   const { stop, postProcess, reasoningParse, dropped: powerUserDropped } = stPowerUserGenerationKnobs(powerUser);
   dropped.push(...powerUserDropped);
 
-  // Construct + validate via the canonical (lenient) parser — fills defaults, runs the lift, drops
-  // anything malformed to a safe shape so the importer can never emit an invalid PromptConfig.
-  const config = parsePromptConfig({
+  // Construct + validate through the canonical walk — but read its PROVENANCE, not just its value (#1363).
+  // An IMPORT is a FILE, not a stored blob: the lenient contract (`parsePromptConfig`, whose degrade is
+  // right for a corrupt STORED blob) answered a single out-of-bounds foreign value by returning
+  // DEFAULT_PROMPT_CONFIG, and the caller had no signal — no throw, `dropped` empty, `sectionCount` still
+  // reporting the sections the importer BUILT. The per-value clamps above fix the known triggers;
+  // refusing a non-intact parse closes the class for every foreign field that can still exceed a bound.
+  const outcome = promptConfigConfig.parseOutcome({
     schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
     sections,
     params: stop === undefined ? params : { ...params, stop },
@@ -3176,8 +3204,16 @@ export function importStChatCompletionPreset(raw: unknown, powerUser?: unknown):
     ...(postProcess === undefined ? {} : { postProcess }),
     ...(reasoningParse === undefined ? {} : { reasoningParse }),
   });
+  if (!outcome.intact) {
+    throw new Error(
+      `This SillyTavern preset mapped to a config orb cannot store (${outcome.failure}), so nothing was imported — importing it would have silently replaced it with orb's default preset.`,
+    );
+  }
+  const config = outcome.value;
 
-  return { config, dropped, sectionCount: sections.length };
+  // The count DESCRIBES THE RETURNED CONFIG, never the array that was built: when the two could disagree,
+  // the disagreement was invisible and made the silent-default failure above look like a success (#1363).
+  return { config, dropped, sectionCount: config.sections.length };
 }
 
 // ── orb native preset file (the lossless full-preset export) ───────────────────────────────────────

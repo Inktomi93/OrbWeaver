@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a3139f8d-7caa-4cf2-a10c-6f93ffeb87c9",
+  "id": "d1d63209-8074-4c8d-8d1a-140125b33647",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -4700,6 +4700,12 @@
           "name": "gallery_items_asset_subject_unique",
           "columns": ["asset_id", "subject_character_id"],
           "isUnique": true
+        },
+        "gallery_items_asset_unsubjected_unique": {
+          "name": "gallery_items_asset_unsubjected_unique",
+          "columns": ["asset_id"],
+          "isUnique": true,
+          "where": "\"gallery_items\".\"subject_character_id\" IS NULL"
         },
         "gallery_items_character_idx": {
           "name": "gallery_items_character_idx",

@@ -10,7 +10,19 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
-import { assertReferentialIntegrity, createDb, forecastDevDbReset, hasPendingMigrations, localPath, pruneDbBackups, runMigrations, users } from "@orb/db";
+import {
+  assertReferentialIntegrity,
+  backupBeforeMigrate,
+  buildResetDropScript,
+  createDb,
+  forecastDevDbReset,
+  hasPendingMigrations,
+  localPath,
+  preCloseHousekeeping,
+  pruneDbBackups,
+  runMigrations,
+  users,
+} from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -515,6 +527,104 @@ test("a populated db with no migrations bookkeeping is `unknown`, never silence"
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// --- backupBeforeMigrate (#1374: a failed backup must be RETRYABLE, never a permanent boot wedge) -----
+// The name derives from the source's mtimes and `VACUUM INTO` refuses an existing destination, so a boot
+// that failed after the copy appeared recomputed the identical name and failed identically FOREVER — the
+// failed boot writes nothing, so the mtimes never move. Recovery was deleting a file nothing named.
+
+test("backupBeforeMigrate is idempotent for an unchanged source — a second boot does NOT wedge (#1374)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-backup-${pid}-`));
+  try {
+    const url = `file:${join(dir, DB_FILE)}`;
+    const db = await createDb(url);
+    await runMigrations(db, MIGRATIONS_DIR);
+    const first = await backupBeforeMigrate(db, url);
+    expect(first).toBeDefined();
+    // The SECOND call is the one that used to throw "output file already exists" and abort boot.
+    const second = await backupBeforeMigrate(db, url);
+    expect(second).toBe(first);
+    expect(existsSync(String(first))).toBe(true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("backupBeforeMigrate REPLACES the debris of an interrupted backup rather than reusing it (#1374)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-backup-debris-${pid}-`));
+  try {
+    const url = `file:${join(dir, DB_FILE)}`;
+    const db = await createDb(url);
+    await runMigrations(db, MIGRATIONS_DIR);
+    const path = String(await backupBeforeMigrate(db, url));
+    // What an interrupted VACUUM INTO leaves behind: a file at the destination that is not a readable db.
+    writeFileSync(path, "half a database");
+    const retried = await backupBeforeMigrate(db, url);
+    expect(retried).toBe(path);
+    // The retry produced a REAL snapshot, not a reused corpse: it opens and carries the migrated schema.
+    const restored = await createDb(`file:${path}`);
+    expect(await hasPendingMigrations(restored, MIGRATIONS_DIR)).toBe(false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// --- the lifecycle + dev-reset paths (#1376) ---------------------------------------------------------
+
+test("preCloseHousekeeping still CLOSES the client when a housekeeping PRAGMA throws (#1376)", async () => {
+  let closes = 0;
+  // The wrap seam is how `server/observability` decorates the client; here it fails the checkpoint and
+  // counts closes. Before the `finally`, a throwing PRAGMA skipped `close()` and leaked the handle.
+  const db = await createDb(
+    ":memory:",
+    (base) =>
+      new Proxy(base, {
+        get(target, prop, receiver): unknown {
+          if (prop === "execute") {
+            return (stmt: unknown): Promise<unknown> => {
+              const text = typeof stmt === "string" ? stmt : String((stmt as { sql?: string }).sql);
+              if (text.includes("wal_checkpoint")) {
+                return Promise.reject(new Error("checkpoint refused (test)"));
+              }
+              return target.execute(stmt as Parameters<typeof target.execute>[0]);
+            };
+          }
+          if (prop === "close") {
+            return (): void => {
+              closes += 1;
+              target.close();
+            };
+          }
+          const value: unknown = Reflect.get(target, prop, receiver);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      }),
+  );
+  // Drizzle re-wraps the driver error, so the pin is the FAILING STATEMENT, not our test message.
+  await expect(preCloseHousekeeping(db)).rejects.toThrow(/wal_checkpoint/u);
+  expect(closes).toBe(1);
+});
+
+// The reset DROPS THE DEV DATABASE, so it is never executed to be tested — the script it would run is.
+test("buildResetDropScript wraps the drops in ONE transaction and escapes identifiers (#1376)", () => {
+  const script = buildResetDropScript([
+    { type: "table", name: "users" },
+    { type: "index", name: "users_handle_idx" },
+    { type: "table", name: 'evil"; DROP TABLE users; --' },
+  ]);
+  const lines = script.split("\n");
+  // Atomicity: `executeMultiple` is a bare `db.exec` with no implicit transaction, so a mid-script failure
+  // used to leave earlier DROPs committed and later ones un-run.
+  expect(lines[0]).toBe("BEGIN;");
+  expect(lines.at(-1)).toBe("COMMIT;");
+  // Dependents before the tables they hang off (the RESET_DROP_ORDER contract) — index before table.
+  expect(lines.indexOf('DROP index IF EXISTS "users_handle_idx";')).toBeLessThan(lines.indexOf('DROP table IF EXISTS "users";'));
+  // Injection: the embedded quote is DOUBLED, so the identifier never closes early and the trailing
+  // statement stays inert text inside it.
+  expect(script).toContain('DROP table IF EXISTS "evil""; DROP TABLE users; --";');
+  // Nothing to drop ⇒ no script at all (never a bare BEGIN/COMMIT).
+  expect(buildResetDropScript([])).toBe("");
 });
 
 test("createDb auto-creates the parent dir RELATIVE to cwd for a bare file:./ url (never absolutized)", async () => {

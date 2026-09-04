@@ -733,6 +733,7 @@ CREATE TABLE `gallery_items` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `gallery_items_asset_subject_unique` ON `gallery_items` (`asset_id`,`subject_character_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `gallery_items_asset_unsubjected_unique` ON `gallery_items` (`asset_id`) WHERE "gallery_items"."subject_character_id" IS NULL;--> statement-breakpoint
 CREATE INDEX `gallery_items_character_idx` ON `gallery_items` (`subject_character_id`);--> statement-breakpoint
 CREATE TABLE `imagery_generations` (
 	`id` text PRIMARY KEY NOT NULL,

@@ -162,10 +162,51 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
 }
 
 /**
+ * Is `path` a COMPLETE sqlite db (i.e. a finished backup), or the debris of an interrupted one? Opens it
+ * with a bare client (no pragmas, read-only in effect) and asks SQLite. Any throw ⇒ not usable.
+ */
+async function isCompleteBackup(path: string): Promise<boolean> {
+  const client = createClient({ url: `file:${path}` });
+  // @orb-gate-ignore caught-failure-ownership(default:catch): the QUESTION this function asks IS "does this
+  // file read as a complete db?" — an unreadable/corrupt/truncated file answers it by throwing, and `false`
+  // is that answer, consumed by `backupBeforeMigrate` (which then deletes the file and re-copies). Ends if
+  // a caller starts needing the reason rather than the verdict.
+  try {
+    const result = await client.execute("PRAGMA quick_check");
+    return result.rows[0]?.["quick_check"] === "ok";
+  } catch {
+    return false;
+  } finally {
+    client.close();
+  }
+}
+
+/** Remove a backup copy and its sqlite sidecars (a failed `VACUUM INTO` can leave a partial destination). */
+function removeBackupFiles(backupPath: string): void {
+  for (const suffix of ["", "-wal", "-shm"]) {
+    rmSync(`${backupPath}${suffix}`, { force: true });
+  }
+}
+
+/**
  * Snapshot the live db BEFORE migrating (NON-OPTIONAL — `assertReferentialIntegrity` is the only
  * post-migration FK gate, so a corrupting migration must be restorable). `VACUUM INTO` runs through the
  * app connection: unlike copying the main file, its consistent snapshot includes committed WAL pages.
  * No-op for `:memory:` / a not-yet-created db. Returns the backup path, or undefined if none.
+ *
+ * RETRYABLE BY CONSTRUCTION (#1374). The name derives from the source's own mtimes, and `VACUUM INTO`
+ * refuses an existing destination — so a failed boot (which writes nothing, leaving the mtimes unchanged)
+ * used to compute the identical name, fail identically, and WEDGE BOOT PERMANENTLY, recoverable only by
+ * deleting a file nothing told the operator about. The naming stays (`pruneDbBackups` matches
+ * `.backup-<digits>` exactly, and a disambiguating suffix would age out of the retention sweep never); what
+ * changed is what an existing destination MEANS:
+ *  · complete backup of this exact source ⇒ SUCCESS, reused. The source is provably unchanged (its mtimes
+ *    are what named the file), so re-copying it would produce a byte-equivalent file. Idempotent.
+ *  · anything else (a partial copy from an interrupted vacuum) ⇒ debris, removed, and the vacuum retried.
+ * A vacuum that fails cleans up its own partial destination — so the NEXT boot retries from scratch rather
+ * than inheriting debris — and throws with the remedy spelled out. Boot stays FATAL on a failed backup
+ * (a skipped pre-migration snapshot is worse than a loud refusal); the point is that the refusal is now
+ * recoverable rather than permanent.
  */
 export async function backupBeforeMigrate(db: Db, url: string): Promise<string | undefined> {
   const path = localPath(url);
@@ -175,7 +216,21 @@ export async function backupBeforeMigrate(db: Db, url: string): Promise<string |
   const walPath = `${path}-wal`;
   const stamp = Math.round(Math.max(statSync(path).mtimeMs, existsSync(walPath) ? statSync(walPath).mtimeMs : 0));
   const backupPath = `${path}.backup-${stamp}`;
-  await clientOf(db).execute({ sql: "VACUUM INTO ?", args: [backupPath] });
+  if (existsSync(backupPath)) {
+    if (await isCompleteBackup(backupPath)) {
+      return backupPath;
+    }
+    removeBackupFiles(backupPath);
+  }
+  try {
+    await clientOf(db).execute({ sql: "VACUUM INTO ?", args: [backupPath] });
+  } catch (err) {
+    removeBackupFiles(backupPath);
+    throw new Error(
+      `@orb/db: the pre-migrate backup of ${path} to ${backupPath} FAILED (${err instanceof Error ? err.message : String(err)}); boot is aborting rather than migrating an un-backed-up database. The partial copy was removed, so a retry starts clean — free space or fix permissions in ${dirname(path)} and start again. If it keeps failing, move ${path} aside by hand; nothing has been migrated.`,
+      { cause: err },
+    );
+  }
   return backupPath;
 }
 
@@ -461,6 +516,11 @@ const MIN_FORECAST_BYTES = 8_388_608; // 8 MiB — a freshly-migrated, never-use
  * · `trivial` — smaller than {@link MIN_FORECAST_BYTES}; a fresh checkout's db is not worth a warning.
  *   NOTE the direction: SQLite does not shrink on DROP, so a reset db keeps its pages and stays
  *   "non-trivial" — this threshold silences a NEW db, it never certifies that a big one holds data.
+ *   STATED PLAINLY (#1376 item 4, resolved as a documented limit rather than a fix): a REAL dataset that
+ *   happens to be under 8 MiB — a handful of chats, a small import — is classified `trivial` and gets NO
+ *   warning before the next respawn drops it. The threshold is kept because the alternative (warn on every
+ *   fresh checkout) is the alarm nobody reads; the recovery for that case is the pre-migrate backup, which
+ *   is taken unconditionally regardless of this forecast.
  * · `current` — the applied baseline matches the shipped one; nothing pending on this axis.
  * · `will-reset` — the shipped baseline was regenerated since this db was built: the next respawn DROPS
  *   EVERY ROW (pre-launch by design). The pre-migrate backup is the only copy; pin it (`.keep`).
@@ -526,6 +586,29 @@ export async function forecastDevDbReset(url: string, migrationsFolder: string):
 const RESET_DROP_ORDER = ["trigger", "view", "index", "table"] as const;
 
 /**
+ * The reset's DDL script for a `sqlite_master` listing — pure, so the string a destructive path is about to
+ * execute is unit-testable without running it (`tests/db/client.int.test.ts`).
+ *
+ * TWO properties it owes (#1376):
+ *  · WRAPPED IN ONE TRANSACTION. `executeMultiple` is native `db.exec` with no implicit transaction
+ *    (traced into `@libsql/client` 0.17.4 `sqlite3.js`), and SQLite auto-commits DDL statement by statement
+ *    outside an explicit `BEGIN` — a mid-script failure left earlier DROPs committed and later ones un-run,
+ *    i.e. a half-destroyed schema with no rollback. SQLite's DDL *is* transactional inside `BEGIN`.
+ *    (The FK pragma is suspended by the CALLER, outside this transaction — `PRAGMA foreign_keys` is a no-op
+ *    inside one.)
+ *  · ESCAPED IDENTIFIERS. `sqlite_master.name` was interpolated into a quoted identifier raw, so a name
+ *    containing `"` closed the identifier early and appended a second executable statement. Doubling `"` is
+ *    SQLite's own escape for a quoted identifier.
+ * @public Test-anchored module surface: the assertion target for a path that must never be executed to test.
+ */
+export function buildResetDropScript(objects: readonly Record<string, unknown>[]): string {
+  const drops = RESET_DROP_ORDER.flatMap((kind) =>
+    objects.filter((o) => o["type"] === kind).map((o) => `DROP ${kind} IF EXISTS "${String(o["name"]).replaceAll('"', '""')}";`),
+  );
+  return drops.length === 0 ? "" : ["BEGIN;", ...drops, "COMMIT;"].join("\n");
+}
+
+/**
  * Full pre-launch dev-db reset on the OPEN client (the ONE connection — no file-deletion race): drop
  * EVERY user object (tables/views/triggers/indexes, INCLUDING `__drizzle_migrations`) with FK enforcement
  * toggled OFF on the connection for the duration (restored at scope exit — {@link fkEnforcementSuspended}).
@@ -533,6 +616,8 @@ const RESET_DROP_ORDER = ["trigger", "view", "index", "table"] as const;
  * stat tables) are managed by SQLite and left alone. Dropping `__drizzle_migrations` too means the very
  * next `runMigrations` re-applies the fresh baseline from a clean bookkeeping slate. Called ONLY by the
  * boot migrate step when {@link checkBaseline} reports `regenerated` and the db is not launched.
+ * ATOMIC: the drops run inside the one transaction {@link buildResetDropScript} wraps them in, and a
+ * mid-script failure is rolled back rather than left half-applied.
  */
 export async function resetDevDatabase(db: Db): Promise<void> {
   await using _fkSuspended = await fkEnforcementSuspended(db);
@@ -542,11 +627,23 @@ export async function resetDevDatabase(db: Db): Promise<void> {
   );
   // One DDL script over the ONE connection (libSQL `executeMultiple`) rather than a per-object
   // round-trip loop — a single teardown, not an N+1 read path.
-  const script = RESET_DROP_ORDER.flatMap((kind) =>
-    objects.filter((o) => o["type"] === kind).map((o) => `DROP ${kind} IF EXISTS "${String(o["name"])}";`),
-  ).join("\n");
-  if (script.length > 0) {
-    await clientOf(db).executeMultiple(script);
+  const script = buildResetDropScript(objects);
+  if (script.length === 0) {
+    return;
+  }
+  const client = clientOf(db);
+  try {
+    await client.executeMultiple(script);
+  } catch (err) {
+    // `exec` stops at the failing statement and leaves the transaction OPEN; without this the connection
+    // would carry a half-applied teardown into whatever the caller does next. Rolling back restores the
+    // schema the boot step is about to re-migrate, and the original failure is what propagates.
+    // @orb-gate-ignore caught-failure-ownership(promise:execute): the rollback is best-effort BY DESIGN —
+    // when no transaction is active (the BEGIN itself failed) `ROLLBACK` errors, and THAT error must not
+    // mask the real one, which is rethrown on the very next line and is the owned failure. Ends if the
+    // rethrow below goes away.
+    await client.execute("ROLLBACK").catch(() => undefined);
+    throw err;
   }
 }
 
@@ -555,9 +652,20 @@ export async function optimizeDb(db: Db): Promise<void> {
   await db.run(sql`PRAGMA optimize`);
 }
 
-/** Optimize, truncate the WAL, then close the connection — the graceful-shutdown housekeeping. */
+/**
+ * Optimize, truncate the WAL, then close the connection — the graceful-shutdown housekeeping.
+ *
+ * The close is in a `finally` (#1376): either PRAGMA can throw (a busy checkpoint, a disk error), and
+ * before this that throw skipped `close()` entirely — the libSQL client leaked and the WAL stayed
+ * un-checkpointed on the way out. The REJECTION is deliberately preserved: a failed checkpoint is a real
+ * problem the shutdown path should report loudly (`entry/lifecycle.ts` → `entry/index.ts` exits non-zero);
+ * what must not also happen is losing the handle.
+ */
 export async function preCloseHousekeeping(db: Db): Promise<void> {
-  await optimizeDb(db);
-  await db.run(sql`PRAGMA wal_checkpoint(TRUNCATE)`);
-  clientOf(db).close();
+  try {
+    await optimizeDb(db);
+    await db.run(sql`PRAGMA wal_checkpoint(TRUNCATE)`);
+  } finally {
+    clientOf(db).close();
+  }
 }

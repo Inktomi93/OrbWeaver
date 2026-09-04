@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 533,
-    "enforced": 530,
+    "sites": 535,
+    "enforced": 532,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 530,
+      "deliberate-absorb": 532,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
-      "promise": 137,
-      "default": 142,
+      "promise": 138,
+      "default": 143,
       "empty": 254
     }
   },
@@ -1502,7 +1502,7 @@
     {
       "siteId": "packages/contracts/src/preset/index.ts::default:catch::1",
       "path": "packages/contracts/src/preset/index.ts",
-      "line": 3048,
+      "line": 3072,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1510,7 +1510,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "ST mirror — JSON.parse of custom_stopping_strings",
-      "markerLine": 3043
+      "markerLine": 3067
     },
     {
       "siteId": "packages/contracts/src/rpg/extraction.ts::default:catch::1",
@@ -1524,6 +1524,32 @@
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — a malformed tool call is",
       "markerLine": 426
+    },
+    {
+      "siteId": "packages/db/src/client/index.ts::default:catch::1",
+      "path": "packages/db/src/client/index.ts",
+      "line": 177,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the QUESTION this function asks IS \"does this",
+      "markerLine": 170
+    },
+    {
+      "siteId": "packages/db/src/client/index.ts::promise:execute::1",
+      "path": "packages/db/src/client/index.ts",
+      "line": 645,
+      "column": 11,
+      "grammar": "promise",
+      "position": "promise:execute",
+      "ordinal": 1,
+      "snippet": "await client.execute(\"ROLLBACK\").catch(() => undefined);",
+      "verdict": "deliberate-absorb",
+      "reason": "the rollback is best-effort BY DESIGN —",
+      "markerLine": 641
     },
     {
       "siteId": "packages/kit/src/cel/index.ts::empty:err::1",
@@ -2256,7 +2282,7 @@
     {
       "siteId": "packages/server/src/domain/import/substrate/preset.ts::default:catch::1",
       "path": "packages/server/src/domain/import/substrate/preset.ts",
-      "line": 102,
+      "line": 104,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2264,12 +2290,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — \"Never throws (the shared",
-      "markerLine": 95
+      "markerLine": 97
     },
     {
       "siteId": "packages/server/src/domain/import/substrate/preset.ts::default:catch::2",
       "path": "packages/server/src/domain/import/substrate/preset.ts",
-      "line": 114,
+      "line": 116,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2277,7 +2303,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "pure `JSON.parse` over untrusted upload",
-      "markerLine": 110
+      "markerLine": 112
     },
     {
       "siteId": "packages/server/src/domain/import/substrate/world.ts::default:catch::1",

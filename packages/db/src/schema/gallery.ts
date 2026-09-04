@@ -33,9 +33,16 @@ export const galleryItems = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // One curation row per (asset, subject). NULL subjects are distinct under SQLite's unique semantics, so
-    // duplicate un-charactered adds stay possible — harmless; `addToGallery` upsert-guards (gallery §1.3).
+    // One curation row per (asset, subject). SQLite treats NULL subjects as DISTINCT under a unique index,
+    // so this index alone covers only the character-scoped half.
     uniqueIndex("gallery_items_asset_subject_unique").on(t.assetId, t.subjectCharacterId),
+    // …and this PARTIAL unique index covers the other half (#1375): one un-charactered curation row per
+    // asset. Without it, `addToGallery`'s conflict guard never fired for the ordinary "add to gallery, not
+    // tied to a character" case and every repeat call inserted a duplicate — the verb's own docstring
+    // ("a duplicate add returns the existing item (idempotent)") was false for the common path. The product
+    // answer is that an asset appears ONCE in the unscoped gallery; the index is what makes that true, and
+    // `insertGalleryItem` names it as its conflict target.
+    uniqueIndex("gallery_items_asset_unsubjected_unique").on(t.assetId).where(sql`${t.subjectCharacterId} IS NULL`),
     index("gallery_items_character_idx").on(t.subjectCharacterId),
   ],
 );

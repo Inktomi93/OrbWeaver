@@ -45,6 +45,8 @@ import {
   VLLM_BELT_OWNED_PARAMETER_KEYS,
 } from "@orb/contracts/preset";
 import { PRESET_PROSE_SLOT_IDS, PROSE_SLOTS } from "@orb/contracts/prose";
+// The cap is read from its ONE home (`@orb/kit/injection`), never re-spelled as a literal here.
+import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { expect, test } from "../../support/fixtures.ts";
 
 // Sample values named so the test isn't littered with bare magic numbers (noMagicNumbers).
@@ -717,6 +719,45 @@ test("reasoningParse defaults: autoParse OFF + the <think> tag pair", () => {
 function stBlob(fields: Record<string, unknown>): Record<string, unknown> {
   return { prompts: [], ...fields };
 }
+
+/** The imported depth of the first section (a custom ST prompt maps to a LITERAL section). */
+function firstInjectDepth(config: PromptConfig): number | undefined {
+  const section = config.sections[0];
+  return section?.type === "literal" ? section.inject?.depth : undefined;
+}
+
+/** A minimal ST preset carrying ONE absolute-depth prompt — the shape the injection bounds ride on. */
+function stInjectedPreset(fields: Record<string, unknown>): Record<string, unknown> {
+  return {
+    prompts: [{ identifier: "a", name: "A", content: "You are helpful.", role: "system", injection_position: 1, enabled: true, ...fields }],
+    prompt_order: [{ character_id: 100_001, order: [{ identifier: "a", enabled: true }] }],
+  };
+}
+
+// #1363 — one out-of-range foreign value used to replace the WHOLE imported preset with
+// DEFAULT_PROMPT_CONFIG while every success signal lied: no throw, `dropped` empty, and `sectionCount`
+// reporting the sections the importer BUILT (2) rather than the default's (13). Per-value clamp, recorded.
+test("importStChatCompletionPreset (#1363): an out-of-range injection_depth clamps ONE field, never the config", () => {
+  const atCap = importStChatCompletionPreset(stInjectedPreset({ injection_depth: MAX_INJECTION_DEPTH }));
+  expect(atCap.config).not.toEqual(DEFAULT_PROMPT_CONFIG);
+  expect(atCap.dropped).toEqual([]);
+  expect(firstInjectDepth(atCap.config)).toBe(MAX_INJECTION_DEPTH);
+
+  const overCap = importStChatCompletionPreset(stInjectedPreset({ injection_depth: MAX_INJECTION_DEPTH + 1 }));
+  expect(overCap.config).not.toEqual(DEFAULT_PROMPT_CONFIG);
+  expect(overCap.config.sections).toHaveLength(1);
+  expect(firstInjectDepth(overCap.config)).toBe(MAX_INJECTION_DEPTH);
+  // The clamp is REPORTED — `dropped` is the list whose whole job is telling the user what was lost.
+  expect(overCap.dropped).toHaveLength(1);
+  expect(overCap.dropped[0]?.field).toBe("prompts.a.injection_depth");
+});
+
+test("importStChatCompletionPreset (#1363): sectionCount describes the RETURNED config", () => {
+  const result = importStChatCompletionPreset(stInjectedPreset({ injection_depth: -5 }));
+  expect(result.sectionCount).toBe(result.config.sections.length);
+  expect(firstInjectDepth(result.config)).toBe(0);
+  expect(result.dropped[0]?.field).toBe("prompts.a.injection_depth");
+});
 
 test("importStChatCompletionPreset (D68-A): a non-default min_p maps onto params.minP", () => {
   const result = importStChatCompletionPreset(stBlob({ min_p: 0.07 }));
