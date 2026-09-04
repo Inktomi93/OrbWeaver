@@ -13,6 +13,7 @@ import { generateDensityBaseline } from "./gen/density.ts";
 import { generateDuplicateActionDoorsBaseline } from "./gen/duplicate-action-doors.ts";
 import { generateOverArtPlateBaseline } from "./gen/over-art-plate-arm.ts";
 import { generateProseBaseline } from "./gen/prose.ts";
+import { generateSnapFlagsIndex } from "./gen/snap-flags-index.ts";
 import { generateSuppressionsBaseline } from "./gen/suppressions.ts";
 import { generateTestBaselineManifest } from "./gen/test-baseline-manifest.ts";
 import { generateTestPresenceBaseline } from "./gen/test-presence.ts";
@@ -32,6 +33,7 @@ const BASELINES: Readonly<Record<string, (root: string) => number>> = {
   "duplicate-action-doors": generateDuplicateActionDoorsBaseline,
   "over-art-plate-arm": generateOverArtPlateBaseline,
   prose: generateProseBaseline,
+  "snap-flags-index": generateSnapFlagsIndex,
   suppressions: generateSuppressionsBaseline,
   "test-baseline-manifest": generateTestBaselineManifest,
   "test-presence": generateTestPresenceBaseline,

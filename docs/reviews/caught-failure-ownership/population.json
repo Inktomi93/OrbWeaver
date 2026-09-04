@@ -5142,7 +5142,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::empty:error::1",
       "path": "tooling/src/snap/ops/arms/boot-trace.ts",
-      "line": 75,
+      "line": 77,
       "column": 13,
       "grammar": "empty",
       "position": "empty:error",
@@ -5150,12 +5150,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
-      "markerLine": 59
+      "markerLine": 61
     },
     {
       "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::empty:error::2",
       "path": "tooling/src/snap/ops/arms/boot-trace.ts",
-      "line": 86,
+      "line": 88,
       "column": 13,
       "grammar": "empty",
       "position": "empty:error",
@@ -5163,12 +5163,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
-      "markerLine": 83
+      "markerLine": 85
     },
     {
       "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::empty:error::3",
       "path": "tooling/src/snap/ops/arms/boot-trace.ts",
-      "line": 119,
+      "line": 121,
       "column": 15,
       "grammar": "empty",
       "position": "empty:error",
@@ -5176,7 +5176,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
-      "markerLine": 103
+      "markerLine": 105
     },
     {
       "siteId": "tooling/src/snap/ops/arms/cascade.ts::empty:error::1",
@@ -5207,7 +5207,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/cpu-profile.ts::empty:error::1",
       "path": "tooling/src/snap/ops/arms/cpu-profile.ts",
-      "line": 84,
+      "line": 86,
       "column": 13,
       "grammar": "empty",
       "position": "empty:error",
@@ -5215,12 +5215,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
-      "markerLine": 78
+      "markerLine": 80
     },
     {
       "siteId": "tooling/src/snap/ops/arms/cpu-profile.ts::empty:error::2",
       "path": "tooling/src/snap/ops/arms/cpu-profile.ts",
-      "line": 102,
+      "line": 104,
       "column": 13,
       "grammar": "empty",
       "position": "empty:error",
@@ -5228,12 +5228,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
-      "markerLine": 98
+      "markerLine": 100
     },
     {
       "siteId": "tooling/src/snap/ops/arms/cpu-profile.ts::empty:error::3",
       "path": "tooling/src/snap/ops/arms/cpu-profile.ts",
-      "line": 130,
+      "line": 132,
       "column": 13,
       "grammar": "empty",
       "position": "empty:error",
@@ -5241,7 +5241,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
-      "markerLine": 114
+      "markerLine": 116
     },
     {
       "siteId": "tooling/src/snap/ops/arms/eval.ts::empty:e::1",
@@ -5311,7 +5311,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/heap.ts::empty:error::4",
       "path": "tooling/src/snap/ops/arms/heap.ts",
-      "line": 320,
+      "line": 322,
       "column": 11,
       "grammar": "empty",
       "position": "empty:error",
@@ -5319,12 +5319,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors.",
-      "markerLine": 317
+      "markerLine": 319
     },
     {
       "siteId": "tooling/src/snap/ops/arms/heap.ts::empty:error::5",
       "path": "tooling/src/snap/ops/arms/heap.ts",
-      "line": 333,
+      "line": 337,
       "column": 11,
       "grammar": "empty",
       "position": "empty:error",
@@ -5332,12 +5332,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors.",
-      "markerLine": 330
+      "markerLine": 334
     },
     {
       "siteId": "tooling/src/snap/ops/arms/heap.ts::empty:error::6",
       "path": "tooling/src/snap/ops/arms/heap.ts",
-      "line": 346,
+      "line": 352,
       "column": 11,
       "grammar": "empty",
       "position": "empty:error",
@@ -5345,7 +5345,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors.",
-      "markerLine": 343
+      "markerLine": 349
     },
     {
       "siteId": "tooling/src/snap/ops/arms/lighthouse.ts::empty:catch::1",

@@ -160,6 +160,8 @@ export const DEAD_CSS_ARM = {
       flag: "--no-deadcss",
       kind: "boolean",
       pageTargetable: false,
+      group: "Look",
+      summary: "skip the dead-class / empty-rule scan (on by default and red on findings)",
       handler: (a): void => {
         a.deadCss = false;
       },

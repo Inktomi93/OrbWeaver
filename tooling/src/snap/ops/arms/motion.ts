@@ -239,6 +239,8 @@ export const MOTION_ARM = {
       flag: "--motion",
       kind: "optional-selector",
       pageTargetable: false,
+      group: "Measure",
+      summary: "one motion window: LoAF, CLS, compositor-dirty animations, dropped frames",
       handler: (args, rest): void => {
         args.motion = true;
         pushStep(args, { kind: "motion-click", selector: consumeOptionalSelector(rest), page: 0 });
@@ -248,6 +250,8 @@ export const MOTION_ARM = {
       flag: "--motion-window",
       kind: "required-value",
       pageTargetable: false,
+      group: "Measure",
+      summary: "--motion window length in ms (default 2500)",
       handler: (args, rest): void => {
         args.motionWindowMs = Number(rest.shift() ?? "0");
       },
@@ -256,6 +260,8 @@ export const MOTION_ARM = {
       flag: "--motion-no-throttle",
       kind: "boolean",
       pageTargetable: false,
+      group: "Measure",
+      summary: "disable the --motion CPU throttle (headless drop rates stay advisory)",
       handler: (args): void => {
         args.motionThrottle = false;
       },

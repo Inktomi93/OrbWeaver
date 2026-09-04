@@ -237,6 +237,8 @@ export const CONTRAST_ARM = {
       flag: "--contrast",
       kind: "required-value",
       pageTargetable: true,
+      group: "Look",
+      summary: "rendered WCAG contrast of that element's text vs its effective backdrop (in-viewport only)",
       handler: (a, rest, page): void => {
         const selector = rest.shift();
         if (selector !== undefined && selector !== "") {
@@ -248,6 +250,8 @@ export const CONTRAST_ARM = {
       flag: "--contrast-pixel",
       kind: "boolean",
       pageTargetable: false,
+      group: "Look",
+      summary: "force the framebuffer sample instead of the CSS resolve (requires --contrast)",
       handler: (a): void => {
         a.contrastPixel = true;
       },

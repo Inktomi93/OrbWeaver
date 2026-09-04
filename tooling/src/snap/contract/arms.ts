@@ -54,6 +54,12 @@ export interface ArmFlagSpec {
   readonly kind: ArmFlagKind;
   /** Accepts a `@<page>` suffix. `ops/parse.ts` refuses the suffix on every other flag. */
   readonly pageTargetable: boolean;
+  /** The `--help` section title this flag is documented under (reused verbatim from
+   *  `.claude/skills/snap-driving/reference/flags.md`'s section headings — one home for the grouping). */
+  readonly group: string;
+  /** One line (≤160 chars, no trailing period, present tense) — the generated flag index and grammar
+   *  block's ONLY source of "what it does". REQUIRED so tsc refuses a flag with no summary (#1329). */
+  readonly summary: string;
   readonly handler: ArmFlagHandler;
 }
 

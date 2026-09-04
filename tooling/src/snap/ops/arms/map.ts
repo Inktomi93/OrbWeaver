@@ -141,6 +141,8 @@ export const MAP_ARM = {
       flag: "--map",
       kind: "optional-selector",
       pageTargetable: true,
+      group: "Look",
+      summary: "the global SPA destination atlas plus the rendered surface map — run this first on any surface",
       handler: (args, rest, page): void => {
         args.map = true;
         args.mapPage = page;

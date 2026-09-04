@@ -174,6 +174,8 @@ export const SHOT_ARM = {
       flag: "--no-shot",
       kind: "boolean",
       pageTargetable: false,
+      group: "Pixels",
+      summary: "skip the primary PNG (the cheap evidence path with --text/--eval/--watch)",
       handler: (a): void => {
         a.shot = false;
       },
@@ -182,6 +184,8 @@ export const SHOT_ARM = {
       flag: "--shot-of",
       kind: "required-value",
       pageTargetable: false,
+      group: "Pixels",
+      summary: "capture ONE element, auto-cropped — the cheapest pixel receipt",
       handler: (a, rest): void => {
         a.shotOf = rest.shift() ?? null;
       },
@@ -190,6 +194,8 @@ export const SHOT_ARM = {
       flag: "--mask",
       kind: "required-value",
       pageTargetable: false,
+      group: "Pixels",
+      summary: "pink-overlay a volatile region so it cannot churn --diff (repeatable)",
       handler: (a, rest): void => {
         const selector = rest.shift();
         if (selector !== undefined && selector !== "") {
@@ -201,6 +207,8 @@ export const SHOT_ARM = {
       flag: "--full",
       kind: "boolean",
       pageTargetable: false,
+      group: "Pixels",
+      summary: "the whole scrollable page, not just the viewport",
       handler: (a): void => {
         a.fullPage = true;
       },
@@ -209,6 +217,8 @@ export const SHOT_ARM = {
       flag: "--crop",
       kind: "required-value",
       pageTargetable: false,
+      group: "Pixels",
+      summary: "a bounded region (its path prints as crop= on the RESULT line — not a no-op)",
       handler: (a, rest): void => {
         a.crop = rest.shift() ?? null;
       },

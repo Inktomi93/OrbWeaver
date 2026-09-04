@@ -137,6 +137,8 @@ export const REQUESTS_ARM = {
       flag: "--requests",
       kind: "optional-value",
       pageTargetable: false,
+      group: "Measure",
+      summary: "the ordered request log from the 4096-entry ring (an argument narrows PRINTED rows only)",
       handler: (a, rest): void => {
         a.requests = true;
         a.requestsFilter = consumeOptionalSelector(rest) ?? a.requestsFilter;
@@ -146,6 +148,8 @@ export const REQUESTS_ARM = {
       flag: "--request-body",
       kind: "required-value",
       pageTargetable: false,
+      group: "Measure",
+      summary: "one matching JSON response body, retained whole up to 256 KiB (implies --requests)",
       handler: (a, rest): void => {
         a.requestBody = rest.shift() ?? null;
         a.requests = true;

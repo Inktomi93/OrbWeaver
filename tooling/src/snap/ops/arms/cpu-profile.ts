@@ -47,6 +47,8 @@ export const CPU_PROFILE_ARM = {
       flag: "--cpu-profile",
       kind: "boolean",
       pageTargetable: false,
+      group: "Measure",
+      summary: "V8 sampling profile across the post-navigation tape; run it separately from --perf/--motion",
       handler: (args): void => {
         args.cpuProfile = true;
       },

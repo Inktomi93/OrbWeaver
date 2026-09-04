@@ -302,6 +302,8 @@ export const LIGHTHOUSE_ARM = {
       flag: "--lighthouse",
       kind: "required-value",
       pageTargetable: false,
+      group: "Measure",
+      summary: "Lighthouse (accessibility + best-practices + seo) on this run's settled page; not with --cascade",
       // `--lighthouse mobile` COMPOSES over --mobile rather than re-emulating: it fills the same device
       // slot the flag does (the --panels precedent), so touch/coarse-pointer/DPR3 are real for the audit
       // AND the pixels. A bad value keeps the arm off here and is REFUSED in ops/parse.ts, so a run never
@@ -318,6 +320,8 @@ export const LIGHTHOUSE_ARM = {
       flag: "--lighthouse-mode",
       kind: "required-value",
       pageTargetable: false,
+      group: "Measure",
+      summary: "default snapshot audits the page as your tape left it; navigation reloads first and loses the drive",
       handler: (a, rest): void => {
         a.lighthouseMode = parseLighthouseMode(rest.shift() ?? "") ?? a.lighthouseMode;
       },

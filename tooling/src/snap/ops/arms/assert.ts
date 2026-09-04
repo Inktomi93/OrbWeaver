@@ -122,6 +122,8 @@ export const ASSERT_ARM = {
       flag: "--expect-visible",
       kind: "required-value",
       pageTargetable: true,
+      group: "Assert",
+      summary: "a rendered, visible element exists",
       handler: (a, rest, page): void => {
         a.assertions.push({ kind: "visible", selector: rest.shift() ?? "", page });
       },
@@ -130,6 +132,8 @@ export const ASSERT_ARM = {
       flag: "--expect-text",
       kind: "required-value",
       pageTargetable: true,
+      group: "Assert",
+      summary: "rendered text contains the value",
       handler: (a, rest, page): void => {
         const value = splitLastEq(rest.shift() ?? "");
         a.assertions.push({ kind: "text", selector: value.head, expected: value.tail, page });
@@ -139,6 +143,8 @@ export const ASSERT_ARM = {
       flag: "--expect-count",
       kind: "required-value",
       pageTargetable: true,
+      group: "Assert",
+      summary: "exactly N rendered matches (virtualized lists count mounted rows)",
       handler: (a, rest, page): void => {
         const value = splitLastEq(rest.shift() ?? "");
         a.assertions.push({ kind: "count", selector: value.head, expected: Number(value.tail), page });
@@ -148,6 +154,8 @@ export const ASSERT_ARM = {
       flag: "--expect-url",
       kind: "required-value",
       pageTargetable: true,
+      group: "Assert",
+      summary: "the final browser URL (only ever / or /login here)",
       handler: (a, rest, page): void => {
         a.assertions.push({ kind: "url", expected: rest.shift() ?? "", page });
       },
@@ -156,6 +164,8 @@ export const ASSERT_ARM = {
       flag: "--expect-no-overflow",
       kind: "optional-selector",
       pageTargetable: true,
+      group: "Assert",
+      summary: "scroll bounds fit client bounds and no descendant box exits the clip",
       handler: (a, rest, page): void => {
         a.assertions.push({ kind: "overflow", selector: consumeOptionalSelector(rest) ?? "html", page });
       },
@@ -164,6 +174,8 @@ export const ASSERT_ARM = {
       flag: "--expect-focus",
       kind: "required-value",
       pageTargetable: true,
+      group: "Assert",
+      summary: "the active element matches (pair with bare --key Tab walks)",
       handler: (a, rest, page): void => {
         a.assertions.push({ kind: "focus", selector: rest.shift() ?? "", page });
       },

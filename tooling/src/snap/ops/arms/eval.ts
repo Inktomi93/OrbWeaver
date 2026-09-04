@@ -48,6 +48,8 @@ export const EVAL_ARM = {
       flag: "--eval",
       kind: "required-value",
       pageTargetable: true,
+      group: "Look",
+      summary: "any in-page JS to JSON (repeatable, IN the tape); pass a bare arrow with no trailing ()",
       handler: (a, rest, page): void => {
         const expr = rest.shift();
         if (expr !== undefined && expr !== "") {

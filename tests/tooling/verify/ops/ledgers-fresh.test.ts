@@ -11,11 +11,22 @@
 //   in the int suite above (~19s of ts-morph), and the manifest derivation runs for real HERE (git
 //   ls-files, milliseconds) as the real-tree green + the blindness control.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CaughtFailurePopulation, CaughtFailureRow, TestBaselineManifest } from "@orb/tooling/verify";
-import { censusDrift, deriveTestBaselineManifest, LEDGER_CHECKS, ledgerReport, manifestDrift, REGISTRY, TEST_BASELINE_REL } from "@orb/tooling/verify";
+import {
+  censusDrift,
+  deriveSnapFlagsIndexMarkdown,
+  deriveTestBaselineManifest,
+  LEDGER_CHECKS,
+  ledgerReport,
+  manifestDrift,
+  REGISTRY,
+  SNAP_FLAGS_INDEX_REL,
+  snapFlagsIndexDrift,
+  TEST_BASELINE_REL,
+} from "@orb/tooling/verify";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const STAGE = "ledgers:fresh";
@@ -175,6 +186,38 @@ test("a stale ledger never suppresses its sibling's verdict from the same run", 
   expect(lines).toContain("fresh  docs/reviews/caught-failure-ownership/population.json");
 });
 
-test("only the two line-coupled ledgers carry a `baseline --check` arm", () => {
-  expect(Object.keys(LEDGER_CHECKS).sort((a, b) => a.localeCompare(b))).toEqual(["caught-failure-population", "test-baseline-manifest"]);
+test("the caught-failure/test-baseline/snap-flags-index ledgers carry a `baseline --check` arm", () => {
+  expect(Object.keys(LEDGER_CHECKS).sort((a, b) => a.localeCompare(b))).toEqual(["caught-failure-population", "snap-flags-index", "test-baseline-manifest"]);
+});
+
+// ── the third ledger: the generated snap flag index (#1329) ──
+
+test("a MISSING generated flag index is drift that names the regen command", () => {
+  const result = snapFlagsIndexDrift("/nonexistent-orb-ledgers-fresh-root");
+  expect(result.ledger).toBe(SNAP_FLAGS_INDEX_REL);
+  expect(result.drift.join("\n")).toContain("baseline snap-flags-index");
+});
+
+test("the committed flag index matches a fresh derivation of THIS tree", ({ repoRoot }) => {
+  // On-disk, not `git show HEAD:` — the same freshness question `snapFlagsIndexDrift` asks (it reads the
+  // working tree via `existsSync`/`readFileSync`), and a lane's own regen has not been committed yet when
+  // this pin first runs (this file is itself part of that commit).
+  const derived = deriveSnapFlagsIndexMarkdown();
+  const committed = readFileSync(join(repoRoot, SNAP_FLAGS_INDEX_REL), "utf8");
+  expect(committed).toBe(derived);
+});
+
+test("a planted stale flag index reds naming the regen command", () => {
+  const root = mkdtempSync(join(tmpdir(), "orb-ledgers-fresh-snap-flags-"));
+  try {
+    mkdirSync(join(root, ".claude", "skills", "snap-driving", "reference"), { recursive: true });
+    writeFileSync(join(root, SNAP_FLAGS_INDEX_REL), "stale content, not a fresh derivation\n");
+    const result = snapFlagsIndexDrift(root);
+    expect(result.drift).not.toEqual([]);
+    expect(result.regen).toBe("pnpm exec node tooling/src/verify/cli.ts baseline snap-flags-index");
+    const check = LEDGER_CHECKS["snap-flags-index"];
+    expect(check?.(root)).toBe(1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
