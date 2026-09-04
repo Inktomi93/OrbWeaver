@@ -5,6 +5,7 @@
 import type { ScopedArgv, StageDef, Tier } from "../contract/stage.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";
 import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
+import { branchChangedPaths } from "./repo-paths.ts";
 
 // ── the registry ──────────────────────────────────────────────────────────────────────────────────────
 // Build history (all LANDED): V1 wired argv (whole-scope) + tiers + classify; V2 landed the `scopedArgv`
@@ -19,6 +20,9 @@ import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
 
 const STATIC: readonly Tier[] = ["static", "push", "full"];
 const DOC_CATALOG_PATH_RE = /^(?:docs\/.*\.md|docs\/catalog\/.*|tooling\/src\/doc-catalog\/.*)$/u;
+/** The two trees whose change makes the instrument battery a PUSH concern (#1523) — an instrument's own
+ *  source, and its own tests. Nothing else can regress a tooling suite that was green on the merge base. */
+const TOOLING_PATH_RE = /^(?:tooling\/|tests\/tooling\/)/u;
 
 /** tsc scoped invocation: sole owner → `ts7 -p <config>`; none → skip; multiple owners → the whole
  *  per-package lane (the honest floor, one child not N). Uses ts7 (the scripts/ts7.cjs wrapper, TS7
@@ -325,6 +329,37 @@ const GATING_STAGES: readonly StageDef[] = [
       "--changed",
       ...(sel.gitRef === undefined ? [] : [sel.gitRef]),
     ],
+  },
+  {
+    // THE INSTRUMENT BATTERY, SPLIT OFF THE PUSH BAR (#1523). Measured 2026-09-04 over 1,867 files:
+    // `tests/tooling` was 71.1 CPU-min across 284 files against 9.0 for tests/server's 1,185 and 1.3 for
+    // everything else — 82% of the node battery, all of it recertifying OUR TOOLS. Owner: "about 30
+    // minutes of tooling recertification, which makes it tedious to run tests… move that to verify
+    // --full". So: `full` unconditionally, and `push` ONLY when this branch actually touched an
+    // instrument. A push that changed no tooling code cannot regress a tooling test that was green on the
+    // base — and a push that DID touch one still pays, at the tier where it matters.
+    //
+    // WHAT STAYS ON `tests:node`: `tests/tooling`'s SERIAL_INT and LIVE_DRIVE members. Those lists carry
+    // contention semantics (one at a time; the quiet last shard) that this lane does not provide, so the
+    // vitest config keeps them in their own projects and they ride the push bar as before. The split is
+    // by SUBJECT, and it is deliberately not total.
+    name: "tests:tooling",
+    group: "tests",
+    tiers: ["push", "full"],
+    argv: ["pnpm", "test:tooling"],
+    classify: asViolations,
+    tierPrecondition: {
+      tiers: ["push"],
+      reason: "the branch diff (vs its merge base, plus the working tree) touches tooling/** or tests/tooling/**",
+      satisfied: (root) => {
+        const changed = branchChangedPaths(root);
+        // CANNOT-TELL ⇒ null ⇒ the runner RUNS it. A detached HEAD, a fresh clone with no `main`, or a
+        // failed git call must never read as "no instrument changed".
+        return changed === null ? null : changed.some((path) => TOOLING_PATH_RE.test(path));
+      },
+    },
+    // Whole-only by nature: at a scoped tier the changed-set's tooling files already ride `tests:node`'s
+    // related-test graph, and a second lane over the same selection would run them twice.
   },
   {
     name: "browser:ct",

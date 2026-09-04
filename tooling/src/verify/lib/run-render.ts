@@ -97,7 +97,12 @@ export function printList(): void {
     process.stdout.write(`  ${t}:\n`);
     for (const s of stagesForTier(t)) {
       const scoped = s.scopedArgv === undefined ? "whole-only" : "scopable";
-      process.stdout.write(`    · ${s.name.padEnd(NAME_PAD)} [${s.group}] ${scoped}\n`);
+      // A CONDITIONAL rung states its condition HERE (#1523) — the tier ladder is read from this listing
+      // (`--list` is the one home for tier membership), so a row that sometimes does not run at a tier it
+      // is listed under would make the listing a half-truth.
+      const precondition = s.tierPrecondition;
+      const conditional = precondition !== undefined && precondition.tiers.includes(t) ? ` · CONDITIONAL: runs when ${precondition.reason}` : "";
+      process.stdout.write(`    · ${s.name.padEnd(NAME_PAD)} [${s.group}] ${scoped}${conditional}\n`);
     }
   }
   process.stdout.write("\n  manual (never auto-run):\n");

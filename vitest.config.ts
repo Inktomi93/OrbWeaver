@@ -152,6 +152,13 @@ const SERIAL_INT = [
 // tests/tooling/_shared/browser.int.test.ts stay in the parallel lane. (snap's ONE measured arm — the
 // `--cpu-throttle` frame-stretch differential — takes the withhold in place instead of dragging its
 // eighteen structural siblings into a serial lane.)
+// TOOLING — the instrument battery's own glob (#1523). One entry, spelled once: the `tooling` project
+// INCLUDES it and the two product lanes SUBTRACT it, so the partition is a single source of truth rather
+// than two lists that drift. `.int.test.ts` files are matched by this glob too (they end in `.test.ts`),
+// which is deliberate — the split is by SUBJECT (our instruments) rather than by suffix, because the cost
+// this row exists to move is the browser-driving int suites.
+const TOOLING = ["tests/tooling/**/*.test.ts"];
+
 const LIVE_DRIVE = [
   // The #1040 case itself: a dropped-frame PERCENTAGE, a CLS total and a LoAF blocking duration, all
   // measured out of a real headless Chromium's CDP trace and all gated by budgets (lib/verdicts.ts).
@@ -250,7 +257,7 @@ export default defineConfig({
         test: {
           name: "unit",
           include: ["tests/**/*.test.ts"],
-          exclude: [...IGNORE, "tests/**/*.{int,contract}.test.ts"],
+          exclude: [...IGNORE, "tests/**/*.{int,contract}.test.ts", ...TOOLING],
         },
       },
       {
@@ -265,7 +272,7 @@ export default defineConfig({
         test: {
           name: "integration",
           include: ["tests/**/*.int.test.ts"],
-          exclude: [...IGNORE, ...SERIAL_INT, ...LIVE_DRIVE],
+          exclude: [...IGNORE, ...SERIAL_INT, ...LIVE_DRIVE, ...TOOLING],
         },
       },
       {
@@ -300,6 +307,25 @@ export default defineConfig({
           fileParallelism: false,
           testTimeout: budget(BASE_LIVE_DRIVE_TIMEOUT_MS),
           hookTimeout: budget(BASE_LIVE_DRIVE_TIMEOUT_MS),
+        },
+      },
+      {
+        // tooling: EVERY `tests/tooling/**` runtime file — the INSTRUMENT battery, in a lane of its own
+        // (#1523). Not a suffix lane: it is the one part of the battery that recertifies our TOOLS rather
+        // than the product, and measured 2026-09-04 it was 71.1 CPU-min over 284 files against 9.0 for
+        // tests/server's 1,185 — the owner's "about 30 minutes of tooling recertification, which makes it
+        // tedious to run tests". Splitting it out is what lets `verify --push` stop paying for it on a
+        // diff that never touched an instrument; the `tests:tooling` stage row (verify/lib/registry.ts)
+        // owns WHEN it runs, and this project owns WHAT it is.
+        //
+        // SERIAL_INT and LIVE_DRIVE keep their tooling members: those lists exist for contention
+        // semantics (one at a time / the quiet last shard), which this lane does not provide and must not
+        // silently drop. A file is in one lane or none — the `tests-execution-membership` gate proves it.
+        extends: true,
+        test: {
+          name: "tooling",
+          include: TOOLING,
+          exclude: [...IGNORE, ...SERIAL_INT, ...LIVE_DRIVE],
         },
       },
       {
