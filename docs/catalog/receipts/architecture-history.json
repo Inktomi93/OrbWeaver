@@ -1048,17 +1048,18 @@
     },
     {
       "path": "docs/architecture/history/ui-cohesion-north-star.md",
-      "assignedSha256": "a67374831598e23feca556335a447d81c912d437575a768086c8ab70020e8c3a",
+      "assignedSha256": "625f8d9409b5549c1a0bfa7178ed07d52dcbde1cfe0daa781437a8c3173300f5",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "a67374831598e23feca556335a447d81c912d437575a768086c8ab70020e8c3a",
-      "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-      "verifiedAt": "2026-08-31",
+      "verifiedSha256": "625f8d9409b5549c1a0bfa7178ed07d52dcbde1cfe0daa781437a8c3173300f5",
+      "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
+      "verifiedAt": "2026-09-04",
       "evidence": [
         "docs/architecture/history/ui-cohesion-north-star.md:1-676 full read under #930; frontmatter and banner make the D66 program a historical snapshot, current CSS law points to client-architecture-lockdown.md §4, and Project 1 owns mutable work",
         "docs/architecture/core/Core-Path-Registry.md D66 and docs/architecture/core/Core-STATUS.md explicitly deny this archived program current lifecycle authority",
-        "git:bbecbfc78be417b6aab44609d3d4f0d484d8c87b contains the exact archived blob"
+        "git:bbecbfc78be417b6aab44609d3d4f0d484d8c87b contains the exact archived blob",
+        "docs/architecture/history/ui-cohesion-north-star.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
       ],
       "summary": "Full-read D66 UI-cohesion program archive retained for provenance; current law and lifecycle route to core docs and Project 1."
     },

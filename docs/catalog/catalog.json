@@ -959,12 +959,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Tooling-Law.md",
-        "assignedSha256": "b10518e145053ff6f5bd6a7f38c1d02c6835b5fd830cc74630ae89638f69d93b",
+        "assignedSha256": "27dad2bcda4be6ac6e7d4fa09341969488933fbfcad80a628f8d597139e250e6",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "b10518e145053ff6f5bd6a7f38c1d02c6835b5fd830cc74630ae89638f69d93b",
-        "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+        "verifiedSha256": "27dad2bcda4be6ac6e7d4fa09341969488933fbfcad80a628f8d597139e250e6",
+        "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
         "verifiedAt": "2026-09-04",
         "evidence": [
           "re-attested at 561ea5ec3 (#1292, full delta read): the tooling-tree ownership table's `snap/` row is now the sole rendered-instrument CLI (filmstrip contact sheets + motion/perf/CPU/boot/React arms); the separate `motion-audit/` and `cpu-profile/` rows are dropped and `screen-record/` is now the retired `record` compatibility door. The 4.5 27-reader grammar census names the retired `motion-audit`/`perf-meter` scripts and `screen-record` as hard-refusal redirects rather than parsers, and the deferred bench-lane row now cites Snap's `--cpu-profile` attribution in place of the retired `cpu-profile` tool.",
@@ -981,7 +981,8 @@
           "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the operator-one-offs roster drops `oracle-steady-clone.sh`. No other claim in this document moved.",
           "docs/design/tooling-package.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
           "docs/architecture/core/Core-Tooling-Law.md: RELOCATED + REWRITTEN (#876, owner ruling 2026-08-30: \"move to law but rewrite it so it actually reads as law\"). The program-record framing is gone (status banner, phase/done-bar table, the P2-P6 replay ledgers, the deferral roster); every ruling survives, and § numbers are PRESERVED because 60 citers — the constitution's §0.3 router, four cruiser stanzas, eleven gate descriptors and their messages — cite them by number. §6 is now the standing verification floor for a tooling change and §8 the gate-corpus census hazard; §9 keeps the move playbook with the per-phase ledgers folded into it.",
-          "re-attested at f20da4c30 — fold of #1164 (cb-instrument-slots, claude-b): the rendered instruments (snap/design-audit/record/motion-audit/perf-meter) take per-run artifact slots with atomic per-FILE pointers, reference-aware retention, the tooling-shared-plumbing arm G, and the artifact-out.ts layer split; §3.3b's 'deliberately not slotted' ruling retired with both texts preserved. Delta read once at the fold; no other text moved."
+          "re-attested at f20da4c30 — fold of #1164 (cb-instrument-slots, claude-b): the rendered instruments (snap/design-audit/record/motion-audit/perf-meter) take per-run artifact slots with atomic per-FILE pointers, reference-aware retention, the tooling-shared-plumbing arm G, and the artifact-out.ts layer split; §3.3b's 'deliberately not slotted' ruling retired with both texts preserved. Delta read once at the fold; no other text moved.",
+          "docs/architecture/core/Core-Tooling-Law.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
         ],
         "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the coupled-site playbook with the P2 pilot and P3 fleet replay ledgers.",
         "claims": [
@@ -1004,7 +1005,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Documentation-Law.md",
@@ -4434,21 +4435,22 @@
       },
       "receipt": {
         "path": "docs/architecture/history/ui-cohesion-north-star.md",
-        "assignedSha256": "a67374831598e23feca556335a447d81c912d437575a768086c8ab70020e8c3a",
+        "assignedSha256": "625f8d9409b5549c1a0bfa7178ed07d52dcbde1cfe0daa781437a8c3173300f5",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "a67374831598e23feca556335a447d81c912d437575a768086c8ab70020e8c3a",
-        "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-        "verifiedAt": "2026-08-31",
+        "verifiedSha256": "625f8d9409b5549c1a0bfa7178ed07d52dcbde1cfe0daa781437a8c3173300f5",
+        "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
+        "verifiedAt": "2026-09-04",
         "evidence": [
           "docs/architecture/history/ui-cohesion-north-star.md:1-676 full read under #930; frontmatter and banner make the D66 program a historical snapshot, current CSS law points to client-architecture-lockdown.md §4, and Project 1 owns mutable work",
           "docs/architecture/core/Core-Path-Registry.md D66 and docs/architecture/core/Core-STATUS.md explicitly deny this archived program current lifecycle authority",
-          "git:bbecbfc78be417b6aab44609d3d4f0d484d8c87b contains the exact archived blob"
+          "git:bbecbfc78be417b6aab44609d3d4f0d484d8c87b contains the exact archived blob",
+          "docs/architecture/history/ui-cohesion-north-star.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
         ],
         "summary": "Full-read D66 UI-cohesion program archive retained for provenance; current law and lifecycle route to core docs and Project 1."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/history/ui-gates-lessons-archaeology-record.md",
@@ -10932,12 +10934,12 @@
       },
       "receipt": {
         "path": "docs/design/1195-devtools-mcp-retirement.md",
-        "assignedSha256": "71c9d3f8659fbd8e49a69150d186b3bbcf0c46dcac5eb0981d728d3cc7609b0c",
+        "assignedSha256": "25b5d8b179a07aa87c6b039df54facab2d49919e9c2127fc0f6f748664733e85",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "71c9d3f8659fbd8e49a69150d186b3bbcf0c46dcac5eb0981d728d3cc7609b0c",
-        "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+        "verifiedSha256": "25b5d8b179a07aa87c6b039df54facab2d49919e9c2127fc0f6f748664733e85",
+        "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
         "verifiedAt": "2026-09-04",
         "claims": [
           {
@@ -10974,10 +10976,11 @@
           "re-attested at 9301fdf41 after full capability reconciliation: transcript-derived MCP capabilities are now covered by Snap's typed Lighthouse, request/HAR, diagnostics, map, file-action, performance, React, heap, and filmstrip arms; the retired browser-MCP posture and refusal guidance match the current tree.",
           "re-attested at 4fce858a4 after a complete read and current-tree reconciliation: the document now records the retirement as complete under the owner's #1279 no-gate ruling, with the remaining browser-driving capabilities owned by Snap and the shared instrument substrate.",
           "re-attested at 2642a54df (#1198 #1199 #1227, lane p-snap-arms): §2 items 1-2 marked BUILT with the seam (snap's own chromium on --remote-debugging-port, puppeteer-core attaches to THAT browser, the target matched by CDP id; defaultViewport:null and disableFullPageScreenshot measured as load-bearing), the pins and the live plugins-pane receipt (desktop audited=36 failed-audits=1 label-content-name-mismatch ×4 — the MCP's own finding reproduced in-house; requests=2445). Read in full at the fold by the primary orchestrator.",
-          "born-reviewed by the primary orchestrator (author) 2026-09-02 at 33d7067f0: the two-account, 14-day transcript census of chrome-devtools MCP tool calls (176 calls, 719 jsonl files) mapped to snap arms; two gaps named (a Lighthouse arm, a request log) and the retirement step; owner-directed program (#1195)."
+          "born-reviewed by the primary orchestrator (author) 2026-09-02 at 33d7067f0: the two-account, 14-day transcript census of chrome-devtools MCP tool calls (176 calls, 719 jsonl files) mapped to snap arms; two gaps named (a Lighthouse arm, a request log) and the retirement step; owner-directed program (#1195).",
+          "docs/design/1195-devtools-mcp-retirement.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/1208-heap-memory-arm.md",
@@ -11059,12 +11062,12 @@
       },
       "receipt": {
         "path": "docs/design/1208-instrument-substrate.md",
-        "assignedSha256": "97d2c2b92c17b3a05a3bf196099039bd8cfcc7f100482639d2b5f23103b124ad",
+        "assignedSha256": "5ede9cac227e412b9e2c023167a91499ff6ab3b95f5b47770dcd5b53f25407d6",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "97d2c2b92c17b3a05a3bf196099039bd8cfcc7f100482639d2b5f23103b124ad",
-        "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+        "verifiedSha256": "5ede9cac227e412b9e2c023167a91499ff6ab3b95f5b47770dcd5b53f25407d6",
+        "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
         "verifiedAt": "2026-09-04",
         "evidence": [
           "re-attested at 561ea5ec3 (#1292, full 770-line delta read): adds the #1310 filmstrip transition-capture ruling (CDP screencast contact sheet, `record` retired to a recipe redirect); 10.5 React development-renderer arm (`prepare()` lifecycle, capability census/ledger, planted controls, #1284 implementation-complete); 10.6 sole rendered-instrument CLI ruling (#1292/#1293) - `afterNavigation`/`beforeAction`/`afterAction`/`afterActions` lifecycle, selective `--motion`/`--perf`/`--cpu-profile`/`--boot-trace`/`--react-profile` vocabulary, motion/perf capability-parity ledgers, interference refusals, retirement order; 10.7 indexed Snap run bundle + browser-free readers (#1295) - `run.json` schema, identity/dirty digest, artifact inventory, `--report`/`--reports` readers, acceptance repairs; 10.8 operator/cold-agent usability battery; 10.9 `--map` atlas+shell+surface sheets and the #1297 visibility-predicate repair; and 12.3's 2026-09-03 owner ruling naming Snap the sole public rendered-instrument CLI.",
@@ -11074,7 +11077,8 @@
           "re-attested at 6e19ff922 (#1277 + #1259, lane p-arms-registry): §10.3 'Phase 3 as built' added — the six places §6's ArmDef had to widen for real arms (the page/run lifecycle union, `failures` as a map because dead-css owns two summary members, `needs` pruned to the two members with a live launch consumer and made a function of the argv, ARM_DEFS homed in ops/ to stay out of an import cycle with every arm, ARMS as the page-pass order, the ArmArgs/NonArmArgs tsc fence and the RESULT-line claim ledger), what is now DERIVED and the seven operator rows that had never existed, the #1259 endpoint unification with its planted session-vs-one-shot receipt, and the byte-stability receipt including the NUL-in-a-template-literal defect it caught. §6 and §10 read in full against the tree before the first edit; the rest of the document read in full at the phase-3 dispatch.",
           "re-attested at 06267c252 (#1226, lane p-substrate-spike, merged by hand into the forge's later table): the §10 phase-0 receipt paragraph — F3 arm (a) CONFIRMED (context-scoped shims reach a second CDP client; page-scoped do not), the Lighthouse seam is snapshot(page) over an attached puppeteer page with defaultViewport:null, the category score is not a verdict, dependency shape (root devDeps: lighthouse ^13.4.1 + puppeteer-core), the test-layout naming deviation (.suite.int). Union read at the fold by the primary orchestrator.",
           "re-attested at f21f7d10c (forge warm leg, two commits): §7.1 'Timeouts and load: one budget policy' added per the owner's 'also wrap in the timeout design' — inventory with receipts, one load reading, three classes (wall clocks scale via budget(baseMs) with a factor cap + absolute ceiling F11; rates withhold with ORB-LOAD-WITHHOLD; idle/TTL is not a budget), home tooling/src/_shared/load-budget (planned), gate arm J, T14–T17, phase 1b; §12.1 records F1–F4 as owner rulings; the twelve dangling backticked paths de-backticked (stale receipts as plain text, planned files marked '(planned)'); premise correction: motion-audit's mobile arm already carries withholdMeasurement. Read in full at the fold by the primary orchestrator.",
-          "born-reviewed by the primary orchestrator at 9d479c443 (lane p-substrate-design, forge): all 403 lines read in full at the fold — the 12-row pain-point inventory with code and transcript receipts (3015 instrument invocations over 14 days), the launch/stage-binding map, the four-noun model, the daemon protocol and state machine, the band registry, the slot integration, the grammar inventory and shared families, the op reuse map, the two worked arms, the load model, T1–T13, the alternatives, the phased plan, the cost and F1–F10. Premise refutations recorded in §1 P11 (the brief's stale paths; 'five lanes refused' = discipline refusals, 2 hard errors)."
+          "born-reviewed by the primary orchestrator at 9d479c443 (lane p-substrate-design, forge): all 403 lines read in full at the fold — the 12-row pain-point inventory with code and transcript receipts (3015 instrument invocations over 14 days), the launch/stage-binding map, the four-noun model, the daemon protocol and state machine, the band registry, the slot integration, the grammar inventory and shared families, the op reuse map, the two worked arms, the load model, T1–T13, the alternatives, the phased plan, the cost and F1–F10. Premise refutations recorded in §1 P11 (the brief's stale paths; 'five lanes refused' = discipline refusals, 2 hard errors).",
+          "docs/design/1208-instrument-substrate.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
         ],
         "claims": [
           {
@@ -11116,7 +11120,7 @@
         ],
         "summary": "Landed instrument substrate program (#1208): stateful Snap sessions, registered stage bands, shared browser/environment/artifact seams, a total five-tool CLI grammar, Lighthouse and request-log arms, load-aware watchdogs, one-browser matrix contexts, and the reconciled phase 0–4 control set."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/1208-request-result-truth-repair.md",
@@ -11417,15 +11421,16 @@
       },
       "receipt": {
         "path": "docs/design/1310-snap-filmstrip.md",
-        "assignedSha256": "77a3d55542d73d802c8a5777f7d5b2c33617a69b6fdbdb68ddbd81378b65291e",
+        "assignedSha256": "9fce97e2c7d7a717e96a68621afbb4dbc12fa40f2271f7695b0af1bf31827195",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "77a3d55542d73d802c8a5777f7d5b2c33617a69b6fdbdb68ddbd81378b65291e",
-        "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+        "verifiedSha256": "9fce97e2c7d7a717e96a68621afbb4dbc12fa40f2271f7695b0af1bf31827195",
+        "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
         "verifiedAt": "2026-09-04",
         "evidence": [
-          "docs/design/1310-snap-filmstrip.md:1 read in full at 561ea5ec3: `pnpm snap ... --filmstrip` is the one transition-capture spelling (CDP screencast contact sheet); `pnpm record` retires to a loud recipe redirect and its parser/driver/WebM/GIF path is deleted."
+          "docs/design/1310-snap-filmstrip.md:1 read in full at 561ea5ec3: `pnpm snap ... --filmstrip` is the one transition-capture spelling (CDP screencast contact sheet); `pnpm record` retires to a loud recipe redirect and its parser/driver/WebM/GIF path is deleted.",
+          "docs/design/1310-snap-filmstrip.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
         ],
         "claims": [
           {
@@ -11453,7 +11458,7 @@
         ],
         "summary": "Snap filmstrip design: one bounded PNG contact-sheet arm over the existing run-arm lifecycle (new `afterSettle` seam), replacing Record's WebM/GIF path entirely."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/885-884-boundary-reservation-and-touch-floor.md",
@@ -11787,13 +11792,13 @@
       },
       "receipt": {
         "path": "docs/design/983-984-ui-audit-population-semantics.md",
-        "assignedSha256": "6179f99261eb3972e2999d29e9c339af4ac05cff13efa2d79e6c7e9f2bca2129",
+        "assignedSha256": "d72515b14ba7a8f886b8cfa3a7065cc2214b4f3fe118ecb3bb09e247b8b9f838",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "fac14e74cdf5a7c33dccb0d64d0b028e6904ff64df8e7c942d826a7eaacddd49",
-        "verifiedCommit": "6977b977befd079b12ad7b32a8a3f914e4371644",
-        "verifiedAt": "2026-09-02",
+        "verifiedSha256": "d72515b14ba7a8f886b8cfa3a7065cc2214b4f3fe118ecb3bb09e247b8b9f838",
+        "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
+        "verifiedAt": "2026-09-04",
         "evidence": [
           "re-attested at 6977b977b (#1183 #1171 #1172, lane p-audit-blind): NEW §7 — line-length's closed reason set in the unit the LAW counts (two arms: transcript in CSS ch vs 75, everything else in law-characters by average glyph advance vs 80; prose = tags ∪ the app's own data-voice; excluded notProseTag vs chromeVoice; withheld per denominator) and §8 — `carried`, a route TAG over candidates outside the settlement arithmetic (sum(carried) ≤ candidates, printed only where a census has an alternate route; the pseudo landing derived only under three conditions, else withheld(pseudoBoxUnmeasurable)). Both sections read in full at the fold by the primary orchestrator, BEFORE/AFTER rows included.",
           "re-attested at 95c4f97a5 (#1068, lane p-quiet-cohorts): the quiet-state amendment — the backdrop partition resolves above every state carrier in the subject's chain (it was restating the ON/OFF axis on switches and selected rows); fill-less cohorts excluded(noOwnFill) vs partially fill-less withheld(unresolved); :208 survives verbatim; characters driven + settings:appearance reach complete",
@@ -11804,7 +11809,8 @@
           "cold Config receipts embedded in the design: default exit 1 complete; Appearance at 1280x800 and 1280x2000 exit 2 with invariant obscured unaskable=0 and two real #987 withholding cohorts",
           "re-attested at 7ff42cde9 — #1122 fold (a87e241f7): the population-law section gains the surface-state axes' proven-exclusion paragraph (the published `data-panel-available` declaration, `sectionDeclaresNoPane`/`sectionDeclaresNoPanes`, the tri-state refusal, and `excluded` printed as its own RESULT label with NO-VERDICT reserved for WITHHELD). Delta read once against the live receipt taken on Home and Characters after the fold; no other section moved.",
           "re-attested at 70b9c67a1 — #1156 fold (4290cb23f): the population-law section gains off-grid-text's closed reason set (excluded srOnly/readingSurface/snapped · withheld srOnlyUnreadable/unmeasurable; one tri-state in-page predicate; candidates unchanged by the exclusion). Delta read once against the live driven Characters receipt (54/35/10 → 54/33/9, excluded(srOnly=4)).",
-          "re-attested at 9e1a53362 — fold of #1155 (cb-quiet-state, claude-b): the appended #1155 amendment (the quiet-state withheld cohorts were resolveBackdrop's paint-layer veto reading the wrong box — the subject's own indicator, a non-touching sibling, a chip painted on top — fixed as named backdrop queries resolveBackdropUnder/At with resolveBackdrop byte-identical for existing callers; anti-widening pinned both ways). Existing text untouched; delta read once."
+          "re-attested at 9e1a53362 — fold of #1155 (cb-quiet-state, claude-b): the appended #1155 amendment (the quiet-state withheld cohorts were resolveBackdrop's paint-layer veto reading the wrong box — the subject's own indicator, a non-touching sibling, a chip painted on top — fixed as named backdrop queries resolveBackdropUnder/At with resolveBackdrop byte-identical for existing callers; anti-widening pinned both ways). Existing text untouched; delta read once.",
+          "docs/design/983-984-ui-audit-population-semantics.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
         ],
         "summary": "Implemented #983/#984/#987/#989 authored UI-audit populations with re-centred obscuration evidence, grouped typography repairs, exact settled accounting, bounded representatives, and fail-loud partial-population verdicts.",
         "claims": [
@@ -11835,7 +11841,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/995-production-boot-boundary.md",
@@ -12376,16 +12382,17 @@
       },
       "receipt": {
         "path": "docs/design/design-audit-subject-accounting-976.md",
-        "assignedSha256": "ddfe683a142a68e88fa736e74be5999ce58282c22da54f50455f3e39e2fb85d3",
+        "assignedSha256": "52e04c6221e4615f18a800130d46fafabbf6ef967618112fcab8f087bf18b854",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "ddfe683a142a68e88fa736e74be5999ce58282c22da54f50455f3e39e2fb85d3",
-        "verifiedCommit": "af6e7e187648d4f20ee5f4f37e112bdbb287df3f",
-        "verifiedAt": "2026-08-31",
+        "verifiedSha256": "52e04c6221e4615f18a800130d46fafabbf6ef967618112fcab8f087bf18b854",
+        "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
+        "verifiedAt": "2026-09-04",
         "evidence": [
           "docs/design/design-audit-subject-accounting-976.md:1 (full read; reproduced timing defect, exact subject accounting, theme provenance, rejected alternatives, coupled sites, red-first controls, and the #953 matrix boundary)",
-          "git:af6e7e187648d4f20ee5f4f37e112bdbb287df3f (content commit whose tree contains the verified design blob and implemented #976 proof)"
+          "git:af6e7e187648d4f20ee5f4f37e112bdbb287df3f (content commit whose tree contains the verified design blob and implemented #976 proof)",
+          "docs/design/design-audit-subject-accounting-976.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
         ],
         "summary": "Implemented #976 design for fail-loud design-audit subject accounting and requested-versus-actual theme provenance, including late-mount and same-count replacement controls without duplicating the #953 appearance matrix.",
         "claims": [
@@ -12404,7 +12411,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/docker-modern-practices-research.md",
@@ -13689,19 +13696,20 @@
       },
       "receipt": {
         "path": "docs/design/state-paint-census.md",
-        "assignedSha256": "5c42e095216d9f3f9789c6645cd65848ff06e52db2f78ab86aa14cbcce0f6b0a",
+        "assignedSha256": "c081b43956b30ac599190d828145d912a13d4b969b2a861804a2a59a43872171",
         "disposition": "archive",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "3a7417189d8223a177788f5b5b1a89b3f25070317f86bbd722c5e55a0ad68ec8",
-        "verifiedCommit": "64bbb62fc6683d6b84951e2607a554a5851cea08",
-        "verifiedAt": "2026-09-02",
+        "verifiedSha256": "c081b43956b30ac599190d828145d912a13d4b969b2a861804a2a59a43872171",
+        "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
+        "verifiedAt": "2026-09-04",
         "evidence": [
           "re-attested at 64bbb62fc (cb-walker-truth: #1038/#1031/#1073/#1084/#1087, claude-b): the polarity bullet rewritten as the two-step — group-variant hover withheld by name on BOTH mechanisms; the stale pin cite fixed",
           "docs/design/state-paint-census.md:1 (full read; defect class, one-segment architecture, attribute classification, rejected alternatives, coupled sites, two-direction test plan, ratified CTA-glow exemption)",
           "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #996 design and implementation bytes)",
           "docs/design/state-paint-census.md:203 (delta read at the F1 landing: the fork bullet now states the per-element WeakMap cache granularity and the currentColor twin pin)",
-          "docs/design/state-paint-census.md:3 (frontmatter status active -> archived at program close, #996 Done)"
+          "docs/design/state-paint-census.md:3 (frontmatter status active -> archived at program close, #996 Done)",
+          "docs/design/state-paint-census.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
         ],
         "summary": "Active #996 design for the state-paint census: one escape-aware :hover predicate + classified Base UI attribute-state vocabulary replacing three blind walker sites, attribute forcing riding the existing forced-state pass, population polarity named per withheld class, and the owner-ratified token-derivation CTA-glow exemption.",
         "claims": [
@@ -13733,7 +13741,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/streaming-shape-churn.md",
@@ -32954,17 +32962,18 @@
       },
       "receipt": {
         "path": "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md",
-        "assignedSha256": "4f474254c6ba07e2fe070ff5dc4699ed4d775de52e5aa9e14ccf3dcc52f92aaa",
+        "assignedSha256": "2e8b99ce270e9805fde18ee1406d82ba01294fb23208c8241887490c3c7043d7",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "4f474254c6ba07e2fe070ff5dc4699ed4d775de52e5aa9e14ccf3dcc52f92aaa",
-        "verifiedCommit": "b13a99f93fa3c6c986d9a03f9ac2cbad0b76abe8",
+        "verifiedSha256": "2e8b99ce270e9805fde18ee1406d82ba01294fb23208c8241887490c3c7043d7",
+        "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
         "verifiedAt": "2026-09-04",
         "summary": "Snap argv audit: 129 accepted spellings inventoried (116 normal + 13 report-reader), 8 pre-repair findings at ceiling P1 (scenario boot/call partition, --no-failure-evidence inheritance, --session-export --out, admin-mode modal exclusivity, reader missing-value theft, --upload sibling chooser, ownerless modifiers, help-completeness test); all repaired under #1298/#1299 and the ledger now reflects the executable grammar; -h is the only alias, retired names refuse by name.",
         "evidence": [
           "re-attested at b13a99f93 (delta read: one table row — `--atlas` added as a KEEP child of `--map`, the default being the one-line atlas summary, #1372; nothing else changed since 561ea5ec3)",
-          "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md:1 (full read by the primary orchestrator, session c61174c8, 2026-09-04; every retained finding re-checked against 561ea5ec3)"
+          "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md:1 (full read by the primary orchestrator, session c61174c8, 2026-09-04; every retained finding re-checked against 561ea5ec3)",
+          "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
         ],
         "claims": [
           {
@@ -32990,7 +32999,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/stickler/2026-09-03-unified-snap-instrument-program.md",

@@ -2739,17 +2739,18 @@
     },
     {
       "path": "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md",
-      "assignedSha256": "4f474254c6ba07e2fe070ff5dc4699ed4d775de52e5aa9e14ccf3dcc52f92aaa",
+      "assignedSha256": "2e8b99ce270e9805fde18ee1406d82ba01294fb23208c8241887490c3c7043d7",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "4f474254c6ba07e2fe070ff5dc4699ed4d775de52e5aa9e14ccf3dcc52f92aaa",
-      "verifiedCommit": "b13a99f93fa3c6c986d9a03f9ac2cbad0b76abe8",
+      "verifiedSha256": "2e8b99ce270e9805fde18ee1406d82ba01294fb23208c8241887490c3c7043d7",
+      "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
       "verifiedAt": "2026-09-04",
       "summary": "Snap argv audit: 129 accepted spellings inventoried (116 normal + 13 report-reader), 8 pre-repair findings at ceiling P1 (scenario boot/call partition, --no-failure-evidence inheritance, --session-export --out, admin-mode modal exclusivity, reader missing-value theft, --upload sibling chooser, ownerless modifiers, help-completeness test); all repaired under #1298/#1299 and the ledger now reflects the executable grammar; -h is the only alias, retired names refuse by name.",
       "evidence": [
         "re-attested at b13a99f93 (delta read: one table row — `--atlas` added as a KEEP child of `--map`, the default being the one-line atlas summary, #1372; nothing else changed since 561ea5ec3)",
-        "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md:1 (full read by the primary orchestrator, session c61174c8, 2026-09-04; every retained finding re-checked against 561ea5ec3)"
+        "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md:1 (full read by the primary orchestrator, session c61174c8, 2026-09-04; every retained finding re-checked against 561ea5ec3)",
+        "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
       ],
       "claims": [
         {
