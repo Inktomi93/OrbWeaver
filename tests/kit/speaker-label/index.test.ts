@@ -242,8 +242,20 @@ test("stripInlineSpeakerLabel keeps a word separator on a space-delimited inline
 test("stripInlineSpeakerLabel does NOT eat a cast name out of the middle of an ordinary word", () => {
   expect(stripInlineSpeakerLabel("I told SusAnn: watch out.", "Ann")).toBe("I told SusAnn: watch out.");
   expect(stripInlineSpeakerLabel("the QUOTA: figure", "Ota")).toBe("the QUOTA: figure");
-  // Non-ASCII names too — the boundary is `\p{L}\p{N}`, not the ASCII-only `\b`.
+  // Non-ASCII names too — the boundary is `\p{L}\p{N}\p{M}`, not the ASCII-only `\b`.
   expect(stripInlineSpeakerLabel("книгаМария: тут", "Мария")).toBe("книгаМария: тут");
+});
+
+// #1530 — the two residues of the boundary fix. A DECOMPOSED letter ends the word for a `\p{L}\p{N}` test
+// (the combining mark is neither), and an ASCII hyphen after the colon is ordinary prose, not the measured
+// `Name: —` turn-opener the mid-word arm exists for.
+test("stripInlineSpeakerLabel: a COMBINING MARK does not end the word, and a plain hyphen is not the turn-opener dash", () => {
+  // "caféAnn" written decomposed: cafe + U+0301 + Ann — the mark sits immediately before the name.
+  expect(stripInlineSpeakerLabel("I told cafe\u0301Ann: watch out.", "Ann")).toBe("I told cafe\u0301Ann: watch out.");
+  expect(stripInlineSpeakerLabel("I told SusAnn: -bring it", "Ann")).toBe("I told SusAnn: -bring it");
+  // The em/en dash still fires mid-word, and the hyphen still goes at a real boundary (arm A is unchanged).
+  expect(stripInlineSpeakerLabel("dumAnn: –b", "Ann")).toBe("dumb");
+  expect(stripInlineSpeakerLabel("a Ann:- b", "Ann")).toBe("a b");
 });
 
 // The other half of the same boundary decision: the torn-tag garbage this stripper exists for must STILL be

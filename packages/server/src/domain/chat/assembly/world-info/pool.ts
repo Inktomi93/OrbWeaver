@@ -19,8 +19,23 @@
 //     legitimately belong to members other than the host; belting this arm to the host would silently
 //     delete a member's own lore from the prompt. `attachToPersona` gates the persona and the book under
 //     one caller, so "the book belongs to the persona's owner" is the writers' invariant made physics.
-//   • chat     → `chatId` only, ON PURPOSE. A chat book is the ROOM's (any member may attach their own),
-//     so an owner predicate here would break the room-public posture `handoff-copy-write` documents.
+//   • chat     → `chatId` only, ON PURPOSE — but NOT for the reason this bullet used to give. It said a
+//     chat book is "the ROOM's (any member may attach their own)", and that is not what the writers do:
+//     `worldInfo.attachToChat` awaits `requireChatHost(principal, chatId)` AND
+//     `loadOwnedBook(db, principal.userId, bookId)` in the same call, so a chat book is HOST-attached and
+//     HOST-owned. Room-wide prompt content is a one-shot jailbreak surface (write = host, the chat-injection
+//     precedent); the host may only share a book they own. The invariant is therefore STRONGER than an owner
+//     predicate would state, not weaker than it.
+//     It survives the one event that could break it: host HANDOFF
+//     (`world-info/persistence/handoff-copy-write.ts:95-96`) DELETES the outgoing host's chat attachment and
+//     inserts a COPY minted under the incoming host — or converges onto a same-named book the recipient
+//     already has on the room — in the SAME batch as the role swap. So "attached ⇒ owned by whoever is the
+//     room's host" holds before and after, with no window between.
+//     Writer census, 2026-09-04: `insert(chatBooks)` has exactly TWO sites, both named above
+//     (`verbs/attachments/attach-to-chat.ts:25`, `persistence/handoff-copy-write.ts:96`); the only other
+//     mutation is `verbs/attachments/detach-from-chat.ts:19`. An owner predicate here would be redundant
+//     rather than wrong — it is left off because the junction rows are already the belt, and any future
+//     attempt to add one owes this handoff case first.
 //   • global   → `target.ownerId`, unchanged (FLAG[global-scope] above).
 
 import type { AssembleWorldEntry } from "@orb/contracts/chat";

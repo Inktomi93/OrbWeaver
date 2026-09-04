@@ -74,6 +74,23 @@ test("two spellings of one accented name are ONE key (NFC), and symbol-only name
   expect(rpgCastSlug("   ")).toBe("unnamed");
 });
 
+// #1530 — the fallback bucket was REACHABLE from a legitimate name: the fold turns "Unnamed 1f409" into
+// exactly the key the emoji fallback minted, so the two merged onto one actor row. The marker the fallback
+// joins with is outside the kept class, so no fold can emit it.
+test("the symbol-only fallback key cannot be reached by folding a real name", () => {
+  expect(rpgCastSlug("\u{1f409}")).not.toBe(rpgCastSlug("Unnamed 1f409"));
+  expect(rpgCastSlug("Unnamed 1f409")).toBe("unnamed-1f409");
+  expect(rpgCastSlug("\u{1f409}")).toBe("unnamed+1f409");
+  // A real name carrying the marker still FOLDS it away — the marker only survives on a minted fallback.
+  expect(rpgCastSlug("Ann+Bob")).toBe("ann-bob");
+  // …and a minted fallback stays its own slug, which is what the wire refine requires of it.
+  for (const symbolic of ["\u{1f409}", "\u{1f409}\u{1f525}", "!!!"]) {
+    const key = rpgCastSlug(symbolic);
+    expect(rpgCastSlug(key)).toBe(key);
+    expect(rpgActorRefSchema.safeParse({ kind: "cast", castKey: key }).success, `"${key}" must round-trip the wire`).toBe(true);
+  }
+});
+
 test("the slug is IDEMPOTENT — which is what lets the wire use it as its own canonicality predicate", () => {
   for (const name of ["Sister Vesna", "  MARI!  ", "🔥🔥", "already-slugged", "李明", "Мария", "cafe\u0301"]) {
     expect(rpgCastSlug(rpgCastSlug(name))).toBe(rpgCastSlug(name));

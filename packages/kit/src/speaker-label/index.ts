@@ -291,12 +291,22 @@ function inlineLabelRe(name: string): RegExp {
   //      emphasis byte — the label needs no other evidence (`one JFC: two` → `one two`, unchanged).
   //   B. WRAPPED IN MARKDOWN anywhere, even mid-word (`dum**JFC:**b` → `dumb`): prose does not emphasise a
   //      fragment inside a word, a torn `<speaker>` echo does.
-  //   C. FOLLOWED BY THE TURN-OPENER DASH run anywhere, even mid-word — the `dumJFC: —b` token-boundary
+  //   C. FOLLOWED BY THE TURN-OPENER EM/EN DASH anywhere, even mid-word — the `dumJFC: —b` token-boundary
   //      splice this file was written for (→ `dumb`).
-  // A bare `SusAnn: ` has none of the three and is therefore prose. The boundary class is `\p{L}\p{N}`,
-  // not `\b`: `\b` is ASCII-only, so a CJK or Cyrillic cast name would still splice mid-word. The
-  // emphasis bytes are excluded from it too, or the boundary is satisfied by the inner `*` of a `**` pair.
-  return new RegExp(`(?:(?<![\\p{L}\\p{N}*_])${emph}?${label}[—–-]*|${emph}${label}[—–-]*|${emph}?${label}[—–-]+)\\s*`, "gu");
+  // A bare `SusAnn: ` has none of the three and is therefore prose.
+  //
+  // TWO THINGS THE BOUNDARY AND THE DASH ARM BOTH HAD TO NARROW (#1530, the residue of the #1354 fix):
+  //   · the boundary class carries `\p{M}`. It is `\p{L}\p{N}\p{M}` and not `\b`, because `\b` is
+  //     ASCII-only (a CJK or Cyrillic name would still splice mid-word) — and without the MARKS a DECOMPOSED
+  //     letter ends the word for this test: `caféAnn:` written as `cafe`+U+0301+`Ann` put a combining mark
+  //     immediately before the name, the lookbehind passed, and the stripper ate `Ann: ` out of the middle of
+  //     the word again. Same reasoning `rpgCastSlug` uses: in many scripts a mark IS part of the letter.
+  //     The emphasis bytes are excluded too, or the boundary is satisfied by the inner `*` of a `**` pair.
+  //   · arm C takes the EM/EN dash only, never the ASCII hyphen. `Name: -` is ordinary prose punctuation
+  //     ("I told SusAnn: -bring it" was collapsing to "I told Susbring it"), while `Name: —` is the measured
+  //     artifact this arm exists for. Arm A keeps the hyphen — at a word boundary the label is already
+  //     established, and the trailing run is just its whitespace.
+  return new RegExp(`(?:(?<![\\p{L}\\p{N}\\p{M}*_])${emph}?${label}[—–-]*|${emph}${label}[—–-]*|${emph}?${label}[—–]+)\\s*`, "gu");
 }
 
 /** Remove a leaked SELF speaker label anywhere in a per-speaker reply — the mid-content twin of

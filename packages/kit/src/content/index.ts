@@ -313,6 +313,45 @@ function scanSelfClosingTag(content: string, start: number): TagScanOutcome {
   return HIDDEN_TAG_NAMES.has(bounded.tag) ? walkSelfClosingTag(content, start, Math.min(content.length, start + MAX_HIDDEN_TAG_SCAN)) : TAG_MALFORMED;
 }
 
+/** One REGISTERED hidden tag's byte range, walked FENCE-BLIND (#1524). */
+interface HiddenRun {
+  readonly start: number;
+  readonly end: number;
+}
+
+/** Every registered hidden tag's byte range in `content`, found by the SAME quote-aware walker the tag pass
+ *  uses and DELIBERATELY without any markdown-fence state — the question these answer is "could this fence
+ *  delimiter be inside a hidden tag's attr value?", and a fence-aware answer would beg it. An over-cap open (#1352) runs to
+ *  the end, matching what the tag pass conceals. Disjoint and ascending; empty for bodies with no hidden tag,
+ *  which is the common case and costs one `indexOf`. */
+function hiddenTagRuns(content: string): readonly HiddenRun[] {
+  const runs: HiddenRun[] = [];
+  let i = content.indexOf("<");
+  while (i !== -1) {
+    const outcome = scanSelfClosingTag(content, i);
+    if (outcome.kind === "capped") {
+      runs.push({ start: i, end: content.length });
+      return runs;
+    }
+    if (outcome.kind !== "tag") {
+      i = content.indexOf("<", i + 1);
+      continue;
+    }
+    if (HIDDEN_TAG_NAMES.has(outcome.scan.tag)) {
+      runs.push({ start: i, end: outcome.scan.end });
+    }
+    i = content.indexOf("<", outcome.scan.end);
+  }
+  return runs;
+}
+
+/** Is `offset` STRICTLY inside one of the runs — past a hidden tag's `<` and before its close? Strictly,
+ *  because a line that merely BEGINS a hidden tag keeps every other job it had; only a line the tag has
+ *  already swallowed loses its power to open or close a markdown fence. */
+function insideHiddenRun(runs: readonly HiddenRun[], offset: number): boolean {
+  return runs.some((run) => offset > run.start && offset < run.end);
+}
+
 // The MEASURED OPEN-LINE reflex (spike §4h) — the `committed` EOF-close's sibling: another measured-leniency
 // arm, not a general loosening. Hosted Sonnet closes a fence opener like an HTML tag —
 // `:::card title="Maintenance Terminal — LOGIN">` — and the strict parse rejected the whole line, so a
@@ -617,6 +656,12 @@ interface ScanEnv {
    * boundary must not let a fence body become one opaque `raw`.
    */
   readonly directiveFences: boolean;
+  /**
+   * Byte ranges the markdown-fence state must IGNORE, because a registered hidden tag has already swallowed
+   * them into a quoted attr value (#1524). EMPTY for the render/wire grammar — this is the §3.6 trust
+   * boundary's own correction, not a change to how anyone reads a document.
+   */
+  readonly hiddenRuns: readonly HiddenRun[];
 }
 
 /** A code-fence delimiter line: toggle the fence state (its own line stays literal); the lenient html arm may
@@ -635,7 +680,16 @@ function stepCodeFenceLine(env: ScanEnv, i: number, inCode: boolean): StepState 
 function stepLine(env: ScanEnv, i: number, inCode: boolean): StepState {
   const line = env.lines[i];
   const text = line === undefined ? "" : matchText(line);
-  if (text.startsWith(CODE_FENCE_MARK)) {
+  // #1524 — A ``` A HIDDEN TAG HAS ALREADY SWALLOWED IS NOT A FENCE. `<lie truth="SECRET\n```\nmore"/>` opens
+  // the fence from INSIDE its own attr value, and the two passes then disagreed about where that tag lived:
+  // the fence-blind stream walker saw one complete tag and released it, while this line-anchored pass let the
+  // ``` toggle code state and cut the tag into `allowTags:false` pieces, so it was never classified — the
+  // whole `truth` attr reached the member verbatim on BOTH planes with `hadHidden=false`. This is NOT the
+  // ratified code-fence hole (§3.2.1 #3): there the AUTHOR opens a fence and the reader SEES the tag they are
+  // being shown; here the tag opens the fence itself, and nobody ever sees it. When the two passes disagree
+  // about where a fence starts, the trust boundary wins — so the tag pass's fence-blind reading is the one
+  // that decides, and the toggle is suppressed for the lines it covers.
+  if (text.startsWith(CODE_FENCE_MARK) && !(line !== undefined && insideHiddenRun(env.hiddenRuns, line.start))) {
     return stepCodeFenceLine(env, i, inCode);
   }
   if (inCode) {
@@ -693,9 +747,16 @@ function scanTags(text: string): Expanded[] {
     const outcome = scanSelfClosingTag(text, i);
     // FAIL-CLOSED (#1352): a registered hidden open too long to parse cannot be literal text — that is the
     // `truth` attr reaching the member verbatim — so it becomes ONE hidden span running to the end of this
-    // text run. The member strip drops it, the host reveal lists it, and `hadHidden` stops lying. Its attrs
-    // are deliberately empty: nothing inside the bound is a trustworthy parse of the whole tag, and `raw`
-    // carries the bytes for the host eye.
+    // text run. The member strip drops it and `hadHidden` stops lying. Its attrs are deliberately empty:
+    // nothing inside the bound is a trustworthy parse of the whole tag.
+    //
+    // WHAT THE HOST GETS, stated exactly (#1526 — an earlier note here overclaimed it). `raw` carries the
+    // bytes, but the rpg reveal's wire shape (`RpgRevealedSpan`) projects only the registry's LABELLED
+    // FIELDS and has no `raw`, so the host sees a labelled-but-empty reveal row on that message — "something
+    // was concealed here" — and NOT the bytes. That is deliberate: the host already read those bytes
+    // verbatim in the live stream (the scrubber is member-only), and re-shipping an unparseable ≥16 KiB blob
+    // to a panel buys no decision. An all-empty span is also excluded from the STANDING-LIE inventory
+    // (`domain/rpg/substrate/reveal.ts`) — a lie with no character and no truth cannot stand.
     if (outcome.kind === "capped") {
       if (i > last) {
         out.push({ kind: "text", text: text.slice(last, i) });
@@ -769,6 +830,9 @@ export function tokenizeContent(content: string, options?: TokenizeContentOption
     lenient: options?.lenientHtml === true,
     committed: options?.committed === true,
     directiveFences: true,
+    // The RENDER/WIRE grammar keeps markdown's own fence rule intact — a reader looking at a ``` block is
+    // looking at a code block. The §3.6 correction below is the trust boundary's, and only its.
+    hiddenRuns: [],
   });
 }
 
@@ -843,7 +907,7 @@ export type HiddenContentSpan = Extract<ContentSpan, { kind: "hidden" }>;
  * keeps that tail scannable. Fail-closed beats consistent at a trust boundary.
  */
 function tokenizeForHiddenScan(content: string): ContentSpan[] {
-  return tokenizeWithEnv({ content, lines: splitLines(content), lenient: false, committed: false, directiveFences: false });
+  return tokenizeWithEnv({ content, lines: splitLines(content), lenient: false, committed: false, directiveFences: false, hiddenRuns: hiddenTagRuns(content) });
 }
 
 /** The MEMBER-STRIP primitive (§3.6 — the trust boundary's pure half): removes ONLY `hidden`-class spans
