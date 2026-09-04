@@ -4011,7 +4011,7 @@
     {
       "siteId": "tooling/src/_shared/appearance-flags.ts::default:catch::1",
       "path": "tooling/src/_shared/appearance-flags.ts",
-      "line": 51,
+      "line": 48,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4019,12 +4019,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "appearance JSON parse returns null so the caller emits its option-specific refusal; no theme is applied. Ends if parse failure stops being a refusal.",
-      "markerLine": 48
+      "markerLine": 45
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::default:catch::1",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 142,
+      "line": 139,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4032,12 +4032,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable optional appearance snapshot is represented as absent and the caller rebuilds from the live page. Ends if this snapshot becomes authoritative.",
-      "markerLine": 139
+      "markerLine": 136
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::default:catch::2",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 213,
+      "line": 210,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4045,12 +4045,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable optional theme catalog entry is represented as absent and the caller reports the missing theme. Ends if absence stops reaching the operator.",
-      "markerLine": 210
+      "markerLine": 207
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::default:e::1",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 269,
+      "line": 266,
       "column": 7,
       "grammar": "default",
       "position": "default:e",
@@ -4058,12 +4058,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "the list-themes command emits the read failure through warn before returning no catalog. Ends if the warning stops carrying the failure.",
-      "markerLine": 261
+      "markerLine": 258
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::empty:catch::1",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 85,
+      "line": 86,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4071,12 +4071,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a malformed optional device hint is replaced by the requested probe axes; the app re-validates the result through appearanceSettingsSchema. Ends if the hint becomes authoritative.",
-      "markerLine": 82
+      "markerLine": 83
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::empty:catch::2",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 95,
+      "line": 96,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4084,12 +4084,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an opaque-origin bootstrap page has no localStorage; the settings-response shim remains authoritative after navigation. Ends if the boot hint becomes the authoritative appearance source.",
-      "markerLine": 92
+      "markerLine": 93
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::empty:catch::3",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 360,
+      "line": 357,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4097,7 +4097,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the primary route failure is owned by the awaited fallback route, whose own rejection propagates to the command. Ends if fallback becomes fire-and-forget.",
-      "markerLine": 345
+      "markerLine": 342
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::default:catch::1",
@@ -4479,7 +4479,7 @@
     {
       "siteId": "tooling/src/_shared/rated-theme-fixture.ts::empty:cleanupError::1",
       "path": "tooling/src/_shared/rated-theme-fixture.ts",
-      "line": 132,
+      "line": 129,
       "column": 7,
       "grammar": "empty",
       "position": "empty:cleanupError",
@@ -4487,7 +4487,7 @@
       "snippet": "} catch (cleanupError) {",
       "verdict": "deliberate-absorb",
       "reason": "the cleanup failure is preserved beside the primary failure in the thrown AggregateError below; the matrix command prints that terminal error and exits toolError. Ends if either failure stops propagating.",
-      "markerLine": 129
+      "markerLine": 126
     },
     {
       "siteId": "tooling/src/_shared/run-tool.ts::default:e::1",
@@ -5857,7 +5857,7 @@
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::empty:error::1",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 384,
+      "line": 381,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5865,12 +5865,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.",
-      "markerLine": 380
+      "markerLine": 377
     },
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::empty:error::2",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 391,
+      "line": 388,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5878,7 +5878,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.",
-      "markerLine": 388
+      "markerLine": 385
     },
     {
       "siteId": "tooling/src/snap/ops/request-ring.ts::empty:error::1",

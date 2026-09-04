@@ -40,18 +40,16 @@ export function instrumentRefusal(message: string): never {
 }
 
 /** The boolean half of `pageObject` — a plain (non-array, non-null) object, for the readers that
- *  classify a value rather than settle it. ONE home: five copies of this predicate across `_shared` and
- *  `ui-audit` is what #1317 item 3 named. */
-export function isPageObject(value: unknown): value is Record<string, unknown> {
+ *  classify a value rather than settle it. ONE home under ONE name: five copies of this predicate across
+ *  `_shared` and `ui-audit` is what #1317 item 3 named, and #1319 re-homed the rest. The name is generic on
+ *  purpose — most callers (settings/theme/ratchet rows) never touch a `page.evaluate()` boundary, and a
+ *  second exported name for the same binding is a duplicate export (knip). */
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Generic alias of `isPageObject` for callers whose values never touch a `page.evaluate()` boundary
- *  (a settings/theme/ratchet-row predicate) — same body, a name that does not lie about the source (#1319). */
-export const isPlainObject = isPageObject;
-
 export function pageObject(value: unknown, label: string): Record<string, unknown> {
-  if (!isPageObject(value)) {
+  if (!isPlainObject(value)) {
     instrumentRefusal(`${label} returned ${describePageValue(value)}, not an object`);
   }
   return value;

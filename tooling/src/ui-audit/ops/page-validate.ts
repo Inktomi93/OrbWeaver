@@ -22,7 +22,7 @@
 // without classifying it here is a tsc error, not a silently unchecked field. Kinds are CONTAINER-level
 // (is this an array / an object / a boolean, and is it allowed to be absent) — per-row validation belongs
 // to the rule that reads the row, and a deep re-spelling here would be a second copy of the contract.
-import { describePageValue, instrumentRefusal, isPageObject } from "@orb/tooling/_shared/page-validate";
+import { describePageValue, instrumentRefusal, isPlainObject } from "@orb/tooling/_shared/page-validate";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { RawSamples } from "../contract/samples.ts";
 import type { ShellStateSnapshot } from "../contract/types.ts";
@@ -88,14 +88,14 @@ const RAW_SAMPLE_SHAPE: Record<keyof RawSamples, SeamKind> = {
   zIndexes: "array",
 };
 
-// `isPageObject` / `describePageValue` / `instrumentRefusal` come from `_shared/page-validate.ts`. This
+// `isPlainObject` / `describePageValue` / `instrumentRefusal` come from `_shared/page-validate.ts`. This
 // file used to re-derive all three (#1317 item 3) — the "second copy of the contract that drifts" its own
 // header forbids one paragraph up, and the reason the shared primitives exist at all. The KIND TABLE
 // below stays local: it is THIS walk's contract, not a shared primitive.
 const SEAM_MATCHERS: Record<string, (value: unknown) => boolean> = {
   array: Array.isArray,
   boolean: (value) => typeof value === "boolean",
-  object: isPageObject,
+  object: isPlainObject,
 };
 
 function checkField(field: string, kind: SeamKind, value: unknown, label: string): void {
@@ -113,7 +113,7 @@ function checkField(field: string, kind: SeamKind, value: unknown, label: string
  *  entire run (drive.ts renders the throw as `sample collection: …`, which ops/run.ts already classes as
  *  an INSTRUMENT failure), never a family that quietly censuses nothing. */
 export function rawSamples(parsed: unknown, label = "the in-page fact walk"): RawSamples {
-  if (!isPageObject(parsed)) {
+  if (!isPlainObject(parsed)) {
     instrumentRefusal(`${label} returned ${describePageValue(parsed)}, not a sample object`);
   }
   const record: Record<string, unknown> = parsed;
@@ -149,7 +149,7 @@ export function appFailureSurface(parsed: unknown, label = "the [data-app-failur
  *  (`panel-chrome.tsx`) must STOP the run instead of silently falling back to the old guess. `null` is the
  *  same class as absent — the pane rendered and declared nothing. */
 function checkPanelRow(panel: unknown, label: string): void {
-  if (!isPageObject(panel)) {
+  if (!isPlainObject(panel)) {
     instrumentRefusal(`${label} returned ${describePageValue(panel)} as a panel row, not a { side, mode, available } row`);
   }
   const row: Record<string, unknown> = panel;
@@ -172,7 +172,7 @@ export function shellStateSnapshot(parsed: unknown, label = "the __orb.shell() b
   if (parsed === null || parsed === undefined) {
     return null;
   }
-  if (!isPageObject(parsed)) {
+  if (!isPlainObject(parsed)) {
     instrumentRefusal(`${label} returned ${describePageValue(parsed)}, not a shell snapshot`);
   }
   const shell: Record<string, unknown> = parsed;
