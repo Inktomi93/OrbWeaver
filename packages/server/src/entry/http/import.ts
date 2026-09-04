@@ -7,6 +7,7 @@
 // a pre-dispatch failure removes it here instead.
 
 import { randomUUID } from "node:crypto";
+import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,9 +31,13 @@ export interface ImportBundleDeps {
   readonly stagingDir?: string;
 }
 
-/** Write the upload stream to `path`, aborting (returning `false`) the instant it exceeds `maxBytes`. */
+/** Write the upload stream to `path`, aborting (returning `false`) the instant it exceeds `maxBytes`.
+ *  O_CREAT|O_EXCL|O_NOFOLLOW (the flags the zip + folder-tree stagers already carry): a staged upload is
+ *  always a fresh regular file, so nothing our own writers put under the staging root can be a symlink for
+ *  the import contribution's containment belt to meet. The default root is the OS temp dir. */
 async function stageCapped(body: ReadableStream<Uint8Array>, path: string, maxBytes: number): Promise<boolean> {
-  const handle = await open(path, "w");
+  // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (the sibling staging writers carry the same exemption).
+  const handle = await open(path, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW);
   const reader = body.getReader();
   let total = 0;
   try {

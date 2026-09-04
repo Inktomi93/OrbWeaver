@@ -386,8 +386,9 @@ test("userIntentSchema rejects an out-of-bounds knob (the shared numeric bounds 
   expect(userIntentSchema.safeParse({ temperature: OUT_OF_RANGE_TEMPERATURE }).success).toBe(false);
 });
 
-test("userIntentSchema rejects Agent SDK loader/search and credential-routing injection before preset persistence", () => {
+test("userIntentSchema admits only the Claude runtime knob namespace into claudeEnv (allowlist, not a deny set)", () => {
   for (const key of [
+    // Loader / search / interpreter injection (the original deny set — still refused).
     "NODE_OPTIONS",
     "node_path",
     "LD_PRELOAD",
@@ -403,9 +404,36 @@ test("userIntentSchema rejects Agent SDK loader/search and credential-routing in
     "SSL_CERT_FILE",
     "SSL_CERT_DIR",
     "NODE_EXTRA_CA_CERTS",
+    // #1472: process-critical variables the deny set never named. PATH picks the child's BINARY and HOME
+    // picks where it reads config + credentials, so a preset that could set them owned the spawn.
+    "HOME",
+    "PATH",
+    "SHELL",
+    "TMPDIR",
+    "TMP",
+    "TEMP",
+    "USER",
+    "LOGNAME",
+    // …and the next names nobody would have enumerated either.
+    "LD_AUDIT",
+    "GIT_SSH_COMMAND",
+    "JAVA_TOOL_OPTIONS",
+    "PYTHONSTARTUP",
+    // Auth/routing is runner-owned: the ANTHROPIC namespace is not a preset's to set.
+    "ANTHROPIC_MODEL",
+    // Env keys are case-sensitive — a lowercase spelling is a different key, and not an admitted one.
+    "claude_code_custom_knob",
   ]) {
     const parsed = userIntentSchema.safeParse({ advanced: { claudeEnv: { [key]: "attacker-controlled" } } });
     expect(parsed.success, `${key} must be rejected at the write schema`).toBe(false);
+  }
+});
+
+// POSITIVE CONTROL for the allowlist — a schema that rejected everything would pass the test above.
+test("userIntentSchema accepts a CLAUDE-namespace knob and the two non-prefixed runtime knobs", () => {
+  for (const key of ["CLAUDE_CODE_CUSTOM_KNOB", "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE", "MAX_THINKING_TOKENS", "DISABLE_AUTO_COMPACT"]) {
+    const parsed = userIntentSchema.safeParse({ advanced: { claudeEnv: { [key]: "1" } } });
+    expect(parsed.success, `${key} must be accepted at the write schema`).toBe(true);
   }
 });
 

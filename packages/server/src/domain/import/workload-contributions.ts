@@ -8,7 +8,8 @@
 // the CONTRIBUTION: the params/result contract, the lane/resume policy, the post-settle stats reconcile, and
 // the STAGING-CONTAINMENT belts (import logic, never compose logic).
 
-import { readFile, rm } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { lstat, open, realpath, rm } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, MaintenanceResult, ReportProgress } from "@orb/contracts/workloads";
 import { importBundleWorkloadParams, importStWorkloadParams, maintenanceWorkloadParams } from "@orb/contracts/workloads";
@@ -57,14 +58,46 @@ type ImportContributions = readonly [
  * one): a handle resolving to the staging root itself, its parent, or anywhere outside is a path-traversal
  * attempt and throws BEFORE any fs read or rm — the workload fails cleanly, nothing is touched.
  * `basename()` is NOT a containment primitive (`basename("..") === ".."`); never use it as one.
+ *
+ * CONTAINMENT IS RESOLVED, NEVER STRING-MATCHED. A lexical `startsWith` says "inside the root" about a path
+ * whose own components are symlinks pointing anywhere on the box — and `readFile` / the profile-tree walker
+ * then follow them. So the string check is only the cheap first pass: the belt is `realpath`, on the root
+ * (the configured root may itself sit behind a link) and on the target, with the two required to agree.
+ * The default staging root is the OS temp dir, which is world-writable on a shared box, so "no writer of
+ * ours creates symlinks there" is not a containment argument.
  */
-function resolveStagedPath(stagingRoot: string, stagedHandle: string): string {
+async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Promise<string> {
   const root = resolve(stagingRoot);
   const target = resolve(root, stagedHandle);
   if (target === root || !target.startsWith(root + sep)) {
     throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${stagedHandle}`);
   }
+  const realRoot = await realpath(root).catch(() => {
+    throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${stagedHandle}`);
+  });
+  const realTarget = await realpath(target).catch(() => {
+    throw new DomainOperationError("staged_path_missing", `staged handle names nothing under the staging root: ${stagedHandle}`);
+  });
+  // Any symlinked component anywhere in the handle moves the real path off the expected one — refused even
+  // when the link happens to land back inside the root (its target can be repointed between checks).
+  if (realTarget !== resolve(realRoot, stagedHandle)) {
+    throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root (symlinked path): ${stagedHandle}`);
+  }
   return target;
+}
+
+/** Read a staged FILE without following a link at the final component — O_NOFOLLOW makes the no-symlink half
+ *  of {@link resolveStagedPath} atomic with the read, closing the window between the check and the open
+ *  (the same flag the zip stager's own reader carries). */
+async function readStagedFile(path: string): Promise<Uint8Array> {
+  // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (the zip + tree staging writers carry the same exemption).
+  const handle = await open(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+  try {
+    const data = await handle.readFile();
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  } finally {
+    await handle.close();
+  }
 }
 
 /**
@@ -78,6 +111,14 @@ async function rmContained(stagingRoot: string, target: string): Promise<void> {
   const root = resolve(stagingRoot);
   const resolved = resolve(target);
   if (resolved === root || !resolved.startsWith(root + sep)) {
+    return;
+  }
+  // A SYMLINK is never removed here. `rm` would unlink the link rather than its target, so this is not the
+  // deletion hole — but a staged entry that turned into a link since the resolve is a tampering signal, and
+  // deleting nothing is the safe response on a path this belt no longer recognizes.
+  // @orb-gate-ignore caught-failure-ownership(promise:lstat): both arms of this stat converge on "remove nothing" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed.
+  const link = await lstat(resolved).catch(() => null);
+  if (link === null || link.isSymbolicLink()) {
     return;
   }
   await rm(resolved, { recursive: true, force: true });
@@ -103,7 +144,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
         report({ message: dryRun ? "import ST (dry run)" : "importing ST profiles" });
         // A folder-upload override resolves the server-minted handle to a PROPER STRICT DESCENDANT of the
         // staging root (throws on any traversal attempt, before any fs read); absent ⇒ the configured root.
-        const profileRoot = params.stagedDir !== undefined ? resolveStagedPath(deps.stagingRoot, params.stagedDir) : deps.stProfileDir;
+        const profileRoot = params.stagedDir !== undefined ? await resolveStagedPath(deps.stagingRoot, params.stagedDir) : deps.stProfileDir;
         let result: { readonly scanned: number; readonly changed: number; readonly failed: number; readonly reportPath?: string };
         try {
           result = await deps.runProfileDirImport({ profileRoot, ownerId: targetOwnerId, dryRun, signal });
@@ -156,12 +197,12 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           throw new DomainOperationError("import_target_required", "import-bundle: no target owner (a bundle must be scoped to the uploader)");
         }
         report({ message: "importing bundle" });
-        const stagedPath = resolveStagedPath(deps.stagingRoot, params.token);
+        const stagedPath = await resolveStagedPath(deps.stagingRoot, params.token);
         try {
           const report_ =
             params.source === "dir"
               ? await deps.runStagedDirImport({ stagedPath, ownerId: targetOwnerId, signal })
-              : await deps.runBundleImport({ archive: await readFile(stagedPath), ownerId: targetOwnerId, stagingRoot: deps.stagingRoot, signal });
+              : await deps.runBundleImport({ archive: await readStagedFile(stagedPath), ownerId: targetOwnerId, stagingRoot: deps.stagingRoot, signal });
           // #23: a background bundle/tree import that wrote canon refreshes the owner's character + chat lists
           // (the client's own completion invalidation only fires while the import UI stayed mounted).
           if (report_.imported > 0) {

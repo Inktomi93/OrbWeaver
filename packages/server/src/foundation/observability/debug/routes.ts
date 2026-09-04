@@ -22,6 +22,7 @@ import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
 import type { AutomationRuleId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler, Next } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
 import { APP_VERSION } from "#foundation/config";
 import { diagnosticsPostureInput, diagnosticsPostureWarnings, env, resolveDiagnosticsPosture } from "#foundation/env";
@@ -54,12 +55,23 @@ const DEFAULT_LIST_LIMIT = 100;
 const NOT_FOUND = 404;
 const UNAUTHORIZED = 401;
 const BAD_REQUEST = 400;
+const PAYLOAD_TOO_LARGE = 413;
 const INTERNAL_ERROR = 500;
 /** Cap on the owner's typed note. Long enough for a paragraph of prose, short enough that a runaway paste
  *  cannot become the report. */
 const BUG_REPORT_NOTE_MAX = 8000;
 /** A day — beyond it the ask is not a window, and every ring in the process is shallower than that anyway. */
 const BUG_REPORT_WINDOW_MAX_MINUTES = 1440;
+const BYTES_PER_KIB = 1024;
+const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
+const BUG_REPORT_MAX_BODY_MIB = 4;
+/** The byte ceiling on the bug-report POST, enforced BEFORE `c.req.json()` (#1473). The `client` half is
+ *  deliberately `z.unknown()` — the page owns its bundle shape — so no schema bounds its size, and without
+ *  this the parse, the scrub and the on-disk artifact are all unbounded for anyone past the gate. 4 MiB is
+ *  generous against the real bundle (capped rings: 128 flags, 64 bus events, 32 shifts, the console ring)
+ *  and still finite. NOT an `@orb/contracts/uploads` cap: that catalog is the deployment's UPLOAD ceilings,
+ *  served to the client; this is a debug-surface request bound, the sibling of `app.ts`'s tRPC body cap. */
+export const BUG_REPORT_MAX_BODY_BYTES = BUG_REPORT_MAX_BODY_MIB * BYTES_PER_MIB;
 
 /** The bug-report POST body. `client` is deliberately `unknown`: the page owns its own bundle shape and this
  *  tier must not re-spell it (a field allowlist here would be a guess that goes stale silently). It is opaque
@@ -92,8 +104,12 @@ export function tokenMatches(provided: string | undefined, expected: string | un
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-function toLimit(raw: string | undefined, fallback: number): number {
-  const n = Number(raw ?? fallback);
+/** @internal — the ring/list `?limit=` reader (exported for tests; every probe below funnels through it).
+ *  FLOORED: the value reaches ring reads and array slices, which no caller wrote for a fraction — `1.5`
+ *  used to pass through unmodified into `slice()` and `length >= limit` guards. A sub-1 ask floors to 0,
+ *  which is not a limit anyone means, so it falls back with the rest of the junk. */
+export function toDebugLimit(raw: string | undefined, fallback: number): number {
+  const n = Math.floor(Number(raw ?? fallback));
   return Number.isFinite(n) && n > 0 ? Math.min(n, MAX_RING_READ) : fallback;
 }
 
@@ -328,7 +344,13 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
   // THE WINDOW IS RESOLVED TWICE, ON PURPOSE. The page filtered its own rings against ITS clock and ships that
   // resolution inside `client`; this resolves the same ask against the SERVER's clock for the server's rings.
   // One shared resolution would silently attribute one machine's clock skew to the other's evidence.
-  app.post("/api/_debug/bug-report", async (c) => {
+  //
+  // THE BYTE CAP RIDES THE ROUTE, not `entry/app.ts` (#1473): `client` is `z.unknown()`, so the schema
+  // bounds nothing about its size and `readJsonBody` parses BEFORE validation — an uncapped POST is
+  // unbounded buffering, parsing and artifact growth for anyone past the gate. Registered here so every
+  // app that mounts this registrar carries it, and AFTER the gate middleware above so an un-credentialed
+  // caller is still refused without reading a byte.
+  app.post("/api/_debug/bug-report", bodyLimit({ maxSize: BUG_REPORT_MAX_BODY_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     const parsed = bugReportInput.safeParse(await readJsonBody(c));
     if (!parsed.success) {
       return c.json({ error: "invalid bug report", issues: z.prettifyError(parsed.error) }, BAD_REQUEST);
@@ -359,7 +381,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
   app.get("/api/_debug/logs", (c) =>
     c.json({
       logs: collectLogs({
-        limit: toLimit(c.req.query("limit"), DEFAULT_LOG_LIMIT),
+        limit: toDebugLimit(c.req.query("limit"), DEFAULT_LOG_LIMIT),
         minLevel: levelValue(c.req.query("level")),
         requestId: c.req.query("requestId"),
         q: c.req.query("q"),
@@ -383,7 +405,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     app.get("/api/_debug/vllm/metrics", async (c) => c.json(await vllmMetrics.snapshot()));
   }
 
-  app.get("/api/_debug/errors", (c) => c.json({ errors: collectErrors(toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)) }));
+  app.get("/api/_debug/errors", (c) => c.json({ errors: collectErrors(toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)) }));
 
   // The WIRE-CAPTURE read (TASK-24): the final provider request body each chat backend sent, filterable by
   // `chatId` (the harness's correlation key) or `backend`. Host-only (this debug gate); read-only, no table.
@@ -399,7 +421,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     const captures = recentWireCaptures({
       ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
       ...(backend !== undefined ? { backend } : {}),
-      limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
+      limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
     });
     return c.json({ enabled: wireCaptureEnabled(), count: captures.length, captures });
   });
@@ -416,14 +438,14 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     const chatId = c.req.query("chatId");
     const outcomes = recentTurnOutcomes({
       ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
-      limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
+      limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
     });
     return c.json({ enabled: isWireCaptureEnabled(), count: outcomes.length, outcomes });
   });
 
   app.get("/api/_debug/requests", (c) => {
     const userId = c.req.query("userId");
-    const limit = toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT);
+    const limit = toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT);
     if (userId === undefined) {
       return c.json({ requests: recentRequests(limit) });
     }
@@ -432,7 +454,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
   });
 
   app.get("/api/_debug/traces", (c) => {
-    const traces = recentTraces(toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)).map((t) => ({
+    const traces = recentTraces(toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)).map((t) => ({
       requestId: t.requestId,
       startedAt: t.startedAt,
       durationMs: t.durationMs,
@@ -536,7 +558,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       const fires = await automationFireRows(db, {
         ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
         ...(ruleId !== undefined ? { ruleId: castId<AutomationRuleId>(ruleId) } : {}),
-        limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
+        limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
       });
       return c.json({ count: fires.length, fires });
     });
@@ -553,7 +575,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       const events = rpgTrace.recent({
         ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
         ...(turnId !== undefined ? { turnId } : {}),
-        limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
+        limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
       });
       return c.json({ count: events.length, events });
     });
@@ -566,7 +588,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       const chatId = c.req.query("chatId");
       const recalls = memoryRecall.recent({
         ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
-        limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
+        limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
       });
       return c.json({ count: recalls.length, recalls });
     });

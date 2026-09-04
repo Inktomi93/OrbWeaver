@@ -35,6 +35,7 @@ export {
 export {
   type AdminAuthChecker,
   type AssetInspector,
+  BUG_REPORT_MAX_BODY_BYTES,
   createDebugAuthMiddleware,
   type DebugAuthOptions,
   type DebugRoutesOptions,
@@ -42,6 +43,7 @@ export {
   type RpgTraceInspector,
   registerDebugRoutes,
   type SocketInspector,
+  toDebugLimit,
   tokenMatches,
   type VllmMetricsInspector,
 } from "./routes.ts";

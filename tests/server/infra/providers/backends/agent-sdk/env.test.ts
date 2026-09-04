@@ -89,8 +89,8 @@ describe("the preset escape hatch cannot breach the firewall (reserved-keys filt
       ["ANTHROPIC_DEFAULT_OPUS_MODEL", "evil/model"],
       // An attempt to STRIP the firewall by unsetting it:
       ["ANTHROPIC_API_KEY", null],
-      // A legitimate non-reserved knob DOES pass through:
-      ["MY_CUSTOM_FLAG", "ok"],
+      // A legitimate CLAUDE-namespace knob DOES pass through (the hatch's whole remaining job):
+      ["CLAUDE_CODE_CUSTOM_KNOB", "ok"],
     ]);
     const env = buildClaudeOpenRouterEnv(OR_KEY, TIER_MODELS, { userEnv: hatch });
 
@@ -104,8 +104,8 @@ describe("the preset escape hatch cannot breach the firewall (reserved-keys filt
     // The strip attempt is ignored — the firewall's empty-string API key stands.
     expect(env["ANTHROPIC_API_KEY"]).toBe("");
     expect(Object.values(env)).not.toContain(FAKE_SUB_TOKEN);
-    // The non-reserved knob survives.
-    expect(env["MY_CUSTOM_FLAG"]).toBe("ok");
+    // The in-namespace knob survives.
+    expect(env["CLAUDE_CODE_CUSTOM_KNOB"]).toBe("ok");
   });
 
   test("RESERVED_CLAUDE_ENV_KEYS names every auth/isolation/routing key the hatch must not touch", () => {
@@ -196,6 +196,72 @@ describe("preset env validation rejects runtime preload/search injection", () =>
     for (const key of ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS"]) {
       expect(() => buildClaudeAnthEnv(ANTH_KEY, { userEnv: { [key]: "attacker-controlled" } }), key).toThrow(UNSAFE_RUNTIME_ENV_RE);
     }
+  });
+});
+
+// #1472 — THE HATCH IS AN ALLOWLIST, NOT A DENY SET. A preset is user-writable
+// (`userIntentSchema.advanced.claudeEnv`), and its values land in the environment of a CHILD PROCESS that
+// runs tools as the host. A deny list over process-critical variables loses to the first name nobody
+// enumerated: HOME/PATH/SHELL/TMPDIR were all missing from it, and so were LD_AUDIT, GIT_SSH_COMMAND and
+// JAVA_TOOL_OPTIONS. PATH redirects which BINARY the child executes; HOME redirects where it reads config
+// and credentials. Only the Claude runtime's own knob namespace may be set from a preset.
+const REJECTED_HATCH_KEYS = [
+  // Process execution + filesystem resolution — the escalation this pin exists for.
+  "HOME",
+  "PATH",
+  "SHELL",
+  "TMPDIR",
+  "TMP",
+  "TEMP",
+  "USER",
+  "LOGNAME",
+  // Names a deny list did not carry (the reason the polarity flipped).
+  "LD_AUDIT",
+  "GIT_SSH_COMMAND",
+  "JAVA_TOOL_OPTIONS",
+  "PYTHONSTARTUP",
+  "PAGER",
+  // Case games: env keys are case-sensitive, so a lowercased spelling is a DIFFERENT key, never an allowed one.
+  "path",
+  "claude_code_custom_knob",
+  // Auth/routing is RUNNER-owned: the whole ANTHROPIC namespace is outside the hatch, reserved or not.
+  "ANTHROPIC_MODEL",
+] as const;
+
+describe("the escape hatch is allowlisted to the Claude runtime knob namespace", () => {
+  test("mode-1 refuses every out-of-namespace key instead of overlaying it on the child env", () => {
+    for (const key of REJECTED_HATCH_KEYS) {
+      expect(() => buildClaudeSdkEnv({ userEnv: { [key]: "attacker-controlled" } }), key).toThrow(UNSAFE_RUNTIME_ENV_RE);
+    }
+  });
+
+  test("mode-2 and mode-4 refuse them too (one predicate, every builder)", () => {
+    for (const key of REJECTED_HATCH_KEYS) {
+      expect(() => buildClaudeOpenRouterEnv(OR_KEY, TIER_MODELS, { userEnv: { [key]: "attacker-controlled" } }), key).toThrow(UNSAFE_RUNTIME_ENV_RE);
+      expect(() => buildClaudeAnthEnv(ANTH_KEY, { userEnv: { [key]: "attacker-controlled" } }), key).toThrow(UNSAFE_RUNTIME_ENV_RE);
+    }
+  });
+
+  test("the host baseline still supplies PATH/HOME — the hatch cannot move them, the operator's values stand", () => {
+    vi.stubEnv("PATH", "/usr/bin:/bin");
+    vi.stubEnv("HOME", "/home/orbweaver");
+    const env = buildClaudeSdkEnv();
+    expect(env["PATH"]).toBe("/usr/bin:/bin");
+    expect(env["HOME"]).toBe("/home/orbweaver");
+  });
+
+  // POSITIVE CONTROL — an allowlist that admitted nothing would pass every rejection pin above.
+  test("an ALLOWED key still reaches the child (the two non-prefixed runtime knobs included)", () => {
+    const env = buildClaudeSdkEnv({
+      userEnv: Object.fromEntries([
+        ["CLAUDE_CODE_CUSTOM_KNOB", "ok"],
+        ["MAX_THINKING_TOKENS", "4096"],
+        ["DISABLE_AUTO_COMPACT", "1"],
+      ]),
+    });
+    expect(env["CLAUDE_CODE_CUSTOM_KNOB"]).toBe("ok");
+    expect(env["MAX_THINKING_TOKENS"]).toBe("4096");
+    expect(env["DISABLE_AUTO_COMPACT"]).toBe("1");
   });
 });
 
@@ -327,7 +393,7 @@ describe("mode-4 (first-party Anthropic direct) firewall — the native x-api-ke
       ["ANTHROPIC_BASE_URL", "https://evil.example"],
       ["ANTHROPIC_API_KEY", "attacker-key"],
       ["CLAUDE_CODE_OAUTH_TOKEN", FAKE_SUB_TOKEN],
-      ["MY_CUSTOM_FLAG", "ok"],
+      ["CLAUDE_CODE_CUSTOM_KNOB", "ok"],
     ]);
     const env = buildClaudeAnthEnv(ANTH_KEY, { userEnv: hatch });
     // Reserved keys are stripped BEFORE the overlay — the runner-owned key + unset base stand.
@@ -335,7 +401,7 @@ describe("mode-4 (first-party Anthropic direct) firewall — the native x-api-ke
     expect(env["ANTHROPIC_BASE_URL"]).toBeUndefined();
     expect(env["CLAUDE_CODE_OAUTH_TOKEN"]).toBeUndefined();
     expect(Object.values(env)).not.toContain(FAKE_SUB_TOKEN);
-    expect(env["MY_CUSTOM_FLAG"]).toBe("ok");
+    expect(env["CLAUDE_CODE_CUSTOM_KNOB"]).toBe("ok");
   });
 
   test("a missing Anthropic key fails loudly (the key-required invariant)", () => {

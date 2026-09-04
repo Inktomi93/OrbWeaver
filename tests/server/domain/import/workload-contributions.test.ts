@@ -10,7 +10,7 @@
 // The rest pins the contribution's own logic: the ownerless-row guard, the dryRun echo, and the post-settle
 // stats reconcile (only on a real run that changed rows).
 
-import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
@@ -81,6 +81,9 @@ afterEach(async () => {
 const ESCAPING_HANDLES = ["..", ".", "../victim", "/etc", ""] as const;
 const ESCAPE_ERROR = /escapes the staging root/;
 const VALID_TOKEN = "import-tree-550e8400-e29b-41d4-a716-446655440000";
+/** A charset-legal handle (the schema would pass it) whose staged entry is a SYMLINK pointing out of the root
+ *  — the shape a purely lexical `startsWith` belt calls contained while `readFile`/the tree walker follow it. */
+const SYMLINK_TOKEN = "import-tree-11111111-1111-4111-8111-111111111111";
 /** The ownerless-row guard's message — a create-kind cannot mint rows with no target owner. */
 const NO_TARGET_OWNER = /no target owner/;
 
@@ -113,6 +116,18 @@ describe("import-st — staging containment", () => {
     // Zero fs mutation, and the driver was never even reached.
     expect(deps.runProfileDirImport).not.toHaveBeenCalled();
     expect(await exists(stagingRoot)).toBe(true);
+    expect(await exists(victim)).toBe(true);
+    expect(await exists(victimFile)).toBe(true);
+  });
+
+  test("a stagedDir SYMLINKED out of the root is refused — containment is resolved, not string-matched", async () => {
+    const { stagingRoot, victim, victimFile } = await makeStaging();
+    // Charset-legal handle, lexically in-root, but the entry itself points at the sibling tree.
+    await symlink(victim, join(stagingRoot, SYMLINK_TOKEN), "dir");
+    const { deps, contributions } = build(stagingRoot);
+    await expect(contributions[0].run(ctx, { stagedDir: SYMLINK_TOKEN }, vi.fn(), sig())).rejects.toThrow(ESCAPE_ERROR);
+    // The victim tree is never walked, and the cleanup rm never reaches it.
+    expect(deps.runProfileDirImport).not.toHaveBeenCalled();
     expect(await exists(victim)).toBe(true);
     expect(await exists(victimFile)).toBe(true);
   });
@@ -186,6 +201,17 @@ describe("import-bundle — staging containment", () => {
     expect(deps.runStagedDirImport).not.toHaveBeenCalled();
     expect(deps.runBundleImport).not.toHaveBeenCalled();
     expect(await exists(stagingRoot)).toBe(true);
+    expect(await exists(victim)).toBe(true);
+    expect(await exists(victimFile)).toBe(true);
+  });
+
+  test("a token SYMLINKED at a file outside the root is refused before the archive is read", async () => {
+    const { stagingRoot, victim, victimFile } = await makeStaging();
+    await symlink(victimFile, join(stagingRoot, SYMLINK_TOKEN), "file");
+    const { deps, contributions } = build(stagingRoot);
+    await expect(contributions[2].run(ctx, { token: SYMLINK_TOKEN }, vi.fn(), sig())).rejects.toThrow(ESCAPE_ERROR);
+    // The out-of-root file's BYTES never reach the importer, and it is still there afterwards.
+    expect(deps.runBundleImport).not.toHaveBeenCalled();
     expect(await exists(victim)).toBe(true);
     expect(await exists(victimFile)).toBe(true);
   });
