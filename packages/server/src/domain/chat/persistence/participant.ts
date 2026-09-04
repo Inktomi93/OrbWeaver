@@ -2,11 +2,12 @@
 // writes. Queries only: the shape-check/unique/atomic-upsert are db-level invariants this layer enforces;
 // policy (who may join/kick/hand-off, targeting, AUTH_MODE gating) is the verbs'.
 //
-// The re-add upsert: a human (re)joins via a guarded atomic INSERT … ON CONFLICT(chatId,userId) DO UPDATE
-// SET joinSeq=<head>, leftSeq=NULL, role='member' WHERE leftSeq IS NOT NULL — so a still-present member's
-// redeem is a no-op. `role` is server-forced `member`; the host role is only ever minted at chat creation /
-// handoff. `joinSeq`/`leftSeq` are stamped against messages.seq (the join/leave horizon), not the stream
-// cursor.
+// The re-add upsert lives on the ONE human-membership write, `insertMemberAfterInviteClaimStatement`: a
+// guarded atomic INSERT … ON CONFLICT(chatId,userId) DO UPDATE SET joinSeq=<head>, leftSeq=NULL,
+// role='member' WHERE leftSeq IS NOT NULL — so a still-present member's redeem is a no-op. `role` is
+// server-forced `member`; the host role is only ever minted at chat creation / handoff. `joinSeq`/`leftSeq`
+// are stamped against messages.seq (the join/leave horizon), not the stream cursor, and `joinSeq` resolves
+// IN-BATCH (#1403).
 
 import type { HandoffOffer, ParticipantKind } from "@orb/contracts/chat";
 import { isUserBacked } from "@orb/contracts/chat";
@@ -114,40 +115,6 @@ export async function insertParticipants(db: Db, rows: readonly ParticipantInser
     return;
   }
   await db.batch(batchMany([db.insert(chatParticipants).values([...rows]), ...coStatements]));
-}
-
-/** The atomic human (re)join — the only human-membership write. Inserts a fresh `member` row, or on
- *  conflict re-joins a previously-left member. Returns `undefined` when the user is already present. */
-export async function upsertMemberOnJoin(
-  db: Db,
-  params: {
-    readonly participantId: ChatParticipantId;
-    readonly chatId: ChatId;
-    readonly userId: UserId;
-    readonly joinSeq: number;
-    readonly now: number;
-    readonly activePersonaId?: PersonaId | null;
-  },
-): Promise<typeof chatParticipants.$inferSelect | undefined> {
-  const rows = await db
-    .insert(chatParticipants)
-    .values({
-      id: params.participantId,
-      chatId: params.chatId,
-      kind: "human",
-      userId: params.userId,
-      role: "member",
-      activePersonaId: params.activePersonaId ?? null,
-      joinedAt: params.now,
-      joinSeq: params.joinSeq,
-    })
-    .onConflictDoUpdate({
-      target: [chatParticipants.chatId, chatParticipants.userId],
-      set: { joinSeq: params.joinSeq, leftSeq: null, role: "member" },
-      setWhere: isNotNull(chatParticipants.leftSeq),
-    })
-    .returning();
-  return rows.at(0);
 }
 
 /** The canon head the seat is stamped against, as SQL — evaluated INSIDE the claim batch (#1403).

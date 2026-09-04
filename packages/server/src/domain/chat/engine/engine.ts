@@ -1113,8 +1113,19 @@ class StaleLockAbort extends Error {
  *  lock-fault abort is distinguishable from a caller cancel. A settled (aborted) signal means the throw is an
  *  abort, not a fault: `StaleLockAbort` reason → "stale" (the heartbeat killed it); any other aborted-signal
  *  cause → "user" (the caller cancelled via `activeTurns`). A throw with an UN-aborted signal is a genuine
- *  fault (provider/DB) → "error". */
+ *  fault (provider/DB) → "error".
+ *
+ *  …EXCEPT the commit fence's own refusal (#1537). {@link assertTurnMayCommit} can find the lock gone up to a
+ *  whole heartbeat interval (TTL/3) BEFORE the heartbeat next ticks, so at that instant nothing has aborted
+ *  the signal — and the signal-only classification labelled a lost-lock refusal `"error"`, which is what the
+ *  `turnAborted` bus event and the wire-fault outcome row then told the operator. `CHAT_OP_CODES.aborted` is
+ *  minted at exactly two sites and both are lock-loss, so the code IS the fact: it is "stale" whether the
+ *  heartbeat had got there yet or not. Same reason, same `abortedOutcome` return, same loud surfaces — the
+ *  fence logs at ERROR and the bus carries `turnAborted{reason:"stale"}`. */
 function abortReasonFor(err: unknown, signal: AbortSignal | undefined): TurnAbortReason {
+  if (err instanceof ChatOperationError && err.code === CHAT_OP_CODES.aborted) {
+    return "stale";
+  }
   if (signal?.aborted === true) {
     return signal.reason instanceof StaleLockAbort ? "stale" : "user";
   }

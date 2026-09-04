@@ -58,7 +58,8 @@ export const NO_HISTORY_FLOOR: HistoryFloorSeq = historyFloor(0);
  * member's `joinSeq`, an INCLUSIVE floor: `seq >= joinSeq` is visible (the member DOES see the row at their
  * own `joinSeq`), a row with `seq < joinSeq` is pre-join and must not be returned. RE-JOIN semantics ride the storage shape: a
  * human's membership is ONE upserted row whose `joinSeq` is re-stamped to the canon head on every re-join
- * (`persistence/participant.ts::upsertMemberOnJoin`), so a re-joined member's floor is their LATEST join —
+ * (the DO UPDATE arm of `persistence/participant.ts::insertMemberAfterInviteClaimStatement`, the one
+ * human-membership write both invite doors share), so a re-joined member's floor is their LATEST join —
  * the conservative reading, and the only one the row can support (prior eras are not retained).
  */
 export function resolveHistoryFloorSeq(membership: {

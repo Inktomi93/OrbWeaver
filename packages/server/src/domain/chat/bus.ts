@@ -168,12 +168,21 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
     // never rethrown, because the engine's delta emits are fire-and-forget and a rejection here kills the
     // process. `null` still means "not durably logged, do not fan".
     let seq: number | undefined;
+    // ONE id for the whole retry, minted OUTSIDE the loop (#1537). A fresh id per attempt made the retry
+    // UNCONDITIONALLY SAFE-LOOKING and was the opposite: an append that COMMITS and then reports failure (a
+    // driver/transport fault after the row landed) would be written a SECOND time under a new id and a new
+    // seq, with no constraint left to catch it — a duplicated durable event, which durable-first replay then
+    // delivers twice. Re-using the id makes the DB the arbiter: if the first attempt really committed, the
+    // retry trips the `chat_events` PK and is classified as a live fault, so the event is dropped from the
+    // LIVE fan while its row (and therefore its replay slot) stands — a reconnect delivers it exactly once.
+    // Losing a live fan is the recoverable half; a duplicate row is not.
+    const id = deps.newEventId();
     for (let attempt = 1; attempt <= LIVE_APPEND_ATTEMPTS; attempt += 1) {
       // @orb-gate-ignore caught-failure-ownership(default:err): classified by classifyFailedAppend (ground-truth
       // probe + log) per FLAG[emit-is-total] above — never rethrown, and the final attempt's failure is reported
       // loudly below. Ends if a caller needs the durable-write failure to propagate.
       try {
-        seq = await appendChatEvent(deps.db, { id: deps.newEventId(), chatId, event, createdAt: deps.now() });
+        seq = await appendChatEvent(deps.db, { id, chatId, event, createdAt: deps.now() });
         break;
       } catch (err) {
         // A deleted chat is terminal on the first look (a cascade-dropped row does not come back), so only the
