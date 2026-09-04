@@ -454,10 +454,14 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     value: z.string().max(AUTOMATION_VARIABLE_VALUE_MAX).optional(),
   }),
   // 1.2 run a macro template over the draft (the D50 PromptTransform seam).
+  // `.min(1)` like the `run_analysis.brief` / `run_tool.name` arms: an arm with NO BODY is not a
+  // configuration, it is an unfinished one, and this arm's blank was DESTRUCTIVE rather than inert — a blank
+  // template rendered to "" and REPLACED the user's draft with nothing (#1368). The runtime half of that is
+  // fixed at the seam (an empty render is a skip, not a rewrite); this half stops the rule being authorable.
   z.object({
     type: z.literal("transform_draft"),
     target: z.enum(PROMPT_TRANSFORM_POINTS),
-    template: z.string().max(TRANSFORM_TEMPLATE_MAX),
+    template: z.string().min(1).max(TRANSFORM_TEMPLATE_MAX),
   }),
   // 1.3 upsert a world-info entry into a book attached to the rule's chat.
   z.object({
@@ -478,9 +482,11 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     type: z.literal("surface_quick_reply"),
     choices: z
       .array(
+        // Both `.min(1)` (#1368): a blank label reaches the member's chat surface as an INVISIBLE button,
+        // and a blank `sendTemplate` sends/seeds nothing when they click it.
         z.object({
-          label: z.string().max(QUICK_REPLY_LABEL_MAX),
-          sendTemplate: z.string().max(QUICK_REPLY_SEND_MAX),
+          label: z.string().min(1).max(QUICK_REPLY_LABEL_MAX),
+          sendTemplate: z.string().min(1).max(QUICK_REPLY_SEND_MAX),
           mode: z.enum(QUICK_REPLY_MODES).default("send"),
         }),
       )
@@ -491,7 +497,8 @@ export const automationActionSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("post_notification"),
     recipient: z.enum(NOTIFICATION_RECIPIENTS),
-    messageTemplate: z.string().max(NOTIFICATION_MESSAGE_MAX),
+    // `.min(1)` (#1368) — a blank message is delivered as an empty toast / an empty inbox row.
+    messageTemplate: z.string().min(1).max(NOTIFICATION_MESSAGE_MAX),
   }),
   // 1.6 trigger an autonomous chat turn (SPEND-classed).
   z.object({

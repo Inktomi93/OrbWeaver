@@ -930,17 +930,26 @@ export interface RpgRecordedToolCall {
 }
 
 /** Project a turn's tool calls onto their per-call verdicts, by composing the two loss lenses above — so the
- *  record, the warn and the ring are the same derivation rather than three agreeing ones. */
+ *  record, the warn and the ring are the same derivation rather than three agreeing ones.
+ *
+ *  THE JOIN IS THE CALL, NOT THE NAME (#1370). This used to fold the lenses' whole-turn output into a
+ *  name-keyed `Map` and look each call up by `call.name` — but a turn may hold SEVERAL calls to one tool, and
+ *  a `Map` built from duplicate keys keeps only the last. One malformed `update_party` therefore marked EVERY
+ *  `update_party` in the turn `dropped`, with the malformed call's issues attached to the valid one, and that
+ *  verdict is written to `rpg_turn_tool_calls` — the row the user-facing disclosure reads. The fold itself was
+ *  right (the valid call's changes applied), so the turn permanently CLAIMED a loss that never happened, in
+ *  the direction that sends a reader hunting for a change that is already in their state.
+ *
+ *  Running each lens over a ONE-CALL slice is what makes the occurrence the key while keeping the single-home
+ *  rule this section exists for: the verdicts still come from those two functions, never from a third copy of
+ *  their logic. Cost is one extra `parseArgs` per call over a turn's handful of calls. */
 export function recordToolCalls(calls: readonly RpgToolCall[]): readonly RpgRecordedToolCall[] {
-  const droppedIssues = new Map(malformedToolCallDetails(calls).map((detail) => [detail.name, detail.issues]));
-  const salvaged = salvagedToolCallFields(calls);
   return calls.map((call): RpgRecordedToolCall => {
-    const dropped = droppedIssues.get(call.name);
+    const [dropped] = malformedToolCallDetails([call]);
     if (dropped !== undefined) {
-      return { name: call.name, args: call.arguments, verdict: "dropped", issues: dropped };
+      return { name: call.name, args: call.arguments, verdict: "dropped", issues: dropped.issues };
     }
-    // `salvagedToolCallFields` already renders `<tool>.<field>`, so the tool name is the join key.
-    const fields = salvaged.filter((field) => field.startsWith(`${call.name}.`));
+    const fields = salvagedToolCallFields([call]);
     return fields.length > 0
       ? { name: call.name, args: call.arguments, verdict: "salvaged", issues: fields }
       : { name: call.name, args: call.arguments, verdict: "applied", issues: [] };

@@ -54,8 +54,28 @@ test("a name with no slug-able character still yields a legal key (a ref key is 
   expect(rpgCastSlug("   ").length).toBeGreaterThan(0);
 });
 
+// #1366 — the kept set was `[a-z0-9]`, so every name written in a script without ASCII letters folded to the
+// SAME fallback key. `apply.ts` resolves an existing actor row by exactly that key, so two Chinese NPCs were
+// ONE row and the second silently overwrote the first's identity, trackers, inventory and wallet.
+test("distinct NON-ASCII names produce DISTINCT actor keys (the silent-merge class)", () => {
+  const names = ["李明", "田中太郎", "محمد", "Мария", "Μαρία"];
+  const keys = names.map((name) => rpgCastSlug(name));
+  expect(new Set(keys).size).toBe(names.length);
+  expect(keys).not.toContain("unnamed");
+  // Case folding still applies where the script HAS case — this narrows the kept set, it does not stop folding.
+  expect(rpgCastSlug("МАРИЯ")).toBe(rpgCastSlug("Мария"));
+  expect(rpgCastSlug("  李明！ ")).toBe(rpgCastSlug("李明"));
+});
+
+test("two spellings of one accented name are ONE key (NFC), and symbol-only names do not share a bucket", () => {
+  expect(rpgCastSlug("cafe\u0301")).toBe(rpgCastSlug("café"));
+  // The `unnamed` bucket was itself a merge: every emoji-only name landed in it together.
+  expect(rpgCastSlug("\u{1f409}")).not.toBe(rpgCastSlug("\u{1f525}"));
+  expect(rpgCastSlug("   ")).toBe("unnamed");
+});
+
 test("the slug is IDEMPOTENT — which is what lets the wire use it as its own canonicality predicate", () => {
-  for (const name of ["Sister Vesna", "  MARI!  ", "🔥🔥", "already-slugged"]) {
+  for (const name of ["Sister Vesna", "  MARI!  ", "🔥🔥", "already-slugged", "李明", "Мария", "cafe\u0301"]) {
     expect(rpgCastSlug(rpgCastSlug(name))).toBe(rpgCastSlug(name));
   }
 });
@@ -69,7 +89,7 @@ test("a NON-CANONICAL cast key is unrepresentable at the wire (prevent-at-schema
     expect(rpgActorRefSchema.safeParse({ kind: "cast", castKey: bad }).success, `"${bad}" must be refused`).toBe(false);
   }
   // …and every key the SLUG itself mints round-trips (the two are the same rule, so they cannot drift).
-  for (const name of ["Sister Vesna", "  MARI!  ", "🔥🔥"]) {
+  for (const name of ["Sister Vesna", "  MARI!  ", "🔥🔥", "李明", "محمد", "cafe\u0301"]) {
     expect(rpgActorRefSchema.safeParse({ kind: "cast", castKey: rpgCastSlug(name) }).success).toBe(true);
   }
   // The roster arms are untouched — their keys are branded ids, not slugs.

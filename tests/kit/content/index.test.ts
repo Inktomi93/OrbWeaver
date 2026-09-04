@@ -116,6 +116,48 @@ describe("hidden-class tags (§3.2a — registry-driven)", () => {
     const body = `\`\`\`\n${LIE}\n\`\`\``;
     expect(tokenizeContent(body)).toEqual<ContentSpan[]>([{ kind: "text", text: body }]);
   });
+
+  // #1352 — the tokenizer's general 4096-byte walk bound used to decide CONFIDENTIALITY by accident: a
+  // registered hidden tag longer than it was not recognized as a tag anywhere, so its `truth` attr sat in
+  // committed canon as literal text and `hadHidden` said there had been nothing to hide.
+  test("SECURITY: a hidden tag whose secret runs PAST the general scan bound is still a hidden span (4096- and 4097-char `truth`)", () => {
+    for (const secretLen of [4096, 4097]) {
+      const secret = `S${"x".repeat(secretLen - 2)}E`;
+      const raw = `<lie character="A" truth="${secret}" reason="r"/>`;
+      expect(tokenizeContent(`before ${raw} after`)).toEqual<ContentSpan[]>([
+        { kind: "text", text: "before " },
+        { kind: "hidden", tag: "lie", attrs: { character: "A", truth: secret, reason: "r" }, raw },
+        { kind: "text", text: " after" },
+      ]);
+      const stripped = stripHiddenSpans(`before ${raw} after`);
+      expect(stripped.content).toBe("before  after");
+      expect(stripped.hadHidden).toBe(true);
+      expect(scanHiddenSpans(`before ${raw} after`)).toHaveLength(1);
+    }
+  });
+
+  test("SECURITY: a hidden open too long to parse even at the hidden bound CONCEALS to the end of the run (fail-closed, never literal)", () => {
+    // 20 KiB with no close: past `MAX_HIDDEN_TAG_SCAN` (16 KiB), so there is no parse — and an unparsed
+    // hidden open must not degrade to literal text, which is what handed the member the attr verbatim.
+    const body = `before <lie truth="${"S".repeat(20 * 1024)} and the tail`;
+    const spans = tokenizeContent(body);
+    expect(spans).toEqual<ContentSpan[]>([
+      { kind: "text", text: "before " },
+      { kind: "hidden", tag: "lie", attrs: {}, raw: body.slice("before ".length) },
+    ]);
+    const stripped = stripHiddenSpans(body);
+    expect(stripped.content).toBe("before ");
+    expect(stripped.hadHidden).toBe(true);
+    expect(stripped.content).not.toContain("SSS");
+    expect(scanHiddenSpans(body)).toHaveLength(1);
+  });
+
+  test("the over-cap arm is HIDDEN-ONLY: an oversized UNREGISTERED tag keeps its literal / unknown-directive verdict", () => {
+    const unregistered = `<gmnote note="${"n".repeat(6000)}"/>`;
+    expect(tokenizeContent(unregistered)).toEqual<ContentSpan[]>([{ kind: "text", text: unregistered }]);
+    const unclosed = `<div class="${"n".repeat(20 * 1024)}`;
+    expect(tokenizeContent(unclosed)).toEqual<ContentSpan[]>([{ kind: "text", text: unclosed }]);
+  });
 });
 
 describe("directive fences (§3.2b — registry-driven)", () => {
@@ -620,6 +662,46 @@ describe("createHiddenSpanStreamScrubber — the §3.6 MID-STREAM member scrubbe
     for (const p of prefixes) {
       expect(p).not.toContain("secret");
     }
+  });
+
+  // #1352 — the hold-back run used to be FORCE-RELEASED past 4096 bytes, opening tag included, on the theory
+  // that an attr value that huge is model garbage. Garbage or not, those bytes are the concealed field.
+  test("SECURITY: an over-cap hidden tag is NOT force-released mid-stream (4096- and 4097-char `truth`, 512-byte deltas)", () => {
+    for (const secretLen of [4096, 4097]) {
+      const secret = `SECRET-${"x".repeat(secretLen - 11)}-END`;
+      const body = `before <lie character="A" truth="${secret}" reason="r"/> after`;
+      const scrubber = createHiddenSpanStreamScrubber();
+      let observed = "";
+      const prefixes: string[] = [];
+      for (let i = 0; i < body.length; i += 512) {
+        observed += scrubber.push(body.slice(i, i + 512));
+        prefixes.push(observed);
+      }
+      observed += scrubber.flush();
+      prefixes.push(observed);
+      // The tag closes, so the member still gets the surrounding prose — and never one byte of the secret.
+      expect(observed).toBe(stripHiddenSpans(body).content);
+      expect(observed).toBe("before  after");
+      for (const p of prefixes) {
+        expect(p).not.toContain("SECRET-");
+        expect(p).not.toContain("<lie");
+        expect(p).not.toContain("truth=");
+      }
+    }
+  });
+
+  test("SECURITY: a hidden open past the hidden scan bound conceals the REST OF THE TURN (never a late release)", () => {
+    const scrubber = createHiddenSpanStreamScrubber();
+    let observed = scrubber.push('visible. <lie truth="');
+    expect(observed).toBe("visible. ");
+    for (let i = 0; i < 40; i += 1) {
+      observed += scrubber.push("SECRET".repeat(100)); // 24 KiB total — past the 16 KiB hidden bound
+    }
+    // A late close must not resurrect the stream: the bytes between are still inside the attr value.
+    observed += scrubber.push('"/> tail');
+    observed += scrubber.flush();
+    expect(observed).toBe("visible. ");
+    expect(observed).not.toContain("SECRET");
   });
 });
 

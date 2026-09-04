@@ -212,6 +212,21 @@ test("stripInlineSpeakerLabel scrubs every inline self-label but leaves foreign 
   expect(stripInlineSpeakerLabel("JFC: text", "")).toBe("JFC: text");
 });
 
+// #1354 — fence state used to count raw ``` OCCURRENCES, so ONE inline triple-backtick in prose suppressed
+// every speaker label after it (fail-open for label suppression: a real `Tom:` line stopped splitting).
+test("parseSpeakerSpans: a stray INLINE triple-backtick is not a fence and does not suppress later labels", () => {
+  const body = "Check this out ``` neat trick.\nTom: hi there, how are you?";
+  expect(parseSpeakerSpans(body, ["Tom"]).map((span) => span.speaker)).toEqual([null, "Tom"]);
+});
+
+test("parseSpeakerSpans: a real LINE-ANCHORED fence still protects a label inside it, and an unclosed fence runs to the end", () => {
+  const fenced = "intro\n```\nTom: printf()\n```\nTom: after the block";
+  expect(parseSpeakerSpans(fenced, ["Tom"]).map((span) => span.speaker)).toEqual([null, "Tom"]);
+  // Up to three leading spaces is still a fence (CommonMark); unterminated ⇒ everything after is code.
+  const unclosed = "intro\n   ```\nTom: inside an unterminated block";
+  expect(parseSpeakerSpans(unclosed, ["Tom"]).map((span) => span.speaker)).toEqual([null]);
+});
+
 test("stripInlineSpeakerLabel tolerates markdown-wrapped and dash-opener variants", () => {
   expect(stripInlineSpeakerLabel("dum**JFC:**b", "JFC")).toBe("dumb");
   expect(stripInlineSpeakerLabel("a JFC:— b", "JFC")).toBe("a b");
@@ -219,6 +234,24 @@ test("stripInlineSpeakerLabel tolerates markdown-wrapped and dash-opener variant
 
 test("stripInlineSpeakerLabel keeps a word separator on a space-delimited inline label", () => {
   expect(stripInlineSpeakerLabel("one JFC: two", "JFC")).toBe("one two");
+});
+
+// #1354 — the inline stripper had no LEFT boundary, so a cast name that is a SUFFIX of an ordinary word was
+// deleted out of the middle of it. This runs on every per-speaker reply BEFORE persist, so the altered bytes
+// are what canon keeps.
+test("stripInlineSpeakerLabel does NOT eat a cast name out of the middle of an ordinary word", () => {
+  expect(stripInlineSpeakerLabel("I told SusAnn: watch out.", "Ann")).toBe("I told SusAnn: watch out.");
+  expect(stripInlineSpeakerLabel("the QUOTA: figure", "Ota")).toBe("the QUOTA: figure");
+  // Non-ASCII names too — the boundary is `\p{L}\p{N}`, not the ASCII-only `\b`.
+  expect(stripInlineSpeakerLabel("книгаМария: тут", "Мария")).toBe("книгаМария: тут");
+});
+
+// The other half of the same boundary decision: the torn-tag garbage this stripper exists for must STILL be
+// removed mid-word. Narrowing that far would trade one corruption for another.
+test("stripInlineSpeakerLabel still removes a mid-word torn label carrying markdown or the turn-opener dash", () => {
+  expect(stripInlineSpeakerLabel("dumJFC: —b", "JFC")).toBe("dumb");
+  expect(stripInlineSpeakerLabel("dum**JFC:**b", "JFC")).toBe("dumb");
+  expect(stripInlineSpeakerLabel("start JFC: mid JFC: —end", "JFC")).toBe("start mid end");
 });
 
 // The finalized canon-purity guarantee: cleanPerSpeakerReply (the persist-path entry point) must never

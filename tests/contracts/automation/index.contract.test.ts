@@ -196,6 +196,26 @@ test("surface_quick_reply choices carry a per-choice mode — explicit round-tri
   });
   // The axis is CLOSED — an invented mode never reaches a member's surface.
   expect(automationActionSchema.safeParse({ type: "surface_quick_reply", choices: [{ label: "x", sendTemplate: "y", mode: "execute" }] }).success).toBe(false);
+});
+
+// #1368 — these four fields were the only bodied arm fields with no `.min(1)`, while their siblings
+// (`run_analysis.brief`, `run_tool.name`) had one. An arm with no body is an unfinished configuration: a
+// blank chip reaches the member's surface as an invisible button, a blank notification is delivered as an
+// empty row, and a blank `transform_draft` template REPLACED the user's draft with an empty string.
+test("an arm with a BLANK body is unrepresentable — the four fields that were missing `.min(1)`", () => {
+  const blanks = [
+    { type: "transform_draft", target: "user_input", template: "" },
+    { type: "surface_quick_reply", choices: [{ label: "", sendTemplate: "go" }] },
+    { type: "surface_quick_reply", choices: [{ label: "Go", sendTemplate: "" }] },
+    { type: "post_notification", recipient: "host", messageTemplate: "" },
+  ];
+  for (const blank of blanks) {
+    expect(automationActionSchema.safeParse(blank).success, `${JSON.stringify(blank)} must be refused`).toBe(false);
+  }
+  // …and the one-character versions of the same arms still parse (this narrows blanks, not bodies).
+  expect(automationActionSchema.safeParse({ type: "transform_draft", target: "user_input", template: "x" }).success).toBe(true);
+  expect(automationActionSchema.safeParse({ type: "surface_quick_reply", choices: [{ label: "G", sendTemplate: "g" }] }).success).toBe(true);
+  expect(automationActionSchema.safeParse({ type: "post_notification", recipient: "host", messageTemplate: "x" }).success).toBe(true);
   expect(QUICK_REPLY_MODES).toEqual(["send", "compose"]);
 });
 
