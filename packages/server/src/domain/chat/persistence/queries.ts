@@ -934,14 +934,23 @@ export async function loadChatEventBounds(db: Db, chatId: ChatId): Promise<Strea
 }
 
 /** The full sibling-variant set for one slot, ordered by `idx` ascending — just enough to resolve an idx
- *  to its variant id. Chat-scoped via the `messages` join: a foreign-chat `messageId` matches nothing, so
- *  the verb collapses an empty result to a leak-free NOT_FOUND. */
-export async function loadMessageVariantSummaries(db: Db, chatId: ChatId, messageId: MessageId): Promise<{ variantId: MessageVariantId; idx: number }[]> {
+ *  to its variant id. TWO belts, both in the WHERE so the next caller cannot forget either (#1399):
+ *  chat-scoped via the `messages` join (a foreign-chat `messageId` matches nothing), and floored at the
+ *  CALLER's D16 `floorSeq` (`substrate/auth::resolveHistoryFloorSeq`, stamped by `guard::requireParticipant`)
+ *  — a variant id set IS an identifier oracle over canon the floored `listMessages` withholds, and "how many
+ *  swipes does that pre-join slot have" is not a question a clamped member may ask. Both misses come back as
+ *  the SAME empty result, which the verb collapses to one leak-free NOT_FOUND. */
+export async function loadMessageVariantSummaries(
+  db: Db,
+  chatId: ChatId,
+  messageId: MessageId,
+  floorSeq: number,
+): Promise<{ variantId: MessageVariantId; idx: number }[]> {
   return await db
     .select({ variantId: messageVariants.id, idx: messageVariants.idx })
     .from(messageVariants)
     .innerJoin(messages, eq(messages.id, messageVariants.messageId))
-    .where(and(eq(messages.chatId, chatId), eq(messageVariants.messageId, messageId)))
+    .where(and(eq(messages.chatId, chatId), eq(messageVariants.messageId, messageId), gte(messages.seq, floorSeq)))
     .orderBy(asc(messageVariants.idx));
 }
 

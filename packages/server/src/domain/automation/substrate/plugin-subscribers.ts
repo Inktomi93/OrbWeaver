@@ -21,7 +21,7 @@ import type { TriggerFact } from "@orb/contracts/automation";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { stripHiddenSpans } from "@orb/kit/content";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { AutomationOps, ResolvedTrigger } from "../contract/ops.ts";
@@ -50,11 +50,15 @@ export function createPluginSubscriberRegistry(): PluginSubscriberRegistry {
   };
 }
 
-/** The deps the visibility gate needs: the db (the chat-less ownership arms) + chat's injected
- *  `resolveViewerVisibility` op (the chat arm). Threaded from `AutomationContext` at the fan-out's front door. */
+/** The deps the visibility gate needs: the db (the chat-less ownership arms), chat's injected
+ *  `resolveViewerVisibility` op (the chat arm), and `getMessageFact` — the ONE way this domain resolves a
+ *  message id to its canon `seq` for a fact that REFERENCES a row without carrying it (see
+ *  {@link isBelowHistoryFloor}). Threaded from `AutomationContext` at the fan-out's front door; both chat ops
+ *  are already wired at compose, so the gate borrows rather than growing a new seam. */
 interface VisibilityDeps {
   readonly db: Db;
   readonly resolveViewerVisibility: AutomationOps["chat"]["resolveViewerVisibility"];
+  readonly getMessageFact: AutomationOps["chat"]["getMessageFact"];
 }
 
 /**
@@ -64,12 +68,13 @@ interface VisibilityDeps {
  * as ONE value. Membership alone is NOT the verdict: this gate used to be `loadCallerRole(...) !== undefined`,
  * and that is exactly how a `from-join`-clamped member's plugin received the CONTENT of a pre-join canon row
  * (a host edit / re-voice of a pre-join slot resolves the selected variant's text into the fact) that every
- * direct read path withholds from that same member. So a fact carrying canon CONTENT (`fact.message` — the
- * message-shaped triggers) delivers only at `message.seq >= historyFloorSeq`.
+ * direct read path withholds from that same member. So a fact ANCHORED to canon — carrying it (`fact.message`)
+ * or merely referencing it (`fact.reaction.messageId`, #1428) — delivers only when its anchor seq is at or
+ * above the caller's own floor. {@link isBelowHistoryFloor} owns that verdict.
  *
  * ACTIVITY-PLANE facts are NOT clamped, by the same ruling that lets id-only bus events ride through the
- * per-event clamp: a chat-scoped fact with no `message` payload (chatScope / turn / worldInfo / persona —
- * ids, counts, lifecycle) carries no canon bytes, and the ids it names resolve only through equally-clamped
+ * per-event clamp: a chat-scoped fact with NO canon anchor (chatScope / turn / worldInfo / persona — ids,
+ * counts, lifecycle) carries no canon bytes, and the ids it names resolve only through equally-clamped
  * reads. Withholding them would blind a clamped member's plugin to its own post-join room activity.
  *
  * A chat-less DOMAIN fact (all four members — character/asset/persona/world-info) requires OWNERSHIP of the
@@ -80,6 +85,40 @@ interface VisibilityDeps {
  *  chat-less fact carries no canon body, so its `readsHidden` is `true` (nothing to strip — the gate is ownership). */
 type FactVisibility = { readonly visible: false } | { readonly visible: true; readonly readsHidden: boolean };
 
+/**
+ * Does the caller's D16 floor withhold this chat fact? The chat-side twin is
+ * `chat/substrate/auth::isBelowHistoryFloor`, and the rule is the same: the verdict is keyed on WHICH CARRIER
+ * anchors the fact to canon, never on its trigger type.
+ *
+ * TWO CARRIERS TODAY, and a fact that references canon WITHOUT carrying it is still anchored (#1428). The
+ * `message` shape carries its own `seq`. The `reaction` shape (`reactionsChanged`) carries `messageId` but
+ * NEVER a `message`, so the old `fact.message !== undefined` guard short-circuited and the gate fell back to
+ * membership alone — more permissive than chat's OWN read of that plane, whose window is floored
+ * (`chat/persistence/reactions::listChatReactions`: "a pill row naming who laughed at a message the reader is
+ * not allowed to see is the same leak one seq lower"). Its anchor is RESOLVED through the injected
+ * `getMessageFact`, fail-CLOSED on a miss (a raced delete ⇒ withhold).
+ *
+ * A fact with NO canon carrier at all (chatScope / turn / worldInfo / persona — ids, counts, lifecycle) is
+ * room-activity metadata and rides through unclamped, per D106 and for the same reason the id-only bus events
+ * do: withholding them would blind a clamped member's plugin to its own post-join room.
+ *
+ * AN UNCLAMPED INSTALLER PAYS NOTHING: `floorSeq <= 0` (a host, a `full` member, any born-here seat) decides
+ * on the first compare, before any read — the same short-circuit the per-event bus clamp makes.
+ */
+async function isBelowHistoryFloor(deps: VisibilityDeps, fact: TriggerFact, floorSeq: number): Promise<boolean> {
+  if (floorSeq <= 0) {
+    return false;
+  }
+  if (fact.message !== undefined) {
+    return fact.message.seq < floorSeq;
+  }
+  if (fact.reaction !== undefined && fact.chatId !== null) {
+    const anchor = await deps.getMessageFact(castId<ChatId>(fact.chatId), castId<MessageId>(fact.reaction.messageId));
+    return anchor === null || anchor.seq < floorSeq;
+  }
+  return false;
+}
+
 async function resolveFactVisibility(deps: VisibilityDeps, installer: UserId, fact: TriggerFact): Promise<FactVisibility> {
   if (fact.chatId !== null) {
     // Ids arrive UNBRANDED (the TriggerFact wire shape) and are re-branded only to query — a re-read gate,
@@ -88,7 +127,7 @@ async function resolveFactVisibility(deps: VisibilityDeps, installer: UserId, fa
     if (visibility === null) {
       return { visible: false };
     }
-    if (fact.message !== undefined && fact.message.seq < visibility.historyFloorSeq) {
+    if (await isBelowHistoryFloor(deps, fact, visibility.historyFloorSeq)) {
       return { visible: false };
     }
     // Membership + floor pass. The §3.6 hidden verdict rides the SAME visibility answer (chat's ONE home) —

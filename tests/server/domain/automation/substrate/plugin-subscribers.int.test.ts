@@ -235,6 +235,44 @@ describe("plugin events.on fan-out — the P4 delivery gates", () => {
     expect(cap.delivered.map((x) => x.type)).toEqual(["chatOpened", "messagesDeleted"]);
   });
 
+  // #1428 — THE FLOOR MUST NOT BE CONDITIONAL ON `fact.message`. A `reactionsChanged` event resolves to the
+  // `reaction` SHAPE (`substrate/fact-resolver.ts`), which carries `messageId`/`variantId`/`emoji` and NEVER
+  // populates `fact.message` — so the `fact.message !== undefined &&` guard short-circuited and the fan-out
+  // fell back to membership alone. That is more permissive than chat's OWN read of the same plane:
+  // `listReactions` floors its window (`persistence/reactions.ts::listChatReactions`, "a pill row naming who
+  // laughed at a message the reader is not allowed to see is the same leak one seq lower"), so a clamped
+  // member's plugin was told about reactions on canon their own client cannot show them. The gate now
+  // resolves the anchor for EVERY message-linked fact.
+  test("(b) FLOOR — a reactionsChanged fact for a PRE-JOIN slot is withheld from a from-join installer (no fact.message required)", async () => {
+    const f = await setup();
+    const clamped = await seedUser(f.db, "user_clamped");
+    await seedParticipant(f.db, { chatId: f.chatId, key: "clamped", userId: clamped, role: "member", joinSeq: 5, joinHistoryVisibility: "from-join" });
+    const preJoin = await seedMessage(f.db, f.chatId, 2, { content: "the pre-join slot" });
+    const postJoin = await seedMessage(f.db, f.chatId, 6, { content: "said after they joined" });
+
+    const cap = capturingSubscriber(clamped, ["reactionsChanged"]);
+    const hostCap = capturingSubscriber(f.host, ["reactionsChanged"]);
+    f.registry.register(cap.subscriber);
+    f.registry.register(hostCap.subscriber);
+
+    const reacted = (m: Awaited<ReturnType<typeof seedMessage>>): Parameters<typeof f.svc.handleEvent>[0] => ({
+      type: "reactionsChanged",
+      chatId: f.chatId,
+      messageId: m.messageId,
+      variantId: m.variantId,
+      emoji: "😂",
+      added: true,
+    });
+
+    await f.svc.handleEvent(reacted(preJoin));
+    expect(cap.delivered).toEqual([]); // the pre-join slot's ids never reach the clamped installer's guest
+    expect(hostCap.delivered.map((x) => x.reaction?.messageId)).toEqual([preJoin.messageId]); // the host is unclamped
+
+    // ...and it does NOT over-block: a reaction on a slot at/after their own joinSeq is theirs to hear about.
+    await f.svc.handleEvent(reacted(postJoin));
+    expect(cap.delivered.map((x) => x.reaction?.messageId)).toEqual([postJoin.messageId]);
+  });
+
   test("(b) visibility — a chat-less DOMAIN fact (character.updated) delivers only to the resource OWNER", async () => {
     const f = await setup();
     const stranger = await seedUser(f.db, "user_stranger");

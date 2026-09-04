@@ -24,7 +24,7 @@ import type { Db } from "@orb/db";
 import { messageVariants, presets, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { getTableColumns } from "drizzle-orm";
+import { eq, getTableColumns } from "drizzle-orm";
 import { insertCheckpoint, listCheckpoints } from "../../../../../packages/server/src/domain/rpg/persistence/checkpoints.ts";
 import { findGameByChat, insertGame, updateGame } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
 import { insertJournalEntry, listAllJournal } from "../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
@@ -36,7 +36,20 @@ import {
   writeHandSnapshot,
 } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { actorWithWallet, emptyState, expect, FROZEN_AT, liteConfig, makeRpgService, quest, seedChat, seedMessage, seedUser, test } from "../_support.ts";
+import {
+  actorWithWallet,
+  emptyState,
+  expect,
+  FROZEN_AT,
+  liteConfig,
+  makeRpgService,
+  quest,
+  questId,
+  seedChat,
+  seedMessage,
+  seedUser,
+  test,
+} from "../_support.ts";
 
 /** A hidden-span `<lie …/>` the strip must remove. `stripHiddenSpans` deletes the whole self-closing tag, so
  *  the `truth` attr's secret never survives into a non-host forker's copy. */
@@ -186,6 +199,125 @@ test("a NON-HOST forker's copy carries NO host secrets: steeringNote stripped, f
   const forkModel = forkJournal.find((j) => j.title === "The meeting");
   expect(forkModel?.content).toBe("They met at the ford. ");
   expect(forkJournal.map((j) => j.content).join("")).not.toContain("assassin");
+});
+
+// #1398 — THE BELT IS A PROPERTY OF THE COPY, NOT TWO CALL SITES. The hidden-span strip fired on exactly two
+// fields (`recentEvents`, journal `content`) while every OTHER free-text plane copied verbatim: ambient
+// location, an actor's identity/status/inventory prose, quest text, the plot rail, journal `title`/`label`,
+// a checkpoint label, a sheet's flavor. A `<lie …/>` an extractor quoted into any of them rode into the
+// non-host forker's new room whole. (SEVERITY NOTE, re-derived on the tree: this is DEFENCE IN DEPTH, not a
+// live member→host escalation — no rpg read strips hidden spans, so the source room's own member-gated
+// `getTrackerView`/`listJournal` already serve these planes raw to the same human. That SOURCE-side gap is
+// filed separately; the fork must not be the place a laundered secret becomes a new room's canon.)
+test("a NON-HOST forker's copy strips hidden spans from EVERY free-text plane, not just recentEvents + journal content", async () => {
+  const db = await freshDb();
+  const src = await seedSourceGame(db, "planes");
+  // Plant the SAME `<lie>` in every plane the copy carries. Each is a place an extractor can quote canon.
+  await db
+    .update(rpgSnapshots)
+    .set({
+      location: `the tavern ${LIE}`,
+      quests: [quest("q1", { name: `Find Mara ${LIE}`, description: `She was last seen at the ford ${LIE}` })],
+      plot: { act: 1, title: `The Betrayal ${LIE}`, acts: [{ title: `Act one ${LIE}`, summary: `The party gathers ${LIE}` }] },
+      actorState: [
+        {
+          actorRef: { kind: "cast", castKey: "mara" },
+          identity: { name: "Mara", emoji: "", mood: `wary ${LIE}`, thoughts: `she plans it tonight ${LIE}`, relationship: { kind: "neutral", label: "" } },
+          volatile: {
+            trackerValues: {},
+            conditions: [],
+            inventory: [{ id: "i1", name: `a folded note ${LIE}`, description: `it names the mark ${LIE}`, quantity: 1, location: "", type: "" }],
+            wallet: [],
+            status: `hiding something ${LIE}`,
+          },
+        },
+      ],
+    })
+    .where(eq(rpgSnapshots.id, src.snapshotId));
+  await db
+    .update(rpgJournal)
+    .set({ title: `The meeting ${LIE}`, label: `Mara ${LIE}` })
+    .where(eq(rpgJournal.gameId, src.gameId));
+  await db
+    .update(rpgCheckpoints)
+    .set({ label: `before the betrayal ${LIE}` })
+    .where(eq(rpgCheckpoints.gameId, src.gameId));
+  await db
+    .update(rpgSheets)
+    .set({ sheet: { className: "Rogue", attributes: {}, flavor: `raised by the guild ${LIE}`, level: 3, trackerGrants: [], trackerRevokes: [] } })
+    .where(eq(rpgSheets.gameId, src.gameId));
+  const { forkChatId, slotIdMap, variantIdMap } = await seedForkTarget(db, "planes", src);
+
+  const h = makeRpgService(db);
+  await h.chatOps.forkGame({
+    sourceChatId: src.chatId,
+    newChatId: forkChatId,
+    slotIdMap,
+    variantIdMap,
+    forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
+  });
+
+  const forkGameRow = await findGameByChat(db, forkChatId);
+  const forkId = forkGameRow?.id as RpgGameId;
+  // ONE assertion over the WHOLE clone: no cloned row, on any plane, carries the secret. Serializing the rows
+  // is the point — a per-field list would go stale the day a column lands, and the strip is a property of the
+  // copy, so the copy as a whole is what must be clean.
+  const cloned = JSON.stringify([
+    await listSnapshots(db, forkId),
+    await listAllJournal(db, forkId),
+    await listCheckpoints(db, forkId),
+    await listSheets(db, forkId),
+  ]);
+  expect(cloned).not.toContain("assassin");
+  expect(cloned).not.toContain("<lie");
+
+  // ...and the copy is not GUTTED — the surrounding prose survives on every plane (the strip removes the
+  // hidden span, never the field). This is the control: an over-broad "blank the column" fix fails here.
+  const forkSnap = (await listSnapshots(db, forkId))[0];
+  expect(forkSnap?.location).toBe("the tavern ");
+  expect(forkSnap?.quests?.[0]?.name).toBe("Find Mara ");
+  expect(forkSnap?.plot?.acts[0]?.summary).toBe("The party gathers ");
+  expect(forkSnap?.actorState?.[0]?.volatile.status).toBe("hiding something ");
+  expect(forkSnap?.actorState?.[0]?.volatile.inventory[0]?.name).toBe("a folded note ");
+  expect(forkSnap?.actorState?.[0]?.identity?.thoughts).toBe("she plans it tonight ");
+  expect((await listAllJournal(db, forkId)).map((j) => j.title)).toContain("The meeting ");
+  expect((await listCheckpoints(db, forkId))[0]?.label).toBe("before the betrayal ");
+  expect((await listSheets(db, forkId))[0]?.sheet.flavor).toBe("raised by the guild ");
+  // The keys of the copy are untouched by the walk — the fork's own re-keyed ids still resolve.
+  expect(forkSnap?.gameId).toBe(forkId);
+  expect(forkSnap?.quests?.[0]?.id).toBe(questId("q1"));
+
+  // The SOURCE is unchanged (the strip is a copy-time projection, never a write-back on the source room).
+  expect(JSON.stringify(await listSnapshots(db, src.gameId))).toContain("assassin");
+});
+
+// The other half of the same law: a HOST forker (readsHidden) reads every secret already, so their copy is
+// byte-identical — the deep walk must be gated, never unconditional.
+test("a HOST forker's copy keeps the hidden spans in every plane (the walk is gated on readsHidden)", async () => {
+  const db = await freshDb();
+  const src = await seedSourceGame(db, "planes_host");
+  await db
+    .update(rpgSnapshots)
+    .set({ location: `the tavern ${LIE}` })
+    .where(eq(rpgSnapshots.id, src.snapshotId));
+  await db
+    .update(rpgJournal)
+    .set({ title: `The meeting ${LIE}` })
+    .where(eq(rpgJournal.gameId, src.gameId));
+  const { forkChatId, slotIdMap, variantIdMap } = await seedForkTarget(db, "planes_host", src);
+
+  const h = makeRpgService(db);
+  await h.chatOps.forkGame({
+    sourceChatId: src.chatId,
+    newChatId: forkChatId,
+    slotIdMap,
+    variantIdMap,
+    forker: { userId: castId<UserId>("user_gm"), readsHidden: true },
+  });
+
+  const forkId = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
+  expect((await listSnapshots(db, forkId))[0]?.location).toBe(`the tavern ${LIE}`);
+  expect((await listAllJournal(db, forkId)).map((j) => j.title)).toContain(`The meeting ${LIE}`);
 });
 
 // D124 — the HAND arm through the fork. A hand row is game state, not story: it carries on EVERY lineage

@@ -51,11 +51,15 @@
 //   • snapshot `recentEvents` → THE SOURCE'S MEMBER-VISIBLE WINDOW, `keepLastBeats(log, source keepLast)`
 //     (the log is append-only across the whole game, but the only member-gated reader slices it by the
 //     host-writable `recentBeatsKeepLast` — so every older beat is host-plane, and `keepLast: 0` means the
-//     member read NONE. See {@link stripBeatsForForker} for the full argument and the retracted rationale);
-//   • hidden-span prose in the surviving beats + journal `content` (the defense-in-depth belt — §1.6
-//     recommendation A keeps tracker prose surface-only at the SOURCE, so under A there is nothing to strip;
-//     this belt keeps the fork member-safe even if a model ignored the surface-only clause — the SAME
-//     `stripHiddenSpans` the fork body-copy already applies, `verbs/fork.ts::copyVariantStmt`).
+//     member read NONE. See {@link keepBeatsForForker} for the full argument and the retracted rationale);
+//   • hidden-span prose ANYWHERE in the four cloned row planes — a PROPERTY OF THE COPY, not a field list
+//     (`stripHiddenForForker`, #1398): the walk belts every string in a cloned snapshot / journal / checkpoint
+//     / sheet row, so ambient location, an actor's mood/thoughts/status/inventory, quest + plot text, a
+//     journal title/label, a checkpoint label and a sheet's flavor are covered alongside the two fields that
+//     used to be hand-belted. It is defense in depth (§1.6 recommendation A keeps tracker prose surface-only
+//     at the SOURCE, and no rpg member read strips spans, so the same human already read these bytes there —
+//     the source-side gap is filed separately), but the fork must not be where a laundered secret becomes the
+//     founding canon of a room the forker HOSTS. Same `stripHiddenSpans` as `verbs/fork.ts::copyVariantStmt`.
 // The remaining host-only config fields are SCALARS and COPY (`extractionContext`/`extractionWindowTokens`/
 // `reconcileEveryBeats`/`deception`/`omniscience`/`hiddenContentReveal`/`recentBeatsKeepLast`/
 // `immersiveHtmlInteractive`/`cardKeepLastX`): no authored prose is representable in an enum or a bounded
@@ -154,26 +158,65 @@ function stripFeaturesForForker(features: RpgGameFeatures): RpgGameFeatures {
   };
 }
 
-/** The `recentEvents` strip for a non-host forker — TWO belts, in this order (identity for a host forker):
+/** The `recentEvents` WINDOW for a non-host forker (identity for a host forker) — the host-plane arm, and the
+ *  load-bearing one. The hidden-span half of this strip is no longer here: it is
+ *  {@link stripHiddenForForker}'s, applied to the whole cloned row (#1398), so every surviving beat is belted
+ *  by the same walk that belts the planes beside it.
  *
- *  1. THE WINDOW (the host-plane arm, and the load-bearing one). `rpg_snapshots.recentEvents` is an APPEND-ONLY
- *     durable log spanning the whole game, but the only member-gated reader of it is `getTrackerView`, which
- *     serves `keepLastBeats(log, recentBeatsKeepLast)` — and `recentBeatsKeepLast` is writable ONLY through the
- *     host-gated `updateConfig`. So every beat outside that window has NO member-gated reader in the source
- *     room, and the forker becomes HOST of the copy and may widen the knob at will. `keepLast: 0` is the sharp
- *     arm: the member read ZERO beats, so nothing may cross. The slice uses the SOURCE game's knob, because
- *     that is the value that governed what this forker could actually read. ("Beats are the same distillation
- *     class `listJournal` serves unbounded" is a CLASS argument, and the law is about BYTES behind a gate — the
- *     journal's rows are not these bytes.) It also bounds the D16 arm: the log spans turns below a clamped
- *     member's history floor, and the window is what they were actually shown.
- *  2. THE HIDDEN-SPAN BELT (defense in depth). Each surviving entry is a stored body fragment the extractor may
- *     have quoted, so each runs the SAME `stripHiddenSpans` the body copy applies (§1.6 recommendation A keeps
- *     tracker prose surface-only at the SOURCE, so under A there is nothing here to strip). */
-function stripBeatsForForker(beats: readonly string[] | null, keepLast: number, readsHidden: boolean): readonly string[] | null {
+ *  `rpg_snapshots.recentEvents` is an APPEND-ONLY durable log spanning the whole game, but the only
+ *  member-gated reader of it is `getTrackerView`, which serves `keepLastBeats(log, recentBeatsKeepLast)` — and
+ *  `recentBeatsKeepLast` is writable ONLY through the host-gated `updateConfig`. So every beat outside that
+ *  window has NO member-gated reader in the source room, and the forker becomes HOST of the copy and may widen
+ *  the knob at will. `keepLast: 0` is the sharp arm: the member read ZERO beats, so nothing may cross. The
+ *  slice uses the SOURCE game's knob, because that is the value that governed what this forker could actually
+ *  read. ("Beats are the same distillation class `listJournal` serves unbounded" is a CLASS argument, and the
+ *  law is about BYTES behind a gate — the journal's rows are not these bytes.) It also bounds the D16 arm: the
+ *  log spans turns below a clamped member's history floor, and the window is what they were actually shown. */
+function keepBeatsForForker(beats: readonly string[] | null, keepLast: number, readsHidden: boolean): readonly string[] | null {
   if (readsHidden || beats === null) {
     return beats;
   }
-  return keepLastBeats(beats, keepLast).map((b) => stripHiddenSpans(b).content);
+  return keepLastBeats(beats, keepLast);
+}
+
+/**
+ * THE HIDDEN-SPAN BELT AS A PROPERTY OF THE COPY (#1398) — every string reachable in a cloned row's values,
+ * at any depth, with `stripHiddenSpans` applied for a non-host forker.
+ *
+ * It replaces two hand-placed call sites (`recentEvents`, journal `content`) that were the only fields
+ * anybody had remembered: a `<lie …/>` an extractor quoted into ambient `location`, an actor's
+ * mood/thoughts/status/inventory prose, a quest name or description, the plot rail, a journal `title`/`label`,
+ * a checkpoint label or a sheet's flavor rode into the forker's new room whole. A per-field list is the wrong
+ * shape at a trust boundary for the same reason a spread-and-strip copy is (the header's ratchet argument):
+ * the NEXT free-text field defaults to carried. This walks the values instead, so a new column or a new field
+ * inside an existing JSON plane inherits the belt the day it lands.
+ *
+ * SCOPE, stated so it can be checked: VALUES ONLY — object KEYS are never rewritten (`fieldLocks` is a
+ * path-keyed record whose keys are addresses, and a mangled path would silently unlock a hand-locked field).
+ * Non-strings pass through untouched, and `stripHiddenSpans` is identity for a string with no hidden span, so
+ * ids, enum tokens and numbers are unchanged by construction (the pins assert the re-keyed ids survive).
+ * `rpg_games.config` is deliberately NOT walked: its trust boundary is per-FIELD and already has its own
+ * exhaustive-literal ratchet (`stripConfigForForker`, D134), where a blanket byte-strip would hide a field
+ * that must be classified.
+ */
+function stripHiddenDeep<T>(value: T): T {
+  if (typeof value === "string") {
+    return stripHiddenSpans(value).content as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry: unknown) => stripHiddenDeep(entry)) as T;
+  }
+  if (typeof value === "object" && value !== null) {
+    const entries = Object.entries(value as Record<string, unknown>).map(([key, entry]) => [key, stripHiddenDeep(entry)] as const);
+    return Object.fromEntries(entries) as T;
+  }
+  return value;
+}
+
+/** {@link stripHiddenDeep}, gated on the forker's read posture: a HOST forker already reads every hidden span
+ *  through the reveal plane, so their clone is byte-identical (identity, not a walk). */
+function stripHiddenForForker<T>(values: T, readsHidden: boolean): T {
+  return readsHidden ? values : stripHiddenDeep(values);
 }
 
 /** The shared re-key inputs every per-plane copy closes over: the fork's new game id, the id maps, the strip
@@ -185,7 +228,7 @@ interface CloneCtx {
   readonly variantIdMap: ReadonlyMap<MessageVariantId, MessageVariantId>;
   readonly readsHidden: boolean;
   /** The SOURCE game's `features.recentBeatsKeepLast` — the beat window the source room actually served this
-   *  forker (see {@link stripBeatsForForker}). Read off the source config, never the stripped copy: it is the
+   *  forker (see {@link keepBeatsForForker}). Read off the source config, never the stripped copy: it is the
    *  knob that governed their READ, and only a host could ever have changed it. */
   readonly recentBeatsKeepLast: number;
   readonly now: number;
@@ -198,15 +241,18 @@ interface CloneCtx {
  *  re-invite finds it waiting). Only the keys move: fresh id, the fork's gameId; actor identity (characterId
  *  XOR userId) carries, and the timestamps stamp the copy. */
 function forkSheetValues(cc: CloneCtx, s: RpgSheetRow): Required<typeof rpgSheets.$inferInsert> {
-  return {
-    id: cc.ctx.ids.sheet(),
-    gameId: cc.newGameId,
-    characterId: s.characterId,
-    userId: s.userId,
-    sheet: s.sheet,
-    createdAt: cc.now,
-    updatedAt: cc.now,
-  };
+  return stripHiddenForForker(
+    {
+      id: cc.ctx.ids.sheet(),
+      gameId: cc.newGameId,
+      characterId: s.characterId,
+      userId: s.userId,
+      sheet: s.sheet,
+      createdAt: cc.now,
+      updatedAt: cc.now,
+    },
+    cc.readsHidden,
+  );
 }
 
 function cloneSheets(cc: CloneCtx, sheets: readonly RpgSheetRow[]): BatchStmt[] {
@@ -253,29 +299,32 @@ function forkSnapshotValues(
   keys: Pick<RpgSnapshotRow, "messageId" | "variantId" | "asOfMessageId">,
   newSnapshotId: RpgSnapshotId,
 ): Required<typeof rpgSnapshots.$inferInsert> {
-  return {
-    // ── REMAPPED ────────────────────────────────────────────────────────────────────────────────────────
-    id: newSnapshotId,
-    gameId: cc.newGameId,
-    messageId: keys.messageId,
-    variantId: keys.variantId,
-    asOfMessageId: keys.asOfMessageId,
-    // ── MEMBER-PROJECTED ────────────────────────────────────────────────────────────────────────────────
-    recentEvents: stripBeatsForForker(snap.recentEvents, cc.recentBeatsKeepLast, cc.readsHidden),
-    // ── COPIED ──────────────────────────────────────────────────────────────────────────────────────────
-    clock: snap.clock,
-    calendarDate: snap.calendarDate,
-    location: snap.location,
-    weather: snap.weather,
-    presentCharacters: snap.presentCharacters,
-    actorState: snap.actorState,
-    trackerValues: snap.trackerValues,
-    quests: snap.quests,
-    plot: snap.plot,
-    fieldLocks: snap.fieldLocks,
-    committed: snap.committed,
-    createdAt: cc.now,
-  };
+  return stripHiddenForForker(
+    {
+      // ── REMAPPED ──────────────────────────────────────────────────────────────────────────────────────
+      id: newSnapshotId,
+      gameId: cc.newGameId,
+      messageId: keys.messageId,
+      variantId: keys.variantId,
+      asOfMessageId: keys.asOfMessageId,
+      // ── WINDOWED (the host-plane arm) then hidden-belted with everything else ──────────────────────────
+      recentEvents: keepBeatsForForker(snap.recentEvents, cc.recentBeatsKeepLast, cc.readsHidden),
+      // ── COPIED ────────────────────────────────────────────────────────────────────────────────────────
+      clock: snap.clock,
+      calendarDate: snap.calendarDate,
+      location: snap.location,
+      weather: snap.weather,
+      presentCharacters: snap.presentCharacters,
+      actorState: snap.actorState,
+      trackerValues: snap.trackerValues,
+      quests: snap.quests,
+      plot: snap.plot,
+      fieldLocks: snap.fieldLocks,
+      committed: snap.committed,
+      createdAt: cc.now,
+    },
+    cc.readsHidden,
+  );
 }
 
 /** The re-keyed ARM columns for one cloned snapshot, or `null` when the row does not survive the fork. The
@@ -325,17 +374,20 @@ function forkJournalValues(
   newVariantId: MessageVariantId | null,
   newSourceMessageId: MessageId | null,
 ): Required<typeof rpgJournal.$inferInsert> {
-  return {
-    id: cc.ctx.ids.journal(),
-    gameId: cc.newGameId,
-    variantId: newVariantId,
-    sourceMessageId: newSourceMessageId,
-    content: cc.readsHidden ? j.content : stripHiddenSpans(j.content).content,
-    type: j.type,
-    label: j.label,
-    title: j.title,
-    createdAt: cc.now,
-  };
+  return stripHiddenForForker(
+    {
+      id: cc.ctx.ids.journal(),
+      gameId: cc.newGameId,
+      variantId: newVariantId,
+      sourceMessageId: newSourceMessageId,
+      content: j.content,
+      type: j.type,
+      label: j.label,
+      title: j.title,
+      createdAt: cc.now,
+    },
+    cc.readsHidden,
+  );
 }
 
 /** rpg_checkpoints — copy iff its snapshot was copied (re-key snapshotId through the snapshot-id map). The
@@ -356,14 +408,17 @@ function cloneCheckpoints(cc: CloneCtx, checkpoints: readonly RpgCheckpointRow[]
  *  returns the ROW, so a host-authored bookmark label is already member-readable in the source (only the
  *  RESTORE is host-gated, and that is an authority over room state, not a read gate). */
 function forkCheckpointValues(cc: CloneCtx, c: RpgCheckpointRow, newSnapshotId: RpgSnapshotId): Required<typeof rpgCheckpoints.$inferInsert> {
-  return {
-    id: cc.ctx.ids.checkpoint(),
-    gameId: cc.newGameId,
-    snapshotId: newSnapshotId,
-    label: c.label,
-    trigger: c.trigger,
-    createdAt: cc.now,
-  };
+  return stripHiddenForForker(
+    {
+      id: cc.ctx.ids.checkpoint(),
+      gameId: cc.newGameId,
+      snapshotId: newSnapshotId,
+      label: c.label,
+      trigger: c.trigger,
+      createdAt: cc.now,
+    },
+    cc.readsHidden,
+  );
 }
 
 /** Clone the source chat's game onto the fork (§3.2). No-op (`cloned:false`) for a non-game source: the fork

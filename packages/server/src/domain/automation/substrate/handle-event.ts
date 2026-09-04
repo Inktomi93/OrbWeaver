@@ -103,7 +103,17 @@ async function handle(ctx: AutomationContext, event: BusEvent): Promise<void> {
   if (wantPlugins) {
     // The plugin fan-out runs its OWN three gates (depth / visibility / declared-match) — leak-free by
     // construction, and it never touches the rule dispatch's state.
-    await fanOutToPluginSubscribers({ db: ctx.db, registry: ctx.pluginSubscribers, resolveViewerVisibility: ctx.ops.chat.resolveViewerVisibility }, resolved);
+    await fanOutToPluginSubscribers(
+      {
+        db: ctx.db,
+        registry: ctx.pluginSubscribers,
+        resolveViewerVisibility: ctx.ops.chat.resolveViewerVisibility,
+        // The D16 anchor resolver for a fact that REFERENCES canon without carrying it (#1428) — the same op
+        // the message-shaped resolve already uses, so the gate adds no seam and no second canon reader.
+        getMessageFact: ctx.ops.chat.getMessageFact,
+      },
+      resolved,
+    );
   }
   if (!wantRules) {
     return;

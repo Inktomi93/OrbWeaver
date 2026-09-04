@@ -209,28 +209,38 @@ describe("the B7 room loaders", () => {
     const { userId, chatId } = await seedRoom("n");
     const alice = await seedCharacter(db, userId, "Alice");
     const bob = await seedCharacter(db, userId, "Bob");
+    const mute = await seedCharacter(db, userId, "Mute");
     const aliceSeat = await seedParticipant(db, { chatId, key: "n-alice", characterId: alice });
     await seedParticipant(db, { chatId, key: "n-bob", characterId: bob, leftSeq: 2 });
+    const muteSeat = await seedParticipant(db, { chatId, key: "n-mute", characterId: mute, disabled: true });
 
-    expect(await loadCharacterSeatByName(db, chatId, "Alice")).toEqual({ participantId: aliceSeat, characterName: "Alice" });
+    expect(await loadCharacterSeatByName(db, chatId, "Alice")).toEqual({ participantId: aliceSeat, characterName: "Alice", disabled: false });
     // The model's whitespace is tolerated (`.trim()`); its spelling is not — the tool narrates the miss.
-    expect(await loadCharacterSeatByName(db, chatId, "  Alice  ")).toEqual({ participantId: aliceSeat, characterName: "Alice" });
+    expect(await loadCharacterSeatByName(db, chatId, "  Alice  ")).toEqual({ participantId: aliceSeat, characterName: "Alice", disabled: false });
     expect(await loadCharacterSeatByName(db, chatId, "Bob")).toBeUndefined();
     expect(await loadCharacterSeatByName(db, chatId, "Nobody")).toBeUndefined();
+    // #1402 — a MUTED seat still RESOLVES (it is present); the read carries its kill-switch and the verb
+    // refuses on it, so the model hears "muted" rather than "no such character".
+    expect(await loadCharacterSeatByName(db, chatId, "Mute")).toEqual({ participantId: muteSeat, characterName: "Mute", disabled: true });
   });
 
-  test("loadNewestSelectedSlot: the newest slot's SELECTED variant; undefined for an empty room", async () => {
+  test("loadNewestSelectedSlot: the newest slot's SELECTED variant at/above the floor; undefined for an empty room", async () => {
     const { chatId } = await seedRoom("new");
-    expect(await loadNewestSelectedSlot(db, chatId)).toBeUndefined();
+    expect(await loadNewestSelectedSlot(db, chatId, 0)).toBeUndefined();
 
     await seedMessage(db, chatId, 1, { content: "first" });
     const newest = await seedMessage(db, chatId, 2, { kind: "narrator", content: "second" });
-    expect(await loadNewestSelectedSlot(db, chatId)).toEqual({
+    expect(await loadNewestSelectedSlot(db, chatId, 0)).toEqual({
       messageId: newest.messageId,
       variantId: newest.variantId,
       kind: "narrator",
       content: "second",
     });
+
+    // #1402 — the D16 arm: a floor ABOVE the room's head is the same `undefined` an empty room gives (never
+    // the next one down, which would hand a clamped caller the pre-join slot they may not read).
+    expect(await loadNewestSelectedSlot(db, chatId, 2)).toMatchObject({ messageId: newest.messageId });
+    expect(await loadNewestSelectedSlot(db, chatId, 3)).toBeUndefined();
   });
 });
 
