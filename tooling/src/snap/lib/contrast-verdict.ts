@@ -4,8 +4,7 @@
 // pixel sampling) stays in ops/. The WCAG math is the fleet-shared kernel (_shared/wcag.ts).
 import type { Rgb } from "../../_shared/wcag.ts";
 import { MEASURABLE_OPACITY_MIN, UI_COMPONENT_MIN_RATIO as SHARED_UI_COMPONENT_MIN_RATIO } from "../../_shared/wcag.ts";
-import type { ContrastEvidence, ContrastFacts, ContrastMeasured, ContrastOccluded, ContrastOffscreen } from "../contract/contrast.ts";
-import type { ContrastOutcome } from "../contract/types.ts";
+import type { ContrastEvidence, ContrastFacts, ContrastMeasured, ContrastOccluded, ContrastOffscreen, ContrastOutcome } from "../contract/contrast.ts";
 
 export const BOLD_WEIGHT = 700;
 

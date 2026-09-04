@@ -408,6 +408,10 @@ export const HEAP_ARM = {
         ["heap-findings", findings],
       ];
     },
+    // This arm files as it measures — every snapshot, comparison and retainer walk lands as its own
+    // declared artifact under `heap` (`artifactFile`/`registerInstrumentArtifact` above), which is what
+    // binds them to this fact. Nothing it prints is unfiled (#1342 audit).
+    evidence: (): Promise<void> => Promise.resolve(),
     facts: (input): readonly ArmFactEmission<"heap">[] => {
       if (!heapRequested(input.opts)) {
         return [{ scope: aggregateScope(), data: { state: "off", detail: null, snapshots: 0, comparisons: 0, retainers: 0, findings: 0, errors: 0 } }];

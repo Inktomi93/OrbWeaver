@@ -9,17 +9,8 @@ import type { BrowserDiagnostic } from "../../_shared/browser-diagnostics.ts";
 import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { CssEvidenceReceipt } from "../contract/cascade.ts";
-import type {
-  Args,
-  AssertionOutcome,
-  CaptureOutcome,
-  ContrastOutcome,
-  EvalOutcome,
-  EvidenceRange,
-  ReportCtx,
-  SessionCounts,
-  WatchTick,
-} from "../contract/types.ts";
+import type { ContrastOutcome } from "../contract/contrast.ts";
+import type { Args, AssertionOutcome, CaptureOutcome, EvalOutcome, EvidenceRange, ReportCtx, SessionCounts, WatchTick } from "../contract/types.ts";
 import { printMapBlock } from "../lib/map-report.ts";
 import { shotScaleResultValue } from "../lib/shot-scale.ts";
 // `cropOutcome` belongs to the PIXEL ARM (ops/arms/shot.ts) — the crop is a shot instruction, and one

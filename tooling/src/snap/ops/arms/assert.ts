@@ -8,12 +8,15 @@ import { splitLastEq } from "../../../_shared/argv.ts";
 import { aggregateScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { EXIT } from "../../../_shared/exit-contract.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
+import type { SnapArmState } from "../../contract/run-facts.ts";
 import type { Assertion, AssertionOutcome } from "../../contract/types.ts";
 import { HTTP_URL_RE } from "../../lib/out-names.ts";
 import { overflowAssertionLine } from "../../lib/overflow-line.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { probeOverflow } from "../overflow.ts";
+import { writeArmEvidenceFile } from "./evidence-file.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --expect-visible <selector>");
 
@@ -35,19 +38,42 @@ function urlMatches(actual: string, expected: string): boolean {
   return `${url.pathname}${url.search}${url.hash}` === expected;
 }
 
+/** A verdict about the app: PASS or FAIL, exit 0/1. */
+function judged(line: string, failed: boolean): AssertionOutcome {
+  return { line, failed, refused: false };
+}
+
+/** THE UNASKED REQUIREMENT (#1343). `text`/`focus`/`no-overflow` state something about a MATCHED element;
+ *  with nothing matched there is no measurement to report, only a selector that found nothing. It printed
+ *  `FAIL no rendered match` — exit 1, the same code as a real violation — so a mistyped selector read as a
+ *  finding about the app and a reviewer could not tell the two apart. NO-MATCH is loud and exits 2.
+ *  `--expect-visible` and `--expect-count` never come here: for them the empty population IS the answer. */
+function noMatch(kind: Assertion["kind"], selector: string, includeHidden: boolean): AssertionOutcome {
+  const population = includeHidden ? "attached to the DOM" : "rendered";
+  const widen = includeHidden ? "" : " (--include-hidden widens the population to all attached elements)";
+  // The overflow arm's own lines say `no-overflow` (lib/overflow-line.ts); a refusal that spelled its kind
+  // differently from the verdict beside it would be a second vocabulary for one flag.
+  const label = kind === "overflow" ? "no-overflow" : kind;
+  return {
+    line: `ASSERT ${label} ${selector}: NO-MATCH  nothing ${population} matches this selector${widen} — the requirement was never tested, so this run is not a verdict about it`,
+    failed: true,
+    refused: true,
+  };
+}
+
 function assertUrl(page: Page, assertion: Extract<Assertion, { kind: "url" }>): AssertionOutcome {
   const actual = page.url();
   const pass = urlMatches(actual, assertion.expected);
-  return { line: `ASSERT url ${JSON.stringify(assertion.expected)}: ${pass ? "PASS" : `FAIL actual=${JSON.stringify(actual)}`}`, failed: !pass };
+  return judged(`ASSERT url ${JSON.stringify(assertion.expected)}: ${pass ? "PASS" : `FAIL actual=${JSON.stringify(actual)}`}`, !pass);
 }
 
 function assertCount(assertion: Extract<Assertion, { kind: "count" }>, candidates: readonly Locator[], includeHidden: boolean): AssertionOutcome {
   const pass = candidates.length === assertion.expected;
   const scope = includeHidden ? "all DOM" : "rendered";
-  return {
-    line: `ASSERT count ${assertion.selector}: ${pass ? "PASS" : "FAIL"} actual=${candidates.length} expected=${assertion.expected} scope=${scope}`,
-    failed: !pass,
-  };
+  return judged(
+    `ASSERT count ${assertion.selector}: ${pass ? "PASS" : "FAIL"} actual=${candidates.length} expected=${assertion.expected} scope=${scope}`,
+    !pass,
+  );
 }
 
 async function runMatchedAssertion(
@@ -60,22 +86,22 @@ async function runMatchedAssertion(
   }
   const first = candidates[0];
   if (first === undefined) {
-    return { line: `ASSERT ${assertion.kind} ${assertion.selector}: FAIL no ${includeHidden ? "attached" : "rendered"} match`, failed: true };
+    return noMatch(assertion.kind, assertion.selector, includeHidden);
   }
   if (assertion.kind === "text") {
     const actual = (await first.textContent()) ?? "";
     const pass = actual.includes(assertion.expected);
-    return {
-      line: `ASSERT text ${assertion.selector}: ${pass ? "PASS" : `FAIL expected=${JSON.stringify(assertion.expected)} actual=${JSON.stringify(actual)}`}`,
-      failed: !pass,
-    };
+    return judged(
+      `ASSERT text ${assertion.selector}: ${pass ? "PASS" : `FAIL expected=${JSON.stringify(assertion.expected)} actual=${JSON.stringify(actual)}`}`,
+      !pass,
+    );
   }
   if (assertion.kind === "focus") {
     const pass = await first.evaluate((element) => {
       const matches = Reflect.get(element, "matches");
       return typeof matches === "function" && Reflect.apply(matches, element, [":focus"]) === true;
     });
-    return { line: `ASSERT focus ${assertion.selector}: ${pass ? "PASS" : "FAIL"}`, failed: !pass };
+    return judged(`ASSERT focus ${assertion.selector}: ${pass ? "PASS" : "FAIL"}`, !pass);
   }
   return overflowAssertionLine(assertion.selector, await probeOverflow(first));
 }
@@ -91,7 +117,8 @@ async function runAssertion(page: Page, assertion: Assertion, includeHidden: boo
       .first()
       .isVisible()
       .catch(() => false);
-    return { line: `ASSERT visible ${assertion.selector}: ${pass ? "PASS" : "FAIL"}`, failed: !pass };
+    // NEVER a NO-MATCH: an absent element is precisely the finding this flag exists to report.
+    return judged(`ASSERT visible ${assertion.selector}: ${pass ? "PASS" : "FAIL"}`, !pass);
   }
   return await runMatchedAssertion(assertion, await visibleLocators(locator, includeHidden), includeHidden);
 }
@@ -103,7 +130,7 @@ async function runAssertions(page: Page, assertions: readonly Assertion[], inclu
     try {
       outcomes.push(await runAssertion(page, assertion, includeHidden));
     } catch (error) {
-      outcomes.push({ line: `ASSERT ${assertion.kind}: ERROR ${errorMessage(error)}`, failed: true });
+      outcomes.push({ line: `ASSERT ${assertion.kind}: ERROR ${errorMessage(error)}`, failed: true, refused: false });
     }
   }
   return outcomes;
@@ -111,6 +138,11 @@ async function runAssertions(page: Page, assertions: readonly Assertion[], inclu
 
 function assertionFailures({ outcomes }: ArmPairInput): number {
   return outcomes.reduce((count, outcome) => count + outcome.assertions.filter((entry) => entry.failed).length, 0);
+}
+
+/** Requirements this run never asked. Their own count, because they drive the EXIT, not the verdict. */
+function assertionRefusals({ outcomes }: ArmPairInput): number {
+  return outcomes.reduce((count, outcome) => count + outcome.assertions.filter((entry) => entry.refused).length, 0);
 }
 
 /** Six flags, one queue. The value split differs per kind and each rule is load-bearing: `--expect-text`
@@ -210,21 +242,50 @@ export const ASSERT_ARM = {
       );
     },
     pairs: (input): readonly ResultPair[] => [["assertion-fails", assertionFailures(input)]],
+    // #1342: the ASSERT lines themselves. `assertion-fails=2` in the index said two requirements were unmet
+    // and never said WHICH — the line a reviewer quotes ("the printed ASSERT line IS the receipt") had no
+    // copy in the slot the review cites.
+    evidence: async ({ outcomes }, slug): Promise<void> => {
+      const rows = outcomes.flatMap((outcome) =>
+        outcome.assertions.map((entry) => ({ page: outcome.pageIndex, line: entry.line, failed: entry.failed, refused: entry.refused })),
+      );
+      await writeArmEvidenceFile({
+        arm: "assert",
+        name: "assertions",
+        slug,
+        schema: "snap-assertions-v1",
+        records: rows.length,
+        completeness: "complete",
+        completenessDetail: "every assertion this run ran, in argv order, with its printed line and whether it was a verdict or a NO-MATCH refusal",
+        body: { v: 1, assertions: rows },
+      });
+    },
     facts: (input): readonly ArmFactEmission<"assert">[] => {
       const assertions = input.outcomes.reduce((count, outcome) => count + outcome.assertions.length, 0);
       const failures = assertionFailures(input);
-      let state: "off" | "failed" | "passed" = "off";
+      const refusals = assertionRefusals(input);
+      let state: SnapArmState = "off";
+      let detail: string | null = null;
       if (input.opts.assertions.length > 0) {
         state = failures > 0 ? "failed" : "passed";
+      }
+      if (refusals > 0) {
+        // The fact says REFUSED, not failed: `assertion-fails` still counts these (they are unmet
+        // requirements on the RESULT line, where the field order is a contract), but a reader asking the
+        // fact "was this a verdict about the app?" gets no.
+        state = "refused";
+        detail = `${String(refusals)} of ${String(assertions)} assertion(s) matched nothing rendered and were never tested`;
       }
       return [
         {
           scope: aggregateScope(),
-          data: { state, detail: null, assertions, failures },
+          data: { state, detail, assertions, failures },
         },
       ];
     },
     failures: (input): ArmFailureCounts => ({ assertions: assertionFailures(input) }),
-    exit: (_input, code): number => code,
+    // A requirement that was never asked exits 2 whatever else the run found — the same posture the
+    // Lighthouse refusal and the missing theme stamp take (ops/run.ts's two-ways-not-a-verdict note).
+    exit: (input, code): number => (assertionRefusals(input) > 0 ? EXIT.toolError : code),
   },
 } satisfies ArmDef<"assert">;

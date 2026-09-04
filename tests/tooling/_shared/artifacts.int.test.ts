@@ -19,6 +19,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import type { RunSlot } from "@orb/tooling/_shared/artifacts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
@@ -274,4 +275,82 @@ test("PLANTED CONTROL: the old fixed-path writer loses one of two concurrent run
   // is the defect — not a torn file, an ERASED run, with no way for A's launcher to tell.
   expect(survivor.runId).toBe("run-B");
   expect(existsSync(join(root, "reports", "runs"))).toBe(false);
+});
+
+// ── RETENTION IS BY AGE, NOT BY COUNT ALONE (#1341) ────────────────────────────────────────────────────
+//
+// THE DEFECT THESE PIN. `pruneRuns` kept the ten newest slots per instrument plus any slot a published
+// pointer still resolves into. A `--no-shot` / `--eval` / `--text` run publishes NO pointer (`out=(none)`),
+// so it is unreferenced and dies the moment ten newer runs land — while its end card printed
+// `EVIDENCE <abs run.json>` as the receipt a review cites. Measured 2026-09-04 (cold-agent dogfood on
+// /chats): side-eye cited `main-1723882-…T15-36-25-462Z` and `main-1726501-…T15-37-04-376Z` for a P1;
+// twenty minutes later neither directory existed and `--reports` did not list them, so the P1 was
+// unfalsifiable. 135 slots survived on disk that day — the ones carrying pointers.
+//
+// THE CONTRACT: no slot is pruned before `RETENTION_FLOOR_MS` (24h) whatever its references, the count cap
+// applies only PAST that age, and a pruned run is RECORDED — a citation that resolves to nothing has to
+// say why it is gone rather than read as a typo.
+
+/** A slot another process left behind: an artifact, no in-flight marker, no pointer naming it. */
+function plantSlot(root: string, instrument: string, id: string, at?: Date): string {
+  const dir = join(root, "reports", "runs", instrument, id);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "artifact.json"), JSON.stringify({ runId: id }));
+  if (at !== undefined) {
+    utimesSync(dir, at, at);
+  }
+  return dir;
+}
+
+function plantedRunSlot(root: string, instrument: string, runId: string, at?: Date): RunSlot {
+  return { instrument, runId, dir: plantSlot(root, instrument, runId, at), relDir: join("reports", "runs", instrument, runId), racing: [] };
+}
+
+const RETENTION_INSTRUMENT = "retainprobe";
+/** Past `RETAINED_RUNS` (10) on purpose: the count cap alone would have deleted the oldest two. */
+const CHEAP_RUNS = 12;
+const RING_CAP_PLANTS = 10;
+
+test("twelve POINTER-LESS runs published inside one minute all survive the ring", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  const A = await import("@orb/tooling/_shared/artifacts");
+  const base = join(root, "reports", "runs", RETENTION_INSTRUMENT);
+
+  for (let i = 0; i < CHEAP_RUNS; i += 1) {
+    // `[]` is the `--no-shot`/`--eval` run: it publishes no `latest` pointer at all, which is exactly the
+    // shape the old ring treated as disposable.
+    A.publishRunSlot(root, plantedRunSlot(root, RETENTION_INSTRUMENT, `cheap-${String(i).padStart(2, "0")}`), []);
+  }
+
+  // Every EVIDENCE path those twelve runs printed still resolves. Under the count-only ring the two
+  // oldest were deleted by the eleventh publish, inside one minute of being cited.
+  expect(readdirSync(base).sort()).toEqual(Array.from({ length: CHEAP_RUNS }, (_, i) => `cheap-${String(i).padStart(2, "0")}`));
+  expect(readdirSync(base).every((name) => existsSync(join(base, name, "artifact.json")))).toBe(true);
+});
+
+test("past the age floor the count cap applies, and the pruned run is RECORDED rather than vanishing", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  const A = await import("@orb/tooling/_shared/artifacts");
+  const base = join(root, "reports", "runs", RETENTION_INSTRUMENT);
+  // Frozen literal, not `Date.now() - N` — the determinism law bans the ambient clock in a fixture, and a
+  // 2026-01 slot is past any floor this ring will ever carry.
+  plantSlot(root, RETENTION_INSTRUMENT, "ancient-00", new Date(Date.UTC(2026, 0, 1, 0, 0, 0)));
+  for (let i = 0; i < RING_CAP_PLANTS; i += 1) {
+    plantSlot(root, RETENTION_INSTRUMENT, `fresh-${String(i).padStart(2, "0")}`);
+  }
+  A.publishRunSlot(root, plantedRunSlot(root, RETENTION_INSTRUMENT, "publisher-00"), []);
+
+  // The floor is not a licence to keep everything: an aged slot past the cap still goes.
+  expect(existsSync(join(base, "ancient-00"))).toBe(false);
+  // …and nothing young went with it.
+  expect(readdirSync(base).filter((name) => name.startsWith("fresh-"))).toHaveLength(RING_CAP_PLANTS);
+
+  // THE RECEIPT: a bounded ledger beside the slots names what was deleted and when, so `--reports` can
+  // answer a citation that no longer resolves with `PRUNED <id> <when>` instead of with silence.
+  const ledger = readFileSync(join(base, ".pruned.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line) as { readonly runId: string; readonly prunedAt: string });
+  expect(ledger.map((row) => row.runId)).toEqual(["ancient-00"]);
+  expect(Number.isFinite(Date.parse(ledger[0]?.prunedAt ?? ""))).toBe(true);
 });

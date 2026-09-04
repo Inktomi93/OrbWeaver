@@ -12,6 +12,7 @@ import type { CaptureOutcome } from "../../contract/types.ts";
 import { buildSurfaceMapScript, READ_MAP_BRIDGE_SCRIPT } from "../../lib/map-browser.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { mapAtlasEvidence, mapBridgePayload, mapShellEvidence, rawMapEntries } from "../page-validate.ts";
+import { writeArmEvidenceFile } from "./evidence-file.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -188,6 +189,31 @@ export const MAP_ARM = {
         ["map-dom-fallbacks", summary.domFallbacks],
         ["map-fails", mapFailures(input)],
       ];
+    },
+    // #1342: the interactive surface itself. The RESULT line carried `map=37`; which 37 controls, and the
+    // atlas/shell topology beside them, existed only on the terminal that ran it.
+    evidence: async ({ outcomes }, slug): Promise<void> => {
+      const rows = outcomes
+        .filter((outcome) => outcome.mapResult !== null || outcome.mapError !== null || outcome.mapAtlas !== null || outcome.mapShell !== null)
+        .map((outcome) => ({
+          page: outcome.pageIndex,
+          entries: outcome.mapResult,
+          error: outcome.mapError,
+          atlas: outcome.mapAtlas,
+          atlasError: outcome.mapAtlasError,
+          shell: outcome.mapShell,
+          shellError: outcome.mapShellError,
+        }));
+      await writeArmEvidenceFile({
+        arm: "map",
+        name: "map",
+        slug,
+        schema: "snap-map-surface-v1",
+        records: rows.length,
+        completeness: "bounded",
+        completenessDetail: "the printed surface map per page, bounded by the run's --map selector and hidden-element policy",
+        body: { v: 1, pages: rows },
+      });
     },
     facts: (input): readonly ArmFactEmission<"map">[] => {
       const entries = input.outcomes.flatMap((outcome) => outcome.mapResult ?? []);

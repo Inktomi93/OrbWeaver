@@ -22,10 +22,10 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { pidAlive } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../_shared/ports.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
+import { pidAlive } from "../../_shared/run-retention.ts";
 import type { StageBandsFile, StageDbProvenance, StageRow } from "../contract/stage.ts";
 import { BANDS_REL, LEGACY_ACTIVE_REL, markerRootFromCommonDir, STAGE_ROOT_REL, stageBandClaim, stageBandRefusal } from "../lib/stage-plan.ts";
 import { repoRoot } from "./stage-git.ts";

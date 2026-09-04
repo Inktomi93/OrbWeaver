@@ -136,6 +136,13 @@ export interface ArmPageLifecycle<A extends Arm = Arm> {
   /** The arm's RESULT members, ALWAYS — an arm that did not run still says so (`aria=no`, `map=no`,
    *  `deadcss=0`). A reader must never have to guess whether an absent pair means clean or never-ran. */
   readonly pairs: (input: ArmPairInput) => readonly ResultPair[];
+  /** FILE what this arm PRINTED into the run slot, once per run, before the facts are registered (#1342).
+   *  REQUIRED — an arm whose values exist only on the terminal makes the `EVIDENCE <run.json>` path a
+   *  receipt nobody else can read, and that is exactly how a cited P1 became unverifiable. An arm with
+   *  nothing of its own to file (its bytes are written at another seam) says so and returns. `slug`
+   *  prefixes the basename so a scenario's checkpoints never overwrite each other. The refs need no
+   *  hand-off: `ops/run-bundle.ts` binds an artifact to its `producerArm`'s fact. */
+  readonly evidence: (input: ArmPairInput, slug: string) => Promise<void>;
   readonly facts: (input: ArmPairInput) => readonly ArmFactEmission<A>[];
   readonly failures: (input: ArmPairInput) => ArmFailureCounts;
   /** The run's exit after settled page evidence is complete. Required on every page arm so an
@@ -279,6 +286,7 @@ export type ArmArgs = Pick<
   | "cascade"
   | "contrast"
   | "contrastPixel"
+  | "contrastEdge"
   | "assertions"
   | "map"
   | "mapSelector"

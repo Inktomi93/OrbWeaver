@@ -10,6 +10,8 @@ import { lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSy
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
 import { emitLine } from "./log.ts";
+import type { PrunedRun, RetentionCandidate } from "./run-retention.ts";
+import { pidAlive, readPrunedRuns, recordPrunedRuns, selectPrunable } from "./run-retention.ts";
 
 // _shared lives at tooling/src/_shared/ — three levels up is the repo root.
 export const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..");
@@ -83,8 +85,7 @@ const INFLIGHT_MARKER = ".inflight";
 /** The alias list a publish leaves in its slot, so `pruneRuns` can ask "does any pointer still resolve
  *  here?" without walking `reports/`. Dot-prefixed: the `--out` layer's alias enumerator skips it. */
 const PUBLISHED_MANIFEST = ".published";
-/** Run slots retained per instrument. Older ones are pruned at publish; the published run is never pruned. */
-const RETAINED_RUNS = 10;
+// Retention — HOW LONG a slot lives and the ledger of the ones that went — is ./run-retention.ts (#1341).
 const RUNS_SEGMENT = "runs";
 // DOT-FREE on purpose: a run id becomes a path SEGMENT and, for the doc-catalog scratch, part of a
 // filename a `*.json` glob has to match — a stray dot from the timestamp's milliseconds turns a
@@ -156,19 +157,6 @@ function readMarker(dir: string): InflightMarker | null {
     return JSON.parse(readFileSync(join(dir, INFLIGHT_MARKER), "utf-8")) as InflightMarker;
   } catch {
     return null;
-  }
-}
-
-/** Is this pid still running? `kill(pid, 0)` signals nothing and throws ESRCH when it is gone. Only ever
- *  asked about a marker from THIS box (a run slot's, a session row's daemon), so a pid from another machine
- *  can never be misread as live. */
-export function pidAlive(pid: number): boolean {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): ESRCH from a signal-0 probe IS the answer — the pid is gone — and `false` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan). Ends if this needs to distinguish EPERM (a live pid this user may not signal) from ESRCH.
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
   }
 }
 
@@ -350,9 +338,19 @@ function slotMtime(dir: string): number | null {
   }
 }
 
-/** Keep the `RETAINED_RUNS` newest slots for this instrument. A slot that is still in flight (live
- *  marker), the one just published, and any slot a published pointer still resolves into are never pruned
- *  — `latest` can therefore never point at a removed run. */
+/** `PrunedRun` is homed in ./run-retention.ts and re-exported here: this module is the run-slot door every
+ *  instrument imports, and a reader answering "the cited run is gone" arrives through `prunedRuns`. */
+export type { PrunedRun } from "./run-retention.ts";
+
+/** The runs of this instrument the ring deleted on this checkout, oldest first — so `--reports` can answer a
+ *  citation that no longer resolves with `PRUNED <id> <when>` instead of omitting it (#1341). */
+export function prunedRuns(root: string, instrument: string): readonly PrunedRun[] {
+  return readPrunedRuns(instrumentRunsDir(root, instrument));
+}
+
+/** Delete what retention says may go. A slot still in flight, the one just published, and any slot a
+ *  published pointer resolves into never become candidates — `latest` can never name a removed run. The
+ *  POLICY (age floor first, count cap second) and the ledger are ./run-retention.ts's. */
 function pruneRuns(root: string, slot: RunSlot): void {
   const base = instrumentRunsDir(root, slot.instrument);
   const candidates = runDirs(root, slot.instrument)
@@ -362,14 +360,17 @@ function pruneRuns(root: string, slot: RunSlot): void {
       return marker === null || !pidAlive(marker.pid);
     })
     .filter((name) => !slotIsReferenced(root, slot.instrument, name, join(base, name)))
-    .map((name) => ({ name, at: slotMtime(join(base, name)) }))
+    .map((name) => ({ runId: name, at: slotMtime(join(base, name)) }))
     // A slot a racing publisher already removed drops out here; the `rmSync(force)` below is likewise
-    // indifferent to one vanishing between this sort and the delete.
-    .filter((row): row is { readonly name: string; readonly at: number } => row.at !== null)
-    .sort((a, b) => b.at - a.at);
-  for (const stale of candidates.slice(RETAINED_RUNS - 1)) {
-    rmSync(join(base, stale.name), { recursive: true, force: true });
+    // indifferent to one vanishing between this filter and the delete.
+    .filter((row): row is RetentionCandidate => row.at !== null);
+  const prunedAt = new Date().toISOString();
+  const pruned: PrunedRun[] = [];
+  for (const stale of selectPrunable(candidates, Date.now())) {
+    rmSync(join(base, stale.runId), { recursive: true, force: true });
+    pruned.push({ runId: stale.runId, prunedAt, ranAt: new Date(stale.at).toISOString() });
   }
+  recordPrunedRuns(base, pruned);
 }
 
 /** Slots of this instrument whose run DIED — the marker survived a process that is gone. This is the #410

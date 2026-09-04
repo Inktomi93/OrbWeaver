@@ -402,7 +402,7 @@ export async function runScenarioDetailed(opts: Args, host: ScenarioHost | null 
       themeStampExit(outcomes, terminal.exit),
     );
     const finalCode = runArms.reduce((code, arms) => arms.exit(code), pageCode);
-    registerScenarioFacts({
+    await registerScenarioFacts({
       opts,
       spec,
       checkpoints,

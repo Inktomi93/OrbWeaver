@@ -112,9 +112,20 @@ test("a run arm without the required post-settle phase is refused", () => {
 
 test("a page arm without the required terminal exit phase is refused", () => {
   const identity = (): undefined => undefined;
-  expect(() => assertPageArmLifecycle("map", { at: "page", enabled: identity, run: identity, pairs: identity, facts: identity, failures: identity })).toThrow(
-    /map.*exit/u,
-  );
+  expect(() =>
+    assertPageArmLifecycle("map", { at: "page", enabled: identity, run: identity, pairs: identity, evidence: identity, facts: identity, failures: identity }),
+  ).toThrow(/map.*exit/u);
+});
+
+test("a page arm that files NO evidence for what it prints is refused (#1342)", () => {
+  // The values an arm prints have to reach the run slot: `EVIDENCE <run.json>` is the receipt every review
+  // in this repo cites, and an arm whose numbers are in the index while its VALUES are on the terminal made
+  // a cited P1 unverifiable (the eval arm, measured 2026-09-04). The member is required, and the runtime
+  // twin refuses a JS/cast row that skipped it — the same posture as the missing-`exit` case above.
+  const identity = (): undefined => undefined;
+  expect(() =>
+    assertPageArmLifecycle("eval", { at: "page", enabled: identity, run: identity, pairs: identity, facts: identity, failures: identity, exit: identity }),
+  ).toThrow(/eval.*evidence/u);
 });
 
 test("every arm defaults its own slice of Args, and parseSnapArgs takes those defaults verbatim", () => {

@@ -19,7 +19,7 @@ import type { SnapRatePosture } from "../lib/rate-posture.ts";
 import { ratePostureResultPairs } from "../lib/rate-posture.ts";
 import { throttleResultValue } from "../lib/throttle.ts";
 import type { RunArms } from "./arms/registry.ts";
-import { armPairLedger, beginRunArms, pageArmExit, pageArmFacts, pageArmFailures } from "./arms/registry.ts";
+import { armPairLedger, beginRunArms, pageArmExit, pageArmFacts, pageArmFailures, writePageArmEvidence } from "./arms/registry.ts";
 import { capture } from "./capture.ts";
 import { defaultFixtureUsers, fixtureRefusalLine, fixtureStatus, loginFixtureUser, resolveFixtureUsers } from "./fixture.ts";
 import { appliedAcrossContexts, writeManifestIfRequested } from "./manifest.ts";
@@ -238,6 +238,9 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
   const red = hasSnapFailure(failureSummary);
   const retention = browserEvidenceRetention(session);
   const artifacts = await finishSession(session, red, key, opts.failureEvidence);
+  // #1342: the multi-context path files its page arms' printed evidence on the same terms as the
+  // single-context one — one write per RUN, over every context's outcomes.
+  await writePageArmEvidence(pairInput);
   const manifestPath = await writeManifestIfRequested(opts, name, {
     status: red ? "fail" : "pass",
     target: { url, name },

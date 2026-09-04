@@ -175,6 +175,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--context-tab` | `V,R,@N` fixture context | action; switches tab/context | checkpoint | context selector, not `--contexts` | owned | KEEP |
 | `--contexts` | `V,L` context spec | boot; multi-context fixture mode | outer | `--as` is named fixture convenience, not alias | owned | KEEP |
 | `--contrast` | `V,R,@N` selector | analyzer; computed contrast | checkpoint/arm | pixel sampling is modifier | owned | KEEP |
+| `--contrast-edge` | `V,R,@N` selector | analyzer; WCAG 1.4.11 border contrast per side | checkpoint/arm | sibling of contrast, same arm | owned | KEEP; added #1346 |
 | `--contrast-pixel` | `B` | analyzer modifier; force framebuffer sampling | checkpoint/arm | child of contrast | owned | KEEP; refused without `--contrast` |
 | `--cpu-profile` | `B` | capture; DevTools CPU profile | checkpoint/arm | not `--react-profile`/`--perf` | owned | KEEP |
 | `--cpu-throttle` | `V,L` numeric multiplier | boot environment; DevTools throttle | outer; one shared scenario/session browser lifetime; raw checkpoint drift refused | not perf cycle count | owned | KEEP |

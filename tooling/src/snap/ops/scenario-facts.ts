@@ -11,7 +11,7 @@ import type { Args, CaptureOutcome, ScenarioSpec, ShotPlan } from "../contract/t
 import type { SnapFailureSummary } from "../contract/verdict.ts";
 import type { SnapRatePosture } from "../lib/rate-posture.ts";
 import type { RunArms } from "./arms/registry.ts";
-import { pageArmFacts } from "./arms/registry.ts";
+import { pageArmFacts, writePageArmEvidence } from "./arms/registry.ts";
 import { registerSnapFactBatch } from "./run-bundle.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --scenario <file.json>");
@@ -55,7 +55,9 @@ export interface ScenarioFactInput {
   readonly runArms: readonly RunArms[];
 }
 
-export function registerScenarioFacts(input: ScenarioFactInput): void {
+/** ASYNC since #1342: the per-checkpoint page-arm evidence is written here, where the checkpoint's name is
+ *  in hand, and it must land before the run slot is published. */
+export async function registerScenarioFacts(input: ScenarioFactInput): Promise<void> {
   const { opts, spec, checkpoints, session, ratePosture, outcomes, plans, reportPlan, failedRequests, pageErrors, failures, retention, finalCode, runArms } =
     input;
   const scope = aggregateScope();
@@ -123,13 +125,14 @@ export function registerScenarioFacts(input: ScenarioFactInput): void {
     const checkpoint = spec.checkpoints[index]?.name ?? String(index);
     const plan = plans[index] ?? reportPlan;
     const checkpointOpts = checkpoints[index] ?? opts;
+    const checkpointInput = { opts: checkpointOpts, outcomes: [outcome], ctx: { ...plan, failed: [...failedRequests], totalPages: 1 } };
+    // #1342: one evidence file per CHECKPOINT, prefixed by its name — a scenario runs the same arms many
+    // times and a shared basename would leave only the last checkpoint's values on disk.
+    await writePageArmEvidence(checkpointInput, `${checkpoint}-`);
     registerSnapFactBatch({
       id: factBatchId(`${scenarioKey}:checkpoint:${checkpoint}`),
       core: [],
-      arms: [
-        ...pageArmFacts({ opts: checkpointOpts, outcomes: [outcome], ctx: { ...plan, failed: [...failedRequests], totalPages: 1 } }, {}),
-        ...(runArms[index]?.facts({}) ?? []),
-      ],
+      arms: [...pageArmFacts(checkpointInput, {}), ...(runArms[index]?.facts({}) ?? [])],
     });
   }
 }

@@ -179,7 +179,7 @@ export function assertPageArmLifecycle(arm: Arm, candidate: unknown): asserts ca
   if (typeof candidate !== "object" || candidate === null || Reflect.get(candidate, "at") !== "page") {
     throw new Error(`INSTRUMENT ERROR: page arm "${arm}" produced no page lifecycle`);
   }
-  for (const member of ["enabled", "run", "pairs", "facts", "failures", "exit"] as const) {
+  for (const member of ["enabled", "run", "pairs", "evidence", "facts", "failures", "exit"] as const) {
     if (typeof Reflect.get(candidate, member) !== "function") {
       throw new Error(`INSTRUMENT ERROR: page arm "${arm}" omitted required lifecycle member "${member}"`);
     }
@@ -339,6 +339,15 @@ export function beginRunArms(session: ProbeSession, opts: Args, readers: SnapRat
     facts: (artifacts) => live.flatMap(([arm, , facts]) => facts(artifacts[arm] ?? [])),
     exit: (code: number): number => live.reduce((current, [, instance]) => instance.exit(current), code),
   };
+}
+
+/** Every page arm files what it printed, in `ARMS` order, BEFORE the facts are registered (#1342) — the
+ *  index binds each artifact to its producer arm's fact, so a run whose values never reached disk is a
+ *  receipt with nothing behind it. One call per run (or per scenario checkpoint, via `slug`). */
+export async function writePageArmEvidence(input: ArmPairInput, slug = ""): Promise<void> {
+  for (const [, lifecycle] of pageArms()) {
+    await lifecycle.evidence(input, slug);
+  }
 }
 
 export function pageArmFacts(input: ArmPairInput, artifacts: Readonly<Partial<Record<Arm, readonly ArtifactRef[]>>>): readonly SnapArmFact[] {

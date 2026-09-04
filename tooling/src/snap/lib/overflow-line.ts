@@ -20,5 +20,7 @@ export function overflowAssertionLine(selector: string, probe: OverflowProbe): A
   const failed = scrollFailed || probe.escapes.length > 0;
   const detail = probe.escapes.map((exit) => `${exit.selector} exits ${exit.side} by ${exit.px}px`).join("; ");
   const head = `ASSERT no-overflow ${selector}: ${failed ? "FAIL" : "PASS"} overflow=${probe.scrollX}x${probe.scrollY} judged=${judgedLabel(probe)} escapes=${probe.escapes.length}`;
-  return { line: detail === "" ? head : `${head} — ${detail}`, failed };
+  // Always a verdict: this line only exists when an element MATCHED and was probed. The unmatched case is
+  // the arm's NO-MATCH refusal (ops/arms/assert.ts, #1343) and never reaches here.
+  return { line: detail === "" ? head : `${head} — ${detail}`, failed, refused: false };
 }

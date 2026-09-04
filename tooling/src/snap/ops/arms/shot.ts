@@ -259,6 +259,10 @@ export const SHOT_ARM = {
       ["out", ctx.produceShot ? ctx.out : "(none)"],
       ["crop", cropOutcome(opts, ctx) ?? "none"],
     ],
+    // The pixels ARE this arm's evidence and `registerShot` already declares each PNG under `shot` (#1342
+    // audit): the fact's `artifacts` list is bound from those declarations. There is nothing this arm
+    // prints that is not either the file itself or a RESULT pair.
+    evidence: (): Promise<void> => Promise.resolve(),
     facts: (input): readonly ArmFactEmission<"shot">[] =>
       input.outcomes.map((outcome) => ({
         scope: captureScope(input.opts, outcome.pageIndex, "settled-capture"),

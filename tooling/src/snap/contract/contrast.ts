@@ -3,7 +3,14 @@
 // contract/ by the five-slot template (docs/architecture/core/Core-Tooling-Law.md §2.5).
 
 import type { Rgb } from "../../_shared/wcag.ts";
-import type { ContrastOutcome } from "./types.ts";
+
+/** One printed CONTRAST/CONTRAST-EDGE line and whether it reddens the run. Homed HERE, not in types.ts,
+ *  since #1346: the capture sheet in types.ts carries the structured reading beside these lines, and two
+ *  files cannot import each other (dep-cruiser `no-circular`). */
+export interface ContrastOutcome {
+  line: string;
+  failed: boolean;
+}
 
 /** Every match is outside the viewport (#211): measuring one would be a verdict on pixels nobody saw. */
 export interface ContrastOffscreen {
@@ -113,6 +120,70 @@ interface ContrastFillRefusal {
 
 export type ContrastFillReading = ContrastFillSample | ContrastFillRefusal;
 
+// ── THE EDGE ARM (#1346) ──────────────────────────────────────────────────────────────────────────────
+// WCAG 1.4.11 is a question about a BOUNDARY: the visual affordance that says "this is a field" must clear
+// 3:1 against what it sits on. Neither existing arm answers it. The ink arm measures the subject's `color`
+// (its text), the fill arm measures the loudest channel of its INTERIOR against the band outside — and on
+// a bordered input the interior is the same surface as the surround, so the fill arm printed
+// `NO VERDICT (fill-only, undecodable) — … measure the specific edge`, naming a remedy that had no flag
+// behind it (measured 2026-09-04 on `[aria-label="Search chats"]`). The reviewer hand-rolled luminance in
+// `--eval` and got garbage. This is the flag that remedy names.
+
+/** One side's border, as the page reports it. `widthPx` is 0 when that side paints no border at all. */
+interface ContrastEdgeBorder {
+  readonly widthPx: number;
+  readonly color: string;
+  readonly style: string;
+}
+
+export const CONTRAST_EDGE_SIDES = ["top", "right", "bottom", "left"] as const;
+export type ContrastEdgeSide = (typeof CONTRAST_EDGE_SIDES)[number];
+
+/** The in-page facts the edge arm measures from: the border box, its four borders, its radii, and which
+ *  match was chosen. Deliberately NOT `ContrastMeasured` — the edge question needs the borders, and the
+ *  ink arm's font/role/opacity facts say nothing about a boundary. */
+export interface ContrastEdgeFacts {
+  readonly box: ContrastBox;
+  readonly borders: Readonly<Record<ContrastEdgeSide, ContrastEdgeBorder>>;
+  readonly radii: ContrastMeasured["radii"];
+  readonly matchIndex: number;
+  readonly total: number;
+}
+
+/** One side's verdict. `skipped` is a side with no border to judge — not a pass and not a failure: WCAG
+ *  1.4.11 has nothing to say about a boundary the page does not paint. */
+export type ContrastEdgeSideReading =
+  | {
+      readonly side: ContrastEdgeSide;
+      readonly kind: "measured";
+      readonly ratio: number;
+      readonly ink: Rgb;
+      readonly neighbour: Rgb;
+      readonly inkShare: number;
+      readonly neighbourShare: number;
+      readonly inkPixels: number;
+      readonly neighbourPixels: number;
+    }
+  | { readonly side: ContrastEdgeSide; readonly kind: "skipped"; readonly reason: string }
+  | { readonly side: ContrastEdgeSide; readonly kind: "refused"; readonly reason: string };
+
+/** The whole subject's reading: one row per side, plus the refusal that applies to all of them. */
+export type ContrastEdgeReading =
+  | { readonly kind: "measured"; readonly sides: readonly ContrastEdgeSideReading[] }
+  | { readonly kind: "refused"; readonly refusal: string };
+
+/** Where the subject's BORDER BOX sits inside a decoded clip, in image pixels, with each side's border
+ *  thickness — the edge arm's twin of `ContrastFillGeometry`. */
+export interface ContrastEdgeGeometry {
+  readonly interior: ContrastFillRegion;
+  readonly radii: ContrastMeasured["radii"];
+  readonly feather: number;
+  /** Border thickness per side, in IMAGE pixels (0 = no border painted there). */
+  readonly borders: Readonly<Record<ContrastEdgeSide, number>>;
+  /** How far OUTSIDE the box the neighbour band reaches, in image pixels. */
+  readonly pad: number;
+}
+
 export interface ContrastBox {
   x: number;
   y: number;
@@ -133,7 +204,9 @@ export interface ContrastEvidence {
   /** `fill-sample` (#1111) is a framebuffer verdict like `pixel-sample`, but on a FILL-ONLY subject: the
    *  `foreground` is the loudest painted channel of the element's own box and `backdrop` is the band
    *  outside it — never an ink colour the subject does not paint. */
-  readonly method: "css-resolve" | "fill-sample" | "pixel-sample" | null;
+  /** `edge-sample` (#1346) is the WCAG 1.4.11 boundary read: `foreground` is the modal colour of the
+   *  border strip on the WORST side and `backdrop` is the surface immediately outside that side. */
+  readonly method: "css-resolve" | "edge-sample" | "fill-sample" | "pixel-sample" | null;
   /** The fill arm's channel receipt (#1111) — `null` on every ink-arm and refused row. */
   readonly fillChannel: { readonly kind: ContrastFillSample["channel"]; readonly share: number } | null;
   readonly ratio: number | null;
