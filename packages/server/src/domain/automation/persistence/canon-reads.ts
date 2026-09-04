@@ -9,7 +9,7 @@ import type { Db } from "@orb/db";
 import { assets, characters, chatBooks, chatParticipants, chats, messages, messageVariants, personas, rpgGames, worldBooks, worldEntries } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, desc, eq, gt, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull, lte, sql } from "drizzle-orm";
 import type { AnalysisAuditTarget, AnalysisWindowRow } from "../contract/analysis.ts";
 import type { DomainRowKind } from "../contract/ops.ts";
 
@@ -163,29 +163,37 @@ export async function listRuleEntryTitles(db: Db, bookId: WorldBookId, titlePref
 // ── S5 — the run_analysis read windows + the game fence ────────────────────────────────────────────────
 // The row shape is `contract/analysis.ts::AnalysisWindowRow` (the type home); these reads implement it.
 
-/** Read one analysis window, oldest-first. `afterSeq`/`throughSeq` bound the span (both optional); `limit`
- *  keeps the NEWEST rows of the span (the query walks newest-first and the result is re-reversed), which is
- *  the legacy slice posture: a cold start over a long chat reads what is freshest and the watermark still
- *  advances over the whole span. */
+/** Read one analysis window, oldest-first. `afterSeq`/`throughSeq` bound the span (both optional).
+ *
+ *  `slice` picks WHICH end of an over-long span the `limit` keeps, and the two arms exist because the two
+ *  callers are asking different questions (#1416):
+ *   • `"newest"` (the default, and the FRESH tip's only sensible reading) walks newest-first and re-reverses
+ *     — the legacy slice posture: a COLD start over a long chat reads what is freshest, and the pass's
+ *     watermark still advances over the whole span. That ruling stands; see `analysis-arm::readPassInputs`.
+ *   • `"earliest"` walks oldest-first — the SETTLED span's warm reading. A cursored pass that took the newest
+ *     N of a bounded span and then advanced its watermark to the span END skipped every older row PERMANENTLY
+ *     (no later pass can reach behind the mark). Ascending + advancing only to the last row actually returned
+ *     makes the cursor a cursor: each pass consumes a prefix and the next one resumes exactly where it stopped. */
 export async function listAnalysisWindow(
   db: Db,
   chatId: ChatId,
-  opts: { readonly afterSeq?: number; readonly throughSeq?: number; readonly limit: number },
+  opts: { readonly afterSeq?: number; readonly throughSeq?: number; readonly limit: number; readonly slice?: "newest" | "earliest" },
 ): Promise<AnalysisWindowRow[]> {
   const bounds = [
     eq(messages.chatId, chatId),
     ...(opts.afterSeq !== undefined ? [gt(messages.seq, opts.afterSeq)] : []),
     ...(opts.throughSeq !== undefined ? [lte(messages.seq, opts.throughSeq)] : []),
   ];
+  const earliest = opts.slice === "earliest";
   const rows = await db
     .select({ seq: messages.seq, role: messages.role, speaker: characters.name, content: messageVariants.content })
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .leftJoin(characters, eq(characters.id, messages.characterId))
     .where(and(...bounds))
-    .orderBy(desc(messages.seq))
+    .orderBy(earliest ? asc(messages.seq) : desc(messages.seq))
     .limit(opts.limit);
-  return rows.reverse();
+  return earliest ? rows : rows.reverse();
 }
 
 /** The chat's newest VISIBLE seq (the settled-span upper bound derives from it: `maxSeq − protectTail`).

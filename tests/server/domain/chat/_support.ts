@@ -43,7 +43,7 @@ import type { ClaimChatOp } from "../../../../packages/server/src/domain/chat/co
 import type { MemoryRecallResult } from "../../../../packages/server/src/domain/chat/contract/memory.ts";
 import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createChatTeachingContributions } from "../../../../packages/server/src/domain/chat/teaching-contribution.ts";
-import { pruneChatDigests, pruneChatSegments } from "../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
+import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
@@ -538,6 +538,11 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     embeddingsPruneBlocks: async (params) => {
       if (params.lens === "digest") {
         await pruneChatDigests(db, params.chatId, params.scopedCharacterId, params.keepPerTier);
+        return;
+      }
+      // #1395 — the KNOWN-stale invalidation arm, real for the same reason the shrink is.
+      if (params.lens === "digest-stale") {
+        await dropChatDigestKeys(db, params.chatId, params.scopedCharacterId, params.keys);
         return;
       }
       await pruneChatSegments(db, params.chatId, params.keepBlockCount, params.chunkCounts);

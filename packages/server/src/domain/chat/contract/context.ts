@@ -1034,7 +1034,22 @@ interface PruneSegmentBlocksParams {
  * changes, and nothing re-summarizes anything — so the digest built FROM the removed rows would stay in the
  * recall pool forever. The build STORES, then prunes. An ordinary pass prunes nothing.
  */
-type EmbeddingsPruneBlocksOp = (params: PruneDigestBlocksParams | PruneSegmentBlocksParams) => Promise<void>;
+/** memory's STALENESS invalidation (#1395) — the third reason a stored digest is wrong, and the one neither
+ *  the self-heal nor the shrink covers. A hash mismatch has already PROVEN the stored row stale; when the
+ *  re-summarize that mismatch queued comes back empty (a provider failure, a blank result, a bodyless arc)
+ *  the build correctly declines to store a blank — but the pre-existing row is still live and
+ *  `loadDigestsForScope` has no currency filter, so recall keeps serving memory the build knows is out of
+ *  date until some later pass succeeds. `keys` is exactly the set this pass attempted and abandoned; the
+ *  block simply drops out of recall until a pass lands a real digest (memory says less, never something
+ *  stale). */
+interface PruneStaleDigestsParams {
+  readonly lens: "digest-stale";
+  readonly chatId: ChatId;
+  readonly scopedCharacterId: CharacterId;
+  readonly keys: readonly { readonly tier: number; readonly blockIdx: number }[];
+}
+
+type EmbeddingsPruneBlocksOp = (params: PruneDigestBlocksParams | PruneSegmentBlocksParams | PruneStaleDigestsParams) => Promise<void>;
 
 /** memory's chat-scoped recall. Returns the ranked blocks WITH their retrieval numbers; memory resolves the
  *  identities back to digest text and reports the numbers in its recall trace (#250 — a bare key list left

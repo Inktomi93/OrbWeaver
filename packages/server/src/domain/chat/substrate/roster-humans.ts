@@ -20,7 +20,7 @@
 // an injected `ctx.resolveUserEnabled` now calls, instead of re-deriving the enabled filter per call site.
 
 import type { ParticipantKind } from "@orb/contracts/chat";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
 import { classifyParticipant, isBackingUserEnabled } from "../persistence/participant.ts";
 
@@ -61,4 +61,32 @@ export async function presentAndEnabledHumanUserIdsOf(ctx: ChatContext, roster: 
   const present = presentHumanUserIdsOf(roster);
   const enabled = await Promise.all(present.map((userId) => ctx.resolveUserEnabled(userId)));
   return present.filter((_userId, i) => isBackingUserEnabled("human", enabled[i] ?? false));
+}
+
+/** The seat fields the ACTIVE-PERSONA lens needs on top of {@link HumanSeat} — again structural, so a raw
+ *  `chat_participants` row passes unchanged. */
+interface PersonaSeat extends HumanSeat {
+  readonly activePersonaId: PersonaId | null;
+}
+
+/** The room's ACTIVE-PERSONA set for one round: each ONLINE human seat's `activePersonaId`.
+ *
+ *  A DIFFERENT question from the consent set above, on a DIFFERENT axis, and the two must not be confused:
+ *  the consent set asks WHOSE personas this room may resolve (membership + a live account) and is
+ *  deliberately presence-blind, because the anchor's owner is routinely offline. This set asks whose
+ *  persona is IN THE ROOM RIGHT NOW, and it gates which persona-scope world-info books join the pool — a
+ *  server-derived signal, never client-asserted.
+ *
+ *  ONE HOME because two sites must agree (#1401). `verbs/turn.ts::loadRoom` derived it for the live turn
+ *  while the PREVIEW derived its own, unfiltered — so a host's preview assembled the persona books of
+ *  members who were not online, and the honesty instrument reported a prompt the next real turn would not
+ *  send. Same class as the consent set's own history recorded in this file's header: a second copy of a
+ *  membership rule drifts from the first. */
+export async function onlinePersonaIdsOf(ctx: ChatContext, roster: readonly PersonaSeat[]): Promise<readonly PersonaId[]> {
+  const seats = roster.flatMap((seat) => {
+    const actor = classifyParticipant(seat);
+    return actor?.kind === "human" && seat.activePersonaId !== null ? [{ userId: actor.userId, personaId: seat.activePersonaId }] : [];
+  });
+  const online = await Promise.all(seats.map((seat) => ctx.readPresence(seat.userId).then((p) => p.online)));
+  return seats.filter((_seat, i) => online[i] === true).map((seat) => seat.personaId);
 }

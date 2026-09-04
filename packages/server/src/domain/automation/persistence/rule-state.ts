@@ -7,7 +7,7 @@ import { ANALYSIS_GUIDANCE_MAX } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationRuleState, automationRules } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import type { AnalysisState, RuleStateRead } from "../contract/analysis.ts";
 import { EMPTY_ANALYSIS_STATE, parseAnalysisState } from "../contract/analysis.ts";
 
@@ -43,6 +43,36 @@ export async function upsertRuleState(
         state: args.state as unknown as Record<string, unknown>,
         updatedAt: args.nowMs,
         ...(guidance !== undefined ? { guidance } : {}),
+      },
+    });
+}
+
+/** Advance ONLY the settled watermark, as ONE statement (#1418 — the confirm path's half).
+ *
+ *  NOT a read-then-write. `select` → `{...state, settledThroughSeq: max(...)}` → `upsert` is lost-update by
+ *  construction: a confirm and a live pass both read the same row, and whichever writes second reverts the
+ *  other's arc/twist bank wholesale. The window is small and it is real, and there is no transaction to
+ *  close it with — `batchMany` bans a read ahead of its writes. So the advance is expressed IN the write:
+ *  SQLite evaluates `json_set`/`json_extract` against the row as it stands at UPDATE time, so the monotonic
+ *  `max` is atomic and every other field of the blob is left byte-identical (the `chat-metadata-write`
+ *  precedent). Monotonic on purpose: a confirm of a card raised before a later pass already covered the
+ *  span must never drag the mark backwards.
+ *
+ *  The INSERT arm covers the row-absent case (a rule whose pass wrote no state) rather than no-oping the
+ *  advance away — an UPDATE-only spelling would silently lose the coverage for exactly that rule. */
+export async function advanceSettledWatermark(
+  db: Db,
+  args: { readonly ruleId: AutomationRuleId; readonly throughSeq: number; readonly nowMs: number },
+): Promise<void> {
+  const seeded: AnalysisState = { ...EMPTY_ANALYSIS_STATE, settledThroughSeq: args.throughSeq };
+  await db
+    .insert(automationRuleState)
+    .values({ ruleId: args.ruleId, state: seeded as unknown as Record<string, unknown>, guidance: "", updatedAt: args.nowMs })
+    .onConflictDoUpdate({
+      target: automationRuleState.ruleId,
+      set: {
+        state: sql`json_set(${automationRuleState.state}, '$.settledThroughSeq', max(coalesce(json_extract(${automationRuleState.state}, '$.settledThroughSeq'), 0), ${args.throughSeq}))`,
+        updatedAt: args.nowMs,
       },
     });
 }

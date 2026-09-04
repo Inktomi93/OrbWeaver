@@ -16,7 +16,7 @@ import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import type { AnalysisConfirmAct } from "../contract/analysis.ts";
 import type { AnalysisConfirmDeps, PendingSuggestion, RuleRow } from "../contract/ops.ts";
 import { applyRuleLoreWrite } from "../engine/lore-write.ts";
-import { selectRuleState, upsertRuleState } from "../persistence/rule-state.ts";
+import { advanceSettledWatermark, selectRuleState, upsertRuleState } from "../persistence/rule-state.ts";
 
 /** Execute one CONFIRMED analysis act. Throws on refusal — the confirm verb maps it to `action_error`
  *  (errors-as-data at the verb, matching the stashed-arm path). */
@@ -38,12 +38,11 @@ export async function runAnalysisConfirm(deps: AnalysisConfirmDeps, pending: Pen
       if (!written.ok) {
         throw new Error(written.refused);
       }
-      const { state } = await selectRuleState(deps.db, ruleId);
-      await upsertRuleState(deps.db, {
-        ruleId,
-        state: { ...state, settledThroughSeq: Math.max(state.settledThroughSeq, act.spanEnd) },
-        nowMs: deps.nowMs,
-      });
+      // The watermark advance the apply earns, as ONE statement (#1418): the read-then-merge this used to
+      // do could revert a concurrent pass's arc/twist bank, and it left a wider window between the
+      // already-committed book write and the coverage record. `advanceSettledWatermark` touches exactly the
+      // one JSON path, monotonically.
+      await advanceSettledWatermark(deps.db, { ruleId, throughSeq: act.spanEnd, nowMs: deps.nowMs });
       return;
     }
     case "rewrite": {

@@ -35,7 +35,7 @@ import type {
 } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
 import { buildAnalysisSystemPrompt, buildAnalysisUserPrompt } from "../../../../../packages/server/src/domain/automation/engine/analysis-arm.ts";
 import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
-import { selectRuleState } from "../../../../../packages/server/src/domain/automation/persistence/rule-state.ts";
+import { selectRuleState, upsertRuleState } from "../../../../../packages/server/src/domain/automation/persistence/rule-state.ts";
 import { createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -54,8 +54,14 @@ interface Captured {
   readonly bus: AutomationBusEvent[];
 }
 
-/** The harness: real db reads (windows/state/attach), captured writes, and a CANNED model reply. */
-function makeHarness(db: Db, quietReplies: readonly string[]): { dispatch: ArmDispatch; captured: Captured; suggestions: SuggestionStore } {
+/** The harness: real db reads (windows/state/attach), captured writes, and a CANNED model reply.
+ *  `throwOnVarOps` makes the LAST effecting route blow up — the only way to exercise a failure that lands
+ *  AFTER the durable lore write has already committed (#1418). */
+function makeHarness(
+  db: Db,
+  quietReplies: readonly string[],
+  opts: { readonly throwOnVarOps?: boolean } = {},
+): { dispatch: ArmDispatch; captured: Captured; suggestions: SuggestionStore } {
   const captured: Captured = { varOps: [], upserts: [], turns: [], quiet: [], bus: [] };
   const replies = [...quietReplies];
   const ops: AutomationOps = {
@@ -69,7 +75,7 @@ function makeHarness(db: Db, quietReplies: readonly string[]): { dispatch: ArmDi
       resolveChatProse: () => Promise.resolve({}),
       applyVariableOps: (chatId, varOps) => {
         captured.varOps.push({ chatId, ops: varOps });
-        return Promise.resolve();
+        return opts.throwOnVarOps === true ? Promise.reject(new Error("variable write exploded")) : Promise.resolve();
       },
       listBackgroundChoices: () => Promise.resolve([]),
       setChatBackground: () => Promise.resolve(),
@@ -283,6 +289,31 @@ test("direct lore: entries are NEUTRALIZED + span-stamped through the ONE belt, 
   expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(LORE_SPAN_END);
 });
 
+test("#1418 — a route that fails AFTER the lore commit still leaves the span COVERED (no divergent re-distillation)", async () => {
+  const { db, host, chatId, ruleId } = await setup(LORE_CHAT_MESSAGES);
+  const bookId = await seedBook(db, host, chatId, true);
+  // Direct lore + a vars route whose write EXPLODES. The lore bytes are already in the book by then; the
+  // pass dies afterwards. If the coverage record waits for the end of the pass, the next pass re-reads the
+  // same span, asks the model again, and lands a second, differently-keyed set of entries beside the first.
+  const { dispatch, captured } = makeHarness(
+    db,
+    [reply({ ...EMPTY_PLOT, lore: [{ key: "the-courier", keys: ["courier"], content: "The courier vanished." }], score: 5 })],
+    { throwOnVarOps: true },
+  );
+  await expect(
+    dispatch(
+      arm({ type: "run_analysis", brief: "b", routes: { lore: { apply: "direct", bookId }, vars: { key: "tension" } } }),
+      makeFrame({ chatId, authorUserId: host, ruleId }),
+    ),
+  ).rejects.toThrow("variable write exploded");
+
+  expect(captured.upserts).toHaveLength(1); // the durable write DID land — it cannot be un-landed.
+  // …so its span is recorded. The pass's CONCLUSIONS are not: the arc bank stays as it was.
+  const after = await selectRuleState(db, ruleId);
+  expect(after.state.settledThroughSeq).toBe(LORE_SPAN_END);
+  expect(after.state.arc).toBe("");
+});
+
 test("PLANTED CONTROL — the belts BITE on the analysis path: an unattached book ⇒ arm_error, ZERO writes, NO state write", async () => {
   const { db, host, chatId, ruleId } = await setup(LORE_CHAT_MESSAGES);
   const bookId = await seedBook(db, host, chatId, false); // NOT attached — the room never consented.
@@ -439,6 +470,59 @@ test("rewrite: a HIDDEN reply is not auditable — the host already shelved it",
   const pending = suggestions.listForChat(chatId, FIXED_NOW_MS)[0];
   const act = pending?.payload?.via === "analysis" ? pending.payload.act : null;
   expect(act?.kind === "rewrite" ? act.messageId : "").toBe(auditedIds(chatId, 2).messageId);
+});
+
+// ── #1416: the settled slice is a CURSOR on a warm pass, and the legacy freshest-slice posture on a cold one ──
+
+/** Enough canon that the settled span outgrows `ANALYSIS_SETTLED_SLICE_MAX` (300): maxSeq 340, protect tail
+ *  16 ⇒ `through` = 324, and a warm pass resuming from seq 1 has a 323-row span to cover. */
+const SLICE_CHAT_MESSAGES = 340;
+const SLICE_THROUGH = SLICE_CHAT_MESSAGES - 16;
+const WARM_FROM_SEQ = 1;
+
+/** The SETTLED section of a built pass prompt (`buildAnalysisUserPrompt` labels it, and the FRESH tip is a
+ *  separate `\n\n`-joined part that legitimately quotes the newest rows on either arm). */
+function settledSection(prompt: string | undefined): string {
+  const part = (prompt ?? "").split("\n\n").find((p) => p.startsWith("SETTLED transcript"));
+  expect(part).toBeDefined();
+  return part ?? "";
+}
+
+test("#1416 WARM pass: the over-long settled span is read EARLIEST-first and the watermark advances only to what was READ", async () => {
+  const { db, host, chatId, ruleId } = await setup(SLICE_CHAT_MESSAGES);
+  const bookId = await seedBook(db, host, chatId, true);
+  // A prior pass covered through seq 1 — this is a CURSORED resume, not a cold start. Written through the
+  // REAL state writer so the stored blob is byte-identical to what a live pass leaves behind.
+  await upsertRuleState(db, { ruleId, state: { ...EMPTY_ANALYSIS_STATE, settledThroughSeq: WARM_FROM_SEQ }, nowMs: FIXED_NOW_MS });
+  const { dispatch, captured } = makeHarness(db, [reply({ ...EMPTY_PLOT, lore: [] })]);
+  const outcome = await dispatch(
+    arm({ type: "run_analysis", brief: "b", routes: { lore: { apply: "direct", bookId } } }),
+    makeFrame({ chatId, authorUserId: host, ruleId }),
+  );
+  expect(outcome).toEqual({ ok: true });
+
+  // The model saw the OLDEST unanalyzed play, not the freshest slice of a span it was about to mark covered.
+  // Scoped to the SETTLED section: the fresh tip is a separate window and legitimately quotes the newest rows.
+  const settled = settledSection(captured.quiet[0]?.prompt);
+  expect(settled).toContain("Narrator: beat 2\n");
+  expect(settled).not.toContain(`beat ${SLICE_THROUGH}`);
+  // …and the mark stopped where the read stopped: seq 2 through seq 301 is 300 rows.
+  expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(WARM_FROM_SEQ + 300);
+});
+
+// GREEN BEFORE THE FIX BY DESIGN — this is the FENCE on the recorded ruling, not a defect proof: it pins
+// that the cold arm's behavior is byte-for-byte what it was, so a later "simplification" to one uniform
+// slice rule cannot quietly retire the posture `canon-reads.ts` records.
+test("#1416 COLD start keeps the recorded freshest-slice posture: newest rows, watermark over the WHOLE span", async () => {
+  const { db, host, chatId, ruleId } = await setup(SLICE_CHAT_MESSAGES);
+  const bookId = await seedBook(db, host, chatId, true);
+  const { dispatch, captured } = makeHarness(db, [reply({ ...EMPTY_PLOT, lore: [] })]);
+  await dispatch(arm({ type: "run_analysis", brief: "b", routes: { lore: { apply: "direct", bookId } } }), makeFrame({ chatId, authorUserId: host, ruleId }));
+  // No prior mark ⇒ the ruled posture stands: read what is freshest, cover the span (`canon-reads.ts`).
+  const settled = settledSection(captured.quiet[0]?.prompt);
+  expect(settled).toContain(`beat ${SLICE_THROUGH}`);
+  expect(settled).not.toContain("Narrator: beat 2\n");
+  expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(SLICE_THROUGH);
 });
 
 // ── failure honesty ──────────────────────────────────────────────────────────────────────────────────

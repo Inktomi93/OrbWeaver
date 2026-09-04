@@ -20,6 +20,7 @@ import { speakerKey } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
+import { includesWholeName } from "@orb/kit/speaker-label";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerCandidate } from "../contract/arbitration.ts";
 import type { SummarizeOp } from "../contract/context.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
@@ -139,35 +140,20 @@ function buildUserPrompt(recentHistory: string, names: readonly string[]): strin
   return `Recent conversation:\n${history}\n\nCharacters who may speak next: ${names.join(", ")}\n\nNext speaker:`;
 }
 
-// An ASCII word character (the reply + names are already lowercased). A name is a WHOLE word only when
-// neither boundary neighbour is one — so "Ari" does NOT match inside "Arianna", while name-internal
-// punctuation/spaces ("Dr. Vane") stay irrelevant to the boundary test. Top-level (per-call reuse).
-const WORD_CHAR = /[a-z0-9]/;
-function isWordChar(ch: string | undefined): boolean {
-  return ch !== undefined && WORD_CHAR.test(ch);
-}
-
-/** True when `needle` occurs in `haystack` bounded by non-word chars / string edges (whole-word). */
-function includesWholeWord(haystack: string, needle: string): boolean {
-  let from = haystack.indexOf(needle);
-  while (from !== -1) {
-    if (!(isWordChar(haystack[from - 1]) || isWordChar(haystack[from + needle.length]))) {
-      return true;
-    }
-    from = haystack.indexOf(needle, from + 1);
-  }
-  return false;
-}
-
 /** Roster-validating parse: return the eligible character whose name appears in the reply (whole-word,
  *  case-insensitive; longest name first so a substring name can't pre-empt a longer one). Whole-word so an
  *  eligible name embedded in a longer word ("Ari" inside "Arianna") never false-positives (F9 — the header
- *  claimed whole-word; the impl was a bare substring). Null ⇒ no eligible name matched (→ caller falls back). */
+ *  claimed whole-word; the impl was a bare substring). Null ⇒ no eligible name matched (→ caller falls back).
+ *
+ *  The boundary test is the SHARED kit one (#1439). The local copy it replaced tested `[a-z0-9]`, which
+ *  read every non-ASCII character as a separator — so a short Cyrillic or CJK name embedded in a longer
+ *  Cyrillic or CJK word reported a whole-word hit and the arbiter picked a speaker the model never named.
+ *  Same root cause, opposite symptom, as the `\b` miss in `select-speakers::resolveMentions`. */
 function matchEligible(reply: string, eligible: readonly { ref: SpeakerRef; name: string }[]): SpeakerRef | null {
   const haystack = reply.toLowerCase();
   const byLongest = eligible.toSorted((a, b) => b.name.length - a.name.length);
   for (const member of byLongest) {
-    if (includesWholeWord(haystack, member.name.toLowerCase())) {
+    if (includesWholeName(haystack, member.name.toLowerCase())) {
       return member.ref;
     }
   }

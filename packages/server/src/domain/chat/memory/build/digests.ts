@@ -5,6 +5,12 @@
 //
 // SELF-HEAL: a block is (re)digested only if missing or its content_hash changed — the protected tip
 // (maxSeq − verbatimWindow) never digests, so a swipe/edit at the live tip never touches a settled digest.
+//
+// THREE WAYS A STORED DIGEST GOES WRONG, THREE MECHANISMS (#1395): content CHANGED → the hash self-heal
+// re-summarizes it; the block DISAPPEARED → `embeddingsPruneBlocks` reclaims it (the shrink, `queries.ts`);
+// the replacement FAILED → this file INVALIDATES the row it could not replace. The third used to have no
+// mechanism, so a proven-stale digest (its hash mismatch is what queued the rebuild) stayed live in recall
+// for as long as the summarizer kept returning nothing — see `storeTier0`/`storeConsolidationTier`.
 
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import { DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS, DEFAULT_MEMORY_SUMMARIZER_PRESENCE_PENALTY } from "@orb/contracts/settings";
@@ -304,11 +310,21 @@ async function collectTier0(
 
 /** The tier-0 STORE (PASS 2): for each pending block, parse its summarized text and embed-store it. `texts` is
  *  index-aligned to `plan.pending`. The content-hash self-heal + empty-skip are preserved per block (a blank
- *  digest keyed by the block hash would skip forever, so it is left un-digested to retry next pass). */
+ *  digest keyed by the block hash would skip forever, so it is left un-digested to retry next pass).
+ *
+ *  AND THE EMPTY SKIP INVALIDATES THE ROW IT LEAVES BEHIND (#1395). The skip's own reasoning is about the NEW
+ *  digest — don't key a blank under this hash — and says nothing about the OLD one. But a pending block is
+ *  pending precisely BECAUSE its stored hash mismatched: the build has already proven that row stale, and
+ *  `loadDigestsForScope` has no currency filter, so leaving it live serves known-out-of-date memory on every
+ *  recall until a later summarize happens to succeed. Retry does not make the intervening recalls safe. So
+ *  the pre-existing row for every skipped key is DELETED — a block missing from recall is an honest degrade;
+ *  a block whose summary predates an edit or a reattribution is not. Keys with no stored row (a first-time
+ *  block that failed) are passed too and delete nothing — the DELETE is the same statement either way. */
 export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: readonly (string | null)[]): Promise<{ written: number; skippedEmpty: number }> {
   const { chatId, scopedCharacterId, isGroup } = plan.scope;
   let written = 0;
   let skippedEmpty = 0;
+  const staleKeys: { tier: number; blockIdx: number }[] = [];
   for (let i = 0; i < plan.pending.length; i += 1) {
     const item = plan.pending[i];
     if (item === undefined) {
@@ -317,6 +333,7 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
     const raw = texts[i];
     if (raw === null || raw === undefined || raw.trim().length === 0) {
       skippedEmpty += 1;
+      staleKeys.push({ tier: 0, blockIdx: item.block.blockIdx });
       continue;
     }
     const parsed = parseDigest(raw);
@@ -332,7 +349,18 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
     });
     written += 1;
   }
+  await invalidateStale(ctx, plan.scope, staleKeys);
   return { written, skippedEmpty };
+}
+
+/** Drop the KNOWN-stale digest rows a pass proved stale and then failed to replace (#1395) — the third
+ *  memory delete, beside the shrink reclaim and the content-hash self-heal. No-op on an empty set (the
+ *  ordinary pass), so the build's no-op economy is untouched. */
+async function invalidateStale(ctx: ChatContext, scope: MemoryScope, keys: readonly { readonly tier: number; readonly blockIdx: number }[]): Promise<void> {
+  if (keys.length === 0) {
+    return;
+  }
+  await ctx.embeddingsPruneBlocks({ lens: "digest-stale", chatId: scope.chatId, scopedCharacterId: scope.scopedCharacterId, keys });
 }
 
 /** Emit the `memory.build` structured trace. Exported so the corpus backfill can emit the SAME per-bucket
@@ -530,6 +558,7 @@ export async function storeConsolidationTier(
 ): Promise<PassCounts> {
   let written = 0;
   let skippedEmpty = 0;
+  const staleKeys: { tier: number; blockIdx: number }[] = [];
   for (let i = 0; i < plan.pending.length; i += 1) {
     const item = plan.pending[i];
     if (item === undefined) {
@@ -538,6 +567,7 @@ export async function storeConsolidationTier(
     const raw = texts[i];
     if (raw === null || raw === undefined || raw.trim().length === 0) {
       skippedEmpty += 1;
+      staleKeys.push({ tier: plan.parentTier, blockIdx: item.parentBlockIdx });
       continue;
     }
     const parsed = parseDigest(raw);
@@ -548,6 +578,7 @@ export async function storeConsolidationTier(
     // VISIBLY, never silently ship a bodyless arc as canon).
     if (parsed.facts.trim().length === 0) {
       skippedEmpty += 1;
+      staleKeys.push({ tier: plan.parentTier, blockIdx: item.parentBlockIdx });
       continue;
     }
     await ctx.embeddingsStore({
@@ -567,6 +598,9 @@ export async function storeConsolidationTier(
     });
     written += 1;
   }
+  // #1395 — the same invalidation the tier-0 store applies: a parent queued by a hash mismatch and then
+  // skipped (blank, or the #329 P1b bodyless arc) leaves a parent the build has PROVEN stale live in recall.
+  await invalidateStale(ctx, scope, staleKeys);
   return { written, skipped: 0, skippedEmpty };
 }
 

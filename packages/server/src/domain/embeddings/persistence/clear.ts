@@ -104,6 +104,36 @@ export async function pruneChatDigests(db: Db, chatId: ChatId, scopedCharacterId
   return rows.length;
 }
 
+/** THE STALENESS INVALIDATION (#1395) — the third memory delete, and the one the other two structurally
+ *  cannot cover. `pruneChatDigests` reclaims blocks that no longer EXIST; the content-hash self-heal
+ *  re-summarizes blocks whose content CHANGED. Neither answers the third state: a block that still exists,
+ *  whose hash mismatch already PROVED the stored digest stale, and whose re-summarize came back empty (a
+ *  provider failure, a blank result, a bodyless arc). The build skips storing — correctly, a blank digest
+ *  keyed by the new hash would skip forever — but the pre-existing row stayed live, and `loadDigestsForScope`
+ *  has no currency filter to recognise it. Recall therefore kept serving a digest the build had already
+ *  judged out of date, for as long as the summarizer kept failing.
+ *
+ *  So the KNOWN-stale row is deleted instead. Losing the block from recall until a later pass succeeds is
+ *  the honest degrade: memory says less rather than saying something the canon has moved past. Bounded by
+ *  construction — the caller passes only the keys whose re-digest it attempted and abandoned. Scope-keyed
+ *  like its sibling, and `chat_digest_speakers` follows the FK CASCADE. */
+export async function dropChatDigestKeys(
+  db: Db,
+  chatId: ChatId,
+  scopedCharacterId: CharacterId,
+  keys: readonly { readonly tier: number; readonly blockIdx: number }[],
+): Promise<number> {
+  if (keys.length === 0) {
+    return 0;
+  }
+  const targeted = keys.map((k) => and(eq(chatDigests.tier, k.tier), eq(chatDigests.blockIdx, k.blockIdx)));
+  const rows = await db
+    .delete(chatDigests)
+    .where(and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId), or(...targeted)))
+    .returning({ id: chatDigests.id });
+  return rows.length;
+}
+
 /** The `chat_segments` twin of {@link pruneChatDigests}. Segments are single-tier and chat-wide (NOT
  *  scope-keyed), so the BLOCK shrink is one ceiling: every block beyond `keepBlockCount` indexes canon rows
  *  that are no longer ingested. A stale segment is worse than dead weight — it carries a `(seqStart, seqEnd)`

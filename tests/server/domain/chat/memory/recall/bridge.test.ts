@@ -105,3 +105,49 @@ describe("memory/recall/bridge — adversarial coverage (uncovered-only depth, b
     expect(keys.some((k) => k.blockIdx === 1)).toBe(false);
   });
 });
+
+describe("memory/recall/bridge — per-BUCKET coverage (#1394)", () => {
+  const ownChar = castId<CharacterId>("character_own");
+
+  /** A digest row in a NAMED bucket — the shared (group-as-character) one vs the speaker's own. */
+  function bucketRow(owner: CharacterId, tier: number, blockIdx: number): DigestRow {
+    return { ...dr(tier, blockIdx), id: castId<ChatDigestId>(`chat_digest_${owner}_${tier}_${blockIdx}`), scopedCharacterId: owner };
+  }
+
+  test("shared and own buckets both at tier 0 block 0 → BOTH scoped keys survive", () => {
+    // `recallMemory` unions `[...shared, ...own]`, and independently built histories both start at block 0,
+    // so the two buckets collide on the tier/blockIdx grid. Each bucket's block 0 is its OWN scene.
+    const keys = computeBridge(scope, [bucketRow(groupChar, 0, 0), bucketRow(ownChar, 0, 0)], 8);
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        { chatId, tier: 0, blockIdx: 0, scopedCharacterId: groupChar },
+        { chatId, tier: 0, blockIdx: 0, scopedCharacterId: ownChar },
+      ]),
+    );
+    expect(keys).toHaveLength(2);
+  });
+
+  test("each bucket's coarse/fine zones are computed from its OWN digest set", () => {
+    // shared: tier-0 blocks 0..3 + the tier-1 pair → coarse cover at tier 1 block 0, fine [2,3].
+    // own: a single tier-0 block 0 → entirely fine. The shared bucket's grid must not decide the own bucket's.
+    const digests = [
+      bucketRow(groupChar, 0, 0),
+      bucketRow(groupChar, 0, 1),
+      bucketRow(groupChar, 0, 2),
+      bucketRow(groupChar, 0, 3),
+      bucketRow(groupChar, 1, 0),
+      bucketRow(groupChar, 1, 1),
+      bucketRow(ownChar, 0, 0),
+    ];
+    const keys = computeBridge(scope, digests, 2);
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        { chatId, tier: 1, blockIdx: 0, scopedCharacterId: groupChar },
+        { chatId, tier: 0, blockIdx: 2, scopedCharacterId: groupChar },
+        { chatId, tier: 0, blockIdx: 3, scopedCharacterId: groupChar },
+        { chatId, tier: 0, blockIdx: 0, scopedCharacterId: ownChar },
+      ]),
+    );
+    expect(keys).toHaveLength(4);
+  });
+});

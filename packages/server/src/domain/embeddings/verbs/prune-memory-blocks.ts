@@ -18,7 +18,7 @@ import type { EmbeddingsContext } from "../context.ts";
 import type { PruneMemoryBlocksParams } from "../contract/params.ts";
 import type { PruneMemoryBlocksResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
-import { pruneChatDigests, pruneChatSegments } from "../persistence/clear.ts";
+import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "../persistence/clear.ts";
 
 function assertNever(value: never): never {
   throw new Error(`pruneMemoryBlocks: unhandled lens ${String(value)}`);
@@ -29,6 +29,11 @@ export function createPruneMemoryBlocks(ctx: EmbeddingsContext): EmbeddingsServi
     switch (params.lens) {
       case "digest": {
         const rowsDeleted = await pruneChatDigests(ctx.db, params.chatId, params.scopedCharacterId, params.keepPerTier);
+        return { rowsDeleted };
+      }
+      // #1395 — the KNOWN-stale reclaim (hash mismatch proved it stale, the re-summarize came back empty).
+      case "digest-stale": {
+        const rowsDeleted = await dropChatDigestKeys(ctx.db, params.chatId, params.scopedCharacterId, params.keys);
         return { rowsDeleted };
       }
       case "segment": {

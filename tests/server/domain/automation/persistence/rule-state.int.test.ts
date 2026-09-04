@@ -10,7 +10,12 @@ import { automationRules } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { EMPTY_ANALYSIS_STATE } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
-import { selectChatGuidance, selectRuleState, upsertRuleState } from "../../../../../packages/server/src/domain/automation/persistence/rule-state.ts";
+import {
+  advanceSettledWatermark,
+  selectChatGuidance,
+  selectRuleState,
+  upsertRuleState,
+} from "../../../../../packages/server/src/domain/automation/persistence/rule-state.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
@@ -66,6 +71,24 @@ test("guidance SLICES at the write boundary (the bound the DDL CHECK mirrors) an
   const after = await selectRuleState(db, ruleId);
   expect(after.state.settledThroughSeq).toBe(3);
   expect(after.guidance).toBe("g".repeat(ANALYSIS_GUIDANCE_MAX));
+});
+
+test("advanceSettledWatermark is a MONOTONIC single-statement JSON-path write that touches nothing else (#1418)", async () => {
+  const { db, ruleId } = await setup();
+  // Absent row ⇒ the INSERT arm seeds an otherwise-empty state at the given mark (never a silent no-op).
+  await advanceSettledWatermark(db, { ruleId, throughSeq: 5, nowMs: NOW });
+  expect(await selectRuleState(db, ruleId)).toEqual({ state: { ...EMPTY_ANALYSIS_STATE, settledThroughSeq: 5 }, guidance: "" });
+
+  // A full pass then writes its conclusions; the advance must leave every one of them byte-identical.
+  const rich = { arc: "the debt", twists: ["a clue"], retiredTwists: ["spent"], settledThroughSeq: 5 };
+  await upsertRuleState(db, { ruleId, state: rich, guidance: "plant it", nowMs: NOW + 1 });
+  await advanceSettledWatermark(db, { ruleId, throughSeq: 12, nowMs: NOW + 2 });
+  expect(await selectRuleState(db, ruleId)).toEqual({ state: { ...rich, settledThroughSeq: 12 }, guidance: "plant it" });
+
+  // MONOTONIC: a confirm of a card raised before a later pass already covered the span must not drag the
+  // mark backwards (which would re-open a covered span to a second distillation).
+  await advanceSettledWatermark(db, { ruleId, throughSeq: 4, nowMs: NOW + 3 });
+  expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(12);
 });
 
 test("selectChatGuidance gates on chat + enabled + author-is-the-turn-host, and picks the newest single voice", async () => {
