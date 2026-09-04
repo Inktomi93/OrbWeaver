@@ -13,7 +13,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
   for (var ho = 0; ho < headingEls.length; ho += 1) {
     var hoel = headingEls[ho];
     if (!isVisible(hoel) || hoel.closest("[aria-hidden='true']") || isDevChrome(hoel)) continue;
-    headings.push({ level: Number(hoel.tagName[1]), text: (hoel.textContent || "").trim().replace(/\\s+/g, " ").slice(0, 60) });
+    headings.push({ selector: describe(hoel), level: Number(hoel.tagName[1]), text: (hoel.textContent || "").trim().replace(/\\s+/g, " ").slice(0, 60) });
   }
 
   // ── text overflow (impeccable text-overflow — block + inline arms) ───────
@@ -218,7 +218,14 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
     };
   };
   var CLIP_SPILL_TOLERANCE = 2;
-  var DECOR_IDENT_RE = /\\b(art|bg|background|badge|blob|crop|decor|dot|glow|grain|image|mask|ornament|overlay|photo|scrim|shadow|shine|texture)\\b/i;
+  // THE VIEWPORT IDENT TEST READS THE SLOT, NEVER THE CLASS STRING (#1317 item 7 - the #552 shape).
+  // A word-boundary test over the class attribute matches any Tailwind utility that CONTAINS the word,
+  // and - measured on this tree, 2026-09-04 - it was also BLIND to the real expression mechanism:
+  // packages/ui names an intentional clipping viewport with data-slot (scroll-area-viewport,
+  // dialog-viewport, menu-viewport, virtual-list-viewport, media-grid-viewport, drawer-viewport,
+  // toast-viewport, popover-viewport, tooltip-viewport, message-list-viewport), while ZERO className
+  // strings in packages/{ui,client} carry any word in this list. RULE-AUTHORING.md row 8's class, in
+  // both directions at once. data-slot + id + aria-roledescription are the authored positions.
   var VIEWPORT_IDENT_RE = /\\b(carousel|comparison|compare|fisheye|marquee|preview|scroller|slider|slideshow|split|viewport|demo-area|demo-stage|demo-viewport)\\b/i;
   var CHILD_SUBSTANTIVE_SEL = "a[href],button,input,select,summary,textarea,[tabindex]:not([tabindex='-1']),[role='button'],[role='dialog'],[role='link'],[role='listbox'],[role='menu'],[role='menuitem'],[role='option'],[role='tooltip']";
   for (var co = 0; co < allEls.length; co += 1) {
@@ -237,7 +244,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
     // Every screen-reader-only box is an overflow:hidden clip by construction, so this rule would call
     // each one a UI-cutting container. Cut UI is a claim about pixels; a clipped stub paints none.
     if (isVisuallyHidden(coel)) continue;
-    var coIdent = ((coel.getAttribute("class") || "") + " " + (coel.getAttribute("id") || "")).toLowerCase();
+    var coIdent = ((coel.getAttribute("data-slot") || "") + " " + (coel.getAttribute("id") || "")).toLowerCase();
     var coRoleDesc = (coel.getAttribute("aria-roledescription") || "").toLowerCase();
     if (VIEWPORT_IDENT_RE.test(coIdent) || /\\b(carousel|slider)\\b/.test(coRoleDesc)) continue;
     var coBox = clipBoxOf(coel);
@@ -269,11 +276,14 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
       if (ccRole === "none" || ccRole === "presentation") continue;
       var ccTag = cchild.tagName.toLowerCase();
       if (ccTag === "img" || ccTag === "svg" || ccTag === "canvas" || ccTag === "video") continue;
-      var ccIdent = (cchild.getAttribute("class") || "") + " " + (cchild.getAttribute("id") || "");
       var ccText = (cchild.textContent || "").replace(/\\s+/g, " ").trim();
       var ccControl = (cchild.matches && cchild.matches(CHILD_SUBSTANTIVE_SEL)) || !!cchild.querySelector(CHILD_SUBSTANTIVE_SEL);
       var ccSubstantive = ccText.length > 0 || ccControl;
-      if (DECOR_IDENT_RE.test(ccIdent) && !ccSubstantive) continue;
+      // The DECORATIVE-IDENT arm that used to sit here was DEAD CODE (#1317 item 7): it read
+      // DECOR_IDENT_RE.test(class + id) AND !ccSubstantive, and the very next line continues for EVERY
+      // !ccSubstantive child regardless - so the regex could not change one verdict either way. Removed
+      // rather than repaired: a child that carries neither text nor a control is already excluded by the
+      // MEASURED test below, which needs no name vocabulary at all.
       if (!ccSubstantive) continue;
       // The IN-FLOW arm's extra fences: it must paint (an unpainted box cuts nothing), it must not be
       // an sr-only stub, and it must be or carry a CONTROL — in-flow text spill is text-overflow's.

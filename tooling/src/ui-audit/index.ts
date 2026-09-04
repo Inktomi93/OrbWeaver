@@ -97,6 +97,7 @@ export {
   censusThinGap,
   censusTotal,
   failureSurfaceGap,
+  instrumentPageErrorGap,
   navErrorGap,
   reachGap,
   readinessGap,

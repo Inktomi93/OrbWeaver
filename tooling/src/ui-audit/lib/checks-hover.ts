@@ -166,8 +166,15 @@ function bump(counts: Record<string, number>, reason: string): void {
 }
 
 /** Merges the walker/CDP census with the check's own dispositions into the ONE `hover-contrast` row.
- *  Throws when the pass's `judged` count disagrees with the samples it handed over — a forced-state pass
- *  that lost a sample between phases is an instrument error, never a quietly smaller denominator. */
+ *
+ *  THE GUARD BELOW IS A SAMPLE-SEAM CONTRACT CHECK, NOT A LIVE-PATH ONE, and saying so is the point
+ *  (#1317 item 10). `ops/hover.ts` sets `hoverScan.census.judged` to `inputs.length` and then hands the
+ *  same `inputs` here, so on the live path the two operands are ONE number and the throw is structurally
+ *  unreachable — it is not evidence that the pass kept its samples. What it does cover is a `hoverScan`
+ *  this function did not produce: a fixture sample set, or a future second producer, whose census row
+ *  disagrees with its own sample list. The LIVE invariant is carried by `settledPopulationAccounting`
+ *  below (candidates = judged + withheld + excluded) plus the pass's own `forceFailedGroups` gap
+ *  (ops/run.ts), which is where a forced-state pass that lost samples actually reddens the run. */
 export function hoverContrastPopulations(inputs: readonly HoverContrastInput[], scan: HoverScanInput): RulePopulationAccounting {
   if (scan.census.judged !== inputs.length) {
     throw new Error(`INSTRUMENT ERROR: hover-contrast pass judged ${String(scan.census.judged)} but returned ${String(inputs.length)} sample(s)`);

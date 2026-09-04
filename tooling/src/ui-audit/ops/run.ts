@@ -12,6 +12,7 @@ import { instrumentError, printEvidenceGaps, printVerdict } from "@orb/tooling/_
 import type { ExitCode } from "@orb/tooling/_shared/exit-contract";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { WITHHELD_REASONS } from "../contract/findings.ts";
 import type { RawSamples } from "../contract/samples.ts";
 import type { DriveStateCandidate } from "../contract/surface-state.ts";
 import type { Args, BackdropRefusal, DomPopulation } from "../contract/types.ts";
@@ -24,6 +25,7 @@ import {
   censusThinGap,
   censusTotal,
   failureSurfaceGap,
+  instrumentPageErrorGap,
   navErrorGap,
   reachGap,
   readinessGap,
@@ -194,7 +196,9 @@ export async function runUiAudit(opts: Args): Promise<number> {
     const surfaceStateAccounting = buildSurfaceStateAccounting(shellState, drive);
 
     // Uncaught page exceptions are findings in their own right (script-error, P0) — the probe
-    // session's pageerror capture is wired from nav start (_shared/browser.ts wirePage).
+    // session's pageerror capture is wired from nav start (_shared/browser.ts wirePage). ONLY the
+    // `runtime` kind: an `instrument`-kind row is this harness's own wiring failure and rides
+    // `instrumentPageErrorGap` below as a NO VERDICT instead (#1317 item 1, lib/evidence.ts).
     const audit = pixels.samples === null ? null : collectAudit(pixels.samples);
     const findings = audit === null ? [] : [...audit.findings];
     const familyScans = audit === null ? null : audit.familyScans;
@@ -226,8 +230,12 @@ export async function runUiAudit(opts: Args): Promise<number> {
     // the walk RAN and its verdict is partial — so it must not suppress the population table a reader
     // needs in order to size what was lost.
     const capGap = pixels.samples === null ? null : censusCapGap(pixels.samples);
-    const evidenceGaps = [populationGap, capGap, hoverGap, forceGap].filter((row): row is EvidenceGap => row !== null);
-    findings.push(...checkScriptErrors(session.pageErrors.map(pageErrorText)));
+    // THE PAGE-ERROR CHANNEL, SPLIT BY ORIGIN (#1317 item 1). Same class as the gaps beside it — the
+    // walk RAN, so the tables still print — but the run is not a verdict, because the harness that was
+    // supposed to be watching the console was itself broken.
+    const instrumentGap = instrumentPageErrorGap(session.pageErrors.filter((error) => error.kind === "instrument").map(pageErrorText));
+    const evidenceGaps = [populationGap, capGap, hoverGap, forceGap, instrumentGap].filter((row): row is EvidenceGap => row !== null);
+    findings.push(...checkScriptErrors(session.pageErrors.filter((error) => error.kind === "runtime").map(pageErrorText)));
     const counts = countBySeverity(findings);
     // Only the findings decide the verdict here: a nav error or a failed action means the scan happened on
     // the WRONG surface, and since #1081 that is a NO VERDICT above rather than a red run whose tables
@@ -284,6 +292,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
           populationVerdict: populationGap === null ? "complete" : { verdict: "NO VERDICT", ...populationGap },
           hoverVerdict: hoverGap === null ? "complete" : { verdict: "NO VERDICT", ...hoverGap },
           forceVerdict: forceGap === null ? "complete" : { verdict: "NO VERDICT", ...forceGap },
+          instrumentPageErrorVerdict: instrumentGap === null ? "complete" : { verdict: "NO VERDICT", ...instrumentGap },
           themeEvidence: {
             request: opts.theme,
             applied: settingsEvidence.themeApplied,
@@ -360,7 +369,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
         ["tap-populations", populationAccounting["tap-target"]?.populations ?? -1],
         ["tap-representatives", populationAccounting["tap-target"]?.emitted ?? -1],
         ["tap-collapsed-same-owner", populationAccounting["tap-target"]?.collapsed["sameOwner"] ?? -1],
-        ["tap-withheld-cap", populationAccounting["tap-target"]?.withheld["cap"] ?? -1],
+        ["tap-withheld-cap", populationAccounting["tap-target"]?.withheld[WITHHELD_REASONS.representativeCap] ?? -1],
         // The DENOMINATOR (#409): how many nodes the walk censused. `findings=0` means nothing only when
         // this is non-zero, and a reader of the machine line is entitled to see it.
         ["census", census],

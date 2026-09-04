@@ -18,6 +18,33 @@ export interface FindingPopulation {
   readonly capped: number;
 }
 
+/** THE TWO STRUCTURAL WITHHELD REASONS (#1317 item 4). Most `withheld` keys are rule-owned free text —
+ *  a truncated target extent and a missing label/control relation are different facts and neither is
+ *  this file's business. These two are NOT rule-owned: they are minted by the collection strategies and
+ *  read back, by string, at seven sites across four files, each with distinct semantics that a bare
+ *  `"cap"` literal states nowhere. Homed here beside `RulePopulationAccounting` — the row they land in —
+ *  and derived, the way `CENSUS_CAP_FAMILIES` already is, so a reader that spells one by hand is a tsc
+ *  error rather than a silent mismatch. */
+export const WITHHELD_REASONS = {
+  /** NODE's REPRESENTATIVE cap: instances that WERE judged and are omitted from the printed list only.
+   *  Presentation, never missing evidence — it settles `affected = emitted + cap + collapsed` and is the
+   *  one reason `populationEvidenceGap` does not treat as NO VERDICT. `assertCensusAccounting` REFUSES a
+   *  walker that supplies it: the walker has no representative list to cap. */
+  representativeCap: "cap",
+  /** The WALKER's census bound: carriers the in-page census counted and could not carry out, so the
+   *  check never saw them. Absence of a measurement ⇒ the run is NO VERDICT for that rule. Deliberately
+   *  a different word from `representativeCap` — conflating the two would launder a truncated census
+   *  into a presentation detail. */
+  censusCapExceeded: "capExceeded",
+} as const;
+
+export type WithheldReason = (typeof WITHHELD_REASONS)[keyof typeof WITHHELD_REASONS];
+
+/** The closed set of withheld reasons that do NOT make a run partial — the tuple every "is this row
+ *  still complete?" reader filters by, rather than each re-spelling `"cap"`. A second presentation-only
+ *  reason is one member here and every reader picks it up. */
+export const PRESENTATION_WITHHELD_REASONS: readonly WithheldReason[] = [WITHHELD_REASONS.representativeCap];
+
 /** Whole-family accounting. Withholding reasons are rule-owned because a truncated target extent and a
  * missing label/control relation are different facts, but both must remain machine-visible. */
 /** Walker-side denominator before Node settles findings, collapses authored repeats, and applies

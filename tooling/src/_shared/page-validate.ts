@@ -30,34 +30,46 @@ export function describePageValue(value: unknown): string {
   return Array.isArray(value) ? "an array" : typeof value;
 }
 
-export function instrumentError(message: string): never {
+/** THE THROWING DOOR. Deliberately NOT called `instrumentError`: `_shared/evidence.ts` already exports
+ *  that name for the door that PRINTS a gap and RETURNS `EXIT.toolError`, and two exports with one name
+ *  and opposite control flow is how a `return instrumentError(...)` and a `instrumentError(...)` that
+ *  never returns end up looking identical at a call site (#1317 item 2). This one throws; every local
+ *  copy of the throwing shape imports it instead of re-declaring a third spelling. */
+export function instrumentRefusal(message: string): never {
   throw new Error(`INSTRUMENT ERROR: ${message}`);
 }
 
+/** The boolean half of `pageObject` — a plain (non-array, non-null) object, for the readers that
+ *  classify a value rather than settle it. ONE home: five copies of this predicate across `_shared` and
+ *  `ui-audit` is what #1317 item 3 named. */
+export function isPageObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export function pageObject(value: unknown, label: string): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    instrumentError(`${label} returned ${describePageValue(value)}, not an object`);
+  if (!isPageObject(value)) {
+    instrumentRefusal(`${label} returned ${describePageValue(value)}, not an object`);
   }
-  return value as Record<string, unknown>;
+  return value;
 }
 
 export function pageArray(value: unknown, label: string): readonly unknown[] {
   if (!Array.isArray(value)) {
-    instrumentError(`${label} returned ${describePageValue(value)}, not a list`);
+    instrumentRefusal(`${label} returned ${describePageValue(value)}, not a list`);
   }
   return value;
 }
 
 export function pageBoolean(value: unknown, label: string): boolean {
   if (typeof value !== "boolean") {
-    instrumentError(`${label} returned ${describePageValue(value)}, not a boolean`);
+    instrumentRefusal(`${label} returned ${describePageValue(value)}, not a boolean`);
   }
   return value;
 }
 
 export function pageString(value: unknown, label: string): string {
   if (typeof value !== "string") {
-    instrumentError(`${label} returned ${describePageValue(value)}, not a string`);
+    instrumentRefusal(`${label} returned ${describePageValue(value)}, not a string`);
   }
   return value;
 }
@@ -66,7 +78,7 @@ export function pageString(value: unknown, label: string): string {
  *  a pass, which is the quiet arm of exactly this defect class. */
 export function pageNumber(value: unknown, label: string): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    instrumentError(`${label} returned ${describePageValue(value)}, not a finite number`);
+    instrumentRefusal(`${label} returned ${describePageValue(value)}, not a finite number`);
   }
   return value;
 }

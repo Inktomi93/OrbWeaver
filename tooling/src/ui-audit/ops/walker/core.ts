@@ -8,7 +8,16 @@ import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button],input,select,[tabindex]";
-  var EXCLUDE_CARD_CONTEXT_RE = /\\b(dropdown|popover|tooltip|menu|modal|dialog)\\b/i;
+  // AN OVERLAY SURFACE IS NAMED BY ITS ROLE, NEVER BY A WORD IN ITS CLASS STRING (#1317 item 7, the
+  // #552 shape). The old word regex was tested against el.className, so any Tailwind utility CONTAINING
+  // one of the six words excluded the element, while a word-boundary test over a role attribute was a
+  // needlessly loose spelling of an exact match. Base UI - the app's only interactive-primitive vendor -
+  // publishes the real tell: the ARIA role, the native popover attribute, or a dialog element. The role
+  // list below is also WIDER than the six words were: alertdialog, menubar and listbox surfaces were
+  // previously judged as nested cards. SELF-scoped on purpose, exactly as the regex was - a card nested
+  // INSIDE a dialog body is a real nesting defect, and widening this to closest() would trade a false
+  // positive for a false clean.
+  var OVERLAY_SURFACE_SELECTOR = "dialog,[popover],[role=dialog],[role=alertdialog],[role=menu],[role=menubar],[role=listbox],[role=tooltip]";
   var HOVER_TRANSFORM_RE = /transform\\s*:\\s*(scale|rotate|translate|skew|matrix)/i;
   var TAILWIND_HOVER_TRANSFORM_RE = /^hover:(scale|rotate|translate-x|translate-y|skew-x|skew-y)-/;
   var BG_URL_RE = /url\\((['"]?)(.*?)\\1\\)/;
@@ -45,11 +54,20 @@ export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button]
   var devChromeSkips = 0;
   var inaccessibleSubjects = 0;
   var walkMutationCount = 0;
+  // THE OBSERVER OUTLIVES A THROW (#1317 item 10). Both disconnect sites are on the walk's happy path
+  // (ops/walker/returns.ts and ops/hover-walker-read.ts), so a segment that throws mid-walk leaves a live
+  // subtree MutationObserver on the page forever. Harmless on a launched browser we are about to close;
+  // on an attached --session it accumulates on the OWNER's page, one per failed run, each firing on every
+  // DOM change for the rest of that session. The walk cannot wrap itself in try/finally without changing
+  // the segment concatenation contract, so the install is made SELF-HEALING instead: the previous run's
+  // observer is disconnected here before this one is armed, which bounds the leak at one.
+  if (window.__orbWalkObserver) window.__orbWalkObserver.disconnect();
   var walkObserver = new MutationObserver(function (records) {
     for (var wm = 0; wm < records.length; wm += 1) {
       if (mutationCarriesElement(records[wm])) walkMutationCount += 1;
     }
   });
+  window.__orbWalkObserver = walkObserver;
   walkObserver.observe(document.documentElement, { childList: true, subtree: true });
   for (var subjectIndex = 0; subjectIndex < settledSubjects.length; subjectIndex += 1) {
     var subject = settledSubjects[subjectIndex];

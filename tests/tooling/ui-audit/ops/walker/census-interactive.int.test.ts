@@ -147,3 +147,46 @@ auditRuleTest(
     expect(doors).toHaveLength(1);
   },
 );
+
+// ── the NAME-TEXT source: accname step 2A, both directions (#1317 item 8) ────
+// `hasVisibleText` was `textContent.trim().length > 0`, which counts text inside an `aria-hidden="true"`
+// subtree — the exact text the accessible-name computation EXCLUDES. The house shape for an icon-only
+// control is a decorative glyph marked aria-hidden, so a genuinely nameless control read as named and
+// `aria-name` filed nothing: a FALSE CLEAN, the direction that costs most on an a11y rule.
+//
+// The neighbour arm is the reason this is not simply "drop hidden text": sr-only content is NOT
+// aria-hidden, a screen reader reads it, and it is the sanctioned way to name an icon-only control here.
+// Excluding it would trade this false clean for a false P1 on every correctly-named icon button.
+
+auditRuleTest(
+  [
+    {
+      rule: "aria-name",
+      kind: "fires",
+      reason:
+        "a control whose only text sits inside an aria-hidden subtree exposes NO accessible name — accname step 2A excludes that subtree, while textContent still reads it, so the control was reported clean",
+    },
+  ],
+  "text inside an aria-hidden subtree is not an accessible name",
+  async ({ runCli, scratch }) => {
+    const body = `<button id="icon-only" ${CONTROL}><span aria-hidden="true">x</span></button>`;
+    expect(namesIn(await auditFixture(scratch, runCli, "name-aria-hidden-text", body))).toHaveLength(1);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "aria-name",
+      kind: "silent",
+      reason:
+        "the precision neighbour: sr-only text is visually hidden but NOT aria-hidden, so it IS the control's accessible name — narrowing the text source to what the eye can see would file a P1 on every correctly-named icon button",
+    },
+  ],
+  "screen-reader-only text still names its control",
+  async ({ runCli, scratch }) => {
+    const srOnly = 'style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap"';
+    const body = `<button id="icon-sr" ${CONTROL}><span aria-hidden="true">x</span><span ${srOnly}>Close</span></button>`;
+    expect(namesIn(await auditFixture(scratch, runCli, "name-sr-only-text", body))).toHaveLength(0);
+  },
+);

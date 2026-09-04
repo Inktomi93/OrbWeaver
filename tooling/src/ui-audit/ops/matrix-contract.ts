@@ -5,6 +5,7 @@ import type { RuntimeAppearanceContract, RuntimeAppearanceContractRow } from "..
 import { appearanceArmValueId, appearancePatchForAssignment, deriveAppearanceContract, representativeMatrixThemes } from "../../_shared/appearance-matrix.ts";
 import { MOBILE_DEVICE } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { instrumentRefusal } from "../../_shared/page-validate.ts";
 import type { ThemeEntry } from "../../_shared/theme.ts";
 import type { VariantAssignment, VariantAxis, VariantMatrixPlan, VariantRequiredRow, VariantRequiredTwin } from "../../_shared/variant-matrix.ts";
 import { planVariantMatrix, variantArtifactId } from "../../_shared/variant-matrix.ts";
@@ -25,10 +26,6 @@ export interface UiAuditMatrixVariant {
   readonly appearance: Readonly<Record<string, unknown>>;
   readonly theme: string;
   readonly device: string | null;
-}
-
-function instrumentError(message: string): never {
-  throw new Error(`INSTRUMENT ERROR: ${message}`);
 }
 
 function auditEnvironmentAxes(themes: Readonly<Record<string, ThemeEntry>>): readonly VariantAxis[] {
@@ -113,7 +110,7 @@ function payloadForCell<T>(axes: readonly VariantAxis[], assignment: VariantAssi
   const axis = axes.find((candidate) => candidate.id === axisId);
   const value = axis?.values.find((candidate) => candidate.id === assignment[axisId]);
   if (value === undefined) {
-    return instrumentError(`cell is missing ${axisId}`);
+    return instrumentRefusal(`cell is missing ${axisId}`);
   }
   // NOT a page-boundary cast (ops/page-validate.ts's discipline does not apply): `axes` is built in NODE
   // by this file's own planner and the payload was put there by `auditEnvironmentAxes` — the value never

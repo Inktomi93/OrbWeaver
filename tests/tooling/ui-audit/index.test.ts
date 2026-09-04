@@ -837,20 +837,23 @@ auditRuleTest(
     { rule: "skipped-heading", kind: "fires", reason: "the h1 to h3 fixture emits" },
     { rule: "skipped-heading", kind: "silent", reason: "the adjacent heading descent is the nearest legal neighbour" },
   ],
-  "an h1→h3 skip fires skipped-heading at P2; a clean descent passes",
+  "an h1→h3 skip fires skipped-heading at P2 against the OFFENDING element; a clean descent passes",
   () => {
     const skipped = checkHeadingOrder([
-      { level: 1, text: "Library" },
-      { level: 3, text: "Recent" },
+      { selector: "main > section:nth-of-type(1) > h1", level: 1, text: "Library" },
+      { selector: "main > section:nth-of-type(2) > h3", level: 3, text: "Recent" },
     ]);
     expect(skipped).toHaveLength(1);
     expect(skipped[0]?.rule).toBe("skipped-heading");
     expect(skipped[0]?.severity).toBe("P2");
+    // #1317 item 5 — cli.ts's own law: every finding carries a LOCATABLE selector. This one used to
+    // report the TAG (`h3`), which addresses nothing on a page with more than one h3.
+    expect(skipped[0]?.selector).toBe("main > section:nth-of-type(2) > h3");
     const clean = checkHeadingOrder([
-      { level: 1, text: "Library" },
-      { level: 2, text: "Recent" },
-      { level: 3, text: "Today" },
-      { level: 2, text: "Archive" },
+      { selector: "h1", level: 1, text: "Library" },
+      { selector: "h2", level: 2, text: "Recent" },
+      { selector: "h3", level: 3, text: "Today" },
+      { selector: "h2:nth-of-type(2)", level: 2, text: "Archive" },
     ]);
     expect(clean).toEqual([]);
   },

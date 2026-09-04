@@ -106,8 +106,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
     var pillRect = el.getBoundingClientRect();
     var pillRadius = Number.parseFloat(s.borderTopLeftRadius) || 0;
     if (pillRadius >= Math.min(pillRect.width, pillRect.height) / 2) return true;
-    var role = el.getAttribute("role") || "";
-    if (EXCLUDE_CARD_CONTEXT_RE.test(el.className || "") || EXCLUDE_CARD_CONTEXT_RE.test(role)) return true;
+    if (el.matches(OVERLAY_SURFACE_SELECTOR)) return true;
     var text = (el.textContent || "").trim();
     var rect = el.getBoundingClientRect();
     if (text.length < 10 && rect.width < 50 && rect.height < 30) return true;

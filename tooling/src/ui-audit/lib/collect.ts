@@ -96,7 +96,7 @@
 //   gray-on-color                    must be tallied in a single pass or they drift apart
 //   script-error                     not collected here AT ALL: the runner captures uncaught page errors
 //                                    (ops/run.ts → checkScriptErrors) — events, not DOM candidates
-import type { Finding, PopulationAccounting } from "../contract/findings.ts";
+import type { Finding, PopulationAccounting, RulePopulationAccounting } from "../contract/findings.ts";
 import type { DesignAuditRuleFamily } from "../contract/rules.ts";
 import { DESIGN_AUDIT_RULE_FAMILIES } from "../contract/rules.ts";
 import type { RawSamples } from "../contract/samples.ts";
@@ -135,12 +135,22 @@ export interface AuditCollection {
 export function collectAudit(samples: RawSamples): AuditCollection {
   const findings: Finding[] = [];
   const familyScans = Object.fromEntries(DESIGN_AUDIT_RULE_FAMILIES.map((family) => [family, 0])) as Record<DesignAuditRuleFamily, number>;
-  const populationAccounting: Partial<PopulationAccounting> = {};
+  const populationAccounting: Record<string, RulePopulationAccounting> = {};
   for (const family of DESIGN_AUDIT_RULE_FAMILIES) {
     const result = AUDIT_FAMILY_CHECKERS[family](samples);
     findings.push(...result.findings);
     familyScans[family] += result.scans;
-    Object.assign(populationAccounting, result.populationAccounting);
+    // NEVER `Object.assign` (#1317 item 10): the family checkers are independent and each names its own
+    // rules, so two families both publishing a row for ONE rule id would have the second silently
+    // overwrite the first — a whole family's denominator vanishing with nothing red at compile time or
+    // at run time. The accounting map is keyed by RULE, not by family, so the collision is the map's own
+    // invariant and belongs here rather than in any one checker.
+    for (const [rule, row] of Object.entries(result.populationAccounting ?? {})) {
+      if (populationAccounting[rule] !== undefined) {
+        throw new Error(`INSTRUMENT ERROR: rule "${rule}" published a population row from two families (second: "${family}") — one rule owns one denominator`);
+      }
+      populationAccounting[rule] = row;
+    }
   }
   return { findings, familyScans, populationAccounting };
 }
