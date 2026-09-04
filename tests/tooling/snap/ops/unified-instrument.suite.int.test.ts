@@ -447,25 +447,69 @@ test("the folded tool dirs are NOT programs: every argv door refuses, names the 
  *  still called `ui-audit`, and still carries the rules) is not a false positive. */
 const RETIRED_COMMANDS = ["pnpm design-audit", "pnpm motion-audit", "pnpm perf-meter", "pnpm record"] as const;
 
+/** WHERE A RETIRED SPELLING IS STILL TRUE. The owner's ruling (2026-09-04) is that an unlaunched product
+ *  grep-fixes the spellings rather than shipping a door — but it draws the line at a RECIPE A READER
+ *  WOULD TYPE. A DATED RECEIPT is a statement about what was run on its date, and rewriting it would
+ *  falsify the record rather than fix it; the generated doc catalog is derived FROM those receipts and
+ *  cannot be edited by hand at all. `.claude/`/`.codex/` are excluded for a different reason and it is
+ *  not a semantic one: they are the orchestrator's files, outside every lane's write scope (the fold's
+ *  brief lists them for the orchestrator instead), so this sweep would be asserting over a corpus it is
+ *  forbidden to repair. Each prefix is the WHOLE reason it is here — do not add one without one. */
+const RECEIPT_PREFIXES = ["docs/history/", "docs/reviews/", "docs/catalog/", ".claude/", ".codex/"] as const;
+
+/** A LINE THAT NAMES THE SPELLING AS DEAD IS NOT A RECIPE. "the retired pnpm design-audit" is exactly
+ *  the sentence the fold's own headers and doc edits needed to write, and a sweep that refused it would
+ *  force the codebase to stop explaining its own history. The marker has to be ON THE LINE, so a stale
+ *  recipe three paragraphs below a retirement note is still a hit. */
+const RETIREMENT_MARKERS = ["retire", "no longer", "ceased to exist", "replaced by", "used to be", "was `pnpm", "predecessor"] as const;
+
+/** A `$ `-PREFIXED LINE IS A TRANSCRIPT, NOT A RECIPE. The population and subject-accounting designs
+ *  quote dozens of dated `$ pnpm design-audit …` runs with their real stdout underneath; each is a
+ *  receipt of what was typed on its date, and rewriting the command while leaving the output would make
+ *  the doc claim a run that never happened. Same class as the `docs/reviews/` carve-out, applied at line
+ *  granularity because these receipts live inside an otherwise-live design doc. An instruction a reader
+ *  would follow is written as prose or a bare fenced command, and both still red. */
+function isRecordedTranscript(line: string): boolean {
+  return line.trimStart().startsWith("$ ");
+}
+
+function retiredCommandHits(path: string, text: string): readonly string[] {
+  const hits: string[] = [];
+  for (const [index, line] of text.split("\n").entries()) {
+    if (isRecordedTranscript(line) || RETIREMENT_MARKERS.some((marker) => line.toLowerCase().includes(marker))) {
+      continue;
+    }
+    for (const command of RETIRED_COMMANDS) {
+      if (line.includes(command)) {
+        hits.push(`${path}:${String(index + 1)}: ${command}`);
+      }
+    }
+  }
+  return hits;
+}
+
 test("no tracked file still tells a reader to run a retired instrument command, and the sweep can see one when it is there", async ({ repoRoot }) => {
   const listed = runNicedSync("git", ["ls-files", "-z"], { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024 });
   expect(listed.status).toBe(0);
   const files = listed.stdout.split("\0").filter((path) => path !== "");
-  // THIS FILE IS ITS OWN EXCEPTION and says so: the roster above is the literal set being searched for.
-  const corpus = files.filter((path) => path !== "tests/tooling/snap/ops/unified-instrument.suite.int.test.ts");
-  expect(corpus.length).toBeGreaterThan(7000);
+  // THIS FILE IS ITS OWN EXCEPTION and says so: the rosters above are the literal sets being searched for.
+  const corpus = files.filter(
+    (path) => path !== "tests/tooling/snap/ops/unified-instrument.suite.int.test.ts" && !RECEIPT_PREFIXES.some((prefix) => path.startsWith(prefix)),
+  );
+  expect(corpus.length).toBeGreaterThan(6000);
   const hits: string[] = [];
   for (const path of corpus) {
-    const text = await readFile(join(repoRoot, path), "utf8").catch(() => "");
-    for (const command of RETIRED_COMMANDS) {
-      if (text.includes(command)) {
-        hits.push(`${path}: ${command}`);
-      }
-    }
+    hits.push(...retiredCommandHits(path, await readFile(join(repoRoot, path), "utf8").catch(() => "")));
   }
   expect(hits).toEqual([]);
-  // THE PLANTED POSITIVE CONTROL, in the same invocation: a bare zero above must mean "it is not there",
-  // never "the search could not look" (_shared/evidence.ts's law, applied to a corpus sweep).
-  const planted = "Run `pnpm design-audit /chats --fail-on P2` and then `pnpm perf-meter /`.";
-  expect(RETIRED_COMMANDS.filter((command) => planted.includes(command))).toEqual(["pnpm design-audit", "pnpm perf-meter"]);
+  // THE PLANTED POSITIVE CONTROLS, in the same invocation: a bare zero above must mean "it is not there",
+  // never "the search could not look" (_shared/evidence.ts's law, applied to a corpus sweep). BOTH
+  // directions are planted, because an over-broad marker would silence the sweep just as completely as a
+  // broken read: the recipe line is SEEN and the retirement-note line is NOT.
+  const planted = [
+    "Run `pnpm design-audit /chats --fail-on P2` and then `pnpm perf-meter /`.",
+    "The retired `pnpm motion-audit` is now `--motion`.",
+    "$ pnpm design-audit config --goto settings:appearance",
+  ].join("\n");
+  expect(retiredCommandHits("planted.md", planted)).toEqual(["planted.md:1: pnpm design-audit", "planted.md:1: pnpm perf-meter"]);
 });

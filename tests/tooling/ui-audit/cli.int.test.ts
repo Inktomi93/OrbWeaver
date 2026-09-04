@@ -8,7 +8,7 @@
 // the ENVELOPE: `RESULT design-audit` is now `RESULT snap` carrying `design-audit=measured`, and the three
 // stage-flag refusals moved to the parser that owns those flags (see the ISOLATED STAGE block below).
 // The suite stays under `tests/tooling/ui-audit/` because the ENGINE it proves still lives there — the
-// same reason `tests/tooling/motion-audit/` outlived `pnpm motion-audit`.
+// same reason `tests/tooling/motion-audit/` outlived the retired `pnpm motion-audit`.
 //
 // The fixtures declare `data-app-ready` on <html> themselves so the readiness wait resolves instantly
 // (a file page never runs the app; without the attribute every case burns the full 10s ceiling), and

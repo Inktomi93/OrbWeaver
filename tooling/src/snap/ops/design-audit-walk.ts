@@ -99,7 +99,7 @@ interface DesignAuditHoverReceipt {
  *  A `null` channel means COMPLETE. On a terminal run (`terminalGap`) every channel carries that gap:
  *  the walk never reached any of them, and "complete" over an unwalked page is the exact lie #1087 F1
  *  was minted to end. */
-export interface DesignAuditVerdicts {
+interface DesignAuditVerdicts {
   readonly population: EvidenceGap | null;
   readonly censusCap: EvidenceGap | null;
   readonly hover: EvidenceGap | null;

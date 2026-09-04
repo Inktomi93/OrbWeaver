@@ -224,7 +224,11 @@ The CT runner keeps its own Playwright browser and worker pool (`playwright-ct.c
 
 ## 4. The unified CLI grammar
 
-### 4.1 Today's dialects (inventory)
+### 4.1 The five pre-fold dialects (inventory, frozen)
+
+Every column but `snap` names a tool that no longer exists: #1315 folded all four into snap arms and
+deleted their argv doors, so the spellings below are a record of what the migration started from, not
+vocabulary a reader can type. The live grammar is §4.3 plus `pnpm snap --help`.
 
 | Family | snap | design-audit (`ui-audit`) | motion-audit | perf-meter (`cpu-profile`) | record (`screen-record`) |
 | - | - | - | - | - | - |
@@ -251,11 +255,11 @@ The CT runner keeps its own Playwright browser and worker pool (`playwright-ct.c
 | - | - | - |
 | `HELP_FLAGS` | `--help`, `-h` | every tool prints its help and exits 0 (ends the 33 misuse hits) |
 | `WHERE_FLAGS` | `--base`, `--isolated`, `--ref`, `--dirty`, `--fresh`, `--session <name>` | `--session` implies the session's binding; `--base` + stage flags = exit 3 (the ui-audit rule, `stage-request.ts:52-61`, promoted) |
-| `ENVIRONMENT_FLAGS` | `--viewport`, `--wide`, `--mobile`, `--desktop`, `--dark`, `--light`, `--reduced-motion` | **ONE SPELLING, NO ALIASES (owner ruling 2026-09-03, superseding this row's original alias clause).** Every member lands on ALL FIVE tools; a tool that lacks one GAINS it. motion-audit's `--os-reduced-motion`/`--os-full-motion` are RENAMED to the canonical `--reduced-motion` and the old spellings are refused BY NAME through `ALIAS_REFUSALS` — they do not survive as a second spelling. A rename is a VALUE change and owes the repo-wide sweep (`tests/**`, `.claude/skills/**`, `.claude/rules/**`, `docs/**`): grep exists, so every call site moves in the same commit rather than a compatibility tail being kept alive |
+| `ENVIRONMENT_FLAGS` | `--viewport`, `--wide`, `--mobile`, `--desktop`, `--dark`, `--light`, `--reduced-motion` | **ONE SPELLING, NO ALIASES (owner ruling 2026-09-03, superseding this row's original alias clause).** Every member lands on ALL FIVE tools; a tool that lacks one GAINS it. motion-audit's `--os-reduced-motion`/`--os-full-motion` are RENAMED to the canonical `--reduced-motion` — and at #1315 the old spellings stopped being refused BY NAME too (owner ruling: the product is unlaunched, so nobody outside the repo ever typed them and there is no one to refuse; they are grep-fixed at the call sites and now die as a plain `unknown flag`). A rename is a VALUE change and owes the repo-wide sweep (`tests/**`, `.claude/skills/**`, `.claude/rules/**`, `docs/**`): grep exists, so every call site moves in the same commit rather than a compatibility tail being kept alive |
 | `SESSION_ADMIN_FLAGS` | `--session-status`, `--session-close`, `--session-sweep`, `--session-export`, `--session-ttl`, `--force` | snap only (the door); refused on sibling tools with the pointer |
 | `STAGE_ADMIN_FLAGS` | `--stage-status`, `--stage-down`, `--stage-sweep`, `--force` | snap only (unchanged ruling: one lifecycle owner) |
 | `ARTIFACT_FLAGS` | `--out`, `--json` | `--out` base-or-path contract (`_shared/artifacts.ts:379`) for all five |
-| `ALIAS_REFUSALS` | `--full-page→--full`, `--watch-every→--every`, `--name→--out`, `--screenshot→--shot-of`, `--os-reduced-motion→--reduced-motion`, `--os-full-motion→--reduced-motion` | an unknown flag that matches a known ask refuses NAMING the real flag (exit 3). This is a REFUSAL table, not an alias table — the old spelling stops working and says where to go; it is never quietly accepted |
+| `ALIAS_REFUSALS` | `--full-page→--full`, `--watch-every→--every`, `--name→--out`, `--screenshot→--shot-of`, `--profile→--react-profile`, `--press→--force-click`, `--ls→--local-storage`, `--sse→--stream-settle`, `--summary→--scenario-summary`, `--owner→--stage-owner` | an unknown flag that matches a MEASURED ASK refuses NAMING the real flag (exit 3). This is a REFUSAL table, not an alias table — the old spelling stops working and says where to go; it is never quietly accepted. #1315 narrowed the membership to asks: a RETIRED SPELLING of our own (`--os-reduced-motion`, `--cpuprofile`, `--jsclick`, `--wheelburst`, `--cycles`) is not an ask and left the table, because an unlaunched product grep-fixes its own call sites rather than carrying a translation |
 
 The `--wait` collision (selector in snap, ms in design-audit) is owner fork F1; default: design-audit renames to `--settle <ms>` (perf-meter/record's spelling) with the old spelling refused by name — a value change that owes the `tests/**` literal sweep.
 
@@ -286,12 +290,16 @@ pnpm snap --session-status [<name>]     # every session: owner · idle · stage 
 pnpm snap --session-close <name> [--force]
 pnpm snap --session-sweep               # dead + idle>TTL + orphan dirs; live ones reported
 pnpm snap --session-export <name> [--out <base>]
-pnpm design-audit --session <name> [route] …   # attaches to the session's browser + stage (§3.4)
-pnpm motion-audit --session <name> --selector …
-pnpm perf-meter  --session <name> --click …
+pnpm snap --session <name> --design-audit [route] …   # every arm attaches to the SAME browser + stage (§3.4)
+pnpm snap --session <name> --motion <selector>
+pnpm snap --session <name> --perf --click …
 ```
 
-Invocation shape is guard-proof by construction (P9): one plain `pnpm <tool> …`, no `env`, no `cd`, no pipe; the repo-keyed socket makes the cwd irrelevant.
+The last three lines were the retired `pnpm design-audit`/`pnpm motion-audit`/`pnpm perf-meter` in this
+design's original text; the sibling doors were deleted at #1315, and the session-attach they were minted for is
+now free — an arm on a `--session` call already runs against the live page (§10.10).
+
+Invocation shape is guard-proof by construction (P9): one plain `pnpm snap …`, no `env`, no `cd`, no pipe; the repo-keyed socket makes the cwd irrelevant.
 
 ## 5. Op reuse map (which ops become session-reusable, with what change)
 
@@ -332,7 +340,7 @@ export interface ArmDef<TOutcome> {
 export const ARM_DEFS: Record<Arm, ArmDef<unknown>>;   // a new member fails tsc until every site is filled
 ```
 
-A new arm lands as ONE file `snap/ops/arms/<arm>.ts` + one tuple member; its flags, help, RESULT pairs and verdict fold are derived from the record. Because sibling instruments share the SESSION rather than re-host arms, "available to every instrument and agent" means: any lane attached to a session can ask snap for any arm against the same live page (`pnpm snap --session p-x --lighthouse desktop` after `pnpm design-audit --session p-x …`). Enforcers: the `Record<Arm, …>` exhaustiveness (compile-time); `tooling-instrument-proof` (each arm's `@instrument-proof` / `@instrument-absence-proof` twin under tests/tooling/snap/ops/arms/ (planned)).
+A new arm lands as ONE file `snap/ops/arms/<arm>.ts` + one tuple member; its flags, help, RESULT pairs and verdict fold are derived from the record. Because sibling instruments share the SESSION rather than re-host arms, "available to every instrument and agent" means: any lane attached to a session can ask snap for any arm against the same live page (`pnpm snap --session p-x --lighthouse desktop` after `pnpm snap --session p-x --design-audit …`). Enforcers: the `Record<Arm, …>` exhaustiveness (compile-time); `tooling-instrument-proof` (each arm's `@instrument-proof` / `@instrument-absence-proof` twin under tests/tooling/snap/ops/arms/ (planned)).
 
 ### 6.1 Worked arm: `lighthouse` (#1198)
 
@@ -808,7 +816,7 @@ uses `perf` for its always-on navigation snapshot and `profile` for React
 The tracked active-corpus baseline is 7,717 files across `tooling/`, `tests/`, `packages/`, `scripts/`,
 active `docs/`, `.claude/`, `.Codex/`, `.codex/`, `.agents/` and root `package.json`, excluding only
 `docs/history/**`, `docs/reviews/**` and generated catalog receipts. It currently contains 27 command
-lines in 24 files for `pnpm motion-audit`, 23 in 19 files for `pnpm perf-meter`, 13 `--cpuprofile`
+lines in 24 files for the retired `pnpm motion-audit`, 23 in 19 files for `pnpm perf-meter`, 13 `--cpuprofile`
 lines, 28 `--selector` lines and 14 `--window` lines. These are the migration population, not a guessed
 list from the issue. The completion census re-derives the tracked list through Git and plants one stale
 command and each retired flag spelling into its own in-memory fixture so a zero cannot pass vacuously.
@@ -865,7 +873,7 @@ and interaction twins. There is no `--motion-matrix`, `--selector`, or un-namesp
 
 **Selective analyzer vocabulary.** The public arms are `--motion [selector]`, `--perf`,
 `--cpu-profile`, `--boot-trace` and `--react-profile`. CPU, boot and React never require a redundant
-`--perf`. The old React `--profile` spelling and legacy `--cpuprofile` refuse by name. Snap's cheap
+`--perf`. The old React `--profile` spelling refuses by name; the legacy `--cpuprofile` did too until #1315 narrowed `ALIAS_REFUSALS` to measured asks, and now dies as a plain `unknown flag`. Snap's cheap
 always-on navigation/`__orb.snap()` observation becomes the internal `navigation` page arm and reports
 `navigation-perf=measured|withheld|absent`; `perf=` belongs only to the requested interaction analyzer.
 This is a literal-value change and therefore owns the repo-wide `tests/**` sweep and every asserting
@@ -1382,7 +1390,7 @@ proves it remains labelled in raw evidence but cannot enter the active ranked ta
 
 ### 10.10 `--design-audit` as built (lane p-snap-fold, #1315 + #1324/#1325/#1326/#1361, 2026-09-04)
 
-The last sibling. `pnpm design-audit` has no execution path; the scan is
+The last sibling, and the retired `pnpm design-audit` has no execution path. The scan is
 `pnpm snap <route> --design-audit [--fail-on P0..P3]`. The 14k-line detector engine stayed a sibling tool
 dir entered through `ui-audit/index.ts` — the motion precedent (§10.6) — and the parser, stage door, drive
 queue, matrix projection, run path and operator help were DELETED rather than deprecated.

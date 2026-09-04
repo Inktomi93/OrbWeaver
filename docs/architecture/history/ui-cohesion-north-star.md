@@ -664,7 +664,7 @@ transparent) · `ghost` (muted) · `destructive`. Bare `<Button>` = primary (rul
 
 **Verify loop:** `pnpm stack start` once, then `pnpm snap` per change. Established idioms for this
 program: `pnpm snap / --out x` (default 1280×800) · `--wide` · `--text`/`--aria` first (cheapest) ·
-`--jsclick "[data-slot=list-row-body]"` to open the first chat (virtualized rows need jsclick) ·
+`--dom-click "[data-slot=list-row-body]"` to open the first chat (virtualized rows need the in-page click) ·
 `--click "[aria-label='Characters']"` etc. for rail nav · `--eval` for scrolling inner containers +
 computed-style probes · `--contrast <sel>` for AA checks · `--map` fresh after every interaction ·
 `--probe --baseline`/`--diff` for before/after SSIM on a surface being restyled. Snap exits non-zero

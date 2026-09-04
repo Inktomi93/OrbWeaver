@@ -14,7 +14,7 @@ appearance matrix owned by #953.
 The current source can report a clean Light-theme audit after judging only part of the final surface:
 
 ```text
-pnpm snap --theme Light --design-audit       # then: pnpm design-audit --theme Light (#1315)
+pnpm snap --theme Light --design-audit       # was: the retired pnpm design-audit --theme Light (#1315)
 RESULT ... dom-walk=285 dom-settled=381 ... census=173 ...
 ```
 

@@ -224,7 +224,7 @@ export function actionsFailedGap(actionsFailed: number, actionCount: number): Ev
 
 /** THE FAILURE-SURFACE GAP (#1081) — the arm that made this file's own opening paragraph literally true.
  *
- *  MEASURED 2026-09-01 through the real CLI against the dev stack (then `pnpm design-audit`, now
+ *  MEASURED 2026-09-01 through the real CLI against the dev stack (the retired `pnpm design-audit`, now
  *  `pnpm snap /__no-such-route__ --design-audit`): the run
  *  printed all 48 POPULATION rows, filed `landmark-missing` P2 against the router's not-found boundary and
  *  exited 0 — "a swallowed error boundary … audits as the cleanest page in the product", six lines up.

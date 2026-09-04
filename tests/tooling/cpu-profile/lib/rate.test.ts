@@ -1,7 +1,7 @@
 // @instrument-absence-proof: perf-meter's rate is the one output whose ABSENCE must never read as a
 // measurement — a contended box, software acceleration and an unknown acceleration posture each WITHHOLD
 // before the arm votes, and the quiet planted control proves the withhold is a measurement rather than a
-// blanket refusal. The marker moved here at #1315 with the deletion of `pnpm perf-meter`'s argv door; the
+// blanket refusal. The marker moved here at #1315 with the deletion of the retired `pnpm perf-meter`'s door; the
 // firing half stays on the boot-trace suite (docs/architecture/core/Core-Tooling-Law.md §4.5).
 // §7.1 load honesty at perf-meter's actual RATE-result seam. The injected readings are planted controls:
 // a contended box must print the shared WITHHELD receipt, publish perf=withheld and force exit 2; the

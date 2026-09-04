@@ -6,8 +6,9 @@ updated: 2026-09-04
 
 # UI-audit population semantics (#983 and #984)
 
-> **THE DOOR MOVED (#1315, 2026-09-04).** Every `$ pnpm design-audit …` transcript below is a DATED
-> RECEIPT — the command that produced the output printed under it — and is left verbatim for that reason.
+> **THE DOOR MOVED (#1315, 2026-09-04).** Every `$ pnpm design-audit …` transcript below names a retired
+> command and is a DATED RECEIPT — the command that produced the output printed under it — left
+> verbatim for that reason.
 > The spelling to TYPE today is `pnpm snap <route> [flags] --design-audit`: same walker, same rule
 > engine, same printed blocks, one argv door. Everything this document rules about populations,
 > withholding and the rest/driven regimes is unchanged.
@@ -591,7 +592,7 @@ a fill-less cohort is an exclusion.
 Same shape as #1059 and #1068 once more: both rulings survive verbatim, and what changed is the INPUT.
 After #1150 repaired `selection-idiom`, `quiet-state` was the LAST reason every Config design-audit
 printed `population-verdict=NO-VERDICT`. Measured first, on the live surface
-(`pnpm design-audit / --goto settings:appearance --viewport 1280x2200`, 3 of 3 runs):
+(the retired `pnpm design-audit / --goto settings:appearance --viewport 1280x2200`, 3 of 3 runs):
 
 ```text
 POPULATION   quiet-state candidates=5 judged=2 affected=0 populations=0 representatives=0 withheld(unresolved=3) excluded() collapsed()

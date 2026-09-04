@@ -74,7 +74,13 @@ The parser refuses filmstrip before browser work with `--motion`, `--perf`, `--c
 
 ## Record retirement
 
-`pnpm record <argv>` exits misuse and prints one exact `pnpm snap … --filmstrip` recipe. The retirement translator preserves route, target/session/stage/environment, actions, `--out`, and `--json`; it maps Record's initial `--settle N` to an initial ordered `--pause N` and drops `--frames` because filmstrip is always the bounded frame contact sheet. Unsupported or malformed Record argv refuses with the old token named; no command silently disappears.
+THIS SECTION'S PLAN WAS SUPERSEDED BY AN OWNER RULING (2026-09-04, #1315): no doors, no shims. It
+specified that the retired `pnpm record <argv>` would exit misuse and print one exact `pnpm snap … --filmstrip`
+recipe through a retirement TRANSLATOR that preserved route, target/session/stage/environment, actions,
+`--out` and `--json`, mapping Record's initial `--settle N` to an ordered `--pause N`. What shipped
+instead: `tooling/src/screen-record/` is deleted whole, the `record` package.json script is gone, and
+the spelling was grep-fixed out of the active corpus. The product is unlaunched, so there was nobody
+outside this repo holding the old argv for a translator to serve.
 
 Active help, the Snap driving skill, side-eye role, tooling roster, and verification design point to Snap filmstrip. Historical reports remain frozen.
 
@@ -91,5 +97,5 @@ Exact suite: `tests/tooling/snap/ops/arms/filmstrip.suite.int.test.ts`.
 - count/byte/duration omissions and every-frame acknowledgement;
 - start/stop/ack/detach failure cleanup, including `AggregateError` ordering;
 - all interference combinations refuse before a run slot/browser;
-- `pnpm record` redirects to the exact Snap recipe and old implementation files are absent;
+- the retired `pnpm record` names nothing runnable at all and old implementation files are absent;
 - terminal pairs, artifact metadata, run-index arm state, typed facts, and browser-free report agree.

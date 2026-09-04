@@ -94,7 +94,7 @@ dominating — the period before snap grew its drive arms.
    **BUILT (2026-09-03).** `tooling/src/cpu-profile/ops/boot-trace.ts` owns the start-before-navigation
    and auto-stop boundary; `lib/boot-trace.ts` refuses a trace with no navigation insight set, no positive
    LCP, or any required insight family, then emits a JSON-safe summary while preserving the full raw
-   event stream beside it. The existing `--cpuprofile` remains deliberately post-settle and describes
+   event stream beside it. The existing `--cpu-profile` remains deliberately post-settle and describes
    the interaction tape; the two artifacts are not mislabeled as interchangeable. Pin:
    `tests/tooling/cpu-profile/boot-trace.suite.int.test.ts` drives the real CLI against a deterministic
    fixture planting an image LCP, stylesheet dependency chain, uncompressed document/image waste, and
