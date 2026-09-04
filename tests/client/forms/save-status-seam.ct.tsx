@@ -27,6 +27,7 @@ const LIST_ROSTER_ROUTES: Readonly<Record<string, unknown>> = {
   "regex.listScripts": [],
   "worldInfo.listBooksWithUsage": [],
   "rosterPreset.list": [],
+  "settings.listThemes": [],
 };
 
 test("HOSTED: reporting sections stay quiet and the host shows ONE aggregate", async ({ mount, page }) => {

@@ -8,7 +8,11 @@
 // re-read from an older writer. Both arrive as `undefined` while satisfying `tsc` at the call site, which
 // is why the alarm's parameter is `TimingLedgerView` (the ledger as a READER receives it) rather than
 // `PassResult`: the broken shapes below are then ordinary values of a real type, never a cast past one.
+
+import { performance } from "node:perf_hooks";
+import { vi } from "vitest";
 import type { GatePassResult, TimingGateView, TimingLedgerView } from "../../../../tooling/src/verify/contract/pass.ts";
+import { newPhaseClock, passTiming } from "../../../../tooling/src/verify/lib/pass-timing.ts";
 import { timingAlarms, timingLine } from "../../../../tooling/src/verify/lib/timing.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -29,6 +33,25 @@ function ledger(gates: readonly TimingGateView[], totalMs: number): TimingLedger
 
 test("a fully timed pass raises NO alarm — the negative control the refusals below are read against", () => {
   expect(timingAlarms(ledger([gate("planted-cheap", { visit: 1.5 }), gate("planted-hog", { run: 199.25 })], 500))).toEqual([]);
+});
+
+test("a gate total sums integer microseconds instead of flooring an already-floored float", () => {
+  const now = vi.spyOn(performance, "now").mockReturnValue(100);
+  try {
+    const clock = newPhaseClock();
+    clock.charge("begin", 100 - 40.329);
+    clock.charge("visit", 100 - 0.001);
+    clock.charge("run", 100 - 0.001);
+
+    const timing = clock.finish();
+    expect(timing.phaseMs).toMatchObject({ begin: 40.329, visit: 0.001, run: 0.001 });
+    expect(timing.totalMs).toBe(40.331);
+
+    const pass = passTiming(0, [gate("a", { run: 40.329 }), gate("b", { run: 0.001 }), gate("c", { run: 0.001 })]);
+    expect(pass).toEqual({ totalMs: 100, gateMs: 40.331 });
+  } finally {
+    now.mockRestore();
+  }
 });
 
 test("a gate with NO wall-clock refuses the run instead of publishing a silent undefined", () => {

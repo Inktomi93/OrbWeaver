@@ -6,6 +6,7 @@
 // Clicking a row fires the store action (assert the store, never a rendered echo).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { CONFIG_SECTION_LABEL } from "../../../../../packages/client/src/features/config/lib/config-copy.ts";
 import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
 import { SECTION_IDS } from "../../../../../packages/client/src/state/section-ids.ts";
 import { HomeSectionJumpStory } from "../_ct-stories.tsx";
@@ -18,7 +19,7 @@ const RAIL_LABELS: Record<Exclude<SectionId, "home">, string> = {
   chats: "Chats",
   characters: "Characters",
   corpus: "Corpus",
-  config: "Configuration",
+  config: CONFIG_SECTION_LABEL,
   extensions: "Extensions",
   databank: "Databank",
   presets: "Presets",

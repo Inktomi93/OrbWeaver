@@ -105,7 +105,8 @@ const STRUCTURAL_CLASS_FILES: Readonly<Record<string, { readonly count: number; 
     why: "60cqh is a container-query height budget, not a reusable component length; the row ends if Markdown stops using container-relative overflow",
   },
   "packages/ui/src/layout/variants.ts": {
-    count: 10,
+    // 10 -> 9 (2026-09-04): the `cellFixed` track literal became `var(--orb-grid-cell-fixed)`, the density-selected token.
+    count: 9,
     why: "the raw lengths are grid minmax/auto-fill track mechanics or a container-query condition; the row ends when those structural recipes disappear or become token-expressible",
   },
 };

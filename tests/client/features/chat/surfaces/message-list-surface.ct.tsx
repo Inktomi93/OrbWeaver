@@ -840,7 +840,9 @@ async function samplePixel(page: Page, x: number, y: number): Promise<{ readonly
   }, dataUrl);
 }
 
-/** Scroll the thread off its top edge so `data-fade-top` arms, then sample INSIDE the fade band. */
+/** Scroll the thread off its top edge so `data-fade-top` arms, then sample a proven text-free inset
+ * INSIDE the fade band. The old horizontal centre crossed the rendered message glyphs, so it compared
+ * ink to CARD_RGB and called the expected dark text a leaking backdrop. */
 async function sampleTopBandPixel(page: Page, scroller: Locator): Promise<{ readonly r: number; readonly g: number; readonly b: number }> {
   await scroller.evaluate((el: HTMLElement) => {
     el.scrollTop = 200;
@@ -849,12 +851,27 @@ async function sampleTopBandPixel(page: Page, scroller: Locator): Promise<{ read
   await expect.poll(async () => scroller.boundingBox()).not.toBeNull();
   const box = await scroller.boundingBox();
   // 8px below the top edge: deep inside the 10% (~40px) band, where the mask's alpha is ~0.2.
-  return await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) + 8));
+  const point = { x: Math.round((box?.x ?? 0) + (box?.width ?? 0) - 24), y: Math.round((box?.y ?? 0) + 8) };
+  const crossesText = await scroller.evaluate((element, sample) => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      if ([...range.getClientRects()].some((rect) => sample.x >= rect.left && sample.x <= rect.right && sample.y >= rect.top && sample.y <= rect.bottom)) {
+        return true;
+      }
+    }
+    return false;
+  }, point);
+  expect(crossesText, "edge-fade framebuffer probe must land on card paint, not text ink").toBe(false);
+  return await samplePixel(page, point.x, point.y);
 }
 
 test("EDGE FADE: over an art backdrop the thread's top band paints the CARD, not the art behind it", async ({ mount, page }) => {
   const component = await mount(<MessageListEdgeFadeStory artBackdrop={true} />);
-  const pixel = await sampleTopBandPixel(page, component.locator(FADE_SCROLLER));
+  const scroller = component.locator(FADE_SCROLLER);
+  await expect(scroller).toHaveCSS("mask-image", "none");
+  const pixel = await sampleTopBandPixel(page, scroller);
 
   // The backdrop is pure green; the card is cream. A dissolved card reads green-dominant. This asserts the
   // sampled pixel IS the card — within a generous tolerance, because this fences "does the art show
@@ -868,7 +885,9 @@ test("EDGE FADE CONTROL: the same probe DOES see the dissolve where the fade is 
   // No art flag ⇒ the mask runs, and the row's card blends toward the backdrop. This is the planted
   // positive control for the assertion above — it proves the instrument can see the defect at all.
   const component = await mount(<MessageListEdgeFadeStory artBackdrop={false} />);
-  const pixel = await sampleTopBandPixel(page, component.locator(FADE_SCROLLER));
+  const scroller = component.locator(FADE_SCROLLER);
+  await expect(scroller).not.toHaveCSS("mask-image", "none");
+  const pixel = await sampleTopBandPixel(page, scroller);
 
   // Green pulls far away from the cream card's blue channel long before it reaches the backdrop.
   expect(pixel.b).toBeLessThan(CARD_RGB.b - 24);

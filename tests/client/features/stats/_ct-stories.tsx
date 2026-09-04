@@ -18,7 +18,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
-import { SectionContextHeader } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
+import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The Analytics LIST leaderboard navigator over the real data layer. */
@@ -110,12 +110,15 @@ export function AnalyticsTimeTabStory(): ReactElement {
  *  drilled name regardless of input, so the CT needs no id handle). */
 const ANALYTICS_DRILLED_ID: CharacterId = castId<CharacterId>("character_ct_analytics");
 
-// Mounts the analytics section's CONTEXT BAND identity (N4/P4) through the real `SectionContextHeader` —
-// the shell's band consumer — over the analytics `defineContextTabs` `header` slot. The `key` mirrors the
-// shell's per-section remount.
+// Mounts the analytics section's CONTEXT bracket through the real `SectionContextHost`; tabbed contexts
+// own their header inside that bracket, while the outer shell band deliberately stays empty.
 function AnalyticsContextHeaderHarness(): ReactElement {
   const registry = useSectionRegistry();
-  return <SectionContextHeader key="analytics" definition={registry.get("analytics")} />;
+  return (
+    <div style={{ height: 640, width: 420 }}>
+      <SectionContextHost key="analytics" definition={registry.get("analytics")} />
+    </div>
+  );
 }
 
 // Mounts the analytics section's LIST band (N1/N2) through the real registry's `listHeader()` slot — the

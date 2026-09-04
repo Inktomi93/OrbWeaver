@@ -3509,8 +3509,11 @@ function ChatControlsRoom({
   if (worstArt === undefined) {
     return <div style={{ height: 480 }}>{room}</div>;
   }
+  // The contrast census must reach every declared text node in one bounded frame. The ordinary 480px
+  // interaction fixture deliberately scrolls its first message offscreen; this palette-only arm is taller
+  // so both seeded messages, their attribution, and the controls are simultaneously measurable.
   return (
-    <div data-has-bg-image="" style={{ background: worstArt, height: 480, isolation: "isolate", position: "relative" }}>
+    <div data-has-bg-image="" style={{ background: worstArt, height: 720, isolation: "isolate", position: "relative" }}>
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-backdrop" style={{ opacity: BACKGROUND_DIM_MIN }} />
       <div data-slot="worst-art-room" style={{ height: "100%", position: "relative" }}>
         {room}

@@ -239,8 +239,9 @@ export const gridVariants = tv({
       // width makes each cell BIGGER; a portrait shelf measured 250px faces at a 2000px viewport and read
       // as a gallery instead of a shelf you reach into. `auto-fill` at a fixed track spends surplus width
       // on MORE cells and leaves the cell alone — the right answer wherever the cell is a picture of a
-      // thing rather than a container for text. Same 8.5rem cell as `cell`, so the two agree at the floor.
-      cellFixed: "grid-cols-[repeat(auto-fill,8.5rem)]",
+      // thing rather than a container for text. The private track alias is 8.5rem under comfortable/default
+      // and 7.5rem under compact density; `cellShelf` deliberately keeps its separate 8.5rem contract.
+      cellFixed: "grid-cols-[repeat(auto-fill,var(--orb-grid-cell-fixed))]",
       // `cellFixed`'s PHONE ARM (added 2026-08-30, #864 — the Characters landing shelves). Identical at
       // every pane width the desktop shape reaches; it differs only BELOW `@md`, where the fixed 8.5rem
       // track stops being the right answer. Measured against the approved 430px artboard: a 430px CONTENT

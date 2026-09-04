@@ -49,6 +49,7 @@ function stub(page: Page): Promise<TrpcRecorder> {
     "rosterPreset.list": [],
     ...STREAM_MUTATION_ROUTES,
     "settings.getUserSettings": () => ({ userId: USER_VIEWER.userId, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.listThemes": [],
     "sessions.me": () => USER_VIEWER,
     "workloads.list": () => [],
     "workloads.listSchedules": () => [],

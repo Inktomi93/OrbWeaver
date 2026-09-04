@@ -6,6 +6,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SEED_THEME_VALUE_SETS, TOKEN_POLARITY_ARMS, TOKENS } from "@orb/ui/tokens";
+import { gridVariants } from "../../../packages/ui/src/layout/variants.ts";
 import { AVATAR_HUE_STEPS } from "../../../packages/ui/src/primitives/avatar/hue.ts";
 import { generateArtifacts, renderGeneratedCss } from "../../../packages/ui/tokens.build.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -40,7 +41,7 @@ test("runtime CSS placement emits Tailwind namespaces into @theme and private al
   expect(rootBlock).not.toContain("--spacing-control: 2rem;");
 });
 
-test("the eight density aliases resolve canonical DTCG values into concrete :root outputs", async () => {
+test("density aliases resolve canonical spacing and fixed-cell values into concrete :root outputs", async () => {
   const { themeCss } = await generateArtifacts();
   const expected = [
     ["--orb-density-comfortable-field", TOKENS["spacing.field"].value],
@@ -51,6 +52,9 @@ test("the eight density aliases resolve canonical DTCG values into concrete :roo
     ["--orb-density-compact-row", TOKENS["spacing.field"].value],
     ["--orb-density-compact-block", TOKENS["spacing.row"].value],
     ["--orb-density-compact-section", TOKENS["spacing.density-section-compact"].value],
+    ["--orb-grid-cell-fixed", TOKENS["width.cell-fixed"].value],
+    ["--orb-density-comfortable-cell-fixed", TOKENS["width.cell-fixed"].value],
+    ["--orb-density-compact-cell-fixed", TOKENS["width.cell-fixed-compact"].value],
   ] as const;
   const rootBlock = themeCss.slice(themeCss.indexOf("\n:root {\n"), themeCss.indexOf("\n@media (pointer: fine)"));
 
@@ -59,6 +63,17 @@ test("the eight density aliases resolve canonical DTCG values into concrete :roo
   for (const [target, value] of expected) {
     expect(rootBlock).toContain(`${target}: ${value};`);
   }
+});
+
+test("Grid cellFixed consumes the density-selected track while cellShelf keeps its independent track", () => {
+  expect(gridVariants({ cols: "cellFixed" })).toContain("var(--orb-grid-cell-fixed)");
+  expect(gridVariants({ cols: "cellShelf" })).toContain("8.5rem");
+  expect(gridVariants({ cols: "cellShelf" })).not.toContain("--orb-grid-cell-fixed");
+  const tiers = readFileSync(join(UI_ROOT, "src/styles/tiers.css"), "utf8");
+  expect(tiers).toContain('[data-density="comfortable"]');
+  expect(tiers).toContain("--orb-grid-cell-fixed: var(--orb-density-comfortable-cell-fixed);");
+  expect(tiers).toContain('[data-density="compact"]');
+  expect(tiers).toContain("--orb-grid-cell-fixed: var(--orb-density-compact-cell-fixed);");
 });
 
 test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine override is 32/34/40 (D62 P1, gate touch-target-floor; control-sm raised to the 32px tap-target floor Task #76)", async () => {

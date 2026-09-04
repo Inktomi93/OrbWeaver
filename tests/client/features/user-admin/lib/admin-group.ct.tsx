@@ -132,6 +132,7 @@ function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): 
     "settings.getAppSettingsWithOverrides": () => ({ resolved: RESOLVED_APP, overrides: {} }),
     // The plain-viewer arm lands on the default `appearance` pane, whose sections read the user settings.
     "settings.getUserSettings": () => ({ userId: viewer.userId, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "settings.listThemes": [],
     ...extra,
   });
 }

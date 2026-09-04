@@ -8,7 +8,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../support/ct/route-trpc.ts";
 import { SessionRecoveryBindFailureStory, SessionRecoveryReauthStory, SessionRecoveryStory, SessionSwapStory } from "./_ct-stories.tsx";
 
 const VIEWER = { userId: "usr_ct_owner", handle: castId<Handle>("owner"), globalRole: "owner" };
@@ -24,14 +24,19 @@ test("binds the durable-local namespace to the viewer id off `sessions.me` (F1)"
 });
 
 test("mounts without suspending or navigating when the identity read is still in flight", async ({ mount, page }) => {
-  // DELIBERATELY unfed (ct-unfed-reads.baseline.json, ratified): no `sessions.me` handler at all is the
-  // subject under test — the hook must tolerate `undefined` (a non-suspense read on purpose, the shell must
-  // never block on identity) and simply stay unbound. Feeding a real viewer would test the OTHER test's arm.
-  await routeTrpc(page, {});
+  const identity = trpcHold();
+  await routeTrpc(page, { "sessions.me": identity });
 
   await mount(<SessionRecoveryStory />);
+  await identity.requested;
 
-  await expect(page.getByTestId("durable-local-user")).toBeVisible();
+  const durableUser = page.getByTestId("durable-local-user");
+  await expect(durableUser).toHaveText("unbound");
+
+  // Settle the held transport with the real ViewerView shape after the pending arm is proven. Leaving the
+  // request unfed answered `null`, not pending, and made this assertion race a render-time TypeError.
+  identity.release(VIEWER);
+  await expect(durableUser).toHaveText(VIEWER.userId);
 });
 
 test("surfaces a durable-local bind failure and retries to the ready workspace", async ({ mount, page }) => {

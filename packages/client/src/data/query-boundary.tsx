@@ -50,6 +50,8 @@ export interface QueryBoundaryProps {
    * this device's own measurement exists, and only with `reserveKey`.
    */
   readonly reserveBlock?: number | undefined;
+  /** Preserve a parent-owned definite height through the reservation wrapper. */
+  readonly fill?: boolean;
   /**
    * Renders the error surface; `retry` resets BOTH boundaries so the refetch is real.
    * @defaultValue a generic `QueryErrorState label="this"` — pass a labeled one for a specific surface.
@@ -132,16 +134,18 @@ function fillToBox(fallback: ReactNode, box: number): ReactNode {
 function ReservedFallback({
   reserveKey,
   reserveBlock,
+  fill,
   children,
 }: {
   readonly reserveKey: string;
   readonly reserveBlock: number | undefined;
+  readonly fill: boolean;
   readonly children: ReactNode;
 }): ReactElement {
   const measured = useSurfaceBox(reserveKey);
   const box = measured ?? reserveBlock ?? null;
   if (box === null) {
-    return <Stack>{children}</Stack>;
+    return <Stack className={fill ? "h-full min-h-0 flex-1" : undefined}>{children}</Stack>;
   }
   return (
     <Stack
@@ -161,7 +165,7 @@ function ReservedFallback({
  *  commit, not just mount (the rpg-band precedent): a child that grows in place refreshes its memory,
  *  and `surface-box-store`'s write epsilon swallows sub-pixel churn. It mounts only once the read has
  *  resolved (it is the Suspense child), so the first measurement is already settled geometry. */
-function MeasuredSettle({ reserveKey, children }: { readonly reserveKey: string; readonly children: ReactNode }): ReactElement {
+function MeasuredSettle({ reserveKey, fill, children }: { readonly reserveKey: string; readonly fill: boolean; readonly children: ReactNode }): ReactElement {
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = bodyRef.current;
@@ -169,19 +173,37 @@ function MeasuredSettle({ reserveKey, children }: { readonly reserveKey: string;
       rememberSurfaceBox(reserveKey, el.getBoundingClientRect().height);
     }
   });
-  return <Stack ref={bodyRef}>{children}</Stack>;
+  return (
+    <Stack className={fill ? "h-full min-h-0 flex-1" : undefined} ref={bodyRef}>
+      {children}
+    </Stack>
+  );
 }
 
-export function QueryBoundary({ fallback, reserveKey, reserveBlock, renderError = defaultRenderError, children }: QueryBoundaryProps): ReactElement {
+export function QueryBoundary({
+  fallback,
+  reserveKey,
+  reserveBlock,
+  fill = false,
+  renderError = defaultRenderError,
+  children,
+}: QueryBoundaryProps): ReactElement {
   const reservedFallback =
     reserveKey === undefined ? (
       fallback
     ) : (
-      <ReservedFallback reserveBlock={reserveBlock} reserveKey={reserveKey}>
+      <ReservedFallback fill={fill} reserveBlock={reserveBlock} reserveKey={reserveKey}>
         {fallback}
       </ReservedFallback>
     );
-  const measuredChildren = reserveKey === undefined ? children : <MeasuredSettle reserveKey={reserveKey}>{children}</MeasuredSettle>;
+  const measuredChildren =
+    reserveKey === undefined ? (
+      children
+    ) : (
+      <MeasuredSettle fill={fill} reserveKey={reserveKey}>
+        {children}
+      </MeasuredSettle>
+    );
   return (
     <QueryErrorResetBoundary>
       {({ reset }): ReactElement => (

@@ -61,36 +61,31 @@ test("the Frosted glass explanation holds a deliberate prose measure on a wide s
   const gloss = page.getByText(FROSTED_GLASS_GLOSS_RE);
   await expect(gloss).toBeVisible();
 
-  const readMeasureAtAssertion = async (): Promise<typeof measure> =>
+  const readMeasure = async (): Promise<{ readonly averageGlyphs: number; readonly onGovernedMeasure: boolean }> =>
     await gloss.evaluate((element) => {
       const style = getComputedStyle(element);
-      const probe = document.createElement("span");
+      const probe = document.createElement("div");
       probe.style.position = "absolute";
       probe.style.visibility = "hidden";
-      probe.style.display = "block";
-      probe.style.font = style.font;
-      probe.style.width = "1ch";
-      document.body.append(probe);
-      const ch = probe.getBoundingClientRect().width;
+      probe.style.width = "var(--reading-measure-prose)";
+      element.append(probe);
+      const governedWidth = probe.getBoundingClientRect().width;
       probe.remove();
-      return { chars: element.getBoundingClientRect().width / ch, lines: element.getClientRects().length };
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      if (context === null) {
+        throw new Error("no 2d context for the prose-measure assertion");
+      }
+      context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const text = (element.textContent ?? "").replace(/\s+/gu, " ").trim();
+      const averageAdvance = context.measureText(text).width / text.length;
+      const width = element.getBoundingClientRect().width;
+      return { averageGlyphs: width / averageAdvance, onGovernedMeasure: Math.abs(width - governedWidth) <= 0.5 };
     });
-  const measure = await gloss.evaluate((element) => {
-    const style = getComputedStyle(element);
-    const probe = document.createElement("span");
-    probe.style.position = "absolute";
-    probe.style.visibility = "hidden";
-    probe.style.display = "block";
-    probe.style.font = style.font;
-    probe.style.width = "1ch";
-    document.body.append(probe);
-    const ch = probe.getBoundingClientRect().width;
-    probe.remove();
-    return { chars: element.getBoundingClientRect().width / ch, lines: element.getClientRects().length };
-  });
 
-  await expect.poll(async () => (await readMeasureAtAssertion()).chars).toBeGreaterThanOrEqual(65);
-  await expect.poll(async () => (await readMeasureAtAssertion()).chars).toBeLessThanOrEqual(75);
+  await expect.poll(async () => (await readMeasure()).onGovernedMeasure).toBe(true);
+  await expect.poll(async () => (await readMeasure()).averageGlyphs).toBeGreaterThanOrEqual(65);
+  await expect.poll(async () => (await readMeasure()).averageGlyphs).toBeLessThanOrEqual(75);
 });
 
 test("the Frosted glass explanation stays contained on mobile without moving the switch rail", async ({ mount, page }) => {
