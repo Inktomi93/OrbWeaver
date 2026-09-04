@@ -12,7 +12,7 @@
 > that do not exist): `ops/walker.ts` + `ops/walker/census-*.ts` (in-page fact gathering),
 > `lib/checks-*.ts` (pure verdicts) and `lib/collect.ts` (the family dispatcher that carries the
 > attribution header), unit-tested at `tests/tooling/ui-audit/index.test.ts` with real-CLI
-> fixtures at `tests/tooling/ui-audit/cli.int.test.ts` — and run via `pnpm design-audit`. The
+> fixtures at `tests/tooling/ui-audit/cli.int.test.ts` — and run via `pnpm snap <route> --design-audit`. The
 > 23-command design vocabulary is adapted in `SKILL.md` §15; the DESIGN.md-equivalent context
 > distillation is `reference/design-context.md`.
 
@@ -63,7 +63,7 @@ Every adapted finding is origin-tagged: `Finding.origin === "impeccable"` in the
 
 Impeccable has categories (`slop`/`quality`) + flags (`advisory`, `error`). We keep OUR P0–P3:
 `error` → P0 · real user-facing breakage → P1 · law-backed defect / strong signal → P2 ·
-taste-tell / advisory → P3. `pnpm design-audit --fail-on` semantics unchanged (default P1).
+taste-tell / advisory → P3. `pnpm snap <route> --design-audit --fail-on` semantics unchanged (default P1).
 
 ## Blind ≠ inapplicable — the triage axis this record originally lacked (2026-09-01)
 
@@ -124,7 +124,7 @@ clean-looking zero. When re-syncing against upstream, diff the exported MECHANIS
 > live one is `DESIGN_AUDIT_RULES` in `tooling/src/ui-audit/contract/rules.ts`, and every count in
 > this file and in `SKILL.md` is re-derived from it rather than remembered.
 
-### Adapted (28) — now live in `pnpm design-audit`
+### Adapted (28) — now live in `pnpm snap --design-audit`
 
 The **rung** column is the rule's population-collection strategy. It is a DERIVED mirror: the one home
 for the rung assignment AND its reason is the table in `tooling/src/ui-audit/lib/collect.ts`'s header

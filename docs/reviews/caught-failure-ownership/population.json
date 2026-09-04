@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 535,
-    "enforced": 531,
+    "sites": 531,
+    "enforced": 527,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 531,
+      "deliberate-absorb": 527,
       "detached-owned": 4,
       "unproven": 0
     },
     "byGrammar": {
-      "promise": 138,
+      "promise": 137,
       "default": 143,
-      "empty": 254
+      "empty": 251
     }
   },
   "rows": [
@@ -5647,6 +5647,32 @@
       "markerLine": 81
     },
     {
+      "siteId": "tooling/src/snap/ops/design-audit-walk.ts::empty:catch::1",
+      "path": "tooling/src/snap/ops/design-audit-walk.ts",
+      "line": 204,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a selector the browser refuses to parse is reported as matches=-1, which the arm prints as UNPROVEN and counts as non-unique — the failure IS the published value. Ends if -1 stops being read as \"not proven\".",
+      "markerLine": 201
+    },
+    {
+      "siteId": "tooling/src/snap/ops/design-audit-walk.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/design-audit-walk.ts",
+      "line": 220,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the walk throwing is an INSTRUMENT failure, returned as walkError and turned into walkFailureGap (exit 2) by the caller. Ends if walkError stops reaching the gap ladder.",
+      "markerLine": 212
+    },
+    {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::1",
       "path": "tooling/src/snap/ops/drive.ts",
       "line": 215,
@@ -6035,19 +6061,6 @@
       "verdict": "deliberate-absorb",
       "reason": "a daemon that does not answer its close is REAPED below (group signal + marker settle) and the reap's receipt is printed — the failure path is the louder one. Ends if the reap stops being unconditional after a refused close.",
       "markerLine": 125
-    },
-    {
-      "siteId": "tooling/src/snap/ops/session-attach.ts::empty:error::1",
-      "path": "tooling/src/snap/ops/session-attach.ts",
-      "line": 76,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "the recurring timer cannot throw to an awaiter, so the caught cause is returned to the caller and retained for `close()` to throw into ProbeSession cleanup. Ends if cleanup stops awaiting the lease or this catch stops returning the cause.",
-      "markerLine": 69
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:promise::1",
@@ -6557,32 +6570,6 @@
       "markerLine": 67
     },
     {
-      "siteId": "tooling/src/ui-audit/ops/drive.ts::empty:e::1",
-      "path": "tooling/src/ui-audit/ops/drive.ts",
-      "line": 61,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:e",
-      "ordinal": 1,
-      "snippet": "} catch (e) {",
-      "verdict": "deliberate-absorb",
-      "reason": "printed as ACTION FAILED and returned as 1 — the JSDoc above states an action that didn't land is never silent and reddens the audit's verdict through this return value. Ends if the returned count stops being summed into the verdict.",
-      "markerLine": 46
-    },
-    {
-      "siteId": "tooling/src/ui-audit/ops/drive.ts::promise:waitFor::1",
-      "path": "tooling/src/ui-audit/ops/drive.ts",
-      "line": 81,
-      "column": 26,
-      "grammar": "promise",
-      "position": "promise:waitFor",
-      "ordinal": 1,
-      "snippet": "const appReady = await page",
-      "verdict": "deliberate-absorb",
-      "reason": "the comment above states the outcome IS reported — appReady:false feeds lib/evidence.ts's readinessGap check (#678), so a missing readiness signal is surfaced as a verdict input, not swallowed. Ends if appReady stops being read downstream.",
-      "markerLine": 80
-    },
-    {
       "siteId": "tooling/src/ui-audit/ops/hover.ts::empty:e::1",
       "path": "tooling/src/ui-audit/ops/hover.ts",
       "line": 414,
@@ -6594,45 +6581,6 @@
       "verdict": "deliberate-absorb",
       "reason": "printed as `HOVER REFUSED <why>`, RETURNED as a `broke` outcome, and RENDERED AS EXIT.toolError by run.ts — propagated through both the message and the exit code, so a forced-state pass that failed reddens the audit's verdict rather than being absorbed. END CONDITION: the run reports `hover-contrast` NO VERDICT and exits 2.",
       "markerLine": 335
-    },
-    {
-      "siteId": "tooling/src/ui-audit/ops/matrix.ts::empty:error::1",
-      "path": "tooling/src/ui-audit/ops/matrix.ts",
-      "line": 201,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.",
-      "markerLine": 197
-    },
-    {
-      "siteId": "tooling/src/ui-audit/ops/matrix.ts::empty:error::2",
-      "path": "tooling/src/ui-audit/ops/matrix.ts",
-      "line": 208,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 2,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.",
-      "markerLine": 205
-    },
-    {
-      "siteId": "tooling/src/ui-audit/ops/stage.ts::empty:error::1",
-      "path": "tooling/src/ui-audit/ops/stage.ts",
-      "line": 55,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "the stage boot failure is printed via stageBootRefusal and returned as EXIT.toolError — propagated through both the message and the exit code. Ends if either is dropped.",
-      "markerLine": 42
     },
     {
       "siteId": "tooling/src/verify/gates/bus-payload-allowlist.ts::empty:catch::1",

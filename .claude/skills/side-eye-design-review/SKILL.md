@@ -118,7 +118,7 @@ indigo/violet SaaS) · `cream-palette` · `nested-cards` · `monotonous-spacing`
 `dark-glow` · `icon-tile-stack` · `italic-serif-display` · `hero-eyebrow-chip` ·
 `repeated-section-kickers` · `numbered-section-markers` (01/02/03) · `em-dash-overuse` ·
 `marketing-buzzword` · `aphoristic-cadence` copy. Match-and-refuse: if you see one, it's a finding.
-Many of these now also fire DETERMINISTICALLY in `pnpm design-audit` (origin-tagged `impeccable`;
+Many of these now also fire DETERMINISTICALLY in `pnpm snap <route> --design-audit` (origin-tagged `impeccable`;
 the full adopt/adapt/reject triage incl. the rules that deliberately do NOT run here is
 `reference/impeccable-adoption.md`). Two named divergences from upstream impeccable: the KICKER
 voice (caps micro label + hairline rule as a section name) is RATIFIED law here (density-pass spec
@@ -277,7 +277,7 @@ flag. A run you already took replays browser-free: `pnpm snap --report <run.json
   **VIEWPORT TOGGLES:** `--mobile` (real iPhone 14 Pro Max emulation — 430×932, DPR 3, touch +
   `pointer: coarse`, so hover-reveals go always-visible and the rail becomes the bottom tab bar) ·
   `--desktop` (the 1280×800 default, explicit) · last of `--mobile`/`--desktop`/`--wide`/`--viewport` wins.
-- `pnpm snap --perf` (responsiveness) / `pnpm snap --cpu-profile` (CPU profile) · `pnpm design-audit` (the deterministic defect
+- `pnpm snap --perf` (responsiveness) / `pnpm snap --cpu-profile` (CPU profile) · `pnpm snap <route> --design-audit` (the deterministic defect
   scanner — every registered rule in `DESIGN_AUDIT_RULES` (`tooling/src/ui-audit/contract/rules.ts`),
   grouped by the tuple's `family` axis (a11y · color · decor · media · ornament · quality · structure ·
   typography), each carrying one of two ORIGIN tags: the house rules (`origin: "orbweaver"`) plus the
@@ -286,7 +286,7 @@ flag. A run you already took replays browser-free: `pnpm snap --report <run.json
   icon-tile-stack/gray-on-color). **Cite the registry, never a remembered count**; adoption triage:
   `reference/impeccable-adoption.md` in this skill dir).
 - **Every rule also has a DECIDED POPULATION RUNG, and a clean row is not the same claim as a clean
-  verdict.** `pnpm design-audit` prints a `POPULATION <rule> candidates=… judged=… affected=…
+  verdict.** `pnpm snap <route> --design-audit` prints a `POPULATION <rule> candidates=… judged=… affected=…
   withheld(…) excluded(…)` line per rule, and the run's `population-verdict=` is `complete` only when
   nothing was withheld. `withheld` = the rule applied and the instrument could not judge it → the run
   is **NO VERDICT** and its findings are partial; `excluded` = measured facts proved the rule
@@ -318,7 +318,7 @@ flag. A run you already took replays browser-free: `pnpm snap --report <run.json
 - **The DRIVE axis (#1059): a bare run measures the REST state, and some cohorts only exist once you
   drive the surface.** Characters' library toolbar carries two toggles that are both OFF at rest, so
   `selection-idiom` has no selected twin there and the run is honestly NO VERDICT; the driven run
-  `pnpm design-audit characters --click '[aria-label="Select multiple"]'` gives that cohort its twin and
+  `pnpm snap characters --design-audit --click '[aria-label="Select multiple"]'` gives that cohort its twin and
   the rule reaches a verdict. Both runs are real — the bare one is what a visitor lands on — so the
   report DECLARES which regime it measured (`drive=` on the SHELL STATE line, `SURFACE-AXIS drive`,
   `drive-state=`/`drive-axis=` on the RESULT line). Never compare a driven population to a rest one.
@@ -577,7 +577,7 @@ UI (or `snap --goto`/`__orb.nav` if present; check `pnpm snap --help` (generated
 | The constitution + doc index | `docs/architecture/core/AGENTS.md` |
 | D-ledger (cite the D-number a finding breaks) | `docs/architecture/core/Core-Laws-and-Precedents.md` → `Core-Path-Registry.md` |
 | CTs (component tests) — repo root, NOT packages/\*\* | `tests/client/**` (e2e: `tests/e2e/**`) |
-| Probe tool manuals — **authoritative, read them fresh; this skill does not duplicate flags** | `pnpm snap --help` (source: `tooling/src/snap/contract/help.ts`) · `pnpm design-audit --help` |
+| Probe tool manuals — **authoritative, read them fresh; this skill does not duplicate flags** | `pnpm snap --help` (source: `tooling/src/snap/contract/help.ts`) · the `--design-audit` group of `pnpm snap --help` |
 | Server truth for any chat surface | `GET :8788/api/_debug/db/chat/:id` · `/api/_debug/db/chats` (LIST) · `/api/_debug/db/characters` (LIST) · `/api/_debug/errors` · `/api/_debug/db/integrity` |
 
 **Seeding + enumeration (stop re-deriving this):** enumerate ids straight from the harness —
@@ -701,7 +701,7 @@ landed. Design-system facts these verbs bind to: `reference/design-context.md`.
 | Verb | Means here | Bound by | Receipt that proves it |
 | - | - | - | - |
 | **critique** | the Track A method — Nielsen §7, cognitive load §8, personas §9, taste §13 | this whole skill | the review itself + screenshots |
-| **audit** | the deterministic scan + measured a11y/perf pass | P0–P3 (§10) | `pnpm design-audit` JSON + `snap --contrast/--aria/--motion` |
+| **audit** | the deterministic scan + measured a11y/perf pass | P0–P3 (§10) | `snap --design-audit` JSON + `snap --contrast/--aria/--motion` |
 | **polish** | kill micro-defects: alignment, off-step spacing, inconsistent states | density tier map (island pad/radius are TIER-resolved, never picked) | before/after `--shot-of` + computed padding/radius equal to resolved tokens |
 | **quieter** | reduce intensity: strip unsanctioned glow/gradient/motion, demote competing focal elements to ONE (CD3), accent back under ≤10% of viewport | CD1–CD3 + UX rule 4 (chrome quiet/content loud) | design-audit glow/radial/stripe rules clean + before/after shots |
 | **bolder** | spend the ONE focal slot deliberately (CD3 still holds) — a stronger voice step, the sanctioned accent carriers — never new raw values or a louder palette | tokens-only + CD3 + owner theme (D71) | shots + the focal element named; design-audit still clean |

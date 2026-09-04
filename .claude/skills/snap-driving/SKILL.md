@@ -82,9 +82,10 @@ has a fixed shape; use the shape.
 | lighthouse | `--lighthouse desktop\|mobile` | axe/best-practices/seo audits on THIS run's settled page | `--cascade`; mobile fills the device slot |
 | requests | `--requests [url]` / `--request-body <url>` | which reads the surface issued, and one JSON body | — |
 | filmstrip | `--filmstrip` | a transition as a labelled contact sheet | every profiler/measurement arm |
+| design-audit | `--design-audit` | the deterministic UI defect scanner (60 rules, population verdict, `--fail-on`, `--mobile`) | see the flag index |
 
-`pnpm design-audit <route>` (the deterministic UI defect scanner: 59 rules, population accounting,
-`--mobile` for tap targets) is still its own command until #1315 folds it in as `--design-audit`; it shares
+`pnpm snap <route> --design-audit` (the deterministic UI defect scanner: 60 rules, population accounting,
+`--mobile` for tap targets, `--fail-on P0..P3` for the failing severity) is a snap arm since #1315; it shares
 every reach/environment flag above and prints the same kind of end card. The old record, motion-audit and
 perf-meter commands are RETIRED — snap's `--filmstrip`, `--motion` and `--perf` arms are their homes.
 
@@ -244,8 +245,8 @@ parameterized actions.
 - **`--filmstrip` is the transition-eye path** — it records the existing exact page from before the
   argv action tape through bounded settle, then writes a labelled PNG contact sheet. Its timestamps and
   action labels make the result readable without extracting video. It refuses motion/perf/CPU/heap/trace
-  arms because screencast encoding would contaminate their measurement. `pnpm record` is retired and
-  prints the equivalent Snap recipe; do not build new workflows on it.
+  arms because screencast encoding would contaminate their measurement. `pnpm record` no longer
+  exists; `--filmstrip` is the only recording recipe.
 - **`sandbox-trace-noise` is harness-induced, never an app finding** — Playwright tracing (snap's
   default failure evidence) injects its script into the app's deliberately script-dead sandboxed
   card frames; the resulting console error is excluded from the verdict but counted in the RESULT
@@ -303,7 +304,7 @@ judging an app whose own setting had frozen the animations they were measuring.
   state — does the floor hold?) AND `--full-motion` / `--appearance-preset maximal` (is the nice stuff
   good?). A full-battery surface pass drives bare + `maximal` at minimum; transcript/chat surfaces add
   `compact` and `reading` wherever density or typography is the question.
-- Same three flags on `pnpm design-audit` and the `pnpm snap --motion` / `--perf` arms — one vocabulary
+- Same three flags on the `pnpm snap --design-audit` / `--motion` / `--perf` arms — one vocabulary
   (`_kit/appearance.ts`), so a probe cannot offer half of it. `--json` records the applied patch under
   `environment.appearance`, so a manifest states which arm it measured.
 - `--file` (static mock) REFUSES them: a local HTML file makes no settings request. Scenario checkpoints
