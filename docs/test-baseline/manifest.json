@@ -1645,6 +1645,7 @@
     "tests/server/entry/compose/admin.test.ts",
     "tests/server/entry/compose/assets-character.int.test.ts",
     "tests/server/entry/compose/automation-plugin.int.test.ts",
+    "tests/server/entry/compose/automation-watcher.int.test.ts",
     "tests/server/entry/compose/automation-watcher.test.ts",
     "tests/server/entry/compose/chat-tools.test.ts",
     "tests/server/entry/compose/chat.int.test.ts",

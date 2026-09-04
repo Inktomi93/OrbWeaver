@@ -33,14 +33,26 @@ export interface ComputeHubScoresOptions {
 }
 
 /** Options for the `distillCharacters` pass. `characterId` narrows to one card; absent = whole-library batch. */
-export interface DistillCharactersOptions {
-  readonly characterId?: CharacterId;
-  readonly ownerId?: UserId;
+export type DistillCharactersOptions = DistillTargetNarrow & {
   readonly signal?: AbortSignal | undefined;
   /** Per-card position for the caller's progress surface (`done`, `total`). The PASS owns the denominator —
    *  the workload wrapper never reads the target list — so N-of-M can only originate here (issue #166). */
   readonly onProgress?: ((done: number, total: number) => void) | undefined;
-}
+};
+
+/**
+ * WHICH CARDS a distill pass targets — and the ONE place the `characterId`↔`ownerId` pairing is enforced
+ * (#1414 seam 1). The narrow used to be two independent optionals, so `{characterId}` ALONE was well-typed:
+ * `readCardDistillTargets` would then select any non-synthetic character in the box and the pass would commit
+ * a `character_summaries` row + staged `pending` tag suggestions under THAT card's own owner. Every live
+ * caller happened to pair them (the tRPC seam supplies `ctx.auth.userId`; the workload arm never sets
+ * `characterId`), which is precisely the "safe because of who calls it" a two-arm union replaces with
+ * physics: an on-demand narrow structurally cannot arrive without saying whose card it is.
+ * ENFORCER: `tsc`, at this type and at `readCardDistillTargets`' signature.
+ */
+export type DistillTargetNarrow =
+  | { readonly characterId: CharacterId; readonly ownerId: UserId }
+  | { readonly characterId?: undefined; readonly ownerId?: UserId };
 
 /** Options for the `computeChatDuplicatePairs` recompute (the chat near-dup arm). */
 export interface ComputeChatDuplicatesOptions {

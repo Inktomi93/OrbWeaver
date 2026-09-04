@@ -406,6 +406,26 @@ describe("the corpusRecomputed terminal fan", () => {
   });
 });
 
+// ── #1397: the SCOPED arm forwards its owner ────────────────────────────────────────────────────────
+// `computeCooccurrence` documents an absent owner as ALL-OWNERS mode and honours it:
+// `readOwnedDigestKeywords` drops the host predicate entirely, then `groupByOwner` + `replaceOwner`
+// DELETE-and-REINSERT `keyword_cooccurrence` + `character_keyword_profiles` for every owner in the result.
+// A scoped per-user run that forgot the id therefore read every tenant's digests AND destructively
+// recomputed every tenant's derived rows. Its four siblings in this file all forward the owner.
+describe("compute-cooccurrence — the owner belt (#1397)", () => {
+  test("SECURITY: a SCOPED run forwards ctx.ownerId — it never sweeps (nor rewrites) every tenant", async () => {
+    const { discovery, contributions } = build();
+    await contributions[2].run(ctx, {}, vi.fn(), sig());
+    expect(discovery.computeCooccurrence).toHaveBeenCalledWith(expect.objectContaining({ ownerId: OWNER_ID }));
+  });
+
+  test("a BULK row (ownerId null) forwards NULL — the all-owners mode stays reachable, on purpose only", async () => {
+    const { discovery, contributions } = build();
+    await contributions[2].run({ ...ctx, ownerId: null }, {}, vi.fn(), sig());
+    expect(discovery.computeCooccurrence).toHaveBeenCalledWith(expect.objectContaining({ ownerId: null }));
+  });
+});
+
 describe("the contribution set", () => {
   test("contributes exactly discovery's five kinds, all sweep-lane + idempotent-restart", () => {
     const { contributions } = build();

@@ -2139,7 +2139,7 @@
     {
       "siteId": "packages/server/src/domain/discovery/verbs/distill.ts::default:catch::1",
       "path": "packages/server/src/domain/discovery/verbs/distill.ts",
-      "line": 297,
+      "line": 300,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2147,7 +2147,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the header states the contract:",
-      "markerLine": 290
+      "markerLine": 293
     },
     {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::default:error::1",

@@ -17,6 +17,7 @@ import type { Db } from "@orb/db";
 import { assets, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
+import type { DistillTargetNarrow } from "../contract/params.ts";
 
 interface CardDistillTarget {
   readonly characterId: CharacterId;
@@ -56,11 +57,9 @@ export async function readOwnedCardDisplay(db: Db, ownerId: UserId): Promise<Car
     .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false)));
 }
 
-/** Read the flat card text for every non-synthetic character (batch) or one owned character (on-demand). */
-export async function readCardDistillTargets(
-  db: Db,
-  filter: { readonly characterId?: CharacterId; readonly ownerId?: UserId } = {},
-): Promise<CardDistillTarget[]> {
+/** Read the flat card text for every non-synthetic character (batch) or one owned character (on-demand).
+ *  The `characterId` narrow carries its `ownerId` BY TYPE — see {@link DistillTargetNarrow} (#1414 seam 1). */
+export async function readCardDistillTargets(db: Db, filter: DistillTargetNarrow = {}): Promise<CardDistillTarget[]> {
   const conds = [eq(characters.synthetic, false)];
   if (filter.characterId !== undefined) {
     conds.push(eq(characters.id, filter.characterId));

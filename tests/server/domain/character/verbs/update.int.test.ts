@@ -3,6 +3,7 @@
 // neither writes nor emits; not-owned throws.
 
 import { utimes } from "node:fs/promises";
+import type { MaterializeBackgroundOp, ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
@@ -257,6 +258,86 @@ describe("update", () => {
     expect(err).toBeInstanceOf(CharacterOperationError);
     expect((err as CharacterOperationError).code).toBe("background_unavailable");
     expect(h.events).toHaveLength(0);
+  });
+
+  // ── #1455: AUTHORIZE, THEN FETCH ─────────────────────────────────────────────────────────────────
+  // `resolveBackgroundOverride` invokes `ctx.materializeBackground` for any `kind:"external"` override,
+  // and it used to run BEFORE `loadOwnedCharacterRow`. So a caller naming a characterId they do not own
+  // (or one that does not exist) still drove a remote fetch, image processing, a CAS write and an assets
+  // row — SSRF-sensitive outbound work plus cost and a durable side effect — on the way to a
+  // `CharacterNotFoundError`. Both inputs are ordinary caller-supplied values. A RECORDING materializer
+  // is the pin: it must never be reached. (The materialize op keeps running before
+  // `ensureBackgroundOverrideOwned`, which is what lets the freshly-stored own asset pass it.)
+  describe("#1455 — external background materialization runs only AFTER the character is authorized", () => {
+    /** A materializer that RECORDS instead of fetching — reaching it at all is the finding. */
+    function recorder(): { calls: string[]; op: MaterializeBackgroundOp } {
+      const calls: string[] = [];
+      return {
+        calls,
+        op: (_principal, url) => {
+          calls.push(url);
+          return Promise.resolve({ ok: true, asset: { assetId: castId("asset_never"), assetHash: "never", mime: "image/png" } });
+        },
+      };
+    }
+
+    function externalInput(url: string): { backgroundOverride: ThemeBackground } {
+      return {
+        backgroundOverride: { kind: "external", seededId: "", externalUrl: url, assetId: "", assetHash: "", mime: "", provenanceUrl: "" },
+      };
+    }
+
+    test("SECURITY: a FOREIGN characterId never reaches the materializer", async () => {
+      const db = await freshDb();
+      const rec = recorder();
+      const h = makeHarness(db, { materializeBackground: rec.op });
+      const svc = createCharacterService(h.ctx);
+      const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+      const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+      const theirs = await svc.create({
+        principal: principal(owner),
+        input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+      });
+
+      await expect(
+        svc.update({ principal: principal(stranger), characterId: theirs.id, input: externalInput("https://cdn.example/ssrf.jpg") }),
+      ).rejects.toBeInstanceOf(CharacterNotFoundError);
+      expect(rec.calls).toEqual([]);
+    });
+
+    test("SECURITY: a MISSING characterId never reaches the materializer", async () => {
+      const db = await freshDb();
+      const rec = recorder();
+      const h = makeHarness(db, { materializeBackground: rec.op });
+      const svc = createCharacterService(h.ctx);
+      const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+      await expect(
+        svc.update({ principal: principal(owner), characterId: castId("character_nope"), input: externalInput("https://cdn.example/ssrf.jpg") }),
+      ).rejects.toBeInstanceOf(CharacterNotFoundError);
+      expect(rec.calls).toEqual([]);
+    });
+
+    test("the OWNER's own card still materializes (the reorder is a gate, not a removal)", async () => {
+      const db = await freshDb();
+      const rec = recorder();
+      const h = makeHarness(db, { materializeBackground: rec.op });
+      const svc = createCharacterService(h.ctx);
+      const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+      const stored = await seedAsset(db, { id: "asset_never", ownerId: owner });
+      const created = await svc.create({
+        principal: principal(owner),
+        input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+      });
+
+      const url = "https://cdn.example/mine.jpg";
+      const updated = await svc.update({ principal: principal(owner), characterId: created.id, input: externalInput(url) });
+
+      expect(rec.calls).toEqual([url]);
+      expect(updated.backgroundOverride?.kind).toBe("asset");
+      expect(updated.backgroundOverride?.assetId).toBe(stored);
+      expect(updated.backgroundOverride?.provenanceUrl).toBe(url);
+    });
   });
 
   test("GC-first: a held real card update loses with background_unavailable and never persists a dangling JSON ref", async () => {

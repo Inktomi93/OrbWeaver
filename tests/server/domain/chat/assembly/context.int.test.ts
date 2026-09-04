@@ -11,7 +11,7 @@ import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, promptConfigSchema } fro
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import { chatBooks, worldBooks, worldEntries } from "@orb/db";
+import { characterBooks, chatBooks, worldBooks, worldEntries } from "@orb/db";
 import { ZWSP } from "@orb/kit/guided";
 import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -84,6 +84,25 @@ async function attachChatEntry(
     createdAt: FROZEN_AT,
   });
   await db.insert(chatBooks).values({ chatId: castId(chatId), worldBookId: bookId, createdAt: FROZEN_AT });
+}
+
+/** Attach a CHARACTER-scope book with one always-scope entry to `characterId`, the book owned by `owner`. */
+async function attachCharacterEntry(owner: UserId, characterId: CharacterId, key: string, content: string): Promise<void> {
+  const bookId = castId<WorldBookId>(`world_book_${key}`);
+  await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
+  await db.insert(worldEntries).values({
+    id: castId<WorldEntryId>(`world_entry_${key}`),
+    worldBookId: bookId,
+    title: key,
+    content,
+    keys: null,
+    enabled: true,
+    priority: 0,
+    ignoreBudget: false,
+    metadata: null,
+    createdAt: FROZEN_AT,
+  });
+  await db.insert(characterBooks).values({ characterId, worldBookId: bookId, role: "auxiliary", createdAt: FROZEN_AT });
 }
 
 interface InputOver {
@@ -1469,5 +1488,35 @@ describe("buildAssembleContext — the new-chat marker (G9)", () => {
       promptConfig: { ...DEFAULT_PROMPT_CONFIG, formatStrings: { newChatMarker: "   " } },
     });
     expect(out.chatInjections?.some((i) => i.origin === "new-chat-marker")).toBe(false);
+  });
+});
+
+// ── #1396: GATHER runs on the OWNER-VERIFIED roster, not the raw input ids ───────────────────────────
+// `buildAssembleContext` already resolves every input characterId to a card under `input.ownerId` and keeps
+// only the ones that came back (`present`) — then handed `input.characterIds` to the WI pool anyway, so a
+// card the owner-scoped read REFUSED still contributed its character-scope lore to the prompt. The filtered
+// roster it had already computed is the honest input. Both belts are kept (the pool's own owner predicate is
+// pinned in `world-info/pool.int.test.ts`): this one is about WHICH IDS, that one about WHOSE BOOK.
+describe("buildAssembleContext — the WI pool receives the owner-verified roster (#1396)", () => {
+  test("SECURITY: a character whose owner-scoped card read RESOLVED NOTHING contributes no character-scope lore", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const aria = await seedCharacter(db, host, "aria");
+    const ghost = await seedCharacter(db, host, "ghost");
+    // Both books are the HOST's own, so the pool's owner predicate cannot be what drops the ghost's lore —
+    // only the roster filter can. (With one belt doing both jobs this test would pass for the wrong reason.)
+    await attachCharacterEntry(host, aria, "seen", "ARIA LORE");
+    await attachCharacterEntry(host, ghost, "unseen", "GHOST LORE");
+    // The owner-scoped card read answers for `aria` and REFUSES `ghost` (deleted mid-turn / not this owner's).
+    const ctx = makeChatContext(db, { getCard: ({ characterId }) => Promise.resolve(characterId === aria ? cardOf("Aria") : null) });
+
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [aria, ghost]));
+
+    // An always-scope entry lands in the system-half anchor text (`worldInfoBefore`), not `chatInjections`.
+    const lore = `${out.worldInfoBefore ?? ""}\n${out.worldInfoAfter ?? ""}`;
+    expect(lore).toContain("ARIA LORE");
+    expect(lore).not.toContain("GHOST LORE");
+    // …and the ghost never even reached the pool, so it is not a budget drop either.
+    expect(out.wiTrace?.included).toBe(1);
   });
 });

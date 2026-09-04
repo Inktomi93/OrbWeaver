@@ -134,3 +134,57 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
     expect(pool).toEqual([]);
   });
 });
+
+// ── #1396: the ATTACHMENT queries carry their own owner predicate ────────────────────────────────────
+// The global arm was owner-scoped from birth (FLAG[global-scope]); the character and persona arms were not,
+// so the whole boundary rested on whatever produced the id arrays — a prose-only boundary (AGENTS §2.3).
+// The authority differs per scope and that difference is the point: a room's characters are the HOST's
+// (D18/D19 — every card read in the domain resolves under `hostUserId`), while a room's personas belong to
+// their OWN humans (multi-human native), so a host predicate on the persona arm would silently delete a
+// member's lore. `loadCharacterCardLore` in the same file is the character arm's precedent.
+describe("loadWorldInfoPool — the attachment arms are owner-belted at the DB boundary (#1396)", () => {
+  test("SECURITY: a character-scope book the HOST does not own never enters the pool", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const other = await seedUser(db, castId<Handle>("other"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const foreignBook = await seedBook(other, "foreignchar", { content: "foreign character lore" });
+    await db.insert(characterBooks).values({ characterId: charId, worldBookId: foreignBook, role: "auxiliary", createdAt: FROZEN_AT });
+
+    const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [charId], personaIds: [] });
+
+    expect(pool.map((e) => e.content)).not.toContain("foreign character lore");
+    expect(pool).toEqual([]);
+  });
+
+  test("SECURITY: a persona-scope book owned by neither the persona's owner nor the host never enters the pool", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const other = await seedUser(db, castId<Handle>("other"));
+    const chatId = await seedChat(db, "a");
+    const personaId = await seedPersona(member, "membernyx");
+    const foreignBook = await seedBook(other, "foreignpers", { content: "foreign persona lore" });
+    await db.insert(personaBooks).values({ personaId, worldBookId: foreignBook, createdAt: FROZEN_AT });
+
+    const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [], personaIds: [personaId] });
+
+    expect(pool.map((e) => e.content)).not.toContain("foreign persona lore");
+    expect(pool).toEqual([]);
+  });
+
+  // THE MULTI-HUMAN REGRESSION GUARD. `target.ownerId` is the room HOST; a present member's active persona is
+  // legitimately foreign to the host, and its books are the MEMBER's. Belting the persona arm to the host
+  // would drop them — which is why the persona arm's authority is the persona's own owner, not `target.ownerId`.
+  test("a MEMBER's own persona book DOES enter the pool — the persona's owner is the authority, not the host", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const chatId = await seedChat(db, "a");
+    const personaId = await seedPersona(member, "membernyx");
+    const memberBook = await seedBook(member, "memberpers", { content: "member persona lore" });
+    await db.insert(personaBooks).values({ personaId, worldBookId: memberBook, createdAt: FROZEN_AT });
+
+    const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [], personaIds: [personaId] });
+
+    expect(pool.map((e) => e.content)).toEqual(["member persona lore"]);
+  });
+});

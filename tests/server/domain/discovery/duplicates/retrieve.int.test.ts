@@ -2,8 +2,9 @@
 // isolation (audit #1), and the minScore/limit options.
 
 import type { Db } from "@orb/db";
-import { chats } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import { chats, duplicateCharacterPairs, duplicateChatPairs } from "@orb/db";
+import type { DuplicateCharacterPairId, DuplicateChatPairId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -110,5 +111,56 @@ describe("duplicateChats", () => {
     expect(await svc.duplicateChats(owner, { minScore: 1.01 })).toEqual([]);
     expect(await svc.duplicateChats(owner, { limit: 0 })).toEqual([]);
     expect(await svc.duplicateChats(owner, { relation: "duplicate" })).toHaveLength(1);
+  });
+});
+
+// ── #1414 seam 2: BOTH SIDES of a pair carry the owner predicate ──────────────────────────────────────
+// "A pair is only ever computed inside one owner's library, so filtering A implies B" is a property of the
+// WRITER. Neither pair table has an owner column or a same-owner constraint, so nothing below the writer
+// held it — the belt was a comment. These rows are written DIRECTLY, standing in for any future writer, a
+// repair, or a restore that breaks the invariant; the read must refuse them either way.
+describe("#1414 — a cross-owner pair row is refused by the READ, not just by the writer's habits", () => {
+  test("SECURITY: duplicateCharacters never surfaces a pair whose side B belongs to another tenant", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const stranger = await seedUser(db, "user_b");
+    const mine = await seedCharacter(db, { id: "character_1_mine", ownerId: owner, name: "Aria" });
+    const theirs = await seedCharacter(db, { id: "character_2_theirs", ownerId: stranger, name: "Their Secret Card" });
+
+    await db.insert(duplicateCharacterPairs).values({
+      id: castId<DuplicateCharacterPairId>("duplicate_character_pair_x"),
+      characterIdA: mine,
+      characterIdB: theirs,
+      cslsScore: 0.99,
+      similarity: 0.99,
+      model: "test",
+      computedAt: 1,
+    });
+
+    const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
+    expect(await svc.duplicateCharacters(owner)).toEqual([]);
+  });
+
+  test("SECURITY: duplicateChats never surfaces a pair whose side B is hosted by another tenant", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const stranger = await seedUser(db, "user_b");
+    const mine = await seedHostedChat(db, "chat_1_mine", owner);
+    const theirs = await seedHostedChat(db, "chat_2_theirs", stranger);
+    await db.update(chats).set({ title: "Their Private Room" }).where(eq(chats.id, theirs));
+
+    await db.insert(duplicateChatPairs).values({
+      id: castId<DuplicateChatPairId>("duplicate_chat_pair_x"),
+      chatIdA: mine,
+      chatIdB: theirs,
+      cslsScore: 1,
+      similarity: 1,
+      relation: "duplicate",
+      model: "test",
+      computedAt: 1,
+    });
+
+    const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
+    expect(await svc.duplicateChats(owner)).toEqual([]);
   });
 });

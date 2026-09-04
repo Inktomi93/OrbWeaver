@@ -126,14 +126,20 @@ async function resolveBackgroundOverride(
 export function createUpdate(ctx: CharacterContext): CharacterService["update"] {
   return async ({ principal, characterId, input: rawInput }: UpdateCharacterParams) => {
     const ownerId = principal.userId;
-    // Materialize an external carried-background BEFORE ownership checks / persist (the resolved source is
-    // `kind:"asset"` referencing a freshly-stored OWN asset, so `ensureBackgroundOverrideOwned` passes).
-    const input = await resolveBackgroundOverride(ctx, principal, rawInput);
-    guardHandle(input);
+    // ORDER IS SECURITY-LOAD-BEARING (#1455): AUTHORIZE THE TARGET, THEN FETCH. `resolveBackgroundOverride`
+    // drives an outbound fetch + image processing + a CAS/db write for any `kind:"external"` override, all
+    // from caller-supplied values. Running it first meant a characterId the caller does not own (or one that
+    // does not exist) still bought them that SSRF-sensitive boundary work, its cost, and a durable asset — on
+    // the way to a `CharacterNotFoundError`. The handle guard moves up with it: it reads only `input.handle`,
+    // which the background resolve never rewrites.
+    guardHandle(rawInput);
     const current = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
     if (current === undefined) {
       throw new CharacterNotFoundError(characterId);
     }
+    // Materialize AFTER the ownership load but still BEFORE `ensureBackgroundOverrideOwned` — the resolved
+    // source is `kind:"asset"` referencing a freshly-stored OWN asset, so that belt passes on it unchanged.
+    const input = await resolveBackgroundOverride(ctx, principal, rawInput);
     if (input.avatarAssetId !== null && input.avatarAssetId !== undefined) {
       await ensureAssetOwned(ctx.db, ownerId, input.avatarAssetId);
     }

@@ -8,7 +8,7 @@
 // before failing to attach them would leave the library with orphan scripts and the card with none.
 
 import type { PortableRegexScript, RegexScriptRow } from "@orb/contracts/regex";
-import { characterRegexScripts, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
+import { characterRegexScripts, characters, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { DomainOperationError } from "@orb/kit/errors";
@@ -30,6 +30,7 @@ import type {
   RegexPortabilityContext,
 } from "../contract/portability.ts";
 import { findDuplicate, planCardLift, splitScript } from "../substrate/dedup.ts";
+import { ensureCharacterOwned, ensurePresetOwned } from "./ownership.ts";
 import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from "./queries.ts";
 
 /**
@@ -40,8 +41,13 @@ import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from 
  */
 export function createImportCardScripts(ctx: RegexPortabilityContext): ImportCardScripts {
   return async ({ ownerId, characterId, scripts, carried }): Promise<ImportCardScriptsResult> => {
-    // Owner-gated: a carried id naming a row this owner does not have simply does not come back, so the
-    // reference channel can never launder a foreign script onto this character.
+    // BOTH SIDES GATED (#1414 seam 4) — the same rule `verbs/attachments` has always applied to a hand
+    // attach, applied to the bulk one. The SCRIPT side is the owner-scoped read below: a carried id naming a
+    // row this owner does not have simply does not come back, so the reference channel can never launder a
+    // foreign script onto this character. The TARGET side is this gate: the junction insert used to take
+    // `characterId` unverified, and while every live caller passes an already-owned id, a persistence
+    // factory's own signature is the boundary the next wiring inherits (AGENTS §2.3).
+    await ensureCharacterOwned(ctx.db, ownerId, characterId);
     const [carriedRows, existing] = await Promise.all([loadOwnedScriptsByIds(ctx.db, ownerId, carried), listOwnedScripts(ctx.db, ownerId)]);
 
     const plan = planCardLift({
@@ -75,6 +81,9 @@ export function createImportCardScripts(ctx: RegexPortabilityContext): ImportCar
  */
 export function createImportPresetScripts(ctx: RegexPortabilityContext): ImportPresetScripts {
   return async ({ ownerId, presetId, scripts }): Promise<ImportCardScriptsResult> => {
+    // The TARGET gate, as in the card lift above (#1414 seam 4). `ensurePresetOwned` also makes the SYSTEM
+    // preset (nullable ownerId) un-attachable, which is correct — it is read-only by construction.
+    await ensurePresetOwned(ctx.db, ownerId, presetId);
     const existing = await listOwnedScripts(ctx.db, ownerId);
     const plan = planCardLift({ existing: existing.map(toRow), carriedIds: [], scripts, mintId: ctx.newScriptId });
 
@@ -119,14 +128,20 @@ export function createImportGlobalScripts(ctx: RegexPortabilityContext): ImportG
 }
 
 /** The card RE-EMBED: the character's attached rows, in junction order, projected onto the ST card wire +
- *  the reference list the same-install re-import re-links by. */
+ *  the reference list the same-install re-import re-links by.
+ *
+ *  BOTH SIDES SCOPED (#1414 seam 4): the SCRIPT rows were already filtered by `regexScripts.ownerId`, but
+ *  `characterId` itself was unconstrained, so the read answered "which of MY scripts hang off THAT card" for
+ *  any card id. The `characters` join makes the card the caller's own; a foreign/absent id returns `[]`,
+ *  which is the same answer an owned card with no attachments gives (no existence oracle). */
 export function createExportCardScripts(ctx: Pick<RegexPortabilityContext, "db">): ExportCardScripts {
   return async ({ ownerId, characterId }) => {
     const rows = await ctx.db
       .select({ script: regexScripts })
       .from(characterRegexScripts)
       .innerJoin(regexScripts, eq(characterRegexScripts.regexScriptId, regexScripts.id))
-      .where(and(eq(characterRegexScripts.characterId, characterId), eq(regexScripts.ownerId, ownerId)))
+      .innerJoin(characters, eq(characters.id, characterRegexScripts.characterId))
+      .where(and(eq(characterRegexScripts.characterId, characterId), eq(characters.ownerId, ownerId), eq(regexScripts.ownerId, ownerId)))
       .orderBy(asc(characterRegexScripts.position), asc(regexScripts.createdAt));
     const scripts = rows.map((r) => toRow(r.script));
     return { scripts, carried: scripts.map((s) => s.id) };

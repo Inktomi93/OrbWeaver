@@ -6,10 +6,26 @@
 //
 // FLAG[global-scope]: global_books has no userId (unlike neo); global reads are scoped to the host owner via
 // the world_books.ownerId join to avoid a cross-tenant lore leak — flag for the world-info/schema owner to confirm.
+//
+// FLAG[attachment-scope] (#1396): all FOUR arms now name their owner authority, and it is NOT the same one.
+// The attachment arms used to carry no owner predicate at all, which left the tenant boundary resting on
+// whatever produced the id arrays — a prose-only boundary (AGENTS §2.3). Per scope:
+//   • character → `target.ownerId` (the room HOST). Every character-card read in the domain resolves under
+//     `hostUserId` (D18/D19), and both attach writers gate the card and the book under ONE caller, so a
+//     host-owned card can only legitimately carry host-owned books. `loadCharacterCardLore` below has
+//     applied exactly this join since it was written; this is that belt on the per-turn path.
+//   • persona  → the PERSONA'S OWN owner, via the `personas` join — deliberately NOT `target.ownerId`.
+//     `personaIds` is the PRESENT HUMANS' active personas (multi-human native), so in a shared room they
+//     legitimately belong to members other than the host; belting this arm to the host would silently
+//     delete a member's own lore from the prompt. `attachToPersona` gates the persona and the book under
+//     one caller, so "the book belongs to the persona's owner" is the writers' invariant made physics.
+//   • chat     → `chatId` only, ON PURPOSE. A chat book is the ROOM's (any member may attach their own),
+//     so an owner predicate here would break the room-public posture `handoff-copy-write` documents.
+//   • global   → `target.ownerId`, unchanged (FLAG[global-scope] above).
 
 import type { AssembleWorldEntry } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { characterBooks, chatBooks, globalBooks, personaBooks, worldBooks, worldEntries } from "@orb/db";
+import { characterBooks, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { resolveEntryInjection, resolveEntryKeyMode, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
 import { and, eq, inArray } from "drizzle-orm";
@@ -92,13 +108,16 @@ export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Pr
       .from(chatBooks)
       .innerJoin(worldEntries, eq(chatBooks.worldBookId, worldEntries.worldBookId))
       .where(and(eq(chatBooks.chatId, target.chatId), eq(worldEntries.enabled, true))),
+    // character → scoped to the HOST owner, the same `world_books.ownerId` join `loadCharacterCardLore`
+    // below already applies to this very junction (see FLAG[attachment-scope]).
     castIds.length === 0
       ? Promise.resolve([])
       : db
           .select(entryColumns)
           .from(characterBooks)
           .innerJoin(worldEntries, eq(characterBooks.worldBookId, worldEntries.worldBookId))
-          .where(and(inArray(characterBooks.characterId, castIds), eq(worldEntries.enabled, true))),
+          .innerJoin(worldBooks, eq(worldBooks.id, characterBooks.worldBookId))
+          .where(and(inArray(characterBooks.characterId, castIds), eq(worldBooks.ownerId, target.ownerId), eq(worldEntries.enabled, true))),
     // global → scoped to the HOST owner via the world_books.ownerId join (see FLAG[global-scope]).
     db
       .select(entryColumns)
@@ -106,13 +125,16 @@ export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Pr
       .innerJoin(worldEntries, eq(globalBooks.worldBookId, worldEntries.worldBookId))
       .innerJoin(worldBooks, eq(worldBooks.id, globalBooks.worldBookId))
       .where(and(eq(worldBooks.ownerId, target.ownerId), eq(worldEntries.enabled, true))),
+    // persona → scoped to the PERSONA'S OWN owner, NOT `target.ownerId` (see FLAG[attachment-scope]).
     personaIds.length === 0
       ? Promise.resolve([])
       : db
           .select(entryColumns)
           .from(personaBooks)
           .innerJoin(worldEntries, eq(personaBooks.worldBookId, worldEntries.worldBookId))
-          .where(and(inArray(personaBooks.personaId, personaIds), eq(worldEntries.enabled, true))),
+          .innerJoin(worldBooks, eq(worldBooks.id, personaBooks.worldBookId))
+          .innerJoin(personas, eq(personas.id, personaBooks.personaId))
+          .where(and(inArray(personaBooks.personaId, personaIds), eq(worldBooks.ownerId, personas.ownerId), eq(worldEntries.enabled, true))),
   ]);
 
   return dedupeByEntryId([

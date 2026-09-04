@@ -13,7 +13,7 @@ import type { Db } from "@orb/db";
 import { chats, messages, messageVariants } from "@orb/db";
 import type { ChatId, MessageId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type {
   AutomationImageRequest,
   AutomationImageResult,
@@ -32,8 +32,12 @@ import type { DomainEventBus } from "./event-bus.ts";
 const LIMIT_ONE = 1;
 
 /** The triggering message projected to the CEL fact — the SELECTED variant's content (D26). Null on a raced
- *  delete (the id names no live slot). */
-async function getMessageFact(db: Db, messageId: MessageId): Promise<NonNullable<TriggerFact["message"]> | null> {
+ *  delete (the id names no live slot) OR when the id does not belong to `chatId`.
+ *
+ *  SCOPED BY THE CHAT, not by the id alone (#1456): the resolver hands this op the room the event fired in,
+ *  and the fact it returns is what reaches third-party automation rules and plugin guest code. Looking the
+ *  message up by id alone let a malformed, stale or cross-wired event hydrate a fact out of ANOTHER room. */
+async function getMessageFact(db: Db, chatId: ChatId, messageId: MessageId): Promise<NonNullable<TriggerFact["message"]> | null> {
   const rows = await db
     .select({
       id: messages.id,
@@ -45,7 +49,7 @@ async function getMessageFact(db: Db, messageId: MessageId): Promise<NonNullable
     })
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(eq(messages.id, messageId))
+    .where(and(eq(messages.id, messageId), eq(messages.chatId, chatId)))
     .limit(LIMIT_ONE);
   return rows[0] ?? null;
 }
@@ -102,7 +106,7 @@ export function createAutomationOps(deps: AutomationActionOpsDeps): AutomationOp
   const { db } = deps;
   return {
     chat: {
-      getMessageFact: (_chatId, messageId) => getMessageFact(db, messageId),
+      getMessageFact: (chatId, messageId) => getMessageFact(db, chatId, messageId),
       getTurnOrigin: (chatId, messageId) => loadTurnOrigin(db, chatId, messageId),
       resolveViewerVisibility: deps.resolveViewerVisibility,
       readVariables: (chatId) => readChatColumn(db, chatId, "runtime"),

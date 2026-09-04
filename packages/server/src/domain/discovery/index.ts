@@ -35,6 +35,8 @@ export type {
   ComputeDuplicatesOptions,
   ComputeHubScoresOptions,
   ComputeThemesOptions,
+  DistillCharactersOptions,
+  DistillTargetNarrow,
   DuplicateCharactersOptions,
   DuplicateChatsOptions,
   ImageFacetKey,
