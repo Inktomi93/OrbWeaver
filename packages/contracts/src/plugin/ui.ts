@@ -214,7 +214,8 @@ export const PLUGIN_SPEC_MAX_BYTES = 32_768;
 export const PLUGIN_SPEC_MAX_NODES = 256;
 /** Container nesting depth (root = 1). */
 export const PLUGIN_SPEC_MAX_DEPTH = 8;
-/** A single `text`/`markdown`/`confirmButton` body value cap, 2 KiB. */
+/** A single `text`/`markdown`/`confirmButton` body value cap, 2 KiB — measured in BYTES (the schema runs
+ *  `byteBoundedString`, not `z.string().max()`, so the name and the enforcement agree for non-ASCII text). */
 export const PLUGIN_TEXT_MAX_BYTES = 2048;
 /** The rendered-row cap on `list` items, `keyValue` rows, and `select` options (plugin-ui-plane §4.3). */
 export const PLUGIN_ROWS_MAX = 64;
@@ -841,7 +842,20 @@ export type PluginSurfaceSpec = PluginSurfaceNode;
 // ── The zod gate (host-side at registration + client-side before mount) ──────────────────────────────────────
 
 const stateBindingSchema = z.object({ $state: z.string().min(1).max(STATE_PATH_MAX) });
-const boundString = (max: number): z.ZodType<PluginBoundString> => z.union([z.string().max(max), stateBindingSchema]);
+
+/** A string bounded in BYTES — the unit every `*_MAX_BYTES` cap here names. `z.string().max()` measures
+ *  UTF-16 code UNITS, which for a CJK payload is a third of the bytes it claims to bound: a 2048-character
+ *  run of `"中"` is 6144 bytes and passed a cap documented as 2 KiB. The defect is one-directional (UTF-16
+ *  length never EXCEEDS UTF-8 byte length, so nothing under the cap was ever wrongly rejected), which is also
+ *  why the `.max()` stays in front: it can only reject what the byte check would reject anyway, and it keeps
+ *  the measurement — which allocates — off an arbitrarily long guest string. */
+const byteBoundedString = (max: number): z.ZodType<string> =>
+  z
+    .string()
+    .max(max)
+    .refine((value) => utf8ByteLength(value) <= max, { message: `must be at most ${max} bytes` });
+
+const boundString = (max: number): z.ZodType<PluginBoundString> => z.union([byteBoundedString(max), stateBindingSchema]);
 const finiteNumber = z.number().refine((n) => Number.isFinite(n), { message: "must be a finite number" });
 const boundNumber: z.ZodType<PluginBoundNumber> = z.union([finiteNumber, stateBindingSchema]);
 const boundBoolean: z.ZodType<PluginBoundBoolean> = z.union([z.boolean(), stateBindingSchema]);
@@ -928,7 +942,7 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
       actionId: identSchema,
       label: labelSchema,
       confirmTitle: labelSchema,
-      confirmBody: z.string().max(PLUGIN_TEXT_MAX_BYTES).optional(),
+      confirmBody: byteBoundedString(PLUGIN_TEXT_MAX_BYTES).optional(),
     }),
     // ── The U5 browse-genre arms. `grid` has no text-only shape by construction; the cover slot is where the
     //    genre's signal lives, so an absent `assetId` is a shape-matched placeholder, not a row.

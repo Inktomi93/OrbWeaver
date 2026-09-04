@@ -559,6 +559,36 @@ describe("attachMembrane — sync registration metadata is guarded before ctx.du
     });
     expect(collected).toEqual([]);
   });
+
+  // #1367 — the tool NAME is guest input and this is its trust boundary. `PLUGIN_TOOL_NAME_RE` was
+  // enforced only on a `tool-card` surface's `toolName`, so `tools.register` took ANY string: an unbounded,
+  // arbitrary-charset name was collected, held for the instance lifetime, and flattened into a
+  // model-visible wire name (`pluginToolWireName`).
+  test("tools.register REFUSES a name outside the tool-name grammar, and collects nothing", async () => {
+    const { bridge } = fakeBridge();
+    const collected: string[] = [];
+    const runtime = makeRuntime(["tools.register"], false, bridge, {
+      collectTool: (registration, handler): void => {
+        collected.push(registration.name);
+        handler.dispose();
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      // Uppercase + spaces + punctuation; a leading digit; and a name past the 41-char bound.
+      const attempt = (name: string): string =>
+        `(() => { try { host.tools.register({ name: ${JSON.stringify(name)}, description: "d", parameters: {}, handler: () => {} }); return "collected"; }
+                  catch (e) { return "caught:" + e.message; } })()`;
+      const bad = ["Draw Card!", "9lives", "x".repeat(64), "draw-card", ""];
+      for (const name of bad) {
+        const result = ctx.evalCode(attempt(name));
+        expect(readString(ctx, result.error ?? result.value)).toContain("caught:");
+      }
+      // …and the grammar's own spelling still registers.
+      const ok = ctx.evalCode(attempt("draw_card"));
+      expect(readString(ctx, ok.error ?? ok.value)).toBe("collected");
+    });
+    expect(collected).toEqual(["draw_card"]);
+  });
 });
 
 describe("attachMembrane — transforms.register (SYNC collect; domain wires the band/apply/unregister)", () => {

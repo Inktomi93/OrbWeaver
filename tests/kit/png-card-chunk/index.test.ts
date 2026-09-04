@@ -190,13 +190,48 @@ test("a zTXt chunk with an undefined compression method is skipped", async () =>
   expect(await readCardChunk(makeZtxtPng("ccv3", v3Json("X"), { method: 1 }), "ccv3")).toBeNull();
 });
 
-test("a zTXt card chunk does not stop the walk from finding a later tEXt card", async () => {
+/** Splice a foreign chunk in FRONT of `png`'s own chunks (i.e. right after the signature). */
+function spliceBefore(png: Uint8Array, chunkPng: Uint8Array): Uint8Array {
+  const chunk = chunkPng.subarray(8, chunkPng.length - 12); // drop the signature + the trailing IEND
+  return Uint8Array.from([...png.subarray(0, 8), ...chunk, ...png.subarray(8)]);
+}
+
+test("a NON-CARD zTXt chunk does not stop the walk from finding a later tEXt card", async () => {
+  // Renamed to what it covers (#1353): the decoy's keyword is `Comment`, so the walk never MATCHED it and
+  // this pinned nothing about card-keyword zTXt. The property its old title claimed is the next test.
   const json = v3Json("X");
   const written = writeCardChunk(makeBasePng(), json);
-  // Splice an unrelated-keyword zTXt in front of the written card chunks.
-  const decoy = makeZtxtPng("Comment", json).subarray(8, makeZtxtPng("Comment", json).length - 12);
-  const spliced = Uint8Array.from([...written.subarray(0, 8), ...decoy, ...written.subarray(8)]);
-  expect(await readCardChunk(spliced, "ccv3")).toBe(json);
+  expect(await readCardChunk(spliceBefore(written, makeZtxtPng("Comment", json)), "ccv3")).toBe(json);
+});
+
+test("a CORRUPT card-keyword zTXt does not shadow a valid tEXt card later in the file", async () => {
+  // The real property: a matching-but-unusable `ccv3` zTXt used to END the walk (the payload was taken
+  // without inflating and the loop broke), so the whole read answered null even though the card sat two
+  // chunks away. Precedence is now "first matching chunk that DECODES wins".
+  const json = v3Json("X");
+  const written = writeCardChunk(makeBasePng(), json);
+  const shadowed = spliceBefore(written, makeZtxtPng("ccv3", v3Json("STALE"), { corrupt: true }));
+  expect(await readCardChunk(shadowed, "ccv3")).toBe(json);
+});
+
+test("re-writing a zTXt-BEARING png supersedes the compressed card (export returns the NEW card)", async () => {
+  // #1353's headline: the write dropped stale `tEXt` only, so an imported card's `zTXt` survived, was
+  // re-emitted BEFORE the fresh chunks, and won the file-order read — exporting handed back the card the
+  // write had just replaced.
+  const oldJson = v3Json("OLD");
+  const newJson = v3Json("NEW");
+  const imported = makeZtxtPng("ccv3", oldJson);
+  const rewritten = writeCardChunk(imported, newJson);
+  expect(await readCardChunk(rewritten, "ccv3")).toBe(newJson);
+  // …and the stale chunk is GONE, not merely outvoted.
+  expect(walk(rewritten).filter((c) => c.type === "zTXt").length).toBe(0);
+  expect(walk(rewritten).filter((c) => c.type === "tEXt" && c.keyword === "ccv3").length).toBe(1);
+});
+
+test("a non-card zTXt chunk SURVIVES the write (only card keywords are stale)", async () => {
+  const kept = writeCardChunk(spliceBefore(makeBasePng(), makeZtxtPng("Comment", "hello")), v3Json("X"));
+  expect(walk(kept).filter((c) => c.type === "zTXt").length).toBe(1);
+  expect(await readCardChunk(kept, "ccv3")).toBe(v3Json("X"));
 });
 
 test("writeCardChunk throws on a non-PNG and on a PNG with no IEND", () => {

@@ -17,10 +17,50 @@ test("slugifyHandle NFKD-folds accents so the combining mark drops out", () => {
   expect(slugifyHandle("Café")).toBe("cafe");
 });
 
-test("slugifyHandle falls back to 'unnamed' when nothing slug-worthy remains", () => {
-  expect(slugifyHandle("✨✨")).toBe("unnamed");
+test("an EMPTY name is the one bare 'unnamed' — `entry/http/import-chat` routes on that exact value", () => {
   expect(slugifyHandle("")).toBe("unnamed");
-  // Pure punctuation and pure whitespace both fold to nothing slug-worthy.
-  expect(slugifyHandle("!!!")).toBe("unnamed");
-  expect(slugifyHandle("   ")).toBe("unnamed");
+});
+
+test("a name with no letters or digits still gets a DISTINCT handle per name", () => {
+  // The old fold sent every one of these to the bare "unnamed", so the SECOND such character an owner created
+  // or imported hit `characters_owner_handle_unique` and the create was refused.
+  const emoji = slugifyHandle("✨✨");
+  const otherEmoji = slugifyHandle("🎲");
+  const punctuation = slugifyHandle("!!!");
+  expect(emoji.startsWith("unnamed-")).toBe(true);
+  expect(new Set([emoji, otherEmoji, punctuation]).size).toBe(3);
+  // Stable: the same name always answers the same handle (import pairing keys on this).
+  expect(slugifyHandle("✨✨")).toBe(emoji);
+});
+
+test("non-Latin names keep their letters — CJK, Cyrillic, Arabic, Hangul, Greek", () => {
+  expect(slugifyHandle("あたる")).toBe("あたる");
+  expect(slugifyHandle("东西")).toBe("东西");
+  expect(slugifyHandle("Маша")).toBe("маша");
+  expect(slugifyHandle("مرحبا")).toBe("مرحبا");
+  // Greek lowercases but KEEPS its accent: the "Café" → "cafe" fold drops a combining mark only when it
+  // sits on an ASCII base, because outside Latin the marks carry the vowels (Devanagari below).
+  expect(slugifyHandle("Ωμέγα")).toBe("ωμέγα".normalize("NFKD"));
+  // Two Hindi names that differ ONLY by their vowel signs stay two handles.
+  expect(slugifyHandle("किताब")).not.toBe(slugifyHandle("कताब"));
+  const distinct = new Set(["あたる", "东西", "Маша", "مرحبا", "안녕"].map(slugifyHandle));
+  expect(distinct.size).toBe(5);
+});
+
+test("the folded part is capped, and a truncated fold carries a disambiguator", () => {
+  // NFKD can EXPAND a name several times over, so an in-bounds name could otherwise fold past the 200-char
+  // wire cap on `handle` and be refused at the create boundary. Two long names sharing a prefix stay distinct.
+  const long = "a".repeat(300);
+  expect(slugifyHandle(long).length).toBeLessThan(200);
+  expect(slugifyHandle(`${long}one`)).not.toBe(slugifyHandle(`${long}two`));
+});
+
+test("a handle never carries a path, quote or reserved-namespace character", () => {
+  // The output alphabet is `\p{L}\p{N}\p{M}` + `-`, which is what makes the handle safe as a descriptor path
+  // segment (`entry/http/import-chat`) and unable to claim the `__group__*` synthetic namespace. The bidi
+  // override in the list is the classic filename-spoof character — it is a format char, not a letter.
+  for (const hostile of ["../../etc/passwd", 'a" onload=x', "__group__chat_1", "a/b\\c", "‮gnp.exe", "a b"]) {
+    expect(slugifyHandle(hostile)).toMatch(/^[\p{L}\p{N}\p{M}-]+$/u);
+  }
+  expect(slugifyHandle("__group__chat_1").startsWith("__group__")).toBe(false);
 });

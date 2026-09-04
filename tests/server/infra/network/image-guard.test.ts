@@ -62,4 +62,27 @@ describe("isAllowedImageBuffer", () => {
     expect(reasonOf(() => isAllowedImageBuffer(headerOnly))).toBe("dimensions-unknown");
     expect(isAllowedImageBuffer(headerOnly, { requireDimensions: false }).mime).toBe("image/png");
   });
+
+  // #1357 — the AVIF arm of the SAME bomb defence, pinned AT THE GUARD because that is the seam the
+  // bypass was reported at. The kit-side structural parse is pinned in tests/kit/image-sniff.
+  test("an AVIF bomb carrying a decoy 1×1 `ispe` is rejected `dimensions-exceeded`", () => {
+    const u32 = (n: number): number[] => [Math.floor(n / 16_777_216) % 256, Math.floor(n / 65_536) % 256, Math.floor(n / 256) % 256, n % 256];
+    const fourcc = (tag: string): number[] => [...tag].map((c) => c.charCodeAt(0));
+    const box = (type: string, body: number[]): number[] => [...u32(body.length + 8), ...fourcc(type), ...body];
+    const ispe = (w: number, h: number): number[] => box("ispe", [0, 0, 0, 0, ...u32(w), ...u32(h)]);
+    // A real 32000×32000 image whose `free` box payload spells `ispe` + a 1×1 extent BEFORE the meta tree.
+    // Against the previous window scan this measured 1×1 and the guard RETURNED IT as an admitted image.
+    const forged = Uint8Array.from([
+      ...box("ftyp", [...fourcc("avif"), 0, 0, 0, 0]),
+      ...box("free", [...fourcc("ispe"), 0, 0, 0, 0, ...u32(1), ...u32(1)]),
+      ...box("meta", [0, 0, 0, 0, ...box("iprp", box("ipco", ispe(32_000, 32_000)))]),
+    ]);
+    expect(reasonOf(() => isAllowedImageBuffer(forged))).toBe("dimensions-exceeded");
+    // An AVIF whose structure hides its extent is UNKNOWN, which fails CLOSED — never "no cap applies".
+    const noMeta = Uint8Array.from(box("ftyp", [...fourcc("avif"), 0, 0, 0, 0]));
+    expect(reasonOf(() => isAllowedImageBuffer(noMeta))).toBe("dimensions-unknown");
+    // …and an honest in-caps AVIF still passes.
+    const honest = Uint8Array.from([...box("ftyp", [...fourcc("avif"), 0, 0, 0, 0]), ...box("meta", [0, 0, 0, 0, ...box("iprp", box("ipco", ispe(64, 48)))])]);
+    expect(isAllowedImageBuffer(honest)).toMatchObject({ mime: "image/avif", width: 64, height: 48 });
+  });
 });

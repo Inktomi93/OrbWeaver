@@ -32,6 +32,7 @@ import {
   PLUGIN_SURFACE_ANCHORS,
   PLUGIN_SURFACE_TIERS,
   PLUGIN_TABS_OPTIONS_MAX,
+  PLUGIN_TEXT_MAX_BYTES,
   PLUGIN_TIER_REGISTRAR,
   PLUGIN_TIER_REGISTRARS,
   PLUGIN_TILE_TAGS_MAX,
@@ -423,6 +424,21 @@ test("a text value over the 2 KiB per-node string cap is refused", () => {
   expect(pluginSurfaceSpecSchema.safeParse({ kind: "text", value: tooLong }).success).toBe(false);
 });
 
+test("the 2 KiB text cap counts BYTES, not UTF-16 code units (#1367)", () => {
+  // `z.string().max()` measures `.length`, so 2048 CJK characters — 6144 bytes — passed a cap documented in
+  // bytes. The defect is one-directional (UTF-16 length never exceeds UTF-8 byte length), so nothing that
+  // fits the byte budget was ever wrongly refused, and these two arms pin both directions.
+  const cjkOverBudget = "中".repeat(PLUGIN_TEXT_MAX_BYTES / 2); // 1024 chars, 3072 bytes
+  expect(new TextEncoder().encode(cjkOverBudget).length).toBeGreaterThan(PLUGIN_TEXT_MAX_BYTES);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "text", value: cjkOverBudget }).success).toBe(false);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "markdown", value: cjkOverBudget }).success).toBe(false);
+  // Non-ASCII text that genuinely fits the byte budget is still accepted.
+  const cjkInBudget = "中".repeat(PLUGIN_TEXT_MAX_BYTES / 6);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "text", value: cjkInBudget }).success).toBe(true);
+  // …and the state-binding arm of the same field is untouched by the measurement.
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "text", value: { $state: "greeting" } }).success).toBe(true);
+});
+
 test(`list / keyValue / select refuse more than ${PLUGIN_ROWS_MAX} rows`, () => {
   const items = Array.from({ length: PLUGIN_ROWS_MAX + 1 }, (_, i) => `item ${i}`);
   expect(pluginSurfaceSpecSchema.safeParse({ kind: "list", items }).success).toBe(false);
@@ -705,6 +721,17 @@ test("pluginToolWireName is the ONE mint: hyphens in the slug become underscores
   expect(pluginToolWireName("mood", "read")).toBe("plugin_mood_read");
   // …and the prefix the client's ONE `pluginToolRenderer` claims is the prefix this mint emits.
   expect(pluginToolWireName("oracle-deck", "draw").startsWith(PLUGIN_TOOL_NAME_PREFIX)).toBe(true);
+});
+
+test("the mint is NOT injective, and the wall is the registry's uniqueness refusal (#1367)", () => {
+  // A slug's `-` and a tool name's `_` are indistinguishable once flattened, and BOTH halves below are
+  // independently valid (`SLUG_RE` admits "foo-bar"; PLUGIN_TOOL_NAME_RE admits "bar_baz"). Pinned so the
+  // property is a KNOWN one with a named wall rather than a surprise: `domain/tool-use`'s
+  // `registerPluginTool` refuses the second registration per installer (`ToolNameCollisionError`) instead of
+  // overwriting it. Making the flattening injective would rename every installed hyphen-slug plugin's tools
+  // and orphan persisted `ToolCallRecord.name`s — a migration, not a local fix.
+  expect(pluginToolWireName("foo-bar", "baz")).toBe(pluginToolWireName("foo", "bar_baz"));
+  expect(PLUGIN_TOOL_NAME_RE.test("bar_baz")).toBe(true);
 });
 
 // ── #774 ARM C — the BOUND-collection arms (`grid.tilesFrom` + `tileAction`, `image.assetFrom`) ─────────────

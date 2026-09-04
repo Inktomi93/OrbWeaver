@@ -1632,7 +1632,7 @@
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::default:catch::1",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 138,
+      "line": 172,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1640,12 +1640,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — this module's shared fail-soft",
-      "markerLine": 133
+      "markerLine": 167
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::default:catch::2",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 319,
+      "line": 360,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1653,12 +1653,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — corrupt zlib payload returns",
-      "markerLine": 306
+      "markerLine": 347
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::empty:catch::1",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 254,
+      "line": 295,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1666,12 +1666,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — falls back to the original string",
-      "markerLine": 249
+      "markerLine": 290
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::promise:close::1",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 302,
+      "line": 343,
       "column": 8,
       "grammar": "promise",
       "position": "promise:close",
@@ -1679,12 +1679,12 @@
       "snippet": "void writer.close().catch(swallow);",
       "verdict": "deliberate-absorb",
       "reason": "same reasoning as the write above — the",
-      "markerLine": 300
+      "markerLine": 341
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::promise:write::1",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 299,
+      "line": 340,
       "column": 8,
       "grammar": "promise",
       "position": "promise:write",
@@ -1692,7 +1692,7 @@
       "snippet": "void writer.write(compressed).catch(swallow);",
       "verdict": "deliberate-absorb",
       "reason": "documented above — the reader is the sole",
-      "markerLine": 296
+      "markerLine": 337
     },
     {
       "siteId": "packages/kit/src/regex/index.ts::empty:err::1",
@@ -3348,7 +3348,7 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::empty:err::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 598,
+      "line": 599,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3356,12 +3356,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "guest-supplied command metadata that fails to dump/validate is REFUSED registration (onRun handle disposed, warn logged) — a malformed untrusted plugin def can never register a live command, the fail-closed direction. Ends if a dump/parse failure ever returns a live command instead of ctx.undefined.",
-      "markerLine": 589
+      "markerLine": 590
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:race::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1791,
+      "line": 1804,
       "column": 10,
       "grammar": "promise",
       "position": "promise:race",
@@ -3369,12 +3369,12 @@
       "snippet": "void Promise.race([running, timeout])",
       "verdict": "deliberate-absorb",
       "reason": "the GUEST owns it — the rejection arm below reaches `deferred.reject(err)`, preserving the Error's NAME so a plugin can feature-detect by type. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Ends if a disposed context gains a safe late-failure sink.",
-      "markerLine": 1790
+      "markerLine": 1803
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:running::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1787,
+      "line": 1800,
       "column": 18,
       "grammar": "promise",
       "position": "promise:running",
@@ -3382,7 +3382,7 @@
       "snippet": "settlement = running.then(releaseSlot, releaseSlot);",
       "verdict": "deliberate-absorb",
       "reason": "BOOKKEEPING ONLY — this chain exists so teardown can await in-flight work, and both arms deliberately do the same thing (exactly one release per acquisition, so the counter cannot drift). The REJECTION of `running` is owned by the sibling race chain below, which routes it to `deferred.reject` and thence to the guest. Ends if this chain becomes the only reader of `running`.",
-      "markerLine": 1786
+      "markerLine": 1799
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/port.ts::promise:run::1",
