@@ -273,13 +273,13 @@ export function printCaptureLog(session: SessionCounts, failed: CapturedRequest[
   }
 }
 
-/** WHERE this run's console lives on disk. Every artifact of the run is inside its slot, so the run index
- *  is the one path that is always right — the diagnostics artifact's own filename is allocation-owned and
- *  a session call can mint more than one. Outside a run (a library caller, a test) there is no slot, and
- *  `latest` is the reader's own resolution rather than a path we would be inventing. */
-function runIndexPath(): string {
+/** HOW THIS RUN IS CITED. The run id is what `--report` resolves (across worktrees, unambiguously), and
+ *  it is 60 characters instead of two absolute paths — the same shortening #1369 applied to the FINDING
+ *  rows, for the same reason. Outside a run (a library caller, a test) there is no slot, and `latest` is
+ *  the reader's own resolution rather than an id we would be inventing. */
+function runCitation(): string {
   const slot = activeRunSlot();
-  return slot === null ? "latest" : `${slot.dir}/run.json`;
+  return slot === null ? "latest" : slot.runId;
 }
 
 /** THE CONSOLE, AS ONE LINE (#1345).
@@ -298,9 +298,9 @@ function printConsoleDigest(session: SessionCounts): void {
   if (session.consoleMessages.length === 0) {
     return;
   }
-  const path = runIndexPath();
+  const run = runCitation();
   print(
-    `console      errors=${errors.length} warnings=${warnings} messages=${session.consoleMessages.length} → ${path}; read: pnpm snap --report ${path} --all --channel console`,
+    `console      errors=${errors.length} warnings=${warnings} messages=${session.consoleMessages.length} → browser-diagnostics/ in run ${run}; read: pnpm snap --report ${run} --all --channel console`,
   );
   for (const message of errors.slice(0, CONSOLE_REPORT_CAP)) {
     print(`  ${message.line}`);

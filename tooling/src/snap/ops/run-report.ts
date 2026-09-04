@@ -420,7 +420,7 @@ export async function printSnapReport(root: string, query: SnapReportQuery): Pro
     await renderSnapRunReport(index, path, query);
     const previous = await previousRunWithSameName(root, index);
     if (previous !== null) {
-      renderSnapRunDelta(previous, runRegressions(index, previous), path);
+      renderSnapRunDelta(index, previous, runRegressions(index, previous));
     }
     return EXIT.clean;
   } catch (error) {

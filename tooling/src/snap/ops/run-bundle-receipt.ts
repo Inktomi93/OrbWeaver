@@ -3,6 +3,7 @@ import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { snapDiagnosticRetention } from "../contract/run-facts.ts";
 import type { SnapRunIndex } from "../contract/run-index.ts";
+import { findingEvidenceDisplay, findingNextDisplay } from "../lib/run-finding-display.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -23,13 +24,15 @@ function printRawFallback(artifact: SnapRunIndex["artifacts"][number]): void {
   print(`FORENSICS  open the raw ${artifact.channel ?? artifact.schema ?? "artifact"} at ${artifact.path}`);
 }
 
-function printFindingReceipt(index: SnapRunIndex): void {
+function printFindingReceipt(index: SnapRunIndex, path: string): void {
   const findings = index.findings ?? [];
   for (const finding of findings.slice(0, FINDING_DISPLAY_CAP)) {
-    const evidence = finding.evidence.map((row) => `${row.source}@${row.artifact}`).join(",");
+    // #1369 — cite the run by the id the RUN line above just printed, not by its absolute index path
+    // twice per row. `run.json` keeps the absolute form.
+    const evidence = findingEvidenceDisplay(finding, path);
     const conflicts = finding.conflicts.length === 0 ? "none" : finding.conflicts.join("; ");
     print(
-      `FINDING    ${finding.severity} | ${finding.what.replace(/\s+/gu, " ")} | ${finding.where.replace(/\s+/gu, " ")} | evidence=${evidence} confidence=${finding.confidence} completeness=${finding.completeness} conflicts=${JSON.stringify(conflicts)} occurrences=${String(finding.occurrences)} | next=${finding.next}`,
+      `FINDING    ${finding.severity} | ${finding.what.replace(/\s+/gu, " ")} | ${finding.where.replace(/\s+/gu, " ")} | evidence=${evidence} confidence=${finding.confidence} completeness=${finding.completeness} conflicts=${JSON.stringify(conflicts)} occurrences=${String(finding.occurrences)} | next=${findingNextDisplay(finding, index, path)}`,
     );
   }
   if (findings.length > FINDING_DISPLAY_CAP) {
@@ -58,7 +61,7 @@ export function printRunReceipt(index: SnapRunIndex, path: string): void {
   print(
     `RUN        ${index.identity.runId} checkout=${index.identity.checkout} sha=${index.identity.sha.slice(0, IDENTITY_PREFIX_LENGTH)} lane=${index.process.lane ?? "none"}`,
   );
-  printFindingReceipt(index);
+  printFindingReceipt(index, path);
   print(
     `PROVENANCE session=${index.provenance.session ?? "none"} call=${String(index.provenance.sessionCall ?? "none")} window=${String(index.provenance.evidenceWindow ?? "none")} binding=${index.provenance.sessionBinding === null || index.provenance.sessionBinding === undefined ? "none" : `${index.provenance.sessionBinding.kind}:${index.provenance.sessionBinding.url}`} stage=${stageReceipt(index.provenance.stage)} concurrency=${index.provenance.concurrency.join(",") || "none"}`,
   );

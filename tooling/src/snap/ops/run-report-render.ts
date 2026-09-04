@@ -7,6 +7,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { snapDiagnosticRetention } from "../contract/run-facts.ts";
 import type { SnapPrunedRun, SnapReportQuery, SnapRunIndex, SnapRunListQuery } from "../contract/run-index.ts";
 import { readReactProfileSummary } from "../lib/react-profile-receipt.ts";
+import { findingEvidenceDisplay, findingNextDisplay } from "../lib/run-finding-display.ts";
 import { reportAnalyzerProblems } from "../lib/run-report-analyzers.ts";
 import type { SnapRunRegression } from "../lib/run-report-columns.ts";
 import { runArms, runOutName, runRoute } from "../lib/run-report-columns.ts";
@@ -166,13 +167,13 @@ function stageReceipt(index: SnapRunIndex): string {
   }`;
 }
 
-function reportFindings(index: SnapRunIndex, query: SnapReportQuery): void {
+function reportFindings(index: SnapRunIndex, path: string, query: SnapReportQuery): void {
   const rows = (index.findings ?? []).filter((finding) => findingMatches(finding, query));
   for (const finding of rows.slice(0, FINDING_DISPLAY_CAP)) {
-    const evidence = finding.evidence.map((row) => `${row.source}@${row.artifact}`).join(",");
+    const evidence = findingEvidenceDisplay(finding, path);
     const conflicts = finding.conflicts.length === 0 ? "none" : finding.conflicts.join("; ");
     print(
-      `FINDING      ${finding.severity} | ${finding.what.replace(/\s+/gu, " ")} | ${finding.where.replace(/\s+/gu, " ")} | evidence=${evidence} confidence=${finding.confidence} completeness=${finding.completeness} conflicts=${JSON.stringify(conflicts)} occurrences=${String(finding.occurrences)} | next=${finding.next}`,
+      `FINDING      ${finding.severity} | ${finding.what.replace(/\s+/gu, " ")} | ${finding.where.replace(/\s+/gu, " ")} | evidence=${evidence} confidence=${finding.confidence} completeness=${finding.completeness} conflicts=${JSON.stringify(conflicts)} occurrences=${String(finding.occurrences)} | next=${findingNextDisplay(finding, index, path)}`,
     );
   }
   if (rows.length > FINDING_DISPLAY_CAP) {
@@ -187,13 +188,13 @@ function reportFindings(index: SnapRunIndex, query: SnapReportQuery): void {
  *  It is display-only and never votes: the counters it compares already carried their own exit votes in
  *  the runs they came from. What it adds is the thing a single run cannot say — that this surface used to
  *  be better — which is exactly the question an agent re-running the same `--out` name is asking. */
-export function renderSnapRunDelta(previous: SnapRunIndex, regressions: readonly SnapRunRegression[], path: string): void {
+export function renderSnapRunDelta(current: SnapRunIndex, previous: SnapRunIndex, regressions: readonly SnapRunRegression[]): void {
   if (regressions.length === 0) {
     return;
   }
   const what = regressions.map((row) => `${row.label} ${String(row.before)}→${String(row.after)}`).join(", ");
   print(
-    `FINDING      warning | regressed: ${what} | vs ${previous.identity.runId} (same --out name, finished ${previous.process.finishedAt}) | evidence=run-index@${path} confidence=direct completeness=complete conflicts="none" occurrences=${String(regressions.length)} | next=pnpm snap --report ${previous.identity.runId} --problems`,
+    `FINDING      warning | regressed: ${what} | vs ${previous.identity.runId} (same --out name, finished ${previous.process.finishedAt}) | evidence=run-index@${current.identity.runId} confidence=direct completeness=complete conflicts="none" occurrences=${String(regressions.length)} | next=pnpm snap --report ${previous.identity.runId} --problems`,
   );
 }
 
@@ -205,7 +206,7 @@ export async function renderSnapRunReport(index: SnapRunIndex, path: string, que
   print(`VERDICT      ${index.verdict.state} exit=${index.verdict.exit}`);
   reportFacts(index, query);
   await reportReactProfileSummary(index, query);
-  reportFindings(index, query);
+  reportFindings(index, path, query);
   const arms = index.verdict.arms.filter(
     (row) => (query.arm === null || row.arm === query.arm) && (query.arm !== null || query.mode === "all" || !["passed", "off"].includes(row.state)),
   );
