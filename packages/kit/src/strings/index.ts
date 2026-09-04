@@ -7,6 +7,24 @@
 // leading alnum as `\xHH`), so every consumer regex is byte-different and match-identical. Never
 // re-mint one — the ESCAPE-MINT gate arm exists for exactly that.
 
+// ── the Unicode word-character class (#1354 · #1530 · #1439 · #1543) ─────────────────────────────────
+// THE ONE ANSWER TO "IS THIS CHARACTER PART OF A WORD". Homed here, not in any of its consumers, because
+// it is a pure text primitive with three of them across two unrelated modules (`#speaker-label`'s label
+// stripper and name matchers, `#world-info`'s literal key compile) — the same reason `escapeRegExp` lived
+// here before the platform took it over. Every spelling it replaced was wrong in its own direction:
+//   · `\b` is defined over ASCII `\w` REGARDLESS of the `u` flag, so a name ending in a CJK character, an
+//     accented letter or an emoji has no boundary to assert at an ordinary name/space transition and the
+//     match simply FAILS (`@Аня` resolved to nothing on every human turn);
+//   · an ASCII-only test (`[a-z0-9]`) has the opposite failure — every non-ASCII neighbour reads as a
+//     SEPARATOR, so a short Unicode name matches inside a longer Unicode word (`Аня` inside `Анятолия`);
+//   · and omitting `\p{M}` makes a DECOMPOSED letter end a word: `café` written as `cafe`+U+0301 puts a
+//     combining mark at the boundary, so `caféann` matched the key `ann` and `caféAnn:` had `Ann: ` cut
+//     out of the middle of the word. In many scripts a mark IS part of the letter.
+// CLASS BYTES, not a compiled RegExp: every consumer interpolates it into a per-name/per-key pattern, and
+// the pattern must be compiled with `u` for the property escapes to mean anything. A consumer that needs
+// MORE than a word character at its boundary (markdown emphasis, `_`) adds those bytes at its own site.
+export const UNICODE_WORD_CHARS = "\\p{L}\\p{N}\\p{M}";
+
 // ── byte sizes ───────────────────────────────────────────────────────────────────────────────────────
 // The ONE human byte-size formatter. It had two byte-identical spellings (`@orb/ui/file-dropzone`'s cap
 // hint and `features/databank`'s row subtitle) before the per-chat document rack needed a third; a pure,

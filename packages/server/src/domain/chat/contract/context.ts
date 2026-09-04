@@ -1046,7 +1046,9 @@ interface PruneStaleDigestsParams {
   readonly lens: "digest-stale";
   readonly chatId: ChatId;
   readonly scopedCharacterId: CharacterId;
-  readonly keys: readonly { readonly tier: number; readonly blockIdx: number }[];
+  /** Each key carries the content hash it PROVED stale — the delete matches on it, so a concurrent pass that
+   *  healed the block between this pass's failed summarize and this call keeps its fresh row. */
+  readonly keys: readonly { readonly tier: number; readonly blockIdx: number; readonly staleHash: string }[];
 }
 
 type EmbeddingsPruneBlocksOp = (params: PruneDigestBlocksParams | PruneSegmentBlocksParams | PruneStaleDigestsParams) => Promise<void>;

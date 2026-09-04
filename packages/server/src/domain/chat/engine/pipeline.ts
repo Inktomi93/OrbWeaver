@@ -628,7 +628,9 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   );
   // The fit's contract is "drop the OLDEST `droppedCount` rows", so the same slice recovers the kept wire
   // rows without re-deriving anything — one conversion, one ordering, no parallel bookkeeping to drift.
-  const kept = dropEmptyWireRows(converted.slice(fitted.droppedCount));
+  // …and the empty-row drop re-anchors the §8 breakpoint with it: it is an OFFSET FROM THE END, which the
+  // fit's front-trim preserves for free and a mid-array drop does not (#1543 — see `shiftBreakpoint`).
+  const { kept, cacheBreakpointFromEnd } = dropEmptyWireRows(converted.slice(fitted.droppedCount), shaped.cacheBreakpointFromEnd);
   const history = kept.map((w) => w.row);
   // Total context consumption for the managed-compaction trigger: kept history + system + reserved output.
   // `fitted.usedTokens` is now the WIRE cost, so this is what the request actually weighs.
@@ -650,7 +652,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     ...(ctx.promptConfig.customParameters !== undefined ? { customParameters: ctx.promptConfig.customParameters } : {}),
     kind: args.kind,
     ownerConsented: args.ownerConsented,
-    cacheBreakpointFromEnd: shaped.cacheBreakpointFromEnd ?? null,
+    cacheBreakpointFromEnd,
     signal: args.signal,
   };
 
@@ -1201,9 +1203,14 @@ function wireCostText(parts: readonly ChatContentPart[]): string {
  *  card-heavy chat evicted useful older turns to make room for content it was about to delete, and
  *  `fitUsedTokens` (the managed-compaction trigger) overstated the real request. Converting first costs one
  *  extra media resolve for rows the fit then drops — rare, since only a deliberate user ATTACHMENT resolves
- *  anything — and buys a fit and a boundary that describe the actual wire. The card window is resolved over
- *  the WHOLE shaped assembly rather than the fitted tail for the same reason it always was: it is the last-X
- *  cards in document order, and the fit only ever removes OLDER rows, which can only be stub-zone cards. */
+ *  anything — and buys a fit and a boundary that describe the actual wire.
+ *
+ *  The card window MOVED with the conversion: it used to be resolved over the FITTED tail (this ran after
+ *  the fit), and it is now resolved over the WHOLE shaped assembly. That is not a behaviour change, and the
+ *  reason is worth stating because it is the thing that makes the reorder safe — the window is the last-X
+ *  cards in DOCUMENT ORDER, and the fit only ever removes OLDER rows, so every card it could remove was
+ *  already outside the last-X (a stub-zone card). The extra entries the window may now hold belong to rows
+ *  the fit drops, and a dropped row's spans are never projected. */
 async function buildWireHistory(args: RunTurnPipelineArgs, shapedHistory: readonly ShapedHistoryRow[]): Promise<WireRow[]> {
   const visionOk = args.connection.capability.input?.vision === true;
   const videoOk = args.connection.capability.input?.video === true;
@@ -1248,7 +1255,33 @@ function isEmptyWireRow(wire: WireRow): boolean {
  *  synthetic, or the assistant prefill — and its POSITION is load-bearing to every wire (`acceptsAssistantPrefill`,
  *  the continuation nudge, the cache breakpoint's offset-from-end). An empty tail is a different defect and
  *  silently deleting it would hide it. */
-function dropEmptyWireRows(built: readonly WireRow[]): WireRow[] {
+function dropEmptyWireRows(built: readonly WireRow[], cacheBreakpointFromEnd: number | undefined): { kept: WireRow[]; cacheBreakpointFromEnd: number | null } {
   const lastIdx = built.length - 1;
-  return built.filter((wire, i) => i === lastIdx || !isEmptyWireRow(wire));
+  const kept = built.filter((wire, i) => i === lastIdx || !isEmptyWireRow(wire));
+  return { kept, cacheBreakpointFromEnd: shiftBreakpoint(cacheBreakpointFromEnd, built, kept.length) };
+}
+
+/** Re-anchor the §8 cache breakpoint after a MID-ARRAY drop (#1543).
+ *
+ *  The breakpoint is an OFFSET FROM THE END (`shape.ts` computes it as `length − stablePrefixLength`, and
+ *  the runner counts back from the tail of the body it writes). That representation is what lets the FIT
+ *  trim the front for free — a front-drop shortens the array and the prefix by the same amount. A drop from
+ *  anywhere else does NOT commute with it: removing an empty choices row from inside the last
+ *  `offsetFromEnd` rows shortens the array without shortening the stable prefix, so the same offset now
+ *  points one row EARLIER and the breakpoint lands on bytes that are not the boundary SHAPE measured —
+ *  silently re-billing the cached prefix on exactly the expensive turns the breakpoint exists for.
+ *
+ *  So the offset is recomputed from the invariant it actually encodes: the stable PREFIX LENGTH
+ *  (`before − offset`) is what the drop may or may not have shortened, and the new offset is
+ *  `after − (the prefix as it now stands)`. A drop inside the prefix leaves the offset alone; a drop after
+ *  it shrinks the offset by one per row. `< 1` means the whole tail was dropped away — `shape.ts` refuses
+ *  that same case, so it resolves to NO breakpoint rather than to a placement nobody measured. */
+function shiftBreakpoint(cacheBreakpointFromEnd: number | undefined, before: readonly WireRow[], afterLength: number): number | null {
+  if (cacheBreakpointFromEnd === undefined) {
+    return null;
+  }
+  const prefixLength = before.length - cacheBreakpointFromEnd;
+  const droppedFromPrefix = before.slice(0, prefixLength).filter(isEmptyWireRow).length;
+  const shifted = afterLength - (prefixLength - droppedFromPrefix);
+  return shifted >= 1 ? shifted : null;
 }

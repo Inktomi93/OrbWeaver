@@ -8,6 +8,7 @@ import { z } from "zod";
 import { isPlainObject } from "#guards";
 import type { InjectionPlacement } from "#injection";
 import { injectionDirectiveSchema } from "#injection";
+import { UNICODE_WORD_CHARS } from "#strings";
 
 // Per-entry knob the user can set to force a scope independent of keys: "auto" (default) derives
 // from keys.length; "always"/"keyword" force it. It's the only scope knob — entry-level pins were
@@ -120,9 +121,21 @@ function parseKeyPattern(raw: string): { pattern: string; flags: string } {
   return { pattern, flags: [...flags].join("") };
 }
 
+/** The boundary class a LITERAL key is bounded by: the shared {@link UNICODE_WORD_CHARS} plus `_`.
+ *
+ *  The class is `#strings`' (#1543) rather than a local spelling — this was the FOURTH copy of the same
+ *  question, and the only one still missing `\p{M}`, so `keyRegex("ann").test("caféann")` was TRUE when the
+ *  é was decomposed (`cafe`+U+0301): a combining mark satisfied the "not a word character" lookbehind and a
+ *  world-info entry keyed `ann` activated on a word that does not contain it. `_` is world-info's OWN
+ *  addition, kept because a snake_case key (`old_gods`) must not match inside `the_old_gods_return`, and it
+ *  lives here rather than in the shared class because it is a KEY convention, not a property of words. */
+const KEY_WORD_CHARS = `${UNICODE_WORD_CHARS}_`;
+
 /** Compile the LITERAL form of a key: Unicode whole-word for spaced scripts, substring for boundary-less ones. */
 function literalKeyRegex(key: string): RegExp {
-  return BOUNDARYLESS_SCRIPT.test(key) ? new RegExp(RegExp.escape(key), "u") : new RegExp(`(?<![\\p{L}\\p{N}_])${RegExp.escape(key)}(?![\\p{L}\\p{N}_])`, "u");
+  return BOUNDARYLESS_SCRIPT.test(key)
+    ? new RegExp(RegExp.escape(key), "u")
+    : new RegExp(`(?<![${KEY_WORD_CHARS}])${RegExp.escape(key)}(?![${KEY_WORD_CHARS}])`, "u");
 }
 
 /** Compile-or-return the cached RegExp for a key. `literal` (the default) escapes the key — the whole-word /

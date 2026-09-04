@@ -1927,6 +1927,44 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     expect(result.request.history.map((m) => m.content)).toContainEqual([{ type: "text", text: "You run." }]);
   });
 
+  // #1543 — GREEN BEFORE THE FIX, and the label is the finding. The §8 breakpoint is an OFFSET FROM THE
+  // END, so a mid-array drop CAN in principle move it off the row SHAPE measured. On this path it cannot:
+  // `computeHistoryBreakpoint` sets `stableCount = withTail.length - 1`, so the stable prefix is everything
+  // but the turn's tail — and the empty-row drop never removes the tail, so every row it can remove is
+  // INSIDE the prefix and shortens the array and the prefix by the same one. The offset commutes.
+  // `shiftBreakpoint` is kept because that argument is a property of ONE branch: the `merges:false` arm
+  // counts the prefix by filtering blank-content rows, which can push `offsetFromEnd` above 1 and put a
+  // droppable row in the tail region. So this is a FENCE on the commuting property, not a defect proof —
+  // if a future SHAPE change raises the offset, this is the test that starts to matter.
+  test("#1543 FENCE: dropping an empty choices row leaves the cache breakpoint addressing the same boundary", async () => {
+    const choicesOnly = ":::choices\n1. Enter the crypt\n2. Flee\n:::";
+    const withEmpty = [rowOf("assistant", "the settled past"), userRow("a beat"), rowOf("assistant", choicesOnly), userRow("I flee.")];
+    // The SAME conversation with the choices row's body replaced by prose — same row count, same roles, so
+    // SHAPE measures the same stable prefix and the only difference is whether a row converts to nothing.
+    const withProse = [rowOf("assistant", "the settled past"), userRow("a beat"), rowOf("assistant", "she waits"), userRow("I flee.")];
+    const run = async (canon: MessageView[]): Promise<{ offset: number | null; length: number; history: TurnRequest["history"] }> => {
+      const result = await runTurnPipeline(baseArgs({ canon }).args);
+      return { offset: result.cacheBreakpointFromEnd, length: result.request.history.length, history: result.request.history };
+    };
+    const dropped = await run(withEmpty);
+    const intact = await run(withProse);
+
+    // The control: the prose run keeps every row, so its offset is SHAPE's own number, untouched.
+    // (A canon ending on a USER row needs no continuation nudge, so the wire array is the canon exactly.)
+    expect(intact.length).toBe(withProse.length);
+    // The dropped run is exactly one row shorter…
+    expect(dropped.length).toBe(intact.length - 1);
+    // The control must be a REAL placement, or this pin would compare two nulls and prove nothing.
+    expect(typeof intact.offset).toBe("number");
+    // The dropped row came out of the stable PREFIX, so the array and the prefix shrank together and the
+    // offset is unchanged — and it still addresses the same LOGICAL boundary (the turn's tail).
+    expect(dropped.offset).toBe(intact.offset);
+    // The receipt that the offset means what it says: it addresses a row that exists, and that row is the
+    // one after the stable prefix — the last row, which is the turn's own tail on both runs.
+    expect(dropped.offset ?? 0).toBeLessThanOrEqual(dropped.length);
+    expect(dropped.history.at(-(dropped.offset ?? 1))?.content).toEqual([{ type: "text", text: "I flee." }]);
+  });
+
   test("a hidden tag rides the wire VERBATIM ({wire: full} — the model keeps its own lie), byte-identical single text part", async () => {
     const body = `He nods. ${lieTag} "Nothing," he says.`;
     const { args } = baseArgs({ canon: [userRow(body)] });

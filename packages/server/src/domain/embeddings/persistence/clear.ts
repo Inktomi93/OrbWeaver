@@ -116,17 +116,25 @@ export async function pruneChatDigests(db: Db, chatId: ChatId, scopedCharacterId
  *  So the KNOWN-stale row is deleted instead. Losing the block from recall until a later pass succeeds is
  *  the honest degrade: memory says less rather than saying something the canon has moved past. Bounded by
  *  construction — the caller passes only the keys whose re-digest it attempted and abandoned. Scope-keyed
- *  like its sibling, and `chat_digest_speakers` follows the FK CASCADE. */
+ *  like its sibling, and `chat_digest_speakers` follows the FK CASCADE.
+ *
+ *  EACH KEY CARRIES THE HASH IT PROVED STALE, and the DELETE matches on it (#1543). Without that predicate
+ *  the statement deletes "whatever is at this position now", and the position is not the row: the corpus
+ *  backfill and the live per-turn build run over the same buckets, so a sibling pass can land a FRESH digest
+ *  for this key between this pass's failed summarize and this delete — and the un-predicated delete would
+ *  throw away the good row, leaving the block absent from recall until yet another pass rebuilt it. Matching
+ *  the stale hash makes the delete a compare-and-swap: it removes exactly the row this pass judged, or
+ *  nothing. A caller with no stored row for a key simply omits it (there is nothing to invalidate). */
 export async function dropChatDigestKeys(
   db: Db,
   chatId: ChatId,
   scopedCharacterId: CharacterId,
-  keys: readonly { readonly tier: number; readonly blockIdx: number }[],
+  keys: readonly { readonly tier: number; readonly blockIdx: number; readonly staleHash: string }[],
 ): Promise<number> {
   if (keys.length === 0) {
     return 0;
   }
-  const targeted = keys.map((k) => and(eq(chatDigests.tier, k.tier), eq(chatDigests.blockIdx, k.blockIdx)));
+  const targeted = keys.map((k) => and(eq(chatDigests.tier, k.tier), eq(chatDigests.blockIdx, k.blockIdx), eq(chatDigests.contentHash, k.staleHash)));
   const rows = await db
     .delete(chatDigests)
     .where(and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId), or(...targeted)))

@@ -35,7 +35,7 @@ import type {
 } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
 import { buildAnalysisSystemPrompt, buildAnalysisUserPrompt } from "../../../../../packages/server/src/domain/automation/engine/analysis-arm.ts";
 import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
-import { selectRuleState, upsertRuleState } from "../../../../../packages/server/src/domain/automation/persistence/rule-state.ts";
+import { advanceSettledWatermark, selectRuleState, upsertRuleState } from "../../../../../packages/server/src/domain/automation/persistence/rule-state.ts";
 import { createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -56,11 +56,12 @@ interface Captured {
 
 /** The harness: real db reads (windows/state/attach), captured writes, and a CANNED model reply.
  *  `throwOnVarOps` makes the LAST effecting route blow up — the only way to exercise a failure that lands
- *  AFTER the durable lore write has already committed (#1418). */
+ *  AFTER the durable lore write has already committed (#1418). `duringModelCall` runs INSIDE the quiet call,
+ *  which is the one window a concurrent host action can land in mid-pass (#1543). */
 function makeHarness(
   db: Db,
   quietReplies: readonly string[],
-  opts: { readonly throwOnVarOps?: boolean } = {},
+  opts: { readonly throwOnVarOps?: boolean; readonly duringModelCall?: () => Promise<void> } = {},
 ): { dispatch: ArmDispatch; captured: Captured; suggestions: SuggestionStore } {
   const captured: Captured = { varOps: [], upserts: [], turns: [], quiet: [], bus: [] };
   const replies = [...quietReplies];
@@ -92,9 +93,10 @@ function makeHarness(
     },
     notifications: { emit: () => Promise.resolve() },
     imagery: { generatePicture: () => Promise.resolve({ imageCount: 0 }) },
-    summarizeQuiet: ({ systemPrompt, prompt, posture, responseFormat }) => {
+    summarizeQuiet: async ({ systemPrompt, prompt, posture, responseFormat }) => {
       captured.quiet.push({ systemPrompt, prompt, posture, schemaName: responseFormat?.name ?? null });
-      return Promise.resolve({ text: replies.shift() ?? "" });
+      await opts.duringModelCall?.();
+      return { text: replies.shift() ?? "" };
     },
   };
   const suggestions = createSuggestionStore();
@@ -312,6 +314,27 @@ test("#1418 — a route that fails AFTER the lore commit still leaves the span C
   const after = await selectRuleState(db, ruleId);
   expect(after.state.settledThroughSeq).toBe(LORE_SPAN_END);
   expect(after.state.arc).toBe("");
+});
+
+test("#1543 — a CONFIRM landing mid-pass is not reverted by the end-of-pass write (the mark is monotonic)", async () => {
+  const { db, host, chatId, ruleId } = await setup(LORE_CHAT_MESSAGES);
+  const bookId = await seedBook(db, host, chatId, true);
+  // The interleaving, at the one point a real one can happen: the pass reads the mark at step 2, then WAITS
+  // on the model. A host confirming a lore card in that window advances the mark through
+  // `advanceSettledWatermark`; the pass then wrote its own blob back and silently un-covered that span, so
+  // the next pass re-distilled play the host had already accepted. Driven from the summarizeQuiet double
+  // because that IS the in-flight moment.
+  const confirmedThrough = 11;
+  const { dispatch } = makeHarness(db, [reply({ ...EMPTY_PLOT, lore: [] })], {
+    duringModelCall: () => advanceSettledWatermark(db, { ruleId, throughSeq: confirmedThrough, nowMs: FIXED_NOW_MS }),
+  });
+  const outcome = await dispatch(
+    arm({ type: "run_analysis", brief: "b", routes: { lore: { apply: "direct", bookId } } }),
+    makeFrame({ chatId, authorUserId: host, ruleId }),
+  );
+  expect(outcome).toEqual({ ok: true });
+  // This pass's own coverage ends at seq 4 (LORE_SPAN_END); the confirm's reaches 11 and must WIN.
+  expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(confirmedThrough);
 });
 
 test("PLANTED CONTROL — the belts BITE on the analysis path: an unattached book ⇒ arm_error, ZERO writes, NO state write", async () => {
