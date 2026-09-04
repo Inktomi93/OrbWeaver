@@ -2736,6 +2736,121 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md",
+      "assignedSha256": "826aaf3e45f7c0a93e0bfdeae9408db969a815f66d7ebf31ef18f434c28a6d2e",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "826aaf3e45f7c0a93e0bfdeae9408db969a815f66d7ebf31ef18f434c28a6d2e",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "summary": "Snap argv audit: 129 accepted spellings inventoried (116 normal + 13 report-reader), 8 pre-repair findings at ceiling P1 (scenario boot/call partition, --no-failure-evidence inheritance, --session-export --out, admin-mode modal exclusivity, reader missing-value theft, --upload sibling chooser, ownerless modifiers, help-completeness test); all repaired under #1298/#1299 and the ledger now reflects the executable grammar; -h is the only alias, retired names refuse by name.",
+      "evidence": [
+        "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md:1 (full read by the primary orchestrator, session c61174c8, 2026-09-04; every retained finding re-checked against 561ea5ec3)"
+      ],
+      "claims": [
+        {
+          "claim": "Every pre-repair argv finding is repaired on the landed tree and the flag ledger matches the registry-derived grammar; the only accepted alias is -h for --help.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1298"
+            },
+            {
+              "kind": "issue",
+              "target": "#1299"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/snap/ops/parse.test.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/snap/ops/cli-truth.suite.int.test.ts:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-03-unified-snap-instrument-program.md",
+      "assignedSha256": "cb84ee92dfe4749841879e206276f41e071704f882bb74088b8e0bb313071873",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "cb84ee92dfe4749841879e206276f41e071704f882bb74088b8e0bb313071873",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "summary": "Mid-program stickler review of the unified Snap instrument: six confirmed defects (per-call unbounded request recorder instead of the session-lifetime ring; run.json dropping the normalized terminal RESULT and calling a refused request arm passed; run-index schema missing identity/provenance/diagnostic/artifact fields; rate arms rereading GPU/load independently; recorded-context attach leaking on mid-init failure; boot-trace leaking its CDP session on Tracing.start rejection). The 2026-09-04 final review inspected every one repaired.",
+      "evidence": [
+        "docs/reviews/stickler/2026-09-03-unified-snap-instrument-program.md:1 (full read by the primary orchestrator, session c61174c8, 2026-09-04; every retained finding re-checked against 561ea5ec3)"
+      ],
+      "claims": [
+        {
+          "claim": "All six defects were repaired before the final review and are closed on the landed tree.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1292"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/snap/ops/request-result-truth.suite.int.test.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/snap/ops/run-index-typed-results.suite.int.test.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/cpu-profile/boot-trace.suite.int.test.ts:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-04-final-unified-snap-instrument.md",
+      "assignedSha256": "77024494d2e6d6cf10401e52422a7140f1a8ee86a51b4ce9be2313e422947b95",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "77024494d2e6d6cf10401e52422a7140f1a8ee86a51b4ce9be2313e422947b95",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "summary": "Final stickler review of the unified Snap instrument at 02:40 on 2026-09-04: NOT MERGEABLE with ten confirmed findings (6 P1: process-env restore writing the string 'undefined'; unbounded watchdog drain; verdict arms read from the outer argv; checkpoint artifacts cross-linked across the window axis; a red request-truth control; stale snap-driving skill — and 4 P2: --arm perf unnormalized; perf-meter translator emitting refused spellings; --request-body returning the oldest body; show-trace advertised for raw Chromium traces). All ten were closed by 03:30 and verified against the landed tree by the orchestrator.",
+      "evidence": [
+        "docs/reviews/stickler/2026-09-04-final-unified-snap-instrument.md:1 (full read by the primary orchestrator, session c61174c8, 2026-09-04; every retained finding re-checked against 561ea5ec3)"
+      ],
+      "claims": [
+        {
+          "claim": "All ten findings are closed on the landed tree: the env restore branches on hasOwn, the watchdog drain is bounded, verdict arms derive from typed facts, reconciliation matches the window axis, the request-truth control passes, perf normalizes, the translator maps the four legacy flags, request-body reads newest, show-trace is gated on a Playwright zip, the skill describes named sessions.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1292"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/_shared/proc.test.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/snap/ops/session-call-watchdog.test.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/snap/ops/request-result-truth.suite.int.test.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/snap/ops/arms/filmstrip.suite.int.test.ts:1"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

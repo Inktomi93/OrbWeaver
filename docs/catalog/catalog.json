@@ -10922,19 +10922,39 @@
       "receiptCurrent": true
     },
     {
-      "path": "docs/design/1208-instrument-substrate.md",
+      "path": "docs/design/1208-heap-memory-arm.md",
       "lane": "design",
       "issue": 5,
-      "lines": 1417,
-      "bytes": 177496,
-      "sha256": "048e1c450f0c5507bd738d42ffe14425f44514411051cfc4c1ab171d105e72cb",
+      "lines": 255,
+      "bytes": 17951,
+      "sha256": "cf5238312b9025931a7caa6033df9a8bcfc2dd698082e4e4708b2f387daa65ef",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-03"
+          "updated": "2026-09-04"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/design/1208-instrument-substrate.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 1424,
+      "bytes": 178059,
+      "sha256": "97d2c2b92c17b3a05a3bf196099039bd8cfcc7f100482639d2b5f23103b124ad",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-04"
         },
         "errors": []
       },
@@ -10996,7 +11016,47 @@
         ],
         "summary": "Landed instrument substrate program (#1208): stateful Snap sessions, registered stage bands, shared browser/environment/artifact seams, a total five-tool CLI grammar, Lighthouse and request-log arms, load-aware watchdogs, one-browser matrix contexts, and the reconciled phase 0–4 control set."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/design/1208-request-result-truth-repair.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 128,
+      "bytes": 9372,
+      "sha256": "819b7e348d6dcb62d7061015484a621a44d77c1e70eb4b48864f91e129aaf5fd",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-03"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/design/1208-run-index-typed-results.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 210,
+      "bytes": 14105,
+      "sha256": "92028c805d7ef85b3a34e748e226aef3afb8c7398fb29221c77a07f465e01373",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-04"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/1238-plugin-distribution.md",
@@ -11105,6 +11165,46 @@
         ]
       },
       "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/1308-browser-evidence-retention.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 75,
+      "bytes": 3939,
+      "sha256": "0dfca68fc2a2fa7ff486b89adebfcabb4b56a15194e20db52957703372d83fb5",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-04"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/design/1310-snap-filmstrip.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 93,
+      "bytes": 8518,
+      "sha256": "77a3d55542d73d802c8a5777f7d5b2c33617a69b6fdbdb68ddbd81378b65291e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-03"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/885-884-boundary-reservation-and-touch-floor.md",
@@ -29292,6 +29392,126 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/research/2026-09-03-snap-instrument-bundle-battery.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 67,
+      "bytes": 5506,
+      "sha256": "87843063c03637ce57449dc416a20cfad4fa2b7418185995747e892edf4c0823",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "research",
+          "status": "active",
+          "updated": "2026-09-03"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-browser-escape-workflow-census.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 71,
+      "bytes": 7393,
+      "sha256": "e09d978716af88c4c48c192eac9ee42d8d3fa175f982ca995c0a6c6aeafa40b8",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "research",
+          "status": "active",
+          "updated": "2026-09-04"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-cli-artifact-usage-census.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 253,
+      "bytes": 21618,
+      "sha256": "af83ada2dfd5049d2056b41b9312807ab2d97f47093969e0c7ff6da02119f5c7",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "research",
+          "status": "active",
+          "updated": "2026-09-04"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-mcp-usage-recovery-census.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 265,
+      "bytes": 15323,
+      "sha256": "a29ec65f51b8372b9cf324a292c53786761712e75ef4d03ac141dc6a96d0e53a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-04"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-orb-selector-choreography-census.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 309,
+      "bytes": 16192,
+      "sha256": "5ec34c0cb89f748bb9825733333d7a0c4b00a63117cf1334e78b5ad3cfb7741f",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-04"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-snap-result-discoverability-census.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 92,
+      "bytes": 9617,
+      "sha256": "69b1b5c45f23f215e7cb801f8631ff0a598df19e5c9e9e761d9236ab6f377db3",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "research",
+          "status": "active",
+          "updated": "2026-09-04"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
       "path": "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md",
       "lane": "reviews",
       "issue": 7,
@@ -32287,6 +32507,178 @@
               {
                 "kind": "issue",
                 "target": "#1080"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 394,
+      "bytes": 41075,
+      "sha256": "826aaf3e45f7c0a93e0bfdeae9408db969a815f66d7ebf31ef18f434c28a6d2e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-03"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md",
+        "assignedSha256": "826aaf3e45f7c0a93e0bfdeae9408db969a815f66d7ebf31ef18f434c28a6d2e",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "826aaf3e45f7c0a93e0bfdeae9408db969a815f66d7ebf31ef18f434c28a6d2e",
+        "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+        "verifiedAt": "2026-09-04",
+        "summary": "Snap argv audit: 129 accepted spellings inventoried (116 normal + 13 report-reader), 8 pre-repair findings at ceiling P1 (scenario boot/call partition, --no-failure-evidence inheritance, --session-export --out, admin-mode modal exclusivity, reader missing-value theft, --upload sibling chooser, ownerless modifiers, help-completeness test); all repaired under #1298/#1299 and the ledger now reflects the executable grammar; -h is the only alias, retired names refuse by name.",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md:1 (full read by the primary orchestrator, session c61174c8, 2026-09-04; every retained finding re-checked against 561ea5ec3)"
+        ],
+        "claims": [
+          {
+            "claim": "Every pre-repair argv finding is repaired on the landed tree and the flag ledger matches the registry-derived grammar; the only accepted alias is -h for --help.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1298"
+              },
+              {
+                "kind": "issue",
+                "target": "#1299"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/snap/ops/parse.test.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/snap/ops/cli-truth.suite.int.test.ts:1"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-03-unified-snap-instrument-program.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 147,
+      "bytes": 20935,
+      "sha256": "cb84ee92dfe4749841879e206276f41e071704f882bb74088b8e0bb313071873",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-03"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-03-unified-snap-instrument-program.md",
+        "assignedSha256": "cb84ee92dfe4749841879e206276f41e071704f882bb74088b8e0bb313071873",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "cb84ee92dfe4749841879e206276f41e071704f882bb74088b8e0bb313071873",
+        "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+        "verifiedAt": "2026-09-04",
+        "summary": "Mid-program stickler review of the unified Snap instrument: six confirmed defects (per-call unbounded request recorder instead of the session-lifetime ring; run.json dropping the normalized terminal RESULT and calling a refused request arm passed; run-index schema missing identity/provenance/diagnostic/artifact fields; rate arms rereading GPU/load independently; recorded-context attach leaking on mid-init failure; boot-trace leaking its CDP session on Tracing.start rejection). The 2026-09-04 final review inspected every one repaired.",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-03-unified-snap-instrument-program.md:1 (full read by the primary orchestrator, session c61174c8, 2026-09-04; every retained finding re-checked against 561ea5ec3)"
+        ],
+        "claims": [
+          {
+            "claim": "All six defects were repaired before the final review and are closed on the landed tree.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1292"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/snap/ops/request-result-truth.suite.int.test.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/snap/ops/run-index-typed-results.suite.int.test.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/cpu-profile/boot-trace.suite.int.test.ts:1"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-04-final-unified-snap-instrument.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 226,
+      "bytes": 21363,
+      "sha256": "77024494d2e6d6cf10401e52422a7140f1a8ee86a51b4ce9be2313e422947b95",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-04"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-04-final-unified-snap-instrument.md",
+        "assignedSha256": "77024494d2e6d6cf10401e52422a7140f1a8ee86a51b4ce9be2313e422947b95",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "77024494d2e6d6cf10401e52422a7140f1a8ee86a51b4ce9be2313e422947b95",
+        "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+        "verifiedAt": "2026-09-04",
+        "summary": "Final stickler review of the unified Snap instrument at 02:40 on 2026-09-04: NOT MERGEABLE with ten confirmed findings (6 P1: process-env restore writing the string 'undefined'; unbounded watchdog drain; verdict arms read from the outer argv; checkpoint artifacts cross-linked across the window axis; a red request-truth control; stale snap-driving skill — and 4 P2: --arm perf unnormalized; perf-meter translator emitting refused spellings; --request-body returning the oldest body; show-trace advertised for raw Chromium traces). All ten were closed by 03:30 and verified against the landed tree by the orchestrator.",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-04-final-unified-snap-instrument.md:1 (full read by the primary orchestrator, session c61174c8, 2026-09-04; every retained finding re-checked against 561ea5ec3)"
+        ],
+        "claims": [
+          {
+            "claim": "All ten findings are closed on the landed tree: the env restore branches on hasOwn, the watchdog drain is bounded, verdict arms derive from typed facts, reconciliation matches the window axis, the request-truth control passes, perf normalizes, the translator maps the four legacy flags, request-body reads newest, show-trace is gated on a Playwright zip, the skill describes named sessions.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1292"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/_shared/proc.test.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/snap/ops/session-call-watchdog.test.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/snap/ops/request-result-truth.suite.int.test.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/snap/ops/arms/filmstrip.suite.int.test.ts:1"
               }
             ]
           }
