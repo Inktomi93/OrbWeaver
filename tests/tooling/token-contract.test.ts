@@ -176,9 +176,15 @@ test("the real vault is conformant and preserves the exact generated target surf
   // = base +7, light +2, mocha +0. `cssTargets` moves +7 with the seven new BASE tokens (each emits one
   // `cssVar`, all seven verified present in theme.css + tokens/index.ts); a theme ARM re-values a var that
   // already exists, so light's +2 adds no target. `scannedTokens` is the sum, 294 → 303.
-  expect(constituents).toEqual({ base: 197, light: 64, mocha: 42 });
+  //
+  // 2026-09-04 re-pin, 197/64/42 → 199/64/42 (1ffc3fa42, the density-selected fixed grid cell):
+  //   base +2  width.cell-fixed · width.cell-fixed-compact
+  // `cssTargets` moves +5, not +2: the two tokens emit their own `cssVar`s AND the vault's `orb.cssValues`
+  // gained three runtime custom properties (--orb-grid-cell-fixed and its comfortable/compact density
+  // aliases), each a target. 205 → 210; `scannedTokens` 303 → 305. Same-count controls below re-pinned.
+  expect(constituents).toEqual({ base: 199, light: 64, mocha: 42 });
   expect(result.scannedTokens).toBe(constituents.base + constituents.light + constituents.mocha);
-  expect(result.cssTargets.size).toBe(205);
+  expect(result.cssTargets.size).toBe(210);
   expect(result.cssTargets).toEqual(BASELINE_TARGETS);
   expect(result.themes).toEqual([
     { id: "hearth", colorScheme: "dark", source: "base" },
@@ -343,7 +349,7 @@ describe("Orb semantic controls", () => {
       cssValues["--aspect-portrait-renamed"] = portrait;
     });
     const result = validateTokenContractTexts(swapped, REPO_ROOT);
-    expect(result.cssTargets.size).toBe(205);
+    expect(result.cssTargets.size).toBe(210);
     expect(result.diagnostics.map((item) => item.code)).toContain("removed.target.unrecorded");
 
     const avatar = readFileSync(join(UI_ROOT, "src/primitives/avatar/variants.ts"), "utf8");
@@ -378,7 +384,7 @@ describe("bounded Resolver controls", () => {
       colors["sky-day"] = background;
     });
     const result = validateTokenContractTexts(swapped);
-    expect(result.scannedTokens).toBe(303);
+    expect(result.scannedTokens).toBe(305);
     expect(result.diagnostics.map((item) => item.code)).toContain("seed.members");
   });
 

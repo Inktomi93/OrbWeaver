@@ -17,12 +17,16 @@ const HISTORICAL_PREFIXES = ["docs/history/", "docs/reviews/", "docs/catalog/"] 
 const INTERNAL_ENGINE_PREFIXES = ["tooling/src/motion-audit/", "tooling/src/cpu-profile/"] as const;
 const MIGRATION_SPECS = new Set(["docs/design/1208-instrument-substrate.md"]);
 const SELF_PROOF = "tests/tooling/snap/ops/unified-instrument.suite.int.test.ts";
+// This file spells the retired vocabulary as data; once tracked, the corpus sweep reads it back as five
+// findings on its own TOKENS line (the untracked overnight tree hid that — `git ls-files` never listed it).
+const SELF_SOURCE = "tooling/src/snap/lib/retired-instruments.ts";
 const LEGACY_COMMAND = /\bpnpm\s+(?:motion-audit|perf-meter)\b/u;
 const TOKENS = ["pnpm motion-audit", "pnpm perf-meter", "--selector", "--window", "--cpuprofile"] as const;
 
 function excluded(path: string): boolean {
   return (
     path === SELF_PROOF ||
+    path === SELF_SOURCE ||
     MIGRATION_SPECS.has(path) ||
     HISTORICAL_PREFIXES.some((prefix) => path.startsWith(prefix)) ||
     INTERNAL_ENGINE_PREFIXES.some((prefix) => path.startsWith(prefix))
