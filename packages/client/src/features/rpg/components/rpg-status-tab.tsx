@@ -163,6 +163,14 @@ interface RpgStatusCardProps {
  *  condition chips. The name is a real button (the takeover's entry point); every other control on the card
  *  stays a sibling of it, never nested inside it.
  *
+ *  A NAMED GROUP, AND EVERY CONTROL SAYS WHOSE (#1383). The Status region was one flat tree: four cards
+ *  deep it published 4x "Add condition", 4x "Status line", 3x "HP value", 3x "HP max" — byte-identical
+ *  accessible names on an EDITING surface, with nothing between one character's block and the next. A
+ *  reader heard "button, 17" and could not tell whose sheet was being edited. Two halves, both needed: the
+ *  card is a `role="group"` named for the character (the boundary), and every control inside runs its name
+ *  through the tracker kit's `subject` grammar (the disambiguation). Either alone still collides — a group
+ *  boundary does not rename the controls, and unique names alone leave no structure to navigate by.
+ *
  *  There is no relationship badge here (R2). It joined a seated character to a scene-cast row by
  *  `presentCharacters[].characterId` — a field NO writer in the tree ever set, so the badge rendered for
  *  nobody. A stance is a CAST actor's datum (it lives on `identity`, and the Scene card is its home); a seated
@@ -170,7 +178,7 @@ interface RpgStatusCardProps {
 function RpgStatusCard({ actor, edit, onOpen }: RpgStatusCardProps): ReactElement {
   const volatile = actor.volatile;
   return (
-    <Stack gap="field" data-slot="rpg-status-card" className="rounded-base border border-border bg-card px-block py-row">
+    <Stack gap="field" data-slot="rpg-status-card" role="group" aria-label={actor.name} className="rounded-base border border-border bg-card px-block py-row">
       <Row gap="block" align="center" justify="between">
         <Row gap="field" align="center" className="min-w-0">
           <Button
@@ -196,13 +204,14 @@ function RpgStatusCard({ actor, edit, onOpen }: RpgStatusCardProps): ReactElemen
           </Text>
         )}
       </Row>
-      <StatusLine status={volatile?.status ?? ""} {...(edit === undefined ? {} : { edit })} />
+      <StatusLine status={volatile?.status ?? ""} subject={actor.name} {...(edit === undefined ? {} : { edit })} />
 
-      <ActorMeters actor={actor} {...(edit === undefined ? {} : { edit })} />
-      <ActorTrackerRows actor={actor} {...(edit === undefined ? {} : { edit })} />
+      <ActorMeters actor={actor} subject={actor.name} {...(edit === undefined ? {} : { edit })} />
+      <ActorTrackerRows actor={actor} subject={actor.name} {...(edit === undefined ? {} : { edit })} />
 
       <ConditionChips
         conditions={volatile?.conditions ?? []}
+        subject={actor.name}
         {...(edit === undefined ? {} : { onAdd: edit.onAddCondition, onRemove: edit.onRemoveCondition, edit })}
       />
     </Stack>

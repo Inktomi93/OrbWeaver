@@ -15,6 +15,7 @@ import type { TrackColor } from "@orb/ui/meter";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { trackerFieldName } from "./tracker-names.ts";
 import { TrackerValue } from "./tracker-value.tsx";
 
 /** The UNSET datum (side-eye 08-01, the panel's lying-meter class): an em dash, never a synthesized `0`.
@@ -85,7 +86,10 @@ function MaxCell({
   }
   return (
     <Row gap="field" align="center">
-      <Text as="span" size="label" tone="muted">
+      {/* PUNCTUATION, not a datum (#1383): in the editable arm the slash is its own text node between two
+          NAMED fields, so an aria walk of a roster read "17", "/", "20" as three peer readings. The
+          read-only arm has no such node — its `/max` is part of the one datum string. */}
+      <Text as="span" size="label" tone="muted" aria-hidden="true">
         /
       </Text>
       <TrackerValue
@@ -161,15 +165,32 @@ function MeterLabel({
   label,
   leading,
   labelTitle,
+  nameCarried,
 }: {
   readonly label: string;
   readonly leading: ReactNode | undefined;
   readonly labelTitle: string | undefined;
+  readonly nameCarried: boolean;
 }): ReactElement {
   return (
     <Row gap="field" align="center" className="min-w-0">
       {leading}
-      <Text as="span" size="label" tone="muted" className="truncate" {...(labelTitle === undefined ? {} : { title: labelTitle })}>
+      {/* THE LABEL IS PROGRAMMATICALLY ASSOCIATED, OR IT IS LOOSE TEXT (#1383). In the EDITABLE arm both
+          fields carry this label verbatim inside their accessible names (`<subject> HP value` /
+          `<subject> HP max`), so the visible text is a sighted-reader duplicate — announcing it a second
+          time as an unassociated node is what made a roster read "HP", "button 17", "/", "button 20" with
+          nothing binding them. It stays in the DOM (it is the visual label) and leaves the a11y tree.
+          The READ-ONLY arm keeps it: there the datum is plain text with no name of its own to carry it,
+          so hiding the label would orphan the number. `leading` (the lock pin, a real button) is outside
+          the hidden node on purpose. */}
+      <Text
+        as="span"
+        size="label"
+        tone="muted"
+        className="truncate"
+        {...(nameCarried ? { "aria-hidden": true } : {})}
+        {...(labelTitle === undefined ? {} : { title: labelTitle })}
+      >
         {label}
       </Text>
     </Row>
@@ -232,14 +253,14 @@ export function MeterRow({
   // The accessible name of every FIELD in this row — subject-qualified when the caller supplied one, so two
   // carriers' identically-named meters are distinguishable by name alone. The VISIBLE label never repeats
   // the subject (the card already says whose card it is).
-  const named = subject === undefined ? label : `${subject} ${label}`;
+  const named = trackerFieldName(label, subject);
   return (
     <Stack gap="field" data-slot="meter-row" data-unset={value === null}>
       {/* `center` (not `baseline`): the click-to-edit input's border-box baseline sits lower than the
           label's text baseline, so baseline alignment GROWS the row ~4px on reveal — center keeps the
           rest→edit swap pixel-stable (the no-layout-shift bar). */}
       <Row justify="between" align="center" gap="block">
-        <MeterLabel label={label} leading={leading} labelTitle={labelTitle} />
+        <MeterLabel label={label} leading={leading} labelTitle={labelTitle} nameCarried={onEditValue !== undefined} />
         {onEditValue === undefined ? (
           <Text as="span" size="label" tone={valueWarning === true ? "warning" : undefined} className="tabular-nums">
             {meterDatum(value, max)}

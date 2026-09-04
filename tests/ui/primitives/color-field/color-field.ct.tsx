@@ -10,6 +10,9 @@ const STYLE_URL_RE = /url/u;
  *  `oklch(0.72 0.175 52)` survives as one layer instead of shattering into three. */
 const BOX_SHADOW_LAYER_SPLIT_RE = /,(?![^(]*\))/u;
 const NON_EMPTY = /.+/u;
+/** The inline refusal, which since #1358 NAMES the value it refused ("<value>" isn't a color…). Matched by
+ *  its stable half so a copy tweak does not red every arm; the naming half is asserted where it matters. */
+const REFUSAL = /isn't a color the browser can render/u;
 
 function noop(): void {
   // Intentional no-op — this test only checks the disabled trigger's DOM state, not commits.
@@ -21,6 +24,14 @@ test("ColorSwatch renders a plain display-only chip — no button, no popover", 
   await expect(swatch).toContainText("#336699");
   const chip = swatch.locator('[data-slot="color-swatch-chip"]');
   await expect(chip).toHaveCSS("background-color", "rgb(51, 102, 153)");
+});
+
+// A FENCE, not a defect proof (measured: it passes against the pre-fix source too, because the CSSOM
+// silently discards an invalid `background-color` assignment and React leaves the style attribute empty).
+// It is here so a future "just render the value and let the browser sort it out" cannot land.
+test("#1358 FENCE: an unrenderable value paints an empty chip rather than advertising a colour the browser drops", async ({ mount }) => {
+  const swatch = await mount(<ColorSwatch value="notacolorxx" />);
+  await expect(swatch.locator('[data-slot="color-swatch-chip"]')).not.toHaveAttribute("style", NON_EMPTY);
 });
 
 test("ColorSwatch drops an unsafe value instead of applying it as a style", async ({ mount }) => {
@@ -63,7 +74,7 @@ test("the clamp rejects a url() injection attempt — no commit, inline error sh
   await page.getByLabel("Accent").click();
   const hex = page.getByLabel("Hex");
   await hex.fill("url(javascript:alert(1))");
-  await expect(page.getByText("Enter a valid color")).toBeVisible();
+  await expect(page.getByText(REFUSAL)).toBeVisible();
   // The last-committed value is untouched — the hostile string never reached onValueChange.
   await expect(page.getByTestId("committed-value")).toHaveText("#111111");
 });
@@ -73,7 +84,7 @@ test("the clamp rejects an expression() injection attempt — no commit, inline 
   await page.getByLabel("Accent").click();
   const hex = page.getByLabel("Hex");
   await hex.fill("expression(alert(1))");
-  await expect(page.getByText("Enter a valid color")).toBeVisible();
+  await expect(page.getByText(REFUSAL)).toBeVisible();
   await expect(page.getByTestId("committed-value")).toHaveText("#111111");
 });
 
@@ -85,7 +96,7 @@ test("an unset (inherit) field shows NO error when opened — empty = a valid cl
   await mount(<ColorFieldHarness initialValue="" />);
   await page.getByLabel("Accent").click();
   await expect(page.getByLabel("Hex")).toHaveValue("");
-  await expect(page.getByText("Enter a valid color")).toHaveCount(0);
+  await expect(page.getByText(REFUSAL)).toHaveCount(0);
 });
 
 // An UNSET field's picker must not open PRELOADED WITH BLACK (side-eye 2026-08-08 P3). `#000000` against a
@@ -108,7 +119,33 @@ test("a NON-empty invalid value still errors — the gate neutralizes only EMPTY
   await page.getByLabel("Accent").click();
   // Non-empty, non-injection, but not a parseable color (digits, no `#`, not a named color).
   await page.getByLabel("Hex").fill("12345");
-  await expect(page.getByText("Enter a valid color")).toBeVisible();
+  await expect(page.getByText(REFUSAL)).toBeVisible();
+});
+
+// ── #1358: injection-safe is not renderable ───────────────────────────────────────────────────────────
+// `isSafeColor` admits ANY 3–20 letter bare word (a deliberate shape check, not a 150-name allowlist), so
+// `notacolorxx` used to pass this field's gate, reach `onValueChange`, persist verbatim — and then paint
+// nothing at all, because the renderer's parser cannot resolve it. No error, no fallback, no change. The
+// field now asks the second question (`isRenderableColor`) and refuses BY NAME, at the boundary the user
+// is typing into.
+test("#1358: an unrenderable bare word is refused by name and never reaches the caller", async ({ mount, page }) => {
+  await mount(<ColorFieldHarness initialValue="#111111" />);
+  await page.getByLabel("Accent").click();
+  await page.getByLabel("Hex").fill("notacolorxx");
+  // The refusal NAMES the value — a generic "enter a valid color" describes the grammar, not the mistake.
+  await expect(page.getByText('"notacolorxx" isn\'t a color the browser can render', { exact: false })).toBeVisible();
+  await expect(page.getByTestId("committed-value")).toHaveText("#111111");
+});
+
+// Also a FENCE (green before and after): the anti-over-tightening guard. `burlywood` is the standing
+// regression case for anything that touches this predicate — it contains the letters "url".
+test("#1358 FENCE: a real CSS named color is still accepted (the fix is a parser question, not an allowlist)", async ({ mount, page }) => {
+  await mount(<ColorFieldHarness initialValue="#111111" />);
+  await page.getByLabel("Accent").click();
+  // `burlywood` is the standing regression case for any tightening here — it contains "url".
+  await page.getByLabel("Hex").fill("burlywood");
+  await expect(page.getByText(REFUSAL)).toHaveCount(0);
+  await expect(page.getByTestId("committed-value")).toHaveText("burlywood");
 });
 
 // FINAL-Character §8.1 per-field clear: the explicit "Reset to default" button emits the "" sentinel so

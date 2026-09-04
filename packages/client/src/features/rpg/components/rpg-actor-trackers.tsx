@@ -14,6 +14,13 @@
 // CLEARS the override (`resolveTrackerMaxOverride`), so a stored override always means "different on purpose",
 // and an overridden row says so (the "default: N" microline).
 //
+// WHOSE SHEET IS THIS? (#1383) — every block here takes an optional `subject` (the carrier's name) and
+// runs its control names through the tracker kit's ONE qualification grammar (`trackerFieldName` /
+// `trackerActionName`). The Status ROSTER passes it: four cards on one region published 4x "Add
+// condition", 4x "Status line", 3x "HP value" with no group boundary, so a screen-reader user editing a
+// sheet could not tell whose sheet it was. The character TAKEOVER does not pass it — one carrier fills
+// the whole panel, and a prefix on every control there would be noise.
+//
 // PER-FIELD PINS (#10): every volatile hand edit stamps its FINE lock path (`actorState.<refKey>.status`,
 // `…trackerValues.<key>`, `…conditions`) via `lockPaths`, and the pin glyph renders ON the locked value —
 // model-writable fields only; hand-only planes (the def's max/color, level, title) never lock, so they never
@@ -28,7 +35,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CHIP_TOUCH_FLOOR_AT_COARSE, MeterRow, TrackerValue } from "#components";
+import { CHIP_TOUCH_FLOOR_AT_COARSE, MeterRow, TrackerValue, trackerActionName, trackerFieldName } from "#components";
 import { resolveConditionGlyph } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
@@ -69,11 +76,13 @@ function ActorTrackerMeter({
   def,
   value,
   ordinal,
+  subject,
   edit,
 }: {
   readonly def: RpgTrackerDef;
   readonly value: RpgTrackerValue;
   readonly ordinal: number;
+  readonly subject?: string;
   readonly edit?: ActorEdit;
 }): ReactElement {
   // NULLABLE ALL THE WAY DOWN (side-eye 08-01): a tracker the story has never written has no reading, and
@@ -115,7 +124,8 @@ function ActorTrackerMeter({
       valueWarning={reading !== null && max !== null && reading > max}
       {...(def.hint === "" ? {} : { labelTitle: def.hint })}
       {...trackColorProps(resolveTrackerColor(def.color, ordinal))}
-      {...(release === undefined ? {} : { leading: <RpgFieldLock field={def.label} onRelease={release} /> })}
+      {...(subject === undefined ? {} : { subject })}
+      {...(release === undefined ? {} : { leading: <RpgFieldLock field={trackerFieldName(def.label, subject)} onRelease={release} /> })}
       {...(edit === undefined
         ? {}
         : {
@@ -137,7 +147,17 @@ function ActorTrackerMeter({
 
 /** One TEXT/LIST tracker's row — a labelled reading, editable in place. A meter is the bar above; these are
  *  the observations (the old text cast-fields), which have no bar to draw. */
-function ActorTrackerText({ def, value, edit }: { readonly def: RpgTrackerDef; readonly value: RpgTrackerValue; readonly edit?: ActorEdit }): ReactElement {
+function ActorTrackerText({
+  def,
+  value,
+  subject,
+  edit,
+}: {
+  readonly def: RpgTrackerDef;
+  readonly value: RpgTrackerValue;
+  readonly subject?: string;
+  readonly edit?: ActorEdit;
+}): ReactElement {
   const display = def.shape === "list" ? (value.items ?? []).join(", ") : String(value.value ?? "");
   return (
     <Row gap="field" align="baseline" justify="between">
@@ -145,7 +165,7 @@ function ActorTrackerText({ def, value, edit }: { readonly def: RpgTrackerDef; r
         {def.label}
       </Text>
       <TrackerValue
-        ariaLabel={`${def.label} value`}
+        ariaLabel={trackerFieldName(`${def.label} value`, subject)}
         display={display}
         placeholder="—"
         {...(edit === undefined ? {} : { onEdit: (next: string): void => edit.onEditTrackerText(def.key, next) })}
@@ -159,7 +179,15 @@ function ActorTrackerText({ def, value, edit }: { readonly def: RpgTrackerDef; r
  *  separate HP field in lite). The trackers an actor carries are resolved SERVER-side (the one carrier
  *  predicate), so this renders exactly what the model was allowed to write. Renders NOTHING when the actor
  *  carries no meters — the caller owns the honest empty state (it knows whether any tracker exists at all). */
-export function ActorMeters({ actor, edit }: { readonly actor: RpgActorView; readonly edit?: ActorEdit }): ReactElement | null {
+export function ActorMeters({
+  actor,
+  subject,
+  edit,
+}: {
+  readonly actor: RpgActorView;
+  readonly subject?: string;
+  readonly edit?: ActorEdit;
+}): ReactElement | null {
   const values = actor.volatile?.trackerValues ?? {};
   const meters = actor.trackers.filter((def) => def.shape === "meter");
   if (meters.length === 0) {
@@ -168,14 +196,29 @@ export function ActorMeters({ actor, edit }: { readonly actor: RpgActorView; rea
   return (
     <Stack gap="field">
       {meters.map((def, i) => (
-        <ActorTrackerMeter key={def.key} def={def} value={values[def.key] ?? RPG_TRACKER_VALUE_EMPTY} ordinal={i} {...(edit === undefined ? {} : { edit })} />
+        <ActorTrackerMeter
+          key={def.key}
+          def={def}
+          value={values[def.key] ?? RPG_TRACKER_VALUE_EMPTY}
+          ordinal={i}
+          {...(subject === undefined ? {} : { subject })}
+          {...(edit === undefined ? {} : { edit })}
+        />
       ))}
     </Stack>
   );
 }
 
 /** The actor's non-meter tracker rows (text + list observations); nothing when it carries none. */
-export function ActorTrackerRows({ actor, edit }: { readonly actor: RpgActorView; readonly edit?: ActorEdit }): ReactElement | null {
+export function ActorTrackerRows({
+  actor,
+  subject,
+  edit,
+}: {
+  readonly actor: RpgActorView;
+  readonly subject?: string;
+  readonly edit?: ActorEdit;
+}): ReactElement | null {
   const values = actor.volatile?.trackerValues ?? {};
   const rows = actor.trackers.filter((def) => def.shape !== "meter");
   if (rows.length === 0) {
@@ -184,7 +227,13 @@ export function ActorTrackerRows({ actor, edit }: { readonly actor: RpgActorView
   return (
     <Stack gap="field">
       {rows.map((def) => (
-        <ActorTrackerText key={def.key} def={def} value={values[def.key] ?? RPG_TRACKER_VALUE_EMPTY} {...(edit === undefined ? {} : { edit })} />
+        <ActorTrackerText
+          key={def.key}
+          def={def}
+          value={values[def.key] ?? RPG_TRACKER_VALUE_EMPTY}
+          {...(subject === undefined ? {} : { subject })}
+          {...(edit === undefined ? {} : { edit })}
+        />
       ))}
     </Stack>
   );
@@ -192,7 +241,7 @@ export function ActorTrackerRows({ actor, edit }: { readonly actor: RpgActorView
 
 /** The quiet volatile STATUS line (free text — "on edge"). Editable-in-place for the host (#2); a pinned
  *  status (`…status` locked, #10) carries the pin + Release beside the value. Read-only + empty ⇒ nothing. */
-export function StatusLine({ status, edit }: { readonly status: string; readonly edit?: ActorEdit }): ReactElement | null {
+export function StatusLine({ status, subject, edit }: { readonly status: string; readonly subject?: string; readonly edit?: ActorEdit }): ReactElement | null {
   if (edit === undefined) {
     if (status === "") {
       return null;
@@ -206,7 +255,7 @@ export function StatusLine({ status, edit }: { readonly status: string; readonly
   return (
     <Row gap="field" align="center" className="min-w-0">
       <TrackerValue
-        ariaLabel="Status line"
+        ariaLabel={trackerFieldName("Status line", subject)}
         display={status}
         // No placeholder ⇒ TrackerValue's em dash (side-eye 08-01): the old "status…" sat in the datum slot
         // and read as a written reading ("the story says: status…"). An unwritten line is a dash, like every
@@ -216,7 +265,12 @@ export function StatusLine({ status, edit }: { readonly status: string; readonly
         onEdit={edit.onEditStatus}
         className="!w-auto min-w-0 max-w-full field-sizing-content"
       />
-      {edit.isLocked(".status") ? <RpgFieldLock field="the status line" onRelease={(): void => edit.onRelease(".status")} /> : null}
+      {edit.isLocked(".status") ? (
+        <RpgFieldLock
+          field={subject === undefined ? "the status line" : trackerFieldName("status line", subject)}
+          onRelease={(): void => edit.onRelease(".status")}
+        />
+      ) : null}
     </Row>
   );
 }
@@ -226,11 +280,13 @@ export function StatusLine({ status, edit }: { readonly status: string; readonly
  *  conditions plane (`…conditions` locked, #10) leads with the pin + Release. */
 export function ConditionChips({
   conditions,
+  subject,
   onAdd,
   onRemove,
   edit,
 }: {
   readonly conditions: ActorVolatile["conditions"];
+  readonly subject?: string;
   readonly onAdd?: (name: string) => void;
   readonly onRemove?: (name: string) => void;
   readonly edit?: ActorEdit;
@@ -241,7 +297,10 @@ export function ConditionChips({
   return (
     <Row gap="field" className="flex-wrap" data-slot="rpg-conditions">
       {edit === undefined || !edit.isLocked(".conditions") ? null : (
-        <RpgFieldLock field="the conditions" onRelease={(): void => edit.onRelease(".conditions")} />
+        <RpgFieldLock
+          field={subject === undefined ? "the conditions" : trackerFieldName("conditions", subject)}
+          onRelease={(): void => edit.onRelease(".conditions")}
+        />
       )}
       {/* THE CHIP CARRIES THE TOUCH FLOOR AT COARSE (owner ruling 2026-08-07, on side-eye's measured
           tables). The remove ✕ is `size="glyph-xs"` — FLOORLESS, so its 44px coarse hit area rides an
@@ -260,7 +319,13 @@ export function ConditionChips({
           <Icon icon={resolveConditionGlyph(cond.name)} size="xs" />
           {cond.name}
           {onRemove === undefined ? null : (
-            <Button aria-label={`Remove ${cond.name}`} intent="ghost" size="glyph-xs" onClick={(): void => onRemove(cond.name)} title={`Remove ${cond.name}`}>
+            <Button
+              aria-label={trackerActionName(`Remove ${cond.name}`, "from", subject)}
+              intent="ghost"
+              size="glyph-xs"
+              onClick={(): void => onRemove(cond.name)}
+              title={trackerActionName(`Remove ${cond.name}`, "from", subject)}
+            >
               <Icon icon={X} size="xs" />
             </Button>
           )}
@@ -268,7 +333,7 @@ export function ConditionChips({
       ))}
       {onAdd === undefined ? null : (
         <TrackerValue
-          ariaLabel="Add condition"
+          ariaLabel={trackerActionName("Add condition", "to", subject)}
           display=""
           placeholder="+ condition"
           onEdit={(next): void => {

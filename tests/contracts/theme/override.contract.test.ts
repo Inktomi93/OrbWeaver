@@ -47,6 +47,8 @@ describe("themeOverrideSchema (the wire clamp)", () => {
       accent: "LinkText",
       background: "currentColor",
       userBubble: { bg: "ActiveText", fg: "currentColor" },
+      // `notacolorxx` is injection-safe (a bare letter-word) and UNRENDERABLE — since #1358 the clamp asks
+      // both questions, so it drops here like any other value the renderer could not resolve.
       aiBubble: { bg: "notacolorxx", fg: "CanvasText" },
       speaker: "currentColor",
       dialogueColor: "LinkText",
@@ -58,12 +60,33 @@ describe("themeOverrideSchema (the wire clamp)", () => {
     expect(parsed.accent).toBeUndefined();
     expect(parsed.background).toBeUndefined();
     expect(parsed.userBubble).toEqual({ bg: undefined, fg: "currentColor" });
-    expect(parsed.aiBubble).toEqual({ bg: "notacolorxx", fg: "CanvasText" });
+    expect(parsed.aiBubble).toEqual({ bg: undefined, fg: "CanvasText" });
     expect(parsed.speaker).toBe("currentColor");
     expect(parsed.dialogueColor).toBe("LinkText");
     expect(parsed.narrationColor).toBe("CanvasText");
     expect(parsed.bodyColor).toBe("ActiveText");
     expect(parsed.borderColor).toBe("ButtonText");
+  });
+
+  // #1358 — the defect this closes: an unrenderable colour used to SAVE cleanly and then emit nothing at
+  // all (the letters-only NAMED shape passed the refine; ColorJS then threw on the unknown name, so
+  // `accentEmissionOn` returned undefined and the custom property was never written). No error, no
+  // fallback, no visible change. Both token classes now drop it; the user-facing REFUSAL is the
+  // ColorField's inline error, pinned in `tests/ui/primitives/color-field/color-field.ct.tsx`.
+  test("an unrenderable bare word drops from BOTH token classes (injection-safe is not renderable)", () => {
+    const parsed = themeOverrideSchema.parse({
+      accent: "notacolorxx",
+      background: "zzzz",
+      speaker: "notacolorxx",
+      borderColor: "notacolorxx",
+      bodyColor: "rebeccapurple",
+    });
+    expect(parsed.accent).toBeUndefined();
+    expect(parsed.background).toBeUndefined();
+    expect(parsed.speaker).toBeUndefined();
+    expect(parsed.borderColor).toBeUndefined();
+    // The renderable sibling on the same parse is untouched — this tightened one question, not the schema.
+    expect(parsed.bodyColor).toBe("rebeccapurple");
   });
 
   test("standard named derived fills survive the wire clamp, including burlywood", () => {

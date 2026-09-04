@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
-import { hueDistance, isDeterministicColor, isSafeColor, oklchHue, parseCssColorToSrgb } from "@orb/kit/safe-color";
+import { hueDistance, isDeterministicColor, isRenderableColor, isSafeColor, oklchHue, parseCssColorToSrgb } from "@orb/kit/safe-color";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -108,7 +108,11 @@ describe("isSafeColor", () => {
     // so it is harmless. This is deliberate (no ~150-name allowlist to maintain); this test guards against a
     // future "tighten to an allowlist" change silently breaking the many legit CSS names it would then miss.
     expect(isSafeColor("notacolorxx")).toBe(true);
+    // Deterministic is the CONTEXT-INDEPENDENCE question and still says yes here (#1358 did not move it —
+    // the render clamp reads it and its fail-open is load-bearing). RENDERABILITY is the separate third
+    // question, asked at write boundaries; see the `isRenderableColor` block below.
     expect(isDeterministicColor("notacolorxx")).toBe(true);
+    expect(isRenderableColor("notacolorxx")).toBe(false);
     expect(isSafeColor("rebeccapurple")).toBe(true);
     // But a word with a separator/digit is NOT letters-only — it must match a functional form or be rejected.
     expect(isSafeColor("not-a-color")).toBe(false);
@@ -168,6 +172,40 @@ describe("isSafeColor", () => {
 // The hue readers (side-eye 2026-08-03 P2): a surface arbitrating two AUTHORED tints against each other
 // needs to know whether they are the same colour. Deliberately oklch-only — a `null` is the honest
 // "cannot compare", and the caller must leave the value alone rather than de-collide against a guess.
+// ── #1358: injection-safe ≠ renderable ────────────────────────────────────────────────────────────────
+// The defect these pin: `isSafeColor` answers "this cannot carry a payload" and was READ everywhere as
+// "this is a colour". A theme accent of `notacolorxx` therefore passed the wire refine, persisted
+// verbatim, and then emitted NOTHING — `toOklch` returned null and `put("--color-primary", undefined)` is
+// a no-op, so the user saw no error, no fallback and no change.
+describe("isRenderableColor (#1358 — the second question: can the renderer resolve it?)", () => {
+  test("an unknown bare word is injection-safe, context-independent, and NOT renderable — three questions", () => {
+    for (const word of ["notacolorxx", "zzzz", "colourish"]) {
+      expect(isSafeColor(word), word).toBe(true);
+      expect(isDeterministicColor(word), word).toBe(true);
+      expect(isRenderableColor(word), word).toBe(false);
+    }
+  });
+
+  test("every form the browser can actually resolve stays renderable", () => {
+    for (const color of ["#abc", "#aabbccdd", "rgb(1 2 3)", "rgba(1,2,3,0.5)", "hsl(120 50% 50%)", "oklch(0.7 0.1 200)", "red", "burlywood", "rebeccapurple"]) {
+      expect(isRenderableColor(color), color).toBe(true);
+    }
+  });
+
+  test("a CONTEXTUAL colour is renderable but not deterministic — it resolves against the cascade, not to a pixel", () => {
+    for (const color of ["currentColor", "inherit", "CanvasText"]) {
+      expect(isRenderableColor(color), color).toBe(true);
+      expect(isDeterministicColor(color), color).toBe(false);
+    }
+  });
+
+  test("an injection shape is refused before the parser is ever asked", () => {
+    for (const hostile of ["url(https://evil.example/x)", "not-a-color", "color1", ""]) {
+      expect(isRenderableColor(hostile), hostile).toBe(false);
+    }
+  });
+});
+
 describe("oklchHue", () => {
   test("reads the hue angle out of every oklch spelling this app writes", () => {
     expect(oklchHue("oklch(0.85 0.10 80)")).toBe(80);

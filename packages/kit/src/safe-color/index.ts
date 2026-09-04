@@ -108,9 +108,42 @@ export function isSafeColor(raw: string): boolean {
 }
 
 /**
+ * THE SECOND QUESTION (#1358): can the RENDERER resolve this colour to a pixel at all?
+ *
+ * {@link isSafeColor} answers "injection-safe" and nothing else — its `NAMED` arm is a letters-only SHAPE
+ * check, so `notacolorxx` passes it, saves, persists, and then emits NOTHING (the browser drops the
+ * declaration; `toOklch` returns null and `put(--color-primary, undefined)` is a no-op). Safety and
+ * renderability are two different questions and the codebase only ever asked the first, so an
+ * unrenderable colour was accepted silently at every acceptor.
+ *
+ * A CONTEXTUAL colour (`currentColor`, a system colour, a CSS-wide value) is renderable — it resolves
+ * against the cascade rather than to a static pixel, which is what {@link isDeterministicColor} is for.
+ * Everything else must survive the standards parser.
+ *
+ * WHERE IT BELONGS: WRITE boundaries — the thing a user typed, and the wire schema that stores it. NOT the
+ * `<ThemeScope>` render clamp, whose fail-open is load-bearing (#939: an unreadable base still derives its
+ * ramp from ambient) and whose parser is deliberately allowed to be narrower than the browser's.
+ */
+export function isRenderableColor(raw: string): boolean {
+  const value = raw.trim();
+  if (!isSafeColor(value)) {
+    return false;
+  }
+  if (NON_DETERMINISTIC_COLOR_KEYWORDS.has(value.toLowerCase())) {
+    return true;
+  }
+  return parseCssColorToSrgb(value) !== null;
+}
+
+/**
  * A safe color whose painted pixel does not depend on inherited ink, the UA/platform system palette, or
  * CSS-wide cascade semantics. Use this narrower predicate only for fills that become inputs to static
  * ramp/foreground/contrast derivation; direct paints and inherited inks continue to use {@link isSafeColor}.
+ *
+ * ORTHOGONAL to {@link isRenderableColor} on purpose (#1358): this answers "does it denote ONE authored
+ * pixel", not "can the renderer resolve it". A WRITE boundary that needs both asks both — the render-side
+ * `<ThemeScope>` clamp deliberately does not, because its fail-open (emit the authored spelling, derive
+ * the ramp from ambient) is what keeps a value our parser cannot read but a BROWSER can from vanishing.
  */
 export function isDeterministicColor(raw: string): boolean {
   const value = raw.trim();
