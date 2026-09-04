@@ -1,14 +1,28 @@
-// verb: update — edit the live card IN PLACE (always safe; no CAS, no COW). Flattens the merged card to a
-// fresh contentHash, writes the flat row, emits character.updated so the embeddings indexer re-embeds.
+// verb: update — edit the live card IN PLACE (no COW). Flattens the merged card to a fresh contentHash,
+// writes the flat row, emits character.updated so the embeddings indexer re-embeds.
 // handle is an identity column, not card content — a rename refuses the reserved __group__* namespace.
 // The audit lists only fields that actually changed. An empty edit re-reads without writing.
+//
+// "ALWAYS SAFE; NO CAS" SURVIVES — ITS INPUT CHANGED (#1446). In-place is still unconditional for every
+// caller that reads the card and writes it back in one breath (the editor, the importer, the seeder): there
+// is no window for them to lose, and a version column on `characters` would tax every such write to protect
+// nobody. What the ruling never covered is a caller whose BASIS is old — the refinery's apply builds its
+// patch from a card read before two model calls and a snapshot write. Such a caller passes
+// `expectedContentHash`, and only then does the write carry a content predicate (`persistence/card.ts`) and
+// refuse TOTALLY with `CHARACTER_STALE_BASIS` rather than overwrite the edit that landed in between.
 
 import type { Principal } from "@orb/contracts/identity";
 import { backgroundMaterializeMessage } from "@orb/contracts/theme";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { cardContentHash } from "#kit/serde/card";
 import type { CharacterContext } from "../context.ts";
-import { CHARACTER_BACKGROUND_UNAVAILABLE, CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors.ts";
+import {
+  CHARACTER_BACKGROUND_UNAVAILABLE,
+  CHARACTER_HANDLE_RESERVED,
+  CHARACTER_STALE_BASIS,
+  CharacterNotFoundError,
+  CharacterOperationError,
+} from "../contract/errors.ts";
 import type { UpdateCharacterParams } from "../contract/params.ts";
 import type { CharacterService } from "../contract/service.ts";
 import { writeCardInPlace } from "../persistence/card.ts";
@@ -46,9 +60,10 @@ async function applyEdit(
     readonly characterId: CharacterId;
     readonly current: Awaited<ReturnType<typeof loadOwnedCharacterRow>> & object;
     readonly input: UpdateCharacterParams["input"];
+    readonly expectedContentHash: string | undefined;
   },
 ): Promise<void> {
-  const { ownerId, characterId, current, input } = args;
+  const { ownerId, characterId, current, input, expectedContentHash } = args;
   const next = mergeCard(cardOf(current), input);
   const nextHash = cardContentHash(next);
   const handleChanged = input.handle !== undefined && input.handle !== current.handle;
@@ -56,15 +71,27 @@ async function applyEdit(
   // indexer reads this to skip re-embedding a mere star toggle or rename.
   const contentChanged = nextHash !== current.contentHash;
   const at = ctx.now();
-  const written = await writeCardInPlace(ctx.db, characterId, ownerId, {
-    ...next,
-    contentHash: nextHash,
-    tokenSize: cardTokenSize(next),
-    updatedAt: at,
-    ...flagEdits(input),
-    // Inline narrow: exactOptionalPropertyTypes rejects `handle: string | undefined` against the required column.
-    ...(input.handle !== undefined && input.handle !== current.handle ? { handle: input.handle } : {}),
-  });
+  const written = await writeCardInPlace(
+    ctx.db,
+    { characterId, ownerId, ...(expectedContentHash === undefined ? {} : { expectedContentHash }) },
+    {
+      ...next,
+      contentHash: nextHash,
+      tokenSize: cardTokenSize(next),
+      updatedAt: at,
+      ...flagEdits(input),
+      // Inline narrow: exactOptionalPropertyTypes rejects `handle: string | undefined` against the required column.
+      ...(input.handle !== undefined && input.handle !== current.handle ? { handle: input.handle } : {}),
+    },
+  );
+  if (written === "stale") {
+    // #1446 — the caller declared the content it merged against and the card has moved since. TOTAL refusal:
+    // nothing was written, so the other writer's edit stands and this caller re-reads and re-applies.
+    throw new CharacterOperationError(
+      CHARACTER_STALE_BASIS,
+      "This character changed while the edit was being prepared — reload it and apply the change again.",
+    );
+  }
   if (written === "background-unavailable") {
     throw new CharacterOperationError(CHARACTER_BACKGROUND_UNAVAILABLE, "The background asset is no longer available.");
   }
@@ -124,7 +151,7 @@ async function resolveBackgroundOverride(
 }
 
 export function createUpdate(ctx: CharacterContext): CharacterService["update"] {
-  return async ({ principal, characterId, input: rawInput }: UpdateCharacterParams) => {
+  return async ({ principal, characterId, input: rawInput, expectedContentHash }: UpdateCharacterParams) => {
     const ownerId = principal.userId;
     // ORDER IS SECURITY-LOAD-BEARING (#1455): AUTHORIZE THE TARGET, THEN FETCH. `resolveBackgroundOverride`
     // drives an outbound fetch + image processing + a CAS/db write for any `kind:"external"` override, all
@@ -148,7 +175,7 @@ export function createUpdate(ctx: CharacterContext): CharacterService["update"] 
     await ensureBackgroundOverrideOwned(ctx.db, ownerId, input.backgroundOverride);
 
     if (Object.keys(input).length > 0) {
-      await applyEdit(ctx, { ownerId, characterId, current, input });
+      await applyEdit(ctx, { ownerId, characterId, current, input, expectedContentHash });
     }
 
     const updated = await loadOwnedCharacterWithAvatar(ctx.db, ownerId, characterId);

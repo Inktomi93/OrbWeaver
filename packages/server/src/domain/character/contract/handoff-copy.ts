@@ -24,24 +24,39 @@
 // SAME copies rather than minting a second set — which is the whole reason the mints are allowed to land
 // before the atomic swap at all.
 
+import type { AssetKind } from "@orb/contracts/assets";
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 
-/** Re-own ONE avatar blob into the recipient's library, returning the RECIPIENT's asset id (or `null` when
- *  the source asset is gone / not the old host's — the copy then lands faceless rather than not at all).
+/** Re-own ONE image blob into the recipient's library, returning the RECIPIENT's asset id (or `null` when
+ *  the source asset is gone / not the old host's — the copy then lands without that picture rather than not
+ *  at all).
  *
- *  A copy CANNOT carry `avatarAssetId` verbatim: `assets` is per-owner with a `(owner_id, hash)` dedup key
+ *  A copy CANNOT carry an asset id verbatim: `assets` is per-owner with a `(owner_id, hash)` dedup key
  *  (D21), so a foreign id on the nominee's card is a pointer into a library they cannot read AND a GC root
  *  holding the departed host's blob alive through a row they no longer control. Content-addressing makes the
  *  re-own cheap and idempotent — the same bytes under an owner who already has them resolve to their existing
- *  row rather than a second copy. Injected (assets owns the table); wired at the entry composition root. */
-export type CopyAvatarToOwner = (args: { readonly fromOwnerId: UserId; readonly toOwnerId: UserId; readonly assetId: AssetId }) => Promise<AssetId | null>;
+ *  row rather than a second copy. Injected (assets owns the table); wired at the entry composition root.
+ *
+ *  TWO CARRIED PICTURES, ONE PORT (#1426). The avatar was always re-owned here; the card's carried BACKGROUND
+ *  (`background_override` `kind:"asset"`) is the same fact wearing a different column and was being copied by
+ *  id, which is the exact pointer-into-a-foreign-library this port exists to prevent — and the UPDATE path
+ *  already refuses it (`ensureBackgroundOverrideOwned`, the BG-C belt), so a handoff copy was the one write
+ *  that could land a card the owner's own edit verb would reject. `kind` is the ASSET KIND the re-owned row
+ *  is stored under, because the two are genuinely different kinds in the CAS index (a background is not an
+ *  avatar to the gallery or to any per-kind read), never a caller-chosen label. */
+export type CopyAssetToOwner = (args: {
+  readonly fromOwnerId: UserId;
+  readonly toOwnerId: UserId;
+  readonly assetId: AssetId;
+  readonly kind: Extract<AssetKind, "avatar" | "background">;
+}) => Promise<AssetId | null>;
 
 /** The DI bundle `createCopyHandoffCards` closes over (assembled at the entry composition root). Purpose-
- *  built, NOT the full `CharacterContext`: the copy needs `db` + the clock + the id minter + the avatar
- *  re-own. It deliberately emits NO `character.updated` and writes NO audit row — the chat verb owns the
+ *  built, NOT the full `CharacterContext`: the copy needs `db` + the clock + the id minter + the image
+ *  re-own (avatar + carried background). It deliberately emits NO `character.updated` and writes NO audit row — the chat verb owns the
  *  audit for the transfer, and the embedding of a copied card rides the nominee's own next index sweep (the
  *  bulk-write silence `createBulkImportPersonas` keeps). */
 export interface CharacterHandoffCopyContext {
@@ -49,7 +64,7 @@ export interface CharacterHandoffCopyContext {
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
   readonly now: () => number;
   readonly newCharacterId: () => CharacterId;
-  readonly copyAvatar: CopyAvatarToOwner;
+  readonly copyAsset: CopyAssetToOwner;
 }
 
 /** One source→copy pairing the op resolved: `sourceCharacterId` is the OLD host's card (the id the room's

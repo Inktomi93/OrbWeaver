@@ -106,7 +106,7 @@ function minters(): { newCharacterId: () => CharacterId; newBookId: () => WorldB
   };
 }
 
-/** A chat context wired with the REAL copy factories. `copyAvatar` is the identity-ish stub (the avatar
+/** A chat context wired with the REAL copy factories. `copyAsset` is the identity-ish stub (the picture
  *  re-own is the assets domain's — its own contract; here it simply reports "no avatar"), so these tests
  *  assert the card/book/digest planes without an assets service. */
 function copyContext(overrides: NonNullable<Parameters<typeof makeChatContext>[1]> = {}): Parameters<typeof createRoster>[0] {
@@ -120,7 +120,7 @@ function copyContext(overrides: NonNullable<Parameters<typeof makeChatContext>[1
       bumpStatsCanonVersion,
       now: () => 1,
       newCharacterId: mint.newCharacterId,
-      copyAvatar: () => Promise.resolve(null),
+      copyAsset: () => Promise.resolve(null),
     }),
     copyHandoffBooks: createCopyHandoffBooks({ db, now: () => 1, newBookId: mint.newBookId, newEntryId: mint.newEntryId }),
     restampHandoffDigests: createHandoffRestampStatements({ db }),

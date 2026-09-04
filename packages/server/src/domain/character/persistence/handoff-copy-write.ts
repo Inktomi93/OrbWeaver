@@ -9,22 +9,29 @@
 //      converges on the copy that already exists rather than minting a second library;
 //   2. LOAD the source under `fromOwnerId` — the ownership axis is in the WHERE, so a card that is not the
 //      old host's is not a candidate and cannot be gifted by naming its id;
-//   3. RE-OWN the avatar (the injected `copyAvatar` op — assets are per-owner with a `(owner_id, hash)`
-//      dedup, so carrying the source's `avatarAssetId` verbatim would hand the nominee a pointer into a
-//      library they cannot read AND GC-root the old host's blob through their card);
-//   4. INSERT under a handle free in the nominee's own namespace.
+//   3. RE-OWN EVERY CARRIED PICTURE (the injected `copyAsset` op — assets are per-owner with a
+//      `(owner_id, hash)` dedup, so carrying a source asset id verbatim would hand the nominee a pointer
+//      into a library they cannot read AND GC-root the old host's blob through their card). That is BOTH
+//      the avatar and the card's carried BACKGROUND when it is `kind:"asset"` (#1426): the background was
+//      the one that used to travel by id, and the ordinary edit verb would have refused the resulting card
+//      (`ensureBackgroundOverrideOwned`);
+//   4. INSERT under a handle free in the nominee's own namespace, CLAIMING the provenance key in the write
+//      itself (#1432) — step 1's read is a fast path, not a lock, so two accepts of one offer racing here
+//      would otherwise both see "no copy" and mint two libraries. The loser converges on the winner's row.
 //
 // The copies are ORDINARY LIBRARY ROWS from the instant they land — the nominee's own cards, editable,
 // deletable, exportable, indistinguishable from a duplicate except for the provenance stamp. That matters
 // for the crash arm: mints that land without their room swap are not corruption and need no cleanup sweep.
 
-import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
+import type { ThemeBackground } from "@orb/contracts/theme";
+import { canonicalBackgroundSource } from "@orb/contracts/theme";
+import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { cardContentHash } from "#kit/serde/card";
 import type { CharacterHandoffCopyContext, CopyHandoffCards, HandoffCardCopy } from "../contract/handoff-copy.ts";
 import { handoffProvenance } from "../contract/handoff-copy.ts";
 import { cardTokenSize } from "../substrate/card-tokens.ts";
-import { insertCharacter } from "./card.ts";
+import { insertCharacterClaimingProvenance } from "./card.ts";
 import { cardOf, findByOwnerImportedFrom, listOwnedCharacterRows, listOwnerHandles } from "./queries.ts";
 
 /** How many handle candidates a copy probes before giving up on the card. The handle is a machine label in
@@ -45,6 +52,26 @@ function freeHandle(sourceHandle: CharacterHandle, taken: ReadonlySet<string>): 
     }
   }
   return null;
+}
+
+/** The carried BACKGROUND, re-owned into the recipient's library (#1426). Only `kind:"asset"` names an
+ *  owned row — a `seeded` slug is a static catalog entry every user can read, `none` is nothing, and a
+ *  persisted `external` cannot paint at all (BG-C's input-only invariant) — so those three travel verbatim,
+ *  exactly as `themeOverride` does. An asset source is re-stored under the recipient (content-addressed, so
+ *  identical bytes cost one dedup hit) and only its `assetId` moves; `assetHash`/`mime`/`provenanceUrl`
+ *  describe the BYTES, which did not change. A source the op cannot re-own (gone, or never the old host's)
+ *  degrades to "no carried background" through the canonical shape rather than leaving a foreign pointer:
+ *  the same honest degrade the avatar takes when it lands faceless. */
+async function reownBackground(
+  ctx: CharacterHandoffCopyContext,
+  owners: { readonly fromOwnerId: UserId; readonly toOwnerId: UserId },
+  source: ThemeBackground | null,
+): Promise<ThemeBackground | null> {
+  if (source === null || source.kind !== "asset" || source.assetId.length === 0) {
+    return source;
+  }
+  const assetId = await ctx.copyAsset({ ...owners, assetId: castId<AssetId>(source.assetId), kind: "background" });
+  return assetId === null ? canonicalBackgroundSource({ ...source, kind: "none" }) : { ...source, assetId };
 }
 
 export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHandoffCards {
@@ -88,10 +115,14 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
     });
 
     const minted = await Promise.all(
-      plan.map(async ({ source, handle, newId }): Promise<HandoffCardCopy> => {
+      plan.map(async ({ source, handle, newId }): Promise<readonly HandoffCardCopy[]> => {
         const card = cardOf(source);
-        const avatarAssetId = source.avatarAssetId === null ? null : await ctx.copyAvatar({ fromOwnerId, toOwnerId, assetId: source.avatarAssetId });
-        await insertCharacter(
+        const provenance = handoffProvenance(chatId, source.id);
+        const [avatarAssetId, backgroundOverride] = await Promise.all([
+          source.avatarAssetId === null ? null : ctx.copyAsset({ fromOwnerId, toOwnerId, assetId: source.avatarAssetId, kind: "avatar" }),
+          reownBackground(ctx, { fromOwnerId, toOwnerId }, source.backgroundOverride),
+        ]);
+        const claimed = await insertCharacterClaimingProvenance(
           db,
           {
             ...card,
@@ -118,10 +149,12 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
             // lower, until the new host decides. NOT the same call as `duplicate`, which is same-owner.
             interactiveHtml: null,
             themeOverride: source.themeOverride,
-            backgroundOverride: source.backgroundOverride,
+            // …but the BACKGROUND is re-owned, not carried by id (step 3 / #1426).
+            backgroundOverride,
             // The provenance stamp IS the idempotency key (`duplicate` deliberately clears provenance; a
-            // handoff copy deliberately carries it). `importHash` stays null — there were no import bytes.
-            importedFrom: handoffProvenance(chatId, source.id),
+            // handoff copy deliberately carries it), and the insert CLAIMS it atomically.
+            // `importHash` stays null — there were no import bytes.
+            importedFrom: provenance,
             // RULING (security pass §3.D, refinery R1): the refinery signals do NOT cross the owner
             // boundary — they are the OLD host's private quality judgement (the analysis may echo their
             // session `guidance`), derived data the new owner regenerates in one run. Every other
@@ -132,10 +165,19 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
           },
           ctx.bumpStatsCanonVersion,
         );
-        return { sourceCharacterId: source.id, characterId: newId, minted: true };
+        if (claimed) {
+          return [{ sourceCharacterId: source.id, characterId: newId, minted: true }];
+        }
+        // A concurrent accept of the same offer won this key. Converge on THEIR copy — the identical answer
+        // the sequential re-accept path gives, and the reason `minted` exists (audit trail, not control
+        // flow). A key claimed by a row we can no longer read is not reachable: the claim is per-OWNER and
+        // this owner is the recipient, so the winner's row is theirs; a deletion in that instant drops the
+        // seat to the caller's D64 fallback, exactly like a source card deleted between nominate and accept.
+        const [winner] = await findByOwnerImportedFrom(db, toOwnerId, [provenance]);
+        return winner === undefined ? [] : [{ sourceCharacterId: source.id, characterId: winner.characterId, minted: false }];
       }),
     );
 
-    return [...[...already].map(([sourceCharacterId, characterId]) => ({ sourceCharacterId, characterId, minted: false })), ...minted];
+    return [...[...already].map(([sourceCharacterId, characterId]) => ({ sourceCharacterId, characterId, minted: false })), ...minted.flat()];
   };
 }

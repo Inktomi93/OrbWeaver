@@ -92,3 +92,29 @@ test("a mid-round analyze failure leaves the rewrite run and an UNBUMPED counter
   // everywhere. The failing analyze wrote nothing, so the tick is still exactly ONE.
   expect(h.userEvents.slice(4)).toEqual([{ userId: owner, event: { type: "refineryChanged", sessionId: session.id } }]);
 });
+
+test("two CONCURRENT rounds count as TWO completed rounds, with distinct round numbers (#1445)", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_it_race" });
+  const h = makeRefineryHarness(db);
+  const session = await seedFirstPass(h, owner, "it-card-race");
+
+  // Four scripted replies in CONSUMPTION order: both rounds enter their rewrite half before either reaches
+  // its analyze half (the tape is one FIFO shared by both). Both also loaded the session row before either
+  // finished — exactly the stale snapshot a `row.iterationCount + 1` writes from.
+  h.queueReply(rewriteReply());
+  h.queueReply(rewriteReply());
+  h.queueReply(analyzeReply());
+  h.queueReply(analyzeReply());
+  const rounds = await Promise.all([
+    h.svc.iterate({ principal: principal(owner), sessionId: session.id }),
+    h.svc.iterate({ principal: principal(owner), sessionId: session.id }),
+  ]);
+
+  // The counter counts COMPLETED ROUNDS (this file's header). Two rounds completed, so the tally is 2 and
+  // the two callers were handed DIFFERENT round numbers — reporting "1" twice while the ledger holds four
+  // new runs is the surface lying about its own history.
+  expect(rounds.map((round) => round.iterationCount).sort()).toEqual([1, 2]);
+  const updated = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
+  expect(updated.iterationCount).toBe(2);
+});

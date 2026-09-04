@@ -22,6 +22,7 @@ import { updateCharacterSchema } from "@orb/contracts/character";
 import { refinerySessions } from "@orb/db";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
+import { cardContentHash } from "#kit/serde/card";
 import type { RefineryContext } from "../context.ts";
 import type { RefineryService } from "../contract/service.ts";
 import { buildPatch, remapSelection, resolveApplyBasis } from "../substrate/accept-belts.ts";
@@ -53,8 +54,25 @@ export function createApplyFields(ctx: RefineryContext): RefineryService["applyF
     const input = updateCharacterSchema.parse(patch);
 
     // Belt 13 — snapshot first, then the ONE canon write (both through the injected character ops).
+    //
+    // BELT 14 — THE BASIS FENCE (#1446). Every concrete value in `input` was computed from `liveCard`, which
+    // was read at `resolveApplyBasis` and is by construction OLD: a snapshot write sits between, and the user
+    // reached this verb after reading a rendered diff. A plain in-place update would silently overwrite an
+    // edit that landed in that window, and the §21 divergence belt cannot see it (that belt compares against
+    // the session's `original_card` pin from session start, not against the basis this patch was built on).
+    // So the write is CONDITIONAL on the card still carrying the content the patch was merged against, and a
+    // card that moved refuses TOTALLY (`CHARACTER_STALE_BASIS`) — nothing is half-applied, the other edit
+    // stands, and the user re-runs the apply against a fresh diff. The hash is recomputed from the SAME
+    // projection the character row stores (`cardContentHash` over the card, the `verbs/update` spelling), so
+    // it equals `characters.content_hash` exactly; a flag/handle-only edit does not move it and correctly
+    // does not fence this write.
     const snapshot = await ctx.snapshotCharacter({ principal, characterId: session.characterId, label: applySnapshotLabelOf(sessionId) });
-    const detail = await ctx.updateCharacter({ principal, characterId: session.characterId, input });
+    const detail = await ctx.updateCharacter({
+      principal,
+      characterId: session.characterId,
+      input,
+      expectedContentHash: cardContentHash(liveCard),
+    });
 
     // An apply completes the session (a later run/iterate flips it back active — a label, not a lock), and
     // a greeting removal REMAPS the selection in the same write: the session speaks in positions, so an

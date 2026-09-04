@@ -36,12 +36,16 @@ export function createRestore(ctx: CharacterContext): CharacterService["restore"
       createdAt: at,
     });
 
-    const written = await writeCardInPlace(ctx.db, characterId, ownerId, {
-      ...blob,
-      contentHash: cardContentHash(blob),
-      tokenSize: cardTokenSize(blob),
-      updatedAt: at,
-    });
+    const written = await writeCardInPlace(
+      ctx.db,
+      { characterId, ownerId },
+      {
+        ...blob,
+        contentHash: cardContentHash(blob),
+        tokenSize: cardTokenSize(blob),
+        updatedAt: at,
+      },
+    );
     if (written === "background-unavailable") {
       throw new CharacterOperationError(CHARACTER_BACKGROUND_UNAVAILABLE, "The background asset is no longer available.");
     }

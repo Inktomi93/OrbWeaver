@@ -4,11 +4,33 @@
 // description-only edit does not (prose is not provenance). Leak-free NOT_FOUND on foreign/absent ids.
 
 import { refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
+import type { refinerySchemas } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
+import type { RefinerySchemaId, UserId } from "@orb/kit/ids";
 import type { RefineryContext } from "../context.ts";
 import type { RefineryService } from "../contract/service.ts";
 import { loadOwnedSchemaRow, schemaSummaryOf, updateOwnedSchemaIfNameFree } from "../persistence/queries.ts";
-import { schemaNameTakenError } from "../substrate/schema-library.ts";
+import { schemaNameTakenError, schemaStalePatchError } from "../substrate/schema-library.ts";
+
+/** Three refusals share ONE empty result, so an owner-scoped re-read says which — in the order the user can
+ *  act on: gone, then moved-under-us (stale: their patch is intact and they re-apply it), then name-taken.
+ *  Reached only on the empty-result path, so the CAS costs the happy path no query. */
+async function refusalFor(
+  ctx: RefineryContext,
+  args: { readonly ownerId: UserId; readonly schemaId: RefinerySchemaId; readonly observed: RefinerySchemaRow; readonly name: string },
+): Promise<Error> {
+  const { ownerId, schemaId, observed, name } = args;
+  const stillOwned = await loadOwnedSchemaRow(ctx.db, ownerId, schemaId);
+  if (stillOwned === undefined) {
+    return new DomainNotFoundError("refinery schema", schemaId);
+  }
+  if (stillOwned.version !== observed.version || stillOwned.description !== observed.description) {
+    return schemaStalePatchError();
+  }
+  return schemaNameTakenError(name);
+}
+
+type RefinerySchemaRow = typeof refinerySchemas.$inferSelect;
 
 export function createUpdateSchema(ctx: RefineryContext): RefineryService["updateSchema"] {
   return async ({ principal, schemaId, patch }) => {
@@ -34,13 +56,14 @@ export function createUpdateSchema(ctx: RefineryContext): RefineryService["updat
       version,
       updatedAt: ctx.now(),
     };
-    const persisted = await updateOwnedSchemaIfNameFree(ctx.db, updated);
+    // OPTIMISTIC CAS (#1445). The merge above is a READ-MODIFY-WRITE of the WHOLE document, so the write
+    // must be conditional on the row still being `row` — two concurrent patches to DISJOINT fields both
+    // merge off the same pre-edit snapshot, and without the predicate the second one silently drops the
+    // first (both answering success, both reporting the same version). `row` is what this caller OBSERVED;
+    // `updated` is what it would write.
+    const persisted = await updateOwnedSchemaIfNameFree(ctx.db, updated, row);
     if (persisted === undefined) {
-      const stillOwned = await loadOwnedSchemaRow(ctx.db, ownerId, schemaId);
-      if (stillOwned === undefined) {
-        throw new DomainNotFoundError("refinery schema", schemaId);
-      }
-      throw schemaNameTakenError(doc.name);
+      throw await refusalFor(ctx, { ownerId, schemaId, observed: row, name: doc.name });
     }
     ctx.emitUserEvent(ownerId, { type: "refineryChanged" });
     return schemaSummaryOf(persisted);
