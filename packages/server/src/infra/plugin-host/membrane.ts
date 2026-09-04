@@ -50,6 +50,7 @@ import {
   PLUGIN_SURFACE_ID_RE,
   PLUGIN_TIER_REGISTRAR,
   PLUGIN_TOAST_LEVELS,
+  PLUGIN_TOOL_NAME_RE,
   PluginCapabilityError,
   PluginSuggestedError,
   pluginCommandRegistrationMetaSchema,
@@ -1321,6 +1322,18 @@ function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membrane
     if (typeof name !== "string" || typeof description !== "string" || typeof parameters !== "object" || parameters === null) {
       handler.dispose();
       throw new Error("plugin host: tools.register definition must be { name, description, parameters, handler }");
+    }
+    // THE TOOL NAME IS GUEST INPUT AND THIS IS ITS TRUST BOUNDARY. `PLUGIN_TOOL_NAME_RE` is the grammar
+    // `host-v1.ts` promises a plugin author and the one a `tool-card` surface's `toolName` is already held to
+    // — but this seam used to check `typeof name === "string"` only, so an unbounded, arbitrary-charset guest
+    // string was collected, retained for the instance lifetime, and carried into `pluginToolWireName` to
+    // become a MODEL-VISIBLE function name. Bounding it HERE keeps the two spellings of one grammar
+    // (registration and the card linkage) from admitting different names, and makes a bad name the guest's
+    // own contained `tools.register` throw instead of a downstream registrar refusal that fails the whole
+    // activation.
+    if (!PLUGIN_TOOL_NAME_RE.test(name)) {
+      handler.dispose();
+      throw new Error(`plugin host: tools.register name must match ${PLUGIN_TOOL_NAME_RE.source}`);
     }
     runtime.collectTool({ name, description, parameters: parameters as Record<string, unknown> }, handler);
     return ctx.undefined;

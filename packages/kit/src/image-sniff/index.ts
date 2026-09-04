@@ -9,7 +9,6 @@ const HEX_RADIX = 16;
 const BYTE_HEX_WIDTH = 2;
 
 // Leading hex signatures (lowercase). The trailing ASCII bytes spell the format tag in each case.
-const PNG_HEX = "89504e47";
 const JPEG_HEX = "ffd8ff";
 const GIF87A_HEX = "474946383761"; // "GIF87a"
 const GIF89A_HEX = "474946383961"; // "GIF89a"
@@ -40,6 +39,16 @@ function hexSlice(bytes: Uint8Array, start: number, end: number): string {
   }
   return out;
 }
+
+/** THE PNG file signature — all EIGHT bytes (PNG spec §5.2), and THE authority for "is this a PNG" in this
+ *  repo. `kit/png-card-chunk` imports this exact constant instead of re-spelling it: this module used to test
+ *  a four-byte PREFIX while the card codec tested all eight, so a file opening `89 50 4e 47` + anything was a
+ *  PNG to the sniff and not a PNG to the codec — a disagreement that sits on an UPLOAD boundary (the assets
+ *  magic belt admits it, the card reader refuses it) and hands the mime table a format claim libpng would
+ *  reject outright. */
+// biome-ignore lint/style/noMagicNumbers: the fixed 8-byte PNG file signature (PNG spec §5.2).
+export const PNG_SIGNATURE = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const PNG_HEX = hexSlice(PNG_SIGNATURE, 0, PNG_SIGNATURE.length);
 
 /** The detected image MIME from the leading magic bytes, or `application/octet-stream` when no known
  *  signature matches (PNG/JPEG/GIF/WebP only). Pure — never throws, never reads past the header; a buffer
@@ -115,7 +124,14 @@ function isAnimatedWebp(bytes: Uint8Array): boolean {
 /** Whether `bytes` is an animated image (GIF / APNG / animated WebP). Pure byte inspection — never throws,
  *  never decodes. The variant pipeline calls this to BAIL on a downscale (sharp's webp encoder drops
  *  animation), and the asset store computes it ONCE so `AssetListItem.animated` is a stored fact rather
- *  than a per-list re-sniff (gallery-design §2/§3). */
+ *  than a per-list re-sniff (gallery-design §2/§3).
+ *
+ *  THIS IS A DISPLAY HINT, NOT A TRUSTED FACT. The APNG/WebP arms scan a bounded byte WINDOW for the ASCII
+ *  chunk tags, with no chunk-length validation — the four characters `acTL` inside an unrelated payload read
+ *  as "animated". That is deliberate (frame counting costs a parser) and it is affordable because both
+ *  consumers are cosmetic: a false positive skips a downscale or paints an "animated" badge. Never promote it
+ *  into a security or admission decision — the structural arm of this module is {@link sniffImageBytes}'s
+ *  dimension read, which is what a cap may trust. */
 export function isAnimated(bytes: Uint8Array): boolean {
   const mime = sniffMime(bytes);
   if (mime === GIF_MIME) {
@@ -140,7 +156,8 @@ export interface SniffedImage {
   /** Header-parsed pixel dimensions; `null` when the header is present but truncated/unparseable. */
   readonly width: number | null;
   readonly height: number | null;
-  /** GIF ⇒ true, APNG `acTL`, animated WebP — the {@link isAnimated} semantics. */
+  /** GIF ⇒ true, APNG `acTL`, animated WebP — the {@link isAnimated} semantics. A display HINT (window-scanned,
+   *  false positives possible), never an input to an admission decision. */
   readonly animated: boolean;
 }
 
@@ -181,8 +198,6 @@ const OFF = {
   jpegSofEnd: 9,
   ispeVersionFlags: 4,
   ispeHeight: 4,
-  // Bytes spanned by the two u32 dimension fields (width at base+0, height at base+4).
-  ispeDimsSpan: 8,
 } as const;
 
 // Byte-composition + bitfield factors, spelled as multiply/divide/modulo (no bitwise). `SHIFT_n` = 2^n as a
@@ -306,27 +321,122 @@ function jpegDimensions(b: Uint8Array): Dimensions {
   return NO_DIMENSIONS;
 }
 
-/** AVIF dimensions from the first `ispe` (image spatial extents) box, best-effort; `null` when absent. */
-function avifDimensions(b: Uint8Array): Dimensions {
-  const last = Math.min(b.length, ANIM_SCAN_WINDOW) - FOURCC_LEN;
-  for (let i = 0; i <= last; i += 1) {
-    if (fourccAt(b, i, "ispe")) {
-      const base = i + FOURCC_LEN + OFF.ispeVersionFlags; // skip the FourCC + the version/flags word
-      if (base + OFF.ispeDimsSpan > b.length) {
-        return NO_DIMENSIONS;
-      }
-      return { width: u32BE(b, base), height: u32BE(b, base + OFF.ispeHeight) };
-    }
-  }
-  return NO_DIMENSIONS;
+// ── AVIF: a STRUCTURAL ISO-BMFF walk, because this arm feeds a security cap ──────────────────────────────
+//
+// The AVIF dimensions reach `infra/network/image-guard`'s `isAllowedImageBuffer` — the DECOMPRESSION-BOMB
+// defence on remote bytes. So they may not come from a byte scan: `ispe` is four ASCII characters, and any
+// payload an attacker controls (an EXIF blob, an `mdat`, a `free` box) can carry those four bytes followed by
+// a decoy 1×1 extent. Read against the previous window scan, a real 32000×32000 AVIF carrying such a decoy
+// measured as 1×1 and walked straight through the cap.
+//
+// The dimensions are therefore read ONLY from an `ispe` FullBox reached by descending the boxes that are
+// allowed to contain it — `meta` → `iprp` → `ipco` (ISO/IEC 23008-12 §6.5.3) — and a file whose structure
+// cannot be validated yields NO dimensions, which the cap treats as a REJECT (`requireDimensions` defaults
+// true). Unknown dimensions must never read as "small enough".
+
+/** Box header = size(4) + type(4). */
+const BOX_HEADER_LEN = 8;
+/** `meta` is a FullBox: version(1) + flags(3) precede its children. */
+const FULLBOX_VERSION_FLAGS = 4;
+/** `ftyp` = header + major_brand(4) + minor_version(4); compatible brands follow in 4-byte steps. */
+const FTYP_MIN_LEN = 16;
+/** The `ftyp` offset holding the minor VERSION — a number, never a brand, so the brand scan skips it. */
+const FTYP_MINOR_VERSION_OFFSET = 12;
+/** How many sibling boxes one container walk will read. A header holds a few dozen; the budget keeps a
+ *  crafted file from turning the walk into work proportional to its own size. */
+const BOX_BUDGET = 256;
+/** An `ispe` payload = version/flags(4) + width(4) + height(4). */
+const ISPE_BODY_LEN = 12;
+/** The one `ispe` version this parser reads; a future version may re-lay the fields, so it is a refusal. */
+const ISPE_VERSION = 0;
+/** A declared extent below this is not an image (0 would also pass every pixel cap for free). */
+const MIN_DIMENSION = 1;
+
+/** A child box's payload span — `[start, end)` of the bytes INSIDE its header. */
+interface BoxSpan {
+  readonly start: number;
+  readonly end: number;
 }
 
-/** True iff `bytes` is an ISO-BMFF `ftyp` box carrying an AVIF-family brand (`avif`/`avis`). */
+/** The first child box of `type` directly inside `[start, end)`, or null. The walk stops at the first box it
+ *  cannot validate — a size below the header, a size running past the container, or the ISO-BMFF extended
+ *  forms (size 0 = "to end of file", size 1 = 64-bit largesize), none of which this bounded header parse
+ *  reads. Stopping yields "no box", never a guess. */
+function findBox(b: Uint8Array, start: number, end: number, type: string): BoxSpan | null {
+  let offset = start;
+  for (let seen = 0; seen < BOX_BUDGET && offset + BOX_HEADER_LEN <= end; seen += 1) {
+    const size = u32BE(b, offset);
+    if (size < BOX_HEADER_LEN || offset + size > end) {
+      return null;
+    }
+    if (fourccAt(b, offset + FOURCC_LEN, type)) {
+      return { start: offset + BOX_HEADER_LEN, end: offset + size };
+    }
+    offset += size;
+  }
+  return null;
+}
+
+/** The LARGEST extent declared by any `ispe` box directly inside `[start, end)`. An `ipco` holds one property
+ *  set per item (a thumbnail and its primary image both land here), and resolving which belongs to the primary
+ *  item means parsing `pitm` + `ipma`. Taking the maximum is the fail-CLOSED answer for a bomb cap: a decoy
+ *  small extent cannot lower what the cap sees, and an inflated one can only get the uploader's own bytes
+ *  rejected. */
+function largestIspe(b: Uint8Array, start: number, end: number): Dimensions {
+  let best: Dimensions = NO_DIMENSIONS;
+  let bestPixels = 0;
+  let offset = start;
+  for (let seen = 0; seen < BOX_BUDGET && offset + BOX_HEADER_LEN <= end; seen += 1) {
+    const size = u32BE(b, offset);
+    if (size < BOX_HEADER_LEN || offset + size > end) {
+      return best;
+    }
+    const body = offset + BOX_HEADER_LEN;
+    if (fourccAt(b, offset + FOURCC_LEN, "ispe") && offset + size - body >= ISPE_BODY_LEN && b[body] === ISPE_VERSION) {
+      const width = u32BE(b, body + OFF.ispeVersionFlags);
+      const height = u32BE(b, body + OFF.ispeVersionFlags + OFF.ispeHeight);
+      if (width >= MIN_DIMENSION && height >= MIN_DIMENSION && width * height > bestPixels) {
+        best = { width, height };
+        bestPixels = width * height;
+      }
+    }
+    offset += size;
+  }
+  return best;
+}
+
+/** AVIF dimensions from the `ispe` box the structure leads to (`meta` → `iprp` → `ipco`); `NO_DIMENSIONS`
+ *  when any hop is absent or unvalidatable — which the image guard rejects rather than waves through. */
+function avifDimensions(b: Uint8Array): Dimensions {
+  const meta = findBox(b, 0, b.length, "meta");
+  if (meta === null) {
+    return NO_DIMENSIONS;
+  }
+  const iprp = findBox(b, meta.start + FULLBOX_VERSION_FLAGS, meta.end, "iprp");
+  if (iprp === null) {
+    return NO_DIMENSIONS;
+  }
+  const ipco = findBox(b, iprp.start, iprp.end, "ipco");
+  if (ipco === null) {
+    return NO_DIMENSIONS;
+  }
+  return largestIspe(b, ipco.start, ipco.end);
+}
+
+/** True iff `bytes` opens with an ISO-BMFF `ftyp` box DECLARING an AVIF-family brand (`avif`/`avis`) as its
+ *  major or one of its compatible brands. Structural, not a window scan: the brands are exactly the bytes the
+ *  `ftyp` box spans, so the four characters `avif` sitting in some later payload no longer name the format. */
 function isAvif(bytes: Uint8Array): boolean {
-  if (!fourccAt(bytes, FOURCC_LEN, "ftyp")) {
+  if (bytes.length < FTYP_MIN_LEN || !fourccAt(bytes, FOURCC_LEN, "ftyp")) {
     return false;
   }
-  return containsFourcc(bytes, "avif", FOURCC_LEN, ANIM_SCAN_WINDOW) || containsFourcc(bytes, "avis", FOURCC_LEN, ANIM_SCAN_WINDOW);
+  const end = Math.min(u32BE(bytes, 0), bytes.length);
+  for (let offset = BOX_HEADER_LEN; offset + FOURCC_LEN <= end; offset += FOURCC_LEN) {
+    if (offset !== FTYP_MINOR_VERSION_OFFSET && (fourccAt(bytes, offset, "avif") || fourccAt(bytes, offset, "avis"))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** The full byte-facts of an image buffer — `{mime, ext, width, height, animated}` — or `null` when no

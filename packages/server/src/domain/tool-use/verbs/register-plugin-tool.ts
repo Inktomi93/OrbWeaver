@@ -66,7 +66,14 @@ export function createRegisterPluginTool(registry: ToolRegistry): (spec: PluginT
     // or a second copy of the same slug, both of which are genuinely its own bug.
     const key = toolRegistryKey(spec.installer.userId, spec.name);
     if (registry.has(key)) {
-      throw new ToolNameCollisionError(spec.name);
+      // TWO DIFFERENT PLUGINS CAN LAND HERE, not just one plugin registering twice: `pluginToolWireName`
+      // flattens `<slug>` + `<name>` with `-`→`_`, which is NOT injective (`("foo-bar","baz")` and
+      // `("foo","bar_baz")` both spell `plugin_foo_bar_baz`, and both halves are independently valid). This
+      // refusal IS the wall for that case — the second registration is rejected loudly and the incumbent is
+      // untouched, never silently overwritten — so the message says which shelf the name is already on.
+      throw new ToolNameCollisionError(
+        `${spec.name} (this installer already has a tool under this wire name — a second plugin whose slug/name flatten alike collides here)`,
+      );
     }
     // A contributor may never SHADOW a first-party tool for its installer: the driver-scoped lookup prefers the
     // installer's own shelf, so admitting this would let a plugin silently take over a builtin's name for the

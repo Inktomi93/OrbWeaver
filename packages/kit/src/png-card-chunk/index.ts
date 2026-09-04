@@ -5,9 +5,11 @@
 // card type and stays layer-cake-clean.
 //
 // READ also accepts `zTXt` (the same keyword+base64 payload, zlib-DEFLATE compressed) because some
-// ecosystem exporters emit it; WRITE stays tEXt-only, which is what SillyTavern and every other
-// importer expects. zTXt is why the read seam is ASYNC: the dependency-free inflate is the WHATWG
-// `DecompressionStream`, and it is stream-shaped.
+// ecosystem exporters emit it; WRITE EMITS tEXt only, which is what SillyTavern and every other
+// importer expects — but it SUPERSEDES both types, dropping a stale card chunk whichever way it was
+// stored. Both halves of the vocabulary, one rule per direction: the write knows every kind of stale
+// card, the read knows every kind of fresh one. zTXt is why the read seam is ASYNC: the dependency-free
+// inflate is the WHATWG `DecompressionStream`, and it is stream-shaped.
 //
 // KIT-PURITY NOTE: neo's source used `node:buffer` (`Buffer`) for base64 + UTF-8. kit is isomorphic
 // (tsconfig lib = es2025, types = []), so `Buffer`, `TextEncoder`/`TextDecoder`, and `atob`/`btoa` are
@@ -15,7 +17,9 @@
 // ECMAScript built-ins `encode/decodeURIComponent`, and base64 is hand-packed. No node, no DOM, no
 // global-environment assumptions: this runs unchanged in a browser or Node.
 
-const SIGNATURE_LENGTH = 8;
+import { PNG_SIGNATURE } from "#image-sniff";
+
+const SIGNATURE_LENGTH = PNG_SIGNATURE.length;
 const LENGTH_FIELD_BYTES = 4;
 const TYPE_FIELD_BYTES = 4;
 const CRC_FIELD_BYTES = 4;
@@ -35,34 +39,35 @@ const ZLIB_FORMAT = "deflate";
 const CHARA_KEY = "chara";
 const CCV3_KEY = "ccv3";
 
-// biome-ignore lint/style/noMagicNumbers: the fixed 8-byte PNG file signature (PNG spec §5.2).
-const PNG_SIGNATURE = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-
 /** True when `data` starts with the 8-byte PNG signature. The byte-sniff every card upload runs
- *  (PNG-with-embedded-chunk vs bare JSON). */
+ *  (PNG-with-embedded-chunk vs bare JSON). The signature itself is `kit/image-sniff`'s
+ *  {@link PNG_SIGNATURE} — the ONE spelling, imported rather than repeated, because the two modules
+ *  disagreeing about what a PNG is (a 4-byte prefix there, all 8 here) sat on an upload boundary. */
 export function isPng(data: Uint8Array): boolean {
   return data.length >= SIGNATURE_LENGTH && PNG_SIGNATURE.every((b, i) => data[i] === b);
 }
 
-/** Read a `tEXt` (plain) or `zTXt` (zlib-compressed) chunk value by keyword (case-insensitive),
- *  base64-DECODED to the original UTF-8 string. First matching chunk in file order wins, whichever of
- *  the two types it is. Bounds-checked so a truncated download fails soft → null. Returns null when
- *  the bytes aren't a PNG, the keyword is absent, or the value doesn't inflate/base64/UTF-8-decode.
- *  The card-JSON parse is the caller's job (string in → JSON out lives in the parser, not here).
- *
- *  ASYNC because inflating zTXt goes through `DecompressionStream` — kit is isomorphic, so that
- *  WHATWG global is the only dependency-free inflate available. */
-export async function readCardChunk(data: Uint8Array, keyword: string): Promise<string | null> {
-  if (!isPng(data)) {
-    return null;
-  }
-  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  const want = keyword.toLowerCase();
+/** One chunk whose keyword matched, in file order: a plain `tEXt` value (ASCII base64) or a `zTXt` zlib
+ *  stream awaiting inflation. */
+interface CardChunkCandidate {
+  readonly compressed: boolean;
+  readonly value: Uint8Array;
+}
 
-  // A matched zTXt payload ends the walk and is inflated BELOW, so the one await stays out of the loop.
-  let compressed: Uint8Array | null = null;
+/** How many keyword-matching card chunks one read will TRY. A well-formed card carries one; the budget
+ *  bounds the work a crafted upload can ask for (a 10 MB PNG can hold ~500k minimal `ccv3` zTXt chunks, and
+ *  each attempt is an inflate). Past the budget the read answers with what it has — fail-soft, like every
+ *  other malformation here. */
+const CARD_CHUNK_CANDIDATES_MAX = 8;
+
+/** Every chunk in `data` whose keyword matches `want`, in file order — the tEXt and zTXt arms collected by
+ *  ONE walk so precedence is a single rule rather than a per-type accident. Bounds-checked: a declared length
+ *  running past the buffer ends the walk (a truncated download fails soft). */
+function collectCardChunks(data: Uint8Array, want: string): CardChunkCandidate[] {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const found: CardChunkCandidate[] = [];
   let offset = SIGNATURE_LENGTH;
-  while (offset + LENGTH_AND_TYPE <= data.length) {
+  while (offset + LENGTH_AND_TYPE <= data.length && found.length < CARD_CHUNK_CANDIDATES_MAX) {
     const length = view.getUint32(offset, BIG_ENDIAN);
     // chunk layout = length(4) + type(4) + data(length) + crc(4)
     if (offset + CHUNK_OVERHEAD + length > data.length) {
@@ -71,20 +76,48 @@ export async function readCardChunk(data: Uint8Array, keyword: string): Promise<
     const type = latin1Decode(data.subarray(offset + LENGTH_FIELD_BYTES, offset + LENGTH_AND_TYPE));
     const body = data.subarray(offset + LENGTH_AND_TYPE, offset + LENGTH_AND_TYPE + length);
     if (type === TEXT_TYPE) {
-      const value = readTextValue(body, want);
-      if (value !== null) {
-        return value;
+      const plain = plainValueFor(body, want);
+      if (plain !== null) {
+        found.push({ compressed: false, value: plain });
       }
     }
     if (type === ZTEXT_TYPE) {
-      compressed = compressedValueFor(body, want);
-      if (compressed !== null) {
-        break;
+      const deflated = compressedValueFor(body, want);
+      if (deflated !== null) {
+        found.push({ compressed: true, value: deflated });
       }
     }
     offset += CHUNK_OVERHEAD + length;
   }
-  return compressed === null ? null : await readCompressedTextValue(compressed);
+  return found;
+}
+
+/** Read a `tEXt` (plain) or `zTXt` (zlib-compressed) chunk value by keyword (case-insensitive),
+ *  base64-DECODED to the original UTF-8 string. THE PRECEDENCE RULE, one for both chunk types: the first
+ *  matching chunk in file order that actually DECODES wins; a matching chunk that doesn't (corrupt zlib,
+ *  bad base64, invalid UTF-8) is skipped, not fatal. Bounds-checked so a truncated download fails soft →
+ *  null. Returns null when the bytes aren't a PNG, the keyword is absent, or no candidate decodes. The
+ *  card-JSON parse is the caller's job (string in → JSON out lives in the parser, not here).
+ *
+ *  WHY THE SKIP IS THE RULE AND NOT AN OPTIMISATION: a matching-but-corrupt `zTXt` used to END the walk, so
+ *  a valid `chara`/`ccv3` `tEXt` sitting later in the same file was never reached and the whole read answered
+ *  null — the write path's stale-`zTXt` bug (below) put exactly that pair in every re-exported card.
+ *
+ *  ASYNC because inflating zTXt goes through `DecompressionStream` — kit is isomorphic, so that WHATWG global
+ *  is the only dependency-free inflate available. The await is over MATCHING candidates only (bounded by
+ *  {@link CARD_CHUNK_CANDIDATES_MAX}, normally one), never per chunk: the "no await in the chunk walk"
+ *  property the collect/decide split protects on a hot import path still holds. */
+export async function readCardChunk(data: Uint8Array, keyword: string): Promise<string | null> {
+  if (!isPng(data)) {
+    return null;
+  }
+  for (const candidate of collectCardChunks(data, keyword.toLowerCase())) {
+    const value = candidate.compressed ? await readCompressedTextValue(candidate.value) : decodeBase64Utf8(candidate.value);
+    if (value !== null) {
+      return value;
+    }
+  }
+  return null;
 }
 
 /** Split a text-chunk body at its NUL separator, returning the lowercased keyword + the bytes after
@@ -97,14 +130,15 @@ function splitKeyword(body: Uint8Array): { key: string; rest: Uint8Array } | nul
   return { key: latin1Decode(body.subarray(0, nullIdx)).toLowerCase(), rest: body.subarray(nullIdx + 1) };
 }
 
-/** Pull the value of a single `tEXt` chunk if its keyword matches `want`; null otherwise (wrong key,
- *  no null separator, or undecodable base64/UTF-8). */
-function readTextValue(body: Uint8Array, want: string): string | null {
+/** The raw (still base64) value bytes of a single `tEXt` chunk whose keyword matches `want`; null otherwise
+ *  (wrong key, or no null separator). Decoding is the CALLER's step — collecting first and decoding after is
+ *  what lets an undecodable match be skipped for the next candidate instead of ending the read. */
+function plainValueFor(body: Uint8Array, want: string): Uint8Array | null {
   const split = splitKeyword(body);
   if (split === null || split.key !== want) {
     return null;
   }
-  return decodeBase64Utf8(split.rest);
+  return split.rest;
 }
 
 /** The zlib stream of a `zTXt` chunk whose keyword matches `want`; null otherwise (wrong key, no null
@@ -170,7 +204,8 @@ export function writeCardChunk(basePng: Uint8Array, cardJson: string): Uint8Arra
   return concatChunks([PNG_SIGNATURE, ...kept, v2Chunk, v3Chunk, iend]);
 }
 
-/** Walk `png`, dropping stale `chara`/`ccv3` tEXt chunks, separating IEND from everything else kept. */
+/** Walk `png`, dropping stale `chara`/`ccv3` card chunks of BOTH types, separating IEND from everything else
+ *  kept. */
 function splitChunks(png: Uint8Array): { kept: Uint8Array[]; iend: Uint8Array | null } {
   const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
   const kept: Uint8Array[] = [];
@@ -184,7 +219,7 @@ function splitChunks(png: Uint8Array): { kept: Uint8Array[]; iend: Uint8Array | 
     const type = latin1Decode(png.subarray(offset + LENGTH_FIELD_BYTES, offset + LENGTH_AND_TYPE));
     const whole = png.slice(offset, offset + CHUNK_OVERHEAD + length);
     offset += CHUNK_OVERHEAD + length;
-    if (type === TEXT_TYPE && isStaleCardChunk(whole, length)) {
+    if ((type === TEXT_TYPE || type === ZTEXT_TYPE) && isStaleCardChunk(whole, length)) {
       continue; // drop the stale card chunks
     }
     if (type === IEND_TYPE) {
@@ -196,7 +231,13 @@ function splitChunks(png: Uint8Array): { kept: Uint8Array[]; iend: Uint8Array | 
   return { kept, iend };
 }
 
-/** True when a tEXt chunk's keyword is `chara`/`ccv3` (a previously embedded card to be replaced). */
+/** True when a text chunk's keyword is `chara`/`ccv3` (a previously embedded card to be replaced).
+ *
+ *  APPLIED TO `zTXt` AS WELL AS `tEXt`, and that is the whole of finding #1353's write half: a `zTXt` body is
+ *  `keyword\0<method><zlib>`, so the keyword split is byte-identical and no inflation is needed to decide
+ *  staleness — but the drop used to test `tEXt` only. A card imported from a compressing exporter therefore
+ *  KEPT its old compressed card, which `writeCardChunk` re-emitted BEFORE the fresh chunks, and the read
+ *  (first match in file order) answered with the card the export had just replaced. */
 function isStaleCardChunk(whole: Uint8Array, length: number): boolean {
   const chunkData = whole.subarray(LENGTH_AND_TYPE, LENGTH_AND_TYPE + length);
   const nullIdx = chunkData.indexOf(0);

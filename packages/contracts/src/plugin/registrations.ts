@@ -56,6 +56,15 @@ export interface PluginToolRegistration {
  *  it matches on and the prefix this mint emits are the same string by construction. */
 export const PLUGIN_TOOL_NAME_PREFIX = "plugin_";
 
+/** NOT INJECTIVE, and the wall is elsewhere — say so here rather than let a reader assume it: a slug's `-`
+ *  and a tool name's `_` are indistinguishable once flattened, so `("foo-bar", "baz")` and
+ *  `("foo", "bar_baz")` both spell `plugin_foo_bar_baz` with both halves independently valid
+ *  (`SLUG_RE`, `PLUGIN_TOOL_NAME_RE`). A colliding pair is refused LOUDLY at registration — per installer, by
+ *  `domain/tool-use`'s `registerPluginTool` (`ToolNameCollisionError`, activation-fatal for the second
+ *  plugin), never silently overwritten — so the collision costs an install, not a mis-routed call. Making the
+ *  flattening injective instead would RENAME the tools of every already-installed hyphen-slug plugin and
+ *  orphan the `ToolCallRecord.name` on every persisted tool card, so it is a migration decision, not a local
+ *  fix. */
 export function pluginToolWireName(slug: string, name: string): string {
   return `${PLUGIN_TOOL_NAME_PREFIX}${slug.replaceAll("-", "_")}_${name}`;
 }
