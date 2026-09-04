@@ -11,9 +11,12 @@
 // lowercased name→ref Map), so a second roster "Vesna" makes one of them unaddressable by every tool write.
 // That refusal is the reason promotion asks the host to rename first instead of quietly minting a shadow.
 
+import { createCharacterSchema } from "@orb/contracts/character";
+import { rpgCastSlug } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { slugifyHandle } from "@orb/kit/slug";
 import { sql } from "drizzle-orm";
 import { beforeEach } from "vitest";
 import type { RpgGameRow } from "../../../../../packages/server/src/domain/rpg/contract/service.ts";
@@ -201,6 +204,65 @@ test("#723 retry after the card and seat land reuses them, then completes the ac
   expect(fakes.promoteMints).toHaveLength(1);
   expect(fakes.roster.filter((actor) => actor.name === "Sister Vesna")).toHaveLength(1);
   expect((await resolveSnapshotForTurn(db, { id: game.id, chatId }))?.actorState?.[0]?.actorRef.kind).toBe("character");
+});
+
+// ── #1386: the card HANDLE is the character namespace's, so it is minted by that namespace's engine ──────
+// `rpgCastSlug` is the ACTOR-KEY engine (never merge two people: NFC-preserving, marks kept, never
+// truncated). A character handle answers to different law — the per-owner `characters_owner_handle_unique`
+// index and the 200-char wire cap — and `slugifyHandle` is its one home. Minting the handle with the actor
+// engine let a model-authored NPC name (`rpgActorIdentitySchema.name` has NO max) produce a handle the
+// character namespace's own create schema refuses.
+
+/** Put a cast actor on stage under her canonical key with the display name the story wrote. */
+async function seedCastActor(service: ReturnType<typeof makeRpgService>["service"], chatId: ChatId, names: readonly string[]): Promise<readonly string[]> {
+  const keys = names.map((name) => rpgCastSlug(name));
+  await service.editSnapshot({ principal: HOST, chatId, patch: { presentCharacters: keys.map((key) => `cast:${key}`) } });
+  for (const [index, key] of keys.entries()) {
+    await service.patchActor({
+      principal: HOST,
+      chatId,
+      targetRef: { kind: "cast", castKey: key },
+      ops: [{ op: "setIdentityText", field: "name", text: names[index] ?? "" }],
+    });
+  }
+  return keys;
+}
+
+test("#1386 the promoted handle is `slugifyHandle`'s, and it fits the character wire cap the actor key ignores", async () => {
+  const { chatId, service, fakes } = await seedGame();
+  // A model authors the NPC's name and nothing bounds it (`rpgActorIdentitySchema.name` is `min(1)` only), so
+  // this is reachable state, not a hypothetical: under the actor engine the handle came out 300 characters
+  // long — a row the character namespace's own create schema (and every import that re-validates through it)
+  // refuses at 200.
+  const long = `Sœur ${"あ".repeat(300)}`;
+  const [key] = await seedCastActor(service, chatId, [long]);
+  await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: key ?? "" } });
+
+  const handle = fakes.promoteMints[0]?.handle ?? "";
+  expect(handle).toBe(slugifyHandle(long));
+  expect(createCharacterSchema.shape.handle.safeParse(handle).success).toBe(true);
+  // The two engines genuinely disagree here — the pin would be vacuous if they did not.
+  expect(handle).not.toBe(rpgCastSlug(long));
+});
+
+test("#1386 two NPCs named in different scripts promote to two DISTINCT handles under one owner", async () => {
+  // A FENCE, not a defect proof: it passes on both engines (each fixed its own ASCII-only kept set — #1366
+  // here, #1355 in kit), and it is here so a future fold change cannot quietly re-merge the population that
+  // both fixes were about. The per-owner unique index must never see one bucket for two people, and the
+  // uniquifier in the compose mint can only rescue a collision it is HANDED — a fold that erases both names
+  // hands it the same string twice.
+  const { chatId, service, fakes } = await seedGame();
+  const names = ["李明", "Мария", "محمد"];
+  const keys = await seedCastActor(service, chatId, names);
+  for (const key of keys) {
+    expect(await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: key } })).toStrictEqual({ ok: true });
+  }
+  const handles = fakes.promoteMints.map((mint) => mint.handle);
+  expect(handles).toHaveLength(names.length);
+  expect(new Set(handles).size).toBe(names.length);
+  expect(handles).toEqual(names.map((name) => slugifyHandle(name)));
+  // A SECOND promotion of the same name is the roster's documented refusal (pinned above), never a
+  // unique-index throw — and the handle namespace's own duplicates are uniquified by the compose mint.
 });
 
 test("a promoted character is a normal roster actor afterwards: hand ops reach her, identity ops correctly refuse", async () => {
