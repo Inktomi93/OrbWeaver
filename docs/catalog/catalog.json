@@ -11292,8 +11292,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 75,
-      "bytes": 3939,
-      "sha256": "0dfca68fc2a2fa7ff486b89adebfcabb4b56a15194e20db52957703372d83fb5",
+      "bytes": 3940,
+      "sha256": "e53e903b5d961c931114af4c32be8da53613e284ec04b82f0e200a830dcd3755",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11306,14 +11306,15 @@
       },
       "receipt": {
         "path": "docs/design/1308-browser-evidence-retention.md",
-        "assignedSha256": "0dfca68fc2a2fa7ff486b89adebfcabb4b56a15194e20db52957703372d83fb5",
+        "assignedSha256": "e53e903b5d961c931114af4c32be8da53613e284ec04b82f0e200a830dcd3755",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "0dfca68fc2a2fa7ff486b89adebfcabb4b56a15194e20db52957703372d83fb5",
-        "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+        "verifiedSha256": "e53e903b5d961c931114af4c32be8da53613e284ec04b82f0e200a830dcd3755",
+        "verifiedCommit": "39445ca0874cb9869541bbe8084700c04124725a",
         "verifiedAt": "2026-09-04",
         "evidence": [
+          "re-attested at 39445ca08 (delta read: one line — the Proof section's suite path repointed from tests/tooling/_shared/ to tests/tooling/snap/lib/browser-retention.suite.int.test.ts, where the suite lives; no other change since 561ea5ec3)",
           "docs/design/1308-browser-evidence-retention.md:1 read in full at 561ea5ec3: one `_shared/browser-evidence-ring.ts` owner provides bounded retention, monotonic cursors, range reads and JSON-safe receipts for every array-like browser channel (console/page-error/network/diagnostics), replacing per-channel ad hoc capacity accounting; ProbeContext/ProbeSession keep read-only views while the ring owners hold cursor/receipt truth."
         ],
         "claims": [
