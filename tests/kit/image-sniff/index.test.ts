@@ -183,6 +183,51 @@ describe("sniffImageBytes", () => {
 
 // ── The AVIF dimension read feeds the decompression-bomb cap, so it is STRUCTURAL (#1357) ────────────────
 
+// An ENCODER-PRODUCED AVIF (#1527), not a hand-built box tree: everything above is assembled by this file's
+// own helpers, which means they can only ever prove the parser agrees with ITSELF. This 281-byte file came out
+// of the toolchain's real encoder — sharp 0.35.3 / libvips+libheif, `sharp(<3×2 raw RGB>).avif({quality:20,
+// effort:0}).toBuffer()` — and carries what a real file carries: `ftyp(28) meta(214) mdat(39)`, brands
+// `avif,mif1,miaf`, and the `ispe` nested under `meta → iprp → ipco` with its `av1C`/`pixi`/`ipma` siblings.
+// Base64 rather than a binary fixture because `tests/` carries no binary files at all today (`git ls-files`
+// over `tests/**` matches none), and a 376-character string is cheaper to review than a new precedent.
+//
+// THERE IS NO `avis` HERE, and that is a measured absence: this toolchain has no encoder that emits an image
+// SEQUENCE. Feeding sharp a 2-page animated GIF (`sharp(gif, {animated: true}).avif()`) FLATTENS it to a
+// still — brands `avif,mif1,miaf`, one meta tree, no `avis` — so the sequence arm below is a hand-built `ftyp`
+// declaring that brand, which is exactly the structure the sniff reads for it.
+const AVIF_ENCODED_STILL_B64 =
+  "AAAAHGZ0eXBhdmlmAAAAAG1pZjFhdmlmbWlhZgAAANZtZXRhAAAAAAAAACFoZGxyAAAAAAAAAABwaWN0AAAAAAAAAAAAAAAAAAAAACJpbG9jAAAAAERAAAEAAQAAAAAA+gABAAAAAAAAAB8AAAAjaWluZgAAAAAAAQAAABVpbmZlAgAAAAABAABhdjAxAAAAAA5waXRtAAAAAAABAAAAVmlwcnAAAAA4aXBjbwAAAAxhdjFDgSACAAAAABRpc3BlAAAAAAAAAAMAAAACAAAAEHBpeGkAAAAAAwgICAAAABZpcG1hAAAAAAAAAAEAAQOBAgMAAAAnbWRhdBIACgg4BCtICGg0gDIRHYJixO4444FlYACQNY48fsQ=";
+const AVIF_ENCODED_STILL = Uint8Array.from(Buffer.from(AVIF_ENCODED_STILL_B64, "base64"));
+/** The encoder's own `ftyp` is 28 bytes, so byte 28 is where its `meta` tree starts — the splice point. */
+const AVIF_FTYP_END = 28;
+/** Splice a box in FRONT of the real file's `meta` tree, leaving the encoder's own bytes otherwise intact. */
+const spliceBeforeMeta = (box: number[]): Uint8Array =>
+  Uint8Array.from([...AVIF_ENCODED_STILL.subarray(0, AVIF_FTYP_END), ...box, ...AVIF_ENCODED_STILL.subarray(AVIF_FTYP_END)]);
+
+describe("sniffImageBytes — an AVIF from the real encoder, and the structures the walk refuses", () => {
+  test("the encoder's own still parses to its real extent", () => {
+    expect(sniffImageBytes(AVIF_ENCODED_STILL)).toEqual({ mime: "image/avif", ext: "avif", width: 3, height: 2, animated: false });
+  });
+
+  test("an ISO-BMFF extended box SIZE before the meta tree ends the walk — dimensions null, never a guess", () => {
+    // size 0 = "this box runs to end of file"; size 1 = a 64-bit largesize follows. This bounded header parse
+    // reads neither, and a structure it cannot validate must yield NO dimensions (the cap then rejects) rather
+    // than skipping ahead on an assumed length.
+    const sizeZero = [0, 0, 0, 0, ...FOURCC("mdat")];
+    const sizeOne = [0, 0, 0, 1, ...FOURCC("mdat"), 0, 0, 0, 0, 0, 0, 0, 0x20];
+    expect(sniffImageBytes(spliceBeforeMeta(sizeZero))).toMatchObject({ mime: "image/avif", width: null, height: null });
+    expect(sniffImageBytes(spliceBeforeMeta(sizeOne))).toMatchObject({ mime: "image/avif", width: null, height: null });
+  });
+
+  test("an `avis` sequence with no meta tree is AVIF by brand and dimension-less by structure", () => {
+    // Hand-built (see the note above — no encoder in this toolchain emits `avis`). A sequence that keeps its
+    // extents only in track headers is exactly the "unknown dimensions" case, and unknown must never read as
+    // small enough.
+    const avis = Uint8Array.from([...avifBox("ftyp", [...FOURCC("avis"), 0, 0, 0, 0, ...FOURCC("avif")]), ...avifBox("mdat", [])]);
+    expect(sniffImageBytes(avis)).toEqual({ mime: "image/avif", ext: "avif", width: null, height: null, animated: false });
+  });
+});
+
 describe("sniffImageBytes — AVIF dimensions are read from the box tree, never scanned for", () => {
   test("a decoy `ispe` planted in an unrelated box cannot under-report a bomb's size", () => {
     // The attack, verbatim: a real 32000×32000 image whose `free` box payload spells `ispe` + a 1×1 extent

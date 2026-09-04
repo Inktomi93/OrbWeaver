@@ -55,6 +55,23 @@ test("the folded part is capped, and a truncated fold carries a disambiguator", 
   expect(slugifyHandle(`${long}one`)).not.toBe(slugifyHandle(`${long}two`));
 });
 
+test("#1525 the length cut lands on a CODE POINT, so a non-BMP name never yields half a surrogate pair", () => {
+  // The cut used to slice UTF-16 UNITS. Non-BMP letters survive the Unicode fold, so a long name written in
+  // (say) Cuneiform came back with a severed pair — `isWellFormed()` false, i.e. a handle that breaks every
+  // byte-oriented consumer downstream and cannot even be encoded to UTF-8 without a replacement char.
+  const cuneiform = `a${"\u{13000}".repeat(60)}`; // 61 code points, 121 UTF-16 units
+  expect(slugifyHandle(cuneiform).isWellFormed()).toBe(true);
+  // …and the same at a length that genuinely truncates: still well-formed, still disambiguated, still in cap.
+  const overLong = "\u{13000}".repeat(100);
+  const handle = slugifyHandle(overLong);
+  expect(handle.isWellFormed()).toBe(true);
+  expect(handle.length).toBeLessThan(200);
+  expect(handle).toMatch(/-[0-9a-z]+$/u);
+  expect(slugifyHandle(`${overLong}\u{13001}`)).not.toBe(handle);
+  // A lone surrogate in the INPUT is not a letter, digit or mark, so it never reaches the output either.
+  expect(slugifyHandle("a\ud800b").isWellFormed()).toBe(true);
+});
+
 test("a handle never carries a path, quote or reserved-namespace character", () => {
   // The output alphabet is `\p{L}\p{N}\p{M}` + `-`, which is what makes the handle safe as a descriptor path
   // segment (`entry/http/import-chat`) and unable to claim the `__group__*` synthetic namespace. The bidi

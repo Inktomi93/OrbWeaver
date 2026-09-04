@@ -439,6 +439,24 @@ test("the 2 KiB text cap counts BYTES, not UTF-16 code units (#1367)", () => {
   expect(pluginSurfaceSpecSchema.safeParse({ kind: "text", value: { $state: "greeting" } }).success).toBe(true);
 });
 
+test("#1525 an unpaired surrogate is a REFUSAL, and safeParse never throws on one", () => {
+  // The byte counter used to be `encodeURIComponent(...)`, which THROWS `URIError` on a lone surrogate. That
+  // was survivable while the only caller measured `JSON.stringify(spec)` (which escapes them); measuring raw
+  // GUEST text made a one-character value crash the validator instead of refusing it — a `safeParse` that
+  // throws is not a boundary, and this schema runs on guest input AND inside the client's renderer.
+  for (const value of ["\ud800", "ok\udfff", "\ud83dx"]) {
+    const parsed = pluginSurfaceSpecSchema.safeParse({ kind: "text", value });
+    expect(parsed.success).toBe(false);
+  }
+  expect(() => pluginSurfaceSpecSchema.safeParse({ kind: "markdown", value: "\ud800" })).not.toThrow();
+  // A WELL-FORMED astral value is still accepted and still measured in bytes (4 per emoji code point).
+  const emoji = "🎲".repeat(PLUGIN_TEXT_MAX_BYTES / 8);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "text", value: emoji }).success).toBe(true);
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "text", value: "🎲".repeat(PLUGIN_TEXT_MAX_BYTES / 2) }).success).toBe(false);
+  // The whole-spec cap (which measures `JSON.stringify`) still agrees with the per-node one.
+  expect(pluginSurfaceSpecSchema.safeParse({ kind: "text", value: "中".repeat(3) }).success).toBe(true);
+});
+
 test(`list / keyValue / select refuse more than ${PLUGIN_ROWS_MAX} rows`, () => {
   const items = Array.from({ length: PLUGIN_ROWS_MAX + 1 }, (_, i) => `item ${i}`);
   expect(pluginSurfaceSpecSchema.safeParse({ kind: "list", items }).success).toBe(false);

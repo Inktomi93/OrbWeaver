@@ -853,6 +853,7 @@ const byteBoundedString = (max: number): z.ZodType<string> =>
   z
     .string()
     .max(max)
+    .refine((value) => value.isWellFormed(), { message: "must not contain an unpaired UTF-16 surrogate" })
     .refine((value) => utf8ByteLength(value) <= max, { message: `must be at most ${max} bytes` });
 
 const boundString = (max: number): z.ZodType<PluginBoundString> => z.union([byteBoundedString(max), stateBindingSchema]);
@@ -1024,12 +1025,39 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
   ]),
 );
 
+// The UTF-8 encoding widths, by the code point's own ranges (RFC 3629 §3) — the whole table the counter needs.
+const UTF8_ONE_BYTE_MAX = 0x7f;
+const UTF8_TWO_BYTE_MAX = 0x7_ff;
+const UTF8_THREE_BYTE_MAX = 0xff_ff;
+const UTF8_TWO_BYTES = 2;
+const UTF8_THREE_BYTES = 3;
+const UTF8_FOUR_BYTES = 4;
+
 /** UTF-8 byte length WITHOUT `TextEncoder` — `@orb/contracts` is isomorphic (tsconfig lib=es2025, types=[]),
  *  so TextEncoder/Buffer are unavailable (the same kit-purity note `kit/cel` and `kit/png-card-chunk` carry).
- *  `encodeURIComponent` emits one literal char per ASCII byte and a `%XX` triple per other byte, so collapsing
- *  each triple to one char yields the byte count. */
+ *
+ *  TOTAL BY CONSTRUCTION, and that is a fix rather than a style choice (#1525): this used to be
+ *  `encodeURIComponent(source).replace(…)`, and `encodeURIComponent` THROWS `URIError` on an unpaired UTF-16
+ *  surrogate. That was survivable while its only caller measured `JSON.stringify(spec)` (which escapes lone
+ *  surrogates to `\uD800`), but the byte cap now measures raw GUEST text — so a one-character plugin value
+ *  turned a `safeParse` into a throw, i.e. a validation boundary that crashes instead of refusing. A summed
+ *  per-code-point width cannot throw on any input; an unpaired surrogate simply counts as its 3-byte width,
+ *  and it is REFUSED separately (`byteBoundedString`) rather than silently measured. */
 function utf8ByteLength(source: string): number {
-  return encodeURIComponent(source).replace(/%[0-9A-F]{2}/g, "_").length;
+  let bytes = 0;
+  for (const char of source) {
+    const codePoint = char.codePointAt(0) ?? 0;
+    if (codePoint <= UTF8_ONE_BYTE_MAX) {
+      bytes += 1;
+    } else if (codePoint <= UTF8_TWO_BYTE_MAX) {
+      bytes += UTF8_TWO_BYTES;
+    } else if (codePoint <= UTF8_THREE_BYTE_MAX) {
+      bytes += UTF8_THREE_BYTES;
+    } else {
+      bytes += UTF8_FOUR_BYTES;
+    }
+  }
+  return bytes;
 }
 
 /** Every child node one node carries, whatever shape it carries them in — the ONE home for "what recurses",
