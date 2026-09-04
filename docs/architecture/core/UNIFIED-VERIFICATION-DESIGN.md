@@ -224,8 +224,9 @@ run's verdict: appends are append-mode single-line writes that the kernel does n
 and slotting it would give each run a one-line history to compare against — destroying the only thing it
 exists for. Each line carries its `runId`, so a reader can still attribute a row.
 
-**The RENDERED instruments (#1164).** `snap`, `design-audit` (`ui-audit`), `record` (`screen-record`),
-`motion-audit` and `perf-meter` (`cpu-profile`) were the leftovers #1029 deferred, on the reasoning that a
+**The RENDERED instruments (#1164).** `snap` and `design-audit` (`ui-audit`) are the surviving rendered
+browser instruments. `record` (`screen-record`), `motion-audit`, and `perf-meter` (`cpu-profile`) are
+loud compatibility redirects into Snap and open no browser. These commands were the leftovers #1029 deferred, on the reasoning that a
 caller NAMES those artifacts with `--out`. That reasoning did not survive contact: lane-unique `--out`
 names are a BRIEF CONVENTION, not a mechanism, and on 2026-09-02 two side-eye lanes on one checkout both
 took the default name and produced a `root.png` neither could claim (a third read a sibling's

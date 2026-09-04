@@ -5,22 +5,80 @@ import { existsSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import process from "node:process";
 import { execNicedSync } from "@orb/tooling/_shared/proc";
+import type { ChangedPath, ChangedPathClassification, ChangedPathStatus } from "../contract/selection.ts";
 
 export const ROOT = process.cwd();
 
-/** The git-changed set: `git diff --name-only HEAD` (staged + unstaged vs HEAD), repo-relative posix. */
-export function gitChangedPaths(): readonly string[] {
-  return execNicedSync("git", ["diff", "--name-only", "HEAD"], { cwd: ROOT })
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
+function changedPath(path: string, status: ChangedPathStatus, previousPath: string | null = null): ChangedPath {
+  return { path, status, previousPath };
+}
+
+function classifyEntries(entries: readonly ChangedPath[], root: string): ChangedPathClassification {
+  const uniqueEntries = [...new Map(entries.map((entry) => [`${entry.status}\0${entry.path}`, entry])).values()];
+  const paths = [...new Set(uniqueEntries.map((entry) => entry.path))];
+  return {
+    entries: uniqueEntries,
+    paths,
+    existingPaths: paths.filter((path) => existsRel(path, root)),
+    deletedPaths: uniqueEntries.filter((entry) => entry.status === "deleted").map((entry) => entry.path),
+  };
+}
+
+/** Parse git's NUL-delimited name-status stream. A rename is deliberately two semantic changes: old
+ * deletion + existing target. Copies add only the target; the source did not change. */
+function classifyGitNameStatus(source: string, root: string = ROOT): ChangedPathClassification {
+  const tokens = source.split("\0").filter((token) => token !== "");
+  const entries: ChangedPath[] = [];
+  for (let index = 0; index < tokens.length; ) {
+    const statusToken = tokens[index++] ?? "";
+    const status = statusToken[0];
+    const first = tokens[index++] ?? "";
+    if (status === "R" || status === "C") {
+      const target = tokens[index++] ?? "";
+      if (status === "R") {
+        entries.push(changedPath(first, "deleted"), changedPath(target, "renamed-existing", first));
+      } else {
+        entries.push(changedPath(target, "added", first));
+      }
+      continue;
+    }
+    if (status === "D") {
+      entries.push(changedPath(first, "deleted"));
+    } else if (status === "A") {
+      entries.push(changedPath(first, "added"));
+    } else {
+      entries.push(changedPath(first, "modified"));
+    }
+  }
+  return classifyEntries(entries, root);
+}
+
+/** The authoritative git-changed classification: staged + unstaged vs HEAD, with rename identity. */
+export function gitChangedPathClassification(root: string = ROOT): ChangedPathClassification {
+  const source = execNicedSync("git", ["diff", "--name-status", "-z", "--find-renames", "HEAD"], { cwd: root });
+  return classifyGitNameStatus(source, root);
+}
+
+/** Compatibility read for the structure-scoped door: deletions remain in this all-path view. */
+export function gitChangedPaths(root: string = ROOT): readonly string[] {
+  return gitChangedPathClassification(root).paths;
+}
+
+/** Explicit changed/file requests carry no git status vocabulary. Classify by the one fact direct tools
+ * need: current existence; the deletion-aware views still retain every normalized path. */
+export function classifyExplicitPaths(raw: readonly string[], root: string = ROOT): ChangedPathClassification {
+  const paths = [...new Set(raw.map((arg) => toRepoRel(arg, root)).filter((path): path is string => path !== undefined))];
+  return classifyEntries(
+    paths.map((path) => changedPath(path, existsRel(path, root) ? "modified" : "deleted")),
+    root,
+  );
 }
 
 /** Normalize a caller-supplied path (abs or cwd-relative) to a repo-relative posix path. A path outside
  *  the repo is dropped. Deletions are KEPT (a path that no longer exists on disk stays in the set). */
-export function toRepoRel(arg: string): string | undefined {
-  const abs = isAbsolute(arg) ? arg : resolve(ROOT, arg);
-  const rel = relative(ROOT, abs);
+function toRepoRel(arg: string, root: string = ROOT): string | undefined {
+  const abs = isAbsolute(arg) ? arg : resolve(root, arg);
+  const rel = relative(root, abs);
   return rel.startsWith("..") ? undefined : rel;
 }
 
@@ -28,8 +86,8 @@ export function toRepoRel(arg: string): string | undefined {
  *  KEEPS deletions; the per-tool file-list views (eslint/depcruise/docs — each hands CONCRETE file args to
  *  a child that errors on a nonexistent path) must drop them, while `paths` + `tsconfigs` keep them (the
  *  structure walk + the deleted file's OWNING per-package typecheck legitimately reason about a deletion). */
-export function existsRel(rel: string): boolean {
-  return existsSync(resolve(ROOT, rel));
+export function existsRel(rel: string, root: string = ROOT): boolean {
+  return existsSync(resolve(root, rel));
 }
 
 export function packageDir(name: string): string {

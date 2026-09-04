@@ -37,6 +37,19 @@ pnpm snap / --goto modal:newChat \
             --expect-visible '[role=article]' --text --json
 ```
 
+## Filmstrip: inspect a transition
+
+The contact sheet starts before the ordered action tape and stops after settle. Every retained frame is
+labelled with its relative timestamp and most recent action; the RESULT/index points at the exact PNG.
+
+```bash
+pnpm snap / --goto settings:appearance --filmstrip \
+            --click 'role=button[name="Theme"]' --pause 700 --out theme-transition
+```
+
+Take performance, motion, CPU, heap, or trace evidence in a separate run; filmstrip deliberately refuses
+those combinations so its JPEG encoding cannot contaminate the measurement window.
+
 ## Scenario: a multi-step flow with checkpointed evidence
 
 `{name?, defaults?, checkpoints:[{name, args}]}`; `args` is ordinary snap argv per checkpoint.
@@ -57,10 +70,10 @@ scratchpad, not in the repo.
 ```
 
 ```bash
-pnpm snap / --scenario "$SCRATCHPAD/skill-author-room-roundtrip.json" --summary --json
+pnpm snap / --scenario "$SCRATCHPAD/skill-author-room-roundtrip.json" --scenario-summary --json
 ```
 
-`--summary` prints one `CHECKPOINT <name> PASS/FAIL` line each; the `--json` manifest keeps
+`--scenario-summary` prints one `CHECKPOINT <name> PASS/FAIL` line each; the `--json` manifest keeps
 per-checkpoint console/page-error slices. Checkpoints cannot carry
 `--pages`/`--contexts`/`--as`/`--watch`/`--baseline`/`--diff` or nest scenarios; stage flags go on
 the outer command. Durability across a RELOAD is a separate, later plain call (a new browser is
@@ -78,6 +91,8 @@ pnpm snap / --scenario "$SCRATCHPAD/skill-author-flow.json" --matrix   # compose
 ```
 
 Refuses `--pages`/`--contexts`/`--as`/`--watch`/`--baseline`/`--diff`.
+Each cell is a disposable device/theme/media environment context, not a user identity; the owning
+browser survives. The executable F10 proof is `tests/tooling/snap/ops/session-matrix.suite.int.test.ts`.
 
 ## Watch: streams and transients
 
@@ -96,7 +111,8 @@ reddens the exit.
 
 ## Multi-tab: drive one, read the passive one
 
-Shared auth in one context; `@<idx>` targets a tab (unsuffixed = page 0):
+Shared cookie/localStorage identity in one BrowserContext; DOM remains per tab. `@<idx>` targets a tab
+(unsuffixed = page 0), screenshots use `-p<idx>`, and this mode makes no user identity claim:
 
 ```bash
 pnpm snap / --pages 2 --open-chat@0 <id> --open-chat@1 <id> \
@@ -116,6 +132,8 @@ pnpm snap / --as member --eval '__orb.snap()'      # single context, named user
 ```
 
 No `--watch`/`--baseline`/`--diff` in context mode; `--contexts` + `--pages` together is refused.
+This is a one-direction comparison/observation pass, not a scheduler for alternating humans. Any flow
+where host and member take turns acting belongs in E2E with two explicit browser actors.
 
 ## Static mock: same ruler, no stack
 

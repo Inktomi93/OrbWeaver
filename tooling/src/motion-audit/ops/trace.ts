@@ -15,7 +15,7 @@ refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
 export async function runAudit(
   page: Page,
   cdp: Awaited<ReturnType<ProbeSession["context"]["newCDPSession"]>>,
-  opts: Args,
+  opts: Pick<Args, "selector" | "windowMs">,
   measuredClick: MeasuredClick | null,
 ): Promise<Omit<AuditData, "environment" | "applicationMotion">> {
   const traceEvents: TraceEvent[] = [];

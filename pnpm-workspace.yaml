@@ -69,6 +69,16 @@ catalog:
   # one installed copy — a drift here silently gives Lighthouse a page from a different puppeteer build.
   # Re-derive this pin on every `lighthouse` bump (`pnpm why puppeteer-core`).
   "puppeteer-core": 25.9.0
+  # chrome-devtools-mcp: PARSER ENGINE ONLY for Snap's heap arm (#1300). Snap never imports or starts
+  # the MCP server, transport, Puppeteer page, or browser launcher. One adapter deep-imports the bundled
+  # browser-free HeapSnapshotManager so retained sizes, dominators, native-context attribution and
+  # retaining paths use the same official DevTools algorithms instead of a home-grown graph parser.
+  # Exact-pin: the published package has no supported parser export, so the adapter's module/method shape
+  # and Apache-2.0 provenance are compatibility obligations. The version-keyed pnpm patch diverts the
+  # worker's official weak-root problem reports into Snap's structured sidecar instead of dumping dozens
+  # of lines to stderr; it changes no graph algorithm. Any bump owes re-deriving that patch plus the
+  # planted installed-subpath parse in the heap suite; there is deliberately no fallback parser.
+  chrome-devtools-mcp: 1.8.0
   # --- quality / mutation tooling ---
   # ts-reset: ambient type hardening (filter(Boolean), JSON.parse→unknown) — wired via root reset.d.ts.
   "@total-typescript/ts-reset": ^0.6.1
@@ -427,5 +437,6 @@ minimumReleaseAgeExclude:
 patchedDependencies:
   '@stryker-mutator/core@10.0.0': patches/@stryker-mutator__core@10.0.0.patch
   '@stryker-mutator/typescript-checker@10.0.0': patches/@stryker-mutator__typescript-checker@10.0.0.patch
+  chrome-devtools-mcp@1.8.0: patches/chrome-devtools-mcp@1.8.0.patch
 
 nodeOptions: "--max-old-space-size=16384"

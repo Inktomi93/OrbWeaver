@@ -1,249 +1,120 @@
-// --map: the live selector map (role · accessible name · best stable selector), validated so every
-// emitted selector is an EXECUTABLE agent handle (unique + visible) before it is printed.
+// --map: the global Orbweaver destination atlas plus the current rendered shell/surface map. Every
+// surface row owns a unique locator; only rows explicitly marked actionable are current click handles.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
+import { aggregateScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
-import type { CaptureOutcome, MapEntry, RawMapEntry } from "../../contract/types.ts";
+import { EXIT } from "../../../_shared/exit-contract.ts";
+import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
+import type { MapAtlasEvidence, MapEntry, MapShellEvidence, RawMapBridgeEvidence, RawMapEntry } from "../../contract/map.ts";
+import type { CaptureOutcome } from "../../contract/types.ts";
+import { buildSurfaceMapScript, READ_MAP_BRIDGE_SCRIPT } from "../../lib/map-browser.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
-import { rawMapEntries } from "../page-validate.ts";
+import { mapAtlasEvidence, mapBridgePayload, mapShellEvidence, rawMapEntries } from "../page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
-// ── --map: a live selector map (role · accessible name · best stable selector) ──────────────
-// "How do I reach this" instead of grepping source. Runs POST-STEPS so `--click X --map` maps
-// a just-revealed surface (a settings dialog). RAW STRING IIFE (JSON.stringify-interpolated
-// scope selector) — same constraint as scanDeadCss/buildContrastScript: the body runs in the
-// BROWSER, tsc would check a function form against the NODE lib (the original keepNames reason
-// died with the 2026-08-03 tsx shed). Unlike
-// --contrast, this whole decision (role/name resolution, selector priority) has no WCAG-style
-// fixed threshold to unit-test in Node, so it's formatted entirely in-page — nothing for
-// design-audit-checks.ts to own.
-const MAP_INTERACTIVE_SELECTOR = "a,button,[role],input,select,textarea,[tabindex],[aria-label]";
-
-function buildMapScript(selector: string, includeHidden: boolean): string {
-  return `(() => {
-    var root = document.querySelector(${JSON.stringify(selector)});
-    if (!root) return null;
-    var INTERACTIVE_SELECTOR = ${JSON.stringify(MAP_INTERACTIVE_SELECTOR)};
-    var IMPLICIT_ROLE = { a: "link", aside: "complementary", button: "button", form: "form", img: "img", main: "main", nav: "navigation", select: "combobox", svg: "img", textarea: "textbox" };
-    var INPUT_ROLES = { checkbox: "checkbox", radio: "radio", button: "button", submit: "button", range: "slider", search: "searchbox" };
-    var NON_TARGET_ROLES = { generic: true, listitem: true, none: true, presentation: true };
-    var LABELED_STRUCTURE_ROLES = { article: true, complementary: true, form: true, group: true, list: true, log: true, main: true, navigation: true, region: true, status: true };
-
-    function isVisible(el) {
-      if (${JSON.stringify(includeHidden)}) return true;
-      if (typeof el.checkVisibility === "function" && !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true, contentVisibilityAuto: true })) return false;
-      var style = getComputedStyle(el);
-      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
-      var rect = el.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return false;
-      var cur = el;
-      while (cur && cur !== document.body) {
-        if (cur.hidden || cur.inert || cur.getAttribute("aria-hidden") === "true") return false;
-        cur = cur.parentElement;
-      }
-      return true;
-    }
-    function resolveRole(el) {
-      var explicit = el.getAttribute("role");
-      if (explicit) return explicit;
-      var tag = el.tagName.toLowerCase();
-      if (tag === "input") {
-        var type = (el.getAttribute("type") || "text").toLowerCase();
-        return INPUT_ROLES[type] || "textbox";
-      }
-      if (IMPLICIT_ROLE[tag]) return IMPLICIT_ROLE[tag];
-      return el.hasAttribute("tabindex") ? "generic" : "";
-    }
-    function accessibleName(el) {
-      var al = el.getAttribute("aria-label");
-      if (al && al.trim()) return al.trim();
-      var lbId = el.getAttribute("aria-labelledby");
-      if (lbId) {
-        var text = lbId.split(/\\s+/).map(function (id) {
-          var t = document.getElementById(id);
-          return t ? t.textContent.trim() : "";
-        }).join(" ").trim();
-        if (text) return text;
-      }
-      // TEXT ALTERNATIVE COMPUTATION step 2A: a node that is NOT RENDERED contributes NOTHING to the
-      // accessible name. Two families are excluded, and both are load-bearing:
-      //   aria-hidden — avatar initials/decorative glyphs are rendered text the a11y tree drops
-      //     ("DDiana" was the manufactured name that motivated this arm);
-      //   display:none / visibility:hidden / the hidden attribute (#877) — a container-query TWO-ARM
-      //     label (@md:hidden beside hidden @md:flex) ships BOTH arms in the DOM and paints one. Welding
-      //     them produced "Pick a characterPick a character to start", a name no Playwright
-      //     toHaveAccessibleName can ever match, and a reviewer filed a product defect on that reading.
-      // The visibility arm is judged RELATIVE to el: with --include-hidden the map deliberately reports
-      // hidden controls, and visibility INHERITS, so a visibility:hidden root must keep its own name
-      // rather than blanking it. display:none does not inherit (only the styled element computes "none"),
-      // so it needs no such relativisation.
-      var rootVisibilityHidden = getComputedStyle(el).visibility === "hidden";
-      var textNodes = [];
-      var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-      var node;
-      while ((node = walker.nextNode())) {
-        var hidden = false;
-        var cur = node.parentElement;
-        while (cur) {
-          if (cur.getAttribute && cur.getAttribute("aria-hidden") === "true") {
-            hidden = true;
-            break;
-          }
-          if (cur === el) break;
-          var curStyle = getComputedStyle(cur);
-          if (cur.hidden || curStyle.display === "none" || (!rootVisibilityHidden && curStyle.visibility === "hidden")) {
-            hidden = true;
-            break;
-          }
-          cur = cur.parentElement;
-        }
-        if (!hidden) textNodes.push(node.textContent || "");
-      }
-      var text2 = textNodes.join("").trim().replace(/\\s+/g, " ");
-      if (text2) return text2;
-      var title = el.getAttribute("title");
-      if (title && title.trim()) return title.trim();
-      if (el.tagName === "INPUT") {
-        var ph = el.getAttribute("placeholder");
-        if (ph && ph.trim()) return ph.trim();
-      }
-      var alt = el.getAttribute("alt");
-      if (alt && alt.trim()) return alt.trim();
-      return "";
-    }
-    function nthOfType(node) {
-      var idx = 1;
-      var sib = node.previousElementSibling;
-      while (sib) {
-        if (sib.tagName === node.tagName) idx += 1;
-        sib = sib.previousElementSibling;
-      }
-      return node.tagName.toLowerCase() + ":nth-of-type(" + idx + ")";
-    }
-    // Fallback #4: a complete nth-of-type path from body. Verbose but unique in this live DOM; captureMap
-    // validates it before exposing it. A short "neighborhood" path is not an executable agent handle.
-    function fallbackPath(node) {
-      var parts = [];
-      var cur = node;
-      while (cur && cur !== document.body) {
-        parts.unshift(nthOfType(cur));
-        cur = cur.parentElement;
-      }
-      return "body > " + parts.join(" > ");
-    }
-    // Priority: 1) own data-testid  2) nearest ancestor testid that UNIQUELY wraps this element
-    // (its only interactive/labeled descendant)  3) own aria-label  4) role=X[name="Y"]
-    // (Playwright locator syntax)  5) fallback ancestor-chain path.
-    function bestSelector(el, role, name) {
-      var testid = el.getAttribute("data-testid");
-      if (testid) return "[data-testid=" + JSON.stringify(testid) + "]";
-      var anc = el.parentElement;
-      var hops = 0;
-      while (anc && hops < 3) {
-        var atid = anc.getAttribute("data-testid");
-        if (atid) {
-          if (anc.querySelectorAll(INTERACTIVE_SELECTOR).length === 1) {
-            return "[data-testid=" + JSON.stringify(atid) + "] " + el.tagName.toLowerCase();
-          }
-          break;
-        }
-        anc = anc.parentElement;
-        hops += 1;
-      }
-      var ownLabel = el.getAttribute("aria-label");
-      if (ownLabel && ownLabel.trim()) {
-        var visibleOnly = ${JSON.stringify(includeHidden)} ? "" : ":visible";
-        return "[aria-label=" + JSON.stringify(ownLabel.trim()) + "]" + visibleOnly;
-      }
-      if (role && name) return "role=" + role + "[name=" + JSON.stringify(name) + "]";
-      return fallbackPath(el);
-    }
-
-    var out = [];
-    var els = root.querySelectorAll(INTERACTIVE_SELECTOR);
-    for (var i = 0; i < els.length; i += 1) {
-      var el = els[i];
-      if (!isVisible(el)) continue;
-      var role = resolveRole(el);
-      if (NON_TARGET_ROLES[role]) continue;
-      if (LABELED_STRUCTURE_ROLES[role] && !el.hasAttribute("aria-label") && !el.hasAttribute("aria-labelledby")) continue;
-      var name = accessibleName(el);
-      if (!role && !name) continue;
-      out.push({
-        role: role || "(none)",
-        name: name,
-        selector: bestSelector(el, role, name),
-        semanticFallback: role && name ? "role=" + role + "[name=" + JSON.stringify(name) + "]" : "",
-        fallback: fallbackPath(el)
-      });
-    }
-    // An ambiguous selector is not navigation help. Preserve the best semantic selector, then add the
-    // Playwright-native nth engine only when repeated names/labels make it non-unique on this surface.
-    var totals = Object.create(null);
-    var seen = Object.create(null);
-    for (var j = 0; j < out.length; j += 1) totals[out[j].selector] = (totals[out[j].selector] || 0) + 1;
-    for (var k = 0; k < out.length; k += 1) {
-      var base = out[k].selector;
-      if (totals[base] > 1) {
-        var occurrence = seen[base] || 0;
-        out[k].selector = base + " >> nth=" + occurrence;
-        seen[base] = occurrence + 1;
-      }
-    }
-    return out;
-  })()`;
+interface LocatorProof {
+  readonly unique: boolean;
+  readonly visible: boolean;
+  readonly enabled: boolean;
 }
 
-async function mapSelectorIsExecutable(page: Page, selector: string, includeHidden: boolean): Promise<boolean> {
+async function locatorProof(page: Page, selector: string): Promise<LocatorProof> {
   const locator = page.locator(selector);
-  // @orb-gate-ignore caught-failure-ownership(promise:count): probe-whose-failure-is-its-return-value — a count failure becomes 0, which fails the `=== 1` check below and reports the selector as not executable. Ends if that check stops gating on count.
+  // @orb-gate-ignore caught-failure-ownership(promise:count): a malformed/non-unique candidate returns
+  // unique=false and falls through to the next candidate; no row can escape without a proven locator.
   const count = await locator.count().catch(() => 0);
-  // @orb-gate-ignore caught-failure-ownership(promise:isVisible): probe-whose-failure-is-its-return-value — an isVisible failure becomes false, which is exactly the "not executable" verdict this function returns. Ends if the return stops being read as pass/fail.
-  return count === 1 && (includeHidden || locator.isVisible().catch(() => false));
+  if (count !== 1) {
+    return { unique: false, visible: false, enabled: false };
+  }
+  // @orb-gate-ignore caught-failure-ownership(promise:isVisible): a failed visibility probe is false;
+  // visible/actionable rows require true, while explicit hidden inventory remains locator-only.
+  return {
+    unique: true,
+    visible: await locator.isVisible().catch(() => false),
+    // @orb-gate-ignore caught-failure-ownership(promise:isEnabled): failed enabled proof is false;
+    // a locator-only inventory row can survive it, but an actionable row cannot.
+    enabled: await locator.isEnabled().catch(() => false),
+  };
 }
 
-async function validateMapEntry(page: Page, entry: RawMapEntry, includeHidden: boolean): Promise<MapEntry> {
-  if (await mapSelectorIsExecutable(page, entry.selector, includeHidden)) {
+async function validateMapEntry(page: Page, entry: RawMapEntry): Promise<MapEntry> {
+  const candidates = [entry.selector, entry.semanticFallback, entry.fallback].filter(
+    (candidate, index, rows) => candidate !== "" && rows.indexOf(candidate) === index,
+  );
+  for (const candidate of candidates) {
+    const proof = await locatorProof(page, candidate);
+    if (!proof.unique || (entry.visibility === "visible" && !proof.visible) || (entry.actionability === "actionable" && !proof.enabled)) {
+      continue;
+    }
     return {
       role: entry.role,
       name: entry.name,
-      selector: entry.selector,
-      source: entry.selector === entry.fallback ? "dom" : "semantic",
+      selector: candidate,
+      source: candidate === entry.fallback ? "dom" : "semantic",
+      state: entry.state,
+      visibility: entry.visibility,
+      inactiveReason: entry.inactiveReason,
+      actionability: entry.actionability,
     };
   }
-  if (
-    entry.semanticFallback !== "" &&
-    entry.semanticFallback !== entry.selector &&
-    (await mapSelectorIsExecutable(page, entry.semanticFallback, includeHidden))
-  ) {
-    return { role: entry.role, name: entry.name, selector: entry.semanticFallback, source: "semantic" };
-  }
-  if (await mapSelectorIsExecutable(page, entry.fallback, includeHidden)) {
-    return { role: entry.role, name: entry.name, selector: entry.fallback, source: "dom" };
-  }
-  throw new Error(`map could not mint one visible selector for ${entry.role} ${JSON.stringify(entry.name)}`);
+  throw new Error(`map could not mint one unique ${entry.visibility} locator for ${entry.role} ${JSON.stringify(entry.name)}`);
 }
 
-async function captureMap(page: Page, selector: string, includeHidden: boolean): Promise<{ entries: MapEntry[] | null; error: string | null }> {
+async function captureSurfaceMap(
+  page: Page,
+  selector: string,
+  includeHidden: boolean,
+): Promise<{ readonly entries: MapEntry[] | null; readonly error: string | null }> {
   try {
-    // #1004 — settled here rather than inside `validateMapEntry`'s per-row selector walk, where a
-    // malformed row throws with no mention of the page read that produced it.
-    const result = rawMapEntries(await page.evaluate(buildMapScript(selector, includeHidden)));
+    const result = rawMapEntries(await page.evaluate(buildSurfaceMapScript(selector, includeHidden)));
     if (result === null) {
       return { entries: null, error: `no element matches "${selector}"` };
     }
-    return { entries: await Promise.all(result.map((entry) => validateMapEntry(page, entry, includeHidden))), error: null };
-  } catch (e) {
-    return { entries: null, error: errorMessage(e) };
+    return { entries: await Promise.all(result.map((entry) => validateMapEntry(page, entry))), error: null };
+  } catch (error) {
+    return { entries: null, error: errorMessage(error) };
   }
 }
 
-/** `map=`/`map-dom-fallbacks=` state WHICH run you got — `no` when the arm never ran, a count when it did.
- *  A bare `0` for both would read the same as "the arm is off", which is the class the registry's
- *  totality rule exists to kill. */
+async function captureMapBridge(page: Page): Promise<{
+  readonly atlas: MapAtlasEvidence | null;
+  readonly shell: MapShellEvidence | null;
+  readonly atlasError: string | null;
+  readonly shellError: string | null;
+}> {
+  let raw: RawMapBridgeEvidence;
+  // @orb-gate-ignore caught-failure-ownership(empty:error): the browser read failure is retained in
+  // both named map errors; the report prints it and the map page-arm exit forces toolError.
+  try {
+    raw = mapBridgePayload(await page.evaluate(READ_MAP_BRIDGE_SCRIPT));
+  } catch (error) {
+    const detail = errorMessage(error);
+    return { atlas: null, shell: null, atlasError: detail, shellError: detail };
+  }
+  let atlas: MapAtlasEvidence | null = null;
+  let atlasError: string | null = null;
+  let shell: MapShellEvidence | null = null;
+  let shellError: string | null = null;
+  // @orb-gate-ignore caught-failure-ownership(empty:error): the capabilities shape failure becomes
+  // mapAtlasError, printed as MAP INSTRUMENT ERROR and forced to toolError by the page-arm exit.
+  try {
+    atlas = mapAtlasEvidence(raw.atlas);
+  } catch (error) {
+    atlasError = errorMessage(error);
+  }
+  // @orb-gate-ignore caught-failure-ownership(empty:error): the shell shape failure becomes
+  // mapShellError, printed as MAP INSTRUMENT ERROR and forced to toolError by the page-arm exit.
+  try {
+    shell = mapShellEvidence(raw.shell);
+  } catch (error) {
+    shellError = errorMessage(error);
+  }
+  return { atlas, shell, atlasError, shellError };
+}
+
 function mapOutput(enabled: boolean, outcomes: readonly CaptureOutcome[]): { readonly count: string; readonly domFallbacks: string } {
   if (!enabled) {
     return { count: "no", domFallbacks: "no" };
@@ -252,8 +123,16 @@ function mapOutput(enabled: boolean, outcomes: readonly CaptureOutcome[]): { rea
   return { count: String(entries.length), domFallbacks: String(entries.filter((entry) => entry.source === "dom").length) };
 }
 
+function pageHasMapFailure(outcome: CaptureOutcome): boolean {
+  return outcome.mapError !== null || outcome.mapAtlasError !== null || outcome.mapShellError !== null;
+}
+
 function mapFailures({ outcomes }: ArmPairInput): number {
-  return outcomes.filter((outcome) => outcome.mapError !== null).length;
+  return outcomes.filter(pageHasMapFailure).length;
+}
+
+function mapInstrumentFailures({ outcomes }: ArmPairInput): number {
+  return outcomes.filter((outcome) => outcome.mapAtlasError !== null || outcome.mapShellError !== null).length;
 }
 
 export const MAP_ARM = {
@@ -262,27 +141,43 @@ export const MAP_ARM = {
       flag: "--map",
       kind: "optional-selector",
       pageTargetable: true,
-      handler: (a, rest, page): void => {
-        a.map = true;
-        a.mapPage = page;
+      handler: (args, rest, page): void => {
+        args.map = true;
+        args.mapPage = page;
         const selector = consumeOptionalSelector(rest);
         if (selector !== null) {
-          a.mapSelector = selector;
+          args.mapSelector = selector;
         }
       },
     },
   ],
   level: "call",
   needs: (): ArmNeeds => ({}),
+  sessionCallBaseMs: (): null => null,
   defaults: (): Pick<ArmArgs, "map" | "mapSelector" | "mapPage"> => ({ map: false, mapSelector: "body", mapPage: 0 }),
-  help: "  --map [selector]        interactive roles, names, and selectors",
+  help: `  --map [selector]        print BOTH the global Orbweaver SPA destination atlas and the current
+                          rendered shell/surface map with unique locators and useful control state.
+                          The selector scopes only the surface; atlas stays global. Static files are a
+                          valid DOM-only map. Use --include-hidden for an explicitly labelled attached-DOM
+                          inventory; hidden/inert/disabled rows are locator-only, not current click handles,
+                          and DOM evidence does not claim React Activity provenance.`,
+  result: {
+    schema: "snap-arm-map-v1",
+    source: "__orb nav atlas + shell topology + rendered DOM",
+    lifetime: "settled page capture",
+    enabled: (opts): boolean => opts.map,
+  },
   lifecycle: {
     at: "page",
     enabled: ({ opts, pageIndex }): boolean => opts.map && opts.mapPage === pageIndex,
     run: async ({ page, opts, outcome }): Promise<void> => {
-      const mapped = await captureMap(page, opts.mapSelector, opts.includeHidden);
-      outcome.mapResult = mapped.entries;
-      outcome.mapError = mapped.error;
+      const [surface, bridge] = await Promise.all([captureSurfaceMap(page, opts.mapSelector, opts.includeHidden), captureMapBridge(page)]);
+      outcome.mapResult = surface.entries;
+      outcome.mapError = surface.error;
+      outcome.mapAtlas = bridge.atlas;
+      outcome.mapAtlasError = bridge.atlasError;
+      outcome.mapShell = bridge.shell;
+      outcome.mapShellError = bridge.shellError;
     },
     pairs: (input): readonly ResultPair[] => {
       const summary = mapOutput(input.opts.map, input.outcomes);
@@ -292,6 +187,31 @@ export const MAP_ARM = {
         ["map-fails", mapFailures(input)],
       ];
     },
+    facts: (input): readonly ArmFactEmission<"map">[] => {
+      const entries = input.outcomes.flatMap((outcome) => outcome.mapResult ?? []);
+      const failures = mapFailures(input);
+      let state: "off" | "refused" | "failed" | "passed" = "off";
+      if (input.opts.map) {
+        if (mapInstrumentFailures(input) > 0) {
+          state = "refused";
+        } else {
+          state = failures > 0 ? "failed" : "passed";
+        }
+      }
+      return [
+        {
+          scope: aggregateScope(),
+          data: {
+            state,
+            detail: null,
+            entries: entries.length,
+            domFallbacks: entries.filter((entry) => entry.source === "dom").length,
+            failures,
+          },
+        },
+      ];
+    },
     failures: (input): ArmFailureCounts => ({ map: mapFailures(input) }),
+    exit: (input, code): number => (mapInstrumentFailures(input) === 0 ? code : EXIT.toolError),
   },
-} satisfies ArmDef;
+} satisfies ArmDef<"map">;

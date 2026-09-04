@@ -98,13 +98,11 @@ Every row is reached by the pnpm script name in the last column, never by path.
 | tooling/src/ | owns | pnpm scripts |
 | - | - | - |
 | `bug-reports/` | the READER for the dev bug button's gitignored captures (list + show) — the artifacts have no tree presence, so the script name IS their discoverability | `bug:reports` |
-| `snap/` | rendered-surface capture + evidence (map/contrast/eval/aria, scenarios, the isolated stage) | `snap` |
+| `snap/` | the sole rendered-instrument CLI: capture + evidence, labelled transition filmstrips, motion/perf/CPU/boot/React analyzers, scenarios, sessions, and the isolated stage | `snap` |
 | `ui-audit/` | the design/a11y walker + its rule families | `design-audit` |
-| `motion-audit/` | motion budgets, frame verdicts, traces | `motion-audit` |
-| `cpu-profile/` | in-page CPU metering | `perf-meter` |
 | `render-trace/` | render/tail/fire — three ops behind one dispatcher | `trace:render` `trace:tail` `trace:fire` |
 | `wire-tap/` | the server-wire incident toolkit (sse · captures · trpc) | `sse-tap` |
-| `screen-record/` | screen capture | (see `scripts/README.md`) |
+| `screen-record/` | retired Record compatibility door; prints the exact `snap --filmstrip` recipe and opens no browser | `record` |
 | `ast/` | the structural-search + rot-lens engine | `ast` · `check:respell/swallowed/typeonly/columns/regkeys/chains` |
 | `codemod/` | the ts-morph codemod kit | `codemod` |
 | `verify/` | the whole verification system + the gate corpus + `GATE-AUTHORING.md` | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:tests-membership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` |
@@ -260,7 +258,7 @@ Everything else — `ops/`, `lib/`, `contract/`, and every `ops/parse.ts` — ta
 
 Arms: **(A)** the read outside a sanctioned home, both spellings (an element-access-blind matcher would be the loophole); **(B)** the two-sided `ARGV_ENTRIES` stale sweep — a `seen` set populated only by a live match, so a row whose file merely stopped reading argv and a row whose file is GONE collapse to one check (§4.4a); **(C)** the §4.6 blindness tripwire — zero `cli.ts` readers on a real-tree run means the matcher stopped recognising the shape, and every arm above is vacuously green. Arms B and C are anchored on `_shared/exit-contract.ts` via `fileLoaded`, never on `scope.kind`.
 
-**DECLARED LIMIT (its own `mustPass` row): this gate pins WHERE argv is read, never HOW STRICTLY each tool's grammar parses it.** The 27-reader census behind #971 classified each CLI's real grammar — strict-ordered (`snap`/`ui-audit`/`motion-audit`/`cpu-profile`/`screen-record`, each with its own `ops/parse.ts`), positional/subcommand (`ast`/`verify`/`workboard`/`doc-catalog`/`seed`/`wire-tap`/`render-trace`), flag-bag, and `--`-forwarding (`stack`) — and closed the lenient ones by hand. There is deliberately NO generic `parseArgv(spec)`: flattening 27 grammars into one would change every tool's contract, and each existing contract stays byte-stable.
+**DECLARED LIMIT (its own `mustPass` row): this gate pins WHERE argv is read, never HOW STRICTLY each tool's grammar parses it.** The 27-reader census behind #971 classified each CLI's real grammar — strict-ordered (`snap`/`ui-audit`), positional/subcommand (`ast`/`verify`/`workboard`/`doc-catalog`/`seed`/`wire-tap`/`render-trace`), flag-bag, and `--`-forwarding (`stack`) — and closed the lenient ones by hand. The retired `motion-audit`/`perf-meter` scripts and `screen-record` command are hard-refusal redirects, not parsers or browser doors. There is deliberately NO generic `parseArgv(spec)`: flattening the remaining grammars into one would change every tool's contract, and each existing contract stays byte-stable.
 
 ### 4.6 dep-cruiser stanzas
 
@@ -351,7 +349,7 @@ A change that moves a shared VALUE additionally runs the suites that assert the 
 | `bin` entries | owner veto: install-relink footgun; pnpm root scripts are the front door |
 | `tooling` inside `packages/` | every `packages/*` glob and cake gate would need a carve; the root tree keeps "above the cake" legible from the path (§2.1) |
 | a task runner (turbo/nx) | nothing builds — tsc is a noEmit oracle and node runs source; a build graph would govern zero artifacts |
-| a bench lane | zero bench usage; instrument self-cost is guarded by the instrument-proof suite + `cpu-profile` attribution. Revisit on a measured need |
+| a bench lane | zero bench usage; instrument self-cost is guarded by the instrument-proof suite + Snap's `--cpu-profile` attribution. Revisit on a measured need |
 | `setupFiles` for matcher/serializer registration | the house registers by side effect through the composed test; a second mechanism is a two-homes violation |
 | `toExitWith` in a separate tool-matchers module | `matchers.ts` is the ONE matcher home, with the cap census in its header |
 | a `"."` root export for `@orb/tooling` | an aggregate barrel chain-loads every tool's heavy graph (§2.2) |

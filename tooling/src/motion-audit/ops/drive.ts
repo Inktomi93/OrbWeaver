@@ -4,12 +4,10 @@
 // _shared/browser.ts).
 import { errorMessage } from "@orb/kit/error-message";
 import { print } from "@orb/tooling/_shared/artifacts";
-import { settle } from "@orb/tooling/_shared/browser";
-import { runNav } from "@orb/tooling/_shared/nav";
 import type { Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { AnimationRecord, MeasuredClick, MotionFlagRecord, MotionSnapshot, ReachAction } from "../contract/types.ts";
-import { REACH_SETTLE_MS, STEP_TIMEOUT_MS } from "../lib/budgets.ts";
+import type { AnimationRecord, MeasuredClick, MotionFlagRecord, MotionSnapshot } from "../contract/types.ts";
+import { STEP_TIMEOUT_MS } from "../lib/budgets.ts";
 import { animationRecords, bridgePresence, flagRecords, motionSnapshot } from "./page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
@@ -60,42 +58,4 @@ export async function prepareMeasuredClick(page: Page, selector: string | null):
     print(`STEP FAILED  prepare click ${selector}: ${errorMessage(e)}`);
     return null;
   }
-}
-
-/** Drive the reach queue in argv order, then clear the in-page evidence so the trace window that follows
- *  carries only the measured interaction's motion. Returns the failure count (each one printed). */
-export async function driveReach(page: Page, reach: readonly ReachAction[]): Promise<number> {
-  if (reach.length === 0) {
-    return 0;
-  }
-  let failures = 0;
-  for (const action of reach) {
-    if (action.kind === "click") {
-      // @orb-gate-ignore caught-failure-ownership(empty:e): reach failure increments the authoritative failure counter and prints the selector. Ends if the final verdict stops reading failures.
-      try {
-        const loc = page.locator(action.selector).first();
-        await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
-        await loc.click({ timeout: STEP_TIMEOUT_MS });
-      } catch (e) {
-        failures += 1;
-        print(`REACH FAILED click ${action.selector}: ${errorMessage(e)}`);
-      }
-    } else {
-      const result = await runNav(page, action.method, action.target);
-      if (!result.ok) {
-        failures += 1;
-        print(`REACH FAILED ${action.method} ${action.target}: ${result.reason}`);
-      }
-    }
-    await settle(page, REACH_SETTLE_MS);
-  }
-  // The trip to the surface is not the thing being measured (entry animations, the room's own mount
-  // reflow). Cleared only when a reach ran, so a bare `motion-audit /` still audits app entry.
-  await page.evaluate(
-    `(() => {
-      if (typeof globalThis.__orb?.resetEvidence !== "function") throw new Error("__orb.resetEvidence is unavailable");
-      return globalThis.__orb.resetEvidence();
-    })()`,
-  );
-  return failures;
 }

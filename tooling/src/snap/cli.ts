@@ -5,14 +5,19 @@
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { withInstrumentRun } from "../_shared/artifact-out.ts";
-import { print } from "../_shared/artifacts.ts";
+import { print, REPO_ROOT } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
 import type { Args } from "./index.ts";
 import {
+  completeSnapRun,
   configureStage,
   materializeDevToolsAssets,
+  modalModeErrors,
   parseSnapArgs,
+  parseSnapReportArgs,
+  printSnapReport,
+  printSnapReports,
   refuseFileMode,
   resolveContextsMode,
   resolveFixtureTarget,
@@ -24,6 +29,7 @@ import {
   snapContexts,
   snapMatrix,
   snapScenario,
+  stageBandRefusalFor,
 } from "./index.ts";
 
 function printCliPreamble(opts: Args): number | null {
@@ -67,9 +73,37 @@ async function runResolvedMode(opts: Args): Promise<number> {
   return await snap(opts);
 }
 
+async function runReportReader(argv: readonly string[]): Promise<number | null> {
+  const report = parseSnapReportArgs(argv);
+  if (!(report.list || report.query !== null || report.errors.length > 0)) {
+    return null;
+  }
+  if (report.errors.length > 0) {
+    for (const error of report.errors) {
+      print(`ARG ERROR    ${error}`);
+    }
+    return EXIT.misuse;
+  }
+  if (report.list) {
+    return await printSnapReports(REPO_ROOT);
+  }
+  if (report.query === null) {
+    print("INSTRUMENT ERROR  report mode resolved without a list or query");
+    return EXIT.toolError;
+  }
+  return await printSnapReport(REPO_ROOT, report.query);
+}
+
 /** `argv` rides beside the parsed `opts` for ONE consumer: a session call forwards its raw argv to the
  *  daemon, which re-parses it (validation has one home) — the client never re-spells the grammar. */
 export async function main(opts: Args, argv: readonly string[]): Promise<number> {
+  // Reader modes are intentionally dispatched from RAW argv before the ordinary parser, stage and run
+  // slot. They are evidence readers, not rendered runs, and must remain browser-free even on refusal.
+  const reportExit = await runReportReader(argv);
+  if (reportExit !== null) {
+    return reportExit;
+  }
+  opts.errors.push(...modalModeErrors(opts, argv));
   const cliExit = printCliPreamble(opts);
   if (cliExit !== null) {
     return cliExit;
@@ -86,25 +120,55 @@ export async function main(opts: Args, argv: readonly string[]): Promise<number>
   if (sessionAdminExit !== null) {
     return sessionAdminExit;
   }
-  const fileRefusal = refuseFileMode(opts);
-  if (fileRefusal !== null) {
-    print(fileRefusal);
-    return 1;
+  if (opts.stageStatus || opts.stageDown || opts.stageSweep) {
+    return configureStage(opts) ?? EXIT.clean;
   }
+  const complete = async (receipt: Parameters<typeof completeSnapRun>[0]): Promise<void> => {
+    await completeSnapRun(receipt, opts, argv);
+  };
   // A session call boots its stage INSIDE the daemon (the stage is the session's binding), so the stage
   // door below is the one-shot path's only; the call still owns a per-call slot (design §3.7).
   if (opts.session !== null || opts.sessionExport !== null) {
-    return await withInstrumentRun("snap", async () => await runSessionCall(opts, argv));
-  }
-  const stageExit = configureStage(opts);
-  if (stageExit !== null) {
-    return stageExit;
+    return await withInstrumentRun(
+      "snap",
+      async () => {
+        const fileRefusal = refuseFileMode(opts);
+        if (fileRefusal !== null) {
+          print(fileRefusal);
+          return EXIT.violations;
+        }
+        return await runSessionCall(opts, argv);
+      },
+      REPO_ROOT,
+      { complete },
+    );
   }
   // Everything this run writes lands in its OWN slot and is published as `reports/snaps/…` pointers when
   // it finishes (#1164) — two concurrent snaps that took the same `--out` name keep both sets of pixels.
   // Wrapped HERE, not around `main`: the help/misuse/argv legs above write no artifacts and must not mint
   // an empty slot.
-  return await withInstrumentRun("snap", async () => await runResolvedMode(opts));
+  return await withInstrumentRun(
+    "snap",
+    async () => {
+      const fileRefusal = refuseFileMode(opts);
+      if (fileRefusal !== null) {
+        print(fileRefusal);
+        return EXIT.violations;
+      }
+      const stageExit = configureStage(opts);
+      if (stageExit !== null) {
+        return stageExit;
+      }
+      const bandRefusal = stageBandRefusalFor(opts.base);
+      if (bandRefusal !== null) {
+        print(bandRefusal);
+        return EXIT.toolError;
+      }
+      return await runResolvedMode(opts);
+    },
+    REPO_ROOT,
+    { complete },
+  );
 }
 
 const cliEntry = process.argv[1];

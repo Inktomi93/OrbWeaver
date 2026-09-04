@@ -2329,6 +2329,9 @@
     "tests/ui/variant-arm-parity.suite.test.ts"
   ],
   "deletions": {
+    "tests/tooling/screen-record/ops/record.int.test.ts": {
+      "why": "RETIRED WITH ITS SUBJECT — Project #1310 moved transition evidence onto Snap's exact-page --filmstrip arm and deleted screen-record's second browser/parser/driver/render path. The surviving compatibility contract is pinned by tests/tooling/screen-record/index.test.ts and the executable browser/artifact parity lives in tests/tooling/snap/ops/arms/filmstrip.suite.int.test.ts."
+    },
     "tests/client/features/chat/surfaces/worst-legal-art-contrast.ct.tsx": {
       "why": "RENAMED, not dropped: the same 21-case #883 rendered contrast matrix now lives at tests/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx. The `.suite.ct.tsx` suffix declares what the test already is — one cross-cutting browser property over the real chat room, ThemeScope pairs, shipped seeds, custom themes, pivot polarities, and hostile instrument controls — so test-layout does not falsely demand a same-named production module. Every assertion moved byte-for-byte."
     },

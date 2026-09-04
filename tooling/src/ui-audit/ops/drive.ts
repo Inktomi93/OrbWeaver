@@ -6,7 +6,7 @@ import { print } from "@orb/tooling/_shared/artifacts";
 import type { launchProbeSession } from "@orb/tooling/_shared/browser";
 import { settle } from "@orb/tooling/_shared/browser";
 import { runNav } from "@orb/tooling/_shared/nav";
-import { resolveFileInputLocator, resolveUploadPaths } from "@orb/tooling/_shared/upload";
+import { driveFileUpload, fileActionReceiptLine } from "@orb/tooling/_shared/upload";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, AuditAction, CaptureOutcome } from "../contract/types.ts";
 import { CLICK_TIMEOUT_MS, NAV_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
@@ -23,14 +23,9 @@ type AuditPage = Awaited<ReturnType<typeof launchProbeSession>>["page"];
  *  `_shared/upload.ts`), drill to the real `<input type="file">`, attach. Split out of `driveAction` so
  *  its cognitive complexity stays in budget. */
 async function driveUpload(page: AuditPage, action: Extract<AuditAction, { kind: "upload" }>): Promise<void> {
-  const resolved = resolveUploadPaths(action.paths);
-  if (!resolved.ok) {
-    throw new Error(resolved.reason);
-  }
   const loc = page.locator(action.selector).first();
-  await loc.waitFor({ state: "attached", timeout: CLICK_TIMEOUT_MS });
-  const target = await resolveFileInputLocator(loc);
-  await target.setInputFiles([...resolved.paths]);
+  const receipt = await driveFileUpload(loc, action.selector, action.paths, CLICK_TIMEOUT_MS);
+  print(fileActionReceiptLine(receipt));
 }
 
 /** What a failed action names, for the printed line. */

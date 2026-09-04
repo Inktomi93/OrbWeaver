@@ -77,9 +77,36 @@ export interface RunNicedSyncResult {
 
 /** Ambient process environment plus explicit child overrides. Tool launchers use this instead of each
  *  growing its own process.env suppression; app configuration is not read here. */
-export function inheritedProcessEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+function ambientProcessEnv(): NodeJS.ProcessEnv {
   // biome-ignore lint/style/noProcessEnv: the child inherits the AMBIENT env (PATH, HOME — how every spawn works); the rule guards app config reads, and no config is read here.
-  return { ...process.env, ...overrides };
+  return process.env;
+}
+
+export function inheritedProcessEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  return { ...ambientProcessEnv(), ...overrides };
+}
+
+/** Read one ambient tooling/test protocol value without creating another process.env policy site. */
+export function processEnvValue(key: string): string | undefined {
+  return ambientProcessEnv()[key];
+}
+
+/** Temporarily expose one process-environment value to a worker/subprocess protocol, then restore it.
+ * This is not an app-config reader; it centralizes the mutation beside the fleet's process doors. */
+export async function withProcessEnv<T>(key: string, value: string, run: () => Promise<T>): Promise<T> {
+  const environment = ambientProcessEnv();
+  const wasPresent = Object.hasOwn(environment, key);
+  const previous = environment[key];
+  environment[key] = value;
+  try {
+    return await run();
+  } finally {
+    if (wasPresent) {
+      environment[key] = previous;
+    } else {
+      delete environment[key];
+    }
+  }
 }
 
 /** Sync spawn under `nice -n 19` — never throws on a non-zero status (the caller judges). */
@@ -206,8 +233,8 @@ export interface FullPriorityChild {
 
 /** The DETACHED-child twin of spawnFullPrioritySync — NO nice wrapper, same census discipline (gate:
  *  tooling-shared-plumbing arm F2, FULL_PRIORITY_CALLERS). Reserved for a long-lived child that IS the
- *  workload a human is waiting on (the vLLM engine fleet: -19 on an inference server degrades the very
- *  interactive latency the fleet exists to provide). Everything else rides spawnNicedChild. */
+ *  interactive workload a human is waiting on (vLLM inference or a stateful browser session); everything
+ *  else rides spawnNicedChild. */
 export function spawnFullPriorityChild(cmd: string, args: readonly string[], opts: FullPriorityChildOptions = {}): FullPriorityChild {
   const logFd = opts.logPath === undefined ? undefined : openSync(opts.logPath, "a");
   const child = spawn(cmd, [...args], {

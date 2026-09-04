@@ -1,0 +1,25 @@
+diff --git a/build/src/third_party/devtools-heap-snapshot-worker.js b/build/src/third_party/devtools-heap-snapshot-worker.js
+index be3161b742a03dbda99a907b0a28b1cf12d28e42..ead6d37dd486827fd2e1c4b24bc6ad39726c310f 100644
+--- a/build/src/third_party/devtools-heap-snapshot-worker.js
++++ b/build/src/third_party/devtools-heap-snapshot-worker.js
+@@ -1,3 +1,4 @@
++import {appendFileSync} from 'node:fs';
+ import * as WorkerThreads from 'node:worker_threads';
+ 
+ // Copyright 2020 The Chromium Authors
+@@ -7113,7 +7114,14 @@ class HeapSnapshot {
+                 const data = e.data;
+                 if (data?.problemReport) {
+                     const problemReport = data.problemReport;
+-                    console.warn(formatProblemReport(this, problemReport));
++                    const formatted = formatProblemReport(this, problemReport);
++                    const reportPath = process.env.ORB_HEAP_PARSER_PROBLEM_PATH;
++                    if (reportPath) {
++                        appendFileSync(reportPath, `${JSON.stringify({message: formatted})}\n`, 'utf8');
++                    }
++                    else {
++                        console.warn(formatted);
++                    }
+                 }
+                 else if (data?.resultsFromSecondWorker) {
+                     secondWorker.removeEventListener('message', listener);

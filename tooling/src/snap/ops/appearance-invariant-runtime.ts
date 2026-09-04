@@ -178,11 +178,8 @@ interface DensityPersistenceGuard {
   readonly close: () => Promise<void>;
 }
 
-interface SettingsMutationBody {
-  readonly 0?: {
-    readonly section?: unknown;
-    readonly patch?: { readonly density?: unknown };
-  };
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function installDensityPersistenceGuard(page: Page, expectedDensity: string): Promise<DensityPersistenceGuard> {
@@ -200,10 +197,11 @@ async function installDensityPersistenceGuard(page: Page, expectedDensity: strin
       return;
     }
     attempted += 1;
-    const body = request.postDataJSON() as SettingsMutationBody;
-    const input = body[0];
-    section = typeof input?.section === "string" ? input.section : null;
-    density = typeof input?.patch?.density === "string" ? input.patch.density : null;
+    const body: unknown = request.postDataJSON();
+    const input = Array.isArray(body) && isRecord(body[0]) ? body[0] : null;
+    const patch = input === null || !isRecord(input["patch"]) ? null : input["patch"];
+    section = typeof input?.["section"] === "string" ? input["section"] : null;
+    density = typeof patch?.["density"] === "string" ? patch["density"] : null;
     if (section === "appearance" && density === expectedDensity) {
       exact += 1;
     }

@@ -7,21 +7,33 @@
 // thing that goes missing in a refactor (`--no-deadcss` had no help row for its whole life until this
 // registry made one mandatory).
 import type { Page } from "@playwright/test";
+import { aggregateScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
+import { print } from "../../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import type { ArmDef, ArmFailureCounts, ArmNeeds } from "../../contract/arms.ts";
+import type { ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds } from "../../contract/arms.ts";
 import type { PerfEvidence } from "../../contract/types.ts";
+import type { SnapRatePosture } from "../../lib/rate-posture.ts";
+import { ratePostureDisposition } from "../../lib/rate-posture.ts";
 import { perfEvidence } from "../page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
-async function capturePerfEvidence(page: Page): Promise<PerfEvidence | null> {
+export async function capturePerfEvidence(page: Pick<Page, "evaluate">, ratePosture: SnapRatePosture): Promise<PerfEvidence | null> {
+  const disposition = ratePostureDisposition(ratePosture, "Snap's navigation timing rate");
+  if (disposition.withheld) {
+    print(`WITHHELD (${disposition.reason})`);
+    return { rate: { status: "withheld", reason: disposition.reason }, acceleration: ratePosture.acceleration, navigation: null, orb: null };
+  }
   // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — perf evidence is a nice-to-have from window.__orb, null on any failure (old build, dev-only bridge absent) and the caller treats null as "no perf evidence", never a failure. Ends if a caller starts requiring perf evidence to be present.
   try {
     // #1004 — validated so a malformed payload reaches the `catch → null` arm below (optional read,
     // absent is fine) instead of landing in the report as fabricated navigation numbers.
-    return perfEvidence(
-      await page.evaluate(`(() => {
+    return {
+      rate: { status: "measured", reason: "navigation timings were collected on a quiet, hardware-accelerated browser" },
+      acceleration: ratePosture.acceleration,
+      ...perfEvidence(
+        await page.evaluate(`(() => {
       const nav = performance.getEntriesByType("navigation")[0];
       return {
         navigation: nav ? {
@@ -32,29 +44,61 @@ async function capturePerfEvidence(page: Page): Promise<PerfEvidence | null> {
         orb: window.__orb ? window.__orb.snap() : null,
       };
     })()`),
-    );
+      ),
+    };
   } catch {
     return null;
   }
 }
 
-export const PERF_ARM = {
+/** The actual RESULT member for this arm. A loaded rate is withheld without changing any other arm's
+ *  pass/fail contribution; an absent optional bridge remains distinct from both states. */
+export function appSnapshotResultPair(evidence: readonly (PerfEvidence | null)[]): ResultPair {
+  if (evidence.some((entry) => entry?.rate.status === "withheld")) {
+    return ["app-snapshot", "withheld"];
+  }
+  return ["app-snapshot", evidence.some((entry) => entry?.rate.status === "measured") ? "measured" : "absent"];
+}
+
+export const APP_SNAPSHOT_ARM = {
   flags: [],
   level: "call",
   needs: (): ArmNeeds => ({}),
+  sessionCallBaseMs: (): null => null,
   defaults: (): Record<string, never> => ({}),
-  help: `  (no flag)               navigation timing + the window.__orb snapshot are read on EVERY settled
-                          page and filed in the --json manifest; absent evidence reports as absent`,
+  help: `  app-snapshot (attempted) cheap navigation timing + window.__orb.snap() overview attempted on EVERY
+                          settled page (coarse perf/render/console counts, not the selective --perf verdict).
+                          Plain/static pages have no __orb overview (N/A); if navigation timing also cannot
+                          be measured, app-snapshot reports absent rather than a page failure;
+                          load/software rendering withholds only this rate arm`,
+  result: {
+    schema: "snap-arm-app-snapshot-v1",
+    source: "window.__orb.snap() + Navigation Timing",
+    lifetime: "settled page capture",
+    enabled: (): true => true,
+  },
   lifecycle: {
     at: "page",
     enabled: (): boolean => true,
-    run: async ({ page, outcome }): Promise<void> => {
-      outcome.perf = await capturePerfEvidence(page);
+    run: async ({ page, outcome, ratePosture }): Promise<void> => {
+      outcome.perf = await capturePerfEvidence(page, ratePosture);
     },
-    // No RESULT pair and no verdict member: the perf read is REPORTED (report block + manifest), never
-    // judged — a slow page is not a snap failure, and inventing a threshold here would duplicate the
-    // motion/CPU instruments that own that question.
-    pairs: (): readonly ResultPair[] => [],
+    // The pair states whether the RATE was measured or withheld. It never contributes a failure count:
+    // navigation timing has no snap threshold, and the other arms keep their independent verdicts.
+    pairs: ({ outcomes }): readonly ResultPair[] => [appSnapshotResultPair(outcomes.map((outcome) => outcome.perf))],
+    facts: ({ outcomes }): readonly ArmFactEmission<"app-snapshot">[] => {
+      const snapshots = outcomes.filter((outcome) => outcome.perf?.rate.status === "measured").length;
+      const withheld = outcomes.some((outcome) => outcome.perf?.rate.status === "withheld");
+      const unavailable = outcomes.length - snapshots;
+      let state: "withheld" | "passed" | "absent" = "absent";
+      if (withheld) {
+        state = "withheld";
+      } else if (snapshots > 0) {
+        state = "passed";
+      }
+      return [{ scope: aggregateScope(), data: { state, detail: null, snapshots, unavailable } }];
+    },
     failures: (): ArmFailureCounts => ({}),
+    exit: (_input, code): number => code,
   },
-} satisfies ArmDef;
+} satisfies ArmDef<"app-snapshot">;

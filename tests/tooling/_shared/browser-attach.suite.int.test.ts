@@ -30,6 +30,7 @@ import { attachProbeSession, closeProbeSession, launchProbeSession } from "@orb/
 import { openProbeContext } from "@orb/tooling/_shared/browser-context";
 import type { ProbeSession } from "@orb/tooling/_shared/browser-contract";
 import { reassertOwnerViewport } from "@orb/tooling/_shared/browser-emulation-guard";
+import type { BrowserContext, Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { snapshot } from "lighthouse";
 import puppeteer from "puppeteer-core";
@@ -60,6 +61,62 @@ async function launchDebuggable(profileDir: string): Promise<ProbeSession> {
     browserArgs: ["--remote-debugging-port=0"],
   });
 }
+
+test("recorded attach closes each partially-created resource exactly once without taking over the daemon browser", async ({ scratch }) => {
+  const owner = await launchDebuggable(scratch);
+  try {
+    const endpoint = await debuggingEndpoint(scratch);
+    for (const step of ["newContext", "newPage", "wirePage"] as const) {
+      const attachedBrowser = await chromium.connectOverCDP(endpoint);
+      const closeBrowser = attachedBrowser.close.bind(attachedBrowser);
+      const createContext = attachedBrowser.newContext.bind(attachedBrowser);
+      let context: BrowserContext | null = null;
+      let browserCloseCalls = 0;
+      let contextCloseCalls = 0;
+      vi.spyOn(chromium, "connectOverCDP").mockResolvedValueOnce(attachedBrowser);
+      vi.spyOn(attachedBrowser, "close").mockImplementation(async () => {
+        browserCloseCalls += 1;
+        await closeBrowser();
+      });
+      vi.spyOn(attachedBrowser, "newContext").mockImplementation(async (options) => {
+        if (step === "newContext") {
+          throw new Error("planted newContext refusal");
+        }
+        context = await createContext(options);
+        const closeContext = context.close.bind(context);
+        vi.spyOn(context, "close").mockImplementation(async () => {
+          contextCloseCalls += 1;
+          await closeContext();
+        });
+        if (step === "newPage") {
+          vi.spyOn(context, "newPage").mockRejectedValueOnce(new Error("planted newPage refusal"));
+        } else {
+          vi.spyOn(context, "newCDPSession").mockRejectedValueOnce(new Error("planted wirePage refusal"));
+        }
+        return context;
+      });
+
+      await expect(
+        attachProbeSession(endpoint, {
+          viewport: VIEWPORT,
+          device: null,
+          colorScheme: null,
+          reducedMotion: false,
+          contrast: null,
+          reducedTransparency: false,
+          recordVideoDir: join(scratch, `video-${step}`),
+        }),
+      ).rejects.toThrow(`planted ${step} refusal`);
+      expect(browserCloseCalls).toBe(1);
+      expect(contextCloseCalls).toBe(step === "newContext" ? 0 : 1);
+      expect(await owner.page.evaluate("1 + 1")).toBe(2);
+      vi.restoreAllMocks();
+    }
+  } finally {
+    vi.restoreAllMocks();
+    await closeProbeSession(owner);
+  }
+});
 
 /** Chrome publishes its OS-assigned debugging port only after it binds; poll for it, loudly. */
 async function debuggingEndpoint(profileDir: string): Promise<string> {
@@ -328,6 +385,24 @@ async function launchDebuggableAtViewport(profileDir: string): Promise<ProbeSess
   });
 }
 
+/** Rapid accelerated browser launches can expose the attached page before Chromium has produced its
+ *  first compositor frame. A screencast frame is the protocol's positive proof that the surface exists;
+ *  unlike a timer or screenshot retry, it barriers on the exact resource the planted operation needs. */
+async function waitForCompositorFrame(page: Page): Promise<void> {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const frame = new Promise<number>((resolve) => {
+      cdp.once("Page.screencastFrame", ({ sessionId: frameSessionId }) => resolve(frameSessionId));
+    });
+    await cdp.send("Page.startScreencast", { format: "jpeg", quality: 1, maxWidth: 1, maxHeight: 1 });
+    const sessionId = await frame;
+    await cdp.send("Page.screencastFrameAck", { sessionId });
+    await cdp.send("Page.stopScreencast");
+  } finally {
+    await cdp.detach();
+  }
+}
+
 test("#1287: the owner's viewport round trip repairs screen corruption even at the former away size", async ({ scratch }) => {
   const { server, base } = await startOrigin();
   const session = await launchDebuggableAtViewport(scratch);
@@ -349,6 +424,7 @@ test("#1287: the owner's viewport round trip repairs screen corruption even at t
     });
     try {
       await sibling.page.goto(`${base}/sibling.html`);
+      await waitForCompositorFrame(sibling.page);
       // The proven corrupting op: a screenshot on a page THIS connection did not create (design-audit's
       // own `resolvePixelBackdrops`, ui-audit/ops/pixels.ts).
       await sibling.page.screenshot({ animations: "disabled", scale: "css" });

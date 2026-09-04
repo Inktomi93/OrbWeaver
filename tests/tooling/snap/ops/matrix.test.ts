@@ -1,5 +1,5 @@
-import type { AppearanceAggregate } from "../../../../tooling/src/snap/ops/matrix.ts";
-import { reconcileAppearanceAggregate } from "../../../../tooling/src/snap/ops/matrix.ts";
+import type { AppearanceAggregate } from "../../../../tooling/src/snap/lib/matrix-appearance.ts";
+import { reconcileAppearanceAggregate } from "../../../../tooling/src/snap/lib/matrix-appearance.ts";
 import type { ScenarioMatrixCellEvidence } from "../../../../tooling/src/snap/ops/matrix-scenario.ts";
 import { reconcileScenarioMatrixEvidence } from "../../../../tooling/src/snap/ops/matrix-scenario.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

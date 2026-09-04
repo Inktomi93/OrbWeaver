@@ -204,7 +204,7 @@ test("session flags parse, the admin modes stand alone, and a bad TTL or name re
 });
 
 test("snap rejects missing and malformed flag values", () => {
-  const args = parseSnapArgs(["--click", "--no-shot", "--pages", "0", "--viewport", "wide", "--fill", "input", "--ls", "broken", "--crop", "100x"]);
+  const args = parseSnapArgs(["--click", "--no-shot", "--pages", "0", "--viewport", "wide", "--fill", "input", "--local-storage", "broken", "--crop", "100x"]);
 
   expect(args.errors).toEqual(
     expect.arrayContaining([
@@ -212,7 +212,7 @@ test("snap rejects missing and malformed flag values", () => {
       '--pages expects an integer >= 1, got "0"',
       '--viewport expects positive WxH, got "wide"',
       '--fill expects sel=value with a non-empty selector, got "input"',
-      '--ls expects key=value with a non-empty key, got "broken"',
+      '--local-storage expects key=value with a non-empty key, got "broken"',
       '--crop expects WxH or WxH+X+Y, got "100x"',
     ]),
   );
@@ -405,13 +405,12 @@ test("snap parses active-tree assertions, structured output, and strict console 
     "--expect-url",
     "/",
     "--json",
-    "--summary",
     "--strict-console",
   ]);
 
   expect(args.errors).toEqual([]);
   expect(args.json).toBe(true);
-  expect(args.summary).toBe(true);
+  expect(args.summary).toBe(false);
   expect(args.strictConsole).toBe(true);
   expect(args.assertions).toHaveLength(6);
 });

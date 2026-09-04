@@ -44,7 +44,7 @@ function data(reduced: boolean, frames: number, app: boolean, measuredInput: boo
         hasTouch: true,
       },
       actual: {
-        device: MOBILE_DEVICE,
+        device: { kind: "named", name: MOBILE_DEVICE },
         viewport,
         innerViewport: viewport,
         screen: viewport,

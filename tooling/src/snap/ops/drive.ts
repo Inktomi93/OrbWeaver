@@ -9,7 +9,9 @@ import { print } from "../../_shared/artifacts.ts";
 import { settle } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { buildNavScript } from "../../_shared/nav.ts";
-import { resolveFileInputLocator, resolveUploadPaths } from "../../_shared/upload.ts";
+import type { FileActionReceipt } from "../../_shared/upload.ts";
+import { driveFileDrop, driveFileUpload, fileActionReceiptLine } from "../../_shared/upload.ts";
+import type { ArmActionContext, ArmActionDisposition, ArmTapeContext } from "../contract/arms.ts";
 import type { Args, EvalOutcome, NavAction, SnapAction, Step } from "../contract/types.ts";
 import { HOVER_REVEAL_MS, MOUNT_SETTLE_MS, NETWORKIDLE_TIMEOUT_MS, STEP_SETTLE_MS, STEP_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
 import { CHURN_LINE, isContextChurn } from "../lib/eval-text.ts";
@@ -24,6 +26,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
  *  but the app never reached its data layer at all; `absent` = it never went up. */
 const APP_READINESS = ["settled", "degraded", "dataless", "absent"] as const;
 type AppReadiness = (typeof APP_READINESS)[number];
+const WHEEL_BURST_SETTLE_MS = 30;
 
 /** THE DATALESS TRIPWIRE (issue #145). `data-app-ready` claims a settle from an IDLE query cache, and an
  *  idle cache also describes an app that never got as far as its first read — which is exactly what a stage
@@ -102,46 +105,53 @@ export async function navigate(page: Page, opts: Args, url: string): Promise<str
   return navError;
 }
 
-// One step, one wait discipline. Throws on failure; driveStep counts + reports.
-async function runStep(page: Page, step: Step): Promise<void> {
-  if (step.kind === "keyboard") {
-    // NO locator, NO focus call: the key goes to whatever currently holds focus, which is the whole
-    // point — `--key Tab --key Tab` walks two stops instead of pressing Tab twice from the same anchor.
-    await page.keyboard.press(step.key);
-    return;
+async function runWheelStep(page: Page, step: Extract<Step, { readonly kind: "wheel" | "wheelburst" }>): Promise<void> {
+  const loc = page.locator(step.selector).first();
+  await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
+  await loc.hover();
+  const count = step.kind === "wheelburst" ? step.count : 1;
+  for (let index = 0; index < count; index += 1) {
+    await page.mouse.wheel(0, step.dy);
+    if (count > 1) {
+      await settle(page, WHEEL_BURST_SETTLE_MS);
+    }
   }
+}
+
+async function runLocatedStep(
+  page: Page,
+  step: Exclude<Step, { readonly kind: "motion-click" | "pause" | "wheel" | "wheelburst" | "keyboard" }>,
+): Promise<FileActionReceipt | null> {
   const loc = page.locator(step.selector).first();
   if (step.kind === "waitfor") {
     await loc.waitFor({ state: "visible", timeout: WAIT_SELECTOR_TIMEOUT_MS });
-    return;
+    return null;
   }
   if (step.kind === "jsclick") {
     await loc.waitFor({ state: "attached", timeout: STEP_TIMEOUT_MS });
-    // No HTMLElement cast: the root tsconfig that checks scripts/ is DOM-less.
-    await loc.evaluate((el) => (el as unknown as { click: () => void }).click());
-    return;
+    await loc.evaluate((element) => {
+      const click = Reflect.get(element, "click");
+      if (typeof click !== "function") {
+        throw new Error("target has no DOM click method");
+      }
+      Reflect.apply(click, element, []);
+    });
+    return null;
   }
   if (step.kind === "press") {
     await loc.waitFor({ state: "attached", timeout: STEP_TIMEOUT_MS });
     await loc.hover({ force: true });
     await settle(page, HOVER_REVEAL_MS);
     await loc.click({ force: true, timeout: STEP_TIMEOUT_MS });
-    return;
+    return null;
   }
-  if (step.kind === "upload") {
-    // The path boundary/existence check runs FIRST and needs no browser at all — a bad path is refused
-    // on its own terms rather than surfacing as a confusing selector-timeout on an unrelated page.
-    const resolved = resolveUploadPaths(step.paths);
-    if (!resolved.ok) {
-      throw new Error(resolved.reason);
-    }
-    // ATTACHED not VISIBLE (same reasoning as jsclick/press): every real upload input in this app is
-    // covered by non-interactive decorative chrome on purpose (ops/upload.ts), so it is routinely
-    // invisible to Playwright's actionability check while still being the correct, focusable control.
-    await loc.waitFor({ state: "attached", timeout: STEP_TIMEOUT_MS });
-    const target = await resolveFileInputLocator(loc);
-    await target.setInputFiles([...resolved.paths]);
-    return;
+  if (step.kind === "upload" || step.kind === "drop-files") {
+    const fileReceipt =
+      step.kind === "upload"
+        ? await driveFileUpload(loc, step.selector, step.paths, STEP_TIMEOUT_MS)
+        : await driveFileDrop(loc, step.selector, step.paths, STEP_TIMEOUT_MS);
+    print(fileActionReceiptLine(fileReceipt));
+    return fileReceipt;
   }
   await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
   if (step.kind === "click") {
@@ -153,21 +163,55 @@ async function runStep(page: Page, step: Step): Promise<void> {
   } else {
     await loc.fill(step.value);
   }
+  return null;
+}
+
+// One step, one wait discipline. Throws on failure; driveStep counts + reports.
+async function runStep(page: Page, step: Step): Promise<FileActionReceipt | null> {
+  if (step.kind === "motion-click") {
+    throw new Error("INSTRUMENT ERROR: a motion-click reached the ordinary tape dispatcher without the motion arm handling it");
+  }
+  if (step.kind === "pause") {
+    await settle(page, step.ms);
+    return null;
+  }
+  if (step.kind === "wheel" || step.kind === "wheelburst") {
+    await runWheelStep(page, step);
+    return null;
+  }
+  if (step.kind === "keyboard") {
+    // NO locator, NO focus call: the key goes to whatever currently holds focus, which is what makes a
+    // repeated `--key Tab` walk instead of re-focusing one anchor before every press.
+    await page.keyboard.press(step.key);
+    return null;
+  }
+  return await runLocatedStep(page, step);
 }
 
 // What a step failure names: every arm but the bare-key one is addressed by a selector.
 function stepLabel(step: Step): string {
-  return step.kind === "keyboard" ? `keyboard ${step.key}` : `${step.kind} ${step.selector}`;
+  if (step.kind === "keyboard") {
+    return `keyboard ${step.key}`;
+  }
+  if (step.kind === "pause") {
+    return `pause ${String(step.ms)}ms`;
+  }
+  return `${step.kind} ${step.selector ?? "(entry window)"}`;
 }
 
 // One step attempt + its settle. Returns the failure count (0 or 1) and prints its own reason —
 // a failing step never aborts the run, so the caller still gets a PNG of wherever the page ended up.
-async function driveStep(page: Page, step: Step): Promise<number> {
+interface DrivenStep {
+  readonly failures: number;
+  readonly fileAction: FileActionReceipt | null;
+}
+
+async function driveStep(page: Page, step: Step): Promise<DrivenStep> {
   // @orb-gate-ignore caught-failure-ownership(empty:e): printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.
   try {
-    await runStep(page, step);
+    const fileAction = await runStep(page, step);
     await settle(page, STEP_SETTLE_MS);
-    return 0;
+    return { failures: 0, fileAction };
   } catch (e) {
     const msg = errorMessage(e);
     // Dev-server churn (HMR/restart/5xx) tears down the realm mid-run — say so distinctly and give the
@@ -177,15 +221,15 @@ async function driveStep(page: Page, step: Step): Promise<number> {
       // @orb-gate-ignore caught-failure-ownership(empty:retryErr): the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read.
       try {
         await settle(page, STEP_SETTLE_MS);
-        await runStep(page, step);
-        return 0;
+        const fileAction = await runStep(page, step);
+        return { failures: 0, fileAction };
       } catch (retryErr) {
         print(`STEP FAILED (after churn retry)  ${stepLabel(step)}: ${errorMessage(retryErr)}`);
-        return 1;
+        return { failures: 1, fileAction: null };
       }
     }
     print(`STEP FAILED  ${stepLabel(step)}: ${msg}`);
-    return 1;
+    return { failures: 1, fileAction: null };
   }
 }
 
@@ -225,6 +269,7 @@ interface DriveFailures {
   navFailures: number;
   stepFailures: number;
   evalResults: EvalOutcome[];
+  fileActions: FileActionReceipt[];
 }
 
 // THE drive loop: one page's queued actions — bridge navs and interaction steps alike — in TRUE argv
@@ -233,16 +278,65 @@ interface DriveFailures {
 // modal, click create, THEN ask the resulting room for its tab. The old class-grouped shape ran both navs
 // first, so the context-tab hit the landing page and the last click timed out against a room that did not
 // exist yet (2026-08-15). Failures never abort — the capture below still reports where the page ended up.
-export async function driveActions(page: Page, actions: readonly SnapAction[]): Promise<DriveFailures> {
-  const failures: DriveFailures = { navFailures: 0, stepFailures: 0, evalResults: [] };
-  for (const entry of actions) {
-    if (entry.type === "nav") {
-      failures.navFailures += await driveNav(page, entry.action);
-    } else if (entry.type === "eval") {
-      failures.evalResults.push(...(await captureEvals(page, [entry.action.expr])));
-    } else {
-      failures.stepFailures += await driveStep(page, entry.action);
+interface DriveActionLifecycle {
+  readonly beforeAction: (ctx: ArmActionContext) => Promise<ArmActionDisposition>;
+  readonly afterAction: (ctx: ArmActionContext & { readonly failed: boolean; readonly handled: boolean }) => Promise<void>;
+  readonly afterActions: (ctx: ArmTapeContext) => Promise<void>;
+}
+
+interface DriveActionsInput {
+  readonly page: Page;
+  readonly actions: readonly SnapAction[];
+  readonly opts?: Args;
+  readonly pageIndex?: number;
+  readonly lifecycle?: DriveActionLifecycle;
+}
+
+function applyHandledDisposition(failures: DriveFailures, entry: SnapAction, disposition: ArmActionDisposition): boolean {
+  if (entry.type === "nav") {
+    failures.navFailures += disposition.failures;
+  } else {
+    failures.stepFailures += disposition.failures;
+  }
+  return disposition.failures > 0;
+}
+
+async function dispatchOrdinaryAction(page: Page, entry: SnapAction, failures: DriveFailures): Promise<boolean> {
+  if (entry.type === "nav") {
+    const count = await driveNav(page, entry.action);
+    failures.navFailures += count;
+    return count > 0;
+  }
+  if (entry.type === "eval") {
+    const results = await captureEvals(page, [entry.action.expr]);
+    failures.evalResults.push(...results);
+    return results.some((result) => result.failed);
+  }
+  const driven = await driveStep(page, entry.action);
+  failures.stepFailures += driven.failures;
+  if (driven.fileAction !== null) {
+    failures.fileActions.push(driven.fileAction);
+  }
+  return driven.failures > 0;
+}
+
+export async function driveActions(input: DriveActionsInput): Promise<DriveFailures> {
+  const { page, actions, opts, lifecycle } = input;
+  const pageIndex = input.pageIndex ?? 0;
+  const failures: DriveFailures = { navFailures: 0, stepFailures: 0, evalResults: [], fileActions: [] };
+  for (const [actionIndex, entry] of actions.entries()) {
+    const ctx =
+      opts === undefined
+        ? null
+        : { page, opts, pageIndex, actionIndex, action: entry, navFailuresBefore: failures.navFailures, stepFailuresBefore: failures.stepFailures };
+    const disposition = ctx === null || lifecycle === undefined ? { handled: false, failures: 0 } : await lifecycle.beforeAction(ctx);
+    const failed = disposition.handled ? applyHandledDisposition(failures, entry, disposition) : await dispatchOrdinaryAction(page, entry, failures);
+    if (ctx !== null && lifecycle !== undefined) {
+      await lifecycle.afterAction({ ...ctx, failed, handled: disposition.handled });
     }
+  }
+  if (opts !== undefined && lifecycle !== undefined) {
+    await lifecycle.afterActions({ page, opts, pageIndex });
   }
   return failures;
 }

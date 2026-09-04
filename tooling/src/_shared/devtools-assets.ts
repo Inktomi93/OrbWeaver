@@ -120,7 +120,7 @@ function arrayField(value: unknown, label: string): unknown[] {
   return value;
 }
 
-function parsePin(value: unknown): DevToolsAssetPin {
+export function parseDevToolsAssetPin(value: unknown): DevToolsAssetPin {
   const pin = record(value, "pin");
   if (pin["schemaVersion"] !== 1) {
     throw new Error("unsupported DevTools asset pin schema");
@@ -262,7 +262,7 @@ export function verifyDevToolsAssetsSync(root: string): VerifiedDevToolsAssets {
   const pinText = readFileSync(join(canonicalRoot, "pin.json"), "utf8");
   const manifestText = readFileSync(join(canonicalRoot, "manifest.json"), "utf8");
   const licensesText = readFileSync(join(canonicalRoot, "licenses.json"), "utf8");
-  const pin = parsePin(JSON.parse(pinText));
+  const pin = parseDevToolsAssetPin(JSON.parse(pinText));
   if (sha256(manifestText) !== pin.manifestSha256) {
     throw new Error("DevTools closure manifest checksum does not match the tuple pin");
   }

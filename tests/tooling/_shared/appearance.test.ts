@@ -14,6 +14,7 @@ import {
   FULL_MOTION_PATCH,
   loadAppearancePreset,
   parseAppearancePatch,
+  validateAppearancePatch,
 } from "@orb/tooling/_shared/appearance-flags";
 import type { BrowserContext, Route } from "@playwright/test";
 import { installSettingsShim } from "../../../tooling/src/_shared/appearance.ts";
@@ -107,6 +108,23 @@ test("unparseable JSON and a non-object are CLI misuse, never a silent no-op", (
   expect(parseAppearancePatch('{"reducedMotion":false}')).toEqual({ patch: { reducedMotion: false } });
 });
 
+test("unknown keys and schema-healed values refuse instead of pretending the requested arm rendered", () => {
+  expect(parseAppearancePatch('{"ghostAppearance":true}')).toEqual({
+    error: '--appearance contains unknown appearance key "ghostAppearance"',
+  });
+  expect(parseAppearancePatch('{"density":"ultra-compact"}')).toEqual({
+    error: '--appearance contains invalid value for appearance key "density": "ultra-compact"',
+  });
+
+  // Planted preset-equivalent controls exercise the same validator the committed JSON passes through.
+  expect(validateAppearancePatch({ ghostAppearance: true }, '--appearance-preset "planted"')).toMatchObject({
+    error: expect.stringContaining("unknown appearance key"),
+  });
+  expect(validateAppearancePatch({ chatWidthPct: 101 }, '--appearance-preset "planted"')).toMatchObject({
+    error: expect.stringContaining("invalid value"),
+  });
+});
+
 test("an unknown preset name is refused with the valid list, not treated as an empty patch", () => {
   const outcome = loadAppearancePreset("maximalist");
 
@@ -126,6 +144,9 @@ test("every committed profile states a why and carries a non-empty patch", () =>
     const entry = file.presets[name];
     expect(entry?.why, `${name} owes a why`).toBeTruthy();
     expect(Object.keys(entry?.appearance ?? {}).length, `${name} owes appearance keys`).toBeGreaterThan(0);
+    expect(validateAppearancePatch(entry?.appearance ?? {}, `--appearance-preset ${JSON.stringify(name)}`)).toEqual({
+      patch: entry?.appearance,
+    });
   }
 });
 

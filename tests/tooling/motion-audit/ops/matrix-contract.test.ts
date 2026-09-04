@@ -1,6 +1,6 @@
 import { appearanceMatrixContract } from "../../../../packages/client/src/lib/appearance-carrier-manifest.ts";
 import { motionMatrixVariant, planMotionAppearanceMatrix } from "../../../../tooling/src/motion-audit/ops/matrix-contract.ts";
-import { parseMotionArgs } from "../../../../tooling/src/motion-audit/ops/parse.ts";
+import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SELECTOR = '[data-slot="collapsible-trigger"]';
@@ -30,10 +30,8 @@ test("refuses a matrix without a real measured interaction", () => {
   expect(() => planMotionAppearanceMatrix(appearanceMatrixContract(), null)).toThrow("INSTRUMENT ERROR: motion matrix requires --selector");
 });
 
-test("--matrix requires the existing selector contract and owns its three environment axes", () => {
-  expect(parseMotionArgs(["/", "--matrix"]).errors).toContain("--matrix requires --selector so the entry and interaction scenarios are both executable");
-  expect(parseMotionArgs(["/", "--matrix", "--selector", SELECTOR]).errors).toEqual([]);
-  expect(parseMotionArgs(["/", "--matrix", "--selector", SELECTOR, "--mobile", "--full-motion"]).errors).toContain(
-    "--matrix owns application-motion/OS-motion/device axes; drop: --mobile, --full-motion",
-  );
+test("Snap --matrix requires the motion selector and owns its environment axes", () => {
+  expect(parseSnapArgs(["/", "--matrix", "--isolated", "--motion"]).errors.join("\n")).toContain("requires a measured selector");
+  expect(parseSnapArgs(["/", "--matrix", "--isolated", "--motion", SELECTOR]).errors).toEqual([]);
+  expect(parseSnapArgs(["/", "--matrix", "--isolated", "--motion", SELECTOR, "--mobile", "--full-motion"]).errors.join("\n")).toContain("derived matrix plan");
 });

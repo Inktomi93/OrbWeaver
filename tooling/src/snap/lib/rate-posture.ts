@@ -1,0 +1,86 @@
+// One immutable host/browser posture per Snap run. Rate analyzers consume this value; none may reread the
+// box or browser and thereby publish contradictory dispositions inside one evidence bundle.
+import { createHash } from "node:crypto";
+import type { Browser } from "@playwright/test";
+import type { ResultPair } from "../../_shared/artifacts.ts";
+import type { BrowserAccelerationEvidence } from "../../_shared/browser-acceleration.ts";
+import { readBrowserAcceleration } from "../../_shared/browser-acceleration.ts";
+import type { BoxLoad, MeasurementWithholding } from "../../_shared/load-budget.ts";
+import { computeLoadFactor, judgeMeasurementLoad, readBoxLoad } from "../../_shared/load-budget.ts";
+import type { SnapRatePosture } from "../contract/rate-posture.ts";
+import { snapRatePostureIdSchema } from "../contract/rate-posture.ts";
+
+export type { SnapRatePosture } from "../contract/rate-posture.ts";
+
+const UNKNOWN_ACCELERATION: BrowserAccelerationEvidence = {
+  backend: "unknown",
+  posture: "unknown",
+  gpuCompositing: "unknown",
+  rasterization: "unknown",
+  webgl: "unknown",
+  webgpu: "unknown",
+};
+
+export interface SnapRatePostureReaders {
+  readonly readAcceleration?: (browser: Browser) => Promise<BrowserAccelerationEvidence>;
+  readonly readLoad?: () => BoxLoad;
+}
+
+function postureId(acceleration: BrowserAccelerationEvidence, accelerationError: string | null, load: BoxLoad): SnapRatePosture["id"] {
+  const canonical = JSON.stringify({ acceleration, accelerationError, load });
+  return snapRatePostureIdSchema.parse(`sha256:${createHash("sha256").update(canonical).digest("hex")}`);
+}
+
+/** Starts both authoritative reads exactly once and freezes the value handed to every arm. */
+export async function sampleSnapRatePosture(browser: Browser, readers: SnapRatePostureReaders = {}): Promise<SnapRatePosture> {
+  const readAcceleration = readers.readAcceleration ?? readBrowserAcceleration;
+  const readLoad = readers.readLoad ?? readBoxLoad;
+  const load = Object.freeze({ ...readLoad() });
+  let acceleration = UNKNOWN_ACCELERATION;
+  let accelerationError: string | null = null;
+  // @orb-gate-ignore caught-failure-ownership(empty:error): this one acceleration-read failure is preserved in accelerationError; ratePostureDisposition reads it first and withholds every rate verdict with the original message. Ends if accelerationError stops feeding that withholding branch or any rate consumer can publish a verdict after this catch.
+  try {
+    acceleration = await readAcceleration(browser);
+  } catch (error) {
+    accelerationError = error instanceof Error ? error.message : String(error);
+  }
+  const frozenAcceleration = Object.freeze({ ...acceleration });
+  return Object.freeze({
+    id: postureId(frozenAcceleration, accelerationError, load),
+    acceleration: frozenAcceleration,
+    accelerationError,
+    load,
+  });
+}
+
+/** Pure arm-specific wording over one run-owned receipt. */
+export function ratePostureDisposition(receipt: SnapRatePosture, what: string): MeasurementWithholding & { readonly postureId: SnapRatePosture["id"] } {
+  const acceleration = receipt.acceleration;
+  if (receipt.accelerationError !== null) {
+    return {
+      withheld: true,
+      reason: `BROWSER-ACCELERATION-WITHHOLD: acceleration could not be proven (${receipt.accelerationError}) — ${what} is NOT a verdict`,
+      postureId: receipt.id,
+    };
+  }
+  if (acceleration.posture !== "hardware") {
+    const detail =
+      acceleration.posture === "software"
+        ? `${acceleration.backend} is software rendering`
+        : `${acceleration.backend} did not prove enabled GPU compositing and rasterization`;
+    return {
+      withheld: true,
+      reason: `${acceleration.posture === "software" ? "SOFTWARE" : "BROWSER"}-ACCELERATION-WITHHOLD: ${detail} — ${what} is NOT a verdict`,
+      postureId: receipt.id,
+    };
+  }
+  return { ...judgeMeasurementLoad(receipt.load, what), postureId: receipt.id };
+}
+
+export function ratePostureResultPairs(receipt: SnapRatePosture): readonly ResultPair[] {
+  return [
+    ["load", `${receipt.load.loadavg1.toFixed(1)}/${String(receipt.load.cpuCount)}`],
+    ["budget-factor", computeLoadFactor(receipt.load.loadavg1, receipt.load.cpuCount).toFixed(2)],
+    ["rate-posture", receipt.id],
+  ];
+}

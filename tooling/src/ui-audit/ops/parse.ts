@@ -12,7 +12,14 @@ import {
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import { DEFAULT_VIEWPORT, MOBILE_DEVICE, WIDE_VIEWPORT } from "@orb/tooling/_shared/browser-environment";
-import { aliasRefusal, crossToolAdminRefusal, HELP_FLAGS, REDUCED_MOTION_FLAG, SESSION_FLAG } from "@orb/tooling/_shared/instrument-argv";
+import {
+  aliasRefusal,
+  crossToolAdminRefusal,
+  HELP_FLAGS,
+  instrumentFamilyRosterErrors,
+  REDUCED_MOTION_FLAG,
+  SESSION_FLAG,
+} from "@orb/tooling/_shared/instrument-argv";
 import type { NavMethod } from "@orb/tooling/_shared/nav";
 import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS } from "@orb/tooling/_shared/panel-flags";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS } from "@orb/tooling/_shared/theme";
@@ -241,6 +248,7 @@ function scanArgv(argv: readonly string[]): string[] {
   if (routeCount > 1) {
     errors.push(`expected at most one route, got ${routeCount}`);
   }
+  errors.push(...instrumentFamilyRosterErrors("design-audit", KNOWN_FLAGS));
   return errors;
 }
 

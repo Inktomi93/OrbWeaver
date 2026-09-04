@@ -2,7 +2,7 @@
 // reduced transparency stays on the same page through Chromium CDP because Playwright 1.61.1 does not
 // expose it. Runtime truth is read separately by browser-environment.ts through matchMedia.
 
-import type { Page } from "@playwright/test";
+import type { CDPSession, Page } from "@playwright/test";
 import { pageBooleanFields, pageObject } from "./page-validate.ts";
 
 /** The live matchMedia read, settled at the page boundary (`_shared/page-validate.ts`). */
@@ -72,8 +72,8 @@ export async function readProbeMedia(page: Page): Promise<ProbeMedia> {
   };
 }
 
-export async function applyProbeMedia(page: Page, media: ProbeMedia): Promise<void> {
-  const cdp = await page.context().newCDPSession(page);
+export async function applyProbeMedia(page: Page, media: ProbeMedia, sharedCdp?: CDPSession): Promise<void> {
+  const cdp = sharedCdp ?? (await page.context().newCDPSession(page));
   // Every page starts from a stated feature slate. Without this reset, Chromium retains a prior
   // reduced-transparency override even after the supported Playwright media fields change.
   await cdp.send("Emulation.setEmulatedMedia", { features: [] });

@@ -1387,12 +1387,6 @@
     "why": "ratified by rule: lint/style/useNamingConvention×3 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "tooling/src/cpu-profile/ops/run.ts": {
-    "count": 1,
-    "ratified": 1,
-    "why": "ratified by rule: lint/complexity/noExcessiveCognitiveComplexity×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
-    "cite": ["tooling/src/verify/gates/suppressions.ts"]
-  },
   "tooling/src/motion-audit/contract/types.ts": {
     "count": 2,
     "ratified": 2,

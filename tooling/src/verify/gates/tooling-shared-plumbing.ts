@@ -73,6 +73,9 @@ const FULL_PRIORITY_DOORS = new Set(["spawnFullPrioritySync", "spawnFullPriority
 /** Full-priority-door callers — the census'd un-niced exceptions. Every row states why nice is WRONG
  *  there; a call outside these rows is RED, and a row whose file no longer calls one is stale. */
 const FULL_PRIORITY_CALLERS: ExemptionTable = {
+  "tooling/src/snap/ops/session-client.ts": {
+    why: "the session daemon owns the interactive Chromium a human drives across calls — nice 19 silently changes motion/performance evidence; ends if the daemon stops hosting the interactive browser or its spawn moves",
+  },
   "tooling/src/snap/ops/stage.ts": {
     why: "the stage stack BOOT serves interactive snap navigations — a -19 staged app times out captures under load; ends if the stage boot moves or drops the exception",
   },
@@ -648,7 +651,7 @@ export const gate: GateDescriptor = {
     },
     {
       files: 'import { chromium } from "@playwright/test";\nexport const b = chromium.connect("ws://127.0.0.1:9222/x");\n',
-      at: "tooling/src/motion-audit/ops/run.ts",
+      at: "tooling/src/snap/ops/arms/motion.ts",
       expect: { count: 1, token: "chromium.connect(" },
       why: "Playwright's websocket attach is the SAME door class — the design's refused alternative must not be a loophole (arm H matches the attach SET)",
     },

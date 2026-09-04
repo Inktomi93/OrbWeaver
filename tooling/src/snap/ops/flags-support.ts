@@ -42,7 +42,7 @@ export function pushEval(args: Args, action: PagedExpr): void {
 export function consumeOptionalSelector(rest: string[]): string | null {
   const next = rest[0];
   if (next !== undefined && !next.startsWith("-") && !next.startsWith("/")) {
-    return rest.shift() as string;
+    return rest.shift() ?? null;
   }
   return null;
 }

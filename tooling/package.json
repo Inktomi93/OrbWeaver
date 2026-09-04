@@ -23,6 +23,7 @@
     "puppeteer-core": "catalog:",
     "@stryker-mutator/api": "catalog:",
     "@trpc/client": "catalog:",
+    "chrome-devtools-mcp": "catalog:",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
     "lighthouse": "catalog:",
@@ -30,7 +31,8 @@
     "remark-frontmatter": "catalog:",
     "remark-gfm": "catalog:",
     "sharp": "catalog:",
-    "ts-morph": "catalog:"
+    "ts-morph": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@tailwindcss/oxide": "catalog:"

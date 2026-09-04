@@ -26,9 +26,13 @@ const CLEAN_BODY = `<main><h1>Plugins</h1><p style="color:#111;background:#fff">
 <button type="button">Save changes</button><a href="/other.html">Read the other page</a></main>`;
 /** The plant: a visible label ("Save changes") that the accessible name ("Close") does not contain. */
 const MISMATCH_BUTTON = '<button aria-label="Close">Save changes</button>';
+const ORB_CONSOLE_BRIDGE = `<script>globalThis.__orb = {
+  consoleErrors: () => ({ records: [], dropped: 0, cap: 128 }),
+  resetEvidence: () => {}
+};</script>`;
 
 function page(body: string, ready = true): string {
-  return `<!doctype html><html lang="en"${ready ? ' data-app-ready="settled"' : ""}><head>${HEAD}</head><body>${body}</body></html>`;
+  return `<!doctype html><html lang="en"${ready ? ' data-app-ready="settled"' : ""}><head>${HEAD}</head><body>${body}${ORB_CONSOLE_BRIDGE}</body></html>`;
 }
 
 const PAGES: Readonly<Record<string, string>> = {
@@ -77,6 +81,7 @@ test("the planted label/name mismatch is reported BY NAME with its selector, and
     expect(bad.stdout).toContain("→ ");
     expect(bad.stdout).toContain("lighthouse=desktop/snapshot");
     expect(bad.stdout).toMatch(/lighthouse-failed-audits=[1-9]/u);
+    expect(bad.stdout).toContain("page-errors=0");
     await expect(bad).toExitWith(EXIT.violations);
   } finally {
     fixture.close();
@@ -95,6 +100,8 @@ test("the clean twin prints failed-audits=0 over a real audited denominator and 
     expect(clean.stdout).toMatch(/audited=[1-9]\d*\b/u);
     expect(clean.stdout).toMatch(/lighthouse-audits=[1-9]\d*/u);
     expect(clean.stdout).toContain("lighthouse-accessibility=1");
+    expect(clean.stdout).toContain("page-errors=0");
+    expect(clean.stdout).toContain("console-errors=0");
     await expect(clean).toExitWith(EXIT.clean);
   } finally {
     fixture.close();
@@ -108,6 +115,7 @@ test("the mobile arm rides --mobile's device and says which arm it ran", async (
 
     expect(mobile.stdout).toContain("lighthouse=mobile/snapshot");
     expect(mobile.stdout).toContain("failed-audits=0");
+    expect(mobile.stdout).toContain("page-errors=0");
     await expect(mobile).toExitWith(EXIT.clean);
   } finally {
     fixture.close();

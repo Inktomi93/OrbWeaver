@@ -207,8 +207,8 @@ one as enforcement, and never promote a row here without its gate, floor, or tes
   INSTRUMENT ERROR. Matrix cells compare identities rather than totals, so a same-count replacement cannot
   pass.
 - **ENFORCED TODAY:** #953's rated appearance floors. One policy-neutral planner
-  (`tooling/src/_shared/variant-matrix.ts`) feeds three thin verdict consumers — `tooling/src/snap`,
-  `tooling/src/ui-audit` (the `design-audit` script), `tooling/src/motion-audit` — and the literal R1–R7 invariant policy has one home
+  (`tooling/src/_shared/variant-matrix.ts`) feeds the public Snap and design-audit verdict consumers;
+  Snap's `--matrix --motion <selector>` reuses the retained pure planner/verdict engine in `tooling/src/motion-audit` without a second parser or browser path. The literal R1–R7 invariant policy has one home
   at `packages/client/src/lib/appearance-invariant-manifest.ts`. Route mode is the only R1–R7 verdict
   owner; scenario mode publishes `not-applicable: scenario-owned-drive` rather than counterfeiting one.
   \#976's exact settled-subject and requested/resolved/actual theme accounting and #977's

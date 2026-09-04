@@ -80,7 +80,7 @@ export interface MotionFlagRecord {
    *
    *  Why it rides the flag and not just the console line (#1070): `__orb.animations()` samples
    *  `document.getAnimations()`, so a 130–360ms house transition — the whole band this app animates in —
-   *  is over before any end-of-window read, and `pnpm motion-audit`'s dirty-animation budget was in
+   *  is over before any end-of-window read, and Snap's motion-arm dirty-animation budget was in
    *  practice a continuous-LOOP detector judging a population that could not contain the transitions its
    *  allowance table exists to sanction. The ring is checkpoint-scoped and cleared by `resetEvidence`, so
    *  a driven probe reads exactly its own measured window.
@@ -286,7 +286,7 @@ function skipTransition(el: Element, propertyName: string): boolean {
  *
  *  THE PASSIVE LISTENER WAS NOT THE COST — `getAnimations()` WAS (#219, measured 2026-08-18): it flushes
  *  pending style + resolves the animation timeline, and the handler answered EVERY start event with one.
- *  `perf-meter / --open-chat latest --cpuprofile`, live dev stack: **534.9ms of self time inside
+ *  the retired perf meter's `/ --open-chat latest --cpuprofile`, live dev stack: **534.9ms of self time inside
  *  `getAnimations`, called from here**, of 640ms blocking / 1190ms long tasks — 84% of the jank the
  *  instrument exists to report. `snap --eval` tally, same room: **1,108 transitionstart events, 1,064 of
  *  them `scrollbar-color`**, each paying a full classify before `raise` discarded it as a duplicate. (That

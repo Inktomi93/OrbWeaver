@@ -28,8 +28,8 @@ export const SELECTOR_VALUE_FLAGS: ReadonlySet<string> = new Set([
   "--wait",
   "--wait-for",
   "--click",
-  "--jsclick",
-  "--press",
+  "--dom-click",
+  "--force-click",
   "--hover",
   "--shot-of",
   "--mask",
@@ -39,12 +39,13 @@ export const SELECTOR_VALUE_FLAGS: ReadonlySet<string> = new Set([
   "--aria",
   "--text",
   "--map",
+  "--motion",
   "--expect-no-overflow",
 ]);
 
 /** Flags whose value is `selector=…`, so only the HEAD is a selector. `--key Tab` (no '=') is a bare
  *  key name and carries no selector at all. */
-const SELECTOR_HEAD_FLAGS: ReadonlySet<string> = new Set(["--cascade", "--fill", "--key", "--expect-text", "--expect-count", "--upload"]);
+const SELECTOR_HEAD_FLAGS: ReadonlySet<string> = new Set(["--cascade", "--fill", "--key", "--expect-text", "--expect-count", "--upload", "--drop-files"]);
 
 /** `--fill` splits on the FIRST '=' (its value is a JS literal that routinely contains '=' itself —
  *  `--fill 'input=const a = 1;'`); every other head flag keeps the LAST-'=' convention (selectors can

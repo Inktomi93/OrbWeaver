@@ -4,138 +4,25 @@ import { splitPageSuffix } from "../../_shared/argv.ts";
 import { DEFAULT_BASE, DEFAULT_DEBUG_TOKEN } from "../../_shared/browser.ts";
 import { DEFAULT_VIEWPORT } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { aliasRefusal } from "../../_shared/instrument-argv.ts";
 import type { NonArmArgs } from "../contract/arms.ts";
 import type { Args } from "../contract/types.ts";
-import { validateFlagValue, validateSelectorFlagValue } from "../lib/flag-values.ts";
+import { parsedArgWarnings } from "../lib/parse-warnings.ts";
 import { sessionModeValidationPairs, sessionNameErrors } from "../lib/session-plan.ts";
 import { CSS_SHOT_SCALE, shotScaleBudgetRefusal } from "../lib/shot-scale.ts";
 import { NO_CPU_THROTTLE } from "../lib/throttle.ts";
 import { armArgDefaults } from "./arms/registry.ts";
-import { OPTIONAL_NAME_FLAGS, OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
 import { MS_PER_SECOND } from "./flags-support.ts";
+import { validatePageTargets } from "./parse-page-targets.ts";
+import { scanArgv } from "./parse-scan.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 // ALIAS_REFUSALS (§4.3, _shared/instrument-argv.ts): snap owns the real targets (--full/--every/
 // --shot-of/--out), so an asked-for --full-page/--watch-every/--screenshot/--name refuses BY NAME here.
-const KNOWN_FLAGS = new Set(Object.keys(FLAG_HANDLERS));
-
-function consumeRequiredArg(argv: readonly string[], index: number, flag: string, errors: string[]): number {
-  const value = argv[index + 1];
-  if (value === undefined || value.startsWith("--")) {
-    errors.push(`${flag} requires a value`);
-    return 0;
-  }
-  validateFlagValue(flag, value, errors);
-  return 1;
-}
-
-function consumesOptionalSelector(argv: readonly string[], index: number): boolean {
-  const value = argv[index + 1];
-  return value !== undefined && !value.startsWith("-") && !value.startsWith("/");
-}
-
-/** The scanner's twin of ops/flags-session.ts `consumeOptionalName`: a name is any next token that is not
- *  a flag (a route-shaped `/x` after `--session-status` is a NAME the name rule then refuses, never a route). */
-function consumesOptionalName(argv: readonly string[], index: number): boolean {
-  const value = argv[index + 1];
-  return value !== undefined && !value.startsWith("-");
-}
-
-/** The two OPTIONAL-inline-value classes and the predicate each consumes by. Separate classes because the
- *  RULES differ on a `/`-leading token — a VALUE leaves it alone (`--requests /route` keeps its route), a
- *  NAME swallows it (`--session-status /x` is refused as a bad name rather than read as a route) — but ONE
- *  lookup, so the scanner asks the question once instead of growing a branch per class. */
-const OPTIONAL_INLINE_CONSUMERS: readonly (readonly [ReadonlySet<string>, (argv: readonly string[], index: number) => boolean])[] = [
-  [OPTIONAL_VALUE_FLAGS, consumesOptionalSelector],
-  [OPTIONAL_NAME_FLAGS, consumesOptionalName],
-];
-
-function optionalInlineConsumer(flag: string): ((argv: readonly string[], index: number) => boolean) | null {
-  return OPTIONAL_INLINE_CONSUMERS.find(([flags]) => flags.has(flag))?.[1] ?? null;
-}
-
-interface ArgvScan {
-  readonly errors: string[];
-  routeCount: number;
-  fileMode: boolean;
-}
-
-function scanArgvToken(argv: readonly string[], index: number, scan: ArgvScan): number {
-  const token = argv[index] as string;
-  const { flag } = splitPageSuffix(token);
-  if (FLAG_HANDLERS[flag] === undefined) {
-    scan.routeCount += token.startsWith("-") ? 0 : 1;
-    if (token.startsWith("-")) {
-      scan.errors.push(aliasRefusal(flag, KNOWN_FLAGS) ?? `unknown flag ${token}`);
-    }
-    return 0;
-  }
-  scan.fileMode = scan.fileMode || flag === "--file";
-  if (token !== flag && !PAGE_TARGET_FLAGS.has(flag)) {
-    scan.errors.push(`${flag} does not accept a @<page> suffix`);
-  }
-  if (REQUIRED_VALUE_FLAGS.has(flag)) {
-    return consumeRequiredArg(argv, index, flag, scan.errors);
-  }
-  // An optional inline value (`--requests trpc`, `--session-status p-x`): consumed so it is never counted
-  // as the route, and deliberately NOT passed to the selector refusal — see OPTIONAL_INLINE_CONSUMERS.
-  const consumesInline = optionalInlineConsumer(flag);
-  if (consumesInline !== null) {
-    return consumesInline(argv, index) ? 1 : 0;
-  }
-  if (!(OPTIONAL_SELECTOR_FLAGS.has(flag) && consumesOptionalSelector(argv, index))) {
-    return 0;
-  }
-  // The optional inline selector never reaches validateFlagValue (it has no REQUIRED_VALUE_FLAGS row),
-  // so its unmatchable-shape refusal is applied here — `--map choose who speaks next` lied the same way.
-  validateSelectorFlagValue(flag, argv[index + 1] as string, scan.errors);
-  return 1;
-}
-
-function scanArgv(argv: readonly string[]): string[] {
-  const scan: ArgvScan = { errors: [], routeCount: 0, fileMode: false };
-  for (let index = 0; index < argv.length; index += 1) {
-    index += scanArgvToken(argv, index, scan);
-  }
-  const { errors, routeCount } = scan;
-  if (routeCount > 1) {
-    errors.push(`expected at most one route, got ${routeCount}`);
-  }
-  if (scan.fileMode && routeCount > 0) {
-    errors.push("--file and a positional route are mutually exclusive");
-  }
-  return errors;
-}
-
-function targetedPages(args: Args): number[] {
-  return [
-    ...args.actions.map((entry) => entry.action.page),
-    ...args.eval.map((entry) => entry.page),
-    ...args.contrast.map((entry) => entry.page),
-    ...args.cascade.map((entry) => entry.page),
-    ...args.assertions.map((assertion) => assertion.page),
-    ...(args.aria ? [args.ariaPage] : []),
-    ...(args.map ? [args.mapPage] : []),
-  ];
-}
-
-function validatePageTargets(args: Args, contextsMode: boolean): string[] {
-  const targetCount = contextsMode ? args.contexts : args.pages;
-  const errors: string[] = [];
-  for (const page of targetedPages(args)) {
-    if (page >= targetCount) {
-      errors.push(`page target @${page} is out of range for ${contextsMode ? "contexts" : "pages"}=${targetCount}`);
-    }
-  }
-  return errors;
-}
-
 type ValidationPair = readonly [boolean, string];
 
-function sessionValidationPairs(args: Args, contextsMode: boolean): ValidationPair[] {
+function sessionValidationPairs(args: Args, contextsMode: boolean, inheritedSessionBinding: boolean): ValidationPair[] {
   return [
     [args.baseline && args.diff, "--baseline and --diff are mutually exclusive"],
     [args.contexts > 1 && args.pages > 1, "--contexts and --pages cannot both be greater than 1"],
@@ -146,10 +33,10 @@ function sessionValidationPairs(args: Args, contextsMode: boolean): ValidationPa
     // The three stage-admin modes each print and exit; two of them in one argv is an ambiguous ask, not a
     // sequence, and silently honouring the first would hide the half the caller also meant.
     [[args.stageDown, args.stageStatus, args.stageSweep].filter(Boolean).length > 1, "--stage-down, --stage-status and --stage-sweep are mutually exclusive"],
-    [args.stageOwner !== null && !args.stageDown, "--owner <checkout> only selects rows for --stage-down"],
+    [args.stageOwner !== null && !args.stageDown, "--stage-owner <checkout> only selects rows for --stage-down"],
     [
       args.stageOwner !== null && args.stageDown && !args.force,
-      "--stage-down --owner <checkout> requires --force: cross-checkout teardown is deliberate per band",
+      "--stage-down --stage-owner <checkout> requires --force: cross-checkout teardown is deliberate per band",
     ],
     [
       args.matrix && (args.pages > 1 || contextsMode || args.watchMs > 0 || args.baseline || args.diff),
@@ -163,7 +50,7 @@ function sessionValidationPairs(args: Args, contextsMode: boolean): ValidationPa
     // stage-scoped assignment and a live-`:5173` arm would be a different matrix, not a subset of this one.
     // The remedy is the band, so the refusal names the command that says who holds it.
     [
-      args.matrix && !args.isolated,
+      args.matrix && !args.isolated && args.session === null && !inheritedSessionBinding,
       "--matrix requires --isolated/--dirty/--ref: EVERY cell is stage-scoped, not just some. The plan's required rows pin the rated custom-light/custom-dark themes (which only exist in a stage db) and its required twins pin the density-preview pair, so there is no live-stack subset to fall back to. If the single stage band is held by a sibling, `pnpm snap --stage-status` names the owner (checkout · pid · age) — wait for it or ask the orchestrator; never tear a sibling's stage down",
     ],
   ];
@@ -189,7 +76,7 @@ function evidenceValidationPairs(args: Args, producesShot: boolean): ValidationP
 
 /** The `--lighthouse`/`--requests` arms' cross-flag rules. Every one refuses a run that would produce a
  *  receipt whose LABEL and CONTENT disagree — the failure class ops/lighthouse.ts's header calls out. */
-function armValidationPairs(args: Args): ValidationPair[] {
+function lighthouseValidationPairs(args: Args, analyzerRequested: boolean): ValidationPair[] {
   return [
     [
       args.lighthouse === "mobile" && args.device === null,
@@ -208,17 +95,116 @@ function armValidationPairs(args: Args): ValidationPair[] {
       (args.scenario !== null || args.matrix || args.contexts > 1 || args.as !== null) && (args.lighthouse !== null || args.requests),
       "--lighthouse/--requests run only on the ordinary single-run path: --scenario, --contexts/--as and --matrix drive their own sessions or their own device axis and would silently ignore the arm (tooling/src/snap/ops/run.ts)",
     ],
+    [
+      args.lighthouse !== null && analyzerRequested,
+      "--lighthouse owns navigation and cannot combine with --motion/--perf/--cpu-profile/--boot-trace/--react-profile; take explicit separate passes",
+    ],
   ];
 }
 
-function validateParsedArgs(args: Args): string[] {
+function motionValidationPairs(args: Args, motionSelectors: readonly (string | null)[]): ValidationPair[] {
+  return [
+    [motionSelectors.length > 1, "--motion may appear once: one run has one explicitly tagged measured selector/window"],
+    [
+      args.matrix && args.motion && motionSelectors[0] === null,
+      "--matrix --motion requires a measured selector so the derived plan can retain both entry and interaction controls",
+    ],
+    [
+      args.matrix && args.motion && args.scenario !== null,
+      "--matrix --motion and --matrix --scenario are distinct plans; choose the rated motion matrix or the appearance scenario matrix",
+    ],
+    [!Number.isFinite(args.motionWindowMs) || args.motionWindowMs <= 0, "--motion-window requires a positive finite duration in milliseconds"],
+    [
+      args.motion && (args.cpuProfile || args.reactProfile),
+      "--motion cannot combine with --cpu-profile/--react-profile: profiler overhead contaminates frame and LoAF rates",
+    ],
+    [args.bootTrace && args.motion, "--boot-trace cannot combine with --motion: Chromium exposes one tracing session; take separate passes"],
+  ];
+}
+
+function perfValidationPairs(args: Args): ValidationPair[] {
+  return [
+    [!Number.isInteger(args.perfCycles) || args.perfCycles < 1, "--perf-cycles requires a positive integer"],
+    [args.perfCycles !== 1 && !args.interactionPerf, "--perf-cycles requires --perf"],
+    [
+      args.interactionPerf && args.cpuProfile,
+      "--perf cannot combine with --cpu-profile: sampling profiler overhead contaminates interaction rates; take explicit separate passes",
+    ],
+    [args.interactionPerf && args.reactProfile, "--perf cannot combine with --react-profile: Fiber collection contaminates interaction rates"],
+  ];
+}
+
+function analyzerValidationPairs(args: Args): ValidationPair[] {
+  const analyzerRequested = args.motion || args.interactionPerf || args.cpuProfile || args.bootTrace || args.reactProfile;
+  return [
+    ...lighthouseValidationPairs(args, analyzerRequested),
+    [args.bootTrace && args.reactProfile, "--boot-trace cannot combine with --react-profile: both own a Chromium tracing window"],
+    [
+      (args.scenario !== null || args.contexts > 1 || args.as !== null) && analyzerRequested,
+      "--motion/--perf/--cpu-profile/--boot-trace/--react-profile currently require the ordinary or session run path; scenario/contexts would bypass the analyzer lifecycle",
+    ],
+  ];
+}
+
+function filmstripValidationPairs(args: Args): ValidationPair[] {
+  const conflicts = [
+    [args.motion, "--motion"],
+    [args.interactionPerf, "--perf"],
+    [args.cpuProfile, "--cpu-profile"],
+    [args.heapCaptures.length > 0 || args.heapComparisons.length > 0 || args.heapRetainers.length > 0, "--heap/--heap-compare/--heap-retainers"],
+    [args.bootTrace, "--boot-trace"],
+    [args.reactProfile, "--react-profile"],
+    [args.probe, "--probe"],
+  ] as const;
+  return conflicts.map(
+    ([invalid, flag]): ValidationPair => [
+      args.filmstrip && invalid,
+      `--filmstrip cannot combine with ${flag}: screencast encoding contaminates that measurement window`,
+    ],
+  );
+}
+
+function armValidationPairs(args: Args): ValidationPair[] {
+  const motionSelectors = args.actions.flatMap((entry) => (entry.type === "step" && entry.action.kind === "motion-click" ? [entry.action.selector] : []));
+  return [
+    ...motionValidationPairs(args, motionSelectors),
+    ...perfValidationPairs(args),
+    ...analyzerValidationPairs(args),
+    [
+      args.probe && (args.motion || args.interactionPerf),
+      "--probe cannot combine with --motion/--perf: deterministic animation suppression contaminates motion and interaction rates",
+    ],
+    [
+      args.motion && args.interactionPerf,
+      "--motion and --perf require separate passes: the per-step observers and settle windows contaminate the rated motion window",
+    ],
+  ];
+}
+
+function modifierValidationPairs(args: Args, seen: ReadonlySet<string>, scenarioCheckpoint: boolean): ValidationPair[] {
+  return [
+    [seen.has("--scenario-summary") && args.scenario === null && !scenarioCheckpoint, "--scenario-summary requires --scenario"],
+    [seen.has("--every") && !seen.has("--watch"), "--every requires --watch"],
+    [seen.has("--motion-window") && !args.motion, "--motion-window requires --motion"],
+    [seen.has("--motion-no-throttle") && !args.motion, "--motion-no-throttle requires --motion"],
+    [seen.has("--force") && !(args.stageDown || args.sessionClose !== null), "--force requires --stage-down or --session-close"],
+    [
+      (seen.has("--fixture-server") || seen.has("--fixture-base")) && !(args.contexts > 1 || args.as !== null),
+      "--fixture-server/--fixture-base require --contexts <N> or --as <handle>",
+    ],
+  ];
+}
+
+function validateParsedArgs(args: Args, inheritedSessionBinding: boolean, seen: ReadonlySet<string>, scenarioCheckpoint: boolean): string[] {
   const contextsMode = args.contexts > 1 || args.as !== null;
   const producesShot = args.shotOf !== null || args.shot || args.baseline || args.diff;
   const invalidModes = [
-    ...sessionValidationPairs(args, contextsMode),
+    ...sessionValidationPairs(args, contextsMode, inheritedSessionBinding),
     ...sessionModeValidationPairs(args, contextsMode),
     ...evidenceValidationPairs(args, producesShot),
     ...armValidationPairs(args),
+    ...filmstripValidationPairs(args),
+    ...modifierValidationPairs(args, seen, scenarioCheckpoint),
   ];
   // The image budget is checked against the RAW viewport, which is the one a numeric --scale can reach
   // (the device arm is refused above, so a descriptor's own viewport is never the multiplicand here).
@@ -231,27 +217,9 @@ function validateParsedArgs(args: Args): string[] {
   ];
 }
 
-/** Combinations that are LEGAL but do less than the argv asked for. A parse error refuses the run; a
- *  warning runs it and says what it dropped. The one live case: `--out` names the artifact BASE (the
- *  PNG, the trace/har, the --json manifest), so `--text`/`--no-shot` silently leave nothing named by it
- *  unless one of those other artifacts was also requested. Measured cost of the silence: a
- *  `--goto corpus --out corpus-cartographer-merged --text` run reported `out=(none)`, wrote no image and
- *  exited 0, and the caller lost the capture. It is NOT an error — naming the manifest of a text-only
- *  run is a real use — so it warns. */
-function parsedArgWarnings(args: Args): string[] {
-  const producesShot = args.shotOf !== null || args.shot || args.baseline || args.diff;
-  if (args.out === null || producesShot) {
-    return [];
-  }
-  const stillNamed = args.json ? " (it still names the --json manifest and any trace/har)" : "";
-  return [
-    `--out "${args.out}" names an artifact base, but --text/--no-shot suppresses the PNG — NO IMAGE WILL BE WRITTEN${stillNamed}. ` +
-      "Drop --text/--no-shot, or add --shot-of <selector>, to capture one.",
-  ];
-}
-
-export function parseSnapArgs(argv: string[]): Args {
-  const errors = scanArgv(argv);
+export function parseSnapArgs(argv: string[], options: { readonly inheritedSessionBinding?: boolean; readonly scenarioCheckpoint?: boolean } = {}): Args {
+  const scan = scanArgv(argv);
+  const errors = scan.errors;
   // The RUN's own defaults; every ARM-owned field comes from `armArgDefaults()` below, and tsc refuses
   // this assignment if the registry stops supplying one (contract/types.ts `ArmArgs`/`NonArmArgs`).
   const runDefaults: NonArmArgs = {
@@ -265,6 +233,7 @@ export function parseSnapArgs(argv: string[]): Args {
     summary: false,
     failureEvidence: true,
     strictConsole: false,
+    diagnostics: null,
     checkpoint: false,
     includeHidden: false,
     route: "/",
@@ -319,7 +288,10 @@ export function parseSnapArgs(argv: string[]): Args {
   const args: Args = { ...runDefaults, ...armArgDefaults() };
   const rest = [...argv];
   while (rest.length > 0) {
-    const tok = rest.shift() as string;
+    const tok = rest.shift();
+    if (tok === undefined) {
+      break;
+    }
     // Strip a `@<idx>` --pages suffix (0 when absent) so `--click@1` dispatches the SAME handler as
     // `--click`, just stamped with the target tab.
     const { flag, page } = splitPageSuffix(tok);
@@ -333,7 +305,13 @@ export function parseSnapArgs(argv: string[]): Args {
       args.routeGiven = true;
     }
   }
-  args.errors.push(...validateParsedArgs(args));
+  args.errors.push(...validateParsedArgs(args, options.inheritedSessionBinding === true, scan.seen, options.scenarioCheckpoint === true));
+  if (args.perfCycles > 1) {
+    const once = [...args.actions];
+    for (let cycle = 1; cycle < args.perfCycles; cycle += 1) {
+      args.actions.push(...once);
+    }
+  }
   args.warnings.push(...parsedArgWarnings(args));
   return args;
 }

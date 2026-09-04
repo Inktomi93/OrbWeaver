@@ -3,6 +3,8 @@
 // browser interception door retains headroom and does not become a parser/help monolith.
 
 import { readFileSync } from "node:fs";
+import { isDeepStrictEqual } from "node:util";
+import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { AppearancePatch } from "./appearance.ts";
 import { mergeAppearancePatches } from "./appearance.ts";
 
@@ -23,6 +25,21 @@ interface PresetFile {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Refuse keys the shared schema strips and values its `.catch()` clauses would silently replace. A
+ * probe arm is evidence about the requested value, so schema self-healing here would be a false receipt. */
+export function validateAppearancePatch(patch: AppearancePatch, source: string): AppearanceParse {
+  const parsed = appearanceSettingsSchema.parse(patch) as Readonly<Record<string, unknown>>;
+  for (const [key, requested] of Object.entries(patch)) {
+    if (!Object.hasOwn(parsed, key)) {
+      return { error: `${source} contains unknown appearance key ${JSON.stringify(key)}` };
+    }
+    if (!isDeepStrictEqual(parsed[key], requested)) {
+      return { error: `${source} contains invalid value for appearance key ${JSON.stringify(key)}: ${JSON.stringify(requested)}` };
+    }
+  }
+  return { patch };
 }
 
 /** Null when the committed file is missing or unparseable — the caller turns that into an ARG ERROR naming
@@ -55,7 +72,7 @@ export function loadAppearancePreset(name: string): AppearanceParse {
   if (!isPlainObject(entry.appearance)) {
     return { error: `--appearance-preset "${name}" has no appearance object in tooling/src/_shared/appearance-presets.json` };
   }
-  return { patch: entry.appearance };
+  return validateAppearancePatch(entry.appearance, `--appearance-preset ${JSON.stringify(name)}`);
 }
 
 /** The value-taking appearance flags — every probe CLI adds these to its required-value scan. */
@@ -95,5 +112,5 @@ export function parseAppearancePatch(raw: string): AppearanceParse {
   if (!isPlainObject(value)) {
     return { error: `--appearance expects a JSON object, got ${JSON.stringify(raw)}` };
   }
-  return { patch: value };
+  return validateAppearancePatch(value, "--appearance");
 }

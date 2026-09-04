@@ -5,9 +5,10 @@
 // probe compile the same regex and skip the same namespaces by construction.
 import { CLASS_SELECTOR_TOKEN_PATTERN, CLASS_TOKEN_ESCAPE_PATTERN, DEAD_CSS_MARKER_EXACT, DEAD_CSS_MARKER_PREFIXES } from "@orb/kit/dead-css";
 import type { Page } from "@playwright/test";
+import { aggregateScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
+import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
 import type { DeadCssEvidence } from "../../contract/dead-css.ts";
 import { deadCssCensus, deadCssDrain } from "../page-validate.ts";
 
@@ -166,9 +167,16 @@ export const DEAD_CSS_ARM = {
   ],
   level: "call",
   needs: (): ArmNeeds => ({}),
+  sessionCallBaseMs: (): null => null,
   defaults: (): Pick<ArmArgs, "deadCss"> => ({ deadCss: true }),
   help: `  --no-deadcss            skip the dead-class/empty-rule scan (it is ON by default: dead tokens and
                           used-but-empty rules RED the run, the same way --contrast findings do)`,
+  result: {
+    schema: "snap-arm-dead-css-v1",
+    source: "CSSOM + rendered DOM class census",
+    lifetime: "settled page capture",
+    enabled: (opts): boolean => opts.deadCss,
+  },
   lifecycle: {
     at: "page",
     enabled: ({ opts }): boolean => opts.deadCss,
@@ -187,6 +195,24 @@ export const DEAD_CSS_ARM = {
         ["emptycss", counts.empty],
       ];
     },
+    facts: (input): readonly ArmFactEmission<"dead-css">[] => {
+      const counts = deadCssCounts(input);
+      let state: "off" | "failed" | "passed" = "off";
+      if (input.opts.deadCss) {
+        state = counts.dead + counts.empty > 0 ? "failed" : "passed";
+      }
+      return [
+        {
+          scope: aggregateScope(),
+          data: {
+            state,
+            detail: null,
+            deadTokens: counts.dead,
+            emptyRules: counts.empty,
+          },
+        },
+      ];
+    },
     // NOT `css`: that summary member counts OUTCOMES whose CSS evidence is untrustworthy for EITHER
     // reason — an unreadable stylesheet here, or a cascade instrument-error — and one page can carry both.
     // Summing two arm-owned counts would double-count it, so `css` stays a cross-arm fold in
@@ -195,5 +221,6 @@ export const DEAD_CSS_ARM = {
       const counts = deadCssCounts(input);
       return { deadCss: counts.dead, emptyCss: counts.empty };
     },
+    exit: (_input, code): number => code,
   },
-} satisfies ArmDef;
+} satisfies ArmDef<"dead-css">;

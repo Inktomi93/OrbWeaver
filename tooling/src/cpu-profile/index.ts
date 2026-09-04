@@ -1,8 +1,10 @@
-// cpu-profile's programmatic front door (`pnpm perf-meter`) — what tests and sibling tools import;
-// the cli fronts this surface. One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
-export { PERF_METER_HELP } from "./contract/help.ts";
-export type { Args, MeterData, Step, StepReport } from "./contract/types.ts";
-export { parsePerfArgs } from "./ops/parse.ts";
-export { buildReports } from "./ops/report.ts";
-export { runCpuProfile } from "./ops/run.ts";
-export { configureCpuProfileStage } from "./ops/stage.ts";
+// Retained interaction/trace evidence engine. Snap is the only rendered-instrument front door; this
+// barrel exposes data shapes and pure reports, never a second parser, stage, tape, or browser run path.
+export type { BootTraceReceipt, MeterData, MeterWindow, StepReport } from "./contract/types.ts";
+export { BOOT_TRACE_INSIGHTS } from "./contract/types.ts";
+export { meterApparatusGap, meterEvidenceGaps, parseMeterData } from "./lib/evidence.ts";
+export { perfRateDisposition } from "./lib/rate.ts";
+export type { ActiveBootTrace } from "./ops/boot-trace.ts";
+export { beginBootTrace } from "./ops/boot-trace.ts";
+export { METER_INIT_JS } from "./ops/meter.ts";
+export { buildReports, printTable } from "./ops/report.ts";

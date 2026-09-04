@@ -2,7 +2,7 @@
 // carrier keys/arms; the authenticated catalog owns theme ids. Tool policies own only projections.
 import { listSeededBackgrounds } from "@orb/contracts/theme";
 import type { Page } from "@playwright/test";
-import { pageArray, pageNumberFields, pageObject } from "./page-validate.ts";
+import { z } from "zod";
 import type { ThemeEntry } from "./theme.ts";
 import { themeCatalogCapabilities } from "./theme.ts";
 import type { VariantAssignment, VariantAxis } from "./variant-matrix.ts";
@@ -23,8 +23,8 @@ export interface RuntimeAppearanceContractRow {
   readonly dependsOn: readonly string[];
   readonly incompatibleWith: readonly string[];
   readonly observable: { readonly kind: "attribute" | "inline-style" | "message-prop"; readonly selector: string; readonly signal: string } | null;
-  readonly reached?: number;
-  readonly samples?: readonly unknown[];
+  readonly reached?: number | undefined;
+  readonly samples?: readonly unknown[] | undefined;
 }
 
 export interface RuntimeMessageRegistryReceipt {
@@ -46,7 +46,7 @@ export interface RuntimeAppearanceHistoricalCascade {
   readonly selector: string;
   readonly property: string;
   readonly sources: readonly string[];
-  readonly overloadedSources?: readonly string[];
+  readonly overloadedSources?: readonly string[] | undefined;
 }
 
 export type RuntimeAppearanceHistoricalMerge =
@@ -75,8 +75,75 @@ export interface RuntimeAppearanceContract {
   readonly rows: readonly RuntimeAppearanceContractRow[];
   readonly themeObservables: Readonly<Record<string, { readonly selector: string; readonly signals: readonly string[]; readonly lifecycle: string }>>;
   readonly historicalRows: readonly RuntimeAppearanceHistoricalRow[];
-  readonly messageRegistry?: RuntimeMessageRegistryReceipt;
+  readonly messageRegistry?: RuntimeMessageRegistryReceipt | undefined;
 }
+
+const stringArray = z.array(z.string());
+const observableSchema = z.object({
+  kind: z.enum(["attribute", "inline-style", "message-prop"]),
+  selector: z.string(),
+  signal: z.string(),
+});
+const runtimeAppearanceContractRowSchema: z.ZodType<RuntimeAppearanceContractRow> = z.object({
+  key: z.string(),
+  arms: z.array(z.unknown()).nullable(),
+  dependsOn: stringArray,
+  incompatibleWith: stringArray,
+  observable: observableSchema.nullable(),
+  reached: z.number().int().nonnegative().optional(),
+  samples: z.array(z.unknown()).optional(),
+});
+const messageRegistrySchema: z.ZodType<RuntimeMessageRegistryReceipt> = z.object({
+  mounted: z.number().int().nonnegative(),
+  registered: z.number().int().nonnegative(),
+  matched: z.number().int().nonnegative(),
+  missingIds: stringArray,
+  staleIds: stringArray,
+});
+const historicalSubjectSchema: z.ZodType<RuntimeAppearanceHistoricalSubject> = z.object({
+  id: z.string(),
+  selector: z.string(),
+  population: z.enum(["many", "one"]),
+  sample: z.enum(["carrier", "geometry", "interactive", "pixel"]),
+});
+const historicalCascadeSchema: z.ZodType<RuntimeAppearanceHistoricalCascade> = z.object({
+  selector: z.string(),
+  property: z.string(),
+  sources: stringArray,
+  overloadedSources: stringArray.optional(),
+});
+const historicalMergeSchema: z.ZodType<RuntimeAppearanceHistoricalMerge> = z.discriminatedUnion("mechanism", [
+  z.object({
+    mechanism: z.literal("merge-required"),
+    selector: z.string(),
+    owner: z.string(),
+    conflict: z.object({ axis: z.string(), loser: z.string(), winner: z.string() }),
+  }),
+  z.object({
+    mechanism: z.literal("merge-not-applicable"),
+    reason: z.literal("direct-carrier"),
+    selector: z.string(),
+    owner: z.string(),
+  }),
+]);
+const historicalRowSchema: z.ZodType<RuntimeAppearanceHistoricalRow> = z.object({
+  id: z.string(),
+  surface: z.enum(["chat", "config-sizing", "shell"]),
+  subjects: z.array(historicalSubjectSchema),
+  cascade: z.array(historicalCascadeSchema),
+  merge: historicalMergeSchema,
+  requiredChecks: stringArray,
+  optionalSubjectIds: stringArray,
+});
+const runtimeAppearanceContractSchema: z.ZodType<RuntimeAppearanceContract> = z.object({
+  declared: z.number().int().nonnegative(),
+  executable: z.number().int().nonnegative(),
+  dependencies: z.number().int().nonnegative(),
+  rows: z.array(runtimeAppearanceContractRowSchema),
+  themeObservables: z.record(z.string(), z.object({ selector: z.string(), signals: stringArray, lifecycle: z.string() })),
+  historicalRows: z.array(historicalRowSchema),
+  messageRegistry: messageRegistrySchema.optional(),
+});
 
 export interface DerivedAppearanceContract {
   readonly axes: readonly VariantAxis[];
@@ -171,13 +238,7 @@ export async function readRuntimeAppearanceContract(page: Page): Promise<Runtime
   // #1004 — the contract is the DENOMINATOR for every axis this tool plans, so a malformed read is a
   // silently smaller matrix, not an error. Counts and the two row lists are settled here; the per-row
   // shape is already re-derived and cross-checked by `deriveAppearanceContract` above.
-  const label = "the live appearance contract";
-  const record = pageObject(await page.evaluate(READ_APPEARANCE_MATRIX_CONTRACT), label);
-  pageNumberFields(record, ["declared", "executable", "dependencies"], label);
-  pageArray(record["rows"], `${label} field "rows"`);
-  pageArray(record["historicalRows"], `${label} field "historicalRows"`);
-  pageObject(record["themeObservables"], `${label} field "themeObservables"`);
-  return record as unknown as RuntimeAppearanceContract;
+  return runtimeAppearanceContractSchema.parse(await page.evaluate(READ_APPEARANCE_MATRIX_CONTRACT));
 }
 
 function assertMessageRegistryReceipt(registry: RuntimeMessageRegistryReceipt | undefined): void {

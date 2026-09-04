@@ -164,7 +164,7 @@ No new matrix module, no new launcher, no browser-context duplication, and no ra
 5. Run the full focused motion unit and CLI suites plus shared browser tests cold. Run scoped Biome,
    ESLint, package/graph types, structure, Knip, docs format/catalog, and a repo-wide literal sweep for the
    canonical device name across both `.ts` and `.tsx` test/source populations.
-6. Run one live app `pnpm motion-audit --mobile` trace and report requested/applied/actual descriptor,
+6. Run one live app `pnpm snap --mobile --motion` trace and report requested/applied/actual descriptor,
    viewport, pointer/hover, touch, DPR, mobile mode, nonzero snapshot/frame/window populations, verdict,
    and cleanup. A quiet live surface may legitimately have no frames; if so, drive the existing animated
    surface or widen the window rather than weakening the evidence rule.

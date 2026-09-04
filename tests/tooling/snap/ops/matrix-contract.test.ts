@@ -40,13 +40,13 @@ test("ships stage-safe behavioral tapes for every historical Appearance row", ()
   expect(new Set(checkpoints.map((checkpoint) => checkpoint.name)).size).toBe(checkpoints.length);
   for (const spec of specs) {
     for (const checkpoint of spec.checkpoints) {
-      const args = parseSnapArgs([...spec.defaults, ...checkpoint.args]);
+      const args = parseSnapArgs([...spec.defaults, ...checkpoint.args], { scenarioCheckpoint: true });
       expect(args.errors).toEqual([]);
       expect(args.actions.some((action) => action.type === "nav" || action.type === "step")).toBe(true);
     }
   }
   expect(checkpoints.flatMap((checkpoint) => checkpoint.args)).not.toEqual(
-    expect.arrayContaining(["--fill", "--upload", "--click", "--jsclick", "--press", "--hover"]),
+    expect.arrayContaining(["--fill", "--upload", "--drop-files", "--click", "--dom-click", "--force-click", "--hover"]),
   );
   expect(specs[0]?.checkpoints[0]?.name).toBe("opposite-os-app-prepaint");
 });

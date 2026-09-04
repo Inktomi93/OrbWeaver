@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 477,
-    "enforced": 474,
+    "sites": 529,
+    "enforced": 526,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 474,
+      "deliberate-absorb": 526,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
-      "promise": 129,
-      "default": 139,
-      "empty": 209
+      "promise": 137,
+      "default": 141,
+      "empty": 251
     }
   },
   "rows": [
@@ -4011,7 +4011,7 @@
     {
       "siteId": "tooling/src/_shared/appearance-flags.ts::default:catch::1",
       "path": "tooling/src/_shared/appearance-flags.ts",
-      "line": 34,
+      "line": 51,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4019,12 +4019,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "appearance JSON parse returns null so the caller emits its option-specific refusal; no theme is applied. Ends if parse failure stops being a refusal.",
-      "markerLine": 31
+      "markerLine": 48
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::default:catch::1",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 137,
+      "line": 142,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4032,12 +4032,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable optional appearance snapshot is represented as absent and the caller rebuilds from the live page. Ends if this snapshot becomes authoritative.",
-      "markerLine": 134
+      "markerLine": 139
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::default:catch::2",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 208,
+      "line": 213,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4045,12 +4045,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable optional theme catalog entry is represented as absent and the caller reports the missing theme. Ends if absence stops reaching the operator.",
-      "markerLine": 205
+      "markerLine": 210
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::default:e::1",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 264,
+      "line": 269,
       "column": 7,
       "grammar": "default",
       "position": "default:e",
@@ -4058,7 +4058,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "the list-themes command emits the read failure through warn before returning no catalog. Ends if the warning stops carrying the failure.",
-      "markerLine": 256
+      "markerLine": 261
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::empty:catch::1",
@@ -4076,15 +4076,28 @@
     {
       "siteId": "tooling/src/_shared/appearance.ts::empty:catch::2",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 355,
-      "column": 7,
+      "line": 95,
+      "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 2,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
+      "reason": "an opaque-origin bootstrap page has no localStorage; the settings-response shim remains authoritative after navigation. Ends if the boot hint becomes the authoritative appearance source.",
+      "markerLine": 92
+    },
+    {
+      "siteId": "tooling/src/_shared/appearance.ts::empty:catch::3",
+      "path": "tooling/src/_shared/appearance.ts",
+      "line": 360,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
       "reason": "the primary route failure is owned by the awaited fallback route, whose own rejection propagates to the command. Ends if fallback becomes fire-and-forget.",
-      "markerLine": 340
+      "markerLine": 345
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::default:catch::1",
@@ -4230,9 +4243,87 @@
       "markerLine": 258
     },
     {
+      "siteId": "tooling/src/_shared/browser-capture.ts::promise:wire::1",
+      "path": "tooling/src/_shared/browser-capture.ts",
+      "line": 189,
+      "column": 5,
+      "grammar": "promise",
+      "position": "promise:wire",
+      "ordinal": 1,
+      "snippet": "wire(page).catch((error: unknown) => {",
+      "verdict": "deliberate-absorb",
+      "reason": "the event has no awaiter; setup rejection is retained in pageErrors, which makes Snap's verdict red. Ends if pageErrors stops contributing to the verdict.",
+      "markerLine": 188
+    },
+    {
+      "siteId": "tooling/src/_shared/browser-diagnostics.ts::empty:error::1",
+      "path": "tooling/src/_shared/browser-diagnostics.ts",
+      "line": 318,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "unsupported experimental Audits becomes an explicit instrument-limit diagnostic; Log capture remains live. Ends if the limit record stops carrying the caught detail.",
+      "markerLine": 315
+    },
+    {
+      "siteId": "tooling/src/_shared/browser-network.ts::empty:error::1",
+      "path": "tooling/src/_shared/browser-network.ts",
+      "line": 144,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed or timed-out CDP request-body read is retained as an explicit unavailableReason and serialized as a HAR omission. Ends if the reason stops reaching the HAR.",
+      "markerLine": 136
+    },
+    {
+      "siteId": "tooling/src/_shared/browser-network.ts::empty:error::2",
+      "path": "tooling/src/_shared/browser-network.ts",
+      "line": 171,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed or timed-out CDP response-body read is retained as timeout/evicted/failed and serialized as a HAR omission. Ends if the reason stops reaching the HAR.",
+      "markerLine": 162
+    },
+    {
+      "siteId": "tooling/src/_shared/browser-network.ts::promise:pending::1",
+      "path": "tooling/src/_shared/browser-network.ts",
+      "line": 215,
+      "column": 8,
+      "grammar": "promise",
+      "position": "promise:pending",
+      "ordinal": 1,
+      "snippet": "void pending.then(finish, finish);",
+      "verdict": "deliberate-absorb",
+      "reason": "the original promise remains in controller.pending and networkRecordsForPages awaits it, so rejection still propagates; this continuation only releases retention state on either terminal. Ends if pending stops being awaited or this continuation owns the verdict.",
+      "markerLine": 214
+    },
+    {
+      "siteId": "tooling/src/_shared/browser-request-url.ts::empty:catch::1",
+      "path": "tooling/src/_shared/browser-request-url.ts",
+      "line": 31,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "an unparsable page-controlled URL becomes the branded explicit omission instead of leaking raw credentials/path/query bytes. Ends if the fallback stops being the only returned value.",
+      "markerLine": 11
+    },
+    {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::1",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 103,
+      "line": 101,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4240,12 +4331,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.",
-      "markerLine": 89
+      "markerLine": 87
     },
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::2",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 218,
+      "line": 214,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4253,7 +4344,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block.",
-      "markerLine": 215
+      "markerLine": 211
     },
     {
       "siteId": "tooling/src/_shared/debugging-endpoint.ts::empty:catch::1",
@@ -4375,7 +4466,7 @@
     {
       "siteId": "tooling/src/_shared/proc.ts::empty:error::2",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 234,
+      "line": 261,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -4383,7 +4474,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative.",
-      "markerLine": 231
+      "markerLine": 258
     },
     {
       "siteId": "tooling/src/_shared/rated-theme-fixture.ts::empty:cleanupError::1",
@@ -4425,17 +4516,30 @@
       "markerLine": 106
     },
     {
+      "siteId": "tooling/src/_shared/upload.ts::promise:chooserPromise::1",
+      "path": "tooling/src/_shared/upload.ts",
+      "line": 205,
+      "column": 11,
+      "grammar": "promise",
+      "position": "promise:chooserPromise",
+      "ordinal": 1,
+      "snippet": "await chooserPromise.catch(() => undefined);",
+      "verdict": "deliberate-absorb",
+      "reason": "the target click already failed and is rethrown below; drain the paired chooser promise so its later timeout cannot become an unhandled secondary failure. Ends if the chooser result is consumed here or the click error stops being rethrown.",
+      "markerLine": 204
+    },
+    {
       "siteId": "tooling/src/_shared/upload.ts::promise:evaluate::1",
       "path": "tooling/src/_shared/upload.ts",
-      "line": 60,
-      "column": 29,
+      "line": 140,
+      "column": 24,
       "grammar": "promise",
       "position": "promise:evaluate",
       "ordinal": 1,
-      "snippet": "const isFileInput = await loc",
+      "snippet": "const direct = await loc",
       "verdict": "deliberate-absorb",
-      "reason": "best-effort type probe on the caller's selector — a failure here (detached node, not-yet-attached) just means \"assume not a file input\" and falls through to the nested input[type=file] search below, or returns the original locator; any real failure surfaces loudly when the caller later interacts with the resolved locator. Ends if this stops falling through to the nested search.",
-      "markerLine": 59
+      "reason": "this best-effort type probe converts a detached/unreadable target into \"not a direct input\" and deliberately delegates to the descendant/chooser arms below; those interactions surface the actionable target failure. Ends if this catch stops feeding that fallback or a failure can exit clean without either arm running.",
+      "markerLine": 139
     },
     {
       "siteId": "tooling/src/ast/cli.ts::empty:e::1",
@@ -4503,30 +4607,30 @@
       "markerLine": 77
     },
     {
-      "siteId": "tooling/src/cpu-profile/ops/drive.ts::empty:e::1",
-      "path": "tooling/src/cpu-profile/ops/drive.ts",
-      "line": 101,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:e",
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::promise:detach::1",
+      "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
+      "line": 86,
+      "column": 11,
+      "grammar": "promise",
+      "position": "promise:detach",
       "ordinal": 1,
-      "snippet": "} catch (e) {",
+      "snippet": "await detach().catch((error: unknown) => warn(`BOOT TRACE DETACH   ${errorMessage(error)}`));",
       "verdict": "deliberate-absorb",
-      "reason": "printed as a STEP FAILED line and counted into the failures total this function returns — its one caller (ops/run.ts) reads that count as the run's verdict, so the failure is not dropped. Ends if the returned count stops being read by the caller.",
-      "markerLine": 95
+      "reason": "detach is terminal cleanup after trace stop/abort; warn prints the exact failure and the owning Snap session still closes the browser. Ends if this warning or the following session close disappears.",
+      "markerLine": 85
     },
     {
-      "siteId": "tooling/src/cpu-profile/ops/stage.ts::empty:error::1",
-      "path": "tooling/src/cpu-profile/ops/stage.ts",
-      "line": 40,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:error",
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::promise:stopTrace::1",
+      "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
+      "line": 94,
+      "column": 13,
+      "grammar": "promise",
+      "position": "promise:stopTrace",
       "ordinal": 1,
-      "snippet": "} catch (error) {",
+      "snippet": "await stopTrace(cdp, complete.promise).catch((error: unknown) => warn(`BOOT TRACE CLEANUP  ${errorMessage(error)}`));",
       "verdict": "deliberate-absorb",
-      "reason": "stageBootRefusal prints the caught failure and this run exits toolError without launching a browser. Ends if the refusal stops carrying the error or the caller stops returning this exit.",
-      "markerLine": 29
+      "reason": "warn receives the caught cleanup error and prints it as BOOT TRACE CLEANUP; the surrounding session close remains the terminal cleanup owner. Ends if this warning stops carrying the failure or session close stops following this block.",
+      "markerLine": 93
     },
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::default:catch::1",
@@ -4635,7 +4739,7 @@
     {
       "siteId": "tooling/src/motion-audit/ops/drive.ts::default:e::1",
       "path": "tooling/src/motion-audit/ops/drive.ts",
-      "line": 59,
+      "line": 57,
       "column": 5,
       "grammar": "default",
       "position": "default:e",
@@ -4643,85 +4747,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "prepare-click failure is printed as STEP FAILED and null prevents measurement from claiming a click. Ends if null can produce a clean verdict.",
-      "markerLine": 49
-    },
-    {
-      "siteId": "tooling/src/motion-audit/ops/drive.ts::empty:e::1",
-      "path": "tooling/src/motion-audit/ops/drive.ts",
-      "line": 79,
-      "column": 9,
-      "grammar": "empty",
-      "position": "empty:e",
-      "ordinal": 1,
-      "snippet": "} catch (e) {",
-      "verdict": "deliberate-absorb",
-      "reason": "reach failure increments the authoritative failure counter and prints the selector. Ends if the final verdict stops reading failures.",
-      "markerLine": 74
-    },
-    {
-      "siteId": "tooling/src/motion-audit/ops/matrix.ts::empty:error::1",
-      "path": "tooling/src/motion-audit/ops/matrix.ts",
-      "line": 190,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "discovery/planning failures print the exact INSTRUMENT ERROR and return EXIT.toolError; no aggregate verdict is emitted. Ends if this catch stops terminating the command.",
-      "markerLine": 158
-    },
-    {
-      "siteId": "tooling/src/motion-audit/ops/matrix.ts::promise:waitFor::1",
-      "path": "tooling/src/motion-audit/ops/matrix.ts",
-      "line": 67,
-      "column": 25,
-      "grammar": "promise",
-      "position": "promise:waitFor",
-      "ordinal": 1,
-      "snippet": "const ready = await session.page",
-      "verdict": "deliberate-absorb",
-      "reason": "false is consumed immediately below as an INSTRUMENT ERROR; discovery never proceeds against a cold shell. Ends if `ready` stops gating the return.",
-      "markerLine": 66
-    },
-    {
-      "siteId": "tooling/src/motion-audit/ops/run.ts::default:catch::1",
-      "path": "tooling/src/motion-audit/ops/run.ts",
-      "line": 111,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "null is preserved in AuditData and the only consumer, matrix STATIC-EXPECTED, rejects it as instrument error; ordinary legacy-ref runs never claim this field. Ends if null becomes an accepted matrix identity.",
-      "markerLine": 100
-    },
-    {
-      "siteId": "tooling/src/motion-audit/ops/run.ts::promise:waitFor::1",
-      "path": "tooling/src/motion-audit/ops/run.ts",
-      "line": 184,
-      "column": 23,
-      "grammar": "promise",
-      "position": "promise:waitFor",
-      "ordinal": 1,
-      "snippet": "const ready = await page",
-      "verdict": "deliberate-absorb",
-      "reason": "false feeds apparatusGap, which emits INSTRUMENT ERROR instead of a motion verdict. Ends if readiness stops gating measurement.",
-      "markerLine": 183
-    },
-    {
-      "siteId": "tooling/src/motion-audit/ops/stage.ts::empty:error::1",
-      "path": "tooling/src/motion-audit/ops/stage.ts",
-      "line": 40,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "stageBootRefusal prints the caught failure and this run exits toolError without launching a browser. Ends if the refusal stops carrying the error or the caller stops returning this exit.",
-      "markerLine": 29
+      "markerLine": 47
     },
     {
       "siteId": "tooling/src/motion-audit/ops/trace.ts::empty:e::1",
@@ -4802,32 +4828,6 @@
       "markerLine": 100
     },
     {
-      "siteId": "tooling/src/screen-record/ops/drive.ts::empty:e::1",
-      "path": "tooling/src/screen-record/ops/drive.ts",
-      "line": 80,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:e",
-      "ordinal": 1,
-      "snippet": "} catch (e) {",
-      "verdict": "deliberate-absorb",
-      "reason": "printed as a STEP FAILED line and counted into the failures total this function returns to its caller as the run's verdict. Ends if the returned count stops being read by the caller.",
-      "markerLine": 75
-    },
-    {
-      "siteId": "tooling/src/screen-record/ops/stage.ts::empty:error::1",
-      "path": "tooling/src/screen-record/ops/stage.ts",
-      "line": 40,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "stageBootRefusal prints the caught failure and this run exits toolError without launching a browser. Ends if the refusal stops carrying the error or the caller stops returning this exit.",
-      "markerLine": 29
-    },
-    {
       "siteId": "tooling/src/seed/ops/demo.ts::empty:err::1",
       "path": "tooling/src/seed/ops/demo.ts",
       "line": 119,
@@ -4854,6 +4854,71 @@
       "markerLine": 295
     },
     {
+      "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::empty:catch::1",
+      "path": "tooling/src/snap/lib/browser-evidence-redaction.ts",
+      "line": 123,
+      "column": 9,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a hostile diagnostic getter becomes an explicit unreadable marker; its thrown value may contain a page secret and cannot cross the disk boundary. Ends if unreadableValue stops recording the failure.",
+      "markerLine": 120
+    },
+    {
+      "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::empty:catch::2",
+      "path": "tooling/src/snap/lib/browser-evidence-redaction.ts",
+      "line": 241,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "hostile outer diagnostic getters fail closed to one generic record; caught content may contain a page secret and is intentionally neither logged nor returned. Ends if fallback stops being the terminal disk-safe result.",
+      "markerLine": 216
+    },
+    {
+      "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::empty:catch::3",
+      "path": "tooling/src/snap/lib/browser-evidence-redaction.ts",
+      "line": 256,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a hostile diagnostic collection fails closed to an empty batch with an unreadable receipt; caught content may contain a page secret and is not surfaced. Ends if the receipt stops owning the failure.",
+      "markerLine": 248
+    },
+    {
+      "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::empty:catch::4",
+      "path": "tooling/src/snap/lib/browser-evidence-redaction.ts",
+      "line": 276,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 4,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "hostile captured-console getters fail closed to a generic explicit omission; thrown content may contain a page secret and is not surfaced. Ends if the fallback stops being disk-safe.",
+      "markerLine": 266
+    },
+    {
+      "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::empty:catch::5",
+      "path": "tooling/src/snap/lib/browser-evidence-redaction.ts",
+      "line": 300,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 5,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "hostile request-summary getters fail closed to a generic omission; thrown content may contain a page secret and is not surfaced. Ends if the fallback stops being disk-safe.",
+      "markerLine": 289
+    },
+    {
       "siteId": "tooling/src/snap/lib/cascade-source.ts::empty:catch::1",
       "path": "tooling/src/snap/lib/cascade-source.ts",
       "line": 43,
@@ -4867,9 +4932,178 @@
       "markerLine": 40
     },
     {
+      "siteId": "tooling/src/snap/lib/har-redaction.ts::default:catch::1",
+      "path": "tooling/src/snap/lib/har-redaction.ts",
+      "line": 137,
+      "column": 7,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed form encoding is the negative parse result; the body caller turns null into an explicit malformed-form omission and never exposes the decoder error. Ends if null stops producing that omission.",
+      "markerLine": 134
+    },
+    {
+      "siteId": "tooling/src/snap/lib/har-redaction.ts::empty:catch::1",
+      "path": "tooling/src/snap/lib/har-redaction.ts",
+      "line": 248,
+      "column": 13,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a hostile property getter becomes an explicit unreadable event plus [OMITTED]; the caught error can contain the secret and must never cross this disk-safety boundary. Ends if either marker or receipt is removed.",
+      "markerLine": 245
+    },
+    {
+      "siteId": "tooling/src/snap/lib/har-redaction.ts::empty:catch::2",
+      "path": "tooling/src/snap/lib/har-redaction.ts",
+      "line": 343,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "invalid JSON becomes a typed malformed-json omission; parser messages are intentionally discarded because future runtimes may quote secret-bearing input. Ends if the omission stops owning the failure.",
+      "markerLine": 340
+    },
+    {
+      "siteId": "tooling/src/snap/lib/har-redaction.ts::empty:catch::3",
+      "path": "tooling/src/snap/lib/har-redaction.ts",
+      "line": 447,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a hostile proxy/getter at the outer trust boundary fails closed to one generic unreadable receipt; the caught value may itself contain a secret and is never logged or serialized. Ends if fallback stops being the terminal safe result.",
+      "markerLine": 427
+    },
+    {
+      "siteId": "tooling/src/snap/lib/heap-devtools.ts::empty:error::1",
+      "path": "tooling/src/snap/lib/heap-devtools.ts",
+      "line": 230,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "ENOENT means the official worker emitted no problem report; every other read/parse failure rethrows. Ends if the error-code check or rethrow is removed.",
+      "markerLine": 220
+    },
+    {
+      "siteId": "tooling/src/snap/lib/rate-posture.ts::empty:error::1",
+      "path": "tooling/src/snap/lib/rate-posture.ts",
+      "line": 44,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "this one acceleration-read failure is preserved in accelerationError; ratePostureDisposition reads it first and withholds every rate verdict with the original message. Ends if accelerationError stops feeding that withholding branch or any rate consumer can publish a verdict after this catch.",
+      "markerLine": 41
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-bundle-files.ts::empty:catch::1",
+      "path": "tooling/src/snap/lib/run-bundle-files.ts",
+      "line": 126,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a missing/corrupt optional .inflight marker deliberately falls through to the slot birthtime, the documented lower-fidelity provenance source. Ends if birthtime is no longer recorded in run.json.",
+      "markerLine": 117
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-bundle-files.ts::empty:error::1",
+      "path": "tooling/src/snap/lib/run-bundle-files.ts",
+      "line": 81,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "unreadable bytes make source identity explicitly unknown with the exact failed field; no sentinel digest may masquerade as reproducible content. Ends if this catch stops returning that failure.",
+      "markerLine": 78
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::empty:error::1",
+      "path": "tooling/src/snap/lib/run-finding-analyzers.ts",
+      "line": 65,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
+      "markerLine": 53
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::empty:error::2",
+      "path": "tooling/src/snap/lib/run-finding-analyzers.ts",
+      "line": 91,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
+      "markerLine": 75
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::empty:error::3",
+      "path": "tooling/src/snap/lib/run-finding-analyzers.ts",
+      "line": 129,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 3,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
+      "markerLine": 104
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-finding-browser.ts::empty:error::1",
+      "path": "tooling/src/snap/lib/run-finding-browser.ts",
+      "line": 261,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
+      "markerLine": 258
+    },
+    {
+      "siteId": "tooling/src/snap/lib/run-finding-browser.ts::empty:error::2",
+      "path": "tooling/src/snap/lib/run-finding-browser.ts",
+      "line": 329,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
+      "markerLine": 326
+    },
+    {
       "siteId": "tooling/src/snap/lib/session-wire.ts::default:catch::1",
       "path": "tooling/src/snap/lib/session-wire.ts",
-      "line": 19,
+      "line": 29,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4877,12 +5111,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a malformed line IS the negative answer both readers return — the daemon refuses the request as a protocol error and the client treats the row as unreadable; `null` is that answer at every call site. Ends if a caller starts needing WHY the bytes did not parse.",
-      "markerLine": 15
+      "markerLine": 25
     },
     {
       "siteId": "tooling/src/snap/ops/arms/assert.ts::empty:error::1",
       "path": "tooling/src/snap/ops/arms/assert.ts",
-      "line": 101,
+      "line": 105,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -4890,12 +5124,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "captured as an ERROR outcome line pushed into the returned outcomes array, which the caller counts as failed and reports. Ends if the outcomes array stops being read.",
-      "markerLine": 98
+      "markerLine": 102
     },
     {
       "siteId": "tooling/src/snap/ops/arms/assert.ts::promise:isVisible::1",
       "path": "tooling/src/snap/ops/arms/assert.ts",
-      "line": 86,
+      "line": 90,
       "column": 24,
       "grammar": "promise",
       "position": "promise:isVisible",
@@ -4903,12 +5137,51 @@
       "snippet": "const pass = await locator",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — a locator failure converts to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read.",
-      "markerLine": 85
+      "markerLine": 89
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/arms/boot-trace.ts",
+      "line": 75,
+      "column": 13,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
+      "markerLine": 59
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::empty:error::2",
+      "path": "tooling/src/snap/ops/arms/boot-trace.ts",
+      "line": 86,
+      "column": 13,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
+      "markerLine": 83
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::empty:error::3",
+      "path": "tooling/src/snap/ops/arms/boot-trace.ts",
+      "line": 119,
+      "column": 15,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 3,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
+      "markerLine": 103
     },
     {
       "siteId": "tooling/src/snap/ops/arms/cascade.ts::empty:error::1",
       "path": "tooling/src/snap/ops/arms/cascade.ts",
-      "line": 109,
+      "line": 179,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4916,12 +5189,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the catch returns a terminal instrument-error receipt consumed by Snap's verdict and artifact, including one error row per requested query. Ends if this result stops driving the verdict.",
-      "markerLine": 85
+      "markerLine": 155
     },
     {
       "siteId": "tooling/src/snap/ops/arms/contrast.ts::promise:evaluate::1",
       "path": "tooling/src/snap/ops/arms/contrast.ts",
-      "line": 70,
+      "line": 75,
       "column": 9,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -4929,12 +5202,51 @@
       "snippet": "await page",
       "verdict": "deliberate-absorb",
       "reason": "best-effort cleanup — a torn-down page must never fail the contrast verdict already computed. Ends if the trailing comment's rationale stops holding.",
-      "markerLine": 69
+      "markerLine": 74
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/cpu-profile.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/arms/cpu-profile.ts",
+      "line": 84,
+      "column": 13,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
+      "markerLine": 78
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/cpu-profile.ts::empty:error::2",
+      "path": "tooling/src/snap/ops/arms/cpu-profile.ts",
+      "line": 102,
+      "column": 13,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
+      "markerLine": 98
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/cpu-profile.ts::empty:error::3",
+      "path": "tooling/src/snap/ops/arms/cpu-profile.ts",
+      "line": 130,
+      "column": 13,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 3,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
+      "markerLine": 114
     },
     {
       "siteId": "tooling/src/snap/ops/arms/eval.ts::empty:e::1",
       "path": "tooling/src/snap/ops/arms/eval.ts",
-      "line": 30,
+      "line": 31,
       "column": 7,
       "grammar": "empty",
       "position": "empty:e",
@@ -4942,12 +5254,103 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "captured into the EvalOutcome as `failed: true` + an \"EVAL ERROR\" text, pushed into `results` and returned to the caller that prints/counts it. Ends if `failed`/`text` stop being read from the outcome.",
-      "markerLine": 25
+      "markerLine": 26
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::default:catch::1",
+      "path": "tooling/src/snap/ops/arms/heap.ts",
+      "line": 121,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed capture may create no file; the primary error is retained by runHeapPage and exits 2. Ends if the caller stops preserving/printing that primary error.",
+      "markerLine": 118
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/arms/heap.ts",
+      "line": 275,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "every caught capture failure enters errors, prints HEAP REFUSED, persists on CaptureOutcome, and forces page-arm exit 2. Ends if any one of those owners stops reading errors.",
+      "markerLine": 272
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::empty:error::2",
+      "path": "tooling/src/snap/ops/arms/heap.ts",
+      "line": 283,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "every caught comparison failure enters errors, prints HEAP REFUSED, persists on CaptureOutcome, and forces page-arm exit 2. Ends if any one of those owners stops reading errors.",
+      "markerLine": 280
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::empty:error::3",
+      "path": "tooling/src/snap/ops/arms/heap.ts",
+      "line": 291,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 3,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "every caught retainer failure enters errors, prints HEAP REFUSED, persists on CaptureOutcome, and forces page-arm exit 2. Ends if any one of those owners stops reading errors.",
+      "markerLine": 288
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::empty:error::4",
+      "path": "tooling/src/snap/ops/arms/heap.ts",
+      "line": 320,
+      "column": 11,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 4,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors.",
+      "markerLine": 317
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::empty:error::5",
+      "path": "tooling/src/snap/ops/arms/heap.ts",
+      "line": 333,
+      "column": 11,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 5,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors.",
+      "markerLine": 330
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/heap.ts::empty:error::6",
+      "path": "tooling/src/snap/ops/arms/heap.ts",
+      "line": 346,
+      "column": 11,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 6,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors.",
+      "markerLine": 343
     },
     {
       "siteId": "tooling/src/snap/ops/arms/lighthouse.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/arms/lighthouse.ts",
-      "line": 105,
+      "line": 106,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4955,38 +5358,116 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the bounded retry loop OWNS this failure — a connection refused before Chrome binds its listener is the normal first tick, and exhaustion throws the named error below. Ends if exhaustion stops throwing.",
-      "markerLine": 98
+      "markerLine": 99
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/map.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/arms/map.ts",
+      "line": 93,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the browser read failure is retained in",
+      "markerLine": 89
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/map.ts::empty:error::2",
+      "path": "tooling/src/snap/ops/arms/map.ts",
+      "line": 105,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the capabilities shape failure becomes",
+      "markerLine": 101
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/map.ts::empty:error::3",
+      "path": "tooling/src/snap/ops/arms/map.ts",
+      "line": 112,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 3,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the shell shape failure becomes",
+      "markerLine": 108
     },
     {
       "siteId": "tooling/src/snap/ops/arms/map.ts::promise:count::1",
       "path": "tooling/src/snap/ops/arms/map.ts",
-      "line": 203,
+      "line": 28,
       "column": 23,
       "grammar": "promise",
       "position": "promise:count",
       "ordinal": 1,
       "snippet": "const count = await locator.count().catch(() => 0);",
       "verdict": "deliberate-absorb",
-      "reason": "probe-whose-failure-is-its-return-value — a count failure becomes 0, which fails the `=== 1` check below and reports the selector as not executable. Ends if that check stops gating on count.",
-      "markerLine": 202
+      "reason": "a malformed/non-unique candidate returns",
+      "markerLine": 26
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/map.ts::promise:isEnabled::1",
+      "path": "tooling/src/snap/ops/arms/map.ts",
+      "line": 39,
+      "column": 20,
+      "grammar": "promise",
+      "position": "promise:isEnabled",
+      "ordinal": 1,
+      "snippet": "enabled: await locator.isEnabled().catch(() => false),",
+      "verdict": "deliberate-absorb",
+      "reason": "failed enabled proof is false;",
+      "markerLine": 37
     },
     {
       "siteId": "tooling/src/snap/ops/arms/map.ts::promise:isVisible::1",
       "path": "tooling/src/snap/ops/arms/map.ts",
-      "line": 205,
-      "column": 43,
+      "line": 36,
+      "column": 20,
       "grammar": "promise",
       "position": "promise:isVisible",
       "ordinal": 1,
-      "snippet": "return count === 1 && (includeHidden || locator.isVisible().catch(() => false));",
+      "snippet": "visible: await locator.isVisible().catch(() => false),",
       "verdict": "deliberate-absorb",
-      "reason": "probe-whose-failure-is-its-return-value — an isVisible failure becomes false, which is exactly the \"not executable\" verdict this function returns. Ends if the return stops being read as pass/fail.",
-      "markerLine": 204
+      "reason": "a failed visibility probe is false;",
+      "markerLine": 32
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/motion.ts::default:catch::1",
+      "path": "tooling/src/snap/ops/arms/motion.ts",
+      "line": 92,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "this optional appearance cross-check is null in ordinary non-app fixtures; rated matrix cells consume the same contract through their mandatory matrix receipt. Ends if applicationMotion becomes a verdict input outside that matrix receipt.",
+      "markerLine": 81
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/motion.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/arms/motion.ts",
+      "line": 158,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught measurement failure becomes a named evidence gap, printed as REFUSED and forced to exit 2 by the arm. Ends if the returned gaps stop feeding report/pairs/exit.",
+      "markerLine": 139
     },
     {
       "siteId": "tooling/src/snap/ops/arms/perf.ts::default:catch::1",
       "path": "tooling/src/snap/ops/arms/perf.ts",
-      "line": 36,
+      "line": 49,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4994,25 +5475,90 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — perf evidence is a nice-to-have from window.__orb, null on any failure (old build, dev-only bridge absent) and the caller treats null as \"no perf evidence\", never a failure. Ends if a caller starts requiring perf evidence to be present.",
-      "markerLine": 19
+      "markerLine": 28
     },
     {
-      "siteId": "tooling/src/snap/ops/arms/requests.ts::empty:error::1",
-      "path": "tooling/src/snap/ops/arms/requests.ts",
-      "line": 55,
+      "siteId": "tooling/src/snap/ops/arms/profile.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/arms/profile.ts",
+      "line": 124,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": "the failure IS the result — an unreadable body (a torn-down page, a redirect with no text) becomes the `error` arm of RequestBodyOutcome, which finishRequestLog prints as \"the body could not be read: <reason>\" and the RESULT line reports as `request-body=error`. Ends if that arm stops being printed.",
-      "markerLine": 51
+      "reason": "the caught trace failure is returned as traceError, filed in the profile artifact and printed as `track limit`; Fiber evidence remains independently valid. Ends if stopTrace stops returning the caught detail or reportReactProfile stops printing traceError.",
+      "markerLine": 107
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/profile.ts::empty:error::2",
+      "path": "tooling/src/snap/ops/arms/profile.ts",
+      "line": 272,
+      "column": 9,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught page read becomes a hookInstalled:false evidence row; profileGaps prints it and forces exit 2. Ends if missingPage stops carrying the caught detail or profileGaps stops refusing it.",
+      "markerLine": 269
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/profile.ts::empty:error::3",
+      "path": "tooling/src/snap/ops/arms/profile.ts",
+      "line": 293,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 3,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught install failure is returned in errors; profileGaps prints it and forces exit 2. Ends if the error stops entering this return or gaps stop voting.",
+      "markerLine": 290
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/profile.ts::empty:error::4",
+      "path": "tooling/src/snap/ops/arms/profile.ts",
+      "line": 300,
+      "column": 9,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 4,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the caught call-window mark failure is returned in errors; profileGaps prints it and forces exit 2 rather than mixing prior commits into this call. Ends if the detail stops entering this return or gaps stop voting.",
+      "markerLine": 297
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/profile.ts::promise:detach::1",
+      "path": "tooling/src/snap/ops/arms/profile.ts",
+      "line": 139,
+      "column": 11,
+      "grammar": "promise",
+      "position": "promise:detach",
+      "ordinal": 1,
+      "snippet": "await capture.cdp.detach().catch(() => undefined);",
+      "verdict": "deliberate-absorb",
+      "reason": "Tracing.end is the terminal browser-side cleanup owner; the caught measurement/retry detail above is retained for the operator. Ends if stopTrace stops sending Tracing.end before detach.",
+      "markerLine": 138
+    },
+    {
+      "siteId": "tooling/src/snap/ops/arms/profile.ts::promise:detach::2",
+      "path": "tooling/src/snap/ops/arms/profile.ts",
+      "line": 170,
+      "column": 13,
+      "grammar": "promise",
+      "position": "promise:detach",
+      "ordinal": 2,
+      "snippet": "await cdp.detach().catch(() => undefined);",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed trace start owns no later measurement; detaching is best-effort and the caught start error is returned as the operator-visible track limit. Ends if this catch stops returning the start error.",
+      "markerLine": 169
     },
     {
       "siteId": "tooling/src/snap/ops/arms/shot.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/arms/shot.ts",
-      "line": 82,
+      "line": 85,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5020,12 +5566,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented best-effort optimisation — a torn context makes the shot one frame stale, never absent, per the trailing comment. Ends if the shot stops happening regardless of this failure.",
-      "markerLine": 49
+      "markerLine": 52
     },
     {
       "siteId": "tooling/src/snap/ops/capture.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/capture.ts",
-      "line": 95,
+      "line": 128,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5033,12 +5579,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort fallback shot after the nav already failed — the RESULT line's navError still reports the real failure. Ends if the comment's \"still lands\" claim stops holding.",
-      "markerLine": 92
+      "markerLine": 125
     },
     {
       "siteId": "tooling/src/snap/ops/capture.ts::empty:e::1",
       "path": "tooling/src/snap/ops/capture.ts",
-      "line": 86,
+      "line": 119,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5046,12 +5592,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "captured into outcome.navError, which the caller counts into the verdict's navigation total and prints as NAV ERROR. Ends if navError stops being read.",
-      "markerLine": 57
+      "markerLine": 79
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 171,
+      "line": 215,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5059,12 +5605,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.",
-      "markerLine": 166
+      "markerLine": 210
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 208,
+      "line": 252,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5072,12 +5618,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read.",
-      "markerLine": 201
+      "markerLine": 245
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:retryErr::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 182,
+      "line": 226,
       "column": 9,
       "grammar": "empty",
       "position": "empty:retryErr",
@@ -5085,12 +5631,12 @@
       "snippet": "} catch (retryErr) {",
       "verdict": "deliberate-absorb",
       "reason": "the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read.",
-      "markerLine": 177
+      "markerLine": 221
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 37,
+      "line": 40,
       "column": 23,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -5098,12 +5644,12 @@
       "snippet": "const count = await page.evaluate(\"window.__orb ? window.__orb.queries().length : null\").catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — a build without the __orb bridge, or a probe that throws, returns null and the caller \"makes no claim rather than a false one\" (doc comment above). Ends if a caller starts trusting null as a positive settle.",
-      "markerLine": 36
+      "markerLine": 39
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 204,
+      "line": 248,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -5111,12 +5657,12 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.",
-      "markerLine": 203
+      "markerLine": 247
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 44,
+      "line": 47,
       "column": 26,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -5124,12 +5670,12 @@
       "snippet": "const attached = await flag",
       "verdict": "deliberate-absorb",
       "reason": "failure IS the return value — converts to attached=false, which becomes the \"absent\" readiness arm fed into UNSETTLED_REASON and reported as navError below. Ends if that reporting chain is removed.",
-      "markerLine": 43
+      "markerLine": 46
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 196,
+      "line": 240,
       "column": 9,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -5137,12 +5683,12 @@
       "snippet": "await page",
       "verdict": "deliberate-absorb",
       "reason": "gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures.",
-      "markerLine": 195
+      "markerLine": 239
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitForLoadState::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 274,
+      "line": 368,
       "column": 11,
       "grammar": "promise",
       "position": "promise:waitForLoadState",
@@ -5150,12 +5696,25 @@
       "snippet": "await page.waitForLoadState(\"networkidle\", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.",
-      "markerLine": 272
+      "markerLine": 366
+    },
+    {
+      "siteId": "tooling/src/snap/ops/filmstrip-capture.ts::promise:stopProtocol::1",
+      "path": "tooling/src/snap/ops/filmstrip-capture.ts",
+      "line": 227,
+      "column": 7,
+      "grammar": "promise",
+      "position": "promise:stopProtocol",
+      "ordinal": 1,
+      "snippet": "stopProtocol().catch(() => undefined);",
+      "verdict": "deliberate-absorb",
+      "reason": "the timeout callback has no awaiter; stopProtocol memoizes the original promise and stop() awaits it, then returns the rejection as typed cleanup evidence. Ends if stop() stops awaiting that memoized promise.",
+      "markerLine": 226
     },
     {
       "siteId": "tooling/src/snap/ops/fixture.ts::default:catch::1",
       "path": "tooling/src/snap/ops/fixture.ts",
-      "line": 95,
+      "line": 93,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5181,7 +5740,7 @@
     {
       "siteId": "tooling/src/snap/ops/guards.ts::empty:e::1",
       "path": "tooling/src/snap/ops/guards.ts",
-      "line": 94,
+      "line": 124,
       "column": 7,
       "grammar": "empty",
       "position": "empty:e",
@@ -5189,12 +5748,64 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as STAGE ERROR and returned as exit code 1, which the CLI process exits with. Ends if that exit code stops being surfaced.",
-      "markerLine": 88
+      "markerLine": 109
+    },
+    {
+      "siteId": "tooling/src/snap/ops/heap-capture.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/heap-capture.ts",
+      "line": 70,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the primary failure is retained and combined with every cleanup failure below; combineCaptureFailures always throws it. Ends if the primary stops entering that aggregate.",
+      "markerLine": 47
+    },
+    {
+      "siteId": "tooling/src/snap/ops/heap-capture.ts::empty:error::2",
+      "path": "tooling/src/snap/ops/heap-capture.ts",
+      "line": 78,
+      "column": 9,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "disable failure is retained in cleanup and combined after stream settlement. Ends if cleanup stops reaching combineCaptureFailures.",
+      "markerLine": 75
+    },
+    {
+      "siteId": "tooling/src/snap/ops/heap-capture.ts::empty:error::3",
+      "path": "tooling/src/snap/ops/heap-capture.ts",
+      "line": 84,
+      "column": 9,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 3,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "detach failure is retained in cleanup and combined after stream settlement; the arm never closes the owner context. Ends if cleanup stops reaching combineCaptureFailures.",
+      "markerLine": 81
+    },
+    {
+      "siteId": "tooling/src/snap/ops/heap-capture.ts::empty:error::4",
+      "path": "tooling/src/snap/ops/heap-capture.ts",
+      "line": 92,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 4,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "stream failure is retained in cleanup and combined with the CDP failures. Ends if cleanup stops reaching combineCaptureFailures.",
+      "markerLine": 89
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 198,
+      "line": 197,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5202,12 +5813,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "Chrome creates this file only after binding the ephemeral endpoint; the bounded retry loop owns the race and throws when its budget expires. Ends if exhaustion stops throwing.",
-      "markerLine": 191
+      "markerLine": 190
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::empty:error::1",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 88,
+      "line": 87,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5215,12 +5826,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "each failed attempt is retained as `lastError`; retry exhaustion throws it with the asset path below. Ends if exhaustion stops throwing the retained detail.",
-      "markerLine": 77
+      "markerLine": 76
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::empty:error::2",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 162,
+      "line": 161,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -5228,12 +5839,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "request failures enter the shared `failures` receipt, return HTTP 502, and abort materialization after discovery. Ends if the post-discovery failures check is removed.",
-      "markerLine": 151
+      "markerLine": 150
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::promise:promise::1",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 150,
+      "line": 149,
       "column": 5,
       "grammar": "promise",
       "position": "promise:promise",
@@ -5241,12 +5852,12 @@
       "snippet": "(async (): Promise<void> => {",
       "verdict": "deliberate-absorb",
       "reason": "any escape from the request handler is recorded in `failures`, destroys the response, and aborts materialization after discovery. Ends if the shared failure receipt stops gating installation.",
-      "markerLine": 149
+      "markerLine": 148
     },
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::empty:error::1",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 425,
+      "line": 384,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5254,12 +5865,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.",
-      "markerLine": 421
+      "markerLine": 380
     },
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::empty:error::2",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 432,
+      "line": 391,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5267,25 +5878,64 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.",
-      "markerLine": 429
+      "markerLine": 388
     },
     {
-      "siteId": "tooling/src/snap/ops/scenario.ts::empty:error::1",
-      "path": "tooling/src/snap/ops/scenario.ts",
-      "line": 319,
+      "siteId": "tooling/src/snap/ops/request-ring.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/request-ring.ts",
+      "line": 275,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "sizes=null plus the caught reason on",
+      "markerLine": 271
+    },
+    {
+      "siteId": "tooling/src/snap/ops/request-ring.ts::empty:error::2",
+      "path": "tooling/src/snap/ops/request-ring.ts",
+      "line": 305,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "#reject persists the explicit read-error",
+      "markerLine": 285
+    },
+    {
+      "siteId": "tooling/src/snap/ops/run-report.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/run-report.ts",
+      "line": 393,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": "printed as SCENARIO ERROR and routed through EXIT.misuse, the process's own exit code. Ends if that exit code stops being surfaced.",
-      "markerLine": 316
+      "reason": "this is the browser-free reader's terminal owner; it prints RUN INDEX REFUSED and returns tool-error for every resolution/validation/artifact failure. Ends if either output or exit vote disappears.",
+      "markerLine": 387
+    },
+    {
+      "siteId": "tooling/src/snap/ops/run-report.ts::empty:error::2",
+      "path": "tooling/src/snap/ops/run-report.ts",
+      "line": 409,
+      "column": 9,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "list mode retains path+reason in `invalid` and `printSnapReports` emits the bounded aggregate; the strict single-index reader remains the detailed refusal door. Ends if either retention or aggregate output disappears.",
+      "markerLine": 406
     },
     {
       "siteId": "tooling/src/snap/ops/session-admin.ts::default:catch::1",
       "path": "tooling/src/snap/ops/session-admin.ts",
-      "line": 47,
+      "line": 48,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5293,12 +5943,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a live pid whose socket does not answer is REPORTED from its row with the \"not answering\" mark the caller prints — the read degrades to the evidence it has, it never hides the session. Ends if a silent daemon must become a hard error.",
-      "markerLine": 40
+      "markerLine": 41
     },
     {
       "siteId": "tooling/src/snap/ops/session-admin.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/session-admin.ts",
-      "line": 128,
+      "line": 129,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5306,12 +5956,38 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a daemon that does not answer its close is REAPED below (group signal + marker settle) and the reap's receipt is printed — the failure path is the louder one. Ends if the reap stops being unconditional after a refused close.",
-      "markerLine": 124
+      "markerLine": 125
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-attach.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/session-attach.ts",
+      "line": 76,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the recurring timer cannot throw to an awaiter, so the caught cause is returned to the caller and retained for `close()` to throw into ProbeSession cleanup. Ends if cleanup stops awaiting the lease or this catch stops returning the cause.",
+      "markerLine": 69
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:promise::1",
+      "path": "tooling/src/snap/ops/session-call-watchdog.ts",
+      "line": 70,
+      "column": 5,
+      "grammar": "promise",
+      "position": "promise:promise",
+      "ordinal": 1,
+      "snippet": "(\"recover\" in state ? state.recover() : terminatePageExecution(state.session)).then(",
+      "verdict": "deliberate-absorb",
+      "reason": "failed injected or browser cancellation becomes `false`, which makes `recovered` false and throws TerminalSessionCallError; the daemon then emits DEAD/toolError, records terminalReason, tears down, and kills its owned process group. Ends if false stops forcing terminal teardown.",
+      "markerLine": 69
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:reload::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 17,
+      "line": 33,
       "column": 11,
       "grammar": "promise",
       "position": "promise:reload",
@@ -5319,12 +5995,25 @@
       "snippet": "await session.page.reload({ waitUntil: \"commit\", timeout: SESSION_CALL_BASE_MS }).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "reload is best-effort cancellation after the timeout already owns the caller-visible error; the next-call survival gate detects a context that failed to recover. Ends if the timeout stops being reported or the survival gate is removed.",
-      "markerLine": 16
+      "markerLine": 32
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:resolve::1",
+      "path": "tooling/src/snap/ops/session-call-watchdog.ts",
+      "line": 50,
+      "column": 16,
+      "grammar": "promise",
+      "position": "promise:resolve",
+      "ordinal": 1,
+      "snippet": "const work = Promise.resolve()",
+      "verdict": "deliberate-absorb",
+      "reason": "the rejection is retained in the discriminated work outcome and the rejected arm below rethrows the original binding; timeout recovery also awaits this owned outcome. Ends if the rejected arm stops propagating the original failure.",
+      "markerLine": 49
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:send::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 15,
+      "line": 31,
       "column": 25,
       "grammar": "promise",
       "position": "promise:send",
@@ -5332,20 +6021,7 @@
       "snippet": "await Promise.race([cdp.send(\"Runtime.terminateExecution\").catch(() => undefined), sleep(TERMINATION_ACK_WAIT_MS)]);",
       "verdict": "deliberate-absorb",
       "reason": "the reload below is the second cancellation path and the watchdog reports the original timeout to the caller. Ends if reload stops following this bounded acknowledgement wait.",
-      "markerLine": 14
-    },
-    {
-      "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:work::1",
-      "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 41,
-      "column": 11,
-      "grammar": "promise",
-      "position": "promise:work",
-      "ordinal": 1,
-      "snippet": "await work.catch(() => undefined);",
-      "verdict": "deliberate-absorb",
-      "reason": "the deadline error is the caller-visible report; draining prevents a late rejected call from becoming unhandled after that report. Ends if the deadline stops being thrown below.",
-      "markerLine": 40
+      "markerLine": 30
     },
     {
       "siteId": "tooling/src/snap/ops/session-client.ts::default:catch::1",
@@ -5376,7 +6052,7 @@
     {
       "siteId": "tooling/src/snap/ops/session-client.ts::empty:error::1",
       "path": "tooling/src/snap/ops/session-client.ts",
-      "line": 223,
+      "line": 243,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5384,12 +6060,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "a daemon that vanished mid-call is reported as SESSION DEAD (or SESSION ERROR with the reason) and the call exits toolError — the failure is the printed verdict. Ends if that exit code stops being surfaced.",
-      "markerLine": 220
+      "markerLine": 226
     },
     {
-      "siteId": "tooling/src/snap/ops/session-daemon.ts::empty:error::1",
-      "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 170,
+      "siteId": "tooling/src/snap/ops/session-daemon-request.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/session-daemon-request.ts",
+      "line": 154,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5397,38 +6073,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the failure is printed to the caller as SESSION CALL ERROR and the request's `done` carries toolError — the caller's exit IS the report; the daemon stays up by design (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.",
-      "markerLine": 167
+      "markerLine": 149
     },
     {
-      "siteId": "tooling/src/snap/ops/session-daemon.ts::empty:error::2",
-      "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 413,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 2,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "a browser that fails to close is logged and the teardown proceeds to the registry half — the row + socket must go regardless, or the session reads as live forever. Ends if a failed browser close must abort the teardown.",
-      "markerLine": 410
-    },
-    {
-      "siteId": "tooling/src/snap/ops/session-daemon.ts::promise:readSessionRequestLine::1",
-      "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 382,
-      "column": 5,
-      "grammar": "promise",
-      "position": "promise:readSessionRequestLine",
-      "ordinal": 1,
-      "snippet": "readSessionRequestLine(socket)",
-      "verdict": "deliberate-absorb",
-      "reason": "the failure is reported to the caller as SESSION SERVE ERROR and the request's `done` carries toolError — the caller's exit IS the report, and the daemon stays up (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.",
-      "markerLine": 381
-    },
-    {
-      "siteId": "tooling/src/snap/ops/session-daemon.ts::promise:work::1",
-      "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 97,
+      "siteId": "tooling/src/snap/ops/session-daemon-request.ts::promise:work::1",
+      "path": "tooling/src/snap/ops/session-daemon-request.ts",
+      "line": 99,
       "column": 3,
       "grammar": "promise",
       "position": "promise:work",
@@ -5436,12 +6086,38 @@
       "snippet": "work.catch((unhandled: unknown) => {",
       "verdict": "deliberate-absorb",
       "reason": "a timer/signal boundary has no caller to carry an exit code, so the daemon log IS the report; the `closed` latch is already released by shutdown's `finally`, so the process leaves regardless. Ends if shutdown stops releasing the latch unconditionally.",
-      "markerLine": 96
+      "markerLine": 98
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-daemon.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/session-daemon.ts",
+      "line": 223,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "a browser that fails to close is logged and the teardown proceeds to the registry half — the row + socket must go regardless, or the session reads as live forever. Ends if a failed browser close must abort the teardown.",
+      "markerLine": 219
+    },
+    {
+      "siteId": "tooling/src/snap/ops/session-daemon.ts::promise:readSessionRequestLine::1",
+      "path": "tooling/src/snap/ops/session-daemon.ts",
+      "line": 193,
+      "column": 5,
+      "grammar": "promise",
+      "position": "promise:readSessionRequestLine",
+      "ordinal": 1,
+      "snippet": "readSessionRequestLine(socket)",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure is reported to the caller as SESSION SERVE ERROR and the request's `done` carries toolError — the caller's exit IS the report, and the daemon stays up (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.",
+      "markerLine": 192
     },
     {
       "siteId": "tooling/src/snap/ops/session-registry.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/session-registry.ts",
-      "line": 127,
+      "line": 136,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5449,12 +6125,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable reservation cannot hold capacity; the lock owner removes that exact file below before returning false. Ends if malformed reservations must block acquisition instead of being reclaimed.",
-      "markerLine": 121
+      "markerLine": 130
     },
     {
       "siteId": "tooling/src/snap/ops/session-registry.ts::empty:error::1",
       "path": "tooling/src/snap/ops/session-registry.ts",
-      "line": 142,
+      "line": 151,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5462,12 +6138,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "only EEXIST is the expected lock-contention signal and it retries after a bounded poll; every other mkdir failure rethrows. Ends if the lock stops being represented by exclusive directory creation.",
-      "markerLine": 138
+      "markerLine": 147
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::default:catch::1",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 121,
+      "line": 143,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5475,12 +6151,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a truncated/garbage legacy marker is treated as \"no legacy stage\", which is the same clean-rebuild path a missing one takes. Ends if a legacy marker ever carries state the table cannot re-derive.",
-      "markerLine": 115
+      "markerLine": 134
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::default:catch::2",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 240,
+      "line": 265,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5488,12 +6164,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — an unreadable holder file means \"I cannot identify the holder\", which the age check below then judges. Ends if a lock ever carries state beyond its holder pid.",
-      "markerLine": 236
+      "markerLine": 261
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 139,
+      "line": 164,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5501,12 +6177,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a truncated/garbage table (a killed mid-write) is treated as \"no stages\", which triggers the same clean-allocate path an ABSENT table takes, legacy migration included; the operator sees the empty census on the next `--stage-status`. Ends if the sweep/status readers stop tolerating an empty table.",
-      "markerLine": 134
+      "markerLine": 156
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::empty:catch::2",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 276,
+      "line": 301,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5514,7 +6190,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "EEXIST is the mutex's SUCCESS-of-the-other-caller signal, not a failure — the loop below judges the holder and either waits or breaks it. Ends if mkdir stops being the lock primitive.",
-      "markerLine": 271
+      "markerLine": 296
     },
     {
       "siteId": "tooling/src/snap/ops/stage-source.ts::empty:catch::1",
@@ -5805,7 +6481,7 @@
     {
       "siteId": "tooling/src/ui-audit/ops/drive.ts::empty:e::1",
       "path": "tooling/src/ui-audit/ops/drive.ts",
-      "line": 66,
+      "line": 61,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5813,12 +6489,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as ACTION FAILED and returned as 1 — the JSDoc above states an action that didn't land is never silent and reddens the audit's verdict through this return value. Ends if the returned count stops being summed into the verdict.",
-      "markerLine": 51
+      "markerLine": 46
     },
     {
       "siteId": "tooling/src/ui-audit/ops/drive.ts::promise:waitFor::1",
       "path": "tooling/src/ui-audit/ops/drive.ts",
-      "line": 86,
+      "line": 81,
       "column": 26,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -5826,7 +6502,7 @@
       "snippet": "const appReady = await page",
       "verdict": "deliberate-absorb",
       "reason": "the comment above states the outcome IS reported — appReady:false feeds lib/evidence.ts's readinessGap check (#678), so a missing readiness signal is surfaced as a verdict input, not swallowed. Ends if appReady stops being read downstream.",
-      "markerLine": 85
+      "markerLine": 80
     },
     {
       "siteId": "tooling/src/ui-audit/ops/hover.ts::empty:e::1",

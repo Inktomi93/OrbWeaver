@@ -1,7 +1,2 @@
-// screen-record's programmatic front door (`pnpm record`) — what tests and sibling tools import; the
-// cli fronts this surface. One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
-export { RECORD_HELP } from "./contract/help.ts";
-export type { Args, Recording, Step } from "./contract/types.ts";
-export { parseRecordArgs } from "./ops/parse.ts";
-export { runScreenRecord } from "./ops/run.ts";
-export { configureRecordStage } from "./ops/stage.ts";
+// Programmatic surface of the retired Record compatibility door.
+export { recordRetirement } from "./lib/retired.ts";

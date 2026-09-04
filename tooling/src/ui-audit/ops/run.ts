@@ -4,15 +4,14 @@ import { writeFile } from "node:fs/promises";
 import type { SettingsShimEvidence } from "@orb/tooling/_shared/appearance";
 import { artifactFile } from "@orb/tooling/_shared/artifact-out";
 import { print, routeSlug } from "@orb/tooling/_shared/artifacts";
-import { attachProbeSession, buildUrl, launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
-import type { ProbeSession } from "@orb/tooling/_shared/browser-contract";
-import { readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
+import { buildUrl, withProbeSession } from "@orb/tooling/_shared/browser";
+import { pageErrorText } from "@orb/tooling/_shared/browser-contract";
+import { actualDeviceLabel, readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
 import { instrumentError, printEvidenceGaps, printVerdict } from "@orb/tooling/_shared/evidence";
 import type { ExitCode } from "@orb/tooling/_shared/exit-contract";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { resolveSessionAttach } from "../../snap/index.ts";
 import type { RawSamples } from "../contract/samples.ts";
 import type { DriveStateCandidate } from "../contract/surface-state.ts";
 import type { Args, BackdropRefusal, DomPopulation } from "../contract/types.ts";
@@ -37,6 +36,7 @@ import { reachRows, surfaceStateRows } from "../lib/result-rows.ts";
 import { isAtOrAboveSeverity } from "../lib/severity.ts";
 import { stageLabel } from "../lib/stage-request.ts";
 import { buildSurfaceStateAccounting } from "../lib/surface-state.ts";
+import { launchOrAttachAuditSession } from "./audit-session.ts";
 import { navigateAndReveal } from "./drive.ts";
 import { hoverPassLabel, resolveHoverStates } from "./hover.ts";
 import { appFailureSurface, shellStateSnapshot } from "./page-validate.ts";
@@ -95,39 +95,10 @@ function evidenceGapOf({ url, appReady, samples, population, opts, settingsEvide
   // THIN BEFORE REACH (#808): a walk that ran over a half-rendered surface explains a low reach too, and
   // naming the fraction is the more useful refusal.
   return (
-    censusThinGap(population) ?? themeProvenanceGap(opts.theme, settingsEvidence, samples.themeRender, population?.accounting.walked ?? 0) ?? reachGap(samples)
+    censusThinGap(population) ??
+    themeProvenanceGap(opts.theme, settingsEvidence, samples.themeRender, population?.accounting.renderedSubjects ?? 0) ??
+    reachGap(samples)
   );
-}
-
-/** The attached browser and its inherited navigation base. */
-interface Attached {
-  readonly session: ProbeSession;
-  readonly base: string;
-}
-
-/** Attach without fallback: a bare `--session` inherits its binding URL, while explicit `--base`
- *  remains a composing navigation override. */
-async function launchOrAttach(opts: Args): Promise<Attached | ExitCode> {
-  if (opts.session === null) {
-    const session = await launchProbeSession({
-      headless: true,
-      viewport: opts.viewport,
-      device: opts.device,
-      colorScheme: opts.colorScheme,
-      reducedMotion: opts.reducedMotion,
-      appearance: opts.appearance,
-      theme: opts.theme,
-      localStorage: [],
-    });
-    return { session, base: opts.base };
-  }
-  const attach = resolveSessionAttach(opts.session);
-  if (!attach.ok) {
-    print(attach.message);
-    return EXIT.toolError;
-  }
-  const session = await attachProbeSession(attach.endpoint, attach.environment);
-  return { session, base: opts.baseExplicit ? opts.base : attach.row.binding.url };
 }
 
 export async function runUiAudit(opts: Args): Promise<number> {
@@ -135,7 +106,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
   // file to write (_shared/artifacts.ts owns that contract for every probe).
   const outPath = await artifactFile("design-audit", opts.out ?? routeSlug(opts.route), ".json");
 
-  const attached = await launchOrAttach(opts);
+  const attached = await launchOrAttachAuditSession(opts);
   if (typeof attached === "number") {
     return attached;
   }
@@ -256,7 +227,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
     // needs in order to size what was lost.
     const capGap = pixels.samples === null ? null : censusCapGap(pixels.samples);
     const evidenceGaps = [populationGap, capGap, hoverGap, forceGap].filter((row): row is EvidenceGap => row !== null);
-    findings.push(...checkScriptErrors(session.pageErrors));
+    findings.push(...checkScriptErrors(session.pageErrors.map(pageErrorText)));
     const counts = countBySeverity(findings);
     // Only the findings decide the verdict here: a nav error or a failed action means the scan happened on
     // the WRONG surface, and since #1081 that is a NO VERDICT above rather than a red run whose tables
@@ -375,7 +346,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
         ["actions", opts.actions.length],
         ["actions-failed", actionsFailed],
         ["device-request", browserEnvironment.requested.device ?? "desktop"],
-        ["device-actual", browserEnvironment.actual.device],
+        ["device-actual", actualDeviceLabel(browserEnvironment.actual.device)],
         ["viewport-actual", `${browserEnvironment.actual.innerViewport.width}x${browserEnvironment.actual.innerViewport.height}`],
         ["pointer", browserEnvironment.actual.pointer],
         ["hover", browserEnvironment.actual.hover],
@@ -397,7 +368,9 @@ export async function runUiAudit(opts: Args): Promise<number> {
         // Existing dom-walk/dom-settled labels stay stable; the new terms show how the equality closed.
         ["dom-walk", population?.duringWalk ?? -1],
         ["dom-settled", population === null ? -1 : `${population.settled}${population.stabilized ? "" : "+"}`],
-        ["dom-judged", population?.accounting.walked ?? -1],
+        ["dom-walked", population?.accounting.walked ?? -1],
+        ["dom-rendered", population?.accounting.renderedSubjects ?? -1],
+        ["dom-retained-hidden", population?.accounting.retainedHiddenSubjects ?? -1],
         ["dom-skip-head", population?.accounting.skipped.documentHead ?? -1],
         ["dom-skip-dev", population?.accounting.skipped.devChrome ?? -1],
         ["dom-inaccessible", population?.accounting.inaccessible ?? -1],

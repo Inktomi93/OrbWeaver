@@ -226,11 +226,10 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   }
   for (var m2 = 0; m2 < interactiveEls.length; m2 += 1) {
     var iel = interactiveEls[m2];
-    if (!isVisible(iel) || isDevChrome(iel)) continue;
+    if (!isOperable(iel) || isDevChrome(iel)) continue;
     // Base UI mints 1-2px native-input TWINS (aria-hidden and/or tabindex=-1) behind
     // Select/Slider/Switch — hidden plumbing, not offered targets, and the measured #1 FP class
     // (a full pass once produced 52 tap-target/aria-name findings, all this shape).
-    if (iel.closest("[aria-hidden='true']")) continue;
     var irect = iel.getBoundingClientRect();
     if (Math.min(irect.width, irect.height) <= 2) continue;
     // THE REVEAL (#653). This control is offered; if it is simply not scrolled to, scroll to it and
@@ -382,7 +381,11 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     censusReach.scrollersRestored += 1;
   }
 
-  var mainLandmarkPresent = document.querySelector("main, [role='main']") !== null;
+  var mainLandmarkPresent = false;
+  var mainLandmarks = document.querySelectorAll("main, [role='main']");
+  for (var ml = 0; ml < mainLandmarks.length; ml += 1) {
+    if (isVisible(mainLandmarks[ml])) { mainLandmarkPresent = true; break; }
+  }
 
   // Which target-size floor applies is pointer-conditional (see design-audit-checks.ts checkTapTarget):
   // sample the REAL pointer type this render is under so the tap-target check judges it against the
@@ -394,7 +397,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   var tabIndexEls = document.querySelectorAll("[tabindex]");
   for (var t = 0; t < tabIndexEls.length; t += 1) {
     var tel = tabIndexEls[t];
-    if (isDevChrome(tel)) continue;
+    if (!isVisible(tel) || isDevChrome(tel)) continue;
     var raw = tel.getAttribute("tabindex");
     var val = Number(raw);
     if (!Number.isNaN(val)) tabIndexes.push({ selector: describe(tel), tabIndex: val });
@@ -404,6 +407,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   var zIndexes = [];
   for (var z = 0; z < allEls.length; z += 1) {
     var zel = allEls[z];
+    if (!isVisible(zel)) continue;
     var zstyle = getComputedStyle(zel);
     if (zstyle.position === "static") continue;
     var zval = Number(zstyle.zIndex);

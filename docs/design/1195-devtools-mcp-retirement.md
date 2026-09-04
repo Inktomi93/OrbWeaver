@@ -32,7 +32,7 @@ re-judged.
 | `take_screenshot` | 3 | side-eye | a jpeg of the current page | the primary shot, `--shot-of` | covered |
 | `list_network_requests` · `get_network_request` | 3 | main | which requests a surface made, one body | none (`--network` is the THROTTLE arm) | **gap — small, build** |
 | `list_console_messages` | 1 | main | console errors | every run prints `console-errors` / `page-errors` | covered |
-| `performance_start_trace` | 1 | main | one trace for a long-task attribution | `perf-meter` (a CPU profile per step), `motion-audit` | covered |
+| `performance_start_trace` | 1 | main | `reload:true, autoStop:true`: a boot/navigation trace reporting LCP + LCP breakdown, CLS culprits, network dependency tree, image delivery, document latency, and forced reflow | `perf-meter --boot-trace` (raw Chromium trace + Lighthouse's DevTools trace-engine summaries, begun before navigation and stopped after the bounded settle) | covered |
 | `list_pages` · `new_page` · `close_page` | 9 | main | tab housekeeping on the shared browser | n/a — the shared browser is what retires | n/a |
 
 Before the window (2026-07-28..30, 274 calls) the same shape held with `navigate_page` + `take_screenshot`
@@ -83,7 +83,30 @@ dominating — the period before snap grew its drive arms.
    `tests/tooling/snap/lib/request-log.test.ts`. Live receipt (same stage run): `requests=2445`, 18 of them
    matching `--requests trpc`, with per-request status/size/timing and the aborted vite-dep re-reads shown
    as `size=unknown ms=unfinished`.
-3. **Retire:** remove the MCP tools from `side-eye.md` (`agent-authoring` skill), drop the plugin from the
+3. **A boot/navigation trace arm on perf-meter** (`--boot-trace`): the census's sole
+   `performance_start_trace` call was not a post-settle interaction CPU profile and not a Lighthouse
+   score. It was `reload:true, autoStop:true`; its output named LCP/LCP breakdown, CLS culprits, network
+   dependency tree, image delivery, document latency, and forced reflow. Perf-meter now starts Chromium
+   `Tracing` before its initial `page.goto`, stops it only after `domcontentloaded` plus the tool's bounded
+   `--settle` window, retains the raw `.trace.json`, and analyzes those exact six families with the
+   DevTools trace engine already shipped by the direct `lighthouse` dependency.
+
+   **BUILT (2026-09-03).** `tooling/src/cpu-profile/ops/boot-trace.ts` owns the start-before-navigation
+   and auto-stop boundary; `lib/boot-trace.ts` refuses a trace with no navigation insight set, no positive
+   LCP, or any required insight family, then emits a JSON-safe summary while preserving the full raw
+   event stream beside it. The existing `--cpuprofile` remains deliberately post-settle and describes
+   the interaction tape; the two artifacts are not mislabeled as interchangeable. Pin:
+   `tests/tooling/cpu-profile/boot-trace.suite.int.test.ts` drives the real CLI against a deterministic
+   fixture planting an image LCP, stylesheet dependency chain, uncompressed document/image waste, and
+   forced layout. The control asserts a navigation id and positive LCP, all six family names, positive
+   network/image/document/reflow evidence, ImageDelivery/ForcedReflow failures, and a readable retained
+   raw trace. Focused receipt: `pnpm vitest run tests/tooling/cpu-profile` — 3 files, 14 tests green;
+   `pnpm typecheck:graph` green.
+
+   Limit: this is raw local Chromium evidence over the requested environment and settle window. It does
+   not apply Lighthouse throttling/scoring, and `--settle` is the existing bounded wall-clock observation
+   window rather than a claim that every open-ended application request reached network-idle.
+4. **Retire:** remove the MCP tools from `side-eye.md` (`agent-authoring` skill), drop the plugin from the
    main session, delete the `chrome-mcp-headless-patch` ritual from the memory store, and re-point the
    side-eye skill's Lighthouse row (its §4 instrument table, row 5) at the snap arm. The rule
    `reaching-for-chrome-devtools-means-snap-has-a-gap` survives as the standing test for any future "we

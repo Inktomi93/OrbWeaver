@@ -18,7 +18,7 @@ type SessionFlagHandler = (args: Args, rest: string[]) => void;
 function consumeOptionalName(rest: string[]): string | null {
   const next = rest[0];
   if (next !== undefined && !next.startsWith("-")) {
-    return rest.shift() as string;
+    return rest.shift() ?? null;
   }
   return null;
 }

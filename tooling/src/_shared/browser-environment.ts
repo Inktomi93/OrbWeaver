@@ -48,9 +48,22 @@ export type PointerCapability = (typeof POINTER_CAPABILITIES)[number];
 const HOVER_CAPABILITIES = ["hover", "none", "mixed", "unknown"] as const;
 export type HoverCapability = (typeof HOVER_CAPABILITIES)[number];
 
+export type BrowserEnvironmentActualDevice = { readonly kind: "named"; readonly name: string } | { readonly kind: "desktop" } | { readonly kind: "unmatched" };
+
+export function actualDeviceLabel(device: BrowserEnvironmentActualDevice): string {
+  return device.kind === "named" ? device.name : device.kind;
+}
+
+function actualDevice(matched: boolean, appliedDevice: string | null): BrowserEnvironmentActualDevice {
+  if (!matched) {
+    return { kind: "unmatched" };
+  }
+  return appliedDevice === null ? { kind: "desktop" } : { kind: "named", name: appliedDevice };
+}
+
 export interface BrowserEnvironmentActual {
   /** A device name is earned only by a complete observable fingerprint match. */
-  readonly device: string;
+  readonly device: BrowserEnvironmentActualDevice;
   readonly viewport: Viewport | null;
   readonly innerViewport: Viewport;
   readonly screen: Viewport;
@@ -322,7 +335,7 @@ export async function readBrowserEnvironment(page: Page, contract: BrowserEnviro
   const mismatches = environmentMismatches(contract, viewport, runtime);
   const matched = mismatches.length === 0;
   const actual: BrowserEnvironmentActual = {
-    device: matched ? (contract.applied.device ?? "desktop") : "unmatched",
+    device: actualDevice(matched, contract.applied.device),
     viewport: observedViewport(viewport, runtime.innerViewport),
     innerViewport: runtime.innerViewport,
     screen: runtime.screen,

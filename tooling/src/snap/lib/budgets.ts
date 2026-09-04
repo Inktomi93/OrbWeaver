@@ -41,7 +41,7 @@ export const STEP_BASE_MS = 5000;
 export const STEP_TIMEOUT_MS = budget(STEP_BASE_MS);
 // Let transitions/queries settle between steps (drawer slides, panel drops).
 export const STEP_SETTLE_MS = 400;
-// After a --press hover: give group-hover reveals a beat before the forced click.
+// After a --force-click hover: give group-hover reveals a beat before the forced click.
 export const HOVER_REVEAL_MS = 150;
 export const NETWORKIDLE_BASE_MS = 10_000;
 export const NETWORKIDLE_TIMEOUT_MS = budget(NETWORKIDLE_BASE_MS);

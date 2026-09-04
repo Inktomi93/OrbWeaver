@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 0,
+    "pending": 1,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -944,9 +944,9 @@
       "path": "docs/architecture/core/Core-Tooling-Law.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 406,
-      "bytes": 45088,
-      "sha256": "7176b76137634d83293768182eb61aea2962bd0760f3953091e241695c7a7201",
+      "lines": 404,
+      "bytes": 45171,
+      "sha256": "b10518e145053ff6f5bd6a7f38c1d02c6835b5fd830cc74630ae89638f69d93b",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -959,14 +959,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Tooling-Law.md",
-        "assignedSha256": "2dbb8fe3d7c6863178ab3c17410529553dac5e5b885b1d971e28394eee6af302",
+        "assignedSha256": "b10518e145053ff6f5bd6a7f38c1d02c6835b5fd830cc74630ae89638f69d93b",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "7176b76137634d83293768182eb61aea2962bd0760f3953091e241695c7a7201",
-        "verifiedCommit": "445fba55d1d41b8153402921f7162df8cc395865",
-        "verifiedAt": "2026-09-02",
+        "verifiedSha256": "b10518e145053ff6f5bd6a7f38c1d02c6835b5fd830cc74630ae89638f69d93b",
+        "verifiedCommit": "9301fdf41e54011f670e57b3c326c4e39f118035",
+        "verifiedAt": "2026-09-04",
         "evidence": [
+          "re-attested at 9301fdf41 after the unified Snap substrate implementation and full current-tree read: the law now records Snap as the sole public rendered-instrument CLI, typed run slots/artifacts, shared browser/session/environment ownership, and the retired motion/perf/record entry doors; pnpm check:structure ran all 254 gates clean at main-3229425-2026-09-04T07-04-27-858Z.",
           "re-attested at dad0162ae (#1184, claude-b lane cb-bug-button warm leg): the §2.6 tool roster gains the `bug-reports/` row — the READER for the dev bug button's gitignored captures (`pnpm bug:reports` list + show); the artifacts have no tree presence, so the script name IS their discoverability. Diff read in full at the fold by the primary orchestrator.",
           "re-attested at a4467408a (#971, lane p-argv-lock): NEW §4.9 `tooling-argv-front-door` — the operator's argv enters a tooling program at ONE place (a tool cli.ts, matched by shape; or a censused ARGV_ENTRIES row for the bash-fronted node halves and `_shared/entrypoint.ts`, whose subject is argv[1]) and flows down as a parameter; the four library readers the mint census found are named, and the DECLARED LIMIT (this gate pins WHERE argv is read, never how strictly each grammar parses it) is written down beside the 27-reader classification. §4's gate count rolled five → six. Verified against tooling/src/verify/gates/tooling-argv-front-door.ts and the red-first receipt (6 findings across the four pre-fix sources plus a planted scratch probe).",
           "delta re-verify 2026-09-01 (#1029, content commit b2b74c97343aa257aabed4ac61dd3ef39d39d128): §2.4's `artifacts.ts` row now names the run-slot layout members (runId/checkoutName/openRunSlot/runFile/publishRunSlot/abandonedRuns) that joined the ONE reports/ plumbing home, and cites the layout's home rather than restating it. Verified against tooling/src/_shared/artifacts.ts:59-300 and the tooling-shared-plumbing arm-C exemption row that keeps this module the only `reports` speller.",
@@ -1959,9 +1960,9 @@
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 499,
-      "bytes": 42250,
-      "sha256": "d216d4106565099d39b8c4f2580dd421dabba6f8c96c6afbbf38f01a4eed770d",
+      "lines": 500,
+      "bytes": 42380,
+      "sha256": "0bbfc1e66968a1dbe4f70e64cada35da58c6662d15ae8967e6b169298125f27a",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1974,14 +1975,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
-        "assignedSha256": "6f10e3f9cc14dd41d331843b39757d2c58164593c1cde45cadf6108bd4f397c8",
+        "assignedSha256": "0bbfc1e66968a1dbe4f70e64cada35da58c6662d15ae8967e6b169298125f27a",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "d216d4106565099d39b8c4f2580dd421dabba6f8c96c6afbbf38f01a4eed770d",
-        "verifiedCommit": "6c12b4cf3737e94f96df5521f5bd9a5e8c85af1c",
-        "verifiedAt": "2026-09-02",
+        "verifiedSha256": "0bbfc1e66968a1dbe4f70e64cada35da58c6662d15ae8967e6b169298125f27a",
+        "verifiedCommit": "9301fdf41e54011f670e57b3c326c4e39f118035",
+        "verifiedAt": "2026-09-04",
         "evidence": [
+          "re-attested at 9301fdf41 after the unified Snap/run-slot verification changes: full document and delta reconciled against the current 254-gate registry, 2,327-file test manifest, typed immutable Snap run indices, and clean structure receipt main-3229425-2026-09-04T07-04-27-858Z.",
           "re-attested at a6a27c943 (#1096, lane p-membership-one): §tests:execution-membership restated as three directions — union, non-empty views, and EXACTLY ONE runtime project per test file (the vitest `types` project excluded as typecheck-only); real tree 2309 files, 0 multi-membership",
           "re-attested at d7109893d (#1040): §tests:node — the live-drive shard runs LAST and WITHHOLDS under contention (ORB-LOAD-WITHHOLD, skipped + task.meta, the supervisor announces the green as INCOMPLETE); tests-execution-membership counts six node projects",
           "delta re-verify 2026-09-01 (#1029, content commit 393e0d85485e2b844c4a6fd0c6036cbc9b4526d7): new §3.3b is the ONE home for the reports/ layout — run identity `<checkout>-<pid>-<timestamp>`, the per-run slot, completion-only atomic symlink publishing, the racing-writer census, the 10-slot retention ring, why verify-history.jsonl stays unslotted, and the not-yet-slotted leftovers. §3.7's wedge-dump path is truth-repaired to the run slot. Derived from the landed publishers (tooling/src/verify/ops/run.ts + structure.ts + ct-flaky-reporter.ts, scripts/vitest-supervised.mjs) and pinned by tests/tooling/_shared/artifacts.int.test.ts. Re-pinned at the follow-up commit that struck the `O_APPEND` symbol cite (dangling-refs: a backticked symbol a core doc names must resolve in the workspace).",
@@ -2032,8 +2034,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 830,
-      "bytes": 141636,
-      "sha256": "2f69da59d1b4f244e3abecb7f4dec9053840741f88af6aab32f98bf928ea7aab",
+      "bytes": 141705,
+      "sha256": "4cbbfbd01b317deaf9d705ee067b2641df56baef356f4266888378e79e7802d7",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2046,14 +2048,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/client-architecture-lockdown.md",
-        "assignedSha256": "8884c3aa8244f26b56343105699ebe6f285d3281fcf8e3e2e5a6ca011b399074",
+        "assignedSha256": "4cbbfbd01b317deaf9d705ee067b2641df56baef356f4266888378e79e7802d7",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "2f69da59d1b4f244e3abecb7f4dec9053840741f88af6aab32f98bf928ea7aab",
-        "verifiedCommit": "0b7fd3933a8041b9b1c07ab22e1cd9b54ce3127e",
-        "verifiedAt": "2026-09-02",
+        "verifiedSha256": "4cbbfbd01b317deaf9d705ee067b2641df56baef356f4266888378e79e7802d7",
+        "verifiedCommit": "9301fdf41e54011f670e57b3c326c4e39f118035",
+        "verifiedAt": "2026-09-04",
         "evidence": [
+          "re-attested at 9301fdf41 after the Snap substrate fold: full document and changed client observability/readiness claims reconciled with the dev-only __orb bridge, React profile arm, Activity-aware map behavior, and current clean 254-gate structure receipt.",
           "re-attested at 0b7fd3933 (#1069): the shell FLIP paragraph → §1.5 pointer",
           "re-attested at a287baa77 (#933 closure): §4.7 — the REPORTED-BUT-UNREAD bullet replaced by two ENFORCED TODAY bullets (dead/empty-CSS blocking floor; the rated R1-R7 floors + the one planner and its three matrix consumers, #953 Done); token count cites the pinning test",
           "re-attested at 1d90455b6 (#1039 presence disclosure, claude-b lane cb-presence-surface): law 6 truth-repaired — a client READ now exists (`notifications.presence`, poll-driven, cited in query-freshness-coverage) and still no client WRITE; the sentence matches the contract's declared procedures on the folded tree",
@@ -2112,8 +2115,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 522,
-      "bytes": 35215,
-      "sha256": "8d15350755224ed92d00343016e58753f1bc4497002df39df689e31139766c39",
+      "bytes": 35235,
+      "sha256": "73779a797bd5b6b459943db01e73a238652119aee50ec20978bca1e4c462e13e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2126,14 +2129,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/motion-and-animation-guide.md",
-        "assignedSha256": "acd1908ad34fd3ab41f1832998171fe7db1d054b942739abe50452ffd3876fc2",
+        "assignedSha256": "73779a797bd5b6b459943db01e73a238652119aee50ec20978bca1e4c462e13e",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "8d15350755224ed92d00343016e58753f1bc4497002df39df689e31139766c39",
-        "verifiedCommit": "3770482b64214cae3a5ac709f10df3bbab95f0be",
-        "verifiedAt": "2026-09-02",
+        "verifiedSha256": "73779a797bd5b6b459943db01e73a238652119aee50ec20978bca1e4c462e13e",
+        "verifiedCommit": "9301fdf41e54011f670e57b3c326c4e39f118035",
+        "verifiedAt": "2026-09-04",
         "evidence": [
+          "re-attested at 9301fdf41 after motion/perf became typed Snap arms: full guide and delta reconciled with the one shared motion allowance, reduced-motion environment contract, selective CDP trace arm, rate-withholding posture, and retired standalone motion-audit entry path.",
           "re-attested at 3770482b6 (#1102 / re-drive G3, claude-b lane cb-transition-mop): §1.2 corrected — zero transition-all sites remain under packages/ (collapsible/accordion → transition-[height], progress → [width,background-color], density-preview → [gap,padding]); the two-failure-mode rationale (focus-ring race AND inherited-property sweep)",
           "re-attested at 0b7fd3933 (#1069 tabs glide, claude-b lane cb-tabs-glide): §1.5 dated exception class names BOTH FLIP shapes (tabs indicator + use-list-track-flip); §4.2-2 mechanism = rest-in-layout + FLIP transform glide via MutationObserver; §3.7 allowance ONE home in packages/kit/src/motion-allowance; §1.2 count 4→3",
           "docs/architecture/core/motion-and-animation-guide.md:1 full read against repair commit b75860a08476cdf9276337b5009d003bd0ab31eb",
@@ -10856,9 +10860,9 @@
       "path": "docs/design/1195-devtools-mcp-retirement.md",
       "lane": "design",
       "issue": 5,
-      "lines": 121,
-      "bytes": 10545,
-      "sha256": "756c0c71645436d282d19cbf7723996713f615f2ff3fee4b1e6d05bbd6518e0b",
+      "lines": 144,
+      "bytes": 12825,
+      "sha256": "71c9d3f8659fbd8e49a69150d186b3bbcf0c46dcac5eb0981d728d3cc7609b0c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10871,13 +10875,13 @@
       },
       "receipt": {
         "path": "docs/design/1195-devtools-mcp-retirement.md",
-        "assignedSha256": "0eb74adabfc2d72c845b73be7399dbf1238901e587ac6139b9aaf73df481e29d",
+        "assignedSha256": "71c9d3f8659fbd8e49a69150d186b3bbcf0c46dcac5eb0981d728d3cc7609b0c",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "756c0c71645436d282d19cbf7723996713f615f2ff3fee4b1e6d05bbd6518e0b",
-        "verifiedCommit": "4fce858a40436521013aa8517b14ca36d1f33526",
-        "verifiedAt": "2026-09-03",
+        "verifiedSha256": "71c9d3f8659fbd8e49a69150d186b3bbcf0c46dcac5eb0981d728d3cc7609b0c",
+        "verifiedCommit": "9301fdf41e54011f670e57b3c326c4e39f118035",
+        "verifiedAt": "2026-09-04",
         "claims": [
           {
             "claim": "Lighthouse (41 calls, snapshot-mode dominant) is the one MCP use that produced findings snap could not (axe label-content-name-mismatch, target-size); it becomes a snap arm before the MCP retires.",
@@ -10909,6 +10913,7 @@
         ],
         "summary": "Completed browser-MCP retirement program (#1195): the 14-day two-account census mapped 176 calls to Snap, the Lighthouse and request-log gaps were built, and the physical MCP configuration and rituals were removed.",
         "evidence": [
+          "re-attested at 9301fdf41 after full capability reconciliation: transcript-derived MCP capabilities are now covered by Snap's typed Lighthouse, request/HAR, diagnostics, map, file-action, performance, React, heap, and filmstrip arms; the retired browser-MCP posture and refusal guidance match the current tree.",
           "re-attested at 4fce858a4 after a complete read and current-tree reconciliation: the document now records the retirement as complete under the owner's #1279 no-gate ruling, with the remaining browser-driving capabilities owned by Snap and the shared instrument substrate.",
           "re-attested at 2642a54df (#1198 #1199 #1227, lane p-snap-arms): §2 items 1-2 marked BUILT with the seam (snap's own chromium on --remote-debugging-port, puppeteer-core attaches to THAT browser, the target matched by CDP id; defaultViewport:null and disableFullPageScreenshot measured as load-bearing), the pins and the live plugins-pane receipt (desktop audited=36 failed-audits=1 label-content-name-mismatch ×4 — the MCP's own finding reproduced in-house; requests=2445). Read in full at the fold by the primary orchestrator.",
           "born-reviewed by the primary orchestrator (author) 2026-09-02 at 33d7067f0: the two-account, 14-day transcript census of chrome-devtools MCP tool calls (176 calls, 719 jsonl files) mapped to snap arms; two gaps named (a Lighthouse arm, a request log) and the retirement step; owner-directed program (#1195)."
@@ -10920,9 +10925,9 @@
       "path": "docs/design/1208-instrument-substrate.md",
       "lane": "design",
       "issue": 5,
-      "lines": 680,
-      "bytes": 109022,
-      "sha256": "0f257f60c78cae1f5f54c7dafb7461496fd9fe5f4baca8b734b2d8927f6c59c6",
+      "lines": 1417,
+      "bytes": 177496,
+      "sha256": "048e1c450f0c5507bd738d42ffe14425f44514411051cfc4c1ab171d105e72cb",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10935,14 +10940,15 @@
       },
       "receipt": {
         "path": "docs/design/1208-instrument-substrate.md",
-        "assignedSha256": "663892b310abbdd581e8e59e800df2fa327e433b911f72ad38eb839f18a345b7",
+        "assignedSha256": "048e1c450f0c5507bd738d42ffe14425f44514411051cfc4c1ab171d105e72cb",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "0f257f60c78cae1f5f54c7dafb7461496fd9fe5f4baca8b734b2d8927f6c59c6",
-        "verifiedCommit": "4fce858a40436521013aa8517b14ca36d1f33526",
-        "verifiedAt": "2026-09-03",
+        "verifiedSha256": "048e1c450f0c5507bd738d42ffe14425f44514411051cfc4c1ab171d105e72cb",
+        "verifiedCommit": "9301fdf41e54011f670e57b3c326c4e39f118035",
+        "verifiedAt": "2026-09-04",
         "evidence": [
+          "re-attested at 9301fdf41 after a complete read and final implementation reconciliation: typed arm facts/artifact scope, diagnostic and HAR capture, map/Activity semantics, heap/React/filmstrip arms, multi-target proofs, bounded retention, cold-agent run reader, retired duplicate CLIs, and all four requested prerequisite commits are present; full structure ran 254/254 clean at main-3229425-2026-09-04T07-04-27-858Z.",
           "re-attested at 4fce858a4 after the primary orchestrator read the complete design and reconciled every phase against the landed tree: phase 4's total five-tool grammar, shared environment/artifact/stage seams, F10 one-browser disposable-context matrix, session-cap reservation, owner-targeted teardown, stage-death lifecycle, per-call watchdog, CT run-slot ownership, e2e vLLM guard, window.screen repair, and sibling session-binding inheritance are recorded in the as-built section and committed with their behavioral controls.",
           "re-attested at 273b95d61 (the #1276 fold merge, lane p-stage-bands): §10.2 \"Phase 2 as built\" added, 84 lines (478-561), read IN FULL by the primary orchestrator at the fold. It records the band table as landed — four premises that died with receipts (ensureStage({band,session}) refused as the wrong seam, the synchronous stage path forcing the third probe into a child, --stage-down losing its singular referent, one listeningPids() snapshot instead of twenty ss forks), the arms chosen (claim written INSIDE the mkdir mutex before the 55s boot, a lock broken rather than inherited past a dead pid or 30s; the third probe asked only of --dirty stages so unverifiable means degraded there and warm for --ref; shortSha/baseUrl derived rather than serialized; two modules split at the line cap), the refusals (fork F7 --stage-down --owner NOT built, and phase 3’s attach half deliberately out of scope), the coupled-site census, the test plan as landed, and §\"What phase 2 does NOT prove\" — which is the doc naming its own gap and assigning the live multi-band boot receipt to the orchestrator at the barrier rather than to a suite. Also in this fold: biome.json’s existing snap/ops/stage.ts useNamingConvention override extended to stage-probe.ts, the same spawn-env reason, not a new exemption class. verifiedSha256 taken from the COMMITTED blob at the merge sha and identical to the working-tree digest, so no formatting pass moved it.",
           "re-attested at 6e19ff922 (#1277 + #1259, lane p-arms-registry): §10.3 'Phase 3 as built' added — the six places §6's ArmDef had to widen for real arms (the page/run lifecycle union, `failures` as a map because dead-css owns two summary members, `needs` pruned to the two members with a live launch consumer and made a function of the argv, ARM_DEFS homed in ops/ to stay out of an import cycle with every arm, ARMS as the page-pass order, the ArmArgs/NonArmArgs tsc fence and the RESULT-line claim ledger), what is now DERIVED and the seven operator rows that had never existed, the #1259 endpoint unification with its planted session-vs-one-shot receipt, and the byte-stability receipt including the NUL-in-a-template-literal defect it caught. §6 and §10 read in full against the tree before the first edit; the rest of the document read in full at the phase-3 dispatch.",
@@ -12140,6 +12146,37 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/gate-config-system.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 293,
+      "bytes": 40941,
+      "sha256": "7babcc1649ec7a452a2077f3f8169569d6768c590a81102e75c655ef19ffce6b",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "draft",
+          "updated": "2026-09-04"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/gate-config-system.md",
+        "assignedSha256": "7babcc1649ec7a452a2077f3f8169569d6768c590a81102e75c655ef19ffce6b",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
+    },
+    {
       "path": "docs/design/home-tile-promotion.md",
       "lane": "design",
       "issue": 5,
@@ -12551,8 +12588,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 207,
-      "bytes": 13770,
-      "sha256": "ec1aac93ec06f4e92d8e6ac1061b94b12d32e1a882c9cd82bc650091994e7c1e",
+      "bytes": 13771,
+      "sha256": "9b7f6e34e1f68a5c2e921ede843862d898db541a27c3006c3f4e98d26dc44483",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12565,14 +12602,15 @@
       },
       "receipt": {
         "path": "docs/design/motion-audit-mobile-environment-977.md",
-        "assignedSha256": "ec1aac93ec06f4e92d8e6ac1061b94b12d32e1a882c9cd82bc650091994e7c1e",
+        "assignedSha256": "9b7f6e34e1f68a5c2e921ede843862d898db541a27c3006c3f4e98d26dc44483",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "ec1aac93ec06f4e92d8e6ac1061b94b12d32e1a882c9cd82bc650091994e7c1e",
-        "verifiedCommit": "db07e6cb175bf6c6260ec339f42268bc341185fa",
-        "verifiedAt": "2026-08-31",
+        "verifiedSha256": "9b7f6e34e1f68a5c2e921ede843862d898db541a27c3006c3f4e98d26dc44483",
+        "verifiedCommit": "9301fdf41e54011f670e57b3c326c4e39f118035",
+        "verifiedAt": "2026-09-04",
         "evidence": [
+          "re-attested at 9301fdf41 after the environment contract moved into unified Snap: the full-device request/applied/runtime proof now carries discriminated named/desktop/unmatched actual identity plus contrast and reduced-transparency through launch, session registry, attach, reports, and focused behavioral tests.",
           "docs/design/motion-audit-mobile-environment-977.md:1 (full read; shared full-device contract, runtime fingerprint, rejected viewport-only arm, coupled sites, red-first controls, and live proof)",
           "git:db07e6cb175bf6c6260ec339f42268bc341185fa (content commit whose tree contains the verified design blob and implemented #977 proof)"
         ],

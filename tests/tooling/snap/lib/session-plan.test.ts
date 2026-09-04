@@ -1,42 +1,44 @@
 // Fixture tests for the PURE core of the session substrate (tooling/src/snap/lib/session-plan.ts) — no
-// socket, no daemon, no browser: the flag partition a scenario and a session share, the refusal rows, the
-// registry paths, the limits rule, the access / sweep verdicts and every refusal text. Both sides of every
+// socket, no daemon, no browser: the flag partition a scenario and a session share, the registry paths,
+// limits, access/sweep verdicts and the split refusal contract. Both sides of every
 // verdict are pinned (a table with one side pinned is a table nobody can refactor). The wire readers are
 // tests/tooling/snap/lib/session-wire.test.ts; the imperative halves are proven by
 // tests/tooling/snap/ops/session-daemon.int.test.ts.
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
 import {
-  cascadeNotBootedRefusal,
   checkpointArgErrors,
   DEFAULT_SESSION_CAP,
   DEFAULT_SESSION_TTL_MIN,
-  foreignSessionRefusal,
   identicalSeedsError,
   inheritSessionArgs,
   inheritSessionBinding,
   livePageSlug,
-  neverNavigatedRefusal,
   resolveSessionLimits,
   SESSION_ONLY_FLAGS,
   sessionAccess,
-  sessionBusyRefusal,
   sessionCallTarget,
-  sessionCapRefusal,
-  sessionDeadText,
   sessionIdleMs,
   sessionLogPath,
   sessionModeValidationPairs,
   sessionNameErrors,
   sessionNameRefusal,
   sessionOnlyFlagsIn,
-  sessionOnlyFlagsRefusal,
   sessionRowPath,
   sessionSocketPath,
-  sessionStageDeadRefusal,
   sessionSweepVerdict,
   stripSessionFlags,
 } from "../../../../tooling/src/snap/lib/session-plan.ts";
+import {
+  cascadeNotBootedRefusal,
+  foreignSessionRefusal,
+  neverNavigatedRefusal,
+  sessionBusyRefusal,
+  sessionCapRefusal,
+  sessionDeadText,
+  sessionOnlyFlagsRefusal,
+  sessionStageDeadRefusal,
+} from "../../../../tooling/src/snap/lib/session-refusals.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -57,7 +59,15 @@ function row(over: Partial<SessionRow> = {}): SessionRow {
     cdpEndpoint: "http://127.0.0.1:40001",
     slotDir: `${LANE}/reports/runs/snap-session/agent-lane-4242-2026-09-02T18-00-00-000Z`,
     binding: { kind: "base", url: "http://localhost:5173" },
-    environment: { viewport: { width: 1280, height: 800 }, device: null, colorScheme: null, reducedMotion: false, deviceScaleFactor: null },
+    environment: {
+      viewport: { width: 1280, height: 800 },
+      device: null,
+      colorScheme: null,
+      reducedMotion: false,
+      contrast: null,
+      reducedTransparency: false,
+      deviceScaleFactor: null,
+    },
     bootArgv: ["--base", "http://localhost:5173", "/"],
     createdAt: "2026-09-02T18:00:00.000Z",
     lastUsedAt: "2026-09-02T18:20:00.000Z",
@@ -115,20 +125,33 @@ test("a later call carrying a browser-lifetime flag is named, page suffix and al
   expect(sessionOnlyFlagsIn(["--eval", "--viewport", "--text"])).toEqual(["--viewport"]);
   expect(sessionOnlyFlagsIn(["/chat", "--goto", "settings", "--map"])).toEqual([]);
   // Every stage flag is a WHERE and every load arm is a launch property — both halves are in the set.
-  for (const flag of ["--isolated", "--ref", "--dirty", "--fresh", "--cpu-throttle", "--network", "--pages", "--ls", "--appearance-preset", "--theme"]) {
+  for (const flag of [
+    "--isolated",
+    "--ref",
+    "--dirty",
+    "--fresh",
+    "--cpu-throttle",
+    "--network",
+    "--pages",
+    "--local-storage",
+    "--appearance-preset",
+    "--theme",
+  ]) {
     expect(SESSION_ONLY_FLAGS.has(flag), flag).toBe(true);
   }
-  // A per-capture flag is NOT: the call owns its evidence, its target and its manifest — and
-  // `--no-failure-evidence` names nothing a session has (traces are off for its whole life).
-  for (const flag of ["--eval", "--text", "--map", "--contrast", "--json", "--out", "--goto", "--click", "--checkpoint", "--file", "--no-failure-evidence"]) {
+  // A per-capture flag is NOT: the call owns its evidence, its target and its manifest.
+  for (const flag of ["--eval", "--text", "--map", "--contrast", "--json", "--out", "--goto", "--click", "--checkpoint", "--file"]) {
     expect(SESSION_ONLY_FLAGS.has(flag), flag).toBe(false);
   }
+  expect(SESSION_ONLY_FLAGS.has("--no-failure-evidence")).toBe(true);
 });
 
-test("F7 --owner is a deliberate stage-down selector, never a stray checkout argument", () => {
-  expect(parseSnapArgs(["--stage-down", "--owner", LANE]).errors).toEqual([expect.stringContaining("--stage-down --owner <checkout> requires --force")]);
-  expect(parseSnapArgs(["--owner", LANE]).errors).toEqual([expect.stringContaining("--owner <checkout> only selects rows for --stage-down")]);
-  const targeted = parseSnapArgs(["--stage-down", "--owner", LANE, "--force"]);
+test("F7 --stage-owner is a deliberate stage-down selector, never a stray checkout argument", () => {
+  expect(parseSnapArgs(["--stage-down", "--stage-owner", LANE]).errors).toEqual([
+    expect.stringContaining("--stage-down --stage-owner <checkout> requires --force"),
+  ]);
+  expect(parseSnapArgs(["--stage-owner", LANE]).errors).toEqual([expect.stringContaining("--stage-owner <checkout> only selects rows for --stage-down")]);
+  const targeted = parseSnapArgs(["--stage-down", "--stage-owner", LANE, "--force"]);
   expect(targeted.errors).toEqual([]);
   expect(targeted.stageOwner).toBe(LANE);
   expect(targeted.force).toBe(true);
@@ -142,8 +165,19 @@ test("the client strips exactly its own two flags and their values, keeping ever
 });
 
 test("inheritSessionArgs is the scenario's partition: lifetime flags from the boot, per-capture flags from the call", () => {
-  const boot = parseSnapArgs(["--base", "http://localhost:5273", "--viewport", "412x823", "--dark", "--full-motion", "--ls", "a=1", "--strict-console", "/"]);
-  const call = parseSnapArgs(["--eval", "innerWidth", "--ls", "b=2", "--json", "--checkpoint", "settings"]);
+  const boot = parseSnapArgs([
+    "--base",
+    "http://localhost:5273",
+    "--viewport",
+    "412x823",
+    "--dark",
+    "--full-motion",
+    "--local-storage",
+    "a=1",
+    "--strict-console",
+    "/",
+  ]);
+  const call = parseSnapArgs(["--eval", "innerWidth", "--json", "--checkpoint", "settings"]);
   const merged = inheritSessionArgs(boot, call, "fallback-out");
   expect(merged.base).toBe("http://localhost:5273");
   expect(merged.viewport).toEqual({ width: 412, height: 823 });
@@ -153,10 +187,7 @@ test("inheritSessionArgs is the scenario's partition: lifetime flags from the bo
   expect(merged.strictConsole).toBe(true);
   expect(merged.eval.map((entry) => entry.expr)).toEqual(["innerWidth"]);
   expect(merged.route).toBe("settings");
-  expect(merged.localStorage).toEqual([
-    { key: "a", value: "1" },
-    { key: "b", value: "2" },
-  ]);
+  expect(merged.localStorage).toEqual([{ key: "a", value: "1" }]);
   expect(merged.checkpoint).toBe(true);
   expect(merged.out).toBe("fallback-out");
   // The scenario's per-RUN facts: json rides the boot in this layer (the session's second layer flips it).
@@ -176,33 +207,55 @@ test("inheritSessionBinding is the session-only second layer: the WHERE, the loa
   expect(merged.json).toBe(true);
 });
 
+test("the one partition carries scale/load truth and outer call work into each scenario checkpoint", () => {
+  const boot = parseSnapArgs(["--scale", "2", "--cpu-throttle", "4", "--network", "slow-4g", "--eval", "outer", "--watch", "2000", "--every", "250"]);
+  const call = parseSnapArgs(["--eval", "checkpoint"]);
+  const merged = inheritSessionArgs(boot, call, "x", true);
+  expect(merged.scale).toEqual(boot.scale);
+  expect(merged.cpuThrottle).toBe(4);
+  expect(merged.network).toBe("slow-4g");
+  expect(merged.eval.map((entry) => entry.expr)).toEqual(["outer", "checkpoint"]);
+  expect(merged.watchMs).toBe(2000);
+  expect(merged.watchEveryMs).toBe(250);
+  expect(sessionOnlyFlagsIn(["--no-failure-evidence", "--eval", "1"])).toEqual(["--no-failure-evidence"]);
+});
+
 test("the checkpoint refusal rows judge the modes on the inherited args and the shims on the raw parse", () => {
   const boot = parseSnapArgs(["/"]);
   const clean = parseSnapArgs(["--eval", "1"]);
-  expect(checkpointArgErrors(inheritSessionArgs(boot, clean, "x"), clean, "cp")).toEqual([]);
+  expect(checkpointArgErrors(inheritSessionArgs(boot, clean, "x"), "cp")).toEqual([]);
   const modes = parseSnapArgs(["--pages", "2", "--watch", "1000", "--isolated", "--matrix", "--isolated"]);
-  const errors = checkpointArgErrors(inheritSessionArgs(boot, modes, "x"), modes, "cp");
+  const errors = checkpointArgErrors(inheritSessionArgs(boot, modes, "x"), "cp", ["--pages", "2", "--watch", "1000", "--isolated", "--matrix"]);
   expect(errors).toEqual([
-    "cp: scenario checkpoints do not support --pages/--contexts/--as",
+    "cp: scenario checkpoint args cannot set browser-lifetime flags (--pages --isolated); put them on the outer command",
     "cp: scenario checkpoints do not support --watch/--baseline/--diff",
     "cp: scenario checkpoints cannot nest --scenario/--matrix",
-    "cp: scenario checkpoint args cannot manage stages; put stage flags on the outer command",
   ]);
   // The shim rows read the RAW checkpoint — the inherited copy always carries the boot's shim.
   const shimmed = parseSnapArgs(["--full-motion", "--theme", "none"]);
   expect(shimmed.appearance).not.toBeNull();
-  expect(checkpointArgErrors(inheritSessionArgs(boot, shimmed, "x"), shimmed, "cp")).toEqual([
-    expect.stringContaining("appearance shim is session-level"),
-    expect.stringContaining("theme shim is session-level"),
+  expect(checkpointArgErrors(inheritSessionArgs(boot, shimmed, "x"), "cp", ["--full-motion", "--theme", "none"])).toEqual([
+    expect.stringContaining("browser-lifetime flags (--full-motion --theme)"),
+  ]);
+});
+
+test("matrix plus scenario inherits the outer isolated binding without misreading it as checkpoint stage admin", () => {
+  const outer = parseSnapArgs(["--matrix", "--scenario", "orb-app", "--isolated"]);
+  const checkpoint = parseSnapArgs(["/", "--eval", "1"], { scenarioCheckpoint: true });
+  const inherited = inheritSessionArgs(outer, checkpoint, "matrix-cell", true);
+  expect(inherited.isolated).toBe(true);
+  expect(checkpointArgErrors(inherited, "cp", ["/", "--eval", "1"])).toEqual([]);
+  expect(checkpointArgErrors(inherited, "cp", ["--stage-status"])).toEqual([
+    "cp: scenario checkpoint args cannot manage stages (--stage-status); put stage flags on the outer command",
   ]);
 });
 
 test("identical seeds across one browser lifetime, or the one refusal", () => {
-  const a = parseSnapArgs(["--ls", "k=1"]);
-  const b = parseSnapArgs(["--ls", "k=1"]);
-  const c = parseSnapArgs(["--ls", "k=2"]);
+  const a = parseSnapArgs(["--local-storage", "k=1"]);
+  const b = parseSnapArgs(["--local-storage", "k=1"]);
+  const c = parseSnapArgs(["--local-storage", "k=2"]);
   expect(identicalSeedsError([a, b])).toBeNull();
-  expect(identicalSeedsError([a, c])).toContain("identical --ls seeds");
+  expect(identicalSeedsError([a, c])).toContain("identical --local-storage seeds");
   expect(identicalSeedsError([])).toBeNull();
 });
 

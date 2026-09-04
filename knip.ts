@@ -85,6 +85,10 @@ const config: KnipConfig = {
         "src/verify/ops/required-live-evidence-reporter.ts",
       ],
       project: ["src/**/*.ts"],
+      // The heap arm loads chrome-devtools-mcp's browser-free parser through a version-pinned dynamic
+      // subpath held in a constant. Knip cannot resolve that indirection, while the heap suite exercises
+      // the installed module and its exact-version compatibility fence.
+      ignoreDependencies: ["chrome-devtools-mcp"],
     },
     "packages/kit": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/contracts": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },

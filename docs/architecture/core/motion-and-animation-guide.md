@@ -327,7 +327,7 @@ in order. The sourced synthesis and design-writing quotes behind these live in
    **AMENDED 2026-09-02 (#1069) — the ratified-lifecycle allowance has ONE home.** §4.2 item 3's
    accordion/collapsible panel height is BUILT and sanctioned by this section's own text, yet the
    `[anim]` channel convicted it on every first open, because the allowance minted with #953 had
-   landed only on `pnpm motion-audit`'s (pull) half of the shared vocabulary. The predicate now
+   landed only on the former motion CLI's pull half of the shared vocabulary. The predicate now
    lives in `@orb/kit/motion-allowance` and BOTH instruments read it — the push side prints the
    raise without a budget verdict, the pull side keeps re-judging the raw facts under it. It
    sanctions a Base UI transition bound to one `data-starting-style`/`data-ending-style` phase,
@@ -391,7 +391,7 @@ attribution and production hashed bundles are unknown, not positive library attr
 otherwise classified only on overlapping confirmed entrance frames. Reports retain raw, classified, and
 budgeted totals.
 
-The same helper emits paired User Timing start/confirmed/end marks. `motion-audit` pairs those with real
+The same helper emits paired User Timing start/confirmed/end marks. `pnpm snap --motion [selector]` pairs those with real
 CDP `PipelineReporter` begin/end intervals and excludes only overlapping frames from its budgeted dropped
 numerator and denominator; raw counts stay visible. Missing marks, unpaired frames, non-Select portals,
 work outside the entrance, residual blocking, CLS, and dirty animations remain ordinary inputs. The
@@ -404,7 +404,7 @@ window. Chrome cannot causally separate unrelated work inside the identical brow
 frames are a bounded owner-accepted risk, not a claim of perfect attribution. Separate frames and
 recognizably app-attributed LoAF work remain ordinary red inputs.
 
-During that measured CDP window only, `motion-audit` asks the dev bridge to suspend the duplicate
+During that measured CDP window only, Snap's motion arm asks the dev bridge to suspend the duplicate
 in-page `[drop]` lifetime collector. The pause returns before CSS-event, WAAPI-target, map, and report
 work, and is always released in `finally`; ordinary dev `[drop]`, `[anim]`, LoAF/CLS, `[css]`, and
 `[space]` remain unchanged. CDP `PipelineReporter` is the dropped-frame owner inside the audit window.

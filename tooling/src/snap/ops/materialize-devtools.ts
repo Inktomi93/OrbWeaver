@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promise
 import type { Server } from "node:http";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { stdout } from "node:process";
 import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
@@ -19,6 +19,7 @@ import type {
   DevToolsLicenseFile,
   DevToolsLicenseManifest,
 } from "../../_shared/devtools-assets.ts";
+import { parseDevToolsAssetPin } from "../../_shared/devtools-assets.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { budget } from "../../_shared/load-budget.ts";
 import { DEVTOOLS_LICENSE_SOURCES } from "../lib/devtools-license-sources.ts";
@@ -66,9 +67,7 @@ function canonical(value: unknown): string {
 }
 
 async function readPin(): Promise<DevToolsAssetPin> {
-  // NOT a page-boundary cast (#1004): this is a file WE wrote on disk, read back in node — no browser
-  // realm, no JSON round-trip we did not control. The page seam in this file is `devToolsDiscoveryProof`.
-  return JSON.parse(await readFile(join(ROOT, "pin.json"), "utf8")) as DevToolsAssetPin;
+  return parseDevToolsAssetPin(JSON.parse(await readFile(join(ROOT, "pin.json"), "utf8")));
 }
 
 async function fetchAsset(path: string): Promise<CachedAsset> {
@@ -78,7 +77,7 @@ async function fetchAsset(path: string): Promise<CachedAsset> {
     try {
       const response = await fetch(`${SOURCE_ORIGIN}${path}`, { redirect: "manual", signal: AbortSignal.timeout(RESOURCE_FETCH_TIMEOUT_MS) });
       if (response.status === HTTP_OK && !response.headers.has("location")) {
-        const mimeType = (response.headers.get("content-type") ?? "application/octet-stream").split(";", 1)[0] as string;
+        const mimeType = (response.headers.get("content-type") ?? "application/octet-stream").split(";", 1)[0] ?? "application/octet-stream";
         return { body: Buffer.from(await response.arrayBuffer()), mimeType };
       }
       lastError = new Error(`returned ${response.status} or redirected`);
@@ -291,6 +290,23 @@ const DISCOVERY_BRIDGE = `(async () => {
   }
   return { inspectedUrl: target.inspectedURL(), fixture: Boolean(await dom.querySelector(doc.id, "[data-orb-devtools-fixture]")), rows };
 })()`;
+function devToolsTargets(value: unknown): readonly { readonly id: string; readonly type: string }[] {
+  if (!Array.isArray(value)) {
+    throw new Error("DevTools /json/list response is not an array");
+  }
+  return value.map((entry, index) => {
+    if (typeof entry !== "object" || entry === null) {
+      throw new Error(`DevTools /json/list row ${String(index)} is not an object`);
+    }
+    const id = Reflect.get(entry, "id");
+    const type = Reflect.get(entry, "type");
+    if (typeof id !== "string" || typeof type !== "string") {
+      throw new Error(`DevTools /json/list row ${String(index)} has no string id/type`);
+    }
+    return { id, type };
+  });
+}
+
 async function exerciseClosure(page: Page, pin: DevToolsAssetPin, frontendOrigin: string, profile: string): Promise<void> {
   await page.setContent(FIXTURE_HTML);
   await page.evaluate(
@@ -305,7 +321,7 @@ async function exerciseClosure(page: Page, pin: DevToolsAssetPin, frontendOrigin
     throw new Error(`installed browser tuple drifted: ${JSON.stringify(identity)}`);
   }
   const port = await debugPort(profile);
-  const targets = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()) as Array<{ id: string; type: string }>;
+  const targets = devToolsTargets(await (await fetch(`http://127.0.0.1:${port}/json/list`)).json());
   if (!targets.some((candidate) => candidate.id === identity.id && candidate.type === "page")) {
     throw new Error("captured product target absent from /json/list");
   }
@@ -361,7 +377,7 @@ async function writeClosure(staging: string, pin: DevToolsAssetPin, cache: Map<s
     const notices: DevToolsLicenseFile[] = [];
     for (const sourcePath of source.paths) {
       const body = await fetchNotice(pin.devtoolsFrontendRevision, sourcePath);
-      const file = `licenses/${source.family}/${sourcePath.split("/").at(-1) as string}`;
+      const file = `licenses/${source.family}/${basename(sourcePath)}`;
       await mkdir(dirname(join(staging, file)), { recursive: true });
       await writeFile(join(staging, file), body);
       notices.push({ file, source: `${GITILES}/+/${pin.devtoolsFrontendRevision}/${sourcePath}`, bytes: body.byteLength, sha256: sha256(body) });

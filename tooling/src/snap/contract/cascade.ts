@@ -1,5 +1,12 @@
 /** One bounded browser-cascade query. Selectors use Snap's existing selector grammar; properties are
  * CSS identifiers or custom-property names, never free-form CSS. */
+import type { CssMergeTraceSnapshot, CssMergeTraceStatus, CssMergeTraceStatuses } from "@orb/ui/css-merge-contract";
+import { z } from "zod";
+
+/** Runtime mirror of \@orb/ui's type-only tuple. `satisfies` makes missing, extra, reordered or respelled
+ * members a compile error without importing any UI runtime module into tooling. */
+export const CSS_MERGE_TRACE_STATUSES = ["ok", "instrument-error"] as const satisfies CssMergeTraceStatuses;
+export const cssMergeTraceStatusSchema: z.ZodType<CssMergeTraceStatus> = z.enum(CSS_MERGE_TRACE_STATUSES);
 export interface CssCascadeQuery {
   readonly selector: string;
   readonly property: string;
@@ -66,7 +73,7 @@ export type CssCascadeReceipt = CssCascadeOkReceipt | CssCascadeInstrumentError;
 export interface CssEvidenceReceipt {
   readonly status: "ok" | "instrument-error";
   /** The unchanged #949 `window.__orb.css.read()` payload. */
-  readonly merge: unknown;
+  readonly merge: CssMergeTraceSnapshot | null;
   readonly cascade: readonly CssCascadeReceipt[];
   readonly repositoryDeclarations: number;
   readonly error: string | null;

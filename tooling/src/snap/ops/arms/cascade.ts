@@ -1,18 +1,91 @@
 // Snap's browser-cascade producer. It reads #949's unchanged merge handle and joins official SDK
 // declaration-state evidence behind one `cssEvidence` manifest member; there is no second app bridge.
+
+import type { CssMergeConflict, CssMergeReceipt, CssMergeTraceSnapshot } from "@orb/ui/css-merge-contract";
 import { splitLastEq } from "../../../_shared/argv.ts";
+import { aggregateScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../../_shared/browser-contract.ts";
 import type { DevToolsCascadeRawDeclaration, DevToolsCascadeRuntime } from "../../../_shared/devtools-runtime.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmRunContext, ArmRunInstance } from "../../contract/arms.ts";
+import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunContext, ArmRunInstance } from "../../contract/arms.ts";
 import type { CssCascadeDeclaration, CssCascadeQuery, CssCascadeReceipt, CssEvidenceReceipt } from "../../contract/cascade.ts";
+import { cssMergeTraceStatusSchema } from "../../contract/cascade.ts";
 import { classifyCascadeSource, REPOSITORY_CASCADE_SOURCES } from "../../lib/cascade-source.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function record(value: unknown, label: string): Readonly<Record<string, unknown>> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`${label} is not an object`);
+  }
+  return value as Readonly<Record<string, unknown>>;
+}
+
+function nonnegativeCount(value: unknown, label: string): number {
+  if (!Number.isSafeInteger(value) || Number(value) < 0) {
+    throw new Error(`${label} is not a non-negative integer`);
+  }
+  return Number(value);
+}
+
+function occurrence(value: unknown, label: string): { readonly index: number; readonly className: string } {
+  const row = record(value, label);
+  if (typeof row["className"] !== "string") {
+    throw new Error(`${label}.className is not a string`);
+  }
+  return { index: nonnegativeCount(row["index"], `${label}.index`), className: row["className"] };
+}
+
+function conflict(value: unknown, label: string): CssMergeConflict {
+  const row = record(value, label);
+  if (typeof row["axis"] !== "string") {
+    throw new Error(`${label}.axis is not a string`);
+  }
+  return {
+    axis: row["axis"],
+    loser: occurrence(row["loser"], `${label}.loser`),
+    winner: occurrence(row["winner"], `${label}.winner`),
+  };
+}
+
+function mergeReceipt(value: unknown, index: number): CssMergeReceipt {
+  const label = `window.__orb.css.read receipts[${String(index)}]`;
+  const row = record(value, label);
+  if (!(Array.isArray(row["input"]) && Array.isArray(row["conflicts"])) || typeof row["output"] !== "string") {
+    throw new Error(`${label} is malformed`);
+  }
+  return {
+    input: row["input"].map((entry, occurrenceIndex) => occurrence(entry, `${label}.input[${String(occurrenceIndex)}]`)),
+    conflicts: row["conflicts"].map((entry, conflictIndex) => conflict(entry, `${label}.conflicts[${String(conflictIndex)}]`)),
+    output: row["output"],
+  };
+}
+
+export function cssMergeTraceSnapshot(value: unknown): CssMergeTraceSnapshot {
+  const row = record(value, "window.__orb.css.read receipt");
+  const status = cssMergeTraceStatusSchema.safeParse(row["status"]);
+  if (!status.success || typeof row["enabled"] !== "boolean" || !Array.isArray(row["receipts"])) {
+    throw new Error("window.__orb.css.read returned a malformed trace receipt");
+  }
+  const base = {
+    enabled: row["enabled"],
+    calls: nonnegativeCount(row["calls"], "window.__orb.css.read calls"),
+    conflictCalls: nonnegativeCount(row["conflictCalls"], "window.__orb.css.read conflictCalls"),
+    deduplicatedConflictCalls: nonnegativeCount(row["deduplicatedConflictCalls"], "window.__orb.css.read deduplicatedConflictCalls"),
+    receipts: row["receipts"].map(mergeReceipt),
+  };
+  if (status.data === "instrument-error") {
+    if (typeof row["error"] !== "string") {
+      throw new Error("window.__orb.css.read instrument-error has no error detail");
+    }
+    return { ...base, status: status.data, error: row["error"] };
+  }
+  return { ...base, status: status.data };
 }
 
 function mapDeclaration(raw: DevToolsCascadeRawDeclaration): CssCascadeDeclaration {
@@ -35,17 +108,17 @@ function errorReceipt(query: CssCascadeQuery, error: string): CssCascadeReceipt 
   return { status: "instrument-error", selector: query.selector, property: query.property, error };
 }
 
-function receiptError(repositoryDeclarations: number, merge: unknown, requireMerge: boolean): string | null {
+function receiptError(repositoryDeclarations: number, merge: CssEvidenceReceipt["merge"], requireMerge: boolean): string | null {
   if (repositoryDeclarations === 0) {
     return "repository declaration population is zero; pair the query with a planted repository declaration";
   }
-  if (requireMerge && (merge as { status?: unknown }).status === "instrument-error") {
-    return `#949 merge transport reported instrument-error: ${String((merge as { error?: unknown }).error ?? "unknown")}`;
+  if (requireMerge && merge?.status === "instrument-error") {
+    return `#949 merge transport reported instrument-error: ${merge.error}`;
   }
   return null;
 }
 
-async function readMergeReceipt(session: ProbeSession, pageIndex: number): Promise<unknown> {
+async function readMergeReceipt(session: ProbeSession, pageIndex: number): Promise<CssMergeTraceSnapshot> {
   const page = session.pages[pageIndex];
   if (page === undefined) {
     throw new Error(`cascade page @${pageIndex} does not exist`);
@@ -55,10 +128,7 @@ async function readMergeReceipt(session: ProbeSession, pageIndex: number): Promi
     if (!handle || typeof handle.read !== "function") throw new Error("window.__orb.css.read is unavailable");
     return handle.read();
   })()`);
-  if (typeof receipt !== "object" || receipt === null) {
-    throw new Error("window.__orb.css.read returned a non-object");
-  }
-  return receipt;
+  return cssMergeTraceSnapshot(receipt);
 }
 
 /** The cascade read's ask. `runtime` is PASSED IN rather than looked up off the session: an arm takes what
@@ -81,7 +151,7 @@ export async function capturePageCssEvidence(ask: CssEvidenceAsk): Promise<CssEv
     const error = runtime === null ? "DevTools cascade runtime is not attached" : `page @${pageIndex} does not exist`;
     return { status: "instrument-error", merge: null, cascade: queries.map((query) => errorReceipt(query, error)), repositoryDeclarations: 0, error };
   }
-  let merge: unknown = null;
+  let merge: CssEvidenceReceipt["merge"] = null;
   // @orb-gate-ignore caught-failure-ownership(empty:error): the catch returns a terminal instrument-error receipt consumed by Snap's verdict and artifact, including one error row per requested query. Ends if this result stops driving the verdict.
   try {
     merge = await readMergeReceipt(session, pageIndex);
@@ -133,15 +203,6 @@ async function captureCssEvidence(ctx: ArmRunContext): Promise<void> {
  *  cascade error here, an unreadable stylesheet in the dead-css arm) and so is folded once, in
  *  ops/verdict.ts, where both sheets for one page are visible. Two arms each adding their own count would
  *  double-count a page that failed both ways. */
-const CASCADE_INSTANCE: ArmRunInstance = {
-  measure: captureCssEvidence,
-  report: (): Promise<void> => Promise.resolve(),
-  failures: (): ArmFailureCounts => ({}),
-  denominators: () => ({}),
-  pairs: (): readonly ResultPair[] => [],
-  exit: (code: number): number => code,
-};
-
 export const CASCADE_ARM = {
   flags: [
     {
@@ -159,7 +220,50 @@ export const CASCADE_ARM = {
   // derives that set from this field).
   level: "session",
   needs: (opts): ArmNeeds => (opts.cascade.length === 0 ? {} : { devtoolsSdk: true }),
+  sessionCallBaseMs: (): null => null,
   defaults: (): Pick<ArmArgs, "cascade"> => ({ cascade: [] }),
   help: "  --cascade <selector=property>  Chromium's computed value + official Active/Overloaded declarations",
-  lifecycle: { at: "run", begin: (): ArmRunInstance => CASCADE_INSTANCE },
-} satisfies ArmDef;
+  result: {
+    schema: "snap-arm-cascade-v1",
+    source: "CDP CSS + CSSOverview",
+    lifetime: "settled page capture",
+    enabled: (opts): boolean => opts.cascade.length > 0,
+  },
+  lifecycle: {
+    at: "run",
+    begin: (_session, opts): ArmRunInstance<"cascade"> => {
+      let context: ArmRunContext | null = null;
+      return {
+        prepare: (): Promise<void> => Promise.resolve(),
+        afterNavigation: (): Promise<void> => Promise.resolve(),
+        beforeAction: (): Promise<null> => Promise.resolve(null),
+        afterAction: (): Promise<void> => Promise.resolve(),
+        afterActions: (): Promise<void> => Promise.resolve(),
+        afterSettle: (): Promise<void> => Promise.resolve(),
+        measure: async (ctx): Promise<void> => {
+          context = ctx;
+          await captureCssEvidence(ctx);
+        },
+        report: (): Promise<void> => Promise.resolve(),
+        failures: (): ArmFailureCounts => ({}),
+        denominators: () => ({}),
+        pairs: (): readonly ResultPair[] => [],
+        facts: (): readonly ArmFactEmission<"cascade">[] => {
+          const receipts = context?.outcomes.flatMap((outcome) => outcome.cssEvidence?.cascade ?? []) ?? [];
+          const failures = receipts.filter((receipt) => receipt.status === "instrument-error").length;
+          let state: "off" | "refused" | "passed" = "off";
+          if (opts.cascade.length > 0) {
+            state = failures > 0 ? "refused" : "passed";
+          }
+          return [
+            {
+              scope: aggregateScope(),
+              data: { state, detail: null, queries: receipts.length, failures },
+            },
+          ];
+        },
+        exit: (code: number): number => code,
+      };
+    },
+  },
+} satisfies ArmDef<"cascade">;

@@ -45,6 +45,12 @@ export interface VerdictOptions {
   readonly pairs: readonly ResultPair[];
 }
 
+export interface VerdictReceipt {
+  readonly exit: number;
+  /** The exact normalized payload handed to `printResult`. Persist this receipt, never the raw input. */
+  readonly pairs: readonly ResultPair[];
+}
+
 /** The loud human half — one block per gap, led by the absent noun. */
 export function printEvidenceGaps(gaps: readonly EvidenceGap[]): void {
   for (const gap of gaps) {
@@ -111,7 +117,7 @@ function verdictPairs(options: VerdictOptions, refused: boolean): ResultPair[] {
 
 /** The fleet verdict door. A non-clean run may report partial populations because it is already loud; a
  *  clean run is refused unless every declared denominator proves the population it judged. */
-export function printVerdict(tool: string, options: VerdictOptions): number {
+export function printVerdictReceipt(tool: string, options: VerdictOptions): VerdictReceipt {
   const refusals = Object.entries(options.denominators)
     .map(([name, denominator]) => denominatorRefusal(name, denominator))
     .filter((refusal): refusal is string => refusal !== null);
@@ -127,6 +133,13 @@ export function printVerdict(tool: string, options: VerdictOptions): number {
       },
     ]);
   }
-  printResult(tool, verdictPairs(options, refused));
-  return refused ? EXIT.toolError : options.verdict;
+  const pairs = verdictPairs(options, refused);
+  printResult(tool, pairs);
+  return { exit: refused ? EXIT.toolError : options.verdict, pairs };
+}
+
+/** Compatibility door for fleet callers that only need the numeric exit. Normalization still happens
+ *  exactly once in `printVerdictReceipt`; callers that persist RESULT truth consume its full receipt. */
+export function printVerdict(tool: string, options: VerdictOptions): number {
+  return printVerdictReceipt(tool, options).exit;
 }

@@ -14,6 +14,10 @@
 // two ends of that seam are pinned below (zero requests before the answer; the same requests after it), and
 // the flows above press `Import` where they used to rely on the drop being the send.
 
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { driveFileDrop, driveFileUpload } from "@orb/tooling/_shared/upload";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { dropFiles } from "../../../../support/ct/drop-files.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
@@ -25,6 +29,11 @@ const HOST_VIEWER_ROUTE: Readonly<Record<string, unknown>> = { "sessions.me": { 
 const DROPZONE_ROOT = '[data-slot="file-dropzone"]';
 const A_CARD = { name: "villain.png", mimeType: "image/png", buffer: Buffer.from("PNG") };
 const A_DROPPED_CARD = { name: "villain.png", mimeType: "image/png", content: "PNG" };
+const FILE_ACTION_ROOT = mkdtempSync(join(tmpdir(), "orb-file-actions-"));
+
+test.afterAll(() => {
+  rmSync(FILE_ACTION_ROOT, { recursive: true, force: true });
+});
 
 test("a REJECTED card import shows NO success ✓ and a non-success toast (0 imported · 1 failed)", async ({ mount, page }) => {
   await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
@@ -290,4 +299,26 @@ test("a DROPPED file stages too — the drop is a pick, never a send", async ({ 
 
   await expect(page.locator('[data-slot="import-preflight"]')).toBeVisible();
   expect(uploads).toEqual([]);
+});
+
+test("the shared browser file actions drive the production dropzone and sibling FolderPicker with honest identity/tree receipts", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  const card = join(FILE_ACTION_ROOT, "agent-card.png");
+  const tree = join(FILE_ACTION_ROOT, "library-tree");
+  mkdirSync(join(tree, "characters"), { recursive: true });
+  writeFileSync(card, "PNG");
+  writeFileSync(join(tree, "settings.json"), "{}");
+  writeFileSync(join(tree, "characters", "hero.png"), "PNG");
+
+  await mount(<BackupSettingsStory />);
+  const dropped = await driveFileDrop(page.locator(DROPZONE_ROOT), DROPZONE_ROOT, [card], 10_000);
+  await expect(page.locator('[data-slot="import-preflight"]')).toContainText("agent-card.png");
+  expect(dropped).toMatchObject({ kind: "drop-files", feeder: "datatransfer", files: 1, directory: false });
+  expect(dropped.identities.map((file) => file.relativePath)).toEqual(["agent-card.png"]);
+  await page.getByRole("button", { name: "Cancel" }).click();
+
+  const folder = await driveFileUpload(page.getByRole("button", { name: "Import a folder…" }), "role=button[name='Import a folder…']", [tree], 10_000);
+  await expect(page.locator('[data-slot="import-preflight"]')).toContainText("Import 2 files from the folder you picked?");
+  expect(folder).toMatchObject({ kind: "upload", feeder: "filechooser", files: 2, directory: true });
+  expect(folder.identities.map((file) => file.relativePath)).toEqual(["library-tree/characters/hero.png", "library-tree/settings.json"]);
 });

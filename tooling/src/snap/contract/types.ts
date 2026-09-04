@@ -1,15 +1,23 @@
 // snap's typed surface — the queue/args/outcome shapes every op speaks (docs/architecture/core/Core-Tooling-Law.md §2.5).
 import type { AppearancePatch } from "../../_shared/appearance.ts";
 import type { Viewport } from "../../_shared/argv.ts";
+import type { BrowserAccelerationEvidence } from "../../_shared/browser-acceleration.ts";
 import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-capture.ts";
-import type { LocalStorageSeed } from "../../_shared/browser-contract.ts";
+import type { BrowserEvidenceChannels, BrowserPageError, LocalStorageSeed } from "../../_shared/browser-contract.ts";
+import type { BrowserDiagnostic, OrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
 import type { EvidenceGap } from "../../_shared/evidence.ts";
-import type { NavMethod } from "../../_shared/nav.ts";
 import type { ThemeRequest } from "../../_shared/theme.ts";
+import type { FileActionReceipt } from "../../_shared/upload.ts";
+import type { Assertion, PagedExpr, SnapAction } from "./actions.ts";
 import type { CssCascadeQuery, CssEvidenceReceipt } from "./cascade.ts";
 import type { DeadCssEvidence } from "./dead-css.ts";
+import type { DiagnosticQuery } from "./diagnostics.ts";
+import type { HeapCaptureRequest, HeapComparisonRequest, HeapPageEvidence, HeapRetainerRequest } from "./heap.ts";
 import type { LighthouseDevice, LighthouseMode } from "./lighthouse.ts";
 import type { NetworkProfileName } from "./load-emulation.ts";
+import type { MapAtlasEvidence, MapEntry, MapShellEvidence } from "./map.ts";
+
+export type { Assertion, NavAction, PagedExpr, SnapAction, Step } from "./actions.ts";
 
 /** `--scale`'s resolved shape. `mode` is what Playwright's `screenshot({ scale })` receives — it accepts
  *  ONLY "css" | "device", so a numeric ask reaches the pixels through `deviceScaleFactor`, which raises
@@ -20,71 +28,11 @@ export interface ShotScale {
   readonly deviceScaleFactor: number | null;
 }
 
-// `page` = the target page index for --pages multi-tab mode (0 when unprefixed / single-page). Every
-// step/capture carries it so one flat argv-ordered list can drive N tabs in one shared context.
-type StepAction =
-  | { kind: "click"; selector: string }
-  | { kind: "jsclick"; selector: string }
-  | { kind: "press"; selector: string }
-  | { kind: "hover"; selector: string }
-  | { kind: "fill"; selector: string; value: string }
-  | { kind: "key"; selector: string; key: string }
-  // A BARE key (`--key Tab`) — dispatched to the page keyboard with NO focus change, which is what
-  // makes a Tab WALK possible. The `selector=Key` arm above re-FOCUSES its selector before every press,
-  // so N of them land N times on the same neighbour instead of walking (2026-08-16: the settings
-  // dialog's tab order was unmeasurable, and the audit concluded "Tab never advances focus").
-  | { kind: "keyboard"; key: string }
-  | { kind: "waitfor"; selector: string }
-  // --upload <selector>=<path[,path...]> (#651): attach local files to a file input. `selector` is
-  // whatever the caller wrote (often the DECORATIVE dropzone wrapper, not the input itself) — ops/upload.ts
-  // drills to the real `<input type="file">` at drive time. `paths` are boundary-checked (repo/scratchpad
-  // only) and existence-checked there too, so a bad path is a LOUD step failure, never a silent no-op.
-  | { kind: "upload"; selector: string; paths: readonly string[] };
-export type Step = StepAction & { page: number };
-
-// --goto / --open-chat / --open-character / --context-tab: SPA navigation via the app's dev nav bridge
-// (window.__orb.nav). `target` is the raw flag value; the kind picks the __orb.nav method. These are
-// INTERLEAVED with the interaction steps in one argv-ordered queue (see SnapAction) — a nav in the middle
-// of a chain runs where it was written, not before the chain.
-// The kind axis IS `_kit/nav.ts`'s NavMethod — one importable union for every probe, so a new nav verb
-// lands in one place and every probe's dispatch fails to compile until it is handled.
-export interface NavAction {
-  kind: NavMethod;
-  target: string;
-  page: number;
-}
-
-/** ONE argv-ordered queue of everything that DRIVES the page before capture: bridge navigations,
- *  interaction steps, and `--eval` expressions, tagged by which they are. A flat command reads as
- *  ordered, so it must BE ordered — the old shape kept two arrays and ran every nav before every step as
- *  a CLASS, which silently reordered `--goto modal:newChat --click <create> --context-tab rpg.game` into
- *  a context-tab against the landing page (2026-08-15, one live chain lost to it), and `--eval` stayed
- *  out of the queue entirely until 2026-08-16, so `--eval A --click X` reported A's POST-click state.
- *  Every member carries `.action.page`, so per-page filtering for `--pages @<idx>` reads the same on all.
- *  Only the three ACTION-BEARING flag families live here; the pure captures (--map/--aria/--contrast/
- *  --expect-*) observe the settled surface once, after the queue drains. */
-export type SnapAction =
-  | { readonly type: "nav"; readonly action: NavAction }
-  | { readonly type: "step"; readonly action: Step }
-  | { readonly type: "eval"; readonly action: PagedExpr };
-
-// A per-page eval/contrast keeps its argv-order expr/selector plus the target page.
-export interface PagedExpr {
-  expr: string;
-  page: number;
-}
+// A per-page contrast keeps its argv-order selector plus the target page.
 interface PagedSelector {
   selector: string;
   page: number;
 }
-export type Assertion =
-  | { kind: "visible"; selector: string; page: number }
-  | { kind: "text"; selector: string; expected: string; page: number }
-  | { kind: "count"; selector: string; expected: number; page: number }
-  | { kind: "url"; expected: string; page: number }
-  | { kind: "overflow"; selector: string; page: number }
-  | { kind: "focus"; selector: string; page: number };
-
 export interface Args {
   /** Print the operator cookbook and exit without touching a browser or stage. */
   help: boolean;
@@ -107,6 +55,8 @@ export interface Args {
   failureEvidence: boolean;
   /** Console errors always fail; this also promotes warnings to failures. */
   strictConsole: boolean;
+  /** Optional terminal query over the always-captured lossless diagnostics ring. */
+  diagnostics: DiagnosticQuery | null;
   /** Reset app diagnostics after the initial page reaches readiness and scope console/page-error
    *  verdicts to the subsequent navigation, interaction, and capture window. The full boot log remains
    *  in JSON so interaction truth does not erase startup truth. */
@@ -123,7 +73,7 @@ export interface Args {
    *  Defaults to env DEBUG_TOKEN if set; `--debug-token …` overrides; empty skips the
    *  seed. The token never leaves the headless context. */
   debugToken: string;
-  /** THE pre-capture drive queue: interaction steps (--click/--fill/--hover/--press/--jsclick/--key/
+  /** THE pre-capture drive queue: interaction steps (--click/--fill/--hover/--force-click/--dom-click/--key/
    *  --wait-for), dev-bridge navigations (--goto/--open-chat/--open-character/--context-tab) AND --eval
    *  expressions in ONE list, executed in TRUE argv order — anything written mid-chain runs mid-chain.
    *  Each step waits for its selector (5s) then acts (the bare-key arm presses straight at the page
@@ -164,7 +114,7 @@ export interface Args {
    *  the exact file to write. Defaults to the route slug. Resolution lives in _shared/artifacts.ts. */
   out: string | null;
   viewport: Viewport;
-  /** localStorage seeds applied BEFORE navigation (`--ls key=value`, repeatable). */
+  /** localStorage seeds applied BEFORE navigation (`--local-storage key=value`, repeatable). */
   localStorage: LocalStorageSeed[];
   /** Deterministic-render mode: seed orb:probe-mode + kill animations via injected CSS. */
   probe: boolean;
@@ -251,15 +201,31 @@ export interface Args {
   /** `--lighthouse-mode <snapshot|navigation>`. snapshot (the default) audits the page as the drive queue
    *  left it; navigation RELOADS and therefore audits a different, freshly-booted page. */
   lighthouseMode: LighthouseMode;
-  /** `--requests [url-substring]`: print + file the ORDERED log of every request this run's pages issued
-   *  (method, url, status, type, size, timing). The optional value narrows what is PRINTED, never what is
-   *  recorded — the artifact is always the complete log, and the block states both counts. */
+  /** `--requests [url-substring]`: print + file the ORDERED checkpoint window from the session's bounded
+   *  lifetime ring (method, url, status, type, sizes, timing). The optional value narrows what is PRINTED,
+   *  never what is recorded; eviction is explicit in the receipt. */
   requests: boolean;
   requestsFilter: string | null;
-  /** `--request-body <url-substring>`: capture ONE matching response body, capped and truncation-accounted
-   *  (lib/request-log.ts). Implies --requests: a body with no log leaves the reader unable to see which
-   *  request it came from, or that a second one matched. */
+  /** `--request-body <url-substring>`: read one retained application/json body (whole at at most 256 KiB inside
+   *  the 32 MiB aggregate budget) or name why it was not retained. Implies --requests. */
   requestBody: string | null;
+  /** Settled-page heap checkpoints and browser-free queries. Labels persist only in this BrowserContext. */
+  heapCaptures: HeapCaptureRequest[];
+  heapComparisons: HeapComparisonRequest[];
+  heapRetainers: HeapRetainerRequest[];
+  /** `--filmstrip`: bounded exact-page CDP screencast rendered as one labelled PNG contact sheet. */
+  filmstrip: boolean;
+  /** `--react-profile`: install the React development-renderer hook before the first mount and retain a
+   *  read-only component/commit profile for every owned context and page in this browser lifetime. */
+  reactProfile: boolean;
+  /** Selective interaction analyzers over the one shared action tape. */
+  motion: boolean;
+  motionWindowMs: number;
+  motionThrottle: boolean;
+  interactionPerf: boolean;
+  perfCycles: number;
+  cpuProfile: boolean;
+  bootTrace: boolean;
   // ── LOAD EMULATION (CDP — the margin a rest-state measurement cannot see) ───
   /** `--cpu-throttle <n>`: CDP `Emulation.setCPUThrottlingRate`, applied to EVERY page before it
    *  navigates. 1 = no throttle (the default). The measurement it exists for: a settle that is free at
@@ -321,7 +287,7 @@ export interface Args {
   /** `--session-sweep`: reap dead and idle-past-TTL sessions plus orphan registry entries; live ones are
    *  reported and never touched. */
   sessionSweep: boolean;
-  /** `--session-export <name>`: copy the session's console / page-error / request rings into THIS run's
+  /** `--session-export <name>`: copy the session's console / page-error / request rings and retained trace/HAR into THIS run's
    *  slot, published as reports/sessions/<name>/…. */
   sessionExport: string | null;
   /** `--session-ttl <min>`: the boot call's idle TTL (default 30 min; env ORB_SESSION_TTL_MIN). */
@@ -338,6 +304,10 @@ export interface CaptureOutcome {
   stepFailures: number;
   /** --goto/--open-chat/--context-tab actions that failed on this page (reddens exit). */
   navFailures: number;
+  /** Successful browser file actions, including the exact feeder and complete selected identity/tree. */
+  fileActions: FileActionReceipt[];
+  /** Null unless the heap page arm was requested for this page/checkpoint. */
+  heap: HeapPageEvidence | null;
   deadCss: Array<{ token: string; count: number }>;
   emptyCss: string[];
   deadCssEvidence: DeadCssEvidence | null;
@@ -347,6 +317,10 @@ export interface CaptureOutcome {
   contrastResults: ContrastOutcome[];
   mapResult: MapEntry[] | null;
   mapError: string | null;
+  mapAtlas: MapAtlasEvidence | null;
+  mapAtlasError: string | null;
+  mapShell: MapShellEvidence | null;
+  mapShellError: string | null;
   assertions: AssertionOutcome[];
   perf: PerfEvidence | null;
   /** Null when no --cascade query targeted this page. */
@@ -355,7 +329,7 @@ export interface CaptureOutcome {
    *  describes the DEFAULT palette while the run was labelled with a theme — an instrument error (exit 2),
    *  never a finding about the app (ops/theme-stamp.ts). */
   themeStampGap: EvidenceGap | null;
-  /** Indices into this capture's ProbeSession arrays when --checkpoint owns the verdict window. */
+  /** Monotonic cursors into this capture's bounded evidence rings when --checkpoint owns the verdict. */
   evidenceRange: EvidenceRange | null;
 }
 
@@ -364,6 +338,7 @@ export interface EvidenceRange {
   readonly consoleEnd: number;
   readonly pageErrorStart: number;
   readonly pageErrorEnd: number;
+  readonly diagnosticWindow: number;
 }
 
 // ── --eval: arbitrary in-page JS ────────────────────────────────────────────
@@ -383,6 +358,8 @@ export interface AssertionOutcome {
 // The `--network`/`--cpu-throttle` vocabulary and the drive ceilings live in ./load-emulation.ts.
 
 export interface PerfEvidence {
+  readonly rate: { readonly status: "measured" | "withheld"; readonly reason: string };
+  readonly acceleration: BrowserAccelerationEvidence;
   readonly navigation: { readonly domContentLoadedMs: number; readonly loadMs: number; readonly responseMs: number } | null;
   readonly orb: unknown;
 }
@@ -391,14 +368,6 @@ export interface ContrastOutcome {
   line: string;
   failed: boolean;
 }
-
-export interface MapEntry {
-  role: string;
-  name: string;
-  selector: string;
-  source: "semantic" | "dom";
-}
-export type RawMapEntry = Omit<MapEntry, "source"> & { fallback: string; semanticFallback: string };
 
 /** Which page this evidence pass belongs to, plus the evals the drive queue deliberately LEFT for it
  *  (the ones written after the last step/nav — they observe the settled surface). */
@@ -418,7 +387,11 @@ export interface SessionCounts {
   readonly requests: ReadonlyMap<string, CapturedRequest>;
   readonly consoleLines: readonly string[];
   readonly consoleMessages: readonly CapturedConsole[];
-  readonly pageErrors: readonly string[];
+  readonly pageErrors: readonly BrowserPageError[];
+  readonly diagnostics: readonly BrowserDiagnostic[];
+  readonly diagnosticCompleteness: readonly OrbConsoleCompleteness[];
+  readonly diagnosticWindow: { readonly value: number };
+  readonly evidence?: BrowserEvidenceChannels;
 }
 
 // if --eval exprs were given, re-run them labeled with elapsed ms. Runs on PAGE 0's evals only (the
@@ -439,3 +412,10 @@ export interface ScenarioSpec {
   readonly defaults: readonly string[];
   readonly checkpoints: readonly ScenarioCheckpoint[];
 }
+
+export interface PreparedScenario {
+  readonly spec: ScenarioSpec;
+  readonly checkpoints: readonly Args[];
+}
+
+export type ScenarioPreparation = { readonly status: "prepared"; readonly value: PreparedScenario } | { readonly status: "failed"; readonly error: string };

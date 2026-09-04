@@ -1,18 +1,15 @@
-// motion-audit's programmatic front door — what tests and sibling tools import; the cli fronts this
-// surface. One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
+// Retained motion evidence/verdict engine. Snap is the only rendered-instrument front door; this barrel
+// exposes pure facts used by tests and non-browser consumers, never a second parser, stage, or run path.
 
 export type { BrowserEnvironmentEvidence } from "../_shared/browser-environment.ts";
-export { MOTION_AUDIT_HELP } from "./contract/help.ts";
 export type {
   AnimationRecord,
   ApplicationMotionEvidence,
-  Args,
   AuditData,
   ClsBudgetBasis,
   LoafRecord,
   MotionFlagRecord,
   MotionSnapshot,
-  ReachAction,
   ShiftRecord,
   TraceEvent,
 } from "./contract/types.ts";
@@ -20,6 +17,8 @@ export { animationTotals } from "./lib/animations.ts";
 export { apparatusGap, appReadyTimeoutGap, flagRingGap, motionEvidenceGaps, observedClsGap, orbBridgeGap } from "./lib/evidence.ts";
 export { calibratedDroppedFramePct, droppedFramePct } from "./lib/frames.ts";
 export {
+  BLOCKING_BUDGET_MS,
+  CLS_BUDGET,
   clsBudgetBasis,
   clsBudgeted,
   clsOverBudget,
@@ -31,8 +30,10 @@ export {
   loafTotals,
   observedClsTotals,
 } from "./lib/verdicts.ts";
-export { runMotionAuditMatrix } from "./ops/matrix.ts";
-export { parseMotionArgs } from "./ops/parse.ts";
+export { hasOrbBridge, prepareMeasuredClick } from "./ops/drive.ts";
+export type { MotionAppearanceMatrix, MotionMatrixVariant, MotionStaticExpectedLink } from "./ops/matrix-contract.ts";
+export { motionMatrixVariant, planMotionAppearanceMatrix } from "./ops/matrix-contract.ts";
+export type { MotionMatrixCellEvidence, MotionStaticExpectedVerdict } from "./ops/matrix-verdict.ts";
+export { evaluateMotionStaticExpected } from "./ops/matrix-verdict.ts";
 export { evaluateMotionAudit } from "./ops/report.ts";
-export { runMotionAudit, runMotionAuditDetailed } from "./ops/run.ts";
-export { configureMotionStage } from "./ops/stage.ts";
+export { runAudit } from "./ops/trace.ts";

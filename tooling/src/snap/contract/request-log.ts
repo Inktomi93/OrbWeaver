@@ -16,32 +16,73 @@ export interface RequestLogEntry {
   readonly resourceType: string;
   readonly status: number | null;
   readonly failed: string | null;
-  /** The response's declared `content-length`. NULL means the response never declared one (a streamed or
-   *  chunked body) — never 0, which would read as an empty payload. */
-  readonly sizeBytes: number | null;
+  /** Playwright's measured wire sizes. Null until/unless a response was observed and `sizes()` resolved. */
+  readonly sizes: RequestSizesEvidence | null;
   /** Request start → responseEnd, ms. Null when the request never finished inside the run. */
   readonly durationMs: number | null;
 }
 
-/** `--request-body <url-substring>`: exactly one body, capped and accounted. Three honest outcomes — a
- *  filter that matched nothing is a real answer about the page, not an error. */
+export interface RequestSizesEvidence {
+  readonly requestBodySize: number;
+  readonly requestHeadersSize: number;
+  readonly responseBodySize: number;
+  readonly responseHeadersSize: number;
+}
+
+const REQUEST_BODY_RETENTION_REASONS = ["ineligible-content-type", "over-entry-cap", "over-aggregate-budget", "evicted-before-read", "read-error"] as const;
+
+export type RequestBodyRetentionReason = (typeof REQUEST_BODY_RETENTION_REASONS)[number];
+
+/** `--request-body <url-substring>`: exactly one whole eligible JSON body, or an accounted reason it was
+ *  not retained. A filter that matched nothing is a real answer about the page, not an error. */
 export type RequestBodyOutcome =
   | {
       readonly kind: "captured";
       readonly url: string;
       readonly bytes: number;
-      /** Byte offset the text was cut at, or null when the whole body is here. */
-      readonly truncatedAt: number | null;
+      readonly contentType: string;
       readonly text: string;
+    }
+  | {
+      readonly kind: "not-retained";
+      readonly url: string;
+      readonly reason: RequestBodyRetentionReason;
+      readonly contentType: string | null;
+      readonly bytes: number | null;
+      readonly bodyCapBytes: number;
+      readonly bodyBudgetBytes: number;
+      readonly bodyRetainedBytes: number;
     }
   | { readonly kind: "no-match"; readonly filter: string }
   | { readonly kind: "error"; readonly filter: string; readonly url: string; readonly reason: string };
 
+export interface RequestWindowReceipt {
+  readonly start: number;
+  readonly end: number;
+  readonly retainedStart: number;
+  /** Rows observed in this window but no longer retained because the lifetime ring wrapped. */
+  readonly evicted: number;
+}
+
+export interface RequestRingReceipt {
+  readonly capacity: number;
+  readonly seen: number;
+  readonly retained: number;
+  readonly evicted: number;
+  readonly bodyCapBytes: number;
+  readonly bodyBudgetBytes: number;
+  readonly bodyRetainedBytes: number;
+  readonly bodiesCaptured: number;
+  readonly bodiesNotRetained: Readonly<Record<RequestBodyRetentionReason, number>>;
+}
+
 export interface RequestLogReceipt {
-  /** Every request the run recorded, before `--requests <filter>` narrowed it — the denominator. */
+  /** Every request observed in the checkpoint window, including explicitly-receipted evictions. */
   readonly total: number;
   readonly filter: string | null;
   readonly shown: readonly RequestLogEntry[];
   readonly body: RequestBodyOutcome | null;
+  readonly window: RequestWindowReceipt;
+  readonly ring: RequestRingReceipt;
   readonly jsonPath: string;
 }

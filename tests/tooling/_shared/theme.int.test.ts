@@ -40,6 +40,7 @@ const LIBRARY = [
  *  are emitted from. The page below applies the app's own rule (`dataThemeOf`) rather than a name list of
  *  its own: Hearth is a seed too, and it stamps NOTHING because it IS the base `@theme` ramp. */
 const BLOCK_OWNING_SEEDS = Object.keys(SEED_THEME_VALUE_SETS);
+const EMPTY_ORB_CONSOLE = "<script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128})};</script>";
 
 // The page reads the SAME batched GET the app's httpBatchLink sends (settings SECOND, so an element-0 patch
 // would fail this), then runs THE APP'S OWN TWO-HOP CHAIN: the selection it read is resolved to its theme
@@ -50,7 +51,7 @@ const BLOCK_OWNING_SEEDS = Object.keys(SEED_THEME_VALUE_SETS);
 // boot-critical read, #282) precisely so nothing samples the default palette in the gap, so `data-app-ready`
 // is set LAST here. Before this, the stub set readiness immediately and never stamped at all — which is why
 // snap's theme-stamp gate refused it: the fixture, not the gate, was the thing that had drifted from the app.
-const PAGE_HTML = `<!doctype html><html><body><main>stub</main><script>
+const PAGE_HTML = `<!doctype html><html><body><main>stub</main>${EMPTY_ORB_CONSOLE}<script>
 const BLOCK_OWNERS = ${JSON.stringify(BLOCK_OWNING_SEEDS)};
 fetch("/api/trpc/persona.list,settings.getUserSettings?batch=1&input=%7B%7D")
   .then((r) => r.json())

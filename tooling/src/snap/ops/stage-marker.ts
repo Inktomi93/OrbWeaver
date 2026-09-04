@@ -26,7 +26,7 @@ import { pidAlive } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../_shared/ports.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
-import type { StageBandsFile, StageRow } from "../contract/stage.ts";
+import type { StageBandsFile, StageDbProvenance, StageRow } from "../contract/stage.ts";
 import { BANDS_REL, LEGACY_ACTIVE_REL, markerRootFromCommonDir, STAGE_ROOT_REL, stageBandClaim, stageBandRefusal } from "../lib/stage-plan.ts";
 import { repoRoot } from "./stage-git.ts";
 
@@ -42,10 +42,26 @@ const LOCK_POLL_MS = 25;
 const LOCK_WAIT_MS = 5000;
 const LOCK_DEPTH = new Map<string, number>();
 
-function readDeath(value: StageRow["dead"]): Pick<StageRow, "dead"> | Record<never, never> {
-  return typeof value === "object" && typeof value.detectedAt === "string" && typeof value.op === "string"
-    ? { dead: { detectedAt: value.detectedAt, op: value.op } }
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readDeath(value: unknown): Pick<StageRow, "dead"> | Record<never, never> {
+  return isRecord(value) && typeof value["detectedAt"] === "string" && typeof value["op"] === "string"
+    ? { dead: { detectedAt: value["detectedAt"], op: value["op"] } }
     : {};
+}
+
+function readDbProvenance(value: unknown): StageDbProvenance | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const copiedFrom = value["copiedFrom"];
+  const copiedAt = value["copiedAt"];
+  const devDbMtimeAtCopy = value["devDbMtimeAtCopy"];
+  return typeof copiedFrom === "string" && typeof copiedAt === "string" && typeof devDbMtimeAtCopy === "string"
+    ? { copiedFrom, copiedAt, devDbMtimeAtCopy }
+    : null;
 }
 
 export function markerRoot(root: string): string {
@@ -63,32 +79,35 @@ function bandsPath(home: string): string {
  *  a row with no owner cannot be arbitrated across checkouts, and a row naming a band outside the registry
  *  would hand out ports nobody reserved. Anything else in the file is dropped rather than repaired. */
 function readRow(value: unknown): StageRow | null {
-  if (typeof value !== "object" || value === null) {
+  if (!isRecord(value)) {
     return null;
   }
-  const row = value as Partial<StageRow>;
-  const bandOk = typeof row.band === "number" && Number.isInteger(row.band) && row.band >= 0 && row.band < STAGE_BAND_COUNT;
-  if (!(bandOk && typeof row.checkout === "string" && typeof row.sha === "string" && typeof row.dir === "string")) {
+  const band = value["band"];
+  const checkout = value["checkout"];
+  const sha = value["sha"];
+  const dir = value["dir"];
+  const bandOk = Number.isInteger(band) && Number(band) >= 0 && Number(band) < STAGE_BAND_COUNT;
+  if (!(bandOk && typeof checkout === "string" && typeof sha === "string" && typeof dir === "string")) {
     return null;
   }
-  const startedAt = typeof row.startedAt === "string" ? row.startedAt : new Date(0).toISOString();
+  const startedAt = typeof value["startedAt"] === "string" ? value["startedAt"] : new Date(0).toISOString();
   return {
-    band: row.band as number,
-    sha: row.sha,
-    dir: row.dir,
-    serverPort: typeof row.serverPort === "number" ? row.serverPort : 0,
-    vitePort: typeof row.vitePort === "number" ? row.vitePort : 0,
-    checkout: row.checkout,
-    ownerPid: typeof row.ownerPid === "number" ? row.ownerPid : null,
+    band: Number(band),
+    sha,
+    dir,
+    serverPort: typeof value["serverPort"] === "number" ? value["serverPort"] : 0,
+    vitePort: typeof value["vitePort"] === "number" ? value["vitePort"] : 0,
+    checkout,
+    ownerPid: typeof value["ownerPid"] === "number" ? value["ownerPid"] : null,
     startedAt,
     // A row written before the heartbeat existed has no `lastUsedAt`. Backfill it from the boot stamp
     // rather than leaving it undefined: every reader then works on a total shape, and the boot stamp is
     // the honest floor — it can only make such a stage look OLDER.
-    lastUsedAt: typeof row.lastUsedAt === "string" ? row.lastUsedAt : startedAt,
-    sessions: Array.isArray(row.sessions) ? row.sessions.filter((name): name is string => typeof name === "string") : [],
-    dbProvenance: typeof row.dbProvenance === "object" && row.dbProvenance !== null ? row.dbProvenance : null,
-    rsyncs: typeof row.rsyncs === "number" ? row.rsyncs : 0,
-    ...readDeath(row.dead),
+    lastUsedAt: typeof value["lastUsedAt"] === "string" ? value["lastUsedAt"] : startedAt,
+    sessions: Array.isArray(value["sessions"]) ? value["sessions"].filter((name): name is string => typeof name === "string") : [],
+    dbProvenance: readDbProvenance(value["dbProvenance"]),
+    rsyncs: typeof value["rsyncs"] === "number" ? value["rsyncs"] : 0,
+    ...readDeath(value["dead"]),
   };
 }
 
@@ -114,7 +133,10 @@ function migrateLegacyMarker(home: string, rows: readonly StageRow[]): readonly 
 function readLegacyRow(path: string): StageRow | null {
   // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — a truncated/garbage legacy marker is treated as "no legacy stage", which is the same clean-rebuild path a missing one takes. Ends if a legacy marker ever carries state the table cannot re-derive.
   try {
-    const parsed = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+    const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
+    if (!isRecord(parsed)) {
+      return null;
+    }
     const vitePort = typeof parsed["vitePort"] === "number" ? parsed["vitePort"] : 0;
     const band = stageBandForPort(vitePort);
     return band === null ? null : readRow({ ...parsed, band, sessions: [], rsyncs: 0, dbProvenance: null });
@@ -133,8 +155,11 @@ export function readBands(home: string): readonly StageRow[] {
   }
   // @orb-gate-ignore caught-failure-ownership(empty:catch): optional-read-as-absent — a truncated/garbage table (a killed mid-write) is treated as "no stages", which triggers the same clean-allocate path an ABSENT table takes, legacy migration included; the operator sees the empty census on the next `--stage-status`. Ends if the sweep/status readers stop tolerating an empty table.
   try {
-    const parsed = JSON.parse(readFileSync(path, "utf8")) as Partial<StageBandsFile>;
-    const rows = Array.isArray(parsed.rows) ? parsed.rows.map(readRow).filter((row): row is StageRow => row !== null) : [];
+    const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
+    const rows =
+      isRecord(parsed) && parsed["v"] === BANDS_FILE_VERSION && Array.isArray(parsed["rows"])
+        ? parsed["rows"].map(readRow).filter((row): row is StageRow => row !== null)
+        : [];
     return migrateLegacyMarker(home, rows);
   } catch {
     return migrateLegacyMarker(home, []);

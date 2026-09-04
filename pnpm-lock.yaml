@@ -162,6 +162,9 @@ catalogs:
     babel-plugin-react-compiler:
       specifier: ^1.0.0
       version: 1.0.0
+    chrome-devtools-mcp:
+      specifier: 1.8.0
+      version: 1.8.0
     cmdk:
       specifier: ^1.1.1
       version: 1.1.1
@@ -342,6 +345,7 @@ overrides:
 patchedDependencies:
   '@stryker-mutator/core@10.0.0': 5ede38add427b8afc78e0a5996ba245780dd61a1cf665ed284d57023506de33e
   '@stryker-mutator/typescript-checker@10.0.0': 00e1f1825063580d57d3114d95f0ee9f5bb678c2644558c6c171a408723308c7
+  chrome-devtools-mcp@1.8.0: 67db8089f861f501bdd6ba80a83641bb7f8cee56d9a3378a2ffc137abfc0af7a
 
 importers:
 
@@ -894,6 +898,9 @@ importers:
       '@trpc/client':
         specifier: 'catalog:'
         version: 11.18.0(@trpc/server@11.18.0(typescript@6.0.3))(typescript@6.0.3)
+      chrome-devtools-mcp:
+        specifier: 'catalog:'
+        version: 1.8.0(patch_hash=67db8089f861f501bdd6ba80a83641bb7f8cee56d9a3378a2ffc137abfc0af7a)
       drizzle-kit:
         specifier: 'catalog:'
         version: 0.31.10
@@ -921,6 +928,9 @@ importers:
       ts-morph:
         specifier: 'catalog:'
         version: 28.0.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
     devDependencies:
       '@tailwindcss/oxide':
         specifier: 'catalog:'
@@ -4453,6 +4463,19 @@ packages:
   chokidar@5.0.0:
     resolution: {integrity: sha512-TQMmc3w+5AxjpL8iIiwebF73dRDF4fBIieAqGn9RGCWaEVwQ6Fb2cGe31Yns0RRIzii5goJ1Y7xbMwo1TxMplw==}
     engines: {node: '>= 20.19.0'}
+
+  chrome-devtools-mcp@1.8.0:
+    resolution: {integrity: sha512-Wrm9z0/5WbVs778apjWgYRkpe9bvYQWjK2zVRwqoPAtz1IHQ5+GvotM07UGXJcfrA0rj6Gt1Pnn5+w/Tf1nU4w==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=23}
+    hasBin: true
+    peerDependencies:
+      '@blackwell-systems/gcf': ^2.2.2
+      '@toon-format/toon': ^4.1.0
+    peerDependenciesMeta:
+      '@blackwell-systems/gcf':
+        optional: true
+      '@toon-format/toon':
+        optional: true
 
   chrome-launcher@1.2.1:
     resolution: {integrity: sha512-qmFR5PLMzHyuNJHwOloHPAHhbaNglkfeV/xDtt5b7xiFFyU1I+AZZX0PYseMuhenJSSirgxELYIbswcoc+5H4A==}
@@ -10965,6 +10988,8 @@ snapshots:
   chokidar@5.0.0:
     dependencies:
       readdirp: 5.0.0
+
+  chrome-devtools-mcp@1.8.0(patch_hash=67db8089f861f501bdd6ba80a83641bb7f8cee56d9a3378a2ffc137abfc0af7a): {}
 
   chrome-launcher@1.2.1(supports-color@7.2.0):
     dependencies:

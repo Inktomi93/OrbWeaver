@@ -294,7 +294,7 @@
 /* ── THE REDUCED-MOTION SETTLE (#262) — the FLIP's physics without the FLIP ───────────────────────────
  * A FLIP is a MOTION mechanism, so #151 correctly stopped arming it for a user who asked for less motion,
  * and the track just resized in one frame. That frame is a REAL recorded layout shift, and it lands on
- * exactly those users: MEASURED on the merged tree 2026-08-19 (`pnpm perf-meter --goto <section>`,
+ * exactly those users: MEASURED on the merged tree 2026-08-19 (the former perf meter's `--goto <section>`,
  * reports/perf-meter/scls-*) presets 0.2032 · characters 0.2333 · corpus 0.2295 against 0.0112 · 0.0038 · 0
  * with motion on — 2.3x the 0.1 budget, one entry, one source: `div.shell-main`, x 56 -> 363.
  *

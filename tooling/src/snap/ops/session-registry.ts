@@ -104,6 +104,15 @@ interface BootReservation {
   readonly pid: number;
 }
 
+function bootReservation(value: unknown): BootReservation | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const name = Reflect.get(value, "name");
+  const pid = Reflect.get(value, "pid");
+  return typeof name === "string" && Number.isInteger(pid) && Number(pid) > 0 ? { name, pid: Number(pid) } : null;
+}
+
 function reservationDir(home: string): string {
   return join(home, BOOT_RESERVATIONS);
 }
@@ -120,8 +129,8 @@ function reservationNames(home: string): readonly string[] {
   return readdirSync(dir).filter((name) => {
     // @orb-gate-ignore caught-failure-ownership(empty:catch): an unreadable reservation cannot hold capacity; the lock owner removes that exact file below before returning false. Ends if malformed reservations must block acquisition instead of being reclaimed.
     try {
-      const reservation = JSON.parse(readFileSync(reservationPath(home, name), "utf8")) as BootReservation;
-      if (reservation.name === name && pidAlive(reservation.pid)) {
+      const reservation = bootReservation(JSON.parse(readFileSync(reservationPath(home, name), "utf8")));
+      if (reservation?.name === name && pidAlive(reservation.pid)) {
         return true;
       }
     } catch {
@@ -181,7 +190,7 @@ export function liveSessionNames(root: string): ReadonlySet<string> {
   return new Set(liveRows(sessionRegistryHome(root)).map((row) => row.name));
 }
 
-/** Signal the daemon's whole process group — `spawnNicedChild` is detached, so the daemon leads its own
+/** Signal the daemon's whole process group — `spawnFullPriorityChild` is detached, so the daemon leads its own
  *  group and the browser tree rides with it. Through the SYSCALL door (`_shared/proc.ts` `killPidGroup`)
  *  and never a spawned `kill -SIG -<pgid>`: procps parses that as the pgid's first digit, which with
  *  seven-digit pids is `kill(-1)` — the whole box (#1254, paid by this file on 2026-09-02). A row whose

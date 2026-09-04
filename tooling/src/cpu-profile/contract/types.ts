@@ -1,60 +1,21 @@
 // The run shapes of cpu-profile (`pnpm perf-meter`): the step tape, parsed args, the in-page meter
 // buckets, and the per-step report row. Split from the pre-move perf-meter.ts (P3 of #393).
-import type { AppearancePatch } from "@orb/tooling/_shared/appearance";
-import type { Viewport } from "@orb/tooling/_shared/argv";
-import type { NavMethod } from "@orb/tooling/_shared/nav";
-import type { ThemeRequest } from "@orb/tooling/_shared/theme";
+export const BOOT_TRACE_INSIGHTS = ["LCPBreakdown", "CLSCulprits", "NetworkDependencyTree", "ImageDelivery", "DocumentLatency", "ForcedReflow"] as const;
 
-export type Step =
-  | { readonly kind: "click" | "jsclick" | "hover"; readonly selector: string }
-  | { readonly kind: "fill"; readonly selector: string; readonly value: string }
-  | { readonly kind: "wheel"; readonly selector: string; readonly dy: number }
-  | {
-      readonly kind: "wheelburst";
-      readonly selector: string;
-      readonly dy: number;
-      readonly count: number;
-    }
-  | { readonly kind: "nav"; readonly method: NavMethod; readonly target: string }
-  | { readonly kind: "pause"; readonly ms: number };
+export type BootTraceInsightName = (typeof BOOT_TRACE_INSIGHTS)[number];
 
-export interface Args {
-  /** `--help`/`-h` (HELP_FLAGS, `_shared/instrument-argv.ts`): print `PERF_METER_HELP` and exit 0 —
-   *  before this family, `--help` was an unknown flag and exited 3 (measured 2 hits, design §1 P5). */
-  help: boolean;
-  route: string;
-  base: string;
-  /** True once `--base` was passed explicitly — a `--session` attach without it falls back to the
-   *  session's own bound URL instead of `DEFAULT_BASE` (#1289, design §3.6 "sibling instruments inherit
-   *  the binding from the session"); an explicit `--base` still overrides (#1285's composing rule). */
-  baseExplicit: boolean;
-  isolated: boolean;
-  ref: string | null;
-  dirty: boolean;
-  fresh: boolean;
-  stageShortSha: string | null;
-  out: string;
-  json: boolean;
-  viewport: Viewport;
-  device: string | null;
-  colorScheme: "light" | "dark" | null;
-  reducedMotion: boolean;
-  settleMs: number;
-  cycles: number;
-  cpuProfile: boolean;
-  steps: Step[];
-  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_shared/appearance.ts). The
-   *  browser-level `reducedMotion:false` below is only the OS media query; an INP/LoAF number taken while
-   *  the app's own reduce-motion setting is on describes a surface with its transitions removed. */
-  appearance: AppearancePatch | null;
-  /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
-   *  `settings.getUserSettings` response (never written — _shared/theme.ts). null = the account's own theme. */
-  theme: ThemeRequest | null;
-  /** `--session <name>` (#1285, WHERE_FLAGS `_shared/instrument-argv.ts`): attach to a live snap
-   *  session's browser instead of launching a fresh one — null = launch (today's behaviour, unchanged). */
-  session: string | null;
-  /** CLI misuse collected without side effects; any entry means EXIT.misuse (3) before a browser boots. */
-  errors: string[];
+export interface BootTraceInsightReceipt {
+  readonly state: "pass" | "fail" | "informative";
+  readonly details: Readonly<Record<string, unknown>>;
+}
+
+export interface BootTraceReceipt {
+  readonly eventCount: number;
+  readonly navigationId: string;
+  readonly url: string;
+  readonly lcpMs: number;
+  readonly rawTracePath: string;
+  readonly insights: Readonly<Record<BootTraceInsightName, BootTraceInsightReceipt>>;
 }
 
 /** \`dur\` is the LoAF frame duration (or the raw \`longtask\` duration on the fallback path);
@@ -96,7 +57,7 @@ export interface MeterData {
    *  quiet page and one from an observer that never attached look identical; this is the difference
    *  (#409). Optional: a page carrying an OLDER injected meter (`--base` at an old sha) has no field,
    *  which reads as "unknown", never as "absent". */
-  readonly installed?: readonly string[];
+  readonly installed?: readonly string[] | undefined;
 }
 
 export interface MeterWindow {
@@ -116,6 +77,7 @@ export interface StepReport {
   readonly worstScript: string | null;
   readonly clickDurMs: number | null;
   readonly clickInputDelayMs: number | null;
+  readonly clickProcessingMs: number | null;
   readonly worstRafGapMs: number;
   readonly shiftScore: number;
 }

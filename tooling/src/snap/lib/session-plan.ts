@@ -1,25 +1,21 @@
 // The session substrate's PURE core (docs/design/1208-instrument-substrate.md §3.3–§3.5 + §10.1), the
 // sibling of lib/stage-plan.ts: the flag PARTITION every browser-lifetime consumer shares (a scenario's
-// checkpoints and a session's calls — ONE table, promoted here from ops/scenario.ts), the refusal rows,
-// the registry paths, the access/sweep verdicts, the limits, the parse-time session rows and every refusal
-// text. No I/O: the imperative halves are ops/session-registry.ts (rows, sockets, liveness),
+// checkpoints and a session's calls — ONE table, promoted here from ops/scenario.ts), the registry paths,
+// access/sweep verdicts, limits, and parse-time session rows. Printable refusals live in
+// session-refusals.ts. No I/O: the imperative halves are ops/session-registry.ts (rows, sockets, liveness),
 // ops/session-client.ts (the caller), ops/session-daemon.ts + ops/session-daemon-call.ts (the daemon); the
 // wire readers are ./session-wire.ts. Pinned both ways by tests/tooling/snap/lib/session-plan.test.ts.
 //
-// TWO PARTITION LAYERS ON PURPOSE. `inheritSessionArgs` is the scenario's mapping byte-for-byte — the
-// scenario's own refusal rows read the INHERITED `isolated`, so folding the stage/load/tab fields into
-// that mapping would make every checkpoint of an `--isolated` scenario refuse itself. A session ALSO needs
-// those fields from its boot (a call's nav budgets are a function of the stage, `throttle=` on the RESULT
-// line is a function of the boot's load arm, the tab count is the browser's) — `inheritSessionBinding`
-// is that second layer, applied by the daemon AFTER the refusal rows judged the call's own values.
+// ONE PARTITION. `inheritSessionArgs` owns every browser-lifetime field for both scenarios and stateful
+// sessions. Explicit checkpoint/session-call boot flags are refused from their RAW argv before this
+// inheritance is trusted; inheritance never launders a misplaced flag into a valid-looking plan.
 import { basename, extname, join } from "node:path";
 import { splitPageSuffix } from "../../_shared/argv.ts";
 import { routeSlug } from "../../_shared/artifacts.ts";
 import { budget } from "../../_shared/load-budget.ts";
-import type { SessionAccess, SessionCallTarget, SessionLimits, SessionRow, SessionStageState, SessionSweepVerdict } from "../contract/session.ts";
+import type { SessionAccess, SessionCallTarget, SessionLimits, SessionRow, SessionSweepVerdict } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
 import { sessionLevelArmFlags } from "../ops/arms/registry.ts";
-import { describeStageAgePhrase } from "./stage-plan.ts";
 
 // ── the registry (repo-keyed like the stage marker, #108) ─────────────────────────────────────────────
 
@@ -55,7 +51,6 @@ export function sessionLogPath(home: string, name: string): string {
 
 export const DEFAULT_SESSION_TTL_MIN = 30;
 export const DEFAULT_SESSION_CAP = 3;
-const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60_000;
 /** How long the client waits for a booting daemon to answer `ping`, on a QUIET box — the launcher's own
  *  readiness ceiling (`stack.sh` READINESS_TIMEOUT 240 s) plus a browser boot. The BASE the ceiling below
@@ -107,10 +102,6 @@ export function resolveSessionLimits(input: {
  *  seeds, its load arm, its tab count. Legal on the boot call only; a later call carrying one is refused
  *  (exit 3) instead of being silently overridden, because "I asked for 412 wide and measured 1280" is the
  *  P3 leak wearing a socket.
- *  NOT here: `--no-failure-evidence` — a session records no trace/HAR at all (the daemon forces it off at
- *  boot), so the flag names nothing a later call could change; refusing it would refuse every operator's
- *  habitual argv over a property sessions do not have.
- *
  *  THE ARM MEMBERS ARE DERIVED (`sessionLevelArmFlags()`, contract/arms.ts §3.3): an arm declares
  *  `level: "session"` beside its flags, so `--cascade` is in this set because its DevTools-SDK runtime is
  *  a persistent-profile LAUNCH property, and it says so once — in the arm — instead of here and there. */
@@ -133,10 +124,11 @@ export const SESSION_ONLY_FLAGS: ReadonlySet<string> = new Set([
   "--full-motion",
   "--theme",
   "--probe",
-  "--ls",
+  "--local-storage",
   "--vnc",
   "--debug-token",
   "--strict-console",
+  "--no-failure-evidence",
   "--pages",
   "--contexts",
   "--as",
@@ -179,10 +171,46 @@ export function stripSessionFlags(argv: readonly string[]): readonly string[] {
   return out;
 }
 
-/** The scenario's partition, verbatim (ops/scenario.ts `inheritScenarioSession` before #1231): a
- *  per-lifetime flag comes from the BOOT command, a per-capture flag from the call, the two `--ls` seed
- *  lists concatenate, and `out` falls back to the given name. */
-export function inheritSessionArgs(bootArgs: Args, call: Args, name: string): Args {
+/** The one browser-lifetime partition shared by scenarios and sessions. A per-lifetime value always
+ * comes from the boot command; a per-call value always comes from the call. Local-storage seeds are a
+ * launch property too: concatenating checkpoint seeds after the init script was installed claimed state
+ * the browser never received. */
+function inheritedCallFields(
+  bootArgs: Args,
+  call: Args,
+  inheritOuterCall: boolean,
+): Pick<Args, "diagnostics" | "actions" | "eval" | "watchMs" | "watchEveryMs" | "fullPage" | "shot" | "shotOf" | "mask" | "crop" | "deadCss"> {
+  if (!inheritOuterCall) {
+    return {
+      diagnostics: call.diagnostics,
+      actions: call.actions,
+      eval: call.eval,
+      watchMs: call.watchMs,
+      watchEveryMs: call.watchEveryMs,
+      fullPage: call.fullPage,
+      shot: call.shot,
+      shotOf: call.shotOf,
+      mask: call.mask,
+      crop: call.crop,
+      deadCss: call.deadCss,
+    };
+  }
+  return {
+    diagnostics: call.diagnostics ?? bootArgs.diagnostics,
+    actions: [...bootArgs.actions, ...call.actions],
+    eval: [...bootArgs.eval, ...call.eval],
+    watchMs: call.watchMs === 0 ? bootArgs.watchMs : call.watchMs,
+    watchEveryMs: call.watchMs === 0 ? bootArgs.watchEveryMs : call.watchEveryMs,
+    fullPage: bootArgs.fullPage || call.fullPage,
+    shot: bootArgs.shot && call.shot,
+    shotOf: call.shotOf ?? bootArgs.shotOf,
+    mask: [...bootArgs.mask, ...call.mask],
+    crop: call.crop ?? bootArgs.crop,
+    deadCss: bootArgs.deadCss && call.deadCss,
+  };
+}
+
+export function inheritSessionArgs(bootArgs: Args, call: Args, name: string, inheritOuterCall = false): Args {
   return {
     ...call,
     base: bootArgs.base,
@@ -194,6 +222,7 @@ export function inheritSessionArgs(bootArgs: Args, call: Args, name: string): Ar
     includeHidden: bootArgs.includeHidden || call.includeHidden,
     json: bootArgs.json,
     summary: bootArgs.summary || call.summary,
+    ...inheritedCallFields(bootArgs, call, inheritOuterCall),
     viewport: bootArgs.viewport,
     device: bootArgs.device,
     colorScheme: bootArgs.colorScheme,
@@ -206,19 +235,10 @@ export function inheritSessionArgs(bootArgs: Args, call: Args, name: string): Ar
     appearance: bootArgs.appearance,
     theme: bootArgs.theme,
     cascade: bootArgs.cascade,
+    reactProfile: bootArgs.reactProfile,
     probe: bootArgs.probe,
-    localStorage: [...bootArgs.localStorage, ...call.localStorage],
-    out: call.out ?? name,
-  };
-}
-
-/** The session-only second layer (see the header): the WHERE, the load arm and the tab count are the
- *  daemon's browser, so a call's nav budgets, its `throttle=` pair and its page count read the boot's. `json`
- *  is deliberately the CALL's: every session call is its own run, and a run decides its own manifest
- *  (the scenario's `json: global` is a per-RUN fact about one JSON-owned run). */
-export function inheritSessionBinding(bootArgs: Args, merged: Args, call: Args): Args {
-  return {
-    ...merged,
+    localStorage: [...bootArgs.localStorage],
+    scale: bootArgs.scale,
     isolated: bootArgs.isolated,
     ref: bootArgs.ref,
     dirty: bootArgs.dirty,
@@ -230,6 +250,17 @@ export function inheritSessionBinding(bootArgs: Args, merged: Args, call: Args):
     as: bootArgs.as,
     fixtureServer: bootArgs.fixtureServer,
     fixtureBase: bootArgs.fixtureBase,
+    out: call.out ?? name,
+  };
+}
+
+/** A stateful session call differs from a scenario checkpoint only in JSON ownership: every daemon call
+ * is its own run, while a scenario is one outer run. Browser-lifetime inheritance remains exclusively in
+ * `inheritSessionArgs`; this wrapper must never grow another boot-field list. */
+export function inheritSessionBinding(bootArgs: Args, merged: Args, call: Args): Args {
+  void bootArgs;
+  return {
+    ...merged,
     json: call.json,
   };
 }
@@ -237,9 +268,17 @@ export function inheritSessionBinding(bootArgs: Args, merged: Args, call: Args):
 /** The per-capture refusal rows a scenario checkpoint has always carried (ops/scenario.ts before #1231),
  *  judged on the INHERITED args for the mode rows and on the RAW parse for the shim rows. Shared with the
  *  session daemon so one table refuses the same combinations everywhere. */
-export function checkpointArgErrors(inherited: Args, raw: Args, label: string): readonly string[] {
+export function checkpointArgErrors(inherited: Args, label: string, rawArgv: readonly string[] = []): readonly string[] {
+  const misplacedBootFlags = sessionOnlyFlagsIn(rawArgv);
+  const stageAdminFlags = rawArgv.filter((token) =>
+    ["--stage-down", "--stage-status", "--stage-sweep", "--stage-owner", "--force"].includes(splitPageSuffix(token).flag),
+  );
   return (
     [
+      [
+        misplacedBootFlags.length > 0,
+        `scenario checkpoint args cannot set browser-lifetime flags (${misplacedBootFlags.join(" ")}); put them on the outer command`,
+      ],
       [inherited.pages > 1 || inherited.contexts > 1 || inherited.as !== null, "scenario checkpoints do not support --pages/--contexts/--as"],
       [inherited.watchMs > 0 || inherited.baseline || inherited.diff, "scenario checkpoints do not support --watch/--baseline/--diff"],
       [inherited.scenario !== null || inherited.matrix, "scenario checkpoints cannot nest --scenario/--matrix"],
@@ -247,15 +286,7 @@ export function checkpointArgErrors(inherited: Args, raw: Args, label: string): 
         inherited.lighthouse !== null || inherited.requests,
         "scenario checkpoints do not run the --lighthouse/--requests arms (this path drives its own session and would ignore them) — take those receipts in their own snap run",
       ],
-      [
-        inherited.isolated || inherited.stageDown || inherited.stageStatus,
-        "scenario checkpoint args cannot manage stages; put stage flags on the outer command",
-      ],
-      [
-        raw.appearance !== null,
-        "scenario checkpoints share ONE browser context, so the appearance shim is session-level; put --appearance/--appearance-preset/--full-motion on the outer command",
-      ],
-      [raw.theme !== null, "scenario checkpoints share ONE browser context, so the theme shim is session-level; put --theme on the outer command"],
+      [stageAdminFlags.length > 0, `scenario checkpoint args cannot manage stages (${stageAdminFlags.join(" ")}); put stage flags on the outer command`],
     ]
       // Each row is [invalid, message], so the tuple element type here is `boolean | string`; `=== true`
       // reads the boolean slot exactly and never the message.
@@ -269,7 +300,7 @@ export function checkpointArgErrors(inherited: Args, raw: Args, label: string): 
 export function identicalSeedsError(checkpoints: readonly Args[]): string | null {
   const firstSeeds = JSON.stringify(checkpoints[0]?.localStorage ?? []);
   return checkpoints.some((checkpoint) => JSON.stringify(checkpoint.localStorage) !== firstSeeds)
-    ? "scenario checkpoints must use identical --ls seeds because they share one browser lifetime"
+    ? "scenario checkpoints must use identical --local-storage seeds because they share one browser lifetime"
     : null;
 }
 
@@ -307,71 +338,6 @@ export function sessionSweepVerdict(input: { readonly live: boolean; readonly id
   return input.idleMs > input.ttlMs ? "idle" : "live";
 }
 
-// ── refusal texts (each names the remedy) ─────────────────────────────────────────────────────────────
-
-export function foreignSessionRefusal(row: SessionRow, nowMs: number): string {
-  return (
-    `SESSION REFUSED  ${row.name} is owned by ANOTHER checkout — ${row.ownerCheckout} (daemon pid ${row.daemonPid}, ` +
-    `last used ${describeStageAgePhrase(row.lastUsedAt, nowMs)}). A session's browser is private to its lane (F4): wait for it, ` +
-    "boot your own under a different name, or tear theirs down deliberately with `pnpm snap --session-close " +
-    `${row.name} --force\` (it kills THEIR run) — tooling/src/snap/lib/session-plan.ts.`
-  );
-}
-
-export function sessionCapRefusal(name: string, live: readonly SessionRow[], cap: number, nowMs: number): string {
-  const rows = live.map(
-    (row) => `  ${row.name}  owner ${row.ownerCheckout} · pid ${row.daemonPid} · last used ${describeStageAgePhrase(row.lastUsedAt, nowMs)}`,
-  );
-  return [
-    `SESSION REFUSED  cannot boot ${name}: ${live.length} session(s) are live and the cap is ${cap} (ORB_SESSION_CAP) — nothing was measured.`,
-    ...rows,
-    "  Close one you own (`pnpm snap --session-close <name>`), reap the idle/dead ones (`pnpm snap --session-sweep`), or wait —",
-    "  tooling/src/snap/lib/session-plan.ts.",
-  ].join("\n");
-}
-
-/** `12s` under a minute, `3m` past it — the age of an in-flight op for the busy line. */
-function describeOpAge(ageMs: number): string {
-  const minutes = Math.round(ageMs / MS_PER_MINUTE);
-  return minutes === 0 ? `${Math.round(ageMs / MS_PER_SECOND)}s` : `${minutes}m`;
-}
-
-export function sessionBusyRefusal(name: string, op: string, ageMs: number): string {
-  return (
-    `SESSION BUSY  ${name} is mid-\`${op}\` (${describeOpAge(ageMs)} in) — ` +
-    "one request at a time per session: two callers driving one page is the shared-tab defect wearing a socket. Wait for it or use another name — tooling/src/snap/lib/session-plan.ts."
-  );
-}
-
-export function sessionStageDeadRefusal(name: string, stage: SessionStageState): string {
-  return [
-    `STAGE DEAD     session ${name}'s band ${stage.band} died at ${stage.detectedAt ?? "an unknown time"} during \`${stage.op ?? "unknown op"}\` — nothing was measured.`,
-    `               remedies: \`pnpm snap --stage-sweep\` frees the dead band; close and reboot the session with \`pnpm snap --session-close ${name}\` then \`pnpm snap --session ${name} …\` — tooling/src/snap/lib/session-plan.ts`,
-  ].join("\n");
-}
-
-/** The loud marker (§3.8). The row is the evidence: the daemon cannot stamp its own death, so the last
- *  call boundary is the last time it was known alive, and the in-flight op (if any) is what it died in. */
-export function sessionDeadText(row: SessionRow, detail: string): string {
-  const mid = row.inflightOp === null ? `idle since ${row.lastUsedAt} (last op ${row.lastOp ?? "none"})` : `mid-\`${row.inflightOp}\``;
-  return [
-    `SESSION DEAD   ${row.name} died ${mid} (daemon pid ${row.daemonPid} gone; ${detail})`,
-    `               remedies: \`pnpm snap --session-sweep\` reaps the browser group + clears the marker; re-run \`--session ${row.name} …\` to reboot — tooling/src/snap/lib/session-plan.ts`,
-  ].join("\n");
-}
-
-export function neverNavigatedRefusal(name: string): string {
-  return `ARG ERROR    session ${name} has never navigated — a call with no route and no --file drives the LIVE page, and there is none yet; name a route (or --file <html>) on this call`;
-}
-
-export function cascadeNotBootedRefusal(name: string): string {
-  return `ARG ERROR    --cascade needs the DevTools-SDK runtime, which is a launch property: session ${name} booted without it — close it and reboot with --cascade on the first call`;
-}
-
-export function sessionOnlyFlagsRefusal(name: string, flags: readonly string[]): string {
-  return `ARG ERROR    ${flags.join(" ")} name(s) a property of the session's browser lifetime and only the boot call may set it; session ${name} is already up — close it (\`pnpm snap --session-close ${name}\`) and reboot with the flag, or drop it`;
-}
-
 // ── the live-page target ─────────────────────────────────────────────────────────────────────────────
 // (the wire readers — request/row/event lines, RESULT pairs — are ./session-wire.ts's)
 
@@ -406,8 +372,8 @@ export function sessionModeValidationPairs(args: Args, contextsMode: boolean): r
     [args.session !== null && args.sessionDaemon !== null, "--session-daemon is the daemon's own entry and does not combine with --session"],
     [args.sessionTtlMin !== null && !driving, "--session-ttl <min> is a boot property of --session <name>"],
     [
-      driving && (args.scenario !== null || contextsMode),
-      "--session does not combine with --scenario/--contexts/--as: scenarios and explicit multi-user contexts own a live page sequence; --matrix opens its own disposable contexts in the session browser",
+      driving && (contextsMode || (args.scenario !== null && !args.matrix)),
+      "--session does not combine with --scenario alone or --contexts/--as: a matrix scenario opens each cell in its own disposable session-browser context",
     ],
     // `--session` + `--lighthouse` WAS REFUSED HERE, and the refusal is DELETED (#1259, phase 3). It was
     // never a taste call: the two features wrote `--remote-debugging-port` onto one browser by

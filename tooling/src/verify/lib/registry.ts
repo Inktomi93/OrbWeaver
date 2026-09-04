@@ -45,7 +45,9 @@ const GATING_STAGES: readonly StageDef[] = [
     argv: ["pnpm", "lint"],
     classify: asViolations,
     scopedArgv: (sel) =>
-      sel.paths.length === 0 ? "skip-empty" : ["biome", "check", "--diagnostic-level=error", "--reporter=concise", "--no-errors-on-unmatched", ...sel.paths],
+      sel.existingPaths.length === 0
+        ? "skip-empty"
+        : ["biome", "check", "--diagnostic-level=error", "--reporter=concise", "--no-errors-on-unmatched", ...sel.existingPaths],
   },
   {
     name: "lint:eslint",

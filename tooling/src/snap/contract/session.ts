@@ -5,14 +5,34 @@
 // lib/session-plan.ts, so the daemon and the client parse ONE grammar.
 import type { Viewport } from "../../_shared/argv.ts";
 import type { ProbeAttachOptions } from "../../_shared/browser-contract.ts";
+import type { OrbConsoleCompletenessSummary } from "../../_shared/browser-diagnostics.ts";
+import type { SnapRunFactBatch } from "./run-facts.ts";
 
 export const SESSION_PROTOCOL_VERSION = 1;
 
 /** What a session is bound to. Phase 1 binds a base URL, a local file, or today's single stage through
  *  the unchanged `ensureStage`; per-lane bands are phase 2 (§3.6). */
-interface SessionBinding {
+export interface SessionBinding {
   readonly kind: "base" | "file" | "stage";
   readonly url: string;
+}
+
+/** The exact session evidence interval an adopted client run belongs to. The daemon owns these counters
+ * and sends this snapshot on the typed done event; the client never reconstructs it from prose. */
+export interface SessionRunProvenance {
+  readonly name: string;
+  readonly call: number;
+  readonly evidenceWindow: number;
+  readonly binding: SessionBinding;
+  /** Optional only for protocol-v1 daemons predating full run-index provenance. Current daemons emit it. */
+  readonly stage?: {
+    readonly state: "bound" | "not-applicable" | "unavailable";
+    readonly ownerCheckout: string | null;
+    readonly band: number | null;
+    readonly ref: string | null;
+    readonly binding: SessionBinding;
+    readonly failure: string | null;
+  };
 }
 
 /** The browser environment the daemon launched with — what `attachProbeSession` DECLARES so an attached
@@ -22,6 +42,8 @@ interface SessionEnvironment {
   readonly device: string | null;
   readonly colorScheme: "light" | "dark" | null;
   readonly reducedMotion: boolean;
+  readonly contrast: "more" | "no-preference" | null;
+  readonly reducedTransparency: boolean;
   readonly deviceScaleFactor: number | null;
 }
 
@@ -30,6 +52,10 @@ export interface SessionStageState {
   readonly status: "live" | "dead";
   readonly detectedAt: string | null;
   readonly op: string | null;
+  /** Current rows retain the exact StageRow identity; optional only for protocol-v1 rows already on disk. */
+  readonly ownerCheckout?: string;
+  readonly ref?: string;
+  readonly binding?: SessionBinding;
 }
 
 /** `<main>/.cache/snap-session/<name>.json` — everything a caller on ANY checkout needs to find, judge
@@ -42,7 +68,7 @@ export interface SessionRow {
   /** The repo root the booting checkout ran from — the OWNER (F4: a foreign caller is refused). */
   readonly ownerCheckout: string;
   readonly daemonPid: number;
-  /** = the daemon pid: `spawnNicedChild` is `detached`, so the daemon leads its own process group and
+  /** = the daemon pid: `spawnFullPriorityChild` is `detached`, so the daemon leads its own process group and
    *  this is what `--session-sweep`/`--session-close` signal to take the browser tree with it. */
   readonly pgid: number;
   readonly socket: string;
@@ -88,6 +114,9 @@ export interface SessionRequest {
   readonly boot: boolean;
   /** `--session-close --force` from a foreign checkout (the #447 teardown-consent rule). */
   readonly force: boolean;
+  /** Explicit export destination from `--session-export <name> --out <base>`; null for every other
+   * request. It crosses the typed boundary rather than being rediscovered from daemon process argv. */
+  readonly exportOut: string | null;
 }
 
 export interface SessionPageInfo {
@@ -110,7 +139,17 @@ export type SessionEvent =
       readonly busy: string | null;
       readonly idleMs: number;
     }
-  | { readonly kind: "done"; readonly exit: number; readonly pairs: readonly (readonly [string, string])[] };
+  | {
+      readonly kind: "done";
+      readonly exit: number;
+      readonly pairs: readonly (readonly [string, string])[];
+      /** Typed machine facts; present on rendered calls, absent on administrative protocol events. */
+      readonly facts?: readonly SnapRunFactBatch[];
+      /** Present only for a rendered call. Administrative events never invent a diagnostic population. */
+      readonly diagnosticCompleteness?: OrbConsoleCompletenessSummary;
+      /** Present for rendered calls and exports whose artifacts are adopted into the client's run slot. */
+      readonly sessionProvenance?: SessionRunProvenance;
+    };
 
 /** How the CALLING checkout may use a session (§3.5's table): `absent` — no row, boot it; `ours` — live
  *  and owned by this checkout, drive it; `refuse` — live and owned by ANOTHER checkout (F4: name the
@@ -143,6 +182,12 @@ export interface SessionAttachTarget {
   readonly endpoint: string;
   readonly environment: ProbeAttachOptions;
   readonly row: SessionRow;
+  readonly lease: SessionAttachLease;
+}
+
+export interface SessionAttachLease {
+  /** Stop heartbeating and throw if the daemon stopped acknowledging the attach while it was live. */
+  readonly close: () => Promise<void>;
 }
 
 export interface SessionAttachRefusal {

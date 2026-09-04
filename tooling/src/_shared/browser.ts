@@ -7,9 +7,9 @@
 import process from "node:process";
 import type { Browser, BrowserContext, devices, Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
-import type { CapturedConsole, CapturedRequest, PageCapture } from "./browser-capture.ts";
-import { wireProbePage } from "./browser-capture.ts";
-import { buildProbeContext, resolveDeviceDescriptor } from "./browser-context.ts";
+import { browserArgsWithAcceleration } from "./browser-acceleration.ts";
+import { createPageCapture, watchProbeContextPages } from "./browser-capture.ts";
+import { buildProbeContext, probeContext, probeSession, resolveDeviceDescriptor } from "./browser-context.ts";
 import type { ProbeAttachOptions, ProbeContext, ProbeLaunchOptions, ProbeSession } from "./browser-contract.ts";
 import { resolveBrowserEnvironmentContract } from "./browser-environment.ts";
 import { resolveProbeMedia } from "./browser-media.ts";
@@ -47,21 +47,19 @@ interface LaunchedBrowser {
 }
 
 async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (typeof devices)[string] | null): Promise<LaunchedBrowser> {
-  const browserArgs = opts.browserArgs === undefined ? undefined : [...opts.browserArgs];
+  const browserArgs = browserArgsWithAcceleration(opts.browserArgs);
   if (opts.persistentProfileDir === undefined) {
-    return { browser: await chromium.launch({ headless: opts.headless, ...(browserArgs === undefined ? {} : { args: browserArgs }) }) };
+    return { browser: await chromium.launch({ headless: opts.headless, args: browserArgs }) };
   }
   const sizing = {
     ...(deviceDescriptor ?? { viewport: opts.viewport }),
     ...(opts.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: opts.deviceScaleFactor }),
   };
-  const harPath = opts.harPathPrefix === undefined ? null : `${opts.harPathPrefix}.har`;
   const persistentContext = await chromium.launchPersistentContext(opts.persistentProfileDir, {
     ...sizing,
     headless: opts.headless,
-    ...(browserArgs === undefined ? {} : { args: browserArgs }),
+    args: browserArgs,
     ...(opts.recordVideoDir === undefined ? {} : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
-    ...(harPath === null ? {} : { recordHar: { path: harPath, content: "omit" as const, mode: "full" as const } }),
   });
   const browser = persistentContext.browser();
   if (browser === null) {
@@ -103,20 +101,11 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
   } catch (error) {
     await closeProbeSessionAfterError({ browser, contexts: ownedContexts }, error);
   }
-  const first = contexts[0] as ProbeContext;
-
-  return {
-    browser,
-    context: first.context,
-    page: first.pages[0] as Page,
-    pages: first.pages,
-    consoleLines: first.consoleLines,
-    consoleMessages: first.consoleMessages,
-    pageErrors: first.pageErrors,
-    requests: first.requests,
-    environmentContract: first.environmentContract,
-    contexts,
-  };
+  const first = contexts[0];
+  if (first === undefined) {
+    return await closeProbeSessionAfterError({ browser, contexts: ownedContexts }, new Error("browser launch produced no probe context"));
+  }
+  return probeSession(browser, first, contexts);
 }
 
 /** ATTACH to a browser another connection owns — a stateful-session daemon's, over its debugging endpoint
@@ -132,79 +121,86 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
  *  attached browser, so `newContext({ recordVideo })` is legal. This context is `owned: true` — WE created
  *  it over an attached connection nobody else knows about, so `closeProbeSession` closing it (which flushes
  *  the video) is correct, unlike the owner's live context, which a disconnect must never touch. */
-async function attachRecordedContext(browser: Browser, environment: ProbeAttachOptions): Promise<ProbeSession> {
+async function attachRecordedContext(
+  browser: Browser,
+  ownerContext: BrowserContext,
+  environment: ProbeAttachOptions,
+  ownedContexts: { readonly context: BrowserContext }[],
+): Promise<ProbeSession> {
   const deviceDescriptor = resolveDeviceDescriptor(environment);
   const environmentContract = resolveBrowserEnvironmentContract(environment, deviceDescriptor);
   const sizing = {
     ...(deviceDescriptor ?? { viewport: environment.viewport }),
     ...(environment.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: environment.deviceScaleFactor }),
   };
+  // The attached browser is the existing authorization boundary. Clone its live, memory-only storage
+  // state into the recording context so cookies and boot localStorage seeds (debug token/probe mode and
+  // generic --local-storage) survive without serializing credentials into SessionRow or inventing a
+  // second auth channel. The state never crosses the process wire or artifact boundary.
+  const storageState = await ownerContext.storageState();
   const context = await browser.newContext({
     ...sizing,
+    storageState,
     ...(environment.recordVideoDir === undefined ? {} : { recordVideo: { dir: environment.recordVideoDir, size: environment.viewport } }),
   });
+  ownedContexts.push({ context });
   const page = await context.newPage();
-  const consoleLines: string[] = [];
-  const consoleMessages: CapturedConsole[] = [];
-  const pageErrors: string[] = [];
-  const requests = new Map<string, CapturedRequest>();
-  const capture: PageCapture = { media: resolveProbeMedia(environment), consoleLines, consoleMessages, pageErrors, requests };
-  await wireProbePage(page, capture);
-  const attached: ProbeContext = {
+  const capture = createPageCapture(resolveProbeMedia(environment), 0, environment.evidenceLimits);
+  const pages = [page];
+  const wirePage = watchProbeContextPages(context, capture, pages);
+  await wirePage(page);
+  const attached = probeContext({
     context,
-    pages: [page],
-    consoleLines,
-    consoleMessages,
-    pageErrors,
-    requests,
-    harPath: null,
+    pages,
+    capture,
     settingsEvidence: { appearanceApplied: null, themeApplied: null, themeResolution: null, themeCatalog: null },
     environmentContract,
     owned: true,
-  };
-  return { browser, context, page, pages: [page], consoleLines, consoleMessages, pageErrors, requests, environmentContract, contexts: [attached] };
+  });
+  return probeSession(browser, attached, [attached]);
 }
 
 export async function attachProbeSession(endpoint: string, environment: ProbeAttachOptions): Promise<ProbeSession> {
   const browser = await chromium.connectOverCDP(endpoint);
-  // `record` cannot reuse the session's live page: Playwright only records video from a context created
-  // WITH `recordVideo` set, and that option is fixed at `newContext()` time — it cannot be bolted onto the
-  // owner's existing context after the fact. So a `recordVideoDir` attach opens its OWN new context on the
-  // attached browser (§5's "record is not like the others") instead of joining `browser.contexts()[0]`.
-  if (environment.recordVideoDir !== undefined) {
-    return await attachRecordedContext(browser, environment);
+  const ownedContexts: { readonly context: BrowserContext }[] = [];
+  try {
+    const ownerContext = browser.contexts()[0];
+    if (ownerContext === undefined) {
+      throw new Error(`attached browser at ${endpoint} exposes no context — the session has not booted yet`);
+    }
+    // `record` cannot reuse the session's live page: Playwright only records video from a context created
+    // WITH `recordVideo` set, and that option is fixed at `newContext()` time — it cannot be bolted onto the
+    // owner's existing context after the fact. So a `recordVideoDir` attach opens its OWN new context on the
+    // attached browser (§5's "record is not like the others") instead of joining `browser.contexts()[0]`.
+    if (environment.recordVideoDir !== undefined) {
+      return await attachRecordedContext(browser, ownerContext, environment, ownedContexts);
+    }
+    const context = ownerContext;
+    const pages = context.pages();
+    const page = pages[0];
+    if (page === undefined) {
+      throw new Error(`attached browser at ${endpoint} exposes no page — the session has not booted a context yet`);
+    }
+    const deviceDescriptor = resolveDeviceDescriptor(environment);
+    const environmentContract = resolveBrowserEnvironmentContract(environment, deviceDescriptor);
+    const capture = createPageCapture(resolveProbeMedia(environment), 0, environment.evidenceLimits);
+    const wirePage = watchProbeContextPages(context, capture, pages, "observe");
+    for (const tab of pages) {
+      await wirePage(tab);
+    }
+    const attached = probeContext({
+      context,
+      pages,
+      capture,
+      // No shim was asked of THIS connection — the owner's is the one that applies (null = unrequested).
+      settingsEvidence: { appearanceApplied: null, themeApplied: null, themeResolution: null, themeCatalog: null },
+      environmentContract,
+      owned: false,
+    });
+    return probeSession(browser, attached, [attached]);
+  } catch (error) {
+    return await closeProbeSessionAfterError({ browser, contexts: ownedContexts }, error);
   }
-  const context = browser.contexts()[0];
-  const pages = context?.pages() ?? [];
-  const page = pages[0];
-  if (context === undefined || page === undefined) {
-    await browser.close();
-    throw new Error(`attached browser at ${endpoint} exposes no page — the session has not booted a context yet`);
-  }
-  const deviceDescriptor = resolveDeviceDescriptor(environment);
-  const environmentContract = resolveBrowserEnvironmentContract(environment, deviceDescriptor);
-  const consoleLines: string[] = [];
-  const consoleMessages: CapturedConsole[] = [];
-  const pageErrors: string[] = [];
-  const requests = new Map<string, CapturedRequest>();
-  const capture: PageCapture = { media: resolveProbeMedia(environment), consoleLines, consoleMessages, pageErrors, requests };
-  for (const tab of pages) {
-    await wireProbePage(tab, capture, "observe");
-  }
-  const attached: ProbeContext = {
-    context,
-    pages,
-    consoleLines,
-    consoleMessages,
-    pageErrors,
-    requests,
-    harPath: null,
-    // No shim was asked of THIS connection — the owner's is the one that applies (null = unrequested).
-    settingsEvidence: { appearanceApplied: null, themeApplied: null, themeResolution: null, themeCatalog: null },
-    environmentContract,
-    owned: false,
-  };
-  return { browser, context, page, pages, consoleLines, consoleMessages, pageErrors, requests, environmentContract, contexts: [attached] };
 }
 
 /** Close every OWNED context and the browser even when the probe body throws or returns early. An attached

@@ -31,11 +31,12 @@ vi.setConfig({ testTimeout: RUN_TIMEOUT_MS, hookTimeout: RUN_TIMEOUT_MS });
 
 /** The stub account: reduced motion ON and comfortable density, exactly the shape the owner's row has. */
 const STORED = { reducedMotion: true, density: "comfortable", blurSurfaces: ["panels", "composer", "modals"] };
+const EMPTY_ORB_CONSOLE = "<script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128})};</script>";
 
 // The page reads the SAME batched GET the app's httpBatchLink sends (two procedures, settings SECOND — so a
 // shim that patched element 0 would fail this), then stamps what it read onto <html>. data-app-ready is set
 // so snap's readiness wait resolves immediately.
-const PAGE_HTML = `<!doctype html><html><body><main>stub</main><script>
+const PAGE_HTML = `<!doctype html><html><body><main>stub</main>${EMPTY_ORB_CONSOLE}<script>
 fetch("/api/trpc/persona.list,settings.getUserSettings?batch=1&input=%7B%7D")
   .then((r) => r.json())
   .then((body) => {
@@ -46,7 +47,7 @@ fetch("/api/trpc/persona.list,settings.getUserSettings?batch=1&input=%7B%7D")
     document.documentElement.setAttribute("data-app-ready", "");
   });
 </script></body></html>`;
-const NO_SETTINGS_HTML = "<!doctype html><html data-app-ready><body><main>no settings request</main></body></html>";
+const NO_SETTINGS_HTML = `<!doctype html><html data-app-ready><body><main>no settings request</main>${EMPTY_ORB_CONSOLE}</body></html>`;
 
 let server: Server;
 let base = "";

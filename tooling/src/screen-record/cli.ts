@@ -1,41 +1,18 @@
-// record — the animation-responsiveness screencast probe. Argv parse + dispatch ONLY (the five-slot
-// cap); the programmatic surface is ./index.ts.
-//
-// Records a headless chromium video of a scripted interaction tape against the running dev stack
-// (`pnpm stack start` first), then renders with ffmpeg: <out>.webm always; <out>.gif (20fps,
-// palette-optimized); <out>-click<i>.png 6-tile × 120ms strips around each click (count tiles from the
-// corner-marker flip to first motion — 1 tile = 120ms); with --frames, one full-res PNG per step.
-// No ffmpeg → the webm still lands and the render legs SKIP with a reason (skip ≠ fail).
-//
-// Exit: 0 recorded · 1 step failure / page error · EXIT.misuse on a bad CLI (promotion refinement:
-// record was the fleet's last lenient parser).
+// Loud compatibility door for the retired Record CLI; Snap filmstrip owns transition capture.
 import process from "node:process";
-import { withInstrumentRun } from "../_shared/artifact-out.ts";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
-import { configureRecordStage, parseRecordArgs, RECORD_HELP, runScreenRecord } from "./index.ts";
+import { recordRetirement } from "./index.ts";
 
-async function main(): Promise<number> {
-  const opts = parseRecordArgs(process.argv.slice(2));
-  if (opts.errors.length > 0) {
-    for (const message of opts.errors) {
-      print(`ARG ERROR    ${message}`);
-    }
-    print("");
-    print(RECORD_HELP);
-    return EXIT.misuse;
+export function main(argv: readonly string[]): number {
+  const result = recordRetirement(argv);
+  print("RECORD RETIRED  transition capture is Snap's filmstrip arm; no browser or run slot was opened.");
+  for (const error of result.errors) {
+    print(`ARG ERROR    ${error}`);
   }
-  if (opts.help) {
-    print(RECORD_HELP);
-    return 0;
-  }
-  const stageExit = configureRecordStage(opts);
-  if (stageExit !== null) {
-    return stageExit;
-  }
-  // The run's own artifact slot; the webm/gif/strips publish as `reports/recordings/…` pointers (#1164).
-  return await withInstrumentRun("screen-record", async () => await runScreenRecord(opts));
+  print(`USE             ${result.recipe}`);
+  return EXIT.misuse;
 }
 
-await runTool(main);
+await runTool(() => Promise.resolve(main(process.argv.slice(2))));

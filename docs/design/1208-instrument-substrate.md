@@ -1,12 +1,18 @@
 ---
 kind: design
 status: active
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 
 # 1208 — the instrument substrate: stateful sessions, per-lane stages, one grammar, arms
 
 > **Status: implemented, final whole-tree verification in progress (owner-directed 2026-09-02, #1208).** Phases 0–3 landed through #1277; the final reconciliation folded #1282, #1287, #1289 and #1290, then completed the remaining F7/F10/T4/T17 and CT run-slot obligations in this document. The accepted seed is a STATEFUL snap (`pnpm snap --session <lane> …`), widened into the substrate every rendered instrument and every browser-driving agent goes through. Every boundary below names its enforcer; a prose-only boundary is a wish. Forks F1–F4 were ruled by the owner on 2026-09-02 (§12.1); the timeout/load policy (§7.1) is an owner addition of the same day.
+>
+> **Current transition-capture ruling (#1310, 2026-09-03):** Snap's `--filmstrip` run arm owns the
+> existing exact page from before its argv action tape through bounded settle and emits one labelled PNG
+> contact sheet plus typed facts/artifact scope. The former Record parser/browser/WebM/GIF path is deleted;
+> `pnpm record` only prints the equivalent Snap recipe and exits misuse. Historical inventories below
+> retain the pre-unification paths as dated evidence, not current executable topology.
 
 ## 1. Pain-point inventory (receipts)
 
@@ -117,7 +123,7 @@ lane shell ── pnpm snap --session p-x <route> --eval … ──► session-c
 
 | Level | Flags | Set when |
 | - | - | - |
-| session (boot only; a later call carrying one REFUSES, exit 3) | `--base` / `--isolated` / `--ref` / `--dirty` / `--fresh` (WHERE) · `--viewport` / `--wide` / `--mobile` / `--desktop` / `--scale` · `--dark` / `--light` / `--reduced-motion` · `--appearance*` / `--full-motion` / `--theme` · `--cascade` (needs the debugging-port launch) · `--probe` · `--ls` · `--vnc` · `--debug-token` · `--no-failure-evidence` · `--strict-console` · `--session-ttl <min>` · `--contexts N` / `--as` (the fixture sidecar) | `--session <name>` first call |
+| session (boot only; a later call carrying one REFUSES, exit 3) | `--base` / `--isolated` / `--ref` / `--dirty` / `--fresh` (WHERE) · `--viewport` / `--wide` / `--mobile` / `--desktop` / `--scale` · `--dark` / `--light` / `--reduced-motion` · `--appearance*` / `--full-motion` / `--theme` · `--cascade` (needs the debugging-port launch) · `--probe` · `--local-storage` · `--vnc` · `--debug-token` · `--no-failure-evidence` · `--strict-console` · `--session-ttl <min>` · `--contexts N` / `--as` (the fixture sidecar) | `--session <name>` first call |
 | call | route (optional — absent = the live page) · the argv-ordered action queue · `--eval` · `--text`/`--aria`/`--map`/`--contrast`/`--expect-*` · `--shot-of`/`--crop`/`--mask`/`--full`/`--no-shot` · `--out`/`--json` · `--watch`/`--every` · `--checkpoint` · every arm (§6) | every call |
 | admin | `--session-status [name]` · `--session-close <name>` · `--session-sweep` · `--session-export <name>` | any checkout; foreign LIVE sessions need `--force` (the #447 teardown-consent rule, `stage-plan.ts:232-242`, applied to sessions) |
 
@@ -218,10 +224,10 @@ The CT runner keeps its own Playwright browser and worker pool (`playwright-ct.c
 | environment | `--viewport/--wide/--mobile/--desktop`, `--scale`, `--dark/--light`, `--reduced-motion` | `--viewport/--mobile/--desktop` | `--viewport/--mobile/--desktop`, `--os-reduced-motion/--os-full-motion` | `--viewport` | `--viewport` |
 | app settings | `--appearance*/--full-motion`, `--theme`, `--panels` | same | same | same | none |
 | nav | 6 verbs (`_shared/nav.ts`) | same | same | same (`NAV_FLAG_METHOD`) | none |
-| steps | `--click/--jsclick/--press/--hover/--fill/--key/--wait-for/--upload` | `--click/--upload` | `--click` (reach) + `--selector` (measured) | `--click/--jsclick/--hover/--fill/--wheel/--wheelburst/--pause` | `--click/--jsclick/--hover/--fill/--wheel/--pause` |
-| settle | `--wait <selector>`, `--sse <s>`, `--idle` | `--wait <ms>` | `--window <ms>` | `--settle <ms>` | `--settle <ms>` |
+| steps | `--click/--dom-click/--force-click/--hover/--fill/--key/--wait-for/--upload` | `--click/--upload` | `--click` (reach) + `--selector` (measured) | `--click/--dom-click/--hover/--fill/--wheel/--wheel-burst/--pause` | `--click/--dom-click/--hover/--fill/--wheel/--pause` |
+| settle | `--wait <selector>`, `--stream-settle <s>`, `--idle` | `--wait <ms>` | `--window <ms>` | `--settle <ms>` | `--settle <ms>` |
 | load | `--cpu-throttle`, `--network` | none | `--no-throttle` (4× default) | none | none |
-| evidence | `--text/--aria/--map/--eval/--contrast/--cascade/--expect-*/--json/--summary` | `--fail-on`, JSON always | RESULT + JSON | table + JSON, `--cpuprofile`, `--cycles` | webm/gif/strips, `--frames` |
+| evidence | `--text/--aria/--map/--eval/--contrast/--cascade/--expect-*/--json/--scenario-summary` | `--fail-on`, JSON always | RESULT + JSON | table + JSON, `--cpuprofile`, `--perf-cycles` | webm/gif/strips, `--frames` |
 | artifact | `--out` (base or path) | `--out` | (route-derived) | `--out` (default `perf-meter`) | `--out` (default `recording`) |
 | stage admin | `--stage-status/--stage-down/--stage-sweep/--force` | none by design | none | none | none |
 | matrix | `--matrix` (16-cell) | `--matrix` (13-cell) | `--matrix` (6-cell) | none | none |
@@ -342,7 +348,7 @@ A new arm lands as ONE file `snap/ops/arms/<arm>.ts` + one tuple member; its fla
 | stage | server node + vite (full priority by census) + a worktree with `pnpm install --prefer-offline` (shared store) + a dev-db copy; cold boot \~55 s+ (`stack.sh:104-108`), install once per sha | `ORB_STAGE_CAP` default 3; bands 0..9 are the hard range; lazy reap-on-acquire before refusal |
 | attached sibling run | its own niced node (today's cost) — no extra browser | inherits the session cap |
 | TTLs | session idle 30 min · stage idle 60 min (fork F5) | reset by any substrate request |
-| drain (orchestrator) | at fold: `--session-close <lane>` + `--stage-down --owner <checkout>`; at a train: `--session-sweep` + `--stage-sweep`; the survivors line is honest after §3.6's fix | replaces "`--stage-down --force` from main" |
+| drain (orchestrator) | at fold: `--session-close <lane>` + `--stage-down --stage-owner <checkout>`; at a train: `--session-sweep` + `--stage-sweep`; the survivors line is honest after §3.6's fix | replaces "`--stage-down --force` from main" |
 | nice | daemons via `spawnNicedChild`; browsers inherit; the stage stack stays the one full-priority exception | `tooling-shared-plumbing` arms F/F2 |
 | contention receipts | today: 5 drivers in one hour on 09-02 with ONE band; with 3 bands the same hour needs no refusal | `--stage-status` prints bands used / free / stranded |
 
@@ -481,7 +487,7 @@ Written BEFORE the first edit, per the forge contract. Every §10 row above was 
 | ownership / cap / TTL | F4: the DAEMON judges `request.checkout`; the client pre-checks the row. Cap: rows whose pid is live, box-wide across checkouts, checked by the client before spawning and re-checked by the daemon at boot. TTL: a daemon timer reset by `call`/`ping`, never by `status`; unscaled (IDLE class, §7.1) | — |
 | busy | `call`/`close`/`export` serialize; `status`/`ping` always answer (read-only, no page drive) | refusing `status` while busy (the cap/status reads would block on one lane's long call) |
 | close / sweep | `close`: a live daemon finishes the in-flight call, then `finishSession` → row + socket removed → session slot finished; a dead one is reaped (group kill by pgid, socket/row removed, marker settled). Sweep: dead → reap; live idle > TTL → reap; live under TTL → report; orphan sockets/rows/abandoned slots reconciled | — |
-| export | the client's slot receives `sessions/<name>/{session,console,page-errors,requests}.json` → pointers `reports/sessions/<name>/…`. A session records NO Playwright trace/HAR (`failureEvidence` forced off at boot, printed once): a per-call trace stop would end the session's tracing — phase 3's ring widening owns session-lifetime evidence | — |
+| export | **Historical phase-1 shape, now superseded:** the client's slot received the four diagnostic rings and phase 1 deferred trace/HAR because a per-call stop would end a live session's tracing. The active session-evidence lane closes that deferral at the session lifetime and exports the retained trace/HAR into a call slot without closing the owner. Its implementation and behavioral receipt are the authority for exact artifact names; this historical row deliberately does not mint a second filename contract. | stopping trace/HAR per call (ends the live session's evidence); leaving the deferral open (an export that omits the browser-lifetime evidence is incomplete) |
 | phase-1 refusals | `--session` with `--matrix`/`--scenario`/`--contexts`/`--as` (F10: phase 3); `--cascade` on a later call (boot-level runtime); `--session-daemon` is internal (help says so) | — |
 | gate arm H | `<engine>.connectOverCDP(` AND `<engine>.connect(` (Playwright's websocket attach, the §9-refused alternative) outside `_shared/browser.ts`, within the gate's `tooling/src/` scan; puppeteer's `connect` is phase 3's call | widening the scan to `tests/` (test-owned browsers are out of the substrate by §2.1) |
 | budgets | `SESSION_BOOT_TIMEOUT_MS` (240 s — the launcher's own readiness ceiling) + the ready poll live in `lib/session-plan.ts` as BASES; no per-call ceiling in phase 1 — 1b wraps them in `budget()` (§7.1) | minting a budget in `snap/lib/budgets.ts` (1b's file) |
@@ -547,7 +553,7 @@ attach half of §3.4 and rides phase 3's endpoint work (lane p-arms-registry hol
 `ops/lighthouse.ts` and `_shared/debugging-endpoint.ts`). `#1162` (launcher survivors) and `#1186` (`--base`
 fencing) were already CLOSED; #1186's mechanism is preserved and widened from one hardcoded pair to the whole
 range (`stageBandClaim` now takes the row set and keys off `stageBandForPort`). Fork F7's
-`--stage-down --owner <checkout>` is NOT built: the owned-rows default plus `--force` covers the ruled
+`--stage-down --stage-owner <checkout>` is NOT built: the owned-rows default plus `--force` covers the ruled
 behaviour, and a third selector with no caller would be speculative — if the orchestrator wants per-band
 selection at drain, it is a small follow-on.
 
@@ -626,7 +632,7 @@ than treated as completion evidence. That audit found and closed six remaining s
 session-cap check now reserves a boot slot atomically; stage-table heartbeats use a lock plus atomic rename;
 a vanished half of a stage pair stamps both registries DEAD and the next call refuses (T4); a session call
 has a per-call watchdog that preserves the next call (T17); foreign teardown is owner-targeted per band
-(`--stage-down --owner <checkout> --force`, F7); and CT opens exactly one invocation slot whose reporter
+(`--stage-down --stage-owner <checkout> --force`, F7); and CT opens exactly one invocation slot whose reporter
 publishes the final marker and screenshots.
 
 F10 is the session path, not a parse-only permission: discovery uses the daemon's context and every rated
@@ -637,14 +643,733 @@ device/media/settings contract and capture rings, closes after its cell, and lea
 The five rendered tools now expose the total grammar families in §4: `--help|-h`; the WHERE flags
 `--base|--isolated|--ref|--dirty|--fresh|--session`; the environment flags
 `--viewport|--wide|--mobile|--desktop|--dark|--light|--reduced-motion`; and the artifact flags
-`--out|--json`. Motion's retired OS spellings and design-audit's old `--wait` spelling refuse by name with
-the replacement; there are no aliases. The proposed browser-MCP string gate is deliberately absent per
-the #1279 owner ruling recorded in `1195-devtools-mcp-retirement.md`.
+`--out|--json`. The three family tables are consumed by every parser through a planted roster control, so
+adding a family member makes all five parsers refuse until they accept it; tool-specific meaning stays in
+the five grammars rather than a generic magic parser. Motion's retired OS spellings and design-audit's old
+`--wait` spelling refuse by name with the replacement; there are no aliases. Snap also refuses competing
+stage sources/locations before boot and derives a help-completeness control from its accepted handler
+table. The proposed browser-MCP string gate is deliberately absent per the #1279 owner ruling recorded in
+`1195-devtools-mcp-retirement.md`.
+
+The final cold-context verification planted the exact controls the first audit found missing. T4 now
+boots a real daemon-bound stage, kills one listening half, proves the next call's sticky refusal and both
+registry stamps, then proves status/sweep free only that band while the daemon survives. F10 boots a real
+session on a non-default loopback origin, runs all 16 scenario-matrix cells in disposable contexts, proves
+the inherited origin and empty per-cell storage, and proves the owner page survives with its original
+storage. Those controls exposed and fixed the outer daemon watchdog racing a legal cold navigation, the
+daemon's lost inherited matrix binding, scenario cells escaping into one-shot browsers, and matrix
+discovery reusing the owner context.
+
+The re-derived Claude A/B Chrome-MCP census found one further arm gap in the retirement dependency: its
+single performance trace was a pre-navigation boot trace, not the already-built post-settle interaction
+profile. `perf-meter --boot-trace` now begins Chromium tracing before navigation, retains the raw trace,
+and refuses unless Lighthouse's shipped DevTools trace engine yields a positive LCP plus all six observed
+insight families. `1195-devtools-mcp-retirement.md` carries the exact census correction, control, and
+limits.
 
 The CT run slot is one transaction directory per `pnpm ct:scoped` invocation. The launcher mints it and
 passes it through the environment; Playwright adopts it; workers write beneath its `snaps/`; and the flaky
 reporter publishes `.published` plus `ct-flaky.json` after the run. No config-load/list operation mints a
 slot, and no worker/reporter creates a second one.
+
+### 10.5 React development-renderer arm (#1284, designed before implementation 2026-09-03)
+
+**The collapse.** This is not a React DevTools frontend and not another browser instrument. It is one
+Snap run arm over the existing Playwright-owned context: install the compatibility hook before the first
+document mounts, retain the development renderer's read-only Fiber evidence, and file that evidence in the
+call's existing slot. No React DevTools extension, standalone frontend, product build change, second
+browser, or dependency on the retiring `motion-audit`/`perf-meter` command parsers enters the design.
+
+**Why the run lifecycle widens.** `begin(session, opts)` is synchronous and `measure(ctx)` is after
+`capturePages`; neither can honestly await `BrowserContext.addInitScript` before navigation. Every run
+instance therefore gains a REQUIRED async `prepare()` member, and `RunArms.prepare()` walks every run arm
+in `ARMS` order immediately before `capturePages`. Existing arms implement a no-op. The profile arm uses
+the seam to install on every context with `owned !== false`; attached sibling contexts are observed by
+their owner and never mutated. A planted runtime lifecycle assertion rejects a run-arm instance with no
+`prepare`, in addition to the TypeScript required-member fence, so a future cast/JavaScript row cannot
+quietly enter after navigation.
+
+`--react-profile` is a **session-level** flag. The boot call must carry it because React calls `hook.inject`
+while loading `react-dom`, before any later call can repair the missed mount. The session partition carries
+the boot value into every call; later attempts to add it are refused by the already-derived
+`SESSION_ONLY_FLAGS`. On a later call to an already-profiled document, `prepare` opens a new call window
+over the retained commit stream; a navigation receives a fresh init-script collector. This keeps global
+commit ids and timestamps useful while each artifact reports only the call that produced it.
+
+**React 19.2.7 capability census and retained evidence.** The installed development renderer accepts a
+hook with `supportsFiber`, calls `inject(internals)` with renderer package/version metadata, then calls
+`onCommitFiberRoot(rendererId, root, priority, didError)` before clearing `root.memoizedUpdaters`. The arm
+retains these machine-useful facts, bounded and cycle-safe:
+
+This is a deliberately narrow compatibility contract, not best-effort private-API archaeology. A renderer
+must identify as `react-dom` 19.2.x development and the first committed root/composite Fiber must carry the
+19.2 profiling fields the collector consumes (`actualDuration`, `treeBaseDuration`, links/tags and the
+root shape). An observed package/version outside that fence or a failed shape invariant is an evidence gap
+and exits 2 with the observed package/version and failed invariant. The arm never emits plausible junk
+from a renderer it has not proved compatible.
+
+| Capability | Retained agent-readable evidence | Limit / honesty rule |
+| - | - | - |
+| renderer and document identity | page/renderer ids, owning context id, URL, renderer package/version, hook/inject timestamps | multiple pages and renderers are exercised and never merge anonymously. Public `--contexts` is excluded below, so context id records ownership rather than claiming a multi-context analyzer mode |
+| component tree | flat topology records with stable id, parent/child ids, tag/kind, display name, key, derived path, owner id/path and development source stack | source is React's development `_debugStack`, not a source-map reconstruction; host nodes remain in raw evidence but not the hot-component ranking |
+| props/state/context/hooks | bounded read-only previews of memoized props, class/root state, context dependencies and indexed hook slots | hook *names* and custom-hook source stacks require the DevTools backend's inspect protocol and are not invented; redaction/truncation markers are evidence, not silent deletion |
+| commit profiling | commit id/time/priority/error flag; per-fiber `actualDuration`, `treeBaseDuration`, subtree time; ranked composite path totals/count/avg/max/self | self time follows React's own development rule: start at `actualDuration`, subtract direct child `actualDuration` only on mount or when child identity changed, then clamp floating-point noise. It is scheduling/profiler time, not CPU attribution |
+| render reasons / updates | mount vs update; shallow changed prop names, state/context/hook slot indexes, `PerformedWork`, and the root's memoized updater ids/paths | an unchanged shallow preview is reported as `rendered-without-shallow-change`, never a made-up reason; deep equality is not claimed |
+| Suspense and errors | Suspense/dehydrated/offscreen state from fiber tags/memoized state, `didError`, captured class error state and development debug info | the arm observes boundary state; it does not force errors, retry Suspense, or mutate fallback visibility |
+| React 19 performance tracks | React-related User Timing measures plus raw Chromium trace events for Components/Scheduler tracks, correlated by monotonic timestamp to call/commit ids | trace event availability is reported as its own count. Hook/renderer/commit denominators are mandatory; an absent optional track family is named, not allowed to erase valid Fiber evidence |
+| schedules/unmounts/post-commit | hook schedule, unmount and post-commit events, plus commit updater membership | React exposes no stable full causal update graph through this hook; the artifact says `update-events`, not “why-did-you-render truth” |
+
+The arm deliberately excludes selection, highlight/overlay, inspect-element UI state, edit/delete/rename
+props/state/context/hooks, force-error/Suspense controls, standalone frontend panels, and extension install.
+Those are human UI or mutating controls. The injected renderer internals expose several of them, but merely
+having a callable private method is not an agent evidence requirement. Ordinary production-build support is
+also excluded: Snap's rendered surfaces are Vite development/stage surfaces, the contract this program owns.
+Compiler-eliminated source components are fundamentally unobservable because no Fiber exists to inspect;
+the artifact describes the compiler/memoization output that actually mounted. The real Vite TSX control
+requires `_debugStack` to name `main.tsx:<line>:<column>`, which is already a usable development source
+location without building a second source-map pipeline. Hook names and custom-hook stacks require a
+DevTools-style dispatcher patch that shallowly re-renders the inspected component. That would contaminate
+the measured profile, so it is excluded from the rated arm. If an operator ever needs it, it must be an
+explicitly separate, non-rated inspect mode whose receipt says that it invoked component code; it cannot be
+a post-measure enrichment silently attached to this artifact.
+
+**Artifacts, result and refusal.** The ranked table prints hottest composite paths first and names its
+raw profile artifact and raw browser-trace artifact. The profile artifact preserves complete bounded
+commit topology as flat Fiber records with parent/child ids, inspection previews, events, identities,
+caps and every truncation marker. RESULT always says
+`react-profile=off|REFUSED|<artifact>` and, when enabled, prints renderer/commit/component/update/track
+counts. Hook absent after prepare, no owned context, zero renderer, zero commits or zero ranked components
+is an evidence gap and exits 2; no empty profile can read clean. Trace-track absence is explicit metadata,
+but does not veto a non-empty Fiber profile because the development renderer hook is the primary source.
+
+The writer additionally files a bounded `snap-react-profile-summary-v1` sidecar containing counts,
+gaps, limitations, the declared collector limits, the hottest 20 component rows, and separate pointers
+to the complete raw Fiber and trace artifacts. The browser-free `snap --report --arm react-profile`
+reader consumes only this sidecar for its five-row hot table; it never parses or duplicates the complete
+raw Fiber population merely to answer a cold-agent overview.
+
+**Coupled-site inventory.** `contract/arms.ts` (roster, `ArmArgs`, required `prepare`) →
+`ops/arms/registry.ts` (profile row import/default spread, aggregate `prepare`, runtime lifecycle assertion)
+→ every existing run-arm instance (no-op prepare) → `ops/run.ts` (the single pre-navigation await)
+→ `contract/types.ts` (`Args.reactProfile`) → `lib/session-plan.ts` (boot inheritance) →
+`ops/arms/profile.ts` (collector, trace, aggregation, artifacts, report/refusal) → registry/help/result
+derivations → the registry roster/completeness tests and profile behavioral suite. `capture.ts`, the five
+parsers and sibling command implementations do not gain a React branch.
+
+**Planted controls.** (1) A local loopback Vite fixture imports this repo's React 19.2.7 development
+renderer. `HotComponent` performs deterministic render work beside a clean twin; an interaction schedules
+an update. The artifact must rank the named hot path above the twin and carry non-empty tree,
+props/state/context/hook/change/updater/boundary/timestamp evidence. (2) Two pages prove page identity;
+the session continuation proves the boot-installed hook survives and opens a second call window. (3) A
+plain Vite page proves hook-with-no-renderer refuses; a page that imports the renderer but never commits
+proves renderer-with-no-commit refuses; deleting the installed hook before measure proves hook absence
+refuses. (4) The lifecycle mutant with `prepare` deleted must throw before navigation. (5) A trace positive
+control must find React Components/Scheduler or User Timing events before a non-zero track count is trusted;
+if the installed Chromium does not expose them, the artifact states that measured limit and the control
+pins zero as an explicit optional population, not fabricated success.
+(6) A ReactDOM 18.3 injected renderer and a claimed ReactDOM 19.2.7 root missing `actualDuration` both
+refuse, proving the version and shape fences can fail. The real Vite fixture asserts a hot Fiber source
+stack names `main.tsx`, rather than merely asserting that some opaque debug stack exists.
+
+**Alternatives rejected.** Vendoring `react-devtools-core`/the frontend duplicates a human inspection UI,
+adds a private protocol/dependency and still needs the same pre-mount hook. `<Profiler>` alone already feeds
+`__orb.renders()` at a few composition points but cannot produce the all-component nested tree. Installing
+the hook from `measure` misses the initial mount. A generic hook framework or second capture path creates a
+new substrate when one required lifecycle verb solves the real gap. Making trace events the sole profiler
+would lose props/state/context/owner identities and make browser trace schema the React contract.
+
+**Recovery note (program state at this design point).** #1284 is the React arm. #1292 is the claimed P1
+sole-rendered-instrument program and #1293 its claimed migration child; #1293's mandatory red-first
+behavioral tier is `pnpm test:scoped tests/tooling/snap/ops/unified-instrument.suite.int.test.ts
+--maxWorkers=1`. The independent verifier must still inspect every retained capability population and all
+three refusal arms before #1284 closes; typecheck/Biome/structure alone are not graduation.
+
+### 10.6 Sole rendered-instrument CLI and analyzer lifecycle (#1292/#1293, designed 2026-09-03)
+
+**Premise re-derived, not inherited from the issue.** Snap already has the one browser/session capture
+path and a real pre-navigation run-arm seam: `runOnSession` mints the registry once, awaits `prepare`, then
+enters `capturePages` (`tooling/src/snap/ops/run.ts:98-103`). The remaining duplicate is exactly the
+browser DRIVE window: capture navigates, drains one argv-ordered tape, settles and runs page arms in that
+order (`tooling/src/snap/ops/capture.ts:57-89`), while the legacy motion and performance commands still
+own their own parser, stage resolution, launch/attach and run closure. The current Snap arm roster also
+uses `perf` for its always-on navigation snapshot and `profile` for React
+(`tooling/src/snap/contract/arms.ts:37`), while the required public vocabulary is selective
+`--perf`/`--react-profile`. Those names must be separated rather than quietly overloading the old pair.
+
+The tracked active-corpus baseline is 7,717 files across `tooling/`, `tests/`, `packages/`, `scripts/`,
+active `docs/`, `.claude/`, `.Codex/`, `.codex/`, `.agents/` and root `package.json`, excluding only
+`docs/history/**`, `docs/reviews/**` and generated catalog receipts. It currently contains 27 command
+lines in 24 files for `pnpm motion-audit`, 23 in 19 files for `pnpm perf-meter`, 13 `--cpuprofile`
+lines, 28 `--selector` lines and 14 `--window` lines. These are the migration population, not a guessed
+list from the issue. The completion census re-derives the tracked list through Git and plants one stale
+command and each retired flag spelling into its own in-memory fixture so a zero cannot pass vacuously.
+
+**The lifecycle widening.** `prepare` remains the only pre-navigation context mutation. A run instance
+adds four required, total verbs around the existing single drive, all called in registry order:
+
+1. `afterNavigation(page, identity)` — the page has navigated and passed readiness/theme gates, but no
+   argv action has dispatched. Boot trace stops here; it never absorbs the interaction tape.
+2. `beforeAction(page, indexedAction)` — the action remains Snap's action and executes once. Perf marks
+   every non-pause action here; CPU profiling starts at the first measured action; the motion trace starts
+   only at the tagged measured-motion action.
+3. `afterAction(page, indexedAction, dispatch)` — the same action's result is known. A tagged motion
+   action owns its configured observation settle and closes its trace here before the next tape member.
+4. `afterActions(ctx)` — post-drive analyzer closure before the ordinary settled page-arm evidence. CPU
+   profiling stops here so settle/page-arm work cannot leak into its tape window. Existing `measure(ctx)`
+   remains the single settled export/report preparation seam after capture; renaming it would be churn and
+   would erase the useful distinction between “close the measured window” and “file settled evidence.”
+
+The aggregate registry supplies no-op implementations for an arm that has nothing at a seam, and the
+runtime completeness assertion checks all four in addition to `prepare`, reporting, denominators, pairs
+and exit. `capture` receives the one aggregate lifecycle; it does not import or branch on motion/perf/CPU
+names. There is no second action dispatcher. `DriveActionReceipt` records tape index, page, kind, label,
+start/end monotonic time and failure; every analyzer keys its raw evidence to that receipt.
+
+**`__orb` / browser-native source crosswalk.** One authoritative source answers each fact; the shared
+lifecycle may correlate sources, but it never resets or captures the same population twice.
+
+| Fact | Authoritative source and lifetime | Snap consumer / overlap resolution |
+| - | - | - |
+| cheap settled overview | `__orb.snap()`, one settled-page read (`app-snapshot`) | always-on navigation/app snapshot only; its coarse perf/render/error counts are not the selective `--perf` interaction verdict |
+| coarse region render heatmap | `__orb.renders()`, checkpoint lifetime | retained inside app-snapshot/diagnostic evidence; `--react-profile` is the all-Fiber pre-mount-through-commit source and does not merge the coarse regions into its ranking |
+| browser/runtime failures | Playwright/CDP diagnostics plus the typed `__orb.consoleErrors()` ring, evidence-window lifetime | browser diagnostics reconcile both named channels and their caps/drops; app-snapshot's count is an overview, never a second diagnostics capture |
+| motion/animation facts | `__orb.motion()`, `animations()`, `flags()`, `resetEvidence()`, `motionFlaggersSettled()`/`Drain()` and `setMotionAuditDropTrackingPaused()`, one tagged motion window | the retained motion `runAudit`/drive seam consumes these app-internal classifications; CDP PipelineReporter is authoritative only for browser frame delivery/drop facts |
+| appearance matrix | `__orb.appearanceMatrixContract()` plus settings-shim applied/reached receipts, per derived cell | matrix reads the live carrier contract through `readRuntimeAppearanceContract`; no copied preset list becomes the matrix denominator |
+| query settlement | `data-app-ready` plus `__orb.queries()`/readiness bridge, navigation lifetime | proves the app settled; CDP Network/HAR remains authoritative for network requests and bodies, so query state is not promoted into a second HAR |
+| CPU/boot/perf timing | CDP Profiler/Tracing and browser PerformanceObserver/User Timing, their explicit analyzer windows | browser-native facts stay in their selective artifacts; app-snapshot only supplies the cheap overview |
+
+Unrelated domain actions (`seed`, RPG, plugin logs, automation fires) remain outside the instrument
+surface. Their presence on `OrbDebugHandle` does not make them evidence channels.
+
+**One tape, including the missing actions.** Snap's action union gains `pause`, `wheel` and `wheelburst`
+and the existing `driveActions` dispatches them in argv order. `--perf-cycles <n>` expands the parsed tape once
+after validation, preserving the original order and stable cycle/action indexes; it is legal only with
+`--perf` because repetition decay is that analyzer's contract. `--motion [selector]` is an
+optional-selector arm flag. With a selector it inserts one `motion-click` action at that exact argv
+position; preceding actions are reach/setup, and the arm performs the existing flagger-settle and
+evidence-reset barriers after reach but before starting the trace. The tagged click is dispatched once by
+Snap's ordinary pointer path and is the only fact that sets `measured-input=true`. Without a selector,
+`--motion` audits the entry window and inserts no click. `--motion-window <ms>` preserves the observation
+window; `--motion-no-throttle` preserves the legacy default-4x/throttle-off fork. The matrix spelling is
+`--matrix --motion <selector>`; a selector is mandatory there because the rated plan retains both entry
+and interaction twins. There is no `--motion-matrix`, `--selector`, or un-namespaced `--window`.
+
+**Selective analyzer vocabulary.** The public arms are `--motion [selector]`, `--perf`,
+`--cpu-profile`, `--boot-trace` and `--react-profile`. CPU, boot and React never require a redundant
+`--perf`. The old React `--profile` spelling and legacy `--cpuprofile` refuse by name. Snap's cheap
+always-on navigation/`__orb.snap()` observation becomes the internal `navigation` page arm and reports
+`navigation-perf=measured|withheld|absent`; `perf=` belongs only to the requested interaction analyzer.
+This is a literal-value change and therefore owns the repo-wide `tests/**` sweep and every asserting
+suite.
+
+**Motion capability ledger — the Snap arm must be byte/evidence equivalent or a strict superset before
+the legacy command can retire.** The pure collectors/verdicts stay callable by both paths during the
+differential phase; only after the planted equivalence controls are green does the public legacy CLI
+become a refusal.
+
+| Legacy capability | Snap-arm retained mechanism and proof |
+| - | - |
+| PipelineReporter trace and dropped-frame percentage | same CDP categories and `calibratedDroppedFramePct`; fixture feeds an identical trace corpus to both adapters and compares raw/classified/budgeted frame rows |
+| population resolution floor | same `framePopulationBasis`; collapsed and uncomputable controls remain explicitly `frames-budget=unjudged`, never pass/fail |
+| LoAF/blocking/style-layout | same `__orb.motion()` snapshot, raw/classified LoAF totals and attribution rows |
+| CLS partitions and basis | raw/virtualized/non-virtualized plus observed partitions; only the tagged trusted click chooses observed-non-virtualized |
+| active and transient dirty animations | same end-window animation sample plus checkpoint-scoped flag ring, with the same Base UI sanctioned-height classifier |
+| reach versus measured interaction | preceding Snap tape actions run before the reset; one tagged motion click alone enters the trace/window; a plant fails if reach LoAF/CLS leaks into the result |
+| throttle and headed caveat | default motion CPU throttle retained; explicit `--motion-no-throttle`; `--vnc` remains usable but the receipt labels headed timing as operator-observed/non-comparable |
+| rated matrix | same polarity twins and `STATIC-EXPECTED` zero-frame exception through `--matrix --motion <selector>` |
+| absence and result contract | bridge/readiness/reset/flagger/trace/frame/observed-CLS gaps, thresholds, result pairs and raw JSON rows compare against the old engine fixture |
+
+**Performance capability ledger.** The requested `--perf` arm is the union of Snap's cheap navigation
+read and the legacy meter, never the smaller current Snap arm. Its pre-navigation prepare installs the
+same meter; each non-pause action is marked through `beforeAction`; finish reads the raw buckets and
+files both raw entries and derived rows.
+
+| Legacy capability | Snap-arm retained mechanism and proof |
+| - | - |
+| per-step LoAF/longtask | same installed-observer receipt, total/worst/blocking/script fields and raw entries keyed to Snap tape ids |
+| EventTiming | input delay, processing and full duration retained per dispatched click/pointer window |
+| rAF and layout shift | same 33ms gap band and per-window CLS accumulation |
+| pause/wheel/wheelburst/cycles | first-class Snap tape actions plus stable cycle indexes; no private perf tape |
+| thresholds/result | breach-step, worst-longtask and worst-click fields are preserved as informational meter evidence; the strict 100ms/101ms boundary and any-long-task rows do not vote exit. Existing action/page failures retain their exit-1 vote; missing/withheld apparatus remains exit 2 |
+| CPU profile | `--cpu-profile` starts at the first non-pause action and exports the raw V8 profile after the tape in a separate arm/pass |
+| boot trace | `--boot-trace` starts before navigation, stops at `afterNavigation`, retains raw trace and the six DevTools insight families |
+| GPU/load honesty | one browser acceleration receipt and one box-load receipt are shared; every rate arm withholds/refuses from those values rather than re-reading independently |
+| absence/raw JSON | meter/observer/step/trace insight denominators and all raw arrays remain explicit; no empty table reads clean |
+
+**Shared rate-posture implementation ruling (partition B, 2026-09-04).** `beginRunArms` starts exactly one
+run-local, frozen receipt before navigation: one `SystemInfo.getInfo` acceleration read (or its owned error)
+and one `readBoxLoad` value. The receipt is passed through the arm lifecycle, not installed on
+`ProbeSession`: a named browser may serve many calls, while acceleration/load truth belongs to one call's
+measurement window. Page arms and run arms consume the same value, and the terminal load pairs render that
+same box reading. Acceleration failure is data in the receipt and makes every requested rate consumer
+withhold/refuse consistently; it is not retried by a later arm. The planted control supplies readers whose
+second answers disagree and asserts one call to each reader plus the same disposition in app-snapshot,
+motion and interaction-perf. This follows the prior instrument-proof lesson in
+`MEMORY.md` / `2026-08-21T15-21-19-gDAF-orbweaver_verification_tooling_and_instrumentation_program.md`:
+a zero or happy path is not proof unless a nonzero plant can make the instrument disagree.
+
+Rejected: caching on `ProbeSession` would make a long-lived named session reuse stale host posture across
+calls; a lazy memo in each arm would preserve three owners and make execution order select the reading; and
+letting the RESULT line call `loadResultPairs()` independently would leave the immutable card describing a
+different box sample than the analyzers judged.
+
+The differential suite drives one deterministic file/loopback fixture through the legacy engine adapter
+and the Snap arm with the same tape, then compares canonicalized evidence rather than console prose. It
+plants: reach-only LoAF/CLS that must be absent from the measured motion window; PipelineReporter raw,
+collapsed and verdict populations; sanctioned and unsanctioned transient animation; all three CLS
+partitions with trusted input; two perf cycles containing click/pause/wheel/wheelburst; EventTiming,
+LoAF, rAF gap and shift buckets; meter/bridge/trace absence; and raw artifact schema fields. A capability
+ledger row has no right to be marked retained without one nonzero plant or an explicit refusal control.
+
+**Perf meter-not-gate acceptance scar (2026-09-03).** The first unified implementation made a nonzero
+`breach-steps` population return exit 1, contradicting the retired tool's explicit “METER, not a gate”
+contract. The planted repair proves 100ms is not a breach, 101ms and any long task produce typed problem
+rows without changing a clean exit, a pre-existing action/page failure remains exit 1, and missing or
+load/GPU-withheld measurement evidence remains an instrument refusal. Composite reporting is likewise a
+derived display layer and never acquires an exit vote.
+
+**Interference is a parse-time contract.** `--probe` refuses `--motion` and `--perf` because flooring
+motion invalidates both motion/CLS and rAF timing. Lighthouse refuses every boot/motion/perf/CPU/React
+rate/profile arm because Lighthouse owns a navigation and a throttling model. `--boot-trace` refuses
+`--motion` and React trace capture because Chromium exposes one tracing session. `--cpu-profile` and
+`--react-profile` refuse `--motion`/`--perf` because profiler/hook overhead contaminates rate verdicts.
+`--motion` and `--perf` refuse each other rather than silently perturbing the same interaction. The
+message gives two exact Snap commands as the separate-pass remedy. Pixel, ARIA, map, request/HAR and
+assertion arms compose with any analyzer because they run after the analyzer window and do not mutate it.
+
+**Retirement order.** First the Snap arms and differential/superset controls are green. Then root script
+names remain as deliberate migration doors whose `cli.ts` prints an exact Snap replacement and exits
+misuse without parsing, staging, launching, attaching, adopting a slot or calling an engine. Duplicate
+legacy parser/stage/browser/run doors and public index exports are deleted; pure motion/perf
+collectors/verdicts remain internal imports until a later by-nature move earns itself. This is a clean cut,
+not an alias or a hidden fallback.
+
+**Coupled-site inventory and red-first plan.** The build fans through `contract/actions.ts` and
+`contract/types.ts`; the arm roster/lifecycle types; registry aggregation/runtime completeness; capture
+and drive seams; motion/perf/CPU/boot/React arm modules; matrix projection; parser flag classes/handlers,
+help and session partition; result/failure/denominator folds; the two legacy CLI doors and root scripts;
+the existing motion/perf unit/browser suites; `tooling-shared-plumbing` and front-door/roster gates; and
+the 7,717-file active-corpus recipes including the synchronized side-eye Claude/Codex surfaces. The exact
+red-first suite is `tests/tooling/snap/ops/unified-instrument.suite.int.test.ts`; its initial red must name
+missing selective flags/lifecycle verbs/actions, legacy commands still running, and planted stale-corpus
+hits before implementation begins.
+
+The suite is a failure matrix, not a happy-path demo. Every retained analyzer/channel gets a planted
+positive and a clean twin; malformed selector/duration/cycle/interference argv refuses before browser
+work; missing, malformed or incomplete meter/bridge/trace/profile evidence exits 2 or carries an explicit
+withhold; frame-population, breach-duration and zero-denominator boundaries are exercised on both sides;
+and any bounded diagnostic/table view retains highest severity, names the exact omitted count and points
+at the lossless artifact. Engine/adaptor child failures and CDP stop/detach failures must reach the final
+Snap result instead of being swallowed. The differential rows above are the no-capability-loss oracle,
+not merely additional positive examples.
+
+**Alternatives rejected.** Importing the old CLIs from Snap preserves three parsers and three run doors,
+the defect being removed. Measuring the whole tape as motion loses the reach/reset/measured-selector
+contract and fabricates interaction CLS attribution. Appending a private motion click or a private perf
+tape after Snap's tape is a second drive path. One giant `performance` arm hides interference and makes
+CPU/boot/React selectors depend on a meaningless parent flag. Deleting the old engines before a
+differential oracle turns “looks equivalent” into the only evidence and is forbidden.
+
+### 10.7 Indexed Snap run bundle and browser-free readers (#1295, designed 2026-09-03)
+
+**The collapse.** This extends the existing run slot; it does not add a store. Today
+`withInstrumentRun` opens and prints one slot, calls the run, then `finishInstrumentRun` enumerates and
+publishes it (`tooling/src/_shared/artifact-out.ts:116-143`). The missing operation is one Snap-specific
+completion callback before publish. That callback writes `run.json` with create-exclusive semantics,
+prints the receipt card, and returns the final exit. Non-Snap instruments keep the wrapper's byte-identical
+default. Adopted session-daemon slots still publish only from the owning client, so every session call gets
+the same completion and index without a second daemon-side store.
+
+**Schema and identity.** `contract/run-index.ts` owns version 1. Each index records the absolute immutable
+index path and slot root; run id; primary/linked checkout name and absolute/root-relative checkout paths;
+full HEAD SHA and symbolic ref or `detached`; a content-sensitive dirty digest over sorted tracked delta
+and untracked file paths plus current bytes; explicit clean/dirty/unknown; optional lane/agent values from
+Snap provenance flags or their named orchestrator environment inputs; hostname, PID, argv and start/end;
+session name/call/window and binding; stage owner/band/ref/binding; and the `RunSlot.racing` census observed
+at open. A Git read failure stores `unknown` plus its failed field; it never substitutes a mutable pointer
+or SHA-only identity.
+
+**Partition-B v1 completion ruling (2026-09-04).** Version 1 is completed rather than bumped: these indices
+are uncommitted program artifacts and the browser-free reader already has an explicit compatibility duty to
+the earlier immutable v1 rows. Current writers always emit the full shape; the reader accepts only the
+documented legacy omissions and normalizes them as legacy/unknown rather than fabricating precision. The
+full location receipt is `indexPath` + `slotPath` plus `checkouts.primary` and `checkouts.subject`; each
+checkout carries name, absolute path and path relative to the Git-common-dir-derived primary checkout, and
+the subject additionally states primary versus linked. No checkout root is inferred from the run id.
+
+Stage provenance is a typed value, not the old `isolated` label: mode, bound/unavailable/not-applicable
+state, owner checkout, band, ref/SHA, and binding URL. A one-shot isolated run receives those fields from the
+exact `StageRow` returned by `ensureStage`; a session call receives them from the daemon-owned session row in
+the typed `done` event. A stage refusal after the slot records the requested mode/ref and the owned failure,
+with no invented owner or band. Live/file runs explicitly say not-applicable and keep their base/file
+binding. Parsing argv, reverse-looking-up a port after completion, or rereading a mutable band table was
+rejected because each can disagree with the stage actually used.
+
+Artifact truth uses an allocation declaration written beside the slot as dot metadata (therefore omitted
+from both publication and the artifact inventory). `artifactFile` records the immutable path, kind and
+published convenience target; Snap producers add media/schema, producer arm/channel, page/context/window,
+completeness and structured limit receipts at the call site that owns those facts. Completion reconciles
+declarations against actual bytes: an allocation with no file is not an artifact, while an undeclared file
+is explicit legacy/unknown rather than guessed from a directory or filename. This also crosses the session
+process boundary because the adopted daemon and owning client share the slot; an in-memory registry would
+lose daemon declarations. A second artifact manifest/store was rejected: the dot receipt is run-slot
+plumbing and `run.json` remains the only public index. Directory-name producer inference and page-number
+regexes are removed from current-writer truth.
+
+Diagnostic inventory is normalized into count rows keyed by channel/source/category/level plus exact
+context/page/window, with raw channel references for console, page errors, CDP Log, InspectorIssue,
+requests and HAR. Each raw reference points at an inventoried artifact; bounded channels carry structured
+limit receipts (`policy` plus measured events/original/retained/omitted), never an adjective without the
+receipt that justifies it.
+
+Coupled sites are enumerated before build: `_shared/artifact-out.ts`; `contract/run-index.ts`,
+`contract/arms.ts` and `contract/session.ts`; `lib/run-bundle-files.ts`, session wire and report query;
+`ops/run-bundle.ts`, stage configure/daemon/client provenance, arm registry/capture, the three rate arms and
+terminal load-pair rendering; every Snap artifact allocation site; and the bundle, registry/perf,
+session-wire and unified behavioral suites. The red-first controls are: primary plus linked checkout at one
+SHA; a named-session call bound to an isolated stage with multiple contexts/pages/windows; artifact
+declaration reconciliation including published/media/schema/identity and a real truncation receipt;
+writer-to-reader filters over the exact diagnostic identity; legacy-v1 omission compatibility paired with
+strict rejection of malformed new fields; and the disagreeing-second-read rate plant above. A future
+artifact producer that omits its declaration is planted as legacy/unknown, so the current-writer test can
+fail when a new Snap call site silently falls back.
+
+The index then owns three closed inventories:
+
+- `results`: every structured RESULT record, final exit and denominators, including explicit
+  pass/fail/withheld/refused/absent/off states per arm and shared lifecycle;
+- `diagnostics`: lossless counts by severity/source/category/page/context/window plus omitted terminal
+  counts and exact raw-artifact references for console, uncaught page errors, CDP Log, InspectorIssue,
+  requests and HAR;
+- `artifacts`: every non-dot file already in this slot, with absolute immutable path, slot-relative and
+  published convenience paths, media/schema kind, producer arm/channel, page/context/window identity,
+  completeness, bytes and truncation/measured-limit markers. `run.json` names itself separately, so the
+  inventory can be computed once and the index created exactly once rather than rewritten after hashing
+  itself.
+
+The result capture is structured, not stdout archaeology: `_shared/artifacts.ts` records the pairs each
+`printResult` emitted while a slot is active; the session client records the already-structured `done.pairs`
+from the daemon. A refusal after slot with no analyzer RESULT receives one synthesized Snap result from its
+known exit/reason. Help, parser misuse, materializer and session/stage admin remain slot-free. File/stage,
+fixture, analyzer and run-time refusals occur after the slot and therefore get an index/card.
+
+**End card.** Completion prints, in this order, one identity line; absolute `EVIDENCE <run.json>`; a
+single bounded `VERDICT` line with arm states and diagnostic counts; at most six primary immutable
+`ARTIFACTS` paths plus an exact omitted count; and
+`READ pnpm snap --report <absolute-run.json> --problems`. It then prints one canonical final
+`RESULT snap ... index=<the same absolute path>`. Earlier analyzer/matrix RESULT lines may remain as
+diagnostic subresults; the last line is the run result. If index creation fails, the completion is itself
+an instrument refusal and exits 2 rather than returning a verdict whose canonical evidence is missing.
+
+**Readers.** `--report <absolute-index|exact-run-id|latest>` and `--reports` dispatch before any stage,
+slot or browser operation. Absolute paths are read directly. An exact run id enumerates Git's registered
+worktree roots and probes only the deterministic `reports/runs/snap/<id>/run.json` path; zero or multiple
+matches refuse by name. `latest` enumerates only the caller checkout's `reports/runs/snap/*/run.json` and
+chooses the greatest finished timestamp. `--reports` performs that same bounded per-worktree directory
+enumeration and prints at most the 20 most recent valid identities plus the exact omitted-valid count and
+an exact-id lookup remedy; neither reader walks arbitrary `reports/**` or follows published
+aliases.
+
+The report filter is one typed query over the index: `--problems`; `--arm`/`--channel`; diagnostic
+`--level`/`--source`/`--category`/`--text`; `--page`/`--context`/`--window`; and explicit `--all`.
+Default is a concise derived summary with immutable raw pointers. Any bounded class prints its exact
+omitted count and the exact filter command that retrieves it; full rows remain in indexed artifacts.
+
+**Acceptance repair (2026-09-03).** A selective analyzer's terminal state is not an actionable report.
+Motion and interaction-perf artifacts therefore carry full typed `problems` rows produced by the analyzer
+that owns the threshold: arm, kind, metric, subject/step, observed value, threshold and explanation. The
+browser-free reader validates those rows and prints a severity-ordered bounded selection plus an exact
+omitted count; it does not re-derive private budgets or ask the operator to reverse-engineer raw JSON.
+Motion rows name dropped-frame/CLS/LoAF/style-layout/error/reach failures and each unsanctioned active or
+transient animation; perf rows name every failing step and whether its long-task population or click
+duration crossed the owned threshold. A failed legacy artifact without problem rows says that structured
+problem evidence is unavailable and asks for a current rerun rather than printing a content-free FAIL.
+
+Known artifact producers also receive a classified completeness state and a reason in the index. Motion is
+`bounded` because its app-side LoAF/shift evidence uses finite rings; interaction perf and the Snap capture
+manifest are `complete` for their finite run/tape, while nested diagnostic/HAR channels keep their own
+bounded receipts; Playwright traces remain `raw-fallback`. `unknown` is reserved for an unrecognized
+artifact, never the ordinary motion/perf/snaps families.
+
+`--reports` is a tolerant inventory, not N independent report attempts. It counts corrupt/stale candidate
+indices, prints at most three example paths and one exact aggregate skipped/omitted/remediation line, then
+prints a bounded recent valid list. An explicit `--report <that path>` remains the strict refusal door.
+Local Git dirtiness is forensic source identity, not a default problem: the end card, `--reports` and
+`--problems` show checkout/lane/commit without declaring the owner's repository dirty or printing an
+opaque digest. `--all` alone may add `source=clean|working-tree|unknown digest=<prefix>`; `run.json` always
+retains the full state and digest. A bare `dirty=<hash>` spelling is forbidden. `app-snapshot` is attempted
+on every settled page. A plain static page has no `window.__orb` overview (N/A) but can still carry measured
+navigation timing; when neither population is available the arm is `absent`, with help/detail saying that
+explicitly, while absence on an expected app page remains visible for investigation.
+
+**Identity acceptance scar, red to green (2026-09-03).** The first writer used fallback strings from failed
+Git commands, so a non-repository root became `sha=unavailable ref=detached` and the fallback bytes were
+hashed as if they proved a dirty working tree. The planted non-repository control reproduced that lie.
+Every Git read now retains success/status/detail separately: HEAD/ref failures produce `unavailable`,
+dirty-source failure produces `{state:"unknown",digest:null}`, and `gitFailures` names each failed field
+(`sha`, `ref`, `status`, `tracked-delta`, `untracked-list`, or an unreadable untracked byte path) with a
+bounded nonempty detail. A real detached repository is still `ref=detached` only when HEAD resolved and
+`symbolic-ref` returned its documented detached status. The index reader rejects unknown identity without
+owned failures; default output hides local source state and `--all` alone exposes
+`source=unknown digest=unavailable git-failures=…`.
+
+`latest` means the greatest `finishedAt` among validated indices in the current checkout. Candidate
+discovery ignores an active slot that still has only `.inflight` and no `run.json`; it does not treat that
+in-progress inventory state as corrupt history. An existing corrupt index still refuses, and an explicit
+path to the active slot's missing `run.json` remains a strict refusal.
+
+**Planted controls.** The exact red-first suite is
+`tests/tooling/snap/ops/run-bundle.suite.int.test.ts`. It creates a primary checkout and linked worktree at
+one SHA, dirties one with different bytes at the same path set, opens concurrent slots, and proves distinct
+checkout/digest/run/index identities. A planted multi-arm slot carries several artifact families and more
+diagnostics than the display cap; the index must account for every file and state, the card's bounded tail
+must survive prefix truncation, and its literal READ command must return the problems browser-free.
+Separate controls prove exact-id cross-worktree resolution, local-only latest, ambiguous/missing refusal,
+create-exclusive immutability, pass/fail/withheld/refusal-after-slot cards, session per-call provenance,
+and a filesystem spy that fails if a reader scans outside registered worktree run directories.
+
+The bundle suite also plants malformed query values, corrupt/stale/incomplete indices, an interrupted
+callback and a failed child/analyzer result after slot open. Writer → immutable index → browser-free
+reader must preserve checkout/run/SHA/dirty identity, severity/category/page/window and exact artifact
+path byte-for-byte. Missing/corrupt/stale evidence refuses; an interrupted or failed run still receives a
+truthful indexed terminal exit when its slot exists; ambiguity across registered worktrees is named rather
+than resolved by recency. Truncation plants low and high severities beyond the cap and proves the highest
+severity survives while the omission receipt and `--report` command recover every raw row.
+
+The acceptance-repair controls additionally plant multiple invalid list candidates and prove exactly one
+bounded aggregate line; assert default identity omits local dirtiness while `--all` labels source state and digest; write failing motion/perf artifacts whose
+typed rows preserve subject, observed value and owned threshold through index/read; assert known
+motion/perf/snaps completeness classifications and reasons; and distinguish static app-snapshot absence
+from a selective-arm refusal. These are writer-to-index-to-reader controls, not formatter-only fixtures.
+
+**Alternatives rejected.** A second SQLite/JSONL registry duplicates run slots and creates a consistency
+problem. Enriching `.published` makes a mutable alias manifest the identity of immutable evidence.
+Requiring `--json` preserves the current discoverability failure. Resolving by SHA conflates clean and
+dirty worktrees. Scanning all of `reports/` is both unbounded and unable to prove which bytes belong to a
+call. Parsing terminal prose to reconstruct arm states makes the receipt card its own lossy database.
+
+**Recovery note (supersedes the §10.5 snapshot).** #1284 is implementation-complete and accepted. #1292
+is the parent; this forge owns #1293 and #1295. The two mandatory behavioral commands are
+`pnpm test:scoped tests/tooling/snap/ops/unified-instrument.suite.int.test.ts --maxWorkers=1` and
+`pnpm test:scoped tests/tooling/snap/ops/run-bundle.suite.int.test.ts --maxWorkers=1`. The session/HAR
+lane owns browser diagnostics, session evidence and HAR redaction files; this consolidation must consume
+their public receipts and not edit those files. The implementation order is: create both red controls;
+build run index/readers; widen the registry/tape; land perf differential; land motion differential/matrix;
+only then hard-refuse legacy CLIs and migrate the active corpus.
+
+### 10.8 Operator and cold-agent usability battery (#1292/#1295, ruled 2026-09-03)
+
+The schema is not accepted merely because its writer and reader agree. After convergence, the program
+generates real immutable bundles for: an ordinary visual/map/diagnostics run with actual PNGs; a planted
+diagnostic/HAR failure; selective motion; selective perf; React profile; stateful session continuation and
+export; matrix plus appearance scenario; and an explicit refusal/withhold. Each run's ordinary stdout card
+must point to the same immutable index as its final RESULT, and `snap --report <index> --problems` must
+reconstruct the useful failure, identity, severity, completeness/truncation and artifact pointers without
+source knowledge. PNGs and named structured artifacts must be directly usable at those paths.
+
+Two or three cold low/medium agents receive only normal `pnpm snap --help`, the command's stdout/card and
+the browser-free report output. They must identify the run/checkout/session identity (and forensic source
+state only after deliberately requesting `--all`), distinguish
+always-on `app-snapshot` from a requested selective analyzer, find the highest-severity problem and any
+omitted count, open the right primary artifact, and construct a narrower follow-up filter. A side-eye pass
+reviews the produced PNGs; a code verifier reviews artifact identity/completeness and round-trip truth.
+Needing a source file to discover the evidence, confusing app-snapshot with selective perf, or missing a
+truncation receipt fails the UX acceptance even when the schema test is green.
+
+Playwright `trace.zip` is explicitly not an agent-readable primary artifact. It is a raw human/deep-
+forensics fallback, excluded from the six-path primary ARTIFACTS shortlist. If a card/report references it,
+it labels it `raw fallback` and supplies exactly `pnpm exec playwright show-trace <absolute-trace.zip>`.
+If a cold agent must unzip or reverse-engineer a trace to explain an ordinary failure, the CLI UX fails.
+There is no Snap trace parser: structured diagnostics, HAR, action, analyzer and run-index artifacts own the
+machine path.
+
+The named battery paths are acceptance receipts, not a permanent artifact archive: the existing bounded
+run-slot pruner may remove them after newer runs. No second pin/retention registry is introduced. The
+battery is generated last, every named `run.json` is existence-checked immediately before handoff, and the
+review records its generation/check time. A later document reader must treat a missing path as expired
+operational evidence and regenerate the case; the prose must never continue to claim that a pruned path is
+live or durable.
+
+**Evidence-driven default findings layer (ruled 2026-09-03).** This contract was frozen only after reading
+real completed bundles: motion `main-657130-2026-09-03T23-08-02-501Z` carried an 82.53% dropped-frame row
+and a `#spin` dirty-width row; perf `main-655294-2026-09-03T23-07-47-266Z` carried two hot-click
+long-task/duration pairs; session request evidence `main-394701-2026-09-03T22-00-40-106Z` carried the same
+`ERR_UNSAFE_PORT` observation through console and network sources plus a distinct deprecation issue;
+React `main-640171-2026-09-03T23-04-41-297Z` refused with three explicit profile gaps; Lighthouse
+`main-788883-2026-09-03T23-36-08-120Z` named two failed audits and blamed selectors; and the map failure
+controls proved that a bare non-JSON run otherwise retained only `map=… failures=1` in its index. These
+are the actual shapes the default card must explain, not hypothetical categories.
+
+The writer derives a bounded, display-only `findings` population after artifact inventory and persists it
+inside `run.json`; the same rows drive the end card and the browser-free reader. It starts no observer,
+replays no action and owns no threshold or exit vote. Existing producer artifacts remain authoritative:
+redacted browser diagnostics for console/Issue observations; redacted request/HAR evidence for network;
+analyzer-owned `problems` for motion/perf; Lighthouse's validated LHR; React's gaps; and one always-written,
+bounded `evidence/core-capture.json` projection for redacted structured `runtime|instrument` page errors, request failures and map/surface
+failure strings. The projection is written from the one existing capture outcome through the manifest's
+established redaction functions; it performs no second page read, capture or walker and removes any
+dependency on optional `--json`. Page-error and capture rows carry complete zero-drop receipts. The
+request source is a URL-keyed latest-row map rather than an event ring, so its receipt says
+`basis=latest-per-url`, `dropped=null`, `complete=false`; the artifact is bounded and HAR remains the
+request-event record. Unknown or malformed producer evidence yields an explicit
+incomplete/conflict finding while the immutable index still lands; the strict detailed reader continues
+to refuse the malformed artifact.
+
+One row has severity (`error|warning|annotation`), `what`, factual `where`
+(context/page/window/selector or subject), typed evidence references (source + immutable artifact),
+`confidence=direct|correlated`, `completeness=complete|bounded|incomplete`, any disagreement as explicit
+`conflicts`, occurrence count and one exact browser-free follow-up command. Grouping is deliberately
+narrow: identical normalized observations in the same context/page/window collapse, and matching request
+ids may join diagnostic and HAR evidence. It never turns temporal correlation into causation. Selective
+CDP motion/perf is the primary numeric source; `__orb.motion/animations/flags/renders` and authenticated
+client-log console rows are semantic corroboration only, never a second rate verdict. `[frame]`/`[reflow]` share the motion
+LoAF observer, `[cls]` shares its shift observer, `[drop]` is paused while CDP trace owns the window, and
+`[anim]`/`[space]` also annotate motion; `[input]` annotates interaction perf, `[perf]` maps to coarse React
+render heat, and `[css]` remains dead-CSS attribution. A tag may attach to a producer row only when its
+metric and context/page/window identity agree; otherwise it remains a standalone annotation rather than
+fabricating correlation. Console warnings remain warnings unless the caller selected
+`--strict-console`; perf's 100ms/long-task rows are annotations and never become a gate.
+
+The card prints at most five highest-severity rows in `what | where | evidence | next` form, including
+confidence/completeness/conflicts, followed by the exact omitted count and the lossless READ pointer.
+`--report … --problems` reads the same indexed population and its arm/channel/context/page/window/text
+filters; it does not recompute a different summary. A failed/refused run with no actionable structured row
+gets a loud incomplete finding rather than a content-free VERDICT. A passing run may legitimately have
+perf annotations or warnings; the finding layer never changes its exit.
+
+The exact run-bundle suite's planted output proves only `source=console-api` with the anchored Chromium
+text grammar `^%cHH:MM:SS.mmm [tag]%c` is attribution: `[perf]` maps to React and `[input]` maps to perf.
+Early ordinary prose such as `User preference: [perf] …` and an orb-console-ring copy remain warnings;
+an unrelated perf threshold cannot absorb the tag. One `ERR_UNSAFE_PORT` row joins console-api,
+network, the bounded core projection and a session-owned HAR only because all four share the normalized
+symptom and `c0/p0/w7`; the indexed row keeps all four evidence sources, `occurrences=4`,
+`confidence=correlated`, and `completeness=bounded`. A malformed latest-per-URL receipt becomes a visible
+incomplete error while the pre-existing producer verdict/exit remains unchanged.
+
+Rejected alternatives: parsing terminal prose loses identity and breaks under truncation; parsing or
+unzipping Playwright trace violates the raw-fallback ruling; a new cross-arm observer/ring duplicates the
+facts being correlated; and inferred causal diagnoses would turn co-occurrence into fiction. The coupled
+sites are `contract/run-index.ts`, size-safe `lib/run-finding-{common,browser,analyzers}.ts` producer
+readers plus the pure `lib/run-findings.ts` merger, run-bundle writer/card, browser-free
+validator/query/printer, map manifest persistence, help and the exact run-bundle/unified suites. Planted
+controls cover duplicate diagnostic collapse, diagnostic+request correlation, each retained producer,
+clean empty and passing-perf-annotation twins, map persistence without `--json`, malformed/incomplete
+evidence, severity ordering/cap/omission, filter round-trip and the invariant that findings cannot change
+the terminal exit. The final real battery is regenerated only after these controls and static gates pass.
+
+### 10.9 `--map` is both app atlas and current-surface map (ruled 2026-09-03)
+
+**Problem.** The original `--map` answers only “what can I operate on this rendered DOM?” A sight-unseen
+agent also needs “where can this application go?” Grepping source for a section/modal/config/tab name is
+the workflow the dev bridge was built to replace. The two questions are related but not interchangeable:
+an atlas must not auto-tour and mutate every destination, while a destination list alone says nothing
+about the controls and state on the current surface.
+
+**Chosen contract.** One settled-page map capture produces three evidence sheets and prints all three by default:
+
+1. The global **SPA NAV TARGETS** atlas reads the authoritative app-internal vocabulary exactly once from
+   `window.__orb.nav.capabilities()`, validates the complete `OrbNavCapabilities` shape at the page boundary,
+   and renders bounded groups for sections, modal slots, settings groups, published context tabs and chat
+   positions. Every listed member includes directly executable public Snap syntax. An optional `--map
+   <selector>` scopes only the surface sheet; it never hides this global atlas. The block also reads the
+   existing `window.__orb.shell()` when present and prints current URL/section/chat/focus identity. It ends
+   with the workflow: choose a destination, then run its `--goto … --map` / `--context-tab … --map` /
+   `--open-chat … --map` command (or add `--session <name>` to inspect within a live browser lifetime).
+   Dynamic chat/character ids and names are accepted lookup syntax but are not enumerated or invented.
+2. The **CURRENT SHELL / REGIONS** sheet reads the shell's existing rendered vocabulary rather than
+   inventing another layout model. `.shell-grid` owns the current section, list/context modes and focus;
+   `__orb.shell()` proves the same section/panel declaration/chat/focus contract; `.shell-rail`,
+   `.shell-topbar`, `.shell-panel[data-panel-side]` and `.shell-content` supply the rendered rectangles,
+   visibility, inertness, CSS positioning and z-index. The viewport is classified by the shell's existing
+   wide / narrow (at or below 64rem) / mobile (at or below 48rem) regimes. Each region says mounted,
+   visible, available where the shell publishes that concept, exact mode where one exists, rect,
+   position/z-index and whether it is inert. This exposes the real transformations without minting new
+   state: desktop docked/collapsed, narrow overlay/collapsed, mobile list-as-screen, context sheet, and
+   hidden content behind either sheet/list screen. The content identity is the rendered main landmark's
+   accessible label. The context row may name the selected rendered tab, but its relation is
+   `unspecified/auxiliary` unless an explicit DOM/bridge owner is published; merely sitting beside a room
+   does not make RPG or another context surface subordinate to it.
+3. The **SURFACE MAP** keeps the settled DOM census and its unique Playwright locator proof, adds
+   implicit landmarks (`main`, `navigation`, `complementary`, named forms/regions), and records useful
+   action/orientation state: native/ARIA disabled, `aria-current`, native/ARIA checked and
+   `aria-expanded`. Associated HTML labels are read before placeholder fallback, closing the known case
+   where the displayed map named a textbox by its placeholder even though Playwright exposed its `<label>`.
+   By default only the active rendered surface is listed. `--include-hidden` may inventory attached hidden
+   or inert DOM, including host `display:none` descendants that React Activity can retain, but the DOM pass
+   neither proves Activity provenance nor claims a complete Activity inventory (text-only hidden children
+   can have no DOM output). Every such row carries `visibility=hidden`, its observed inactivity reason and
+   `actionability=locator-only`; it is never described as a currently executable click target. Visible
+   disabled controls and non-control landmarks are likewise locator-only. The manifest retains the
+   structured state, shell and atlas, while terminal output clips names and rows with exact
+   totals/omissions.
+
+Static `--file` pages with no bridge remain valid DOM-only maps and print a named “NAV TARGETS unavailable
+for static file” state. A non-file/live page with no nav bridge, or any present capabilities bridge that
+throws or fails shape/set invariants, is an instrument refusal and exits 2; it can never become an empty
+clean atlas. This needs the page-arm twin of the run-arm `exit` seam: every page lifecycle declares a total
+`exit(input, code)`, the registry folds it in arm order, and all three page hosts (one-shot, contexts and
+scenario) consume it. Map alone changes a code to `EXIT.toolError` when `mapAtlasError` is populated; other
+page arms return the code unchanged.
+
+Each atlas group prints at most ten members, with `total`, `shown` and exact `omitted`; the surface retains
+the existing ARIA-line cap and exact omitted count. Every surface locator is unique against the settled
+page; only a row explicitly marked `actionable` has also passed current Playwright visibility plus the
+element's enabled/active boundary. The implementation does **not** add a second navigation registry,
+query domain entity datasets, or walk destinations.
+
+**Alternatives rejected.** Auto-touring every capability mutates client state and changes the evidence
+surface while multiplying run cost. Dumping dynamic chats/characters is an unbounded domain query, not a
+capability atlas. Replacing the current DOM-to-selector pass with per-node CDP Accessibility correlation
+adds a second DevTools capture path and an unstable node-identity join; `locator.ariaSnapshot()` is a
+human YAML view rather than a typed DOM association. The smaller robust improvement is browser-native
+HTML label association plus the existing Playwright selector execution proof; `--aria` remains the full
+accessibility-tree authority. Hiding the atlas behind a new flag would preserve the discovery failure.
+
+**Cross-arm active-surface audit.** `--map` is not allowed to become a special truth while another arm
+quietly judges retained Activity content as current. The bounded audit found these source decisions:
+
+| Arm / channel | Current-active truth |
+| - | - |
+| ARIA | Playwright's accessibility snapshot excludes display-none / aria-hidden Activity descendants; intentional AT truth, not a DOM inventory |
+| map / assertions / dead CSS | visible is the default; `--include-hidden` is an explicit attached-DOM inventory. Map must label locator-only rows; assertion count already says `scope=all DOM`; dead CSS is a class census and already labels the opt-in in help |
+| screenshot | Chromium's framebuffer is the rendered viewport/full-page/element paint; retained hidden Activity DOM contributes no pixels |
+| contrast / overflow | explicit selected target; contrast returns offscreen/occluded/unmeasured rather than a clean ratio, and ordinary assertion matching filters to rendered nodes unless the operator opted into all DOM |
+| matrix | creates the same rendered cell then invokes the same page arms; it adds no hidden-tree walker |
+| app-snapshot | `__orb.snap()` is a coarse settled app snapshot; shell truth inside it is DOM-derived and no component census is inferred from mounted nodes |
+| motion / interaction perf | the one dispatched action and browser observers measure painted/current interaction windows; they do not walk hidden DOM |
+| React profile | raw Fiber trees intentionally retain Offscreen/Activity boundaries. React 19.2 Activity hides host children with `display:none`, preserves state/retained DOM, cleans up Effects, and may render hidden children at lower priority; every Fiber descendant therefore carries inherited active vs retained-hidden state. The artifact counts hidden composite renders separately and the rated hot table excludes them so background duration cannot read as ordinary current-surface work |
+| UI audit / side-eye | separate #1297 consumers now distinguish `dom-walked`, `dom-rendered` and `dom-retained-hidden`; theme and rated samples use rendered nodes, operability additionally excludes inert/ARIA-hidden nodes, and `__orb.shell().chatOpen` requires a visible article. Side-eye scores only the activated rendered surface while a retained-section activation control proves hidden sections are not silently lost |
+
+**#1297 acceptance scar, red to green (2026-09-03).** Independent verification refuted the first
+completion receipt because a descendant may override an ancestor's `visibility:hidden` with
+`visibility:visible`, and Chromium renders/hit-tests that descendant. The repaired shared predicate reads
+the target's computed visibility while still walking ancestors for `display:none`, `hidden` and grouped
+opacity. The original counterexample now produces the tap-target and accessible-name findings; accounting
+is exact (`6 = 5 rendered + 1 retained-hidden`), the broader control is exact (`22 = 14 + 8`), inert and
+ARIA-hidden paint remains rendered but non-operable, the bridge suite is 7/7, the paired Snap map suite is
+5/5, and the fresh full structure run is 254/254 at
+`reports/runs/structure/main-761472-2026-09-03T23-30-20-042Z/check-structure.json`.
+
+**Coupled sites.** The map shapes live in a size-safe `contract/map.ts`, imported by `contract/types.ts`;
+page-boundary validation in
+`ops/page-validate.ts`; capture and instrument refusal in `ops/arms/map.ts`; initialization in
+`ops/capture.ts`; terminal rendering in a size-safe `lib/map-report.ts` called by `ops/report.ts`; page-arm
+exit totality in `contract/arms.ts`, `ops/arms/registry.ts`, the eight page arms and the one-shot/context/
+scenario hosts; recipes in `contract/help.ts` and `.claude/skills/snap-driving/SKILL.md`. The JSON manifest
+already serializes `CaptureOutcome`, so there is no second writer.
+
+**Non-vacuous controls.** A focused file-mode browser suite plants a valid nav/shell bridge and asserts all
+group recipes, current-place/shell identity, desktop region geometry, stateful landmark/control rows,
+manifest shape and a printed
+selector executed through a second public Snap call. Its twins prove: no bridge on a static file stays
+clean and explicitly unavailable; a malformed/throwing bridge exits 2; more than ten targets retains the
+first ten and exact omission; selector scoping does not hide the atlas; and an associated label beats a
+misleading placeholder. A mobile-width shell fixture proves the bottom rail, list-as-screen/content-hidden
+transformation and a context overlay's fixed/sheet geometry. An attached hidden subtree proves the default
+omits it and `--include-hidden` retains it only as hidden/inactive/locator-only. Registry tests plant a page
+arm missing `exit`, while the existing map corpus keeps duplicate-name, hidden-node, SVG, fallback and
+selector-executability controls. The React fixture plants a hidden Activity descendant with duration and
+proves it remains labelled in raw evidence but cannot enter the active ranked table.
 
 ## 11. Cost
 
@@ -673,8 +1398,27 @@ slot, and no worker/reporter creates a second one.
 | - | - | - |
 | F5 TTL / cap numbers | session 30 min · stage 60 min · caps 3/3 vs the owner's "30 min" for stages | RULED: session idle TTL 30 min, stage idle TTL 60 min, caps 3/3 — env-overridable (`ORB_SESSION_TTL_MIN`, `ORB_SESSION_CAP`; the stage pair lands with phase 2) |
 | F6 headed browsers | `--vnc` stays a per-session opt-in; headless default | RULED: headless default, `--vnc` per-session opt-in |
-| F7 orchestrator teardown of a foreign LIVE stage | (a) `--stage-down --owner <checkout> --force` (explicit consent, per band); (b) unchanged blanket `--force` | RULED: (a) — per band, naming the owner (phase 2) |
+| F7 orchestrator teardown of a foreign LIVE stage | (a) `--stage-down --stage-owner <checkout> --force` (explicit consent, per band); (b) unchanged blanket `--force` | RULED: (a) — per band, naming the owner (phase 2) |
 | F8 MCP retirement timing | after phase 3 (`#1195` §2.3) vs after phase 1 | RULED: the MCP retires the day #1198's plain Lighthouse arm folds — not tied to a phase |
 | F9 `lighthouse` dependency | pin in tooling vs refuse the arm and keep the MCP for it | RULED: pin BOTH catalog rows — `lighthouse ^13.4.1` + `puppeteer-core ^25.9.0` (the spike measured that snapshot mode needs the puppeteer page handle; both landed as root devDeps with #1226) |
 | F10 matrix through a session | run `--matrix` cells as contexts in one session (one browser, N contexts) vs keep one-shot cells | RULED: the appearance MATRIX rides a session in PHASE 3 (the phase-3 row widens accordingly); phase 1 refuses `--session` + `--matrix` |
 | F11 budget ceiling (§7.1) | absolute ceiling 10 min per scaled budget vs the factor cap alone | RULED: 10 min absolute wall-clock ceiling |
+
+### 12.3 Ruled (owner, 2026-09-03 — #1292 program / #1293 migration)
+
+Snap is the sole public rendered-instrument CLI. The current public `snap`, `motion-audit`, and
+`perf-meter` command surfaces converge into Snap; motion and performance analyzers remain separate engines
+behind Snap arms. The old commands hard-refuse with the Snap replacement and have no aliases. One Snap run
+owns one ordered action tape, one pre-navigation/settled/post-capture lifecycle, one artifact slot, one load
+receipt and one GPU/acceleration receipt. Arms that interfere with one another must declare and refuse the
+combination, or execute as explicit separately named passes inside that one run; silent second navigation,
+second browser, re-emulation or shared state mutation is forbidden.
+
+The React census retained/excluded contract is §10.5: component/owner/source identity, bounded read-only
+props/state/context/hook slots, commit costs and conservative change reasons, boundary state, update events,
+React User Timing/track correlation and multi-renderer/page identity are retained; each row also records
+its owning context. Public `--contexts` is deliberately excluded from every selective analyzer in this
+program because that separate mode bypasses the shared analyzer lifecycle; the parser refuses the
+combination instead of claiming unexercised multi-context evidence. Human-only or
+mutating DevTools controls and the standalone frontend remain excluded. #1293's red-first unified behavior
+suite is the migration proof; #1292 owns final reconciliation and retirement rather than any individual arm.

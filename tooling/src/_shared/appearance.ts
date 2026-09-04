@@ -89,7 +89,12 @@ async function seedAppearanceBootHint(context: BrowserContext, patch: Appearance
         typeof current === "object" && current !== null && "state" in current && typeof current.state === "object" && current.state !== null
           ? current.state
           : {};
-      localStorage.setItem(key, JSON.stringify({ state: { ...state, ...requested }, version }));
+      // @orb-gate-ignore caught-failure-ownership(empty:catch): an opaque-origin bootstrap page has no localStorage; the settings-response shim remains authoritative after navigation. Ends if the boot hint becomes the authoritative appearance source.
+      try {
+        localStorage.setItem(key, JSON.stringify({ state: { ...state, ...requested }, version }));
+      } catch {
+        // Opaque bootstrap documents cannot carry origin-scoped hints.
+      }
     },
     { axes, key: APPEARANCE_BOOT_HINT_KEY, version: APPEARANCE_BOOT_HINT_VERSION },
   );

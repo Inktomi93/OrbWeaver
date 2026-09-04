@@ -581,6 +581,33 @@
       }
     },
     {
+      "includes": ["scripts/research/agent-browser-escape-workflow-census.ts"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["scripts/research/agent-cli-artifact-census.ts"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off",
+            "useMaxParams": "off"
+          },
+          "nursery": {
+            "noComponentHookFactories": "off"
+          },
+          "style": {
+            "noMagicNumbers": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["tooling/src/verify/ops/ct-flaky-reporter.ts", "tooling/src/verify/ops/required-live-evidence-reporter.ts"],
       "linter": {
         "rules": {

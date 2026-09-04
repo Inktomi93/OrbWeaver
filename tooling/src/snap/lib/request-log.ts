@@ -1,4 +1,4 @@
-// The request-log arm's PURE half: the substring filter, the body cap, and the printed block. No
+// The request-log arm's PURE half: the substring filter and the bounded-ring receipt block. No
 // Playwright, no filesystem — so the accounting a reviewer reads is provable from hand-built entries
 // (ops/request-log.ts owns the event wiring).
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -6,9 +6,9 @@ import type { RequestBodyOutcome, RequestLogEntry, RequestLogReceipt } from "../
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --requests");
 
-/** One response body, bounded. Large enough for a tRPC payload or an HTML document head, small enough
- *  that a reader is never handed a megabyte of minified bundle — and a cut ALWAYS says where it cut. */
-export const REQUEST_BODY_CAP_BYTES = 16_384;
+export const REQUEST_RING_CAPACITY = 4096;
+export const REQUEST_BODY_CAP_BYTES = 262_144;
+export const REQUEST_BODY_BUDGET_BYTES = 33_554_432;
 /** Printed rows. The JSON artifact in the run slot is always complete; this only bounds the terminal. */
 const REQUEST_LINES_CAP = 200;
 const METHOD_PAD = 6;
@@ -30,21 +30,8 @@ export function matchesRequestFilter(url: string, filter: string): boolean {
   return url.toLowerCase().includes(filter.toLowerCase());
 }
 
-/** Cap a body and account for the cut. `truncatedAt` is the byte offset the text stops at — never a bare
- *  ellipsis, because a reader has to be able to tell a short body from a cut one. */
-export function capBody(
-  text: string,
-  cap: number = REQUEST_BODY_CAP_BYTES,
-): { readonly text: string; readonly bytes: number; readonly truncatedAt: number | null } {
-  const bytes = Buffer.byteLength(text, "utf8");
-  if (bytes <= cap) {
-    return { text, bytes, truncatedAt: null };
-  }
-  return { text: Buffer.from(text, "utf8").subarray(0, cap).toString("utf8"), bytes, truncatedAt: cap };
-}
-
 function sizeLabel(entry: RequestLogEntry): string {
-  return entry.sizeBytes === null ? "size=unknown" : `size=${entry.sizeBytes}`;
+  return entry.sizes === null ? "size=unknown" : `size=${entry.sizes.responseBodySize}`;
 }
 
 function timingLabel(entry: RequestLogEntry): string {
@@ -63,14 +50,27 @@ function bodyLines(body: RequestBodyOutcome): readonly string[] {
   if (body.kind === "error") {
     return [`\n--- REQUEST BODY (${body.url}) ---`, `  the body could not be read: ${body.reason}`];
   }
-  const truncation = body.truncatedAt === null ? "complete" : `truncatedAt=${body.truncatedAt}`;
-  return [`\n--- REQUEST BODY (${body.url}, bytes=${body.bytes}, ${truncation}) ---`, body.text];
+  if (body.kind === "not-retained") {
+    const size = body.bytes === null ? "unknown" : String(body.bytes);
+    return [
+      `\n--- REQUEST BODY (${body.url}) ---`,
+      `  BODY NOT RETAINED reason=${body.reason} content-type=${body.contentType ?? "unknown"} bytes=${size} ` +
+        `entry-cap=${body.bodyCapBytes} aggregate=${body.bodyRetainedBytes}/${body.bodyBudgetBytes}`,
+    ];
+  }
+  return [`\n--- REQUEST BODY (${body.url}, bytes=${body.bytes}, content-type=${body.contentType}, complete) ---`, body.text];
 }
 
 /** The block the operator reads: the denominator, the filtered rows, and the one body if asked. */
 export function requestLogLines(receipt: RequestLogReceipt): readonly string[] {
   const scope = receipt.filter === null ? "no filter" : `filter "${receipt.filter}"`;
-  const lines = [`\n--- REQUESTS (${receipt.shown.length} of ${receipt.total}, ${scope}) ---`];
+  const lines = [
+    `\n--- REQUESTS (${receipt.shown.length} of ${receipt.total}, ${scope}) ---`,
+    `  window       [${receipt.window.start},${receipt.window.end}) retained-start=${receipt.window.retainedStart} evicted=${receipt.window.evicted}`,
+    `  ring         retained=${receipt.ring.retained}/${receipt.ring.capacity} seen=${receipt.ring.seen} evicted=${receipt.ring.evicted}`,
+    `  body-budget  retained=${receipt.ring.bodyRetainedBytes}/${receipt.ring.bodyBudgetBytes} ` +
+      `captured=${receipt.ring.bodiesCaptured} not-retained=${Object.values(receipt.ring.bodiesNotRetained).reduce((sum, count) => sum + count, 0)}`,
+  ];
   for (const entry of receipt.shown.slice(0, REQUEST_LINES_CAP)) {
     lines.push(requestLine(entry));
   }

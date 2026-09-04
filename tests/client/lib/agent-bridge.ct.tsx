@@ -83,6 +83,7 @@ test("the mounted bridge publishes every typed capability and every evidence lif
       answerKeys: Object.keys(answers).sort(),
       allAnswer: Object.values(answers).every(Boolean),
       descriptions: Object.values(capabilities),
+      discoveryDescriptions: { nav: capabilities.nav, seed: capabilities.seed, rpg: capabilities.rpg },
       rings: orb.rings(),
       // #1122: the panel rows carry the section's PANE DECLARATION, tri-state. An UNDECLARED row reads
       // `null` and NEVER `true` — a defaulted declaration is exactly the silent guess design-audit's
@@ -98,6 +99,7 @@ test("the mounted bridge publishes every typed capability and every evidence lif
       allAnswer: receipt.allAnswer,
       capabilityCount: receipt.capabilityKeys.length,
       descriptionsPresent: receipt.descriptions.every((description) => description.trim().length > 0),
+      discoveryDescriptions: receipt.discoveryDescriptions,
       rings: receipt.rings,
       panelDeclarations: receipt.panelDeclarations,
     }))
@@ -107,6 +109,13 @@ test("the mounted bridge publishes every typed capability and every evidence lif
       allAnswer: true,
       capabilityCount: 28,
       descriptionsPresent: true,
+      discoveryDescriptions: {
+        nav: expect.stringMatching(
+          /__orb\.nav\.capabilities\(\).*contextTab\(id\).*openChat\(id\|title\|first\|latest\|current\).*\{ok:true\}\|\{ok:false,reason\}/u,
+        ),
+        seed: expect.stringMatching(/await __orb\.seed\.game\(\{profile:'d20'\|'freeform',title\?\}\) -> \{chatId\}/u),
+        rpg: expect.stringMatching(/await __orb\.rpg\(\) -> \{chatId,game,tracker,journal,turnToolCalls\}/u),
+      },
       rings: [
         expect.objectContaining({ name: "bus-events", read: "bus().events", lifetime: "checkpoint", resettable: true }),
         expect.objectContaining({ name: "flags", lifetime: "checkpoint", resettable: true }),
@@ -125,6 +134,15 @@ test("the mounted bridge publishes every typed capability and every evidence lif
         { side: "undeclared", available: null },
       ],
     });
+});
+
+test("shell chatOpen ignores retained hidden chat DOM and follows the rendered section", async ({ mount, page }) => {
+  await mount(<AgentBridgeStory />);
+  await expect(page.getByTestId("bridge-installed")).toBeVisible();
+  await expect(page.getByTestId("retained-chat-section")).toBeHidden();
+  await expect.poll(async () => page.evaluate(() => globalThis.__orb?.shell().chatOpen)).toBe(false);
+  await page.getByRole("button", { name: "toggle visible chat" }).click();
+  await expect.poll(async () => page.evaluate(() => globalThis.__orb?.shell().chatOpen)).toBe(true);
 });
 
 test("the Appearance bridge samples actual values from every mounted real MessageRow", async ({ mount, page }) => {

@@ -99,7 +99,7 @@ export function useListTrackFlip(gridRef: RefObject<HTMLDivElement | null>, list
     //
     // ITS SECOND HALF DOES NOT (#262). "Correct pixels beat a clean metric" is how that trade was recorded
     // here; the raw shift it accepted was then measured, and it is 2.3x the CWV budget on exactly the users
-    // the #151 fix was made for. Merged tree 2026-08-19, `pnpm perf-meter --goto <section>`
+    // the #151 fix was made for. Merged tree 2026-08-19, the former perf meter's `--goto <section>`
     // (reports/perf-meter/scls-*): presets 0.2032 · characters 0.2333 · corpus 0.2295 with the app's
     // reduced-motion setting on, against 0.0112 · 0.0038 · 0 with motion on, and analytics — the one section
     // whose swap moves no LIST track — 0 on both. One entry, one source node: `div.shell-main`, x 56 -> 363.

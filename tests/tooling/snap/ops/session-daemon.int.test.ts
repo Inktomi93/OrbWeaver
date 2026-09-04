@@ -29,6 +29,7 @@ import { vi } from "vitest";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_INSTRUMENT } from "../../../../tooling/src/snap/lib/session-plan.ts";
 import { readSessionRow, resultPairsOf } from "../../../../tooling/src/snap/lib/session-wire.ts";
+import { beginSessionAttachLease } from "../../../../tooling/src/snap/ops/session-attach.ts";
 import type { CliResult } from "../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -41,14 +42,16 @@ const CLI_BUDGET_MS = scaledBudget(60_000, 4);
 vi.setConfig({ testTimeout: CASE_BUDGET_MS, hookTimeout: CASE_BUDGET_MS });
 
 const FIXTURE_HTML =
-  '<!doctype html><html lang="en" data-app-ready="settled"><head><meta charset="utf-8"><title>fixture</title></head><body><main id="m">fixture</main></body></html>';
+  '<!doctype html><html lang="en" data-app-ready="settled"><head><meta charset="utf-8"><title>fixture</title></head><body><main id="m">fixture</main><script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{}}</script></body></html>';
 /** The same WCAG-failing plant tests/tooling/snap/cli.int.test.ts uses for the one-shot contrast proof. */
 const BAD_CONTRAST_HTML =
-  '<!doctype html><html data-app-ready="settled"><body style="background:#8a8a8a"><p style="color:#7a7a7a;font-size:16px">barely there text</p></body></html>';
+  '<!doctype html><html data-app-ready="settled"><body style="background:#8a8a8a"><p style="color:#7a7a7a;font-size:16px">barely there text</p><script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{}}</script></body></html>';
 const EVAL_RE = /EVAL\[0\][^\n]*\n(\d+)/u;
-const QUIET = ["--no-shot", "--no-failure-evidence"];
+const QUIET = ["--no-shot"];
 /** A promise-returning eval snap awaits — the in-flight window T2 and the busy case need. */
 const SLOW_EVAL = "new Promise((resolve) => setTimeout(() => resolve('slow-done'), 4000))";
+/** Safely beyond T5 ACTIVE's 1.2s idle TTL while staying well below the fixed 5s call watchdog. */
+const ACTIVE_TTL_EVAL = "new Promise((resolve) => setTimeout(() => resolve('active-ttl-done'), 2000))";
 /** T17's dead promise keeps the call in flight without blocking the browser protocol that aborts it. */
 const HANGING_EVAL = "new Promise(() => {})";
 const POLL_MS = 250;
@@ -237,8 +240,8 @@ test("T3 — two sessions publishing the SAME --out concurrently keep both PNGs 
     await expect(await r.snap(["--session", a, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
     await expect(await r.snap(["--session", b, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
     const [ra, rb] = await Promise.all([
-      r.snap(["--session", a, "--file", r.fixture, "--out", out, "--no-failure-evidence"]),
-      r.snap(["--session", b, "--file", r.fixture, "--out", out, "--no-failure-evidence"]),
+      r.snap(["--session", a, "--file", r.fixture, "--out", out]),
+      r.snap(["--session", b, "--file", r.fixture, "--out", out]),
     ]);
     await expect(ra).toExitWith(EXIT.clean);
     await expect(rb).toExitWith(EXIT.clean);
@@ -286,6 +289,33 @@ test("T5 — a tiny TTL reaps an idle daemon; a call inside the window resets it
     expect(await until(() => !pidAlive(pidB))).toBe(true);
   } finally {
     await r.close([a, b]);
+  }
+});
+
+test("T5 ACTIVE — a call longer than the TTL keeps its daemon, rearms only after settling, and close cannot rearm it", async ({ plantedTree, runCli }) => {
+  const r = await rig(plantedTree, runCli, envOf([[SESSION_TTL_KEY, "0.02"]]));
+  const a = uniq("t5-active");
+  try {
+    const long = await r.snap(["--session", a, "--file", r.fixture, "--eval", ACTIVE_TTL_EVAL, ...QUIET]);
+    await expect(long).toExitWith(EXIT.clean);
+    const booted = rowOf(r.home, a);
+    expect(pidAlive(booted.daemonPid)).toBe(true);
+    expect(rowOf(r.home, a).daemonPid).toBe(booted.daemonPid);
+
+    const next = await r.snap(["--session", a, "--eval", "document.title", ...QUIET]);
+    await expect(next).toExitWith(EXIT.clean);
+    expect(next.stdout).toContain("fixture");
+    expect(next.stdout).not.toContain("booting");
+
+    const draining = r.snap(["--session", a, "--eval", ACTIVE_TTL_EVAL, ...QUIET]);
+    expect(await until(() => rowOf(r.home, a).inflightOp !== null)).toBe(true);
+    const close = r.snap(["--session-close", a]);
+    await expect(draining).resolves.toMatchObject({ code: EXIT.clean });
+    await expect(close).resolves.toMatchObject({ code: EXIT.clean });
+    expect(await until(() => !pidAlive(booted.daemonPid))).toBe(true);
+    expect(existsSync(join(r.home, `${a}.json`))).toBe(false);
+  } finally {
+    await r.close([a]);
   }
 });
 
@@ -354,8 +384,14 @@ test("T9 — the same argv one-shot vs through a session yields identical RESULT
     // load/budget-factor (#1283, §7.1) are a reading of THIS PROCESS's box at THIS instant, not a fact
     // about the drive — excluded from the parity check for the same reason `out` is: two separate CLI
     // invocations legitimately disagree on it without the two paths having measured anything differently.
-    const { out: _oneOut, load: _oneLoad, "budget-factor": _oneFactor, ...onePairs } = pairsOf(oneShot.stdout);
-    const { out: _sessionOut, load: _sessionLoad, "budget-factor": _sessionFactor, ...sessionPairs } = pairsOf(viaSession.stdout);
+    const { out: _oneOut, load: _oneLoad, "budget-factor": _oneFactor, "rate-posture": _oneRatePosture, ...onePairs } = pairsOf(oneShot.stdout);
+    const {
+      out: _sessionOut,
+      load: _sessionLoad,
+      "budget-factor": _sessionFactor,
+      "rate-posture": _sessionRatePosture,
+      ...sessionPairs
+    } = pairsOf(viaSession.stdout);
     expect(Object.keys(onePairs).length).toBeGreaterThan(10);
     expect(sessionPairs).toEqual(onePairs);
 
@@ -440,13 +476,75 @@ test("F4 — a caller from ANOTHER checkout is refused naming the owner, pid and
     expect(status.stdout).toContain("page 0  file://");
     expect(status.stdout).toContain("1 live");
 
-    const exported = await r.snap(["--session-export", a]);
+    const exportBase = `${a}-custom-export`;
+    const exported = await r.snap(["--session-export", a, "--out", exportBase]);
     await expect(exported).toExitWith(EXIT.clean);
     expect(exported.stdout).toContain("RESULT snap-session-export");
-    const consolePointer = join(repoRoot, "reports", "sessions", a, "console.json");
+    expect(exported.stdout).toContain(`out=${exportBase}`);
+    const consolePointer = join(repoRoot, "reports", "sessions", exportBase, "console.json");
     expect(readlinkSync(consolePointer)).toContain("runs/snap/");
     expect(JSON.parse(readFileSync(consolePointer, "utf8"))).toEqual([]);
+    expect(existsSync(join(repoRoot, "reports", "sessions", exportBase, "session.har"))).toBe(true);
+    expect(existsSync(join(repoRoot, "reports", "sessions", exportBase, "trace-000.zip"))).toBe(true);
+    const exportIndexPath = /RESULT snap exit=\d+ index=(\S+)/u.exec(exported.stdout)?.[1];
+    expect(exportIndexPath).toBeDefined();
+    const exportIndex = JSON.parse(readFileSync(exportIndexPath as string, "utf8")) as {
+      readonly artifacts?: readonly { readonly channel: string; readonly relativePath: string }[];
+    };
+    expect(exportIndex.artifacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ channel: "har", relativePath: `sessions/${exportBase}/session.har` }),
+        expect.objectContaining({ channel: "playwright-trace", relativePath: `sessions/${exportBase}/trace-000.zip` }),
+      ]),
+    );
+    rmSync(join(repoRoot, "reports", "sessions", exportBase), { recursive: true, force: true });
+  } finally {
+    await r.close([a]);
+  }
+});
+
+test("session evidence — enabled sessions retain and export a readable trace and HAR without closing the owner", async ({ plantedTree, runCli, repoRoot }) => {
+  const r = await rig(plantedTree, runCli);
+  const a = uniq("evidence");
+  try {
+    await expect(await r.snap(["--session", a, "--file", r.fixture, "--eval", "document.title", "--no-shot"])).toExitWith(EXIT.clean);
+    const exported = await r.snap(["--session-export", a]);
+    await expect(exported).toExitWith(EXIT.clean);
+    expect(exported.stdout).toContain("files=10");
+    const trace = join(repoRoot, "reports", "sessions", a, "trace-000.zip");
+    const har = join(repoRoot, "reports", "sessions", a, "session.har");
+    expect(readFileSync(trace).subarray(0, 2).toString("ascii")).toBe("PK");
+    const parsed = JSON.parse(readFileSync(har, "utf8")) as { readonly log?: { readonly entries?: readonly unknown[] } };
+    expect(parsed.log?.entries?.length).toBeGreaterThan(0);
+    expect(existsSync(join(repoRoot, "reports", "sessions", a, "browser-retention.json"))).toBe(true);
+    const row = rowOf(r.home, a);
+    expect(existsSync(join(row.slotDir, "sessions", a, "trace-000.zip"))).toBe(true);
+    expect(existsSync(join(row.slotDir, "sessions", a, "session.har"))).toBe(true);
+    const after = await r.snap(["--session", a, "--eval", "document.title", "--no-shot"]);
+    await expect(after).toExitWith(EXIT.clean);
+    expect(after.stdout).toContain("fixture");
     rmSync(join(repoRoot, "reports", "sessions", a), { recursive: true, force: true });
+  } finally {
+    await r.close([a]);
+  }
+});
+
+test("attach lease — a sibling heartbeat keeps a tiny-TTL session alive through a run longer than the TTL", async ({ plantedTree, runCli, repoRoot }) => {
+  const r = await rig(plantedTree, runCli, envOf([[SESSION_TTL_KEY, "0.02"]]));
+  const a = uniq("attach-ttl");
+  try {
+    await expect(await r.snap(["--session", a, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
+    const booted = rowOf(r.home, a);
+    const before = booted.lastUsedAt;
+    const lease = await beginSessionAttachLease(booted, repoRoot);
+    await sleep(2600);
+    await lease.close();
+    const afterHeartbeat = rowOf(r.home, a);
+    expect(Date.parse(afterHeartbeat.lastUsedAt)).toBeGreaterThan(Date.parse(before));
+    expect(pidAlive(afterHeartbeat.daemonPid)).toBe(true);
+    const after = await r.snap(["--session", a, "--eval", "document.title", ...QUIET]);
+    await expect(after).toExitWith(EXIT.clean);
+    expect(after.stdout).toContain("fixture");
   } finally {
     await r.close([a]);
   }
@@ -467,6 +565,8 @@ test("attach — attachProbeSession drives the owner's LIVE page over the sessio
       device: row.environment.device,
       colorScheme: row.environment.colorScheme,
       reducedMotion: row.environment.reducedMotion,
+      contrast: row.environment.contrast,
+      reducedTransparency: row.environment.reducedTransparency,
     });
     try {
       expect(attached.contexts[0]?.owned).toBe(false);
