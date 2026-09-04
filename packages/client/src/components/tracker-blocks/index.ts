@@ -15,5 +15,7 @@ export { MeterRow } from "./meter-row.tsx";
 export { RelationshipBadge } from "./relationship-badge.tsx";
 export type { BeatLineProps, GoalLineProps, StatCellProps, TrackerChipProps } from "./tracker-blocks.tsx";
 export { BeatLine, GoalLine, StatCell, TrackerChip } from "./tracker-blocks.tsx";
+// The kit's subject-qualification grammar (#1383) — a `.ts` module so it may export non-components.
+export { trackerActionName, trackerFieldName } from "./tracker-names.ts";
 export type { TrackerValueProps } from "./tracker-value.tsx";
 export { TrackerValue } from "./tracker-value.tsx";

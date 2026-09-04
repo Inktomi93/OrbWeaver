@@ -15,6 +15,7 @@ import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { ariaTreeFindings } from "../../../../support/ct/accessible-names.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { ctSnapPath } from "../../../../support/ct/snap-out.ts";
 import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
@@ -572,6 +573,91 @@ test("a tab body renders real tracker data (Status: roster row + pool meters + c
   await expect(component.getByText("Mara")).toBeVisible();
   await expect(component.getByText("Warden")).toBeVisible();
   await expect(component.getByText("poisoned")).toBeVisible();
+});
+
+// ── #1383 the Status region is a LIST OF PEOPLE, and it must announce like one ────────────────────────
+// Measured on main b767bedfc (`--aria '[aria-label="Chats details"]'`): `region "Status"` was one FLAT
+// tree — `button "Open Traveler"`, then bare `text: HP`, `button "HP value"`, `text: /`, `button "HP max"`
+// … repeated per character with ZERO group boundary, giving 4x "Add condition", 4x "Status line",
+// 3x "HP value", 3x "HP max". On an EDITING surface a reader heard "button, 17" four times and could not
+// tell whose sheet was being edited.
+//
+// TWO HALVES, PINNED SEPARATELY because they fix different readers:
+//   • the per-character `role="group"` — what a SCOPE-AWARE walk needs. `ariaTreeFindings`' duplicate
+//     probe is scope-aware by construction, so the group alone would silence it; that is why the probe is
+//     the FLOOR here and not the whole test.
+//   • the subject-qualified names — what a SCOPE-BLIND `getByRole(name)` (an agent, a name-navigating
+//     screen-reader rotor) needs. Those are asserted BY NAME below, and the bare pre-fix names are pinned
+//     to zero, so restoring either half alone reds this.
+//
+// The name ORACLE is Playwright's own role engine / `ariaSnapshot` — never a hand-rolled attribute read
+// (there is no browser API that computes an accessible name, and the aria-label-vs-labelledby precedence
+// is exactly where a hand-rolled key goes wrong).
+
+/** Two characters carrying the SAME trackers and the same editable planes — the collision shape #1383
+ *  measured. The stock fixture has ONE character (plus a cast actor Status filters out), which cannot
+ *  express a collision at all. */
+function twoCharacterTrackerView(): unknown {
+  const base = trackerView(false) as Record<string, unknown>;
+  const actors = base["actors"] as Record<string, unknown>[];
+  const mara = actors.find((a) => a["name"] === "Mara") as Record<string, unknown>;
+  const bryn = { ...mara, actorRef: { kind: "character", characterId: "character_ct_bryn" }, name: "Bryn" };
+  return { ...base, actors: [...actors, bryn] };
+}
+
+test("#1383 Status: every character block is a NAMED GROUP and no control name collides across the roster", async ({ mount, page }) => {
+  await stubTakeover(page, { tracker: twoCharacterTrackerView() });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
+
+  const tab = component.locator('[data-slot="rpg-status-tab"]');
+  // SETTLED barrier: both cards have painted their control sets before any name is read or counted.
+  await expect(tab.locator('[data-slot="rpg-status-card"]')).toHaveCount(2);
+
+  // HALF 1 — the boundary a reader navigates by.
+  await expect(component.getByRole("group", { name: "Mara", exact: true })).toBeVisible();
+  await expect(component.getByRole("group", { name: "Bryn", exact: true })).toBeVisible();
+
+  // HALF 2 — every control says WHOSE, so a scope-blind name lookup resolves exactly one control.
+  for (const name of [
+    "Mara Vitality value",
+    "Bryn Vitality value",
+    "Mara Vitality max",
+    "Bryn Vitality max",
+    "Mara Status line",
+    "Bryn Status line",
+    "Add condition to Mara",
+    "Add condition to Bryn",
+    "Remove poisoned from Mara",
+    "Remove poisoned from Bryn",
+  ]) {
+    await expect(tab.getByRole("button", { name, exact: true }), `"${name}" must name exactly one control`).toHaveCount(1);
+  }
+  // …and the pre-fix names, which named two controls each, now name none.
+  for (const bare of ["Vitality value", "Vitality max", "Status line", "Add condition", "Remove poisoned"]) {
+    await expect(tab.getByRole("button", { name: bare, exact: true }), `the bare "${bare}" must be gone`).toHaveCount(0);
+  }
+
+  // THE FLOOR — the house tree probe over Playwright's own accessible-name computation: no interactive
+  // control is nameless, and no two same-role controls share a name under the same scope chain.
+  const findings = ariaTreeFindings(await tab.ariaSnapshot());
+  expect(findings, "the Status region must carry no nameless or ambiguous control").toEqual([]);
+});
+
+test("#1383 Status: a meter's fields carry the label, so the loose `HP` / `/` text nodes leave the a11y tree", async ({ mount, page }) => {
+  await stubTakeover(page, { tracker: twoCharacterTrackerView() });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
+
+  const tab = component.locator('[data-slot="rpg-status-tab"]');
+  await expect(tab.locator('[data-slot="rpg-status-card"]')).toHaveCount(2);
+  const snapshot = await tab.ariaSnapshot();
+
+  // The label is VISIBLE — it just no longer announces a second time as an orphan node beside the fields
+  // whose names already carry it verbatim, and the `/` between two named fields is punctuation.
+  await expect(tab.getByText("Vitality").first()).toBeVisible();
+  expect(snapshot, "the meter's label must not appear as a loose text node").not.toContain("text: Vitality");
+  expect(snapshot, "the slash between two named fields is punctuation, not a reading").not.toContain("text: /");
 });
 
 test("an editable pool value fires the patchActor mutation (host, writable) — the mutation COUNT", async ({ mount, page }) => {

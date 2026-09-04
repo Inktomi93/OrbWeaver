@@ -10,7 +10,7 @@
 // Also home to the CARD-EMBEDDABLE partition (bottom of file): which of these keys a character card may
 // carry into a room, and which stay the viewer's.
 
-import { isDeterministicColor, isSafeColor } from "@orb/kit/safe-color";
+import { isDeterministicColor, isRenderableColor } from "@orb/kit/safe-color";
 import { z } from "zod";
 
 /** Fonts a user may pick — an allowlist; anything else drops. */
@@ -32,9 +32,19 @@ export type ThemeDensity = (typeof THEME_DENSITIES)[number];
 export const THEME_RADII = ["base", "control", "card", "full"] as const;
 export type ThemeRadius = (typeof THEME_RADII)[number];
 
+// A DERIVED fill must answer BOTH questions: one authored pixel (`isDeterministicColor`) that the renderer
+// can actually resolve (`isRenderableColor`, #1358). They are separate predicates because the render-side
+// clamp asks only the first — see `tests/contracts/theme/pairing.suite.test.ts` for the pinned divergence.
+const isRenderableDeterministicColor = (raw: string): boolean => isDeterministicColor(raw) && isRenderableColor(raw);
+
 // Lenient per-field: a failed parse yields `undefined` (field drops), never a thrown blob.
-const colorToken = z.string().refine(isSafeColor).optional().catch(undefined);
-const deterministicColorToken = z.string().refine(isDeterministicColor).optional().catch(undefined);
+// RENDERABLE, not merely injection-safe (#1358): `isSafeColor`'s letters-only NAMED arm admits any bare
+// word, so `notacolorxx` used to pass this refine, persist verbatim, and then paint nothing at all — no
+// error, no fallback message, no visible change. The wire clamp now asks the second question too, so a
+// value that survives to storage is one the renderer can resolve. The user-facing REFUSAL lives at the
+// save boundary the user types into (`@orb/ui` `ColorField`); this is the boundary backstop.
+const colorToken = z.string().refine(isRenderableColor).optional().catch(undefined);
+const deterministicColorToken = z.string().refine(isRenderableDeterministicColor).optional().catch(undefined);
 // A bubble bg is a FILL with a foreground derived from it; .fg is retained for wire/serde compatibility
 // but the renderer ignores it. Only the derivation input needs the narrower deterministic contract.
 const bubble = z.object({ bg: deterministicColorToken, fg: colorToken }).optional().catch(undefined);

@@ -2,7 +2,7 @@
 // variant factory (tv), and the reduced-motion live-query hook. Primitives import these from here,
 // never a raw lib directly.
 
-export { isSafeColor } from "@orb/kit/safe-color";
+export { isRenderableColor, isSafeColor } from "@orb/kit/safe-color";
 export { ACCENT_HOVER } from "./accent-hover.ts";
 export { ANCHOR_GAP_INPUT, ANCHOR_GAP_TRIGGER } from "./anchor-gap.ts";
 // `cn` + `tv` are ONE module because they must share ONE tailwind-merge config — see class-merge.ts

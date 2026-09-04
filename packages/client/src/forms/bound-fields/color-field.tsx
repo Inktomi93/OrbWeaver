@@ -1,5 +1,6 @@
 // Bound color field — the `@orb/ui` ColorField (swatch trigger → popover with a native picker + a hex
-// input; validates via the SAME `isSafeColor` the D44 ThemeScope clamp uses) inside `<Field>`. The field
+// input; validates via the shared kit predicates — `isRenderableColor` since #1358, which asks the
+// injection question AND whether the renderer can resolve the value at all) inside `<Field>`. The field
 // value is the color STRING (hex/rgb/hsl/oklch/named); an invalid draft never reaches `handleChange`
 // (the primitive gates it). First consumer: the theme editor's token-override pickers.
 

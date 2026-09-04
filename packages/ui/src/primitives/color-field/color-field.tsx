@@ -2,7 +2,7 @@ import { Field as BaseField } from "@base-ui/react/field";
 import type { PopoverRootProps as BasePopoverRootProps } from "@base-ui/react/popover";
 import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
-import { cn, isSafeColor } from "#lib";
+import { cn, isRenderableColor } from "#lib";
 import { Button } from "#primitives/button";
 import { Field } from "#primitives/field";
 import { Check, Icon } from "#primitives/icons";
@@ -13,8 +13,9 @@ import { colorFieldVariants } from "./variants.ts";
 
 export interface ColorSwatchProps {
   /**
-   * The color to display. Rendered as inline `background-color` only when it passes `isSafeColor`;
-   * an unsafe/unparsable value renders an empty chip rather than risk an injected style.
+   * The color to display. Rendered as inline `background-color` only when it passes
+   * `isRenderableColor`; an unsafe or unrenderable value renders an empty chip rather than risk an
+   * injected style or advertise a colour the browser will drop.
    */
   value: string;
   /** Optional text beside the chip (e.g. the raw hex) — omit for a bare swatch. */
@@ -25,7 +26,7 @@ export interface ColorSwatchProps {
 /** The read-only swatch — a plain color chip for list/summary contexts, no popover/edit affordance. */
 export function ColorSwatch({ value, label, className }: ColorSwatchProps): ReactElement {
   const slots = colorFieldVariants();
-  const safe = isSafeColor(value);
+  const safe = isRenderableColor(value);
   return (
     <span className={slots.root({ className })} data-slot="color-swatch">
       <span className={slots.swatch()} data-slot="color-swatch-chip" style={safe ? { backgroundColor: value } : undefined} />
@@ -43,7 +44,7 @@ export interface ColorFieldProps {
   /**
    * The current color — any form the D44 clamp accepts (hex / rgb / hsl / oklch / a named color).
    * NOTE `onValueChange` below is this composite's OWN commit callback (it fires only for a value that
-   * passes `isSafeColor`, and for the `""` clear), not a passthrough of any Base UI change arm — there
+   * passes `isRenderableColor`, and for the `""` clear), not a passthrough of any Base UI change arm — there
    * is no eventDetails to preserve on it.
    */
   value: string;
@@ -100,11 +101,26 @@ const NATIVE_HEX_RE = /^#[0-9a-f]{6}$/iu;
 // stays unset.
 const FALLBACK_NATIVE_HEX = "#808080";
 
+/** The refusal NAMES the colour it refused (#1358). The old copy ("Enter a valid color…") described the
+ *  grammar and not the input, which is the same silence the defect was about: a user who typed a word the
+ *  browser cannot resolve got a generic rule back and no statement that THEIR value was the problem. */
+const REFUSED_ECHO_MAX = 40;
+
+function unrenderableMessage(draft: string): string {
+  const value = draft.trim();
+  // The echo is BOUNDED: the draft is free text a user can paste 5,000 characters into, and an error line
+  // that long stops being a message. The clamp itself caps a real colour at 64 characters, so nothing
+  // legitimate is ever elided.
+  const shown = value.length > REFUSED_ECHO_MAX ? `${value.slice(0, REFUSED_ECHO_MAX)}…` : value;
+  return `"${shown}" isn't a color the browser can render — use a hex, rgb(), hsl(), oklch(), or a CSS color name.`;
+}
+
 /**
  * The editable color field — a swatch trigger that opens a popover with a native
  * `<input type="color">` plus a hex text field, the always-present keyboard/SR-operable
- * alternative. `isSafeColor` (imported from `content/theme-scope/clamp`, not re-derived) rejects
- * an unparsable/injected value inline before it reaches `onValueChange`. A "Reset to default"
+ * alternative. `isRenderableColor` (the kit predicate, not re-derived) rejects an injected value AND a
+ * colour the browser cannot resolve (#1358 — `notacolorxx` used to commit, persist, and paint nothing)
+ * inline, before it reaches `onValueChange`; the inline error names the refused value. A "Reset to default"
  * button emits the empty `""` sentinel for the consumer's own clear semantic; deleting the hex
  * field mid-typing never fires a clear (a transiently-empty draft fails the commit gate).
  */
@@ -125,8 +141,8 @@ export function ColorField({
   const slots = colorFieldVariants();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
-  const isDraftValid = isSafeColor(draft);
-  // An empty draft is the "clear = inherit" state, not a validation error — isSafeColor("") is
+  const isDraftValid = isRenderableColor(draft);
+  // An empty draft is the "clear = inherit" state, not a validation error — isRenderableColor("") is
   // correctly false, so the error must gate on a non-empty value that fails the clamp.
   const showError = draft.trim() !== "" && !isDraftValid;
   const nativeHex = NATIVE_HEX_RE.test(draft) ? draft : FALLBACK_NATIVE_HEX;
@@ -145,13 +161,13 @@ export function ColorField({
 
   const commit = (next: string): void => {
     setDraft(next);
-    if (isSafeColor(next)) {
+    if (isRenderableColor(next)) {
       onValueChange(next);
     }
   };
 
   // The explicit clear: emits "" so the consumer maps it to its own clear semantic. Deliberately not
-  // wired to a transiently-empty hex draft — commit("") never fires since isSafeColor("") is false.
+  // wired to a transiently-empty hex draft — commit("") never fires since isRenderableColor("") is false.
   const handleReset = (): void => {
     setDraft("");
     onValueChange("");
@@ -181,7 +197,7 @@ export function ColorField({
                 {...(ariaLabelledby === undefined ? {} : { "aria-labelledby": ariaLabelledby })}
                 {...(ariaDescribedby === undefined ? {} : { "aria-describedby": ariaDescribedby })}
               >
-                <ColorFieldTriggerGlyph isValid={isSafeColor(value)} loading={loading} slots={slots} success={success} value={value} />
+                <ColorFieldTriggerGlyph isValid={isRenderableColor(value)} loading={loading} slots={slots} success={success} value={value} />
               </button>
             }
           />
@@ -197,7 +213,7 @@ export function ColorField({
             type="color"
             value={nativeHex}
           />
-          <Field className={slots.hexField()} label="Hex" {...(showError ? { error: "Enter a valid color (hex, rgb, hsl, or oklch)." } : {})}>
+          <Field className={slots.hexField()} label="Hex" {...(showError ? { error: unrenderableMessage(draft) } : {})}>
             <Input onValueChange={commit} spellCheck={false} value={draft} />
           </Field>
           <Button className={slots.resetButton()} data-slot="color-field-reset" intent="ghost" onClick={handleReset} size="sm" type="button">

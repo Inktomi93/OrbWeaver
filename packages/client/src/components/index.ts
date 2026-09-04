@@ -80,6 +80,8 @@ export {
   StatCell,
   TrackerChip,
   TrackerValue,
+  trackerActionName,
+  trackerFieldName,
 } from "./tracker-blocks/index.ts";
 export type { TrailingArrowProps } from "./trailing-arrow.tsx";
 export { TrailingArrow } from "./trailing-arrow.tsx";
