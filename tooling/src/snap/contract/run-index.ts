@@ -182,16 +182,9 @@ export interface SnapRunIndex {
  *  (`prunedRuns(root, instrument)` over `reports/runs/<instrument>/.pruned.jsonl`) are the RECEIPTS lane's
  *  and land in `tooling/src/_shared/artifacts.ts`. This declares only the shape this module's PRINTER
  *  consumes, so the two halves could be built in parallel; it is structurally identical to that reader's
- *  `PrunedRun` on purpose. AT FOLD-IN, COLLAPSE IT: replace this interface with a re-export
- *  (`export type { PrunedRun as SnapPrunedRun } from "../../_shared/artifacts.ts";`) and pass
- *  `await prunedRuns(root, "snap")` into `printSnapReports`' third argument — one home, one shape. */
-export interface SnapPrunedRun {
-  readonly runId: string;
-  /** When the run itself finished. */
-  readonly ranAt: string;
-  /** When the retention sweep removed its slot. */
-  readonly prunedAt: string;
-}
+ *  `PrunedRun` on purpose. Folded in 2026-09-04: this is now a re-export of the reader's own
+ *  `PrunedRun` — one home, one shape. */
+export type { PrunedRun as SnapPrunedRun } from "../../_shared/run-retention.ts";
 
 /** `--reports`' own filters (#1345). The list is a NAVIGATION surface — ten slots have to map back to the
  *  ten commands that made them — so it takes a window (`--last`) and a lane, and nothing else: any
