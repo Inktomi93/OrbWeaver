@@ -7,15 +7,16 @@ import { DIAGNOSTIC_LEVELS } from "../../_shared/browser-diagnostics.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { parseSnapRunResults, SNAP_ARM_STATES, snapDiagnosticRetention } from "../contract/run-facts.ts";
-import type { SnapReportQuery, SnapRunArtifact, SnapRunIndex } from "../contract/run-index.ts";
+import type { SnapPrunedRun, SnapReportQuery, SnapRunArtifact, SnapRunIndex, SnapRunListQuery } from "../contract/run-index.ts";
 import { assertArtifactReferences, assertArtifactRow } from "../lib/run-index-artifacts.ts";
 import { directSnapRunIndexCandidates, localSnapRunIndexPaths, snapWorktreeRoots } from "../lib/run-report-candidates.ts";
+import { runOutName, runRegressions } from "../lib/run-report-columns.ts";
 import { checkoutLocation, isRecord, validGitFailures } from "../lib/run-report-identity.ts";
 import { ARM_DEFS } from "./arms/registry.ts";
 import { readSnapDiagnosticArtifact } from "./run-bundle.ts";
 import { normalizeLegacyIndex } from "./run-report-legacy.ts";
 import type { SnapRunIndexScan } from "./run-report-render.ts";
-import { renderSnapRunList, renderSnapRunReport } from "./run-report-render.ts";
+import { renderSnapRunDelta, renderSnapRunList, renderSnapRunReport } from "./run-report-render.ts";
 import { isStringOrNull, isStringPair } from "./run-report-shapes.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");
@@ -371,7 +372,11 @@ export async function resolveSnapRunIndex(root: string, target: string): Promise
   }
   const candidates = await directSnapRunIndexCandidates(root, target);
   if (candidates.length === 0) {
-    throw new Error(`run id ${JSON.stringify(target)} was not found in any registered worktree`);
+    // A run id outlives its bytes: it is quoted in reviews, board rows and `next=` commands long after the
+    // retention sweep. Say which of the two it is rather than leaving the reader to suspect a typo.
+    throw new Error(
+      `run id ${JSON.stringify(target)} was not found in any registered worktree — a run slot is kept for at least 24h, after which only the newest 10 per instrument survive; pnpm snap --reports lists the pruned ones`,
+    );
   }
   if (candidates.length > 1) {
     throw new Error(`run id ${JSON.stringify(target)} is ambiguous across worktrees: ${candidates.join(", ")}`);
@@ -383,12 +388,40 @@ export async function resolveSnapRunIndex(root: string, target: string): Promise
   return candidate;
 }
 
+/** The PREVIOUS run of the same `--out` name in this checkout, if there is one.
+ *
+ *  Deliberately a LENIENT read: the delta is a display convenience, so one corrupt neighbour must not
+ *  refuse the report the caller actually asked for. The subject index itself is still read by the strict
+ *  door above — nothing here can turn a malformed file into a verdict. */
+async function previousRunWithSameName(root: string, current: SnapRunIndex): Promise<SnapRunIndex | null> {
+  const name = runOutName(current);
+  let best: SnapRunIndex | null = null;
+  for (const path of await localSnapRunIndexPaths(root)) {
+    // @orb-gate-ignore caught-failure-ownership(empty:catch): a neighbouring run's corruption is not this report's verdict — the subject index is read by the strict door in printSnapReport, and a skipped neighbour only means no delta row. Ends if this reader becomes the only read of those files.
+    try {
+      const candidate = await readSnapRunIndex(path);
+      const older = candidate.process.finishedAt < current.process.finishedAt;
+      const newest = best === null || candidate.process.finishedAt > best.process.finishedAt;
+      if (candidate.identity.runId !== current.identity.runId && older && newest && runOutName(candidate) === name) {
+        best = candidate;
+      }
+    } catch {
+      /* a neighbour we cannot read is simply not a comparison subject */
+    }
+  }
+  return best;
+}
+
 export async function printSnapReport(root: string, query: SnapReportQuery): Promise<number> {
   // @orb-gate-ignore caught-failure-ownership(empty:error): this is the browser-free reader's terminal owner; it prints RUN INDEX REFUSED and returns tool-error for every resolution/validation/artifact failure. Ends if either output or exit vote disappears.
   try {
     const path = await resolveSnapRunIndex(root, query.target);
     const index = await readSnapRunIndex(path);
     await renderSnapRunReport(index, path, query);
+    const previous = await previousRunWithSameName(root, index);
+    if (previous !== null) {
+      renderSnapRunDelta(previous, runRegressions(index, previous), path);
+    }
     return EXIT.clean;
   } catch (error) {
     print(`RUN INDEX REFUSED  ${error instanceof Error ? error.message : String(error)}`);
@@ -418,8 +451,12 @@ export async function listSnapRunIndices(root: string): Promise<readonly SnapRun
   return (await scanSnapRunIndices(root)).rows;
 }
 
-export async function printSnapReports(root: string): Promise<number> {
+export async function printSnapReports(
+  root: string,
+  query: SnapRunListQuery = { last: null, lane: null },
+  pruned: readonly SnapPrunedRun[] = [],
+): Promise<number> {
   const scan = await scanSnapRunIndices(root);
-  renderSnapRunList(scan);
+  renderSnapRunList(scan, query, pruned);
   return EXIT.clean;
 }

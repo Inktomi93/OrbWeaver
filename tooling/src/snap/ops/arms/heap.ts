@@ -329,7 +329,7 @@ export const HEAP_ARM = {
       kind: "required-value",
       pageTargetable: true,
       group: "Measure",
-      summary: "growth/detached findings between two heap labels or snapshot paths (diagnostic, never a budget gate)",
+      summary: "left=right — growth/detached findings between two heap labels or snapshot paths (diagnostic, never a budget gate)",
       handler: (args, rest, page): void => {
         // @orb-gate-ignore caught-failure-ownership(empty:error): the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors.
         try {
@@ -344,7 +344,7 @@ export const HEAP_ARM = {
       kind: "required-value",
       pageTargetable: true,
       group: "Measure",
-      summary: "retaining paths, dominators and outgoing edges for a snapshot node",
+      summary: "snapshot=selector — retaining paths, dominators and outgoing edges for a snapshot node",
       handler: (args, rest, page): void => {
         // @orb-gate-ignore caught-failure-ownership(empty:error): the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors.
         try {

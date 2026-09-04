@@ -116,6 +116,11 @@ auditRuleTest(
     await expect(res).toExitWith(0);
     // The denominator says the verdict was MEASURED, not skipped: one candidate, judged, nothing withheld.
     expect(res.stdout).toContain("POPULATION   off-theme-font candidates=1 judged=1 affected=1");
+    // #1345 — every owned counter is still accounted for inline, but the rules with NOTHING to judge ride
+    // one line that NAMES them instead of ~40 rows of zeros (~5 KB of a 9.5-17 KB report). Both
+    // directions: the fold line exists and names rules, and no zero-candidate row survives beside it.
+    expect(res.stdout).toMatch(/^POPULATION {3}nothing-to-judge=\d+ rule\(s\) with candidates=0: \S/mu);
+    expect(res.stdout).not.toMatch(/^POPULATION {3}\S+ candidates=0 /mu);
 
     // The probe's live positive direction: a face that IS installed here is judged as painting, so the
     // absence above is a measurement rather than a probe that answers "absent" to everything.
@@ -1911,6 +1916,10 @@ test("a candidate whose rest state does NOT read back is WITHHELD, never publish
   expect(report.findings.filter(({ rule }) => rule === "hover-contrast")).toEqual([]);
   // A withheld candidate is a NO VERDICT run, not a quieter clean one.
   expect(res.stdout).toContain("notRestored=");
+  // #1345 — and the RESULT line NAMES the withheld rule and its reason. `population-verdict=NO-VERDICT`
+  // alone sent a 2026-09-04 review to the report JSON through a python heredoc to learn which rule and why.
+  expect(res.stdout).toContain("population-verdict=NO-VERDICT");
+  expect(res.stdout).toMatch(/population-withheld=\S*hover-contrast:notRestored×\d+/u);
   await expect(res).toExitWith(2);
 });
 

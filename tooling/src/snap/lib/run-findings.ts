@@ -167,11 +167,15 @@ function fallbackFinding(input: SnapFindingInput): FindingDraft {
 export async function collectSnapFindings(input: SnapFindingInput): Promise<readonly SnapCompositeFinding[]> {
   const diagnostics = diagnosticFindingDrafts(input.diagnosticsState, input.diagnostics, input.artifacts, input.indexPath);
   const drafts = [
+    // CORE FIRST (#1344). `mergeDrafts` sorts by severity then occurrence count, and `toSorted` is stable,
+    // so this array's order IS the tie-break among equally-severe rows. The run's own drive failures —
+    // a step that never ran, a nav that never landed — must never lose that tie to a console row, because
+    // they explain why the console rows describe the wrong surface.
+    ...(await coreFindingDrafts(input.artifacts, diagnostics)),
     ...diagnostics,
     ...(await analyzerFindingDrafts(input.artifacts)),
     ...(await lighthouseFindingDrafts(input.artifacts)),
     ...(await reactFindingDrafts(input.artifacts)),
-    ...(await coreFindingDrafts(input.artifacts, diagnostics)),
     ...(await harFindingDrafts(input.artifacts)),
   ];
   if (drafts.some((row) => row.severity === "error") === false && input.verdict.state !== "passed") {

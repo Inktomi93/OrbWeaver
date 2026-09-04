@@ -1,0 +1,128 @@
+// @instrument-proof: snap's TERMINAL OUTPUT is an agent-facing contract (#1344 #1345 #1347). Every one of
+// these pins is a call an agent spent re-reading snap's own logs on the 2026-09-04 /chats dogfood: the
+// answer buried at line 61 behind 32 lines of boot console, a failed `--wait-for` visible only as one
+// token among ~40 on the RESULT line, and ten run slots that could not be mapped back to the ten commands
+// that made them. They assert through STDOUT — the surface the reader actually has — never through a
+// printer's internals.
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { vi } from "vitest";
+import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+const CLI_TIMEOUT_MS = scaledBudget(180_000);
+vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
+
+const QUIET = ["--no-shot", "--no-deadcss", "--no-failure-evidence"];
+
+/** The stdout budget a single-action run must stay inside. The Bash tool truncates long output, and a
+ *  truncated snap run loses its END CARD — the one block that carries the verdict and the findings. */
+const STDOUT_BUDGET_BYTES = 8192;
+/** Where the answer to a one-action run has to be. Line 61 (measured, /chats `--eval`) is a scroll. */
+const ANSWER_LINE_CEILING = 12;
+
+/** Two console messages the run must NOT dump inline: one ordinary line, and one shaped exactly like the
+ *  client logger's instrumentation grammar so it becomes an `annotation` FINDING on the end card. */
+const FIXTURE = `<!doctype html>
+<html lang="en" data-app-ready="settled"><head><meta charset="utf-8"><title>agent readable</title>
+<script>
+globalThis.__orb={ snap:()=>({fixture:true}), flags:()=>[], resetEvidence:()=>{},
+  consoleErrors:()=>({records:[],dropped:0,cap:128}) };
+console.log("ordinary chatter nobody asked for");
+console.warn("%c10:02:23.842 [perf]%c slow commit region:content 30ms (mount)","color:#c60","color:#888");
+</script></head><body><main><button id="present">present</button></main></body></html>`;
+
+function lineIndexOf(stdout: string, predicate: (line: string) => boolean): number {
+  return stdout.split("\n").findIndex(predicate);
+}
+
+test("an eval-only run answers inside one screen and points at its console instead of dumping it", async ({ runCli, scratch }) => {
+  const file = join(scratch, "agent-readable-eval.html");
+  await writeFile(file, FIXTURE);
+
+  const run = await runCli("snap", ["--file", file, "--eval", "document.title", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+
+  await expect(run).toExitWith(EXIT.clean);
+  expect(run.stdout.length, `stdout was ${String(run.stdout.length)} bytes:\n${run.stdout}`).toBeLessThan(STDOUT_BUDGET_BYTES);
+  // THE ANSWER, on the first screen.
+  const answer = lineIndexOf(run.stdout, (line) => line.includes('"agent readable"'));
+  expect(answer, `the --eval value was at line ${String(answer + 1)}:\n${run.stdout}`).toBeGreaterThan(-1);
+  expect(answer).toBeLessThan(ANSWER_LINE_CEILING);
+  // ONE console line that names the artifact and the exact reader, never the block.
+  expect(run.stdout).toMatch(/^console {6}errors=0 warnings=\d+ messages=\d+ → \S+run\.json; read: pnpm snap --report \S+ --all --channel console$/mu);
+  expect(run.stdout).not.toContain("--- console ---");
+  expect(run.stdout).not.toContain("ordinary chatter nobody asked for");
+  // The derived arm line, before the RESULT line's forty tokens.
+  expect(run.stdout).toContain("SUMMARY eval values=1 errors=0");
+  // The retention promise rides beside the evidence path it qualifies.
+  expect(run.stdout).toMatch(/^RETAINED {3}this run slot is kept for at least 24h/mu);
+});
+
+test("the console channel the digest line advertises is the one the reader accepts", async ({ runCli, scratch }) => {
+  const file = join(scratch, "agent-readable-channel.html");
+  await writeFile(file, FIXTURE);
+  const run = await runCli("snap", ["--file", file, "--eval", "1+1", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  const index = /--report (\S+) --all --channel console/u.exec(run.stdout)?.[1];
+  expect(index, run.stdout).toBeTypeOf("string");
+
+  const reader = await runCli("snap", ["--report", String(index), "--all", "--channel", "console"], { timeoutMs: CLI_TIMEOUT_MS });
+
+  await expect(reader).toExitWith(EXIT.clean);
+  // The planted message is READABLE through the advertised command — the digest line is a real door, not
+  // a plausible-looking one (`--channel console` used to match nothing at all).
+  expect(reader.stdout).toContain("ordinary chatter nobody asked for");
+});
+
+test("a failed step is its own FINDING row, ranked above every console annotation", async ({ runCli, scratch }) => {
+  const file = join(scratch, "agent-readable-wait.html");
+  await writeFile(file, FIXTURE);
+
+  const run = await runCli("snap", ["--file", file, "--wait-for", "article#never", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+
+  await expect(run).toExitWith(EXIT.violations);
+  // The row names the argv to correct — the flag, the index and the selector — not just a count.
+  expect(run.stdout).toMatch(/^FINDING {4}error \| step 0 --wait-for "article#never" never matched \(/mu);
+  const failure = lineIndexOf(run.stdout, (line) => line.startsWith("FINDING") && line.includes("--wait-for"));
+  const annotation = lineIndexOf(run.stdout, (line) => line.startsWith("FINDING") && line.includes("annotation"));
+  expect(annotation, `the fixture's [perf] console line must produce an annotation row:\n${run.stdout}`).toBeGreaterThan(-1);
+  expect(failure).toBeGreaterThan(-1);
+  expect(failure, "a failed step outranks the annotations it invalidates").toBeLessThan(annotation);
+  // `next=` is the corrected reader for the drive, never a perf drill-down.
+  expect(run.stdout).toMatch(/FINDING {4}error \| step 0 --wait-for .*next=pnpm snap --report \S+ --problems --channel drive/u);
+});
+
+test("--reports is navigable: every row says what it was for, and --last windows it", async ({ runCli, scratch }) => {
+  const file = join(scratch, "agent-readable-list.html");
+  await writeFile(file, FIXTURE);
+  for (const expr of ["1", "2", "3"]) {
+    await runCli("snap", ["--file", file, "--eval", expr, ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  }
+
+  const list = await runCli("snap", ["--reports", "--last", "3"], { timeoutMs: CLI_TIMEOUT_MS });
+
+  await expect(list).toExitWith(EXIT.clean);
+  // `RUN INDEX SKIPPED` is an accounting line, not a row — the window counts runs, live or pruned.
+  const rows = list.stdout.split("\n").filter((line) => /^(?:RUN \S+ checkout=|PRUNED )/u.test(line));
+  expect(rows, list.stdout).toHaveLength(3);
+  for (const row of rows.filter((line) => line.startsWith("RUN "))) {
+    expect(row, "a run row maps back to the command that made it").toMatch(/ out=\S+ route=\S+ arms=\S+ /u);
+  }
+  // A filter it does not understand REFUSES by name: silently printing the full window would read as a
+  // filtered one.
+  const bogus = await runCli("snap", ["--reports", "--lastest", "3"], { timeoutMs: CLI_TIMEOUT_MS });
+  await expect(bogus).toExitWith(EXIT.misuse);
+  expect(bogus.stdout).toContain("unknown --reports flag --lastest");
+});
+
+test("--out on a cheap-ladder run is not an ARG WARNING, and on a bare --no-shot run it still is", async ({ runCli, scratch }) => {
+  const file = join(scratch, "agent-readable-warning.html");
+  await writeFile(file, FIXTURE);
+
+  const ladder = await runCli("snap", ["--file", file, "--out", "agent-readable-ladder", "--eval", "1", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(ladder.stdout).not.toContain("NO IMAGE WILL BE WRITTEN");
+
+  // The control: nothing but `--out` and `--no-shot` — the case the warning was written for.
+  const bare = await runCli("snap", ["--file", file, "--out", "agent-readable-bare", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(bare.stdout).toContain("NO IMAGE WILL BE WRITTEN");
+});

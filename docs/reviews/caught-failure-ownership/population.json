@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 531,
-    "enforced": 528,
+    "sites": 530,
+    "enforced": 527,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 528,
+      "deliberate-absorb": 527,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 137,
-      "default": 142,
+      "default": 141,
       "empty": 252
     }
   },
@@ -4102,7 +4102,7 @@
     {
       "siteId": "tooling/src/_shared/artifacts.ts::default:catch::1",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 158,
+      "line": 157,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4110,77 +4110,90 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an absent or unparseable in-flight marker means \"this slot is not in flight\" — the ONLY question this reader asks — and `null` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan). Ends if any caller starts treating null as \"in flight\".",
-      "markerLine": 155
+      "markerLine": 154
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::default:catch::2",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 169,
+      "line": 170,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 2,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "no runs directory yet means this instrument has never run here — an empty list is the truthful census, and every caller (racing, prune, abandoned) reads it as \"no other slots\". Ends if a missing directory must be created or refused here rather than by openRunSlot.",
-      "markerLine": 164
+      "reason": "ESRCH from a signal-0 probe IS the answer — the pid is gone — and `false` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan). Ends if this needs to distinguish EPERM (a live pid this user may not signal) from ESRCH.",
+      "markerLine": 166
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::default:catch::3",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 285,
+      "line": 181,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 3,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "an absent or unparseable manifest means \"this slot published nothing a pointer could still resolve into\" — the ONE question the retention reader asks — and the empty list is that answer at its single call site. Ends if a caller starts needing to distinguish \"never published\" from \"manifest lost\".",
-      "markerLine": 282
+      "reason": "no runs directory yet means this instrument has never run here — an empty list is the truthful census, and every caller (racing, prune, abandoned) reads it as \"no other slots\". Ends if a missing directory must be created or refused here rather than by openRunSlot.",
+      "markerLine": 176
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::default:catch::4",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 300,
+      "line": 297,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 4,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "a removed or replaced alias is the NEGATIVE answer to \"does this pointer still resolve into that slot?\" — null is that answer at the one call site (the retention filter). Ends if the caller starts acting on WHY the alias is unreadable.",
+      "reason": "an absent or unparseable manifest means \"this slot published nothing a pointer could still resolve into\" — the ONE question the retention reader asks — and the empty list is that answer at its single call site. Ends if a caller starts needing to distinguish \"never published\" from \"manifest lost\".",
       "markerLine": 294
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::default:catch::5",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 319,
+      "line": 312,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 5,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "this IS an existence predicate — the throw is the negative answer and is returned as `false` to the one caller (publishRunSlot's \"did the run write this artifact?\" check). Ends if the caller starts needing WHY the path is unreadable.",
-      "markerLine": 315
+      "reason": "a removed or replaced alias is the NEGATIVE answer to \"does this pointer still resolve into that slot?\" — null is that answer at the one call site (the retention filter). Ends if the caller starts acting on WHY the alias is unreadable.",
+      "markerLine": 306
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::default:catch::6",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 336,
+      "line": 331,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 6,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
+      "reason": "this IS an existence predicate — the throw is the negative answer and is returned as `false` to the one caller (publishRunSlot's \"did the run write this artifact?\" check). Ends if the caller starts needing WHY the path is unreadable.",
+      "markerLine": 327
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::default:catch::7",
+      "path": "tooling/src/_shared/artifacts.ts",
+      "line": 348,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 7,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
       "reason": "a slot removed by a CONCURRENT publisher's prune between the listing and this stat is the expected racing case, and `null` is the answer its one caller acts on — the row is dropped, because a slot that is already gone is nothing to prune. Ends if the caller starts needing to distinguish a vanished slot from an unreadable one (a permission error worth reporting).",
-      "markerLine": 333
+      "markerLine": 345
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::empty:catch::1",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 103,
+      "line": 102,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4188,12 +4201,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a missing `.git` entry means this root is not a checkout at all (a planted fixture tree), which is a legitimate NAME, not a failure — the fallback IS the answer and it is returned to the caller. Ends if a non-checkout root must be refused instead of named.",
-      "markerLine": 100
+      "markerLine": 99
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::empty:catch::2",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 218,
+      "line": 230,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4201,12 +4214,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the pre-clean of a leftover temp link from an earlier crashed publish; ENOENT is the normal case, and a real failure surfaces immediately at the symlinkSync below (EEXIST), which is NOT caught. Ends if the symlink call is made tolerant of an existing path.",
-      "markerLine": 215
+      "markerLine": 227
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::empty:catch::3",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 229,
+      "line": 241,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4214,12 +4227,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "nothing at the alias yet (the first publish) or a concurrent publisher removed it — both mean \"no stale REAL file to clear\", and the renameSync below still lands the pointer atomically and DOES throw if it cannot. Ends if the rename stops being the load-bearing step.",
-      "markerLine": 222
+      "markerLine": 234
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::empty:catch::4",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 249,
+      "line": 261,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4227,7 +4240,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the marker is already gone when a run publishes twice (the supervisor's single-project arm) — the post-condition \"this slot is no longer in flight\" holds either way. Ends if publishing twice must become an error.",
-      "markerLine": 246
+      "markerLine": 258
     },
     {
       "siteId": "tooling/src/_shared/browser-capture.ts::promise:wire::1",
@@ -4475,45 +4488,6 @@
       "verdict": "deliberate-absorb",
       "reason": "the cleanup failure is preserved beside the primary failure in the thrown AggregateError below; the matrix command prints that terminal error and exits toolError. Ends if either failure stops propagating.",
       "markerLine": 126
-    },
-    {
-      "siteId": "tooling/src/_shared/run-retention.ts::default:catch::1",
-      "path": "tooling/src/_shared/run-retention.ts",
-      "line": 29,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH from a signal-0 probe IS the answer — the pid is gone — and `false` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan, the session registry's daemon liveness). Ends if this needs to distinguish EPERM (a live pid this user may not signal) from ESRCH.",
-      "markerLine": 25
-    },
-    {
-      "siteId": "tooling/src/_shared/run-retention.ts::default:catch::2",
-      "path": "tooling/src/_shared/run-retention.ts",
-      "line": 80,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 2,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "no ledger yet means this instrument has pruned nothing here — the empty list is that answer at both call sites (the bounded rewrite, and the reader answering a citation). Ends if a caller must distinguish \"never pruned\" from \"ledger unreadable\".",
-      "markerLine": 74
-    },
-    {
-      "siteId": "tooling/src/_shared/run-retention.ts::empty:catch::1",
-      "path": "tooling/src/_shared/run-retention.ts",
-      "line": 109,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "bookkeeping ABOUT a deletion that already happened — the run's own verdict has been published and must not be lost to a ledger write, and the next publish re-appends its own rows. Ends if a reader starts requiring the ledger to be complete rather than best-effort.",
-      "markerLine": 94
     },
     {
       "siteId": "tooling/src/_shared/run-tool.ts::default:e::1",
@@ -5116,7 +5090,7 @@
     {
       "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::empty:error::2",
       "path": "tooling/src/snap/lib/run-finding-analyzers.ts",
-      "line": 91,
+      "line": 95,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5129,7 +5103,7 @@
     {
       "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::empty:error::3",
       "path": "tooling/src/snap/lib/run-finding-analyzers.ts",
-      "line": 129,
+      "line": 133,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5137,12 +5111,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 104
+      "markerLine": 108
     },
     {
       "siteId": "tooling/src/snap/lib/run-finding-browser.ts::empty:error::1",
       "path": "tooling/src/snap/lib/run-finding-browser.ts",
-      "line": 261,
+      "line": 346,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5150,12 +5124,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 258
+      "markerLine": 343
     },
     {
       "siteId": "tooling/src/snap/lib/run-finding-browser.ts::empty:error::2",
       "path": "tooling/src/snap/lib/run-finding-browser.ts",
-      "line": 329,
+      "line": 414,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5163,7 +5137,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 326
+      "markerLine": 411
     },
     {
       "siteId": "tooling/src/snap/lib/session-wire.ts::default:catch::1",
@@ -5181,7 +5155,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/assert.ts::empty:error::1",
       "path": "tooling/src/snap/ops/arms/assert.ts",
-      "line": 132,
+      "line": 105,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5189,12 +5163,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "captured as an ERROR outcome line pushed into the returned outcomes array, which the caller counts as failed and reports. Ends if the outcomes array stops being read.",
-      "markerLine": 129
+      "markerLine": 102
     },
     {
       "siteId": "tooling/src/snap/ops/arms/assert.ts::promise:isVisible::1",
       "path": "tooling/src/snap/ops/arms/assert.ts",
-      "line": 116,
+      "line": 90,
       "column": 24,
       "grammar": "promise",
       "position": "promise:isVisible",
@@ -5202,7 +5176,7 @@
       "snippet": "const pass = await locator",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — a locator failure converts to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read.",
-      "markerLine": 115
+      "markerLine": 89
     },
     {
       "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::empty:error::1",
@@ -5246,7 +5220,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/cascade.ts::empty:error::1",
       "path": "tooling/src/snap/ops/arms/cascade.ts",
-      "line": 181,
+      "line": 179,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5254,12 +5228,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the catch returns a terminal instrument-error receipt consumed by Snap's verdict and artifact, including one error row per requested query. Ends if this result stops driving the verdict.",
-      "markerLine": 157
+      "markerLine": 155
     },
     {
       "siteId": "tooling/src/snap/ops/arms/contrast.ts::promise:evaluate::1",
       "path": "tooling/src/snap/ops/arms/contrast.ts",
-      "line": 76,
+      "line": 75,
       "column": 9,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -5267,7 +5241,7 @@
       "snippet": "await page",
       "verdict": "deliberate-absorb",
       "reason": "best-effort cleanup — a torn-down page must never fail the contrast verdict already computed. Ends if the trailing comment's rationale stops holding.",
-      "markerLine": 75
+      "markerLine": 74
     },
     {
       "siteId": "tooling/src/snap/ops/arms/cpu-profile.ts::empty:error::1",
@@ -5311,7 +5285,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/eval.ts::empty:e::1",
       "path": "tooling/src/snap/ops/arms/eval.ts",
-      "line": 32,
+      "line": 31,
       "column": 7,
       "grammar": "empty",
       "position": "empty:e",
@@ -5319,7 +5293,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "captured into the EvalOutcome as `failed: true` + an \"EVAL ERROR\" text, pushed into `results` and returned to the caller that prints/counts it. Ends if `failed`/`text` stop being read from the outcome.",
-      "markerLine": 27
+      "markerLine": 26
     },
     {
       "siteId": "tooling/src/snap/ops/arms/heap.ts::default:catch::1",
@@ -5428,7 +5402,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/map.ts::empty:error::1",
       "path": "tooling/src/snap/ops/arms/map.ts",
-      "line": 94,
+      "line": 93,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5436,12 +5410,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the browser read failure is retained in",
-      "markerLine": 90
+      "markerLine": 89
     },
     {
       "siteId": "tooling/src/snap/ops/arms/map.ts::empty:error::2",
       "path": "tooling/src/snap/ops/arms/map.ts",
-      "line": 106,
+      "line": 105,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5449,12 +5423,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the capabilities shape failure becomes",
-      "markerLine": 102
+      "markerLine": 101
     },
     {
       "siteId": "tooling/src/snap/ops/arms/map.ts::empty:error::3",
       "path": "tooling/src/snap/ops/arms/map.ts",
-      "line": 113,
+      "line": 112,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5462,12 +5436,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the shell shape failure becomes",
-      "markerLine": 109
+      "markerLine": 108
     },
     {
       "siteId": "tooling/src/snap/ops/arms/map.ts::promise:count::1",
       "path": "tooling/src/snap/ops/arms/map.ts",
-      "line": 29,
+      "line": 28,
       "column": 23,
       "grammar": "promise",
       "position": "promise:count",
@@ -5475,12 +5449,12 @@
       "snippet": "const count = await locator.count().catch(() => 0);",
       "verdict": "deliberate-absorb",
       "reason": "a malformed/non-unique candidate returns",
-      "markerLine": 27
+      "markerLine": 26
     },
     {
       "siteId": "tooling/src/snap/ops/arms/map.ts::promise:isEnabled::1",
       "path": "tooling/src/snap/ops/arms/map.ts",
-      "line": 40,
+      "line": 39,
       "column": 20,
       "grammar": "promise",
       "position": "promise:isEnabled",
@@ -5488,12 +5462,12 @@
       "snippet": "enabled: await locator.isEnabled().catch(() => false),",
       "verdict": "deliberate-absorb",
       "reason": "failed enabled proof is false;",
-      "markerLine": 38
+      "markerLine": 37
     },
     {
       "siteId": "tooling/src/snap/ops/arms/map.ts::promise:isVisible::1",
       "path": "tooling/src/snap/ops/arms/map.ts",
-      "line": 37,
+      "line": 36,
       "column": 20,
       "grammar": "promise",
       "position": "promise:isVisible",
@@ -5501,7 +5475,7 @@
       "snippet": "visible: await locator.isVisible().catch(() => false),",
       "verdict": "deliberate-absorb",
       "reason": "a failed visibility probe is false;",
-      "markerLine": 33
+      "markerLine": 32
     },
     {
       "siteId": "tooling/src/snap/ops/arms/motion.ts::default:catch::1",
@@ -5532,7 +5506,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/perf.ts::default:catch::1",
       "path": "tooling/src/snap/ops/arms/perf.ts",
-      "line": 50,
+      "line": 49,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5540,7 +5514,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — perf evidence is a nice-to-have from window.__orb, null on any failure (old build, dev-only bridge absent) and the caller treats null as \"no perf evidence\", never a failure. Ends if a caller starts requiring perf evidence to be present.",
-      "markerLine": 29
+      "markerLine": 28
     },
     {
       "siteId": "tooling/src/snap/ops/arms/profile.ts::empty:error::1",
@@ -5597,7 +5571,7 @@
     {
       "siteId": "tooling/src/snap/ops/capture.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/capture.ts",
-      "line": 129,
+      "line": 130,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5605,12 +5579,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort fallback shot after the nav already failed — the RESULT line's navError still reports the real failure. Ends if the comment's \"still lands\" claim stops holding.",
-      "markerLine": 126
+      "markerLine": 127
     },
     {
       "siteId": "tooling/src/snap/ops/capture.ts::empty:e::1",
       "path": "tooling/src/snap/ops/capture.ts",
-      "line": 120,
+      "line": 121,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5623,7 +5597,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 215,
+      "line": 290,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5631,12 +5605,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.",
-      "markerLine": 210
+      "markerLine": 285
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 252,
+      "line": 327,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5644,12 +5618,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read.",
-      "markerLine": 245
+      "markerLine": 320
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:retryErr::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 226,
+      "line": 301,
       "column": 9,
       "grammar": "empty",
       "position": "empty:retryErr",
@@ -5657,7 +5631,7 @@
       "snippet": "} catch (retryErr) {",
       "verdict": "deliberate-absorb",
       "reason": "the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read.",
-      "markerLine": 221
+      "markerLine": 296
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::1",
@@ -5675,7 +5649,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 248,
+      "line": 323,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -5683,7 +5657,7 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.",
-      "markerLine": 247
+      "markerLine": 322
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::1",
@@ -5701,7 +5675,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 240,
+      "line": 315,
       "column": 9,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -5709,12 +5683,12 @@
       "snippet": "await page",
       "verdict": "deliberate-absorb",
       "reason": "gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures.",
-      "markerLine": 239
+      "markerLine": 314
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitForLoadState::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 368,
+      "line": 453,
       "column": 11,
       "grammar": "promise",
       "position": "promise:waitForLoadState",
@@ -5722,7 +5696,7 @@
       "snippet": "await page.waitForLoadState(\"networkidle\", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.",
-      "markerLine": 366
+      "markerLine": 451
     },
     {
       "siteId": "tooling/src/snap/ops/filmstrip-capture.ts::promise:stopProtocol::1",
@@ -5933,9 +5907,22 @@
       "markerLine": 285
     },
     {
+      "siteId": "tooling/src/snap/ops/run-report.ts::empty:catch::1",
+      "path": "tooling/src/snap/ops/run-report.ts",
+      "line": 408,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a neighbouring run's corruption is not this report's verdict — the subject index is read by the strict door in printSnapReport, and a skipped neighbour only means no delta row. Ends if this reader becomes the only read of those files.",
+      "markerLine": 400
+    },
+    {
       "siteId": "tooling/src/snap/ops/run-report.ts::empty:error::1",
       "path": "tooling/src/snap/ops/run-report.ts",
-      "line": 393,
+      "line": 426,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5943,12 +5930,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "this is the browser-free reader's terminal owner; it prints RUN INDEX REFUSED and returns tool-error for every resolution/validation/artifact failure. Ends if either output or exit vote disappears.",
-      "markerLine": 387
+      "markerLine": 416
     },
     {
       "siteId": "tooling/src/snap/ops/run-report.ts::empty:error::2",
       "path": "tooling/src/snap/ops/run-report.ts",
-      "line": 409,
+      "line": 442,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -5956,7 +5943,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "list mode retains path+reason in `invalid` and `printSnapReports` emits the bounded aggregate; the strict single-index reader remains the detailed refusal door. Ends if either retention or aggregate output disappears.",
-      "markerLine": 406
+      "markerLine": 439
     },
     {
       "siteId": "tooling/src/snap/ops/session-admin.ts::default:catch::1",
@@ -6143,7 +6130,7 @@
     {
       "siteId": "tooling/src/snap/ops/session-registry.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/session-registry.ts",
-      "line": 137,
+      "line": 136,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6151,12 +6138,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable reservation cannot hold capacity; the lock owner removes that exact file below before returning false. Ends if malformed reservations must block acquisition instead of being reclaimed.",
-      "markerLine": 131
+      "markerLine": 130
     },
     {
       "siteId": "tooling/src/snap/ops/session-registry.ts::empty:error::1",
       "path": "tooling/src/snap/ops/session-registry.ts",
-      "line": 152,
+      "line": 151,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -6164,7 +6151,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "only EEXIST is the expected lock-contention signal and it retries after a bounded poll; every other mkdir failure rethrows. Ends if the lock stops being represented by exclusive directory creation.",
-      "markerLine": 148
+      "markerLine": 147
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::default:catch::1",

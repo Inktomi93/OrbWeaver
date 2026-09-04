@@ -64,6 +64,32 @@ test("a list-shaped details block is walked into, and a row with no node still c
 
   expect(nodes.count).toBe(2);
   expect(nodes.selectors).toEqual(["#a"]);
+  expect(nodes.nodes).toEqual([{ selector: "#a", explanation: null, snippet: null }]);
+});
+
+// #1347 — axe writes the diagnosis and captures the element; snap read neither until 2026-09-04, so an
+// a11y FINDING row named three selectors a reviewer then had to go re-measure by hand.
+test("a blamed node carries axe's explanation and its snippet, collapsed to one line", () => {
+  const nodes = auditNodes({
+    type: "table",
+    items: [
+      {
+        node: {
+          selector: "div > p",
+          explanation: "Element has insufficient color contrast of 2.68\n  (foreground #888, background #fff)",
+          snippet: '<p class="muted">\n  hint\n</p>',
+        },
+      },
+    ],
+  });
+
+  expect(nodes.nodes).toEqual([
+    {
+      selector: "div > p",
+      explanation: "Element has insufficient color contrast of 2.68 (foreground #888, background #fff)",
+      snippet: '<p class="muted"> hint </p>',
+    },
+  ]);
 });
 
 test("a report is REFUSED when it is not whole — a runtime error, a missing category, or a stunted render", () => {
@@ -98,6 +124,11 @@ function receipt(): LighthouseReceipt {
         scoreDisplayMode: "binary",
         nodeCount: 5,
         selectors: ["body > button", "main > a", "nav > a"],
+        nodes: [
+          { selector: "body > button", explanation: "Element has no accessible name", snippet: '<button class="x"></button>' },
+          { selector: "main > a", explanation: null, snippet: null },
+          { selector: "nav > a", explanation: null, snippet: null },
+        ],
       },
     ],
     jsonPath: "reports/runs/snap/x/lighthouse/root.json",

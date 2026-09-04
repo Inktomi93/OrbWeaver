@@ -30,6 +30,7 @@ import {
   extendEvidenceThroughWatch,
   motionResultValue,
   navResultVerdict,
+  printArmSummaries,
   printCaptureLog,
   printCheckpointScope,
   printCropNote,
@@ -144,6 +145,10 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
     await arms.report(armCtx);
     printCropNote(opts, { ...plan, failed, totalPages });
     printProbeMotionWarning(opts);
+    // The end card opens with one derived line per arm that actually measured something (#1345), so the
+    // answer to "what did the arm I asked for find" precedes the 40-token RESULT line rather than hiding
+    // inside it.
+    printArmSummaries(outcomes);
     // Baseline/diff compares PAGE 0's shot (the canonical surface); multi-page baselines aren't a use case yet.
     const { diffPairs, ssimFailed } = await runBaselineOrDiff(opts, pageOut(out, 0, totalPages), key);
 

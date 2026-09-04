@@ -2,6 +2,7 @@
 import { print } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Finding, PopulationAccounting, Severity } from "../contract/findings.ts";
+import { PRESENTATION_WITHHELD_REASONS } from "../contract/findings.ts";
 import type { CensusReachInput, ObscuredScanInput } from "../contract/samples.ts";
 import type { DriveStateCandidate, SurfaceStateAccounting } from "../contract/surface-state.ts";
 import type { BackdropRefusal, ShellStateSnapshot } from "../contract/types.ts";
@@ -123,10 +124,65 @@ export function printObscuredScan(scan: ObscuredScanInput | undefined): void {
   print("");
 }
 
-/** Population verdicts bound presentation without losing the machine denominator. Print every owned
- * counter, including zero, so an absent/partial family cannot resemble a complete clean census. */
-export function printPopulationAccounting(accounting: PopulationAccounting): void {
+/** A RESULT-line value is ONE whitespace-free token — every reader of this line splits on whitespace —
+ *  so the two summaries below join with `+` and slug their reason strings rather than reading as prose. */
+function resultToken(value: string): string {
+  return value.replace(/\s+/gu, "-");
+}
+
+/** WHICH RULES were withheld, and WHY, on the RESULT line itself (#1345).
+ *
+ *  `population-verdict=NO-VERDICT` on its own says a rule population was not completely judged and makes
+ *  the reader go find out which: a 2026-09-04 review spent three calls and a python heredoc over the
+ *  report JSON to learn that the withheld rules were contrast/text-over-art and the reason was
+ *  `unresolvedBackdrop`. Both halves are already in hand here. Presentation-only withholding (the
+ *  representative cap) is NOT a completeness gap and is excluded by `populationEvidenceGap`, so this
+ *  reads the same source it does: `lib/population.ts`. */
+export function populationWithheldSummary(accounting: PopulationAccounting): string {
+  const rows: string[] = [];
   for (const [rule, row] of Object.entries(accounting)) {
+    for (const [reason, count] of Object.entries(row.withheld)) {
+      if (!PRESENTATION_WITHHELD_REASONS.some((presentation) => presentation === reason) && count > 0) {
+        rows.push(`${rule}:${reason}×${String(count)}`);
+      }
+    }
+  }
+  return rows.length === 0 ? "none" : resultToken(rows.join("+"));
+}
+
+/** The DISTINCT refusal reasons behind an unresolvable backdrop, with counts — "box is off-screen" is a
+ *  different instruction to the reader than "no painted ancestor", and the RESULT line said neither. */
+export function backdropRefusalSummary(refusals: readonly BackdropRefusal[]): string {
+  const byReason = new Map<string, number>();
+  for (const refusal of refusals) {
+    byReason.set(refusal.reason, (byReason.get(refusal.reason) ?? 0) + 1);
+  }
+  return byReason.size === 0 ? "none" : resultToken([...byReason].map(([reason, count]) => `${reason}×${String(count)}`).join("+"));
+}
+
+/** Population verdicts bound presentation without losing the machine denominator. Print every owned
+ * counter, including zero, so an absent/partial family cannot resemble a complete clean census.
+ *
+ * THE ZERO-CANDIDATE FOLD (#1345). The rule above is unchanged and still binding: every owned counter is
+ * accounted for inline, BY NAME. What changed is the SHAPE of the accounting for the one class that
+ * carries no counters at all — a rule whose census offered zero candidates has nothing to judge, withhold
+ * or exclude, so its full row is 130 characters saying `0` seven times. On a real route ~40 of the ~59
+ * rules are that shape: ~5 KB of the 9.5–17 KB terminal report, which is what pushed the findings table
+ * past the point a reader (or the Bash tool's output cap) reaches. They now ride ONE line that names
+ * every one of them, so "which rule saw nothing here" — the signal `census-grid.ts` was built around when
+ * the Characters census silently went candidates=1 → candidates=0 — is still answerable from stdout
+ * alone, and the full per-rule table remains in the report JSON. */
+export function printPopulationAccounting(accounting: PopulationAccounting): void {
+  const empty = Object.entries(accounting)
+    .filter(([, row]) => row.candidates === 0)
+    .map(([rule]) => rule);
+  if (empty.length > 0) {
+    print(`POPULATION   nothing-to-judge=${String(empty.length)} rule(s) with candidates=0: ${empty.join(", ")}`);
+  }
+  for (const [rule, row] of Object.entries(accounting)) {
+    if (row.candidates === 0) {
+      continue;
+    }
     const withheld = Object.entries(row.withheld)
       .map(([reason, count]) => `${reason}=${String(count)}`)
       .join(" ");

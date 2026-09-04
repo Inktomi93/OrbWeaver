@@ -75,12 +75,16 @@ export async function lighthouseFindingDrafts(artifacts: readonly SnapRunArtifac
     // @orb-gate-ignore caught-failure-ownership(empty:error): composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.
     try {
       for (const audit of failedAudits(await readJson(artifact.path))) {
+        // axe already wrote the diagnosis and captured the element (#1347). Printing the selectors alone
+        // made every a11y finding a two-call errand: read the row, then go re-measure what axe measured.
+        const explanation = [...new Set(audit.nodes.map((node) => node.explanation).filter((value) => value !== null))].join(" · ");
+        const where = audit.nodes.map((node) => (node.snippet === null ? node.selector : `${node.selector} ${node.snippet}`)).join(" | ");
         drafts.push({
           severity: "error",
           arms: ["lighthouse"],
           channels: ["lighthouse"],
-          what: `${audit.id}: ${audit.title}`,
-          where: audit.selectors.join(", ") || "page",
+          what: explanation === "" ? `${audit.id}: ${audit.title}` : `${audit.id}: ${audit.title} — ${explanation}`,
+          where: where === "" ? "page" : where,
           evidence: [findingRef("lighthouse", artifact.path, artifact.scope)],
           completeness: findingCompleteness(artifact),
           conflicts: [],

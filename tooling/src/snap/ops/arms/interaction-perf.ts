@@ -197,7 +197,7 @@ export const INTERACTION_PERF_ARM = {
       kind: "required-value",
       pageTargetable: true,
       group: "Reach",
-      summary: "one ordered wheel input",
+      summary: "selector=dy — one ordered wheel input",
       handler: (args, rest, page): void => {
         const value = splitLastEq(rest.shift() ?? "");
         pushStep(args, { kind: "wheel", selector: value.head, dy: Number(value.tail), page });
@@ -208,7 +208,7 @@ export const INTERACTION_PERF_ARM = {
       kind: "required-value",
       pageTargetable: true,
       group: "Reach",
-      summary: "repeated wheel inputs with a 30ms tick",
+      summary: "selector=dy:count — repeated wheel inputs with a 30ms tick",
       handler: (args, rest, page): void => {
         const value = splitLastEq(rest.shift() ?? "");
         const [dy = "", count = ""] = value.tail.split(":");

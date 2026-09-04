@@ -2,6 +2,7 @@
 
 import { aggregateDimension, exactDimension, exactScope, pageIndex, scopeV1 } from "../../_shared/artifact-scope.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { DriveFailure } from "../contract/actions.ts";
 import type { DiskSafeBrowserDiagnostic } from "../contract/browser-evidence-redaction.ts";
 import type { SnapFindingEvidenceRef, SnapRunArtifact, SnapRunIndex } from "../contract/run-index.ts";
 import type { FindingDraft } from "./run-finding-common.ts";
@@ -206,6 +207,88 @@ function coreRequestDrafts(path: string, rows: readonly unknown[], diagnostics: 
   return drafts;
 }
 
+/** THE VERB. A wait that never matched is not the same defect as a click that hit a detached node, and a
+ *  nav that was rejected is neither — the reader's next move differs for each. */
+function driveFailureVerb(failure: DriveFailure): string {
+  if (failure.kind === "nav") {
+    return "did not land";
+  }
+  return failure.flag === "--wait" || failure.flag === "--wait-for" ? "never matched" : "failed";
+}
+
+/** WHAT a failed drive action says, in the operator's own argv (#1344). */
+function driveFailureText(failure: DriveFailure): string {
+  const position = failure.index < 0 ? failure.flag : `${failure.kind === "nav" ? "nav" : "step"} ${String(failure.index)} ${failure.flag}`;
+  const target = failure.subject === null ? "" : ` ${JSON.stringify(failure.subject)}`;
+  return `${position}${target} ${driveFailureVerb(failure)} (${failure.reason})`;
+}
+
+/** One persisted row, validated. Strict on purpose: a shape drift here would otherwise print a finding
+ *  about `undefined`, and the whole point of the row is that it names the argv to correct. */
+function parseDriveFailure(path: string, value: unknown): DriveFailure {
+  const failure = record(value);
+  const index = failure?.["index"];
+  const kind = failure?.["kind"];
+  const flag = failure?.["flag"];
+  const subject = failure?.["subject"] ?? null;
+  const reason = failure?.["reason"];
+  const valid =
+    Number.isInteger(index) &&
+    (kind === "step" || kind === "nav" || kind === "wait") &&
+    typeof flag === "string" &&
+    (subject === null || typeof subject === "string") &&
+    typeof reason === "string";
+  if (!valid) {
+    throw new Error(`${path} has a malformed drive-failure row`);
+  }
+  return { index: Number(index), kind, flag: String(flag), subject: subject as string | null, reason: String(reason) };
+}
+
+function driveFailureRows(path: string, capture: Readonly<Record<string, unknown>> | null): readonly DriveFailure[] {
+  const failures = capture?.["driveFailures"];
+  if (failures === undefined) {
+    // An index written before the row shipped legitimately has no population here. That is different from
+    // a run that HAD failures and dropped them: `stepFailures`/`navFailures` stay on the same capture row,
+    // so the disagreement stays visible rather than silent.
+    return [];
+  }
+  if (!Array.isArray(failures)) {
+    throw new Error(`${path} has a malformed driveFailures population`);
+  }
+  return failures.map((entry) => parseDriveFailure(path, entry));
+}
+
+/** One FINDING row per failed nav/step/wait, read back from the redacted core capture.
+ *
+ *  These are `error` rows on purpose: a failed action invalidates EVERY capture taken after it, so it
+ *  outranks the `[perf]`/`[cls]` console annotations that used to be the only rows on the end card of a
+ *  run whose `--wait-for` selector was simply wrong (2026-09-04 dogfood — two extra calls to find that
+ *  out). */
+function coreDriveFailureDrafts(artifact: SnapRunArtifact, rows: readonly unknown[]): FindingDraft[] {
+  const drafts: FindingDraft[] = [];
+  for (const value of rows) {
+    const capture = record(value);
+    const page = typeof capture?.["pageIndex"] === "number" ? capture["pageIndex"] : null;
+    const scope =
+      page === null ? artifact.scope : scopeV1({ context: aggregateDimension(), page: exactDimension(pageIndex(page)), window: aggregateDimension() });
+    for (const failure of driveFailureRows(artifact.path, capture)) {
+      drafts.push({
+        severity: "error",
+        arms: [],
+        channels: ["drive"],
+        what: driveFailureText(failure),
+        where: findingLocation(null, page, null),
+        evidence: [findingRef("core-capture", artifact.path, scope)],
+        completeness: "complete",
+        conflicts: ["every capture taken after this action describes a surface the drive never reached"],
+        occurrences: 1,
+        correlation: `drive:${String(page)}:${String(failure.index)}:${failure.flag}`,
+      });
+    }
+  }
+  return drafts;
+}
+
 function coreMapDrafts(artifact: SnapRunArtifact, rows: readonly unknown[]): FindingDraft[] {
   const drafts: FindingDraft[] = [];
   for (const value of rows) {
@@ -246,6 +329,8 @@ function coreMapDrafts(artifact: SnapRunArtifact, rows: readonly unknown[]): Fin
 async function readCoreDrafts(artifact: SnapRunArtifact, diagnostics: readonly FindingDraft[]): Promise<readonly FindingDraft[]> {
   const rows = parseCoreRows(artifact.path, record(await readJson(artifact.path)));
   return [
+    // Drive failures lead: a step that never ran is the reason every row under it is suspect.
+    ...coreDriveFailureDrafts(artifact, rows.captures),
     ...corePageErrorDrafts(artifact.path, rows.pageErrors, diagnostics),
     ...coreRequestDrafts(artifact.path, rows.failedRequests, diagnostics),
     ...coreMapDrafts(artifact, rows.captures),

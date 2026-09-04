@@ -1,6 +1,7 @@
 // Report printing: the human triage view (summary/aria/eval/contrast/map/assert/css/watch blocks), the
 // checkpoint evidence-window scoping, console selection (errors win), crop attribution, and the
 // probe-motion voiding marker. --json remains the lossless record (ops/manifest.ts).
+import { activeRunSlot } from "../../_shared/artifact-out.ts";
 import { print } from "../../_shared/artifacts.ts";
 import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-capture.ts";
 import type { BrowserPageError, ProbeSession } from "../../_shared/browser-contract.ts";
@@ -263,21 +264,108 @@ export function printCaptureLog(session: SessionCounts, failed: CapturedRequest[
     print(`\n--- vite dep-optimizer churn (${viteChurn.length}, NOT a failure — cold-stage re-bundle aborts, re-requested and served) ---`);
     printRequestLines(viteChurn);
   }
-  if (session.consoleLines.length > 0) {
-    const selected = selectConsoleMessagesForReport(session.consoleMessages);
-    print("\n--- console ---");
-    if (selected.omitted > 0) {
-      print(`  … ${selected.omitted} message(s) omitted — errors/warnings prioritized; use --json for the complete structured log`);
-    }
-    for (const message of selected.messages) {
-      print(`  ${message.line}`);
-    }
-  }
+  printConsoleDigest(session);
   if (session.pageErrors.length > 0) {
     print("\n--- page errors ---");
     for (const e of session.pageErrors) {
       print(pageErrorText(e));
     }
+  }
+}
+
+/** WHERE this run's console lives on disk. Every artifact of the run is inside its slot, so the run index
+ *  is the one path that is always right — the diagnostics artifact's own filename is allocation-owned and
+ *  a session call can mint more than one. Outside a run (a library caller, a test) there is no slot, and
+ *  `latest` is the reader's own resolution rather than a path we would be inventing. */
+function runIndexPath(): string {
+  const slot = activeRunSlot();
+  return slot === null ? "latest" : `${slot.dir}/run.json`;
+}
+
+/** THE CONSOLE, AS ONE LINE (#1345).
+ *
+ *  A `/chats` run's console block was 46 lines and ~8 KB of `%c`-formatted trpc chatter — it pushed the
+ *  answer to an `--eval` run down to line 61 and put the end card within reach of the Bash tool's output
+ *  truncation. The messages were never lost (they are in the run's diagnostics artifact and in `--json`),
+ *  they were simply printed at the wrong tier: nothing an operator asked for.
+ *
+ *  ERRORS STILL PRINT INLINE, always and in full. A console error is a claim about the app that the
+ *  reader must not have to make a second call to see, and it is exactly what the digest line would
+ *  otherwise reduce to a count. */
+function printConsoleDigest(session: SessionCounts): void {
+  const errors = session.consoleMessages.filter((entry) => entry.type === "error");
+  const warnings = session.consoleMessages.filter((entry) => entry.type === "warning").length;
+  if (session.consoleMessages.length === 0) {
+    return;
+  }
+  const path = runIndexPath();
+  print(
+    `console      errors=${errors.length} warnings=${warnings} messages=${session.consoleMessages.length} → ${path}; read: pnpm snap --report ${path} --all --channel console`,
+  );
+  for (const message of errors.slice(0, CONSOLE_REPORT_CAP)) {
+    print(`  ${message.line}`);
+  }
+  if (errors.length > CONSOLE_REPORT_CAP) {
+    print(`  … ${errors.length - CONSOLE_REPORT_CAP} further console error(s) — read them with the command above`);
+  }
+}
+
+const RATIO_PATTERN = /(\d+(?:\.\d+)?):1/u;
+
+/** The worst measured contrast ratio in a run, read off the arm's own printed rows.
+ *
+ *  A DISPLAY-ONLY derivation over evidence the contrast arm already emitted (`ops/arms/contrast.ts` owns
+ *  the threshold and the exit vote; this only summarizes). Rows that carry no ratio — SKIPPED, NOT FOUND,
+ *  OFF-SCREEN, OCCLUDED — are counted as no-verdict rather than folded into a number, because a refusal
+ *  is not a passing measurement. */
+function contrastSummary(contrasts: readonly ContrastOutcome[]): string {
+  const ratios = contrasts.map((row) => Number(RATIO_PATTERN.exec(row.line)?.[1] ?? Number.NaN)).filter((value) => Number.isFinite(value));
+  const worst = ratios.length === 0 ? "none-measured" : `${Math.min(...ratios).toFixed(2)}:1`;
+  return `checked=${ratios.length} failed=${contrasts.filter((row) => row.failed).length} no-verdict=${contrasts.length - ratios.length} worst=${worst}`;
+}
+
+/** `no-match=` is the assertion class an operator most often causes and most often misreads as an app
+ *  defect: the selector matched nothing at all.
+ *
+ *  It is counted over EVERY row rather than only the failed ones, because a zero population is not one
+ *  verdict class. For `--expect-text`/`--expect-focus`/`--expect-no-overflow` nothing to read means the
+ *  instrument could not answer — a REFUSAL (exit 2, ops/arms/assert.ts) — while `--expect-visible` and
+ *  `--expect-count` are asking about the population itself and a zero IS their answer. Both spellings of
+ *  "nothing matched" are recognized here, so the count stays right on either side of that split and the
+ *  reader is told which of the two shapes they are looking at without opening the arm's rows. */
+const NO_MATCH_PATTERN = /: (?:FAIL no (?:rendered|attached) match|NO[- ]MATCH)/iu;
+
+function assertionSummary(assertions: readonly AssertionOutcome[]): string {
+  const failed = assertions.filter((row) => row.failed);
+  const noMatch = assertions.filter((row) => NO_MATCH_PATTERN.test(row.line)).length;
+  return `passed=${assertions.length - failed.length} failed=${failed.length} no-match=${noMatch}`;
+}
+
+/** ONE DERIVED LINE PER ACTIVE ARM, at the top of the end card (#1345).
+ *
+ *  The RESULT line carries ~40 tokens and answers every axis; it does not answer "so what did the arm I
+ *  asked for find". These lines do, in the arm's own vocabulary, before the reader has to parse anything.
+ *  An arm that produced NO rows prints nothing — the RESULT line's `<arm>=off` already says that, and a
+ *  zero row here would read as a measured zero. */
+export function printArmSummaries(outcomes: readonly CaptureOutcome[]): void {
+  const evals = outcomes.flatMap((outcome) => outcome.evalResults);
+  const contrasts = outcomes.flatMap((outcome) => outcome.contrastResults);
+  const assertions = outcomes.flatMap((outcome) => outcome.assertions);
+  const controls = outcomes.flatMap((outcome) => outcome.mapResult ?? []);
+  if (evals.length > 0) {
+    print(`SUMMARY eval values=${evals.length} errors=${evals.filter((row) => row.failed).length}`);
+  }
+  if (contrasts.length > 0) {
+    print(`SUMMARY contrast ${contrastSummary(contrasts)}`);
+  }
+  if (assertions.length > 0) {
+    print(`SUMMARY assert ${assertionSummary(assertions)}`);
+  }
+  if (controls.length > 0) {
+    const domOnly = controls.filter((entry) => entry.source === "dom").length;
+    print(
+      `SUMMARY map controls=${controls.length} no-semantic-identity=${domOnly} actionable=${controls.filter((entry) => entry.actionability === "actionable").length}`,
+    );
   }
 }
 

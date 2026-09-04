@@ -28,6 +28,20 @@ export interface LighthouseCategoryScore {
   readonly score: number | null;
 }
 
+/** One blamed DOM node, with the two axe strings that say WHAT IS WRONG WITH IT.
+ *
+ *  `explanation` ("Element has insufficient color contrast of 2.68…") and `snippet` (the element's own
+ *  outer HTML) are the difference between a selector a reviewer has to go re-measure and a finding they
+ *  can act on. Snap read neither until 2026-09-04: the FINDING row named three selectors and dropped
+ *  every word axe had already written about them. */
+export interface LighthouseAuditNode {
+  readonly selector: string;
+  /** axe's own sentence about this node, or null when the audit is not an axe audit. */
+  readonly explanation: string | null;
+  /** The node's outer HTML as Lighthouse captured it, bounded. Null when the detail row carried none. */
+  readonly snippet: string | null;
+}
+
 export interface LighthouseFailedAudit {
   readonly id: string;
   readonly title: string;
@@ -37,6 +51,8 @@ export interface LighthouseFailedAudit {
   readonly nodeCount: number;
   /** The first three of those nodes' selectors — enough to reach the defect with `--shot-of`. */
   readonly selectors: readonly string[];
+  /** The same first three nodes, carrying axe's explanation and snippet (#1347). */
+  readonly nodes: readonly LighthouseAuditNode[];
 }
 
 export interface LighthouseReceipt {
