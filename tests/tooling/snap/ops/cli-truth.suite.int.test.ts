@@ -64,7 +64,7 @@ test("the public report arm spelling perf canonicalizes to the typed interaction
 });
 
 /** THE PERF-METER DOOR'S RECIPE PIN IS RETIRED WITH THE DOOR (#1315). It asserted that
- *  `pnpm perf-meter … --cycles --jsclick --wheelburst --cpuprofile` printed a shell-safe modern Snap
+ *  the perf meter's full legacy dialect printed a shell-safe modern Snap
  *  recipe for every legacy word — an argv TRANSLATION layer, which is exactly what the owner's
  *  no-doors/no-shims ruling deleted. What survives is one rung weaker and one rung honester: the door
  *  refuses by name and points at the arm, pinned once for every folded tool in
@@ -137,19 +137,29 @@ test("a later session call cannot silently replace no-failure-evidence, and owne
 
 test("approved cleanup has one accepted spelling and each retired spelling refuses with its replacement", () => {
   const replacements = {
-    "--jsclick": "--dom-click",
     "--press": "--force-click",
-    "--wheelburst": "--wheel-burst",
     "--ls": "--local-storage",
     "--sse": "--stream-settle",
     "--summary": "--scenario-summary",
     "--owner": "--stage-owner",
-    "--cycles": "--perf-cycles",
   } as const;
   for (const [oldFlag, replacement] of Object.entries(replacements)) {
     expect(FLAG_HANDLERS[oldFlag]).toBeUndefined();
     expect(FLAG_HANDLERS[replacement]).toBeDefined();
     expect(parseSnapArgs([oldFlag]).errors).toContainEqual(expect.stringContaining(`did you mean ${replacement}`));
+  }
+  // THE SIBLING CLIs' SPELLINGS ARE A DIFFERENT CASE and left this table at #1315 (owner ruling): the
+  // product is unlaunched, so nobody outside this repo ever typed `--jsclick`/`--wheelburst`/`--cycles`
+  // and there is no one to refuse by name. They must still be GONE from the handler map, which is the
+  // half that would otherwise rot into a silently-accepted second spelling.
+  for (const [oldFlag, replacement] of [
+    ["--jsclick", "--dom-click"],
+    ["--wheelburst", "--wheel-burst"],
+    ["--cycles", "--perf-cycles"],
+  ] as const) {
+    expect(FLAG_HANDLERS[oldFlag]).toBeUndefined();
+    expect(FLAG_HANDLERS[replacement]).toBeDefined();
+    expect(parseSnapArgs([oldFlag]).errors).toEqual([`unknown flag ${oldFlag}`]);
   }
 });
 

@@ -40,7 +40,9 @@ test("the glow census sweeps pseudo layers, exempting the house discipline and j
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
-  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as { readonly findings: readonly { readonly rule: string; readonly selector: string }[] };
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as {
+    readonly findings: readonly { readonly rule: string; readonly selector: string }[];
+  };
   const glowSelectors = report.findings.filter((finding) => finding.rule === "glow-shadow").map((finding) => finding.selector);
 
   // FIRES — the whole point of the sweep: a chromatic glow on a pseudo was invisible to the old

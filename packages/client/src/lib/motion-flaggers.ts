@@ -286,7 +286,7 @@ function skipTransition(el: Element, propertyName: string): boolean {
  *
  *  THE PASSIVE LISTENER WAS NOT THE COST — `getAnimations()` WAS (#219, measured 2026-08-18): it flushes
  *  pending style + resolves the animation timeline, and the handler answered EVERY start event with one.
- *  the retired perf meter's `/ --open-chat latest --cpuprofile`, live dev stack: **534.9ms of self time inside
+ *  `pnpm snap / --open-chat latest --cpu-profile` (then the retired perf meter's spelling of it), live dev stack: **534.9ms of self time inside
  *  `getAnimations`, called from here**, of 640ms blocking / 1190ms long tasks — 84% of the jank the
  *  instrument exists to report. `snap --eval` tally, same room: **1,108 transitionstart events, 1,064 of
  *  them `scrollbar-color`**, each paying a full classify before `raise` discarded it as a duplicate. (That

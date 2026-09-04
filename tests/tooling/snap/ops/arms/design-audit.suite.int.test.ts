@@ -80,7 +80,7 @@ test("a planted 1:1 contrast defect REDs the arm, and its white-on-black twin ex
 
 /** The census's §2.1 control: a `position:fixed; z-index:-1` WHITE band under white text. No DOM ancestor
  *  of the text carries it, so an ancestor-only resolver composites against the black body and reports
- *  21:1 — measured on main@b767bedfc through `pnpm snap --contrast '#layer-text'`. */
+ *  21:1 — measured on main at b767bedfc through `pnpm snap --contrast '#layer-text'`. */
 const LAYER_FIXTURE = page(
   '<div style="position:fixed;inset:0 0 auto 0;height:120px;z-index:-1;background:#fff"></div>' +
     '<main><p id="layer-text" style="color:#fff;font-size:16px;margin:24px">white text over a fixed white band</p></main>',

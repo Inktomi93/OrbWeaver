@@ -1,5 +1,6 @@
 // Snap filmstrip proof: bounded exact-page CDP capture, action-labelled PNG output, total cleanup,
-// interference refusals, and the sole compatibility door from the retired Record command.
+// interference refusals, and the absence of the retired Record command it replaced.
+import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
@@ -443,10 +444,21 @@ test("filmstrip interference refuses before allocating a run slot", async ({ run
   }
 });
 
-test("retired Record command exits misuse with the exact Snap filmstrip recipe and no run slot", async ({ runCli }) => {
-  const run = await runCli("screen-record", ["/chats", "--click", "#open", "--settle", "900"]);
-  await expect(run).toExitWith(EXIT.misuse);
-  expect(run.stdout).toContain("RECORD RETIRED");
-  expect(run.stdout).toContain("pnpm snap /chats --click '#open' --pause 900 --filmstrip");
-  expect(run.stdout).not.toContain("RUN SLOT");
+/** THE RECORD DOOR IS GONE, SO ITS RECIPE PIN IS TOO (owner ruling 2026-09-04, #1315: no doors, no
+ *  shims). This asserted that `pnpm screen-record /chats --click … --settle 900` printed
+ *  `RECORD RETIRED` plus an exact translated `pnpm snap … --pause 900 --filmstrip` recipe — an argv
+ *  TRANSLATION layer, which is the thing the ruling deleted. `tooling/src/screen-record/` no longer
+ *  exists at all, so there is no process left to exit 3, and asserting through `runCli("screen-record")`
+ *  now fails at the fixture ("no such tool") rather than proving anything about snap. What replaced it,
+ *  one rung weaker and one rung honester: `unified-instrument.suite.int.test.ts` sweeps the tracked
+ *  corpus so no file still tells a reader to run the retired `pnpm record`, with a planted control. */
+test("the retired Record command names nothing runnable: its tool dir is absent from the corpus", ({ repoRoot }) => {
+  // The DIRECTORY, not just the entry point — a surviving `ops/` beside a deleted `cli.ts` is exactly the
+  // half-migration Core-Tooling-Law.md §1 bans, and it would keep knip and the size gates busy forever.
+  expect(existsSync(join(repoRoot, "tooling", "src", "screen-record"))).toBe(false);
+  // The planted control: the same probe SEES the sibling dirs that legitimately survived the fold (the
+  // detector engines kept their tool dirs and lost only their argv doors), so a bare `false` above cannot
+  // mean "this probe cannot look at the filesystem".
+  expect(existsSync(join(repoRoot, "tooling", "src", "ui-audit"))).toBe(true);
+  expect(existsSync(join(repoRoot, "tooling", "src", "snap", "ops", "arms", "filmstrip.ts"))).toBe(true);
 });

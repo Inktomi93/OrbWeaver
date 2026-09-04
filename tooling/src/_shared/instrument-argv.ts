@@ -23,31 +23,24 @@ export const HELP_FLAGS: ReadonlySet<string> = new Set(["--help", "-h"]);
  *  A consuming tool passes ITS OWN known-flag set to `aliasRefusal` so the suggestion never names a flag
  *  that tool does not actually have (`--full`/`--every`/`--shot-of` are snap-only; `--out` is shared).
  *
- *  THE SIBLING CLIs' RETIRED SPELLINGS STAY IN THIS TABLE THROUGH #1315, and the reason is the table's
- *  own nature: `aliasRefusal` only fires when the SUGGESTED flag is one the consuming tool actually has,
- *  and all six of those targets (`--reduced-motion`, `--cpu-profile`, `--dom-click`, `--wheel-burst`,
- *  `--perf-cycles`) are LIVE SNAP FLAGS. So `--os-reduced-motion` and `--cpuprofile` are not a retired
- *  sibling's door — they are stale spellings of a capability Snap still has, and the row is what makes
- *  the stale spelling die NAMING its replacement instead of dying generically. The doors the owner
- *  ruling deleted were argv TRANSLATION layers (a `cli.ts` that accepted the old grammar and re-ran
- *  Snap); a refusal that accepts nothing is the ruling's mechanism, not its target. */
+ *  THE RETIRED SIBLING SPELLINGS ARE OUT (owner ruling, #1315, extending the `--settle → --pause` call:
+ *  an old spelling of a live flag is exactly the case the ruling names). `--os-reduced-motion`,
+ *  `--os-full-motion`, `--cpuprofile`, `--jsclick`, `--wheelburst` and `--cycles` were rows here; the
+ *  product is unlaunched, so NOBODY OUTSIDE THIS REPO EVER TYPED THEM and there is no one left to
+ *  refuse — the spellings are grep-fixed at their call sites instead, and a stale one now gets the plain
+ *  `unknown flag` (still exit 3, still loud). The four rows that remain are measured ASKS from agents
+ *  who never used the old spelling at all, which is the different thing this table is for. */
 export const ALIAS_REFUSALS: ReadonlyMap<string, string> = new Map([
   ["--full-page", "--full"],
   ["--watch-every", "--every"],
   ["--name", "--out"],
   ["--screenshot", "--shot-of"],
-  ["--os-reduced-motion", "--reduced-motion"],
-  ["--os-full-motion", "--reduced-motion"],
   ["--profile", "--react-profile"],
-  ["--cpuprofile", "--cpu-profile"],
-  ["--jsclick", "--dom-click"],
   ["--press", "--force-click"],
-  ["--wheelburst", "--wheel-burst"],
   ["--ls", "--local-storage"],
   ["--sse", "--stream-settle"],
   ["--summary", "--scenario-summary"],
   ["--owner", "--stage-owner"],
-  ["--cycles", "--perf-cycles"],
 ]);
 
 /** Returns the "unknown flag X — did you mean Y?" refusal for a token in `ALIAS_REFUSALS`, but ONLY when
@@ -55,13 +48,7 @@ export const ALIAS_REFUSALS: ReadonlyMap<string, string> = new Map([
  *  so the generic "unknown flag" applies rather than a suggestion that names a flag the tool never had. */
 export function aliasRefusal(flag: string, knownFlags: ReadonlySet<string>): string | null {
   const real = ALIAS_REFUSALS.get(flag);
-  if (real === undefined || !knownFlags.has(real)) {
-    return null;
-  }
-  if (flag === "--os-full-motion") {
-    return "unknown flag --os-full-motion — full motion is already the default; omit the flag";
-  }
-  return `unknown flag ${flag} — did you mean ${real}?`;
+  return real === undefined || !knownFlags.has(real) ? null : `unknown flag ${flag} — did you mean ${real}?`;
 }
 
 /** `--session <name>` (design §3.4/§5, #1285). The sibling tools this constant was minted for are gone
@@ -74,10 +61,9 @@ const WHERE_FLAG_NAMES = ["--base", "--isolated", "--ref", "--dirty", "--fresh",
 export type WhereFlag = (typeof WHERE_FLAG_NAMES)[number];
 export const WHERE_FLAGS: ReadonlySet<WhereFlag> = new Set(WHERE_FLAG_NAMES);
 
-/** The canonical `--reduced-motion` spelling — the RENAME target (owner ruling 2026-09-03) for the
- *  retired `--os-reduced-motion`/`--os-full-motion`; snap has carried this spelling since phase 1. A
- *  named constant (SESSION_FLAG's shape) rather than a bare literal so a future consumer of this same
- *  member never re-spells it. */
+/** The canonical `--reduced-motion` spelling — the RENAME target (owner ruling 2026-09-03) whose old
+ *  spellings were grep-fixed away at #1315; snap has carried this one since phase 1. A named constant
+ *  (SESSION_FLAG's shape) rather than a bare literal so a future consumer never re-spells it. */
 export const REDUCED_MOTION_FLAG = "--reduced-motion";
 
 /** ENVIRONMENT_FLAGS (§4.3): one spelling, no aliases, and one accepted roster across all public rendered tools. */

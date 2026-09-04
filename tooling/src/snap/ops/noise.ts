@@ -83,8 +83,8 @@ export function partitionFailedRequests(requests: Iterable<CapturedRequest>): {
 /** HARNESS-INDUCED again, and the one the design-audit fold surfaced (#1315). Chromium treats every
  *  `file://` document as its own opaque origin, and a CDP domain attach against one makes it log
  *  `Unsafe attempt to load URL <U> from frame with URL <U>` — where BOTH urls are the document itself —
- *  plus a matching request whose failure text is the bare `origin`. MEASURED 2026-09-04: `pnpm snap
- *  --file mock.html` alone produces neither; adding `--design-audit` produces both, because the walk's
+ *  plus a matching request whose failure text is the bare `origin`. MEASURED 2026-09-04: a bare
+ *  `pnpm snap --file mock.html` produces neither; adding `--design-audit` produces both, because the walk's
  *  forced-state pass opens a CDP session and enables the CSS domain (ui-audit/ops/hover.ts). Nothing was
  *  loaded, nothing is missing, and the page renders identically — but snap counts console errors and
  *  failed requests into its verdict, so every `--file` mock audit exited 1 on an artifact of the

@@ -48,19 +48,24 @@ test("contradictory stage sources and locations refuse by name with exit 3, whil
   }
 });
 
-test("retired OS-motion spellings refuse once: reduced points to the real flag, full says to omit itself", () => {
-  expect(parseSnapArgs(["--os-reduced-motion"]).errors).toEqual(["unknown flag --os-reduced-motion — did you mean --reduced-motion?"]);
-  expect(parseSnapArgs(["--os-full-motion"]).errors).toEqual(["unknown flag --os-full-motion — full motion is already the default; omit the flag"]);
+/** THE RETIRED SIBLING SPELLINGS DIE GENERICALLY NOW (owner ruling, #1315, extending the
+ *  `--settle → --pause` call): the product is unlaunched, so nobody outside this repo ever typed
+ *  `--os-reduced-motion` or `--cpuprofile` and there is no one left to refuse BY NAME — the spellings
+ *  were grep-fixed at their call sites instead. What this pins is that they are GONE, not merely
+ *  undocumented: still exit 3, still a named token in the message, and the parser must not have quietly
+ *  re-acquired one as a second spelling for a live flag (Core-Tooling-Law.md §1's half-migration ban).
+ *  `--profile → --react-profile` stays a NAMED refusal beside them as the control: it is a measured ASK
+ *  from agents who never used a retired spelling at all, which is the different thing that table is for. */
+test("the retired sibling spellings are gone outright, while a measured ask still refuses by name", () => {
+  for (const flag of ["--os-reduced-motion", "--os-full-motion", "--cpuprofile", "--jsclick", "--wheelburst", "--cycles"]) {
+    expect(parseSnapArgs([flag]).errors, flag).toEqual([`unknown flag ${flag}`]);
+  }
+  expect(parseSnapArgs(["--profile"]).errors).toEqual(["unknown flag --profile — did you mean --react-profile?"]);
 
   const result = runSnap(["--os-full-motion"]);
   expect(result.status, result.stdout).toBe(3);
-  expect(result.stdout).toContain("full motion is already the default; omit the flag");
-  expect(result.stdout).not.toContain("did you mean --reduced-motion");
-});
-
-test("retired profiler spellings refuse by name instead of becoming generic unknown flags", () => {
-  expect(parseSnapArgs(["--profile"]).errors).toEqual(["unknown flag --profile — did you mean --react-profile?"]);
-  expect(parseSnapArgs(["--cpuprofile"]).errors).toEqual(["unknown flag --cpuprofile — did you mean --cpu-profile?"]);
+  expect(result.stdout).toContain("unknown flag --os-full-motion");
+  expect(result.stdout).not.toContain("did you mean");
 });
 
 test("every accepted public Snap flag derives exactly one grammar descriptor, including a planted handler", () => {

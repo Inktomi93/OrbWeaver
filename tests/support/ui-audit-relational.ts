@@ -1,5 +1,5 @@
-import { expect } from "./fixtures.ts";
 import { vi } from "vitest";
+import { expect } from "./fixtures.ts";
 
 export const RELATIONAL_CLI_TIMEOUT_MS = 90_000;
 vi.setConfig({ testTimeout: RELATIONAL_CLI_TIMEOUT_MS, hookTimeout: RELATIONAL_CLI_TIMEOUT_MS });
