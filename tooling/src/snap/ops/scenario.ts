@@ -1,121 +1,41 @@
-// --scenario: sequential checkpoints in ONE browser lifetime (shared context/shim/media), each with
-// its own evidence window; session-level flags live on the outer command by refusal, not convention.
-import { readFile } from "node:fs/promises";
-import { basename, extname, isAbsolute, resolve } from "node:path";
-import process from "node:process";
-import { fileURLToPath } from "node:url";
-import { errorMessage } from "@orb/kit/error-message";
+// --scenario: sequential checkpoints in ONE shared browser lifetime, each with its own evidence window.
 import type { Page } from "@playwright/test";
 import { artifactDir } from "../../_shared/artifact-out.ts";
-import { artifactFilePath, print, routeSlug } from "../../_shared/artifacts.ts";
-import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
+import { evidenceWindowId } from "../../_shared/artifact-scope.ts";
+import { artifactFilePath, artifactKey, print } from "../../_shared/artifacts.ts";
 import type { CapturedRequest } from "../../_shared/browser-capture.ts";
+import { browserEvidenceRetention } from "../../_shared/browser-capture.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";
+import { summarizeOrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { printVerdict } from "../../_shared/evidence.ts";
+import { printVerdictReceipt } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
-import { loadResultPairs } from "../../_shared/load-budget.ts";
+import type { ArmRunContext } from "../contract/arms.ts";
 import type { SnapDetailedResult } from "../contract/run.ts";
-import { scenarioPresetFile } from "../contract/scenario-presets.ts";
-import type { Args, CaptureOutcome, ScenarioCheckpoint, ScenarioSpec, SessionCounts, ShotPlan } from "../contract/types.ts";
+import type { Args, CaptureOutcome, ScenarioSpec, SessionCounts, ShotPlan } from "../contract/types.ts";
 import type { SnapFailureSummary } from "../contract/verdict.ts";
 import { HTTP_URL_RE, shouldProduceShot } from "../lib/out-names.ts";
-import { checkpointArgErrors, identicalSeedsError, inheritSessionArgs } from "../lib/session-plan.ts";
+import { ratePostureResultPairs, sampleSnapRatePosture } from "../lib/rate-posture.ts";
 import { capturePageCssEvidence } from "./arms/cascade.ts";
-import { pageArmFailures } from "./arms/registry.ts";
+import type { RunArms } from "./arms/registry.ts";
+import { beginRunArms, disabledRunArmFailures, pageArmExit, pageArmFailures } from "./arms/registry.ts";
 import { capture } from "./capture.ts";
-import { refuseFileMode, snapDestination } from "./guards.ts";
+import { snapDestination } from "./guards.ts";
 import { appliedAcrossContexts, writeManifestIfRequested } from "./manifest.ts";
 import { consoleFailureCounts, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
-import { parseSnapArgs } from "./parse.ts";
 import { consoleForEvidence, pageErrorsForEvidence, printCaptureLog, printCheckpointScope, printPageReport, sessionForEvidence } from "./report.ts";
-import { cascadeRuntimeFor, finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
+import { registerSnapDiagnosticCompleteness, registerSnapResultPairs } from "./run-bundle.ts";
+import { registerScenarioFacts, scenarioFilmstripFrameCount, scenarioFilmstripPairs } from "./scenario-facts.ts";
+import type { ScenarioHost } from "./scenario-host.ts";
+import { finishScenarioSession, scenarioFailure, scenarioSession } from "./scenario-host.ts";
+import { parseScenarioSpec as parsePreparedScenarioSpec, prepareScenarioOutcome, scenarioErrors } from "./scenario-prepare.ts";
+import { cascadeRuntimeFor, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
 import { themeStampExit } from "./theme-stamp.ts";
 import { hasSnapFailure } from "./verdict.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
-
-function stringArray(value: unknown): readonly string[] | null {
-  return Array.isArray(value) && value.every((entry) => typeof entry === "string") ? value : null;
-}
-
-function scenarioCheckpoint(value: unknown, index: number): ScenarioCheckpoint {
-  if (typeof value !== "object" || value === null) {
-    throw new Error(`scenario checkpoint ${index} must be an object`);
-  }
-  const record = value as Record<string, unknown>;
-  const args = stringArray(record["args"]);
-  if (typeof record["name"] !== "string" || record["name"].trim() === "" || args === null) {
-    throw new Error(`scenario checkpoint ${index} requires a non-empty name and string[] args`);
-  }
-  return { name: record["name"], args };
-}
-
 export function parseScenarioSpec(source: string, fallbackName: string): ScenarioSpec {
-  const value = JSON.parse(source) as unknown;
-  if (typeof value !== "object" || value === null) {
-    throw new Error("scenario root must be an object");
-  }
-  const record = value as Record<string, unknown>;
-  const defaults = record["defaults"] === undefined ? [] : stringArray(record["defaults"]);
-  if (defaults === null) {
-    throw new Error("scenario defaults must be a string[]");
-  }
-  if (!Array.isArray(record["checkpoints"]) || record["checkpoints"].length === 0) {
-    throw new Error("scenario requires at least one checkpoint");
-  }
-  const checkpoints = record["checkpoints"].map(scenarioCheckpoint);
-  const name = typeof record["name"] === "string" && record["name"].trim() !== "" ? record["name"] : fallbackName;
-  return { name: routeSlug(name), defaults, checkpoints };
-}
-
-// The PARTITION (which flag is the browser lifetime's and which is the checkpoint's) and the refusal rows
-// live in lib/session-plan.ts since #1231 — ONE table serves a scenario's checkpoints and a stateful
-// session's calls, so the two can never disagree about what a lifetime owns.
-function scenarioCheckpointArgs(globalArgs: Args, spec: ScenarioSpec): Args[] {
-  return spec.checkpoints.map((checkpoint) => {
-    const args = parseSnapArgs([...spec.defaults, ...checkpoint.args]);
-    const inherited = inheritSessionArgs(globalArgs, args, `${spec.name}-${routeSlug(checkpoint.name)}`);
-    inherited.errors.push(...checkpointArgErrors(inherited, args, checkpoint.name));
-    return inherited;
-  });
-}
-
-function scenarioErrors(checkpoints: readonly Args[]): string[] {
-  const errors = checkpoints.flatMap((checkpoint) => {
-    const fileRefusal = refuseFileMode(checkpoint);
-    return fileRefusal === null ? checkpoint.errors : [...checkpoint.errors, fileRefusal];
-  });
-  const seeds = identicalSeedsError(checkpoints);
-  if (seeds !== null) {
-    errors.push(seeds);
-  }
-  return errors;
-}
-
-interface PreparedScenario {
-  readonly spec: ScenarioSpec;
-  readonly checkpoints: readonly Args[];
-}
-
-async function prepareScenario(opts: Args, path: string): Promise<PreparedScenario> {
-  const loaded = await loadScenario(path);
-  const spec = opts.out === null ? loaded : { ...loaded, name: routeSlug(opts.out) };
-  return { spec, checkpoints: scenarioCheckpointArgs(opts, spec) };
-}
-
-function resolveScenarioPath(pathArg: string): string {
-  const preset = scenarioPresetFile(pathArg);
-  if (preset !== null) {
-    return fileURLToPath(new URL(`./scenarios/${preset}`, import.meta.url));
-  }
-  return isAbsolute(pathArg) ? pathArg : resolve(process.cwd(), pathArg);
-}
-
-async function loadScenario(pathArg: string): Promise<ScenarioSpec> {
-  const path = resolveScenarioPath(pathArg);
-  const source = await readFile(path, "utf8");
-  return parseScenarioSpec(source, basename(path, extname(path)));
+  return parsePreparedScenarioSpec(source, fallbackName);
 }
 
 interface ScenarioSummaryInput {
@@ -124,6 +44,7 @@ interface ScenarioSummaryInput {
   readonly session: ProbeSession;
   readonly failedRequests: readonly CapturedRequest[];
   readonly plan: ShotPlan;
+  readonly runArms: readonly RunArms[];
 }
 
 function scenarioFailureSummary(input: ScenarioSummaryInput): SnapFailureSummary {
@@ -132,7 +53,11 @@ function scenarioFailureSummary(input: ScenarioSummaryInput): SnapFailureSummary
   // Every ARM-owned member comes from the arm that measures it (contract/arms.ts). The scenario keeps its
   // own literal because its non-arm members are scoped differently (per-checkpoint console/page-error
   // windows, no watch, no diff) — but the arm halves must not be a second implementation.
-  const arms = pageArmFailures({ opts, outcomes, ctx: { ...input.plan, failed: [...failedRequests], totalPages: 1 } });
+  const arms = {
+    ...pageArmFailures({ opts, outcomes, ctx: { ...input.plan, failed: [...failedRequests], totalPages: 1 } }),
+    ...disabledRunArmFailures(opts, ["cascade", "filmstrip"]),
+    ...Object.assign({}, ...input.runArms.map((runArm) => runArm.failures())),
+  };
   const armCount = (field: keyof SnapFailureSummary): number => {
     const count = arms[field];
     if (count === undefined) {
@@ -140,11 +65,11 @@ function scenarioFailureSummary(input: ScenarioSummaryInput): SnapFailureSummary
     }
     return count;
   };
-  const consoleFailures = consoleFailureCounts(consoleForEvidence(session.consoleMessages, outcomes), strictConsole);
+  const consoleFailures = consoleFailureCounts(consoleForEvidence(session, outcomes), strictConsole);
   return {
     navigation: outcomes.filter((outcome) => outcome.navError !== null).length,
     navActions: outcomes.reduce((count, outcome) => count + outcome.navFailures, 0),
-    pageErrors: pageErrorsForEvidence(session.pageErrors, outcomes).length,
+    pageErrors: pageErrorsForEvidence(session, outcomes).length,
     failedRequests: failedRequests.length,
     steps: outcomes.reduce((count, outcome) => count + outcome.stepFailures, 0),
     contrast: armCount("contrast"),
@@ -161,10 +86,7 @@ function scenarioFailureSummary(input: ScenarioSummaryInput): SnapFailureSummary
     emptyCss: armCount("emptyCss"),
     environment: 0,
     appearance: 0,
-    // A scenario checkpoint runs the DRIVE path, not the single-run evidence pass — the Lighthouse arm
-    // never fires there (it is a RUN arm and the scenario hosts no run arms), so its member is
-    // structurally zero rather than "unmeasured".
-    lighthouse: 0,
+    lighthouse: armCount("lighthouse"),
   };
 }
 
@@ -173,6 +95,15 @@ interface ScenarioEvidenceRange {
   readonly consoleEnd: number;
   readonly pageErrorStart: number;
   readonly pageErrorEnd: number;
+  readonly diagnosticWindow: number;
+}
+
+function scenarioValue<T>(values: readonly T[], index: number, label: string): T {
+  const value = values[index];
+  if (value === undefined) {
+    throw new Error(`INSTRUMENT ERROR: scenario ${label} is missing at checkpoint ${String(index)}`);
+  }
+  return value;
 }
 
 // Raw string, not a function — the tooling program is DOM-less and carries no __orb ambient (the
@@ -184,13 +115,19 @@ async function resetScenarioEvidence(page: Page): Promise<void> {
 async function captureScenarioCheckpoints(
   session: ProbeSession,
   checkpoints: readonly Args[],
-): Promise<{ outcomes: CaptureOutcome[]; plans: ShotPlan[]; evidenceRanges: ScenarioEvidenceRange[] }> {
+): Promise<{ outcomes: CaptureOutcome[]; plans: ShotPlan[]; evidenceRanges: ScenarioEvidenceRange[]; runArms: RunArms[] }> {
   const outcomes: CaptureOutcome[] = [];
   const plans: ShotPlan[] = [];
   const evidenceRanges: ScenarioEvidenceRange[] = [];
+  const runArms: RunArms[] = [];
   const snapsDir = await artifactDir("snaps");
   let priorUrl: string | null = null;
-  for (const checkpoint of checkpoints) {
+  for (const [checkpointIndex, checkpoint] of checkpoints.entries()) {
+    const arms = beginRunArms(session, checkpoint);
+    const ratePosture = await arms.ratePosture();
+    await arms.prepare();
+    runArms.push(arms);
+    session.diagnosticWindow.value += 1;
     const destination = snapDestination(checkpoint);
     // Same --out contract as the single-shot path: a checkpoint that names a PATH writes there (the
     // scenario's own checkpoint names are slugs and stay under reports/snaps/).
@@ -201,20 +138,23 @@ async function captureScenarioCheckpoints(
     };
     plans.push(plan);
     const keepLivePage = HTTP_URL_RE.test(plan.url) && plan.url === priorUrl;
-    const consoleStart = session.consoleMessages.length;
-    const pageErrorStart = session.pageErrors.length;
+    const consoleStart = session.evidence.console.cursor();
+    const pageErrorStart = session.evidence.pageErrors.cursor();
     if (keepLivePage) {
       await resetScenarioEvidence(session.page);
     }
-    const outcome = await capture(
-      session.page,
-      checkpoint,
-      { ...plan, pageIndex: 0, totalPages: 1, navigatePage: !keepLivePage },
-      {
+    const outcome = await capture({
+      page: session.page,
+      opts: checkpoint,
+      plan: { ...plan, pageIndex: 0, totalPages: 1, navigatePage: !keepLivePage },
+      evidence: {
         ...session,
         settingsEvidence: session.contexts[0]?.settingsEvidence,
       },
-    );
+      ratePosture,
+      armEvidenceWindow: evidenceWindowId(`checkpoint:${String(checkpointIndex)}:${artifactKey(destination.name)}`),
+      runArms: arms,
+    });
     // The cascade arm's read, driven directly: a scenario checkpoint hosts no RUN arms (it has its own
     // per-checkpoint lifecycle), so it calls the arm's engine rather than the run-arm surface.
     if (checkpoint.cascade.length > 0) {
@@ -226,15 +166,26 @@ async function captureScenarioCheckpoints(
       });
     }
     outcomes.push(outcome);
+    const armCtx: ArmRunContext = {
+      session,
+      opts: checkpoint,
+      outcomes: [outcome],
+      name: artifactKey(destination.name),
+      provisions: { debuggingPort: null, cascadeRuntime: cascadeRuntimeFor(session) },
+      ratePosture,
+    };
+    await arms.measure(armCtx);
+    await arms.report(armCtx);
     evidenceRanges.push({
       consoleStart,
-      consoleEnd: session.consoleMessages.length,
+      consoleEnd: session.evidence.console.cursor(),
       pageErrorStart,
-      pageErrorEnd: session.pageErrors.length,
+      pageErrorEnd: session.evidence.pageErrors.cursor(),
+      diagnosticWindow: session.diagnosticWindow.value,
     });
     priorUrl = plan.url;
   }
-  return { outcomes, plans, evidenceRanges };
+  return { outcomes, plans, evidenceRanges, runArms };
 }
 
 interface ScenarioReportArgs {
@@ -252,12 +203,15 @@ function scenarioCheckpointSession(session: ProbeSession, outcome: CaptureOutcom
   if (outcome.evidenceRange !== null) {
     return sessionForEvidence(session, [outcome]);
   }
-  const consoleMessages = session.consoleMessages.slice(range.consoleStart, range.consoleEnd);
+  const consoleMessages = session.evidence.console.read(range.consoleStart, range.consoleEnd, "browser-console-scenario-window").records;
   return {
     requests: session.requests,
     consoleMessages,
     consoleLines: consoleMessages.map((message) => message.line),
-    pageErrors: session.pageErrors.slice(range.pageErrorStart, range.pageErrorEnd),
+    pageErrors: session.evidence.pageErrors.read(range.pageErrorStart, range.pageErrorEnd, "browser-page-error-scenario-window").records,
+    diagnostics: session.diagnostics.filter((entry) => entry.evidenceWindow === range.diagnosticWindow),
+    diagnosticCompleteness: session.diagnosticCompleteness.filter((entry) => entry.evidenceWindow === range.diagnosticWindow),
+    diagnosticWindow: { value: range.diagnosticWindow },
   };
 }
 
@@ -273,11 +227,12 @@ function checkpointCssFailed(outcome: CaptureOutcome): boolean {
 function printScenarioReports(args: ScenarioReportArgs): void {
   const { spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests } = args;
   for (let index = 0; index < outcomes.length; index += 1) {
-    const plan = plans[index] as ShotPlan;
-    const range = evidenceRanges[index] as ScenarioEvidenceRange;
-    const outcome = outcomes[index] as CaptureOutcome;
+    const plan = scenarioValue(plans, index, "plan");
+    const range = scenarioValue(evidenceRanges, index, "evidence range");
+    const outcome = scenarioValue(outcomes, index, "outcome");
+    const checkpoint = scenarioValue(checkpoints, index, "parsed args");
     const checkpointSession = scenarioCheckpointSession(session, outcome, range);
-    if (checkpoints[index]?.summary === true) {
+    if (checkpoint.summary) {
       const failedAssertions = outcome.assertions.filter((entry) => entry.failed).length;
       const errors = checkpointSession.consoleMessages.filter((message) => message.type === "error" && !isSandboxTraceNoise(message)).length;
       const warnings = checkpointSession.consoleMessages.filter((message) => message.type === "warning").length;
@@ -288,7 +243,7 @@ function printScenarioReports(args: ScenarioReportArgs): void {
         checkpointCssFailed(outcome) ||
         failedAssertions > 0 ||
         errors > 0 ||
-        ((checkpoints[index]?.strictConsole ?? false) && warnings > 0);
+        (checkpoint.strictConsole && warnings > 0);
       print(
         `CHECKPOINT ${spec.checkpoints[index]?.name ?? index} ${failed ? "FAIL" : "PASS"} ` +
           `shot=${plan.produceShot ? plan.out : "(none)"} nav=${outcome.navFailures} steps=${outcome.stepFailures} assertions=${failedAssertions} ` +
@@ -297,7 +252,7 @@ function printScenarioReports(args: ScenarioReportArgs): void {
       continue;
     }
     print(`\n========== CHECKPOINT ${spec.checkpoints[index]?.name ?? index} ==========`);
-    printPageReport(checkpointSession, outcomes[index] as CaptureOutcome, checkpoints[index] as Args, { ...plan, failed: [], totalPages: 1 });
+    printPageReport(checkpointSession, outcome, checkpoint, { ...plan, failed: [], totalPages: 1 });
   }
   if (failedRequests.length > 0) {
     print(`\n${failedRequests.length} failed request(s) occurred across the scenario; the aggregate log follows.`);
@@ -307,42 +262,53 @@ function printScenarioReports(args: ScenarioReportArgs): void {
   printCaptureLog(evidenceSession, failedRequests, args.viteChurn);
 }
 
-export async function runScenarioDetailed(opts: Args): Promise<SnapDetailedResult> {
+function registerScenarioCompleteness(host: ScenarioHost | null, session: ProbeSession): void {
+  if (host === null) {
+    registerSnapDiagnosticCompleteness(summarizeOrbConsoleCompleteness(session.diagnosticCompleteness));
+  }
+}
+
+function reportScenarioArgumentErrors(checkpoints: readonly Args[]): boolean {
+  const errors = scenarioErrors(checkpoints);
+  for (const error of errors) {
+    print(`SCENARIO ARG ERROR: ${error}`);
+  }
+  return errors.length > 0;
+}
+
+export async function runScenarioDetailed(opts: Args, host: ScenarioHost | null = null): Promise<SnapDetailedResult> {
   const scenarioPath = opts.scenario;
   if (scenarioPath === null) {
     return { code: EXIT.misuse, receipt: null };
   }
-  let prepared: PreparedScenario;
-  // @orb-gate-ignore caught-failure-ownership(empty:error): printed as SCENARIO ERROR and routed through EXIT.misuse, the process's own exit code. Ends if that exit code stops being surfaced.
-  try {
-    prepared = await prepareScenario(opts, scenarioPath);
-  } catch (error) {
-    print(`SCENARIO ERROR: ${errorMessage(error)}`);
+  const preparation = await prepareScenarioOutcome(opts, scenarioPath);
+  if (preparation.status === "failed") {
+    print(`SCENARIO ERROR: ${preparation.error}`);
     return { code: EXIT.misuse, receipt: null };
   }
+  const prepared = preparation.value;
   const { spec, checkpoints } = prepared;
-  const errors = scenarioErrors(checkpoints);
-  if (errors.length > 0) {
-    for (const error of errors) {
-      print(`SCENARIO ARG ERROR: ${error}`);
-    }
+  if (reportScenarioArgumentErrors(checkpoints)) {
     return { code: EXIT.misuse, receipt: null };
   }
-  const first = checkpoints[0] as Args;
-  const session = await launchSnapSession(first, spec.name);
+  const first = scenarioValue(checkpoints, 0, "first parsed args");
+  const session = await scenarioSession(first, host);
   try {
-    const { outcomes, plans, evidenceRanges } = await captureScenarioCheckpoints(session, checkpoints);
-    const evidenceConsole = consoleForEvidence(session.consoleMessages, outcomes);
-    const evidencePageErrors = pageErrorsForEvidence(session.pageErrors, outcomes);
+    const ratePosture = await sampleSnapRatePosture(session.browser);
+    const { outcomes, plans, evidenceRanges, runArms } = await captureScenarioCheckpoints(session, checkpoints);
+    const reportPlan = plans[0] ?? { url: spec.name, out: spec.name, produceShot: false };
+    const evidenceConsole = consoleForEvidence(session, outcomes);
+    const evidencePageErrors = pageErrorsForEvidence(session, outcomes);
     const { failed: failedRequests, viteChurn } = partitionFailedRequests(session.requests.values());
     const browserEnvironment = await readSnapEnvironmentEvidence(session);
     const environmentFailures = snapEnvironmentMismatchCount(browserEnvironment);
     const failureSummary = {
-      ...scenarioFailureSummary({ opts, outcomes, session, failedRequests, plan: plans[0] ?? { url: spec.name, out: spec.name, produceShot: false } }),
+      ...scenarioFailureSummary({ opts, outcomes, session, failedRequests, plan: reportPlan, runArms }),
       environment: environmentFailures,
     };
     const red = hasSnapFailure(failureSummary);
-    const artifacts = await finishSession(session, red, spec.name, opts.failureEvidence);
+    const retention = browserEvidenceRetention(session);
+    const artifacts = await finishScenarioSession(session, host, { red, name: spec.name, enabled: opts.failureEvidence });
     printScenarioReports({ spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests, viteChurn });
     const manifestPath = await writeManifestIfRequested(opts, spec.name, {
       status: red ? "fail" : "pass",
@@ -369,23 +335,47 @@ export async function runScenarioDetailed(opts: Args): Promise<SnapDetailedResul
       traces: artifacts.traces,
       hars: artifacts.hars,
       console: session.consoleMessages,
+      diagnostics: session.diagnostics,
+      diagnosticCompleteness: session.diagnosticCompleteness,
       pageErrors: session.pageErrors,
-      ...(opts.checkpoint ? { evidence: { scope: "checkpoint" as const, console: evidenceConsole, pageErrors: evidencePageErrors } } : {}),
+      ...(opts.checkpoint
+        ? {
+            evidence: {
+              scope: "checkpoint" as const,
+              console: evidenceConsole,
+              pageErrors: evidencePageErrors,
+              diagnostics: session.diagnostics.filter((entry) => entry.evidenceWindow > 0),
+              diagnosticCompleteness: session.diagnosticCompleteness.filter((entry) => entry.evidenceWindow > 0),
+            },
+          }
+        : {}),
       failedRequests,
       ...(viteChurn.length === 0 ? {} : { viteDepChurn: viteChurn }),
       captures: outcomes,
       scenario: {
         checkpoints: evidenceRanges.map((range, index) => ({
           name: spec.checkpoints[index]?.name ?? String(index),
-          screenshot: (plans[index] as ShotPlan).produceShot ? (plans[index] as ShotPlan).out : null,
-          console: session.consoleMessages.slice(range.consoleStart, range.consoleEnd),
-          pageErrors: session.pageErrors.slice(range.pageErrorStart, range.pageErrorEnd),
+          screenshot: scenarioValue(plans, index, "manifest plan").produceShot ? scenarioValue(plans, index, "manifest plan").out : null,
+          console: session.evidence.console.read(range.consoleStart, range.consoleEnd, "browser-console-scenario-manifest").records,
+          pageErrors: session.evidence.pageErrors.read(range.pageErrorStart, range.pageErrorEnd, "browser-page-error-scenario-manifest").records,
+          diagnostics: session.diagnostics.filter((entry) => entry.evidenceWindow === range.diagnosticWindow),
+          diagnosticCompleteness: session.diagnosticCompleteness.filter((entry) => entry.evidenceWindow === range.diagnosticWindow),
         })),
       },
     });
-    const scenarioCode = printVerdict("snap-scenario", {
+    const terminal = printVerdictReceipt("snap-scenario", {
       verdict: red ? 1 : 0,
-      denominators: { checkpoints: { value: outcomes.length, refuseWhen: "zero" } },
+      denominators: {
+        checkpoints: { value: outcomes.length, refuseWhen: "zero" },
+        ...(checkpoints.some((checkpoint) => checkpoint.filmstrip)
+          ? {
+              "filmstrip-frames": {
+                value: scenarioFilmstripFrameCount(runArms),
+                refuseWhen: "zero" as const,
+              },
+            }
+          : {}),
+      },
       pairs: [
         ["name", spec.name],
         ["checkpoints", outcomes.length],
@@ -403,18 +393,43 @@ export async function runScenarioDetailed(opts: Args): Promise<SnapDetailedResul
         ["har", artifacts.hars[0] ?? "none"],
         ["json", manifestPath ?? "none"],
         ["vite-dep-churn", viteChurn.length],
-        ...loadResultPairs(),
+        ...scenarioFilmstripPairs(runArms, checkpoints),
+        ...ratePostureResultPairs(ratePosture),
       ],
     });
-    return {
+    const pageCode = pageArmExit(
+      { opts, outcomes, ctx: { ...reportPlan, failed: [...failedRequests], totalPages: 1 } },
+      themeStampExit(outcomes, terminal.exit),
+    );
+    const finalCode = runArms.reduce((code, arms) => arms.exit(code), pageCode);
+    registerScenarioFacts({
+      opts,
+      spec,
+      checkpoints,
+      session,
+      ratePosture,
+      outcomes,
+      plans,
+      reportPlan,
+      failedRequests,
+      pageErrors: evidencePageErrors,
+      failures: failureSummary,
+      retention,
+      finalCode,
+      runArms,
+    });
+    registerSnapResultPairs(terminal.pairs);
+    const result: SnapDetailedResult = {
       // #1227: a checkpoint whose requested THEME never stamped sampled the default palette — exit 2.
-      code: themeStampExit(outcomes, scenarioCode),
+      code: finalCode,
       receipt: {
         failures: failureSummary,
         captures: outcomes,
         browser: browserEnvironment,
         settings: session.contexts.map((context) => context.settingsEvidence),
         appearance: [],
+        diagnosticCompleteness: session.diagnosticCompleteness,
+        motion: null,
         scenario: {
           name: spec.name,
           declaredCheckpointNames: spec.checkpoints.map((checkpoint) => checkpoint.name),
@@ -423,8 +438,10 @@ export async function runScenarioDetailed(opts: Args): Promise<SnapDetailedResul
         },
       },
     };
+    registerScenarioCompleteness(host, session);
+    return result;
   } catch (error) {
-    return await closeProbeSessionAfterError(session, error);
+    return await scenarioFailure(session, host, error);
   }
 }
 

@@ -1,4 +1,4 @@
-// The CLS VERDICT rule of `pnpm motion-audit` (issue #109, 2026-08-16): the budget gates on the
+// The CLS verdict rule retained by Snap's motion arm (issue #109, 2026-08-16): the budget gates on the
 // NON-VIRTUALIZED total, while raw + virtualized stay printed. Found by lane ae-shell-motion — a no-probe
 // home→chat journey measured ~0.26 of CLS that was purely the message list settling on mount, which
 // motion-stats.ts already classifies (`virtualized: true`) and warn-suppresses but still folded into the
@@ -21,11 +21,9 @@ import {
   framePopulationBasis,
   loafOverBudget,
   loafTotals,
-  MOTION_AUDIT_HELP,
   motionEvidenceGaps,
   observedClsGap,
   observedClsTotals,
-  parseMotionArgs,
 } from "../../../tooling/src/motion-audit/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -52,7 +50,7 @@ const DESKTOP_ENVIRONMENT: BrowserEnvironmentEvidence = {
     reducedTransparency: false,
   },
   actual: {
-    device: "desktop",
+    device: { kind: "desktop" },
     viewport: { width: 1280, height: 800 },
     innerViewport: { width: 1280, height: 800 },
     screen: { width: 1280, height: 800 },
@@ -454,69 +452,10 @@ test("unconfirmed Select marks, non-Select marks, and unpaired frames receive no
   });
 });
 
-// ── The REACH queue (issue #148 item 1) ─────────────────────────────────────────────────────────────
-// The probe could only click, so any surface behind a room was structurally unauditable. The queue reaches;
-// `--selector` still measures.
-
-test("nav and click flags queue in TRUE argv order, and --selector stays the measured interaction", () => {
-  const args = parseMotionArgs(["/", "--open-chat", "latest", "--context-tab", "rpg.game", "--click", "[data-slot=more]", "--selector", "[data-slot=toggle]"]);
-
-  expect(args.errors).toEqual([]);
-  expect(args.reach).toEqual([
-    { kind: "nav", method: "open-chat", target: "latest" },
-    { kind: "nav", method: "context-tab", target: "rpg.game" },
-    { kind: "click", selector: "[data-slot=more]" },
-  ]);
-  expect(args.selector).toBe("[data-slot=toggle]");
-});
-
-test("a typo'd nav flag is CLI misuse, never a silent audit of the landing page", () => {
-  // The whole reason the strict scan exists: `--open-caht` used to print "(ignored)" and return a
-  // smoothness verdict for home under the name of the room the caller asked for.
-  // The unknown flag's orphaned VALUE then reads as a second route — same cascade design-audit's scan
-  // produces, and both lines are true.
-  expect(parseMotionArgs(["/", "--open-caht", "latest"]).errors).toEqual(["unknown flag --open-caht", "expected at most one route, got 2"]);
-  expect(parseMotionArgs(["/", "--context-tab", "--selector", "x"]).errors).toEqual(["--context-tab requires a value"]);
-  expect(parseMotionArgs(["/", "/second"]).errors).toEqual(["expected at most one route, got 2"]);
-});
-
-test("a bare run still has an empty reach queue — entry motion stays the default subject", () => {
-  const args = parseMotionArgs(["/"]);
-  expect(args.errors).toEqual([]);
-  expect(args.reach).toEqual([]);
-  expect(args.route).toBe("/");
-});
-
-test("viewport and measurement-window argv reject malformed values", () => {
-  expect(parseMotionArgs(["/", "--viewport", "1280x800x2"]).errors).toContain("--viewport requires WIDTHxHEIGHT positive integers");
-  expect(parseMotionArgs(["/", "--viewport", "1e3x800"]).errors).toContain("--viewport requires WIDTHxHEIGHT positive integers");
-  for (const raw of ["-1", "0", "Infinity", "nope"]) {
-    expect(parseMotionArgs(["/", "--window", raw]).errors).toContain("--window requires a positive finite duration in milliseconds");
-  }
-});
-
-test("--mobile selects the full shared device descriptor and the environment slot is last-wins", () => {
-  const mobile = parseMotionArgs(["/", "--mobile"]);
-  const viewportAfterMobile = parseMotionArgs(["/", "--mobile", "--viewport", "900x700"]);
-  const mobileAfterViewport = parseMotionArgs(["/", "--viewport", "900x700", "--mobile"]);
-  const desktopAfterMobile = parseMotionArgs(["/", "--mobile", "--desktop"]);
-
-  expect(mobile.errors).toEqual([]);
-  expect(mobile.device).toBe("iPhone 14 Pro Max");
-  expect(viewportAfterMobile).toMatchObject({ device: null, viewport: { width: 900, height: 700 }, errors: [] });
-  expect(mobileAfterViewport).toMatchObject({ device: "iPhone 14 Pro Max", errors: [] });
-  expect(desktopAfterMobile).toMatchObject({ device: null, viewport: { width: 1280, height: 800 }, errors: [] });
-  expect(MOTION_AUDIT_HELP).toContain("--mobile");
-  expect(MOTION_AUDIT_HELP).toContain("touch · pointer:coarse · mobile UA · DPR");
-  expect(MOTION_AUDIT_HELP).toContain("--goto settings:appearance");
-  expect(MOTION_AUDIT_HELP).toContain('[data-slot="collapsible-trigger"]');
-  expect(MOTION_AUDIT_HELP).not.toContain("settings-trigger");
-});
-
 test("a requested/actual browser-environment mismatch is an instrument error input", () => {
   const environment: BrowserEnvironmentEvidence = {
     ...DESKTOP_ENVIRONMENT,
-    actual: { ...DESKTOP_ENVIRONMENT.actual, device: "unmatched", pointer: "fine", isMobile: null },
+    actual: { ...DESKTOP_ENVIRONMENT.actual, device: { kind: "unmatched" }, pointer: "fine", isMobile: null },
     mismatches: ["pointer expected coarse but observed fine", "touch expected present but maxTouchPoints=0"],
   };
 
@@ -839,24 +778,11 @@ test("#1127 a single frame is UNCOMPUTABLE, not 0% -- `raw-frames=1` never print
   // The single-run tell from the same drive: `motion-audit /` printed `0%` beside `raw-frames=1`.
   // A rate needs two observations; one frame is a sample, not a rate.
   expect(framePopulationBasis(1)).toBe("uncomputable");
+  const oneFrame = evaluateMotionAudit(auditData({ frames: framesOf(1, 0) }), 2500);
+  expect(oneFrame.gaps.map((gap) => gap.evidence)).toEqual(["the frame population"]);
+  expect(oneFrame.gaps[0]?.detail).toContain("only 1 PipelineReporter frame");
   // ...and the boundaries either side, so an off-by-one in the classifier cannot pass.
   expect(framePopulationBasis(2)).toBe("collapsed");
   expect(framePopulationBasis(FRAME_POPULATION_RESOLUTION_FLOOR - 1)).toBe("collapsed");
   expect(framePopulationBasis(FRAME_POPULATION_RESOLUTION_FLOOR)).toBe("verdict");
-});
-
-test("phase-four where, environment, and artifact flags retain one parsed contract", () => {
-  expect(parseMotionArgs(["/", "--isolated", "--ref", "HEAD", "--wide", "--dark", "--reduced-motion", "--out", "motion", "--json"])).toMatchObject({
-    isolated: true,
-    ref: "HEAD",
-    viewport: { width: 1920, height: 1080 },
-    colorScheme: "dark",
-    osReducedMotion: true,
-    out: "motion",
-    json: true,
-    errors: [],
-  });
-  expect(parseMotionArgs(["--session", "demo", "--isolated"]).errors).toContain(
-    "--session attaches to a live session's browser; --isolated/--ref/--dirty/--fresh boot a stage — pass one",
-  );
 });

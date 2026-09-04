@@ -1,39 +1,14 @@
 // Dev/test-only class-merge evidence. Winner recovery replays the injected configured merger; this file
 // never classifies Tailwind syntax or imports tailwind-merge internals.
+
 import { setCssMergeObserver } from "./class-merge.ts";
+import type { CssClassOccurrence, CssMergeConflict, CssMergeReceipt, CssMergeTraceSnapshot, CssMergeTraceState } from "./css-merge-contract.ts";
+
+export type { CssMergeConflict, CssMergeReceipt, CssMergeTraceSnapshot } from "./css-merge-contract.ts";
 
 export const CSS_MERGE_TRACE_INPUT_LIMIT = 128;
 const CSS_MERGE_TRACE_RECEIPT_LIMIT = 128;
 const INSTRUMENT_ERROR = "INSTRUMENT ERROR";
-
-interface CssClassOccurrence {
-  readonly index: number;
-  readonly className: string;
-}
-
-export interface CssMergeConflict {
-  readonly axis: string;
-  readonly loser: CssClassOccurrence;
-  readonly winner: CssClassOccurrence;
-}
-
-export interface CssMergeReceipt {
-  readonly input: readonly CssClassOccurrence[];
-  readonly conflicts: readonly CssMergeConflict[];
-  readonly output: string;
-}
-
-interface CssMergeTraceState {
-  readonly enabled: boolean;
-  readonly calls: number;
-  readonly conflictCalls: number;
-  readonly deduplicatedConflictCalls: number;
-  readonly receipts: readonly CssMergeReceipt[];
-}
-
-export type CssMergeTraceSnapshot =
-  | (CssMergeTraceState & { readonly status: "ok" })
-  | (CssMergeTraceState & { readonly status: "instrument-error"; readonly error: string });
 
 type MergeClassList = (classList: string) => string;
 type ClassifyConflict = (loser: string, winner: string) => string;

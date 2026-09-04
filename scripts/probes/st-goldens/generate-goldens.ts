@@ -375,7 +375,7 @@ async function main(): Promise<void> {
     // The click handler reads `$(this).attr('data-chid')` and calls `selectCharacterById(id)`.
     // We find the right card by matching `.ch_name` text content.
     //
-    // CRITICAL: use raw el.click() (snap.ts --jsclick pattern). These divs are
+    // CRITICAL: use raw el.click() (snap --dom-click pattern). These divs are
     // absolutely-positioned virtualized rows — Playwright actionability checks
     // (isVisible, isIntersecting) fail on them. Never use locator.click().
     console.log(`[Golden] Activating character: ${charName}`);

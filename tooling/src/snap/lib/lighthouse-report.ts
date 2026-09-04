@@ -77,7 +77,12 @@ export function auditNodes(details: unknown): { readonly count: number; readonly
 
 function auditRows(lhr: unknown): readonly Record<string, unknown>[] {
   const audits = record(record(lhr)?.["audits"]);
-  return audits === null ? [] : Object.values(audits).flatMap((audit) => (record(audit) === null ? [] : [record(audit) as Record<string, unknown>]));
+  return audits === null
+    ? []
+    : Object.values(audits).flatMap((audit) => {
+        const row = record(audit);
+        return row === null ? [] : [row];
+      });
 }
 
 function isScored(audit: Record<string, unknown>): boolean {

@@ -295,7 +295,7 @@ function readAnimFlags(page: Page): Promise<readonly AnimFlagProbe[]> {
   }) as Promise<readonly AnimFlagProbe[]>;
 }
 
-// PERMANENT PIN for the LAUNCH-RECORD ATTACHMENT (#1070). `pnpm motion-audit`'s dirty-animation budget
+// PERMANENT PIN for the LAUNCH-RECORD ATTACHMENT (#1070). Snap's motion-arm dirty-animation budget
 // reads `__orb.flags()` for the TRANSIENT population, because its other input — `__orb.animations()` — is
 // a `document.getAnimations()` sample taken when the measured window closes, ~2s after a 130-360ms house
 // transition ended. Without the attached record the audit cannot apply the #953 Base UI height allowance

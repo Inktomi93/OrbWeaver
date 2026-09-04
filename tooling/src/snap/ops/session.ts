@@ -1,10 +1,9 @@
 // Browser-session lifecycle: the localStorage seeds (probe-mode/debug-token), the one launch wrapper
 // over _shared/browser, and teardown with failure-evidence traces/HARs (kept red, deleted green).
-import { existsSync } from "node:fs";
-import { unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { artifactDir } from "../../_shared/artifact-out.ts";
+import { artifactDir, registerInstrumentArtifact } from "../../_shared/artifact-out.ts";
+import { aggregateDimension, aggregateScope, contextIndex, exactDimension, scopeV1 } from "../../_shared/artifact-scope.ts";
 import { closeProbeSession, closeProbeSessionAfterError, launchProbeSession } from "../../_shared/browser.ts";
 import { openProbeContext, probeSessionForContext } from "../../_shared/browser-context.ts";
 import type { LocalStorageSeed, ProbeContext, ProbeLaunchOptions, ProbeSession } from "../../_shared/browser-contract.ts";
@@ -17,8 +16,10 @@ import { prepareDevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { FailureArtifacts } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
+import { writeNetworkHar } from "../lib/network-har.ts";
 import { NETWORK_PROFILES, NO_CPU_THROTTLE } from "../lib/throttle.ts";
 import { armLaunchNeeds } from "./arms/registry.ts";
+import { adoptRequestRing, installRequestRing } from "./request-ring.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -47,7 +48,7 @@ const PROBE_CSS_SCRIPT = `document.addEventListener("DOMContentLoaded", () => {
 
 // ── Orchestration ───────────────────────────────────────────────────────────
 
-// Pre-navigation localStorage seeds: the generic --ls pairs plus the two harness
+// Pre-navigation localStorage seeds: the generic --local-storage pairs plus the two harness
 // keys (all ride _kit's one init script — same timing, before any page script).
 function buildSeeds(opts: Args): LocalStorageSeed[] {
   const seeds: LocalStorageSeed[] = [...opts.localStorage];
@@ -67,6 +68,19 @@ async function finishFailureTraces(session: ProbeSession, failed: boolean, name:
       const tracePath = join(traces, `${name}${session.contexts.length > 1 ? `-u${index}` : ""}.zip`);
       if (failed) {
         await context.tracing.stop({ path: tracePath });
+        await registerInstrumentArtifact("traces", tracePath, {
+          producer: "snap",
+          producerArm: null,
+          channel: "playwright-trace",
+          mediaType: "application/zip",
+          schema: "playwright-trace",
+          role: "raw-fallback",
+          completeness: "complete",
+          completenessDetail: "complete Playwright trace for human/deep forensics; not primary agent evidence",
+          scope: scopeV1({ context: exactDimension(contextIndex(index)), page: aggregateDimension(), window: aggregateDimension() }),
+          records: null,
+          limits: [],
+        });
         return tracePath;
       }
       await context.tracing.stop();
@@ -78,17 +92,35 @@ async function finishFailureTraces(session: ProbeSession, failed: boolean, name:
 
 export async function finishSession(session: ProbeSession, failed: boolean, name: string, enabled: boolean): Promise<FailureArtifacts> {
   let traces: string[];
+  let hars: string[] = [];
   try {
     traces = enabled ? await finishFailureTraces(session, failed, name) : [];
+    if (enabled && failed) {
+      const harPath = join(await artifactDir("traces"), `${name}.har`);
+      const receipt = await writeNetworkHar(session, harPath);
+      const bounded = receipt.limits.some((limit) => !limit.complete);
+      await registerInstrumentArtifact("traces", harPath, {
+        producer: "snap",
+        producerArm: null,
+        channel: "har",
+        mediaType: "application/json",
+        schema: "har-1.2",
+        role: "primary",
+        completeness: bounded ? "bounded" : "complete",
+        completenessDetail: bounded ? "complete request population with bounded body/redaction fields" : "complete captured request population",
+        scope: aggregateScope(),
+        records: receipt.entries,
+        limits: receipt.limits,
+      });
+      hars = [harPath];
+    }
   } catch (error) {
     return await closeProbeSessionAfterError(session, error);
   }
   await closeProbeSession(session);
-  const recordedHars = session.contexts.flatMap(({ harPath }) => (harPath === null ? [] : [harPath]));
   if (failed) {
-    return { traces, hars: recordedHars };
+    return { traces, hars };
   }
-  await Promise.all(recordedHars.map(async (path) => (existsSync(path) ? await unlink(path) : undefined)));
   return { traces, hars: [] };
 }
 
@@ -96,22 +128,52 @@ export async function finishSession(session: ProbeSession, failed: boolean, name
  *  ordinary one-shot contract, but closing this context must never close the session browser. */
 export async function finishSnapContext(context: ProbeContext, failed: boolean, name: string, enabled: boolean): Promise<FailureArtifacts> {
   let traces: string[] = [];
+  let hars: string[] = [];
   if (enabled) {
     const traceDir = await artifactDir("traces");
     const tracePath = join(traceDir, `${name}.zip`);
     if (failed) {
       await context.context.tracing.stop({ path: tracePath });
+      await registerInstrumentArtifact("traces", tracePath, {
+        producer: "snap",
+        producerArm: null,
+        channel: "playwright-trace",
+        mediaType: "application/zip",
+        schema: "playwright-trace",
+        role: "raw-fallback",
+        completeness: "complete",
+        completenessDetail: "complete Playwright trace for human/deep forensics; not primary agent evidence",
+        scope: scopeV1({ context: exactDimension(contextIndex(0)), page: aggregateDimension(), window: aggregateDimension() }),
+        records: null,
+        limits: [],
+      });
       traces = [tracePath];
     } else {
       await context.context.tracing.stop();
     }
+    if (failed) {
+      const harPath = join(traceDir, `${name}.har`);
+      const receipt = await writeNetworkHar({ contexts: [context] }, harPath);
+      const bounded = receipt.limits.some((limit) => !limit.complete);
+      await registerInstrumentArtifact("traces", harPath, {
+        producer: "snap",
+        producerArm: null,
+        channel: "har",
+        mediaType: "application/json",
+        schema: "har-1.2",
+        role: "primary",
+        completeness: bounded ? "bounded" : "complete",
+        completenessDetail: bounded ? "complete request population with bounded body/redaction fields" : "complete captured request population",
+        scope: aggregateScope(),
+        records: receipt.entries,
+        limits: receipt.limits,
+      });
+      hars = [harPath];
+    }
   }
   await context.context.close();
   if (failed) {
-    return { traces, hars: context.harPath === null ? [] : [context.harPath] };
-  }
-  if (context.harPath !== null && existsSync(context.harPath)) {
-    await unlink(context.harPath);
+    return { traces, hars };
   }
   return { traces: [], hars: [] };
 }
@@ -161,7 +223,7 @@ async function closeLaunchProfile(profile: LaunchProfile): Promise<void> {
   await profile.debugging?.close();
 }
 
-function buildLaunchOptions(opts: Args, name: string, traceDir: string | null, profile: LaunchProfile): ProbeLaunchOptions {
+function buildLaunchOptions(opts: Args, profile: LaunchProfile): ProbeLaunchOptions {
   const persistent = profileOf(profile);
   return {
     headless: !opts.vnc,
@@ -176,24 +238,23 @@ function buildLaunchOptions(opts: Args, name: string, traceDir: string | null, p
     device: opts.device,
     ...scaleLaunchOverride(opts),
     trace: opts.failureEvidence,
-    ...(traceDir === null ? {} : { harPathPrefix: join(traceDir, name) }),
     ...(persistent === null ? {} : { persistentProfileDir: persistent.profileDir, browserArgs: persistent.browserArgs }),
   };
 }
 
-export async function launchSnapSession(opts: Args, name: string, extras: LaunchExtras = {}): Promise<ProbeSession> {
+export async function launchSnapSession(opts: Args, extras: LaunchExtras = {}): Promise<ProbeSession> {
   const { requireCascadeRuntime = false, debuggingEndpoint = false, ...launchExtras } = extras;
-  const traceDir = opts.failureEvidence ? await artifactDir("traces") : null;
   const profile = await prepareLaunchProfile(opts, requireCascadeRuntime, debuggingEndpoint);
   let launched: ProbeSession;
   try {
-    launched = await launchProbeSession({ ...buildLaunchOptions(opts, name, traceDir, profile), ...launchExtras });
+    launched = await launchProbeSession({ ...buildLaunchOptions(opts, profile), ...launchExtras });
   } catch (error) {
     await closeLaunchProfile(profile);
     throw error;
   }
   const cleanup = [...(profile.cascade === null ? [] : [profile.cascade.close]), ...(profile.debugging === null ? [] : [profile.debugging.close])];
   const session: ProbeSession = cleanup.length === 0 ? launched : { ...launched, cleanup };
+  installRequestRing(session);
   if (profile.cascade !== null) {
     CASCADE_RUNTIMES.set(session, profile.cascade);
   }
@@ -219,14 +280,11 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
 /** Build one isolated matrix-cell context within the daemon's already-launched Chromium. The context gets
  *  its own emulation, settings shim, capture rings and optional failure artifacts; the returned view keeps
  *  existing capture operations honest about which cell they are reading. */
-export async function openSnapMatrixContext(
-  owner: ProbeSession,
-  opts: Args,
-  name: string,
-): Promise<{ readonly context: ProbeContext; readonly session: ProbeSession }> {
-  const traceDir = opts.failureEvidence ? await artifactDir("traces") : null;
-  const context = await openProbeContext(owner.browser, buildLaunchOptions(opts, name, traceDir, { cascade: null, debugging: null }), 0);
+export async function openSnapMatrixContext(owner: ProbeSession, opts: Args): Promise<{ readonly context: ProbeContext; readonly session: ProbeSession }> {
+  const context = await openProbeContext(owner.browser, buildLaunchOptions(opts, { cascade: null, debugging: null }), 0);
+  context.diagnosticWindow.value = owner.diagnosticWindow.value;
   const session = probeSessionForContext(owner, context);
+  adoptRequestRing(owner, session, context);
   const cascade = CASCADE_RUNTIMES.get(owner);
   if (cascade !== undefined) {
     CASCADE_RUNTIMES.set(session, cascade);

@@ -11,7 +11,8 @@ import { EXIT } from "../../_shared/exit-contract.ts";
 import type { SessionEvent, SessionRequest, SessionRow } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
-import { foreignSessionRefusal, SESSION_INSTRUMENT, sessionDeadText, sessionIdleMs, sessionSocketPath, sessionSweepVerdict } from "../lib/session-plan.ts";
+import { SESSION_INSTRUMENT, sessionIdleMs, sessionSocketPath, sessionSweepVerdict } from "../lib/session-plan.ts";
+import { foreignSessionRefusal, sessionDeadText } from "../lib/session-refusals.ts";
 import { describeStageAgePhrase } from "../lib/stage-plan.ts";
 import { sessionRequest } from "./session-client.ts";
 import {
@@ -31,7 +32,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --session-status");
 const MS_PER_MINUTE = 60_000;
 
 function adminRequest(kind: SessionRequest["kind"], root: string, force: boolean): SessionRequest {
-  return { v: SESSION_PROTOCOL_VERSION, kind, runId: "", slotDir: "", argv: [], cwd: process.cwd(), checkout: root, boot: false, force };
+  return { v: SESSION_PROTOCOL_VERSION, kind, runId: "", slotDir: "", argv: [], cwd: process.cwd(), checkout: root, boot: false, force, exportOut: null };
 }
 
 /** The daemon's own status answer for a live row, or null when it did not answer (then the row speaks). */

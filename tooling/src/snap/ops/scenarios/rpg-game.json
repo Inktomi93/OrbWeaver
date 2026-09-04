@@ -1,0 +1,113 @@
+{
+  "name": "rpg-game",
+  "defaults": [
+    "--scenario-summary",
+    "--checkpoint",
+    "--map",
+    ".shell-panel[data-panel-side=\"context\"]",
+    "--expect-visible",
+    ".shell-panel[data-panel-side=\"context\"]",
+    "--expect-no-overflow",
+    ".shell-panel[data-panel-side=\"context\"]",
+    "--shot-of",
+    ".shell-panel[data-panel-side=\"context\"]"
+  ],
+  "checkpoints": [
+    {
+      "name": "seed-status",
+      "args": [
+        "/",
+        "--eval",
+        "(async()=>{const orb=window.__orb;if(!orb)throw new Error('__orb unavailable');const seeded=await orb.seed.game({profile:'d20'});if(!seeded||typeof seeded.chatId!=='string'||seeded.chatId.length===0)throw new Error('seed.game returned no chatId');const opened=await orb.nav.openChat(seeded.chatId);if(!opened.ok)throw new Error('openChat refused: '+opened.reason);return {chatId:seeded.chatId,openChat:opened};})()",
+        "--context-tab",
+        "rpg.status",
+        "--wait-for",
+        "[data-slot=\"rpg-status-tab\"]",
+        "--expect-visible",
+        "[data-slot=\"rpg-status-tab\"]",
+        "--eval",
+        "window.__orb?.rpg()"
+      ]
+    },
+    {
+      "name": "inventory",
+      "args": [
+        "/",
+        "--context-tab",
+        "rpg.inventory",
+        "--wait-for",
+        "[data-slot=\"rpg-inventory-tab\"]",
+        "--expect-visible",
+        "[data-slot=\"rpg-inventory-tab\"]",
+        "--eval",
+        "window.__orb?.rpg()"
+      ]
+    },
+    {
+      "name": "scene",
+      "args": [
+        "/",
+        "--context-tab",
+        "rpg.scene",
+        "--wait-for",
+        "[data-slot=\"rpg-scene-tab\"]",
+        "--expect-visible",
+        "[data-slot=\"rpg-scene-tab\"]",
+        "--eval",
+        "window.__orb?.rpg()"
+      ]
+    },
+    {
+      "name": "quests",
+      "args": [
+        "/",
+        "--context-tab",
+        "rpg.quests",
+        "--wait-for",
+        "[data-slot=\"rpg-quests-tab\"]",
+        "--expect-visible",
+        "[data-slot=\"rpg-quests-tab\"]",
+        "--eval",
+        "window.__orb?.rpg()"
+      ]
+    },
+    {
+      "name": "journal",
+      "args": [
+        "/",
+        "--context-tab",
+        "rpg.journal",
+        "--wait-for",
+        "[data-slot=\"rpg-journal-tab\"]",
+        "--expect-visible",
+        "[data-slot=\"rpg-journal-tab\"]",
+        "--eval",
+        "window.__orb?.rpg()"
+      ]
+    },
+    {
+      "name": "phase-locked-map",
+      "args": [
+        "/",
+        "--eval",
+        "(async()=>{const orb=window.__orb;if(!orb)throw new Error('__orb unavailable');const caps=orb.nav.capabilities();if(!caps.contextTabs.includes('rpg.map'))throw new Error('phase-locked rpg.map was not published for this game');const opened=await orb.nav.contextTab('rpg.map');if(!opened.ok)throw new Error('rpg.map refused: '+opened.reason);return {tab:'rpg.map',status:'opened',lock:'Maps unlock with the map arc'};})()",
+        "--wait-for",
+        "[data-slot=\"rpg-map-tab\"]",
+        "--expect-visible",
+        "[data-slot=\"rpg-map-tab\"]",
+        "--eval",
+        "window.__orb?.rpg()"
+      ]
+    },
+    {
+      "name": "host-game",
+      "args": [
+        "/",
+        "--eval",
+        "(async()=>{const orb=window.__orb;if(!orb)throw new Error('__orb unavailable');const caps=orb.nav.capabilities();if(!caps.contextTabs.includes('rpg.game'))return {tab:'rpg.game',status:'skipped',reason:'host-only tab not published for this viewer'};const opened=await orb.nav.contextTab('rpg.game');if(!opened.ok)throw new Error('rpg.game refused after publication: '+opened.reason);return {tab:'rpg.game',status:'opened'};})()",
+        "--eval",
+        "window.__orb?.rpg()"
+      ]
+    }
+  ]
+}

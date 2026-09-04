@@ -82,16 +82,14 @@ function curlOk(url: string): boolean {
   return runNicedSync("curl", ["-sf", "-m", "2", url], { stdio: "ignore" }).status === 0;
 }
 
-function curlJson<T>(url: string): T | null {
+function curlJson(url: string): unknown | null {
   const res = runNicedSync("curl", ["-sf", "-m", "2", url]);
   if (res.status !== 0) {
     return null;
   }
   // @orb-gate-ignore caught-failure-ownership(default:catch): fail-closed floor — a parse failure returns null, and fixtureStatus() below turns any null into `{ up: false, reason: "… unreachable" }`, never a silent pass. Ends if that fail-closed mapping is removed.
   try {
-    // NOT a page-boundary cast (#1004): `res.stdout` is this tool's OWN subprocess answering on a
-    // contract this file defines, not a browser realm — the caller passes the shape it asked for.
-    return JSON.parse(res.stdout) as T;
+    return JSON.parse(res.stdout);
   } catch {
     return null;
   }
@@ -101,6 +99,29 @@ interface AuthConfig {
   readonly mode?: string;
   readonly localEnabled?: boolean;
   readonly multiHumanCapable?: boolean;
+}
+
+function authConfig(value: unknown): AuthConfig | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null;
+  }
+  const mode = Reflect.get(value, "mode");
+  const localEnabled = Reflect.get(value, "localEnabled");
+  const multiHumanCapable = Reflect.get(value, "multiHumanCapable");
+  if (
+    !(
+      (mode === undefined || typeof mode === "string") &&
+      (localEnabled === undefined || typeof localEnabled === "boolean") &&
+      (multiHumanCapable === undefined || typeof multiHumanCapable === "boolean")
+    )
+  ) {
+    return null;
+  }
+  return {
+    ...(mode === undefined ? {} : { mode }),
+    ...(localEnabled === undefined ? {} : { localEnabled }),
+    ...(multiHumanCapable === undefined ? {} : { multiHumanCapable }),
+  };
 }
 
 /** Env-pin mismatch check ported from stack.sh's `env_pin_report` — reads the LIVE process's actual
@@ -130,7 +151,7 @@ export function fixtureStatus(target: FixtureTarget): FixtureStatus {
   if (!curlOk(`${target.serverUrl}/healthz`)) {
     return { up: false, reason: `fixture server ${target.serverUrl} not answering` };
   }
-  const config = curlJson<AuthConfig>(`${target.serverUrl}/api/auth/config`);
+  const config = authConfig(curlJson(`${target.serverUrl}/api/auth/config`));
   if (config === null) {
     return { up: false, reason: `${target.serverUrl}/api/auth/config unreachable` };
   }

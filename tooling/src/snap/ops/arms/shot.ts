@@ -1,10 +1,13 @@
 // Screenshot capture: paint-settle (#123 — two identical frames before the PNG), native stabilization
 // (SHOT_BASE), element shots, volatile-region masks, and the native crop.
 import type { Locator, Page } from "@playwright/test";
+import { registerInstrumentArtifact } from "../../../_shared/artifact-out.ts";
+import type { InstrumentCurrentScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds } from "../../contract/arms.ts";
+import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds } from "../../contract/arms.ts";
 import type { Args, ReportCtx } from "../../contract/types.ts";
+import { captureScope } from "../../lib/capture-scope.ts";
 import { CROP_RE, PNG_EXT_RE } from "../../lib/out-names.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -122,6 +125,22 @@ async function captureShot(page: Page, opts: Args, out: string, mask: Locator[])
   }
 }
 
+async function registerShot(path: string, scope: InstrumentCurrentScope): Promise<void> {
+  await registerInstrumentArtifact("snaps", path, {
+    producer: "snap",
+    producerArm: "shot",
+    channel: "screenshot",
+    mediaType: "image/png",
+    schema: null,
+    role: "primary",
+    completeness: "complete",
+    completenessDetail: "complete screenshot bytes for the settled rendered surface",
+    scope,
+    records: 1,
+    limits: [],
+  });
+}
+
 /** What the RESULT line's `crop=` says. Every refusal here is IGNORED-with-a-reason rather than silence:
  *  a crop that could not be taken must not read as a crop that was not asked for. */
 export function cropOutcome(opts: Args, ctx: ReportCtx): string | null {
@@ -197,29 +216,52 @@ export const SHOT_ARM = {
   ],
   level: "call",
   needs: (): ArmNeeds => ({}),
+  sessionCallBaseMs: (): null => null,
   defaults: (): Pick<ArmArgs, "shot" | "shotOf" | "mask" | "fullPage" | "crop"> => ({ shot: true, shotOf: null, mask: [], fullPage: false, crop: null }),
   help: `  --no-shot               skip the primary PNG
   --shot-of <selector>    capture one element
   --full                  capture the whole scrollable page, not just the viewport
   --mask <selector>       pink-overlay a volatile region so it cannot churn the pixels (repeatable)
   --crop <WxH+X+Y>        capture a bounded region`,
+  result: {
+    schema: "snap-arm-shot-v1",
+    source: "Playwright screenshot",
+    lifetime: "settled rendered surface",
+    enabled: (opts): boolean => opts.shot || opts.baseline || opts.diff,
+  },
   lifecycle: {
     at: "page",
     enabled: ({ plan }): boolean => plan.produceShot,
-    run: async ({ page, opts, plan }): Promise<void> => {
+    run: async ({ page, opts, pageIndex, plan }): Promise<void> => {
+      const scope = captureScope(opts, pageIndex, "settled-capture");
       await captureShot(
         page,
         opts,
         plan.out,
         opts.mask.map((selector) => page.locator(selector)),
       );
+      await registerShot(plan.out, scope);
+      if (opts.crop !== null && CROP_RE.test(opts.crop) && opts.shotOf === null) {
+        await registerShot(plan.out.replace(PNG_EXT_RE, "-crop.png"), scope);
+      }
     },
     pairs: ({ opts, ctx }): readonly ResultPair[] => [
       ["out", ctx.produceShot ? ctx.out : "(none)"],
       ["crop", cropOutcome(opts, ctx) ?? "none"],
     ],
+    facts: (input): readonly ArmFactEmission<"shot">[] =>
+      input.outcomes.map((outcome) => ({
+        scope: captureScope(input.opts, outcome.pageIndex, "settled-capture"),
+        data: {
+          state: input.ctx.produceShot ? "passed" : "off",
+          detail: null,
+          requested: input.ctx.produceShot ? 1 : 0,
+          produced: input.ctx.produceShot ? 1 : 0,
+        },
+      })),
     // A missing or unwritable PNG surfaces as the nav/step failure that caused it; there is no separate
     // "the shot failed" count today and inventing one would change the verdict this phase must not touch.
     failures: (): ArmFailureCounts => ({}),
+    exit: (_input, code): number => code,
   },
-} satisfies ArmDef;
+} satisfies ArmDef<"shot">;

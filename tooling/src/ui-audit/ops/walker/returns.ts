@@ -29,6 +29,8 @@ export const WALKER_RETURNS = `  var pendingWalkMutations = walkObserver.takeRec
     stabilized: preWalkSettlement.stabilized,
     settleMutations: preWalkSettlement.mutations,
     walked: allEls.length,
+    renderedSubjects: renderedSubjects,
+    retainedHiddenSubjects: retainedHiddenSubjects,
     skipped: { documentHead: documentHeadSkips, devChrome: devChromeSkips },
     inaccessible: inaccessibleSubjects,
     final: finalSubjects.length,

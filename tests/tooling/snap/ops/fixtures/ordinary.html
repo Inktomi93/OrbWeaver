@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" data-app-ready="settled">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Snap ordinary bundle fixture</title>
+    <style>
+      html, body { margin: 0; width: 100%; height: 100%; font: 16px/1.5 system-ui, sans-serif; }
+      .shell-grid { display: grid; grid-template-columns: 5rem 14rem minmax(0, 1fr) 16rem; width: 100%; height: 100%; }
+      .shell-rail { grid-column: 1; padding: 1rem; background: #14213d; color: white; }
+      .shell-panel { padding: 1rem; background: #edf2f4; }
+      .shell-panel[data-panel-side="list"] { grid-column: 2; }
+      .shell-main { grid-column: 3; display: flex; min-width: 0; flex-direction: column; }
+      .shell-topbar { padding: 1rem 2rem; border-bottom: 1px solid #cad2c5; }
+      .shell-content { flex: 1; padding: 2rem; }
+      .shell-panel[data-panel-side="context"] { grid-column: 4; }
+      button { padding: 0.75rem 1rem; }
+    </style>
+    <script>
+      globalThis.__orb = {
+        nav: {
+          capabilities: () => ({
+            sections: ["home", "chats", "characters"],
+            modalSlots: ["command"],
+            configGroups: ["appearance"],
+            contextTabs: ["details"],
+            contextTabNames: [{ id: "details", label: "Details" }],
+            contextTabsPublished: true,
+            chatPositions: ["latest", "current"],
+          }),
+        },
+        shell: () => ({
+          section: "Home",
+          panels: [
+            { side: "list", mode: "docked", available: true },
+            { side: "context", mode: "docked", available: true },
+          ],
+          chatOpen: false,
+          focus: false,
+        }),
+        snap: () => ({ fixture: "ordinary", section: "home" }),
+        consoleErrors: () => ({ records: [], dropped: 0, cap: 128 }),
+      };
+    </script>
+  </head>
+  <body>
+    <div class="shell-grid" data-section="home" data-list-mode="docked" data-context-mode="docked" data-focus-mode="false">
+      <nav class="shell-rail" aria-label="Orbweaver"><button type="button" aria-current="page">Home</button></nav>
+      <aside class="shell-panel" data-panel-side="list" data-panel-mode="docked" data-panel-available="true" aria-label="Recent items">
+        <button type="button">Example item</button>
+      </aside>
+      <div class="shell-main">
+        <header class="shell-topbar"><button type="button" aria-expanded="false">Open command menu</button></header>
+        <main class="shell-content" aria-label="Home content">
+          <h1>Ordinary Snap evidence</h1>
+          <p>This fixture plants a non-empty visual, accessibility tree, application atlas, shell topology, and interactive surface map.</p>
+          <button type="button" data-testid="continue">Continue</button>
+        </main>
+      </div>
+      <aside class="shell-panel" data-panel-side="context" data-panel-mode="docked" data-panel-available="true" aria-label="Auxiliary details">
+        <button type="button" role="tab" aria-selected="true">Details</button>
+      </aside>
+    </div>
+  </body>
+</html>

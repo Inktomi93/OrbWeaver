@@ -54,11 +54,18 @@ function cleanReceipt(): AppearanceInvariantReceipt {
       error: null,
       merge: {
         status: "ok",
+        enabled: true,
         calls: 4,
+        conflictCalls: 1,
+        deduplicatedConflictCalls: 1,
         receipts: [
           {
+            input: [
+              { index: 0, className: "relative" },
+              { index: 1, className: "relative" },
+            ],
             output: "relative max-h-(--available-height)",
-            conflicts: [{ axis: "tailwind-core", loser: { className: "relative" }, winner: { className: "relative" } }],
+            conflicts: [{ axis: "tailwind-core", loser: { index: 0, className: "relative" }, winner: { index: 1, className: "relative" } }],
           },
         ],
       },
@@ -118,11 +125,18 @@ describe("#953 appearance invariant receipt", () => {
         ...clean.css,
         merge: {
           status: "ok",
+          enabled: true,
           calls: 4,
+          conflictCalls: 1,
+          deduplicatedConflictCalls: 1,
           receipts: [
             {
+              input: [
+                { index: 0, className: "relative" },
+                { index: 1, className: "relative" },
+              ],
               output: "unrelated-global-receipt",
-              conflicts: [{ axis: "tailwind-core", loser: { className: "relative" }, winner: { className: "relative" } }],
+              conflicts: [{ axis: "tailwind-core", loser: { index: 0, className: "relative" }, winner: { index: 1, className: "relative" } }],
             },
           ],
         },
@@ -155,7 +169,15 @@ describe("#953 appearance invariant receipt", () => {
       merge: { mechanism: "merge-not-applicable", reason: "direct-carrier", selector, owner: "owner#direct" },
       css: {
         ...cleanReceipt().css,
-        merge: { status: "instrument-error", calls: 0, receipts: [], error: "no configured merge calls" },
+        merge: {
+          status: "instrument-error",
+          enabled: true,
+          calls: 0,
+          conflictCalls: 0,
+          deduplicatedConflictCalls: 0,
+          receipts: [],
+          error: "no configured merge calls",
+        },
       },
     };
     expect(evaluateAppearanceInvariantCell(directPolicy, directReceipt)).toMatchObject({

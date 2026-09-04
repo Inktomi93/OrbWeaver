@@ -242,6 +242,11 @@ export function censusThinGap(population: DomPopulation | null): EvidenceGap | n
   if (explained !== accounting.settled) {
     faults.push(`${accounting.settled - explained} settled subject(s) have no walked/closed-skip class`);
   }
+  if (accounting.renderedSubjects + accounting.retainedHiddenSubjects !== accounting.walked) {
+    faults.push(
+      `${accounting.renderedSubjects} rendered + ${accounting.retainedHiddenSubjects} retained-hidden subjects do not close the ${accounting.walked} walked identities`,
+    );
+  }
   if (accounting.inaccessible > 0) {
     faults.push(`${accounting.inaccessible} subject(s) were inaccessible to the walk`);
   }
@@ -282,16 +287,16 @@ function themeResolutionFaults(request: ThemeRequest, shim: SettingsShimEvidence
   return faults;
 }
 
-function themePopulationFaults(render: ThemeRenderInput, walked: number): string[] {
+function themePopulationFaults(render: ThemeRenderInput, renderedSubjects: number): string[] {
   const faults: string[] = [];
   const sourceTotal = render.subjectSources.default + render.subjectSources.seed + render.subjectSources.custom + render.subjectSources.unknown;
   const polarityTotal = render.subjectPolarities.light + render.subjectPolarities.dark + render.subjectPolarities.mixed + render.subjectPolarities.unknown;
-  if (sourceTotal !== walked) {
-    faults.push(`${sourceTotal}/${walked} walked subjects have a rendered source class`);
+  if (sourceTotal !== renderedSubjects) {
+    faults.push(`${sourceTotal}/${renderedSubjects} rendered subjects have a theme source class`);
   }
-  if (polarityTotal !== walked || render.subjectPolarities.unknown > 0 || render.subjectPolarities.mixed > 0) {
+  if (polarityTotal !== renderedSubjects || render.subjectPolarities.unknown > 0 || render.subjectPolarities.mixed > 0) {
     faults.push(
-      `${polarityTotal}/${walked} walked subjects have a polarity class (${render.subjectPolarities.light} light, ${render.subjectPolarities.dark} dark, ${render.subjectPolarities.mixed} mixed, ${render.subjectPolarities.unknown} unknown)`,
+      `${polarityTotal}/${renderedSubjects} rendered subjects have a polarity class (${render.subjectPolarities.light} light, ${render.subjectPolarities.dark} dark, ${render.subjectPolarities.mixed} mixed, ${render.subjectPolarities.unknown} unknown)`,
     );
   }
   return faults;
@@ -323,7 +328,7 @@ export function themeProvenanceGap(
   request: ThemeRequest | null,
   shim: SettingsShimEvidence,
   render: ThemeRenderInput | null,
-  walked: number,
+  renderedSubjects: number,
 ): EvidenceGap | null {
   if (request === null) {
     return null;
@@ -333,7 +338,7 @@ export function themeProvenanceGap(
   if (render === null) {
     faults.push("the judged walk returned no rendered theme evidence");
   } else {
-    faults.push(...themePopulationFaults(render, walked));
+    faults.push(...themePopulationFaults(render, renderedSubjects));
     const carrier = themeCarrierFault(resolution, render);
     if (carrier !== null) {
       faults.push(carrier);

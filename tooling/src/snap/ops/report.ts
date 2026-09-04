@@ -3,7 +3,9 @@
 // probe-motion voiding marker. --json remains the lossless record (ops/manifest.ts).
 import { print } from "../../_shared/artifacts.ts";
 import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-capture.ts";
-import type { ProbeSession } from "../../_shared/browser-contract.ts";
+import type { BrowserPageError, ProbeSession } from "../../_shared/browser-contract.ts";
+import { pageErrorText } from "../../_shared/browser-contract.ts";
+import type { BrowserDiagnostic } from "../../_shared/browser-diagnostics.ts";
 import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { CssEvidenceReceipt } from "../contract/cascade.ts";
@@ -14,20 +16,20 @@ import type {
   ContrastOutcome,
   EvalOutcome,
   EvidenceRange,
-  MapEntry,
   ReportCtx,
   SessionCounts,
   WatchTick,
 } from "../contract/types.ts";
+import { printMapBlock } from "../lib/map-report.ts";
 import { shotScaleResultValue } from "../lib/shot-scale.ts";
 // `cropOutcome` belongs to the PIXEL ARM (ops/arms/shot.ts) — the crop is a shot instruction, and one
 // rule with two homes is what the arm registry exists to end.
 import { cropOutcome } from "./arms/shot.ts";
+import { printDiagnosticQuery } from "./diagnostics.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const ARIA_MAX_LINES = 400;
-const MAP_NAME_MAX_LENGTH = 80;
 // Human output is a triage view; --json is the lossless console record.
 const CONSOLE_REPORT_CAP = 200;
 // Cap on DEADCSS/EMPTYCSS lines echoed (the counts always print in full).
@@ -70,24 +72,56 @@ export function scaleResultValue(opts: Args, environment: readonly BrowserEnviro
   return shotScaleResultValue(opts.scale, applied?.viewport ?? opts.viewport, applied?.deviceScaleFactor ?? 1);
 }
 
-export function consoleForEvidence(messages: readonly CapturedConsole[], outcomes: readonly CaptureOutcome[]): readonly CapturedConsole[] {
+function evidenceRanges(outcomes: readonly CaptureOutcome[]): readonly EvidenceRange[] | null {
   const ranges = outcomes.map((outcome) => outcome.evidenceRange);
-  if (ranges.some((range) => range === null)) {
-    return messages;
-  }
-  const first = ranges[0] as EvidenceRange | undefined;
-  const last = ranges.at(-1) as EvidenceRange | undefined;
-  return first === undefined || last === undefined ? messages : messages.slice(first.consoleStart, last.consoleEnd);
+  return ranges.some((range) => range === null) ? null : ranges.filter((range): range is EvidenceRange => range !== null);
 }
 
-export function pageErrorsForEvidence(errors: readonly string[], outcomes: readonly CaptureOutcome[]): readonly string[] {
-  const ranges = outcomes.map((outcome) => outcome.evidenceRange);
-  if (ranges.some((range) => range === null)) {
-    return errors;
+export function consoleForEvidence(
+  session: Pick<SessionCounts, "consoleMessages" | "evidence">,
+  outcomes: readonly CaptureOutcome[],
+): readonly CapturedConsole[] {
+  const ranges = evidenceRanges(outcomes);
+  if (ranges === null) {
+    return session.consoleMessages;
   }
-  const first = ranges[0] as EvidenceRange | undefined;
-  const last = ranges.at(-1) as EvidenceRange | undefined;
-  return first === undefined || last === undefined ? errors : errors.slice(first.pageErrorStart, last.pageErrorEnd);
+  const first = ranges[0];
+  const last = ranges.at(-1);
+  if (first === undefined || last === undefined) {
+    return session.consoleMessages;
+  }
+  return (
+    session.evidence?.console.read(first.consoleStart, last.consoleEnd, "browser-console-window").records ??
+    session.consoleMessages.slice(first.consoleStart, last.consoleEnd)
+  );
+}
+
+export function pageErrorsForEvidence(
+  session: Pick<SessionCounts, "pageErrors" | "evidence">,
+  outcomes: readonly CaptureOutcome[],
+): readonly BrowserPageError[] {
+  const ranges = evidenceRanges(outcomes);
+  if (ranges === null) {
+    return session.pageErrors;
+  }
+  const first = ranges[0];
+  const last = ranges.at(-1);
+  if (first === undefined || last === undefined) {
+    return session.pageErrors;
+  }
+  return (
+    session.evidence?.pageErrors.read(first.pageErrorStart, last.pageErrorEnd, "browser-page-error-window").records ??
+    session.pageErrors.slice(first.pageErrorStart, last.pageErrorEnd)
+  );
+}
+
+function diagnosticsForEvidence(diagnostics: readonly BrowserDiagnostic[], outcomes: readonly CaptureOutcome[]): readonly BrowserDiagnostic[] {
+  const windows = evidenceWindows(outcomes);
+  return windows.size === 0 ? diagnostics : diagnostics.filter((entry) => windows.has(entry.evidenceWindow));
+}
+
+function evidenceWindows(outcomes: readonly CaptureOutcome[]): ReadonlySet<number> {
+  return new Set(outcomes.flatMap((outcome) => (outcome.evidenceRange === null ? [] : [outcome.evidenceRange.diagnosticWindow])));
 }
 
 export function extendEvidenceThroughWatch(outcomes: readonly CaptureOutcome[], session: ProbeSession): void {
@@ -96,19 +130,25 @@ export function extendEvidenceThroughWatch(outcomes: readonly CaptureOutcome[], 
   if (outcome !== undefined && range !== null && range !== undefined) {
     outcome.evidenceRange = {
       ...range,
-      consoleEnd: session.consoleMessages.length,
-      pageErrorEnd: session.pageErrors.length,
+      consoleEnd: session.evidence.console.cursor(),
+      pageErrorEnd: session.evidence.pageErrors.cursor(),
     };
   }
 }
 
 export function sessionForEvidence(session: SessionCounts, outcomes: readonly CaptureOutcome[]): SessionCounts {
-  const consoleMessages = consoleForEvidence(session.consoleMessages, outcomes);
+  const consoleMessages = consoleForEvidence(session, outcomes);
   return {
     requests: session.requests,
     consoleMessages,
     consoleLines: consoleMessages.map((message) => message.line),
-    pageErrors: pageErrorsForEvidence(session.pageErrors, outcomes),
+    pageErrors: pageErrorsForEvidence(session, outcomes),
+    diagnostics: diagnosticsForEvidence(session.diagnostics, outcomes),
+    diagnosticCompleteness: session.diagnosticCompleteness.filter((entry) => {
+      const windows = evidenceWindows(outcomes);
+      return windows.size === 0 || windows.has(entry.evidenceWindow);
+    }),
+    diagnosticWindow: session.diagnosticWindow,
   };
 }
 
@@ -140,6 +180,11 @@ function printSummary(session: SessionCounts, outcome: CaptureOutcome, opts: Arg
   const consoleWarnings = session.consoleMessages.filter((entry) => entry.type === "warning").length;
   print(`console      ${session.consoleLines.length} message(s) (${consoleErrors} error, ${consoleWarnings} warning)`);
   print(`page errors  ${session.pageErrors.length}`);
+  const diagnosticErrors = session.diagnostics.filter((entry) => entry.level === "error").length;
+  const diagnosticWarnings = session.diagnostics.filter((entry) => entry.level === "warning").length;
+  const issues = session.diagnostics.filter((entry) => entry.origin === "audits").length;
+  print(`diagnostics  ${session.diagnostics.length} record(s) (${diagnosticErrors} error, ${diagnosticWarnings} warning, ${issues} issue)`);
+  printDiagnosticQuery(session.diagnostics, opts.diagnostics, session.diagnosticWindow.value);
 }
 
 function printAriaBlock(opts: Args, ariaText: string | null, ariaError: string | null): void {
@@ -179,32 +224,6 @@ function printContrastBlock(contrasts: readonly ContrastOutcome[]): void {
   for (const c of contrasts) {
     print(c.line);
   }
-}
-
-function printMapBlock(opts: Args, entries: MapEntry[] | null, error: string | null): void {
-  // Gate on whether the map actually RAN on this page (multi-tab: --map targets one page). A null
-  // result + null error means it didn't run here.
-  if (entries === null && error === null) {
-    return;
-  }
-  if (error !== null) {
-    print(`\n--- MAP (${opts.mapSelector}) ---`);
-    print(`  MAP capture failed: ${error}`);
-    return;
-  }
-  const list = entries ?? [];
-  const fallbackCount = list.filter((entry) => entry.source === "dom").length;
-  print(`\n--- MAP (${list.length} element(s), ${fallbackCount} DOM fallback(s)) ---`);
-  for (const e of list.slice(0, ARIA_MAX_LINES)) {
-    const name = e.name.length > MAP_NAME_MAX_LENGTH ? `${e.name.slice(0, MAP_NAME_MAX_LENGTH - 1)}…` : e.name;
-    print(`  ${e.role}  "${name}"  →  ${e.selector}  [${e.source}]`);
-  }
-  if (list.length > ARIA_MAX_LINES) {
-    print(`  … +${list.length - ARIA_MAX_LINES} more — scope with --map <selector>`);
-  }
-  // Two recurring foot-guns worth reprinting where the selectors are chosen: engine-mixing + virtual rows.
-  print("  NOTE: one selector engine per target — never concatenate a CSS selector with a role= selector.");
-  print("  NOTE: a virtualized/composite row often needs --jsclick (raw click); role= locators flake.");
 }
 
 function printAssertionBlock(assertions: readonly AssertionOutcome[]): void {
@@ -266,7 +285,7 @@ export function printCaptureLog(session: SessionCounts, failed: CapturedRequest[
   if (session.pageErrors.length > 0) {
     print("\n--- page errors ---");
     for (const e of session.pageErrors) {
-      print(e);
+      print(pageErrorText(e));
     }
   }
 }
@@ -397,7 +416,15 @@ export function printPageReport(session: SessionCounts, outcome: CaptureOutcome,
   printAriaBlock(opts, outcome.ariaText, outcome.ariaError);
   printEvalBlock(outcome.evalResults);
   printContrastBlock(outcome.contrastResults);
-  printMapBlock(opts, outcome.mapResult, outcome.mapError);
+  printMapBlock({
+    opts,
+    atlas: outcome.mapAtlas,
+    atlasError: outcome.mapAtlasError,
+    shell: outcome.mapShell,
+    shellError: outcome.mapShellError,
+    entries: outcome.mapResult,
+    surfaceError: outcome.mapError,
+  });
   printAssertionBlock(outcome.assertions);
   printCssFindings(outcome);
   printCascadeReceipt(outcome.cssEvidence);

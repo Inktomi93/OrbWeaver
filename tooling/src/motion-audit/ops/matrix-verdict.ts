@@ -2,7 +2,7 @@
 // Ordinary motion-audit zero-frame law stays untouched: this exception earns STATIC-EXPECTED only through
 // exact app/OS/device identity and a paired full-motion interaction that proves the trace can see frames.
 
-import { MOBILE_DEVICE } from "../../_shared/browser-environment.ts";
+import { actualDeviceLabel, MOBILE_DEVICE } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import type { AuditData } from "../contract/types.ts";
@@ -51,7 +51,7 @@ function exactMobileEnvironment(data: AuditData, reducedMotion: boolean): boolea
     environment.applied.reducedMotion === reducedMotion &&
     environment.applied.isMobile &&
     environment.applied.hasTouch &&
-    environment.actual.device === MOBILE_DEVICE &&
+    actualDeviceLabel(environment.actual.device) === MOBILE_DEVICE &&
     environment.actual.reducedMotion === reducedMotion &&
     environment.actual.isMobile === true &&
     environment.actual.pointer === "coarse" &&

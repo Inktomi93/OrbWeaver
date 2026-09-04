@@ -140,17 +140,6 @@ function evaluateCascade(policy: RuntimeAppearanceHistoricalRow, receipt: Appear
   }
 }
 
-interface MergeConflictShape {
-  readonly axis?: unknown;
-  readonly loser?: { readonly className?: unknown };
-  readonly winner?: { readonly className?: unknown };
-}
-
-interface MergeReceiptShape {
-  readonly output?: unknown;
-  readonly conflicts?: readonly MergeConflictShape[];
-}
-
 function evaluateMerge(policy: RuntimeAppearanceHistoricalRow, receipt: AppearanceInvariantReceipt, errors: string[], violations: string[]): void {
   if (policy.merge.mechanism === "merge-not-applicable") {
     if (receipt.merge.mechanism !== "merge-not-applicable" || receipt.merge.selector !== policy.merge.selector || receipt.merge.owner !== policy.merge.owner) {
@@ -168,20 +157,20 @@ function evaluateMerge(policy: RuntimeAppearanceHistoricalRow, receipt: Appearan
   }
   const requiredPolicy = policy.merge;
   const requiredReceipt = receipt.merge;
-  const trace = receipt.css.merge as { readonly status?: unknown; readonly calls?: unknown; readonly receipts?: unknown } | null;
-  if (trace === null || trace.status !== "ok" || !Number.isSafeInteger(trace.calls) || (trace.calls as number) <= 0 || !Array.isArray(trace.receipts)) {
+  const trace = receipt.css.merge;
+  if (trace === null || trace.status !== "ok" || !Number.isSafeInteger(trace.calls) || trace.calls <= 0) {
     errors.push(`configured merge trace is absent or invalid for ${policy.id}`);
     return;
   }
-  const matched = (trace.receipts as MergeReceiptShape[]).some(
+  const matched = trace.receipts.some(
     (candidate) =>
       candidate.output === requiredReceipt.expectedOutput &&
       Array.isArray(candidate.conflicts) &&
       candidate.conflicts.some(
         (conflict) =>
           conflict.axis === requiredPolicy.conflict.axis &&
-          conflict.loser?.className === requiredPolicy.conflict.loser &&
-          conflict.winner?.className === requiredPolicy.conflict.winner,
+          conflict.loser.className === requiredPolicy.conflict.loser &&
+          conflict.winner.className === requiredPolicy.conflict.winner,
       ),
   );
   if (!matched) {

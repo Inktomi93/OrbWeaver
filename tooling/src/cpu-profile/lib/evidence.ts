@@ -5,7 +5,23 @@
 // not less — `breach-steps=0 worst-longtask=0ms` over a run that bucketed nothing is indistinguishable
 // from a run that metered a fast app. Both gaps below therefore refuse the report entirely.
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
+import { z } from "zod";
 import type { MeterData } from "../contract/types.ts";
+
+const finite = z.number();
+const meterDataSchema: z.ZodType<MeterData> = z.object({
+  longTasks: z.array(z.object({ t: finite, dur: finite, blockingDuration: finite.nullable(), worstScript: z.string().nullable() })),
+  events: z.array(z.object({ t: finite, type: z.string(), inputDelay: finite, processing: finite, dur: finite })),
+  shifts: z.array(z.object({ t: finite, value: finite })),
+  rafGaps: z.array(z.object({ t: finite, gap: finite })),
+  stepMarks: z.array(z.object({ idx: z.number().int().nonnegative(), label: z.string(), t: finite })),
+  installed: z.array(z.string()).optional(),
+});
+
+export function parseMeterData(value: unknown): MeterData | null {
+  const parsed = meterDataSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
 
 /** The in-page meter is the apparatus: no `window.__perfMeter`, no numbers of any kind. */
 export function meterApparatusGap(url: string): EvidenceGap {
@@ -20,16 +36,16 @@ export function meterApparatusGap(url: string): EvidenceGap {
  *  WHY an empty STEP population is a hard gap: every number perf-meter prints is bucketed into a
  *  [mark, nextMark) window, so a tape with no steps produces no window, and the RESULT line's
  *  `steps=0 breach-steps=0 worst-longtask=0ms` is arithmetic over an empty set — it reads exactly like
- *  a clean measurement of a fast app. There is no boot-measurement arm here (the profiler starts AFTER
- *  the settle), so "no steps" is genuinely "nothing was metered", never a quiet-but-real observation.
+ *  a clean measurement of a fast app. The one exception is a completed `--boot-trace`: that arm owns a
+ *  separately refused navigation/insight population, while the CPU profiler still starts AFTER settle.
  *
  *  WHY the observer census: each `observe()` in ops/meter.ts is wrapped in a catch that leaves its
  *  bucket empty. An empty `longTasks` from a smooth page and one from an observer that never attached
  *  are the same bytes — `installed` is the only thing that tells them apart. Absent field = an older
  *  injected meter, read as unknown rather than as absent. */
-export function meterEvidenceGaps(data: MeterData): EvidenceGap[] {
+export function meterEvidenceGaps(data: MeterData, bootTraceMeasured = false): EvidenceGap[] {
   const gaps: EvidenceGap[] = [];
-  if (data.stepMarks.length === 0) {
+  if (data.stepMarks.length === 0 && !bootTraceMeasured) {
     gaps.push({
       evidence: "the measurement window population",
       detail:

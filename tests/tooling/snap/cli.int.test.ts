@@ -45,7 +45,7 @@ test("dead and empty CSS findings RED ordinary Snap while the defined twin stays
 test("dead CSS REDs the scenario aggregate and checkpoint summary", { timeout: 2 * BROWSER_TIMEOUT_MS }, async ({ plantedTree, runCli }) => {
   const root = await plantedTree({ "dead.html": DEAD_CSS_HTML, "clean.html": CLEAN_CSS_HTML });
   const scenario = (file: string, name: string): string =>
-    JSON.stringify({ name, defaults: ["--text", "--summary"], checkpoints: [{ name: "css", args: ["--file", file] }] });
+    JSON.stringify({ name, defaults: ["--text", "--scenario-summary"], checkpoints: [{ name: "css", args: ["--file", file] }] });
   const scenarios = await plantedTree({
     "dead-scenario.json": scenario(`${root}/dead.html`, "dead-css-scenario"),
     "clean-scenario.json": scenario(`${root}/clean.html`, "clean-css-scenario"),

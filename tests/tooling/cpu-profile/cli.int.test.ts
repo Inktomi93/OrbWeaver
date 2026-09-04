@@ -23,7 +23,8 @@ vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 
 function page(onClickBody: string): string {
   return `<!doctype html>
-<html><head><meta charset="utf-8"><title>t</title></head>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title>
+<script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128})};</script></head>
 <body><main><button id="target" onclick="${onClickBody}" style="width:200px;height:60px">go</button></main></body></html>`;
 }
 
@@ -35,21 +36,31 @@ function page(onClickBody: string): string {
 const NOW = ["performance", "now()"].join(".");
 const BUSY_LOOP = `const t0 = ${NOW}; while (${NOW} - t0 < 300) {}`;
 
-test("a planted 300ms click handler surfaces as a breach step through the real cli", async ({ runCli, scratch }) => {
+test("a planted 300ms click handler surfaces as non-voting breach evidence through Snap's perf arm", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "slow.html"), page(BUSY_LOOP));
-  const res = await runCli("cpu-profile", ["/slow.html", "--base", `file://${scratch}`, "--settle", "300", "--click", "#target", "--out", "proof-slow"], {
-    timeoutMs: CLI_TIMEOUT_MS,
-  });
+  const res = await runCli(
+    "snap",
+    ["/slow.html", "--base", `file://${scratch}`, "--perf", "--click", "#target", "--no-shot", "--no-deadcss", "--no-failure-evidence"],
+    {
+      timeoutMs: CLI_TIMEOUT_MS,
+    },
+  );
   expect(res.stdout).toContain("breach-steps=1");
+  const worstLongTask = /worst-longtask=(\d+)ms/u.exec(res.stdout)?.[1];
+  expect(Number(worstLongTask)).toBeGreaterThanOrEqual(250);
   await expect(res).toExitWith(0);
 });
 
 test("the idle twin reports zero breach steps over a REAL step population — the breach above is the plant", async ({ runCli, scratch, skip, task }) => {
   withholdMeasurement({ task, skip }, "cpu-profile's long-task breach threshold");
   await writeFile(join(scratch, "idle.html"), page(""));
-  const res = await runCli("cpu-profile", ["/idle.html", "--base", `file://${scratch}`, "--settle", "300", "--click", "#target", "--out", "proof-idle"], {
-    timeoutMs: CLI_TIMEOUT_MS,
-  });
+  const res = await runCli(
+    "snap",
+    ["/idle.html", "--base", `file://${scratch}`, "--perf", "--click", "#target", "--no-shot", "--no-deadcss", "--no-failure-evidence"],
+    {
+      timeoutMs: CLI_TIMEOUT_MS,
+    },
+  );
   expect(res.stdout).toContain("breach-steps=0");
   // ZERO HYGIENE (#409): `breach-steps=0` is only a clean result if a step was actually METERED.
   expect(res.stdout).toContain("steps=1");
@@ -62,7 +73,7 @@ test("the idle twin reports zero breach steps over a REAL step population — th
 // both must name the missing apparatus/population as an INSTRUMENT ERROR, never a clean zero-breach meter.
 test("a run with NO steps metered nothing and must not report clean", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "nosteps.html"), page(""));
-  const res = await runCli("cpu-profile", ["/nosteps.html", "--base", `file://${scratch}`, "--settle", "300", "--out", "proof-nosteps"], {
+  const res = await runCli("snap", ["/nosteps.html", "--base", `file://${scratch}`, "--perf", "--no-shot", "--no-deadcss", "--no-failure-evidence"], {
     timeoutMs: CLI_TIMEOUT_MS,
   });
   expect(res.stdout).toContain("INSTRUMENT ERROR");
@@ -74,16 +85,20 @@ test("a page that removes the in-page meter is an INSTRUMENT ERROR that NAMES th
   // The meter rides an init script; a page can outlive/replace it. Before #409 this ended as a bare
   // TypeError stack from inside the bucketer — an exit code with no diagnosis.
   await writeFile(join(scratch, "nometer.html"), `${page("")}<script>delete window.__perfMeter;</script>`);
-  const res = await runCli("cpu-profile", ["/nometer.html", "--base", `file://${scratch}`, "--settle", "300", "--click", "#target", "--out", "proof-nometer"], {
-    timeoutMs: CLI_TIMEOUT_MS,
-  });
+  const res = await runCli(
+    "snap",
+    ["/nometer.html", "--base", `file://${scratch}`, "--perf", "--click", "#target", "--no-shot", "--no-deadcss", "--no-failure-evidence"],
+    {
+      timeoutMs: CLI_TIMEOUT_MS,
+    },
+  );
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   expect(res.stdout).toContain("__perfMeter");
   await expect(res).toExitWith(2);
 });
 
 test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }) => {
-  const res = await runCli("cpu-profile", ["--wheelbust", "x=1"]);
+  const res = await runCli("snap", ["--perf", "--wheelbust", "x=1"]);
   await expect(res).toExitWith(3);
 });
 
@@ -129,7 +144,7 @@ async function plantedStageMarker(dir: string, owner: string | null): Promise<st
 test("a --base at the stage band owned by ANOTHER checkout refuses (exit 2) and names both (#1186)", async ({ runCli, scratch }) => {
   const dir = join(scratch, "band-foreign");
   await plantedStageMarker(dir, "/some/other/checkout");
-  const res = await runCli("cpu-profile", ["/", "--base", STAGE_BAND_SERVER_BASE, "--settle", "100", "--out", "band-claim"], {
+  const res = await runCli("snap", ["/", "--base", STAGE_BAND_SERVER_BASE, "--perf", "--no-shot"], {
     cwd: dir,
     timeoutMs: CLI_TIMEOUT_MS,
   });
@@ -141,7 +156,7 @@ test("a --base at the stage band owned by ANOTHER checkout refuses (exit 2) and 
 test("the SAME band base is measured normally when this checkout owns the marker (#1186 control)", async ({ runCli, scratch }) => {
   const dir = join(scratch, "band-ours");
   await plantedStageMarker(dir, "SELF");
-  const res = await runCli("cpu-profile", ["/", "--base", STAGE_BAND_SERVER_BASE, "--settle", "100", "--out", "band-claim"], {
+  const res = await runCli("snap", ["/", "--base", STAGE_BAND_SERVER_BASE, "--perf", "--no-shot"], {
     cwd: dir,
     timeoutMs: CLI_TIMEOUT_MS,
   });

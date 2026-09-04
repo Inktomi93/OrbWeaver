@@ -12,6 +12,10 @@ export interface SubjectAccountingInput {
   /** Element-bearing child-list mutations seen while waiting for the pre-walk quiet window. */
   readonly settleMutations: number;
   readonly walked: number;
+  /** Walked subjects that painted on the active rendered surface. */
+  readonly renderedSubjects: number;
+  /** Walked identities retained in the DOM but hidden by their own or an ancestor's rendered state. */
+  readonly retainedHiddenSubjects: number;
   readonly skipped: {
     readonly documentHead: number;
     readonly devChrome: number;
@@ -25,7 +29,7 @@ export interface SubjectAccountingInput {
   readonly walkMutations: number;
 }
 
-/** Rendered theme facts, gathered from the same subject snapshot as the design census (#976). */
+/** Rendered theme facts, gathered only from painted subjects in the same identity snapshot (#976). */
 export interface ThemeRenderInput {
   readonly rootDataTheme: string | null;
   readonly shellScope: {

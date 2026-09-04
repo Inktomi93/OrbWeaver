@@ -6,7 +6,7 @@
 import type { CtView, Selection, SelectionRequest } from "../contract/selection.ts";
 import { ctView } from "./ct-view.ts";
 import { BROWSER_PACKAGES, distinctTsconfigs, graphMembership, touchesGraph, touchesTestsDom } from "./program-routing.ts";
-import { existsRel, gitChangedPaths, packageDir, toRepoRel } from "./repo-paths.ts";
+import { classifyExplicitPaths, gitChangedPathClassification, packageDir, ROOT } from "./repo-paths.ts";
 
 // ── the path-zone predicates (lifted verbatim from check/file.ts — kept in ONE place) ──
 // Mirrors the lint:eslint script's path list in package.json — and the mirroring is LOAD-BEARING, not
@@ -32,7 +32,11 @@ function filterPaths(paths: readonly string[], pred: (p: string) => boolean): re
 }
 
 /** Build the derived views (eslint/depcruise/docs/tsconfigs/graph flag) from a repo-relative path set. */
-function deriveViews(paths: readonly string[]): {
+function deriveViews(
+  paths: readonly string[],
+  existingPaths: readonly string[],
+  root: string,
+): {
   readonly eslintPaths: readonly string[];
   readonly depcruisePaths: readonly string[];
   readonly docsPaths: readonly string[];
@@ -43,31 +47,32 @@ function deriveViews(paths: readonly string[]): {
 } {
   const graphSrc = graphMembership();
   return {
-    // The three file-list views drop deletions (existsRel) — their child tools take concrete file args and
-    // error on a path that's gone. tsconfigs/graph/paths below KEEP deletions (see existsRel's note).
-    eslintPaths: filterPaths(paths, (p) => ESLINT_RE.test(p) && existsRel(p)),
-    depcruisePaths: filterPaths(paths, (p) => DEPCRUISE_RE.test(p) && existsRel(p)),
-    docsPaths: filterPaths(paths, (p) => DOCS_MD_RE.test(p) && !DOCS_PROPOSED_RE.test(p) && existsRel(p)),
+    // Every direct-file view derives from the classification's ONE current-filesystem subset. The all-path
+    // view below still drives tsconfig/graph/structure/deletion semantics.
+    eslintPaths: filterPaths(existingPaths, (p) => ESLINT_RE.test(p)),
+    depcruisePaths: filterPaths(existingPaths, (p) => DEPCRUISE_RE.test(p)),
+    docsPaths: filterPaths(existingPaths, (p) => DOCS_MD_RE.test(p) && !DOCS_PROPOSED_RE.test(p)),
     tsconfigs: distinctTsconfigs(paths, graphSrc),
     // `touchesGraphOnlyTrees` KEEPS its field name (downstream registry contract) but now means "puts any
     // file in the GRAPH program" — graph roots (tests/scripts/reset.d.ts) OR the import-pull overlay.
     touchesGraphOnlyTrees: touchesGraph(paths, graphSrc),
     touchesTestsDom: touchesTestsDom(paths),
-    ct: ctView(paths),
+    ct: ctView(paths, root),
   };
 }
 
 /** Resolve a `changed`/`file` selection from explicit paths (or git when none given). */
-function resolveChanged(kind: "changed" | "file", explicit: readonly string[]): Selection {
-  const raw = explicit.length > 0 ? explicit : gitChangedPaths();
-  const paths = [...new Set(raw.map(toRepoRel).filter((p): p is string => p !== undefined))];
+function resolveChanged(kind: "changed" | "file", explicit: readonly string[], root: string): Selection {
+  const classification = explicit.length > 0 ? classifyExplicitPaths(explicit, root) : gitChangedPathClassification(root);
+  const { paths, existingPaths } = classification;
   const gitRef = explicit.length > 0 ? undefined : "HEAD";
   const label = `${kind} (${paths.length} file${paths.length === 1 ? "" : "s"})`;
   return {
     kind,
     label,
     paths,
-    ...deriveViews(paths),
+    existingPaths,
+    ...deriveViews(paths, existingPaths, root),
     checkScopeArgv: [...SCOPED_CLI, "--changed", ...paths],
     gitRef,
   };
@@ -88,6 +93,7 @@ function resolvePackage(name: string): Selection {
     kind: "package",
     label: `package ${dir}`,
     paths,
+    existingPaths: paths,
     eslintPaths: ESLINT_RE.test(`${prefix}x.ts`) ? [prefix] : [],
     depcruisePaths: [prefix],
     docsPaths: [],
@@ -116,6 +122,7 @@ function resolveScope(glob: string): Selection {
     kind: "scope",
     label: `scope ${glob}`,
     paths,
+    existingPaths: paths,
     eslintPaths: ESLINT_RE.test(`${prefix}/x.ts`) ? [prefix] : [],
     depcruisePaths: prefix.startsWith("packages/") || prefix.startsWith("tooling") ? [prefix] : [],
     docsPaths: prefix.startsWith("docs/architecture") ? [prefix] : [],
@@ -134,12 +141,12 @@ function resolveScope(glob: string): Selection {
 }
 
 /** Resolve a scope request into the shared Selection every stage's scopedArgv reads. */
-export function resolveSelection(req: SelectionRequest): Selection {
+export function resolveSelection(req: SelectionRequest, root: string = ROOT): Selection {
   switch (req.kind) {
     case "changed":
-      return resolveChanged("changed", req.paths);
+      return resolveChanged("changed", req.paths, root);
     case "file":
-      return resolveChanged("file", req.paths);
+      return resolveChanged("file", req.paths, root);
     case "package":
       return resolvePackage(req.name);
     case "scope":

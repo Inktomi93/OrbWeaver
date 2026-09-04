@@ -15,6 +15,14 @@ const RISK_LARGE_FONT_SCALE = 1.25;
 const SHORT_MESSAGE_BODY_SCALE = 0.8;
 const SHORT_MESSAGE_LINE_HEIGHT = 1.2;
 const REQUIREMENT_DIRECTION_SEPARATOR = "::";
+const ENVIRONMENT_AXIS = {
+  theme: "theme",
+  device: "device",
+  colorScheme: "os-color",
+  motion: "os-motion",
+  contrast: "contrast",
+  transparency: "transparency",
+} as const;
 
 function instrumentError(message: string): never {
   throw new Error(`INSTRUMENT ERROR: ${message}`);
@@ -22,37 +30,37 @@ function instrumentError(message: string): never {
 
 function environmentAxes(themes: Readonly<Record<string, ThemeEntry>>): readonly VariantAxis[] {
   return [
-    { id: "theme", values: Object.entries(themes).map(([id, payload]) => ({ id, payload })) },
+    { id: ENVIRONMENT_AXIS.theme, values: Object.entries(themes).map(([id, payload]) => ({ id, payload })) },
     {
-      id: "device",
+      id: ENVIRONMENT_AXIS.device,
       values: [
         { id: "desktop-fine-hover", payload: null },
         { id: "mobile-coarse-none", payload: MOBILE_DEVICE },
       ],
     },
     {
-      id: "os-color",
+      id: ENVIRONMENT_AXIS.colorScheme,
       values: [
         { id: "light", payload: "light" },
         { id: "dark", payload: "dark" },
       ],
     },
     {
-      id: "os-motion",
+      id: ENVIRONMENT_AXIS.motion,
       values: [
         { id: "full", payload: false },
         { id: "reduced", payload: true },
       ],
     },
     {
-      id: "contrast",
+      id: ENVIRONMENT_AXIS.contrast,
       values: [
         { id: "no-preference", payload: "no-preference" },
         { id: "more", payload: "more" },
       ],
     },
     {
-      id: "transparency",
+      id: ENVIRONMENT_AXIS.transparency,
       values: [
         { id: "full", payload: false },
         { id: "reduced", payload: true },
@@ -66,15 +74,15 @@ function riskRows(axes: readonly VariantAxis[]): readonly VariantRequiredRow[] {
     {
       id: "compact-portal-carried",
       assignment: {
-        device: "mobile-coarse-none",
+        [ENVIRONMENT_AXIS.device]: "mobile-coarse-none",
         "appearance.density": appearanceArmValueId(axes, "density", "compact"),
-        theme: "custom-dark",
+        [ENVIRONMENT_AXIS.theme]: "custom-dark",
       },
     },
     {
       id: "dark-name-time-short-bubble",
       assignment: {
-        theme: "custom-dark",
+        [ENVIRONMENT_AXIS.theme]: "custom-dark",
         "appearance.showTimestamps": appearanceArmValueId(axes, "showTimestamps", true),
         "appearance.chatStyle": appearanceArmValueId(axes, "chatStyle", "bubble"),
         "appearance.chatWidthPct": appearanceArmValueId(axes, "chatWidthPct", 60),
@@ -83,9 +91,9 @@ function riskRows(axes: readonly VariantAxis[]): readonly VariantRequiredRow[] {
     {
       id: "light-art-scrim-glass-elevation",
       assignment: {
-        device: "desktop-fine-hover",
-        transparency: "full",
-        theme: "custom-light",
+        [ENVIRONMENT_AXIS.device]: "desktop-fine-hover",
+        [ENVIRONMENT_AXIS.transparency]: "full",
+        [ENVIRONMENT_AXIS.theme]: "custom-light",
         "appearance.backgroundImageKind": appearanceArmValueId(axes, "backgroundImageKind", "seeded"),
         "appearance.blurSurfaces": appearanceArmValueId(axes, "blurSurfaces", ["panels"]),
         "appearance.elevation": appearanceArmValueId(axes, "elevation", "ramp"),
@@ -94,7 +102,7 @@ function riskRows(axes: readonly VariantAxis[]): readonly VariantRequiredRow[] {
     {
       id: "mobile-compact-large-document",
       assignment: {
-        device: "mobile-coarse-none",
+        [ENVIRONMENT_AXIS.device]: "mobile-coarse-none",
         "appearance.density": appearanceArmValueId(axes, "density", "compact"),
         "appearance.fontScale": appearanceArmValueId(axes, "fontScale", RISK_LARGE_FONT_SCALE),
         "appearance.chatStyle": appearanceArmValueId(axes, "chatStyle", "document"),
@@ -103,8 +111,8 @@ function riskRows(axes: readonly VariantAxis[]): readonly VariantRequiredRow[] {
     {
       id: `opposite-os-app-prepaint${REQUIREMENT_DIRECTION_SEPARATOR}dark-on-light`,
       assignment: {
-        theme: "custom-dark",
-        "os-color": "light",
+        [ENVIRONMENT_AXIS.theme]: "custom-dark",
+        [ENVIRONMENT_AXIS.colorScheme]: "light",
         "appearance.fontScale": appearanceArmValueId(axes, "fontScale", RISK_LARGE_FONT_SCALE),
         "appearance.reducedMotion": appearanceArmValueId(axes, "reducedMotion", false),
       },
@@ -112,8 +120,8 @@ function riskRows(axes: readonly VariantAxis[]): readonly VariantRequiredRow[] {
     {
       id: `opposite-os-app-prepaint${REQUIREMENT_DIRECTION_SEPARATOR}light-on-dark`,
       assignment: {
-        theme: "custom-light",
-        "os-color": "dark",
+        [ENVIRONMENT_AXIS.theme]: "custom-light",
+        [ENVIRONMENT_AXIS.colorScheme]: "dark",
         "appearance.fontScale": appearanceArmValueId(axes, "fontScale", RISK_LARGE_FONT_SCALE),
         "appearance.reducedMotion": appearanceArmValueId(axes, "reducedMotion", false),
       },
@@ -125,7 +133,7 @@ function riskTwins(axes: readonly VariantAxis[]): readonly VariantRequiredTwin[]
   return [
     {
       id: "hover-pointer",
-      axis: "device",
+      axis: ENVIRONMENT_AXIS.device,
       left: "desktop-fine-hover",
       right: "mobile-coarse-none",
       where: {
@@ -144,7 +152,7 @@ function riskTwins(axes: readonly VariantAxis[]): readonly VariantRequiredTwin[]
       left: appearanceArmValueId(axes, "density", "comfortable"),
       right: appearanceArmValueId(axes, "density", "compact"),
       where: {
-        device: "mobile-coarse-none",
+        [ENVIRONMENT_AXIS.device]: "mobile-coarse-none",
         "appearance.elevation": appearanceArmValueId(axes, "elevation", "ramp"),
       },
     },
@@ -191,29 +199,65 @@ export function historicalRowsForCell(matrix: SnapAppearanceMatrix, cellId: stri
   return rows;
 }
 
-function payloadForCell<T>(axes: readonly VariantAxis[], assignment: VariantAssignment, axisId: string): T {
+function payloadForCell<T>(axes: readonly VariantAxis[], assignment: VariantAssignment, axisId: string, accepts: (value: unknown) => value is T): T {
   const axis = axes.find((candidate) => candidate.id === axisId);
   const valueIdForCell = assignment[axisId];
   const value = axis?.values.find((candidate) => candidate.id === valueIdForCell);
-  if (value === undefined) {
-    return instrumentError(`cell is missing ${axisId}`);
+  if (value === undefined || !accepts(value.payload)) {
+    return instrumentError(`cell is missing or has malformed ${axisId}`);
   }
-  return value.payload as T;
+  return value.payload;
+}
+
+function isThemeEntry(value: unknown): value is ThemeEntry {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const id = Reflect.get(value, "id");
+  const name = Reflect.get(value, "name");
+  const isSeed = Reflect.get(value, "isSeed");
+  const background = Reflect.get(value, "background");
+  const polarity = Reflect.get(value, "polarity");
+  const hasCustomCss = Reflect.get(value, "hasCustomCss");
+  return (
+    typeof id === "string" &&
+    typeof name === "string" &&
+    (isSeed === null || typeof isSeed === "boolean") &&
+    (background === null || typeof background === "string") &&
+    (polarity === "light" || polarity === "dark" || polarity === "unknown") &&
+    (hasCustomCss === null || typeof hasCustomCss === "boolean")
+  );
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isColorScheme(value: unknown): value is "light" | "dark" {
+  return value === "light" || value === "dark";
+}
+
+function isBrowserContrast(value: unknown): value is "more" | "no-preference" {
+  return value === "more" || value === "no-preference";
+}
+
+function isBoolean(value: unknown): value is boolean {
+  return typeof value === "boolean";
 }
 
 /** Project one shared-planner assignment onto Snap's existing launch/settings inputs. The runtime loop
  *  consumes only this typed policy result; it owns no second axis roster or value spelling. */
 export function snapMatrixVariant(matrix: SnapAppearanceMatrix, cell: VariantMatrixPlan["cells"][number], index = 0): SnapMatrixVariant {
   const allAxes = [...matrix.appearanceAxes, ...environmentAxes(matrix.themes)];
-  const theme = payloadForCell<ThemeEntry>(allAxes, cell.assignment, "theme");
+  const theme = payloadForCell(allAxes, cell.assignment, ENVIRONMENT_AXIS.theme, isThemeEntry);
   return {
     id: variantArtifactId(cell.id, index),
     appearance: appearancePatchForCell(matrix, cell.assignment),
     theme: theme.id,
-    device: payloadForCell<string | null>(allAxes, cell.assignment, "device"),
-    colorScheme: payloadForCell<"light" | "dark">(allAxes, cell.assignment, "os-color"),
-    reducedMotion: payloadForCell<boolean>(allAxes, cell.assignment, "os-motion"),
-    browserContrast: payloadForCell<"more" | "no-preference">(allAxes, cell.assignment, "contrast"),
-    reducedTransparency: payloadForCell<boolean>(allAxes, cell.assignment, "transparency"),
+    device: payloadForCell(allAxes, cell.assignment, ENVIRONMENT_AXIS.device, isNullableString),
+    colorScheme: payloadForCell(allAxes, cell.assignment, ENVIRONMENT_AXIS.colorScheme, isColorScheme),
+    reducedMotion: payloadForCell(allAxes, cell.assignment, ENVIRONMENT_AXIS.motion, isBoolean),
+    browserContrast: payloadForCell(allAxes, cell.assignment, ENVIRONMENT_AXIS.contrast, isBrowserContrast),
+    reducedTransparency: payloadForCell(allAxes, cell.assignment, ENVIRONMENT_AXIS.transparency, isBoolean),
   };
 }

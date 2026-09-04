@@ -2,9 +2,9 @@ import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { devices } from "@playwright/test";
 import type { SettingsShimEvidence } from "./appearance.ts";
 import { installSettingsShim } from "./appearance.ts";
-import type { CapturedConsole, CapturedRequest, PageCapture } from "./browser-capture.ts";
-import { wireProbePage } from "./browser-capture.ts";
-import type { ProbeContext, ProbeLaunchOptions, ProbeSession } from "./browser-contract.ts";
+import type { PageCapture } from "./browser-capture.ts";
+import { createPageCapture, watchProbeContextPages } from "./browser-capture.ts";
+import type { BrowserPageError, ProbeContext, ProbeLaunchOptions, ProbeSession } from "./browser-contract.ts";
 import { resolveBrowserEnvironmentContract } from "./browser-environment.ts";
 import { resolveProbeMedia } from "./browser-media.ts";
 
@@ -18,25 +18,88 @@ export interface BuildContextArgs {
   readonly persistentContext?: BrowserContext;
 }
 
-async function openRecordedContext(args: BuildContextArgs): Promise<{ readonly context: BrowserContext; readonly harPath: string | null }> {
-  const { browser, opts, deviceDescriptor, contextIndex, ownedContexts, persistentContext } = args;
+interface ProbeContextInput {
+  readonly context: BrowserContext;
+  readonly pages: readonly Page[];
+  readonly capture: PageCapture;
+  readonly settingsEvidence: SettingsShimEvidence;
+  readonly environmentContract: ProbeContext["environmentContract"];
+  readonly owned?: boolean;
+}
+
+export function probeContext(input: ProbeContextInput): ProbeContext {
+  const { context, pages, capture, settingsEvidence, environmentContract, owned } = input;
+  return {
+    context,
+    pages,
+    get consoleLines(): readonly string[] {
+      return capture.consoleMessages.map((message) => message.line);
+    },
+    consoleMessages: capture.consoleMessages,
+    get pageErrors(): readonly BrowserPageError[] {
+      return capture.pageErrors;
+    },
+    requests: capture.evidence.requestSummary.view(),
+    diagnostics: capture.diagnostics,
+    diagnosticCompleteness: capture.diagnosticCompleteness,
+    diagnosticWindow: capture.diagnosticWindow,
+    evidence: capture.evidence,
+    settingsEvidence,
+    environmentContract,
+    ...(owned === undefined ? {} : { owned }),
+  };
+}
+
+export function probeSession(
+  browser: Browser,
+  selected: ProbeContext,
+  contexts: readonly ProbeContext[],
+  cleanup?: readonly (() => Promise<void>)[],
+): ProbeSession {
+  const page = selected.pages[0];
+  if (page === undefined) {
+    throw new Error("probe context has no page");
+  }
+  return {
+    browser,
+    context: selected.context,
+    page,
+    pages: selected.pages,
+    get consoleLines(): readonly string[] {
+      return selected.consoleMessages.map((message) => message.line);
+    },
+    consoleMessages: selected.consoleMessages,
+    get pageErrors(): readonly BrowserPageError[] {
+      return selected.pageErrors;
+    },
+    requests: selected.requests,
+    diagnostics: selected.diagnostics,
+    diagnosticCompleteness: selected.diagnosticCompleteness,
+    diagnosticWindow: selected.diagnosticWindow,
+    evidence: selected.evidence,
+    environmentContract: selected.environmentContract,
+    contexts,
+    ...(cleanup === undefined ? {} : { cleanup }),
+  };
+}
+
+async function openRecordedContext(args: BuildContextArgs): Promise<BrowserContext> {
+  const { browser, opts, deviceDescriptor, ownedContexts, persistentContext } = args;
   const sizing = {
     ...(deviceDescriptor ?? { viewport: opts.viewport }),
     ...(opts.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: opts.deviceScaleFactor }),
   };
-  const harPath = opts.harPathPrefix === undefined ? null : `${opts.harPathPrefix}${(opts.contexts ?? 1) > 1 ? `-u${contextIndex}` : ""}.har`;
   const context =
     persistentContext ??
     (await browser.newContext({
       ...sizing,
       ...(opts.recordVideoDir === undefined ? {} : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
-      ...(harPath === null ? {} : { recordHar: { path: harPath, content: "omit" as const, mode: "full" as const } }),
     }));
   ownedContexts.push({ context });
   if (opts.trace === true) {
     await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   }
-  return { context, harPath };
+  return context;
 }
 
 async function seedContext(context: BrowserContext, opts: ProbeLaunchOptions, sessionCookie: string | null): Promise<SettingsShimEvidence> {
@@ -61,31 +124,23 @@ async function seedContext(context: BrowserContext, opts: ProbeLaunchOptions, se
 
 /** Build one fully isolated context. Cookie and settings seeds land before its first page opens. */
 export async function buildProbeContext(args: BuildContextArgs): Promise<ProbeContext> {
-  const { opts, sessionCookie, deviceDescriptor } = args;
-  const { context, harPath } = await openRecordedContext(args);
+  const { opts, sessionCookie, deviceDescriptor, contextIndex } = args;
+  const context = await openRecordedContext(args);
   const settingsEvidence = await seedContext(context, opts, sessionCookie);
-  const consoleLines: string[] = [];
-  const consoleMessages: CapturedConsole[] = [];
-  const pageErrors: string[] = [];
-  const requests = new Map<string, CapturedRequest>();
-  const capture: PageCapture = { media: resolveProbeMedia(opts), consoleLines, consoleMessages, pageErrors, requests };
+  const capture = createPageCapture(resolveProbeMedia(opts), contextIndex, opts.evidenceLimits);
   const pages: Page[] = [];
+  const wirePage = watchProbeContextPages(context, capture, pages);
   for (let index = 0; index < Math.max(1, opts.pages ?? 1); index += 1) {
     const page = await context.newPage();
-    await wireProbePage(page, capture);
-    pages.push(page);
+    await wirePage(page);
   }
-  return {
+  return probeContext({
     context,
     pages,
-    consoleLines,
-    consoleMessages,
-    pageErrors,
-    requests,
-    harPath,
+    capture,
     settingsEvidence,
     environmentContract: resolveBrowserEnvironmentContract(opts, deviceDescriptor),
-  };
+  });
 }
 
 export function resolveDeviceDescriptor(opts: Pick<ProbeLaunchOptions, "device">): (typeof devices)[string] | null {
@@ -119,20 +174,5 @@ export async function openProbeContext(browser: Browser, opts: ProbeLaunchOption
 
 /** Focus the ProbeSession API on one context in a shared browser. */
 export function probeSessionForContext(owner: ProbeSession, selected: ProbeContext): ProbeSession {
-  const page = selected.pages[0];
-  if (page === undefined) {
-    throw new Error("probe context has no page");
-  }
-  return {
-    browser: owner.browser,
-    context: selected.context,
-    page,
-    pages: selected.pages,
-    consoleLines: selected.consoleLines,
-    consoleMessages: selected.consoleMessages,
-    pageErrors: selected.pageErrors,
-    requests: selected.requests,
-    environmentContract: selected.environmentContract,
-    contexts: [selected],
-  };
+  return probeSession(owner.browser, selected, [selected]);
 }

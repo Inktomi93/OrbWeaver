@@ -22,6 +22,7 @@
     "./card": "./src/primitives/card/index.ts",
     "./chart": "./src/charts/chart/index.ts",
     "./checkbox": "./src/primitives/checkbox/index.ts",
+    "./css-merge-contract": "./src/lib/css-merge-contract.ts",
     "./code-editor": "./src/code-editor/index.ts",
     "./collapsible": "./src/primitives/collapsible/index.ts",
     "./color-field": "./src/primitives/color-field/index.ts",

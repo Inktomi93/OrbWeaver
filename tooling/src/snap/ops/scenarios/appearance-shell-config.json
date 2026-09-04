@@ -1,6 +1,6 @@
 {
   "name": "appearance-shell-config",
-  "defaults": ["--summary", "--checkpoint", "--expect-no-overflow", "html", "--no-shot"],
+  "defaults": ["--scenario-summary", "--checkpoint", "--expect-no-overflow", "html", "--no-shot"],
   "checkpoints": [
     {
       "name": "opposite-os-app-prepaint",

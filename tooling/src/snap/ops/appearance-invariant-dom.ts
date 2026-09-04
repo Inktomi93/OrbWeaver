@@ -198,6 +198,12 @@ function browserAppearanceCensus(input: BrowserProbeInput): AppearanceDomSnapsho
     census.skipped.set(reason, (census.skipped.get(reason) ?? 0) + 1);
     census.withheldFacts ??= facts;
   };
+  const requireRenderedFacts = (facts: AppearanceElementFacts | null): AppearanceElementFacts => {
+    if (facts === null) {
+      throw new Error("appearance census reached a visible subject without rendered facts");
+    }
+    return facts;
+  };
   const classifyElement = (policy: BrowserSubjectPolicy, element: BrowserElement, census: MutableSubjectCensus, matchIndex: number): void => {
     const style = browser.getComputedStyle(element);
     const rect = element.getBoundingClientRect();
@@ -212,7 +218,7 @@ function browserAppearanceCensus(input: BrowserProbeInput): AppearanceDomSnapsho
       census.offViewport += 1;
       return;
     }
-    const measured = renderedFacts as AppearanceElementFacts;
+    const measured = requireRenderedFacts(renderedFacts);
     if ((policy.sample === "interactive" || policy.sample === "pixel") && measured.hitOwnsCenter === false) {
       census.occluded += 1;
       census.allHitOwnCenter = false;

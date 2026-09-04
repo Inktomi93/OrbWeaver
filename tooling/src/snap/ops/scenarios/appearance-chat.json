@@ -1,6 +1,6 @@
 {
   "name": "appearance-chat",
-  "defaults": ["--summary", "--checkpoint", "--expect-no-overflow", ".shell-main", "--no-shot"],
+  "defaults": ["--scenario-summary", "--checkpoint", "--expect-no-overflow", ".shell-main", "--no-shot"],
   "checkpoints": [
     {
       "name": "dark-name-time-short-bubble",

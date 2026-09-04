@@ -28,7 +28,7 @@ export function splitLastEq(raw: string): EqSplit {
 }
 
 /**
- * Split on the FIRST `=` — for `--ls "key={json}"`: localStorage KEYS never contain `=`,
+ * Split on the FIRST `=` — for `--local-storage "key={json}"`: localStorage KEYS never contain `=`,
  * but persisted-store VALUES are JSON that often does. Mirror-image constraint of
  * `splitLastEq`. Returns null when there is no `=` or the key would be empty.
  */

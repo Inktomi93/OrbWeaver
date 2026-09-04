@@ -1,6 +1,6 @@
 {
   "name": "orb-app",
-  "defaults": ["--summary", "--map", "--expect-visible", "body", "--expect-no-overflow", "html", "--eval", "window.__orb?.snap()"],
+  "defaults": ["--scenario-summary", "--map", "--expect-visible", "body", "--expect-no-overflow", "html", "--eval", "window.__orb?.snap()"],
   "checkpoints": [
     { "name": "home", "args": ["/", "--goto", "home"] },
     { "name": "chats", "args": ["/", "--goto", "chats"] },

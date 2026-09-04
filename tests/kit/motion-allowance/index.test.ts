@@ -1,5 +1,5 @@
 // The ratified-motion allowance (#1069) — the ONE table both motion instruments judge with. These pins
-// are the reason the console `[anim]` channel and `pnpm motion-audit` cannot drift back into disagreeing
+// are the reason the console `[anim]` channel and Snap's motion arm cannot drift back into disagreeing
 // about ratified behaviour: they exercise the predicate itself, not either instrument's wrapper.
 import type { SanctionableAnimation } from "@orb/kit/motion-allowance";
 import { baseUiAttributionMismatch, isSanctionedLibraryAnimation } from "@orb/kit/motion-allowance";

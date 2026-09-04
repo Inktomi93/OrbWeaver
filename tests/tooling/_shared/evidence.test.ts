@@ -1,5 +1,5 @@
 import process from "node:process";
-import { printVerdict } from "@orb/tooling/_shared/evidence";
+import { printVerdict, printVerdictReceipt } from "@orb/tooling/_shared/evidence";
 import { vi } from "vitest";
 import { EXIT } from "../../../tooling/src/_shared/exit-contract.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
@@ -108,4 +108,32 @@ test("the denominator declaration owns its RESULT value even when a caller repea
   expect(result.code).toBe(EXIT.clean);
   expect(result.stdout).toContain("findings=0 scanned=7");
   expect(result.stdout).not.toContain("scanned=999");
+});
+
+test("the verdict receipt is the exact normalized RESULT payload, including a zero-population refusal", () => {
+  let pairs: readonly (readonly [string, string | number])[] = [];
+  const result = capture(() => {
+    const receipt = printVerdictReceipt("fixture", {
+      verdict: EXIT.clean,
+      denominators: {
+        pages: { value: 1, refuseWhen: "zero" },
+        requests: { value: 0, refuseWhen: "zero" },
+      },
+      pairs: [
+        ["requests-shown", 0],
+        ["requests", 999],
+      ],
+    });
+    pairs = receipt.pairs;
+    return receipt.exit;
+  });
+
+  expect(result.code).toBe(EXIT.toolError);
+  expect(pairs).toEqual([
+    ["verdict", "INSTRUMENT-ERROR"],
+    ["requests-shown", 0],
+    ["pages", 1],
+    ["requests", 0],
+  ]);
+  expect(result.stdout).toContain("RESULT fixture verdict=INSTRUMENT-ERROR requests-shown=0 pages=1 requests=0");
 });

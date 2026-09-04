@@ -27,15 +27,18 @@
 // both as one `run()` would have meant either losing the request log's pre-navigation attach or giving
 // every page arm three empty hooks; the union is exhaustively dispatched, so neither can be forgotten.
 import type { Page } from "@playwright/test";
+import type { EvidenceWindowId } from "../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import type { DevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
 import type { VerdictDenominator } from "../../_shared/evidence.ts";
-import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "./types.ts";
+import type { Arm } from "./arm-vocabulary.ts";
+import type { SnapRatePosture } from "./rate-posture.ts";
+import type { ArmFactDataByArm, ArmFactSchemaIdByArm, SnapCurrentScope } from "./run-facts.ts";
+import type { Args, CaptureOutcome, ReportCtx, ShotPlan, SnapAction } from "./types.ts";
 import type { SnapFailureSummary } from "./verdict.ts";
 
-export const ARMS = ["dead-css", "aria", "eval", "contrast", "map", "assert", "perf", "shot", "cascade", "requests", "lighthouse"] as const;
-export type Arm = (typeof ARMS)[number];
+export type { Arm } from "./arm-vocabulary.ts";
 
 /** How `ops/parse.ts`'s scanner must consume the flag's argv slot. One axis, so a new arm cannot invent a
  *  fourth consumption rule the scanner does not know about. */
@@ -57,9 +60,9 @@ export interface ArmFlagSpec {
 /** What an arm needs the BROWSER LAUNCH to provide. Every member here has exactly one twin field on
  *  `ArmProvisions` below and exactly one live consumer at the launch site — a `needs` member nothing
  *  reads would be a declaration with no enforcement, which is the shape this registry exists to delete.
- *  §6 also sketched `trace`/`requestRing`/`quietBox`; none has a launch-side consumer on this tree (the
- *  request ring IS the `at: "run"` lifecycle's pre-navigation mint, and the load withhold is per
- *  INSTRUMENT, `_shared/load-budget.ts`), so they are deliberately not minted here. */
+ *  §6 also sketched `trace`/`requestRing`/`quietBox`; none is an OPTIONAL arm provision on this tree (the
+ *  request ring is the universal ProbeSession substrate installed by `launchSnapSession` before callers
+ *  can navigate, and the load withhold is per INSTRUMENT in `_shared/load-budget.ts`). */
 export interface ArmNeeds {
   /** A Chrome `--remote-debugging-port` endpoint on THIS run's browser (the Lighthouse attach). */
   readonly debuggingPort?: true;
@@ -92,6 +95,8 @@ export interface ArmPageContext {
   readonly outcome: CaptureOutcome;
   /** `--eval`s written AFTER the last drive action, split back out so they observe the SETTLED surface. */
   readonly trailingEvals: readonly string[];
+  /** The one run-owned acceleration/load sample. Page arms may derive wording, never reread the host. */
+  readonly ratePosture: SnapRatePosture;
 }
 
 /** What a page arm's totals are computed over. `ctx` carries the run's artifact naming + failed-request
@@ -102,7 +107,22 @@ export interface ArmPairInput {
   readonly ctx: ReportCtx;
 }
 
-export interface ArmPageLifecycle {
+export interface ArmFactEmission<A extends Arm> {
+  readonly scope: SnapCurrentScope;
+  readonly data: ArmFactDataByArm[A];
+}
+
+interface ArmResultMetadata<A extends Arm> {
+  readonly schema: ArmFactSchemaIdByArm[A];
+  readonly source: string;
+  readonly lifetime: string;
+  /** Run-level enablement. Per-page targeting remains on the lifecycle. */
+  readonly enabled: (opts: Args) => boolean;
+  /** Summary members an unhosted path must still initialize to zero after proving this arm is disabled. */
+  readonly failureFields?: readonly (keyof SnapFailureSummary)[];
+}
+
+export interface ArmPageLifecycle<A extends Arm = Arm> {
   readonly at: "page";
   /** Runs this arm on this tab. Total: "the argv did not ask for me" is an answer here. */
   readonly enabled: (ctx: ArmPageContext) => boolean;
@@ -110,7 +130,11 @@ export interface ArmPageLifecycle {
   /** The arm's RESULT members, ALWAYS — an arm that did not run still says so (`aria=no`, `map=no`,
    *  `deadcss=0`). A reader must never have to guess whether an absent pair means clean or never-ran. */
   readonly pairs: (input: ArmPairInput) => readonly ResultPair[];
+  readonly facts: (input: ArmPairInput) => readonly ArmFactEmission<A>[];
   readonly failures: (input: ArmPairInput) => ArmFailureCounts;
+  /** The run's exit after settled page evidence is complete. Required on every page arm so an
+   *  instrument refusal cannot be trapped inside a finding-only failure fold. */
+  readonly exit: (input: ArmPairInput, code: number) => number;
 }
 
 export interface ArmRunContext {
@@ -120,10 +144,62 @@ export interface ArmRunContext {
   /** The run's artifact key — the base every arm files its own artifacts under. */
   readonly name: string;
   readonly provisions: ArmProvisions;
+  /** Same frozen object every rate analyzer and the terminal RESULT receipt consumes. */
+  readonly ratePosture: SnapRatePosture;
+}
+
+export interface ArmSharedContext {
+  readonly ratePosture: Promise<SnapRatePosture>;
+}
+
+export interface ArmNavigationContext {
+  readonly page: Page;
+  readonly opts: Args;
+  readonly pageIndex: number;
+  readonly url: string;
+  readonly navError: string | null;
+  /** Host-minted identity for this exact navigation/action/settle window. */
+  readonly evidenceWindow: EvidenceWindowId;
+}
+
+export interface ArmActionContext {
+  readonly page: Page;
+  readonly opts: Args;
+  readonly pageIndex: number;
+  readonly actionIndex: number;
+  readonly action: SnapAction;
+  readonly navFailuresBefore: number;
+  readonly stepFailuresBefore: number;
+}
+
+export interface ArmActionDisposition {
+  /** The arm dispatched this action itself inside its measured window. The shared tape must not repeat it. */
+  readonly handled: boolean;
+  readonly failures: number;
+}
+
+export interface ArmTapeContext {
+  readonly page: Page;
+  readonly opts: Args;
+  readonly pageIndex: number;
 }
 
 /** One run's instance of a RUN arm. Every member is total, so `ops/run.ts` gains no branch per arm. */
-export interface ArmRunInstance {
+export interface ArmRunInstance<A extends Arm = Arm> {
+  /** Async work that MUST finish before the first navigation. Required even when it is a no-op so an arm
+   *  which needs a pre-mount hook cannot accidentally fall through to the post-capture measurement. */
+  readonly prepare: () => Promise<void>;
+  /** Immediately after this page's navigation/readiness gate and before the first tape action. */
+  readonly afterNavigation: (ctx: ArmNavigationContext) => Promise<void>;
+  /** Around each entry of the ONE argv-ordered tape. A measurement arm may handle exactly one tagged
+   *  action itself; two handlers are an instrument error, never silent double-dispatch. */
+  readonly beforeAction: (ctx: ArmActionContext) => Promise<ArmActionDisposition | null>;
+  readonly afterAction: (ctx: ArmActionContext & { readonly failed: boolean; readonly handled: boolean }) => Promise<void>;
+  /** Immediately after this page's complete argv-ordered tape and before settle/page arms. Measurement
+   *  windows that cover interactions end here rather than silently including unrelated capture work. */
+  readonly afterActions: (ctx: ArmTapeContext) => Promise<void>;
+  /** After the shared bounded settle on this exact page and before settled page arms. */
+  readonly afterSettle: (ctx: ArmTapeContext) => Promise<void>;
   /** After the settled-surface capture pass over every page. */
   readonly measure: (ctx: ArmRunContext) => Promise<void>;
   /** After the run's report block has printed — where a log block belongs, in reading order. */
@@ -133,20 +209,21 @@ export interface ArmRunInstance {
    *  exit-2 refusal (_shared/evidence.ts). */
   readonly denominators: () => Readonly<Record<string, VerdictDenominator>>;
   readonly pairs: () => readonly ResultPair[];
+  readonly facts: () => readonly ArmFactEmission<A>[];
   /** The run's exit code after this arm has its say — a REFUSED measurement is not a verdict about the
    *  app at all and exits 2 whatever else the run found. */
   readonly exit: (code: number) => number;
 }
 
-interface ArmRunLifecycle {
+interface ArmRunLifecycle<A extends Arm = Arm> {
   readonly at: "run";
   /** Minted BEFORE anything navigates: a listener wired after `page.goto` starts mid-stream (#1199). */
-  readonly begin: (session: ProbeSession, opts: Args) => ArmRunInstance;
+  readonly begin: (session: ProbeSession, opts: Args, shared: ArmSharedContext) => ArmRunInstance<A>;
 }
 
-type ArmLifecycle = ArmPageLifecycle | ArmRunLifecycle;
+type ArmLifecycle<A extends Arm = Arm> = ArmPageLifecycle<A> | ArmRunLifecycle<A>;
 
-export interface ArmDef {
+export interface ArmDef<A extends Arm = Arm> {
   /** The argv this arm owns. `ops/flags-classes.ts` derives every scanner class from the union of these,
    *  and `ops/flags-handlers.ts` spreads their handlers — so a new flag needs no edit in either file. */
   readonly flags: readonly ArmFlagSpec[];
@@ -157,13 +234,18 @@ export interface ArmDef {
    *  need only exists when the arm is on — an ordinary run must launch byte-identically to one from
    *  before the registry existed, and the arm is the only thing that knows whether it was asked for. */
   readonly needs: (opts: Args) => ArmNeeds;
+  /** Quiet-box outer watchdog base for a non-navigating named-session call when this arm is enabled.
+   * Null means the arm adds no time beyond the daemon's ordinary call floor. The registry takes the
+   * widest enabled declaration, and the daemon applies the shared load scaler exactly once. */
+  readonly sessionCallBaseMs: (opts: Args) => number | null;
   /** The arm's own slice of the parsed `Args`, as a FACTORY — several arms default to a fresh array, and
    *  a shared literal would leak one parse's queue into the next. */
   readonly defaults: () => Partial<ArmArgs>;
   /** The operator block, verbatim. REQUIRED, which is the point: `SNAP_HELP` is assembled from these, so
    *  an arm cannot ship without its row and a row cannot drift away from the flags beside it. */
   readonly help: string;
-  readonly lifecycle: ArmLifecycle;
+  readonly result: ArmResultMetadata<A>;
+  readonly lifecycle: ArmLifecycle<A>;
 }
 
 /** THE ARM-OWNED HALF OF `Args` (docs/design/1208-instrument-substrate.md §6). Every field here is parsed,
@@ -200,6 +282,18 @@ export type ArmArgs = Pick<
   | "requests"
   | "requestsFilter"
   | "requestBody"
+  | "heapCaptures"
+  | "heapComparisons"
+  | "heapRetainers"
+  | "filmstrip"
+  | "reactProfile"
+  | "motion"
+  | "motionWindowMs"
+  | "motionThrottle"
+  | "interactionPerf"
+  | "perfCycles"
+  | "cpuProfile"
+  | "bootTrace"
 >;
 
 /** The complement — what `ops/parse.ts` still spells out by hand. */

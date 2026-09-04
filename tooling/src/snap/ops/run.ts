@@ -1,26 +1,30 @@
 // The single-run pass: launch, drive+capture every page, the watch series, report, baseline/diff,
 // the manifest, and the RESULT line. One browser run, many pieces of evidence.
-import type { Page } from "@playwright/test";
 import { artifactFile } from "../../_shared/artifact-out.ts";
+import { aggregateScope, factBatchId } from "../../_shared/artifact-scope.ts";
 import { artifactKey } from "../../_shared/artifacts.ts";
 import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
+import { browserEvidenceRetention } from "../../_shared/browser-capture.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";
+import { summarizeOrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { printVerdict } from "../../_shared/evidence.ts";
-import { loadResultPairs } from "../../_shared/load-budget.ts";
+import { printVerdictReceipt } from "../../_shared/evidence.ts";
 import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
 import type { ArmPairInput, ArmRunContext } from "../contract/arms.ts";
 import type { EvidenceWindow, SessionRunHooks, SessionRunTarget, SnapDetailedPlan, SnapDetailedResult } from "../contract/run.ts";
+import { snapExitCode, snapExitState } from "../contract/run-facts.ts";
 import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "../contract/types.ts";
 import { pageOut, shouldProduceShot } from "../lib/out-names.ts";
+import { ratePostureResultPairs } from "../lib/rate-posture.ts";
 import { throttleResultValue } from "../lib/throttle.ts";
 import { captureAppearanceInvariantRows } from "./appearance-invariant-runtime.ts";
 import { evaluateAppearanceInvariantCell } from "./appearance-invariants.ts";
-import { armPairLedger, beginRunArms, pageArmFailures } from "./arms/registry.ts";
+import { motionReceiptFor } from "./arms/motion.ts";
+import { armPairLedger, beginRunArms, pageArmExit, pageArmFacts, pageArmFailures } from "./arms/registry.ts";
 import { capturePages } from "./capture.ts";
 import { runBaselineOrDiff } from "./diff.ts";
 import { snapDestination } from "./guards.ts";
-import { appliedAcrossContexts, writeManifestIfRequested } from "./manifest.ts";
+import { appliedAcrossContexts, writeCoreCaptureEvidence, writeManifestIfRequested } from "./manifest.ts";
 import { isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
 import {
   extendEvidenceThroughWatch,
@@ -35,6 +39,7 @@ import {
   scaleResultValue,
   sessionForEvidence,
 } from "./report.ts";
+import { registerSnapDiagnosticCompleteness, registerSnapFactBatch, registerSnapResultPairs, writeSnapDiagnosticEvidence } from "./run-bundle.ts";
 import { cascadeRuntimeFor, debuggingPortFor, finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
 import { themeStampExit } from "./theme-stamp.ts";
 import { buildFailureSummary, hasSnapFailure, outcomeTotals } from "./verdict.ts";
@@ -75,9 +80,10 @@ function windowOutcomes(outcomes: readonly CaptureOutcome[], session: ProbeSessi
     if (outcome.evidenceRange === null) {
       outcome.evidenceRange = {
         consoleStart: window.consoleStart,
-        consoleEnd: session.consoleMessages.length,
+        consoleEnd: session.evidence.console.cursor(),
         pageErrorStart: window.pageErrorStart,
-        pageErrorEnd: session.pageErrors.length,
+        pageErrorEnd: session.evidence.pageErrors.cursor(),
+        diagnosticWindow: session.diagnosticWindow.value,
       };
     }
   }
@@ -98,7 +104,9 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
     // the arms on exactly the same terms as a one-shot: one implementation, two hosts.
     const arms = beginRunArms(session, opts);
     const plan: ShotPlan = { url, out, produceShot };
-    const outcomes = await capturePages(session, opts, plan, target.navigate);
+    const ratePosture = await arms.ratePosture();
+    await arms.prepare();
+    const outcomes = await capturePages({ session, opts, plan, navigatePage: target.navigate, runArms: arms });
     windowOutcomes(outcomes, session, hooks.window);
     // The RUN arms measure on the SETTLED pages, after the drive queue and every settled-surface capture:
     // the cascade read wants the whole browser's SDK runtime, and the Lighthouse audit's subject IS that
@@ -109,12 +117,18 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       outcomes,
       name: key,
       provisions: { debuggingPort: await debuggingPortFor(session), cascadeRuntime: cascadeRuntimeFor(session) },
+      ratePosture,
     };
     await arms.measure(armCtx);
     const appearance = await captureAppearanceResults(session, opts, detailedPlan);
     const evidenceSession = sessionForEvidence(session, outcomes);
+    await writeSnapDiagnosticEvidence(key, evidenceSession.diagnostics);
     // --watch: a timed series on PAGE 0 after everything settled (a streaming turn reflow, transient states).
-    const watchTicks = opts.watchMs > 0 ? await runWatchSeries(session.pages[0] as Page, opts, pageOut(out, 0, totalPages)) : [];
+    const firstPage = session.pages[0];
+    if (firstPage === undefined) {
+      throw new Error("INSTRUMENT ERROR: launched Snap session has no first page");
+    }
+    const watchTicks = opts.watchMs > 0 ? await runWatchSeries(firstPage, opts, pageOut(out, 0, totalPages)) : [];
     extendEvidenceThroughWatch(outcomes, session);
     const { failed, viteChurn } = partitionFailedRequests(session.requests.values());
     // What every arm computes its totals over: the per-page outcomes plus the run's artifact naming (the
@@ -154,7 +168,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
     });
     const red = hasSnapFailure(failureSummary);
     const artifacts = await hooks.finish(red);
-    const manifestPath = await writeManifestIfRequested(opts, name, {
+    const manifestInput = {
       status: red ? "fail" : "pass",
       target: { url, name },
       environment: {
@@ -179,12 +193,16 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       traces: artifacts.traces,
       hars: artifacts.hars,
       console: session.consoleMessages,
+      diagnostics: session.diagnostics,
+      diagnosticCompleteness: session.diagnosticCompleteness,
       ...(opts.checkpoint
         ? {
             evidence: {
               scope: "checkpoint" as const,
               console: evidenceSession.consoleMessages,
               pageErrors: evidenceSession.pageErrors,
+              diagnostics: evidenceSession.diagnostics,
+              diagnosticCompleteness: evidenceSession.diagnosticCompleteness,
             },
           }
         : {}),
@@ -194,72 +212,124 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       appearance,
       captures: outcomes,
       ...(watchTicks.length === 0 ? {} : { watch: { totalMs: opts.watchMs, intervalMs: opts.watchEveryMs, ticks: watchTicks } }),
-    });
+    } as const;
+    await writeCoreCaptureEvidence(manifestInput);
+    const manifestPath = await writeManifestIfRequested(opts, name, manifestInput);
     // THE RESULT LINE. Every arm-owned field comes from the arm that measured it (contract/arms.ts) — the
     // ledger hands each one back at the position it has always printed in, because the line's field order
     // is a contract with every script and agent that greps it. `ledger.rest()` at the tail is where a NEW
     // arm's pairs land with no edit here, and a claim for a pair its arm did not produce THROWS rather
     // than quietly dropping a field.
     const ledger = armPairLedger(pairInput, arms.pairs());
-    const code = printVerdict("snap", {
+    const resultPairs = [
+      ...ledger.some("shot", "out"),
+      ["pages", totalPages] as const,
+      ["watch", watchTicks.length] as const,
+      ["watch-fails", watchFailures] as const,
+      ...ledger.arm("aria"),
+      ...ledger.arm("map"),
+      ...ledger.arm("eval"),
+      ...ledger.arm("contrast"),
+      ...ledger.arm("assert"),
+      ["css-fails", failureSummary.css] as const,
+      ...ledger.some("dead-css", "deadcss-fails", "emptycss-fails"),
+      ["environment-fails", failureSummary.environment] as const,
+      ["appearance-fails", failureSummary.appearance] as const,
+      ["console-errors", failureSummary.consoleErrors] as const,
+      ["sandbox-trace-noise", session.consoleMessages.filter(isSandboxTraceNoise).length] as const,
+      ["console-warnings", evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length] as const,
+      [
+        "boot-console-warnings",
+        session.consoleMessages.filter((entry) => entry.type === "warning").length -
+          evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length,
+      ] as const,
+      ["trace", artifacts.traces[0] ?? "none"] as const,
+      ["har", artifacts.hars[0] ?? "none"] as const,
+      ["json", manifestPath ?? "none"] as const,
+      ...ledger.some("shot", "crop"),
+      ["scale", scaleResultValue(opts, browserEnvironment)] as const,
+      ["motion-evidence", motionResultValue(opts)] as const,
+      ["throttle", throttleResultValue(opts.cpuThrottle, opts.network)] as const,
+      ["file-actions", outcomes.reduce((count, outcome) => count + outcome.fileActions.length, 0)] as const,
+      ["files-driven", outcomes.reduce((count, outcome) => count + outcome.fileActions.reduce((files, action) => files + action.files, 0), 0)] as const,
+      ["nav", navResultVerdict(totals.navigation, totals.navActions)] as const,
+      ["nav-actions-failed", totals.navActions] as const,
+      ["steps-failed", totals.steps] as const,
+      ["page-errors", evidenceSession.pageErrors.length] as const,
+      ["failed-req", failed.length] as const,
+      ["vite-dep-churn", viteChurn.length] as const,
+      ...ledger.some("dead-css", "deadcss", "emptycss"),
+      ...ledger.arm("lighthouse"),
+      ...ledger.arm("requests"),
+      ...ledger.rest(),
+      ...diffPairs,
+      ...ratePostureResultPairs(ratePosture),
+    ];
+    const terminal = printVerdictReceipt("snap", {
       verdict: red ? 1 : 0,
       denominators: { pages: { value: totalPages, refuseWhen: "zero" }, ...arms.denominators() },
-      pairs: [
-        ...ledger.some("shot", "out"),
-        ["pages", totalPages],
-        ["watch", watchTicks.length],
-        ["watch-fails", watchFailures],
-        ...ledger.arm("aria"),
-        ...ledger.arm("map"),
-        ...ledger.arm("eval"),
-        ...ledger.arm("contrast"),
-        ...ledger.arm("assert"),
-        ["css-fails", failureSummary.css],
-        ...ledger.some("dead-css", "deadcss-fails", "emptycss-fails"),
-        ["environment-fails", failureSummary.environment],
-        ["appearance-fails", failureSummary.appearance],
-        ["console-errors", failureSummary.consoleErrors],
-        ["sandbox-trace-noise", session.consoleMessages.filter(isSandboxTraceNoise).length],
-        ["console-warnings", evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length],
-        [
-          "boot-console-warnings",
-          session.consoleMessages.filter((entry) => entry.type === "warning").length -
-            evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length,
-        ],
-        ["trace", artifacts.traces[0] ?? "none"],
-        ["har", artifacts.hars[0] ?? "none"],
-        ["json", manifestPath ?? "none"],
-        ...ledger.some("shot", "crop"),
-        ["scale", scaleResultValue(opts, browserEnvironment)],
-        ["motion", motionResultValue(opts)],
-        ["throttle", throttleResultValue(opts.cpuThrottle, opts.network)],
-        ["nav", navResultVerdict(totals.navigation, totals.navActions)],
-        ["nav-actions-failed", totals.navActions],
-        ["steps-failed", totals.steps],
-        ["page-errors", evidenceSession.pageErrors.length],
-        ["failed-req", failed.length],
-        ["vite-dep-churn", viteChurn.length],
-        ...ledger.some("dead-css", "deadcss", "emptycss"),
-        ...ledger.arm("lighthouse"),
-        ...ledger.arm("requests"),
-        // Every arm the spine above did not name — a NEW arm's members land here, in ARMS order, without
-        // an edit to this file. That is the phase's actual claim (design §6).
-        ...ledger.rest(),
-        ...diffPairs,
-        ...loadResultPairs(),
-      ],
+      pairs: resultPairs,
     });
+    const finalCode = arms.exit(pageArmExit(pairInput, themeStampExit(outcomes, terminal.exit)));
+    const scope = aggregateScope();
+    registerSnapFactBatch({
+      id: factBatchId(key),
+      core: [
+        {
+          kind: "core",
+          schema: "snap-rate-posture-v1",
+          source: "browser-system-info+host-load",
+          lifetime: "one Snap run/cell",
+          scope,
+          artifacts: [],
+          data: ratePosture,
+        },
+        {
+          kind: "core",
+          schema: "snap-browser-retention-v1",
+          source: "bounded-browser-evidence-rings",
+          lifetime: "one Snap run/cell",
+          scope,
+          artifacts: [],
+          data: browserEvidenceRetention(session),
+        },
+        {
+          kind: "core",
+          schema: "snap-core-run-v1",
+          source: "snap-run-owner",
+          lifetime: "one Snap run/cell",
+          scope,
+          artifacts: [],
+          data: {
+            exit: snapExitCode(finalCode),
+            state: snapExitState(finalCode),
+            pages: opts.pages,
+            contexts: session.contexts.length,
+            captures: outcomes.length,
+            fileActions: outcomes.reduce((count, outcome) => count + outcome.fileActions.length, 0),
+            failedRequests: failed.length,
+            pageErrors: evidenceSession.pageErrors.length,
+            diagnostics: evidenceSession.diagnostics.length,
+            failures: failureSummary,
+          },
+        },
+      ],
+      arms: [...pageArmFacts(pairInput, {}), ...arms.facts({})],
+    });
+    registerSnapResultPairs(terminal.pairs);
     return {
       // TWO ways this run can turn out not to be a verdict about the app at all (the zero-hygiene law,
       // _shared/evidence.ts): a REFUSED Lighthouse audit, and a requested THEME whose stamp never landed
       // (#1227). Either exits 2 regardless of what else the run found.
-      code: arms.exit(themeStampExit(outcomes, code)),
+      code: finalCode,
       receipt: {
         failures: failureSummary,
         captures: outcomes,
         browser: browserEnvironment,
         settings: session.contexts.map((context) => context.settingsEvidence),
         appearance,
+        diagnosticCompleteness: session.diagnosticCompleteness,
+        motion: motionReceiptFor(session),
         scenario: null,
       },
     };
@@ -276,12 +346,12 @@ export async function runSnapDetailed(opts: Args, detailedPlan?: SnapDetailedPla
   // Whether we write a PNG. --no-shot/--text suppress it, but --baseline/--diff
   // need pixels to compare, and --shot-of is itself a shot — so those force it on.
   const produceShot = shouldProduceShot(opts);
-  const session = await launchSnapSession(opts, key, {
+  const session = await launchSnapSession(opts, {
     pages: opts.pages,
     requireCascadeRuntime: hasAppearanceInvariantPlan(detailedPlan),
   });
   try {
-    return await runOnSession(
+    const result = await runOnSession(
       session,
       opts,
       { url, name, out, key, produceShot, navigate: true },
@@ -291,6 +361,10 @@ export async function runSnapDetailed(opts: Args, detailedPlan?: SnapDetailedPla
         ...(detailedPlan === undefined ? {} : { detailedPlan }),
       },
     );
+    if (result.receipt !== null) {
+      registerSnapDiagnosticCompleteness(summarizeOrbConsoleCompleteness(result.receipt.diagnosticCompleteness));
+    }
+    return result;
   } catch (error) {
     return await closeProbeSessionAfterError(session, error);
   }

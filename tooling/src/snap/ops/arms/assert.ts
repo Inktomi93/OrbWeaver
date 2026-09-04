@@ -5,9 +5,10 @@
 import { errorMessage } from "@orb/kit/error-message";
 import type { Locator, Page } from "@playwright/test";
 import { splitLastEq } from "../../../_shared/argv.ts";
+import { aggregateScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
+import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
 import type { Assertion, AssertionOutcome } from "../../contract/types.ts";
 import { HTTP_URL_RE } from "../../lib/out-names.ts";
 import { overflowAssertionLine } from "../../lib/overflow-line.ts";
@@ -70,7 +71,10 @@ async function runMatchedAssertion(
     };
   }
   if (assertion.kind === "focus") {
-    const pass = await first.evaluate((element) => (element as unknown as { matches: (selector: string) => boolean }).matches(":focus"));
+    const pass = await first.evaluate((element) => {
+      const matches = Reflect.get(element, "matches");
+      return typeof matches === "function" && Reflect.apply(matches, element, [":focus"]) === true;
+    });
     return { line: `ASSERT focus ${assertion.selector}: ${pass ? "PASS" : "FAIL"}`, failed: !pass };
   }
   return overflowAssertionLine(assertion.selector, await probeOverflow(first));
@@ -167,6 +171,7 @@ export const ASSERT_ARM = {
   ],
   level: "call",
   needs: (): ArmNeeds => ({}),
+  sessionCallBaseMs: (): null => null,
   defaults: (): Pick<ArmArgs, "assertions"> => ({ assertions: [] }),
   help: `  --expect-visible <selector>       require a rendered, visible element
   --expect-text <selector=text>     require rendered text to contain a value
@@ -176,6 +181,12 @@ export const ASSERT_ARM = {
                                     exit the clip on any side (left/top too — scrollWidth cannot see
                                     a justify-end spill); a scrolling axis is not judged
   --expect-focus <selector>         require the active element to match`,
+  result: {
+    schema: "snap-arm-assert-v1",
+    source: "Playwright locator assertions",
+    lifetime: "settled page capture",
+    enabled: (opts): boolean => opts.assertions.length > 0,
+  },
   lifecycle: {
     at: "page",
     enabled: ({ opts, pageIndex }): boolean => opts.assertions.some((entry) => entry.page === pageIndex),
@@ -187,6 +198,21 @@ export const ASSERT_ARM = {
       );
     },
     pairs: (input): readonly ResultPair[] => [["assertion-fails", assertionFailures(input)]],
+    facts: (input): readonly ArmFactEmission<"assert">[] => {
+      const assertions = input.outcomes.reduce((count, outcome) => count + outcome.assertions.length, 0);
+      const failures = assertionFailures(input);
+      let state: "off" | "failed" | "passed" = "off";
+      if (input.opts.assertions.length > 0) {
+        state = failures > 0 ? "failed" : "passed";
+      }
+      return [
+        {
+          scope: aggregateScope(),
+          data: { state, detail: null, assertions, failures },
+        },
+      ];
+    },
     failures: (input): ArmFailureCounts => ({ assertions: assertionFailures(input) }),
+    exit: (_input, code): number => code,
   },
-} satisfies ArmDef;
+} satisfies ArmDef<"assert">;

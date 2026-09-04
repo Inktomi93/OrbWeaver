@@ -2950,7 +2950,7 @@ test("#151 the LIST-track FLIP IS still armed on the same swap when motion is al
 // ── #262: skipping the FLIP was right; letting the RAW SHIFT through was the unexamined half ────────
 // The #151 fix above stopped ARMING the FLIP under reduced motion — correct, a FLIP is a motion mechanism
 // — and the track then just resized in one frame. That is a real, recorded layout shift, and it lands on
-// exactly the users who asked for less motion: `pnpm perf-meter --goto <section>` on the merged tree
+// exactly the users who asked for less motion: the former perf meter's `--goto <section>` on the merged tree
 // (2026-08-19, live main WITH the #257 reduced-motion floor) measured presets 0.2032 · characters 0.2333 ·
 // corpus 0.2295 on the reduced-motion arm against 0.0112 · 0.0038 · 0 with motion on, and analytics — the
 // one section whose swap changes no LIST track — 0 on both. Source attribution, single entry, single node:

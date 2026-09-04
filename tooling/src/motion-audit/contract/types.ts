@@ -9,7 +9,7 @@ import type { ThemeRequest } from "@orb/tooling/_shared/theme";
 
 /** One pre-trace REACH action, in argv order: a DOM click or a dev-bridge navigation. Never measured —
  *  see the header's reach-vs-measure note. */
-export type ReachAction = { kind: "click"; selector: string } | { kind: "nav"; method: NavMethod; target: string };
+type ReachAction = { kind: "click"; selector: string } | { kind: "nav"; method: NavMethod; target: string };
 
 export interface Args {
   /** `--help`/`-h` (HELP_FLAGS, `_shared/instrument-argv.ts`): print `MOTION_AUDIT_HELP` and exit 0 —

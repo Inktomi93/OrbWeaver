@@ -1,0 +1,181 @@
+// Display-only correlation over evidence Snap already captured. Producers own thresholds and exit votes;
+// this module groups their immutable rows for the end card and browser-free reader.
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { DiskSafeBrowserDiagnostic } from "../contract/browser-evidence-redaction.ts";
+import type { SnapCompositeFinding, SnapFindingEvidenceRef, SnapRunIndex } from "../contract/run-index.ts";
+import { analyzerFindingDrafts, lighthouseFindingDrafts, reactFindingDrafts } from "./run-finding-analyzers.ts";
+import { coreFindingDrafts, diagnosticFindingDrafts, harFindingDrafts } from "./run-finding-browser.ts";
+import type { FindingDraft } from "./run-finding-common.ts";
+import { findingIdentity, findingRef } from "./run-finding-common.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");
+
+export interface SnapFindingInput {
+  readonly indexPath: string;
+  readonly verdict: SnapRunIndex["verdict"];
+  readonly artifacts: SnapRunIndex["artifacts"];
+  readonly diagnosticsState: SnapRunIndex["diagnostics"]["state"];
+  readonly diagnostics: readonly DiskSafeBrowserDiagnostic[];
+}
+
+const SEVERITY_RANK = { error: 0, warning: 1, annotation: 2 } as const;
+
+function groupKey(row: FindingDraft): string {
+  const identity = row.evidence[0];
+  const exact = identity === undefined ? { context: null, page: null, window: null } : findingIdentity(identity);
+  return [row.correlation, exact.context ?? "", exact.page ?? "", exact.window ?? ""].join("\u0000");
+}
+
+function mergeCompleteness(left: SnapCompositeFinding["completeness"], right: SnapCompositeFinding["completeness"]): SnapCompositeFinding["completeness"] {
+  const rank = { complete: 0, bounded: 1, incomplete: 2 } as const;
+  return rank[left] >= rank[right] ? left : right;
+}
+
+function followup(indexPath: string, row: FindingDraft): string {
+  const parts = ["pnpm snap --report", indexPath, "--problems"];
+  const onlyArm = row.arms.length === 1 ? row.arms[0] : undefined;
+  const onlyChannel = row.channels.length === 1 ? row.channels[0] : undefined;
+  if (onlyArm !== undefined) {
+    parts.push("--arm", onlyArm);
+  } else if (onlyChannel !== undefined && onlyChannel !== "run") {
+    parts.push("--channel", onlyChannel);
+  }
+  const evidence = row.evidence[0];
+  const exact = evidence === undefined ? { context: null, page: null, window: null } : findingIdentity(evidence);
+  if (exact.context !== null) {
+    parts.push("--context", String(exact.context));
+  }
+  if (exact.page !== null) {
+    parts.push("--page", String(exact.page));
+  }
+  if (exact.window !== null) {
+    parts.push("--window", exact.window);
+  }
+  return parts.join(" ");
+}
+
+function sameEvidenceIdentity(left: SnapFindingEvidenceRef | undefined, right: SnapFindingEvidenceRef | undefined): boolean {
+  if (left === undefined || right === undefined) {
+    return false;
+  }
+  const leftIdentity = findingIdentity(left);
+  const rightIdentity = findingIdentity(right);
+  if (leftIdentity.context === null && leftIdentity.page === null && leftIdentity.window === null) {
+    return false;
+  }
+  return leftIdentity.context === rightIdentity.context && leftIdentity.page === rightIdentity.page && leftIdentity.window === rightIdentity.window;
+}
+
+function compatibleAttribution(attribution: FindingDraft, finding: FindingDraft): boolean {
+  const tag = attribution.correlation.split(":").at(-1) ?? "";
+  const metric = finding.what.toLowerCase();
+  let compatible = false;
+  if (tag === "frame" || tag === "drop") {
+    compatible = metric.includes("frame");
+  } else if (tag === "reflow" || tag === "space") {
+    compatible = metric.includes("layout") || metric.includes("blocking") || metric.includes("loaf");
+  } else if (tag === "cls") {
+    compatible = metric.includes("cls") || metric.includes("shift");
+  } else if (tag === "anim") {
+    compatible = metric.includes("anim");
+  } else if (tag === "input") {
+    compatible = metric.includes("click") || metric.includes("input");
+  } else if (tag === "perf") {
+    compatible = finding.arms.includes("react-profile");
+  } else if (tag === "css") {
+    compatible = finding.arms.includes("dead-css");
+  }
+  return compatible && sameEvidenceIdentity(attribution.evidence[0], finding.evidence[0]);
+}
+
+function attachAttributions(drafts: readonly FindingDraft[]): readonly FindingDraft[] {
+  const attributions = drafts.filter((row) => row.correlation.startsWith("attribution:"));
+  const primary = drafts.filter((row) => !row.correlation.startsWith("attribution:"));
+  const consumed = new Set<FindingDraft>();
+  const enriched = primary.map((row) => {
+    const matching = attributions.filter((candidate) => candidate.arms.some((arm) => row.arms.includes(arm)) && compatibleAttribution(candidate, row));
+    if (matching.length === 0) {
+      return row;
+    }
+    for (const candidate of matching) {
+      consumed.add(candidate);
+    }
+    return {
+      ...row,
+      channels: [...new Set([...row.channels, ...matching.flatMap((candidate) => candidate.channels)])],
+      evidence: [...row.evidence, ...matching.flatMap((candidate) => candidate.evidence)],
+    };
+  });
+  return [...enriched, ...attributions.filter((row) => !consumed.has(row))];
+}
+
+function mergeDrafts(drafts: readonly FindingDraft[], indexPath: string): readonly SnapCompositeFinding[] {
+  const grouped = new Map<string, FindingDraft>();
+  for (const draft of drafts) {
+    const key = groupKey(draft);
+    const current = grouped.get(key);
+    if (current === undefined) {
+      grouped.set(key, draft);
+      continue;
+    }
+    const evidence = [...current.evidence];
+    for (const candidate of draft.evidence) {
+      if (!evidence.some((row) => row.source === candidate.source && row.artifact === candidate.artifact)) {
+        evidence.push(candidate);
+      }
+    }
+    grouped.set(key, {
+      ...current,
+      severity: SEVERITY_RANK[current.severity] <= SEVERITY_RANK[draft.severity] ? current.severity : draft.severity,
+      arms: [...new Set([...current.arms, ...draft.arms])],
+      channels: [...new Set([...current.channels, ...draft.channels])],
+      where: current.where === draft.where ? current.where : `${current.where}; ${draft.where}`,
+      evidence,
+      completeness: mergeCompleteness(current.completeness, draft.completeness),
+      conflicts: [...new Set([...current.conflicts, ...draft.conflicts])],
+      occurrences: current.occurrences + draft.occurrences,
+    });
+  }
+  return [...grouped.values()]
+    .map((row): SnapCompositeFinding => {
+      const { correlation: _correlation, ...finding } = row;
+      return {
+        ...finding,
+        confidence: new Set(row.evidence.map((item) => item.source)).size > 1 ? "correlated" : "direct",
+        next: followup(indexPath, row),
+      };
+    })
+    .toSorted((left, right) => SEVERITY_RANK[left.severity] - SEVERITY_RANK[right.severity] || right.occurrences - left.occurrences);
+}
+
+function fallbackFinding(input: SnapFindingInput): FindingDraft {
+  const detail = input.verdict.arms.find((arm) => arm.state === "failed" || arm.state === "refused" || arm.state === "withheld")?.detail;
+  return {
+    severity: "error",
+    arms: [],
+    channels: ["run"],
+    what: detail ?? `run ${input.verdict.state} with no structured problem row`,
+    where: "run",
+    evidence: [findingRef("run-index", input.indexPath)],
+    completeness: "incomplete",
+    conflicts: ["producer-specific actionable evidence was absent"],
+    occurrences: 1,
+    correlation: "run:unstructured",
+  };
+}
+
+export async function collectSnapFindings(input: SnapFindingInput): Promise<readonly SnapCompositeFinding[]> {
+  const diagnostics = diagnosticFindingDrafts(input.diagnosticsState, input.diagnostics, input.artifacts, input.indexPath);
+  const drafts = [
+    ...diagnostics,
+    ...(await analyzerFindingDrafts(input.artifacts)),
+    ...(await lighthouseFindingDrafts(input.artifacts)),
+    ...(await reactFindingDrafts(input.artifacts)),
+    ...(await coreFindingDrafts(input.artifacts, diagnostics)),
+    ...(await harFindingDrafts(input.artifacts)),
+  ];
+  if (drafts.some((row) => row.severity === "error") === false && input.verdict.state !== "passed") {
+    drafts.push(fallbackFinding(input));
+  }
+  return mergeDrafts(attachAttributions(drafts), input.indexPath);
+}

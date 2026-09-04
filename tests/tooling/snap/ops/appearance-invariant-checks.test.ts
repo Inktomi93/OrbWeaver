@@ -29,7 +29,7 @@ const DESKTOP_ENVIRONMENT: BrowserEnvironmentEvidence = {
     reducedTransparency: false,
   },
   actual: {
-    device: "desktop",
+    device: { kind: "desktop" },
     viewport: { width: 1280, height: 800 },
     innerViewport: { width: 1280, height: 800 },
     screen: { width: 1280, height: 800 },
@@ -71,7 +71,7 @@ const MOBILE_ENVIRONMENT: BrowserEnvironmentEvidence = {
     reducedTransparency: false,
   },
   actual: {
-    device: "iPhone 14 Pro Max",
+    device: { kind: "named", name: "iPhone 14 Pro Max" },
     viewport: { width: 430, height: 932 },
     innerViewport: { width: 430, height: 932 },
     screen: { width: 430, height: 932 },

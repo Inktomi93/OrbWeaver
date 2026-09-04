@@ -5,7 +5,7 @@
 // the push bar (`tests:node` running the WHOLE `pnpm test:ct --retries=2`) is. Split out of lib/selection.ts
 // at the @orb/tooling P6 move (size cap §4.3); the triggers and the mirror map are unchanged.
 import type { CtView } from "../contract/selection.ts";
-import { existsRel } from "./repo-paths.ts";
+import { existsRel, ROOT } from "./repo-paths.ts";
 
 // A changed ui/client src file → its test-layout mirror (packages/<pkg>/src/<path>.<ext> ↔ tests/<pkg>/
 // <path>). Group 1 = pkg (ui|client), group 2 = the sub-path (sans extension). The suffix-swap is the
@@ -61,22 +61,22 @@ const CT_SWEEP_TRIGGERS: readonly SweepTrigger[] = [
  *  `tests/<pkg>/…​.ct.tsx` selects ITSELF (never a `.suite.ct.tsx` — it mirrors no single module); a
  *  ui/client src file selects its test-layout mirror IFF that mirror exists on disk (no mirror, no
  *  contribution). */
-function ctMirrorFor(rel: string): string | undefined {
+function ctMirrorFor(rel: string, root: string): string | undefined {
   if (CT_TEST_RE.test(rel)) {
-    return CT_SUITE_RE.test(rel) ? undefined : rel;
+    return CT_SUITE_RE.test(rel) || !existsRel(rel, root) ? undefined : rel;
   }
   const m = CT_MIRROR_SRC_RE.exec(rel);
   if (m === null) {
     return;
   }
   const mirror = `tests/${m[1]}/${m[2]}.ct.tsx`;
-  return existsRel(mirror) ? mirror : undefined;
+  return existsRel(mirror, root) ? mirror : undefined;
 }
 
 /** The CT view for a changed set: the mirror files (base case) UNION the declared blast-radius sweeps. A
  *  sweep, if ANY trigger fires, SUPERSEDES the file list (a dir arg runs its whole subtree — a superset of
  *  the individual mirrors, and it also picks up the `.suite.ct.tsx` cross-cutting suites). */
-export function ctView(paths: readonly string[]): CtView {
+export function ctView(paths: readonly string[], root: string = ROOT): CtView {
   const sweepDirs = new Set<string>();
   const files = new Set<string>();
   for (const rel of paths) {
@@ -87,7 +87,7 @@ export function ctView(paths: readonly string[]): CtView {
         }
       }
     }
-    const mirror = ctMirrorFor(rel);
+    const mirror = ctMirrorFor(rel, root);
     if (mirror !== undefined) {
       files.add(mirror);
     }

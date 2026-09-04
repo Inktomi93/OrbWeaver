@@ -26,16 +26,38 @@ function validateNumericFlag(flag: string, raw: string, errors: string[]): void 
     validateInteger(raw, flag, 1, errors);
     return;
   }
-  if (flag === "--watch" || flag === "--sse") {
+  if (flag === "--watch" || flag === "--stream-settle") {
     const value = Number(raw);
     if (!Number.isFinite(value) || value < 0) {
       errors.push(`${flag} expects a non-negative number, got ${JSON.stringify(raw)}`);
+    }
+  }
+  if (flag === "--pause") {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) {
+      errors.push(`--pause expects a non-negative duration in milliseconds, got ${JSON.stringify(raw)}`);
     }
   }
   // A fractional TTL is legal (a 0.05-minute calibration drive); zero or less is a session that never
   // idles out — the strand class the TTL exists to end — so it is refused, never defaulted.
   if (flag === "--session-ttl" && !(Number.isFinite(Number(raw)) && Number(raw) > 0)) {
     errors.push(`--session-ttl expects a positive number of minutes, got ${JSON.stringify(raw)}`);
+  }
+}
+
+function validatePerfTapeFlagValue(flag: string, raw: string, errors: string[]): void {
+  if (flag !== "--wheel" && flag !== "--wheel-burst") {
+    return;
+  }
+  const { head, tail } = splitLastEq(raw);
+  if (flag === "--wheel" && (head === "" || !Number.isFinite(Number(tail)))) {
+    errors.push(`--wheel expects selector=finiteDeltaY, got ${JSON.stringify(raw)}`);
+  }
+  if (flag === "--wheel-burst") {
+    const [dy = "", count = ""] = tail.split(":");
+    if (head === "" || !Number.isFinite(Number(dy)) || !Number.isInteger(Number(count)) || Number(count) < 1) {
+      errors.push(`--wheel-burst expects selector=finiteDeltaY:positiveIntegerCount, got ${JSON.stringify(raw)}`);
+    }
   }
 }
 
@@ -69,8 +91,8 @@ function validateEvidenceFlagValue(flag: string, raw: string, errors: string[]):
   if (flag === "--crop" && !CROP_RE.test(raw)) {
     errors.push(`--crop expects WxH or WxH+X+Y, got ${JSON.stringify(raw)}`);
   }
-  if (flag === "--ls" && splitFirstEq(raw) === null) {
-    errors.push(`--ls expects key=value with a non-empty key, got ${JSON.stringify(raw)}`);
+  if (flag === "--local-storage" && splitFirstEq(raw) === null) {
+    errors.push(`--local-storage expects key=value with a non-empty key, got ${JSON.stringify(raw)}`);
   }
   // A rejected --scale must REFUSE, never fall back to the css default: a run that asked for device
   // pixels and silently produced CSS pixels is the same false-receipt class as the load-arm flags above.
@@ -97,8 +119,8 @@ function validatePairFlagValue(flag: string, raw: string, errors: string[]): voi
   if (flag === "--expect-count" && (!raw.includes("=") || split.head === "" || !Number.isInteger(Number(split.tail)) || Number(split.tail) < 0)) {
     errors.push(`--expect-count expects selector=nonNegativeInteger, got ${JSON.stringify(raw)}`);
   }
-  if (flag === "--upload" && (!raw.includes("=") || split.head === "" || split.tail.trim() === "")) {
-    errors.push(`--upload expects selector=path[,path...] with a non-empty selector and at least one path, got ${JSON.stringify(raw)}`);
+  if ((flag === "--upload" || flag === "--drop-files") && (!raw.includes("=") || split.head === "" || split.tail.trim() === "")) {
+    errors.push(`${flag} expects selector=path[,path...] with a non-empty selector and at least one path, got ${JSON.stringify(raw)}`);
   }
   validateCascadePair(flag, raw, split, errors);
 }
@@ -146,6 +168,7 @@ export function validateFlagValue(flag: string, raw: string, errors: string[]): 
   validateLoadFlagValue(flag, raw, errors);
   validateLighthouseFlagValue(flag, raw, errors);
   validateEvidenceFlagValue(flag, raw, errors);
+  validatePerfTapeFlagValue(flag, raw, errors);
   validatePairFlagValue(flag, raw, errors);
   validateShellNavFlagValue(flag, raw, errors);
   validateSelectorFlagValue(flag, raw, errors);

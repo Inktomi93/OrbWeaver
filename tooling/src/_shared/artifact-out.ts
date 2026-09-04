@@ -2,9 +2,13 @@
 // One layer above ./artifacts.ts (run slots + the reports/ path home + the RESULT line), which it imports
 // and never imports back. Split out when the two layers together passed the tooling-size cap — the seam is
 // real, not cosmetic: `artifacts.ts` answers "where do runs live", this answers "where does THIS artifact go".
+import { createHash } from "node:crypto";
 import { readdirSync } from "node:fs";
-import { mkdir } from "node:fs/promises";
-import { basename, dirname, join, relative } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { basename, dirname, isAbsolute, join, relative } from "node:path";
+import { z } from "zod";
+import type { InstrumentCurrentScope } from "./artifact-scope.ts";
+import { instrumentCurrentScopeSchema } from "./artifact-scope.ts";
 import type { RunAlias, RunSlot } from "./artifacts.ts";
 import { artifactFilePath, openRunSlot, print, publishRunSlot, REPO_ROOT, reportsPath } from "./artifacts.ts";
 
@@ -47,10 +51,132 @@ interface ActiveRun {
 
 let activeRun: ActiveRun | null = null;
 
+export interface InstrumentArtifactLimitEvent {
+  readonly kind: string;
+  readonly path: string;
+  readonly original: number | null;
+  readonly retained: number | null;
+  readonly omitted: number | null;
+}
+
+export interface InstrumentArtifactLimitReceipt {
+  readonly source: string;
+  readonly complete: boolean;
+  readonly policy: Readonly<Record<string, number>> | null;
+  readonly events: readonly InstrumentArtifactLimitEvent[];
+}
+
+export const INSTRUMENT_ARTIFACT_ROLES = ["primary", "raw-fallback"] as const;
+export const instrumentArtifactRoleSchema = z.enum(INSTRUMENT_ARTIFACT_ROLES);
+export type InstrumentArtifactRole = z.infer<typeof instrumentArtifactRoleSchema>;
+
+export const INSTRUMENT_ARTIFACT_COMPLETENESS = ["complete", "bounded", "unknown"] as const;
+export const instrumentArtifactCompletenessSchema = z.enum(INSTRUMENT_ARTIFACT_COMPLETENESS);
+export type InstrumentArtifactCompleteness = z.infer<typeof instrumentArtifactCompletenessSchema>;
+
+const nonnegativeCountSchema = z.number().int().nonnegative();
+const nullableCountSchema = nonnegativeCountSchema.nullable();
+const artifactLimitEventSchema = z.object({
+  kind: z.string().min(1),
+  path: z.string().min(1),
+  original: nullableCountSchema,
+  retained: nullableCountSchema,
+  omitted: nullableCountSchema,
+});
+const artifactLimitReceiptSchema = z.object({
+  source: z.string().min(1),
+  complete: z.boolean(),
+  policy: z.record(z.string().min(1), nonnegativeCountSchema).nullable(),
+  events: z.array(artifactLimitEventSchema),
+});
+
+export interface InstrumentArtifactMetadata {
+  readonly producer: string;
+  readonly producerArm: string | null;
+  readonly channel: string;
+  readonly mediaType: string;
+  readonly schema: string | null;
+  readonly role: InstrumentArtifactRole;
+  readonly completeness: InstrumentArtifactCompleteness;
+  readonly completenessDetail: string;
+  /** Current writers must decide each axis; ambiguous null triples are reader-only legacy bytes. */
+  readonly scope: InstrumentCurrentScope;
+  readonly records: number | null;
+  readonly limits: readonly InstrumentArtifactLimitReceipt[];
+}
+
+export interface InstrumentArtifactDeclaration extends InstrumentArtifactMetadata {
+  readonly v: 1;
+  readonly kind: string;
+  readonly path: string;
+  readonly relativePath: string | null;
+  readonly publishedPath: string | null;
+}
+
+export const instrumentArtifactDeclarationSchema = z.object({
+  v: z.literal(1),
+  kind: z.string().min(1),
+  path: z.string().min(1).refine(isAbsolute, "artifact path must be absolute"),
+  relativePath: z.string().min(1).nullable(),
+  publishedPath: z.string().min(1).refine(isAbsolute, "published artifact path must be absolute").nullable(),
+  producer: z.string().min(1),
+  producerArm: z.string().min(1).nullable(),
+  channel: z.string().min(1),
+  mediaType: z.string().min(1),
+  schema: z.string().min(1).nullable(),
+  role: instrumentArtifactRoleSchema,
+  completeness: instrumentArtifactCompletenessSchema,
+  completenessDetail: z.string().min(1),
+  scope: instrumentCurrentScopeSchema,
+  records: nullableCountSchema,
+  limits: z.array(artifactLimitReceiptSchema),
+}) satisfies z.ZodType<InstrumentArtifactDeclaration>;
+
+const ARTIFACT_DECLARATIONS_DIR = ".artifacts";
+
+/** Persist allocation-time identity in the slot so adopted session writers cross the process boundary.
+ * Completion reconciles this declaration against actual bytes; a failed write never becomes an artifact. */
+async function declareArtifact(run: ActiveRun, kind: string, path: string, metadata: InstrumentArtifactMetadata): Promise<void> {
+  const relativePath = relative(run.slot.dir, path);
+  const insideSlot = relativePath !== "" && !relativePath.startsWith("..") && !isAbsolute(relativePath);
+  const declaration: InstrumentArtifactDeclaration = {
+    v: 1,
+    kind,
+    path,
+    relativePath: insideSlot ? relativePath : null,
+    publishedPath: insideSlot ? reportsPath(run.root, relativePath) : null,
+    ...metadata,
+  };
+  const declarationsDir = join(run.slot.dir, ARTIFACT_DECLARATIONS_DIR);
+  await mkdir(declarationsDir, { recursive: true });
+  const key = createHash("sha256").update(path).digest("hex");
+  await writeFile(join(declarationsDir, `${key}.json`), `${JSON.stringify(declaration, null, 2)}\n`, "utf8");
+}
+
+/** Register a file path a producer already owns (for example Playwright's screenshot/trace writer). */
+export async function registerInstrumentArtifact(kind: string, path: string, metadata: InstrumentArtifactMetadata): Promise<void> {
+  if (activeRun !== null) {
+    await declareArtifact(activeRun, kind, path, metadata);
+  }
+}
+
 export interface InstrumentRunOptions {
   /** The explicit-slot form (docs/design/1208-instrument-substrate.md §3.7): adopt a slot dir another
    *  process opened instead of opening one. The session daemon's per-call shape. */
   readonly slotDir?: string;
+  /** A tool-owned terminal writer that runs after `main` settles but before the slot is published. This
+   *  is where Snap writes its immutable run index: it can inventory the complete slot and the index is
+   *  itself present before `.inflight` is removed. The shared layer deliberately does not know the
+   *  index schema. */
+  readonly complete?: (receipt: InstrumentRunCompletion) => Promise<void>;
+}
+
+export interface InstrumentRunCompletion {
+  readonly slot: RunSlot;
+  readonly root: string;
+  /** `null` only when `main` threw before returning an exit code. */
+  readonly exit: number | null;
+  readonly error: unknown | null;
 }
 
 /** A slot descriptor for a dir ANOTHER process opened — no marker written, nothing censused: the OPENER
@@ -130,15 +256,27 @@ export function finishInstrumentRun(): readonly string[] {
 /** The one door a rendered instrument's cli.ts uses (gate: tooling-shared-plumbing arm G): open the run,
  *  NAME it on stdout with the racing census, run, and publish whatever it wrote. The slot is announced at
  *  the START — a run's artifacts are findable while it is still going, and the RESULT line stays last. */
-export async function withInstrumentRun(instrument: string, main: () => Promise<number>, root: string = REPO_ROOT): Promise<number> {
-  const slot = beginInstrumentRun(instrument, root);
+export async function withInstrumentRun(
+  instrument: string,
+  main: () => Promise<number>,
+  root: string = REPO_ROOT,
+  options: InstrumentRunOptions = {},
+): Promise<number> {
+  const slot = beginInstrumentRun(instrument, root, options);
   print(`run slot     ${slot.relDir}`);
   if (slot.racing.length > 0) {
     print(`CONCURRENT   other live ${instrument} run(s) on this checkout: ${slot.racing.join(", ")} — each keeps its own slot`);
   }
+  let exit: number | null = null;
+  let failure: unknown | null = null;
   try {
-    return await main();
+    exit = await main();
+    return exit;
+  } catch (error) {
+    failure = error;
+    throw error;
   } finally {
+    await options.complete?.({ slot, root, exit, error: failure });
     finishInstrumentRun();
   }
 }
@@ -156,8 +294,11 @@ export async function artifactDir(kind: string): Promise<string> {
 
 /** `artifactFilePath` + the directory it needs. `kind` is the `reports/<kind>/` family the artifact
  *  belongs to; a path-shaped `out` escapes it by design, and gets its own parent dir created. */
-export async function artifactFile(kind: string, out: string, ext: string): Promise<string> {
+export async function artifactFile(kind: string, out: string, ext: string, metadata?: InstrumentArtifactMetadata): Promise<string> {
   const path = artifactFilePath(await artifactDir(kind), out, ext);
   await mkdir(dirname(path), { recursive: true });
+  if (metadata !== undefined) {
+    await registerInstrumentArtifact(kind, path, metadata);
+  }
   return path;
 }

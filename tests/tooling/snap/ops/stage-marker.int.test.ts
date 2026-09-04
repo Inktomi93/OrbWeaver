@@ -373,7 +373,15 @@ const daemonPid = ${alive ? "process.pid" : "2147483646"};
 writeFileSync(join(${JSON.stringify(sessionHome)}, NAME + ".json"), JSON.stringify({
   v: 1, name: NAME, ownerCheckout: "/repo", daemonPid, pgid: daemonPid, socket: "/tmp/x.sock",
   cdpEndpoint: null, slotDir: "/tmp/slot", binding: { kind: "stage", url: "http://localhost:5273" },
-  environment: { viewport: { width: 1280, height: 720 }, device: null, colorScheme: null, reducedMotion: false, deviceScaleFactor: null },
+  environment: {
+    viewport: { width: 1280, height: 720 },
+    device: null,
+    colorScheme: null,
+    reducedMotion: false,
+    contrast: null,
+    reducedTransparency: false,
+    deviceScaleFactor: null,
+  },
   bootArgv: [], createdAt: new Date(FROZEN).toISOString(), lastUsedAt: new Date(FROZEN).toISOString(),
   inflightOp: null, lastOp: null, ttlMs: 1800000, headless: true, calls: 0,
 }));

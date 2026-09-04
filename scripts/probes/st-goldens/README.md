@@ -210,7 +210,7 @@ scripts/probes/st-goldens/run-demo-complex.sh
 - `Generate entered` + `Undefined character cannot be unshallowed` = no active character.
 - Character cards: `.character_select` divs with `data-chid` (numeric index).
 - Find by: `card.querySelector('.ch_name')?.textContent?.trim() === name`
-- Click via raw `el.click()` — NEVER `locator.click()` (snap.ts --jsclick rule):
+- Click via raw `el.click()` — NEVER `locator.click()` (snap --dom-click rule):
   these are absolutely-positioned virtualized rows; Playwright actionability checks fail.
 
 **Generation trigger:**
@@ -232,7 +232,7 @@ scripts/probes/st-goldens/run-demo-complex.sh
   The confirm key: `Proxy_SkipConfirm_<hash>` stored in localStorage — can pre-seed it.
 
 **snap.ts patterns we use:**
-- `--jsclick` = wait for 'attached' (not 'visible'), then raw `el.click()`.
+- `--dom-click` = wait for 'attached' (not 'visible'), then raw `el.click()`.
 - `waitFor: 'attached'` prevents false-negative on full-bleed panels.
 - `addInitScript()` could pre-seed localStorage to skip the proxy confirmation dialog.
 - `context.route()` preferred over `page.route()` for coverage across the whole context.

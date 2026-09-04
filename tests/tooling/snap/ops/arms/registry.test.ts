@@ -12,8 +12,9 @@
 // `--help`, and an arm whose pairs the RESULT spine never claims still reaches the RESULT line. A
 // derivation that silently omitted an arm would read as a clean, complete instrument.
 import type { ResultPair } from "../../../../../tooling/src/_shared/artifacts.ts";
-import type { Arm, ArmArgs, ArmPairInput } from "../../../../../tooling/src/snap/contract/arms.ts";
-import { ARMS } from "../../../../../tooling/src/snap/contract/arms.ts";
+import type { Arm } from "../../../../../tooling/src/snap/contract/arm-vocabulary.ts";
+import { ARMS } from "../../../../../tooling/src/snap/contract/arm-vocabulary.ts";
+import type { ArmArgs, ArmPairInput } from "../../../../../tooling/src/snap/contract/arms.ts";
 import { SNAP_HELP } from "../../../../../tooling/src/snap/contract/help.ts";
 import { SESSION_ONLY_FLAGS } from "../../../../../tooling/src/snap/lib/session-plan.ts";
 import {
@@ -24,6 +25,9 @@ import {
   armFlagsOfKind,
   armLaunchNeeds,
   armPairLedger,
+  armSessionCallBaseMs,
+  assertPageArmLifecycle,
+  assertRunArmInstance,
   pageArmFailures,
   pageArms,
   pageTargetableArmFlags,
@@ -76,7 +80,7 @@ test("an arm's derived value class is what refuses a bad value", () => {
 
 test("the session-level flag set derives from each arm's declared level, not from a second list", () => {
   const declared = ARMS.filter((arm) => ARM_DEFS[arm].level === "session");
-  expect(declared).toEqual(["cascade"]);
+  expect(declared).toEqual(["cascade", "react-profile"]);
   for (const flag of sessionLevelArmFlags()) {
     expect(SESSION_ONLY_FLAGS.has(flag), flag).toBe(true);
   }
@@ -86,6 +90,31 @@ test("the session-level flag set derives from each arm's declared level, not fro
       expect(SESSION_ONLY_FLAGS.has(spec.flag), spec.flag).toBe(false);
     }
   }
+});
+
+// @instrument-proof: TypeScript already makes prepare required, but a JS row or cast can still enter the
+// registry at runtime. The planted mutant proves beginRunArms' runtime fence refuses that arm before a
+// navigation can turn its missing pre-mount work into a comfortable empty measurement.
+test("a run arm without the required pre-navigation prepare phase is refused", () => {
+  expect(() => assertRunArmInstance("react-profile", {})).toThrow(/react-profile.*prepare/u);
+});
+
+test("a run arm without the required post-settle phase is refused", () => {
+  const incomplete = {
+    prepare: async (): Promise<void> => undefined,
+    afterNavigation: async (): Promise<void> => undefined,
+    beforeAction: async (): Promise<null> => null,
+    afterAction: async (): Promise<void> => undefined,
+    afterActions: async (): Promise<void> => undefined,
+  };
+  expect(() => assertRunArmInstance("filmstrip", incomplete)).toThrow(/filmstrip.*afterSettle/u);
+});
+
+test("a page arm without the required terminal exit phase is refused", () => {
+  const identity = (): undefined => undefined;
+  expect(() => assertPageArmLifecycle("map", { at: "page", enabled: identity, run: identity, pairs: identity, facts: identity, failures: identity })).toThrow(
+    /map.*exit/u,
+  );
 });
 
 test("every arm defaults its own slice of Args, and parseSnapArgs takes those defaults verbatim", () => {
@@ -202,7 +231,43 @@ test("--session with --lighthouse is no longer refused — one debugging endpoin
   expect(parseSnapArgs(["--session", "p-x", "--matrix", "--isolated"]).errors).toEqual([]);
 });
 
+test("the heap row owns one page lifecycle plus its exact flags, defaults, and help", () => {
+  const row = ARM_DEFS.heap;
+  expect(row.lifecycle.at).toBe("page");
+  expect(row.flags.map((flag) => [flag.flag, flag.kind, flag.pageTargetable])).toEqual([
+    ["--heap", "required-value", true],
+    ["--heap-compare", "required-value", true],
+    ["--heap-retainers", "required-value", true],
+  ]);
+  expect(row.defaults()).toEqual({ heapCaptures: [], heapComparisons: [], heapRetainers: [] });
+  expect(row.sessionCallBaseMs(parseSnapArgs(["/", "--heap", "before"]))).toBe(30_000);
+  expect(armSessionCallBaseMs(parseSnapArgs(["/"]))).toBeNull();
+  expect(armSessionCallBaseMs(parseSnapArgs(["/", "--heap", "before"]))).toBe(30_000);
+  expect(row.help).toContain("--heap <label>");
+  expect(row.help).toContain("--heap-compare <left=right>");
+  expect(row.help).toContain("--heap-retainers <snapshot=selector>");
+});
+
 test("the arm roster names every capability snap advertises as an arm", () => {
-  const roster: readonly Arm[] = ["dead-css", "aria", "eval", "contrast", "map", "assert", "perf", "shot", "cascade", "requests", "lighthouse"];
+  const roster: readonly Arm[] = [
+    "dead-css",
+    "aria",
+    "eval",
+    "contrast",
+    "map",
+    "assert",
+    "app-snapshot",
+    "filmstrip",
+    "heap",
+    "shot",
+    "cascade",
+    "requests",
+    "lighthouse",
+    "motion",
+    "interaction-perf",
+    "cpu-profile",
+    "boot-trace",
+    "react-profile",
+  ];
   expect([...ARMS].sort()).toEqual([...roster].sort());
 });

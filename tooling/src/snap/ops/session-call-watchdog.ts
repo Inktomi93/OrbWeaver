@@ -6,7 +6,23 @@ import { budget, loadKillError } from "../../_shared/load-budget.ts";
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
 const SESSION_CALL_BASE_MS = 5000;
+const SESSION_NAVIGATION_CALL_BASE_MS = 180_000;
 const TERMINATION_ACK_WAIT_MS = 100;
+
+class TerminalSessionCallError extends Error {}
+
+type SessionCallOwner = { readonly name: string; readonly session: ProbeSession } | { readonly name: string; readonly recover: () => Promise<void> };
+
+export function isTerminalSessionCallError(error: unknown): boolean {
+  return error instanceof TerminalSessionCallError;
+}
+
+/** Navigation and matrix/scenario orchestration already own stage-aware load budgets up to 90s + 60s.
+ * The daemon watchdog is the outer leak boundary, so it must sit beyond those verdict-producing inner
+ * clocks instead of racing them. */
+export function sessionCallWatchdogBaseMs(navigates: boolean, armBaseMs: number | null = null): number {
+  return Math.max(navigates ? SESSION_NAVIGATION_CALL_BASE_MS : SESSION_CALL_BASE_MS, armBaseMs ?? 0);
+}
 
 async function terminatePageExecution(session: ProbeSession): Promise<void> {
   const cdp = await session.page.context().newCDPSession(session.page);
@@ -22,24 +38,47 @@ async function terminatePageExecution(session: ProbeSession): Promise<void> {
 
 /** Bound one daemon call without closing the browser or context that the next call owns. */
 export async function runSessionCallWithinBudget(
-  state: { readonly name: string; readonly session: ProbeSession },
+  state: SessionCallOwner,
   op: string,
   run: () => Promise<number>,
+  baseMs: number = SESSION_CALL_BASE_MS,
 ): Promise<number> {
-  const budgetMs = budget(SESSION_CALL_BASE_MS);
+  const budgetMs = budget(baseMs);
   const deadline = Promise.withResolvers<Error>();
-  const timer = setTimeout(
-    () => deadline.resolve(loadKillError({ what: `session ${state.name} call \`${op}\``, budgetMs, baseMs: SESSION_CALL_BASE_MS })),
-    budgetMs,
-  );
-  const work = run().then((code) => ({ code, timeout: null as Error | null }));
-  const result = await Promise.race([work, deadline.promise.then((timeout) => ({ code: null, timeout }))]);
+  const timer = setTimeout(() => deadline.resolve(loadKillError({ what: `session ${state.name} call \`${op}\``, budgetMs, baseMs })), budgetMs);
+  // @orb-gate-ignore caught-failure-ownership(promise:resolve): the rejection is retained in the discriminated work outcome and the rejected arm below rethrows the original binding; timeout recovery also awaits this owned outcome. Ends if the rejected arm stops propagating the original failure.
+  const work = Promise.resolve()
+    .then(run)
+    .then(
+      (code) => ({ status: "done" as const, code }),
+      (error: unknown) => ({ status: "rejected" as const, error }),
+    );
+  const result = await Promise.race([work, deadline.promise.then((error) => ({ status: "timeout" as const, error }))]);
   clearTimeout(timer);
-  if (result.timeout !== null) {
-    await terminatePageExecution(state.session);
-    // @orb-gate-ignore caught-failure-ownership(promise:work): the deadline error is the caller-visible report; draining prevents a late rejected call from becoming unhandled after that report. Ends if the deadline stops being thrown below.
-    await work.catch(() => undefined);
-    throw result.timeout;
+  if (result.status === "done") {
+    return result.code;
   }
-  return result.code as number;
+  if (result.status === "rejected") {
+    throw result.error;
+  }
+
+  // Recovery owns BOTH the cancellation protocol and the original work. Reusing the session while either
+  // is still live would allow the timed-out call to mutate the same page concurrently with its successor.
+  // Both promises are rejection-owned here; the deadline remains the caller-visible error.
+  const recovery = Promise.all([
+    // @orb-gate-ignore caught-failure-ownership(promise:promise): failed injected or browser cancellation becomes `false`, which makes `recovered` false and throws TerminalSessionCallError; the daemon then emits DEAD/toolError, records terminalReason, tears down, and kills its owned process group. Ends if false stops forcing terminal teardown.
+    ("recover" in state ? state.recover() : terminatePageExecution(state.session)).then(
+      () => true,
+      () => false,
+    ),
+    work,
+  ]).then(([cancelled]) => cancelled);
+  const recovered = await Promise.race([recovery, sleep(TERMINATION_ACK_WAIT_MS).then(() => false)]);
+  if (!recovered) {
+    throw new TerminalSessionCallError(
+      `${result.error.message}; cancellation did not settle the call within ${TERMINATION_ACK_WAIT_MS}ms, so session ${state.name} is terminal and will close`,
+      { cause: result.error },
+    );
+  }
+  throw result.error;
 }

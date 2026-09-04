@@ -4,10 +4,11 @@
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import type { Viewport } from "../../../_shared/argv.ts";
+import { aggregateScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import { compositeForeground, contrastRatio, FOREGROUND_OPACITY_EPS, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../../_shared/wcag.ts";
-import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
+import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
 import type { ContrastCapture, ContrastFacts, ContrastMeasured } from "../../contract/contrast.ts";
 import type { ContrastOutcome } from "../../contract/types.ts";
 import { buildContrastScript } from "../../lib/contrast-script.ts";
@@ -50,12 +51,16 @@ async function markContrastCandidates(page: Page, selector: string): Promise<num
     // browser — it carries NO closure over module scope (measured live: a first draft that referenced
     // CONTRAST_MARK by closure threw "CONTRAST_MARK is not defined" in-page). Both the mark and the
     // index travel through the explicit `arg`, never the closure.
-    await loc
-      .nth(i)
-      .evaluate((el, args) => (el as unknown as { setAttribute: (name: string, value: string) => void }).setAttribute(args.mark, String(args.idx)), {
-        idx: i,
-        mark: CONTRAST_MARK,
-      });
+    await loc.nth(i).evaluate(
+      (element, args) => {
+        const setAttribute = Reflect.get(element, "setAttribute");
+        if (typeof setAttribute !== "function") {
+          throw new Error("contrast target has no setAttribute method");
+        }
+        Reflect.apply(setAttribute, element, [args.mark, String(args.idx)]);
+      },
+      { idx: i, mark: CONTRAST_MARK },
+    );
   }
   return count;
 }
@@ -250,9 +255,16 @@ export const CONTRAST_ARM = {
   ],
   level: "call",
   needs: (): ArmNeeds => ({}),
+  sessionCallBaseMs: (): null => null,
   defaults: (): Pick<ArmArgs, "contrast" | "contrastPixel"> => ({ contrast: [], contrastPixel: false }),
   help: `  --contrast <selector>   rendered WCAG contrast check (repeatable)
   --contrast-pixel        force the framebuffer sample instead of the CSS resolve (requires --contrast)`,
+  result: {
+    schema: "snap-arm-contrast-v1",
+    source: "computed style + framebuffer contrast",
+    lifetime: "settled page capture",
+    enabled: (opts): boolean => opts.contrast.length > 0,
+  },
   lifecycle: {
     at: "page",
     enabled: ({ opts, pageIndex }): boolean => opts.contrast.some((entry) => entry.page === pageIndex),
@@ -265,6 +277,21 @@ export const CONTRAST_ARM = {
       );
     },
     pairs: (input): readonly ResultPair[] => [["contrast-fails", contrastFailures(input)]],
+    facts: (input): readonly ArmFactEmission<"contrast">[] => {
+      const checks = input.outcomes.reduce((count, outcome) => count + outcome.contrastResults.length, 0);
+      const failures = contrastFailures(input);
+      let state: "off" | "failed" | "passed" = "off";
+      if (input.opts.contrast.length > 0) {
+        state = failures > 0 ? "failed" : "passed";
+      }
+      return [
+        {
+          scope: aggregateScope(),
+          data: { state, detail: null, checks, failures },
+        },
+      ];
+    },
     failures: (input): ArmFailureCounts => ({ contrast: contrastFailures(input) }),
+    exit: (_input, code): number => code,
   },
-} satisfies ArmDef;
+} satisfies ArmDef<"contrast">;

@@ -148,6 +148,12 @@ the band, and a "mid" surface with unfixed identified issues is not done.** The 
 do not score-chase — no re-review loops hunting points, no inventing findings to justify a number.
 The FINDING LIST is the deliverable; the score is a one-line summary of it.
 
+The score covers only active rendered surfaces. React Activity retains inactive sections in hidden DOM;
+those identities do not enter visual, geometry, operability, accessibility, theme, or Nielsen denominators.
+Inventory retained sections separately with `pnpm snap <route> --map --include-hidden`, use that output only
+to discover coverage arms, then activate each section through its real control and score the settled,
+rendered result. A full review reports every retained section as ACTIVATED+RAN or SKIPPED-with-reason.
+
 ## §8 Cognitive-load checklist (Miller/Cowan: working memory ≤ 4)
 
 At every decision point count competing visible options: ≤4 ok · 5–7 push it · 8+ overloaded. Run the
@@ -210,8 +216,11 @@ dump). **There is no browser MCP — these ARE the browser** (the chrome-devtool
 - `pnpm snap <route>` — capture + introspection flags: **`--map [sel]`** (selector map — every element
   → its stable selector; discover targets, never grep source) · **`--contrast <sel>`** (WCAG ratio,
   oklch-safe, `PASS/FAIL`) · **`--eval '<js>'`** (any in-page value, incl. `__orb.renders()`/
-  `__orb.snap()` and `getComputedStyle`) · `--aria`/`--text` (a11y tree) · `--click/--press/--fill/ --wait-for` (interaction chain) · `--shot-of` · `--diff`/`--baseline` · `--dark`/`--reduced-motion` ·
+  `__orb.snap()` and `getComputedStyle`) · `--aria`/`--text` (a11y tree) · `--click/--force-click/--fill/ --wait-for` (interaction chain) · `--shot-of` · `--diff`/`--baseline` · `--dark`/`--reduced-motion` ·
   `--deadcss`.
+  `--map --include-hidden` is a retained-section inventory, not a wider scoring mode. It may discover
+  Activity/inert DOM, but no hidden row is a contrast, geometry, a11y, or Nielsen receipt. Activate the
+  section, wait for its rendered settled state, then rerun the ordinary rendered-only instruments.
   **LIGHTHOUSE (#1198):** `--lighthouse <desktop|mobile>` runs accessibility + best-practices + seo
   against the SETTLED page of that very run — same browser, same tab, same device — prints the category
   scores and EVERY failed audit with node count + first three selectors, and writes `report.json` +
@@ -261,7 +270,7 @@ dump). **There is no browser MCP — these ARE the browser** (the chrome-devtool
   **VIEWPORT TOGGLES:** `--mobile` (real iPhone 14 Pro Max emulation — 430×932, DPR 3, touch +
   `pointer: coarse`, so hover-reveals go always-visible and the rail becomes the bottom tab bar) ·
   `--desktop` (the 1280×800 default, explicit) · last of `--mobile`/`--desktop`/`--wide`/`--viewport` wins.
-- `pnpm perf-meter` (responsiveness + CPU profile) · `pnpm design-audit` (the deterministic defect
+- `pnpm snap --perf` (responsiveness) / `pnpm snap --cpu-profile` (CPU profile) · `pnpm design-audit` (the deterministic defect
   scanner — every registered rule in `DESIGN_AUDIT_RULES` (`tooling/src/ui-audit/contract/rules.ts`),
   grouped by the tuple's `family` axis (a11y · color · decor · media · ornament · quality · structure ·
   typography), each carrying one of two ORIGIN tags: the house rules (`origin: "orbweaver"`) plus the
@@ -471,7 +480,7 @@ drawer/panel slides, scroll, immersive chat modes), read the numbers instead of 
 > — which kills the FLIP animations whose whole job is to make a track change CLS-free
 > (`shell.css @keyframes shell-list-push-in`, stamped by `use-list-track-flip.ts`). Under `--probe` the
 > harness MANUFACTURES layout-shift findings; a 0.2295 theme-scope shift was filed off exactly this on
-> 2026-08-16. snap now prints `PROBE-NEUTERED-MOTION` and stamps `motion=PROBE-NEUTERED-MOTION` on the
+> 2026-08-16. snap now prints `PROBE-NEUTERED-MOTION` and stamps `motion-evidence=PROBE-NEUTERED-MOTION` on the
 > RESULT line for every `--probe` run — if you see it, the motion numbers in that run are void.
 
 - **Read `__orb.motion()` and `__orb.animations()`** (`pnpm snap <route> --eval '__orb.motion()'
@@ -488,7 +497,7 @@ drawer/panel slides, scroll, immersive chat modes), read the numbers instead of 
   - any animation with **`compositorClean: false`** — it animates a non-`transform`/`opacity`/`filter`
     prop (width/height/top/margin/…), i.e. a per-frame layout pass. Cross-refs §4 ("don't animate
     layout properties"): name the `target` + the offending `properties`.
-- **Deep audit — `pnpm motion-audit <route> [--selector <sel>]`** for the ground-truth **Percent
+- **Deep audit — `pnpm snap <route> --motion [sel]`** for the ground-truth **Percent
   Dropped Frames** (CDP trace, 4× CPU throttle so the budget is real). It prints a `PASS/FAIL` against
   the budget below plus the LoAF/CLS/compositor-clean detail in one Bash call. Its CLS line prints all
   three numbers labeled — `raw … · virtualized … · non-virtualized …` — and the RESULT line carries
@@ -685,7 +694,7 @@ landed. Design-system facts these verbs bind to: `reference/design-context.md`.
 | Verb | Means here | Bound by | Receipt that proves it |
 | - | - | - | - |
 | **critique** | the Track A method — Nielsen §7, cognitive load §8, personas §9, taste §13 | this whole skill | the review itself + screenshots |
-| **audit** | the deterministic scan + measured a11y/perf pass | P0–P3 (§10) | `pnpm design-audit` JSON + `snap --contrast/--aria` + `motion-audit` |
+| **audit** | the deterministic scan + measured a11y/perf pass | P0–P3 (§10) | `pnpm design-audit` JSON + `snap --contrast/--aria/--motion` |
 | **polish** | kill micro-defects: alignment, off-step spacing, inconsistent states | density tier map (island pad/radius are TIER-resolved, never picked) | before/after `--shot-of` + computed padding/radius equal to resolved tokens |
 | **quieter** | reduce intensity: strip unsanctioned glow/gradient/motion, demote competing focal elements to ONE (CD3), accent back under ≤10% of viewport | CD1–CD3 + UX rule 4 (chrome quiet/content loud) | design-audit glow/radial/stripe rules clean + before/after shots |
 | **bolder** | spend the ONE focal slot deliberately (CD3 still holds) — a stronger voice step, the sanctioned accent carriers — never new raw values or a louder palette | tokens-only + CD3 + owner theme (D71) | shots + the focal element named; design-audit still clean |
@@ -693,8 +702,8 @@ landed. Design-system facts these verbs bind to: `reference/design-context.md`.
 | **layout** | fix rhythm/grouping/hierarchy within the tier map's steps | density §3.1 table + §14 shell anatomy | computed gaps equal to resolved spacing tokens |
 | **typeset** | voice discipline: right voice per role (kicker/label/datum/gloss), no off-ramp sizes/faces | the 7-step ramp + 5 voices (density §2.3) | design-audit `off-theme-font`/`text-below-ramp`/`flat-type-hierarchy` clean |
 | **colorize** | apply EXISTING intent/accent tokens where meaning is carried by nothing; a NEW hue is an owner theme decision, not a fix-lane move | D71 owner theme pipeline; tokens only | `--contrast` PASS lines + shots |
-| **animate** | purposeful motion on the 3 tokens + 1 easing; exits paired with entrances; reduced-motion = REMOVE | motion guide (§2 taxonomy, §3 principles) | `__orb.motion()`/`__orb.animations()` compositor-clean + `motion-audit` PASS |
-| **optimize** | kill churn/jank: hot renders, long tasks, dropped frames | perf budgets (§11 thresholds) | `__orb.renders()` deltas + `perf-meter`/`motion-audit` numbers |
+| **animate** | purposeful motion on the 3 tokens + 1 easing; exits paired with entrances; reduced-motion = REMOVE | motion guide (§2 taxonomy, §3 principles) | `__orb.motion()`/`__orb.animations()` compositor-clean + `snap --motion` PASS |
+| **optimize** | kill churn/jank: hot renders, long tasks, dropped frames | perf budgets (§11 thresholds) | `__orb.renders()` deltas + `snap --perf`/`snap --motion` numbers |
 | **adapt** | responsive correctness at REAL mounts: container model, coarse-pointer floors, narrowest-real-host | §0 container rule + the narrowest-mount law | `--mobile`/`--matrix` runs + design-audit at both pointers |
 | **harden** | survive Riley: long strings/emoji/RTL, empty/error/loading states, refresh mid-flow | §5 states law + §9 Riley | seeded stress fixtures + shots of every state |
 | **clarify** | UX copy in UI CHROME: controls name their action, errors name problem + recovery | §13.10 N4 naming law; NEVER model/user prose, NEVER the owner's prose default texts | before/after copy table |

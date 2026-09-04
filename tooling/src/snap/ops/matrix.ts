@@ -6,28 +6,32 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { SettingsShimEvidence } from "../../_shared/appearance.ts";
 import { appearanceReachReceipt, readRuntimeAppearanceContract } from "../../_shared/appearance-matrix.ts";
 import { artifactFile } from "../../_shared/artifact-out.ts";
+import { aggregateScope } from "../../_shared/artifact-scope.ts";
 import { print, routeSlug } from "../../_shared/artifacts.ts";
 import { buildUrl, withProbeSession } from "../../_shared/browser.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { printVerdict } from "../../_shared/evidence.ts";
+import { printVerdictReceipt } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { loadResultPairs } from "../../_shared/load-budget.ts";
 import { provisionRatedStageThemes } from "../../_shared/rated-theme-fixture.ts";
 import type { ThemeEntry } from "../../_shared/theme.ts";
 import { NO_THEME } from "../../_shared/theme.ts";
-import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
 import type { SnapAppearanceContract, SnapAppearanceMatrix, SnapMatrixVariant } from "../contract/matrix.ts";
 import type { SnapDetailedResult, SnapRunReceipt } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
+import type { AppearanceAggregate } from "../lib/matrix-appearance.ts";
+import { aggregateAppearance, reconcileAppearanceAggregate } from "../lib/matrix-appearance.ts";
 import { shouldProduceShot, variantOut } from "../lib/out-names.ts";
 import { sameAppearanceReceiptPopulation } from "./appearance-invariants.ts";
 import { navigate, settlePage } from "./drive.ts";
 import { snapDestination } from "./guards.ts";
 import { appearancePolicyIdForRequirement, historicalRowsForCell, planSnapAppearanceMatrix, snapMatrixVariant } from "./matrix-contract.ts";
+import { runMotionMatrix } from "./matrix-motion.ts";
 import type { ScenarioMatrixAggregate } from "./matrix-scenario.ts";
 import { reconcileScenarioMatrixEvidence, scenarioMatrixCellEvidence } from "./matrix-scenario.ts";
 import { runOnSession, runSnapDetailed } from "./run.ts";
+import { registerSnapResultPairs } from "./run-bundle.ts";
 import { runScenarioDetailed } from "./scenario.ts";
 import { finishSnapContext, launchSnapSession, openSnapMatrixContext } from "./session.ts";
 
@@ -68,51 +72,41 @@ function discoveryArgs(opts: Args): Args {
   };
 }
 
+async function readMatrixDiscovery(session: ProbeSession, args: Args): Promise<MatrixDiscovery> {
+  const navError = await navigate(session.page, args, buildUrl(args.base, args.route));
+  await settlePage(session.page, args);
+  if (navError !== null) {
+    return instrumentError(`matrix discovery did not reach a settled app: ${navError}`);
+  }
+  const contract: SnapAppearanceContract = await readRuntimeAppearanceContract(session.page);
+  const reached = appearanceReachReceipt(contract);
+  const settings = session.contexts[0]?.settingsEvidence;
+  if (settings === undefined) {
+    return instrumentError("matrix discovery has no settings-evidence owner");
+  }
+  if (settings.themeApplied !== true || settings.themeResolution?.request !== NO_THEME) {
+    return instrumentError("matrix discovery did not resolve its authenticated theme-catalog request");
+  }
+  const themes = settings.themeCatalog;
+  if (themes === null || themes.length === 0) {
+    return instrumentError("matrix discovery returned an empty authenticated theme catalog");
+  }
+  return { contract, themes, reachedRows: reached.rows, reachedSubjects: reached.subjects, settings };
+}
+
 async function discoverMatrixInputs(opts: Args, baseName: string, host: ProbeSession | null): Promise<MatrixDiscovery> {
   const args = discoveryArgs(opts);
   if (host !== null) {
-    const navError = await navigate(host.page, args, buildUrl(args.base, args.route));
-    await settlePage(host.page, args);
-    if (navError !== null) {
-      return instrumentError(`matrix discovery did not reach a settled app: ${navError}`);
+    const name = `${baseName}-matrix-discovery`;
+    const opened = await openSnapMatrixContext(host, args);
+    try {
+      return await readMatrixDiscovery(opened.session, args);
+    } finally {
+      await finishSnapContext(opened.context, false, name, args.failureEvidence);
     }
-    const contract = (await readRuntimeAppearanceContract(host.page)) as SnapAppearanceContract;
-    const reached = appearanceReachReceipt(contract);
-    const settings = host.contexts[0]?.settingsEvidence;
-    if (settings === undefined) {
-      return instrumentError("matrix discovery has no settings-evidence owner");
-    }
-    if (settings.themeApplied !== true || settings.themeResolution?.request !== NO_THEME) {
-      return instrumentError("matrix discovery did not resolve its authenticated theme-catalog request");
-    }
-    const themes = settings.themeCatalog;
-    if (themes === null || themes.length === 0) {
-      return instrumentError("matrix discovery returned an empty authenticated theme catalog");
-    }
-    return { contract, themes, reachedRows: reached.rows, reachedSubjects: reached.subjects, settings };
   }
-  const session = await launchSnapSession(args, `${baseName}-matrix-discovery`);
-  return await withProbeSession(session, async () => {
-    const navError = await navigate(session.page, args, buildUrl(args.base, args.route));
-    await settlePage(session.page, args);
-    if (navError !== null) {
-      return instrumentError(`matrix discovery did not reach a settled app: ${navError}`);
-    }
-    const contract = (await readRuntimeAppearanceContract(session.page)) as SnapAppearanceContract;
-    const reached = appearanceReachReceipt(contract);
-    const settings = session.contexts[0]?.settingsEvidence;
-    if (settings === undefined) {
-      return instrumentError("matrix discovery has no settings-evidence owner");
-    }
-    if (settings.themeApplied !== true || settings.themeResolution?.request !== NO_THEME) {
-      return instrumentError("matrix discovery did not resolve its authenticated theme-catalog request");
-    }
-    const themes = settings.themeCatalog;
-    if (themes === null || themes.length === 0) {
-      return instrumentError("matrix discovery returned an empty authenticated theme catalog");
-    }
-    return { contract, themes, reachedRows: reached.rows, reachedSubjects: reached.subjects, settings };
-  });
+  const session = await launchSnapSession(args);
+  return await withProbeSession(session, async () => await readMatrixDiscovery(session, args));
 }
 
 function runArgsForVariant(opts: Args, baseName: string, variant: SnapMatrixVariant): Args {
@@ -136,9 +130,15 @@ async function runMatrixSessionCell(
   variant: SnapMatrixVariant,
   appearanceRows: SnapAppearanceMatrix["historicalRows"],
 ): Promise<SnapDetailedResult> {
-  const opened = await openSnapMatrixContext(host, runArgs, variant.id);
+  const opened = await openSnapMatrixContext(host, runArgs);
   const destination = snapDestination(runArgs);
   try {
+    if (runArgs.scenario !== null) {
+      return await runScenarioDetailed(runArgs, {
+        session: opened.session,
+        finish: async (red, name, enabled) => await finishSnapContext(opened.context, red, name, enabled),
+      });
+    }
     return await runOnSession(
       opened.session,
       runArgs,
@@ -170,12 +170,12 @@ async function runMatrixCells(opts: Args, baseName: string, matrix: SnapAppearan
     print(`\n========== MATRIX ${variant.id} ==========`);
     const appearanceRows = runArgs.scenario === null ? historicalRowsForCell(matrix, cell.id) : [];
     let result: SnapDetailedResult;
-    if (runArgs.scenario !== null) {
-      result = await runScenarioDetailed(runArgs);
-    } else if (host === null) {
-      result = await runSnapDetailed(runArgs, { appearanceRows });
-    } else {
+    if (host !== null) {
       result = await runMatrixSessionCell(host, runArgs, variant, appearanceRows);
+    } else if (runArgs.scenario !== null) {
+      result = await runScenarioDetailed(runArgs);
+    } else {
+      result = await runSnapDetailed(runArgs, { appearanceRows });
     }
     if (result.receipt === null) {
       return instrumentError(`matrix cell ${variant.id} returned no browser receipt`);
@@ -199,71 +199,23 @@ interface MatrixReceiptInput {
   readonly aggregate: AppearanceAggregate | ScenarioMatrixAggregate;
 }
 
-export interface AppearanceAggregate {
-  readonly receipts: number;
-  readonly subjects: number;
-  readonly declared: number;
-  readonly candidates: number;
-  readonly reached: number;
-  readonly sampled: number;
-  readonly skipped: number;
-  readonly occluded: number;
-  readonly offViewport: number;
-  readonly pixels: number;
-  readonly pixelSamples: number;
-  readonly cascades: number;
-}
-
-function aggregateAppearance(results: readonly AppearanceInvariantResult[]): AppearanceAggregate {
-  return {
-    receipts: results.length,
-    subjects: results.reduce((sum, result) => sum + result.receipt.subjects.length, 0),
-    declared: results.reduce((sum, result) => sum + result.evaluation.accounting.declared, 0),
-    candidates: results.reduce((sum, result) => sum + result.evaluation.accounting.candidates, 0),
-    reached: results.reduce((sum, result) => sum + result.evaluation.accounting.reached, 0),
-    sampled: results.reduce((sum, result) => sum + result.evaluation.accounting.sampled, 0),
-    skipped: results.reduce((sum, result) => sum + result.evaluation.accounting.skipped.reduce((count, row) => count + row.count, 0), 0),
-    occluded: results.reduce((sum, result) => sum + result.evaluation.accounting.occluded, 0),
-    offViewport: results.reduce((sum, result) => sum + result.evaluation.accounting.offViewport, 0),
-    pixels: results.reduce((sum, result) => sum + result.receipt.pixels.length, 0),
-    pixelSamples: results.reduce((sum, result) => sum + result.receipt.pixels.reduce((count, pixel) => count + pixel.sampled, 0), 0),
-    cascades: results.reduce((sum, result) => sum + result.receipt.cascade.length, 0),
-  };
-}
-
-export function reconcileAppearanceAggregate(aggregate: AppearanceAggregate): void {
-  if (
-    aggregate.receipts <= 0 ||
-    aggregate.subjects <= 0 ||
-    aggregate.declared <= 0 ||
-    aggregate.reached <= 0 ||
-    aggregate.sampled <= 0 ||
-    aggregate.pixels <= 0 ||
-    aggregate.cascades <= 0
-  ) {
-    instrumentError(`matrix appearance aggregate has a blind denominator: ${JSON.stringify(aggregate)}`);
-  }
-  if (aggregate.subjects !== aggregate.declared) {
-    instrumentError(`matrix appearance subjects=${aggregate.subjects} != declared=${aggregate.declared}`);
-  }
-  if (aggregate.candidates !== aggregate.reached + aggregate.skipped) {
-    instrumentError(`matrix appearance candidates=${aggregate.candidates} != reached=${aggregate.reached} + skipped=${aggregate.skipped}`);
-  }
-  if (aggregate.reached !== aggregate.sampled + aggregate.occluded + aggregate.offViewport) {
-    instrumentError(
-      `matrix appearance reached=${aggregate.reached} != sampled=${aggregate.sampled} + occluded=${aggregate.occluded} + offViewport=${aggregate.offViewport}`,
-    );
-  }
-  if (aggregate.pixelSamples !== aggregate.pixels) {
-    instrumentError(`matrix appearance pixel samples=${aggregate.pixelSamples} != declared pixels=${aggregate.pixels}`);
-  }
-}
-
 async function writeMatrixReceipt({ opts, baseName, discovery, matrix, cells, mode, aggregate }: MatrixReceiptInput): Promise<string | null> {
   if (!opts.json) {
     return null;
   }
-  const path = await artifactFile("snaps", `${baseName}-matrix`, ".json");
+  const path = await artifactFile("snaps", `${baseName}-matrix`, ".json", {
+    producer: "snap",
+    producerArm: null,
+    channel: "appearance-matrix",
+    mediaType: "application/json",
+    schema: "snap-appearance-matrix-v1",
+    role: "primary",
+    completeness: "complete",
+    completenessDetail: "complete declared matrix plan, cell receipts, and reconciled aggregate",
+    scope: aggregateScope(),
+    records: cells.length,
+    limits: [],
+  });
   await writeFile(
     path,
     `${JSON.stringify(
@@ -302,7 +254,7 @@ async function finishScenarioMatrix({ opts, baseName, discovery, matrix, cells }
   const aggregate = reconcileScenarioMatrixEvidence(evidence, matrix.plan.cells.length, opts.json);
   const failures = cells.filter((cell) => cell.code !== 0).length;
   const receipt = await writeMatrixReceipt({ opts, baseName, discovery, matrix, cells, mode: "scenario-checkpoints", aggregate });
-  return printVerdict("snap-matrix", {
+  const terminal = printVerdictReceipt("snap-matrix", {
     verdict: failures > 0 ? EXIT.violations : EXIT.clean,
     denominators: {
       variants: { value: matrix.plan.cells.length, refuseWhen: "zero" },
@@ -323,12 +275,17 @@ async function finishScenarioMatrix({ opts, baseName, discovery, matrix, cells }
       ...loadResultPairs(),
     ],
   });
+  registerSnapResultPairs(terminal.pairs);
+  return terminal.exit;
 }
 
 async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry, ThemeEntry] | null, host: ProbeSession | null): Promise<number> {
   const destination = snapDestination(opts);
   const baseName = opts.out ?? (opts.scenario === null ? routeSlug(opts.route) : routeSlug(basename(opts.scenario, extname(opts.scenario))));
   const discovery = await discoverMatrixInputs(opts, baseName, host);
+  if (opts.motion) {
+    return await runMotionMatrix(opts, baseName, discovery, host);
+  }
   const matrix = planSnapAppearanceMatrix(discovery.contract, discovery.themes, preferredCustom);
   print(`MATRIX PLAN  target=${destination.url} cells=${matrix.plan.cells.length} pairs-uncovered=${matrix.plan.receipt.uncoveredPairs.length}`);
   print(
@@ -372,7 +329,7 @@ async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry,
   } else if (failures > 0) {
     verdict = EXIT.violations;
   }
-  return printVerdict("snap-matrix", {
+  const terminal = printVerdictReceipt("snap-matrix", {
     verdict,
     denominators: {
       variants: { value: matrix.plan.cells.length, refuseWhen: "zero" },
@@ -406,6 +363,8 @@ async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry,
       ...loadResultPairs(),
     ],
   });
+  registerSnapResultPairs(terminal.pairs);
+  return terminal.exit;
 }
 
 export async function snapMatrix(opts: Args): Promise<number> {
@@ -420,7 +379,7 @@ export async function snapMatrixOnSession(opts: Args, host: ProbeSession | null)
   let verdict: number = EXIT.toolError;
   // @orb-gate-ignore caught-failure-ownership(empty:error): every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.
   try {
-    fixture = await provisionRatedStageThemes(opts.base, opts.isolated);
+    fixture = opts.motion ? null : await provisionRatedStageThemes(opts.base, opts.isolated);
     verdict = await runRatedMatrix(opts, fixture?.entries ?? null, host);
   } catch (error) {
     print(`INSTRUMENT ERROR  snap matrix discovery/planning failed: ${errorMessage(error)}`);

@@ -8,9 +8,10 @@
 // in argv order.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
+import { aggregateScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
-import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
+import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
 import type { EvalOutcome } from "../../contract/types.ts";
 import { CHURN_LINE, capEvalText, isContextChurn, wrapEvalExpr } from "../../lib/eval-text.ts";
 import { pushEval } from "../flags-support.ts";
@@ -57,8 +58,15 @@ export const EVAL_ARM = {
   ],
   level: "call",
   needs: (): ArmNeeds => ({}),
+  sessionCallBaseMs: (): null => null,
   defaults: (): Pick<ArmArgs, "eval"> => ({ eval: [] }),
   help: "  --eval <expression>     in-page JSON result (repeatable)",
+  result: {
+    schema: "snap-arm-eval-v1",
+    source: "Playwright page.evaluate",
+    lifetime: "settled page capture",
+    enabled: (opts): boolean => opts.eval.length > 0,
+  },
   lifecycle: {
     at: "page",
     enabled: ({ trailingEvals }): boolean => trailingEvals.length > 0,
@@ -69,6 +77,21 @@ export const EVAL_ARM = {
       ["evals", input.outcomes.reduce((count, outcome) => count + outcome.evalResults.length, 0)],
       ["eval-fails", evalFailures(input)],
     ],
+    facts: (input): readonly ArmFactEmission<"eval">[] => {
+      const expressions = input.outcomes.reduce((count, outcome) => count + outcome.evalResults.length, 0);
+      const failures = evalFailures(input);
+      let state: "off" | "failed" | "passed" = "off";
+      if (input.opts.eval.length > 0) {
+        state = failures > 0 ? "failed" : "passed";
+      }
+      return [
+        {
+          scope: aggregateScope(),
+          data: { state, detail: null, expressions, failures },
+        },
+      ];
+    },
     failures: (input): ArmFailureCounts => ({ eval: evalFailures(input) }),
+    exit: (_input, code): number => code,
   },
-} satisfies ArmDef;
+} satisfies ArmDef<"eval">;

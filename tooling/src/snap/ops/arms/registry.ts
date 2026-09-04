@@ -7,35 +7,52 @@
 // modules; those modules import the arm TYPES. Putting both in one file would make `contract/arms.ts` a
 // value module in a cycle with every arm — the types stay import-cycle-free where they are, and this file
 // is the composition root, which is exactly the ops/contract split the tool template already draws.
+import type { ArtifactRef } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../../_shared/browser-contract.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import type { VerdictDenominator } from "../../../_shared/evidence.ts";
+import { ARMS } from "../../contract/arm-vocabulary.ts";
 import type {
   Arm,
+  ArmActionContext,
+  ArmActionDisposition,
   ArmArgs,
   ArmDef,
   ArmFailureCounts,
   ArmFlagKind,
   ArmFlagSpec,
+  ArmNavigationContext,
   ArmNeeds,
   ArmPageLifecycle,
   ArmPairInput,
   ArmRunContext,
   ArmRunInstance,
+  ArmSharedContext,
+  ArmTapeContext,
 } from "../../contract/arms.ts";
-import { ARMS } from "../../contract/arms.ts";
+import type { SnapArmFact } from "../../contract/run-facts.ts";
+import { snapArmFact } from "../../contract/run-facts.ts";
 import type { Args } from "../../contract/types.ts";
 import type { SnapFailureSummary } from "../../contract/verdict.ts";
+import type { SnapRatePosture, SnapRatePostureReaders } from "../../lib/rate-posture.ts";
+import { sampleSnapRatePosture } from "../../lib/rate-posture.ts";
 import { ARIA_ARM } from "./aria.ts";
 import { ASSERT_ARM } from "./assert.ts";
+import { BOOT_TRACE_ARM } from "./boot-trace.ts";
 import { CASCADE_ARM } from "./cascade.ts";
 import { CONTRAST_ARM } from "./contrast.ts";
+import { CPU_PROFILE_ARM } from "./cpu-profile.ts";
 import { DEAD_CSS_ARM } from "./dead-css.ts";
 import { EVAL_ARM } from "./eval.ts";
+import { FILMSTRIP_ARM } from "./filmstrip.ts";
+import { HEAP_ARM } from "./heap.ts";
+import { INTERACTION_PERF_ARM } from "./interaction-perf.ts";
 import { LIGHTHOUSE_ARM } from "./lighthouse.ts";
 import { MAP_ARM } from "./map.ts";
-import { PERF_ARM } from "./perf.ts";
+import { MOTION_ARM } from "./motion.ts";
+import { APP_SNAPSHOT_ARM } from "./perf.ts";
+import { PROFILE_ARM } from "./profile.ts";
 import { REQUESTS_ARM } from "./requests.ts";
 import { SHOT_ARM } from "./shot.ts";
 
@@ -50,12 +67,19 @@ export const ARM_DEFS = {
   contrast: CONTRAST_ARM,
   map: MAP_ARM,
   assert: ASSERT_ARM,
-  perf: PERF_ARM,
+  "app-snapshot": APP_SNAPSHOT_ARM,
+  heap: HEAP_ARM,
+  filmstrip: FILMSTRIP_ARM,
   shot: SHOT_ARM,
   cascade: CASCADE_ARM,
   requests: REQUESTS_ARM,
   lighthouse: LIGHTHOUSE_ARM,
-} satisfies Record<Arm, ArmDef>;
+  motion: MOTION_ARM,
+  "interaction-perf": INTERACTION_PERF_ARM,
+  "cpu-profile": CPU_PROFILE_ARM,
+  "boot-trace": BOOT_TRACE_ARM,
+  "react-profile": PROFILE_ARM,
+} satisfies { readonly [A in Arm]: ArmDef<A> };
 
 /** Every arm flag, in `ARMS` order. The scanner classes and the handler table are both built from this. */
 export function armFlags(): readonly ArmFlagSpec[] {
@@ -102,11 +126,18 @@ export function armArgDefaults(): ArmArgs {
     ...CONTRAST_ARM.defaults(),
     ...MAP_ARM.defaults(),
     ...ASSERT_ARM.defaults(),
-    ...PERF_ARM.defaults(),
+    ...APP_SNAPSHOT_ARM.defaults(),
+    ...HEAP_ARM.defaults(),
+    ...FILMSTRIP_ARM.defaults(),
     ...SHOT_ARM.defaults(),
     ...CASCADE_ARM.defaults(),
     ...REQUESTS_ARM.defaults(),
     ...LIGHTHOUSE_ARM.defaults(),
+    ...MOTION_ARM.defaults(),
+    ...INTERACTION_PERF_ARM.defaults(),
+    ...CPU_PROFILE_ARM.defaults(),
+    ...BOOT_TRACE_ARM.defaults(),
+    ...PROFILE_ARM.defaults(),
   };
 }
 
@@ -121,11 +152,38 @@ export function armLaunchNeeds(opts: Args): ArmNeeds {
   };
 }
 
+/** Widest enabled arm operation wins the named-session outer watchdog. A sum would double-count arms
+ * that execute within the same capture phase; a fixed 5s watchdog killed valid completed heap evidence. */
+export function armSessionCallBaseMs(opts: Args): number | null {
+  const bases = ARMS.flatMap((arm) => {
+    const value = ARM_DEFS[arm].sessionCallBaseMs(opts);
+    return value === null ? [] : [value];
+  });
+  return bases.length === 0 ? null : Math.max(...bases);
+}
+
 export function pageArms(): readonly (readonly [Arm, ArmPageLifecycle])[] {
   return ARMS.flatMap((arm): readonly (readonly [Arm, ArmPageLifecycle])[] => {
     const { lifecycle } = ARM_DEFS[arm] as ArmDef;
-    return lifecycle.at === "page" ? [[arm, lifecycle]] : [];
+    if (lifecycle.at !== "page") {
+      return [];
+    }
+    assertPageArmLifecycle(arm, lifecycle);
+    return [[arm, lifecycle]];
   });
+}
+
+/** Runtime twin of ArmPageLifecycle's required total members. A future cast/JS row cannot quietly skip
+ * the refusal fold merely because TypeScript normally checks the registry. */
+export function assertPageArmLifecycle(arm: Arm, candidate: unknown): asserts candidate is ArmPageLifecycle {
+  if (typeof candidate !== "object" || candidate === null || Reflect.get(candidate, "at") !== "page") {
+    throw new Error(`INSTRUMENT ERROR: page arm "${arm}" produced no page lifecycle`);
+  }
+  for (const member of ["enabled", "run", "pairs", "facts", "failures", "exit"] as const) {
+    if (typeof Reflect.get(candidate, member) !== "function") {
+      throw new Error(`INSTRUMENT ERROR: page arm "${arm}" omitted required lifecycle member "${member}"`);
+    }
+  }
 }
 
 /** Every arm's contribution to the ONE verdict summary, merged by field. Distinct arms never share a
@@ -149,20 +207,122 @@ function mergeArmFailures(parts: readonly (readonly [Arm, ArmFailureCounts])[]):
 /** THE RUN ARMS AS ONE SURFACE. `ops/run.ts` gains no branch per arm: every member below is total and
  *  folds each live instance in `ARMS` order. */
 export interface RunArms {
+  readonly ratePosture: () => Promise<SnapRatePosture>;
+  readonly prepare: () => Promise<void>;
+  readonly afterNavigation: (ctx: ArmNavigationContext) => Promise<void>;
+  readonly beforeAction: (ctx: ArmActionContext) => Promise<ArmActionDisposition>;
+  readonly afterAction: (ctx: ArmActionContext & { readonly failed: boolean; readonly handled: boolean }) => Promise<void>;
+  readonly afterActions: (ctx: ArmTapeContext) => Promise<void>;
+  readonly afterSettle: (ctx: ArmTapeContext) => Promise<void>;
   readonly measure: (ctx: ArmRunContext) => Promise<void>;
   readonly report: (ctx: ArmRunContext) => Promise<void>;
   readonly failures: () => ArmFailureCounts;
   readonly denominators: () => Readonly<Record<string, VerdictDenominator>>;
   readonly pairs: () => ReadonlyMap<Arm, readonly ResultPair[]>;
+  readonly facts: (artifacts: Readonly<Partial<Record<Arm, readonly ArtifactRef[]>>>) => readonly SnapArmFact[];
   readonly exit: (code: number) => number;
 }
 
-export function beginRunArms(session: ProbeSession, opts: Args): RunArms {
-  const live = ARMS.flatMap((arm): readonly (readonly [Arm, ArmRunInstance])[] => {
-    const { lifecycle } = ARM_DEFS[arm] as ArmDef;
-    return lifecycle.at === "run" ? [[arm, lifecycle.begin(session, opts)]] : [];
+/** Runtime twin of the required TypeScript members. The registry is callable from transpiled JS and test
+ * casts, so the pre-navigation guarantee cannot depend on static types alone. */
+export function assertRunArmInstance(arm: Arm, candidate: unknown): asserts candidate is ArmRunInstance {
+  if (typeof candidate !== "object" || candidate === null) {
+    throw new Error(`INSTRUMENT ERROR: run arm "${arm}" produced no lifecycle instance`);
+  }
+  for (const member of [
+    "prepare",
+    "afterNavigation",
+    "beforeAction",
+    "afterAction",
+    "afterActions",
+    "afterSettle",
+    "measure",
+    "report",
+    "failures",
+    "denominators",
+    "pairs",
+    "facts",
+    "exit",
+  ] as const) {
+    if (typeof Reflect.get(candidate, member) !== "function") {
+      throw new Error(`INSTRUMENT ERROR: run arm "${arm}" omitted required lifecycle member "${member}"`);
+    }
+  }
+}
+
+export function beginRunArms(session: ProbeSession, opts: Args, readers: SnapRatePostureReaders = {}): RunArms {
+  const ratePosture = sampleSnapRatePosture(session.browser, readers);
+  const shared: ArmSharedContext = { ratePosture };
+  const live = ARMS.flatMap((arm): readonly (readonly [Arm, ArmRunInstance, (artifacts: readonly ArtifactRef[]) => readonly SnapArmFact[]])[] => {
+    const def: ArmDef = ARM_DEFS[arm];
+    const { lifecycle } = def;
+    if (lifecycle.at !== "run") {
+      return [];
+    }
+    const instance = lifecycle.begin(session, opts, shared);
+    assertRunArmInstance(arm, instance);
+    return [
+      [
+        arm,
+        instance,
+        (artifacts): readonly SnapArmFact[] =>
+          instance.facts().map((emission) =>
+            snapArmFact({
+              arm,
+              schema: def.result.schema,
+              source: def.result.source,
+              lifetime: def.result.lifetime,
+              scope: emission.scope,
+              data: emission.data,
+              artifacts,
+            }),
+          ),
+      ],
+    ];
   });
   return {
+    ratePosture: async (): Promise<SnapRatePosture> => await ratePosture,
+    prepare: async (): Promise<void> => {
+      for (const [, instance] of live) {
+        await instance.prepare();
+      }
+    },
+    afterNavigation: async (ctx): Promise<void> => {
+      for (const [, instance] of live) {
+        await instance.afterNavigation(ctx);
+      }
+    },
+    beforeAction: async (ctx): Promise<ArmActionDisposition> => {
+      let handled = false;
+      let failures = 0;
+      for (const [arm, instance] of live) {
+        const disposition = await instance.beforeAction(ctx);
+        if (disposition === null) {
+          continue;
+        }
+        if (disposition.handled && handled) {
+          throw new Error(`INSTRUMENT ERROR: more than one arm handled tape action ${String(ctx.actionIndex)} (${arm} is the second)`);
+        }
+        handled ||= disposition.handled;
+        failures += disposition.failures;
+      }
+      return { handled, failures };
+    },
+    afterAction: async (ctx): Promise<void> => {
+      for (const [, instance] of live) {
+        await instance.afterAction(ctx);
+      }
+    },
+    afterActions: async (ctx): Promise<void> => {
+      for (const [, instance] of live) {
+        await instance.afterActions(ctx);
+      }
+    },
+    afterSettle: async (ctx): Promise<void> => {
+      for (const [, instance] of live) {
+        await instance.afterSettle(ctx);
+      }
+    },
     measure: async (ctx): Promise<void> => {
       for (const [, instance] of live) {
         await instance.measure(ctx);
@@ -176,8 +336,26 @@ export function beginRunArms(session: ProbeSession, opts: Args): RunArms {
     failures: (): ArmFailureCounts => mergeArmFailures(live.map(([arm, instance]) => [arm, instance.failures()] as const)),
     denominators: () => Object.assign({}, ...live.map(([, instance]) => instance.denominators())) as Readonly<Record<string, VerdictDenominator>>,
     pairs: () => new Map(live.map(([arm, instance]) => [arm, instance.pairs()])),
+    facts: (artifacts) => live.flatMap(([arm, , facts]) => facts(artifacts[arm] ?? [])),
     exit: (code: number): number => live.reduce((current, [, instance]) => instance.exit(current), code),
   };
+}
+
+export function pageArmFacts(input: ArmPairInput, artifacts: Readonly<Partial<Record<Arm, readonly ArtifactRef[]>>>): readonly SnapArmFact[] {
+  return pageArms().flatMap(([arm, lifecycle]) => {
+    const result = ARM_DEFS[arm].result;
+    return lifecycle.facts(input).map((emission) =>
+      snapArmFact({
+        arm,
+        schema: result.schema,
+        source: result.source,
+        lifetime: result.lifetime,
+        scope: emission.scope,
+        data: emission.data,
+        artifacts: artifacts[arm] ?? [],
+      }),
+    );
+  });
 }
 
 /** THE RESULT-LINE LEDGER. Every arm's pairs go in; `ops/run.ts` CLAIMS the ones whose position on the
@@ -205,7 +383,7 @@ export function armPairLedger(input: ArmPairInput, runPairs: ReadonlyMap<Arm, re
    *  exactly how the ledger silently stopped matching: the first version minted the two keys in two
    *  separate template literals, they disagreed by one byte, and EVERY arm's pairs printed twice at the
    *  tail of the RESULT line while the spine above them looked perfect. */
-  const claimKey = (arm: Arm, key: ResultPair[0]): string => arm + "\u0000" + String(key);
+  const claimKey = (arm: Arm, key: ResultPair[0]): string => `${arm}\u0000${String(key)}`;
   const take = (arm: Arm, pairs: readonly ResultPair[]): readonly ResultPair[] => {
     for (const [key] of pairs) {
       claimed.add(claimKey(arm, key));
@@ -234,4 +412,28 @@ export function armPairLedger(input: ArmPairInput, runPairs: ReadonlyMap<Arm, re
  *  what the measurement actually did rather than on the outcomes alone. */
 export function pageArmFailures(input: ArmPairInput): ArmFailureCounts {
   return mergeArmFailures(pageArms().map(([arm, lifecycle]) => [arm, lifecycle.failures(input)] as const));
+}
+
+/** A host that deliberately runs page arms only must prove every run arm is disabled, then initialize
+ * their declared summary fields to zero. This is neither an absent pair nor a parsed transcript fact. */
+export function disabledRunArmFailures(opts: Args, hosted: readonly Arm[] = []): ArmFailureCounts {
+  const failures: Partial<Record<keyof SnapFailureSummary, number>> = {};
+  for (const arm of ARMS) {
+    const def: ArmDef = ARM_DEFS[arm];
+    if (def.lifecycle.at !== "run") {
+      continue;
+    }
+    if (def.result.enabled(opts) && !hosted.includes(arm)) {
+      throw new Error(`INSTRUMENT ERROR: page-only host cannot skip enabled run arm ${arm}`);
+    }
+    for (const field of def.result.failureFields ?? []) {
+      failures[field] = 0;
+    }
+  }
+  return failures;
+}
+
+/** Every page arm receives the terminal code in roster order; ordinary arms are identity functions. */
+export function pageArmExit(input: ArmPairInput, code: number): number {
+  return pageArms().reduce((current, [, lifecycle]) => lifecycle.exit(input, current), code);
 }

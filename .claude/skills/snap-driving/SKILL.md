@@ -22,29 +22,36 @@ Preconditions and geography:
 - Every artifact lands under `reports/` (gitignored) — snaps, traces, JSON manifests. Never write
   to the repo root. Since #1164 a run writes them inside its OWN slot
   (`reports/runs/snap/<runId>/…`, printed as the run's first line) and publishes
-  `reports/snaps/<name>.png` and friends as pointers into it when it finishes: cite the published
-  path, and the slot path when you need the pixels of that exact run. A concurrent snap can no
-  longer overwrite yours.
+  `reports/snaps/<name>.png` and friends as mutable latest pointers when it finishes. The immutable
+  receipt is the printed absolute `run.json` plus its slot artifacts; cite those for a verdict. A
+  later run may re-aim a published pointer even though concurrent runs cannot overwrite slot bytes.
 
 ## §1 One selector engine per target
 
 - A selector is ONE engine: a CSS string, OR `role=…`, OR `text=…`. **Never concatenate engines**
   — `[aria-label=x] role=button[name=y]` is a CSS parse error, not an AND. Combine conditions with
   Playwright's `:has()`/`>>`, or pick the single best engine.
-- **Discover targets with `--map`, never by grepping source.** It prints every interactive element
-  as `role "name" → best selector`, validated unique + visible.
+- **Discover destinations and current controls with `--map`, never by grepping source.** Its global
+  SPA NAV TARGETS block prints executable `--goto`/`--context-tab`/`--open-chat` recipes; CURRENT
+  SHELL / REGIONS explains the rendered rail/list/content/context topology; SURFACE MAP prints named
+  landmarks and controls with a unique locator plus explicit actionability. Scope the current surface
+  with `--map '<selector>'`; the global atlas remains visible.
 - **Role-scoping beats text when names repeat.** The same label routinely exists twice (a topbar
   chip and a menu item; a list row and its context-panel echo) — `text=Presets` matches both.
   Prefer the testid/role selector `--map` printed, or scope with `:has()` from a unique ancestor.
 - `--map`'s accessible NAME is a discovery aid, not the truth — its textContent fallback
   double-counts hidden hover-reveal text. The real accessible name comes from `--aria`.
+- Default map rows describe the active rendered surface. `--include-hidden` is only an attached-DOM
+  inventory: hidden/inert rows are labelled locator-only and do not prove React Activity provenance or
+  a complete hidden Fiber inventory. Never use those rows as current click handles.
 
 ## §2 The action queue is TRUE ARGV ORDER
 
 - Nav flags (`--goto`/`--open-chat`/`--open-character`/`--context-tab`), interaction steps
-  (`--click`/`--fill`/`--press`/`--jsclick`/`--key`/`--wait-for`) **and `--eval`** execute as ONE
+  (`--click`/`--fill`/`--force-click`/`--dom-click`/`--key`/`--wait-for`) **and `--eval`** execute as ONE
   queue in the exact order written. A mid-chain `--context-tab` runs where it is written — write
   the chain the way the interaction should happen.
+
 - The PURE captures (`--map`/`--aria`/`--contrast`/`--expect-*`) are NOT in the queue: they observe
   the settled surface once, after the queue drains, so one call reaches AND inspects a surface:
 
@@ -58,10 +65,12 @@ Preconditions and geography:
   step. It now runs where it is written; a TRAILING `--eval` (after the last step/nav) still
   observes the settled surface, so the common `--goto x --eval y` shape is unchanged. If you are
   reading an old transcript whose evals disagree with its steps, that is why.
+
 - **`--key` has two forms and only one WALKS.** `--key Tab` (bare, no `=`) presses the page
   keyboard without changing focus — N of them walk N stops, inside a Base UI focus trap included.
   `--key 'selector=Key'` FOCUSES the selector and then presses (the COMMIT idiom:
   `--fill 'input=q' --key 'input=Enter'`), so repeating it re-anchors every time and never walks.
+
 - **`--fill` takes an ENGINE selector.** `--fill 'role=textbox[name="Content"]=a line'` works: the
   pair split steps over the `=` that ends an engine name (`role=`/`text=`/`css=`/`nth=`, including
   per-part in a `>>` chain), so the engine form is part of the SELECTOR, not the value. Until
@@ -71,8 +80,9 @@ Preconditions and geography:
   Pair the bare form with a queued `--eval` on `document.activeElement` to read the focus order in
   one call, and **end a dialog walk on `--key Escape`, never Enter** (focus starts on Close; Enter
   dismisses, and in an editor it SAVES).
-- If you catch yourself splitting one interaction across two snap calls, stop — state does not
-  carry between calls (§4). Chain it, or use `--scenario`.
+
+- A one-shot call owns one browser lifetime. Chain a short interaction in argv order or use
+  `--scenario`; use a named `--session` when inspection or driving must continue across calls (§4).
 
 ## §3 Two-stage affordances: a "dead button" is usually a menu
 
@@ -87,14 +97,15 @@ parameterized actions.
 - Only when the post-click aria shows no menu/dialog/popup AND no state change is "dead control" a
   finding — and then it is a real one (the no-dead-toggles law).
 
-## §4 Rooms and state: one browser lifetime
+## §4 Rooms and state: one-shot, scenario, or named session
 
-- **Every snap invocation boots a FRESH browser with a fresh profile.** Nothing in-page carries
-  between calls: composer drafts (zustand-persisted,
-  `packages/client/src/state/create-entity-draft-store.ts`) and refinery selection (in-memory,
-  `packages/client/src/state/refinery-selection-store.ts`) are device-local — a new browser has
-  neither. **Create-and-act must happen in ONE browser lifetime**: one argv chain, or one
-  `--scenario`.
+- **Bare Snap is one-shot; named Snap is stateful.** A call without `--session` boots a fresh browser,
+  so create-and-act stays in one argv chain or `--scenario`. `--session <name>` boots one private
+  lane-owned browser and later calls drive the live page without re-navigation when no route is given.
+  Browser-lifetime flags (`--base`/stage, viewport/device, appearance/theme, storage, pages, throttling)
+  belong on the boot call and later attempts refuse as misuse (exit 3). Every call still gets its own
+  immutable run slot/evidence window; export session-lifetime rings, HAR, and trace with
+  `--session-export <name>`.
 - `--open-chat` resolution: an id always works; an exact title works unless AMBIGUOUS (matches >1
   → loud refusal; pass the id); `latest` = the chat list's top row; `current` = the room the app
   is showing RIGHT NOW via the dev bridge, no list query in the path.
@@ -102,16 +113,15 @@ parameterized actions.
   unsent room is an unlisted husk until the chat-list query refetches, so `latest` names a
   DIFFERENT chat (measured 2026-08-15: a probe message landed in the wrong room this way).
   `current` refuses loudly on the landing surface — that refusal means no room is open.
-- Seed a persisted store BEFORE navigation with `--ls 'key={json}'` when a pref matters to the
+- Seed a persisted store BEFORE navigation with `--local-storage 'key={json}'` when a pref matters to the
   drive (first `=` splits; values are JSON).
 
 ## §5 The evidence ladder: text first, assertions as receipts, pixels last
 
-- **`--text` / `--aria [selector]` first** — structure as text, ~5–8× cheaper than a PNG and
+- **`--text` / `--aria [selector]` first** — structure as text, \~5–8× cheaper than a PNG and
   greppable. Fall to pixels only when something looks off; `--shot-of <sel>` is the cheapest
   pixel path (one element, auto-cropped).
-- **Assert with `--expect-*` instead of hand-rolled evals**: `--expect-visible`, `--expect-text
-  <sel=text>`, `--expect-count <sel=N>`, `--expect-url`, `--expect-no-overflow`, `--expect-focus`.
+- **Assert with `--expect-*` instead of hand-rolled evals**: `--expect-visible`, `--expect-text <sel=text>`, `--expect-count <sel=N>`, `--expect-url`, `--expect-no-overflow`, `--expect-focus`.
   Each prints an `ASSERT … PASS/FAIL` line and folds into the exit code — the printed line IS the
   receipt. They match RENDERED elements by default (`--include-hidden` widens).
 - `--eval` auto-invokes a bare function literal — pass `'()=>{…; return x}'` with NO trailing
@@ -139,12 +149,12 @@ parameterized actions.
 - **`--probe` VOIDS every motion/CLS number in the run** — it floors all animations/transitions
   from first paint, which kills the FLIP animations that make track changes CLS-free, so the
   harness manufactures layout-shift findings. Such a run prints `PROBE-NEUTERED-MOTION` and stamps
-  `motion=PROBE-NEUTERED-MOTION` on the RESULT line. Take motion/CLS receipts WITHOUT `--probe`.
+  `motion-evidence=PROBE-NEUTERED-MOTION` on the RESULT line. Take motion/CLS receipts WITHOUT `--probe`.
 - **`__orb.motion()` carries THREE CLS totals; the budget gates on the third.** `cls` (the CWV spec
   metric) · `virtualizedCls` (the share the instrument classified as virtual-row reconciliation) ·
   `nonVirtualizedCls` = the budgeted remainder. A long transcript's `cls` is dominated by the message
-  list settling on mount (~0.26 measured), which no app fix can move — so cite all three and judge
-  `nonVirtualizedCls`. `pnpm motion-audit` prints them labeled and fails only on the non-virtualized
+  list settling on mount (\~0.26 measured), which no app fix can move — so cite all three and judge
+  `nonVirtualizedCls`. `pnpm snap --motion` prints them labeled and fails only on the non-virtualized
   one (`cls-raw` / `cls-virtualized` / `cls-non-virtualized` on its RESULT line).
 - **Two scroll containers, two different lists** — `[data-slot=virtual-list-scroll]` is the SIDEBAR
   chat list (`packages/ui/src/primitives/virtual-list/virtual-list.tsx:158`); the TRANSCRIPT's
@@ -154,21 +164,29 @@ parameterized actions.
 - **`--json` is the lossless record** — the terminal console view caps at 200 messages
   (errors/warnings prioritized); the manifest keeps everything. Cite it whenever the terminal view
   was capped, and prefer it as the durable receipt for a red run.
+- **`--filmstrip` is the transition-eye path** — it records the existing exact page from before the
+  argv action tape through bounded settle, then writes a labelled PNG contact sheet. Its timestamps and
+  action labels make the result readable without extracting video. It refuses motion/perf/CPU/heap/trace
+  arms because screencast encoding would contaminate their measurement. `pnpm record` is retired and
+  prints the equivalent Snap recipe; do not build new workflows on it.
 - **`sandbox-trace-noise` is harness-induced, never an app finding** — Playwright tracing (snap's
   default failure evidence) injects its script into the app's deliberately script-dead sandboxed
   card frames; the resulting console error is excluded from the verdict but counted in the RESULT
   line. Do not file it; do not "fix" it.
 - **Exit triage, in this order:**
-  1. **exit 2 = ARG ERROR** — your invocation is wrong; nothing ran. Fix the flag per the printed
-     message (`pnpm snap --help` for the contract) and rerun.
-  2. **exit 1 = the run went red** — read the RESULT line's axes (`nav`, `nav-actions-failed`,
+  1. **exit 3 = misuse** — your invocation is wrong; nothing ran. Fix the `ARG ERROR` per
+     `pnpm snap --help` and rerun.
+  2. **exit 2 = tool error / refusal** — the instrument could not measure. Read the named reason;
+     a dead/busy/foreign session, exhausted stage bands, absent evidence, or broken analyzer is never
+     a product verdict.
+  3. **exit 1 = the run went red** — read the RESULT line's axes (`nav`, `nav-actions-failed`,
      `steps-failed`, `assertion-fails`, `contrast-fails`, `eval-fails`, `console-errors`,
-     `page-errors`), then the retained Playwright trace under `reports/traces/`. NAV FAILED and
-     the `*REFUSED` lines land here — see §9 before retrying anything.
+     `page-errors`), then the retained Playwright trace under `reports/traces/`. Navigation/action
+     refusals land here; instrument/tool refusals use exit 2 — see §9 before retrying anything.
      **`nav=OK` no longer coexists with `nav-actions-failed>0`**: a run whose page loaded but whose
      `--goto`/`--open-chat` was rejected reads `nav=ACTIONS-FAILED`, because its captures describe a
      surface you never reached. (It printed `nav=OK` beside `nav-actions-failed=1` until 2026-08-16.)
-  3. **exit 0 = clean.** The last stdout line is always `RESULT <tool> key=value …` — machine-
+  4. **exit 0 = clean.** The last stdout line is always `RESULT <tool> key=value …` — machine-
      parsable; grep `^RESULT`.
 - A `data-app-ready=degraded` readiness is reported as a NAV ERROR: the capture is mid-hydration —
   rerun, never assert on it. Mid-run HMR/dev-server churn is named and retried once by snap
@@ -186,13 +204,13 @@ judging an app whose own setting had frozen the animations they were measuring.
 - **TWO DIFFERENT MOTION GATES, and they diverge.** `--reduced-motion` emulates the **OS media query**
   (`prefers-reduced-motion`). `--full-motion` / `--appearance` shim the **app setting** (`<html
   data-reduced-motion>`, written by `useAppearanceRootEffects` off `settings.getUserSettings`).
-  `motion-audit`/`perf-meter` already pass the media query as "full motion" and STILL measured a frozen
+  The Snap motion/perf analyzers already pass the media query as "full motion" and STILL measured a frozen
   app. They compose; neither implies the other. Naming the wrong one is a wrong verdict, not a typo.
 - **`--full-motion`** = `--appearance '{"reducedMotion":false}'` — the flag a motion sweep types.
 - **`--appearance '<json>'`** deep-merges ANY appearance keys over the REAL settings response
   (`page.route` response shim, `tooling/src/_shared/appearance.ts`). Keys you name are pretended; every
   other key keeps the account's own value. **NOTHING IS WRITTEN** — no db row, no durable state, and the
-  next flagless run sees the account again. Unparseable JSON or a non-object is ARG ERROR (exit 2).
+  next flagless run sees the account again. Unparseable JSON or a non-object is misuse (exit 3).
 - **`--appearance-preset <name>`** loads a curated profile from `tooling/src/_shared/appearance-presets.json`:
   `defaults` (the schema's born values — NOT the owner's row) · `maximal` (all the nice stuff: glow
   elevation, glass everywhere, grain, colorization, motion on) · `compact` (compact density, minimal
@@ -208,7 +226,7 @@ judging an app whose own setting had frozen the animations they were measuring.
   state — does the floor hold?) AND `--full-motion` / `--appearance-preset maximal` (is the nice stuff
   good?). A full-battery surface pass drives bare + `maximal` at minimum; transcript/chat surfaces add
   `compact` and `reading` wherever density or typography is the question.
-- Same three flags on `pnpm design-audit`, `pnpm motion-audit` and `pnpm perf-meter` — one vocabulary
+- Same three flags on `pnpm design-audit` and the `pnpm snap --motion` / `--perf` arms — one vocabulary
   (`_kit/appearance.ts`), so a probe cannot offer half of it. `--json` records the applied patch under
   `environment.appearance`, so a manifest states which arm it measured.
 - `--file` (static mock) REFUSES them: a local HTML file makes no settings request. Scenario checkpoints
@@ -226,7 +244,7 @@ theme-polarity coverage rode only on chat rooms whose card carries a theme.
   shipped Hearth default a fresh account sees).
 - Same non-mutating contract as the appearance shim: the run patches only the SELECTION over the real
   `settings.getUserSettings` response, the app then fetches the REAL theme row itself, and nothing is
-  written. Same four probes (`snap`, `design-audit`, `motion-audit`, `perf-meter`); `--json` records it
+  written. The same shim feeds `snap`, its motion/perf analyzers, and `design-audit`; `--json` records it
   under `environment.theme`; `--file` and scenario checkpoints refuse it for the same reasons.
 - The name is resolved against the account's OWN `settings.listThemes`, so a typo prints
   `THEME SHIM WARNING` on stderr with the real list and the run renders YOUR theme — read stderr before
@@ -242,7 +260,7 @@ theme-polarity coverage rode only on chat rooms whose card carries a theme.
 - **`--scenario <file.json>`** = sequential checkpoints in ONE browser lifetime
   (`{name?, defaults?, checkpoints:[{name, args}]}` — args are ordinary snap argv). A checkpoint
   on the SAME url keeps the live page, so client state carries across checkpoints — THE instrument
-  for multi-step flows (wizard, settings walk, open-edit-save-reopen). `--summary` prints one
+  for multi-step flows (wizard, settings walk, open-edit-save-reopen). `--scenario-summary` prints one
   compact `CHECKPOINT <name> PASS/FAIL` line each; pair with `--json` for the full evidence.
   Checkpoints cannot carry `--pages`/`--contexts`/`--as`/`--watch`/`--baseline`/`--diff`, cannot
   nest scenarios, and stage flags go on the OUTER command.
@@ -255,6 +273,17 @@ theme-polarity coverage rode only on chat rooms whose card carries a theme.
   screenshot + a re-run of every `--eval`, labeled by elapsed ms. THE instrument for streaming
   turns and transient states. It observes PAGE 0 only; `--no-shot --watch` is the cheap
   state-series path (evals without minting dozens of PNGs).
+
+### Multi-target identity boundary
+
+- `--pages N` opens N tabs in one BrowserContext: cookies/localStorage are shared, DOM is per page,
+  `@N` targets a page, and screenshots use `-pN`. It makes no user/context identity claim.
+- `--contexts N` opens isolated fixture BrowserContexts in owner/member roster order: cookies/storage are
+  separate, `@N` targets that context/user, and screenshots use `-uN`. It is a one-direction comparison,
+  not an alternating multi-human script.
+- Matrix creates disposable environment contexts for device/theme/media cells and preserves its owner;
+  those contexts are not identities. For alternating host/member action choreography, use E2E with one
+  explicit browser actor per human. Snap deliberately has no global actor-scheduler flag.
 
 ## §6b Load emulation: `--cpu-throttle` / `--network` (the margin a rest measurement cannot see)
 
@@ -269,20 +298,20 @@ theme-polarity coverage rode only on chat rooms whose card carries a theme.
   0.30837 in one entry. Note a synthetic `el.click()` is UNTRUSTED and never sets `hadRecentInput`;
   only `--click` (a real CDP input dispatch) reproduces the exclusion.
 - **MEASURED LIMIT — throttle CPU alone on the dev build.** 4× CPU **plus** a 3G/4G profile never
-  reaches `data-app-ready` within snap's readiness window on `:5173` (~250 unbundled ESM resources).
+  reaches `data-app-ready` within snap's readiness window on `:5173` (\~250 unbundled ESM resources).
   The network arm is for a production build or a `--file` fixture.
 - A bad rate or an unknown profile REFUSES at parse time (exit 3) — a silently-ignored throttle would
   turn every verdict in that run into a false rest-state receipt.
 
 ## §7 Hover-reveal vs virtualized rows
 
-- **Hover-revealed targets** (group-hover kebabs, row toolbars): `--press` = hover-then-forced-
+- **Hover-revealed targets** (group-hover kebabs, row toolbars): `--force-click` = hover-then-forced-
   click. Synthetic `--hover` LOSES `:hover` on any list re-render (a query settling, a row
   recycling) — the revealed controls vanish before the shot; prefer the focus path for
   reveal-state evidence.
 - **Virtualized/composite rows** (message list, list panes — absolute inset rows in a scroll
-  container): `--jsclick <css>` = raw in-page `el.click()`. `--click` with role locators FLAKES
-  against them (actionability timeouts on selectors `--map` just printed). Reach for `--jsclick`
+  container): `--dom-click <css>` = raw in-page `el.click()`. `--click` with role locators FLAKES
+  against them (actionability timeouts on selectors `--map` just printed). Reach for `--dom-click`
   first on any list-row target.
 - **Virtualized row counts are VIEWPORT rows.** An `--expect-count` or eval against a virtual list
   asserts the mounted rows, not the dataset — get dataset truth from `__orb.queries()` or the
@@ -293,27 +322,18 @@ theme-polarity coverage rode only on chat rooms whose card carries a theme.
 
 ## §8 The stage band
 
-- `--isolated` (frozen HEAD worktree) / `--dirty` (working tree, re-syncs per call) boot ONE stage
-  on the fixed offset pair — **server :8888 / vite :5273** (dev pair + 100,
-  `tooling/src/snap/ops/stage.ts`). One stage at a time, keyed by sha; a new HEAD auto-
-  rebuilds; `--fresh` forces it. Stage when your drive window overlaps active lanes — a
-  crash-looping dev vite mid-drive is not a product finding.
-- **THE OWNER MARKER IS SHARED ACROSS CHECKOUTS** (issue #108, 2026-08-16). It is ONE file keyed by the
-  REPO, not by the checkout snap ran from: `<main-checkout>/.cache/snap-stage/active.json`, resolved via
-  `git rev-parse --git-common-dir`, and it records the owner's **checkout path, pid and start time**. So
-  `--stage-status` and `--stage-down` see and act on the same stage from a lane worktree and from main.
-  (Before this, a lane's stage left main's marker dir empty and the only tell was `ss -tlnp` + ps.)
-- `--stage-status` = the visibility read: marker + **owner (checkout · pid · age)** + stage-band port
-  owners + this checkout's stage dirs (a lost-marker stage is SEEN, with the warning naming the remedy).
-  `--stage-down` tears down from ANY checkout, and falls back to a marker-less teardown (kill by
-  stage-band port + sweep stage dirs) when a lost marker left an ownerless stage.
-- **THE BAND IS ONE FIXED PAIR — there is no per-lane band.** Two lanes cannot each hold a stage, and
-  snap no longer silently kills the incumbent. Against a LIVE stage owned by another checkout:
-  `--isolated` at the SAME commit reuses it read-only (it is the same frozen source); anything that
-  would rebuild, `--fresh`, or `--dirty`-rsync it **REFUSES**, naming the owner's checkout, pid and age.
-  A marker whose band is unbound is a corpse and gets reclaimed automatically. Read the refusal, then
-  either wait, `pnpm snap --stage-down` deliberately, or boot a private pair (below) — never hand-kill
-  pids: a hand kill leaves the marker lying about a stage that no longer exists.
+- `--isolated` (frozen HEAD worktree) / `--dirty` (working tree, re-syncs per call) acquire one
+  allocator band; `--fresh` forces its rebuild. Stage when your drive window overlaps active lanes —
+  a crash-looping dev Vite mid-drive is not a product finding.
+- **The registry is repo-shared and multi-band.** `<main-checkout>/.cache/snap-stage/bands.json`, resolved
+  through the git common dir, carries up to ten allocator rows. Band `k` owns server `8888 + 10k` and
+  Vite `5273 + 10k`, plus checkout, ref/dirty identity, owner pid, age, sessions, and DB provenance.
+  `--stage-status` shows the table from any checkout; `--stage-sweep` reaps dead/idle rows.
+- Allocation prefers this checkout's matching row, then a same-SHA read-only shared reuse, then the
+  lowest free/reclaimable band. A foreign dirty rebuild or a full table **REFUSES** (exit 2) naming
+  owners and ages; it never kills an incumbent. `--stage-down` targets this checkout's rows by default;
+  cross-checkout teardown requires `--stage-owner <checkout> --force`. Never hand-kill stage pids — that
+  strands registry ownership instead of releasing the band.
 - **Band occupied / need your own pair:** `scripts/dev/stack.sh` reads `VITE_PORT` and
   `VITE_API_TARGET` from env — boot a private stack on a free pair and point snap at it with
   `--base http://localhost:<vitePort>`.
@@ -324,8 +344,8 @@ theme-polarity coverage rode only on chat rooms whose card carries a theme.
 
 ## §9 Refusals are answers; shared-stack manners
 
-- **ARG ERROR (exit 2), NAV FAILED, and every `*REFUSED` line are designed answers, not
-  obstacles.** Each carries the reason and the remedy: an ambiguous title says pass the id; a down
+- **ARG ERROR (exit 3), NAV FAILED (exit 1), and every tool/instrument `*REFUSED` (exit 2) line are
+  designed answers, not obstacles.** Each carries the reason and the remedy: an ambiguous title says pass the id; a down
   fixture prints the up command; `--file` + nav flags says drop them (a static mock has no
   bridge). Read the message, follow its remedy — never route around a refusal, and never retry the
   identical command hoping for a different answer.

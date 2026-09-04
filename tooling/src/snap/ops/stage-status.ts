@@ -228,7 +228,7 @@ export function teardownStage(selection: { readonly force: boolean; readonly own
   }
   if (results.length === 0) {
     return selection.owner === null
-      ? `no stage of this checkout to tear down (${root}) — \`--stage-status\` lists every band; name a sibling with \`--owner <checkout> --force\``
+      ? `no stage of this checkout to tear down (${root}) — \`--stage-status\` lists every band; name a sibling with \`--stage-owner <checkout> --force\``
       : `no stage owned by ${selection.owner} to tear down — \`--stage-status\` lists every band`;
   }
   return results.join("\n");

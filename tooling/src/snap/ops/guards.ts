@@ -9,6 +9,7 @@ import { print, routeSlug } from "../../_shared/artifacts.ts";
 import { buildUrl } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
+import { registerSnapStageProvenance } from "../lib/run-provenance.ts";
 import { stageRowBaseUrl } from "../lib/stage-plan.ts";
 import { ensureStage } from "./stage.ts";
 import { stageStatus, sweepStages, teardownStage } from "./stage-status.ts";
@@ -71,7 +72,7 @@ export function refuseFileMode(opts: Args): string | null {
   return null;
 }
 
-export function configureStage(opts: Args): number | null {
+function stageControlResult(opts: Args): number | null {
   if (opts.stageStatus) {
     print(stageStatus());
     return 0;
@@ -84,6 +85,26 @@ export function configureStage(opts: Args): number | null {
     print(`[snap-stage] ${sweepStages()}`);
     return 0;
   }
+  return null;
+}
+
+function registerLiveProvenance(opts: Args): void {
+  registerSnapStageProvenance({
+    mode: "live",
+    state: "not-applicable",
+    ownerCheckout: null,
+    band: null,
+    ref: null,
+    binding: opts.file === null ? { kind: "base", url: opts.base } : { kind: "file", url: snapDestination(opts).url },
+    failure: null,
+  });
+}
+
+export function configureStage(opts: Args): number | null {
+  const control = stageControlResult(opts);
+  if (control !== null) {
+    return control;
+  }
   if (opts.isolated) {
     // @orb-gate-ignore caught-failure-ownership(empty:e): printed as STAGE ERROR and returned as exit code 1, which the CLI process exits with. Ends if that exit code stops being surfaced.
     try {
@@ -91,10 +112,30 @@ export function configureStage(opts: Args): number | null {
         ? ensureStage({ fresh: opts.fresh, dirty: true })
         : ensureStage(opts.ref === null ? { fresh: opts.fresh } : { ref: opts.ref, fresh: opts.fresh });
       opts.base = stageRowBaseUrl(stage);
+      registerSnapStageProvenance({
+        mode: "isolated",
+        state: "bound",
+        ownerCheckout: stage.checkout,
+        band: stage.band,
+        ref: stage.sha,
+        binding: { kind: "stage", url: opts.base },
+        failure: null,
+      });
     } catch (e) {
+      registerSnapStageProvenance({
+        mode: "isolated",
+        state: "unavailable",
+        ownerCheckout: null,
+        band: null,
+        ref: opts.dirty ? "dirty-working-tree" : (opts.ref ?? "HEAD"),
+        binding: null,
+        failure: errorMessage(e),
+      });
       print(`STAGE ERROR: ${errorMessage(e)}`);
       return 1;
     }
+  } else {
+    registerLiveProvenance(opts);
   }
   return null;
 }

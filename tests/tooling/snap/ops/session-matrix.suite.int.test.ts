@@ -1,0 +1,179 @@
+// F10 (docs/design/1208-instrument-substrate.md §8/§10.4): the matrix permission is behavioral, not
+// parse-only. This suite enters through the real Snap cli, boots a daemon session on a non-default loopback
+// base, then runs a scenario matrix as a later session call. Discovery and every cell must inherit that
+// binding; each cell gets a fresh context; the owner page and its storage survive after the cells close.
+
+import { readFileSync } from "node:fs";
+import { createServer } from "node:http";
+import { join } from "node:path";
+import process from "node:process";
+import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { vi } from "vitest";
+import { appearanceMatrixContract } from "../../../../packages/client/src/lib/appearance-carrier-manifest.ts";
+import { readSessionRow } from "../../../../tooling/src/snap/lib/session-wire.ts";
+import type { CliResult } from "../../../support/tool-fixtures.ts";
+import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+const CASE_BUDGET_MS = scaledBudget(180_000, 4);
+const CLI_BUDGET_MS = scaledBudget(150_000, 4);
+vi.setConfig({ testTimeout: CASE_BUDGET_MS, hookTimeout: CASE_BUDGET_MS });
+
+const THEMES = [
+  { id: "seed-hearth", name: "Hearth", isSeed: true, override: { background: "#111111" }, css: null },
+  { id: "custom-light", name: "Paper", isSeed: false, override: { background: "#f7f3eb" }, css: ":root{color-scheme:light}" },
+  { id: "custom-dark", name: "Ink", isSeed: false, override: { background: "#161821" }, css: ":root{color-scheme:dark}" },
+] as const;
+
+function runtimeContract(): ReturnType<typeof appearanceMatrixContract> & {
+  readonly rows: readonly (ReturnType<typeof appearanceMatrixContract>["rows"][number] & { readonly reached: number; readonly samples: readonly unknown[] })[];
+} {
+  const contract = appearanceMatrixContract();
+  return {
+    ...contract,
+    rows: contract.rows.map((row, index) => ({ ...row, reached: index === 0 ? 1 : 0, samples: index === 0 ? ["fixture"] : [] })),
+  };
+}
+
+function fixtureHtml(): string {
+  const contract = JSON.stringify(runtimeContract()).replaceAll("<", "\\u003c");
+  return `<!doctype html><html lang="en" data-app-ready="pending"><head><meta charset="utf-8"><title>F10 fixture</title></head>
+<body><main id="fixture">matrix fixture</main><script>
+globalThis.__orb = {
+  appearanceMatrixContract: () => (${contract}),
+  consoleErrors: () => ({ records: [], dropped: 0, cap: 128 }),
+  resetEvidence: () => {}
+};
+fetch("/api/trpc/settings.getUserSettings?batch=1&input=%7B%7D")
+  .then((response) => response.json())
+  .then(() => { document.documentElement.dataset.appReady = "settled"; });
+</script></body></html>`;
+}
+
+async function loopbackFixture(): Promise<{ readonly base: string; readonly requests: string[]; readonly close: () => Promise<void> }> {
+  const requests: string[] = [];
+  const server = createServer((request, response) => {
+    const url = request.url ?? "/";
+    requests.push(url);
+    response.setHeader("content-type", url.includes("/api/trpc/") ? "application/json" : "text/html; charset=utf-8");
+    if (url.includes("settings.listThemes")) {
+      response.end(JSON.stringify([{ result: { data: THEMES } }]));
+      return;
+    }
+    if (url.includes("settings.getUserSettings")) {
+      response.end(JSON.stringify([{ result: { data: { config: { appearance: {}, theme: { selectedThemeId: null } } } } }]));
+      return;
+    }
+    response.end(fixtureHtml());
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("loopback fixture did not bind a TCP port");
+  }
+  return {
+    base: `http://127.0.0.1:${address.port}`,
+    requests,
+    close: async () => await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error)))),
+  };
+}
+
+function occurrenceCount(value: string, needle: string): number {
+  return value.split(needle).length - 1;
+}
+
+function browserChildren(pid: number): readonly number[] {
+  const children = readFileSync(`/proc/${pid}/task/${pid}/children`, "utf8").trim().split(/\s+/u).filter(Boolean).map(Number);
+  return children.filter((child) => {
+    const argv = readFileSync(`/proc/${child}/cmdline`, "utf8");
+    return argv.includes("chromium") && !argv.includes("--type=");
+  });
+}
+
+// @instrument-proof: every matrix cell reports the synthetic origin and fresh storage through the real
+// daemon call; a one-shot/fallback browser or reused context changes those receipts.
+test("F10 — a session matrix inherits the daemon base, isolates every cell context, and leaves the owner usable", async ({ plantedTree, runCli }) => {
+  const fixture = await loopbackFixture();
+  const session = `p-f10-matrix-${process.pid}`;
+  const cellEval =
+    "new Promise((resolve) => setTimeout(() => resolve(JSON.stringify({origin:location.origin,owner:localStorage.getItem('f10-owner'),cell:localStorage.getItem('f10-cell')}) + (localStorage.setItem('f10-cell','set'),'')), 250))";
+  const scenario = JSON.stringify({ name: "f10-one-checkpoint", checkpoints: [{ name: "cell", args: ["/", "--eval", cellEval, "--no-shot"] }] });
+  const root = await plantedTree({ "registry/.keep": "", "scenario.json": scenario });
+  const env = Object.fromEntries([["ORB_SNAP_SESSION_HOME", join(root, "registry")]]);
+  const snap = (args: readonly string[]): Promise<CliResult> => runCli("snap", args, { env, timeoutMs: CLI_BUDGET_MS });
+  try {
+    const boot = await snap([
+      "--session",
+      session,
+      "--base",
+      fixture.base,
+      "/",
+      "--eval",
+      "localStorage.setItem('f10-owner','owner-alive') || location.origin",
+      "--no-shot",
+      "--no-failure-evidence",
+    ]);
+    await expect(boot).toExitWith(EXIT.clean);
+    expect(boot.stdout).toContain(fixture.base);
+
+    const row = readSessionRow(readFileSync(join(root, "registry", `${session}.json`), "utf8"));
+    if (row === null) {
+      throw new Error("session daemon row was not persisted after boot");
+    }
+    const daemonPid = row.daemonPid;
+    expect(browserChildren(daemonPid)).toHaveLength(1);
+
+    let maxBrowserChildren = browserChildren(daemonPid).length;
+    const sampler = setInterval(() => {
+      maxBrowserChildren = Math.max(maxBrowserChildren, browserChildren(daemonPid).length);
+    }, 50);
+    const matrix = await snap(["--session", session, "--matrix", "--scenario", join(root, "scenario.json"), "--json", "--no-shot"]).finally(() => {
+      clearInterval(sampler);
+    });
+    expect(maxBrowserChildren).toBe(1);
+    await expect(matrix).toExitWith(EXIT.clean);
+    expect(matrix.stdout).toContain("RESULT snap-matrix");
+    expect(matrix.stdout).toContain("variants=16");
+    expect(occurrenceCount(matrix.stdout, String.raw`\"origin\":\"${fixture.base}`)).toBe(16);
+    expect(occurrenceCount(matrix.stdout, String.raw`\"owner\":null`)).toBe(16);
+    expect(occurrenceCount(matrix.stdout, String.raw`\"cell\":null`)).toBe(16);
+    expect(matrix.stdout).not.toContain(":5173");
+    const receiptPath = /RESULT snap-matrix .*\bjson=(\S+)/u.exec(matrix.stdout)?.[1];
+    expect(receiptPath).toBeTypeOf("string");
+    const receipt = JSON.parse(readFileSync(String(receiptPath), "utf8")) as { readonly mode: string; readonly cells: readonly unknown[] };
+    expect(receipt).toMatchObject({ mode: "scenario-checkpoints" });
+    expect(receipt.cells).toHaveLength(16);
+    const indexPath = /\bindex=(\/\S+\/run\.json)\b/u.exec(matrix.stdout)?.[1];
+    expect(indexPath).toBeTypeOf("string");
+    const index = JSON.parse(readFileSync(String(indexPath), "utf8")) as {
+      readonly artifacts: readonly {
+        readonly path: string;
+        readonly producerArm: string | null;
+        readonly channel: string;
+        readonly schema: string | null;
+      }[];
+    };
+    expect(index.artifacts.find((artifact) => artifact.path === receiptPath)).toMatchObject({
+      producerArm: null,
+      channel: "appearance-matrix",
+      schema: "snap-appearance-matrix-v1",
+    });
+
+    const after = await snap([
+      "--session",
+      session,
+      "--eval",
+      "JSON.stringify({origin:location.origin,owner:localStorage.getItem('f10-owner'),cell:localStorage.getItem('f10-cell')})",
+      "--no-shot",
+    ]);
+    await expect(after).toExitWith(EXIT.clean);
+    expect(after.stdout).toContain(fixture.base);
+    expect(after.stdout).toContain("owner-alive");
+    expect(after.stdout).toContain(String.raw`\"cell\":null`);
+    expect(fixture.requests.filter((url) => !url.includes("/api/trpc/")).length).toBeGreaterThan(16);
+  } finally {
+    await snap(["--session-close", session]);
+    await snap(["--session-sweep"]);
+    await fixture.close();
+  }
+});

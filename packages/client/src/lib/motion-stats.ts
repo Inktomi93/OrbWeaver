@@ -28,7 +28,7 @@
 // most expensive layout defect this shell has had. Measured 2026-08-09 on the docked LIST panel toggle:
 // `.shell-main` moved 272px across 7 entries at ~20ms cadence — 0.207 of instability, i.e. a full
 // relayout every frame for the whole 220ms transition — and EVERY entry carried `hadRecentInput: true`.
-// `__orb.motion().cls` read 0.0177 and `pnpm motion-audit` passed its CLS budget while the shell was
+// `__orb.motion().cls` read 0.0177 and the former motion CLI passed its CLS budget while the shell was
 // visibly thrashing (the cause: an animated `grid-template-columns`, guide §3.7). `activeAnimations()`
 // could not see it either — it samples at the END of the audit window, by which time a 220ms transition
 // is over. So: `cls` stays the spec metric (no consumer's meaning changes), `observedCls` counts every

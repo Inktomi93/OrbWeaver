@@ -1,6 +1,6 @@
 // The session CLIENT (docs/design/1208-instrument-substrate.md §3.2 + §10.1). `--session <name> …` boots the
-// daemon on first use through the ONE detached door (_shared/proc.ts `spawnNicedChild`: own process group,
-// nice -19, its stdio a LOG FILE beside the socket — a detached child that outlives its launcher must never
+// daemon on first use through the ONE detached full-priority door (_shared/proc.ts `spawnFullPriorityChild`:
+// own process group, its stdio a LOG FILE beside the socket — a detached child that outlives its launcher must never
 // hold a pipe to it), then forwards every call's raw argv over the repo-keyed unix socket and prints the
 // daemon's event stream VERBATIM, so the RESULT line stays last on THIS stdout. The client owns the per-call
 // run slot (cli.ts wraps it in `withInstrumentRun`); the daemon ADOPTS it for the call's artifacts (§3.7).
@@ -17,23 +17,22 @@ import { abandonedRuns, print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
-import { spawnNicedChild } from "../../_shared/proc.ts";
+import { spawnFullPriorityChild } from "../../_shared/proc.ts";
 import type { SessionEvent, SessionRequest, SessionRequestKind, SessionRow } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
 import {
-  foreignSessionRefusal,
   SESSION_BOOT_TIMEOUT_MS,
   SESSION_INSTRUMENT,
   SESSION_READY_POLL_MS,
   sessionAccess,
-  sessionCapRefusal,
-  sessionDeadText,
   sessionLogPath,
   sessionSocketPath,
   stripSessionFlags,
 } from "../lib/session-plan.ts";
+import { foreignSessionRefusal, sessionCapRefusal, sessionDeadText } from "../lib/session-refusals.ts";
 import { readSessionEvent } from "../lib/session-wire.ts";
+import { registerSnapDiagnosticCompleteness, registerSnapFactBatch, registerSnapResultPairs, registerSnapSessionProvenance } from "./run-bundle.ts";
 import { liveRows, readRow, releaseSessionBoot, reserveSessionBoot, rowIsLive, sessionLimitsFromEnv, sessionRegistryHome } from "./session-registry.ts";
 import { repoRoot } from "./stage-git.ts";
 
@@ -105,6 +104,7 @@ async function pingOk(socketPath: string, root: string): Promise<boolean> {
     checkout: root,
     boot: false,
     force: false,
+    exportOut: null,
   };
   // @orb-gate-ignore caught-failure-ownership(default:catch): a refused or absent socket IS the negative answer of a readiness poll — the caller keeps polling until the daemon answers, exits, or the boot budget names the failure. Ends if the poll stops bounding the wait.
   try {
@@ -140,6 +140,7 @@ interface SessionCallContext {
   readonly home: string;
   readonly root: string;
   readonly forwarded: readonly string[];
+  readonly exportOut: string | null;
 }
 
 /** Boot the daemon and wait for it to answer `ping` — relaying its log meanwhile. Returns null when the
@@ -165,7 +166,11 @@ async function bootSession(opts: Args, ctx: SessionCallContext): Promise<number 
   const logPath = sessionLogPath(home, name);
   const socketPath = sessionSocketPath(home, name);
   const ttl = opts.sessionTtlMin === null ? [] : ["--session-ttl", String(opts.sessionTtlMin)];
-  const child = spawnNicedChild(process.execPath, [SNAP_CLI, "--session-daemon", name, ...ttl, ...forwarded], { cwd: process.cwd(), logPath });
+  const child = spawnFullPriorityChild(process.execPath, [SNAP_CLI, "--session-daemon", name, ...ttl, ...forwarded], {
+    cwd: process.cwd(),
+    logPath,
+    detached: true,
+  });
   // The daemon outlives this client by design; without `unref` node would hold the client open until it exits.
   child.unref();
   print(`session      booting ${name} (daemon pid ${child.pid ?? "?"}, log ${logPath})`);
@@ -216,10 +221,25 @@ async function forwardRequest(kind: SessionRequestKind, ctx: SessionCallContext,
     checkout: root,
     boot,
     force: false,
+    exportOut: kind === "export" ? ctx.exportOut : null,
   };
   // @orb-gate-ignore caught-failure-ownership(empty:error): a daemon that vanished mid-call is reported as SESSION DEAD (or SESSION ERROR with the reason) and the call exits toolError — the failure is the printed verdict. Ends if that exit code stops being surfaced.
   try {
-    return await sessionRequest(sessionSocketPath(home, name), request, printEvent);
+    return await sessionRequest(sessionSocketPath(home, name), request, (event) => {
+      if (event.kind === "done" && event.diagnosticCompleteness !== undefined) {
+        registerSnapDiagnosticCompleteness(event.diagnosticCompleteness);
+      }
+      if (event.kind === "done") {
+        registerSnapResultPairs(event.pairs);
+        for (const batch of event.facts ?? []) {
+          registerSnapFactBatch(batch);
+        }
+        if (event.sessionProvenance !== undefined) {
+          registerSnapSessionProvenance(event.sessionProvenance);
+        }
+      }
+      printEvent(event);
+    });
   } catch (error) {
     const row = readRow(home, name);
     print(row === null ? `SESSION ERROR  ${name}: ${errorMessage(error)}` : sessionDeadText(row, errorMessage(error)));
@@ -236,7 +256,7 @@ export async function runSessionCall(opts: Args, argv: readonly string[]): Promi
   }
   const root = repoRoot();
   const home = sessionRegistryHome(root);
-  const ctx: SessionCallContext = { name, home, root, forwarded: stripSessionFlags(argv) };
+  const ctx: SessionCallContext = { name, home, root, forwarded: stripSessionFlags(argv), exportOut: exporting ? opts.out : null };
   const row = readRow(home, name);
   const live = row !== null && rowIsLive(row);
   const access = sessionAccess({ row, live, callerCheckout: root });

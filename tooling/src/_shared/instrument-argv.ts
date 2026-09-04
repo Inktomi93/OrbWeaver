@@ -1,30 +1,12 @@
-// The shared flag-FAMILY tables every instrument's own `ops/parse.ts` consumes
+// The shared flag-FAMILY tables every public rendered tool's own `ops/parse.ts` consumes
 // (docs/design/1208-instrument-substrate.md §4.2/§4.3). `Core-Tooling-Law.md` §4.9 refuses a generic
 // `parseArgv(spec)` — each tool keeps its own byte-stable parser and scanner — so this file holds only
 // the DATA a family shares (the flag's name, its help line, its required-value shape), never a parser.
 //
-// Phase 4 (design §10's row) started this file with WHERE_FLAGS' one NEW member, `--session` (#1285): the
-// substrate's sibling-attach flag, spelled ONCE here so `design-audit`/`motion-audit`/`perf-meter`/
-// `record` cannot each mint their own copy of its name or its help text. `--base`/`--isolated`/`--ref`/
-// `--dirty`/`--fresh` — WHERE_FLAGS' other §4.3 members — stay hand-spelled per tool for now: moving them
-// here is a BYTE-STABILITY-checked migration of its own (a value change owes the `tests/**` literal
-// sweep), not a side effect of adding one new flag. Slice 1 (#1290) added HELP_FLAGS and ALIAS_REFUSALS
-// (the two families the pain census, §1 P5, measured the most hits against) and design-audit's --wait ->
-// --settle rename (F1). Slice 2 added SESSION_ADMIN_FLAGS/STAGE_ADMIN_FLAGS refusal-with-pointer.
-//
-// OWNER RULING 2026-09-03 (474e2df65, re-attested 5f8da9a13) SUPERSEDES this file's original slice-1/2
-// deferral note (git history has the old text): "this flag exists on snap only, so adding it to the
-// siblings is a feature addition" is NOT a reason to defer — THE UNIFICATION IS TOTAL, a tool that lacks a
-// family member GAINS it, and that IS the deliverable (§1's P5 counted five dialects precisely because
-// each tool grew its own vocabulary). Slice 3 lands motion-audit's `--os-reduced-motion`/`--os-full-motion`
-// RENAME to the canonical `--reduced-motion` (ENVIRONMENT_FLAGS' first cross-tool member; the owner also
-// ruled NO ALIASES survive — the old spellings are REFUSALS, not accepted second spellings) plus the pure-
-// spelling promotion of `--viewport`/`--mobile`/`--desktop` (already IDENTICAL across all five tools).
-// The remaining ENVIRONMENT_FLAGS members (`--wide`/`--dark`/`--light` as NEW capability on
-// design-audit/perf-meter/record), all of ARTIFACT_FLAGS, and WHERE_FLAGS' isolated-stage members land in
-// a LATER slice — wiring them requires touching each sibling's `ops/run.ts` browser-launch call and
-// `_shared/browser.ts`, both reserved to other live lanes (`cb-bind`, `cb-screen`) as of this slice; see
-// the closing fork report for the receipts.
+// The family tables below are the accepted-vocabulary source for Snap, design-audit, and record. Each
+// parser still owns what a flag DOES; `instrumentFamilyRosterErrors` only makes a missing family member
+// fail loud before a browser boots. A new tuple member therefore changes the union, the runtime table,
+// and every parser's enforcement input in one edit without flattening the five grammars into one parser.
 
 /** HELP_FLAGS (§4.3): every tool prints its help and exits 0 on either spelling. Before this family,
  *  `--help`/`-h` was an UNKNOWN FLAG (exit 3) on every tool but snap — measured 34 hits across
@@ -46,6 +28,16 @@ export const ALIAS_REFUSALS: ReadonlyMap<string, string> = new Map([
   ["--screenshot", "--shot-of"],
   ["--os-reduced-motion", "--reduced-motion"],
   ["--os-full-motion", "--reduced-motion"],
+  ["--profile", "--react-profile"],
+  ["--cpuprofile", "--cpu-profile"],
+  ["--jsclick", "--dom-click"],
+  ["--press", "--force-click"],
+  ["--wheelburst", "--wheel-burst"],
+  ["--ls", "--local-storage"],
+  ["--sse", "--stream-settle"],
+  ["--summary", "--scenario-summary"],
+  ["--owner", "--stage-owner"],
+  ["--cycles", "--perf-cycles"],
 ]);
 
 /** Returns the "unknown flag X — did you mean Y?" refusal for a token in `ALIAS_REFUSALS`, but ONLY when
@@ -53,19 +45,26 @@ export const ALIAS_REFUSALS: ReadonlyMap<string, string> = new Map([
  *  so the generic "unknown flag" applies rather than a suggestion that names a flag the tool never had. */
 export function aliasRefusal(flag: string, knownFlags: ReadonlySet<string>): string | null {
   const real = ALIAS_REFUSALS.get(flag);
-  return real !== undefined && knownFlags.has(real) ? `unknown flag ${flag} — did you mean ${real}?` : null;
+  if (real === undefined || !knownFlags.has(real)) {
+    return null;
+  }
+  if (flag === "--os-full-motion") {
+    return "unknown flag --os-full-motion — full motion is already the default; omit the flag";
+  }
+  return `unknown flag ${flag} — did you mean ${real}?`;
 }
 
 /** The substrate's sibling-attach flag (design §3.4/§5, #1285): `--session <name>` on
- *  design-audit/motion-audit/perf-meter/record resolves through `snap`'s front door
+ *  design-audit/record resolves through `snap`'s front door
  *  (`resolveSessionAttach`) instead of launching a fresh browser. Snap's own `--session` predates this
- *  file (phase 1, `snap/ops/flags-session.ts`) and is unchanged — this constant is for the FOUR SIBLINGS
- *  only, so the name is spelled once for them rather than once each. */
+ *  file (phase 1, `snap/ops/flags-session.ts`) and is unchanged — this constant is for the remaining
+ *  siblings only, so the name is spelled once for them rather than once each. */
 export const SESSION_FLAG = "--session";
 
-/** WHERE_FLAGS (§4.3): today this family has exactly one member a sibling tool's parser wires — see the
- *  header note on why `--base`/`--isolated`/`--ref`/`--dirty`/`--fresh` are not here yet. */
-export const WHERE_FLAGS: ReadonlySet<string> = new Set(["--base", "--isolated", "--ref", "--dirty", "--fresh", SESSION_FLAG]);
+/** WHERE_FLAGS (§4.3): the complete shared location/session vocabulary for all public rendered tools. */
+const WHERE_FLAG_NAMES = ["--base", "--isolated", "--ref", "--dirty", "--fresh", SESSION_FLAG] as const;
+export type WhereFlag = (typeof WHERE_FLAG_NAMES)[number];
+export const WHERE_FLAGS: ReadonlySet<WhereFlag> = new Set(WHERE_FLAG_NAMES);
 
 /** The canonical `--reduced-motion` spelling — motion-audit's RENAME target (owner ruling 2026-09-03) for
  *  its retired `--os-reduced-motion`/`--os-full-motion`; snap has carried this spelling since phase 1. A
@@ -73,16 +72,33 @@ export const WHERE_FLAGS: ReadonlySet<string> = new Set(["--base", "--isolated",
  *  member never re-spells it. */
 export const REDUCED_MOTION_FLAG = "--reduced-motion";
 
-/** ENVIRONMENT_FLAGS (§4.3, owner ruling 2026-09-03): ONE spelling, no aliases, lands on ALL FIVE tools.
- *  `--reduced-motion` is the first member wired here (slice 3, #1290). `--viewport`/`--mobile`/`--desktop`
- *  already agree byte-for-byte across all five tools' hand-spelled literals and are the next safe
- *  promotion (unchanged this slice — a spelling move is still its own byte-stability receipt, not a side
- *  effect of this one). `--wide`/`--dark`/`--light` are NEW capability on design-audit/perf-meter/record
- *  and are DEFERRED: see this file's header for why (the wiring crosses into files two other live lanes
- *  own). */
-export const ENVIRONMENT_FLAGS: ReadonlySet<string> = new Set(["--viewport", "--wide", "--mobile", "--desktop", "--dark", "--light", REDUCED_MOTION_FLAG]);
+/** ENVIRONMENT_FLAGS (§4.3): one spelling, no aliases, and one accepted roster across all public rendered tools. */
+const ENVIRONMENT_FLAG_NAMES = ["--viewport", "--wide", "--mobile", "--desktop", "--dark", "--light", REDUCED_MOTION_FLAG] as const;
+export type EnvironmentFlag = (typeof ENVIRONMENT_FLAG_NAMES)[number];
+export const ENVIRONMENT_FLAGS: ReadonlySet<EnvironmentFlag> = new Set(ENVIRONMENT_FLAG_NAMES);
 
-export const ARTIFACT_FLAGS: ReadonlySet<string> = new Set(["--out", "--json"]);
+const ARTIFACT_FLAG_NAMES = ["--out", "--json"] as const;
+export type ArtifactFlag = (typeof ARTIFACT_FLAG_NAMES)[number];
+export const ARTIFACT_FLAGS: ReadonlySet<ArtifactFlag> = new Set(ARTIFACT_FLAG_NAMES);
+
+export const INSTRUMENT_FLAG_FAMILIES = {
+  where: WHERE_FLAGS,
+  environment: ENVIRONMENT_FLAGS,
+  artifact: ARTIFACT_FLAGS,
+} as const satisfies Readonly<Record<"where" | "environment" | "artifact", ReadonlySet<string>>>;
+
+/** The parser-side enforcement seam for §4.2/§4.3. This checks vocabulary membership only; tool-specific
+ * semantics, value validation, conflicts, and legacy refusals remain in each parser. */
+export function instrumentFamilyRosterErrors(tool: string, acceptedFlags: ReadonlySet<string>): string[] {
+  const errors: string[] = [];
+  for (const [family, flags] of Object.entries(INSTRUMENT_FLAG_FAMILIES)) {
+    const missing = [...flags].filter((flag) => !acceptedFlags.has(flag));
+    if (missing.length > 0) {
+      errors.push(`${tool} parser is missing shared ${family} flags: ${missing.join(", ")}`);
+    }
+  }
+  return errors;
+}
 
 /** SESSION_ADMIN_FLAGS (§4.3): snap-only — the sibling four are refused BY NAME with a pointer (below),
  *  never a bare "unknown flag". */

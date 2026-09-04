@@ -2,7 +2,9 @@
 // this receipt directly so it never has to re-open a just-written JSON artifact or trust a callback bus.
 import type { SettingsShimEvidence } from "../../_shared/appearance.ts";
 import type { RuntimeAppearanceHistoricalRow } from "../../_shared/appearance-matrix.ts";
+import type { OrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
 import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
+import type { AuditData } from "../../motion-audit/index.ts";
 import type { AppearanceInvariantResult } from "./appearance-invariants.ts";
 import type { CaptureOutcome } from "./types.ts";
 import type { SnapFailureSummary } from "./verdict.ts";
@@ -13,6 +15,9 @@ export interface SnapRunReceipt {
   readonly browser: readonly BrowserEnvironmentEvidence[];
   readonly settings: readonly SettingsShimEvidence[];
   readonly appearance: readonly AppearanceInvariantResult[];
+  readonly diagnosticCompleteness: readonly OrbConsoleCompleteness[];
+  /** Present when the Snap motion arm ran; consumed only by matrix reconciliation. */
+  readonly motion: AuditData | null;
   /** Present only for the JSON-owned sequential-checkpoint path. Matrix composition consumes this
    *  in-memory receipt; it never re-opens the per-cell manifest to recover checkpoint truth. */
   readonly scenario: SnapScenarioRunEvidence | null;
@@ -36,15 +41,13 @@ export interface SnapDetailedResult {
 }
 
 /** What `finishSession` hands back once a browser is closed: the failure-evidence trace/HAR paths kept
- *  for a red run. Empty for a session call — the browser stays up and a session records none
- *  (docs/design/1208-instrument-substrate.md §10.1). */
+ *  for a red one-shot run. Session-lifetime evidence rotates through ops/session-evidence.ts instead. */
 export interface FailureArtifacts {
   readonly traces: readonly string[];
   readonly hars: readonly string[];
 }
 
-/** A session call's evidence window over the daemon's rings — the scenario's per-checkpoint range shape:
- *  where the session's console/page-error arrays stood when the call began. Null on the one-shot path. */
+/** A session call's monotonic cursors over the daemon's bounded rings. Null on the one-shot path. */
 export interface EvidenceWindow {
   readonly consoleStart: number;
   readonly pageErrorStart: number;

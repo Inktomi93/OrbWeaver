@@ -22,10 +22,9 @@ a surface WITHOUT a page load — including every settings/modal target — audi
 Surface (ONE argv-ordered queue — write the chain the way it should happen):
   --click <selector>        --goto <section|settings:cat|modal:slot>
   --open-chat <id|title|latest|current>   --open-character <id|name>
-  --upload <selector>=<path[,path...]>    attach local file(s) to a file input — drills a wrapper
-                            selector down to the real <input type="file"> automatically. PATH BOUNDARY:
-                            every path must resolve inside this repo or the OS tmp dir; anything else is
-                            refused loudly. Same shape and boundary as snap's --upload (_shared/upload.ts).
+  --upload <selector>=<path[,path...]>    choose file(s) through a direct/descendant input or a trigger's
+                            filechooser; one directory is legal only for webkitdirectory. Paths stay
+                            inside the repo/tmp fixture boundary. Same engine/receipt as snap --upload.
   --context-tab <tab>       --panel <name>=<docked|overlay|collapsed>   drive the shell's panel layout
   --focus <on|off>          the shell's zen/focus-mode toggle
   --panels <preset>         reach a NAMED panel configuration in one flag (see Panel state below)

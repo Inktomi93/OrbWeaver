@@ -16,6 +16,27 @@ export interface CtView {
   readonly targets: readonly string[];
 }
 
+const CHANGED_PATH_STATUSES = ["added", "modified", "renamed-existing", "deleted"] as const;
+export type ChangedPathStatus = (typeof CHANGED_PATH_STATUSES)[number];
+
+/** One git-derived change. A rename contributes TWO rows: the old deleted path and the new
+ * `renamed-existing` path carrying `previousPath`, so graph/structure retain deletion semantics while
+ * direct file tools receive only the target that exists. */
+export interface ChangedPath {
+  readonly path: string;
+  readonly status: ChangedPathStatus;
+  readonly previousPath: string | null;
+}
+
+export interface ChangedPathClassification {
+  readonly entries: readonly ChangedPath[];
+  /** Every semantic change path, including deletions and the old side of a rename. */
+  readonly paths: readonly string[];
+  /** The current-filesystem view for tools that open every concrete argv path. */
+  readonly existingPaths: readonly string[];
+  readonly deletedPaths: readonly string[];
+}
+
 /** The resolved selection — the superset every stage's `scopedArgv` reads from (§3.4). */
 export interface Selection {
   /** The kind of scope this run covers, for the summary header + the artifact. */
@@ -23,6 +44,9 @@ export interface Selection {
   readonly label: string;
   /** Every selected repo-relative posix path (deletions KEPT — mirror-expansion needs them, §3.4). */
   readonly paths: readonly string[];
+  /** Current-filesystem subset of `paths`. Every stage that opens concrete argv paths derives from this
+   * one view; deletion-aware graph/ledger/type/structure consumers continue to use `paths`. */
+  readonly existingPaths: readonly string[];
   /** paths ∩ the eslint surface ∩ EXISTING. A deleted path is dropped here: eslint takes concrete file
    *  args and hard-ERRORS ("No files matching the pattern") on a path that's gone — it stays in `paths`
    *  (the structure walk reasons about deletions) and still drives its owning tsconfig via `tsconfigs`. */

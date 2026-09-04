@@ -318,6 +318,7 @@ test("resolveSelection: a DELETED path lints clean — dropped from the tool fil
   const deleted = "packages/server/src/domain/discovery/substrate/json-extract.ts"; // a real T6 deletion
   const survivor = "packages/server/src/index.ts"; // exists on disk
   const sel = resolveSelection({ kind: "changed", paths: [deleted, survivor] });
+  expect(sel.existingPaths).toEqual([survivor]);
   // eslint/depcruise drop the deletion but keep the survivor.
   expect(sel.eslintPaths).not.toContain(deleted);
   expect(sel.eslintPaths).toContain(survivor);
@@ -327,6 +328,15 @@ test("resolveSelection: a DELETED path lints clean — dropped from the tool fil
   // per-package tsc (deleting a file can break its consumers — that package MUST re-typecheck).
   expect(sel.paths).toContain(deleted);
   expect(sel.tsconfigs).toContain("packages/server/tsconfig.json");
+  expect(stage("lint:biome").scopedArgv?.(sel)).toEqual([
+    "biome",
+    "check",
+    "--diagnostic-level=error",
+    "--reporter=concise",
+    "--no-errors-on-unmatched",
+    survivor,
+  ]);
+  expect(stage("structure:full").scopedArgv?.(sel)).toEqual(["node", "tooling/src/verify/cli.ts", "scoped", "--changed", deleted, survivor]);
 });
 
 test("resolveSelection: a tests/ file flags the graph-only trees (types:graph runs at changed scope)", () => {

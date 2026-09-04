@@ -1135,6 +1135,7 @@ export function AgentBridgeStory(): ReactElement {
   const [motionActive, setMotionActive] = useState(false);
   const [bridgeReady, setBridgeReady] = useState(false);
   const [sharedReady, setSharedReady] = useState(false);
+  const [visibleChat, setVisibleChat] = useState(false);
   const motionTargetRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handles = {
@@ -1200,6 +1201,19 @@ export function AgentBridgeStory(): ReactElement {
     <div>
       {bridgeReady ? <div data-testid="bridge-installed">installed</div> : null}
       <div data-testid="bridge-ready-shared">{sharedReady ? "shared" : "forked"}</div>
+      <section data-testid="retained-chat-section" style={{ display: "none" }}>
+        <article aria-label="Retained inactive chat">retained chat</article>
+      </section>
+      <button type="button" onClick={(): void => setVisibleChat((open) => !open)}>
+        toggle visible chat
+      </button>
+      {visibleChat ? (
+        <section style={{ visibility: "hidden" }}>
+          <article aria-label="Active chat" style={{ visibility: "visible" }}>
+            active chat
+          </article>
+        </section>
+      ) : null}
       <style>{"@keyframes orb-ct-bridge-dirty { from { width: 80px } to { width: 160px } }"}</style>
       <button
         type="button"

@@ -16,7 +16,8 @@ the literal `import.meta.env.DEV` dynamic `agent-handles/index.ts` door.
 | `__orb.resetRing(name)` | reset one checkpoint-safe client evidence ring (`bus-events`, `flags`, `motion`, `renders`, `css-merges`), returning `{ok:true,name}`; unknown or unsafe names return `{ok:false,name,reason}` without mutating evidence |
 | `__orb.snap()` | cheap one-call overview: `{ ready, shell, bus, queries, perf, renders, motion, flags }`; motion summarizes recorded evidence without forcing a document-wide animation scan |
 | `__orb.css.read()` / `.reset()` | ordered configured-merge receipts since the last checkpoint: input occurrences, governed axis, exact loser → final winner, and output; repeated receipts dedupe while counters retain population. A read before any merge fails loud with `INSTRUMENT ERROR` |
-| `await __orb.rpg()` | active chat's authoritative game + selected-lineage tracker view + journal + recorded folded tool calls; read-only, through the production tRPC APIs |
+| `await __orb.seed.game({ profile: "d20" \| "freeform", title? })` | create a fresh, fully populated development game through production tRPC writes; returns `{ chatId }`. Open that exact room with `await __orb.nav.openChat(chatId)` — do not guess `latest` after creating an unlisted room |
+| `await __orb.rpg()` | active chat's authoritative state as `{ chatId, game, tracker, journal, turnToolCalls }`; read-only through production tRPC APIs |
 | `await __orb.pluginLog(ref?)` | no ref: the installed-plugin list `{ id, slug, name, version, status }[]`; a ref (slug or id): that plugin's RUNTIME host.log ring through `plugin.getLog` — including what a floated guest continuation logged between invocations (#806). `{ok:false, reason}` on no match / ambiguity |
 | `await __orb.automationFires({ chatId?, ruleId?, limit? })` | the durable automation fire log (`automation_fires`: every dispatch terminal + per-arm `detail`), newest-first, deployment-wide — a same-origin read of `/api/_debug/automation/fires` (admin session or `x-debug-token`); `{ok:false, reason}` carries a refused status |
 | `__orb.queries()` | the full TanStack Query cache: `{ key, status, fetch, stale, updatedAt }[]` |
@@ -28,7 +29,7 @@ the literal `import.meta.env.DEV` dynamic `agent-handles/index.ts` door.
 | `__orb.flags()` | motion flagger records for the current evidence window |
 | `__orb.resetEvidence()` | legacy aggregate: clear all five checkpoint-safe rings before a driven checkpoint without resetting app state; bus live-subscription count is deliberately untouched |
 | `__orb.motionFlaggersSettled()` | await the dev flaggers' one initial full CSS census before a measured checkpoint; later scans remain incremental |
-| `__orb.setMotionAuditDropTrackingPaused(paused)` | motion-audit only: pause duplicate in-page `[drop]` lifetime/report work while its CDP trace owns dropped-frame truth |
+| `__orb.setMotionAuditDropTrackingPaused(paused)` | Snap `--motion` only: pause duplicate in-page `[drop]` lifetime/report work while its CDP trace owns dropped-frame truth |
 | `__orb.shell()` | DOM-derived shell state: active section, panel modes, `chatOpen` |
 | `__orb.nav` | dev-only SPA-navigation ACTIONS — see below |
 | `__orb.ready` / `.isReady()` | a promise / bool for "hydrated + initial reads settled" |
@@ -111,7 +112,7 @@ Prefixed, low-noise, IS\_DEV-gated — read via `preview_console_logs` or a cons
 ## Perf marks (`perf-marks.ts`)
 
 Namespaced `orb:*` `performance.mark`/`measure` helpers. Prod-safe, no-throw. The measures land in
-Chrome's User Timing track, are read by the `perf-meter` probe, and surface via `__orb.perf()`. Place
+Chrome's User Timing track, are read by Snap's `--perf` arm, and surface via `__orb.perf()`. Place
 `perfMark`/`perfMeasure` at critical-path points (app-ready is done; the chat turn chain — send →
 first-token → complete — is the intended next consumer, placed in the impure event-hook layer, NEVER
 the pure `applyChatBusEvent` reducer).
@@ -133,6 +134,6 @@ Zustand stores carry the `devtools` middleware → visible in Redux DevTools.
 ## Probes (`scripts/probes/`, run against `pnpm stack`)
 
 `pnpm snap <route>` (headless screenshot + aria/console/network/deadcss; default-waits on
-`data-app-ready`) · `pnpm perf-meter` (per-step responsiveness) · `pnpm motion-audit` (smoothness
+`data-app-ready`) · `pnpm snap --perf` (per-step responsiveness) · `pnpm snap --motion` (smoothness
 ground-truth: LoAF/CLS/compositor-clean + CDP dropped-frame %) · `pnpm record` (gifs) ·
 `trace:render/tail/fire` · `sse-tap`.

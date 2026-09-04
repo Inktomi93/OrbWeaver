@@ -1,12 +1,9 @@
 // ZERO HYGIENE (#409) — motion-audit's half of the fleet rule in _shared/evidence.ts (read that first):
 // an audit whose evidence population is EMPTY has measured nothing, and `0%` / `PASS` over nothing is a
 // smoothness claim nothing observed. Pure over the collected data — ops/ prints and maps to EXIT.toolError.
-import { print } from "@orb/tooling/_shared/artifacts";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
-import { INSTRUMENT_ERROR_VERDICT, printEvidenceGaps, printVerdict } from "@orb/tooling/_shared/evidence";
-import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { AuditData } from "../contract/types.ts";
-import { clsBudgeted } from "./verdicts.ts";
+import { clsBudgeted, framePopulationBasis } from "./verdicts.ts";
 
 /** The app's in-page instrument is motion-audit's INPUT CONTRACT: `__orb` carries the LoAF ring, the CLS
  *  accumulator and the compositor-clean classification. A page without it answers every budget with a
@@ -39,10 +36,6 @@ export function appReadyTimeoutGap(url: string, timeoutMs: number): EvidenceGap 
  *  number. It is NOT a red - nothing about the surface failed - and it is NOT a pass. Ends only if
  *  motion-audit gains a non-rate verdict member, at which point the withhold narrows to that arm
  *  (`<arm>=withheld`) instead of ending the run. */
-export function loadWithholdGap(reason: string): EvidenceGap {
-  return { evidence: "a quiet box", detail: reason };
-}
-
 /** THE APPARATUS VERDICT, decided once from the two facts a run can observe, in the ONE order that makes
  *  each claim honest: readiness first, because "no bridge" is only a claim about the APP once the app has
  *  had its chance to install one. `null` ⇒ the apparatus is present and the audit may speak. */
@@ -58,7 +51,7 @@ export function apparatusGap(input: {
   return input.bridge ? null : orbBridgeGap(input.url);
 }
 
-/* WHY an empty frame population is a HARD instrument error and not a soft "the page was idle" note —
+/* WHY an uncomputable frame population is a HARD instrument error and not a soft "the page was idle" note —
  * measured on this tree 2026-08-21 (#409), all headless, --no-throttle:
  *   · live app `/`, --window 2500 → 5 · 6 · 13 · 20 frames; --window 100 → 0 frames, 3 runs of 3.
  *   · a static fixture carrying a compositor-only animation → 18 frames in 300ms; the same page
@@ -69,12 +62,18 @@ export function apparatusGap(input: {
  * share one verdict — the run is not a verdict — and the trace-event count separates them in the
  * message so the operator knows whether to widen --window or to fix the tracing. */
 function framePopulationGap(data: AuditData, windowMs: number): EvidenceGap {
+  const total = data.frames.raw.total;
+  let detail: string;
+  if (data.traceEventCount === 0) {
+    detail = `the CDP trace delivered NO events at all across the ${windowMs}ms measured window — tracing never ran; dropped-frame % is undefined, not 0%`;
+  } else if (total === 0) {
+    detail = `the CDP trace delivered ${data.traceEventCount} events but 0 PipelineReporter frames across the ${windowMs}ms measured window — nothing composited, so dropped-frame % is undefined, not 0%; widen --motion-window or measure a surface that moves`;
+  } else {
+    detail = `the CDP trace delivered ${data.traceEventCount} events but only 1 PipelineReporter frame across the ${windowMs}ms measured window — a rate needs at least 2 observations, so dropped-frame % is undefined, not 0%; widen --motion-window or measure a surface that moves`;
+  }
   return {
     evidence: "the frame population",
-    detail:
-      data.traceEventCount === 0
-        ? `the CDP trace delivered NO events at all across the ${windowMs}ms measured window — tracing never ran; dropped-frame % is undefined, not 0%`
-        : `the CDP trace delivered ${data.traceEventCount} events but 0 PipelineReporter frames across the ${windowMs}ms measured window — nothing composited, so dropped-frame % is undefined, not 0%; widen --window or measure a surface that moves`,
+    detail,
   };
 }
 
@@ -127,23 +126,8 @@ export function motionEvidenceGaps(data: AuditData, windowMs: number): EvidenceG
   if (data.flags === null) {
     gaps.push(flagRingGap());
   }
-  if (data.frames.raw.total === 0) {
+  if (framePopulationBasis(data.frames.raw.total) === "uncomputable") {
     gaps.push(framePopulationGap(data, windowMs));
   }
   return gaps;
-}
-
-/** The fail-fast arm: print the gap + a machine line and hand the caller EXIT.toolError's payload. Used
- *  where the audit stops BEFORE it has an AuditData to report (the missing bridge, pre-trace). */
-export function reportInstrumentError(url: string, gap: EvidenceGap): void {
-  print(`URL         ${url}`);
-  printEvidenceGaps([gap]);
-  printVerdict("motion-audit", {
-    verdict: EXIT.toolError,
-    denominators: {},
-    pairs: [
-      ["verdict", INSTRUMENT_ERROR_VERDICT],
-      ["absent-evidence", gap.evidence],
-    ],
-  });
 }

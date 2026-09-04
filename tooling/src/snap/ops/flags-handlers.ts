@@ -20,6 +20,7 @@ import type { Args } from "../contract/types.ts";
 import { parseShotScale } from "../lib/shot-scale.ts";
 import { NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
 import { armFlagHandlers } from "./arms/registry.ts";
+import { parseDiagnosticQuery } from "./diagnostics.ts";
 import { SESSION_FLAG_HANDLERS } from "./flags-session.ts";
 import { STAGE_FLAG_HANDLERS } from "./flags-stage.ts";
 import { MS_PER_SECOND, pushNav, pushStep } from "./flags-support.ts";
@@ -48,7 +49,7 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--json": (a) => {
     a.json = true;
   },
-  "--summary": (a) => {
+  "--scenario-summary": (a) => {
     a.summary = true;
   },
   "--no-failure-evidence": (a) => {
@@ -56,6 +57,11 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--strict-console": (a) => {
     a.strictConsole = true;
+  },
+  "--diagnostics": (a, rest) => {
+    const parsed = parseDiagnosticQuery(rest.shift() ?? "");
+    a.diagnostics = parsed.query;
+    a.errors.push(...parsed.errors);
   },
   "--checkpoint": (a) => {
     a.checkpoint = true;
@@ -69,7 +75,7 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--wait": (a, rest) => {
     a.waitSelector = rest.shift() ?? null;
   },
-  "--sse": (a, rest) => {
+  "--stream-settle": (a, rest) => {
     a.sseSeconds = Number(rest.shift() ?? "0");
   },
   "--base": (a, rest) => {
@@ -83,20 +89,20 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   // In-page el.click() — bypasses Playwright's actionability checks for
   // stubborn targets (icon divs under overlay stacks).
-  "--jsclick": (a, rest, page) => {
+  "--dom-click": (a, rest, page) => {
     pushStep(a, { kind: "jsclick", selector: rest.shift() ?? "", page });
   },
   // Hover the target's position then FORCE-click — for hover-revealed controls
   // (group-hover kebabs/toolbars stay actionability-invisible) and Radix
   // triggers that want real pointer events but fail visibility checks.
-  "--press": (a, rest, page) => {
+  "--force-click": (a, rest, page) => {
     pushStep(a, { kind: "press", selector: rest.shift() ?? "", page });
   },
   "--hover": (a, rest, page) => {
     pushStep(a, { kind: "hover", selector: rest.shift() ?? "", page });
   },
   // FIRST '=' splits (localStorage keys never contain '='; JSON values often do).
-  "--ls": (a, rest) => {
+  "--local-storage": (a, rest) => {
     const seed = splitFirstEq(rest.shift() ?? "");
     if (seed !== null) {
       a.localStorage.push({ key: seed.head, value: seed.tail });
@@ -147,6 +153,15 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
       .map((p) => p.trim())
       .filter((p) => p !== "");
     pushStep(a, { kind: "upload", selector: s.head, paths, page });
+  },
+  // A genuine DataTransfer file drop — deliberately not an alias for the chooser-backed --upload arm.
+  "--drop-files": (a, rest, page) => {
+    const s = splitLastEq(rest.shift() ?? "");
+    const paths = s.tail
+      .split(",")
+      .map((p) => p.trim())
+      .filter((p) => p !== "");
+    pushStep(a, { kind: "drop-files", selector: s.head, paths, page });
   },
   // ── SPA navigation (dev nav bridge __orb.nav) — queued INLINE with the steps, argv order ──
   "--goto": (a, rest, page) => {

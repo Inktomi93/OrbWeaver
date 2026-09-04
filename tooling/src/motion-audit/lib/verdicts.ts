@@ -4,14 +4,14 @@
 import type { ClsBudgetBasis, LoafRecord, MotionSnapshot } from "../contract/types.ts";
 
 // The budget thresholds (documented in cli.ts's header). ms unless noted.
-const BLOCKING_BUDGET_MS = 50;
+export const BLOCKING_BUDGET_MS = 50;
 // Clean-host 4x-CPU first Select opens peaked at 181ms blocking: 131ms above the unchanged budget.
 // Round to a stable 140ms first-only library allowance; repeats receive ZERO allowance.
 const FIRST_SELECT_BLOCKING_ALLOWANCE_MS = 140;
 export const CLS_BUDGET = 0.1;
 export const DROPPED_FRAME_BUDGET_PCT = 5;
 /** Percentage-point base — one place, so the floor below and the report's per-frame weight agree. */
-export const PERCENT = 100;
+const PERCENT = 100;
 
 /** THE FRAME-POPULATION RESOLUTION FLOOR (#1127 I3) — DERIVED from the budget above, never a chosen
  *  number: at `total` frames one dropped frame is worth `100/total` percentage points, so below
@@ -26,7 +26,7 @@ export const PERCENT = 100;
  *  machinery caught it; a lone cell has no twin, so the collapse is stated on the cell's own line. */
 export const FRAME_POPULATION_RESOLUTION_FLOOR = Math.ceil(PERCENT / DROPPED_FRAME_BUDGET_PCT);
 /** A rate needs two observations to be a rate. Below this the % is not small — it does not exist. */
-export const RATE_MINIMUM_POPULATION = 2;
+const RATE_MINIMUM_POPULATION = 2;
 
 /** How much this run's frame population can support. `uncomputable` — a rate needs two frames to be a
  *  rate at all, so `0% of 1` is a smoothness claim over nothing; `collapsed` — computable but below the
@@ -101,7 +101,7 @@ export function clsOverBudget(motion: MotionSnapshot | null, measuredInput: bool
   return budgeted !== null && budgeted > CLS_BUDGET;
 }
 
-export function confirmedSelectEntrance(loaf: LoafRecord): NonNullable<LoafRecord["selectEntrance"]> | undefined {
+function confirmedSelectEntrance(loaf: LoafRecord): NonNullable<LoafRecord["selectEntrance"]> | undefined {
   const entrance = loaf.selectEntrance;
   return entrance?.confirmedAt === undefined ? undefined : entrance;
 }
@@ -137,7 +137,7 @@ function scriptAttribution(sourceURL: string): ScriptAttribution {
   return "unknown";
 }
 
-export function hasUnrelatedScriptAttribution(loaf: LoafRecord): boolean {
+function hasUnrelatedScriptAttribution(loaf: LoafRecord): boolean {
   return loaf.scripts.some((script) => scriptAttribution(script.sourceURL) === "unrelated");
 }
 

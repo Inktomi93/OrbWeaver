@@ -5,6 +5,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { closeProbeSession, launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
+import { readBrowserAcceleration } from "@orb/tooling/_shared/browser-acceleration";
 import type { LocalStorageSeed } from "@orb/tooling/_shared/browser-contract";
 import { MOBILE_DEVICE, readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
@@ -113,6 +114,22 @@ test("a real Chromium process is disconnected after a driven body throws", async
   expect(session.browser.isConnected()).toBe(false);
 });
 
+test("the shared launch publishes an explicit acceleration backend and feature receipt", async () => {
+  const session = await launchProbeSession({
+    headless: true,
+    viewport: { width: 320, height: 240 },
+    colorScheme: null,
+    reducedMotion: false,
+    localStorage: [],
+  });
+  await withProbeSession(session, async () => {
+    const acceleration = await readBrowserAcceleration(session.browser);
+    expect(acceleration.backend).not.toBe("unknown");
+    expect(acceleration.gpuCompositing).not.toBe("");
+    expect(acceleration.rasterization).not.toBe("");
+  });
+});
+
 test("a full mobile descriptor is distinguishable from a viewport-only desktop context", async () => {
   const viewport = { width: 430, height: 740 };
   const desktop = await launchProbeSession({
@@ -147,14 +164,38 @@ test("a full mobile descriptor is distinguishable from a viewport-only desktop c
       applied: { deviceScaleFactor: 3, hasTouch: true, isMobile: true },
     });
     expect(desktopEvidence).toMatchObject({
-      actual: { device: "desktop", viewport, pointer: "fine", hover: "hover", hasTouch: false, maxTouchPoints: 0, deviceScaleFactor: 1, isMobile: false },
+      actual: {
+        device: { kind: "desktop" },
+        viewport,
+        pointer: "fine",
+        hover: "hover",
+        hasTouch: false,
+        maxTouchPoints: 0,
+        deviceScaleFactor: 1,
+        isMobile: false,
+      },
       mismatches: [],
     });
     expect(mobileEvidence).toMatchObject({
-      actual: { device: MOBILE_DEVICE, viewport, pointer: "coarse", hover: "none", hasTouch: true, deviceScaleFactor: 3, isMobile: true },
+      actual: {
+        device: { kind: "named", name: MOBILE_DEVICE },
+        viewport,
+        pointer: "coarse",
+        hover: "none",
+        hasTouch: true,
+        deviceScaleFactor: 3,
+        isMobile: true,
+      },
       mismatches: [],
     });
-    expect(viewportOnlyFake.actual).toMatchObject({ device: "unmatched", viewport, pointer: "fine", hover: "hover", hasTouch: false, isMobile: null });
+    expect(viewportOnlyFake.actual).toMatchObject({
+      device: { kind: "unmatched" },
+      viewport,
+      pointer: "fine",
+      hover: "hover",
+      hasTouch: false,
+      isMobile: null,
+    });
     expect(viewportOnlyFake.mismatches).toEqual(
       expect.arrayContaining([
         "DPR expected 3 but observed 1",
@@ -250,8 +291,7 @@ setTimeout(() => process.exit(0), 500);`;
     expect(stillDescendants).toEqual([]);
   } finally {
     terminateChromiumIdentities(captured);
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    expect(livingChromiumIdentities(captured)).toEqual([]);
+    await expect.poll(() => livingChromiumIdentities(captured), { timeout: scaledBudget(5000) }).toEqual([]);
   }
 });
 
@@ -323,7 +363,10 @@ test("snap excludes React Activity-style hidden DOM unless the operator opts in"
   expect(active.status, active.stdout + active.stderr).toBe(0);
   expect(active.stdout).toContain("assertion-fails=0");
   const activeCapture = (manifest(activeName)["captures"] as Record<string, unknown>[])[0];
-  expect((activeCapture?.["mapResult"] as unknown[]).length).toBe(1);
+  expect(activeCapture?.["mapResult"]).toEqual([
+    expect.objectContaining({ role: "main", actionability: "locator-only" }),
+    expect.objectContaining({ role: "button", name: "Active", actionability: "actionable" }),
+  ]);
 
   const hiddenName = `${RUN_ID}_hidden`;
   const hidden = runSnap([
@@ -342,7 +385,11 @@ test("snap excludes React Activity-style hidden DOM unless the operator opts in"
 
   expect(hidden.status, hidden.stdout + hidden.stderr).toBe(0);
   const hiddenCapture = (manifest(hiddenName)["captures"] as Record<string, unknown>[])[0];
-  expect((hiddenCapture?.["mapResult"] as unknown[]).length).toBe(2);
+  expect(hiddenCapture?.["mapResult"]).toEqual([
+    expect.objectContaining({ role: "main", actionability: "locator-only" }),
+    expect.objectContaining({ role: "button", name: "Active", actionability: "actionable" }),
+    expect.objectContaining({ role: "button", name: "Inactive", visibility: "hidden", actionability: "locator-only" }),
+  ]);
 });
 
 test("snap maps repeated accessible names to distinct executable selectors", () => {
@@ -514,8 +561,9 @@ test("snap omits semantic plumbing that is not an agent target", () => {
   const result = runSnap(["--file", page, "--no-shot", "--map", "--json", "--no-failure-evidence", "--out", name]);
 
   expect(result.status, result.stdout + result.stderr).toBe(0);
-  const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ role: string; name: string }> }>)[0];
+  const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ role: string; name: string; actionability: string }> }>)[0];
   expect(capture?.mapResult).toEqual([
+    expect.objectContaining({ role: "main", actionability: "locator-only" }),
     expect.objectContaining({ role: "region", name: "Workspace" }),
     expect.objectContaining({ role: "button", name: "Act" }),
   ]);
@@ -546,11 +594,11 @@ test("snap proves map selectors against the live accessible tree and falls back 
   const entries = capture?.mapResult ?? [];
   expect(entries.find((entry) => entry.name === longName)?.selector).toContain(longName);
   expect(entries.find((entry) => entry.name === longName)?.source).toBe("semantic");
-  expect(entries.find((entry) => entry.name === "Misleading placeholder")).toMatchObject({ source: "dom" });
-  expect(entries.find((entry) => entry.name === "Misleading placeholder")?.selector.startsWith("body > ")).toBe(true);
+  expect(entries.find((entry) => entry.name === "Actual query label")).toMatchObject({ source: "semantic" });
+  expect(entries.find((entry) => entry.name === "Misleading placeholder")).toBeUndefined();
   expect(entries.find((entry) => entry.name === 'Say "hi"')).toMatchObject({ selector: '[aria-label="Say \\"hi\\""]:visible', source: "semantic" });
   expect(entries.find((entry) => entry.name === "Save")).toMatchObject({ selector: '[aria-label="Save"]:visible', source: "semantic" });
-  expect(result.stdout).toContain("map-dom-fallbacks=1");
+  expect(result.stdout).toContain("map-dom-fallbacks=0");
 });
 
 test("snap evaluates bare arrows and already-invoked arrow IIFEs exactly once", () => {
@@ -671,7 +719,7 @@ test("scenario checkpoints share one browser context and emit one aggregate mani
     scenarioPath,
     JSON.stringify({
       name: "shared context",
-      defaults: ["--no-shot", "--no-failure-evidence"],
+      defaults: ["--no-shot"],
       checkpoints: [
         { name: "first", args: ["--file", page, "--expect-text", "main=visits:1"] },
         { name: "second", args: ["--file", page, "--expect-text", "main=visits:2"] },
@@ -679,7 +727,7 @@ test("scenario checkpoints share one browser context and emit one aggregate mani
     }),
   );
   const name = `${RUN_ID}_scenario`;
-  const result = runSnap(["--scenario", scenarioPath, "--json", "--out", name]);
+  const result = runSnap(["--scenario", scenarioPath, "--json", "--no-failure-evidence", "--out", name]);
 
   expect(result.status, result.stdout + result.stderr).toBe(0);
   expect(result.stdout).toContain("checkpoints=2");

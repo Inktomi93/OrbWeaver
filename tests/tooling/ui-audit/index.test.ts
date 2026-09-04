@@ -1955,6 +1955,8 @@ const EMPTY_SAMPLES: RawSamples = {
     stabilized: true,
     settleMutations: 0,
     walked: 1,
+    renderedSubjects: 1,
+    retainedHiddenSubjects: 0,
     skipped: { documentHead: 2, devChrome: 0 },
     inaccessible: 0,
     final: 3,

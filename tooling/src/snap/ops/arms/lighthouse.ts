@@ -28,7 +28,8 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import type { Flags } from "lighthouse";
 import type { Page as PuppeteerPage } from "puppeteer-core";
-import { artifactFile } from "../../../_shared/artifact-out.ts";
+import { artifactFile, registerInstrumentArtifact } from "../../../_shared/artifact-out.ts";
+import { exactScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { print } from "../../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../../_shared/browser-contract.ts";
@@ -37,7 +38,7 @@ import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import type { EvidenceGap } from "../../../_shared/evidence.ts";
 import { printEvidenceGaps } from "../../../_shared/evidence.ts";
 import { EXIT } from "../../../_shared/exit-contract.ts";
-import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
+import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
 import type { LighthouseDevice, LighthouseMode, LighthouseOutcome, LighthouseReceipt } from "../../contract/lighthouse.ts";
 import { LIGHTHOUSE_CATEGORIES } from "../../contract/lighthouse.ts";
 import type { Args } from "../../contract/types.ts";
@@ -239,6 +240,28 @@ async function runLighthouseArm(session: ProbeSession, opts: Args, name: string,
       jsonPath: await artifactFile("lighthouse", name, ".json"),
       htmlPath: await artifactFile("lighthouse", name, ".html"),
     });
+    const metadata = {
+      producer: "lighthouse",
+      producerArm: "lighthouse",
+      role: "primary" as const,
+      completeness: "complete" as const,
+      completenessDetail: "complete Lighthouse report after category, runtime, and truncation validation",
+      scope: exactScope(0, 0, opts.lighthouseMode),
+      records: receipt.auditedCount,
+      limits: [],
+    };
+    await registerInstrumentArtifact("lighthouse", receipt.jsonPath, {
+      ...metadata,
+      channel: "lighthouse-json",
+      mediaType: "application/json",
+      schema: `lighthouse-${receipt.lighthouseVersion}`,
+    });
+    await registerInstrumentArtifact("lighthouse", receipt.htmlPath, {
+      ...metadata,
+      channel: "lighthouse-html",
+      mediaType: "text/html",
+      schema: `lighthouse-${receipt.lighthouseVersion}-html`,
+    });
     for (const line of lighthouseLines(receipt)) {
       print(line);
     }
@@ -302,6 +325,7 @@ export const LIGHTHOUSE_ARM = {
   ],
   level: "call",
   needs: (opts): ArmNeeds => (opts.lighthouse === null ? {} : { debuggingPort: true }),
+  sessionCallBaseMs: (): null => null,
   defaults: (): Pick<ArmArgs, "lighthouse" | "lighthouseMode"> => ({ lighthouse: null, lighthouseMode: "snapshot" }),
   help: `  --lighthouse <${LIGHTHOUSE_DEVICE_SPELLINGS.join("|")}>
                           run Lighthouse (accessibility + best-practices + seo) against the SETTLED page
@@ -318,12 +342,25 @@ export const LIGHTHOUSE_ARM = {
                           DEFAULT snapshot: audit the page as the drive queue left it, because every
                           surface under review here is client state. navigation RELOADS the URL first, so
                           it measures a freshly-booted page and loses whatever you drove to.`,
+  result: {
+    schema: "snap-arm-lighthouse-v1",
+    source: "Lighthouse + CDP",
+    lifetime: "settled snapshot or Lighthouse-owned navigation",
+    enabled: (opts): boolean => opts.lighthouse !== null,
+    failureFields: ["lighthouse"],
+  },
   lifecycle: {
     at: "run",
-    begin: (_session, _opts): ArmRunInstance => {
+    begin: (_session, opts): ArmRunInstance<"lighthouse"> => {
       let outcome: LighthouseOutcome | null = null;
       const refusal = (): EvidenceGap | null => (outcome !== null && outcome.kind === "refused" ? outcome.gap : null);
       return {
+        prepare: (): Promise<void> => Promise.resolve(),
+        afterNavigation: (): Promise<void> => Promise.resolve(),
+        beforeAction: (): Promise<null> => Promise.resolve(null),
+        afterAction: (): Promise<void> => Promise.resolve(),
+        afterActions: (): Promise<void> => Promise.resolve(),
+        afterSettle: (): Promise<void> => Promise.resolve(),
         // The audit runs on the SETTLED page, after the drive queue and every settled-surface capture —
         // that page IS the subject. A refusal prints its evidence gap HERE, where the reader meets it in
         // run order, not at the RESULT line.
@@ -347,8 +384,30 @@ export const LIGHTHOUSE_ARM = {
         denominators: () =>
           outcome !== null && outcome.kind === "measured" ? { "lighthouse-audits": { value: outcome.receipt.auditedCount, refuseWhen: "zero" as const } } : {},
         pairs: (): readonly ResultPair[] => lighthousePairs(outcome),
+        facts: (): readonly ArmFactEmission<"lighthouse">[] => {
+          let state: "off" | "refused" | "failed" | "passed" = "off";
+          if (opts.lighthouse !== null) {
+            if (outcome === null || outcome.kind === "refused") {
+              state = "refused";
+            } else {
+              state = outcome.receipt.failed.length > 0 ? "failed" : "passed";
+            }
+          }
+          return [
+            {
+              scope: exactScope(0, 0, opts.lighthouseMode),
+              data: {
+                state,
+                detail: outcome?.kind === "refused" ? outcome.gap.detail : null,
+                audits: outcome?.kind === "measured" ? outcome.receipt.auditedCount : 0,
+                failedAudits: outcome?.kind === "measured" ? outcome.receipt.failed.length : 0,
+                artifactCount: outcome?.kind === "measured" ? 2 : 0,
+              },
+            },
+          ];
+        },
         exit: (code: number): number => (refusal() === null ? code : EXIT.toolError),
       };
     },
   },
-} satisfies ArmDef;
+} satisfies ArmDef<"lighthouse">;

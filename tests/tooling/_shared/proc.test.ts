@@ -49,7 +49,46 @@ vi.mock("node:child_process", () => ({
   },
 }));
 
-const { killPidGroup, spawnFullPriorityChild } = await import("@orb/tooling/_shared/proc");
+const { inheritedProcessEnv, killPidGroup, processEnvValue, spawnFullPriorityChild, withProcessEnv } = await import("@orb/tooling/_shared/proc");
+
+const ABSENT_ENV_KEY = "ORB_PROC_TEST_ABSENT";
+const PRESENT_ENV_KEY = "ORB_PROC_TEST_PRESENT";
+
+test("withProcessEnv restores an absent key as actual absence across consecutive worker windows", async ({ repoRoot, scratch }) => {
+  expect(Object.hasOwn(inheritedProcessEnv(), ABSENT_ENV_KEY)).toBe(false);
+  const firstSink = join(scratch, "first.jsonl");
+  const secondSink = join(scratch, "second.jsonl");
+
+  await withProcessEnv(ABSENT_ENV_KEY, firstSink, async () => {
+    expect(processEnvValue(ABSENT_ENV_KEY)).toBe(firstSink);
+    await Promise.resolve();
+  });
+  expect(Object.hasOwn(inheritedProcessEnv(), ABSENT_ENV_KEY)).toBe(false);
+  expect(processEnvValue(ABSENT_ENV_KEY)).toBeUndefined();
+
+  await withProcessEnv(ABSENT_ENV_KEY, secondSink, async () => {
+    expect(processEnvValue(ABSENT_ENV_KEY)).toBe(secondSink);
+    await Promise.resolve();
+  });
+  expect(Object.hasOwn(inheritedProcessEnv(), ABSENT_ENV_KEY)).toBe(false);
+  expect(processEnvValue(ABSENT_ENV_KEY)).toBeUndefined();
+  expect(() => readFileSync(join(repoRoot, "undefined"), "utf8")).toThrow();
+});
+
+test("withProcessEnv restores a present key byte-for-byte after a rejected worker window", async () => {
+  expect(Object.hasOwn(inheritedProcessEnv(), PRESENT_ENV_KEY)).toBe(false);
+  await withProcessEnv(PRESENT_ENV_KEY, "original-value", async () => {
+    await expect(
+      withProcessEnv(PRESENT_ENV_KEY, "temporary-value", async () => {
+        expect(processEnvValue(PRESENT_ENV_KEY)).toBe("temporary-value");
+        await Promise.reject(new Error("planted worker rejection"));
+      }),
+    ).rejects.toThrow("planted worker rejection");
+    expect(Object.hasOwn(inheritedProcessEnv(), PRESENT_ENV_KEY)).toBe(true);
+    expect(processEnvValue(PRESENT_ENV_KEY)).toBe("original-value");
+  });
+  expect(Object.hasOwn(inheritedProcessEnv(), PRESENT_ENV_KEY)).toBe(false);
+});
 
 test("kill rethrows a non-ESRCH child.kill failure", () => {
   fake.exitCode = null;

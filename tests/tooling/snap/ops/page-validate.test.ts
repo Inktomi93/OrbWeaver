@@ -47,8 +47,8 @@ describe("the --contrast facts", () => {
   });
 
   test("THE SILENT ARM: an object matching no arm fell through to MEASURED and minted a verdict from undefined", () => {
-    expect(() => contrastFacts({ offscreen: false })).toThrow(/INSTRUMENT ERROR.*field "color" returned nothing/u);
-    expect(() => contrastFacts({})).toThrow(/field "color"/u);
+    expect(() => contrastFacts({ offscreen: false })).toThrow(/INSTRUMENT ERROR.*field "backdrop" returned nothing/u);
+    expect(() => contrastFacts({})).toThrow(/field "backdrop"/u);
   });
 
   test("a measured arm missing its geometry or its dimming factor is refused", () => {
@@ -65,7 +65,17 @@ describe("the --contrast facts", () => {
 });
 
 describe("the --map rows", () => {
-  const row = { role: "button", name: "Save", selector: "#a", fallback: "#a", semanticFallback: "#a" };
+  const row = {
+    role: "button",
+    name: "Save",
+    selector: "#a",
+    fallback: "#a",
+    semanticFallback: "#a",
+    state: { disabled: false, current: null, checked: null, expanded: null },
+    visibility: "visible",
+    inactiveReason: null,
+    actionability: "actionable",
+  };
 
   test("null (no match) passes through, and a well-formed list passes", () => {
     expect(rawMapEntries(null)).toBeNull();
@@ -99,7 +109,7 @@ describe("the perf evidence read", () => {
   test("a null navigation entry is legal; a malformed one is refused before it lands in the report", () => {
     expect(perfEvidence({ navigation: null, orb: null })).toMatchObject({ navigation: null });
     expect(perfEvidence({ navigation: { domContentLoadedMs: 1, loadMs: 2, responseMs: 3 }, orb: null })).toBeTruthy();
-    expect(() => perfEvidence({ navigation: { domContentLoadedMs: 1, loadMs: 2 }, orb: null })).toThrow(/field "responseMs" returned nothing/u);
+    expect(() => perfEvidence({ navigation: { domContentLoadedMs: 1, loadMs: 2 }, orb: null })).toThrow(/"responseMs" returned nothing/u);
     expect(() => perfEvidence("{}")).toThrow(/not an object/u);
   });
 });

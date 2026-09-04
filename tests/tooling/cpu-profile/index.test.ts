@@ -1,70 +1,12 @@
-// The argv contract of `pnpm perf-meter` (tooling/src/cpu-profile). Home: the tests/tooling mirror
-// of a scripts/ tool lives in tests/tooling/.
-//
-// WHAT THIS PINS (2026-08-17, issue #148 item 1): SPA navigation is a STEP, so a surface behind a room can
-// be metered at all — before this the probe could only click, and the chat context panel (2+ hops) had no
-// reachable throttled-input number. And the strict CLI: an unknown flag is misuse, because a typo'd step
-// used to be skipped in silence and the run then metered the landing page and reported it clean.
-import { parsePerfArgs } from "../../../tooling/src/cpu-profile/index.ts";
+// cpu-profile retains pure evidence/report helpers for Snap, but its independent lifecycle is retired.
+// The barrel must expose the retained engine without resurrecting a parser, stage, or browser run path.
 import { expect, test } from "../../support/tool-fixtures.ts";
 
-test("nav flags become steps in TRUE argv order, interleaved with the DOM steps", () => {
-  const args = parsePerfArgs(["/", "--open-chat", "latest", "--context-tab", "rpg.game", "--click", "[data-slot=toggle]", "--pause", "400"]);
+test("the retained barrel exposes pure reports without restoring the retired lifecycle", async () => {
+  const cpuProfile = await import("../../../tooling/src/cpu-profile/index.ts");
 
-  expect(args.errors).toEqual([]);
-  expect(args.steps).toEqual([
-    { kind: "nav", method: "open-chat", target: "latest" },
-    { kind: "nav", method: "context-tab", target: "rpg.game" },
-    { kind: "click", selector: "[data-slot=toggle]" },
-    { kind: "pause", ms: 400 },
-  ]);
-});
-
-test("--cycles unrolls nav steps with everything else — a repetition-decay run re-navigates", () => {
-  const args = parsePerfArgs(["/", "--goto", "settings:appearance", "--cycles", "2"]);
-
-  expect(args.steps).toEqual([
-    { kind: "nav", method: "goto", target: "settings:appearance" },
-    { kind: "nav", method: "goto", target: "settings:appearance" },
-  ]);
-});
-
-test("an unknown or value-less flag is CLI misuse (EXIT.misuse), never a silently skipped step", () => {
-  // The unknown flag's orphaned VALUE then reads as a second route — the same cascade design-audit's scan
-  // produces, and both lines are true.
-  expect(parsePerfArgs(["/", "--open-caht", "latest"]).errors).toEqual(["unknown flag --open-caht", "expected at most one route, got 2"]);
-  expect(parsePerfArgs(["/", "--click"]).errors).toEqual(["--click requires a value"]);
-  // A boolean flag takes no value and must not be reported as needing one.
-  expect(parsePerfArgs(["/", "--cpuprofile"]).errors).toEqual([]);
-  expect(parsePerfArgs(["/", "--cpuprofile"]).cpuProfile).toBe(true);
-});
-
-test("the route is still positional, and exactly one of them", () => {
-  expect(parsePerfArgs(["/chats"]).route).toBe("/chats");
-  expect(parsePerfArgs(["/chats", "/other"]).errors).toEqual(["expected at most one route, got 2"]);
-});
-
-test("viewport and duration argv reject malformed values instead of retaining defaults", () => {
-  expect(parsePerfArgs(["/", "--viewport", "1280x800x2"]).errors).toContain("--viewport requires WIDTHxHEIGHT positive integers");
-  expect(parsePerfArgs(["/", "--viewport", "1e3x800"]).errors).toContain("--viewport requires WIDTHxHEIGHT positive integers");
-  for (const raw of ["-1", "0", "Infinity", "nope"]) {
-    expect(parsePerfArgs(["/", "--settle", raw]).errors).toContain("--settle requires a positive finite duration in milliseconds");
-    expect(parsePerfArgs(["/", "--pause", raw]).errors).toContain("--pause requires a positive finite duration in milliseconds");
-  }
-});
-
-test("phase-four where, environment, and artifact flags feed the perf launch contract", () => {
-  expect(parsePerfArgs(["/", "--isolated", "--dirty", "--wide", "--light", "--reduced-motion", "--out", "./tmp/perf", "--json"])).toMatchObject({
-    isolated: true,
-    dirty: true,
-    viewport: { width: 1920, height: 1080 },
-    colorScheme: "light",
-    reducedMotion: true,
-    out: "./tmp/perf",
-    json: true,
-    errors: [],
-  });
-  expect(parsePerfArgs(["--base", "http://localhost:5173", "--isolated"]).errors).toContain(
-    "--base and --isolated/--ref/--dirty both name WHERE to audit — pass one (the stage supplies its own base URL)",
-  );
+  expect(cpuProfile.buildReports).toBeTypeOf("function");
+  expect(cpuProfile).not.toHaveProperty("parsePerfArgs");
+  expect(cpuProfile).not.toHaveProperty("runPerfMeter");
+  expect(cpuProfile).not.toHaveProperty("stagePerfMeter");
 });

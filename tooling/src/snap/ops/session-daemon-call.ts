@@ -7,7 +7,6 @@
 import process from "node:process";
 import { artifactFile, beginInstrumentRun, finishInstrumentRun } from "../../_shared/artifact-out.ts";
 import { artifactKey, print, routeSlug } from "../../_shared/artifacts.ts";
-import type { CapturedRequest } from "../../_shared/browser-capture.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { reassertOwnerViewport } from "../../_shared/browser-emulation-guard.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -15,16 +14,8 @@ import { EXIT } from "../../_shared/exit-contract.ts";
 import type { SessionCallTarget, SessionRequest } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
 import { shouldProduceShot } from "../lib/out-names.ts";
-import {
-  cascadeNotBootedRefusal,
-  inheritSessionArgs,
-  inheritSessionBinding,
-  livePageSlug,
-  neverNavigatedRefusal,
-  sessionCallTarget,
-  sessionOnlyFlagsIn,
-  sessionOnlyFlagsRefusal,
-} from "../lib/session-plan.ts";
+import { inheritSessionArgs, inheritSessionBinding, livePageSlug, sessionCallTarget, sessionOnlyFlagsIn } from "../lib/session-plan.ts";
+import { cascadeNotBootedRefusal, neverNavigatedRefusal, sessionOnlyFlagsRefusal } from "../lib/session-refusals.ts";
 import { refuseFileMode, snapDestination } from "./guards.ts";
 import { snapMatrixOnSession } from "./matrix.ts";
 import { parseSnapArgs } from "./parse.ts";
@@ -35,24 +26,19 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
 const ABOUT_BLANK = "about:blank";
 
-/** What the capture half needs from the daemon: the live browser, the boot args, and the rings it keeps
- *  across calls. Mutable by design — `calls` and `requestLog` are the daemon's lifetime state. */
+/** What the capture half needs from the daemon: the live browser, the boot args, and its call counter.
+ *  The ordered request ring is owned by `session` through ops/request-ring.ts, not duplicated here. */
 export interface SessionCallState {
   readonly name: string;
   readonly root: string;
   readonly session: ProbeSession;
   readonly bootArgs: Args;
-  /** Requests the launcher's per-page map held before each later call rolled it into this lifetime log —
-   *  what `--session-export` carries, and why a call's `failed-req=` counts only its own window. */
-  readonly requestLog: CapturedRequest[];
   calls: number;
 }
 
-/** Roll the launcher's request map into the lifetime log and clear it, so THIS call's failed-request
- *  window starts empty (the map is keyed by URL — a re-request would otherwise overwrite the old status). */
-function rollRequests(state: SessionCallState): void {
-  state.requestLog.push(...state.session.requests.values());
-  state.session.requests.clear();
+/** The URL-keyed failure-verdict map is call-scoped; the ordered lifetime evidence lives in RequestRing. */
+function resetFailedRequestWindow(state: SessionCallState): void {
+  state.session.evidence.requestSummary.clear();
 }
 
 /** The scenario's `keepLivePage` shape: a live-page call resets the app's own evidence ring so `__orb`
@@ -91,7 +77,10 @@ export async function runSessionCallInDaemon(state: SessionCallState, request: S
   // Path-shaped `--out`/`--file` resolve against the CALLER's cwd (design §3.4) — one request at a time,
   // so the daemon's cwd is the caller's for the duration of the call.
   process.chdir(request.cwd);
-  const call = parseSnapArgs([...request.argv]);
+  // The client already proved `--matrix` has either a stage arm or a stateful session binding. The raw
+  // daemon argv intentionally omits `--session`; restore that parse context before the inherited binding
+  // is merged below, or the second validation pass would reject the exact F10 route it is hosting.
+  const call = parseSnapArgs([...request.argv], { inheritedSessionBinding: true });
   const refusals = callRefusals(state, request, call);
   if (refusals.length > 0) {
     for (const refusal of refusals) {
@@ -128,20 +117,22 @@ export async function runSessionCallInDaemon(state: SessionCallState, request: S
   try {
     if (call.matrix) {
       state.calls += 1;
+      session.diagnosticWindow.value += 1;
       return await snapMatrixOnSession(merged, session);
     }
     const out = await artifactFile("snaps", destination.name, ".png");
     const key = artifactKey(destination.name);
     // The window: where the rings stood when this call began. Call 1 starts at 0, so its RESULT pairs are
     // the one-shot path's byte for byte (T9); later calls exclude what earlier calls already judged.
-    const window = { consoleStart: session.consoleMessages.length, pageErrorStart: session.pageErrors.length };
+    const window = { consoleStart: session.evidence.console.cursor(), pageErrorStart: session.evidence.pageErrors.cursor() };
     if (state.calls > 0) {
-      rollRequests(state);
+      resetFailedRequestWindow(state);
     }
     if (target === "live") {
       await resetLiveEvidence(session);
     }
     state.calls += 1;
+    session.diagnosticWindow.value += 1;
     const result = await runOnSession(
       session,
       merged,

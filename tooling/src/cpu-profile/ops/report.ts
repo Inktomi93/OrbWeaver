@@ -38,6 +38,7 @@ export function buildReports(data: MeterData): StepReport[] {
       worstScript: worstLt?.worstScript ?? null,
       clickDurMs: worstClick === null ? null : Math.round(worstClick.dur),
       clickInputDelayMs: worstClick === null ? null : Math.round(worstClick.inputDelay),
+      clickProcessingMs: worstClick === null ? null : Math.round(worstClick.processing),
       worstRafGapMs: Math.round(gaps.reduce((a, x) => Math.max(a, x.gap), 0)),
       shiftScore: Number(
         inWin(data.shifts)
@@ -49,11 +50,14 @@ export function buildReports(data: MeterData): StepReport[] {
 }
 
 export function printTable(reports: readonly StepReport[]): void {
-  print("idx  longTasks(total/worst)  blocking  script  click(dur/delay)  rafGap  shift  label");
+  print("idx  longTasks(total/worst)  blocking  script  click(dur/delay/work)  rafGap  shift  label");
   for (const r of reports) {
     const lt = `${String(r.longTaskCount).padStart(2)} (${String(r.longTaskTotalMs).padStart(MS_PAD_4)}/${String(r.longTaskWorstMs).padStart(MS_PAD_4)})`;
     const blocking = r.worstBlockingMs === null ? "  —" : `${String(r.worstBlockingMs).padStart(MS_PAD_3)}ms`;
-    const click = r.clickDurMs === null ? "      —     " : `${String(r.clickDurMs).padStart(MS_PAD_5)}/${String(r.clickInputDelayMs).padStart(MS_PAD_4)}`;
+    const click =
+      r.clickDurMs === null
+        ? "      —          "
+        : `${String(r.clickDurMs).padStart(MS_PAD_5)}/${String(r.clickInputDelayMs).padStart(MS_PAD_4)}/${String(r.clickProcessingMs).padStart(MS_PAD_4)}`;
     print(
       [
         String(r.idx).padStart(IDX_PAD),

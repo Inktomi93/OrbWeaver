@@ -68,16 +68,59 @@ export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button]
       inaccessibleSubjects += 1;
     }
   }
+  // Rendered is an ANCESTOR property. React Activity retains inactive subtrees under display:none;
+  // a leaf's own computed style does not name that retained state, so every rendered-only family shares
+  // this one walk rather than growing subtly different leaf predicates. Opacity is accumulated because
+  // CSS opacity groups: a leaf under an opacity:0 ancestor paints nothing, and partial ancestor opacity
+  // must ride the later contrast sample so Node can composite the glyph honestly (#188).
+  var opacityCache = new WeakMap();
+  function accumulatedOpacity(el) {
+    var known = opacityCache.get(el);
+    if (known !== undefined) return known;
+    var raw = getComputedStyle(el).opacity;
+    var own = raw === "" ? 1 : Number(raw);
+    if (Number.isNaN(own)) own = 1;
+    var parent = el.parentElement;
+    var value = parent === null ? own : own * accumulatedOpacity(parent);
+    opacityCache.set(el, value);
+    return value;
+  }
+  function isVisible(el) {
+    if (!(el instanceof Element)) return false;
+    var targetStyle = getComputedStyle(el);
+    if (targetStyle.visibility === "hidden" || targetStyle.visibility === "collapse") return false;
+    for (var renderAncestor = el; renderAncestor !== null; renderAncestor = renderAncestor.parentElement) {
+      var ancestorStyle = getComputedStyle(renderAncestor);
+      if (renderAncestor.hidden || ancestorStyle.display === "none") return false;
+    }
+    if (accumulatedOpacity(el) === 0) return false;
+    var rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  }
+  function isOperable(el) {
+    return isVisible(el) && el.closest("[inert],[aria-hidden='true']") === null;
+  }
+  var renderedSubjects = 0;
+  var retainedHiddenSubjects = 0;
+  for (var renderIndex = 0; renderIndex < allEls.length; renderIndex += 1) {
+    if (isVisible(allEls[renderIndex])) renderedSubjects += 1;
+    else retainedHiddenSubjects += 1;
+  }
   // Render provenance and WHOLE computed color-scheme values over the exact walked population. The source
   // is structural: seed block on <html>, an inline ThemeScope custom-property carrier, or the base default.
   var rootDataTheme = document.documentElement.getAttribute("data-theme");
-  var shellThemeScope = document.querySelector("[data-slot='theme-scope']");
+  var shellThemeScope = null;
+  var shellThemeScopes = document.querySelectorAll("[data-slot='theme-scope']");
+  for (var scopeIndex = 0; scopeIndex < shellThemeScopes.length; scopeIndex += 1) {
+    if (isVisible(shellThemeScopes[scopeIndex])) { shellThemeScope = shellThemeScopes[scopeIndex]; break; }
+  }
   var shellInlineBackground = shellThemeScope ? shellThemeScope.style.getPropertyValue("--color-background").trim() || null : null;
   var shellColorScheme = shellThemeScope ? getComputedStyle(shellThemeScope).colorScheme || null : null;
   var themeSubjectSources = { default: 0, seed: 0, custom: 0, unknown: 0 };
   var themeSubjectPolarities = { light: 0, dark: 0, mixed: 0, unknown: 0 };
   for (var themeIndex = 0; themeIndex < allEls.length; themeIndex += 1) {
     var themeSubject = allEls[themeIndex];
+    if (!isVisible(themeSubject)) continue;
     var carryingScope = themeSubject.closest ? themeSubject.closest("[data-slot='theme-scope']") : null;
     var carriedBackground = carryingScope ? carryingScope.style.getPropertyValue("--color-background").trim() : "";
     if (carriedBackground !== "") themeSubjectSources.custom += 1;
@@ -222,36 +265,6 @@ export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button]
       steps += 1;
     }
     return parts.join(" > ");
-  }
-
-  // ACCUMULATED OPACITY over the element + its ancestors. CSS opacity GROUPS: a subtree inside
-  // opacity:0.6 is rasterized and composited over what is behind it, so every glyph in it is painted
-  // as a BLEND — while getComputedStyle(el).color still reports the undimmed rgb. Two consequences the
-  // walker owes: text samples carry this product so the Node side can composite before the WCAG ratio
-  // (issue #188 — the home surface's "waiting on:" lines measured 3.68:1 under snap's --contrast, which
-  // does exactly this, while design-audit reported nothing), and a subtree under an ancestor opacity of
-  // 0 paints NO pixels and must count as hidden (the old own-opacity-only test missed that, and a
-  // composite of an invisible glyph would come out as a fake 1:1 finding). Memoized per element, so the
-  // ancestor walk is O(1) amortized even though isVisible runs over every element.
-  var opacityCache = new WeakMap();
-  function accumulatedOpacity(el) {
-    var known = opacityCache.get(el);
-    if (known !== undefined) return known;
-    var raw = getComputedStyle(el).opacity;
-    var own = raw === "" ? 1 : Number(raw);
-    if (Number.isNaN(own)) own = 1;
-    var parent = el.parentElement;
-    var value = parent === null ? own : own * accumulatedOpacity(parent);
-    opacityCache.set(el, value);
-    return value;
-  }
-
-  function isVisible(el) {
-    if (!(el instanceof Element)) return false;
-    var style = getComputedStyle(el);
-    if (style.display === "none" || style.visibility === "hidden" || accumulatedOpacity(el) === 0) return false;
-    var rect = el.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0;
   }
 
   // VISUALLY-HIDDEN IS A STATE, NOT A CLASS NAME (2026-08-18). The app-wide screen-reader-only posture —
