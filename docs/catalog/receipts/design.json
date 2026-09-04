@@ -10,7 +10,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "71c9d3f8659fbd8e49a69150d186b3bbcf0c46dcac5eb0981d728d3cc7609b0c",
-      "verifiedCommit": "9301fdf41e54011f670e57b3c326c4e39f118035",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
       "verifiedAt": "2026-09-04",
       "claims": [
         {
@@ -43,6 +43,7 @@
       ],
       "summary": "Completed browser-MCP retirement program (#1195): the 14-day two-account census mapped 176 calls to Snap, the Lighthouse and request-log gaps were built, and the physical MCP configuration and rituals were removed.",
       "evidence": [
+        "re-attested at 561ea5ec3 (#1292, full delta read): the `performance_start_trace` census row is corrected from \"one trace for a long-task attribution\" to the actual `reload:true, autoStop:true` boot/navigation trace (LCP + breakdown, CLS culprits, network dependency tree, image delivery, document latency, forced reflow), mapped to the now-BUILT `perf-meter --boot-trace` arm (`tooling/src/cpu-profile/ops/boot-trace.ts`, pinned by `tests/tooling/cpu-profile/boot-trace.suite.int.test.ts`, 3 files/14 tests green per the doc's own text); the retirement step renumbers to item 4.",
         "re-attested at 9301fdf41 after full capability reconciliation: transcript-derived MCP capabilities are now covered by Snap's typed Lighthouse, request/HAR, diagnostics, map, file-action, performance, React, heap, and filmstrip arms; the retired browser-MCP posture and refusal guidance match the current tree.",
         "re-attested at 4fce858a4 after a complete read and current-tree reconciliation: the document now records the retirement as complete under the owner's #1279 no-gate ruling, with the remaining browser-driving capabilities owned by Snap and the shared instrument substrate.",
         "re-attested at 2642a54df (#1198 #1199 #1227, lane p-snap-arms): §2 items 1-2 marked BUILT with the seam (snap's own chromium on --remote-debugging-port, puppeteer-core attaches to THAT browser, the target matched by CDP id; defaultViewport:null and disableFullPageScreenshot measured as load-bearing), the pins and the live plugins-pane receipt (desktop audited=36 failed-audits=1 label-content-name-mismatch ×4 — the MCP's own finding reproduced in-house; requests=2445). Read in full at the fold by the primary orchestrator.",
@@ -51,14 +52,15 @@
     },
     {
       "path": "docs/design/1208-instrument-substrate.md",
-      "assignedSha256": "048e1c450f0c5507bd738d42ffe14425f44514411051cfc4c1ab171d105e72cb",
+      "assignedSha256": "97d2c2b92c17b3a05a3bf196099039bd8cfcc7f100482639d2b5f23103b124ad",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "048e1c450f0c5507bd738d42ffe14425f44514411051cfc4c1ab171d105e72cb",
-      "verifiedCommit": "9301fdf41e54011f670e57b3c326c4e39f118035",
+      "verifiedSha256": "97d2c2b92c17b3a05a3bf196099039bd8cfcc7f100482639d2b5f23103b124ad",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
       "verifiedAt": "2026-09-04",
       "evidence": [
+        "re-attested at 561ea5ec3 (#1292, full 770-line delta read): adds the #1310 filmstrip transition-capture ruling (CDP screencast contact sheet, `record` retired to a recipe redirect); 10.5 React development-renderer arm (`prepare()` lifecycle, capability census/ledger, planted controls, #1284 implementation-complete); 10.6 sole rendered-instrument CLI ruling (#1292/#1293) - `afterNavigation`/`beforeAction`/`afterAction`/`afterActions` lifecycle, selective `--motion`/`--perf`/`--cpu-profile`/`--boot-trace`/`--react-profile` vocabulary, motion/perf capability-parity ledgers, interference refusals, retirement order; 10.7 indexed Snap run bundle + browser-free readers (#1295) - `run.json` schema, identity/dirty digest, artifact inventory, `--report`/`--reports` readers, acceptance repairs; 10.8 operator/cold-agent usability battery; 10.9 `--map` atlas+shell+surface sheets and the #1297 visibility-predicate repair; and 12.3's 2026-09-03 owner ruling naming Snap the sole public rendered-instrument CLI.",
         "re-attested at 9301fdf41 after a complete read and final implementation reconciliation: typed arm facts/artifact scope, diagnostic and HAR capture, map/Activity semantics, heap/React/filmstrip arms, multi-target proofs, bounded retention, cold-agent run reader, retired duplicate CLIs, and all four requested prerequisite commits are present; full structure ran 254/254 clean at main-3229425-2026-09-04T07-04-27-858Z.",
         "re-attested at 4fce858a4 after the primary orchestrator read the complete design and reconciled every phase against the landed tree: phase 4's total five-tool grammar, shared environment/artifact/stage seams, F10 one-browser disposable-context matrix, session-cap reservation, owner-targeted teardown, stage-death lifecycle, per-call watchdog, CT run-slot ownership, e2e vLLM guard, window.screen repair, and sibling session-binding inheritance are recorded in the as-built section and committed with their behavioral controls.",
         "re-attested at 273b95d61 (the #1276 fold merge, lane p-stage-bands): §10.2 \"Phase 2 as built\" added, 84 lines (478-561), read IN FULL by the primary orchestrator at the fold. It records the band table as landed — four premises that died with receipts (ensureStage({band,session}) refused as the wrong seam, the synchronous stage path forcing the third probe into a child, --stage-down losing its singular referent, one listeningPids() snapshot instead of twenty ss forks), the arms chosen (claim written INSIDE the mkdir mutex before the 55s boot, a lock broken rather than inherited past a dead pid or 30s; the third probe asked only of --dirty stages so unverifiable means degraded there and warm for --ref; shortSha/baseUrl derived rather than serialized; two modules split at the line cap), the refusals (fork F7 --stage-down --owner NOT built, and phase 3’s attach half deliberately out of scope), the coupled-site census, the test plan as landed, and §\"What phase 2 does NOT prove\" — which is the doc naming its own gap and assigning the live multi-band boot receipt to the orchestrator at the barrier rather than to a suite. Also in this fold: biome.json’s existing snap/ops/stage.ts useNamingConvention override extended to stage-probe.ts, the same spawn-env reason, not a new exemption class. verifiedSha256 taken from the COMMITTED blob at the merge sha and identical to the working-tree digest, so no formatting pass moved it.",
@@ -1148,9 +1150,10 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "9b7f6e34e1f68a5c2e921ede843862d898db541a27c3006c3f4e98d26dc44483",
-      "verifiedCommit": "9301fdf41e54011f670e57b3c326c4e39f118035",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
       "verifiedAt": "2026-09-04",
       "evidence": [
+        "re-attested at 561ea5ec3 (#1292, full delta read): step 6's live-verification command retires from `pnpm motion-audit --mobile` to `pnpm snap --mobile --motion`. No other text moved.",
         "re-attested at 9301fdf41 after the environment contract moved into unified Snap: the full-device request/applied/runtime proof now carries discriminated named/desktop/unmatched actual identity plus contrast and reduced-transparency through launch, session registry, attach, reports, and focused behavioral tests.",
         "docs/design/motion-audit-mobile-environment-977.md:1 (full read; shared full-device contract, runtime fingerprint, rejected viewport-only arm, coupled sites, red-first controls, and live proof)",
         "git:db07e6cb175bf6c6260ec339f42268bc341185fa (content commit whose tree contains the verified design blob and implemented #977 proof)"
@@ -1939,6 +1942,200 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/design/1308-browser-evidence-retention.md",
+      "assignedSha256": "0dfca68fc2a2fa7ff486b89adebfcabb4b56a15194e20db52957703372d83fb5",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "0dfca68fc2a2fa7ff486b89adebfcabb4b56a15194e20db52957703372d83fb5",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/design/1308-browser-evidence-retention.md:1 read in full at 561ea5ec3: one `_shared/browser-evidence-ring.ts` owner provides bounded retention, monotonic cursors, range reads and JSON-safe receipts for every array-like browser channel (console/page-error/network/diagnostics), replacing per-channel ad hoc capacity accounting; ProbeContext/ProbeSession keep read-only views while the ring owners hold cursor/receipt truth."
+      ],
+      "claims": [
+        {
+          "claim": "One `_shared/browser-evidence-ring.ts` owner provides bounded retention, monotonic cursors, range reads and JSON-safe receipts for every array-like browser channel.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1308"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6"
+            }
+          ]
+        },
+        {
+          "claim": "Network active/pending records may temporarily exceed the completed cap, emitting an explicit incomplete `protected-overflow` receipt rather than a false zero-loss claim.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1308"
+            }
+          ]
+        }
+      ],
+      "summary": "Ruling for the shared browser-evidence retention ring: bounded caps, monotonic cursors, explicit eviction/overflow receipts, and a migration off retained-array-length accounting."
+    },
+    {
+      "path": "docs/design/1310-snap-filmstrip.md",
+      "assignedSha256": "77a3d55542d73d802c8a5777f7d5b2c33617a69b6fdbdb68ddbd81378b65291e",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "77a3d55542d73d802c8a5777f7d5b2c33617a69b6fdbdb68ddbd81378b65291e",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/design/1310-snap-filmstrip.md:1 read in full at 561ea5ec3: `pnpm snap ... --filmstrip` is the one transition-capture spelling (CDP screencast contact sheet); `pnpm record` retires to a loud recipe redirect and its parser/driver/WebM/GIF path is deleted."
+      ],
+      "claims": [
+        {
+          "claim": "`--filmstrip` captures the exact Playwright page already being driven via `page.context().newCDPSession(page)` + `Page.startScreencast`, and a static/fake-CDP run producing no frame is an instrument refusal, never a clean empty contact sheet.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1310"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6"
+            }
+          ]
+        },
+        {
+          "claim": "`pnpm record <argv>` exits misuse and prints one exact `pnpm snap ... --filmstrip` recipe; no alias or quiet delegation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1310"
+            }
+          ]
+        }
+      ],
+      "summary": "Snap filmstrip design: one bounded PNG contact-sheet arm over the existing run-arm lifecycle (new `afterSettle` seam), replacing Record's WebM/GIF path entirely."
+    },
+    {
+      "path": "docs/design/1208-heap-memory-arm.md",
+      "assignedSha256": "cf5238312b9025931a7caa6033df9a8bcfc2dd698082e4e4708b2f387daa65ef",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "cf5238312b9025931a7caa6033df9a8bcfc2dd698082e4e4708b2f387daa65ef",
+      "verifiedCommit": "2829babdae6ff1c10ac59b53d74d492123bf7fd0",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/design/1208-heap-memory-arm.md:1 read in full at 2829babda (frontmatter-fixed commit; content landed at 561ea5ec3): Snap's `--heap`/`--heap-compare`/`--heap-retainers` page arm captures V8 heap snapshots via CDP HeapProfiler and parses them with the official `chrome-devtools-mcp@1.8.0` DevTools engine, never a home-grown dominator algorithm."
+      ],
+      "claims": [
+        {
+          "claim": "Heap capture/compare/retainer analysis reuses the exact-pinned `chrome-devtools-mcp@1.8.0` `HeapSnapshotManager` DevTools parser as a browser-free tooling-only dependency; no MCP server, process, transport or browser launch is imported or started.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1300"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:2829babdae6ff1c10ac59b53d74d492123bf7fd0"
+            }
+          ]
+        },
+        {
+          "claim": "The implementation receipt records the exact Project #1300 DoD suite (`tests/tooling/snap/ops/arms/heap.suite.int.test.ts`, 1 file/4 tests) and a fresh structure run at 254/254 gates with zero heap-attributable findings.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/snap/ops/arms/heap.suite.int.test.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#1300"
+            }
+          ]
+        }
+      ],
+      "summary": "Heap/browser-memory Snap arm design and implementation receipt: --heap/--heap-compare/--heap-retainers over the official DevTools heap-snapshot engine, with a WeakMap label table and no universal memory-size gate."
+    },
+    {
+      "path": "docs/design/1208-request-result-truth-repair.md",
+      "assignedSha256": "819b7e348d6dcb62d7061015484a621a44d77c1e70eb4b48864f91e129aaf5fd",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "819b7e348d6dcb62d7061015484a621a44d77c1e70eb4b48864f91e129aaf5fd",
+      "verifiedCommit": "2829babdae6ff1c10ac59b53d74d492123bf7fd0",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/design/1208-request-result-truth-repair.md:1 read in full at 2829babda (frontmatter-fixed commit; content landed 2026-09-03): Snap owns one `RequestRing` per `ProbeSession` retaining up to 4,096 ordered request rows with lifetime-monotonic sequence numbers; a run arm never installs listeners, it only checkpoints/drains/redacts."
+      ],
+      "claims": [
+        {
+          "claim": "The request ring's default window is fixed before the report reads it so requests arriving later cannot move the answer, and body retention is bounded (256 KiB per JSON body, 32 MiB aggregate) and reason-coded on every non-retention outcome.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1292"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:2829babdae6ff1c10ac59b53d74d492123bf7fd0"
+            }
+          ]
+        },
+        {
+          "claim": "The implementation receipt shows the request/session daemon suite passing 15/15 and the focused ring/result set passing 20/20 after the ring was repaired so a plain read never awaits metadata/body work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1292"
+            }
+          ]
+        }
+      ],
+      "summary": "Request-ring and RESULT-truth repair: one lifetime-owned RequestRing per session replacing duplicate per-call recorders, plus a normalized verdict-pairs door so RESULT text and the structured record cannot disagree."
+    },
+    {
+      "path": "docs/design/1208-run-index-typed-results.md",
+      "assignedSha256": "92028c805d7ef85b3a34e748e226aef3afb8c7398fb29221c77a07f465e01373",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "92028c805d7ef85b3a34e748e226aef3afb8c7398fb29221c77a07f465e01373",
+      "verifiedCommit": "2829babdae6ff1c10ac59b53d74d492123bf7fd0",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/design/1208-run-index-typed-results.md:1 read in full at 2829babda (frontmatter-fixed commit; content landed 2026-09-04): `resultPairs` stays a byte-stable printable transcript only; a separate versioned `results` population is produced from typed arm-owned fact records validated through a total `ARM_FACT_DATA_SCHEMAS` Zod record, per the owner overrule against a generic `Record<string, JsonValue>` contract."
+      ],
+      "claims": [
+        {
+          "claim": "Every current artifact declaration/fact record uses one branded `scope-v1` contract (context/page/window, each exact | aggregate | not-applicable) with no null axis, while legacy v1 indices are normalized only by the browser-free reader into an explicit `legacy` shape.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1301"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:2829babdae6ff1c10ac59b53d74d492123bf7fd0"
+            }
+          ]
+        },
+        {
+          "claim": "Typed facts never change the arm's exit; pass/fail/refusal/withhold and the final RESULT transcript remain exactly what the producer verdict door returned.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1301"
+            }
+          ]
+        }
+      ],
+      "summary": "Typed run-results and artifact-scope design: a total Zod arm-fact schema map plus branded context/page/window scope, replacing string-pair RESULT parsing as the structured-evidence trust boundary."
     }
   ]
 }

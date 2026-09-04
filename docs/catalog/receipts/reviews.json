@@ -2851,6 +2851,183 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-browser-escape-workflow-census.md",
+      "assignedSha256": "e09d978716af88c4c48c192eac9ee42d8d3fa175f982ca995c0a6c6aeafa40b8",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "e09d978716af88c4c48c192eac9ee42d8d3fa175f982ca995c0a6c6aeafa40b8",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/reviews/research/2026-09-04-agent-browser-escape-workflow-census.md:1 read in full at 561ea5ec3: 3,388 separate-browser events censused across both accounts; 3,028 candidate escape events found no evidence-backed new Snap arm to build, only a documentation/enforcement gap."
+      ],
+      "claims": [
+        {
+          "claim": "The census recommends one Snap-driving recipe (\"When not to escape Snap\") and does not recommend restoring headless DevTools MCP or adding speculative dialog/PWA/drag/evaluator commands.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1195"
+            }
+          ]
+        }
+      ],
+      "summary": "Agent browser-escape workflow census: 3,388 separate-browser events, 3,028 candidate escapes, no missing Snap capability found; the residual work is a documented Snap-first recipe plus the explicit owner-profile Chrome exception."
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-cli-artifact-usage-census.md",
+      "assignedSha256": "af83ada2dfd5049d2056b41b9312807ab2d97f47093969e0c7ff6da02119f5c7",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "af83ada2dfd5049d2056b41b9312807ab2d97f47093969e0c7ff6da02119f5c7",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/reviews/research/2026-09-04-agent-cli-artifact-usage-census.md:1 read in full at 561ea5ec3: 4,623 actual Snap invocations (91% success) dwarf every sibling family; zero actual invocations of Snap's `--report`/`--reports` reader despite 4,623 calls; product Record calls produced four consumed click-strip PNGs and zero consumed GIF/WebM."
+      ],
+      "claims": [
+        {
+          "claim": "Owner disposition Board #1310 retires the separate `pnpm record` CLI, folds click-strip/contact-sheet capture into Snap filmstrip, and kills GIF/WebM generation by default.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1310"
+            }
+          ]
+        },
+        {
+          "claim": "No agent opened, parsed, listed or cited a Snap HAR or ZIP artifact after its producing invocation in the censused corpus (172 HAR and 175 ZIP result-listed successes, zero downstream references for either).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1292"
+            }
+          ]
+        }
+      ],
+      "summary": "Agent CLI/artifact usage census: Snap is the dominant rendered-instrument CLI by an order of magnitude; motion-audit/perf-meter/record retirement into Snap arms is supported by the usage and consumption data."
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-mcp-usage-recovery-census.md",
+      "assignedSha256": "a29ec65f51b8372b9cf324a292c53786761712e75ef4d03ac141dc6a96d0e53a",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "a29ec65f51b8372b9cf324a292c53786761712e75ef4d03ac141dc6a96d0e53a",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/reviews/research/2026-09-04-agent-mcp-usage-recovery-census.md:1 read in full at 561ea5ec3: 826 retired headless Chrome DevTools MCP calls censused; Snap now owns every load-bearing Orbweaver use found in that corpus, and the `cb-config-eye-2` selected-page incident is the confirmed recovery-gap positive control."
+      ],
+      "claims": [
+        {
+          "claim": "Of the 58 tools the installed `chrome-devtools-mcp@1.8.0` exposes, only 20 ever appeared in an Orbweaver tool-use block, and nothing in the unused 38-tool remainder justifies restoring the retired headless MCP.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1195"
+            }
+          ]
+        },
+        {
+          "claim": "The `cb-config-eye-2` incident spent four failed calls over 18 seconds before escalating and recovered only after control outside the lane changed, because `list_pages` was not exposed to that lane's tool set.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1195"
+            }
+          ]
+        }
+      ],
+      "summary": "Agent browser/MCP usage recovery census: the retired headless DevTools MCP's load-bearing surface is fully replaced by Snap; the owner's logged-in Chrome MCP remains a separate authenticated-profile authority; page-bound recovery verbs are the confirmed operational gap."
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-orb-selector-choreography-census.md",
+      "assignedSha256": "5ec34c0cb89f748bb9825733333d7a0c4b00a63117cf1334e78b5ad3cfb7741f",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "5ec34c0cb89f748bb9825733333d7a0c4b00a63117cf1334e78b5ad3cfb7741f",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/reviews/research/2026-09-04-agent-orb-selector-choreography-census.md:1 read in full at 561ea5ec3: agents repeatedly needed five legible journeys (section/chat/context-tab/config-surface bridge reads plus multi-page `@N` action/eval); bare-CSS/handle waits are the most brittle selector family (45.1% failure exposure) versus data-slot/test-id (4.8-11.0%)."
+      ],
+      "claims": [
+        {
+          "claim": "#1304's discoverable `capabilities()`/`rings()`/`nav.capabilities()` help and the `rpg-game` scenario are directionally correct, but the transcript snapshot has zero post-#1304 discovery or scenario invocation to judge adoption from yet.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1304"
+            }
+          ]
+        }
+      ],
+      "summary": "Agent __orb/selector/choreography census: five dominant journeys, brittle bare-selector waits versus stable data-slot/test-id handles, and RPG bridge usage already real before #1304 landed its discovery affordances."
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-snap-result-discoverability-census.md",
+      "assignedSha256": "69b1b5c45f23f215e7cb801f8631ff0a598df19e5c9e9e761d9236ab6f377db3",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "69b1b5c45f23f215e7cb801f8631ff0a598df19e5c9e9e761d9236ab6f377db3",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/reviews/research/2026-09-04-agent-snap-result-discoverability-census.md:1 read in full at 561ea5ec3: 4,623 paired Snap calls found PNG/JSON/HTML as the only demonstrably followed result formats; zero downstream references for HAR (172 produced) or ZIP (175 produced); zero executed `--report`/`--reports` calls."
+      ],
+      "claims": [
+        {
+          "claim": "The census supports a compact cold-agent end card (one immutable run identity, a primary PNG/JSON pointer, one exact copy-paste reader command) and does not support promoting HAR/ZIP/run.json/scenario summaries to the primary door.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1295"
+            }
+          ]
+        }
+      ],
+      "summary": "Agent Snap result-discoverability census: PNG/JSON are the demonstrably followed artifact formats; HAR/ZIP and the report reader are effectively invisible downstream in the censused corpus, motivating the #1295 run-bundle end-card design."
+    },
+    {
+      "path": "docs/reviews/research/2026-09-03-snap-instrument-bundle-battery.md",
+      "assignedSha256": "87843063c03637ce57449dc416a20cfad4fa2b7418185995747e892edf4c0823",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "87843063c03637ce57449dc416a20cfad4fa2b7418185995747e892edf4c0823",
+      "verifiedCommit": "2829babdae6ff1c10ac59b53d74d492123bf7fd0",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/reviews/research/2026-09-03-snap-instrument-bundle-battery.md:1 read in full at 2829babda (frontmatter-fixed commit; content landed 2026-09-03): durable execution receipt for `1208-instrument-substrate.md` §10.8 and #1292/#1295 — nine immutable `run.json` cases covering ordinary visual/map/diagnostics, planted motion/perf findings, CPU profile, React profile, session request failure/export/continuation, matrix+scenario, and an explicit React refusal."
+      ],
+      "claims": [
+        {
+          "claim": "A cold-read of the first session export found `trace-000.zip` incorrectly classified as primary; a planted filename control failed, the classifier was repaired, and the replacement export index classifies it `raw-fallback` without rewriting the immutable earlier index.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1295"
+            }
+          ]
+        },
+        {
+          "claim": "Independent acceptance (two/three cold agents using only help/card/report output, a side-eye PNG pass, and a verifier round-trip check) is explicitly still owed at the time this receipt was written.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1292"
+            }
+          ]
+        }
+      ],
+      "summary": "Snap instrument bundle operator battery: nine immutable run.json cases exercising the full pass/fail/refusal battery for the #1292/#1295 run-bundle program, with one filename-classifier repair recorded and independent cold-agent acceptance still owed."
     }
   ]
 }
