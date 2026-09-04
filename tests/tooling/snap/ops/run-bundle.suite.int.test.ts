@@ -270,8 +270,11 @@ test("a completed run writes a self-consistent index and its receipt READ comman
     completenessDetail: expect.stringContaining("capture manifest"),
   });
   const armFacts = index.results?.batches.flatMap((batch) => batch.arms) ?? [];
-  expect(armFacts.find((fact) => fact.arm === "aria")?.artifacts).toEqual([captureManifest?.relativePath]);
-  expect(armFacts.find((fact) => fact.arm === "map")?.artifacts).toEqual([captureManifest?.relativePath]);
+  // Since #1342 every page arm FILES what it prints: the aria and map facts bind their own evidence file
+  // (evidence/aria.json, evidence/map.json) beside the shared capture manifest — bound by producerArm,
+  // never handed in. An arm fact whose artifacts list is only the manifest would mean the writer is gone.
+  expect(armFacts.find((fact) => fact.arm === "aria")?.artifacts).toEqual(["evidence/aria.json", captureManifest?.relativePath]);
+  expect(armFacts.find((fact) => fact.arm === "map")?.artifacts).toEqual(["evidence/map.json", captureManifest?.relativePath]);
   const coreArtifact = index.artifacts.find((artifact) => artifact.relativePath === "evidence/core-capture.json");
   expect(coreArtifact).toMatchObject({ completeness: "bounded", completenessDetail: expect.stringContaining("latest-per-URL") });
   const core = JSON.parse(await readFile(coreArtifact?.path ?? "missing-core-capture", "utf8")) as {
