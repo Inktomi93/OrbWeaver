@@ -55,13 +55,40 @@ function selectorProblems(proofs: readonly SelectorProof[]): SnapAnalyzerProblem
     }));
 }
 
+/** #1538: the proof cap's remainder, as a row of the SAME channel as an ambiguous selector — an unasked
+ *  question and an unanswerable one are both "not locatable", and both belong to the instrument rather
+ *  than to the app (#1326), so this rides beside the findings instead of reddening the surface verdict. */
+function unprovenSelectorProblems(unproven: number, proven: number): SnapAnalyzerProblem[] {
+  if (unproven <= 0) {
+    return [];
+  }
+  return [
+    {
+      arm: "design-audit",
+      kind: "failure",
+      metric: "finding-selector-uniqueness",
+      subject: "selector-proof-cap",
+      observed: `${String(unproven)} unproven`,
+      threshold: `${String(proven)} proven`,
+      detail:
+        "more distinct selectors were emitted than the proof cap asks about, so the remainder was never counted against the DOM — those rows are unverified, never quietly unique",
+    },
+  ];
+}
+
 export function designAuditProblems(
   input: Readonly<{
     findings: readonly Finding[];
     gaps: readonly EvidenceGap[];
     failOn: Severity;
     selectorProof: readonly SelectorProof[];
+    selectorsUnproven: number;
   }>,
 ): readonly SnapAnalyzerProblem[] {
-  return [...gapProblems(input.gaps), ...findingProblems(input.findings, input.failOn), ...selectorProblems(input.selectorProof)];
+  return [
+    ...gapProblems(input.gaps),
+    ...findingProblems(input.findings, input.failOn),
+    ...selectorProblems(input.selectorProof),
+    ...unprovenSelectorProblems(input.selectorsUnproven, input.selectorProof.length),
+  ];
 }

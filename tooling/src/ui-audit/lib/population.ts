@@ -101,18 +101,40 @@ export function settledPopulationAccounting(rule: string, row: RulePopulationAcc
   return row;
 }
 
+/** THE REMEDY FOR A WITHHELD REASON, WHERE ONE EXISTS — the ONE home, keyed by the reason a walker
+ *  withheld under (#1385 item 2). A NO-VERDICT that names a reason and no way out costs its reader a
+ *  round trip through the walker source to learn whether the run was recoverable at all; the polarity law
+ *  (absence of measurement = withheld) makes that reader-facing gap a recurring cost, not a one-off.
+ *
+ *  DELIBERATELY SPARSE. A reason appears here only when the remedy is a real, verified operator action;
+ *  the rest print exactly as before rather than carrying invented advice. Adding a remedy is a one-line
+ *  edit HERE, never a second spelling at a print site. */
+const WITHHELD_REMEDIES: Readonly<Record<string, string>> = {
+  // #1114: a surface whose selection idiom only exists once driven is STRUCTURALLY no-verdict at rest —
+  // every rest arm withholds here, and only the driven arm can reach `complete`.
+  unmatchedUnselected: "drive the surface into its selected state so the twin exists — e.g. pnpm snap /chats --open-chat <id-or-title> --design-audit",
+  unmatchedSelected: "drive the surface so an UNselected sibling is rendered beside the selected one — a one-row list cannot answer this rule",
+};
+
 export function populationEvidenceGap(accounting: PopulationAccounting): EvidenceGap | null {
   const incomplete: string[] = [];
+  const remedies = new Set<string>();
   for (const [rule, row] of Object.entries(accounting)) {
     const reasons = Object.entries(row.withheld).filter(([reason, count]) => !PRESENTATION_WITHHELD.has(reason) && count > 0);
     if (reasons.length > 0) {
       incomplete.push(`${rule}: ${reasons.map(([reason, count]) => `${reason}=${String(count)}`).join(" ")}`);
+      for (const [reason] of reasons) {
+        const remedy = WITHHELD_REMEDIES[reason];
+        if (remedy !== undefined) {
+          remedies.add(`${reason}: ${remedy}`);
+        }
+      }
     }
   }
   return incomplete.length === 0
     ? null
     : {
         evidence: "rule population completeness",
-        detail: `${incomplete.join("; ")} — candidates were withheld from judgment, so emitted findings are partial and this run has NO VERDICT`,
+        detail: `${incomplete.join("; ")} — candidates were withheld from judgment, so emitted findings are partial and this run has NO VERDICT${remedies.size === 0 ? "" : `. Remedy — ${[...remedies].join("; ")}`}`,
       };
 }

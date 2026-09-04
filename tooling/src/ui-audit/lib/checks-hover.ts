@@ -28,7 +28,7 @@ import {
 import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
 import type { Backdrop } from "../contract/samples.ts";
 import type { HoverContrastInput, HoverScanInput } from "../contract/samples-hover.ts";
-import { settledPopulationAccounting } from "./population.ts";
+import { assertRelationalCensus, settledPopulationAccounting } from "./population.ts";
 
 /** How ONE candidate was disposed of. `checkHoverContrast` is a thin projection of this and
  *  `hoverContrastPopulations` reads the SAME value, so a decline can never be silent in one and counted
@@ -167,18 +167,24 @@ function bump(counts: Record<string, number>, reason: string): void {
 
 /** Merges the walker/CDP census with the check's own dispositions into the ONE `hover-contrast` row.
  *
- *  THE GUARD BELOW IS A SAMPLE-SEAM CONTRACT CHECK, NOT A LIVE-PATH ONE, and saying so is the point
- *  (#1317 item 10). `ops/hover.ts` sets `hoverScan.census.judged` to `inputs.length` and then hands the
- *  same `inputs` here, so on the live path the two operands are ONE number and the throw is structurally
- *  unreachable — it is not evidence that the pass kept its samples. What it does cover is a `hoverScan`
- *  this function did not produce: a fixture sample set, or a future second producer, whose census row
- *  disagrees with its own sample list. The LIVE invariant is carried by `settledPopulationAccounting`
- *  below (candidates = judged + withheld + excluded) plus the pass's own `forceFailedGroups` gap
- *  (ops/run.ts), which is where a forced-state pass that lost samples actually reddens the run. */
+ *  #1317 item 10's RULING SURVIVES; ITS INPUT CHANGED (#1320). That review established that the
+ *  judged-vs-samples half is a SAMPLE-SEAM contract check and not a live-path one — `ops/hover.ts` sets
+ *  `hoverScan.census.judged` to `inputs.length` and hands the same `inputs` here, so those two operands
+ *  are one number and that comparison alone can only catch a `hoverScan` this function did not produce (a
+ *  fixture sample set, or a future second producer). Still true, and still worth keeping.
+ *
+ *  #1320 asked for `assertCensusAccounting` over the INCOMING census as the missing live check. Measured
+ *  (red-first probe, tests/tooling/ui-audit/index.test.ts): it adds no REACH. This pass is
+ *  count-preserving — every input leaves `judged` for exactly one withheld/excluded bucket — so
+ *  `candidates = judged + withheld + excluded` on the outgoing row IS the incoming equation, and the two
+ *  differ only by `representativeCap`, which the incoming assertion refuses outright and the outgoing
+ *  `affected = emitted + cap` pins to zero. What it buys is ATTRIBUTION and EARLINESS, which is worth the
+ *  call: a walker whose census does not settle now fails BEFORE the loop naming the WALKER and its own
+ *  numbers, instead of surfacing downstream as a Node-side settle error that reads like a defect here.
+ *  `assertRelationalCensus` spells both halves, so one call replaces the hand-rolled throw without
+ *  weakening it. The OUTGOING row is settled separately by `settledPopulationAccounting` below. */
 export function hoverContrastPopulations(inputs: readonly HoverContrastInput[], scan: HoverScanInput): RulePopulationAccounting {
-  if (scan.census.judged !== inputs.length) {
-    throw new Error(`INSTRUMENT ERROR: hover-contrast pass judged ${String(scan.census.judged)} but returned ${String(inputs.length)} sample(s)`);
-  }
+  assertRelationalCensus("hover-contrast", scan.census, inputs.length);
   const withheld: Record<string, number> = { ...scan.census.withheld };
   const excluded: Record<string, number> = { ...scan.census.excluded };
   let judged = 0;

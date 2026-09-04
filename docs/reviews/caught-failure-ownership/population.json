@@ -5181,7 +5181,7 @@
     {
       "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::empty:error::1",
       "path": "tooling/src/snap/lib/run-finding-analyzers.ts",
-      "line": 65,
+      "line": 67,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5189,12 +5189,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 53
+      "markerLine": 55
     },
     {
       "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::empty:error::2",
       "path": "tooling/src/snap/lib/run-finding-analyzers.ts",
-      "line": 95,
+      "line": 103,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5202,12 +5202,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 75
+      "markerLine": 77
     },
     {
       "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::empty:error::3",
       "path": "tooling/src/snap/lib/run-finding-analyzers.ts",
-      "line": 133,
+      "line": 142,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5215,12 +5215,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 108
+      "markerLine": 116
     },
     {
       "siteId": "tooling/src/snap/lib/run-finding-browser.ts::empty:error::1",
       "path": "tooling/src/snap/lib/run-finding-browser.ts",
-      "line": 274,
+      "line": 288,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5228,12 +5228,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 271
+      "markerLine": 285
     },
     {
       "siteId": "tooling/src/snap/lib/run-finding-browser.ts::empty:error::2",
       "path": "tooling/src/snap/lib/run-finding-browser.ts",
-      "line": 342,
+      "line": 357,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5241,7 +5241,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 339
+      "markerLine": 354
     },
     {
       "siteId": "tooling/src/snap/lib/session-wire.ts::default:catch::1",
@@ -5584,7 +5584,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/motion.ts::default:catch::1",
       "path": "tooling/src/snap/ops/arms/motion.ts",
-      "line": 92,
+      "line": 93,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5592,12 +5592,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "this optional appearance cross-check is null in ordinary non-app fixtures; rated matrix cells consume the same contract through their mandatory matrix receipt. Ends if applicationMotion becomes a verdict input outside that matrix receipt.",
-      "markerLine": 81
+      "markerLine": 82
     },
     {
       "siteId": "tooling/src/snap/ops/arms/motion.ts::empty:error::1",
       "path": "tooling/src/snap/ops/arms/motion.ts",
-      "line": 158,
+      "line": 191,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5605,7 +5605,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught measurement failure becomes a named evidence gap, printed as REFUSED and forced to exit 2 by the arm. Ends if the returned gaps stop feeding report/pairs/exit.",
-      "markerLine": 139
+      "markerLine": 167
     },
     {
       "siteId": "tooling/src/snap/ops/arms/perf.ts::default:catch::1",
@@ -5701,7 +5701,7 @@
     {
       "siteId": "tooling/src/snap/ops/design-audit-walk.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/design-audit-walk.ts",
-      "line": 204,
+      "line": 215,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5709,12 +5709,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a selector the browser refuses to parse is reported as matches=-1, which the arm prints as UNPROVEN and counts as non-unique — the failure IS the published value. Ends if -1 stops being read as \"not proven\".",
-      "markerLine": 201
+      "markerLine": 212
     },
     {
       "siteId": "tooling/src/snap/ops/design-audit-walk.ts::empty:error::1",
       "path": "tooling/src/snap/ops/design-audit-walk.ts",
-      "line": 220,
+      "line": 231,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5722,7 +5722,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the walk throwing is an INSTRUMENT failure, returned as walkError and turned into walkFailureGap (exit 2) by the caller. Ends if walkError stops reaching the gap ladder.",
-      "markerLine": 212
+      "markerLine": 223
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::1",

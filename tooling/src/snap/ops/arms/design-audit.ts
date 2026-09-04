@@ -75,6 +75,12 @@ function verdictField(gap: EvidenceGap | null): "complete" | { readonly verdict:
   return gap === null ? "complete" : { verdict: "NO VERDICT", ...gap };
 }
 
+/** The same channel, as the typed run FACT spells it (#1538): a flat enum, and `no-verdict` when there is
+ *  no measurement at all — an absent walk reached no channel, so none of them may read `complete`. */
+function factVerdict(measurement: DesignAuditMeasurement | null, channel: keyof DesignAuditMeasurement["verdicts"]): "complete" | "no-verdict" {
+  return measurement !== null && measurement.verdicts[channel] === null ? "complete" : "no-verdict";
+}
+
 async function writeAuditArtifact(name: string, opts: Args, measurement: DesignAuditMeasurement): Promise<string> {
   const caps = measurement.samples === null ? null : measurement.samples.censusCaps;
   const truncated = Object.values(caps ?? {}).some((row) => row.dropped > 0);
@@ -133,13 +139,16 @@ async function writeAuditArtifact(name: string, opts: Args, measurement: DesignA
         shellState: measurement.shellState,
         surfaceStateAccounting: measurement.surfaceState,
         drive: measurement.drive,
-        // #1326: every emitted selector, and how many elements it actually resolves to.
+        // #1326: every emitted selector, and how many elements it actually resolves to. #1538: plus the
+        // remainder the proof cap never asked about, so a truncated list cannot read as a complete one.
         selectorProof: measurement.selectorProof,
+        selectorsUnproven: measurement.selectorsUnproven,
         problems: designAuditProblems({
           findings: measurement.findings,
           gaps: measurement.terminalGap === null ? measurement.gaps : [measurement.terminalGap],
           failOn: opts.failOn,
           selectorProof: measurement.selectorProof,
+          selectorsUnproven: measurement.selectorsUnproven,
         }),
       },
       null,
@@ -185,10 +194,14 @@ export const DESIGN_AUDIT_ARM = {
   sessionCallBaseMs: (opts): number | null => (opts.designAudit ? DESIGN_AUDIT_SESSION_CALL_BASE_MS : null),
   defaults: (): Pick<ArmArgs, "designAudit" | "failOn"> => ({ designAudit: false, failOn: DEFAULT_FAIL_ON }),
   help: `  --design-audit          the deterministic UI defect scan over the settled surface: ~60 objective
-                          usability/design/a11y rules, each with a locatable selector and a complete
-                          population row. Exit 2 (NO VERDICT) rather than a clean report whenever the
-                          page never loaded, a reveal action did not land, the app declared a failure
-                          surface, or a rule population was not completely judged.
+                          usability/design/a11y rules, each with a selector proven against the live DOM
+                          and a complete population row. A selector that does not resolve to exactly one
+                          element, or that the proof cap never reached, rides on its own SELECTOR line
+                          and in selectors-ambiguous / selectors-unproven — that is an instrument limit,
+                          not the app's verdict, so it does not change the exit code. Exit 2 (NO VERDICT)
+                          rather than a clean report whenever the page never loaded, a reveal action did
+                          not land, the app declared a failure surface, or a rule population was not
+                          completely judged.
   --fail-on <P0..P3>      the severity --design-audit exits 1 at (default P1)`,
   result: {
     schema: "snap-arm-design-audit-v1",
@@ -260,8 +273,16 @@ export const DESIGN_AUDIT_ARM = {
                 p3: measurement?.counts.P3 ?? 0,
                 census: measurement?.census ?? 0,
                 failOn: opts.failOn,
-                populationVerdict: measurement !== null && measurement.verdicts.population === null ? "complete" : "no-verdict",
+                // ALL FIVE CHANNELS (#1538) — a fact-only consumer must be able to tell a truncated
+                // census from a broken forced-state pass, which one boolean cannot say. A measurement
+                // that does not exist is `no-verdict` on every channel, not silently complete.
+                censusCapVerdict: factVerdict(measurement, "censusCap"),
+                populationVerdict: factVerdict(measurement, "population"),
+                hoverVerdict: factVerdict(measurement, "hover"),
+                forceVerdict: factVerdict(measurement, "force"),
+                instrumentPageErrorVerdict: factVerdict(measurement, "instrumentPageError"),
                 ambiguousSelectors: measurement?.selectorProof.filter((proof) => proof.matches !== 1).length ?? 0,
+                unprovenSelectors: measurement?.selectorsUnproven ?? 0,
                 artifact: null,
               },
             },

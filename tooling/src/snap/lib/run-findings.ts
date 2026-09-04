@@ -149,18 +149,50 @@ function mergeDrafts(drafts: readonly FindingDraft[], indexPath: string): readon
     .toSorted((left, right) => SEVERITY_RANK[left.severity] - SEVERITY_RANK[right.severity] || right.occurrences - left.occurrences);
 }
 
+const VOTING_ARM_STATES = new Set(["failed", "refused", "withheld"]);
+
+/** EVERY VOTING ARM OWES A ROW (#1385 item 5). A red `--contrast` run printed two `CONTRAST … FAIL` lines
+ *  and one composite finding saying "run failed with no structured problem row" — the fallback below fired
+ *  because no ANALYZER wrote a problem artifact, which is true of most arms and says nothing about whether
+ *  the run explained itself. The arm verdicts already carry the arm, its state, its detail and its
+ *  artifacts, so a failing arm is turned into a finding directly and `next=` narrows to `--arm <it>`. */
+function armVerdictDrafts(input: SnapFindingInput): FindingDraft[] {
+  return input.verdict.arms
+    .filter((arm) => VOTING_ARM_STATES.has(arm.state))
+    .map((arm) => ({
+      severity: "error" as const,
+      arms: [arm.arm],
+      channels: [arm.arm],
+      what: arm.detail ?? `the ${arm.arm} arm ${arm.state} — read its own lines and evidence for the reading`,
+      where: `arm ${arm.arm}`,
+      evidence: arm.artifacts.length === 0 ? [findingRef("run-index", input.indexPath)] : arm.artifacts.map((path) => findingRef(arm.arm, path)),
+      // `withheld` is an ABSENCE of measurement, so the row it produces cannot claim completeness.
+      completeness: arm.state === "withheld" ? ("incomplete" as const) : ("complete" as const),
+      conflicts: [],
+      occurrences: 1,
+      // The arm's own state IS the vote — that is what put the run in a non-passing state at all.
+      disposition: { counted: true, reason: `${arm.arm}-arm` },
+      correlation: `arm:${arm.arm}:${arm.state}`,
+    }));
+}
+
+/** The LAST resort, and now genuinely last: a run that did not pass, produced no error row, AND had no
+ *  arm in a voting state — i.e. the exit came from somewhere no producer described. Its `conflicts` text
+ *  is a claim about the run, so it may only be made once that is actually true. */
 function fallbackFinding(input: SnapFindingInput): FindingDraft {
-  const detail = input.verdict.arms.find((arm) => arm.state === "failed" || arm.state === "refused" || arm.state === "withheld")?.detail;
   return {
     severity: "error",
     arms: [],
     channels: ["run"],
-    what: detail ?? `run ${input.verdict.state} with no structured problem row`,
+    what: `run ${input.verdict.state} with no structured problem row`,
     where: "run",
     evidence: [findingRef("run-index", input.indexPath)],
     completeness: "incomplete",
     conflicts: ["producer-specific actionable evidence was absent"],
     occurrences: 1,
+    // The exit came from somewhere no producer described, so which counter it entered is unknown — and
+    // that unknown IS the row's content.
+    disposition: { counted: false, reason: "unattributed-exit" },
     correlation: "run:unstructured",
   };
 }
@@ -180,7 +212,10 @@ export async function collectSnapFindings(input: SnapFindingInput): Promise<read
     ...(await harFindingDrafts(input.artifacts)),
   ];
   if (drafts.some((row) => row.severity === "error") === false && input.verdict.state !== "passed") {
-    drafts.push(fallbackFinding(input));
+    const arms = armVerdictDrafts(input);
+    // THE FALLBACK MUST NOT FIRE WHEN A ROW EXISTS (#1385 item 5) — its own text says actionable evidence
+    // was absent, and printing that beside a row that carries it is the instrument contradicting itself.
+    drafts.push(...(arms.length > 0 ? arms : [fallbackFinding(input)]));
   }
   return mergeDrafts(attachAttributions(drafts), input.indexPath);
 }

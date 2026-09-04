@@ -567,6 +567,40 @@ test("the withholding is keyed on the FLAG, not on the number — the same box f
   expect(checkTapTarget({ selector: "button.edge", width: 18, height: 18 }, false)?.severity).toBe("P1");
 });
 
+// #1381: the priced sub-floor ruling lived only in a source comment (`@sub-floor-ok`), which no DOM
+// walker can read, so two independent cold audits of /chats filed the same P1 hours apart. The control
+// now DECLARES it (`data-target-floor="sub-floor-ok"`), and the rule honours the declaration at FINE
+// pointer only — the arm below where it must NOT is the whole reason this is a ruling and not a mute.
+test("a rendered sub-floor ruling excludes the candidate at FINE pointer and still FAILS at coarse", () => {
+  const ruled = { selector: "[data-slot=collapsible-trigger]", width: 406, height: 16, ruledTargetFloor: "sub-floor-ok" } as const;
+
+  expect(checkTapTarget(ruled, false)).toBeNull();
+  // THE CONTROL. Coarse is reachability, not density: the ruling does not reach it, and the fragment that
+  // carries the 44px floor there must still be provable by a regression.
+  expect(checkTapTarget(ruled, true)?.severity).toBe("P1");
+  // An undeclared control of the same geometry is untouched, so the exclusion is the DECLARATION's doing.
+  expect(checkTapTarget({ selector: "[data-slot=collapsible-trigger]", width: 406, height: 16 }, false)?.severity).toBe("P1");
+  // A declaration this rule does not recognise is not a wildcard mute.
+  expect(checkTapTarget({ ...ruled, ruledTargetFloor: "whatever" }, false)?.severity).toBe("P1");
+});
+
+test("the ruled candidate is EXCLUDED with a named reason, never a silent skip", () => {
+  const identity = {
+    targetId: "trigger",
+    ancestorTargetIds: [],
+    authoredTarget: "button|slot=collapsible-trigger|role=|type=",
+    authoredHome: "div@turn-footer",
+  };
+  const result = checkTapTargetPopulations(
+    [{ ...identity, selector: "[data-slot=collapsible-trigger]", width: 406, height: 16, ruledTargetFloor: "sub-floor-ok" }],
+    false,
+  );
+
+  expect(result.findings).toHaveLength(0);
+  // candidates still counts it — the denominator names every control the walk offered.
+  expect(result.accounting).toMatchObject({ candidates: 1, judged: 0, affected: 0, excluded: { ruledSubFloor: 1 } });
+});
+
 test("tap-target populations collapse siblings, suppress nested owners, and preserve distinct homes", () => {
   const target = (targetId: string, home: string, ancestorTargetIds: readonly string[] = []): TapTargetInput => ({
     targetId,
@@ -2059,6 +2093,30 @@ test("settled population accounting closes explicit semantic exclusions without 
   expect(populationEvidenceGap({ "obscured-target": withheld })?.detail).toContain("unaskable=1");
 });
 
+// #1385 item 2: a NO-VERDICT that names a reason and no way out costs its reader a trip through the walker
+// source to learn whether the run was recoverable at all. The selection-idiom withhold on a rest-arm audit
+// is the recurring instance (#1114 makes it STRUCTURAL there), so it names the driven arm that closes it.
+test("a withheld reason with a known remedy prints it; one without keeps the bare NO-VERDICT text", () => {
+  const withheldAs = (reason: string): Parameters<typeof populationEvidenceGap>[0][string] => ({
+    candidates: 1,
+    judged: 0,
+    affected: 0,
+    populations: 0,
+    emitted: 0,
+    withheld: { [reason]: 1 },
+    excluded: {},
+    collapsed: {},
+  });
+
+  const remedied = populationEvidenceGap({ "selection-idiom": withheldAs("unmatchedUnselected") })?.detail;
+  expect(remedied).toContain("unmatchedUnselected=1");
+  expect(remedied).toContain("Remedy —");
+  expect(remedied).toContain("--open-chat");
+  // THE CONTROL. The remedy map is deliberately sparse — a reason with no verified operator action must
+  // print exactly as before rather than carry invented advice.
+  expect(populationEvidenceGap({ "obscured-target": withheldAs("unaskable") })?.detail).not.toContain("Remedy —");
+});
+
 test("collision populations group repeated instances without erasing a later authored decision", () => {
   const repeatedTruncation = Array.from({ length: 9 }, (_unused, index) => ({
     selector: `.repeated-${String(index)}`,
@@ -2337,6 +2395,40 @@ test("hover-contrast never double-reports an element that already fails at REST 
 
   expect(checkHoverContrast(alreadyBad)).toBeNull();
   expect(hoverContrastPopulations([alreadyBad], hoverScan()).excluded["restAlreadyFails"]).toBe(1);
+});
+
+// #1320, with its premise CORRECTED by the red-first probe. The row expected `assertCensusAccounting` on
+// the INCOMING census to catch over-counts the old hand-rolled guard could not see. It does not: both
+// over-count arms below ALREADY threw against the unmodified source, because the pass is count-preserving
+// (each input leaves `judged` for exactly one `withheld`/`excluded` bucket), so
+// `candidates = judged + withheld + excluded` on the OUTGOING row is the same equation as on the incoming
+// one — they differ only by `representativeCap`, which is separately refused on one side and forced to
+// zero by `affected = emitted + cap` on the other. What the shared assertion buys is therefore ATTRIBUTION
+// and EARLINESS, not reach: the throw now names the WALKER's census with the walker's own numbers, before
+// the loop, instead of surfacing as a Node-side settle error that reads like a bug in this file. These
+// arms are FENCES over that wording and over the preserved seam check; the last line is the negative
+// control that keeps them from passing vacuously.
+test("hover-contrast refuses an incoming census that does not settle, in the WALKER's own words", () => {
+  const sample = hoverSample();
+
+  expect(() => hoverContrastPopulations([sample], hoverScan({ candidates: 4 }))).toThrow(
+    "INSTRUMENT ERROR: hover-contrast candidates 4 do not settle as judged 1 + withheld 0 + excluded 0",
+  );
+  expect(() => hoverContrastPopulations([sample], hoverScan({ candidates: 9, withheld: { noHoverPaint: 3 } }))).toThrow(
+    "INSTRUMENT ERROR: hover-contrast candidates 9 do not settle as judged 1 + withheld 3 + excluded 0",
+  );
+  // A walker may not supply the Node-owned representative cap — the reach the outgoing settle only ever
+  // reported as a mismatched `affected`.
+  expect(() => hoverContrastPopulations([sample], hoverScan({ candidates: 2, withheld: { cap: 1 } }))).toThrow(
+    "INSTRUMENT ERROR: hover-contrast walker supplied Node-owned cap accounting",
+  );
+  // The seam half of the OLD guard is preserved by the same call (assertRelationalCensus spells both).
+  expect(() => hoverContrastPopulations([sample], hoverScan({ candidates: 2, judged: 2, withheld: {} }))).toThrow(
+    "INSTRUMENT ERROR: hover-contrast walker judged 2 but returned 1 sample(s)",
+  );
+  // A settled census — the same shapes, accounted — is accepted, so the arms above fail on the ARITHMETIC
+  // and not on the fixture being unbuildable.
+  expect(hoverContrastPopulations([sample], hoverScan({ candidates: 4, withheld: { noHoverPaint: 3 } })).candidates).toBe(4);
 });
 
 test("a control with NO hover paint is EXCLUDED from the hover denominator, never judged", () => {

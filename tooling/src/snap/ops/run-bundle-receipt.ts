@@ -3,7 +3,7 @@ import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { snapDiagnosticRetention } from "../contract/run-facts.ts";
 import type { SnapCompositeFinding, SnapRunIndex } from "../contract/run-index.ts";
-import { findingEvidenceDisplay, findingNextDisplay } from "../lib/run-finding-display.ts";
+import { findingDispositionDisplay, findingEvidenceDisplay, findingNextDisplay } from "../lib/run-finding-display.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -73,7 +73,7 @@ function printFindingReceipt(index: SnapRunIndex, path: string): void {
     const evidence = findingEvidenceDisplay(finding, path);
     const conflicts = finding.conflicts.length === 0 ? "none" : finding.conflicts.join("; ");
     print(
-      `FINDING    ${finding.severity} | ${finding.what.replace(/\s+/gu, " ")} | ${finding.where.replace(/\s+/gu, " ")} | evidence=${evidence} confidence=${finding.confidence} completeness=${finding.completeness} conflicts=${JSON.stringify(conflicts)} occurrences=${String(finding.occurrences)} | next=${findingNextDisplay(finding, index, path)}`,
+      `FINDING    ${finding.severity} | ${finding.what.replace(/\s+/gu, " ")} | ${finding.where.replace(/\s+/gu, " ")} | evidence=${evidence} confidence=${finding.confidence} completeness=${finding.completeness} disposition=${findingDispositionDisplay(finding)} conflicts=${JSON.stringify(conflicts)} occurrences=${String(finding.occurrences)} | next=${findingNextDisplay(finding, index, path)}`,
     );
   }
   if (findings.length > FINDING_DISPLAY_CAP) {

@@ -90,10 +90,17 @@ export function partitionFailedRequests(requests: Iterable<CapturedRequest>): {
  *  failed requests into its verdict, so every `--file` mock audit exited 1 on an artifact of the
  *  instrument's own attach.
  *
- *  NARROW BY CONSTRUCTION, both halves, and that is what keeps it from blinding a real defect: the two
- *  URLs must be IDENTICAL (a mock genuinely loading a sibling `file:///other.png` names two different
- *  URLs and stays a failure) and the scheme must be `file:`. Never dropped: the report prints these lines,
- *  the manifest keeps them, and the RESULT line counts them under `file-origin-noise`. */
+ *  THE TWO HALVES NARROW DIFFERENTLY, and #1538 corrected this comment, which claimed one rule for both.
+ *  The CONSOLE half is the narrow one: the message's two URLs must be IDENTICAL (a mock genuinely loading
+ *  a sibling `file:///other.png` names two different URLs and stays a failure) and the scheme must be
+ *  `file:`. The REQUEST half has no second URL to compare — a `CapturedRequest` carries one — so it
+ *  narrows on Chromium's exact failure text for this block (`origin`, never a code) plus the `file:`
+ *  scheme, which does fence any `file://` request the browser blocks as cross-origin, not only the
+ *  attach's own. That residue is deliberate and bounded: the class is only reachable under `--file` (an
+ *  http page never produces it), and the failure it could mask does not occur — a mock whose sibling is
+ *  genuinely absent fails `net::ERR_FILE_NOT_FOUND`, which stays a failure and reds the run. Never
+ *  dropped, either half: the report prints these lines, the manifest keeps them, and the RESULT line
+ *  counts them under `file-origin-noise`. */
 const FILE_ORIGIN_NOISE_RE = /^Unsafe attempt to load URL (\S+) from frame with URL (\S+)\. 'file:' URLs are treated as unique security origins\.$/u;
 const FILE_SCHEME = "file://";
 

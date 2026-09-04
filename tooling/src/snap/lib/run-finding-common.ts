@@ -5,12 +5,21 @@ import { exactScopeIdentity, notApplicableScope } from "../../_shared/artifact-s
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Arm } from "../contract/arm-vocabulary.ts";
 import { ARMS } from "../contract/arm-vocabulary.ts";
-import type { SnapCompositeFinding, SnapFindingEvidenceRef, SnapRunArtifact } from "../contract/run-index.ts";
+import type { SnapCompositeFinding, SnapFindingDisposition, SnapFindingEvidenceRef, SnapRunArtifact } from "../contract/run-index.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");
 
-export interface FindingDraft extends Omit<SnapCompositeFinding, "confidence" | "next"> {
+export interface FindingDraft extends Omit<SnapCompositeFinding, "confidence" | "next" | "disposition"> {
   readonly correlation: string;
+  /** REQUIRED of every producer (#1385 item 4), where the contract keeps it optional for legacy indices —
+   *  a draft that does not say whether its evidence voted is exactly the row a reader cannot triage. */
+  readonly disposition: SnapFindingDisposition;
+}
+
+/** A producer-owned row: the arm that wrote it is the one that votes, so its evidence is by construction
+ *  already in that arm's failure count. Named once here rather than respelled at each producer. */
+export function countedBy(counter: string): SnapFindingDisposition {
+  return { counted: true, reason: counter };
 }
 
 interface MalformedFindingOwner {
@@ -71,6 +80,9 @@ export function malformedFinding(artifact: SnapRunArtifact, error: unknown, owne
     completeness: "incomplete",
     conflicts: [error instanceof Error ? error.message : String(error)],
     occurrences: 1,
+    // The artifact would not parse, so whether the producer's own count included this evidence is exactly
+    // what could not be read — claiming either polarity here would be a guess printed as a fact.
+    disposition: { counted: false, reason: "unreadable-evidence" },
     correlation: `malformed:${artifact.relativePath}`,
   };
 }

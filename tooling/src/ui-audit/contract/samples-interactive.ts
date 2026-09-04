@@ -29,6 +29,17 @@ export interface TapTargetInput {
    *  still change a verdict (under the 44px widest floor); `checkTapTarget` withholds rather than minting a
    *  sub-target finding from it. Optional: absent from the fixture sample sets that predate it. */
   readonly extentTruncated?: boolean;
+  /** The control's own `data-target-floor` declaration, or null when it makes none (#1381).
+   *
+   *  A PRICED SUB-FLOOR IS A RULING, AND A RULING MUST BE RENDERED TO BE READ. The disclosure trigger in
+   *  the transcript footer stays a 16px text line at FINE pointer by a recorded density decision, and
+   *  carries the coarse 44px floor through a shared fragment — but that decision lived only in a source
+   *  comment (`@sub-floor-ok`, gate `sub-floor-disclosure`), which no DOM walker can see, so two
+   *  independent cold audits of /chats filed the same P1 hours apart. `sub-floor-ok` is that ruling as a
+   *  rendered fact; `checks-a11y.ts` honours it at fine pointer ONLY and counts it as
+   *  `excluded(ruledSubFloor)`, never as a silent skip. Optional: absent from fixture sample sets that
+   *  predate it, where it reads as "the control declared nothing". */
+  readonly ruledTargetFloor?: string | null;
 }
 
 export interface AccessibleNameInput {

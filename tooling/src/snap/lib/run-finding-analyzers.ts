@@ -3,9 +3,9 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SnapAnalyzerProblem, SnapAnalyzerProducer } from "../contract/analyzer.ts";
 import { isSnapAnalyzerProducer, snapAnalyzerArm } from "../contract/analyzer.ts";
 import type { SnapRunArtifact } from "../contract/run-index.ts";
-import { failedAudits } from "./lighthouse-report.ts";
+import { failedAudits, nameMismatchTriage } from "./lighthouse-report.ts";
 import type { FindingDraft } from "./run-finding-common.ts";
-import { findingCompleteness, findingRef, findingSymptom, malformedFinding, readJson, record } from "./run-finding-common.ts";
+import { countedBy, findingCompleteness, findingRef, findingSymptom, malformedFinding, readJson, record } from "./run-finding-common.ts";
 import { readSnapAnalyzerProblems } from "./run-report-problems.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");
@@ -27,6 +27,7 @@ function analyzerProblemDraft(problem: SnapAnalyzerProblem, artifact: AnalyzerAr
     completeness: findingCompleteness(artifact),
     conflicts: [],
     occurrences: 1,
+    disposition: countedBy(`${problem.arm}-arm`),
     correlation: `analyzer:${problem.arm}:${problem.metric}:${findingSymptom(problem.subject)}`,
   };
 }
@@ -43,6 +44,7 @@ function legacyAnalyzerDraft(artifact: AnalyzerArtifact): FindingDraft {
     completeness: "incomplete",
     conflicts: ["the artifact predates analyzer-owned problem rows"],
     occurrences: 1,
+    disposition: countedBy(`${arm}-arm`),
     correlation: `malformed:${artifact.relativePath}`,
   };
 }
@@ -79,16 +81,22 @@ export async function lighthouseFindingDrafts(artifacts: readonly SnapRunArtifac
         // made every a11y finding a two-call errand: read the row, then go re-measure what axe measured.
         const explanation = [...new Set(audit.nodes.map((node) => node.explanation).filter((value) => value !== null))].join(" · ");
         const where = audit.nodes.map((node) => (node.snippet === null ? node.selector : `${node.selector} ${node.snippet}`)).join(" | ");
+        // #1381: the per-node triage hint for the one audit whose heuristic over-fires on a correct
+        // name/description split. Null for every other audit and for every node that carries no
+        // `aria-describedby`, so the row is unchanged except where the hint is the missing fact.
+        const triage = nameMismatchTriage(audit.id, audit.nodes);
+        const head = explanation === "" ? `${audit.id}: ${audit.title}` : `${audit.id}: ${audit.title} — ${explanation}`;
         drafts.push({
           severity: "error",
           arms: ["lighthouse"],
           channels: ["lighthouse"],
-          what: explanation === "" ? `${audit.id}: ${audit.title}` : `${audit.id}: ${audit.title} — ${explanation}`,
+          what: triage === null ? head : `${head} — ${triage}`,
           where: where === "" ? "page" : where,
           evidence: [findingRef("lighthouse", artifact.path, artifact.scope)],
           completeness: findingCompleteness(artifact),
           conflicts: [],
           occurrences: Math.max(1, audit.nodeCount),
+          disposition: countedBy("lighthouse-arm"),
           correlation: `lighthouse:${audit.id}`,
         });
       }
@@ -127,6 +135,7 @@ export async function reactFindingDrafts(artifacts: readonly SnapRunArtifact[]):
           completeness: findingCompleteness(artifact),
           conflicts: [],
           occurrences: 1,
+          disposition: countedBy("react-profile-arm"),
           correlation: `react:${findingSymptom(gap["evidence"])}`,
         });
       }

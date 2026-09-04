@@ -30,16 +30,27 @@ import {
   WITHHELD_REASONS,
 } from "../../ui-audit/index.ts";
 import type { DesignAuditMeasurement, SelectorProof } from "../ops/design-audit-walk.ts";
+import { DESIGN_AUDIT_SELECTOR_PROOF_CAP } from "./budgets.ts";
 
 /** The `-1` absent sentinel every ui-audit RESULT row already uses: a refusal to state, never a zero
  *  that reads as "nothing was there". */
 const ABSENT = -1;
 
 /** `#1326`'s row. Printed only when something is NOT locatable — a clean sweep is already implied by the
- *  findings table, and a line per run saying "all 2 selectors resolve" is noise a reader learns to skip. */
-function printSelectorProof(proofs: readonly SelectorProof[]): void {
+ *  findings table, and a line per run saying "all 2 selectors resolve" is noise a reader learns to skip.
+ *  #1538: an UNPROVEN remainder (the proof cap truncated the list) is the same class of not-locatable and
+ *  prints on its own line, because "we did not ask" must never be readable as "we asked and it was fine". */
+function printSelectorProof(proofs: readonly SelectorProof[], unproven: number): void {
+  if (unproven > 0) {
+    print(
+      `SELECTOR     ${String(unproven)} emitted finding selector(s) were NOT proven — the ${String(DESIGN_AUDIT_SELECTOR_PROOF_CAP)}-selector proof cap truncated the list, so those rows are unverified, not unique`,
+    );
+  }
   const ambiguous = proofs.filter((proof) => proof.matches !== 1);
   if (ambiguous.length === 0) {
+    if (unproven > 0) {
+      print("");
+    }
     return;
   }
   print(
@@ -77,7 +88,7 @@ export function printDesignAudit(measurement: DesignAuditMeasurement, artifact: 
   for (const failure of measurement.hover?.forceFailures ?? []) {
     print(`HOVER REFUSED ${failure}`);
   }
-  printSelectorProof(measurement.selectorProof);
+  printSelectorProof(measurement.selectorProof, measurement.selectorsUnproven);
   printFindingsTable(measurement.findings, measurement.gaps.length === 0);
 }
 
@@ -271,5 +282,8 @@ export function designAuditPairs(enabled: boolean, measurement: DesignAuditMeasu
     ["no-verdict", measurement.backdropRefusals.length],
     ["selectors-proven", measurement.selectorProof.length],
     ["selectors-ambiguous", ambiguous],
+    // #1538: ALWAYS printed, including the 0 — the pair exists so a truncated proof list cannot look
+    // like a clean one, and a pair that only appears when non-zero is unreadable as an absence.
+    ["selectors-unproven", measurement.selectorsUnproven],
   ];
 }

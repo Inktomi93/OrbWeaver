@@ -135,8 +135,13 @@ export async function measureFillContrast(page: Page, selector: string, facts: C
   // caught by eye (an anti-aliased edge winning would print a colour that is neither fill nor surround).
   const colours = `${show(reading.fill)} on ${show(reading.surround)} (${(reading.surroundShare * PERCENT).toFixed(0)}% of the band)`;
   const tail = `(fill-only · channel ${reading.channel} ${share} · ${colours} · need ${UI_COMPONENT_MIN_RATIO.toFixed(1)} · fill-sample)`;
+  // #1385 item 3: a bare `FILL … FAIL` reads like a TEXT contrast verdict, and the question it does not
+  // answer — the boundary, WCAG 1.4.11 — is the one an empty input's affordance actually rests on. The
+  // fill arm cannot answer it (it samples the box, not each painted side), so it names the arm that can
+  // rather than letting a reader assume the box verdict covered the border.
+  const next = ` · next: pnpm snap --contrast-edge ${JSON.stringify(selector)} for the BORDER question (WCAG 1.4.11, per side)`;
   return {
-    outcome: { line: `CONTRAST ${selector}: FILL ${reading.ratio.toFixed(2)}:1  ${passed ? "PASS" : "FAIL"}  ${tail}`, failed: !passed },
+    outcome: { line: `CONTRAST ${selector}: FILL ${reading.ratio.toFixed(2)}:1  ${passed ? "PASS" : "FAIL"}  ${tail}${next}`, failed: !passed },
     evidence: {
       ...base,
       status: "ok",

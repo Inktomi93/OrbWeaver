@@ -21,6 +21,9 @@ const detailSchema = z.string().min(1).nullable();
 const armStateShape = { state: snapArmStateSchema, detail: detailSchema } as const;
 const count = z.number().int().nonnegative();
 const artifact = artifactRefSchema.nullable();
+/** One design-audit verdict channel, as the FACT spells it: `complete` only over a channel the walk
+ *  actually reached, `no-verdict` everywhere else (#1087 F1, carried onto the fact by #1538). */
+const verdict = z.enum(["complete", "no-verdict"]);
 const exitCodeSchema = z.union([z.literal(EXIT.clean), z.literal(EXIT.violations), z.literal(EXIT.toolError), z.literal(EXIT.misuse)]);
 export function snapExitCode(value: number): z.infer<typeof exitCodeSchema> {
   return exitCodeSchema.parse(value);
@@ -48,8 +51,17 @@ export const ARM_FACT_DATA_SCHEMAS = {
     p3: count,
     census: count,
     failOn: z.enum(DESIGN_AUDIT_SEVERITIES),
-    populationVerdict: z.enum(["complete", "no-verdict"]),
+    // THE FIVE NAMED CHANNELS (#1087 F1), all of them (#1538). The fact carried `populationVerdict`
+    // alone, so a fact-only consumer could not tell a truncated census from a broken forced-state pass —
+    // exactly the distinction the five channels exist to make, and the JSON artifact has carried all
+    // five since #1087. A terminal run stamps its own gap into every one.
+    censusCapVerdict: verdict,
+    populationVerdict: verdict,
+    hoverVerdict: verdict,
+    forceVerdict: verdict,
+    instrumentPageErrorVerdict: verdict,
     ambiguousSelectors: count,
+    unprovenSelectors: count,
     artifact,
   }),
   "app-snapshot": z.object({ ...armStateShape, snapshots: count, unavailable: count }),

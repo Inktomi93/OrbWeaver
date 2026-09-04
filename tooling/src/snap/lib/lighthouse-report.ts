@@ -197,3 +197,43 @@ export function lighthouseLines(receipt: LighthouseReceipt): readonly string[] {
   lines.push(`  report       ${receipt.htmlPath}`);
   return lines;
 }
+
+/** The audit whose heuristic OVER-FIRES on a correct name/description split (#1381). */
+const NAME_MISMATCH_AUDIT = "label-content-name-mismatch";
+const ARIA_LABEL_ATTR = /\saria-label="([^"]*)"/u;
+const ARIA_DESCRIBEDBY_ATTR = /\saria-describedby="([^"]*)"/u;
+
+/** THE FACT THE REVIEWER HAD AND THE ROW DID NOT (#1381).
+ *
+ *  Chat-list rows carry `aria-label` = the chat title and `aria-describedby` = preview + timestamp. That
+ *  is the CORRECT split — the name is the title, the description is the supporting text — and axe's
+ *  `label-content-name-mismatch` heuristic fires anyway because visible text exceeds the accessible name.
+ *  A reviewer verified this against the raw axe nodes on 2026-09-04; a second cold pass, without that
+ *  verification, forwarded the identical row as a P1 hours later. The tell is ON the node: an
+ *  `aria-describedby` means the author SPLIT name from description deliberately, so the row now carries
+ *  it and says which question is actually open. It is a triage hint, never a suppression — the finding
+ *  still prints, and a node with no `aria-describedby` gets no hint at all.
+ *
+ *  Reads the snippet axe already captured (there is no live DOM at report-read time); a snippet that was
+ *  capped mid-attribute simply does not match, which yields no hint rather than a fabricated one. */
+export function nameMismatchTriage(auditId: string, nodes: readonly LighthouseAuditNode[]): string | null {
+  if (auditId !== NAME_MISMATCH_AUDIT) {
+    return null;
+  }
+  const hints: string[] = [];
+  for (const node of nodes) {
+    const snippet = node.snippet;
+    if (snippet === null) {
+      continue;
+    }
+    const describedby = ARIA_DESCRIBEDBY_ATTR.exec(snippet)?.[1];
+    if (describedby === undefined || describedby === "") {
+      continue;
+    }
+    hints.push(`description-split: name=${JSON.stringify(ARIA_LABEL_ATTR.exec(snippet)?.[1] ?? "(no aria-label)")} describedby=${JSON.stringify(describedby)}`);
+  }
+  if (hints.length === 0) {
+    return null;
+  }
+  return `${[...new Set(hints)].join(" · ")} — axe heuristic: it fires whenever visible text exceeds the accessible NAME, which a deliberate name/description split does by design. Verify the visible text is the NAME before filing`;
+}

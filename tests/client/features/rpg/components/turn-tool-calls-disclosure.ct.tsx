@@ -278,4 +278,13 @@ test("the FINE pointer keeps the transcript's dense line — the floor is COARSE
   // No min-height at all at fine: the variant's declaration never matches, so the row is its text height.
   await expect.poll(() => trigger.evaluate((el: HTMLElement) => Math.round(Number.parseFloat(getComputedStyle(el).minHeight) || 0))).toBe(0);
   await expect.poll(() => trigger.evaluate((el: HTMLElement) => Math.round(el.getBoundingClientRect().height))).toBeLessThan(await touchFloorPx(page));
+
+  // …and the RULING that makes that dense line legitimate is RENDERED, not just commented (#1381). The
+  // `@sub-floor-ok` marker above the JSX is a source fact the design-audit walker cannot read, which is
+  // why two independent cold audits of /chats filed this row as a P1 hours apart. The attribute is what
+  // the walker reads: `checks-a11y.ts` excludes the candidate at FINE pointer with the named reason
+  // `ruledSubFloor` and counts it in the population row. If this attribute is ever dropped, the ruling
+  // silently stops existing for every audit — so it is pinned on the RENDERED element, by its accessible
+  // name, exactly as the walker finds it.
+  await expect(trigger).toHaveAttribute("data-target-floor", "sub-floor-ok");
 });
