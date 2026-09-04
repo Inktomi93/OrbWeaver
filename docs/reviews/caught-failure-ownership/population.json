@@ -5142,7 +5142,7 @@
     {
       "siteId": "tooling/src/snap/lib/run-finding-browser.ts::empty:error::1",
       "path": "tooling/src/snap/lib/run-finding-browser.ts",
-      "line": 410,
+      "line": 274,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5150,12 +5150,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 407
+      "markerLine": 271
     },
     {
       "siteId": "tooling/src/snap/lib/run-finding-browser.ts::empty:error::2",
       "path": "tooling/src/snap/lib/run-finding-browser.ts",
-      "line": 478,
+      "line": 342,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5163,7 +5163,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 475
+      "markerLine": 339
     },
     {
       "siteId": "tooling/src/snap/lib/session-wire.ts::default:catch::1",
@@ -5623,7 +5623,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 290,
+      "line": 215,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5631,12 +5631,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.",
-      "markerLine": 285
+      "markerLine": 210
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 327,
+      "line": 252,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5644,12 +5644,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read.",
-      "markerLine": 320
+      "markerLine": 245
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:retryErr::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 301,
+      "line": 226,
       "column": 9,
       "grammar": "empty",
       "position": "empty:retryErr",
@@ -5657,12 +5657,12 @@
       "snippet": "} catch (retryErr) {",
       "verdict": "deliberate-absorb",
       "reason": "the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read.",
-      "markerLine": 296
+      "markerLine": 221
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 40,
+      "line": 41,
       "column": 23,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -5670,12 +5670,12 @@
       "snippet": "const count = await page.evaluate(\"window.__orb ? window.__orb.queries().length : null\").catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — a build without the __orb bridge, or a probe that throws, returns null and the caller \"makes no claim rather than a false one\" (doc comment above). Ends if a caller starts trusting null as a positive settle.",
-      "markerLine": 39
+      "markerLine": 40
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 323,
+      "line": 248,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -5683,12 +5683,12 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.",
-      "markerLine": 322
+      "markerLine": 247
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 47,
+      "line": 48,
       "column": 26,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -5696,12 +5696,12 @@
       "snippet": "const attached = await flag",
       "verdict": "deliberate-absorb",
       "reason": "failure IS the return value — converts to attached=false, which becomes the \"absent\" readiness arm fed into UNSETTLED_REASON and reported as navError below. Ends if that reporting chain is removed.",
-      "markerLine": 46
+      "markerLine": 47
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 315,
+      "line": 240,
       "column": 9,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -5709,12 +5709,12 @@
       "snippet": "await page",
       "verdict": "deliberate-absorb",
       "reason": "gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures.",
-      "markerLine": 314
+      "markerLine": 239
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitForLoadState::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 453,
+      "line": 378,
       "column": 11,
       "grammar": "promise",
       "position": "promise:waitForLoadState",
@@ -5722,7 +5722,7 @@
       "snippet": "await page.waitForLoadState(\"networkidle\", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.",
-      "markerLine": 451
+      "markerLine": 376
     },
     {
       "siteId": "tooling/src/snap/ops/filmstrip-capture.ts::promise:stopProtocol::1",
@@ -5948,7 +5948,7 @@
     {
       "siteId": "tooling/src/snap/ops/run-report.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/run-report.ts",
-      "line": 408,
+      "line": 144,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5956,12 +5956,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a neighbouring run's corruption is not this report's verdict — the subject index is read by the strict door in printSnapReport, and a skipped neighbour only means no delta row. Ends if this reader becomes the only read of those files.",
-      "markerLine": 400
+      "markerLine": 136
     },
     {
       "siteId": "tooling/src/snap/ops/run-report.ts::empty:error::1",
       "path": "tooling/src/snap/ops/run-report.ts",
-      "line": 426,
+      "line": 162,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5969,12 +5969,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "this is the browser-free reader's terminal owner; it prints RUN INDEX REFUSED and returns tool-error for every resolution/validation/artifact failure. Ends if either output or exit vote disappears.",
-      "markerLine": 416
+      "markerLine": 152
     },
     {
       "siteId": "tooling/src/snap/ops/run-report.ts::empty:error::2",
       "path": "tooling/src/snap/ops/run-report.ts",
-      "line": 442,
+      "line": 178,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -5982,7 +5982,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "list mode retains path+reason in `invalid` and `printSnapReports` emits the bounded aggregate; the strict single-index reader remains the detailed refusal door. Ends if either retention or aggregate output disappears.",
-      "markerLine": 439
+      "markerLine": 175
     },
     {
       "siteId": "tooling/src/snap/ops/session-admin.ts::default:catch::1",

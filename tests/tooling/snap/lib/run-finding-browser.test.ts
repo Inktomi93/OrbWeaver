@@ -2,7 +2,7 @@
 // terminal colour arguments included — as a finding's `what`, which made five ambient annotation rows
 // 5.3 KB of a 17 KB `--map` run. This is the parse that replaced it, pinned on the exact shapes the
 // client logger emits (captured from a live /chats run, 2026-09-04) plus the two ways it can be wrong.
-import { annotationOf, annotationText } from "../../../../tooling/src/snap/lib/run-finding-browser.ts";
+import { annotationOf, annotationText } from "../../../../tooling/src/snap/lib/run-finding-console-annotation.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const FRAME = "%c10:54:40.830 [frame]%c long frame 153ms · blocking 103ms (budget 100ms) · @ main.tsx 147ms · route / color:#c60;font-weight:bold color:#888";

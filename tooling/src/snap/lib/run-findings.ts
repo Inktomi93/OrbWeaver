@@ -4,9 +4,10 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { DiskSafeBrowserDiagnostic } from "../contract/browser-evidence-redaction.ts";
 import type { SnapCompositeFinding, SnapFindingEvidenceRef, SnapRunIndex } from "../contract/run-index.ts";
 import { analyzerFindingDrafts, lighthouseFindingDrafts, reactFindingDrafts } from "./run-finding-analyzers.ts";
-import { coreFindingDrafts, diagnosticFindingDrafts, harFindingDrafts } from "./run-finding-browser.ts";
+import { coreFindingDrafts, harFindingDrafts } from "./run-finding-browser.ts";
 import type { FindingDraft } from "./run-finding-common.ts";
 import { findingIdentity, findingRef } from "./run-finding-common.ts";
+import { diagnosticFindingDrafts } from "./run-finding-console-annotation.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");
 
