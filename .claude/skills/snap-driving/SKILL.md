@@ -1,6 +1,6 @@
 ---
 name: snap-driving
-description: "Drive and verify the live Orbweaver app with `pnpm snap` and READ what it produced: the run slot + run.json + browser-free `--report` reader, the 18 evidence arms, selector discipline, argv-ordered actions, picker affordances, room/session state, cheap evidence before pixels, appearance and theme arms, scenario/matrix/watch recipes, virtualized targeting, isolated stages, and exit-code triage. Use when composing a snap invocation, reading a snap result or run.json, navigating to a section/room/modal, checking rendered behavior, watching streams or transients, diagnosing dead controls or NAV/ARG errors, handling wrong-room or stale-selector failures, or running multi-user and staged drives."
+description: "Drive and verify the live Orbweaver app with `pnpm snap` and READ what it produced: the run slot + run.json + browser-free `--report` reader, the 19 evidence arms, selector discipline, argv-ordered actions, picker affordances, room/session state, cheap evidence before pixels, appearance and theme arms, scenario/matrix/watch recipes, virtualized targeting, isolated stages, and exit-code triage. Use when composing a snap invocation, reading a snap result or run.json, navigating to a section/room/modal, checking rendered behavior, watching streams or transients, diagnosing dead controls or NAV/ARG errors, handling wrong-room or stale-selector failures, or running multi-user and staged drives."
 ---
 
 # Driving the app with snap
