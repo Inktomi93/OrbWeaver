@@ -346,7 +346,10 @@ describe("createVllmChat", () => {
   });
 
   test("forwards the chatId on each delta", async () => {
-    const client = streamingClient(['{"choices":[{"delta":{"content":"x"}}]}']);
+    // The terminal rides the content chunk (every other fixture in this file already carries one): the
+    // subject here is delta FORWARDING, and a stream that never terminated is refused outright by the #1400
+    // truncation fence — so a terminal-less fixture would be asserting the truncated shape by accident.
+    const client = streamingClient(['{"choices":[{"delta":{"content":"x"},"finish_reason":"stop"}]}']);
     const seen: ChatId[] = [];
     const chat = createVllmChat({ client, now: clock() });
     await chat(

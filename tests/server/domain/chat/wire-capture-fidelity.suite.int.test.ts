@@ -89,7 +89,13 @@ function wireMessages(body: Record<string, unknown>): readonly WireMessage[] {
  *  one-token SSE reply so the turn completes + persists. The request body is exactly what the REAL buildBody
  *  produced — the fidelity target. */
 function capturingClient(sink: { body?: Record<string, unknown> }): VllmEngineClient {
-  const canned = 'data: {"choices":[{"delta":{"content":"ok"}},{"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":1}}\ndata: [DONE]\n';
+  // ONE choice carrying BOTH the delta and the finish reason — the shape a real chat-completions chunk has.
+  // This fixture used to put `finish_reason` in a SECOND `choices` element, which no reader has ever looked
+  // at (`choices[0]` is the only choice the reducer reads), so the turn reduced with `finishReason: null`.
+  // Nothing complained until the #1400 truncation fence started refusing a turn that never terminated —
+  // and a grep for `finish_reason` reads this fixture as terminal-bearing, which is exactly why it survived
+  // that sweep. The reply is one token; the terminal is what makes it a COMPLETED one.
+  const canned = 'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":1}}\ndata: [DONE]\n';
   return {
     enginePost: (): Promise<never> => Promise.reject(new Error("chat must stream")),
     engineStream: (_lane, _path, body): Promise<ReadableStream<Uint8Array>> => {
