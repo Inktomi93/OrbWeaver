@@ -58,6 +58,12 @@ export interface ListCharactersParams extends CharacterActorParams {
 export interface UpdateCharacterParams extends CharacterActorParams {
   readonly characterId: CharacterId;
   readonly input: UpdateCharacterInput;
+  /** OPT-IN compare-and-swap for a caller writing from a basis it read EARLIER (#1446): the `contentHash`
+   *  the patch was constructed against. Supplied means the write is conditional on the card still carrying
+   *  it, and a card that moved refuses TOTALLY with `CHARACTER_STALE_BASIS` instead of overwriting the edit
+   *  that landed in between. Omitted is the ordinary read-and-write-back edit, unchanged (D28 in-place).
+   *  NOT wire-reachable: the tRPC router builds this params object and never forwards a client value. */
+  readonly expectedContentHash?: string;
 }
 
 export interface RemoveCharacterParams extends CharacterActorParams {

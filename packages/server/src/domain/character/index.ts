@@ -9,7 +9,7 @@ export {
   CharacterNotFoundError,
   CharacterOperationError,
 } from "./contract/errors.ts";
-export type { CharacterHandoffCopyContext, CopyAvatarToOwner, CopyHandoffCards, HandoffCardCopy } from "./contract/handoff-copy.ts";
+export type { CharacterHandoffCopyContext, CopyAssetToOwner, CopyHandoffCards, HandoffCardCopy } from "./contract/handoff-copy.ts";
 export { handoffProvenance } from "./contract/handoff-copy.ts";
 export type {
   BulkAddCardTagParams,
@@ -69,7 +69,7 @@ export {
   CARD_PACK_VERSION,
   createDefaultCharacterSeeder,
   DEFAULT_CHARACTER_CARDS,
-  matchesPriorPack,
+  matchesAuthoredContent,
   PRIOR_PACK_CONTENT,
   WELCOME_ASSISTANT_HANDLE,
 } from "./seeder/index.ts";

@@ -13,6 +13,7 @@ import {
   appendSnapshot,
   deleteOwnedCharacter,
   insertCharacter,
+  insertCharacterClaimingProvenance,
   setArchivedBulk,
   writeCardInPlace,
 } from "../../../../../packages/server/src/domain/character/persistence/card.ts";
@@ -53,10 +54,53 @@ describe("persistence/card", () => {
     // The verb returns a three-state verdict, not a boolean (934fae273): a foreign owner is indistinguishable
     // from an absent row ON PURPOSE — the leak-free collapse, so a scoped write can never be an existence
     // oracle. `background-unavailable` is the third arm and is covered by its own test below.
-    expect(await writeCardInPlace(db, id, other, { name: "Hax" })).toBe("missing");
-    expect(await writeCardInPlace(db, id, owner, { name: "Ok" })).toBe("written");
+    expect(await writeCardInPlace(db, { characterId: id, ownerId: other }, { name: "Hax" })).toBe("missing");
+    expect(await writeCardInPlace(db, { characterId: id, ownerId: owner }, { name: "Ok" })).toBe("written");
     const rows = await db.select().from(characters).where(eq(characters.id, id));
     expect(rows[0]?.name).toBe("Ok");
+  });
+
+  test("writeCardInPlace with an expected contentHash refuses TOTALLY when the card moved (#1446)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const id = castId<CharacterId>("character_1");
+    await insertCharacter(db, makeRow(owner, "character_1", castId<CharacterHandle>("a")), bumpStatsCanonVersion);
+
+    // The declared basis matches ⇒ the ordinary write, and the new hash lands.
+    expect(await writeCardInPlace(db, { characterId: id, ownerId: owner, expectedContentHash: "hash" }, { name: "First", contentHash: "hash-2" })).toBe(
+      "written",
+    );
+    // A caller still holding the ORIGINAL basis is writing from a snapshot that no longer exists. It must not
+    // win: `"stale"` is a TOTAL refusal, so the first writer's row stands untouched rather than being
+    // silently replaced by a patch merged against content nobody can see any more.
+    expect(await writeCardInPlace(db, { characterId: id, ownerId: owner, expectedContentHash: "hash" }, { name: "Second", contentHash: "hash-3" })).toBe(
+      "stale",
+    );
+    expect((await db.select().from(characters).where(eq(characters.id, id)))[0]?.name).toBe("First");
+    // The predicate does not become an existence oracle: a foreign owner still collapses to "missing" even
+    // when the hash they name is the live one.
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    expect(await writeCardInPlace(db, { characterId: id, ownerId: other, expectedContentHash: "hash-2" }, { name: "Hax" })).toBe("missing");
+    // …and an omitted basis is the unchanged in-place write (D28's default posture, untouched).
+    expect(await writeCardInPlace(db, { characterId: id, ownerId: owner }, { name: "Third" })).toBe("written");
+  });
+
+  test("insertCharacterClaimingProvenance lets ONE writer claim a provenance key (#1432)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    const first = { ...makeRow(owner, "character_1", castId<CharacterHandle>("a")), importedFrom: "handoff:chat_1:character_src" };
+    const second = { ...makeRow(owner, "character_2", castId<CharacterHandle>("b")), importedFrom: "handoff:chat_1:character_src" };
+
+    expect(await insertCharacterClaimingProvenance(db, first, bumpStatsCanonVersion)).toBe(true);
+    // The claim is the WRITE's own predicate, not a prior read: a second writer with the same key lands
+    // nothing and is told so, which is what lets the caller converge on the winner instead of minting a
+    // second library for one gift.
+    expect(await insertCharacterClaimingProvenance(db, second, bumpStatsCanonVersion)).toBe(false);
+    expect(await db.select().from(characters).where(eq(characters.ownerId, owner))).toHaveLength(1);
+    // The claim is PER-OWNER: the same key under a different recipient is a different gift.
+    const foreign = { ...makeRow(other, "character_3", castId<CharacterHandle>("c")), importedFrom: "handoff:chat_1:character_src" };
+    expect(await insertCharacterClaimingProvenance(db, foreign, bumpStatsCanonVersion)).toBe(true);
   });
 
   test("deleteOwnedCharacter is owner-scoped", async () => {

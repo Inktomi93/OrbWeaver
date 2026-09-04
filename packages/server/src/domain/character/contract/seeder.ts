@@ -22,18 +22,47 @@ export interface SeedCard {
  *  live `CharacterCard`: equal ⇒ the user never touched the seeded card and it may be re-dressed to the new
  *  pack; anything else ⇒ the row is the user's and is left alone. `name`/`nickname` are IN the set (owner
  *  ruling 2026-08-02): a rename is a user's claim of ownership over the card, so a renamed-but-otherwise-
- *  virgin card is preserved, not re-dressed back to our name. Deliberately EXCLUDES row identity, the
- *  timestamps, and the typed provenance columns (a pack bump rewrites those, so they can't witness an edit). */
+ *  virgin card is preserved, not re-dressed back to our name. Deliberately EXCLUDES row identity and the
+ *  timestamps (a pack bump rewrites those, so they can't witness an edit).
+ *
+ *  THE SET IS EXACTLY WHAT THE REDRESS OVERWRITES, AND THAT IS THE INVARIANT (#1443). It used to be eight
+ *  face fields while `redressCard` wrote the whole create input — so a user who changed ONLY their system
+ *  prompt, post-history instructions, depth prompt, `extensions`/`residualData`, or the card's authorship
+ *  columns still "matched" and had that edit silently replaced by the new pack's value. A field that the
+ *  migration writes and this type does not carry is that defect, re-introduced: either compare it here or do
+ *  not write it. The two the migration CANNOT prove are still ours — the carried presentation
+ *  (theme/background) and the avatar ASSET, neither of which a frozen fixture can name for an
+ *  install-specific row — are therefore never written by a redress at all (`seeder/seed.ts`). */
 export type SeededCardContent = Pick<
   CharacterCard,
-  "name" | "nickname" | "description" | "personality" | "scenario" | "greetings" | "exampleMessages" | "creatorNotes"
+  | "name"
+  | "nickname"
+  | "description"
+  | "personality"
+  | "scenario"
+  | "greetings"
+  | "exampleMessages"
+  | "creatorNotes"
+  | "systemPrompt"
+  | "postHistoryInstructions"
+  | "depthPrompt"
+  | "creator"
+  | "cardVersion"
+  | "source"
+  | "creationDate"
+  | "modificationDate"
+  | "extensions"
+  | "residualData"
 >;
 
 export interface DefaultCharacterSeederDeps {
   /** `update` applies each freshly-created card's `presentation` (the theme/background override arm) and
-   *  carries the whole re-dress on a pack migration; `getCard` reads the live content the migration compares
-   *  against the prior pack's frozen fixture. */
-  readonly characters: Pick<CharacterService, "create" | "findByHandle" | "update" | "getCard">;
+   *  carries the CONTENT re-dress on a pack migration; `getCard` reads the live content the migration
+   *  compares against the prior pack's frozen fixture (and, on a resumed seed, against the shipped pack's
+   *  own authored content — #1444). `get` reads the DETAIL, which is the only projection carrying the two
+   *  carried-presentation columns (`CharacterCard` has neither), so a redress can tell an untouched card's
+   *  empty look from a look the user chose (#1443). */
+  readonly characters: Pick<CharacterService, "create" | "findByHandle" | "update" | "getCard" | "get">;
   /** Attach one of a seeded card's native tags as a card/pending suggestion. Idempotent + never downgrades. */
   readonly attachCardTag: (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
   /** Store this handle's bundled avatar art, or null when the pack ships none / the store fails. */

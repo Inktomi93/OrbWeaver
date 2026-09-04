@@ -18,9 +18,29 @@
 import type { Greeting } from "@orb/contracts/character";
 import type { SeededCardContent } from "../contract/seeder.ts";
 
+/** The v1 pack authored NOTHING outside the face fields — its `AUTHORED_CARD_DEFAULTS` carried only
+ *  `systemPrompt: null` / `postHistoryInstructions: null` / `avatarAssetId: null`, and `create` stores every
+ *  unspecified column as null (`verbs/create.ts#cardFromInput`). So a v1 row that nobody edited reads null in
+ *  every field below, and a NON-null one is the user's own edit — which is precisely the witness the 8-field
+ *  oracle was missing (#1443). Frozen with the rest of this fixture: it describes what v1 WROTE, not what the
+ *  current pack authors. */
+const V1_UNAUTHORED = {
+  systemPrompt: null,
+  postHistoryInstructions: null,
+  depthPrompt: null,
+  creator: null,
+  cardVersion: null,
+  source: null,
+  creationDate: null,
+  modificationDate: null,
+  extensions: null,
+  residualData: null,
+} satisfies Partial<SeededCardContent>;
+
 /** The v1 pack's authored content, keyed by handle. Frozen — see the file header. */
 export const PRIOR_PACK_CONTENT: Readonly<Record<string, SeededCardContent>> = {
   assistant: {
+    ...V1_UNAUTHORED,
     name: "Assistant",
     nickname: null,
     description:
@@ -39,6 +59,7 @@ export const PRIOR_PACK_CONTENT: Readonly<Record<string, SeededCardContent>> = {
       "Default welcome assistant seeded by orbweaver on first run. Modeled on SillyTavern's welcome-screen assistant; safe to edit, replace, or delete — it won't come back unless you reset the onboarding flag.",
   },
   "jfc-coder": {
+    ...V1_UNAUTHORED,
     name: "JFC",
     nickname: null,
     description:
@@ -58,6 +79,7 @@ export const PRIOR_PACK_CONTENT: Readonly<Record<string, SeededCardContent>> = {
       "Seeded default. Pure justfuckingcode.com energy: a YAGNI/KISS absolutist for talking yourself out of the fancy architecture. Profanity is the brand; the advice is sincere.",
   },
   niko: {
+    ...V1_UNAUTHORED,
     name: "Niko",
     nickname: null,
     description:
@@ -90,18 +112,42 @@ function sameGreetings(live: readonly Greeting[], prior: readonly Greeting[]): b
   });
 }
 
-/** True when the live card still carries a prior pack's authored content byte-for-byte — the ONE test that
+/** Structural equality for the JSON-valued fields (`depthPrompt`, `source`, `extensions`, `residualData`).
+ *  Both sides come from ONE producer per field — an authored fixture and the card read-seam's own parse — so
+ *  key order is stable and a serialized compare is honest here; it is not offered as a general deep-equal. */
+function sameJson(live: unknown, authored: unknown): boolean {
+  return JSON.stringify(live ?? null) === JSON.stringify(authored ?? null);
+}
+
+/** True when the live card still carries an AUTHORED content record byte-for-byte — the ONE test that
  *  licenses a re-dress. Any difference (an edited field, a cleared field, an added greeting) means the row
- *  belongs to the user and the migration leaves it alone. */
-export function matchesPriorPack(live: SeededCardContent, prior: SeededCardContent): boolean {
+ *  belongs to the user and the migration leaves it alone.
+ *
+ *  Used against TWO records, and the comparison is the same question both times: a PRIOR pack's frozen
+ *  fixture (may this v1 row be re-dressed to v2?) and the SHIPPED pack's own authored content (is this row a
+ *  half-seeded card from a crashed run, safe to finish dressing? — #1444).
+ *
+ *  EVERY FIELD IN {@link SeededCardContent} IS COMPARED HERE and the type is exactly what a redress writes,
+ *  so a field added to one is a compile-visible gap in the other — see the type's own note (#1443). */
+export function matchesAuthoredContent(live: SeededCardContent, authored: SeededCardContent): boolean {
   return (
-    live.name === prior.name &&
-    live.nickname === prior.nickname &&
-    live.description === prior.description &&
-    live.personality === prior.personality &&
-    live.scenario === prior.scenario &&
-    live.exampleMessages === prior.exampleMessages &&
-    live.creatorNotes === prior.creatorNotes &&
-    sameGreetings(live.greetings, prior.greetings)
+    live.name === authored.name &&
+    live.nickname === authored.nickname &&
+    live.description === authored.description &&
+    live.personality === authored.personality &&
+    live.scenario === authored.scenario &&
+    live.exampleMessages === authored.exampleMessages &&
+    live.creatorNotes === authored.creatorNotes &&
+    live.systemPrompt === authored.systemPrompt &&
+    live.postHistoryInstructions === authored.postHistoryInstructions &&
+    live.creator === authored.creator &&
+    live.cardVersion === authored.cardVersion &&
+    live.creationDate === authored.creationDate &&
+    live.modificationDate === authored.modificationDate &&
+    sameJson(live.depthPrompt, authored.depthPrompt) &&
+    sameJson(live.source, authored.source) &&
+    sameJson(live.extensions, authored.extensions) &&
+    sameJson(live.residualData, authored.residualData) &&
+    sameGreetings(live.greetings, authored.greetings)
   );
 }

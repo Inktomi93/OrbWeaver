@@ -11,7 +11,7 @@
 import { refineryGuidanceSchema } from "@orb/contracts/refinery";
 import { refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { RefineryContext } from "../context.ts";
 import { RefineryStageNotReadyError } from "../contract/errors.ts";
 import type { RefineryService, StageEngineDeps } from "../contract/service.ts";
@@ -40,8 +40,20 @@ export function createIterate(ctx: RefineryContext, deps: StageEngineDeps): Refi
       const rewrite = await deps.executeStage({ principal, sessionId, stage: "rewrite", isRefinement: true });
       const analyze = await deps.executeStage({ principal, sessionId, stage: "analyze", isRefinement: true });
 
-      const iterationCount = row.iterationCount + 1;
-      await ctx.db.update(refinerySessions).set({ iterationCount, updatedAt: ctx.now() }).where(eq(refinerySessions.id, sessionId));
+      // THE COUNTER IS INCREMENTED IN SQL, NEVER FROM THE LOADED SNAPSHOT (#1445). `row` was read before
+      // two long model calls, so `row.iterationCount + 1` is a stale basis: two rounds running concurrently
+      // on one session would both write the SAME number, both RETURN it, and leave the counter one behind
+      // the rounds that actually completed. A read-modify-write over a monotonic tally has no honest
+      // snapshot to write from — the statement itself does the addition and RETURNS what it wrote, so each
+      // round gets its own round number and the tally equals the number of completed rounds.
+      const [bumped] = await ctx.db
+        .update(refinerySessions)
+        .set({ iterationCount: sql`${refinerySessions.iterationCount} + 1`, updatedAt: ctx.now() })
+        .where(eq(refinerySessions.id, sessionId))
+        .returning({ iterationCount: refinerySessions.iterationCount });
+      // The session was proven owned above and nothing deletes it mid-round but a cascade from the card;
+      // if that raced us there is no round number to report, so fall back to the snapshot's successor.
+      const iterationCount = bumped?.iterationCount ?? row.iterationCount + 1;
       return { rewrite, analyze, iterationCount };
     } finally {
       // ONE tick per ROUND (never per stage), and TOTAL over the mid-round failure arm named in this file's

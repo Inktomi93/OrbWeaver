@@ -935,13 +935,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       bumpStatsCanonVersion,
       now: input.now,
       newCharacterId: minter(ID_PREFIX.character),
-      // The avatar RE-OWN: `assets` is per-owner with an `(owner_id, hash)` dedup (D21), so the copy cannot
-      // carry the source's `avatarAssetId` verbatim — that would be a pointer into a library the nominee
-      // cannot read AND a GC root holding the departed host's blob alive. Content-addressing makes this cheap
-      // and idempotent (`created:false` when the recipient already has those bytes). Ownership is PROVEN here:
-      // an asset that is not the departing host's yields `null` and the copy lands faceless rather than
-      // borrowing a stranger's blob.
-      copyAvatar: async ({ fromOwnerId, toOwnerId, assetId }) => {
+      // The picture RE-OWN, avatar AND carried background (#1426): `assets` is per-owner with an
+      // `(owner_id, hash)` dedup (D21), so the copy cannot carry a source asset id verbatim — that would be a
+      // pointer into a library the nominee cannot read AND a GC root holding the departed host's blob alive.
+      // Content-addressing makes this cheap and idempotent (`created:false` when the recipient already has
+      // those bytes). Ownership is PROVEN here: an asset that is not the departing host's yields `null` and
+      // the copy lands without that picture rather than borrowing a stranger's blob. `kind` comes from the
+      // CALLER because the CAS index is per-kind and the two carried pictures are genuinely different kinds.
+      copyAsset: async ({ fromOwnerId, toOwnerId, assetId, kind }) => {
         const ref = await input.assets.assetCasRefById(assetId);
         if (ref === undefined || ref.ownerId !== fromOwnerId) {
           return null;
@@ -953,7 +954,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         const stored = await input.assets.store({
           principal: await input.resolveHostPrincipal(toOwnerId),
           bytes,
-          kind: "avatar",
+          kind,
           mime: ref.mime,
         });
         return stored.assetId;

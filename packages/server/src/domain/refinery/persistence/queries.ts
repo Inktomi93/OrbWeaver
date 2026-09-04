@@ -90,9 +90,15 @@ export async function listOwnedSessionRows(db: Db, ownerId: UserId): Promise<Ref
 }
 
 /** The session's full run log, oldest first (the CONTEXT Runs ledger reads it forward). Callers reach
- *  this ONLY with a session id that already passed {@link loadOwnedSessionRow}'s belt. */
+ *  this ONLY with a session id that already passed {@link loadOwnedSessionRow}'s belt.
+ *
+ *  `id` IS THE TIE-BREAK, and it is a real one (#1445): a run id is a TypeID over a uuidv7, so its base32
+ *  suffix sorts by MINT TIME — two runs stamped inside the same millisecond (a frozen test clock, a coarse
+ *  platform clock, the two halves of one `iterate` round) still order by when they were minted instead of
+ *  by whatever order SQLite happened to scan. Without it "latest run" is nondeterministic exactly when the
+ *  ledger matters most. */
 export function listRunRowsOf(db: Db, sessionId: RefinerySessionId): Promise<RefineryRunRow[]> {
-  return db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, sessionId)).orderBy(asc(refineryRuns.createdAt));
+  return db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, sessionId)).orderBy(asc(refineryRuns.createdAt), asc(refineryRuns.id));
 }
 
 /** ONE named REWRITE run of THIS session (the §16.1 operate-back resolve): the session predicate rides
@@ -114,7 +120,8 @@ export async function latestRunRowOf(db: Db, sessionId: RefinerySessionId, stage
     .select()
     .from(refineryRuns)
     .where(and(eq(refineryRuns.sessionId, sessionId), eq(refineryRuns.stage, stage)))
-    .orderBy(desc(refineryRuns.createdAt))
+    // The uuidv7 tie-break — see {@link listRunRowsOf}. "Newest" must not depend on scan order.
+    .orderBy(desc(refineryRuns.createdAt), desc(refineryRuns.id))
     .limit(LIMIT_ONE);
   return rows[0];
 }
@@ -136,7 +143,9 @@ export async function latestVerdictsOf(db: Db, sessionIds: readonly RefinerySess
     .select({ sessionId: refineryRuns.sessionId, payload: refineryRuns.payload, payloadConfig: refineryRuns.payloadConfig })
     .from(refineryRuns)
     .where(and(inArray(refineryRuns.sessionId, sessionIds), eq(refineryRuns.stage, "analyze")))
-    .orderBy(desc(refineryRuns.createdAt));
+    // The uuidv7 tie-break — see {@link listRunRowsOf}: the scan takes the FIRST verdict per session, so a
+    // same-millisecond pair would otherwise badge the roster nondeterministically.
+    .orderBy(desc(refineryRuns.createdAt), desc(refineryRuns.id));
   for (const row of rows) {
     if (map.has(row.sessionId)) {
       continue;
@@ -334,8 +343,19 @@ export async function insertOwnedSchemaIfNameFree(db: Db, row: RefinerySchemaRow
   return inserted[0];
 }
 
-/** Patch one owned schema only while no sibling has the requested case-folded name. */
-export async function updateOwnedSchemaIfNameFree(db: Db, row: RefinerySchemaRow): Promise<RefinerySchemaRow | undefined> {
+/** Patch one owned schema only while no sibling has the requested case-folded name AND the row is still
+ *  the one the caller merged its patch against (#1445 — `expected` is the OBSERVED row, not the written
+ *  one). The verb reads-merges-writes a WHOLE document, so without the predicate two concurrent patches to
+ *  DISJOINT fields both succeed off the same pre-edit snapshot and the second write silently drops the
+ *  first. `undefined` therefore means name-taken OR stale OR gone — the caller re-reads to say which (no
+ *  extra query on the happy path).
+ *
+ *  THE PREDICATE IS VERSION **AND** DESCRIPTION, and the second conjunct is not belt-and-braces: `version`
+ *  is CONTENT provenance (P1-B — a prose-only edit deliberately does not bump it), so a description patch
+ *  that commits first leaves the version untouched and a concurrent content patch's stale snapshot would
+ *  still match, writing the OLD description back over it. Every field the verb merges is therefore either
+ *  covered by the version bump (name/stage/schema) or named here. */
+export async function updateOwnedSchemaIfNameFree(db: Db, row: RefinerySchemaRow, expected: RefinerySchemaRow): Promise<RefinerySchemaRow | undefined> {
   const updated = await db
     .update(refinerySchemas)
     .set({
@@ -350,6 +370,8 @@ export async function updateOwnedSchemaIfNameFree(db: Db, row: RefinerySchemaRow
       and(
         eq(refinerySchemas.id, row.id),
         eq(refinerySchemas.ownerId, row.ownerId),
+        eq(refinerySchemas.version, expected.version),
+        eq(refinerySchemas.description, expected.description),
         notExists(
           db
             .select({ id: otherSchema.id })

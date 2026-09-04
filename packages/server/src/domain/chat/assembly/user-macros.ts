@@ -64,7 +64,18 @@ export function buildTurnUserMacros(args: BuildTurnUserMacrosArgs): TurnUserMacr
   const inputBindings: Record<string, Record<string, string>> = {};
   const draws: UserMacroDraws = {};
   for (const def of [...gameDefs, ...presetDefs, ...pluginDefs]) {
-    resolveDefInputs(def, args, inputBindings, draws);
+    // FIRST NAME WINS, AND THE ORDER HERE IS THE REGISTRATION ORDER (#1452). Both maps are keyed by macro
+    // NAME alone, so resolving a def whose name a HIGHER-PRECEDENCE def already claimed would replace the
+    // winner's bindings and frozen draws with the loser's — and registration (below) then correctly refuses
+    // the loser, leaving the winning body rendering against the loser's schema, defaults and random draws.
+    // The plugin group is where this is reachable: its `plugin_*` names are host-assigned, but a preset/game
+    // author may spell one deliberately (the registration comment below rules that they keep their own def),
+    // and a duplicate name INSIDE one group hits the same rule. A losing def is resolved NOT AT ALL — the
+    // shadowed-preset posture above, for the same two reasons: it never renders, and drawing for it would
+    // consume the turn's prng and write a ghost entry into the persisted draw record.
+    if (!Object.hasOwn(inputBindings, def.name)) {
+      resolveDefInputs(def, args, inputBindings, draws);
+    }
   }
 
   const registry = createDefaultRegistry();

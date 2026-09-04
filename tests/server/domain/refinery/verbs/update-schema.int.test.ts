@@ -1,7 +1,10 @@
 // .int tests for `updateSchema`: version bumps on CONTENT change only (the P1-B provenance pin), the
 // merged document re-runs the whole belt, and foreign ids collapse leak-free.
 
+import { refinerySchemas } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { SCHEMA_STALE_PATCH_REASON } from "@orb/server/domain/refinery";
+import { eq } from "drizzle-orm";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, seedUser, validScoreSchema } from "../_support.ts";
@@ -70,4 +73,39 @@ test("two held renames to one folded name admit one update and type the loser", 
   expect(rejected.reason.code).toBe("refinery_schema_name_taken");
   const rows = await h.svc.listSchemas({ principal: principal(owner) });
   expect(rows.filter((row) => row.name.toLowerCase() === "sharedname")).toHaveLength(1);
+});
+
+test("two CONCURRENT patches to DISJOINT fields cannot silently drop each other (#1445)", async () => {
+  const { db, hold } = await freshHeldDb();
+  const owner = await seedUser(db, { id: "user_usch_cas" });
+  const h = makeRefineryHarness(db);
+  const created = await h.svc.createSchema({ principal: principal(owner), name: "cas_scorer", description: "v1", stage: "score", schema: validScoreSchema() });
+  const widened = { ...validScoreSchema(), properties: { ...(validScoreSchema()["properties"] as object), extra: { type: "string" } } };
+
+  // Both patches READ the same pre-edit row, then both write the WHOLE merged document — the shape that
+  // loses an edit. The hold keeps them together so this is a real interleaving, not a sequence.
+  const updates = hold(REFINERY_SCHEMA_UPDATE, 2);
+  const patches = [
+    h.svc.updateSchema({ principal: principal(owner), schemaId: created.id, patch: { description: "rate the VIBE" } }),
+    h.svc.updateSchema({ principal: principal(owner), schemaId: created.id, patch: { schema: widened } }),
+  ];
+  await updates.reached;
+  updates.release();
+  const settled = await Promise.allSettled(patches);
+
+  // ONE writer lands. The other is TOLD (a typed, actionable refusal — their patch is intact and they
+  // re-apply it), rather than being told success while its write is overwritten a millisecond later.
+  expect(settled.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+  const rejected = settled.find((result) => result.status === "rejected");
+  expect(rejected?.reason).toBeInstanceOf(DomainOperationError);
+  if (!(rejected?.reason instanceof DomainOperationError)) {
+    throw new Error("expected the losing concurrent schema patch to be typed");
+  }
+  expect(rejected.reason.code).toBe(SCHEMA_STALE_PATCH_REASON);
+  // …and the row is ONE writer's document end to end, never a mix of the winner's field with the loser's
+  // stale copy of the other. (Which one won is the interleaving's business; that it is not a blend is ours.)
+  const [row] = await db.select().from(refinerySchemas).where(eq(refinerySchemas.id, created.id));
+  const proseWon = row?.description === "rate the VIBE";
+  expect(row?.schema).toEqual(proseWon ? validScoreSchema() : widened);
+  expect(row?.description).toBe(proseWon ? "rate the VIBE" : "v1");
 });

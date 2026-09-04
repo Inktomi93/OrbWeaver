@@ -178,11 +178,12 @@ describe("createDefaultCharacterSeeder", () => {
   test("ensureSeeded never throws on a create failure + leaves the latch unset (retry next touch)", async () => {
     const latch = fakeLatch();
     // A characters double whose create always fails with a NON-conflict error (the real-failure path).
-    const failing: Pick<CharacterService, "create" | "findByHandle" | "update" | "getCard"> = {
+    const failing: Pick<CharacterService, "create" | "findByHandle" | "update" | "getCard" | "get"> = {
       create: (): Promise<CharacterDetail> => Promise.reject(new Error("db is on fire")),
       findByHandle: (): Promise<null> => Promise.resolve(null),
       update: (): Promise<CharacterDetail> => Promise.reject(new Error("unreachable: nothing is ever created")),
       getCard: (): Promise<null> => Promise.reject(new Error("unreachable: the migration arm is never reached on a fresh seed")),
+      get: (): Promise<CharacterDetail> => Promise.reject(new Error("unreachable: nothing is ever created")),
     };
     const seeder = createDefaultCharacterSeeder({
       characters: failing,
@@ -246,6 +247,48 @@ describe("createDefaultCharacterSeeder", () => {
     const detail = await svc.get({ principal: actor, characterId: existingId });
     expect(detail.themeOverride).toBeNull();
     expect(detail.backgroundOverride).toBeNull();
+  });
+
+  test("a card left HALF-SEEDED by a crashed run is finished on the retry, not abandoned (#1444)", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const latch = fakeLatch();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const actor = principal(owner);
+    // Run one: the Assistant's row is CREATED, then its presentation edit throws — the shape of a crash
+    // between `create` and the dressing. `ensureSeeded` swallows it, so the latch never lands.
+    // A RUN COUNTER, not a `let flag = true` — biome narrows a literal-initialized boolean and calls the
+    // read always-truthy, and a suppression would hide a real always-true condition later.
+    const run = { index: 0 };
+    const flaky: Pick<CharacterService, "create" | "findByHandle" | "update" | "getCard" | "get"> = {
+      create: svc.create,
+      findByHandle: svc.findByHandle,
+      getCard: svc.getCard,
+      get: svc.get,
+      update: (params): ReturnType<CharacterService["update"]> => {
+        if (run.index === 0 && Object.hasOwn(params.input, "themeOverride")) {
+          return Promise.reject(new Error("the presentation write died mid-seed"));
+        }
+        return svc.update(params);
+      },
+    };
+    const deps = { characters: flaky, attachCardTag: noopAttach, ...latch };
+
+    await createDefaultCharacterSeeder(deps).ensureSeeded(actor);
+    expect(latch.marks).toHaveLength(0);
+    const half = await svc.findByHandle({ ownerId: owner, handle: WELCOME_ASSISTANT_HANDLE });
+    expect((await svc.get({ principal: actor, characterId: half?.characterId ?? MISSING_ID })).themeOverride).toBeNull();
+
+    // Run two: the row now resolves through handle_conflict (`created: false`). Gating the dressing on
+    // `created` left this card permanently themeless while the pack latched around it — a card that exists,
+    // is ours byte-for-byte, and never received half of what it was authored with.
+    run.index = 1;
+    await createDefaultCharacterSeeder(deps).ensureSeeded(actor);
+
+    const detail = await svc.get({ principal: actor, characterId: half?.characterId ?? MISSING_ID });
+    expect(detail.themeOverride).toEqual(ASSISTANT_CARD?.presentation.themeOverride);
+    expect(detail.backgroundOverride?.seededId).toBe(`${WELCOME_ASSISTANT_HANDLE}-bg`);
+    expect(latch.marks).toHaveLength(1);
   });
 
   test("attaches each default card's native tags via the injected op (card/pending carry)", async () => {

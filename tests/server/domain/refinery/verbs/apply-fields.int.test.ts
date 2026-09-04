@@ -7,9 +7,11 @@ import { GREETING_SLOTS_MAX } from "@orb/contracts/refinery";
 import { characterSnapshots } from "@orb/db";
 import { RefineryStageNotReadyError } from "@orb/server/domain/refinery";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRefineryHarness, principal, rewriteReply, scoreReply, seedOwnedCharacter, seedUser } from "../_support.ts";
+
+const SNAPSHOT_INSERT = /insert into "character_snapshots"/iu;
 
 test("accepted entries land on the LIVE card, snapshot-first, per-entry drops itemized, session completes", async () => {
   const db = await freshDb();
@@ -543,4 +545,29 @@ test("apply with no rewrite run is the typed stage-order refusal; analyze payloa
   await expect(h.svc.applyFields({ principal: principal(owner), sessionId: session.id, accepts: [{ field: "description" }] })).rejects.toBeInstanceOf(
     RefineryStageNotReadyError,
   );
+});
+
+test("a card edit landing AFTER the basis read refuses the apply instead of overwriting it (#1446)", async () => {
+  const { db, hold } = await freshHeldDb();
+  const owner = await seedUser(db, { id: "user_af_race" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "af-card-race");
+  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  h.queueReply(rewriteReply());
+  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+
+  // The window the §21 divergence belt cannot see: it compares against the session's `original_card` pin
+  // from session START, while the patch is built from the card read at basis resolution. Holding the belt-13
+  // snapshot insert puts a real edit INSIDE that window — another tab, or a plain `character.update` call.
+  const snapshotting = hold(SNAPSHOT_INSERT, 1);
+  const applying = h.svc.applyFields({ principal: principal(owner), sessionId: session.id, accepts: [{ field: "description" }] });
+  await snapshotting.reached;
+  await h.character.update({ principal: principal(owner), characterId, input: { description: "the user's own edit, mid-apply" } });
+  snapshotting.release();
+
+  // TOTAL refusal, typed: the apply wrote nothing and said so. Silently landing the rewrite here would
+  // destroy an edit the user made seconds ago, with no diff and no toast to tell them.
+  await expect(applying).rejects.toThrow(/changed while the edit was being prepared/u);
+  const live = await h.character.getCard({ principal: principal(owner), characterId });
+  expect(live?.description).toBe("the user's own edit, mid-apply");
 });

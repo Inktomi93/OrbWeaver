@@ -97,7 +97,24 @@ const noopAttach = (): Promise<boolean> => Promise.resolve(true);
 describe("createDefaultCharacterSeeder — v2 pack reseed migration", () => {
   test("the shipped v1 fixture has not drifted off the real v1 assistant card", async () => {
     const { PRIOR_PACK_CONTENT } = await import("@orb/server/domain/character");
-    expect(PRIOR_PACK_CONTENT[WELCOME_ASSISTANT_HANDLE]).toEqual({ name: "Assistant", nickname: null, ...V1_ASSISTANT_CONTENT });
+    // The v1 pack authored nothing outside these face fields, so every OTHER field the oracle now compares
+    // reads null on an untouched v1 row (#1443) — transcribed here too, since a fixture claiming a v1 card
+    // authored something it did not would make the migration match nothing.
+    expect(PRIOR_PACK_CONTENT[WELCOME_ASSISTANT_HANDLE]).toEqual({
+      name: "Assistant",
+      nickname: null,
+      systemPrompt: null,
+      postHistoryInstructions: null,
+      depthPrompt: null,
+      creator: null,
+      cardVersion: null,
+      source: null,
+      creationDate: null,
+      modificationDate: null,
+      extensions: null,
+      residualData: null,
+      ...V1_ASSISTANT_CONTENT,
+    });
   });
 
   test("an UNEDITED v1 assistant is re-dressed to the v2 welcome card (prose + presentation + avatar)", async () => {
@@ -215,10 +232,11 @@ describe("createDefaultCharacterSeeder — v2 pack reseed migration", () => {
 
     const latch = packLatch([owner]);
     const updates: UpdateCharacterParams[] = [];
-    const counting: Pick<CharacterService, "create" | "findByHandle" | "update" | "getCard"> = {
+    const counting: Pick<CharacterService, "create" | "findByHandle" | "update" | "getCard" | "get"> = {
       create: svc.create,
       findByHandle: svc.findByHandle,
       getCard: svc.getCard,
+      get: svc.get,
       update: (params): ReturnType<CharacterService["update"]> => {
         updates.push(params);
         return svc.update(params);
@@ -243,5 +261,91 @@ describe("createDefaultCharacterSeeder — v2 pack reseed migration", () => {
     expect((await svc.list({ principal: actor })).items).toHaveLength(afterFirst);
     const detail = await svc.get({ principal: actor, characterId: before.id });
     expect(detail.name).toBe(CHARLOTTE?.input.name);
+  });
+});
+
+/** A seeder over the real service with the v2 art available — the migration harness the pins below share. */
+function migratingSeeder(svc: CharacterService, latch: PackLatch): ReturnType<typeof createDefaultCharacterSeeder> {
+  return createDefaultCharacterSeeder({
+    characters: svc,
+    attachCardTag: noopAttach,
+    storeAvatar: (): Promise<AssetId | null> => Promise.resolve(REDRESSED_AVATAR),
+    ...latch,
+  });
+}
+
+describe("createDefaultCharacterSeeder — the migration writes only what it proved is ours (#1443)", () => {
+  test("a THEME-only edit survives the bump — the content is still re-dressed", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const actor = principal(owner);
+    await seedAsset(db, { id: REDRESSED_AVATAR, ownerId: owner, hash: "hash_charlotte" });
+    const before = await svc.create({ principal: actor, input: v1AssistantInput() });
+    // The user changed exactly ONE thing, and it is a field the 8-field content oracle cannot witness.
+    const mine = { ...(CHARLOTTE?.presentation.themeOverride ?? {}), accent: "oklch(0.5 0.2 20)" };
+    await svc.update({ principal: actor, characterId: before.id, input: { themeOverride: mine } });
+
+    await migratingSeeder(svc, packLatch([owner])).ensureSeeded(actor);
+
+    const detail = await svc.get({ principal: actor, characterId: before.id });
+    // THEIR theme, still theirs. The pack does not get to repaint a card someone painted.
+    expect(detail.themeOverride).toEqual(mine);
+    // …and the migration still did its job on the fields it CAN prove are the prior pack's.
+    expect(detail.name).toBe(CHARLOTTE?.input.name);
+    expect(detail.description).toBe(CHARLOTTE?.input.description);
+  });
+
+  test("a BACKGROUND-only edit survives the bump", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const actor = principal(owner);
+    await seedAsset(db, { id: REDRESSED_AVATAR, ownerId: owner, hash: "hash_charlotte" });
+    const before = await svc.create({ principal: actor, input: v1AssistantInput() });
+    const mine = { kind: "seeded", seededId: "niko-bg", assetId: "", assetHash: "", mime: "", externalUrl: "", provenanceUrl: "" } as const;
+    await svc.update({ principal: actor, characterId: before.id, input: { backgroundOverride: mine } });
+
+    await migratingSeeder(svc, packLatch([owner])).ensureSeeded(actor);
+
+    const detail = await svc.get({ principal: actor, characterId: before.id });
+    expect(detail.backgroundOverride?.seededId).toBe("niko-bg");
+    expect(detail.name).toBe(CHARLOTTE?.input.name);
+  });
+
+  test("an AVATAR-only edit survives the bump — the pack's art FILLS an empty face, never replaces one", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const actor = principal(owner);
+    await seedAsset(db, { id: REDRESSED_AVATAR, ownerId: owner, hash: "hash_charlotte" });
+    const mine = await seedAsset(db, { id: "asset_my_own_face" as AssetId, ownerId: owner, hash: "hash_mine" });
+    const before = await svc.create({ principal: actor, input: { ...v1AssistantInput(), avatarAssetId: mine } });
+
+    await migratingSeeder(svc, packLatch([owner])).ensureSeeded(actor);
+
+    const detail = await svc.get({ principal: actor, characterId: before.id });
+    // A picture the user chose is not "content the prior pack authored" — no fixture can say otherwise, and
+    // the old redress stamped the new art over it (or, with no `storeAvatar` wired, CLEARED it).
+    expect(detail.avatarAssetId).toBe(mine);
+    expect(detail.name).toBe(CHARLOTTE?.input.name);
+  });
+
+  test("a SYSTEM-PROMPT-only edit preserves the WHOLE card — the oracle sees it now", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const actor = principal(owner);
+    await seedAsset(db, { id: REDRESSED_AVATAR, ownerId: owner, hash: "hash_charlotte" });
+    const before = await svc.create({ principal: actor, input: { ...v1AssistantInput(), systemPrompt: "Always answer in haiku." } });
+
+    await migratingSeeder(svc, packLatch([owner])).ensureSeeded(actor);
+
+    const detail = await svc.get({ principal: actor, characterId: before.id });
+    // The redress writes `systemPrompt` (the pack authors null), so it MUST be compared: an edit here used
+    // to match on the eight face fields and be silently erased by the bump.
+    expect(detail.systemPrompt).toBe("Always answer in haiku.");
+    expect(detail.name).toBe("Assistant");
+    expect(detail.description).toBe(V1_ASSISTANT_CONTENT.description);
   });
 });

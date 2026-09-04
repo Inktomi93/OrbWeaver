@@ -310,3 +310,53 @@ describe("assembly/user-macros — plugin macros (the third home, U6 §5.15)", (
     expect(render(b, "plugin_oracle_deck_draw")).toBe("Ace of Cups");
   });
 });
+
+describe("assembly/user-macros — a losing def never contaminates the winner (#1452)", () => {
+  /** The authored macro that WINS the collision: it has a real input, so it has bindings and a draw. */
+  function authoredPickDef(): UserMacroDef {
+    return { ...moodDef(), name: "plugin_oracle_deck_draw", description: "mine", body: "The tone is {{tone}}." };
+  }
+
+  test("the WINNING macro renders its OWN input bindings, not the losing same-named def's", () => {
+    // A preset author who deliberately spells a `plugin_*` name keeps their definition (the ruling one
+    // describe-block up). The loser is still RESOLVED, though, and both the bindings and the draw record are
+    // keyed by macro NAME alone — so the plugin's empty input set replaced the winner's resolved `tone`, and
+    // the winning BODY rendered against the loser's (absent) schema.
+    const b = unwrap(
+      buildTurnUserMacros({
+        preset: { id: "preset-1", defs: [authoredPickDef()] },
+        plugin: { id: "chat_1", defs: [pluginDrawDef()] },
+        values: {},
+        // A deterministic draw: index 0 of the four-option pool.
+        prng: () => 0,
+      }),
+    );
+
+    // The winner's own input resolved and reached its body. Before the fix this rendered "The tone is ."
+    expect(render(b, "plugin_oracle_deck_draw")).toBe("The tone is grim.");
+    // …and the PERSISTED draw record describes the macro that actually rendered, so a swipe replays the
+    // same turn. A record keyed to the loser is a durable lie about what the model was shown.
+    expect(b.draws["plugin_oracle_deck_draw"]).toEqual({ tone: "grim" });
+  });
+
+  test("a shadowed-by-precedence def consumes NO draw of its own", () => {
+    // The loser is not resolved at all — the shadowed-preset posture, for the same two reasons: it never
+    // renders, and drawing for it would consume the turn's prng and write a ghost entry for a macro nothing
+    // can reference. One draw per NAME, taken by whoever owns the name this turn.
+    const draws: number[] = [];
+    const b = unwrap(
+      buildTurnUserMacros({
+        preset: { id: "preset-1", defs: [authoredPickDef()] },
+        plugin: { id: "chat_1", defs: [{ ...moodDef(), name: "plugin_oracle_deck_draw" }] },
+        values: {},
+        prng: () => {
+          draws.push(1);
+          return 0;
+        },
+      }),
+    );
+
+    expect(draws).toHaveLength(1);
+    expect(Object.keys(b.draws)).toEqual(["plugin_oracle_deck_draw"]);
+  });
+});
