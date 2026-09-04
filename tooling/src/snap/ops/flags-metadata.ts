@@ -12,7 +12,7 @@
 // vocabulary a flag's group is drawn from); `summary` is one line, ≤160 chars, no trailing period.
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { armFlags } from "./arms/registry.ts";
-import { OPTIONAL_NAME_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
+import { OPTIONAL_NAME_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
 import { SESSION_FLAG_HANDLERS } from "./flags-session.ts";
 import { STAGE_FLAG_HANDLERS } from "./flags-stage.ts";
