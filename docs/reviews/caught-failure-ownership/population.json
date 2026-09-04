@@ -1775,7 +1775,7 @@
     {
       "siteId": "packages/kit/src/world-info/index.ts::default:err::1",
       "path": "packages/kit/src/world-info/index.ts",
-      "line": 177,
+      "line": 190,
       "column": 5,
       "grammar": "default",
       "position": "default:err",
@@ -1783,12 +1783,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "documented — null reported via",
-      "markerLine": 173
+      "markerLine": 186
     },
     {
       "siteId": "packages/kit/src/world-info/index.ts::default:err::2",
       "path": "packages/kit/src/world-info/index.ts",
-      "line": 256,
+      "line": 269,
       "column": 9,
       "grammar": "default",
       "position": "default:err",
@@ -1796,7 +1796,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "documented above (#710) — a throw is",
-      "markerLine": 251
+      "markerLine": 264
     },
     {
       "siteId": "packages/server/src/domain/admin/guard.ts::default:catch::1",

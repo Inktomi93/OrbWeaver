@@ -203,7 +203,9 @@ interface PruneStaleDigestsParams {
   readonly lens: "digest-stale";
   readonly chatId: ChatId;
   readonly scopedCharacterId: CharacterId;
-  readonly keys: readonly { readonly tier: number; readonly blockIdx: number }[];
+  /** Each key carries the content hash it PROVED stale — the delete is a compare-and-swap against it, so a
+   *  sibling pass that healed the block in the meantime keeps its fresh row (`persistence/clear.ts`). */
+  readonly keys: readonly { readonly tier: number; readonly blockIdx: number; readonly staleHash: string }[];
 }
 
 export type PruneMemoryBlocksParams = PruneDigestBlocksParams | PruneSegmentBlocksParams | PruneStaleDigestsParams;

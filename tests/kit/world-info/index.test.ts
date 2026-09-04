@@ -125,6 +125,23 @@ test("keyRegex compiles whole-word for spaced scripts and substring for boundary
   expect(keyRegex(han).test(hanHaystack)).toBe(true);
 });
 
+// #1543 — the literal-key boundary was a FOURTH spelling of the word-character class and the only one still
+// missing `\p{M}`, so a COMBINING MARK satisfied its "not a word character" lookbehind: a key `ann` fired
+// inside `caféann` when the é was decomposed (`cafe` + U+0301). The haystack is whatever the room typed, and
+// NFC vs NFD is not something a host can see, so the same visible word matched or did not by invisible bytes.
+// The class now comes from `@orb/kit/strings::UNICODE_WORD_CHARS`, shared with the speaker-label matchers.
+test("keyRegex's whole-word boundary counts a COMBINING MARK as part of the word (precomposed AND decomposed)", () => {
+  const precomposed = "caf\u00E9ann"; // café + ann, with é as ONE code point
+  const decomposed = "cafe\u0301ann"; // the SAME word, with e + the combining acute
+  expect(precomposed.normalize("NFD")).toBe(decomposed); // the two spellings really are the same word
+  expect(keyRegex("ann").test(precomposed)).toBe(false);
+  expect(keyRegex("ann").test(decomposed)).toBe(false); // ← the defect: the mark read as a separator
+  // …and the key still fires where it genuinely is a whole word, either side of a mark-bearing neighbour.
+  expect(keyRegex("ann").test("café ann waits")).toBe(true);
+  // The trailing side too: a mark immediately AFTER the key is part of the following letter, not a boundary.
+  expect(keyRegex("ann").test("anné")).toBe(false);
+});
+
 test("keyRegex returns the same cached instance for a repeated key", () => {
   expect(keyRegex("repeatkey")).toBe(keyRegex("repeatkey"));
 });

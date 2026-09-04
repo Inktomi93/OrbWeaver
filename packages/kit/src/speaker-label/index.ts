@@ -7,6 +7,8 @@
 // AND at render (robust to old baked-in labels + any path the persist strip misses). One
 // implementation, two consumers.
 
+import { UNICODE_WORD_CHARS } from "#strings";
+
 /** A leading `<speaker ...>` / `<speaker>` open-tag (case-insensitive, optional attrs). */
 export const LEADING_SPEAKER_TAG = /^\s*<\s*speaker\b[^>]*>\s*/i;
 
@@ -28,20 +30,11 @@ const CODE_FENCE = "```";
  *  not a fence. Bounds what counts as a fence LINE (the anchor that stray inline backticks lack). */
 const MAX_FENCE_INDENT = 3;
 
-/** THE ONE NAME-BOUNDARY CLASS (#1354, #1530, #1439). A cast name is a whole word when neither neighbour is
- *  a letter, a digit or a COMBINING MARK — BY UNICODE PROPERTY, never `\b` and never `[a-z0-9]`:
- *   · `\b` is defined over ASCII `\w` regardless of the `u` flag, so a name ending in a CJK character, an
- *     accented letter or an emoji has no boundary to assert at an ordinary name/space transition and the
- *     match simply FAILS (#1439's `@Аня` miss, on every human turn);
- *   · an ASCII-only word-char TEST has the opposite failure — every non-ASCII neighbour reads as a
- *     separator, so a short Unicode name matches INSIDE a longer Unicode word (#1439's `Анятолия` overmatch);
- *   · and without `\p{M}` a DECOMPOSED letter ENDS the word for this test — `caféAnn:` written as
- *     `cafe`+U+0301+`Ann` puts a combining mark immediately before the name, the boundary passes, and the
- *     stripper eats `Ann: ` out of the middle of the word (#1530). In many scripts a mark IS part of the
- *     letter; `rpgCastSlug` reasons the same way.
- *  Spelled once here as CLASS BYTES so a regex builder can embed it and a runtime predicate can test one
- *  character against it. The EMPHASIS bytes are NOT in it — only `inlineLabelRe`'s lookbehind adds those. */
-const NAME_WORD_CHARS = "\\p{L}\\p{N}\\p{M}";
+/** The name-boundary class — `#strings`'s {@link UNICODE_WORD_CHARS}, which is its ONE home (#1543 moved it
+ *  there when `#world-info`'s key compile turned out to be a fourth spelling of the same question; the three
+ *  failure modes it fixes are documented at that home). Aliased here only so the three uses below read as
+ *  "a NAME boundary"; the EMPHASIS bytes are NOT part of it — `inlineLabelRe`'s lookbehind adds those. */
+const NAME_WORD_CHARS = UNICODE_WORD_CHARS;
 
 /** `NAME_WORD_CHARS` as a lookahead — the RIGHT boundary of a name inside a built pattern (the LEFT one is
  *  usually a literal sigil like `@`, or the lookbehind {@link inlineLabelRe} builds). Exported as pattern

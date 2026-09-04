@@ -7,6 +7,7 @@ import { ANALYSIS_GUIDANCE_MAX } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationRuleState, automationRules } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
+import type { SQL } from "drizzle-orm";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import type { AnalysisState, RuleStateRead } from "../contract/analysis.ts";
 import { EMPTY_ANALYSIS_STATE, parseAnalysisState } from "../contract/analysis.ts";
@@ -47,6 +48,47 @@ export async function upsertRuleState(
     });
 }
 
+/** THE MONOTONIC WATERMARK EXPRESSION — the one home of "the settled mark only ever moves FORWARD".
+ *
+ *  `blob` is the JSON the write wants to store; the returned expression is that JSON with
+ *  `$.settledThroughSeq` replaced by `max(the mark already stored, the mark this write carries)`. SQLite
+ *  evaluates `json_extract` against the row as it stands at UPDATE time, so the comparison is atomic — no
+ *  read ahead of the write (`batchMany` bans that) and no lost update. `coalesce(…, 0)` covers a stored blob
+ *  that predates the field. Both writers below build their `set.state` from this, which is what makes
+ *  "no writer can drag the mark backwards" a property of the TABLE rather than of each call site.
+ *  `blob` is a FRAGMENT so a caller can pass either a new JSON document or the row's own stored column. */
+function monotonicStateWrite(blob: SQL, throughSeq: number): SQL {
+  return sql`json_set(${blob}, '$.settledThroughSeq', max(coalesce(json_extract(${automationRuleState.state}, '$.settledThroughSeq'), 0), ${throughSeq}))`;
+}
+
+/** The analysis pass's END-OF-PASS write (#1543): the merged banks + the optional guidance wholesale, and
+ *  the watermark MONOTONIC.
+ *
+ *  Separate from {@link upsertRuleState} — whose contract is a faithful round-trip of whatever blob it is
+ *  given, and which a caller legitimately uses to write a LOWER mark — because the pass cannot use that
+ *  contract safely. It reads `state.settledThroughSeq` once at pass start and writes it back at the end,
+ *  and a host confirming a lore card in between advances the mark through {@link advanceSettledWatermark};
+ *  a faithful blob write then REVERTED that confirm's coverage and the next pass re-distilled a span the
+ *  host had already accepted — the second half of #1418's split, on the other side of the pass. The banks
+ *  and guidance are still written wholesale (they ARE this pass's conclusions); only the mark is maxed. */
+export async function commitPassState(
+  db: Db,
+  args: { readonly ruleId: AutomationRuleId; readonly state: AnalysisState; readonly guidance?: string | undefined; readonly nowMs: number },
+): Promise<void> {
+  const guidance = args.guidance === undefined ? undefined : args.guidance.slice(0, ANALYSIS_GUIDANCE_MAX);
+  await db
+    .insert(automationRuleState)
+    .values({ ruleId: args.ruleId, state: args.state as unknown as Record<string, unknown>, guidance: guidance ?? "", updatedAt: args.nowMs })
+    .onConflictDoUpdate({
+      target: automationRuleState.ruleId,
+      set: {
+        state: monotonicStateWrite(sql`json(${JSON.stringify(args.state)})`, args.state.settledThroughSeq),
+        updatedAt: args.nowMs,
+        ...(guidance !== undefined ? { guidance } : {}),
+      },
+    });
+}
+
 /** Advance ONLY the settled watermark, as ONE statement (#1418 — the confirm path's half).
  *
  *  NOT a read-then-write. `select` → `{...state, settledThroughSeq: max(...)}` → `upsert` is lost-update by
@@ -71,7 +113,9 @@ export async function advanceSettledWatermark(
     .onConflictDoUpdate({
       target: automationRuleState.ruleId,
       set: {
-        state: sql`json_set(${automationRuleState.state}, '$.settledThroughSeq', max(coalesce(json_extract(${automationRuleState.state}, '$.settledThroughSeq'), 0), ${args.throughSeq}))`,
+        // The blob is the row's OWN stored state (nothing but the mark may move here), maxed by the shared
+        // expression — so the confirm write and the pass write cannot disagree about what "advance" means.
+        state: monotonicStateWrite(sql`${automationRuleState.state}`, args.throughSeq),
         updatedAt: args.nowMs,
       },
     });

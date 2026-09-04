@@ -28,9 +28,11 @@
 // route; and the write is `String(clampedInt)` — arc/twists/guidance are disjoint fields no code path hands
 // to the vars writer.
 //
-// STATE WRITE DISCIPLINE: every route's SIDE effects run first; the rule-state row is written ONCE at the
-// end, and ONLY when no route hard-failed. A failed pass therefore moves nothing durable in the state row —
-// the retry re-runs the whole pass.
+// STATE WRITE DISCIPLINE: every route's SIDE effects run first; the rule-state row's CONCLUSIONS (arc,
+// twists, guidance) are written ONCE at the end, and ONLY when no route hard-failed. A failed pass
+// therefore moves none of them — the retry re-runs the whole pass. The WATERMARK is not a conclusion and
+// does not follow that rule: it is monotonic, owned by `persistence/rule-state.ts`, and no writer on any
+// path may drag it backwards (#1543).
 //
 // WITH ONE EXCEPTION, AND IT IS THE ORIGINAL RULE'S OWN PREMISE FAILING (#1418). The discipline above was
 // justified by "the span-stamped lore keys make any already-landed entry write an UPDATE, not a duplicate".
@@ -73,7 +75,7 @@ import {
 } from "../contract/analysis.ts";
 import type { ArmExecutorDeps, ArmOutcome, ChatScopedDispatchFrame } from "../contract/ops.ts";
 import { latestAuditableReply, listAnalysisWindow, maxVisibleSeq } from "../persistence/canon-reads.ts";
-import { advanceSettledWatermark, selectRuleState, upsertRuleState } from "../persistence/rule-state.ts";
+import { advanceSettledWatermark, commitPassState, selectRuleState } from "../persistence/rule-state.ts";
 import { renderArmTemplate } from "../substrate/macro-render.ts";
 import { AUTOMATION_SUGGESTION_TTL_MS } from "../substrate/suggestions.ts";
 import { applyRuleLoreWrite } from "./lore-write.ts";
@@ -428,8 +430,11 @@ async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, 
   //
   // So the CONDITION changed, not the mechanism: cold keeps the freshest slice and covers the whole span;
   // warm reads the EARLIEST slice ascending and covers only what it actually read. `span.end` is therefore
-  // the last seq RETURNED on a warm pass — a partial cover the next pass resumes from — and `through` only
-  // when the read is complete (nothing was truncated) or the pass is cold.
+  // the LAST SEQ RETURNED on EVERY warm pass — not only a truncated one. That is deliberate and it is the
+  // cheaper rule: when the read was complete the last row IS the newest row at or below `through`, so the
+  // only gap it leaves is a stretch that holds no ingestible rows, which the next pass re-reads for free
+  // and finds empty. Deriving the end from the DATA rather than from the requested bound means the mark can
+  // never claim coverage of a row the model was not shown. Only a COLD pass ends at `through`.
   const cold = state.settledThroughSeq <= NO_SETTLED_WATERMARK;
   const settled = await listAnalysisWindow(deps.db, frame.chatId, {
     afterSeq: state.settledThroughSeq,
@@ -563,9 +568,16 @@ export async function runRunAnalysis(deps: ArmExecutorDeps, action: RunAnalysisA
 
   // 4. The ONE state write: the merged banks + the (possibly advanced) watermark + — when the steer route
   // applies DIRECT — the verbatim guidance ("" clears; each pass replaces it wholesale).
+  //
+  // THROUGH `commitPassState`, NOT A FAITHFUL BLOB WRITE (#1543 — the other half of #1418). `routed.watermark`
+  // is seeded from the mark this pass READ at step 2, and the pass is long: a host who confirms a lore card
+  // while the model call is in flight advances the mark through `advanceSettledWatermark`, and writing the
+  // blob faithfully here silently REVERTED that confirm — the next pass then re-distilled a span the host had
+  // already accepted, which is the exact divergent-duplicate outcome #1418 exists to prevent. The banks and
+  // guidance still write wholesale (they are this pass's conclusions); only the mark takes `max(stored, ours)`.
   const merged = mergeAnalysisState(inputs.state, payload);
   const steerDirect = action.routes.steer !== undefined && action.routes.steer.apply === "direct" && payload.guidance !== undefined;
-  await upsertRuleState(deps.db, {
+  await commitPassState(deps.db, {
     ruleId: frame.origin.ruleId,
     state: { arc: merged.arc, twists: merged.twists, retiredTwists: merged.retiredTwists, settledThroughSeq: routed.watermark },
     ...(steerDirect ? { guidance: payload.guidance } : {}),
