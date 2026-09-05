@@ -125,7 +125,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   log(`cast ready: ${cast.map((c) => `${c.name}(${c.id})`).join(", ")}`);
 
   const filename = transcriptFilename(`${SEED_HANDLE_PREFIX}-1`, args.title);
-  const transcript = buildTranscript({ title: args.title, messageCount: args.messages, castNames: cast.map((c) => c.name) });
+  const transcript = buildTranscript({ title: args.title, messageCount: args.messages, characterNames: cast.map((c) => c.name) });
   const chatDescriptor = built.portability.find((e) => e.kind === "chat");
   if (chatDescriptor === undefined) {
     throw new Error("seed chat: no chat portability descriptor (composition changed?)");
