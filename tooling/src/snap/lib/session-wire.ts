@@ -74,8 +74,9 @@ function sessionEnvironment(value: unknown): SessionRow["environment"] | null {
     return null;
   }
   const viewport = value["viewport"];
-  const { device, colorScheme, reducedMotion, contrast, reducedTransparency, deviceScaleFactor } = value;
+  const { device, colorScheme, reducedMotion, contrast, reducedTransparency, deviceScaleFactor, viewportExplicit } = value;
   if (
+    (viewportExplicit !== undefined && typeof viewportExplicit !== "boolean") ||
     !(Number.isInteger(viewport["width"]) && Number.isInteger(viewport["height"])) ||
     Number(viewport["width"]) <= 0 ||
     Number(viewport["height"]) <= 0 ||
@@ -90,6 +91,9 @@ function sessionEnvironment(value: unknown): SessionRow["environment"] | null {
   }
   return {
     viewport: { width: Number(viewport["width"]), height: Number(viewport["height"]) },
+    // The #1668 override marker rides the row (a session BOOTS its context from it); dropping it here
+    // would hand every later call the device's own size — the row-reader half of the lie the field closes.
+    ...(viewportExplicit === undefined ? {} : { viewportExplicit }),
     device,
     colorScheme,
     reducedMotion,
