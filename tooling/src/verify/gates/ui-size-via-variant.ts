@@ -118,8 +118,12 @@ const ALLOWLIST: ExemptionTable = {
   "packages/client/src/features/character/components/character-library-toolbar.tsx": {
     why: "`w-auto` on Select — the measured 2026-08-01 F1 content-width ruling (see the site comment); `auto` vs FIELD_CONTROL's `w-full` are both STANDARD width utilities, so tailwind-merge classifies them and the override is deterministic (no stylesheet-order hazard).",
   },
-  "packages/client/src/features/tag/components/tag-collection-rows.tsx": {
-    why: "`w-auto` on the roster's sort Select — the same content-width-Select pattern as character-library-toolbar (deterministic: `auto` vs FIELD_CONTROL's `w-full` are both tailwind-merge-classifiable standard width utilities). Without it the trigger claims the whole 330px roster band for a three-word label.",
+  // Re-pointed 2026-09-05 (#1725: the owner moved every collection's chrome out of the LIST, so the tag
+  // library's sort Select is the config host's control row now — `tag-collection-rows.tsx` → the landing
+  // that draws it). Same control, same reason, new path; the ratchet's stale-row arm is what caught the
+  // move, exactly as the `context-rail.tsx` re-point below did.
+  "packages/client/src/features/config/components/config-collection-landing.tsx": {
+    why: "`w-auto` on the library's sort Select — the same content-width-Select pattern as character-library-toolbar (deterministic: `auto` vs FIELD_CONTROL's `w-full` are both tailwind-merge-classifiable standard width utilities). Without it the trigger claims the control row for a three-word label, and the filter is what should take the slack.",
   },
   // Re-pointed 2026-08-17 (`rpg-hud.tsx` → `rpg-hud-rail.tsx`, the `component-size` split) and again
   // 2026-08-30 (#860: the rail moved into the shell tier as the context bracket's rail). Same code, same

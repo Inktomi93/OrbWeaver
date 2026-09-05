@@ -240,6 +240,7 @@
     "tests/client/features/chat/surfaces/message-list-surface.ct.tsx",
     "tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx",
     "tests/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx",
+    "tests/client/features/config/components/config-collection-landing.ct.tsx",
     "tests/client/features/config/components/config-group-placeholder.ct.tsx",
     "tests/client/features/config/components/config-list-collection-group.ct.tsx",
     "tests/client/features/config/components/config-save-footer.ct.tsx",

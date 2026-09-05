@@ -61,7 +61,6 @@ import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
 import {
   COLLECTION_LARGE_GROUP,
-  COLLECTION_WINDOW_MAX_HEIGHT,
   downloadTextFile,
   notify,
   REGEX_PLACEMENT_GLYPHS,
@@ -181,7 +180,14 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
       return (
         <VirtualList
           aria-label="Regex scripts"
-          className={COLLECTION_WINDOW_MAX_HEIGHT}
+          // THE PANE IS THE WINDOW (#1725, DESIGN.md §5.4). This was the shared `max-h-96` cap — a flat 384px
+          // that existed to stop one library pushing its sibling BANDS below the fold in the LIST's shared
+          // scroll column. That column is gone, so the bound is the CONTENT pane's own `overflow-y-auto` box,
+          // reached by flex (`character-library-body.tsx`'s chain): the landing is `min-h-0 flex-1` in the
+          // pane and this is `min-h-0 flex-1` in the landing. `min-h-0` is the load-bearing half — a flex
+          // child defaults to `min-height: auto`, which lets the scroller grow to its content and trips the
+          // primitive's own unbounded-window throw.
+          className="min-h-0 flex-1"
           estimateSize={(): number => ESTIMATED_ROW_PX}
           // The cap is a fixed box and the rows are 51.5px, so the window ends MID-ROW every time; with
           // overlay scrollbars that half-row is the only cue there is more, and it reads as clipping

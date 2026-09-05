@@ -55,8 +55,11 @@ build obligation. Both reports ship beside this file; the build brief cites them
 The collection band IS the settings band — `SectionsBand`'s ghost `size="sm"` Button, 32px, the 16px chevron
 gutter (left EMPTY, as the tree already reserves it for a band with no rows), the group icon, the
 `interactiveKicker` label, badges — with two deltas: no `aria-expanded` (there is nothing to unfold) and a
-live census (`useCount`) in the mono `datum` register at the trailing edge. `aria-current="location"` while the
-collection is the location, member open or not. The band's `+` is gone (one home for create, §3.2). Two band
+live census (`useCount`) in the mono `datum` register at the trailing edge. `aria-current` while the
+collection is the location, member open or not — spelled `"true"`, not `"location"` (owner-authorised
+amendment, 2026-09-05): the settings band beside it says `"true"`, and one pane announcing its two band
+kinds with two different tokens is the drift #1714 spent a lane removing. The token is not a visible
+property, so "must match the mockups" is not at stake. The band's `+` is gone (one home for create, §3.2). Two band
 kinds do NOT exist; the delta from a settings band is the chevron's visibility and `aria-expanded`.
 
 ### 3.2 The control row (CONTENT, first row)

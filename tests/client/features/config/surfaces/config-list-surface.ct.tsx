@@ -378,9 +378,15 @@ test("#1725: IMPORT moved to the library's overflow — and only for a collectio
   await expect(workspace.page().getByRole("menuitem", { name: "Import a world-info book" })).toBeVisible();
   await workspace.page().keyboard.press("Escape");
 
-  // Tags declares none — so there is no overflow at all, rather than an overflow that opens onto nothing.
+  // Tags declare NO import door — so the overflow they do draw (they declare a library-level ACTION,
+  // `Prune unused tags`) must not offer one. "No kebab" stopped being the right assertion the moment
+  // `actions` landed beside `importFile` in it; what the ruling protects is that the DOOR is drawn only
+  // where the contribution declares it, and the library with no door and no action at all — Rosters — is
+  // where "no kebab" is still the claim (`config-collection-landing.ct.tsx` pins that arm).
   await listPane.getByRole("button", { name: TAGS_BAND }).click();
-  await expect(content.getByRole("button", { name: "More library actions" })).toHaveCount(0);
+  await content.getByRole("button", { name: "More library actions" }).click();
+  await expect(workspace.page().getByRole("menuitem", { name: ANY_IMPORT_TRIGGER })).toHaveCount(0);
+  await expect(workspace.page().getByRole("menuitem", { name: "Prune unused tags" })).toBeVisible();
 });
 
 // The BULK-SELECT toggle is the same DATA-declared band grammar (REGX2). Only regex declares one today, and

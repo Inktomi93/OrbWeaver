@@ -12,7 +12,7 @@
 
 import type { CollectionContribution } from "#lib";
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
-import { useCreateTagMember, useTagCount, useTagInsights, useTagMemberTitle } from "../hooks/use-tag-collection.ts";
+import { useCreateTagMember, useOpenPruneUnusedTags, useTagCount, useTagInsights, useTagMemberTitle, useTagSortControl } from "../hooks/use-tag-collection.ts";
 import { TagMemberSurface } from "../surfaces/tag-member-surface.tsx";
 
 export const tagCollection: CollectionContribution = {
@@ -22,6 +22,16 @@ export const tagCollection: CollectionContribution = {
   insights: { useInsights: useTagInsights },
   useMemberTitle: useTagMemberTitle,
   create: { label: "New tag", useRun: useCreateTagMember },
+  // THE SORT IS THE HOST'S CHROME AND THE TAG LIBRARY'S DATA (#1725, DESIGN.md §3.2, board 02's
+  // `Most used ▾`). It used to be a `<Select>` the ROWS drew one line under the host's band — the second
+  // chrome grammar C-4 forbids, and the reason the board moves it up into the control row. Only the control
+  // moved: the mode's home is still `state/tag-library-store.ts` and the comparator still runs inside
+  // `TagCollectionRows`, because sorting is over members and the host never sees one.
+  sort: { label: "Sort tags", useMode: useTagSortControl },
+  // The library-level verb, in the overflow beside Import (which tags do not declare). It is the ONE tag
+  // verb whose subject is the whole library rather than a member — Delete/Merge are the row kebab's and the
+  // editor's. The runner opens the rows' own confirm; the host never learns what it does (`actions`).
+  actions: [{ label: "Prune unused tags", tone: "danger", useRun: useOpenPruneUnusedTags }],
   list: (view) => <TagCollectionRows view={view} />,
   detail: (view) => <TagMemberSurface memberId={view.memberId} />,
   context: {

@@ -818,6 +818,37 @@ Two more clauses this section owned are amended by the same ruling, both recorde
 drawing) and `CONFIG_COLLECTION_LANDING.hint` (deleted with its reader: it pointed AT the LIST, and the
 members are on the pane the sentence was written on).
 
+**Commit 3 (the control row, the window's bound, and the drill header).** Commit 1 moved the rows and
+commit 2 built the band; this one finished DESIGN.md §3.2/§3.4 and closed the fork commit 1 recorded:
+
+- **`COLLECTION_WINDOW_MAX_HEIGHT` is DELETED, by RE-BIND rather than by removal (§5.4).** The constant
+  could not simply go: `@orb/ui/virtual-list` throws at mount on an unbounded scroll box
+  (`assertBoundedScrollHeight`), so deleting the cap without giving the window another bound would have
+  traded a wrong height for a crash. The bound is CONTENT's own `overflow-y-auto` box now, reached by flex —
+  the landing is `min-h-0 flex-1` in the pane, each library's windowed arm is `min-h-0 flex-1` in the
+  landing (`character-library-body.tsx`'s chain). The window is the pane's height at every width instead of
+  384px at all of them, and the row past the old fold is reachable. Receipt: the width matrix in
+  `tests/client/features/config/components/config-collection-landing.ct.tsx` at 752/1440/1920 over a 60-row
+  library, plus the phone snap.
+- **Two new `CollectionContribution` fields, both optional hooks under the #1203 keying law.** `sort` (the
+  library's reading order — the host draws the Select, the contribution owns the mode and the comparator)
+  and `actions` (library-level verbs, drawn in the control row's overflow beside `importFile`; a
+  contribution declaring neither gets NO kebab). Tags declare both: the sort moved out of
+  `tag-collection-rows.tsx`, and "Prune unused tags" moved out of it into the kebab while its CONFIRM
+  stayed with the rows, because the unused count and the cascade copy are the rows' knowledge.
+- **The order hint moved into the Manual option's own `description`.** The 2026-08-03 P1/P2 rulings survive
+  verbatim; board 02 draws no line beside the sort, and `SelectOption.description` is the primitive's own
+  slot for copy that must survive the popup opening over it.
+- **The drill header (§3.4)** — host-drawn, `← Back to <library>`, with NO lifecycle chrome (D121(D),
+  \#271: Delete stays on the row's kebab). TWO NAMED DELTAS against boards 03/05/06, and they are the same
+  deferred decision: the member's NAME and the member's own verbs (regex "Test against a sample", world info
+  "Edit details · Backfill · New entry", rosters "Start chat") stay on each member surface's own header one
+  row below, not on this row. The name is the load-bearing half — a host heading over four surfaces that
+  each already render the member's name as their `h2` prints it TWICE, measured as a strict-mode violation
+  that took `config-content-surface.ct` and `config-list-surface.ct` red. The merge (the member surface
+  owning the whole drill row through the `detail` it already renders) is the next commit's; the pin that
+  keeps the name single meanwhile is in the landing CT.
+
 ### 8.2 The classification receipt (ruling 3, re-derived against the tree)
 
 `ast-grep -p 'placeholder: true'` over `packages/client/src`, both languages (tsx `scannedFileCount=668`,

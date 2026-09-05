@@ -25,7 +25,9 @@
 // so it runs the selection's landing — the spy's own initial compute against a still-mounting body used to
 // light the LAST section).
 
+import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
+import { ArrowLeft, Icon } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -35,6 +37,7 @@ import { SaveStatusHostContext } from "#forms";
 import { useFocusOnMount } from "#lib";
 import type { CollectionGroupDefinition, ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, KindedSelection } from "#state";
 import {
+  clearCollectionSelection,
   configAnchorId,
   configSectionNavs,
   isCollectionGroup,
@@ -264,12 +267,18 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
   if (selection !== null) {
     const group = groups.get(selection.kind as ConfigGroupId);
     return (
-      <QueryBoundary
-        fallback={<Text voice="gloss">Loading…</Text>}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label={group.label.toLowerCase()} onRetry={retry} />}
-      >
-        <MemberBody group={group} memberId={selection.memberId} />
-      </QueryBoundary>
+      <Stack data-slot="config-member-frame" gap="block">
+        {/* THE DRILL HEADER (DESIGN.md §3.4), OUTSIDE THE BOUNDARY ON PURPOSE: Back is the drilled reader's
+            only exit on a desktop, and a header inside the suspense arm would take it away for exactly the
+            beat the reader is most likely to want it. */}
+        <CollectionDrillHeader group={group} />
+        <QueryBoundary
+          fallback={<Text voice="gloss">Loading…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label={group.label.toLowerCase()} onRetry={retry} />}
+        >
+          <MemberBody group={group} memberId={selection.memberId} />
+        </QueryBoundary>
+      </Stack>
     );
   }
   if (active !== null) {
@@ -305,6 +314,46 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
         {CONFIG_WELCOME.teaching}
       </Text>
     </Stack>
+  );
+}
+
+/**
+ * THE DRILL HEADER — the exit (DESIGN.md §3.4).
+ *
+ * It is the HOST's because what it does is the host's: Back pops the ONE kinded selection, and the library
+ * it returns to is the group that selection names. The host still learns nothing about what a member IS.
+ *
+ * NO LIFECYCLE CHROME HERE (D121(D), #271). Delete is the ROW's kebab in every collection, and the fork
+ * "the kebab is off-screen while drilled" is answered by this Back — which is precisely what world info's
+ * entry level already does. A second Delete on this row would re-create the two-homes-for-one-verb defect
+ * the #271 convergence closed.
+ *
+ * ═══ TWO STATED DELTAS AGAINST BOARDS 03/05/06, BOTH THE SAME DEFERRED DECISION ═══════════════════════
+ * The boards draw ONE row: `← Back to <library>` · the member's NAME · the member's own verbs. This draws
+ * the Back alone, and the row below it — the member surface's own header — carries the name and the verbs,
+ * where all four surfaces already draw them (`tag-member-surface.tsx:102`, `regex-member-surface.tsx:82`,
+ * `roster-member-surface.tsx:164`, `world-info-member-surface.tsx:109`).
+ *
+ * THE NAME IS THE LOAD-BEARING HALF, and it is why this header does NOT draw it: a host heading over four
+ * surfaces that each already render the member's name as their `h2` prints the name TWICE. Measured — the
+ * first spelling of this header did draw it, and `config-content-surface.ct` / `config-list-surface.ct`
+ * both went red with a strict-mode violation on `getByRole("heading", { name: <member> })` resolving two
+ * nodes. Board fidelity is not worth a doubled name, and the cheap honest fix is not a host `<Heading>` at
+ * all: it is the member surface owning the WHOLE drill row through the `detail` it already renders. That
+ * merge is the next commit's; until it lands the name is stated exactly once, one row lower than the board
+ * puts it, and the verbs sit with it.
+ */
+function CollectionDrillHeader({ group }: { readonly group: ConfigGroupDefinition }): ReactNode {
+  if (!isCollectionGroup(group)) {
+    return null;
+  }
+  return (
+    <Row align="center" data-slot="config-drill-header" gap="field">
+      <Button intent="ghost" onClick={(): void => clearCollectionSelection()} size="sm" type="button">
+        <Icon icon={ArrowLeft} size="sm" />
+        {`Back to ${group.label}`}
+      </Button>
+    </Row>
   );
 }
 
