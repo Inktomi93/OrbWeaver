@@ -11,6 +11,7 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImageEmbedRequest, ImageGenerateRequest } from "@orb/server/infra/providers";
+import { ProviderError } from "@orb/server/infra/providers";
 import { createImageNormalizer, passthroughImageNormalizer } from "@orb/server/infra/providers/backends/kit";
 import { runGenerateImage, runImageEmbed } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
@@ -140,6 +141,23 @@ describe("runImageEmbed", () => {
     const parts = Array.isArray(input) ? contentOf(input[0]) : [];
     expect(parts[0]?.type).toBe("image_url");
     expect(parts[1]).toEqual({ type: "text", text: "caption" });
+  });
+
+  // #1474 item 4: this runner carried its OWN copy of the base64 decoder, with the same missing
+  // alignment check — a truncated payload threw a raw host `RangeError` straight out of the runner.
+  test("a misaligned base64 embedding is a CLASSIFIED refusal here too (the decoder has one home)", async () => {
+    const misaligned = Buffer.from(new Uint8Array(9)).toString("base64");
+    const { client } = imageEmbedClient({
+      data: [{ embedding: misaligned, index: 0, object: "embedding" }],
+      model: EMBED_MODEL,
+      object: "list",
+    });
+    const err = await runImageEmbed(client, embedReq({ kind: "text", input: "a cat" }), NORMALIZE).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ProviderError);
+    expect(err).toMatchObject({ kind: "invalid", retryable: false });
   });
 
   test("MA-6: a GIF image input is decoded to first-frame PNG (via the real normalizer over a fake sharp)", async () => {

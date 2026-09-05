@@ -119,6 +119,37 @@ describe("ProviderError", () => {
     expect(err.detail).toBe("prompt_too_long");
   });
 
+  // #1474 item 3: the ONE re-frame helper. Hand-rolled `new ProviderError({kind, retryable, message})`
+  // re-mints silently DROPPED the rest of the provenance; `rewrap` exists so a caller adding coordinates to
+  // a message cannot lose the rate-limit reset the backoff reads. Field-complete by the same discipline
+  // `toLog()` carries — a field added to ProviderErrorInit and missed here fails this test.
+  test("rewrap() carries EVERY field forward, replaces only the message, and chains the original as cause", () => {
+    const original = new ProviderError({
+      kind: "rate_limit",
+      retryable: true,
+      message: "429 slow down",
+      model: "claude-sonnet-4.5",
+      terminalReason: "blocking_limit",
+      detail: "rate_limit",
+      resetsAt: 5000,
+      apiErrorStatus: 429,
+      sessionId: "sess-42",
+      requestId: "req-9",
+    });
+    const framed = original.rewrap("item 3 failed: 429 slow down");
+    expect(framed).toBeInstanceOf(ProviderError);
+    expect(framed.message).toBe("item 3 failed: 429 slow down");
+    expect(framed.cause).toBe(original);
+    // Everything else is the original's, field for field — compared through toLog() so a NEW init field is
+    // covered by one assertion in both places rather than needing a second list here.
+    expect({ ...framed.toLog(), message: original.message }).toStrictEqual(original.toLog());
+  });
+
+  test("rewrap() on a bare error stays bare (it invents no provenance)", () => {
+    const framed = new ProviderError({ kind: "server", retryable: true, message: "boom" }).rewrap("item 0 failed: boom");
+    expect(framed.toLog()).toStrictEqual({ kind: "server", retryable: true, message: "item 0 failed: boom" });
+  });
+
   test("chains a cause for diagnostics (and leaves it unset when omitted)", () => {
     const root = new Error("socket hung up");
     const withCause = new ProviderError({

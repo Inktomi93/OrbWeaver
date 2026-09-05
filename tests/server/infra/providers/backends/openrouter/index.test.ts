@@ -632,6 +632,44 @@ describe("createOpenRouterBackend — summarize observability (wire capture + pr
     expect(fields["errorKind"]).toBe("rate_limit");
   });
 
+  // #1474 item 3: the batch re-frame built a NEW ProviderError from {kind, retryable, message, cause} only,
+  // so every other carried field — the rate-limit reset the backoff needs, the upstream status, the model,
+  // the request id — was DESTROYED by the re-wrap. The item coordinates are a prefix on the message; they
+  // are not a reason to throw the provenance away.
+  test("re-framing an already-typed item failure carries EVERY metadata field forward (not just kind+retryable)", async () => {
+    const { backend } = backendWith(() => {
+      throw new ProviderError({
+        kind: "rate_limit",
+        retryable: true,
+        message: "429 slow down",
+        resetsAt: 1_777_000_000_000,
+        apiErrorStatus: 429,
+        model: "anthropic/claude-haiku-4.5",
+        requestId: "gen-abc",
+        detail: "requests-per-minute",
+        terminalReason: "blocking_limit",
+      });
+    });
+    const err = await callSummarize(backend, { credential: CRED, model: haikuModel, inputs: [{ systemPrompt: "sys", userPrompt: "a" }] }).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ProviderError);
+    expect(err).toMatchObject({
+      kind: "rate_limit",
+      retryable: true,
+      resetsAt: 1_777_000_000_000,
+      apiErrorStatus: 429,
+      model: "anthropic/claude-haiku-4.5",
+      requestId: "gen-abc",
+      detail: "requests-per-minute",
+      terminalReason: "blocking_limit",
+    });
+    // The re-frame is still a re-frame: the item coordinates lead the message and the original chains.
+    expect((err as ProviderError).message).toMatch(/^openrouter summarize item 0 failed: 429 slow down$/u);
+    expect((err as ProviderError).cause).toBeInstanceOf(ProviderError);
+  });
+
   // D-ARM8-2: a non-2xx OpenRouter reply reaches the SDK as a Speakeasy `ResponseValidationError` — its
   // response-zod chokes on OR's `{error}` envelope and its `.message` is the generic "Response validation
   // failed", SWALLOWING OR's own text. But `.statusCode` + `.body` (the `OpenRouterError` base) carry it. The

@@ -10,8 +10,8 @@
 //     like `multiHumanCapable`) so the client's dropzone hints + pre-checks read the LIVE value and fall
 //     back to `DEFAULT_UPLOAD_CAPS` only when the config fetch hasn't landed — never a third invented number.
 //
-// The security floors (the zip-bomb decompressed belt) live here WITH their rationale and are NOT served —
-// they are internal ceilings, not a client affordance.
+// The security floors (the zip-bomb decompressed belts — the import bundle's and the databank extractor's)
+// live here WITH their rationale and are NOT served — they are internal ceilings, not a client affordance.
 
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
@@ -22,6 +22,7 @@ const ASSET_UPLOAD_MIB = 64;
 const DATABANK_UPLOAD_MIB = 20;
 const IMPORT_TOTAL_MIB = 256;
 const IMPORT_DECOMPRESSED_MIB = 10_240; // 10 GiB
+const DATABANK_EXTRACT_MIB = DATABANK_UPLOAD_MIB * 10;
 const IMPORT_TREE_TOTAL_MIB = 1024;
 const IMPORT_TREE_FILE_MIB = 64;
 
@@ -45,6 +46,19 @@ export const IMPORT_MAX_TOTAL_BYTES = IMPORT_TOTAL_MIB * BYTES_PER_MIB;
  *  full-account all-blobs backup fits while an amplification/zip-bomb archive aborts. Moves with its
  *  rationale: this is a hostile-input belt, never a product limit or a client affordance. */
 export const IMPORT_MAX_DECOMPRESSED_BYTES = IMPORT_DECOMPRESSED_MIB * BYTES_PER_MIB;
+
+/** SECURITY FLOOR (not served) — the AGGREGATE decompressed cap for a single databank source document that
+ *  happens to be an archive (epub is a zip of XHTML; the loader unzips it). The route caps the COMPRESSED
+ *  body at {@link DATABANK_UPLOAD_MAX_BYTES}, and zip amplification means a fully compliant 20 MiB upload
+ *  can still expand without bound — the loader's per-ENTRY cap refuses one bomb but sums nothing, so N legal
+ *  entries walked straight past it.
+ *
+ *  10× the upload cap, and deliberately far tighter than the import family's 40× ({@link
+ *  IMPORT_MAX_DECOMPRESSED_BYTES}, 256 MiB → 10 GiB): that belt guards a DISK-STAGED backup, while an
+ *  extraction loader materializes every accepted entry IN MEMORY. Deflate over XHTML/text runs about 5–8×,
+ *  so 10× admits a genuine all-text book with real headroom while an amplification archive aborts from the
+ *  zip headers, before any output buffer is allocated. */
+export const DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES = DATABANK_EXTRACT_MIB * BYTES_PER_MIB;
 
 /** The direct profile-tree aggregate cap. Folder uploads legitimately exceed the compressed-bundle cap,
  *  but collection still has one shared ceiling across every accepted profile input. */

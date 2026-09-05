@@ -37,6 +37,11 @@ export interface EmbedRequest extends RoleRequestCommon {
   readonly instruction?: string | undefined;
 }
 
+/** ONE embedding as an OpenAI-dialect embeddings RESPONSE spells it: a `number[]` under
+ *  `encoding_format:"float"`, or a base64 string of packed little-endian float32s. The INBOUND wire vocab
+ *  paired with {@link EmbedRequest}; `backends/kit/embedding-decode` is the one thing that reads it. */
+export type WireEmbedding = number[] | string;
+
 /** Cross-family rerank request. Documents carry CALLER ids so results stay stable across reorderings. */
 export interface RerankRequest extends RoleRequestCommon {
   readonly query: RerankQuery;

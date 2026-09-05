@@ -54,7 +54,10 @@ function sdkChatTitle(chatId: ChatId | undefined): string {
 }
 const CONTEXT_USAGE_PROBE_TIMEOUT_MS = 2000;
 const ANTHROPIC_PREFIX_RE = /^anthropic\//;
-const STDERR_TAIL_BYTES = 2048;
+/** The stderr tail bound, in UTF-16 CODE UNITS — the unit `buf.length` actually counts, and the unit a
+ *  retained JS string actually costs. The former `_BYTES` spelling named a quantity this code never measures
+ *  (a multi-byte character costs one unit here and up to four bytes on the wire); no behaviour change. */
+const STDERR_TAIL_CHARS = 2048;
 // Tool-loop round fallback when the caller mounts a tool server without a limit (the pipeline always sets one).
 const DEFAULT_CHAT_TOOL_ROUNDS = 4;
 // A structured turn floors at 2: the runtime's own schema-validation retry consumes a turn (agent-runner parity).
@@ -121,13 +124,13 @@ function mergeMountedOptions(...fragments: readonly Partial<MountedOptions>[]): 
   return merged;
 }
 
-/** Bounded last-N-bytes tail of the CLI subprocess stderr for one turn. */
+/** Bounded last-N-code-units tail of the CLI subprocess stderr for one turn. */
 class StderrTail {
   private buf = "";
 
   append(chunk: string): void {
     const next = this.buf + chunk;
-    this.buf = next.length > STDERR_TAIL_BYTES ? next.slice(next.length - STDERR_TAIL_BYTES) : next;
+    this.buf = next.length > STDERR_TAIL_CHARS ? next.slice(next.length - STDERR_TAIL_CHARS) : next;
   }
 
   tail(): string {

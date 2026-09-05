@@ -7,9 +7,7 @@
 import type { CreateEmbeddingsRequestBody, CreateEmbeddingsResponse } from "@openrouter/sdk/models/operations";
 import type { EmbedRequest, EmbedResult } from "../../../../contract/index.ts";
 import { ProviderError } from "../../../../contract/index.ts";
-import { providerCredentialSecretValues, providerErrorFromHttp } from "../../../kit/index.ts";
-
-const BASE64 = "base64";
+import { decodeEmbeddingVectors, providerCredentialSecretValues, providerErrorFromHttp } from "../../../kit/index.ts";
 
 // The structural slice this runner needs off the client port.
 interface OrEmbedClient {
@@ -21,31 +19,16 @@ interface OrEmbedClient {
   };
 }
 
-// Convert one SDK embedding (a `number[]` for `encoding_format:"float"`, or a base64 string) → a
-// `Float32Array`. The base64 path `.slice`s out an exact, 4-byte-aligned copy first: `Buffer.from` returns
-// a view into a POOLED ArrayBuffer at an arbitrary `byteOffset`, and a direct float32 view of a misaligned
-// offset would `RangeError`.
-function toFloat32(embedding: number[] | string): Float32Array<ArrayBuffer> {
-  if (typeof embedding === "string") {
-    const bytes = Buffer.from(embedding, BASE64);
-    // Copy into a fresh, exactly-sized ArrayBuffer (4-byte aligned by construction): `Buffer` is a view
-    // into a pooled, arbitrarily-offset ArrayBuffer, and a direct float32 view would RangeError.
-    const copy = new ArrayBuffer(bytes.byteLength);
-    new Uint8Array(copy).set(bytes);
-    return new Float32Array(copy);
-  }
-  return new Float32Array(embedding);
-}
-
 function errorPrefix(model: string): string {
   return `openrouter embed (${model})`;
 }
 
 /**
  * Run a text-embedding request. Sorts the returned data by `index` (providers may return out of order),
- * converts each embedding to a `Float32Array`, and fail-closes (typed `server` error) on a non-JSON
- * (string) body or an empty vector set. Carries `dimensions`/`inputType` to the wire and `model` back as
- * the embedding-space provenance.
+ * decodes each embedding through the shared alignment/width-checked decoder, and fail-closes on a non-JSON
+ * (string) body or an empty vector set (typed `server`) and on a malformed/wrong-width payload (typed
+ * `invalid`). Carries `dimensions`/`inputType` to the wire and `model` back as the embedding-space
+ * provenance.
  */
 export async function runEmbed(client: OrEmbedClient, req: EmbedRequest): Promise<EmbedResult> {
   const requestBody: CreateEmbeddingsRequestBody = {
@@ -75,7 +58,15 @@ export async function runEmbed(client: OrEmbedClient, req: EmbedRequest): Promis
     });
   }
   const ordered = response.data.toSorted((a, b) => (a.index ?? 0) - (b.index ?? 0));
-  const vectors = ordered.map((entry) => toFloat32(entry.embedding));
+  // The COUNT is checked against the inputs the request actually sent (a lone string is one input): a short
+  // or long list re-pairs every vector after the gap, positionally, with nothing downstream able to see it.
+  const inputCount = typeof req.input === "string" ? 1 : req.input.length;
+  const vectors = decodeEmbeddingVectors(
+    ordered.map((entry) => entry.embedding),
+    errorPrefix(req.model),
+    inputCount,
+    req.dimensions,
+  );
   return {
     vectors,
     model: response.model,

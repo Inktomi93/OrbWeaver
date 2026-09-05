@@ -2,7 +2,8 @@
 // infra/providers/backends/kit — SHARED INFRA-PURE wire helpers (NOT a backend; below the backends). No
 // @orb/db, no domain import, no SDK (the agent-sdk's SDK is its private dep, D8). Pure wire/transport:
 // the OpenAI SSE reducer/mapper, the cache_control constants + placement primitive, the reasoning XOR
-// builders, the lenient wire parses, the HTTP error table, pre-commit retry, idle-abort, error sanitize.
+// builders, the lenient wire parses, the embeddings-payload decoder, the HTTP error table, pre-commit
+// retry, idle-abort, error sanitize.
 
 // ── Caller-signal flattening (the abort REASON never reaches the transport classifier) ─────────────
 export type { FlattenedAbort } from "./abort-flatten.ts";
@@ -20,6 +21,9 @@ export {
   effectiveProviderRouting,
   isAnthropicModel,
 } from "./cache-control.ts";
+// ── OpenAI-dialect embeddings payload → Float32Array, alignment- and width-checked ─────────────────
+// (the payload SHAPE is `WireEmbedding`, homed in the providers `contract/` with the rest of the wire vocab)
+export { decodeEmbeddingVector, decodeEmbeddingVectors } from "./embedding-decode.ts";
 // ── HTTP error classification → typed ProviderError ────────────────────────────────────────────────
 export type { ErrorClassification, HttpErrorDiagnostic } from "./error-classify.ts";
 export {

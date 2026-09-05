@@ -1813,6 +1813,7 @@
     "tests/server/infra/providers/backends/kit/abort-flatten.test.ts",
     "tests/server/infra/providers/backends/kit/anth-image-block.test.ts",
     "tests/server/infra/providers/backends/kit/cache-control.test.ts",
+    "tests/server/infra/providers/backends/kit/embedding-decode.test.ts",
     "tests/server/infra/providers/backends/kit/error-classify.test.ts",
     "tests/server/infra/providers/backends/kit/history.test.ts",
     "tests/server/infra/providers/backends/kit/idle-timeout.test.ts",

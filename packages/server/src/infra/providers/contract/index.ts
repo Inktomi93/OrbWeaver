@@ -117,4 +117,5 @@ export type {
   SummarizeCallOptions,
   SummarizeRequest,
   SummarizeRequestItem,
+  WireEmbedding,
 } from "./roles.ts";

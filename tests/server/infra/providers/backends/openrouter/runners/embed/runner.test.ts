@@ -6,6 +6,7 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { EmbedRequest } from "@orb/server/infra/providers";
+import { ProviderError } from "@orb/server/infra/providers";
 import { runEmbed } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../../../support/fixtures.ts";
@@ -27,7 +28,9 @@ function makeRequest(overrides: Partial<EmbedRequest> = {}): EmbedRequest {
     credential: CRED,
     model: castId<ModelId>(MODEL),
     input: ["hello", "world"],
-    dimensions: 1024,
+    // The fixtures below return 2-component vectors, and the decoder now VALIDATES the returned width
+    // against what was asked for — so the asked-for width has to be the fixture's real width.
+    dimensions: 2,
   };
   return { ...base, ...overrides };
 }
@@ -69,7 +72,7 @@ describe("runEmbed", () => {
       usage: { promptTokens: 7, totalTokens: 7 },
     });
     const result = await runEmbed(client, makeRequest());
-    expect(captured.body?.["dimensions"]).toBe(1024);
+    expect(captured.body?.["dimensions"]).toBe(2);
     expect(result.model).toBe("qwen/qwen3-embedding");
     expect(result.usage).toEqual({ promptTokens: 7, totalTokens: 7 });
     // sorted by index: vector 0 first
@@ -87,6 +90,56 @@ describe("runEmbed", () => {
     });
     const result = await runEmbed(client, makeRequest({ input: "x" }));
     expect(Array.from(result.vectors[0] ?? [])).toEqual([0.5, -0.25]);
+  });
+
+  // ── Decoder refusals (#1474 item 4) ──────────────────────────────────────────────────────────────
+  // Both arms reached vector STORAGE before this: a misaligned payload threw a raw host `RangeError`
+  // (unclassified — no kind, no retryable, indistinguishable from a bug), and a width-shifted response
+  // was accepted silently into a space it does not belong to.
+  test("a base64 payload whose byte length is not a multiple of 4 is a CLASSIFIED refusal, never a raw RangeError", async () => {
+    // 9 bytes: two whole floats plus a stray — the exact shape a truncated stream produces.
+    const misaligned = Buffer.from(new Uint8Array(9)).toString("base64");
+    const { client } = embedClient({
+      data: [{ embedding: misaligned, index: 0, object: "embedding" }],
+      model: MODEL,
+      object: "list",
+      usage: { promptTokens: 1, totalTokens: 1 },
+    });
+    const err = await runEmbed(client, makeRequest({ input: "x" })).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ProviderError);
+    expect(err).toMatchObject({ kind: "invalid", retryable: false });
+    expect((err as ProviderError).message).toMatch(/9/u);
+  });
+
+  test("a vector whose width differs from the requested `dimensions` is refused, naming expected and actual", async () => {
+    const { client } = embedClient({
+      data: [{ embedding: [0.1, 0.2, 0.3], index: 0, object: "embedding" }],
+      model: MODEL,
+      object: "list",
+      usage: { promptTokens: 1, totalTokens: 1 },
+    });
+    const err = await runEmbed(client, makeRequest({ input: "x", dimensions: 2 })).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ProviderError);
+    expect(err).toMatchObject({ kind: "invalid", retryable: false });
+    expect((err as ProviderError).message).toMatch(/expected 2.*got 3/su);
+  });
+
+  test("no `dimensions` asked for ⇒ any self-consistent width is admitted (the guard is a match check, not a floor)", async () => {
+    const { client } = embedClient({
+      data: [{ embedding: [0.1, 0.2, 0.3], index: 0, object: "embedding" }],
+      model: MODEL,
+      object: "list",
+      usage: { promptTokens: 1, totalTokens: 1 },
+    });
+    // Built without `dimensions` at all (not overridden to undefined) — that IS the "did not ask" case.
+    const result = await runEmbed(client, { credential: CRED, model: castId<ModelId>(MODEL), input: "x" });
+    expect(result.vectors[0]?.length).toBe(3);
   });
 
   test("fail-closes on an empty vector set", async () => {
