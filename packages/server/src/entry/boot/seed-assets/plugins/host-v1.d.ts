@@ -657,15 +657,15 @@ interface PluginHostV1 {
      *  the last `set` silently wins, discarding the others. You cannot fix that guest-side — there are no
      *  timers, no randomness and no locks in here — so the retry is a plain bounded loop with no waiting:
      *
-     *      async function bump(key) {
-     *        for (let attempt = 0; attempt < 5; attempt += 1) {
+     *      async function bump(key) \{
+     *        for (let attempt = 0; attempt \< 5; attempt += 1) \{
      *          const current = await host.storage.get(key);
      *          const next = String((Number(current) || 0) + 1);
      *          const result = await host.storage.compareAndSet(key, current, next);
      *          if (result.applied) return next;
-     *        }
+     *        \}
      *        return null; // contended past the bound — decide what that means for YOUR plugin
-     *      }
+     *      \}
      *
      *  (After the first attempt you can skip the `get` and feed `result.current` back in as `expected`.) */
     compareAndSet: (key: string, expected: string | null, next: string) => Promise<{ applied: boolean; current: string | null }>;
