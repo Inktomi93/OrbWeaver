@@ -1949,3 +1949,85 @@ test("#523 the tag-vocabulary scroll viewport is a NAMED region, not an unlabele
   // The named thing IS the focusable one — naming a different node would leave the tab stop anonymous.
   await expect(region).toHaveAttribute("tabindex", "0");
 });
+
+// ── #1661: THE PHONE'S CHROME BUDGET (a RATCHET, not a defect proof) ────────────────────────────────
+// MEASURED on an isolated stage at HEAD (`snap / --goto characters --isolated --ref 9b0623869 --mobile
+// --idle`, 430x740 DPR3 `pointer:coarse`): the first character row starts at y=280 of a 740px phone —
+// 37.8% of the screen spent before the thing the reader came for. The 2026-09-02 side-eye measured ~262px
+// there, so the number REGRESSED and nothing was watching it. Per-band, at 430 coarse:
+//
+//   topbar 0-48 (48) · LIST chrome band 48-96 (48) · body pad 8 · search+sort 104-148 (44) · gap 6 ·
+//   VIEW 154-207 (53) · gap 8 · FILTERS 215-272 (57) · gap 8 · first row 280
+//
+// The two named groups are 41px each at a FINE pointer and 53/57 at a coarse one: the whole +28px is the
+// D62 touch floor lifting their controls 32→44 (`touch-floor-is-an-unbudgeted-width-tax`, in its HEIGHT
+// form). Nothing here is compressible by MERGING — measured at 430, one line of `View` + its two toggles
+// is 207px and one line of `Filters` + its disclosure is 223px against a 413px pane, so the obvious
+// "fold the two kickers into one row" costs a wrap instead of saving a band, and it is worse at 320.
+// What WOULD buy the height back is deleting a band, and every band here is owner-ruled (program #102
+// variant B's two named groups · #491's collapsed vocabulary · the ONE-NAME-PER-SCREEN band shed). So
+// this suite gets a FENCE rather than a fix: the number cannot drift again without a red.
+//
+// IT IS A FENCE, HONESTLY LABELLED — it is GREEN the moment it lands, and its job is the next 18px, not
+// this one. The story is not the phone shell (no `.shell-grid[data-list-mode]`, so the band keeps its
+// title), which is why these ceilings are the SURFACE's own chrome and are their own numbers rather than
+// snap's 280.
+//
+// `hasTouch: true` is what flips `matchMedia("(pointer: coarse)")` in chromium (`page.emulateMedia` has no
+// `pointer` feature — the same spelling `rpg-actor-trackers.ct.tsx` uses); the first assertion PROVES the
+// emulation landed before any geometry is trusted, because at a fine pointer these boxes are 24px shorter
+// and the fence would pass while measuring the wrong device.
+// MEASURED HERE, both arms: **306px** — the resting chrome is WIDTH-INVARIANT across the whole phone band,
+// because nothing in it wraps at either end (the search row's `min-w-40` input plus the content-sized sort
+// still fit 320, and the collapsed rail is one cell). That is the answer to "does it get worse on the
+// smaller phone": it does not, and it does not get better on the bigger one either — which is precisely why
+// the height has to be bought by REMOVING a band rather than by re-flowing one. 308 is the measured number
+// plus 2px of sub-pixel headroom; the desktop/fine fence is {@link RAIL_CHROME_CEILING_PX} = 264, so the
+// coarse device costs this pane +42px for the same controls.
+const PHONE_CHROME_ARMS = [
+  { width: 320, ceiling: 308 },
+  { width: 390, ceiling: 308 },
+] as const;
+
+test.describe("#1661 the phone's chrome budget", () => {
+  test.use({ hasTouch: true });
+
+  for (const arm of PHONE_CHROME_ARMS) {
+    test(`at ${String(arm.width)}px coarse the resting chrome above the first character row holds its budget`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      await routeThree(page);
+      const component = await mount(<CharacterLibrarySurfaceStory width={arm.width} />);
+      await expect(row(component, "Starla")).toBeVisible();
+
+      expect(await phoneChrome(component)).toBeLessThanOrEqual(arm.ceiling);
+    });
+
+    // THE FENCE'S OWN POSITIVE CONTROL, one per arm. A ceiling that never moves is indistinguishable from a
+    // constant this test happens to read, so the SAME measurement is taken in a state that must exceed it —
+    // the 8-chip vocabulary opened, which is two wrapped rail lines the resting pane does not spend.
+    //
+    // IT NEEDS THE 12-TAG LIBRARY, and that is a measurement, not a preference: with `routeThree`'s
+    // single-tag library the collapsed→open transition is height-NEUTRAL at 390 (306 either way — the two
+    // scope pills, the one chip and "Fewer filters" land on the lines the disclosure already occupied) and
+    // costs a line only at 320. A control that fires at one width and not the other proves nothing at the
+    // other, so the control uses the rail that wraps at both.
+    test(`at ${String(arm.width)}px coarse the OPEN vocabulary exceeds that budget — the fence measures, it does not assert`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      await routeManyTags(page, 12);
+      const component = await mount(<CharacterLibrarySurfaceStory width={arm.width} />);
+      await expect(component.getByText("Tagged One")).toBeVisible();
+      expect(await phoneChrome(component)).toBeLessThanOrEqual(arm.ceiling);
+
+      await openFilters(component);
+      await expect(component.getByRole("button", { name: FEWER_FILTERS })).toBeVisible();
+      expect(await phoneChrome(component)).toBeGreaterThan(arm.ceiling);
+    });
+  }
+});
+
+/** The pane's chrome: the distance from the story root's top edge to the first character row. */
+async function phoneChrome(component: Locator): Promise<number> {
+  const list = component.getByRole("list", { name: "Character library" });
+  const [paneBox, listBox] = await Promise.all([component.boundingBox(), list.boundingBox()]);
+  return Math.round((listBox?.y ?? 0) - (paneBox?.y ?? 0));
+}
