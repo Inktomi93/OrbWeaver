@@ -5,8 +5,10 @@
 // ordinary tracker), and every op arm carries only its own field's datum (the op vocabulary is the plane's
 // write surface — an arm that grew a foreign field would be a second image contract creeping back in).
 
+import { CARD_FACE_LIMITS } from "@orb/contracts/card-face";
 import {
   actorRefKey,
+  clampActorCardName,
   RPG_ACTOR_IDENTITY_TEXT_FIELDS,
   RPG_ACTOR_OP_FIELDS,
   rpgActorEntrySchema,
@@ -111,6 +113,42 @@ test("a NON-CANONICAL cast key is unrepresentable at the wire (prevent-at-schema
   }
   // The roster arms are untouched — their keys are branded ids, not slugs.
   expect(rpgActorRefSchema.safeParse({ kind: "character", characterId: mintTypeId(ID_PREFIX.character) }).success).toBe(true);
+});
+
+// ── #1449: the actor-identity → card-name bound (the #1386 class applied to `name`) ─────────────────────────
+// `rpgActorIdentitySchema.name` is model-authored at the extraction boundary with no max, and `promoteActor`
+// hands it straight to `cardFaceFields.name` (`CARD_FACE_LIMITS.nameMax`). CLAMP, never refuse: a refusal
+// drops a model-authored actor from canon over a name.
+
+test("clampActorCardName is a no-op under the card wire's bound", () => {
+  const short = "Sister Vesna";
+  expect(clampActorCardName(short)).toEqual({ value: short, truncated: false });
+  const exactly = "a".repeat(CARD_FACE_LIMITS.nameMax);
+  expect(clampActorCardName(exactly)).toEqual({ value: exactly, truncated: false });
+});
+
+test("clampActorCardName truncates an over-length name to the card wire's bound, with an ellipsis", () => {
+  const long = "a".repeat(300);
+  const { value, truncated } = clampActorCardName(long);
+  expect(truncated).toBe(true);
+  expect(value.length).toBe(CARD_FACE_LIMITS.nameMax);
+  expect(value.endsWith("…")).toBe(true);
+  expect(long.startsWith(value.slice(0, -1))).toBe(true);
+});
+
+test("clampActorCardName cuts on a GRAPHEME boundary — never a torn surrogate pair or combining mark", () => {
+  // Every grapheme here is a 2-code-unit astral emoji; a UTF-16-unit slice would split one in half.
+  const long = "😀".repeat(150); // 300 UTF-16 units — well past the 200-char bound
+  const { value, truncated } = clampActorCardName(long);
+  expect(truncated).toBe(true);
+  expect(value.length).toBeLessThanOrEqual(CARD_FACE_LIMITS.nameMax);
+  // Every grapheme cluster before the ellipsis is a whole "😀" — a torn surrogate would fail this.
+  expect(value.slice(0, -1)).toBe("😀".repeat((value.length - 1) / 2));
+});
+
+test("clampActorCardName never uses a second literal for the bound — it is CARD_FACE_LIMITS.nameMax", () => {
+  const long = "b".repeat(CARD_FACE_LIMITS.nameMax + 50);
+  expect(clampActorCardName(long, CARD_FACE_LIMITS.nameMax + 100)).toEqual({ value: long, truncated: false });
 });
 
 // ── the actor ENTRY: two halves, one lifecycle ────────────────────────────────────────────────────────────

@@ -210,7 +210,7 @@ async function provePlantedPromotionRecovery(args: {
     await services.chat.addCharacterToChat({ principal, chatId, characterId: card.id });
   }
 
-  await expect(services.rpg.promoteActor({ principal, chatId, targetRef: { kind: "cast", castKey: "vesna" } })).resolves.toEqual({ ok: true });
+  await expect(services.rpg.promoteActor({ principal, chatId, targetRef: { kind: "cast", castKey: "vesna" } })).resolves.toEqual({ ok: true, issues: [] });
 
   const markedCards = await db
     .select({ id: characters.id })

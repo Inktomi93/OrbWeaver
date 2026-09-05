@@ -60,6 +60,13 @@ export type ResyncResult = { readonly ok: true; readonly rebuilt: boolean } | { 
  *      arm is an INFO line (a round that honestly found nothing is not an error). */
 export type PopulateResult = { readonly ok: true; readonly populated: boolean } | { readonly ok: false; readonly reason: string };
 
+/** THE PROMOTE VERDICT (`promoteActor`, #1449) — the HAND-DOOR grammar widened by ONE field: the mint clamps
+ *  an over-length model-authored identity `name` to the card wire's `CARD_FACE_LIMITS.nameMax`
+ *  (`clampActorCardName`, `contracts/rpg/actor.ts`) rather than refusing the promotion, and `issues` is how the
+ *  host learns it happened — a `HandDoorResult`-style `{ok:true}` with a silently shortened name would read as
+ *  a clean promotion of a name the story never wrote. Empty `issues` is the clean mint (the ordinary case). */
+export type PromoteActorResult = { readonly ok: true; readonly issues: readonly string[] } | { readonly ok: false; readonly reason: string };
+
 /** What the PURE actor-op applier returns (`substrate/actor-ops.ts`): the next row, the FINE lock paths its
  *  ops earned and the pin PREFIXES its removals give back, or an errors-as-data refusal (an op naming an
  *  item/condition the actor does not carry). Homed here because a domain type has no home in the substrate

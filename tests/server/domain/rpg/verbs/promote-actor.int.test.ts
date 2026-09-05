@@ -12,7 +12,7 @@
 // That refusal is the reason promotion asks the host to rename first instead of quietly minting a shadow.
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import { rpgCastSlug } from "@orb/contracts/rpg";
+import { clampActorCardName, rpgCastSlug } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -81,7 +81,7 @@ test("the re-key carries the WHOLE person across: state row, scene presence, and
   expect(before?.fieldLocks?.["actorState.cast:vesna.volatile.status"]).toBe(true);
   expect(before?.fieldLocks?.["actorState.cast:vesna.volatile.trackerValues.trust"]).toBe(true);
 
-  expect(await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).toStrictEqual({ ok: true });
+  expect(await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).toStrictEqual({ ok: true, issues: [] });
 
   // The id the promotion minted — read off the RECORDER, never a hand-written stand-in: the re-keyed ref
   // crosses the snapshot write boundary, which validates the id SHAPE, so a readable fake id would fail there
@@ -200,7 +200,7 @@ test("#723 retry after the card and seat land reuses them, then completes the ac
   expect((await resolveSnapshotForTurn(db, { id: game.id, chatId }))?.actorState?.[0]?.actorRef).toEqual(VESNA);
 
   await db.run(sql.raw("DROP TRIGGER fail_promotion_rekey"));
-  await expect(service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).resolves.toEqual({ ok: true });
+  await expect(service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).resolves.toEqual({ ok: true, issues: [] });
   expect(fakes.promoteMints).toHaveLength(1);
   expect(fakes.roster.filter((actor) => actor.name === "Sister Vesna")).toHaveLength(1);
   expect((await resolveSnapshotForTurn(db, { id: game.id, chatId }))?.actorState?.[0]?.actorRef.kind).toBe("character");
@@ -255,7 +255,7 @@ test("#1386 two NPCs named in different scripts promote to two DISTINCT handles 
   const names = ["李明", "Мария", "محمد"];
   const keys = await seedCastActor(service, chatId, names);
   for (const key of keys) {
-    expect(await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: key } })).toStrictEqual({ ok: true });
+    expect(await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: key } })).toStrictEqual({ ok: true, issues: [] });
   }
   const handles = fakes.promoteMints.map((mint) => mint.handle);
   expect(handles).toHaveLength(names.length);
@@ -263,6 +263,40 @@ test("#1386 two NPCs named in different scripts promote to two DISTINCT handles 
   expect(handles).toEqual(names.map((name) => slugifyHandle(name)));
   // A SECOND promotion of the same name is the roster's documented refusal (pinned above), never a
   // unique-index throw — and the handle namespace's own duplicates are uniquified by the compose mint.
+});
+
+// ── #1449: an over-length model-authored NAME clamps the card name — it does not refuse the promotion ──────
+// `rpgActorIdentitySchema.name` is model-authored at the extraction boundary with no max (same reachable
+// state as #1386's handle), and `cardFaceFields.name` caps at `CARD_FACE_LIMITS.nameMax`. ORCHESTRATOR RULING
+// (2026-09-05): clamp, never refuse — a refusal would drop a model-authored actor from canon over a name.
+
+test("#1449 a 300-char NPC name promotes: the card name is clamped and the truncation is reported as an issue", async () => {
+  const { chatId, service, fakes } = await seedGame();
+  const long = `Sœur ${"あ".repeat(300)}`;
+  const [key] = await seedCastActor(service, chatId, [long]);
+
+  const result = await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: key ?? "" } });
+
+  // The clamped value the mint actually received — the SAME pure clamp the contract test pins, so the two
+  // can never disagree about what "clamped" means.
+  const { value: clamped, truncated } = clampActorCardName(long.trim());
+  expect(truncated).toBe(true);
+  expect(fakes.promoteMints[0]?.name).toBe(clamped);
+  expect(createCharacterSchema.shape.name.safeParse(fakes.promoteMints[0]?.name).success).toBe(true);
+
+  // Never a silent success — the host learns the model over-ran the card name limit.
+  expect(result.ok).toBe(true);
+  const issues = result.ok ? result.issues : [];
+  expect(issues.length > 0).toBe(true);
+  expect(issues.some((issue) => issue.includes(long.trim()) && issue.includes(clamped))).toBe(true);
+});
+
+test("#1449 a short NPC name promotes cleanly: no truncation, no issue", async () => {
+  const { chatId, service, fakes } = await seedGame();
+  const [key] = await seedCastActor(service, chatId, ["Sister Vesna"]);
+  const result = await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: key ?? "" } });
+  expect(result).toStrictEqual({ ok: true, issues: [] });
+  expect(fakes.promoteMints[0]?.name).toBe("Sister Vesna");
 });
 
 test("a promoted character is a normal roster actor afterwards: hand ops reach her, identity ops correctly refuse", async () => {

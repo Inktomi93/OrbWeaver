@@ -84,7 +84,7 @@ import type {
   UpdateConfigParams,
   UpsertQuestParams,
 } from "./params.ts";
-import type { CreateGameResult, HandDoorResult, PopulateResult, ResyncResult, RollDiceResult } from "./results.ts";
+import type { CreateGameResult, HandDoorResult, PopulateResult, PromoteActorResult, ResyncResult, RollDiceResult } from "./results.ts";
 import type { RpgFlushOutcome } from "./trace.ts";
 
 export type RpgGameRow = typeof rpgGames.$inferSelect;
@@ -874,7 +874,7 @@ export interface RpgService {
    *  Errors-as-data: an untracked target, an actor with no identity row, a NAME the chat roster already carries
    *  (two roster actors sharing a name make the model's name→ref resolution ambiguous), or a card handle the
    *  owner's library cannot free. */
-  readonly promoteActor: (params: PromoteActorParams) => Promise<HandDoorResult>;
+  readonly promoteActor: (params: PromoteActorParams) => Promise<PromoteActorResult>;
   /** Host. Snapshot-plane quest write (clone-forward + `quests.<id>` lock). Returns the quest id. */
   readonly upsertQuest: (params: UpsertQuestParams) => Promise<RpgQuestId>;
   readonly editQuestObjective: (params: EditQuestObjectiveParams) => Promise<void>;

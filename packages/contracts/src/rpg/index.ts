@@ -45,6 +45,7 @@ export type {
 } from "./actor.ts";
 export {
   actorRefKey,
+  clampActorCardName,
   RPG_ACTOR_IDENTITY_TEXT_FIELDS,
   RPG_ACTOR_OP_FIELDS,
   RPG_CAST_GUIDE_FIELDS,

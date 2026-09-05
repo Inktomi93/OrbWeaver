@@ -24,6 +24,7 @@
 import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { CARD_FACE_LIMITS } from "../card-face/index.ts";
 import { RPG_RELATIONSHIP_KINDS } from "./enums.ts";
 import { rpgTrackerValueSchema, rpgTrackerValuesSchema } from "./tracker.ts";
 
@@ -185,6 +186,43 @@ export type RpgRelationship = z.infer<typeof rpgRelationshipSchema>;
  *  the row to `character:<id>` — the ref itself carries the join, and a promoted actor has no identity half at
  *  all ({@link rpgPromotedCardDescription} carries its durable content onto the card instead). Left in place
  *  rather than deleted in the promotion lane; its removal is a contracts+mirror sweep of its own. */
+/** Grapheme-safe truncation for `name` (`initialsFor`'s `Intl.Segmenter` idiom, kept local rather than shared
+ *  with `kit` — this clamp is CARD-bound-shaped, not a generic string primitive). Reused rather than rebuilt
+ *  once a second card-bound clamp needs one. */
+const NAME_CLAMP_SEGMENTER = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+const NAME_CLAMP_ELLIPSIS = "…";
+
+/** THE actor-identity → card-name BOUND (#1449, the #1386 class applied to `name` instead of `handle`).
+ *  `rpgActorIdentitySchema.name` is `min(1)` with NO max — it is MODEL-AUTHORED at the extraction boundary
+ *  (`update_scene.presentUpsert[].name`, folded onto the identity plane by `tools/apply.ts`'s
+ *  `mergeCastIdentity`) — while `promoteActor` hands that name straight to `cardFaceFields.name`
+ *  (`CARD_FACE_LIMITS.nameMax` = 200). An over-length NPC name therefore minted a card the character wire
+ *  refused, dropping a model-authored actor from canon over a name.
+ *
+ *  ORCHESTRATOR RULING (2026-09-05, #1449): CLAMP, never refuse — a refusal is a worse answer than a shortened
+ *  card name the host can rename. The bound is DERIVED from `CARD_FACE_LIMITS.nameMax` (one home in
+ *  `contracts/card-face`, never a second literal) and the cut lands on a GRAPHEME boundary (never a torn
+ *  surrogate/combining-mark pair) with a trailing ellipsis marking the cut as lossy. This is a PURE function,
+ *  not a schema transform: `rpgActorIdentitySchema.name` stays unbounded (an identity's display name is not
+ *  itself a card — only a PROMOTED one becomes one, #1386's own reasoning: the bound belongs on the
+ *  RECEIVING side's terms, applied at the mint, not baked into every cast actor's stored identity), and the
+ *  caller (`promoteActor`) is the one place that both knows it is minting a card AND can report the
+ *  truncation back to the host as data (`PromoteActorResult.issues`) instead of it vanishing silently. */
+export function clampActorCardName(name: string, maxLength: number = CARD_FACE_LIMITS.nameMax): { readonly value: string; readonly truncated: boolean } {
+  if (name.length <= maxLength) {
+    return { value: name, truncated: false };
+  }
+  const budget = maxLength - NAME_CLAMP_ELLIPSIS.length;
+  let out = "";
+  for (const { segment } of NAME_CLAMP_SEGMENTER.segment(name)) {
+    if (out.length + segment.length > budget) {
+      break;
+    }
+    out += segment;
+  }
+  return { value: `${out}${NAME_CLAMP_ELLIPSIS}`, truncated: true };
+}
+
 export const rpgActorIdentitySchema = z.object({
   name: z.string().min(1),
   characterId: typeIdSchema(ID_PREFIX.character).optional(),
