@@ -86,6 +86,13 @@ const MARINARA_SCRIPT = {
   maxDepth: null,
 };
 
+/** ST's own extension key for a preset's regex scripts — a string VALUE, so the fixture carries the wire
+ *  spelling verbatim without a naming-convention suppression at every use. */
+const ST_REGEX_SCRIPTS_KEY = "regex_scripts";
+
+/** The same preset, carrying its ST preset-scoped scripts. */
+const MARINARA_WITH_SCRIPTS = stPresetJson({ extensions: { [ST_REGEX_SCRIPTS_KEY]: [MARINARA_SCRIPT] } });
+
 describe("importPresets", () => {
   test("hands the preset domain the orb-native FILE bytes and reports accepted vs net-new separately", async () => {
     const rec: Recorded = { names: [], ownerIds: [] };
@@ -225,8 +232,7 @@ describe("importPresets", () => {
     const result = await service.importPresets({
       presets: [
         collected("Plain (OpenAI)", "OpenAI Settings/Plain.json"),
-        // biome-ignore lint/style/useNamingConvention: ST preset wire field names (snake_case) are the interchange format and appear verbatim in the fixtures.
-        collected("Marinara (OpenAI)", "OpenAI Settings/Marinara.json", stPresetJson({ extensions: { regex_scripts: [MARINARA_SCRIPT] } })),
+        collected("Marinara (OpenAI)", "OpenAI Settings/Marinara.json", MARINARA_WITH_SCRIPTS),
       ],
     });
 
