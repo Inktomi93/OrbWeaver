@@ -23,6 +23,7 @@ interface ModuleOptions {
   readonly prototype?: string;
   readonly severity?: "error" | "warning";
   readonly secondDescriptor?: boolean;
+  readonly resources?: string;
 }
 
 function moduleSource(repoRoot: string, id: string, options: ModuleOptions = {}): string {
@@ -40,6 +41,7 @@ function moduleSource(repoRoot: string, id: string, options: ModuleOptions = {})
     population: ${population},
     analysis: ${JSON.stringify(analysis)},
     execution: "selected-files",
+    resources: ${options.resources ?? "[]"},
     message: "fixture policy",
     create: () => ({ evaluate: () => undefined }),
     mustFlag: [{ mode: ${JSON.stringify(proofMode)}, files: { ${JSON.stringify(proofPath)}: "export const planted = true;\\n" }, why: "founding defect" }],
@@ -128,6 +130,46 @@ test("validates every required axis and the population expression", async ({ rep
   }
 });
 
+test("requires a closed explicit resource declaration on every descriptor", async ({ repoRoot, scratch }) => {
+  const omitted = join(scratch, "omitted-resources");
+  writeModules(omitted, {
+    "omitted-resources.ts": moduleSource(repoRoot, "omitted-resources").replace("    resources: [],\n", ""),
+  });
+  await expect(loadPolicyCorpus(omitted)).rejects.toThrow(/resources.*own enumerable|required/i);
+
+  const invalidRows: Readonly<Record<string, string>> = {
+    "unknown-kind.ts": moduleSource(repoRoot, "unknown-kind", { resources: '[{ kind: "filesystem", path: "package.json" }]' }),
+    "unknown-id.ts": moduleSource(repoRoot, "unknown-id", { resources: '[{ kind: "package-metadata", id: "unknown" }]' }),
+    "duplicate.ts": moduleSource(repoRoot, "duplicate", {
+      resources: '[{ kind: "package-metadata", id: "root" }, { kind: "package-metadata", id: "root" }]',
+    }),
+    "syntax-smuggle.ts": moduleSource(repoRoot, "syntax-smuggle", { resources: '[{ kind: "package-metadata", id: "root" }]' }),
+    "resource-empty.ts": moduleSource(repoRoot, "resource-empty", {
+      analysis: "resource",
+      proofMode: "resource",
+      population: '{ of: "none", why: "resource only" }',
+    }),
+  };
+  for (const [name, source] of Object.entries(invalidRows)) {
+    const root = join(scratch, name.replace(".ts", ""));
+    writeModules(root, { [name]: source });
+    await expect(loadPolicyCorpus(root)).rejects.toThrow(/resource/i);
+  }
+
+  const valid = join(scratch, "valid-resource");
+  writeModules(valid, {
+    "valid-resource.ts": moduleSource(repoRoot, "valid-resource", {
+      analysis: "resource",
+      proofMode: "resource",
+      population: '{ of: "none", why: "resource only" }',
+      resources: '[{ kind: "package-metadata", id: "root" }]',
+    }),
+  });
+  await expect(loadPolicyCorpus(valid)).resolves.toMatchObject({
+    gates: [{ resources: [{ kind: "package-metadata", id: "root" }] }],
+  });
+});
+
 test("warning debt requires one positive work-item issue and error policies cannot carry it", async ({ repoRoot, scratch }) => {
   const validWarning = join(scratch, "valid-warning");
   writeModules(validWarning, { "warning-policy.ts": moduleSource(repoRoot, "warning-policy", { severity: "warning", extra: "workItem: 1584," }) });
@@ -181,6 +223,7 @@ test("direct descriptor validation requires own enumerable contract fields", () 
     population: "@tooling",
     analysis: "syntax",
     execution: "selected-files",
+    resources: [],
     message: "fixture policy",
     create: () => ({ evaluate: () => undefined }),
     mustFlag: [{ mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, why: "founding defect" }],
@@ -223,14 +266,22 @@ test("proofs require explicit matching modes, nonempty path maps, and rationales
       'mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\\n" }, why: "nearest legal shape" }]',
       'mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\\n" }, expect: { count: 1 }, why: "nearest legal shape" }]',
     ),
-    "resource-without-resource.ts": moduleSource(repoRoot, "resource-without-resource", { analysis: "resource", proofMode: "resource" }).replace(
-      /resources\/policy\.json/gu,
-      "tooling/src/proof.ts",
-    ),
   };
   for (const [name, source] of Object.entries(invalidRows)) {
     const root = join(scratch, name.replace(".ts", ""));
     writeModules(root, { [name]: source });
     await expect(loadPolicyCorpus(root)).rejects.toThrow(/proof|example|mode|files|why|resource/i);
   }
+});
+
+test("resource proof file identity comes from descriptor declarations rather than extensions", async ({ repoRoot, scratch }) => {
+  writeModules(scratch, {
+    "typescript-resource.ts": moduleSource(repoRoot, "typescript-resource", {
+      analysis: "resource",
+      proofMode: "resource",
+      population: '{ of: "none", why: "resource only" }',
+      resources: '[{ kind: "authored-tree", id: "tooling-slot" }]',
+    }).replace(/resources\/policy\.json/gu, "tooling/src/proof.ts"),
+  });
+  await expect(loadPolicyCorpus(scratch)).resolves.toMatchObject({ gates: [{ id: "typescript-resource" }] });
 });

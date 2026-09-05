@@ -6,6 +6,8 @@ import type { GatePolicyAnalysis, GatePolicyExecution } from "./policy.ts";
 import type { PolicyOwnerPlanMode, PolicyPassInput, PolicyPassResult, PolicyPopulationReceipt } from "./policy-pass.ts";
 import type { PolicyProgramMembership, PolicyScopeRequest, PolicyScopeResolution, PolicySemanticPath } from "./policy-scope.ts";
 import type { PopulationExpr } from "./population.ts";
+import type { GateResourceRequest } from "./resource-declaration.ts";
+import type { ResourceHostOptions } from "./resource-host.ts";
 import type { RunnableVerifyTier } from "./stage.ts";
 import { RUNNABLE_VERIFY_TIERS } from "./stage.ts";
 
@@ -43,6 +45,7 @@ export interface PolicyRosterEntry {
   readonly population: PopulationExpr;
   readonly analysis: GatePolicyAnalysis;
   readonly execution: GatePolicyExecution;
+  readonly resources: readonly GateResourceRequest[];
   readonly message: string;
   readonly fix: string | null;
   readonly proofCounts: { readonly mustFlag: number; readonly mustPass: number };
@@ -96,8 +99,8 @@ export interface PolicyPlannerInput {
   readonly request: PolicyCommandRequest;
   readonly corpus: PolicyPlannerCorpus;
   readonly scope?: PolicyScopeResolution;
-  /** Closed ResourceHost population resolution, keyed by loaded policy id; never a maintained registry. */
-  readonly resourcePathsByPolicy?: ReadonlyMap<string, readonly string[]>;
+  /** Required only when a selected descriptor declares resources. */
+  readonly resourceOptions?: ResourceHostOptions;
 }
 
 export interface PolicyPlanExecutionInput extends Pick<PolicyPassInput, "reviewedGrants" | "resourceOptions" | "waiverFor" | "reconcileOrdinary"> {

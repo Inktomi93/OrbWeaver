@@ -18,11 +18,15 @@ import type {
   PolicyToolError,
 } from "../contract/policy-pass.ts";
 import { POLICY_OWNER_PLAN_MODES, POLICY_PHASES } from "../contract/policy-pass.ts";
+import type { GateResourceRequest } from "../contract/resource-declaration.ts";
+import type { ResourceHost } from "../contract/resource-host.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { coordinateGateAuthority } from "./gate-authority.ts";
 import { makePolicyContext } from "./policy-pass-context.ts";
+import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import { assertGatePolicyDescriptor, assertGatePolicyHooks, assertRepoPathIdentity, normalizePathSet } from "./policy-validation.ts";
 import { resolvePopulation } from "./population-resolver.ts";
+import { resolveResourceDeclarations } from "./resource-declaration.ts";
 
 interface MutableTiming {
   readonly phaseMs: Record<PolicyPhase, number>;
@@ -40,6 +44,8 @@ interface PolicyRun {
   receipts: readonly PolicySemanticReceipt[];
   finishReceipts: (() => readonly PolicySemanticReceipt[]) | undefined;
   unconsumedResources: (() => readonly string[]) | undefined;
+  unconsumedResourceRequests: (() => readonly string[]) | undefined;
+  resourceRequests: readonly GateResourceRequest[];
 }
 
 const EMPTY_POPULATION: PolicyPopulationReceipt = {
@@ -156,6 +162,8 @@ function newRun(policy: GatePolicy): PolicyRun {
     receipts: [],
     finishReceipts: undefined,
     unconsumedResources: undefined,
+    unconsumedResourceRequests: undefined,
+    resourceRequests: [],
   };
 }
 
@@ -174,10 +182,6 @@ function resolveRun({ run, candidates, sourceFiles, requestedPaths, resources }:
   }
   if (isExplicitNone(run.policy) && resources.length === 0) {
     throw new Error(`resource-only policy ${run.policy.id} resolved no resource paths`);
-  }
-  const sourceSet = new Set(declared);
-  if (resources.some((path) => sourceSet.has(path))) {
-    throw new Error(`policy ${run.policy.id} resolved the same identity as source and resource`);
   }
   const requestedSet = requestedPaths === null ? null : new Set(requestedPaths);
   const effectiveSourcePaths = requestedSet === null ? declared : declared.filter((path) => requestedSet.has(path));
@@ -250,10 +254,17 @@ function assertOwnerPlans(input: PolicyPassInput): void {
   }
 }
 
-function resolveRuns(input: PolicyPassInput, errors: PolicyToolError[]): { readonly runs: PolicyRun[]; readonly sourceFiles: ReadonlyMap<string, SourceFile> } {
+function resolveRuns(
+  input: PolicyPassInput,
+  resources: ResourceHost,
+  errors: PolicyToolError[],
+): { readonly runs: PolicyRun[]; readonly sourceFiles: ReadonlyMap<string, SourceFile> } {
   const sourceFiles = new Map<string, SourceFile>();
   for (const sourceFile of input.project.getSourceFiles()) {
     const path = sourcePath(input.root, sourceFile);
+    if (!isPolicySourceCandidate(path)) {
+      continue;
+    }
     if (sourceFiles.has(path)) {
       throw new Error(`workspace contains duplicate source path ${path}`);
     }
@@ -265,8 +276,12 @@ function resolveRuns(input: PolicyPassInput, errors: PolicyToolError[]): { reado
   for (const run of runs) {
     try {
       charge(run.timing, "population", () => {
-        const resources = normalizePathSet(input.resourcePathsByPolicy?.get(run.policy.id) ?? [], `resource path for ${run.policy.id}`);
-        resolveRun({ run, candidates, sourceFiles, requestedPaths, resources });
+        const declaredResources = resolveResourceDeclarations(resources, run.policy.resources);
+        resolveRun({ run, candidates, sourceFiles, requestedPaths, resources: declaredResources });
+        const effectiveResources = new Set(run.population.effectiveResourcePaths);
+        run.resourceRequests = run.policy.resources.filter((request) =>
+          resolveResourceDeclarations(resources, [request]).some((path) => effectiveResources.has(path)),
+        );
         const ownerPlan = input.ownerPlansByPolicy?.get(run.policy.id);
         if (ownerPlan !== undefined) {
           applyOwnerPlan(run, ownerPlan);
@@ -280,8 +295,15 @@ function resolveRuns(input: PolicyPassInput, errors: PolicyToolError[]): { reado
   return { runs, sourceFiles };
 }
 
-function createRuns(runs: readonly PolicyRun[], input: PolicyPassInput, checker: () => TypeChecker, errors: PolicyToolError[]): void {
-  const resources = createResourceHost({ ...input.resourceOptions, root: input.root }).host;
+interface CreateRunsInput {
+  readonly runs: readonly PolicyRun[];
+  readonly input: PolicyPassInput;
+  readonly resources: ResourceHost;
+  readonly checker: () => TypeChecker;
+  readonly errors: PolicyToolError[];
+}
+
+function createRuns({ runs, input, resources, checker, errors }: CreateRunsInput): void {
   for (const run of runs) {
     if (run.owner.status !== "success") {
       continue;
@@ -292,11 +314,13 @@ function createRuns(runs: readonly PolicyRun[], input: PolicyPassInput, checker:
       files: run.files,
       resourcePaths: run.population.effectiveResourcePaths,
       resources,
+      resourceRequests: run.resourceRequests,
       checker,
       findings: run.findings,
     });
     run.finishReceipts = runtime.finishReceipts;
     run.unconsumedResources = runtime.unconsumedResources;
+    run.unconsumedResourceRequests = runtime.unconsumedResourceRequests;
     guard(run, "create", errors, () => {
       const hooks = run.policy.create(runtime.context);
       assertGatePolicyHooks(hooks);
@@ -375,6 +399,10 @@ function evaluateRuns(runs: readonly PolicyRun[], errors: PolicyToolError[]): vo
       if (unconsumed.length > 0) {
         failures.push(`declared resource population has unconsumed paths: ${unconsumed.join(", ")}`);
       }
+      const unconsumedRequests = run.unconsumedResourceRequests?.() ?? [];
+      if (unconsumedRequests.length > 0) {
+        failures.push(`declared resource population has unconsumed requests: ${unconsumedRequests.join(", ")}`);
+      }
       if (failures.length > 0) {
         throw new Error(`policy receipt refused: ${failures.join("; ")}`);
       }
@@ -399,13 +427,14 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   assertOwnerPlans(input);
   const started = performance.now();
   const toolErrors: PolicyToolError[] = [];
-  const { runs, sourceFiles } = resolveRuns(input, toolErrors);
+  const resources = createResourceHost({ ...input.resourceOptions, root: input.root }).host;
+  const { runs, sourceFiles } = resolveRuns(input, resources, toolErrors);
   let checker: TypeChecker | undefined;
   const sharedChecker = (): TypeChecker => {
     checker ??= input.project.getTypeChecker();
     return checker;
   };
-  createRuns(runs, input, sharedChecker, toolErrors);
+  createRuns({ runs, input, resources, checker: sharedChecker, errors: toolErrors });
   walkRuns(runs, sourceFiles, toolErrors);
   evaluateRuns(runs, toolErrors);
   const policies = runs.map(ownerResult).toSorted((left, right) => left.id.localeCompare(right.id));
@@ -413,7 +442,7 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
     selectedPolicies: input.policies.map(({ id, authority: policyAuthority, severity }) => ({ id, authority: policyAuthority, severity })),
     ownerResults: policies.map(({ id, population, owner, findings }) => ({
       policyId: id,
-      populationFiles: [...population.effectiveSourcePaths, ...population.effectiveResourcePaths].toSorted(),
+      populationFiles: [...new Set([...population.effectiveSourcePaths, ...population.effectiveResourcePaths])].toSorted(),
       owner,
       findings,
     })),

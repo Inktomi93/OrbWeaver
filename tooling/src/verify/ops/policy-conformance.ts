@@ -8,10 +8,11 @@ import type { GatePolicy, GatePolicyProof, GatePolicyProofExpectation } from "..
 import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type { PolicyConformanceFailure, PolicyProofArm } from "../contract/policy-conformance.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
+import type { ResourceHostOptions } from "../contract/resource-host.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
+import { isPolicySourceCandidate } from "../lib/policy-source-candidate.ts";
 import { assertGatePolicyDescriptor } from "../lib/policy-validation.ts";
 
-const TS_SOURCE_RE = /\.tsx?$/u;
 const VIRTUAL_ROOT = "/orb-policy-conformance";
 const TEMP_PREFIX = "orb-policy-conformance-";
 
@@ -40,14 +41,14 @@ function removeSources(project: Project): void {
   }
 }
 
-function runPass(policy: GatePolicy, root: string, project: Project, resourcePaths: readonly string[]): PolicyPassResult {
+function runPass(policy: GatePolicy, root: string, project: Project, resourceOptions?: Omit<ResourceHostOptions, "root">): PolicyPassResult {
   return runPolicyPass({
     policies: [policy],
     root,
     project,
     reviewedGrants: [],
     failOnWarnings: false,
-    ...(resourcePaths.length === 0 ? {} : { resourcePathsByPolicy: new Map([[policy.id, resourcePaths]]) }),
+    ...(resourceOptions === undefined ? {} : { resourceOptions }),
   });
 }
 
@@ -58,7 +59,7 @@ function runVirtualExample(policy: GatePolicy, proof: GatePolicyProof, shared: P
     for (const [path, content] of Object.entries(proof.files).toSorted(([left], [right]) => left.localeCompare(right))) {
       shared.createSourceFile(`${root}/${path}`, content);
     }
-    return { result: runPass(policy, root, shared, []), root };
+    return { result: runPass(policy, root, shared), root };
   } catch (error) {
     return { thrown: messageOf(error), root };
   } finally {
@@ -70,18 +71,20 @@ function runResourceExample(policy: GatePolicy, proof: GatePolicyProof): Example
   const root = mkdtempSync(join(tmpdir(), TEMP_PREFIX));
   try {
     const project = new Project({ skipAddingFilesFromTsConfig: true });
-    const resources: string[] = [];
     for (const [path, content] of Object.entries(proof.files).toSorted(([left], [right]) => left.localeCompare(right))) {
       const absolute = join(root, path);
       mkdirSync(dirname(absolute), { recursive: true });
       writeFileSync(absolute, content);
-      if (TS_SOURCE_RE.test(path)) {
+      if (isPolicySourceCandidate(path)) {
         project.addSourceFileAtPath(absolute);
-      } else {
-        resources.push(path);
       }
     }
-    return { result: runPass(policy, root, project, resources), root };
+    const parser = new Project({ useInMemoryFileSystem: true });
+    const resourceOptions: Omit<ResourceHostOptions, "root"> = {
+      overlay: proof.files,
+      parseSource: (path, text) => parser.createSourceFile(`${root}/${path}`, text, { overwrite: true }),
+    };
+    return { result: runPass(policy, root, project, resourceOptions), root };
   } catch (error) {
     return { thrown: messageOf(error), root };
   } finally {

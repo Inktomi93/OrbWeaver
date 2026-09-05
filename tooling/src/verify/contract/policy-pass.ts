@@ -68,7 +68,6 @@ export interface PolicyPassInput {
   readonly root: string;
   readonly project: Project;
   readonly requestedPaths?: readonly string[];
-  readonly resourcePathsByPolicy?: ReadonlyMap<string, readonly string[]>;
   /** Planner-owned disposition and exact population; absent only for direct/conformance pass callers. */
   readonly ownerPlansByPolicy?: ReadonlyMap<string, PolicyOwnerPlan>;
   /** Fixture overlays/parser injection cannot override this invocation's root or reuse a prior host. */

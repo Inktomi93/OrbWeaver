@@ -65,6 +65,7 @@ function makePolicy(): GatePolicy {
     population: "@client",
     analysis: "types",
     execution: "selected-files",
+    resources: [],
     message: "the authored record is disabled",
     create: (ctx) => ({
       visitors: [

@@ -9,6 +9,7 @@ export const gate = defineGate({
   population: ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@tooling", "@tests", "@scripts"],
   analysis: "syntax",
   execution: "selected-files",
+  resources: [],
   message:
     "decorators are not erasable — tsx/node type-stripping has no decorator runtime (runtime error), and the erasableSyntaxOnly compiler flag does NOT catch them. Use function composition / zod, not decorators. See Spine-TypeScript-and-Patterns.md §5.",
   create: (ctx) => ({

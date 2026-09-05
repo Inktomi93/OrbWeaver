@@ -2,6 +2,7 @@
 import type { Node, SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
 import type { GateAuthority, GateSeverity } from "./gate-authority.ts";
 import type { PopulationExpr } from "./population.ts";
+import type { GateResourceRequest } from "./resource-declaration.ts";
 import type { ResourceHost } from "./resource-host.ts";
 
 export const GATE_POLICY_ANALYSES = ["syntax", "types", "resource"] as const;
@@ -85,6 +86,8 @@ interface GatePolicyBase {
   readonly population: PopulationExpr;
   readonly analysis: GatePolicyAnalysis;
   readonly execution: GatePolicyExecution;
+  /** Explicit closed ResourceHost facts; `[]` is required when the policy consumes none. */
+  readonly resources: readonly GateResourceRequest[];
   readonly message: string;
   readonly fix?: string;
   readonly create: (context: GatePolicyContext) => GatePolicyHooks;

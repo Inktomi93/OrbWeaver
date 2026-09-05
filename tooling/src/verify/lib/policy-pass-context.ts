@@ -11,8 +11,10 @@ import type {
   GatePolicyReceipt,
 } from "../contract/policy.ts";
 import type { PolicySemanticReceipt } from "../contract/policy-pass.ts";
+import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { assertRepoPathIdentity } from "./policy-validation.ts";
+import { resourceRequestIdentity } from "./resource-declaration.ts";
 import { bindPolicyResources } from "./resource-policy.ts";
 
 const COMMON_DETAIL_KEYS = ["message", "fix", "subject", "operation"] as const;
@@ -27,6 +29,7 @@ interface ContextInput {
   readonly files: readonly SourceFile[];
   readonly resourcePaths: readonly string[];
   readonly resources: ResourceHost;
+  readonly resourceRequests: readonly GateResourceRequest[];
   readonly checker: () => TypeChecker;
   readonly findings: RawGateFinding[];
 }
@@ -35,6 +38,7 @@ export interface PolicyContextRuntime {
   readonly context: GatePolicyContext;
   readonly finishReceipts: () => readonly PolicySemanticReceipt[];
   readonly unconsumedResources: () => readonly string[];
+  readonly unconsumedResourceRequests: () => readonly string[];
 }
 
 function exactKeys(value: object, allowed: ReadonlySet<string>, label: string): void {
@@ -160,6 +164,7 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   const effectivePaths = new Set([...paths.keys(), ...resourcePaths]);
   const receipts = new Map<string, PolicySemanticReceipt>();
   const consumedResources = new Set<string>();
+  const consumedResourceRequests = new Set<string>();
 
   const relativePath = (candidate: SourceFile): string => {
     if (!sourceIdentities.has(candidate.compilerNode)) {
@@ -223,10 +228,16 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   const context: GatePolicyContext = Object.freeze({
     files,
     resourcePaths,
-    resources: bindPolicyResources(input.resources, { resourcePaths, receipt }, (acquiredPaths) => {
-      for (const path of acquiredPaths) {
-        consumedResources.add(path);
-      }
+    resources: bindPolicyResources({
+      host: input.resources,
+      context: { resourcePaths, receipt },
+      declarations: input.resourceRequests,
+      onConsumed: (requestIdentity, acquiredPaths) => {
+        consumedResourceRequests.add(requestIdentity);
+        for (const path of acquiredPaths) {
+          consumedResources.add(path);
+        }
+      },
     }),
     relativePath,
     sourceFile: getSourceFile,
@@ -242,6 +253,7 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   return {
     context,
     unconsumedResources: () => resourcePaths.filter((path) => !consumedResources.has(path)),
+    unconsumedResourceRequests: () => input.resourceRequests.map(resourceRequestIdentity).filter((identity) => !consumedResourceRequests.has(identity)),
     finishReceipts: () => [...receipts.values()].toSorted((left, right) => left.kind.localeCompare(right.kind) || left.source.localeCompare(right.source)),
   };
 }

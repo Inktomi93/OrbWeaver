@@ -5,6 +5,10 @@ import { GATE_AUTHORITIES, GATE_SEVERITIES } from "../contract/gate-authority.ts
 import type { GatePolicy, GatePolicyAnalysis, GatePolicyHooks, GatePolicyProof, GatePolicyProofMode } from "../contract/policy.ts";
 import { GATE_POLICY_ANALYSES, GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "../contract/policy.ts";
 import type { PopulationExpr } from "../contract/population.ts";
+import { PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
+import type { GateResourceRequest } from "../contract/resource-declaration.ts";
+import { GATE_RESOURCE_REQUEST_KINDS } from "../contract/resource-declaration.ts";
+import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
 import { assertPopulationExpr } from "./population-resolver.ts";
 
 const POLICY_KEYS = new Set([
@@ -16,6 +20,7 @@ const POLICY_KEYS = new Set([
   "population",
   "analysis",
   "execution",
+  "resources",
   "message",
   "fix",
   "create",
@@ -30,6 +35,7 @@ const REQUIRED_POLICY_KEYS = [
   "population",
   "analysis",
   "execution",
+  "resources",
   "message",
   "create",
   "mustFlag",
@@ -43,6 +49,8 @@ const KEBAB_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 const TS_SOURCE_RE = /\.tsx?$/u;
 const ASCII_C0_MAX = 0x1f;
 const ASCII_DELETE = 0x7f;
+const RESOURCE_KEYS = new Set(["kind", "id"]);
+const RESOURCE_KIND_ONLY_KEYS = new Set(["kind"]);
 
 function invalid(detail: string): never {
   throw new Error(`Invalid gate policy: ${detail}`);
@@ -140,11 +148,7 @@ function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string
       invalid(`${label}.files content must be a string`);
     }
   }
-  if (proof["mode"] === "resource") {
-    if (!entries.some(([path]) => !TS_SOURCE_RE.test(path))) {
-      invalid(`${label}.files must include an explicit non-TypeScript resource path`);
-    }
-  } else if (entries.some(([path]) => !TS_SOURCE_RE.test(path))) {
+  if (proof["mode"] !== "resource" && entries.some(([path]) => !TS_SOURCE_RE.test(path))) {
     invalid(`${label}.files may contain only .ts/.tsx source paths in ${String(proof["mode"])} mode`);
   }
   if (proof["expect"] !== undefined) {
@@ -166,6 +170,62 @@ function assertProofArm(value: unknown, analysis: GatePolicyAnalysis, label: "mu
 
 function isExplicitNone(population: PopulationExpr): boolean {
   return typeof population === "object" && !Array.isArray(population) && "of" in population && population.of === "none";
+}
+
+export function assertGateResourceDeclarations(value: unknown): asserts value is readonly GateResourceRequest[] {
+  if (!Array.isArray(value)) {
+    invalid("descriptor.resources must be an array");
+  }
+  const identities = new Set<string>();
+  for (const [index, candidate] of value.entries()) {
+    const identity = assertGateResourceDeclaration(candidate, index);
+    if (identities.has(identity)) {
+      invalid(`descriptor.resources contains duplicate request ${identity}`);
+    }
+    identities.add(identity);
+  }
+}
+
+function resourceIds(kind: GateResourceRequest["kind"]): Readonly<Record<string, string>> | undefined {
+  let ids: Readonly<Record<string, string>> | undefined;
+  if (kind === "authored-tree") {
+    ids = AUTHORED_TREE_PATHS;
+  } else if (kind === "package-metadata") {
+    ids = PACKAGE_RESOURCE_PATHS;
+  } else if (kind === "static-config") {
+    ids = STATIC_CONFIG_RESOURCE_PATHS;
+  }
+  return ids;
+}
+
+function assertGateResourceDeclaration(candidate: unknown, index: number): string {
+  const label = `descriptor.resources[${index}]`;
+  const request = record(candidate, label);
+  if (!(GATE_RESOURCE_REQUEST_KINDS as readonly unknown[]).includes(request["kind"])) {
+    invalid(`${label}.kind is unknown`);
+  }
+  const kind = request["kind"] as GateResourceRequest["kind"];
+  const ids = resourceIds(kind);
+  exactKeys(request, ids === undefined ? RESOURCE_KIND_ONLY_KEYS : RESOURCE_KEYS, label);
+  if (ids === undefined) {
+    return kind;
+  }
+  nonBlank(request["id"], `${label}.id`);
+  if (!Object.hasOwn(ids, request["id"] as PropertyKey)) {
+    invalid(`${label}.id is unknown for ${kind}`);
+  }
+  return `${kind}:${String(request["id"])}`;
+}
+
+function assertAnalysisResources(policy: Readonly<Record<string, unknown>>): void {
+  assertGateResourceDeclarations(policy["resources"]);
+  const resources = policy["resources"] as readonly GateResourceRequest[];
+  if (policy["analysis"] === "resource" && resources.length === 0) {
+    invalid("descriptor.resources must be nonempty when analysis is resource");
+  }
+  if (policy["analysis"] !== "resource" && resources.length > 0) {
+    invalid("descriptor.resources must be empty unless analysis is resource");
+  }
 }
 
 function assertDirectDescriptor(policy: Readonly<Record<string, unknown>>): void {
@@ -223,6 +283,7 @@ export function assertGatePolicyDescriptor(value: unknown): asserts value is Gat
   if (!(GATE_POLICY_EXECUTIONS as readonly unknown[]).includes(policy["execution"])) {
     invalid("descriptor.execution is required and invalid");
   }
+  assertAnalysisResources(policy);
   nonBlank(policy["message"], "descriptor.message");
   if (policy["fix"] !== undefined) {
     nonBlank(policy["fix"], "descriptor.fix");

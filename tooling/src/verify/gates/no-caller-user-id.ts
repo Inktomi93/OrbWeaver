@@ -22,6 +22,7 @@ export const gate = defineGate({
   },
   analysis: "syntax",
   execution: "selected-files",
+  resources: [],
   message: MESSAGE,
   fix: "use `triggeredBy` (the responsible human) or `runAsUserId` (the funded identity) — never the caller's id in credential/settings resolution.",
   create: (ctx) => ({

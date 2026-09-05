@@ -27,6 +27,7 @@ export const gate = defineGate({
   population: "@client",
   analysis: "syntax",
   execution: "selected-files",
+  resources: [],
   message:
     'freeform data-testid string — use the typed registry: data-testid={testId("key")} (lib/test-ids.ts); a typo becomes a tsc error instead of a silently-broken e2e selector. See UI-Gates-and-Lessons.md §11.5.',
   fix: 'use the typed registry: data-testid={testId("key")}',

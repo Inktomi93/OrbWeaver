@@ -27,6 +27,7 @@ function sourcePolicy(id: string, overrides: Partial<GatePolicy> = {}): GatePoli
     population: "@client",
     analysis: "syntax",
     execution: "selected-files",
+    resources: [],
     message: `${id} message`,
     create: (ctx) => ({
       visitFile: (sourceFile) => {
@@ -69,6 +70,7 @@ test("source and types proofs receive their exact files and relative imports res
     population: "@client",
     analysis: "types",
     execution: "selected-files",
+    resources: [],
     message: "the relative import resolves to the planted declaration",
     create: (ctx) => ({
       evaluate: () => {
@@ -214,6 +216,18 @@ test("the invocation boundary refuses invalid policy sets before any example run
   expect(creates).toBe(0);
 });
 
+test("source and types proofs reject compiler module extensions outside .ts and .tsx", () => {
+  for (const extension of ["mts", "cts", "mjs", "cjs"] as const) {
+    for (const mode of ["source", "types"] as const) {
+      const invalid = sourcePolicy(`${mode}-${extension}`, {
+        analysis: mode === "source" ? "syntax" : "types",
+        mustFlag: [{ mode, files: { [`packages/client/src/proof.${extension}`]: "export const proof = true;\n" }, why: "source fence" }],
+      });
+      expect(() => verifyPolicyProofs([invalid])).toThrow(/only \.ts\/\.tsx|only \.ts|source paths/i);
+    }
+  }
+});
+
 test("tool failures, authority failures, bad receipts, and population mismatch fail distinctly", () => {
   const thrown = sourcePolicy("hook-throw", {
     create: () => ({
@@ -261,6 +275,7 @@ test("resource proofs materialize exact content and clean temp roots after succe
     population: "@client",
     analysis: "resource",
     execution: "selected-files",
+    resources: [{ kind: "package-metadata", id: "root" }],
     message: "resource content is planted",
     create: (ctx) => ({
       evaluate: () => {
@@ -341,8 +356,15 @@ test("resource proofs materialize exact content and clean temp roots after succe
       ...resource,
       id: `${mode}-resource`,
       family: `${mode}-resource`,
-      mustFlag: resource.mustFlag.map((proof) => ({ ...proof, files: { ...proof.files, "support.txt": "declared but unread" } })),
-      mustPass: resource.mustPass.map((proof) => ({ ...proof, files: { ...proof.files, "support.txt": "declared but unread" } })),
+      resources: [...resource.resources, { kind: "authored-tree", id: "client-source" }],
+      mustFlag: resource.mustFlag.map((proof) => ({
+        ...proof,
+        files: { ...proof.files, "packages/client/src/support.txt": "declared but unread" },
+      })),
+      mustPass: resource.mustPass.map((proof) => ({
+        ...proof,
+        files: { ...proof.files, "packages/client/src/support.txt": "declared but unread" },
+      })),
       create: (ctx) => ({
         evaluate: () => {
           if (mode === "forged") {
@@ -358,7 +380,7 @@ test("resource proofs materialize exact content and clean temp roots after succe
     });
     const failures = verifyPolicyProofs([incomplete]);
     expect(failures.map(({ arm }) => arm)).toEqual(["mustFlag", "mustPass"]);
-    expect(failures.every(({ detail }) => detail.includes("unconsumed paths:") && detail.includes("support.txt"))).toBe(true);
+    expect(failures.every(({ detail }) => detail.includes("unconsumed paths:") && detail.includes("packages/client/src/support.txt"))).toBe(true);
   }
 
   const throwingResource = defineGate({
@@ -376,6 +398,105 @@ test("resource proofs materialize exact content and clean temp roots after succe
   expect(roots.every((root) => !existsSync(root))).toBe(true);
   const after = readdirSync(tmpdir()).filter((name) => name.startsWith("orb-policy-conformance-") && !before.has(name));
   expect(after).toEqual([]);
+});
+
+test("typed authored-tree declarations keep resource-only TS proofs off source dispatch", () => {
+  const sourceCounts: number[] = [];
+  const resources = defineGate({
+    id: "resource-only-ts-proof",
+    family: "resource-only-ts-proof",
+    authority: "hard",
+    severity: "error",
+    population: { of: "none", why: "the TS file is raw authored-tree data, not syntax input" },
+    analysis: "resource",
+    execution: "entire-population",
+    resources: [{ kind: "authored-tree", id: "client-source" }],
+    message: "resource-only TS proof",
+    create: (ctx) => ({
+      visitFile: () => {
+        throw new Error("resource-only TS proof reached source dispatch");
+      },
+      evaluate: () => {
+        sourceCounts.push(ctx.files.length);
+        const tree = ctx.resources.authoredTree("client-source");
+        if (tree.status !== "ready") {
+          throw new Error(tree.reason);
+        }
+        const bad = tree.value.find((entry) => entry.kind === "file" && entry.path.endsWith("/bad.mts"));
+        if (bad !== undefined) {
+          ctx.report.file(bad.path);
+        }
+      },
+    }),
+    mustFlag: [
+      {
+        mode: "resource",
+        files: { "packages/client/src/bad.mts": "export const rawResource = true;\n" },
+        why: "a TypeScript extension does not opt a resource-only policy into source dispatch",
+      },
+    ],
+    mustPass: [
+      {
+        mode: "resource",
+        files: { "packages/client/src/good.cjs": "export const rawResource = false;\n" },
+        why: "the clean raw TypeScript resource",
+      },
+    ],
+  });
+
+  expect(verifyPolicyProofs([resources])).toEqual([]);
+  expect(sourceCounts).toEqual([0, 0]);
+});
+
+test("hybrid TS proofs share one identity across source and resource manifests", () => {
+  const populations: { readonly sources: readonly string[]; readonly resources: readonly string[] }[] = [];
+  const hybrid = defineGate({
+    id: "hybrid-ts-proof",
+    family: "hybrid-ts-proof",
+    authority: "hard",
+    severity: "error",
+    population: "@client",
+    analysis: "resource",
+    execution: "selected-files",
+    resources: [{ kind: "authored-tree", id: "client-source" }],
+    message: "hybrid TS proof",
+    create: (ctx) => ({
+      evaluate: () => {
+        const tree = ctx.resources.authoredTree("client-source");
+        if (tree.status !== "ready") {
+          throw new Error(tree.reason);
+        }
+        populations.push({ sources: ctx.files.map(ctx.relativePath), resources: ctx.resourcePaths });
+        const source = ctx.files[0];
+        if (source === undefined) {
+          throw new Error("hybrid proof requires one source candidate");
+        }
+        if (source.getFullText().includes("planted")) {
+          ctx.report.file(ctx.relativePath(source));
+        }
+      },
+    }),
+    mustFlag: [
+      {
+        mode: "resource",
+        files: { "packages/client/src/hybrid.ts": "export const planted = true;\n" },
+        why: "one authored TS path is legitimately both syntax and raw resource",
+      },
+    ],
+    mustPass: [
+      {
+        mode: "resource",
+        files: { "packages/client/src/hybrid.tsx": "export const clean = true;\n" },
+        why: "the same hybrid identity with legal content",
+      },
+    ],
+  });
+
+  expect(verifyPolicyProofs([hybrid])).toEqual([]);
+  expect(populations).toEqual([
+    { sources: ["packages/client/src/hybrid.ts"], resources: ["packages/client/src/hybrid.ts"] },
+    { sources: ["packages/client/src/hybrid.tsx"], resources: ["packages/client/src/hybrid.tsx"] },
+  ]);
 });
 
 test("reused projects isolate every example and repeated invocations are deterministic", () => {
@@ -419,6 +540,7 @@ test("thrown path details are stable and retain only repo-relative proof identit
     population: "@client",
     analysis: "resource",
     execution: "selected-files",
+    resources: [{ kind: "authored-tree", id: "client-source" }],
     message: "resource path throw",
     create: (ctx) => ({
       evaluate: () => {

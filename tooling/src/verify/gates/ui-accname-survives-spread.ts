@@ -108,6 +108,7 @@ export const gate = defineGate({
   population: "@ui",
   analysis: "syntax",
   execution: "selected-files",
+  resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({

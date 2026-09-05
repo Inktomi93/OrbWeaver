@@ -16,6 +16,7 @@ export const gate = defineGate({
   population: { in: ["@client"], under: ["packages/client/src/features/**"] },
   analysis: "syntax",
   execution: "selected-files",
+  resources: [],
   message: MESSAGE,
   fix: "use <MessageMedia> (@orb/ui/content) instead of raw elements.",
   create: (ctx) => ({

@@ -1,13 +1,17 @@
 import type { GatePolicy, PolicyCommandRequest, PolicyPassResult, PolicyScopeResolution } from "@orb/tooling/verify";
-import { defineGate, executePolicyPlan, planPolicyArgv, planPolicyCommand, policyPassExitCode } from "@orb/tooling/verify";
+import { defineGate, executePolicyPlan, planPolicyArgv, planPolicyCommand, policyPassExitCode, policySourceCandidates } from "@orb/tooling/verify";
 import { Project, SyntaxKind } from "ts-morph";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-function policy(id: string, options: Partial<Pick<GatePolicy, "family" | "execution" | "analysis" | "population" | "severity">> = {}): GatePolicy {
+function policy(
+  id: string,
+  options: Partial<Pick<GatePolicy, "family" | "execution" | "analysis" | "population" | "resources" | "severity">> = {},
+): GatePolicy {
   const analysis = options.analysis ?? "syntax";
   const proofMode = analysis === "syntax" ? "source" : analysis;
   const files = analysis === "resource" ? { "tooling/package.json": "{}\n" } : { "tooling/src/a.ts": "export const a = 1;\n" };
+  const resources: GatePolicy["resources"] = options.resources ?? (analysis === "resource" ? [{ kind: "package-metadata", id: "tooling" }] : []);
   const base = {
     id,
     family: options.family ?? id,
@@ -15,6 +19,7 @@ function policy(id: string, options: Partial<Pick<GatePolicy, "family" | "execut
     population: options.population ?? "@tooling",
     analysis,
     execution: options.execution ?? "selected-files",
+    resources,
     message: `${id} message`,
     create: () => ({ visitors: [{ kinds: [SyntaxKind.VariableDeclaration], visit: (): void => undefined }] }),
     mustFlag: [{ mode: proofMode, files, why: "founding defect" }],
@@ -73,6 +78,10 @@ function runRequest(overrides: Partial<RunRequest> = {}): RunRequest {
 }
 
 test.describe("final policy planner", () => {
+  test("the shared source-candidate contract admits only .ts and .tsx", () => {
+    expect(policySourceCandidates(["a.mts", "b.cts", "c.mjs", "d.cjs", "e.json", "f.tsx", "g.ts"])).toEqual(["f.tsx", "g.ts"]);
+  });
+
   test("selects checks deterministically and emits exact requested/effective compiler populations", () => {
     const result = planPolicyCommand({
       request: runRequest({ selector: { kind: "check", names: ["z-policy", "a-policy"] } }),
@@ -146,18 +155,21 @@ test.describe("final policy planner", () => {
       request: runRequest({ scope: { kind: "file", paths: ["tooling/package.json"] } }),
       corpus: { gates: [resource], families: ["resources"] },
       scope: scope(["tooling/package.json"], "file"),
-      resourcePathsByPolicy: new Map([["resources", ["tooling/package.json", "tooling/pnpm-lock.yaml"]]]),
+      resourceOptions: {
+        root: "/repo",
+        overlay: { "tooling/package.json": '{"name":"@orb/tooling","private":true}\n' },
+      },
     });
     expect(result).toMatchObject({
       ok: true,
       plan: {
-        resourcePathsByPolicy: { resources: ["tooling/package.json", "tooling/pnpm-lock.yaml"] },
+        resourcePathsByPolicy: { resources: ["tooling/package.json"] },
         policies: [
           {
             mode: "run",
             population: {
               declaredSourcePaths: [],
-              declaredResourcePaths: ["tooling/package.json", "tooling/pnpm-lock.yaml"],
+              declaredResourcePaths: ["tooling/package.json"],
               requestedPaths: ["tooling/package.json"],
               effectiveResourcePaths: ["tooling/package.json"],
             },
@@ -165,6 +177,84 @@ test.describe("final policy planner", () => {
         ],
       },
     });
+  });
+
+  test("resolves resource manifests only for selected policies", () => {
+    const selected = policy("selected");
+    const unselected = policy("unselected-resource", { analysis: "resource", population: { of: "none", why: "resource-only" } });
+    expect(
+      planPolicyCommand({
+        request: runRequest({ selector: { kind: "check", names: [selected.id] } }),
+        corpus: { gates: [unselected, selected], families: [selected.family, unselected.family] },
+        scope: scope(["tooling/src/a.ts"], "file"),
+      }),
+    ).toMatchObject({ ok: true, plan: { policyIds: [selected.id], resourcePathsByPolicy: {} } });
+  });
+
+  test.each([
+    ["whole", { kind: "whole" }],
+    ["file", { kind: "file", paths: ["tooling/src/module.mts"] }],
+    ["project", { kind: "project", config: "tooling/tsconfig.json" }],
+    ["changed", { kind: "changed" }],
+  ] as const)("%s scope excludes compiler-member .mts from source while retaining its declared resource identity", (_case, request) => {
+    const currentPaths = request.kind === "whole" ? ["tooling/src/a.ts", "tooling/src/module.mts"] : ["tooling/src/module.mts"];
+    const semanticPaths = currentPaths.map((path) => ({ path, status: "present" as const, previousPath: null }));
+    const resolved: PolicyScopeResolution = {
+      ...scope(currentPaths, request.kind === "whole" ? "whole" : "file"),
+      request,
+      kind: request.kind,
+      requestedPaths: request.kind === "whole" ? null : semanticPaths,
+      semanticPaths: request.kind === "whole" ? [] : semanticPaths,
+      currentPaths,
+      programs: [{ ...PROGRAM, files: ["tooling/src/a.ts", "tooling/src/module.mts"] }],
+      ownership: semanticPaths.map((path) => ({ ...path, programIds: [PROGRAM.id], reason: "compiler-membership" as const })),
+      projectConfig: request.kind === "project" ? "tooling/tsconfig.json" : null,
+    };
+    const hybrid = policy("hybrid", {
+      analysis: "resource",
+      population: "@tooling",
+      resources: [{ kind: "authored-tree", id: "tooling-slot" }],
+    });
+    const result = planPolicyCommand({
+      request: runRequest({ scope: request }),
+      corpus: { gates: [hybrid], families: [hybrid.family] },
+      scope: resolved,
+      resourceOptions: {
+        root: "/repo",
+        overlay: { "tooling/src/a.ts": "export const a = 1;\n", "tooling/src/module.mts": "export const moduleValue = 1;\n" },
+      },
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      plan: {
+        policies: [
+          {
+            mode: "run",
+            population: {
+              declaredSourcePaths: ["tooling/src/a.ts"],
+              declaredResourcePaths: ["tooling/src/a.ts", "tooling/src/module.mts"],
+              effectiveSourcePaths: request.kind === "whole" ? ["tooling/src/a.ts"] : [],
+              effectiveResourcePaths: request.kind === "whole" ? ["tooling/src/a.ts", "tooling/src/module.mts"] : ["tooling/src/module.mts"],
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  test.each([
+    ["missing", null],
+    ["empty", ""],
+    ["unresolved", "{broken"],
+  ] as const)("resource planning fails closed on a %s declared fact", (_case, content) => {
+    const resource = policy("resources", { analysis: "resource", population: { of: "none", why: "resource-only" } });
+    const result = planPolicyCommand({
+      request: runRequest({ scope: { kind: "file", paths: ["tooling/package.json"] } }),
+      corpus: { gates: [resource], families: [resource.family] },
+      scope: scope(["tooling/package.json"], "file"),
+      resourceOptions: { root: "/repo", overlay: { "tooling/package.json": content } },
+    });
+    expect(result).toMatchObject({ ok: false, exitCode: 2, message: expect.stringMatching(new RegExp(_case)) });
   });
 
   test.each([
@@ -180,7 +270,7 @@ test.describe("final policy planner", () => {
     });
   });
 
-  test("fails closed when a source population resolves empty or a resource manifest names no loaded owner", () => {
+  test("fails closed when a source population resolves empty", () => {
     expect(
       planPolicyCommand({
         request: runRequest(),
@@ -188,14 +278,6 @@ test.describe("final policy planner", () => {
         scope: scope(["tooling/src/a.ts"], "file"),
       }),
     ).toMatchObject({ ok: false, exitCode: 2, message: expect.stringMatching(/zero paths|population/i) });
-    expect(
-      planPolicyCommand({
-        request: runRequest(),
-        corpus: { gates: [policy("known")], families: ["known"] },
-        scope: scope(["tooling/src/a.ts"], "file"),
-        resourcePathsByPolicy: new Map([["missing", ["tooling/package.json"]]]),
-      }),
-    ).toMatchObject({ ok: false, exitCode: 2, message: expect.stringMatching(/unknown policy/i) });
   });
 
   test("deleted scope identity remains requested while effective populations skip current work", () => {
@@ -384,14 +466,17 @@ test.describe("final policy planner", () => {
   });
 
   test("list and explain derive stable JSON-ready rows from the loaded corpus", () => {
-    const gates = [policy("z-policy", { family: "shared" }), policy("a-policy", { family: "shared", severity: "warning" })];
+    const gates = [
+      policy("z-policy", { family: "shared", analysis: "resource", population: { of: "none", why: "resource-only" } }),
+      policy("a-policy", { family: "shared", severity: "warning" }),
+    ];
     const list = planPolicyCommand({ request: { mode: "list", json: true }, corpus: { gates, families: ["shared"] } });
     expect(list).toMatchObject({
       ok: true,
       plan: {
         policies: [
-          { id: "a-policy", workItem: 1584 },
-          { id: "z-policy", workItem: null },
+          { id: "a-policy", workItem: 1584, resources: [] },
+          { id: "z-policy", workItem: null, resources: [{ kind: "package-metadata", id: "tooling" }] },
         ],
         families: ["shared"],
       },
@@ -402,7 +487,10 @@ test.describe("final policy planner", () => {
       request: { mode: "explain", selector: { kind: "check", names: ["z-policy"] }, json: true },
       corpus: { gates, families: ["shared"] },
     });
-    expect(explain).toMatchObject({ ok: true, plan: { policies: [{ id: "z-policy", proofCounts: { mustFlag: 1, mustPass: 1 } }] } });
+    expect(explain).toMatchObject({
+      ok: true,
+      plan: { policies: [{ id: "z-policy", resources: [{ kind: "package-metadata", id: "tooling" }], proofCounts: { mustFlag: 1, mustPass: 1 } }] },
+    });
   });
 
   test("unknown-selection diagnostics sort equivalent bad requests", () => {
@@ -437,6 +525,23 @@ test.describe("final policy planner", () => {
         policies: [{ population: { effectiveSourcePaths: ["tooling/src/verify/lib/policy-plan.ts"] } }],
       },
     });
+  });
+
+  test("the real tracked compiler-member .mts fixture never enters policy source population", { timeout: scaledBudget(5000) }, ({ repoRoot }) => {
+    const mtsPath = "tests/server/infra/providers/backends/local-light/fixtures/orphan-survival-child.mts";
+    const gate = policy("real-mts-source-fence", { population: "@tests" });
+    const result = planPolicyArgv(repoRoot, ["--file", mtsPath, "--check", gate.id], { gates: [gate], families: [gate.family] });
+    expect(result).toMatchObject({
+      ok: true,
+      plan: {
+        requestedPaths: [{ path: mtsPath, status: "present", previousPath: null }],
+        policies: [{ mode: "skipped", population: { effectiveSourcePaths: [] } }],
+      },
+    });
+    if (!result.ok || result.plan.mode !== "run") {
+      throw new Error("real mts fixture plan did not resolve");
+    }
+    expect(result.plan.policies[0]?.population.declaredSourcePaths).not.toContain(mtsPath);
   });
 
   test("executes a plan through the production pass and refuses project/population drift", () => {
@@ -474,6 +579,7 @@ test.describe("final policy planner", () => {
       population: { of: "none", why: "resource-only" },
       analysis: "resource",
       execution: "selected-files",
+      resources: [{ kind: "package-metadata", id: "tooling" }],
       message: "resource host must resolve",
       create: (ctx) => ({
         evaluate: () => {
@@ -492,7 +598,10 @@ test.describe("final policy planner", () => {
       request: runRequest({ scope: { kind: "file", paths: ["tooling/package.json"] } }),
       corpus,
       scope: resolved,
-      resourcePathsByPolicy: new Map([[resource.id, ["tooling/package.json"]]]),
+      resourceOptions: {
+        root: "/repo",
+        overlay: { "tooling/package.json": '{"name":"@orb/tooling","private":true}\n' },
+      },
     });
     if (!planned.ok || planned.plan.mode !== "run") {
       throw new Error("resource fixture plan did not resolve");
@@ -512,6 +621,17 @@ test.describe("final policy planner", () => {
       exitCode: 0,
       pass: { policies: [{ receipts: [{ kind: "resource", source: "package:tooling", resources: 1, unresolved: 0 }] }] },
     });
+
+    expect(
+      executePolicyPlan({
+        root: "/repo",
+        project: new Project({ useInMemoryFileSystem: true }),
+        corpus,
+        plan: { ...planned.plan, resourcePathsByPolicy: {} },
+        reviewedGrants: [],
+        resourceOptions: { overlay: { "tooling/package.json": '{"name":"@orb/tooling","private":true}\n' } },
+      }),
+    ).toMatchObject({ ok: false, exitCode: 2, message: expect.stringMatching(/resource manifest.*planned populations/i) });
   });
 
   test("warning findings stay visible and block only when promotion is requested", () => {
