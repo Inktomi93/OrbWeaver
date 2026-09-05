@@ -39,71 +39,41 @@
 // `::-webkit-datetime-edit` to the muted tone — the same tone `placeholder:` already gives every text field,
 // which is exactly what those dashes are. Colour only: no custom primitive, no overlay, no relabelling.
 //
-// AND ON A PHONE IT FOLDS (#1350, side-eye 2026-09-04). Measured at 430×740: the pane spent 299 of 740px —
-// 40% of the viewport — on filter chrome before the first chat row, and the month bound is the secondary of
-// the two filters (search is what a reader reaches for). So the phone arm is the character strip's own
-// `+N More` posture: a disclosure whose TRIGGER carries the bound when one is set, so folding never hides
-// state. It is APPLICABILITY, not a mobile mode ([[no-separate-reduced-modes]]): the desktop pane is a
-// 300px column with vertical room to spare and nothing to buy back, so it renders the field outright.
+// AND ON A PHONE IT FOLDS — BUT NOT BEHIND A DISCLOSURE OF ITS OWN ANY MORE (#1350 → #1718 arm A). #1350
+// measured 299 of 740px of filter chrome at 430×740 and gave this control the character strip's `+N More`
+// posture: its own disclosure, whose TRIGGER carried the bound when one was set, so folding never hid
+// state. THAT PRINCIPLE SURVIVES; ITS INPUT CHANGED. Two stacked disclosures on one pane cost a
+// `--spacing-control-sm` trigger twice (44px each at a coarse pointer) to carry two facts, so the pane has
+// ONE phone Filters row now (`chat-list-phone-filters.tsx`) whose single trigger names BOTH states in force
+// (`phoneFiltersLabel`, `lib/chat-list-scope.ts` — the grammar table lives there).
+//
+// SO THIS FILE IS VIEWPORT-AGNOSTIC AGAIN: one shape, a plain `<Field>`-labelled control, in both regimes.
+// The phone renders it inside the shared panel; the desktop renders it in the column, where there is
+// vertical room to spare and nothing to buy back. Its label is its accessible name in both, through the
+// `<Field>`, which is why the phone arm's `aria-label` spelling of the same words could go with the fold.
 
-import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { setChatListMonth, useChatListMonth, useMobileViewport } from "#state";
-import { formatMonthLabel } from "../lib/chat-list-scope.ts";
+import { setChatListMonth, useChatListMonth } from "#state";
 import { CLEAR_INSET_RESERVE, ClearFilterGlyph } from "./chat-list-filter-field.tsx";
 
-/** The bound's own words — an ON-OR-BEFORE ceiling that INCLUDES the selected month (#1348). It is the
- *  field's accessible name in both arms: through `<Field>`'s label on the desktop arm, and spelled as the
- *  input's own `aria-label` on the phone arm, where the visible words are the disclosure trigger above it. */
+/** The bound's own words — an ON-OR-BEFORE ceiling that INCLUDES the selected month (#1348), and the
+ *  field's accessible name through `<Field>`'s label. ONE spelling since #1718 retired the phone arm that
+ *  repeated it as an `aria-label`. */
 const MONTH_LABEL = "Show chats up to";
 const CLEAR_MONTH_LABEL = "Clear the month";
 
-/** The month bound as the phone's folded arm presents it in its trigger: the words plus the bound in force,
- *  so a collapsed disclosure still says what it is doing to the list under it. */
-function foldedTriggerLabel(monthLabel: string | null): string {
-  return monthLabel === null ? MONTH_LABEL : `${MONTH_LABEL} ${monthLabel}`;
-}
-
-/** The bare control — the field, its inset ✕, and nothing that names it. Both arms compose this; only the
- *  NAME differs between them, which is the whole difference the two arms carry. */
-function MonthInput({ month, named }: { readonly month: string; readonly named: boolean }): ReactElement {
-  return (
-    <Row align="center" className="relative">
-      <Input
-        {...(named ? { "aria-label": MONTH_LABEL } : {})}
-        className={`min-w-0 flex-1 ${CLEAR_INSET_RESERVE}`}
-        onValueChange={setChatListMonth}
-        type="month"
-        value={month}
-      />
-      {month === "" ? null : <ClearFilterGlyph label={CLEAR_MONTH_LABEL} onClick={(): void => setChatListMonth("")} />}
-    </Row>
-  );
-}
-
-/** The chats pane's month bound, in whichever shape this viewport regime asks for. */
+/** The chats pane's month bound: one labelled control, in both regimes. */
 export function ChatListMonthFilter(): ReactElement {
   const month = useChatListMonth();
-  const isMobile = useMobileViewport();
-  if (!isMobile) {
-    return (
-      <Field label={MONTH_LABEL}>
-        <MonthInput month={month} named={false} />
-      </Field>
-    );
-  }
   return (
-    // `defaultOpen` on the bound already in force: arriving with a month set must not bury the reason the
-    // list is short. It is UNCONTROLLED past that first commit on purpose — once the reader has folded it,
-    // setting a month inside it does not re-open a panel they just closed, and the trigger says the bound.
-    <Collapsible defaultOpen={month !== ""}>
-      <CollapsibleTrigger>{foldedTriggerLabel(formatMonthLabel(month))}</CollapsibleTrigger>
-      <CollapsiblePanel>
-        <MonthInput month={month} named={true} />
-      </CollapsiblePanel>
-    </Collapsible>
+    <Field label={MONTH_LABEL}>
+      <Row align="center" className="relative">
+        <Input className={`min-w-0 flex-1 ${CLEAR_INSET_RESERVE}`} onValueChange={setChatListMonth} type="month" value={month} />
+        {month === "" ? null : <ClearFilterGlyph label={CLEAR_MONTH_LABEL} onClick={(): void => setChatListMonth("")} />}
+      </Row>
+    </Field>
   );
 }
