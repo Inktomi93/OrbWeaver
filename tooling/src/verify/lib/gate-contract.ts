@@ -1,7 +1,16 @@
-import type { Expression, Identifier, Node, ObjectLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
+import type { CallExpression, Expression, Node, ObjectLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { SyntaxKind, Node as TsNode, VariableDeclarationKind } from "ts-morph";
 import type { GateContractCode, GateContractFinding, GateContractReport } from "../contract/gate-contract.ts";
 import { readExpressionString } from "./config-static-read.ts";
+import {
+  isBindCreationCall,
+  isBuiltinMutator,
+  isTsMorphProjectConstructor,
+  isTsMorphWalk,
+  objectAssignTarget,
+  resolveCallableMember,
+  resolveModuleBinding,
+} from "./gate-contract-origin.ts";
 
 const LEGACY_FIELDS: ReadonlySet<string> = new Set(["scanRoot", "scopeSafety", "begin", "finalize", "run"]);
 const DIRECT_WALK_METHODS: ReadonlySet<string> = new Set([
@@ -11,6 +20,7 @@ const DIRECT_WALK_METHODS: ReadonlySet<string> = new Set([
   "getFirstDescendant",
   "getFirstDescendantByKind",
   "getSourceFile",
+  "getSourceFileOrThrow",
   "getSourceFiles",
 ]);
 const MUTATOR_METHODS: ReadonlySet<string> = new Set([
@@ -69,40 +79,12 @@ function staticName(node: Node | undefined): string | undefined {
   return TsNode.isComputedPropertyName(node) ? staticName(node.getExpression()) : undefined;
 }
 
-function memberName(expression: Expression): string | undefined {
-  if (TsNode.isPropertyAccessExpression(expression)) {
-    return expression.getName();
-  }
-  return TsNode.isElementAccessExpression(expression) ? staticName(expression.getArgumentExpression()) : undefined;
-}
-
 function unwrap(expression: Expression): Expression {
   let current = expression;
   while (TsNode.isAsExpression(current) || TsNode.isSatisfiesExpression(current) || TsNode.isParenthesizedExpression(current)) {
     current = current.getExpression();
   }
   return current;
-}
-
-function receiverOf(expression: Expression): Expression | undefined {
-  return TsNode.isPropertyAccessExpression(expression) || TsNode.isElementAccessExpression(expression) ? expression.getExpression() : undefined;
-}
-
-function rootIdentifier(expression: Expression): Identifier | undefined {
-  let current = unwrap(expression);
-  while (TsNode.isPropertyAccessExpression(current) || TsNode.isElementAccessExpression(current)) {
-    current = unwrap(current.getExpression());
-  }
-  return TsNode.isIdentifier(current) ? current : undefined;
-}
-
-function symbolDeclares(identifier: Identifier, declaration: VariableDeclaration): boolean {
-  return (
-    identifier
-      .getSymbol()
-      ?.getDeclarations()
-      .some((candidate) => candidate === declaration) === true
-  );
 }
 
 function moduleVariables(sf: SourceFile): readonly VariableDeclaration[] {
@@ -170,44 +152,6 @@ function descriptorPropertyName(property: Node): string | undefined {
   return TsNode.isShorthandPropertyAssignment(property) ? property.getName() : undefined;
 }
 
-function projectBindings(sf: SourceFile): { readonly named: ReadonlySet<string>; readonly namespaces: ReadonlySet<string> } {
-  const named = new Set<string>();
-  const namespaces = new Set<string>();
-  for (const importDeclaration of sf.getImportDeclarations()) {
-    if (importDeclaration.getModuleSpecifierValue() !== "ts-morph") {
-      continue;
-    }
-    const namespace = importDeclaration.getNamespaceImport();
-    if (namespace !== undefined) {
-      namespaces.add(namespace.getText());
-    }
-    for (const binding of importDeclaration.getNamedImports()) {
-      if (binding.getName() === "Project") {
-        named.add(binding.getAliasNode()?.getText() ?? "Project");
-      }
-    }
-  }
-  return { named, namespaces };
-}
-
-function isProjectConstructor(expression: Expression, bindings: ReturnType<typeof projectBindings>): boolean {
-  const value = unwrap(expression);
-  if (TsNode.isIdentifier(value)) {
-    return bindings.named.has(value.getText());
-  }
-  if (TsNode.isPropertyAccessExpression(value)) {
-    return value.getName() === "Project" && TsNode.isIdentifier(value.getExpression()) && bindings.namespaces.has(value.getExpression().getText());
-  }
-  if (TsNode.isElementAccessExpression(value)) {
-    return (
-      staticName(value.getArgumentExpression()) === "Project" &&
-      TsNode.isIdentifier(value.getExpression()) &&
-      bindings.namespaces.has(value.getExpression().getText())
-    );
-  }
-  return false;
-}
-
 function descriptorNameNode(property: Node): Node | undefined {
   return TsNode.isPropertyAssignment(property) ||
     TsNode.isMethodDeclaration(property) ||
@@ -268,16 +212,35 @@ function inspectDescriptor(sf: SourceFile, root: string, out: GateContractFindin
 
 function inspectWalksAndProjects(sf: SourceFile, root: string, out: GateContractFinding[]): void {
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const name = memberName(call.getExpression());
-    if (name !== undefined && DIRECT_WALK_METHODS.has(name)) {
-      out.push(location(root, call.getExpression(), "direct-walk", `gate modules cannot call \`${name}\`; use visitors, ctx.files, or a shared reader`));
+    if (isBindCreationCall(call)) {
+      continue;
+    }
+    const member = resolveCallableMember(call.getExpression());
+    if (member !== undefined && DIRECT_WALK_METHODS.has(member.name) && isTsMorphWalk(member)) {
+      out.push(location(root, call.getExpression(), "direct-walk", `gate modules cannot call \`${member.name}\`; use visitors, ctx.files, or a shared reader`));
     }
   }
-  const bindings = projectBindings(sf);
   for (const creation of sf.getDescendantsOfKind(SyntaxKind.NewExpression)) {
-    if (isProjectConstructor(creation.getExpression(), bindings)) {
+    if (isTsMorphProjectConstructor(creation.getExpression())) {
       out.push(location(root, creation, "gate-owned-project", "gate modules cannot construct a ts-morph Project"));
     }
+  }
+}
+
+type MutationReporter = (receiver: Expression, detail: string) => void;
+
+function inspectMutationCall(call: CallExpression, reportMutation: MutationReporter): void {
+  if (isBindCreationCall(call)) {
+    return;
+  }
+  const assignTarget = objectAssignTarget(call);
+  if (assignTarget !== undefined) {
+    reportMutation(assignTarget, "`Object.assign()`");
+    return;
+  }
+  const member = resolveCallableMember(call.getExpression());
+  if (member !== undefined && MUTATOR_METHODS.has(member.name) && isBuiltinMutator(member) && TsNode.isExpression(member.receiver)) {
+    reportMutation(member.receiver, `\`${member.name}()\``);
   }
 }
 
@@ -290,8 +253,8 @@ function inspectModuleState(sf: SourceFile, root: string, out: GateContractFindi
     }
   }
   const reportMutation = (receiver: Expression, detail: string): void => {
-    const identifier = rootIdentifier(receiver);
-    const declaration = identifier === undefined ? undefined : declarations.find((candidate) => symbolDeclares(identifier, candidate));
+    const resolved = resolveModuleBinding(receiver);
+    const declaration = resolved === undefined ? undefined : declarations.find((candidate) => candidate.compilerNode === resolved.compilerNode);
     if (declaration !== undefined && !reported.has(declaration)) {
       reported.add(declaration);
       out.push(
@@ -300,12 +263,7 @@ function inspectModuleState(sf: SourceFile, root: string, out: GateContractFindi
     }
   };
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const callee = call.getExpression();
-    const method = memberName(callee);
-    const receiver = receiverOf(callee);
-    if (method !== undefined && receiver !== undefined && MUTATOR_METHODS.has(method)) {
-      reportMutation(receiver, `\`${method}()\``);
-    }
+    inspectMutationCall(call, reportMutation);
   }
   for (const binary of sf.getDescendantsOfKind(SyntaxKind.BinaryExpression)) {
     if (ASSIGNMENT_KINDS.has(binary.getOperatorToken().getKind())) {
@@ -316,6 +274,9 @@ function inspectModuleState(sf: SourceFile, root: string, out: GateContractFindi
     if (update.getOperatorToken() === SyntaxKind.PlusPlusToken || update.getOperatorToken() === SyntaxKind.MinusMinusToken) {
       reportMutation(update.getOperand(), "update");
     }
+  }
+  for (const deletion of sf.getDescendantsOfKind(SyntaxKind.DeleteExpression)) {
+    reportMutation(deletion.getExpression(), "delete");
   }
 }
 

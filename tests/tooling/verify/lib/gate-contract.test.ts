@@ -22,6 +22,8 @@ const TS_MORPH_TYPES = `
     export interface SourceFile {
       getDescendants(): unknown[];
       getDescendantsOfKind(kind: number): unknown[];
+      getFirstDescendant(): unknown;
+      getFirstDescendantByKind(kind: number): unknown;
       forEachDescendant(visitor: (node: unknown) => void): void;
     }
   }
@@ -95,17 +97,22 @@ test("a dynamic computed descriptor key refuses instead of disappearing", () => 
 });
 
 test("reports direct repository walks through property, optional, and computed access", () => {
-  const report = inspect(`
+  const report = inspect(
+    `
+    import type { Project, SourceFile } from "ts-morph";
     import { defineGate } from "../contract/gate.ts";
+    declare const ctx: { project: Project; file: SourceFile; node: SourceFile };
     export const gate = defineGate({
-      create(ctx) {
+      create() {
         ctx.project["getSourceFiles"]();
         ctx.file?.getDescendantsOfKind(1);
         ctx.node.forEachDescendant(() => undefined);
         return { visitors: {} };
       },
     });
-  `);
+  `,
+    { "types/ts-morph.d.ts": TS_MORPH_TYPES },
+  );
   expect(report.findings.filter((finding) => finding.code === "direct-walk").map((finding) => finding.detail)).toEqual([
     "gate modules cannot call `getSourceFiles`; use visitors, ctx.files, or a shared reader",
     "gate modules cannot call `getDescendantsOfKind`; use visitors, ctx.files, or a shared reader",
@@ -132,25 +139,31 @@ test("follows ts-morph walk aliases and wrappers without accusing unrelated same
       import { defineGate } from "../contract/gate.ts";
       declare const sf: SourceFile;
       declare const ctx: { readonly project: Project };
+      const FIRST = "getFirstDescendantByKind";
       const walk = sf.getDescendantsOfKind;
       const bound = sf.forEachDescendant.bind(sf);
       const { getSourceFiles } = ctx.project;
       class LogicalRegistry { getSourceFiles() { return ["logical-record"]; } }
+      declare const unresolved: any;
       export const gate = defineGate({
         create() {
           walk(1);
           bound(() => undefined);
           getSourceFiles();
           sf.getDescendants.call(sf);
+          sf.getFirstDescendant.apply(sf);
+          sf[FIRST](1);
+          ctx.project.getSourceFile("x.ts");
           ctx.project.getSourceFileOrThrow("x.ts");
           new LogicalRegistry().getSourceFiles();
+          unresolved.getDescendants();
           return { visitors: {} };
         },
       });
     `,
     { "types/ts-morph.d.ts": TS_MORPH_TYPES },
   );
-  expect(report.findings.filter((finding) => finding.code === "direct-walk")).toHaveLength(5);
+  expect(report.findings.filter((finding) => finding.code === "direct-walk")).toHaveLength(8);
 });
 
 test("follows the ts-morph Project constructor while respecting a shadowed constructor parameter", () => {
@@ -167,6 +180,29 @@ test("follows the ts-morph Project constructor while respecting a shadowed const
     { "types/ts-morph.d.ts": TS_MORPH_TYPES },
   );
   expect(report.findings.filter((finding) => finding.code === "gate-owned-project")).toHaveLength(1);
+});
+
+test("resolves destructured, wrapped, and re-exported ts-morph Project constructors", () => {
+  const report = inspect(
+    `
+      import * as Morph from "ts-morph";
+      import { Project as Reexported } from "./project-door.ts";
+      import { defineGate } from "../contract/gate.ts";
+      const { Project: Destructured } = Morph;
+      export const gate = defineGate({
+        create() {
+          new (Destructured as typeof Destructured)();
+          new Reexported();
+          return { visitors: {} };
+        },
+      });
+    `,
+    {
+      "types/ts-morph.d.ts": TS_MORPH_TYPES,
+      "tooling/src/verify/gates/project-door.ts": 'export { Project } from "ts-morph";\n',
+    },
+  );
+  expect(report.findings.filter((finding) => finding.code === "gate-owned-project")).toHaveLength(2);
 });
 
 test("reports provable module state while leaving immutable vocabulary and local state alone", () => {
@@ -206,6 +242,42 @@ test("follows mutation aliases and write forms without classifying a pure same-n
   expect(report.findings.filter((finding) => finding.code === "module-mutation").map((finding) => finding.detail)).toEqual([
     expect.stringContaining("`STATE`"),
   ]);
+});
+
+test("proves each supported module mutation shape by declaration origin", () => {
+  const report = inspect(`
+    import { defineGate } from "../contract/gate.ts";
+    const PUSH = "push";
+    const VIA_ALIAS = new Set<string>();
+    const VIA_COMPUTED: string[] = [];
+    const VIA_CALL = new Set<string>();
+    const VIA_APPLY = new Map<string, number>();
+    const VIA_ASSIGN = { count: 0 };
+    const VIA_DELETE = { count: 0 };
+    const VIA_UPDATE = { count: 0 };
+    function record() {
+      const alias = VIA_ALIAS;
+      alias.add("one");
+      VIA_COMPUTED[PUSH]("two");
+      VIA_CALL.add.call(VIA_CALL, "three");
+      VIA_APPLY.set.apply(VIA_APPLY, ["four", 4]);
+      Object.assign(VIA_ASSIGN, { count: 1 });
+      delete VIA_DELETE.count;
+      VIA_UPDATE.count++;
+    }
+    export const gate = defineGate({ create() { record(); return { visitors: {} }; } });
+  `);
+  expect(report.findings.filter((finding) => finding.code === "module-mutation")).toHaveLength(7);
+});
+
+test("creating an unused bound mutator is not itself a mutation", () => {
+  const report = inspect(`
+    import { defineGate } from "../contract/gate.ts";
+    const VOCABULARY = new Set<string>();
+    const addLater = VOCABULARY.add.bind(VOCABULARY);
+    export const gate = defineGate({ create() { return { visitors: {} }; } });
+  `);
+  expect(report.findings.filter((finding) => finding.code === "module-mutation")).toHaveLength(0);
 });
 
 test("reports baseline ledger paths", () => {
