@@ -32,8 +32,8 @@
 //
 // THE SANCTIONED SIDE IS A TOKEN STREAM, NOT A NUMBER (#1037). A `--orb-tier-*` custom property is
 // UNREGISTERED, so its computed value is the authored token stream verbatim — and every leading token on
-// this tree is a LENGTH written as a math function (theme.css: `--leading-label: round(1rem, 1px)`). The
-// census used to string-parse that value; `parseFloat("round(1rem, 1px)")` is NaN, so ten live row titles
+// this tree is a LENGTH written as a math function (theme.css: `--leading-label: round(up, 1rem, 1px)`). The
+// census used to string-parse that value; `parseFloat("round(up, 1rem, 1px)")` is NaN, so ten live row titles
 // and two live fields on the characters surface were withheld as "unresolved" while their paint matched
 // the tier EXACTLY, and the leading arm could never fire in either direction. So the sanctioned value is
 // resolved BY THE BROWSER instead (`tierSanctioned` below): force the property inline from `var(<name>)`,

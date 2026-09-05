@@ -22,7 +22,7 @@ export const INTERACTIVE_TEXT_FLOOR_PX = 11;
  *  rather than a constant.)
  *
  *  READ THE MAP, NEVER THE SERIALIZATION (docs/design/integer-line-boxes.md §3b/§6). `leading.*` are
- *  px-resolving dimensions emitted as `round(1rem, 1px)`, so `TOKENS["leading.label"].value` is a CSS
+ *  px-resolving dimensions emitted as `round(up, 1rem, 1px)`, so `TOKENS["leading.label"].value` is a CSS
  *  string; `SNAPPED_LENGTH_BASE_PX` is the numeric companion generated for exactly this consumer.
  *  The previous spelling was `Number(TOKENS["leading.label"].value)` and the snapped emission turned it
  *  into NaN — MEASURED on this tree the moment the tokens were generated. Its direction is worth pinning

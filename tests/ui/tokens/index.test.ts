@@ -25,6 +25,18 @@ test("theme.css, tokens/index.ts and tokens/themes.gen.ts are exactly what token
   expect(readFileSync(join(UI_ROOT, "src/tokens/themes.gen.ts"), "utf8")).toBe(themesTs);
 });
 
+test("every SNAPPED --leading-* var spells round(up, …) — the #1160 leading-floor strategy, never bare round( (--leading-none is a unitless ratio, not a snapped dimension)", () => {
+  const themeCss = readFileSync(join(UI_ROOT, "src/styles/theme.css"), "utf8");
+  const leadingLines = themeCss.split("\n").filter((line) => /--leading-[\w-]+:\s*round\(/u.test(line));
+  expect(leadingLines.length, "at least one snapped --leading-* var must be emitted").toBeGreaterThan(0);
+  for (const line of leadingLines) {
+    expect(
+      line,
+      `${line.trim()} must snap up (LEADING_FLOOR, docs/design/integer-line-boxes.md §3b) — round(nearest) can round a box below the authored ratio`,
+    ).toMatch(/round\(up,/u);
+  }
+});
+
 test("runtime CSS placement emits Tailwind namespaces into @theme and private aliases into :root", () => {
   const css = renderGeneratedCss([
     { path: ["spacing", "control"], value: "2rem", placement: "theme" },
