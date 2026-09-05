@@ -19,6 +19,7 @@ import type {
   ChatHistoryMessage,
   ChatRequest,
   ChatResult,
+  ProviderScrubSet,
   ResolvedChatKnobs,
   ResolvedReasoning,
   ResolvedWarning,
@@ -34,6 +35,7 @@ import {
   effortToOpenAIReasoning,
   mapChatCompletionToTurnResult,
   parseOpenAiSse,
+  providerCredentialSecretValues,
   providerErrorFromHttp,
   rawResponseFormat,
   rawToolCallDeltas,
@@ -398,7 +400,7 @@ async function fetchAndReduce(args: {
   readonly req: ChatCompletionsRequest;
   readonly baseUrl: string;
   readonly responseMap: CustomOpenAiResponseMap | null;
-  readonly secrets: readonly string[];
+  readonly secrets: ProviderScrubSet;
   readonly markCommitted: () => void;
 }): Promise<{
   readonly view: Awaited<ReturnType<typeof reduceChatCompletionStream>>;
@@ -503,7 +505,9 @@ type CustomOpenAiCredential = Extract<ResolvedCredential, { readonly source: "cu
 // `redactSecretsFromText` also catches a reshaped token. (The credential-leak-by-value class, per the
 // image-proxy / response-echo precedents.)
 function scrubCapturedBody(body: Record<string, unknown>, cred: CustomOpenAiCredential): Record<string, unknown> {
-  const secrets = [...(cred.apiKey !== null ? [cred.apiKey] : []), ...Object.values(cred.headers ?? {})];
+  // Through the ONE mint (#1599) rather than a third hand-rolled copy of the same literal set — the belt has
+  // one home, so widening it (a new secret-valued credential field) can never reach two of three sites.
+  const secrets = providerCredentialSecretValues(cred);
   if (secrets.length === 0) {
     return body;
   }
@@ -537,7 +541,7 @@ export async function runChatTurn(req: ChatRequest, deps: CustomByoRunnerDeps): 
   // captured body before recording — same seam the "Test endpoint" inspector uses on echoed responses.
   deps.captureWire?.({ chatId: req.chatId, api: req.api, backend: "custom-openai", model: req.model, body: scrubCapturedBody(body, cred) });
   const headers = buildHeaders(cred.apiKey, cred.headers);
-  const secrets = [...(cred.apiKey === null ? [] : [cred.apiKey]), ...Object.values(cred.headers ?? {})];
+  const secrets = providerCredentialSecretValues(cred);
   const url = `${cred.baseUrl.replace(TRAILING_SLASH_RE, "")}${CHAT_COMPLETIONS_PATH}`;
 
   const { view, reasoning } = await runWithPreCommitRetry(

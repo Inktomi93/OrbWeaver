@@ -216,6 +216,7 @@ export type {
   ProviderErrorKind,
   ProviderExecutor,
   ProviderRole,
+  ProviderScrubSet,
   RateLimitSnapshot,
   RerankHit,
   RerankRequest,

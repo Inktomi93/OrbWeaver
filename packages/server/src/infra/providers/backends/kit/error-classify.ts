@@ -9,10 +9,10 @@
 // here — they belong to `backends/agent-sdk`. This module is the HTTP path only.
 
 import { errorMessage } from "@orb/kit/error-message";
-import type { ProviderErrorKind } from "../../contract/index.ts";
+import type { ProviderErrorKind, ProviderScrubSet } from "../../contract/index.ts";
 import { ProviderError } from "../../contract/index.ts";
 import { redactSecretsFromText } from "./openai-compat/body.ts";
-import { sanitizeApiError } from "./sanitize.ts";
+import { NO_PROVIDER_SECRETS, sanitizeApiError } from "./sanitize.ts";
 
 // Transport-name patterns on the hot error-classification path.
 const TRANSIENT_TRANSPORT_RE = /timeout|connection|network|overload/i;
@@ -176,8 +176,11 @@ function classifyHttpError(error: unknown): ErrorClassification & { status: numb
  * Peel `body` + `cause` off an HTTP-error chain (the OpenRouter SDK carries the raw upstream body + the zod
  * parse failure that wrapped it). Defensive throughout (unknown-narrowing only) so it works for any
  * HTTP-based error; both fields are sanitized before they land on a log record.
+ *
+ * `secrets` is REQUIRED and branded for the same reason {@link providerErrorFromHttp}'s is (#1599) — the
+ * peeled `body` is the reflected upstream body, the single most secret-prone string on this boundary.
  */
-export function extractHttpErrorDiagnostic(error: unknown, secrets: readonly string[] = []): HttpErrorDiagnostic {
+export function extractHttpErrorDiagnostic(error: unknown, secrets: ProviderScrubSet): HttpErrorDiagnostic {
   if (!isRecord(error)) {
     return {};
   }
@@ -201,14 +204,25 @@ export function extractHttpErrorDiagnostic(error: unknown, secrets: readonly str
  * caller's provider+endpoint label, attach the status (when known) for curl-ability, and preserve the
  * cause. The message is sanitized BEFORE concatenation so an HTML error page or control-char-laced body
  * can't poison logs/UI.
+ *
+ * SECURITY (#1599): `secrets` is REQUIRED and is a branded {@link ProviderScrubSet} — it used to default to
+ * `[]`, which made the by-value scrub pure call-site discipline on a message that reaches a DURABLE sink
+ * (the #1373 strike-out logs it as `securityEvent("credential_revoked", { reason })`). A credential-bearing
+ * runner now cannot omit it, and cannot fake it with a bare `[]`: the only two admissible values are
+ * `providerCredentialSecretValues(credential)` and the loudly-named `NO_PROVIDER_SECRETS`.
  */
-export function providerErrorFromHttp(error: unknown, prefix: string, secrets: readonly string[] = []): ProviderError {
+export function providerErrorFromHttp(error: unknown, prefix: string, secrets: ProviderScrubSet): ProviderError {
   const { kind, retryable, status } = classifyHttpError(error);
   const safe = redactSecretsFromText(sanitizeApiError(errorMessage(error)), secrets);
   // Credential-bearing HTTP boundaries must never retain the raw thrown object: SDK/fetch errors can
   // carry reflected bodies, headers and nested causes as enumerable fields that a later logger serializes.
   // Keep the classified status and sanitized message, but replace that opaque graph with a safe cause.
-  const cause = secrets.length === 0 ? error : new Error(safe);
+  //
+  // The test is the caller's DECLARED nature, not `secrets.length`: a length test also un-guarded a
+  // credential-bearing boundary whose set happens to be empty at runtime (a no-auth custom_openai endpoint
+  // whose `includeBody` carries key-in-body auth mints `[]`), and that is precisely a keyed path. Only the
+  // explicit keyless spelling licenses retaining the raw graph.
+  const cause = secrets === NO_PROVIDER_SECRETS ? error : new Error(safe);
   return new ProviderError({
     kind,
     retryable,
