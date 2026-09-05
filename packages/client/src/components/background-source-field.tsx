@@ -90,6 +90,11 @@ export function BackgroundSourceField({ value, onChange, readOnly = false }: Bac
 
   return (
     <Stack gap="field">
+      {/* DELIBERATELY UNRESERVED (#1098) — a SHARED composite with two owners in two features (the
+          character Look tab and the chat room-overrides tab). One literal key here would hand both
+          surfaces the same remembered box, which is the copy-paste failure the reservation gate's
+          duplicate arm exists to red; the honest fix is a caller-supplied `reserveKey` pass-through so
+          each owner mints its own — the same shape design §1.4 already prescribes for CharacterPicker. */}
       <QueryBoundary
         fallback={<Text tone="muted">Loading your background library…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your background library" onRetry={retry} />}

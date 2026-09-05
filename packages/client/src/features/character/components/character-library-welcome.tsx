@@ -118,6 +118,10 @@ function faceOf(character: CharacterRow, stamp: string | null, caption: string |
  *  read anything. */
 export function CharacterLibraryWelcome(): ReactElement {
   return (
+    // DELIBERATELY UNRESERVED (#1098) — a GEOMETRY refusal. `CharacterLandingBody` renders through
+    // `LandingFrame`, whose root IS this pane's scroll box (`h-full overflow-y-auto`, below) — under an
+    // auto-height measuring Stack that `h-full` resolves to `auto` and the landing stops scrolling
+    // (#1133). The frame has to move above the boundary first.
     <QueryBoundary
       fallback={<Text voice="quiet">Loading your characters…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your characters" onRetry={retry} />}

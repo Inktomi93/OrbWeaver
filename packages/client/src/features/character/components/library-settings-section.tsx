@@ -48,9 +48,13 @@ function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
 /** The Library settings section body — mounted at the appearance pane's contributed-sections anchor. */
 export function LibrarySettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
+    // RESERVED (#1098), fallback UNCHANGED — it settles into ONE rows-per-page control, so a SkeletonRows
+    // list would claim rows that never arrive; the sentence is the honest wait. The key still earns its
+    // place: this is a contributed section on the appearance pane, with every later section below it.
     <QueryBoundary
       fallback={<Text voice="gloss">Loading your library settings…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your library settings" onRetry={retry} />}
+      reserveKey="config.appearance.library"
     >
       <LibraryPageSizeRow sectionId={sectionId} />
     </QueryBoundary>
