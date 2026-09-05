@@ -7,6 +7,7 @@ export type {
   DebugConflict,
   DebugEnvKey,
   DebugPosture,
+  DevStackAdoption,
   DevStackIdentity,
   DevStackIdentityVerdict,
   DistState,
@@ -44,11 +45,17 @@ export { DEBUG_ENV_KEYS, ENGINE_HEALTH_WAITS, ENGINE_LAUNCH_ACTIONS, STACK_MODES
 export { formatDispatch, parseStackArgv, STACK_USAGE } from "./lib/argv.ts";
 export { debugConflictMessage, resolveDebugArming, stripDebugEnv } from "./lib/debug-env.ts";
 export {
+  adoptDevStackGroup,
+  adoptionText,
   captureDevStackIdentity,
+  DEV_STACK_LAUNCH_ID_ENV,
   devStackGroupHasMembers,
+  devStackGroupMembers,
   devStackIdentityFilePath,
   parseDevStackIdentity,
+  readProcessLaunchId,
   recordedDevStackVerdict,
+  signalAdoptedDevStackGroup,
   signalDevStackIdentity,
   verifyDevStackIdentity,
   writeDevStackIdentity,

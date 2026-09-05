@@ -113,7 +113,25 @@ export interface ObservedStackProcess {
 export interface DevStackIdentity extends ObservedStackProcess {
   readonly version: 1;
   readonly repoRoot: string;
+  /** THE LAUNCH MARKER (#1013). A high-entropy token `stack.sh` mints and EXPORTS before it spawns the
+   *  setsid leader, so every member of the resulting group inherits it in its environment, and which is
+   *  recorded here from the leader's own `/proc/<pid>/environ`. It is what makes a leaderless SURVIVOR
+   *  identifiable: a live pid in the recorded group that carries this exact token was started by THIS
+   *  launch and by nothing else. OPTIONAL because a record written before the marker existed must still
+   *  parse — such a record simply cannot be adopted, which is the pre-#1013 refusal, unchanged. */
+  readonly launchId?: string | undefined;
 }
+
+/** Can a leaderless group be adopted? (#1013 — the answer the pidfile alone could never give.)
+ *    `adoptable`   — every live member of the recorded group carries the recorded launch marker.
+ *    `unmarked`    — at least one live member does NOT, so this is not provably our group any more.
+ *    `no-marker`   — the record predates the marker (or the leader never carried one): unknowable.
+ *    `empty`       — the group has no members left; there is nothing to adopt. */
+export type DevStackAdoption =
+  | { readonly kind: "adoptable"; readonly pgid: number; readonly members: readonly number[] }
+  | { readonly kind: "unmarked"; readonly pgid: number; readonly unmarked: readonly number[] }
+  | { readonly kind: "no-marker"; readonly pgid: number; readonly reason: string }
+  | { readonly kind: "empty"; readonly pgid: number };
 
 export type DevStackIdentityVerdict =
   | { readonly verdict: "owned"; readonly pgid: number; readonly witness: ObservedStackProcess }

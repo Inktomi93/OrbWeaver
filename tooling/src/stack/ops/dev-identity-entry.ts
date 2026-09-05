@@ -2,11 +2,14 @@ import { unlinkSync } from "node:fs";
 import process from "node:process";
 import { runTool, UsageError } from "../../_shared/run-tool.ts";
 import {
+  adoptDevStackGroup,
+  adoptionText,
   captureDevStackIdentity,
   devStackGroupHasMembers,
   devStackIdentityFilePath,
   readDevStackIdentity,
   recordedDevStackVerdict,
+  signalAdoptedDevStackGroup,
   signalDevStackIdentity,
   writeDevStackIdentity,
 } from "../lib/dev-process-identity.ts";
@@ -42,6 +45,58 @@ function probe(): number {
   const verdict = recordedDevStackVerdict(repoRoot);
   print(verdict);
   return verdict.verdict === "owned" ? 0 : 1;
+}
+
+/** WHAT WAS VERIFIED, AND HOW (#1013 receipt 1: `status` reported a pidfile group from a different era as
+ *  though the number itself meant something). One line, always, naming the evidence rather than a state:
+ *  a witnessed leader, an adopted marked group, an unadoptable one and its unmarked pids, or absence.
+ *  Non-destructive by construction — it reads `/proc` and signals nothing. */
+function describeOwnership(): number {
+  const verdict = recordedDevStackVerdict(repoRoot);
+  if (verdict.verdict === "owned") {
+    process.stdout.write(
+      `DESCRIBE dev-stack basis=leader-identity pgid=${verdict.pgid} detail=${JSON.stringify(`leader pid ${verdict.pgid} witnessed: /proc identity matches the launch record byte for byte`)}\n`,
+    );
+    return 0;
+  }
+  if (verdict.verdict !== "departed") {
+    process.stdout.write(`DESCRIBE dev-stack basis=${verdict.verdict} pgid=none detail=${JSON.stringify(verdict.reason)}\n`);
+    return verdict.verdict === "absent" ? 0 : 1;
+  }
+  const identity = readDevStackIdentity(repoRoot);
+  const adoption = identity === null ? null : adoptDevStackGroup(identity);
+  if (adoption === null) {
+    process.stdout.write(`DESCRIBE dev-stack basis=unreadable pgid=${verdict.pgid} detail=${JSON.stringify(verdict.reason)}\n`);
+    return 1;
+  }
+  process.stdout.write(`DESCRIBE dev-stack basis=${adoption.kind} pgid=${adoption.pgid} detail=${JSON.stringify(adoptionText(adoption))}\n`);
+  return adoption.kind === "adoptable" || adoption.kind === "empty" ? 0 : 1;
+}
+
+/** ADOPT a leaderless group and signal it (#1013). The standing rule is untouched — `signal` above still
+ *  refuses a departed leader — this is the STRICTER second door: it signals only when EVERY live member of
+ *  the recorded group carries the launch marker the record names, which is more evidence of ownership than
+ *  a witnessed leader's pgid alone ever was. A record with no marker, a group with an unmarked member, or
+ *  a leader that is still ALIVE all refuse; the last because a live leader is `signal`'s job, not this. */
+function adoptSignal(arg: string | undefined): number {
+  if (arg !== "SIGTERM" && arg !== "SIGKILL") {
+    throw new UsageError("adopt-signal requires SIGTERM or SIGKILL");
+  }
+  const verdict = recordedDevStackVerdict(repoRoot);
+  if (verdict.verdict !== "departed") {
+    print({ ...verdict, reason: `adopt-signal applies only to a DEPARTED leader; this record is ${verdict.verdict}` });
+    return 1;
+  }
+  const identity = readDevStackIdentity(repoRoot);
+  if (identity === null) {
+    print(verdict);
+    return 1;
+  }
+  const adoption = signalAdoptedDevStackGroup(identity, arg);
+  print({ verdict: adoption.kind === "adoptable" ? "adopted" : "refused", pgid: adoption.pgid, reason: adoptionText(adoption) });
+  // An EMPTY group is not a failure: there was provably nothing left to signal, the same outcome as a
+  // delivered one (the #1162 reasoning, applied to this door).
+  return adoption.kind === "adoptable" || adoption.kind === "empty" ? 0 : 1;
 }
 
 function signal(arg: string | undefined): number {
@@ -121,5 +176,11 @@ await runTool(async () => {
   if (verb === "clear-absent") {
     return clearAbsent();
   }
-  throw new UsageError("usage: dev-identity-entry.ts capture <pid> | probe | signal SIGTERM|SIGKILL | clear-absent");
+  if (verb === "describe") {
+    return describeOwnership();
+  }
+  if (verb === "adopt-signal") {
+    return adoptSignal(arg);
+  }
+  throw new UsageError("usage: dev-identity-entry.ts capture <pid> | probe | describe | signal SIGTERM|SIGKILL | adopt-signal SIGTERM|SIGKILL | clear-absent");
 });
