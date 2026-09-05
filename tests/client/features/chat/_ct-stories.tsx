@@ -139,7 +139,7 @@ import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/
 import { DatabankSettingsSection } from "../../../../packages/client/src/features/chat/components/databank-settings-section.tsx";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row.tsx";
 import { GreetingSwipeStrip } from "../../../../packages/client/src/features/chat/components/greeting-swipe-strip.tsx";
-import { GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form.tsx";
+import { CommittedGroupConfigTab, GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form.tsx";
 import { ImageryTemplatesSection } from "../../../../packages/client/src/features/chat/components/imagery-templates-section.tsx";
 import { InjectionsManager, InjectionsSkeleton } from "../../../../packages/client/src/features/chat/components/injections-manager.tsx";
 import { InviteDialog } from "../../../../packages/client/src/features/chat/components/invite-dialog.tsx";
@@ -3705,5 +3705,31 @@ export function ChatContextDisclosureSectionStory(): ReactElement {
         </DisclosureSection>
       </Stack>
     </div>
+  );
+}
+
+/** The COMMITTED Group tab — `CommittedGroupConfigTab`, i.e. the adapter that wires the real
+ *  `chat.setGroupConfig` mutation into the shared autosave form (#1501). Distinct from
+ *  `GroupConfigFormStory`, which mounts the pure form with a local `save` and therefore cannot see the
+ *  adapter at all. The unmount button is the observable: the form's ONE teardown flush re-sends an edit that
+ *  has not been persisted, so whether a rejected save was recorded as a FAILURE is visible on the wire. */
+export function CommittedGroupConfigTabStory(): ReactElement {
+  const [mounted, setMounted] = useState(true);
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <button onClick={(): void => setMounted(false)} type="button">
+          Leave the tab
+        </button>
+        {mounted ? (
+          <QueryBoundary
+            fallback={<Text tone="muted">Loading the group settings…</Text>}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="the group settings" onRetry={retry} />}
+          >
+            <CommittedGroupConfigTab chatId={CHAT_ID} />
+          </QueryBoundary>
+        ) : null}
+      </div>
+    </CtDataProviders>
   );
 }

@@ -200,7 +200,13 @@ export function CommittedGroupConfigTab({ chatId }: CommittedGroupConfigTabProps
     <GroupConfigForm
       entityId={`${GROUP_CONFIG_ENTITY_PREFIX}${chatId}`}
       config={config}
-      save={(next): Promise<unknown> => setGroupConfig.mutateAsync({ chatId, config: next }).catch(() => undefined)}
+      // NO `.catch` HERE, AND THAT IS THE CONTRACT (#1501). `createAutosaveEntityForm` decides saved-vs-error
+      // by whether this promise RESOLVES (`forms/create-autosave-entity-form.tsx` onSubmit: it re-baselines,
+      // clears the crash draft and sets "saved" on resolve; on rejection it keeps the draft, sets "error" and
+      // lights Retry). A `.catch(() => undefined)` here turned every rejected write into a resolved one, so a
+      // failed save re-baselined the form, dropped the edit's only durable copy and printed "Saved". The
+      // rejection is the signal; the mutation's own errorToast is the words.
+      save={(next): Promise<unknown> => setGroupConfig.mutateAsync({ chatId, config: next })}
     />
   );
 }

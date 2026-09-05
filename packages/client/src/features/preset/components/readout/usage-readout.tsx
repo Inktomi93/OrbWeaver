@@ -27,7 +27,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { QueryErrorState, useTRPC } from "#data";
 import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 
@@ -54,16 +54,27 @@ export function UsageReadout({ presetId }: { readonly presetId: PresetId }): Rea
   const rooms = usage.data?.gmRooms ?? [];
   const isDefault = usage.data?.isUserDefault === true;
 
+  // A FAILED READ IS NOT A SLOW ONE (#1500). `usage.data === undefined` was the only branch, so once the
+  // client's two retries were spent this block printed "Checking…" for the rest of the session, with no way
+  // back but a reload. The error arm is tested FIRST — `isError` implies an absent `data`, never the reverse —
+  // and it carries a Retry that really re-reads (the `QueryErrorState` grammar).
+  let body: ReactElement;
+  if (usage.isError) {
+    body = <QueryErrorState label="what uses this preset" onRetry={(): void => void usage.refetch()} />;
+  } else if (usage.data === undefined) {
+    body = <Text voice="gloss">Checking…</Text>;
+  } else {
+    body = (
+      <Stack gap="row">
+        <Text voice="gloss">{bindingLine(isDefault, rooms.length > 0)}</Text>
+        {rooms.length === 0 ? null : <GmRooms rooms={rooms} />}
+      </Stack>
+    );
+  }
+
   return (
     <Section data-slot="preset-usage" kicker="Used by">
-      {usage.data === undefined ? (
-        <Text voice="gloss">Checking…</Text>
-      ) : (
-        <Stack gap="row">
-          <Text voice="gloss">{bindingLine(isDefault, rooms.length > 0)}</Text>
-          {rooms.length === 0 ? null : <GmRooms rooms={rooms} />}
-        </Stack>
-      )}
+      {body}
     </Section>
   );
 }

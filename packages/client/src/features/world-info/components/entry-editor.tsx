@@ -120,9 +120,11 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
           <AutosaveStatus state={session.saveState} onRetry={session.retrySave} />
           <DeleteEntryAction
             title={entry.title}
+            // The editor closes when the entry is GONE, not when the delete is SENT (#1501). Back to back,
+            // a rejected delete still tore down the editor — so the entry survived, the reader was ejected
+            // from it, and the only trace was a toast over a list that still had the row.
             onDelete={(): void => {
-              remove.mutate({ entryId: entry.id });
-              onDeleted(entry.id);
+              remove.mutate({ entryId: entry.id }, { onSuccess: (): void => onDeleted(entry.id) });
             }}
           />
         </Row>

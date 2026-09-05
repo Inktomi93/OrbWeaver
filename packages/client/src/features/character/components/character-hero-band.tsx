@@ -183,11 +183,23 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
     }
     try {
       const stored = await upload(file, "avatar");
-      update.mutate({ characterId: detail.id, input: { avatarAssetId: stored.assetId } });
-      setPreviewHash(stored.hash);
-      // A static ring flash, no keyframe (reduced-motion-safe by construction); clears itself shortly after.
-      setConfirming(true);
-      globalThis.setTimeout((): void => setConfirming(false), CONFIRM_MS);
+      // UPLOAD-COMPLETE IS NOT COMMIT (#1501). The blob landing in the CAS says nothing about the character
+      // row pointing at it: the portrait swapped and the confirm ring flashed on the same tick as `.mutate`,
+      // so a rejected `character.update` left the new face on screen — over a card that still wears the old
+      // one everywhere else — and the ring said it had been saved. Both the preview and its confirmation are
+      // the WRITE's, not the upload's; a failure keeps the old portrait and speaks through the mutation's own
+      // errorToast.
+      update.mutate(
+        { characterId: detail.id, input: { avatarAssetId: stored.assetId } },
+        {
+          onSuccess: (): void => {
+            setPreviewHash(stored.hash);
+            // A static ring flash, no keyframe (reduced-motion-safe by construction); clears itself shortly after.
+            setConfirming(true);
+            globalThis.setTimeout((): void => setConfirming(false), CONFIRM_MS);
+          },
+        },
+      );
     } catch {
       notify.error("Couldn't upload the portrait.");
     }

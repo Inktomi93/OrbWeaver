@@ -2,6 +2,7 @@
 // as an AppShell sibling on `/`. Trigger: viewer owns zero personas. Forced — no close affordance; the
 // only action is Create. On create, seeds both global pointers (current + default).
 
+import type { PersonaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -27,29 +28,57 @@ export function FirstRunPersonaDialog(): ReactElement | null {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [pending, setPending] = useState(false);
-  // Closes the gate the instant create resolves, without waiting for the bus-driven refetch echo.
+  // Closes the gate the instant BOTH writes resolve, without waiting for the bus-driven refetch echo.
   const [done, setDone] = useState(false);
+  // THE PERSONA THIS SESSION ALREADY CREATED (#1501). Create and seed were awaited under ONE generic catch,
+  // so a create-succeeds / seed-fails run left an orphan persona with no `currentPersonaId` pointer, told the
+  // reader to "try again" — which would have minted a SECOND persona — and then unmounted the gate anyway the
+  // moment `persona.list` echoed a non-empty library. Holding the id makes the retry retry the half that
+  // failed, and holding the gate open makes the retry reachable at all.
+  const [createdId, setCreatedId] = useState<PersonaId | null>(null);
 
-  if (done || personasQuery.data === undefined || personas.length > 0) {
+  // The gate stays up while THIS session owns an unseeded persona: the library is no longer empty, but the
+  // pointer the gate exists to write is still missing, and no other surface would ever offer to write it.
+  if (done || (createdId === null && (personasQuery.data === undefined || personas.length > 0))) {
     return null;
   }
 
   const canSubmit = name.trim().length > 0 && !pending;
+  // The verb NAMES THE REMAINING WORK. Once the persona exists, "Create persona" would offer to mint a second
+  // one; what is left is the pointer the seed write failed to set.
+  let submitLabel = pending ? "Creating…" : "Create persona";
+  if (createdId !== null) {
+    submitLabel = pending ? "Finishing…" : "Finish setting up";
+  }
   const submit = async (): Promise<void> => {
     setPending(true);
+    let personaId = createdId;
+    if (personaId === null) {
+      try {
+        const created = await create.mutateAsync({
+          input: { name: name.trim(), description: description.trim() },
+        });
+        personaId = created.id;
+        setCreatedId(created.id);
+      } catch {
+        notify.error("Couldn't create your persona — try again.");
+        setPending(false);
+        return;
+      }
+    }
     try {
-      const created = await create.mutateAsync({
-        input: { name: name.trim(), description: description.trim() },
-      });
       await setSeed.mutateAsync({
         section: "seeds",
-        patch: { currentPersonaId: created.id, defaultPersonaId: created.id },
+        patch: { currentPersonaId: personaId, defaultPersonaId: personaId },
       });
-      setDone(true);
     } catch {
-      notify.error("Couldn't create your persona — try again.");
+      // NAMED HONESTLY: the persona exists. "Couldn't create your persona" over a persona that WAS created is
+      // the lie that sent the reader back to a Create button.
+      notify.error("Created your persona, but couldn't make it yours yet — try again.");
       setPending(false);
+      return;
     }
+    setDone(true);
   };
 
   return (
@@ -71,7 +100,7 @@ export function FirstRunPersonaDialog(): ReactElement | null {
         <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} />
       </Field>
       <Button intent="primary" disabled={!canSubmit} data-testid={testId("firstRunPersonaCreate")} onClick={(): void => void submit()}>
-        {pending ? "Creating…" : "Create persona"}
+        {submitLabel}
       </Button>
     </FormDialog>
   );

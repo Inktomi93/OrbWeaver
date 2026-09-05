@@ -15,7 +15,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
-import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 // The bus's OWN transport mutations (#649). `stream.attach` rides the BATCHED HTTP link, not the SSE leg
 // (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket` never answers
 // it and it was riding `routeTrpc`'s lenient null in every mount here. Imported from the bus's own fixture
@@ -403,4 +403,50 @@ test("the inbox rides the tab's ONE socket — one connect, one attach, zero ext
   await expect.poll(() => socket.attachedChannels()).toEqual(["notifications"]);
 
   expect(socket.connects()).toBe(1);
+});
+
+// #1501 — ACCEPT AND DISMISS ARE NOT ONE TRANSACTION. `onAccepted` sat AFTER the dismiss `await`, so when the
+// dismiss failed — swallowed by `ownAction`'s catch, which is correct, the dismiss carries its own
+// errorToast — the reader who HAD joined the room was left standing in the inbox they opened it from, with
+// an Accept button that could only fail from then on. The join is what the navigation is a consequence of.
+test("an accepted invite navigates even when the follow-up dismiss FAILS (#1501)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
+    "notifications.dismiss": () => trpcError({ message: "dismiss failed" }),
+    "invites.acceptInvite": () => ({ chat: { id: "chat_ct_target", participants: [] }, participant: { id: "participant_ct_new" } }),
+  });
+  await routeInboxStream(page, []);
+
+  await mount(<NotificationBellStory />);
+  await page.getByRole("button", { name: "Notifications (1 unread)" }).click();
+  await page.getByRole("button", { name: "Accept invitation from alex" }).click();
+
+  await expect.poll(() => trpc.count("invites.acceptInvite"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] }).toBe(1);
+  // `onAccepted` closes the popover on its way to the room — the one rendered consequence of navigating.
+  await expect(page.getByRole("button", { name: "Accept invitation from alex" })).toHaveCount(0);
+});
+
+// The SHEET lens has no popover to close, so it is where the row's own affordances are readable: once the
+// join has happened, Accept must never be offered again (re-accepting a joined invite can only fail), and
+// the Dismiss that failed must be — that IS the retry.
+test("after the join lands, the row stops offering Accept and offers the failed Dismiss instead (#1501)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
+    "notifications.dismiss": () => trpcError({ message: "dismiss failed" }),
+    "invites.acceptInvite": () => ({ chat: { id: "chat_ct_target", participants: [] }, participant: { id: "participant_ct_new" } }),
+  });
+  await routeInboxStream(page, []);
+
+  const sheet = await mount(<NotificationBellSheetStory />);
+  await sheet.getByRole("button", { name: "Accept invitation from alex" }).click();
+  await expect.poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] }).toBe(1);
+
+  await expect(sheet.getByRole("button", { name: "Accept invitation from alex" })).toHaveCount(0);
+  await expect(sheet.getByRole("button", { name: "Decline invitation from alex" })).toHaveCount(0);
+  await expect(sheet.getByRole("button", { name: "Dismiss" })).toBeVisible();
 });

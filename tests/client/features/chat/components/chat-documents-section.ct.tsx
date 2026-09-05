@@ -21,7 +21,7 @@ import type { DocumentId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { ChatDocumentsSectionStory } from "../_ct-stories.tsx";
 
 const SET_VISIBILITY = "chat.setChatDocumentVisibility";
@@ -274,4 +274,102 @@ test("member: no warning even on a slotless preset — it is the HOST's preset t
 
   await expect(component.locator('[data-databank-slot="missing"]')).toBeVisible();
   await expect(component.getByText(SLOT_WARNING, { exact: true })).toHaveCount(0);
+});
+
+// ── #1520 item 3 · A FAILED PRESET READ IS NOT "NO CUSTOM PRESET" ──────────────────────────────────
+// `useSlotState` collapsed `preset.isError` WHOLESALE to the built-in arrangement, which DOES place the
+// slot — so a transient failure looked exactly like a host running the default and the "Not reaching the
+// prompt" warning was withheld from a host whose real arrangement may well be slotless.
+//
+// THE OLD RULING SURVIVES; ITS INPUT CHANGED. The degrade was written for a STALE OR UNOWNED id, which is
+// what the server itself degrades, and the second test below is that half: a NOT_FOUND still resolves to
+// the built-in. What changed is that the degrade no longer swallows every OTHER failure with it.
+test("a TRANSIENT preset read failure settles as UNKNOWN — it neither warns nor claims the slot is placed", async ({ mount, page }) => {
+  await stubRack(page, {
+    [SETTINGS]: () => ({
+      ...SETTINGS_BUILT_IN,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: ACTIVE_PRESET_ID } },
+    }),
+    [PRESET_GET]: () => trpcError({ code: "INTERNAL_SERVER_ERROR", message: "preset read failed" }),
+  });
+  const component = await mount(<ChatDocumentsSectionStory isHost={true} />);
+
+  // Barrier on the SETTLED failure state, then read both absences against it.
+  await expect(component.locator('[data-databank-slot="unknown"]')).toBeVisible();
+  await expect(component.locator('[data-databank-slot="placed"]')).toHaveCount(0);
+  await expect(component.getByText(SLOT_WARNING, { exact: true })).toHaveCount(0);
+  // …and it SAYS it could not find out, with a way to ask again — the silence was the defect.
+  await expect(component.getByText("Couldn't check whether your preset places", { exact: false })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Check again" })).toBeVisible();
+});
+
+test("a NOT_FOUND preset still degrades to the built-in arrangement — the server's own degrade, preserved", async ({ mount, page }) => {
+  await stubRack(page, {
+    [SETTINGS]: () => ({
+      ...SETTINGS_BUILT_IN,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: ACTIVE_PRESET_ID } },
+    }),
+    [PRESET_GET]: () => trpcError({ code: "NOT_FOUND", message: "no such preset" }),
+  });
+  const component = await mount(<ChatDocumentsSectionStory isHost={true} />);
+
+  // The built-in places the slot, so this is `placed` — a stale pointer runs the default SERVER-side too.
+  await expect(component.locator('[data-databank-slot="placed"]')).toBeVisible();
+  await expect(component.getByText(SLOT_WARNING, { exact: true })).toHaveCount(0);
+});
+
+// ── #1520 item 2 · TWO TOGGLES IN ONE TASK ─────────────────────────────────────────────────────────
+// The verb has SET semantics, so every toggle sends the WHOLE excluded set. The mutation's optimistic patch
+// (`use-chat-document-mutations.ts:59-73`) covers the ordinary case — a second click a beat later composes
+// from an already-patched cache — but `onMutate` runs inside the mutation's own async execution, NOT
+// synchronously in the click handler, so two toggles in ONE browser task both read the unpatched rows and
+// the second's payload silently drops the first's document. Driven through one `evaluate` for exactly that
+// reason (the `regex-bulk-bar` same-task precedent); a two-`click()` version cannot reach the window.
+test("two visibility toggles in ONE browser task compose — the second write carries BOTH documents (#1520)", async ({ mount, page }) => {
+  const trpc = await stubRack(page);
+  const component = await mount(<ChatDocumentsSectionStory isHost={true} />);
+  await expect(component.getByRole("button", { name: `Stop ${CHAT_DOC.name} feeding this chat` })).toBeVisible();
+
+  await component.evaluate(
+    (root, names) => {
+      const buttons = Array.from(root.querySelectorAll("button"));
+      for (const name of names) {
+        const button = buttons.find((candidate) => candidate.getAttribute("aria-label") === name);
+        if (button === undefined) {
+          throw new Error(`missing toggle: ${name}`);
+        }
+        button.click();
+      }
+    },
+    [`Stop ${CHAT_DOC.name} feeding this chat`, `Stop ${GLOBAL_DOC.name} feeding this chat`],
+  );
+
+  await expect.poll(() => trpc.count(SET_VISIBILITY), { intervals: [20, 50, 100] }).toBe(2);
+  // The character doc was already hidden; the two clicks add the other two. A payload of
+  // [HIDDEN_CHAR_DOC, GLOBAL_DOC] is the defect: the second write reverting the first. The ORDER is
+  // `nextHiddenSet`'s documented one — the RENDERED row order, newly-hidden id appended — not click order.
+  await expect
+    .poll(() => (trpc.lastInput(SET_VISIBILITY) as { visibility?: { hidden?: string[] } } | undefined)?.visibility?.hidden, {
+      intervals: [20, 50, 100],
+    })
+    .toEqual([CHAT_DOC.id, HIDDEN_CHAR_DOC.id, GLOBAL_DOC.id]);
+});
+
+// A REJECTED write must not wedge the queue. The chain's `.catch` is on the CHAIN, never on the mutation, so
+// the mutation's own `onError` (the optimistic rollback + its errorToast) still runs — and the NEXT toggle
+// still reaches the wire.
+test("a REJECTED visibility write still lets the next toggle reach the wire (#1520)", async ({ mount, page }) => {
+  let attempts = 0;
+  const trpc = await stubRack(page, {
+    [SET_VISIBILITY]: () => (attempts++ === 0 ? trpcError({ message: "visibility write failed" }) : { hidden: [] }),
+  });
+  const component = await mount(<ChatDocumentsSectionStory isHost={true} />);
+
+  await component.getByRole("button", { name: `Stop ${CHAT_DOC.name} feeding this chat` }).click();
+  await expect.poll(() => trpc.count(SET_VISIBILITY), { intervals: [20, 50, 100] }).toBe(1);
+  // The rollback puts the row back: the toggle names the un-set again, so it is offering to HIDE once more.
+  await expect(component.getByRole("button", { name: `Stop ${CHAT_DOC.name} feeding this chat` })).toBeVisible();
+
+  await component.getByRole("button", { name: `Stop ${GLOBAL_DOC.name} feeding this chat` }).click();
+  await expect.poll(() => trpc.count(SET_VISIBILITY), { intervals: [20, 50, 100] }).toBe(2);
 });

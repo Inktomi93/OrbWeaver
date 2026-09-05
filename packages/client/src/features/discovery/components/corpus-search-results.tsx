@@ -9,8 +9,9 @@
 // the branch dispatch, the empty state and the list's live region; it decides WHICH rows render, never how.
 
 import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
+import { Button } from "@orb/ui/button";
 import { Icon, Search } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -174,6 +175,21 @@ function FieldsResults({ query, label }: { readonly query: string; readonly labe
   const byId = new Map((catalog.data?.items ?? []).map((card) => [card.id, card]));
   return (
     <>
+      {/* THE NAME MAP CAN FAIL ON ITS OWN (#1500). The hits are ids; the names come from a SECOND read, and
+          when that one failed every row fell through to `Character abc123` — a real result set wearing
+          fabricated labels, with nothing on screen saying the names were the part that broke. The hits are
+          still worth showing (they are the answer), so this states which half is missing and offers the
+          re-read of exactly that half. */}
+      {catalog.isError ? (
+        <Row align="center" gap="field">
+          <Text role="status" voice="gloss">
+            Couldn't load your card names — these rows show ids.
+          </Text>
+          <Button intent="ghost" onClick={(): void => void catalog.refetch()} size="sm" type="button">
+            Retry
+          </Button>
+        </Row>
+      ) : null}
       {/* The lexical branch is never "nearest only": BM25 is an unbounded per-query score, not a
           similarity, so there is no band to compare it against (the same reason its rows print no percent). */}
       <ResultsStatus count={hits.data.length} label={label} nearestOnly={false} />

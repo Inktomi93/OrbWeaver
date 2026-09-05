@@ -25,6 +25,10 @@ const OWNED = [
   { assetId: "asset_ct_owned_2", hash: "c".repeat(64), mime: "image/png", animated: false, kind: "upload" },
 ];
 
+/** The one asset the partial-batch pin scripts a rejection for — named, so the stub reads no indexed
+ *  element and the claim "the SECOND one failed" is legible where the assertion is. */
+const FAILING_ASSET = "asset_ct_owned_2";
+
 async function openLightbox(page: Page): Promise<void> {
   const cell = page.getByRole("gridcell", { name: "Gallery image" });
   await expect(cell).toBeVisible();
@@ -163,4 +167,74 @@ test("a rejected add batch stays visible and retryable, then closes after the re
   await retry.requested;
   retry.release({});
   await expect(page.getByText("Add images to the gallery")).toHaveCount(0);
+});
+
+// #1501 — THE LIGHTBOX CLOSES ON THE REMOVAL, NOT ON THE REQUEST. It was dismissed on the same tick as
+// `.mutate`, so a rejected remove put the reader back at a grid that still showed the image they had just
+// confirmed deleting, with nothing to retry from.
+//
+// THE CONFIRM IS NOT THE RETRY SURFACE, AND CANNOT BE: `components/confirm-dialog.tsx:37` records that the
+// dialog "closes itself via AlertDialogClose regardless of outcome" — a shared-component ruling this lane
+// did not touch. So the reachable, and correct, retry surface is the LIGHTBOX, which carries the Remove
+// button; that is what this asserts.
+test("a REJECTED remove keeps the LIGHTBOX open — the retry, instead of a grid that still has the image (#1501)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "assets.listGallery": () => [ITEM],
+    "assets.removeFromGallery": () => trpcError({ message: "remove failed" }),
+  });
+
+  await mount(<CharacterGalleryDialogStory />);
+  await openLightbox(page);
+  await page.getByRole("button", { name: "Remove from gallery" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Remove", exact: true }).click();
+
+  await expect.poll(() => trpc.count("assets.removeFromGallery"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(page.getByRole("button", { name: "Remove from gallery" })).toBeVisible();
+});
+
+// …and the other direction, so a fix that simply stops closing cannot pass.
+test("a SUCCESSFUL remove closes both the confirm and the lightbox (#1501, the other direction)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "assets.listGallery": () => [ITEM], "assets.removeFromGallery": () => null });
+
+  await mount(<CharacterGalleryDialogStory />);
+  await openLightbox(page);
+  await page.getByRole("button", { name: "Remove from gallery" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Remove", exact: true }).click();
+
+  await expect.poll(() => trpc.count("assets.removeFromGallery"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(page.getByRole("button", { name: "Remove from gallery" })).toHaveCount(0);
+});
+
+// A PARTIAL BATCH LEAVES ONLY WHAT IS STILL OUTSTANDING SELECTED (#1501). The picker's selection was never
+// pruned, so the obvious next move — press Add again — re-submitted every asset including the ones already
+// in the gallery. The batch is per-asset, so the honest retry set is exactly the rejected ones.
+test("a PARTIAL add prunes the selection to what did not land (#1501)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "assets.listGallery": () => [],
+    "assets.listOwned": () => OWNED,
+    // The FIRST asset lands, the second does not — and which is which is the whole claim. Read through an
+    // index rather than a typed `assetId` field: a bare-string field of that NAME is a brand-in-name-position
+    // violation, and this stub is deliberately looking at the RAW decoded wire object.
+    "assets.addToGallery": (input: unknown) => ((input as Record<string, unknown>)["assetId"] === FAILING_ASSET ? trpcError({ message: "add failed" }) : null),
+  });
+
+  await mount(<CharacterGalleryDialogStory />);
+  // `.first()`: an EMPTY gallery renders its own "Add images" CTA as well as the header's, and this test
+  // deliberately starts empty so the picker's candidates are the two owned assets.
+  await page.getByRole("button", { name: "Add images" }).first().click();
+  const picker = page.getByRole("dialog").filter({ hasText: "Add images to the gallery" });
+  await picker.getByRole("gridcell").first().click();
+  await picker.getByRole("gridcell").nth(1).click();
+  await expect(picker.getByText("2 selected")).toBeVisible();
+
+  await picker.getByRole("button", { name: "Add selected" }).click();
+  await expect.poll(() => trpc.count("assets.addToGallery"), { intervals: [20, 50, 100] }).toBe(2);
+
+  // Exactly one is still outstanding, and the copy says how the batch actually went.
+  await expect(picker.getByText("1 selected")).toBeVisible();
+  await expect(picker.getByText("Added 1 of 2", { exact: false })).toBeVisible();
+
+  // …and pressing Add again re-submits ONLY that one — the defect was re-submitting the whole set.
+  await picker.getByRole("button", { name: "Add selected" }).click();
+  await expect.poll(() => trpc.count("assets.addToGallery"), { intervals: [20, 50, 100] }).toBe(3);
 });

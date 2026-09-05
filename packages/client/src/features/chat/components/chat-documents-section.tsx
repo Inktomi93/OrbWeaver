@@ -39,7 +39,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { RowActionsMenu, RowToggleAction } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
@@ -47,11 +47,21 @@ import { useDetachDocumentFromChat, useSetChatDocumentVisibility } from "../hook
 import { isDetachableFromChat, nextHiddenSet, placesDatabankSlot, sourceChips } from "../lib/chat-documents-model.ts";
 import { AddChatDocumentDialog } from "./add-chat-document-dialog.tsx";
 
-/** The three states of "does the running arrangement place the slot" — `resolving` is its own value, not a
+/** The four states of "does the running arrangement place the slot" — `resolving` is its own value, not a
  *  collapsed `false`, so the warning never flashes on a preset that turns out to carry the slot, and so a CT
- *  can barrier on a SETTLED answer instead of racing the two reads. Rendered as a `data-` attribute. */
-const SLOT_STATES = ["resolving", "placed", "missing"] as const;
+ *  can barrier on a SETTLED answer instead of racing the two reads. `unknown` is the SETTLED failure (#1520
+ *  item 3) — also its own value, for the same reason one step further out: a read that failed has an answer,
+ *  and the answer is "we could not find out". Rendered as a `data-` attribute. */
+const SLOT_STATES = ["resolving", "placed", "missing", "unknown"] as const;
 type SlotState = (typeof SLOT_STATES)[number];
+
+/** Does this read failure mean the preset ISN'T THERE (or isn't ours)? tRPC surfaces the domain code on
+ *  `error.data.code` — the `databank-context-body` / `rpg-error-state` discrimination precedent. Any other
+ *  failure is transient and says nothing about which arrangement will run. */
+function isUnresolvablePreset(error: unknown): boolean {
+  const code = (error as { data?: { code?: string } } | null | undefined)?.data?.code;
+  return code === "NOT_FOUND" || code === "FORBIDDEN";
+}
 
 /**
  * Does the HOST's running preset write `{{databank}}`?
@@ -59,10 +69,18 @@ type SlotState = (typeof SLOT_STATES)[number];
  * The chat has no preset of its own: a turn assembles against the room host's active preset
  * (`UserSettings.seeds.defaultPresetId`, `null` ⇒ the built-in `DEFAULT_PROMPT_CONFIG` — one home with the
  * server's `resolvePromptConfigFor`, entry/compose/chat.ts). A stale or unowned id degrades to the built-in
- * SERVER-side, so an errored read resolves the same way here rather than warning about a preset that will
+ * SERVER-side, so an UNRESOLVABLE id resolves the same way here rather than warning about a preset that will
  * never run. Both reads are cache-first and already warm on any real session.
+ *
+ * THAT RULING SURVIVES; ITS INPUT CHANGED (#1520 item 3). It was written for the case it names — a stale or
+ * unowned id — and applied to `preset.isError` WHOLESALE, which also catches a 500 and a dropped socket. So a
+ * transient failure read exactly like "you have no custom preset", the built-in (which DOES place the slot)
+ * stood in for a preset nobody had read, and the "Not reaching the prompt" warning was silently withheld from
+ * a host whose real arrangement may well be slotless. The degrade now applies to the errors that EARN it —
+ * `NOT_FOUND` / `FORBIDDEN`, which are the server's own degrade conditions — and everything else settles as
+ * `unknown`, which withholds the warning WITHOUT claiming its opposite and says so on the surface.
  */
-function useSlotState(): SlotState {
+function useSlotState(): { readonly slot: SlotState; readonly recheck: () => void } {
   const trpc = useTRPC();
   const settings = useQuery(trpc.settings.getUserSettings.queryOptions());
   const activePresetId = settings.data?.config.seeds.defaultPresetId ?? null;
@@ -70,14 +88,25 @@ function useSlotState(): SlotState {
     ...trpc.preset.get.queryOptions({ id: (activePresetId ?? "") as PresetId }),
     enabled: settings.data !== undefined && activePresetId !== null,
   });
+  const recheck = (): void => void Promise.all([settings.refetch(), preset.refetch()]);
 
+  if (settings.isError) {
+    return { slot: "unknown", recheck };
+  }
   if (settings.data === undefined) {
-    return "resolving";
+    return { slot: "resolving", recheck };
   }
-  const config: PromptConfig | undefined = activePresetId === null || preset.isError ? DEFAULT_PROMPT_CONFIG : preset.data?.config;
+  if (activePresetId !== null && preset.isError) {
+    return { slot: isUnresolvablePreset(preset.error) ? slotOf(DEFAULT_PROMPT_CONFIG) : "unknown", recheck };
+  }
+  const config: PromptConfig | undefined = activePresetId === null ? DEFAULT_PROMPT_CONFIG : preset.data?.config;
   if (config === undefined) {
-    return "resolving";
+    return { slot: "resolving", recheck };
   }
+  return { slot: slotOf(config), recheck };
+}
+
+function slotOf(config: PromptConfig): SlotState {
   return placesDatabankSlot(config) ? "placed" : "missing";
 }
 
@@ -97,15 +126,53 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
   const detach = useDetachDocumentFromChat({ trpc, invalidation });
   const [pickerOpen, setPickerOpen] = useState(false);
   const { data: rows } = useSuspenseQuery(trpc.databank.listActiveForChat.queryOptions({ chatId }));
+  // THE SET THIS SURFACE HAS ALREADY ASKED FOR, held until every write it queued has settled (#1520 item 2).
+  //
+  // THE FILED MECHANISM IS PARTLY REFUTED, AND THE SYMPTOM SURVIVES IT. The issue read this as two toggles
+  // deriving from one stale query snapshot; they do not, because `useSetChatDocumentVisibility` is OPTIMISTIC
+  // (`use-chat-document-mutations.ts:65-68` re-derives every row's `hidden` from the written set), so a
+  // second toggle a beat later composes from an already-patched cache. What is NOT covered is the two
+  // narrower windows that produce the same reported outcome, both of which this closes:
+  //   · SAME-TICK — `onMutate` runs inside the mutation's own async execution, not synchronously in the
+  //     click handler, so two toggles in ONE task both read the unpatched rows and the second's set omits
+  //     the first's document. The ref is the intent the cache has not caught up to yet, and it is a REF and
+  //     not state precisely because the repaint is not its job: the optimistic patch owns that, and a second
+  //     rendered overlay here would be two homes for one concept.
+  //   · ORDERING — two concurrent writes are two independent HTTP requests with a SET payload each, so the
+  //     server can apply them in either order and keep the older one. Chaining makes the wire order the
+  //     click order.
+  const pendingHiddenRef = useRef<readonly DocumentId[] | null>(null);
+  const visibilityChainRef = useRef<Promise<unknown>>(Promise.resolve());
+  const queuedWritesRef = useRef(0);
   // HOST-ONLY, and that is not a permission dodge: the turn assembles against the HOST's preset (D19), so a
   // member's own arrangement says nothing true about this room — and the host is the only person who can act
   // on it. A member with no documents attached has nothing to be warned about either way.
-  const slotState = useSlotState();
+  const { slot: slotState, recheck: recheckSlot } = useSlotState();
   const warnSlotless = isHost && rows.length > 0 && slotState === "missing";
+  // The failure's own arm — stated only where the WARNING would have been stated, so it reaches exactly the
+  // reader whose section had something to say and could not find out.
+  const slotUnknown = isHost && rows.length > 0 && slotState === "unknown";
 
   const setHidden = (id: DocumentId, hide: boolean): void => {
-    // The write REPLACES the whole excluded set, so it is derived from every rendered row, not patched.
-    setVisibility.mutate({ chatId, visibility: { hidden: nextHiddenSet(rows, id, hide) } });
+    // The write REPLACES the whole excluded set, so it is derived from every rendered row, not patched —
+    // over the pending intent when this surface has an unsettled one, else over the rows as read.
+    const pending = pendingHiddenRef.current;
+    const base = pending === null ? rows : rows.map((row) => ({ ...row, hidden: pending.includes(row.id) }));
+    const next = nextHiddenSet(base, id, hide);
+    pendingHiddenRef.current = next;
+    queuedWritesRef.current += 1;
+    // @orb-gate-ignore caught-failure-ownership(promise:promise): the chain's own catch, never the mutation's — `useSetChatDocumentVisibility` still runs its errorToast and its optimistic `onError` rollback untouched. It exists so ONE rejected write cannot wedge the queue for every later toggle. Ends if that mutation stops wiring an errorToast.
+    visibilityChainRef.current = visibilityChainRef.current
+      .then(async () => setVisibility.mutateAsync({ chatId, visibility: { hidden: next } }))
+      .catch(() => undefined)
+      .finally(() => {
+        queuedWritesRef.current -= 1;
+        if (queuedWritesRef.current === 0) {
+          // Drained: hand the arithmetic back to the cache, which by now carries the settled truth (the
+          // optimistic patch on success, the rollback on failure).
+          pendingHiddenRef.current = null;
+        }
+      });
   };
 
   return (
@@ -125,6 +192,15 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
             Not reaching the prompt
           </Badge>
           <Text voice="gloss">Your preset never places {"{{databank}}"}, so these can't feed a turn. Add the Databank section to it and they will.</Text>
+        </Row>
+      ) : null}
+
+      {slotUnknown ? (
+        <Row align="center" gap="field">
+          <Text voice="gloss">Couldn't check whether your preset places {"{{databank}}"}, so this section can't say if these reach a turn.</Text>
+          <Button intent="ghost" onClick={recheckSlot} size="sm" type="button">
+            Check again
+          </Button>
         </Row>
       ) : null}
 

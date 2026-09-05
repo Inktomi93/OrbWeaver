@@ -42,18 +42,30 @@ export function DatabankListHeader(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const toast = useToastManager();
-  const { data: census } = useQuery(trpc.databank.bankHealth.queryOptions());
+  const census = useQuery(trpc.databank.bankHealth.queryOptions());
   const reindex = useReindexDocuments({ trpc, invalidation });
   const [reExtractOpen, setReExtractOpen] = useState(false);
   const [reindexOpen, setReindexOpen] = useState(false);
   // NEITHER SWEEP IS OFFERED OVER AN EMPTY BANK (side-eye 2026-08-19 P3). Both items were enabled at zero
   // documents — a control whose whole job is "re-run this over everything you have" is a lie when you have
   // nothing, and firing it costs a round trip to be told so. The census the band already prints IS the
-  // predicate, so this needs no second read. `?? 0` covers the pre-settle render: the sweeps stay closed
-  // until the count is known, which is the safe direction (a disabled control that enables is a beat late;
-  // an enabled one that fires into an unknown bank is the defect). N-6: and the closed door SAYS SO — see
-  // the group label below, which is where the reason has to live because a disabled item cannot be hovered.
-  const bankIsEmpty = (census?.total ?? 0) === 0;
+  // predicate, so this needs no second read. The sweeps stay closed until the count is KNOWN, which is the
+  // safe direction (a disabled control that enables is a beat late; an enabled one that fires into an
+  // unknown bank is the defect). N-6: and the closed door SAYS SO — see the group labels below, which is
+  // where the reason has to live because a disabled item cannot be hovered.
+  //
+  // THAT RULING SURVIVES; ITS INPUT CHANGED (#1500). `(census?.total ?? 0) === 0` folded three states into
+  // one — settling, empty, and FAILED — so a bank-health failure told a reader with two hundred documents to
+  // "add a document first", on the one control whose predicate is how many they have. The closed door is
+  // unchanged in all three; what the door SAYS is now derived from which of them it is, and the failed arm
+  // carries the re-read rather than a reload.
+  const bankIsEmpty = census.data !== undefined && census.data.total === 0;
+  const countUnknown = census.data === undefined;
+  // The band prints NO number when the count is unknown — same rendered result the old `?? 0` produced (the
+  // header renders nothing at 0), but stated as the absence it is. A SPREAD rather than `count={…?.total}`:
+  // under `exactOptionalPropertyTypes`, "absent" and "present and undefined" are different types, and absent
+  // is what an unread census is.
+  const countProp = census.data === undefined ? {} : { count: census.data.total };
 
   const sweep = (mode: "chunk-embed" | "re-extract"): void => {
     reindex.mutate(
@@ -80,11 +92,21 @@ export function DatabankListHeader(): ReactElement {
                   needs it can never reach. The group's label is announced with the items it labels. */}
               <MenuGroup>
                 {bankIsEmpty ? <MenuGroupLabel>Add a document first — these sweeps run over your whole bank.</MenuGroupLabel> : null}
-                <MenuItem disabled={reindex.isPending || bankIsEmpty} onClick={(): void => setReindexOpen(true)}>
+                {census.isError ? <MenuGroupLabel>Couldn't check your bank, so these sweeps stay closed.</MenuGroupLabel> : null}
+                {/* The failed arm's way out. A group label cannot be actioned and a disabled item cannot be
+                    hovered, so the re-read is its own item — the same "a read failure is never a dead end"
+                    rule `QueryErrorState` carries, spelled in the one grammar a menu has. */}
+                {census.isError ? (
+                  <MenuItem onClick={(): void => void census.refetch()}>
+                    <Icon icon={RefreshCw} size="sm" />
+                    Check the bank again
+                  </MenuItem>
+                ) : null}
+                <MenuItem disabled={reindex.isPending || bankIsEmpty || countUnknown} onClick={(): void => setReindexOpen(true)}>
                   <Icon icon={RefreshCw} size="sm" />
                   Reindex everything
                 </MenuItem>
-                <MenuItem disabled={reindex.isPending || bankIsEmpty} onClick={(): void => setReExtractOpen(true)}>
+                <MenuItem disabled={reindex.isPending || bankIsEmpty || countUnknown} onClick={(): void => setReExtractOpen(true)}>
                   <Icon icon={RefreshCw} size="sm" />
                   Re-extract everything
                 </MenuItem>
@@ -96,7 +118,7 @@ export function DatabankListHeader(): ReactElement {
             </Button>
           </Row>
         }
-        count={census?.total ?? 0}
+        {...countProp}
         title="Databank"
       />
       {/* REINDEX CONFIRMS TOO (side-eye 2026-08-19 P3). It used to fire BARE from the menu while its

@@ -5,12 +5,12 @@
 // book attachment is the Chats lane's concern).
 
 import type { CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids";
-import { Stack } from "@orb/ui/layout";
+import { Section, Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import type { RelationManagerItem } from "#components";
 import { RelationManagerSection } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, useInvalidation, useTRPC } from "#data";
 import {
   useAttachBookToCharacter,
   useConnectPersonaToCharacter,
@@ -39,6 +39,22 @@ function LinkedBooksSection({ characterId }: CharacterRelationsTabProps): ReactE
   const attach = useAttachBookToCharacter({ trpc, invalidation });
   const detach = useDetachBookFromCharacter({ trpc, invalidation });
 
+  // A RELATION SECTION IS ATOMIC, so a failed half fails the whole (#1500). Both reads feed one control:
+  // the attached list IS the section's answer, and the catalogue is what the Link picker offers. With either
+  // one unknown every affordance here states something false — an empty `attached` says "no world books
+  // linked" about a character that may have five, and an empty catalogue says "every book is already linked"
+  // about a library the pane never read. So the section says what actually happened and offers the re-read
+  // rather than rendering half a truth.
+  if (attachedQuery.isError || allBooksQuery.isError) {
+    return (
+      <Section heading="Linked world books">
+        <QueryErrorState
+          label="this character's linked world books"
+          onRetry={(): void => void Promise.all([attachedQuery.refetch(), allBooksQuery.refetch()])}
+        />
+      </Section>
+    );
+  }
   const attached = attachedQuery.data ?? [];
   const attachedIds = new Set(attached.map((b) => b.id));
 
@@ -72,6 +88,17 @@ function ConnectedPersonasSection({ characterId }: CharacterRelationsTabProps): 
   const connect = useConnectPersonaToCharacter({ trpc, invalidation });
   const disconnect = useDisconnectPersonaFromCharacter({ trpc, invalidation });
 
+  // The same atomicity as the books section above, for the same reason.
+  if (connectedQuery.isError || allPersonasQuery.isError) {
+    return (
+      <Section heading="Connected personas">
+        <QueryErrorState
+          label="this character's connected personas"
+          onRetry={(): void => void Promise.all([connectedQuery.refetch(), allPersonasQuery.refetch()])}
+        />
+      </Section>
+    );
+  }
   const connected = connectedQuery.data ?? [];
   const connectedIds = new Set(connected.map((p) => p.id));
 

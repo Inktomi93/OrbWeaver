@@ -41,7 +41,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { AddRow, ConfirmDialog } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEditJournalEntry, useRestoreCheckpoint } from "../hooks/use-rpg-mutations.ts";
@@ -56,6 +56,17 @@ import { RpgCardLightbox } from "./rpg-scene-cards.tsx";
 
 /** The chronicle page size — one fetch (the archive tab is a reading surface, not an infinite feed). */
 const JOURNAL_PAGE = 100;
+
+/** Placeholder rows while the transcript the card projection reads lands. */
+const JOURNAL_CARDS_PENDING_ROWS = 2;
+
+/** The card projection's three SETTLED arms. A local shape, not an exported type: it exists so the scope
+ *  dispatch below can carry "the transcript failed" as a value rather than as an empty array — the #1500
+ *  defect was exactly that a failure and an empty archive were the same argument. */
+type CardArchive =
+  | { readonly status: "ready"; readonly cards: readonly ArchivedCard[] }
+  | { readonly status: "pending" }
+  | { readonly status: "failed"; readonly retry: () => void };
 
 // The scope axis as the ONE homed tuple (§5.5 dispatch discipline) — the body Record derives from it.
 const JOURNAL_SCOPES = ["all", "marks", "cards"] as const;
@@ -182,8 +193,17 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
 }
 
 /** The Cards scope — every archived card, newest first (the "find the wanted poster later" surface). */
-function JournalCards({ cards, chatId }: { readonly cards: readonly ArchivedCard[]; readonly chatId: ChatId }): ReactElement {
+function JournalCards({ archive, chatId }: { readonly archive: CardArchive; readonly chatId: ChatId }): ReactElement {
   const [openKey, setOpenKey] = useState<string | null>(null);
+  // The three arms of a projection over two reads (#1500) — the Scene birth-home's own ruling, applied to
+  // the archive lens: a transcript that has not landed, or one that failed, is not a story with no cards.
+  if (archive.status === "failed") {
+    return <QueryErrorState label="the card archive" onRetry={archive.retry} />;
+  }
+  if (archive.status === "pending") {
+    return <SkeletonRows count={JOURNAL_CARDS_PENDING_ROWS} shape="line" />;
+  }
+  const cards = archive.cards;
   if (cards.length === 0) {
     return <Text>No cards yet — the story crafts them.</Text>;
   }
@@ -263,10 +283,13 @@ export interface RpgJournalTabProps {
 }
 
 /** The scope's body — a Record over the closed scope axis (never a nested ternary). */
-const SCOPE_BODY: Readonly<Record<JournalScope, (state: RpgPanelState, cards: readonly ArchivedCard[]) => ReactElement>> = {
-  all: (state, cards) => <JournalEntries state={state} cards={cards} />,
+const SCOPE_BODY: Readonly<Record<JournalScope, (state: RpgPanelState, archive: CardArchive) => ReactElement>> = {
+  // The chronicle's own day groups still take the cards it HAS: an unread transcript costs the entries scope
+  // nothing (its own read is a separate suspending one), so an unknown archive contributes no card rows there
+  // rather than blanking the chronicle.
+  all: (state, archive) => <JournalEntries state={state} cards={archive.status === "ready" ? archive.cards : []} />,
   marks: (state) => <JournalMarks state={state} />,
-  cards: (state, cards) => <JournalCards cards={cards} chatId={state.chatId} />,
+  cards: (state, archive) => <JournalCards archive={archive} chatId={state.chatId} />,
 };
 
 /** The Journal tab — the chronicle (All) + the checkpoint bookmarks (Marks) + the card archive (Cards). */
@@ -280,12 +303,26 @@ export function RpgJournalTab({ state }: RpgJournalTabProps): ReactElement {
   // The roster the per-card render policy resolves against (cache-first — the takeover already read it);
   // a card renders under its ORIGIN ROW's verdict here exactly as it does in the transcript.
   const chatQuery = useQuery({ ...trpc.chat.getChat.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
-  const cards = cardsEnabled
-    ? collectArchivedCards(messagesQuery.data?.messages ?? [], {
-        participants: chatQuery.data?.participants,
+  // Three arms, derived in this order on purpose: a FAILURE outranks an in-flight sibling (a retry is the
+  // only move either way), the READY arm is gated on both reads' own `isSuccess` so the projection is built
+  // from data TypeScript knows is there, and everything else is still in flight. A game that crafts no cards
+  // at all never fetches, so its archive is settled-empty rather than forever-pending.
+  let archive: CardArchive;
+  if (!cardsEnabled) {
+    archive = { status: "ready", cards: [] };
+  } else if (messagesQuery.isError || chatQuery.isError) {
+    archive = { status: "failed", retry: (): void => void Promise.all([messagesQuery.refetch(), chatQuery.refetch()]) };
+  } else if (messagesQuery.isSuccess && chatQuery.isSuccess) {
+    archive = {
+      status: "ready",
+      cards: collectArchivedCards(messagesQuery.data.messages, {
+        participants: chatQuery.data.participants,
         viewerUserId: state.viewerUserId,
-      })
-    : [];
+      }),
+    };
+  } else {
+    archive = { status: "pending" };
+  }
   const effectiveScope = scope === "cards" && !cardsEnabled ? "all" : scope;
   return (
     <Stack gap="section" data-slot="rpg-journal-tab">
@@ -304,7 +341,7 @@ export function RpgJournalTab({ state }: RpgJournalTabProps): ReactElement {
         {/* APPLICABILITY-omit: a game without immersive cards has no Cards scope (never a disabled twin). */}
         {cardsEnabled ? <Toggle value="cards">Cards</Toggle> : null}
       </ToggleGroup>
-      {SCOPE_BODY[effectiveScope](state, cards)}
+      {SCOPE_BODY[effectiveScope](state, archive)}
     </Stack>
   );
 }

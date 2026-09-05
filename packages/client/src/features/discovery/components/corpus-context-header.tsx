@@ -16,6 +16,7 @@
 // census projection is shared with the LIST band (`lib/corpus-vocabulary.ts`) rather than re-spelled here,
 // so the two bands of one section cannot drift into two answers.
 
+import { Button } from "@orb/ui/button";
 import { Icon, Library } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -26,19 +27,35 @@ import { distilledCensus } from "../lib/corpus-vocabulary.ts";
 
 export function CorpusContextHeader(): ReactElement {
   const trpc = useTRPC();
-  const { data: catalog } = useQuery(trpc.discovery.catalog.queryOptions());
-  const distilled = catalog?.totalDistilled ?? 0;
-  const count = distilledCensus(distilled, catalog?.totalCharacters ?? 0);
+  const catalog = useQuery(trpc.discovery.catalog.queryOptions());
+  const distilled = catalog.data?.totalDistilled ?? 0;
+  const count = distilledCensus(distilled, catalog.data?.totalCharacters ?? 0);
+
+  // A FAILED CENSUS IS NOT A ZERO CENSUS (#1500). `catalog?.totalDistilled ?? 0` hid a failed read behind the
+  // same silence as a library with nothing distilled — the band simply lost its number, which reads as "no
+  // distilled cards" to the one reader who would notice. The failed arm states itself and carries the
+  // re-read; it is a button rather than a line because a band has no other way to offer one, and it only ever
+  // exists in the state that earns it.
+  let census: ReactElement | null = null;
+  if (catalog.isError) {
+    census = (
+      <Button intent="ghost" onClick={(): void => void catalog.refetch()} size="sm" type="button">
+        Census unavailable — retry
+      </Button>
+    );
+  } else if (distilled > 0) {
+    census = (
+      <Text voice="gloss" className="font-mono">
+        {count}
+      </Text>
+    );
+  }
 
   return (
     <Row align="center" gap="field" className="min-w-0">
       <Icon icon={Library} size="sm" />
       <Text className="truncate text-title leading-title font-semibold">Corpus</Text>
-      {distilled > 0 ? (
-        <Text voice="gloss" className="font-mono">
-          {count}
-        </Text>
-      ) : null}
+      {census}
     </Row>
   );
 }

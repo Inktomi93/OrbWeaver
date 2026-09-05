@@ -4,6 +4,7 @@
 
 import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { trpcError } from "../../../../support/ct/route-trpc.ts";
 import { DatabankListHeaderStory } from "../_ct-stories.tsx";
 import { READY_DOC, stubDatabank } from "../fixtures.ts";
 
@@ -237,4 +238,24 @@ test("every arm of the Add dialog offers a labelled way out — including the on
   await dialog.getByRole("button", { name: "Upload a file" }).click();
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+// A FAILED CENSUS IS NOT AN EMPTY BANK (#1500). `(census?.total ?? 0) === 0` folded settling, empty and
+// FAILED into one predicate, so a bank-health failure told a reader with two hundred documents to "add a
+// document first" — on the one control whose whole predicate is how many they have. The sweeps still stay
+// CLOSED while the count is unknown (that ruling is unchanged and is the safe direction); what changed is
+// that the closed door now says which of the three states it is in, and offers the re-read.
+test("a FAILED bank census does not tell a stocked bank to add a document first (#1500)", async ({ mount, page }) => {
+  const trpc = await stubDatabank(page, { "databank.bankHealth": () => trpcError({ message: "bank health failed" }) });
+  const band = await mount(<DatabankListHeaderStory />);
+
+  await band.getByRole("button", { name: "Databank maintenance" }).click();
+  await expect(page.getByText("Couldn't check your bank, so these sweeps stay closed.")).toBeVisible();
+  await expect(page.getByText("Add a document first — these sweeps run over your whole bank.")).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Reindex everything" })).toHaveAttribute("data-disabled", "");
+
+  // …and the closed door has a way out: the re-read is its own item, because a group LABEL cannot be
+  // actioned and a disabled MenuItem takes no pointer events.
+  await page.getByRole("menuitem", { name: "Check the bank again" }).click();
+  await expect.poll(() => trpc.count("databank.bankHealth"), { intervals: [20, 50, 100] }).toBe(2);
 });

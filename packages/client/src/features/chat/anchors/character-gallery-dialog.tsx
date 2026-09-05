@@ -20,7 +20,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
-import { SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { GALLERY_PAGE_LIMIT, useAddToGallery, useRemoveFromGallery } from "../hooks/use-character-gallery.ts";
 
 const GALLERY_THUMB_WIDTH = 240;
@@ -116,10 +116,21 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
   const openLightbox = (activated: MediaGridItem): void => {
     setLightbox(items.find((i) => i.galleryItemId === activated.id) ?? null);
   };
+  // BOTH DIALOGS CLOSE ON THE REMOVAL, NOT ON THE REQUEST (#1501). The confirm and the lightbox were
+  // dismissed on the same tick as `.mutate`, so a rejected remove left the image in the gallery, the reader
+  // back at the grid, and nothing on screen to retry from — the toast was the only evidence, over a grid that
+  // still showed the image they had just confirmed deleting. On failure the confirm stays open, which IS the
+  // retry.
   const removeItem = (galleryItemId: GalleryItemId): void => {
-    remove.mutate({ galleryItemId });
-    setRemoveConfirmOpen(false);
-    setLightbox(null);
+    remove.mutate(
+      { galleryItemId },
+      {
+        onSuccess: (): void => {
+          setRemoveConfirmOpen(false);
+          setLightbox(null);
+        },
+      },
+    );
   };
 
   return (
@@ -204,9 +215,17 @@ function GalleryAddPicker({ open, onOpenChange, characterId, existingAssetIds }:
   const [failure, setFailure] = useState<string | null>(null);
   const ownedRef = useRef(false);
 
-  const confirmAdd = async (assetIds: readonly MediaGridKey[]): Promise<void> => {
+  /**
+   * Adds the picked assets and REPORTS BACK WHICH ONES ARE STILL OUTSTANDING (#1501).
+   *
+   * A partial batch used to leave the picker's selection untouched, so the obvious next move — press Add
+   * again — re-submitted every asset including the ones already in the gallery. The batch is per-asset
+   * (`Promise.allSettled` over independent writes), so the honest retry set is exactly the rejected ones;
+   * the picker narrows its selection to what this returns.
+   */
+  const confirmAdd = async (assetIds: readonly MediaGridKey[]): Promise<readonly MediaGridKey[]> => {
     if (ownedRef.current) {
-      return;
+      return assetIds;
     }
     ownedRef.current = true;
     setIsOwned(true);
@@ -214,11 +233,19 @@ function GalleryAddPicker({ open, onOpenChange, characterId, existingAssetIds }:
     const writes = assetIds.map((assetId) => add.mutateAsync({ assetId: assetId as AssetId, subjectCharacterId: characterId }));
     try {
       const outcomes = await Promise.allSettled(writes);
-      if (outcomes.every((outcome) => outcome.status === "fulfilled")) {
+      // Index-aligned by construction (`Promise.allSettled` preserves input order), so a rejected outcome
+      // names its own asset.
+      const stillOutstanding = assetIds.filter((_, index) => outcomes[index]?.status !== "fulfilled");
+      if (stillOutstanding.length === 0) {
         onOpenChange(false);
       } else {
-        setFailure("Couldn't add the selected images to the gallery.");
+        setFailure(
+          stillOutstanding.length === assetIds.length
+            ? "Couldn't add the selected images to the gallery."
+            : `Added ${String(assetIds.length - stillOutstanding.length)} of ${String(assetIds.length)} — the rest are still selected.`,
+        );
       }
+      return stillOutstanding;
     } finally {
       ownedRef.current = false;
       setIsOwned(false);
@@ -248,7 +275,8 @@ interface OwnedAssetPickerProps {
   readonly existingAssetIds: ReadonlySet<AssetId>;
   readonly failure: string | null;
   readonly isOwned: boolean;
-  readonly onConfirm: (assetIds: readonly MediaGridKey[]) => Promise<void>;
+  /** Runs the batch and RESOLVES WITH THE IDS STILL OUTSTANDING — an empty array means everything landed. */
+  readonly onConfirm: (assetIds: readonly MediaGridKey[]) => Promise<readonly MediaGridKey[]>;
 }
 
 function OwnedAssetPicker({ existingAssetIds, failure, isOwned, onConfirm }: OwnedAssetPickerProps): ReactElement {
@@ -273,9 +301,18 @@ function OwnedAssetPicker({ existingAssetIds, failure, isOwned, onConfirm }: Own
     });
   };
 
+  /** Runs the batch and keeps only what did not land — so a retry submits the remainder, never the whole
+   *  set again. Every failure path leaves the selection intact, which is what makes the retry meaningful. */
+  const submit = (): void => void onConfirm([...selected]).then((stillOutstanding) => setSelected(new Set(stillOutstanding)));
+
   let body: ReactElement;
   if (owned.isPending) {
     body = <SkeletonRows count={6} shape="line" />;
+  } else if (owned.isError) {
+    // "NOTHING LEFT TO ADD" IS A CLAIM ABOUT THE READER'S UPLOADS (#1500, the same class as the batch this
+    // dialog was filed under). A failed `assets.listOwned` emptied `candidates`, so the picker told a reader
+    // with a hundred images that every one of them was already in this gallery.
+    body = <QueryErrorState label="your images" onRetry={(): void => void owned.refetch()} />;
   } else if (candidates.length === 0) {
     body = <EmptyState icon={<Icon icon={Images} size="lg" />} title="Nothing left to add" description="Every image you own is already in this gallery." />;
   } else {
@@ -300,7 +337,7 @@ function OwnedAssetPicker({ existingAssetIds, failure, isOwned, onConfirm }: Own
               </Button>
             }
           />
-          <Button intent="primary" disabled={selected.size === 0 || isOwned} onClick={(): void => void onConfirm([...selected])}>
+          <Button intent="primary" disabled={selected.size === 0 || isOwned} onClick={submit}>
             Add selected
           </Button>
         </Row>

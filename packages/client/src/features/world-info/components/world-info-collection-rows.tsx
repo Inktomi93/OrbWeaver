@@ -61,12 +61,21 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
   };
 
   const onDelete = (id: WorldBookId): void => {
-    // Clear the selection FIRST when the open book is the one being deleted, so CONTENT falls back to the
-    // workspace welcome instead of holding a dead editor over a deleted id.
-    if (view.selectedId === id) {
-      clearCollectionSelection();
-    }
-    remove.mutate({ bookId: id });
+    // CLEAR THE SELECTION WHEN THE BOOK IS ACTUALLY GONE (#1501). The ruling survives — its INPUT changed:
+    // the reason for clearing is still "CONTENT must not hold a dead editor over a deleted id", and that
+    // reason only applies once the id IS deleted. Clearing synchronously ALSO fired on a rejected delete,
+    // which threw the reader out of a book that still exists and gave them no way to see it had failed
+    // beyond a toast. `onSuccess`, so the two facts cannot disagree.
+    remove.mutate(
+      { bookId: id },
+      {
+        onSuccess: (): void => {
+          if (view.selectedId === id) {
+            clearCollectionSelection();
+          }
+        },
+      },
+    );
   };
 
   // The bytes are the SERVER's (the same file the backup bundle carries for this book), downloaded verbatim

@@ -202,6 +202,12 @@ function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): React
   const decline = useDeclineInvite({ trpc, invalidation });
   const acceptHandoff = useAcceptHostHandoff({ trpc, invalidation });
   const actionOwned = useRef(false);
+  // THE VERB LANDED — the invite/handoff is accepted or declined, whatever happened to the follow-up dismiss
+  // (#1501). It exists because the two writes are NOT one transaction: a row whose accept succeeded and whose
+  // dismiss failed must never offer Accept again (re-accepting an already-joined invite just fails), but it
+  // must still offer the Dismiss that failed. So the affordances follow what has actually happened rather
+  // than what the row was born as.
+  const [acted, setActed] = useState(false);
   const isInvite = item.payload.type === "invite";
   const isHandoff = item.payload.type === "handoff-nominated";
   const isPending = accept.isPending || decline.isPending || acceptHandoff.isPending || dismiss.isPending;
@@ -234,8 +240,13 @@ function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): React
     }
     ownAction(async () => {
       const result = await accept.mutateAsync({ inviteId: payload.inviteId });
-      await dismiss.mutateAsync({ notificationId: item.id });
+      // NAVIGATE ON THE JOIN, NOT ON THE CLEANUP (#1501). `onAccepted` sat AFTER the dismiss, so a failed
+      // dismiss — swallowed by `ownAction`'s catch, which is correct: the dismiss carries its own errorToast —
+      // stranded a reader who HAD joined the room in the inbox they opened, with an Accept button that could
+      // only fail from then on.
+      setActed(true);
       onAccepted(result.chat.id);
+      await dismiss.mutateAsync({ notificationId: item.id });
     });
   };
 
@@ -246,6 +257,7 @@ function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): React
     }
     ownAction(async () => {
       await decline.mutateAsync({ inviteId: payload.inviteId });
+      setActed(true);
       await dismiss.mutateAsync({ notificationId: item.id });
     });
   };
@@ -257,8 +269,9 @@ function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): React
     }
     ownAction(async () => {
       await acceptHandoff.mutateAsync({ chatId: payload.chatId });
-      await dismiss.mutateAsync({ notificationId: item.id });
+      setActed(true);
       onHandoffAccepted(payload.chatId);
+      await dismiss.mutateAsync({ notificationId: item.id });
     });
   };
 
@@ -273,7 +286,7 @@ function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): React
         {rowCopy(item.payload)}
       </Text>
       <Row gap="field" align="center">
-        {isInvite ? (
+        {isInvite && !acted ? (
           <>
             <Button
               aria-label={`Accept invitation from ${item.payload.invitedByHandle}`}
@@ -297,12 +310,12 @@ function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): React
             </Button>
           </>
         ) : null}
-        {isHandoff ? (
+        {isHandoff && !acted ? (
           <Button type="button" disabled={isPending} intent="secondary" size="sm" onClick={acceptHostHandoff}>
             Accept
           </Button>
         ) : null}
-        {isInvite ? null : (
+        {isInvite && !acted ? null : (
           <Button type="button" disabled={isPending} intent="ghost" size="sm" onClick={dismissRow}>
             Dismiss
           </Button>

@@ -13,7 +13,7 @@ import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { useCardFrameSrc, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useCardFrameSrc, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
 import { RpgCardRow } from "./rpg-card-row.tsx";
@@ -66,6 +66,9 @@ function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; reado
   );
 }
 
+/** Placeholder rows while the transcript lands — a height, never a population claim. */
+const ARCHIVE_PENDING_ROWS = 2;
+
 export interface RpgSceneCardsProps {
   readonly chatId: ChatId;
   readonly enabled: boolean;
@@ -85,11 +88,34 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
   if (!enabled) {
     return null;
   }
+  // "NO CARDS YET" IS A CLAIM ABOUT THE TRANSCRIPT (#1500). `data?.messages ?? []` fed `collectArchivedCards`
+  // an empty transcript for BOTH an unresolved read and a failed one, so the section stated that this game
+  // has crafted no cards before it had read a single message — and kept stating it after the read failed,
+  // with no way back. The archive is a projection over two reads, so either failing makes the projection
+  // unknown, not empty.
+  if (messagesQuery.isError || chatQuery.isError) {
+    return (
+      <Stack gap="field" data-slot="rpg-card-archive">
+        <Kicker>Cards</Kicker>
+        <QueryErrorState label="the card archive" onRetry={(): void => void Promise.all([messagesQuery.refetch(), chatQuery.refetch()])} />
+      </Stack>
+    );
+  }
+  if (messagesQuery.isPending || chatQuery.isPending) {
+    return (
+      <Stack gap="field" data-slot="rpg-card-archive">
+        <Kicker>Cards</Kicker>
+        <SkeletonRows count={ARCHIVE_PENDING_ROWS} shape="line" />
+      </Stack>
+    );
+  }
   // Newest first — Scene is the birth home; Journal archives the same cards into their day groups.
   const cards = [
-    ...collectArchivedCards(messagesQuery.data?.messages ?? [], {
-      participants: chatQuery.data?.participants,
-      viewerUserId: chatQuery.data?.viewerUserId ?? null,
+    // No `?? []` / `?.` here any more: the two guards above settle both reads, so the optional chains the
+    // pre-#1500 shape needed are now provably dead (eslint no-unnecessary-condition says so).
+    ...collectArchivedCards(messagesQuery.data.messages, {
+      participants: chatQuery.data.participants,
+      viewerUserId: chatQuery.data.viewerUserId,
     }),
   ].reverse();
   if (cards.length === 0) {

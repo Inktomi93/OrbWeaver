@@ -50,6 +50,17 @@ export function BackgroundUploadField({ currentHash, onUploaded }: BackgroundUpl
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // THE PREVIEW FOLLOWS THE PERSISTED HASH (#1520 item 4). `useState(currentHash)` seeds ONCE, so every later
+  // change to the prop — the caller picking a different library entry, a reset, a two-device echo — left this
+  // Avatar showing whatever was persisted when the field first mounted. Adjusted during render (React's own
+  // "a prop changed and some state derived from it must change too" shape), not in an effect: an effect would
+  // paint the stale face for a frame first. Our OWN upload writes `previewHash` and then the caller persists
+  // the same hash, so this comparison is a no-op on that path rather than a fight with it.
+  const [seenHash, setSeenHash] = useState<string>(currentHash);
+  if (currentHash !== seenHash) {
+    setSeenHash(currentHash);
+    setPreviewHash(currentHash);
+  }
 
   async function handleFilesSelected({ accepted }: FileDropzoneResult): Promise<void> {
     const file = accepted[0];
@@ -58,6 +69,10 @@ export function BackgroundUploadField({ currentHash, onUploaded }: BackgroundUpl
     }
     setLoading(true);
     setUploadError(null);
+    // THE SUCCESS AFFORDANCE IS PER-ATTEMPT (#1520 item 4). `success` was set true and never reset, so a
+    // failed re-upload after any earlier success painted the dropzone's success state and the Field's error
+    // simultaneously — the control telling the reader both things at once about one attempt.
+    setSuccess(false);
     try {
       const stored = await upload(file, "background");
       onUploaded({

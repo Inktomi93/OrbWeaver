@@ -6,8 +6,10 @@
 // re-derives the coupled speakerTags default), the scopedCards↔cardScope mapping seam, the narrator arm
 // omits cardScope, and the Advanced disclosure reveals policy / member-visibility / auto-mode.
 
+import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { GroupConfigFormStory, GroupConfigSwitchStory } from "../_ct-stories.tsx";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { CommittedGroupConfigTabStory, GroupConfigFormStory, GroupConfigSwitchStory } from "../_ct-stories.tsx";
 
 const SAVED = '[data-testid="group-config-saved"]';
 
@@ -85,4 +87,51 @@ test("SWITCH pin — switching chats reseeds the form on the new chat, never the
   await component.getByRole("button", { name: "switch chat" }).click();
   await component.getByRole("switch", { name: "Label each speaker" }).click();
   await expect(component.locator(SAVED)).toContainText('"groupNudge":false');
+});
+
+// ── #1501 · THE ADAPTER MUST NOT SWALLOW THE REJECTION ────────────────────────────────────────────
+// `CommittedGroupConfigTab` wired the mutation in as
+// `setGroupConfig.mutateAsync(...).catch(() => undefined)`, which made EVERY rejection resolve. The shared
+// autosave form decides saved-vs-failed by exactly that: `create-autosave-entity-form.tsx`'s `onSubmit`
+// re-baselines to the submitted value, clears the crash draft and reports "saved" on resolve. So a rejected
+// write was recorded as the new saved truth and the edit's only durable copy was dropped — a silent lie
+// about persistence, on a room's generation behaviour.
+//
+// THE OBSERVABLE IS THE FORM'S OWN TEARDOWN FLUSH, which is the mechanism that made this cost something
+// real: on unmount the session flushes an edit that is still unsaved. With the rejection swallowed the
+// baseline had already moved, so there was nothing to flush and the edit died with the tab. This is the
+// wire-visible difference, and it is exactly the user-facing consequence (the edit survives, or it does
+// not). The pure-form stories above cannot see any of it — they carry a local `save` and never touch the
+// adapter.
+test("a REJECTED save is not recorded as saved — leaving the tab re-sends the edit (#1501)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getGroupConfig": () => DEFAULT_GROUP_CONFIG,
+    "chat.setGroupConfig": () => trpcError({ message: "group config write failed" }),
+  });
+  const component = await mount(<CommittedGroupConfigTabStory />);
+
+  await component.getByRole("button", { name: "Narrator" }).click();
+  await expect.poll(() => trpc.count("chat.setGroupConfig"), { intervals: [20, 50, 100, 200] }).toBe(1);
+
+  await component.getByRole("button", { name: "Leave the tab" }).click();
+  // The edit was never persisted, so the ONE teardown flush must re-send it. A swallowed rejection makes
+  // this stay at 1 forever, with the edit gone.
+  await expect.poll(() => trpc.count("chat.setGroupConfig"), { intervals: [20, 50, 100, 200] }).toBe(2);
+  await expect.poll(() => (trpc.lastInput("chat.setGroupConfig") as { config?: { output?: string } } | undefined)?.config?.output).toBe("narrator");
+});
+
+// The other direction, so a fix that simply always re-flushes cannot pass: a save that LANDED is the new
+// baseline, and leaving the tab sends nothing more.
+test("a SUCCESSFUL save IS the new baseline — leaving the tab sends nothing more (#1501, the other direction)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getGroupConfig": () => DEFAULT_GROUP_CONFIG,
+    "chat.setGroupConfig": () => null,
+  });
+  const component = await mount(<CommittedGroupConfigTabStory />);
+
+  await component.getByRole("button", { name: "Narrator" }).click();
+  await expect.poll(() => trpc.count("chat.setGroupConfig"), { intervals: [20, 50, 100, 200] }).toBe(1);
+
+  await component.getByRole("button", { name: "Leave the tab" }).click();
+  await expect.poll(() => trpc.count("chat.setGroupConfig"), { intervals: [20, 50, 100, 200] }).toBe(1);
 });
