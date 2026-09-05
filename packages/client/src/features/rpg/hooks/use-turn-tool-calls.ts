@@ -18,7 +18,7 @@
 // game toggled OFF hides this disclosure exactly as it hides the panel, and re-engaging brings both back.
 // Gating also kills the RETRY: a query that never fires has nothing to retry.
 
-import type { RpgRecordedToolCall, RpgTurnToolCallsView } from "@orb/contracts/rpg";
+import type { RpgToolCallDisclosure, RpgTurnToolCallsView } from "@orb/contracts/rpg";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { useGatedQuery, useTRPC } from "#data";
@@ -32,7 +32,7 @@ import { useGatedQuery, useTRPC } from "#data";
  *  siblings this hook's index needs still arrive AND cost the window nothing. */
 const TURN_TOOL_CALLS_TURN_WINDOW = 50;
 
-const EMPTY_CALLS: readonly RpgRecordedToolCall[] = [];
+const EMPTY_CALLS: readonly RpgToolCallDisclosure[] = [];
 
 /**
  * The recorded calls for one selected variant in the room's shared query window.
@@ -42,14 +42,14 @@ const EMPTY_CALLS: readonly RpgRecordedToolCall[] = [];
  * simply appears when the data lands, and a room with no live game never ASKS at all (an empty index, no
  * request, no error — see the header's gate note).
  */
-export function useTurnToolCallsForVariant(chatId: ChatId, variantId: MessageVariantId): readonly RpgRecordedToolCall[] {
+export function useTurnToolCallsForVariant(chatId: ChatId, variantId: MessageVariantId): readonly RpgToolCallDisclosure[] {
   const trpc = useTRPC();
   // Cache-first: every room surface already holds this read, so on a game room the gate costs no round-trip.
   const detail = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   const isGame = isRpgEngaged(detail.data?.rpg ?? null);
   const { data } = useGatedQuery(isGame ? chatId : null, (id) => ({
     ...trpc.rpg.listTurnToolCalls.queryOptions({ chatId: id, turnLimit: TURN_TOOL_CALLS_TURN_WINDOW }),
-    select: (rows: readonly RpgTurnToolCallsView[]): readonly RpgRecordedToolCall[] => rows.find((row) => row.variantId === variantId)?.calls ?? EMPTY_CALLS,
+    select: (rows: readonly RpgTurnToolCallsView[]): readonly RpgToolCallDisclosure[] => rows.find((row) => row.variantId === variantId)?.calls ?? EMPTY_CALLS,
   }));
   return data ?? EMPTY_CALLS;
 }

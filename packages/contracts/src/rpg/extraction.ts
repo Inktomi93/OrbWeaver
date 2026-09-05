@@ -420,12 +420,20 @@ export interface RpgToolCall {
   readonly arguments: string;
 }
 
-// Parse a tool call's raw JSON args, or null on non-JSON (a malformed call is DROPPED — errors-as-data for
-// canon, mirroring the structured path's non-conforming-drop; never a throw into the flush).
-function parseArgs(raw: string): unknown {
+/** Parse a tool call's raw JSON args, or null on non-JSON (a malformed call is DROPPED — errors-as-data for
+ *  canon, mirroring the structured path's non-conforming-drop; never a throw into the flush).
+ *
+ *  EXPORTED because it is the ONE place the model's args string is decoded (#1690). rpg's member-facing
+ *  projection has to decode before it can belt the hidden spans out of the leaf values — running the strip
+ *  over the ENCODED string is a silent false clean — and a second `JSON.parse` + catch there would be a
+ *  second, differently-owned answer to "is this payload readable at all". A literal `null` payload decodes to
+ *  `null` and is therefore indistinguishable from unparseable: both are "nothing a reader can act on", which
+ *  is the same verdict both consumers want. */
+export function parseToolCallArgs(raw: string): unknown {
   // @orb-gate-ignore caught-failure-ownership(default:catch): errors-as-data — a malformed tool call is
   // DROPPED, mirroring the structured path's non-conforming-drop; the null return is consumed by the
-  // canon flush's non-JSON-args skip. Ends if the flush stops treating null as "drop this call".
+  // canon flush's non-JSON-args skip and by rpg's member projection (which WITHHOLDS the args). Ends if
+  // either consumer stops treating null as "this payload is not readable".
   try {
     return JSON.parse(raw);
   } catch {
@@ -508,7 +516,7 @@ const TOOL_ROUND_ARRAY_ARMS: ReadonlyMap<string, { readonly schema: z.ZodType; r
 export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtraction {
   const out: RpgExtraction = { party: [], inventory: [], trackers: [], quests: [], journal: [] };
   for (const call of calls) {
-    const args = parseArgs(call.arguments);
+    const args = parseToolCallArgs(call.arguments);
     if (args === null) {
       continue;
     }
@@ -811,6 +819,34 @@ export interface RpgMalformedToolCall {
 /** Cap on a rendered offending value — a log line, not a payload dump. */
 const MALFORMED_VALUE_MAX = 80;
 
+/** THE SEPARATOR BEFORE THE MODEL-SENT VALUE, and the ONE home for it (#1690). An issue line is
+ *  `<path>: <message> — sent <json>`, and everything after this marker is bytes the MODEL wrote — which on a
+ *  deception-active game can be a `<lie …/>` an extractor quoted into a state field. A member-facing reader
+ *  therefore has to be able to find the seam, so the builder below and {@link projectIssueSentValue} read the
+ *  same constant instead of two agreeing literals. */
+const SENT_VALUE_MARKER = " — sent ";
+
+/**
+ * Re-render ONE issue line's model-sent value through `project`, keeping the `<path>: <message>` half intact
+ * (#1690). `project` returns the replacement rendering, or `null` to DROP the value half entirely — the
+ * fail-closed arm for a value that cannot be safely re-rendered (a truncated JSON literal, a non-JSON
+ * `(absent)` marker). A line with no sent value is returned unchanged.
+ *
+ * WHY THE CALLER PROJECTS RATHER THAN THIS FUNCTION STRIPPING: the value is JSON-ENCODED here, and the
+ * hidden-span recognizer walks `"…"` attr values with `\` escapes — so running a strip over the ENCODED form
+ * matches nothing and reports `hadHidden: false`, a silent false clean (measured 2026-09-05). Only a caller
+ * that decodes first can strip it, and only rpg knows the belt.
+ */
+export function projectIssueSentValue(issue: string, project: (sent: string) => string | null): string {
+  const at = issue.indexOf(SENT_VALUE_MARKER);
+  if (at === -1) {
+    return issue;
+  }
+  const head = issue.slice(0, at);
+  const projected = project(issue.slice(at + SENT_VALUE_MARKER.length));
+  return projected === null ? head : `${head}${SENT_VALUE_MARKER}${projected}`;
+}
+
 /** The value the model actually SENT at an issue's path, rendered and truncated. Walks `args` rather than
  *  reading zod's own `received` because that field is absent on several issue codes (and carries the parsed
  *  form, not the wire form) — the wire form is the one that names a vocabulary gap. */
@@ -838,7 +874,7 @@ export function malformedToolCallDetails(calls: readonly RpgToolCall[]): readonl
     if (schema === undefined) {
       continue; // `no_changes` / an unknown name — a no-op, never a malformed call
     }
-    const args = parseArgs(call.arguments);
+    const args = parseToolCallArgs(call.arguments);
     if (args === null) {
       bad.push({ name: call.name, issues: ["arguments: not valid JSON"] });
       continue;
@@ -856,7 +892,7 @@ export function malformedToolCallDetails(calls: readonly RpgToolCall[]): readonl
     bad.push({
       name: call.name,
       issues: parsed.error.issues.map(
-        (issue) => `${issue.path.length > 0 ? issue.path.join(".") : "(root)"}: ${issue.message} — sent ${sentValueAtPath(args, issue.path)}`,
+        (issue) => `${issue.path.length > 0 ? issue.path.join(".") : "(root)"}: ${issue.message}${SENT_VALUE_MARKER}${sentValueAtPath(args, issue.path)}`,
       ),
     });
   }
@@ -874,7 +910,7 @@ export function salvagedToolCallFields(calls: readonly RpgToolCall[]): readonly 
     if (schema === undefined) {
       continue;
     }
-    const args = parseArgs(call.arguments);
+    const args = parseToolCallArgs(call.arguments);
     if (args === null) {
       continue;
     }
@@ -1052,7 +1088,7 @@ export function strippedToolCallKeys(calls: readonly RpgToolCall[]): readonly st
     if (schema === undefined) {
       continue; // `no_changes` / an unknown name — nothing was meant to apply, so nothing was stripped
     }
-    const args = parseArgs(call.arguments);
+    const args = parseToolCallArgs(call.arguments);
     if (args === null) {
       continue;
     }

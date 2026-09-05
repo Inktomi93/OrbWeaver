@@ -7,15 +7,32 @@
 // the opposite: it is the mechanical record of a turn everyone at the table just watched happen, and the
 // symptom this closes is that *the person playing* cannot see it.
 //
-// CONTENT-SAFE by construction: the record carries tool NAMES + their ARGS, never prose. The args are
-// structured state writes the panel already renders the results of (a tracker moved, an item appeared), so a
-// member reading them learns nothing the tracker view would not tell them one beat later.
+// NOT CONTENT-SAFE BY CONSTRUCTION — this header used to claim it was, and the claim was false (#1690, the
+// #1528 class). It read: "the record carries tool NAMES + their ARGS, never prose". `args` is the RAW JSON
+// STRING the model sent (`contracts/rpg/extraction.ts`), and the state tools write PROSE — ambient
+// `location`/`weather`, an actor's mood and status, item and quest text, journal entries — so a `<lie …/>`
+// truth an extractor quoted into a scene field arrives here as a tool arg. The `issues` line carries model
+// bytes too: a dropped call's diagnostic embeds the value the model actually SENT at the failing path, and
+// THAT is the half the panel paints.
+//
+// So the member gate above stays, and a SECOND question is answered beside it: not "may this caller act"
+// (that is `resolveMember`) but "what may this viewer SEE" — chat's ONE `resolveViewerVisibility` verdict,
+// the same op #1528's member-facing reads take (`get-tracker-view.ts`), never a re-derived `role === "host"`.
+// A viewer who does not read hidden gets the args parsed and belted leaf by leaf; the host reads verbatim.
+// The withhold arm for args that do not parse is the substrate's, and its reasoning lives there.
+//
+// NO HISTORY FLOOR HERE, stated so its absence is a decision: a tool-call record describes a turn's own
+// mechanical writes and is keyed to the producing VARIANT, and the D16 floor is a `messages.seq` clamp on the
+// CANON a member may read. A member who can see the message row can see what that turn did to the game they
+// are sitting in — that is arm A's whole product point. `listJournal` is the rpg read that keeps distilled
+// per-turn PROSE, and that is where the floor lands.
 
 import type { RpgTurnToolCallsView } from "@orb/contracts/rpg";
 import type { ListTurnToolCallsParams } from "../../contract/params.ts";
 import type { RpgContext, RpgService } from "../../contract/service.ts";
 import { resolveMember } from "../../guard.ts";
 import { listTurnToolCalls as listRows } from "../../persistence/turn-tool-calls.ts";
+import { projectToolCallsForViewer } from "../../substrate/tool-call-visibility.ts";
 
 /** The transcript window a disclosure needs, in TURNS (message slots) — deep enough to cover a scrollback
  *  session, bounded so a long game never serves its whole history for a surface most people never open.
@@ -26,8 +43,19 @@ const DEFAULT_TURN_TOOL_CALLS_TURN_LIMIT = 50;
 export function createListTurnToolCalls(ctx: RpgContext): Pick<RpgService, "listTurnToolCalls"> {
   async function listTurnToolCalls(params: ListTurnToolCallsParams): Promise<readonly RpgTurnToolCallsView[]> {
     const { game } = await resolveMember(ctx, params.principal, params.chatId);
-    const rows = await listRows(ctx.db, game.id, { turnLimit: params.turnLimit ?? DEFAULT_TURN_TOOL_CALLS_TURN_LIMIT });
-    return rows.map((r) => ({ variantId: r.variantId, messageId: r.messageId, calls: r.calls, createdAt: r.createdAt }));
+    const [visibility, rows] = await Promise.all([
+      ctx.resolveViewerVisibility(params.chatId, params.principal.userId),
+      listRows(ctx.db, game.id, { turnLimit: params.turnLimit ?? DEFAULT_TURN_TOOL_CALLS_TURN_LIMIT }),
+    ]);
+    // A `null` visibility cannot happen behind `resolveMember` — and if it ever did it means "not a present
+    // member", so the fail-CLOSED reading is "does not read hidden" (the `get-tracker-view.ts` posture).
+    const readsHidden = visibility?.readsHidden ?? false;
+    return rows.map((r) => ({
+      variantId: r.variantId,
+      messageId: r.messageId,
+      calls: projectToolCallsForViewer(r.calls, readsHidden),
+      createdAt: r.createdAt,
+    }));
   }
   return { listTurnToolCalls };
 }

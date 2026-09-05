@@ -98,3 +98,91 @@ describe("listTurnToolCalls", () => {
     expect(rows.map((r) => r.variantId)).toContain(old.variantId);
   });
 });
+
+// #1690 — THE MEMBER-VISIBILITY HALF (the #1528 class, on the read that claimed it could not have one). This
+// verb's header used to say the record is "CONTENT-SAFE by construction … never prose". `args` is the RAW
+// JSON the model sent and the state tools write prose, so an extractor that quoted a `<lie …/>` into a scene
+// field put the GM's truth in a member's payload; a dropped call's `issues` line carries the model-sent value
+// too, and THAT is the half the panel paints. Every principal is named: `host` holds the host seat, `member`
+// is a plain present member.
+const HIDDEN = '<lie character="Mara" truth="she is the informant"/>';
+const TRUTH = "she is the informant";
+const MEMBER = principal(castId<Handle>("member"));
+
+describe("listTurnToolCalls — hidden spans are the HOST's plane, not the member's", () => {
+  test("a member reads the args PARSED and stripped; the host reads the raw bytes verbatim", async () => {
+    const { chatId, gameId, h } = await seedLiteGame(db);
+    h.fakes.membership.set("user_member", "member");
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+    const args = JSON.stringify({ location: `The docks ${HIDDEN}`, npcs: [{ mood: `wary ${HIDDEN}` }] });
+    await recordTurnToolCalls(db, {
+      id: castId<RpgTurnToolCallsId>("rpg_turn_tool_calls_lie"),
+      gameId,
+      messageId,
+      variantId,
+      calls: [{ name: "update_scene", args, verdict: "applied", issues: [] }],
+      createdAt: FROZEN_AT,
+    });
+
+    const memberRows = await h.service.listTurnToolCalls({ principal: MEMBER, chatId });
+    const hostRows = await h.service.listTurnToolCalls({ principal: HOST, chatId });
+
+    // The truth BYTES never reach the member on any plane of the payload, at any depth.
+    expect(JSON.stringify(memberRows)).not.toContain(TRUTH);
+    expect(JSON.parse(memberRows[0]?.calls[0]?.args ?? "")).toEqual({ location: "The docks ", npcs: [{ mood: "wary " }] });
+    expect(memberRows[0]?.calls[0]?.withheld).toBeNull();
+    // The host reads canon verbatim — a member PROJECTION, not a redaction.
+    expect(hostRows[0]?.calls[0]?.args).toBe(args);
+  });
+
+  test("a dropped call's issue line loses only the model-SENT value for a member — the path/message half stays", async () => {
+    const { chatId, gameId, h } = await seedLiteGame(db);
+    h.fakes.membership.set("user_member", "member");
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+    const issue = `weather.type: Invalid option — sent ${JSON.stringify(`storm ${HIDDEN}`)}`;
+    await recordTurnToolCalls(db, {
+      id: castId<RpgTurnToolCallsId>("rpg_turn_tool_calls_issue"),
+      gameId,
+      messageId,
+      variantId,
+      calls: [{ name: "update_scene", args: "{}", verdict: "dropped", issues: [issue] }],
+      createdAt: FROZEN_AT,
+    });
+
+    const memberRows = await h.service.listTurnToolCalls({ principal: MEMBER, chatId });
+    const hostRows = await h.service.listTurnToolCalls({ principal: HOST, chatId });
+
+    expect(JSON.stringify(memberRows)).not.toContain(TRUTH);
+    // The actionable half — WHICH field the vocabulary refused — is what the disclosure exists for.
+    expect(memberRows[0]?.calls[0]?.issues[0]).toContain("weather.type: Invalid option");
+    expect(hostRows[0]?.calls[0]?.issues[0]).toBe(issue);
+  });
+
+  test("args that do not parse are WITHHELD from a member with a typed reason, and served whole to the host", async () => {
+    const { chatId, gameId, h } = await seedLiteGame(db);
+    h.fakes.membership.set("user_member", "member");
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+    // A mid-emission garble whose bytes carry half a lie — the shape a blanket strip would have passed through.
+    const args = `{"location":"The docks <lie truth="${TRUTH}`;
+    await recordTurnToolCalls(db, {
+      id: castId<RpgTurnToolCallsId>("rpg_turn_tool_calls_garble"),
+      gameId,
+      messageId,
+      variantId,
+      calls: [{ name: "update_scene", args, verdict: "dropped", issues: ["arguments: not valid JSON"] }],
+      createdAt: FROZEN_AT,
+    });
+
+    const memberRows = await h.service.listTurnToolCalls({ principal: MEMBER, chatId });
+    const hostRows = await h.service.listTurnToolCalls({ principal: HOST, chatId });
+
+    expect(JSON.stringify(memberRows)).not.toContain(TRUTH);
+    expect(memberRows[0]?.calls[0]?.withheld).toBe("unparseable");
+    expect(memberRows[0]?.calls[0]?.args).toBe("");
+    // The member still learns the call happened and that it did not land.
+    expect(memberRows[0]?.calls[0]?.name).toBe("update_scene");
+    expect(memberRows[0]?.calls[0]?.verdict).toBe("dropped");
+    expect(hostRows[0]?.calls[0]?.args).toBe(args);
+    expect(hostRows[0]?.calls[0]?.withheld).toBeNull();
+  });
+});

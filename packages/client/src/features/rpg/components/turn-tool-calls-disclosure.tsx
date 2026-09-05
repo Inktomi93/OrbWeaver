@@ -17,7 +17,7 @@
 // already cached client-side — see `useTurnToolCallsForVariant`).
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { RpgRecordedToolCall, RpgToolCallVerdict } from "@orb/contracts/rpg";
+import type { RpgToolCallDisclosure, RpgToolCallVerdict, RpgToolCallWithholdReason } from "@orb/contracts/rpg";
 import type { BadgeProps } from "@orb/ui/badge";
 import { Badge } from "@orb/ui/badge";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -36,6 +36,12 @@ const VERDICT_INTENT: Record<RpgToolCallVerdict, NonNullable<BadgeProps["intent"
   // A lock drop is the reader's OWN doing, so it is a warning rather than a failure — but it is never
   // `success`: part of what the model wrote is not in the state, and the line below names which path.
   overridden: "warning",
+};
+
+/** WHY the args are not this reader's to see, said as a sentence rather than as the enum (#1690). A mapped
+ *  Record over the tuple, so a second withhold reason fails `tsc` here instead of rendering as nothing. */
+const WITHHELD_LABEL: Record<RpgToolCallWithholdReason, string> = {
+  unparseable: "Arguments not shown — the model did not send readable ones.",
 };
 
 /** The verdict said as an OUTCOME, in the reader's terms — not the enum. "dropped" alone reads like a UI
@@ -87,7 +93,7 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
       <CollapsiblePanel>
         <Stack gap="field">
           {calls.map((call) => (
-            <CallLine call={call} key={`${call.name}:${call.args}`} />
+            <CallLine call={call} key={`${call.name}:${call.args}:${call.verdict}`} />
           ))}
         </Stack>
       </CollapsiblePanel>
@@ -100,7 +106,10 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
  *  The reason is TEXT, never a tooltip: `SCENE-DROPPED` cost a live session hours precisely because the
  *  failing field was not visible anywhere, and a hover affordance is unreachable on touch and invisible to a
  *  reader skimming the transcript. Same posture as `InertCard`'s reason-and-remedy. */
-function CallLine({ call }: { readonly call: RpgRecordedToolCall }): ReactElement {
+function CallLine({ call }: { readonly call: RpgToolCallDisclosure }): ReactElement {
+  // `?? null` rather than a bare `=== null`: this is a WIRE value, and a payload from a server that predates
+  // the withhold field must read as "nothing withheld", never as an empty gloss line.
+  const withheld = call.withheld ?? null;
   return (
     <Stack data-slot="turn-tool-call" gap="row">
       <Row align="center" gap="field" justify="between">
@@ -110,6 +119,13 @@ function CallLine({ call }: { readonly call: RpgRecordedToolCall }): ReactElemen
       {call.issues.length === 0 ? null : (
         <Text className="block" voice="gloss">
           {call.issues.join(" · ")}
+        </Text>
+      )}
+      {/* #1690 — SAID, not silently empty. The server withholds args it could not belt for this viewer, and a
+          reader who is told nothing about that reads the absence as "the model sent nothing". */}
+      {withheld === null ? null : (
+        <Text className="block" data-slot="turn-tool-call-withheld" voice="gloss">
+          {WITHHELD_LABEL[withheld]}
         </Text>
       )}
     </Stack>
