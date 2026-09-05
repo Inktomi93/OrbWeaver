@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "906a2d48-d402-4e57-884b-6ad31332e294",
+  "id": "a1b0194a-8e71-4e6c-9a58-c51cab7df4fe",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -5008,7 +5008,7 @@
       "checkConstraints": {
         "notifications_type_check": {
           "name": "notifications_type_check",
-          "value": "type in ('invite', 'kicked', 'handoff-nominated', 'handoff-accepted', 'deferred-turn-dropped', 'automation-notice', 'plugin-disabled')"
+          "value": "type in ('invite', 'kicked', 'handoff-nominated', 'handoff-accepted', 'deferred-turn-dropped', 'automation-notice', 'plugin-disabled', 'plugins-awaiting-consent')"
         }
       }
     },

@@ -25,7 +25,7 @@ import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import type { ChromePresentation } from "#state";
-import { selectChat, setActiveSection } from "#state";
+import { openConfigTo, selectChat, setActiveSection } from "#state";
 import { useAcceptHostHandoff } from "../hooks/use-handoff-actions.ts";
 import { useDismissNotification, useInbox, useMarkAllNotificationsRead } from "../hooks/use-inbox.ts";
 import { useInboxStream } from "../hooks/use-inbox-stream.ts";
@@ -46,6 +46,15 @@ const ROW_COPY: {
     p.reason === "consent" ? "An AI reply couldn't run — the host hasn't allowed it" : "An AI reply couldn't run — that chat is no longer available",
   "automation-notice": (p) => `Automation notice: ${p.message}`,
   "plugin-disabled": () => "A plugin was disabled",
+  // THE FRESH-BOOT ASK (#1041/#924). ONE aggregate row, never one per plugin — the count is the whole
+  // message, and what each plugin asks for (and why) is read on the consent screen the Review action opens,
+  // which is the only place the answer can actually be given. The wording is the Extensions pane's
+  // awaiting-consent sentence, deliberately: both surfaces describe the same nine rows, and a reader who
+  // meets it twice should not have to work out that it is the same fact.
+  "plugins-awaiting-consent": (p) =>
+    p.pendingCount === 1
+      ? "One plugin is installed but not allowed to do anything yet"
+      : `${p.pendingCount} plugins are installed but not allowed to do anything yet`,
 };
 
 /** The sheet lens's heading id — the block points its `aria-labelledby` at it, so the group and the heading
@@ -106,6 +115,13 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
     selectChat(chatId);
   };
 
+  // The consent ask's door: the popover closes and the Plugins config group opens, the same
+  // close-then-navigate shape the invite/handoff arms use.
+  const onOpenPlugins = (): void => {
+    setOpen(false);
+    openConfigTo("plugins");
+  };
+
   const onHandoffAccepted = (chatId: ChatId): void => {
     setOpen(false);
     setActiveSection("chats");
@@ -118,7 +134,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
       {items.length === 0 ? (
         <Text voice="quiet">No notifications.</Text>
       ) : (
-        items.map((item) => <InboxRow key={item.id} item={item} onAccepted={onAccepted} onHandoffAccepted={onHandoffAccepted} />)
+        items.map((item) => <InboxRow key={item.id} item={item} onAccepted={onAccepted} onHandoffAccepted={onHandoffAccepted} onOpenPlugins={onOpenPlugins} />)
       )}
     </Stack>
   );
@@ -190,11 +206,12 @@ interface InboxRowProps {
   readonly item: InboxItem;
   readonly onAccepted: (chatId: ChatId) => void;
   readonly onHandoffAccepted: (chatId: ChatId) => void;
+  readonly onOpenPlugins: () => void;
 }
 
 /** One inbox row: the delivery copy + its actions (invite → Accept/Decline; handoff-nominated →
  *  Accept/Dismiss; the rest → Dismiss). */
-function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): ReactElement {
+function InboxRow({ item, onAccepted, onHandoffAccepted, onOpenPlugins }: InboxRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const dismiss = useDismissNotification({ trpc, invalidation });
@@ -210,6 +227,7 @@ function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): React
   const [acted, setActed] = useState(false);
   const isInvite = item.payload.type === "invite";
   const isHandoff = item.payload.type === "handoff-nominated";
+  const isConsent = item.payload.type === "plugins-awaiting-consent";
   const isPending = accept.isPending || decline.isPending || acceptHandoff.isPending || dismiss.isPending;
   let pendingCopy = "Dismissing notification…";
   if (isInvite) {
@@ -275,6 +293,21 @@ function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): React
     });
   };
 
+  // THE PATH TO THE ANSWER, not a second copy of the ask (owner ruling on #924, defaults 1-2). The consent
+  // surface is the EXISTING Plugins group, which already sorts rows needing attention to the top
+  // (`plugins-installed-section.tsx`), so landing on the group IS landing on the pending rows — and the
+  // group's own anchor ids stay in the plugin feature where they are minted (a client feature must not
+  // import another feature's internals, `client-features-no-cross`), which is why this is the group-level
+  // door rather than a second spelling of the Extensions pane's deep link.
+  //
+  // It deliberately does NOT dismiss the row: the ask stands until it is ANSWERED, and the producer
+  // retracts it the moment the last plugin is settled (`domain/plugin/substrate/consent-prompt.ts`). A
+  // reader who wants it gone anyway has the Dismiss beside it — that is the "deny is recoverable" arm:
+  // the plugins stay installed and ungranted, and this screen is still one click away.
+  const reviewConsent = (): void => {
+    onOpenPlugins();
+  };
+
   const dismissRow = (): void => {
     ownAction(async () => {
       await dismiss.mutateAsync({ notificationId: item.id });
@@ -313,6 +346,11 @@ function InboxRow({ item, onAccepted, onHandoffAccepted }: InboxRowProps): React
         {isHandoff && !acted ? (
           <Button type="button" disabled={isPending} intent="secondary" size="sm" onClick={acceptHostHandoff}>
             Accept
+          </Button>
+        ) : null}
+        {isConsent ? (
+          <Button aria-label="Review what your plugins ask for" type="button" disabled={isPending} intent="secondary" size="sm" onClick={reviewConsent}>
+            Review
           </Button>
         ) : null}
         {isInvite && !acted ? null : (

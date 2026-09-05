@@ -57,7 +57,16 @@ test("the `type` column accepts EXACTLY the contract union members", async () =>
   // schema imports it. What is left for a runtime test is the part tsc cannot see: that the CHECK the
   // tuple generated actually admits every member against a real libSQL.
   const unionTypes = [...NOTIFICATION_TYPES].sort();
-  expect(unionTypes).toEqual(["automation-notice", "deferred-turn-dropped", "handoff-accepted", "handoff-nominated", "invite", "kicked", "plugin-disabled"]);
+  expect(unionTypes).toEqual([
+    "automation-notice",
+    "deferred-turn-dropped",
+    "handoff-accepted",
+    "handoff-nominated",
+    "invite",
+    "kicked",
+    "plugin-disabled",
+    "plugins-awaiting-consent",
+  ]);
 
   // Every union member inserts cleanly (the column enum + CHECK derive the same set). Batched (one
   // insert) to avoid await-in-loop.

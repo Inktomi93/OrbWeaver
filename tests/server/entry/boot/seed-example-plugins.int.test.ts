@@ -21,6 +21,7 @@ import type { InvocationChat, PluginCapability, PluginHandlerRef } from "@orb/co
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, Handle, MessageId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createNotificationsService } from "@orb/server/domain/notifications";
 // The ALIASED front door, not a deep relative path: biome's type service cannot see through
 // `../../../../packages/server/src/...` into a branded type, and it then mis-fires `useAwaitThenable` /
 // `noUnnecessaryConditions` on perfectly typed code.
@@ -983,4 +984,86 @@ test("the seeded scripted example round-trips its ui.js through install → CAS 
   const staticOnly = await packSeedPluginBundle("oracle-deck");
   const staticRow = await h.service.install({ caller, bundle: staticOnly as Uint8Array, grant: [] });
   expect(await h.service.getUiBundle({ caller, pluginId: staticRow.id })).toBeNull();
+});
+
+/** THE FRESH-BOOT CONSENT ASK, END TO END (#1041 / #924 item 2). The nine examples land installed, disabled
+ *  and ungranted — and BEFORE this row, nothing ever told the person. This is the receipt that the seeder's
+ *  own pass now leaves exactly ONE durable inbox row saying how many plugins are waiting, addressed to the
+ *  principal that OWNS them.
+ *
+ *  It is the join of the two halves pinned separately (`domain/plugin/substrate/consent-prompt.int.test.ts`
+ *  decides the move; `domain/notifications/verbs/standing.int.test.ts` pins what each move does): here the
+ *  REAL plugin verbs drive the REAL notifications service over the REAL packed bundles.
+ *
+ *  THE COUNT IS THE POINT, and it is why the ops are wired rather than recorded: the seeder installs all nine
+ *  slugs CONCURRENTLY, so nine consent raises each finish and then ask "how many are pending now?". Without
+ *  the producer's per-recipient serialisation the surviving row carries whichever count raced last, and a
+ *  fresh boot could greet its owner with "7 plugins are waiting" while nine wait. RED-FIRST RECEIPT
+ *  (2026-09-05, `git show HEAD:` sources): `items` was EMPTY. */
+test("the seeder leaves the owner ONE durable ask that counts every waiting plugin", async () => {
+  const db = await freshDb();
+  const notifications = createNotificationsService({ db, now: (): number => FROZEN_AT_MS });
+  const inert = makeInertOps();
+  const ops: PluginHostOps = {
+    ...inert,
+    notifications: {
+      ...inert.notifications,
+      // The compose bodies, minus the transport publish (`entry/compose/automation-plugin.ts`).
+      emitStanding: async (event): Promise<void> => {
+        await notifications.record({ event, supersedeActiveOfSameType: true });
+      },
+      refreshStanding: async (event): Promise<void> => {
+        await notifications.refreshStanding({ event });
+      },
+      retractStanding: async (req): Promise<void> => {
+        await notifications.retract(req);
+      },
+    },
+  };
+  const h = makePluginHarness(db, { port: realHost(), ops });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  let latched = false;
+
+  const seeder = createExamplePluginSeeder({
+    packBundle: packSeedPluginBundle,
+    install: async ({ caller: principal, bundle }) => await h.service.install({ caller: principal, bundle, grant: [] }),
+    requestConsent: async ({ caller: principal, pluginId }) => {
+      await h.service.setGrant({ caller: principal, pluginId, grant: [], acknowledgedNetHosts: [] });
+    },
+    alreadyInstalled: async (principal, slug) => (await h.service.list({ caller: principal })).some((row) => row.slug === slug),
+    isSeeded: (): Promise<boolean> => Promise.resolve(latched),
+    markSeeded: (): Promise<void> => {
+      latched = true;
+      return Promise.resolve();
+    },
+  });
+
+  await seeder.ensureSeeded(caller);
+
+  const inbox = await notifications.list({ principal: caller });
+  expect(inbox.items).toHaveLength(1);
+  expect(inbox.items[0]?.payload).toEqual({
+    type: "plugins-awaiting-consent",
+    recipientUserId: caller.userId,
+    pendingCount: EXAMPLE_PLUGIN_SLUGS.length,
+  });
+  // Unread: the whole point is that it reaches the bell as something new.
+  expect(inbox.items[0]?.readAt).toBeNull();
+
+  // ANSWERING ONE DOES NOT RE-ASK: the standing row's number drops in place, same row, still one row.
+  const [firstRow] = await h.service.list({ caller });
+  await h.service.setGrant({
+    caller,
+    pluginId: firstRow?.id as PluginId,
+    grant: firstRow?.declaredCapabilities ?? [],
+    acknowledgedNetHosts: firstRow?.netHosts ?? [],
+  });
+  const after = await notifications.list({ principal: caller });
+  expect(after.items).toHaveLength(1);
+  expect(after.items[0]?.id).toBe(inbox.items[0]?.id);
+  expect(after.items[0]?.payload).toEqual({
+    type: "plugins-awaiting-consent",
+    recipientUserId: caller.userId,
+    pendingCount: EXAMPLE_PLUGIN_SLUGS.length - 1,
+  });
 });

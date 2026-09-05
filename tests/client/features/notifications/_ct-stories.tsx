@@ -9,6 +9,7 @@
 
 import { useOrbSocket } from "@orb/client/data";
 import { NotificationBell, notificationsChrome } from "@orb/client/features/notifications";
+import { useActiveConfigGroup, useActiveSection } from "@orb/client/state";
 import type { ReactElement, ReactNode } from "react";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
@@ -80,6 +81,29 @@ export function NotificationBellToastStory(): ReactElement {
             <NotificationBell />
           </div>
         </CtToastSurface>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+/** The bell BESIDE a probe of where the shell has been sent (#1041). The consent ask's whole product claim
+ *  is that it BUILDS THE PATH to the consent surface, and "the path" is client-ephemeral navigation state,
+ *  not a rendered thing the bell owns — so the probe reads the same `#state` the config shell reads. Appended
+ *  as a new export (a `_ct-stories` module may export ONLY components; the probe is one). */
+function ShellDestinationProbe(): ReactElement {
+  const section = useActiveSection();
+  const group = useActiveConfigGroup();
+  return <output data-testid="ct-shell-destination">{`${section}/${group ?? "none"}`}</output>;
+}
+
+export function NotificationBellDestinationStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <div style={{ width: 480, padding: 16 }}>
+          <NotificationBell />
+          <ShellDestinationProbe />
+        </div>
       </SocketHost>
     </CtDataProviders>
   );

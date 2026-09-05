@@ -32,6 +32,7 @@ import { CapabilityNotGrantedError, PluginNetHostsUnacknowledgedError, PluginNot
 import type { SetPluginGrantParams } from "../contract/params.ts";
 import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
 import { applyGrant, getById, toPluginView } from "../persistence/plugins.ts";
+import { refreshConsentPrompt } from "../substrate/consent-prompt.ts";
 import { normalizeGrant, ungrantableCapabilities, widenedNetHosts } from "../substrate/grants.ts";
 
 /** The refusal the row carries OUT of the consent act — whether one still stands, and which hosts it is
@@ -121,6 +122,13 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): Plugin
       // re-consent withholds its hosts everywhere until it is fully answered.
       await deps.activate({ caller, pluginId, bundleAssetId: existing.bundleAssetId, grants: granted, withheldNetHosts: refusal.hosts });
     }
+
+    // THE ASK IS ANNOUNCED WHERE IT IS RAISED AND ANSWERED (#1041). This verb is BOTH ends of the consent
+    // loop — the seeder's empty re-grant is what puts a fresh install into the pending state, and a covering
+    // grant is what takes it out — so it is also where the owner's ONE aggregate inbox row is brought into
+    // line. `raised` is this row's own transition into pending: only that deserves a new row and a new badge
+    // (an answer that merely lowers the count corrects the standing row in place).
+    await refreshConsentPrompt(ctx, caller.userId, refusal.pending && !existing.pendingReconsent);
 
     const row = await getById(ctx.db, caller.userId, pluginId);
     if (row === undefined) {

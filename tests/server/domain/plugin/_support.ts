@@ -348,7 +348,15 @@ export function makeInertOps(): PluginHostOps {
       delete: () => Promise.resolve(),
       list: () => Promise.resolve([]),
     },
-    notifications: { emit: () => Promise.resolve(), post: () => Promise.resolve() },
+    // The standing-ask trio (#1041) is inert here for the same reason `emit` is — a verb test that cares
+    // about the consent ask injects a recorder (`substrate/consent-prompt.int.test.ts`).
+    notifications: {
+      emit: () => Promise.resolve(),
+      emitStanding: () => Promise.resolve(),
+      refreshStanding: () => Promise.resolve(),
+      retractStanding: () => Promise.resolve(),
+      post: () => Promise.resolve(),
+    },
     llm: { quiet: () => Promise.resolve({ text: "" }) },
     // The S4 posture-2 inbox, inert here. Not a fail-closed default like the two above, because a raise that
     // silently does nothing is the honest inert shape: the SECURITY property under test elsewhere is that a

@@ -4,7 +4,7 @@
 
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
-import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams, ReplaySinceParams } from "./params.ts";
+import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams, RefreshStandingParams, ReplaySinceParams, RetractParams } from "./params.ts";
 import type { ListInboxResult, MarkAllReadResult } from "./results.ts";
 import type { InboxView } from "./views.ts";
 
@@ -20,12 +20,22 @@ export interface NotificationsContext {
  *  this domain's `record` + transport's bus. */
 export type EmitNotification = (event: NotificationEvent) => Promise<void>;
 
-/** The verbs. `record` is the producer write; markAllRead/dismiss/list are caller-scoped to
- *  `principal.userId` — a user touches only their own inbox. */
+/** The verbs. `record`/`retract` are the producer writes (recipient-addressed); markAllRead/dismiss/list
+ *  are caller-scoped to `principal.userId` — a user touches only their own inbox. */
 export interface NotificationsService {
   /** Durable-first write: INSERT one closed event for its recipient with a db-driven monotonic `seq`,
    *  parsed through the union schema. Returns the stored `InboxView`. */
   record: (params: RecordParams) => Promise<InboxView>;
+  /** Correct a STANDING ASK's payload in place (#1041) — same recipient, same type, `seq`/`readAt`
+   *  untouched, so a number that only got smaller never re-badges the bell. Returns the rows it changed;
+   *  EMPTY when the reader has no active row of that type (they dismissed it — not a reason to insert).
+   *  The GROWING case is `record` with `supersedeActiveOfSameType`, which DOES re-badge. */
+  refreshStanding: (params: RefreshStandingParams) => Promise<readonly InboxView[]>;
+  /** Withdraw a STANDING ASK the producer no longer has (#1041): dismiss every active row of `type` for
+   *  `recipientUserId`, idempotently, and return the rows actually flipped so the caller can publish them.
+   *  Recipient-addressed like `record` — `dismiss` is the reader's caller-scoped act, this is the
+   *  producer's. */
+  retract: (params: RetractParams) => Promise<readonly InboxView[]>;
   /** Mark every one of the caller's currently-unread notifications read, in one db UPDATE. Returns the
    *  count of rows actually flipped. */
   markAllRead: (params: MarkAllReadParams) => Promise<MarkAllReadResult>;

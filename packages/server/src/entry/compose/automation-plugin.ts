@@ -114,7 +114,7 @@ export interface AutomationPluginComposeDeps {
   /** The shared machine writer + the two reads the plugin `worldinfo.write` gates gate on (attachment =
    *  the room's consent; the entry index = the per-plugin cap's counter). */
   readonly worldInfo: Pick<WorldInfoService, "upsertEntries" | "listForChat" | "listEntryIndex" | "listEntries">;
-  readonly notifications: Pick<NotificationsService, "record">;
+  readonly notifications: Pick<NotificationsService, "record" | "refreshStanding" | "retract">;
   readonly imagery: Pick<ImageryService, "generatePicture">;
   readonly settings: Pick<SettingsService, "getUserSettings">;
   readonly assets: Pick<AssetsService, "store" | "loadAssetBytes" | "assetCasRefById" | "reapIfOrphan" | "readOwnedAssetBytes">;
@@ -578,6 +578,24 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     notifications: {
       emit: async (event) => {
         publishNotification(await notifications.record({ event }));
+      },
+      // The STANDING-ASK trio (#1041) — the same durable-first shape as `emit`, differing only in which
+      // inbox move each one is. `emitStanding` supersedes any live row of the type inside the insert's own
+      // batch, so the recipient can never hold two copies of one standing ask; `refreshStanding` and
+      // `retractStanding` publish the rows they actually changed, which is what makes a live bell re-read
+      // an inbox whose row moved without a new row being inserted.
+      emitStanding: async (event) => {
+        publishNotification(await notifications.record({ event, supersedeActiveOfSameType: true }));
+      },
+      refreshStanding: async (event) => {
+        for (const view of await notifications.refreshStanding({ event })) {
+          publishNotification(view);
+        }
+      },
+      retractStanding: async ({ recipientUserId, type }) => {
+        for (const view of await notifications.retract({ recipientUserId, type })) {
+          publishNotification(view);
+        }
       },
       post: async ({ pluginId, installerUserId, chatId, recipient, message }) => {
         // The SAME axis resolver the `post_notification` arm uses — one home, so a new recipient member can

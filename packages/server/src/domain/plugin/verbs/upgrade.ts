@@ -45,6 +45,7 @@ import type { ActivationDeps, PluginContext, PluginService } from "../contract/s
 import { listPluginBundleAssets } from "../persistence/plugin-assets.ts";
 import { applyUpgrade, getById, setStatus, toPluginView } from "../persistence/plugins.ts";
 import { storeBundleAssets } from "../substrate/bundle-assets.ts";
+import { refreshConsentPrompt } from "../substrate/consent-prompt.ts";
 import { newlyDeclaredCapabilities, normalizeGrant, pendingWidenedNetHosts, widenedNetHosts } from "../substrate/grants.ts";
 import { isVersionDowngrade, PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
 
@@ -237,6 +238,11 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
       // answered. Same rule as `setEnabled`'s, at the other activation site.
       await deps.activate({ caller, pluginId, bundleAssetId: stored.assetId, grants: granted, withheldNetHosts: refusal.hosts });
     }
+
+    // A reach-WIDENING upgrade is the other way a plugin starts standing on its owner's answer, so it
+    // brings the owner's aggregate consent ask along with it (#1041). `raised` = this row entered the
+    // pending state here; an upgrade that only cleared it corrects the standing row's number in place.
+    await refreshConsentPrompt(ctx, caller.userId, refusal.pending && !existing.pendingReconsent);
 
     const row = await getById(ctx.db, caller.userId, pluginId);
     if (row === undefined) {

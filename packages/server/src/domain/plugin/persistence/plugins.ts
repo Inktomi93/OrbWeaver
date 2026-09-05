@@ -145,6 +145,17 @@ export async function isPluginEnabledFor(db: Db, ownerId: UserId, pluginId: Plug
   return rows[0]?.status === "enabled";
 }
 
+/** How many of ONE owner's plugins are standing on their consent (#1041) — the number the aggregate inbox
+ *  ask spends, counted in the db rather than folded off `listOwned` so the producer never pulls nine
+ *  manifests to learn one integer. Owner-scoped like every other read here. */
+export async function countPendingConsent(db: Db, ownerId: UserId): Promise<number> {
+  const rows = await db
+    .select({ pending: sql<number>`count(*)` })
+    .from(plugins)
+    .where(and(eq(plugins.ownerId, ownerId), eq(plugins.pendingReconsent, true)));
+  return rows[0]?.pending ?? 0;
+}
+
 /** The caller's OWN plugins (fetchOwned), newest-installed first. */
 export async function listOwned(db: Db, ownerId: UserId): Promise<PluginRow[]> {
   return await db.select().from(plugins).where(eq(plugins.ownerId, ownerId)).orderBy(desc(plugins.installedAt));

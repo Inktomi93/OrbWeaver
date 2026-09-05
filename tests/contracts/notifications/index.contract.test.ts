@@ -61,17 +61,58 @@ const FIXTURES: Record<NotificationType, NotificationEvent> = {
     recipientUserId: SAMPLE_RECIPIENT,
     pluginId: SAMPLE_PLUGIN_ID,
   },
+  // The aggregate consent ask (#1041) — a count and nothing else: what each plugin wants is read on the
+  // consent screen, never copied into the inbox row.
+  "plugins-awaiting-consent": {
+    type: "plugins-awaiting-consent",
+    recipientUserId: SAMPLE_RECIPIENT,
+    pendingCount: 9,
+  },
 };
 
-const EXPECTED_VARIANT_COUNT = 7;
+const EXPECTED_VARIANT_COUNT = 8;
 
-// CLOSED PIN: the union has EXACTLY the seven delivery reasons and no more. `.options.length` catches a
+// CLOSED PIN: the union has EXACTLY the eight delivery reasons and no more. `.options.length` catches a
 // stray added member; the FIXTURES Record key set is the type-checked mirror.
-test("NotificationEvent is the closed 7-member delivery union", () => {
+test("NotificationEvent is the closed 8-member delivery union", () => {
   expect(notificationEventSchema.options).toHaveLength(EXPECTED_VARIANT_COUNT);
   expect(Object.keys(FIXTURES).sort()).toEqual(
-    ["automation-notice", "deferred-turn-dropped", "handoff-accepted", "handoff-nominated", "invite", "kicked", "plugin-disabled"].sort(),
+    [
+      "automation-notice",
+      "deferred-turn-dropped",
+      "handoff-accepted",
+      "handoff-nominated",
+      "invite",
+      "kicked",
+      "plugin-disabled",
+      "plugins-awaiting-consent",
+    ].sort(),
   );
+});
+
+// THE ZERO RULE IS AT THE TYPE, not in the producer's head (#1041). A standing ask that says "0 plugins are
+// waiting" is a lie the reader can only discover by acting on it, so the count is `.min(1)` and the
+// all-answered case has to reach for `notifications.retract` instead of recording a zero. A fractional or
+// negative count is refused by the same line.
+test("plugins-awaiting-consent refuses a count that is not a positive integer", () => {
+  const base = FIXTURES["plugins-awaiting-consent"];
+  expect(notificationEventSchema.safeParse({ ...base, pendingCount: 0 }).success).toBe(false);
+  expect(notificationEventSchema.safeParse({ ...base, pendingCount: -1 }).success).toBe(false);
+  expect(notificationEventSchema.safeParse({ ...base, pendingCount: 1.5 }).success).toBe(false);
+  expect(notificationEventSchema.safeParse({ ...base, pendingCount: 1 }).success).toBe(true);
+});
+
+// IDS-ONLY, like `plugin-disabled` one member up: the aggregate is a POINTER to the consent surface, and a
+// payload that grew a plugin name or a capability list would be a second home for consent copy that can
+// disagree with the screen the answer is actually given on.
+test("plugins-awaiting-consent carries the count and the recipient, nothing else", () => {
+  expect(Object.keys(FIXTURES["plugins-awaiting-consent"]).sort()).toEqual(["pendingCount", "recipientUserId", "type"]);
+  const parsed = notificationEventSchema.parse({
+    ...FIXTURES["plugins-awaiting-consent"],
+    pluginName: "Oracle Deck",
+    apiKey: "sk-not-a-real-key",
+  });
+  expect(parsed).toEqual(FIXTURES["plugins-awaiting-consent"]);
 });
 
 // ROUND-TRIP: the representative `invite` variant (the richest payload) survives parse unchanged.
