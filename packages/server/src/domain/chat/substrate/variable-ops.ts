@@ -16,6 +16,9 @@
 // MODE note), so the reachable shape is the predicate riding the write: rebuild from a snapshot, write it
 // only if the log still holds that snapshot, and re-derive from the winner's state when it does not.
 //
+// THE SNAPSHOT IS ONE READ. The rebuilt array and the predicate's bytes must come from the same statement —
+// two reads of the guarded column reopen the same lost update INSIDE the guard (#1634 item 1). See the loop.
+//
 // A LOSS IS PROGRESS, NOT CONTENTION: every retry here is caused by ANOTHER writer having committed, so the
 // loop cannot livelock — a bound exists only to convert a hypothetical unbounded spin (a bug elsewhere) into
 // a loud, coded refusal instead of a hung caller.
@@ -25,7 +28,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { ChatContext } from "../context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
-import { loadMaxMessageSeq, loadStandaloneVariableDeltasRaw, loadVariableDeltas } from "../persistence/queries.ts";
+import { loadMaxMessageSeq, loadMessageVariableDeltas, loadStandaloneVariableDeltasWithRaw, toStandaloneFoldRow } from "../persistence/queries.ts";
 import { foldChain, standaloneVariableCasStatement } from "./runtime-variables.ts";
 
 /** How many times a standalone write re-derives after losing the CAS. Each loss means a sibling COMMITTED, so
@@ -48,24 +51,25 @@ export async function applyStandaloneVariableOps(ctx: ChatContext, chatId: ChatI
     return;
   }
   for (let attempt = 0; attempt < MAX_CAS_ATTEMPTS; attempt += 1) {
-    // `loadVariableDeltas` returns the UNIFIED fold source (message deltas ∪ the existing standalone batches —
-    // the null-`messageId` entries); `loadStandaloneVariableDeltasRaw` is the same column as STORED, which is
-    // what the guard compares. Stamp the new batch at the current head seq so it folds after the last
-    // committed message.
-    const [maxSeq, current, stored] = await Promise.all([
+    // ONE READ OF THE GUARDED COLUMN, and that is the whole correctness of the guard (#1634 item 1): the
+    // rebuilt array and the predicate's bytes come from the SAME `loadStandaloneVariableDeltasWithRaw` row.
+    // Reading the column twice (once parsed for the derivation, once raw for the predicate) let a sibling
+    // commit BETWEEN the two — the CAS would then pass against the sibling's bytes while `nextStandalone` was
+    // rebuilt from the pre-sibling chain, dropping the sibling's batch through the guard. The MESSAGE half is
+    // a different table and is read separately; a turn committing beside this write refolds the whole chain
+    // from the durable log at commit, which is what heals that (narrower, pre-existing) interleaving.
+    // Stamp the new batch at the current head seq so it folds after the last committed message.
+    const [maxSeq, messageEntries, stored] = await Promise.all([
       loadMaxMessageSeq(ctx.db, chatId),
-      loadVariableDeltas(ctx.db, chatId),
-      loadStandaloneVariableDeltasRaw(ctx.db, chatId),
+      loadMessageVariableDeltas(ctx.db, chatId),
+      loadStandaloneVariableDeltasWithRaw(ctx.db, chatId),
     ]);
     if (stored === undefined) {
       return; // the chat row is gone (a racing delete) — the same silent no-op an unguarded UPDATE gave.
     }
     const batch: StandaloneVariableDelta = { seq: maxSeq, delta: [...ops] };
-    const nextStandalone: StandaloneVariableDelta[] = [
-      ...current.flatMap((e): StandaloneVariableDelta[] => (e.messageId === null ? [{ seq: e.seq, delta: [...e.delta] }] : [])),
-      batch,
-    ];
-    const folded = foldChain([...current, batch]);
+    const nextStandalone: StandaloneVariableDelta[] = [...stored.deltas.map((e) => ({ seq: e.seq, delta: [...e.delta] })), batch];
+    const folded = foldChain([...messageEntries, ...stored.deltas.map(toStandaloneFoldRow), batch]);
     const applied = await standaloneVariableCasStatement(ctx.db, chatId, { deltas: nextStandalone, cache: folded, expectedRaw: stored.raw });
     if (applied.length > 0) {
       return;

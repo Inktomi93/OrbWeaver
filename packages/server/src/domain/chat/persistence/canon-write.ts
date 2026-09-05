@@ -31,6 +31,7 @@ import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVa
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import { loadMaxMessageSeq } from "./queries.ts";
 
 /** The generation record for one `message_variants` row: all content + economics + the per-swipe snapshot.
@@ -348,6 +349,11 @@ export function appendVariantStatements(
   return stmts;
 }
 
+/** How many head allocations one append may lose before it refuses. Not a contention budget — see
+ *  {@link commitCanonAppend}'s "IT IS BOUNDED" note; the sibling CAS loop in `substrate/variable-ops.ts`
+ *  carries the same number for the same reason. */
+export const MAX_CANON_APPEND_ATTEMPTS = 8;
+
 /**
  * Commit an APPEND at the canon head, re-allocating the seq if another writer took it first — the ONE home
  * for the head-allocation retry (#1463 item 7).
@@ -365,20 +371,47 @@ export function appendVariantStatements(
  * for. The retry is narrow on purpose: a UNIQUE violation is only treated as a lost race when the head has
  * actually reached the seq this attempt aimed at, so an unrelated unique failure (a duplicate message id)
  * stays loud instead of spinning.
+ *
+ * IT IS BOUNDED, and the bound is not a contention budget (#1634 item 2). Every loss means a sibling
+ * COMMITTED, so a chat busy enough to lose twice is still making progress; losing {@link
+ * MAX_CANON_APPEND_ATTEMPTS} times in a row is a defect somewhere else — a caller re-aiming at a fixed seq,
+ * a head advancing faster than any writer can land — and an unbounded retry answers that by spinning until
+ * the process dies rather than saying so. Same posture, same shape as the standalone variable plane's CAS
+ * loop (`substrate/variable-ops.ts`), so the two cannot drift into disagreeing about it.
  */
 export async function commitCanonAppend<T>(
   db: Db,
   chatId: ChatId,
   build: (seq: number) => { readonly statements: readonly BatchStmt[]; readonly result: T },
 ): Promise<T> {
-  const seq = (await loadMaxMessageSeq(db, chatId)) + 1;
-  const { statements, result } = build(seq);
+  for (let attempt = 0; attempt < MAX_CANON_APPEND_ATTEMPTS; attempt += 1) {
+    const seq = (await loadMaxMessageSeq(db, chatId)) + 1;
+    const { statements, result } = build(seq);
+    const landed = await commitOrLoseAllocation(db, chatId, statements, seq);
+    if (landed) {
+      return result;
+    }
+  }
+  throw new ChatOperationError(
+    CHAT_OP_CODES.canonAppendContended,
+    `chat ${chatId}: a canon append lost the head allocation ${MAX_CANON_APPEND_ATTEMPTS} times`,
+  );
+}
+
+/** One attempt: `true` when it committed, `false` when it provably lost the head to a sibling. Any other
+ *  failure — including a UNIQUE violation the head does NOT explain (a duplicate message/variant id) —
+ *  propagates, so a caller bug stays loud instead of being retried as contention. */
+async function commitOrLoseAllocation(db: Db, chatId: ChatId, statements: readonly BatchStmt[], seq: number): Promise<boolean> {
   try {
     await db.batch(batchMany(statements));
-    return result;
+    return true;
   } catch (err) {
+    // CLASSIFIED, never swallowed (which is why this needs no suppression — the caught-failure-ownership
+    // gate does not flag it, measured): the only error consumed here is a UNIQUE violation the canon head
+    // itself explains (another append reached this seq), reported as `false` and re-allocated by the caller.
+    // Everything else rethrows unchanged.
     if (isConstraintViolation(err)?.kind === "unique" && (await loadMaxMessageSeq(db, chatId)) >= seq) {
-      return await commitCanonAppend(db, chatId, build);
+      return false;
     }
     throw err;
   }

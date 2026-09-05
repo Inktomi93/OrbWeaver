@@ -6,20 +6,23 @@ import type { UserMacroDraws } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterId, Handle, MessageId, MessageVariantId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import {
   appendVariantStatements,
   buildCommittedMessageView,
+  commitCanonAppend,
   insertCanonMessageStatements,
+  MAX_CANON_APPEND_ATTEMPTS,
   selectActiveVariantStatement,
 } from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
-import { loadCanonHistory, loadSlotTarget } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { loadCanonHistory, loadMaxMessageSeq, loadSlotTarget } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { FROZEN_AT, seedCharacter, seedChat, seedUser } from "../_support.ts";
+import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedUser } from "../_support.ts";
 
 let db: Db;
 
@@ -296,5 +299,98 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
     expect(row?.variantCount).toBe(2);
     expect(row?.selectedVariantId).toBe(variantId);
     expect(row?.content).toBe("first");
+  });
+});
+
+// ── The head-allocation retry's BOUND (#1634 item 2) ────────────────────────────────────────────────────
+// `commitCanonAppend` re-allocates when a sibling takes the seq it aimed at. Losing is normal and losing
+// twice is plausible; losing FOREVER is not a busy chat, it is a defect somewhere else — and an unbounded
+// retry answers that by spinning silently instead of saying so. The sibling CAS on the variable plane bounds
+// its own loop the same way (`substrate/variable-ops.ts`), so the two agree on the posture.
+describe("commitCanonAppend — the allocation retry is BOUNDED", () => {
+  /** A db whose every append LOSES: before each batch a sibling takes the head this attempt aimed at, so the
+   *  caller's insert collides with it and the head has genuinely advanced (the retry's own precondition). */
+  function alwaysLosingDb(real: Db, chatId: ChatId, onAttempt: () => void): Db {
+    return new Proxy(real, {
+      get(target, prop): unknown {
+        const value = Reflect.get(target, prop, target);
+        if (typeof value !== "function") {
+          return value;
+        }
+        if (prop !== "batch") {
+          return value.bind(target); // bind-to-target: drizzle/libSQL private fields
+        }
+        return async (...args: unknown[]): Promise<unknown> => {
+          onAttempt();
+          const head = await loadMaxMessageSeq(real, chatId);
+          await seedMessage(real, chatId, head + 1, { role: "assistant", content: `sibling ${head + 1}` });
+          return await (value as (...a: unknown[]) => Promise<unknown>).apply(target, args);
+        };
+      },
+    }) as Db;
+  }
+
+  test("a caller that loses every allocation is REFUSED with a code, not retried forever", async () => {
+    const chatId = await seedChat(db, "contended");
+    let attempts = 0;
+    const losing = alwaysLosingDb(db, chatId, () => {
+      attempts += 1;
+    });
+
+    const err = await commitCanonAppend(losing, chatId, (seq) => ({
+      statements: insertCanonMessageStatements(db, {
+        ...ids(`c${seq}`),
+        chatId,
+        seq,
+        role: "assistant",
+        now: FROZEN_AT,
+        variant: { content: "mine" },
+      }),
+      result: seq,
+    })).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe(CHAT_OP_CODES.canonAppendContended);
+    // The bound is real: a fixed, small number of attempts — not "until the process or the test gives up"
+    // (pre-fix, this test killed its own vitest worker).
+    expect(attempts).toBe(MAX_CANON_APPEND_ATTEMPTS);
+  });
+
+  test("a caller that loses ONCE still lands (the bound does not break the retry it bounds)", async () => {
+    const chatId = await seedChat(db, "one-loss");
+    let stolen = false;
+    const flaky = new Proxy(db, {
+      get(target, prop): unknown {
+        const value = Reflect.get(target, prop, target);
+        if (typeof value !== "function") {
+          return value;
+        }
+        if (prop !== "batch") {
+          return value.bind(target);
+        }
+        return async (...args: unknown[]): Promise<unknown> => {
+          if (!stolen) {
+            stolen = true;
+            await seedMessage(db, chatId, (await loadMaxMessageSeq(db, chatId)) + 1, { role: "assistant", content: "sibling" });
+          }
+          return await (value as (...a: unknown[]) => Promise<unknown>).apply(target, args);
+        };
+      },
+    }) as Db;
+
+    const landedSeq = await commitCanonAppend(flaky, chatId, (seq) => ({
+      statements: insertCanonMessageStatements(db, {
+        ...ids(`f${seq}`),
+        chatId,
+        seq,
+        role: "assistant",
+        now: FROZEN_AT,
+        variant: { content: "mine" },
+      }),
+      result: seq,
+    }));
+
+    expect(landedSeq).toBe(2); // the sibling took 1; the re-allocation took 2
+    expect((await loadCanonHistory(db, chatId)).map((m) => m.content)).toEqual(["sibling", "mine"]);
   });
 });

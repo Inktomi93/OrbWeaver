@@ -1061,26 +1061,63 @@ interface VariableDeltaRow {
   readonly delta: readonly VarOp[];
 }
 
-/** The chat's standalone (out-of-turn) runtime-variable delta batches (`chats.standalone_variable_deltas`),
- *  seq-ordered as stored. Parsed at the read seam; a malformed blob degrades to `[]`, never throws. */
-async function loadStandaloneVariableDeltas(db: Db, chatId: ChatId): Promise<StandaloneVariableDelta[]> {
-  const rows = await db.select({ standaloneVariableDeltas: chats.standaloneVariableDeltas }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
-  const parsed = standaloneVariableDeltasSchema.safeParse(rows.at(0)?.standaloneVariableDeltas);
-  return parsed.success ? parsed.data : [];
-}
-
-/** The standalone-delta column as STORED TEXT, for the standalone write's compare-and-set predicate
- *  (`substrate/variable-ops.ts`). Deliberately NOT the parsed value: the CAS compares the column against the
- *  exact bytes this caller read, so it cannot be fooled by a parse→re-serialize round trip that normalizes
- *  key order or drops an unknown field. `undefined` ⇒ no such chat row (the write is a no-op, not a race);
- *  `{ raw: null }` ⇒ the row exists and has never been written. */
-export async function loadStandaloneVariableDeltasRaw(db: Db, chatId: ChatId): Promise<{ readonly raw: string | null } | undefined> {
+/**
+ * THE ONE PHYSICAL READ of `chats.standalone_variable_deltas` — the parsed batches AND the exact stored bytes
+ * they were parsed from, projected out of the SAME row in the SAME statement.
+ *
+ * Both projections come from one read because the standalone write is a compare-and-set and its two halves
+ * must describe one snapshot: the predicate compares the stored BYTES, the rebuilt array is derived from the
+ * PARSED value, and two separate reads of this column let a sibling commit BETWEEN them — the guard would
+ * then pass against the sibling's bytes while the array was rebuilt from the pre-sibling chain, reproducing
+ * the very lost update the CAS exists to stop (#1634 item 1). One statement makes that divergence
+ * unrepresentable rather than merely unlikely.
+ *
+ * The RAW half is deliberately not a re-serialization of the parsed half: a parse→stringify round trip
+ * normalizes key order and drops unknown fields, and a predicate built from it would compare bytes the column
+ * may not hold. Parsing degrades to `[]` on a malformed blob, never throws (the read-seam contract).
+ * `undefined` ⇒ no such chat row (a write is a no-op, not a race); `raw: null` ⇒ the row was never written.
+ */
+export async function loadStandaloneVariableDeltasWithRaw(
+  db: Db,
+  chatId: ChatId,
+): Promise<{ readonly raw: string | null; readonly deltas: StandaloneVariableDelta[] } | undefined> {
   const rows = await db
-    .select({ raw: sql<string | null>`${chats.standaloneVariableDeltas}` })
+    .select({ raw: sql<string | null>`${chats.standaloneVariableDeltas}`, parsed: chats.standaloneVariableDeltas })
     .from(chats)
     .where(eq(chats.id, chatId))
     .limit(LIMIT_ONE);
-  return rows.at(0);
+  const row = rows.at(0);
+  if (row === undefined) {
+    return;
+  }
+  const parsed = standaloneVariableDeltasSchema.safeParse(row.parsed);
+  return { raw: row.raw, deltas: parsed.success ? parsed.data : [] };
+}
+
+/** The chat's standalone (out-of-turn) runtime-variable delta batches, seq-ordered as stored — the parsed
+ *  half of the one read above (never a second statement against the same column). */
+async function loadStandaloneVariableDeltas(db: Db, chatId: ChatId): Promise<StandaloneVariableDelta[]> {
+  return (await loadStandaloneVariableDeltasWithRaw(db, chatId))?.deltas ?? [];
+}
+
+/** The MESSAGE half of the fold source: each slot's `seq` + its SELECTED variant's `variable_delta`, in seq
+ *  order. Split out from {@link loadVariableDeltas} so the standalone write can take this half ALONE and
+ *  resolve the standalone half from its CAS read — one read per column on that path. */
+export async function loadMessageVariableDeltas(db: Db, chatId: ChatId): Promise<VariableDeltaRow[]> {
+  const rows = await db
+    .select({
+      seq: messages.seq,
+      messageId: messages.id,
+      variableDelta: messageVariants.variableDelta,
+    })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(eq(messages.chatId, chatId))
+    .orderBy(asc(messages.seq));
+  return rows.map((r) => {
+    const parsed = variableDeltaSchema.safeParse(r.variableDelta);
+    return { seq: r.seq, messageId: r.messageId, delta: parsed.success ? parsed.data : [] };
+  });
 }
 
 /** The runtime-cache fold SOURCE, seq-ordered: the per-variant message deltas along the selected-variant
@@ -1089,24 +1126,15 @@ export async function loadStandaloneVariableDeltasRaw(db: Db, chatId: ChatId): P
  *  sources interleave in real-apply order (a standalone stamped at maxSeq folds after that message, before
  *  the next turn's). */
 export async function loadVariableDeltas(db: Db, chatId: ChatId): Promise<VariableDeltaRow[]> {
-  const [rows, standalone] = await Promise.all([
-    db
-      .select({
-        seq: messages.seq,
-        messageId: messages.id,
-        variableDelta: messageVariants.variableDelta,
-      })
-      .from(messages)
-      .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-      .where(eq(messages.chatId, chatId))
-      .orderBy(asc(messages.seq)),
-    loadStandaloneVariableDeltas(db, chatId),
-  ]);
-  const messageEntries: VariableDeltaRow[] = rows.map((r) => {
-    const parsed = variableDeltaSchema.safeParse(r.variableDelta);
-    return { seq: r.seq, messageId: r.messageId, delta: parsed.success ? parsed.data : [] };
-  });
-  return [...messageEntries, ...standalone.map((s): VariableDeltaRow => ({ seq: s.seq, messageId: null, delta: s.delta }))];
+  const [messageEntries, standalone] = await Promise.all([loadMessageVariableDeltas(db, chatId), loadStandaloneVariableDeltas(db, chatId)]);
+  return [...messageEntries, ...standalone.map(toStandaloneFoldRow)];
+}
+
+/** A standalone batch as a fold-source row — `messageId: null` is what marks it standalone to the mutators'
+ *  by-`messageId` override/filter/remap. One home, so the composed read and the standalone write's own
+ *  derivation cannot spell the mapping differently. */
+export function toStandaloneFoldRow(batch: StandaloneVariableDelta): VariableDeltaRow {
+  return { seq: batch.seq, messageId: null, delta: batch.delta };
 }
 
 /** The turn origin stamped on a reply SLOT — the `getTurnOrigin` read backing the automation cascade
