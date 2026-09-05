@@ -644,3 +644,102 @@ describe("#1425 the confirmed fire row and the rule stamp land together or not a
     expect(rows.find((row) => row.id === castId(ruleId))?.lastFiredAt).toBeNull();
   });
 });
+
+// -- #1565: a CONFIRMED arm takes the chat's serial lane too -------------------------------------------------
+// The third door into the same chat variable env, after the bus (#1423) and "Run now" (#1565's other half). A
+// host answering a card while a bus event is mid-arm used to run beside it: same snapshot, same increment,
+// same value written twice. The confirm's INVITATION branch is not laned here -- it goes through
+// `dispatchRuleNow`, which takes the lane itself, and the two branches are exclusive so the lane is entered
+// exactly once.
+describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", () => {
+  test("the confirm's arm starts only after the bus event's arm finishes -- no interleave", async () => {
+    const order: string[] = [];
+    let releaseBus = (): void => undefined;
+    const busHeld = new Promise<void>((done) => {
+      releaseBus = done;
+    });
+    const base = await ruleFixture();
+    const { ops, turns } = capturingOps(base.ctx.ops);
+    const realArm = createArmExecutors({
+      db: base.db,
+      ops,
+      prng: () => 0.42,
+      notify: base.ctx.notify,
+      suggestions: base.ctx.suggestions,
+      newSuggestionId: base.ctx.newSuggestionId,
+    });
+    // Instrumented over the REAL executors, because the STASH is the real arm's own act -- a fake dispatcher
+    // that merely answers `{suggested: true}` raises no card and there would be nothing to confirm.
+    // `hold` is armed for exactly one `set_variable` (the bus rule's arm); the CONFIRMED arm is told apart by
+    // `confirmFirst === false`, which is what `armToExecute` clears (`substrate/suggestions.ts:235`), so the
+    // re-stash the held bus event also performs cannot be mistaken for it.
+    let hold: Promise<void> | null = null;
+    const ctx: AutomationContext = {
+      ...base.ctx,
+      ops,
+      runArm: async (action, frame) => {
+        if (action.type === "set_variable" && hold !== null) {
+          const held = hold;
+          hold = null;
+          order.push("bus:enter");
+          await held;
+          const out = await realArm(action, frame);
+          order.push("bus:exit");
+          return out;
+        }
+        if (action.type === "trigger_turn" && !action.confirmFirst) {
+          order.push("confirm:enter");
+          const out = await realArm(action, frame);
+          order.push("confirm:exit");
+          return out;
+        }
+        return realArm(action, frame);
+      },
+    };
+    const fixture = { ...base, ctx, svc: createAutomationService(ctx) };
+
+    // TWO rules on one chat: an ordinary arm to hold the lane with, and the confirm-first arm that raises the
+    // card. Both fire off the same `chatOpened`, in position order.
+    const holder = await fixture.svc.createRule({
+      principal: principal(fixture.host),
+      chatId: fixture.chatId,
+      name: "bookkeeping",
+      trigger: { bus: "chat", type: "chatOpened" },
+      actions: [{ type: "set_variable", scope: "chat", key: "beats", op: "inc" }],
+    });
+    const asker = await fixture.svc.createRule({
+      principal: principal(fixture.host),
+      chatId: fixture.chatId,
+      name: "recap",
+      trigger: { bus: "chat", type: "chatOpened" },
+      actions: [{ type: "trigger_turn", guidedTemplate: "Recap the scene.", confirmFirst: true }],
+    });
+    await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId: holder.id, enabled: true });
+    await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId: asker.id, enabled: true });
+    await ctx.enabled.reload();
+
+    // 1. Raise the card.
+    await fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
+    const [ask] = fixture.ctx.suggestions.listForChat(fixture.chatId, FIXED_NOW_MS);
+    expect(ask).toBeDefined();
+    expect(turns).toEqual([]); // the ask did not act -- the control for everything below
+
+    // 2. Park a bus event inside the bookkeeping arm.
+    hold = busHeld;
+    const bus = fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // 3. The host says yes WHILE that arm is parked.
+    const confirm = fixture.svc.confirmSuggestion({
+      principal: principal(fixture.host),
+      suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    releaseBus();
+    await Promise.all([bus, confirm]);
+
+    // Unlaned this reads ["bus:enter", "confirm:enter", "confirm:exit", "bus:exit"].
+    expect(order).toEqual(["bus:enter", "bus:exit", "confirm:enter", "confirm:exit"]);
+    expect(turns).toHaveLength(1); // and the confirmed act really ran, exactly once
+  });
+});

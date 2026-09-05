@@ -1892,7 +1892,7 @@
     {
       "siteId": "packages/server/src/domain/automation/substrate/serial-lanes.ts::promise:run::1",
       "path": "packages/server/src/domain/automation/substrate/serial-lanes.ts",
-      "line": 45,
+      "line": 63,
       "column": 16,
       "grammar": "promise",
       "position": "promise:run",
@@ -1900,12 +1900,12 @@
       "snippet": "const tail = run.catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "this swallow LOSES NOTHING — the rejection it",
-      "markerLine": 40
+      "markerLine": 58
     },
     {
       "siteId": "packages/server/src/domain/automation/substrate/serial-lanes.ts::promise:tail::1",
       "path": "packages/server/src/domain/automation/substrate/serial-lanes.ts",
-      "line": 50,
+      "line": 68,
       "column": 3,
       "grammar": "promise",
       "position": "promise:tail",
@@ -1918,7 +1918,7 @@
     {
       "siteId": "packages/server/src/domain/automation/verbs/confirm-suggestion.ts::empty:err::1",
       "path": "packages/server/src/domain/automation/verbs/confirm-suggestion.ts",
-      "line": 159,
+      "line": 160,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -1926,7 +1926,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — the file header states the contract:",
-      "markerLine": 152
+      "markerLine": 153
     },
     {
       "siteId": "packages/server/src/domain/automation/verbs/resolve-stream-authority.ts::empty:catch::1",

@@ -23,7 +23,7 @@ import { loadEnabledChatRules, loadEnabledDomainRules } from "../persistence/rul
 import { holdsChatHostAuthority } from "./authority.ts";
 import { resolveTrigger } from "./fact-resolver.ts";
 import { fanOutToPluginSubscribers } from "./plugin-subscribers.ts";
-import { runInLane } from "./serial-lanes.ts";
+import { automationLaneKey, runInLane } from "./serial-lanes.ts";
 
 type BusEvent = ChatBusEvent | DomainEvent;
 
@@ -171,8 +171,7 @@ async function handle(ctx: AutomationContext, event: BusEvent): Promise<void> {
  *  drive the same owner-global rule through the same read-modify-write. The cost is head-of-line latency on a
  *  low-frequency bus (card/persona/book/asset writes), which is the same trade the per-chat lane makes. */
 function laneKeyFor(event: BusEvent): string {
-  const chatId = "chatId" in event ? event.chatId : null;
-  return chatId === null ? "automation:domain" : `automation:chat:${chatId}`;
+  return automationLaneKey("chatId" in event ? event.chatId : null);
 }
 
 /** The front door, and the ONE place the ordering promise is kept.

@@ -16,6 +16,24 @@
 // creates nor fixes (filed separately as the process-locality row). Every caller states the key it serializes
 // on and why that key covers the state it is protecting.
 
+import type { ChatId } from "@orb/kit/ids";
+
+/**
+ * THE AUTOMATION SCOPE KEY — one lane per chat, one for the whole domain bus, and this is its ONE home.
+ *
+ * Every entry into the dispatch engine derives its key here rather than spelling the string: the bus door
+ * (`substrate/handle-event.ts`), the host's "Run now" and the S4 invitation confirm (`substrate/run-now.ts`),
+ * and the stashed-arm confirm (`verbs/confirm-suggestion.ts`). A re-spelling is how two of those four end up
+ * on lanes that only LOOK like the same lane — which is exactly the shape of the defect they exist to close
+ * (a host's Run-now read-modify-writing the chat variable plane beside a bus fire).
+ *
+ * `null` is the owner-GLOBAL scope: a chat-less rule dispatched off the domain bus. `handle-event.ts` carries
+ * the argument for why that whole bus is ONE lane rather than one per subject id.
+ */
+export function automationLaneKey(chatId: ChatId | null): string {
+  return chatId === null ? "automation:domain" : `automation:chat:${chatId}`;
+}
+
 // ASSUMES(single-replica): the lane table holds LIVE in-process Promises, which is what a promise IS — there
 // is no DB-backed replacement seam for this shape, and a row in a `locks` table would be a DIFFERENT mechanism
 // (a lease with a timeout, a heartbeat and a stealing policy), not a serialization of this one. A second
