@@ -349,6 +349,22 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_qbres/lib/unkeyed.tsx",
     'export const G = <QueryBoundary fallback={<SkeletonRows count={3} />}>{"b"}</QueryBoundary>;\n',
   );
+  // stale-draft-commit: a once-seeded draft committed under `draft !== source` — the founding shape,
+  // verbatim from the pre-8e9158e14 tracker-value.tsx (#1585). The guarded branch hands the DRAFT to a
+  // non-setter call, which is the half that separates it from the reseed idiom.
+  fx(
+    "packages/client/src/features/__g_stalecommit/lib/cell.tsx",
+    "import { useState } from 'react';\n" +
+      "export function Cell({ source, onEdit }: { source: string; onEdit: (v: string) => void }) {\n" +
+      "  const [draft, setDraft] = useState(source);\n" +
+      "  const commit = () => {\n" +
+      "    if (draft !== source) {\n" +
+      "      onEdit(draft);\n" +
+      "    }\n" +
+      "  };\n" +
+      "  return draft.length + (setDraft ? 0 : 1) + (commit ? 0 : 1);\n" +
+      "}\n",
+  );
   // sub-floor-disclosure: a size="text" CollapsibleTrigger with no @sub-floor-ok marker (#884 C2).
   fx("packages/client/src/features/__g_subfloor/lib/unmarked.tsx", 'export const G = <CollapsibleTrigger size="text">Advanced</CollapsibleTrigger>;\n');
   // seed-theme-ink-contrast: a SURFACE token painted as TEXT. `--color-card` as ink on the `--color-card`

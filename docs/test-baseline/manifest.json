@@ -2217,6 +2217,7 @@
     "tests/tooling/verify/gates/zod-modern-spellings.test.ts",
     "tests/tooling/verify/lib/baseui-read.int.test.ts",
     "tests/tooling/verify/lib/bus-coverage.test.ts",
+    "tests/tooling/verify/lib/ct-runner-lock.test.ts",
     "tests/tooling/verify/lib/gate-ignore.test.ts",
     "tests/tooling/verify/lib/history.int.test.ts",
     "tests/tooling/verify/lib/near-cap.test.ts",

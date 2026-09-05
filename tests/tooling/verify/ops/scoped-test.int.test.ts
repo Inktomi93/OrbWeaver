@@ -16,6 +16,8 @@
 // collection pass costs a chromium-config load; the CT arm is proven at the refusal tier, where the point
 // is that NOTHING is spawned at all. The near-miss's own three-path shape (two real + one stale) is a case
 // here on purpose: the defect was never a single bad path, it was a bad path HIDDEN AMONG GOOD ONES.
+import process from "node:process";
+import { acquireCtRunnerLock } from "../../../../tooling/src/verify/lib/ct-runner-lock.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -60,6 +62,30 @@ test("the passing direction: a real path with real tests still runs and exits cl
   const res = await runCli("verify", ["scoped-test", "node", REAL_A, "--maxWorkers=2"], { timeoutMs: COLLECT_TIMEOUT_MS });
   await expect(res).toExitWith(0);
   expect(res.stdout + res.stderr, "the preflight delegates — it does not replace the runner").toContain(REAL_A);
+});
+
+// ── #1581: a second CT runner in ONE worktree refuses INSTEAD of racing ──────────────────────────────
+//
+// The defect measured 2026-09-04: both runners cleared and rebuilt the SAME `playwright/.cache`, so the
+// first reported reds in files it never touched (201/2, then 203/203 alone at the same load). The lock is
+// the cheap guard in front of the per-invocation cache; this arm proves the refusal happens at the front
+// door — no collection pass, no chromium, no CT SUMMARY. The mechanism's own directions (stale steal,
+// distinct cache dirs, release) are pinned in tests/tooling/verify/lib/ct-runner-lock.test.ts.
+test("a CT run refuses (exit 2) while another ct:scoped holds this worktree", { timeout: REFUSAL_TIMEOUT_MS }, async ({ runCli }) => {
+  // THIS test process stands in for the live sibling: a real pid, so the child's liveness probe says yes.
+  const held = acquireCtRunnerLock(process.cwd(), { argv: ["(the #1581 pin)"] });
+  if (held.kind !== "held") {
+    throw new Error("#1581 pin: the worktree lock was already held — a real ct:scoped is running here");
+  }
+  try {
+    const res = await runCli("verify", ["scoped-test", "ct", REAL_CT_A, "--workers=2"], { timeoutMs: REFUSAL_TIMEOUT_MS });
+    await expect(res).toExitWith(2);
+    expect(res.stderr).toContain("CT RUNNER BUSY");
+    expect(res.stderr, "the refusal names the pid holding the tree").toContain(`pid ${String(process.pid)}`);
+    expect(res.stdout, "nothing was built and nothing ran").not.toContain("CT SUMMARY");
+  } finally {
+    held.lease.release();
+  }
 });
 
 test("an unknown runner name is misuse, and the refusal names the real ones", { timeout: REFUSAL_TIMEOUT_MS }, async ({ runCli }) => {

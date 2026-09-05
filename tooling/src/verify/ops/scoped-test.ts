@@ -18,21 +18,30 @@
 // runs ONLY when the caller named at least one path-shaped operand, so the unfiltered spellings
 // (`pnpm test:ct`) pay nothing.
 //
-// BOTH WRAPPED BEHAVIOURS ARE PRESERVED, and each is load-bearing: `rm -rf playwright/.cache` before every
-// CT spawn (a stale cache replays errors that stopped existing), and `nice -n 19` on every child (the box
-// co-hosts a homelab; an un-niced fleet starved it). The nice comes from the ONE subprocess door,
-// `_shared/proc.ts` — this module never touches `node:child_process`.
+// BOTH WRAPPED BEHAVIOURS ARE PRESERVED, and each is load-bearing: a COLD CT build cache on every spawn (a
+// stale cache replays errors that stopped existing), and `nice -n 19` on every child (the box co-hosts a
+// homelab; an un-niced fleet starved it). The nice comes from the ONE subprocess door, `_shared/proc.ts` —
+// this module never touches `node:child_process`.
+//
+// THE COLD-CACHE PROPERTY CHANGED ITS MECHANISM, NOT ITS MEANING (#1581). It used to be `rm -rf
+// playwright/.cache` before the spawn — one SHARED directory per worktree, so two concurrent runners cleared
+// and rebuilt under each other and the first reported reds in tests it never touched (measured: 201/2 with
+// both reds in rpg-context-section.ct.tsx, then 203/203 for the same set alone at the same load). Now each
+// invocation gets its OWN `.cache/ct/build-<pid>-<ms>` (lib/ct-runner-lock.ts) which is empty because it is
+// new and is removed on exit — cold by construction, and unshareable. A per-worktree LOCK sits in front of
+// it as the cheap guard: a second ct runner in the same tree refuses (exit 2) naming the live pid, because
+// the two would still share the box-wide CT vite port.
 //
 // HAZARD, PAID FOR IN THIS LANE: `vitest list --json <path>` reads the FOLLOWING POSITIONAL as the json
 // OUTPUT path. Probing it with `--json tests/tooling/smoke.test.ts` OVERWROTE that test file with a JSON
 // array. The only safe spelling is the `=`-joined `--json=<abs path>` to a scratch file we own; a bare
 // `--json` anywhere near operands is a file-destroying footgun.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
 import { openRunSlot } from "@orb/tooling/_shared/artifacts";
-import { CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/_shared/ct-run-slot";
+import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/_shared/ct-run-slot";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { warn } from "@orb/tooling/_shared/log";
@@ -50,6 +59,7 @@ import {
 } from "@orb/tooling/_shared/scoped-run-paths";
 import type { ScopedTestCollection, ScopedTestRunner } from "../contract/scoped-test.ts";
 import { SCOPED_TEST_RUNNERS } from "../contract/scoped-test.ts";
+import { acquireCtRunnerLock } from "../lib/ct-runner-lock.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:scoped <paths…>  /  pnpm ct:scoped <paths…>");
 
@@ -64,7 +74,6 @@ export const SCOPED_TEST_USAGE =
 const LIST_MAX_BUFFER = 67_108_864; // 64MiB — matches tests-execution-membership's listing headroom.
 
 const CT_CONFIG = "playwright-ct.config.ts";
-const CT_CACHE_REL = join("playwright", ".cache");
 
 function vitestBin(root: string): string {
   return join(root, "node_modules", "vitest", "vitest.mjs");
@@ -178,16 +187,19 @@ function collect(runner: ScopedTestRunner, root: string, rest: readonly string[]
   return runner === "node" ? collectNode(root, rest) : collectCt(root, rest);
 }
 
-/** The real run, streamed to the operator's terminal. The CT arm clears the playwright cache FIRST —
- *  the behaviour the package.json row used to carry inline, and dropping it is a regression. */
-function spawnRun(runner: ScopedTestRunner, root: string, rest: readonly string[]): number {
+/** The real run, streamed to the operator's terminal. The CT arm builds in the lease's PER-INVOCATION cache
+ *  (#1581) — which also carries the old "clear the cache first" property, since a freshly-minted directory
+ *  is an empty cache and nothing else is building in it. */
+function spawnRun(runner: ScopedTestRunner, root: string, rest: readonly string[], cacheDir: string | null): number {
   if (runner === "ct") {
-    rmSync(join(root, CT_CACHE_REL), { recursive: true, force: true });
-    mkdirSync(join(root, CT_CACHE_REL), { recursive: true });
     const slot = openRunSlot(root, "ct");
     const ct = runNicedSync(process.execPath, [playwrightBin(root), "test", "-c", CT_CONFIG, ...rest], {
       cwd: root,
-      env: inheritedProcessEnv({ [CT_RUN_SLOT_ENV]: slot.dir, [CT_RUN_RACING_ENV]: slot.racing.join("\n") }),
+      env: inheritedProcessEnv({
+        [CT_RUN_SLOT_ENV]: slot.dir,
+        [CT_RUN_RACING_ENV]: slot.racing.join("\n"),
+        ...(cacheDir === null ? {} : { [CT_CACHE_DIR_ENV]: cacheDir }),
+      }),
       stdio: "inherit",
     });
     return ct.status ?? EXIT.toolError;
@@ -220,7 +232,11 @@ function preflight(runner: ScopedTestRunner, root: string, rest: readonly string
   return EXIT.toolError;
 }
 
-/** `cli.ts scoped-test <runner> …` — preflight the caller's path claims, then delegate to the runner. */
+/** `cli.ts scoped-test <runner> …` — preflight the caller's path claims, then delegate to the runner.
+ *
+ *  THE CT ARM IS EXCLUSIVE PER WORKTREE (#1581). The lock is taken BEFORE the preflight, so a second runner
+ *  refuses instantly and spawns nothing at all, and it is released in a `finally` so a refused preflight
+ *  (or a throw) never wedges the tree. The node arm is untouched: vitest runs do not share a build dir. */
 export function runScopedTest(root: string, argv: readonly string[]): number {
   const [runner, ...rest] = argv;
   if (runner === undefined || !(SCOPED_TEST_RUNNERS as readonly string[]).includes(runner)) {
@@ -228,6 +244,23 @@ export function runScopedTest(root: string, argv: readonly string[]): number {
   }
   const tier = runner as ScopedTestRunner;
   const operands = rest.filter(isPathShaped).map((arg) => resolveOperand(root, arg));
-  const refused = preflight(tier, root, rest, operands);
-  return refused ?? spawnRun(tier, root, rest);
+  if (tier !== "ct") {
+    const refusedNode = preflight(tier, root, rest, operands);
+    return refusedNode ?? spawnRun(tier, root, rest, null);
+  }
+  const lock = acquireCtRunnerLock(root, { argv: rest });
+  if (lock.kind === "busy") {
+    // Exit-2 class: a run that never happened is not a verdict about anything.
+    warn(`CT RUNNER BUSY   ${lock.refusal}`);
+    return EXIT.toolError;
+  }
+  if (lock.lease.stolenFrom !== null) {
+    warn(`CT RUNNER LOCK   stole a stale lock from pid ${String(lock.lease.stolenFrom)} (no such process) — a killed run must never wedge the next one.`);
+  }
+  try {
+    const refused = preflight(tier, root, rest, operands);
+    return refused ?? spawnRun(tier, root, rest, lock.lease.cacheDir);
+  } finally {
+    lock.lease.release();
+  }
 }

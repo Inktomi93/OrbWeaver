@@ -53,9 +53,18 @@ function classifyGitNameStatus(source: string, root: string = ROOT): ChangedPath
   return classifyEntries(entries, root);
 }
 
+/** VERIFY NEVER TAKES `.git/index.lock` (#1583). `git diff HEAD` is a READ, but git opportunistically
+ *  REFRESHES the index's stat cache while it runs — and that refresh takes `.git/index.lock`, so a lane
+ *  saw the lock held for the length of a `pnpm verify --changed` stage and read it as a git WRITE inside a
+ *  checker. There is no write here (this whole tree runs `diff`/`ls-files`/`rev-parse`/`log`/`show`/
+ *  `grep --cached` and nothing else — re-derived 2026-09-05), but a checker has no business locking the
+ *  operator's index while they work: `--no-optional-locks` is git's own flag for exactly this reader
+ *  posture (it is what an IDE polling `status` is supposed to pass). It changes no output. */
+export const GIT_READ_PREFIX: readonly string[] = ["--no-optional-locks"];
+
 /** The authoritative git-changed classification: staged + unstaged vs HEAD, with rename identity. */
 export function gitChangedPathClassification(root: string = ROOT): ChangedPathClassification {
-  const source = execNicedSync("git", ["diff", "--name-status", "-z", "--find-renames", "HEAD"], { cwd: root });
+  const source = execNicedSync("git", [...GIT_READ_PREFIX, "diff", "--name-status", "-z", "--find-renames", "HEAD"], { cwd: root });
   return classifyGitNameStatus(source, root);
 }
 
@@ -79,7 +88,7 @@ export function branchChangedPaths(root: string = ROOT): readonly string[] | nul
   // `runNicedSync` over `execNicedSync` DELIBERATELY: the latter returns the child's STDERR on failure,
   // which a splitter would happily turn into "changed paths". A status check is the only honest read.
   const git = (args: readonly string[]): string | null => {
-    const res = runNicedSync("git", args, { cwd: root });
+    const res = runNicedSync("git", [...GIT_READ_PREFIX, ...args], { cwd: root });
     return res.status === 0 ? res.stdout : null;
   };
   const base = MERGE_BASE_REFS.map((ref) => git(["merge-base", "HEAD", ref])?.trim()).find((sha) => sha !== undefined && /^[0-9a-f]{7,40}$/u.test(sha));

@@ -12,3 +12,25 @@ export type ScopedTestRunner = (typeof SCOPED_TEST_RUNNERS)[number];
  *  posix — or the reason it could not answer, which is never silently treated as "collected nothing"
  *  (a blind zero here would rebuild the exact defect this door exists to refuse). */
 export type ScopedTestCollection = { readonly files: readonly string[] } | { readonly error: string };
+
+/** ONE INVOCATION'S CT LEASE (#1581): where it builds, and how it gives the worktree back. `release` is
+ *  idempotent — the runner calls it from a `finally`, so a refused preflight frees the tree too. */
+export interface CtRunnerLease {
+  /** The per-invocation build cache — absolute, freshly created (hence COLD), removed by `release`. */
+  readonly cacheDir: string;
+  readonly release: () => void;
+  /** Set when a DEAD runner's lock was stolen — the caller prints it, so a self-heal is never silent. */
+  readonly stolenFrom: number | null;
+}
+
+/** Who holds the worktree's CT lock, as the lockfile records it. */
+export interface CtRunnerLockRecord {
+  readonly pid: number;
+  readonly startedAt: string;
+  readonly argv: string;
+}
+
+/** Taking the lock has exactly two outcomes, and the busy one carries the sentence the operator acts on. */
+export type CtRunnerLock =
+  | { readonly kind: "held"; readonly lease: CtRunnerLease }
+  | { readonly kind: "busy"; readonly holder: CtRunnerLockRecord; readonly refusal: string };

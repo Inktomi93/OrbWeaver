@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { adoptRunSlot } from "@orb/tooling/_shared/artifact-out";
-import { CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/_shared/ct-run-slot";
+import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/_shared/ct-run-slot";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { CT_VITE_PORT } from "@orb/tooling/_shared/ports";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
@@ -105,6 +105,13 @@ export default defineConfig({
 
     // Parameterized so parallel CI port-shards don't collide on the CT dev server.
     ctPort: Number(process.env.CT_PORT ?? CT_VITE_PORT),
+    // THE BUILD CACHE IS PER INVOCATION when the launcher says so (#1581). playwright-ct resolves this
+    // against the config dir and otherwise defaults to `playwright/.cache` — ONE directory per worktree,
+    // which is what two concurrent `ct:scoped` runners were clearing and rebuilding under each other
+    // (measured: 201/2 with two reds in a file the run never touched, then 203/203 for the same set alone).
+    // `cli.ts scoped-test ct` mints `.cache/ct/build-<pid>-<ms>` and removes it on exit; a bare
+    // `npx playwright test -c playwright-ct.config.ts` with no env still gets the stock default.
+    ...(process.env[CT_CACHE_DIR_ENV] === undefined ? {} : { ctCacheDir: process.env[CT_CACHE_DIR_ENV] }),
     ctViteConfig: {
       // CT applies its OWN @vitejs/plugin-react internally — adding a second one double-transforms.
       // Cast: @tailwindcss/vite resolves vite@8 types; CT viteConfig expects vite@6 — structurally compatible.

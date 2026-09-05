@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { ROOT } from "./repo-paths.ts";
+import { GIT_READ_PREFIX, ROOT } from "./repo-paths.ts";
 
 const TS_RE = /\.(?:ts|tsx|mts|cts)$/u;
 const PKG_SRC_RE = /^packages\/([^/]+)\/src\//u;
@@ -221,9 +221,13 @@ interface MembershipCache {
  *  TRACKED side (modifications, staged adds, deletions, and both sides of a rename); `ls-files --others`
  *  covers the UNTRACKED side and lists FILES — `status --porcelain` collapses an all-untracked directory
  *  to one `??` entry, and a directory has no bytes to digest. */
+// `--no-optional-locks` on both (#1583): `git diff HEAD` opportunistically refreshes the index's stat
+// cache and takes `.git/index.lock` to do it, so a checker that only READS was holding the operator's
+// index for the length of a stage. The flag is git's own reader posture and changes no output; the one
+// home of the prefix + the full receipt is `lib/repo-paths.ts`.
 const WORKING_TREE_DELTA_COMMANDS: readonly (readonly string[])[] = [
-  ["diff", "--name-only", "HEAD"],
-  ["ls-files", "--others", "--exclude-standard"],
+  [...GIT_READ_PREFIX, "diff", "--name-only", "HEAD"],
+  [...GIT_READ_PREFIX, "ls-files", "--others", "--exclude-standard"],
 ];
 
 interface WorkingTreeDelta {
@@ -269,7 +273,7 @@ function workingTreeDelta(root: string): WorkingTreeDelta {
  *  `root` is a parameter (not just {@link ROOT}) so the key's content-sensitivity is provable against a
  *  temp git repo instead of by mutating the checkout under test. */
 export function graphMembershipKey(root: string = ROOT): string {
-  const head = runNicedSync("git", ["rev-parse", "HEAD"], { cwd: root });
+  const head = runNicedSync("git", [...GIT_READ_PREFIX, "rev-parse", "HEAD"], { cwd: root });
   const headSha = head.status === 0 ? head.stdout.trim() : "no-head";
   const delta = workingTreeDelta(root);
   const digest = createHash("sha1");
