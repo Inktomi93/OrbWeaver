@@ -5,7 +5,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import type { CharacterId, ExternalId, SessionId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
@@ -24,13 +24,13 @@ import type {
 } from "./params.ts";
 import type {
   CreateUserResult,
-  LinkExternalIdOutcome,
   LinkSsoIdentityResult,
   ListSessionsResult,
   ListUsersResult,
   RevokeUserSessionsResult,
   SetEnabledResult,
   SetRoleResult,
+  UnclaimedLinkOutcome,
   VllmEnginesResult,
 } from "./results.ts";
 import type { AdminEngineStatus, SessionAdminView } from "./views.ts";
@@ -52,9 +52,16 @@ interface SessionAdminPort {
    *  import transport. Total by construction and idempotent — nothing durable depends on it, because the
    *  committed revoke is what `sessions.validate` refuses on the socket's next request. */
   readonly evictUserSockets: (userId: UserId) => void;
-  /** B5 — the injected bind-once linking capability (canonical home domain/sessions `linkExternalId`). admin
-   *  gates + audits around it; the identity invariant (bind-once, U1 one-linking-site) is the verb's. */
-  readonly linkExternalId: (userId: UserId, externalId: ExternalId) => Promise<LinkExternalIdOutcome>;
+  /** B5/#1707 — the injected bind-once link, UNEXECUTED, so the admin verb can commit the identity bind and
+   *  its audit row as ONE batch (before this the bind ran inside the sessions capability and its audit was
+   *  the best-effort `audit` above, so a dead audit channel returned 200 for an unaudited SSO bind).
+   *  Canonical home domain/sessions; admin only orders the statements. NON-EMPTY rows = bound. */
+  readonly linkExternalIdStatement: (userId: UserId, externalId: ExternalId, at: number) => AwaitableBatchStmt<{ readonly id: UserId }[]>;
+  /** B5/#1707 — the companion read for a claim that bound nothing or whose batch rejected: names the
+   *  identity refusal from SETTLED durable state, or RETHROWS the caller's `failure` when durable state does
+   *  not explain it (so a broken audit insert surfaces as itself, never as a fake identity refusal). The
+   *  identity invariant (bind-once, U1 one-linking-site) stays the sessions verb's. */
+  readonly settleUnclaimedLink: (userId: UserId, externalId: ExternalId, failure?: unknown) => Promise<UnclaimedLinkOutcome>;
 }
 
 /** The vLLM-supervisor slice admin needs — satisfied at the root by mapping `infra/providers`' supervisor
@@ -78,12 +85,14 @@ export interface AdminContext {
   readonly newUserId: () => UserId;
   readonly hashPassword: (plain: string) => Promise<string>;
   /** The BEST-EFFORT audit channel (`logAudit`: suppress → count → drop) — correct for the read-ish and
-   *  advisory verbs (`listSessions`/`revokeSession`/`linkSsoIdentity`/`vllm`/`embed`), where a degraded audit
-   *  channel must not break the action. NOT for a privileged durable write: those take
-   *  {@link AdminContext.auditStatementAfterWrite} (#1691). */
+   *  advisory verbs (`listSessions`/`revokeSession`/`vllm`/`embed`), where a degraded audit channel must not
+   *  break the action. NOT for a privileged durable write: those take
+   *  {@link AdminContext.auditStatementAfterWrite} (#1691, and #1707 for `linkSsoIdentity` — an SSO BIND is
+   *  a durable identity write, so it left this channel). */
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /**
-   * #1691 — the ATOMIC audit channel for a privileged write (create/reset-password/set-role/set-enabled):
+   * #1691 — the ATOMIC audit channel for a privileged write (create/reset-password/set-role/set-enabled,
+   * + linkSsoIdentity since #1707):
    * an UNEXECUTED insert that rides the write's own `db.batch`, guarded so the row lands IF AND ONLY IF the
    * statement immediately before it changed a row.
    *

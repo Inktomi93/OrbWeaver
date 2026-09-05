@@ -1,10 +1,13 @@
-// B5 — the bind-once linking CAPABILITY (domain/sessions `linkExternalId`). Proves the identity invariant it
-// enforces (spine U1 — the ONE externalId-linking site): it BINDS an unbound row, is idempotent on a re-link,
-// and REFUSES the two takeover shapes — a row already bound to a DIFFERENT subject (bind-once, reusing
-// `isSubjectMismatch`) and a subject already bound to ANOTHER row (duplicate binding). No write escapes on a
-// refusal. The admin gate + audit around this live in the admin verb (tested separately).
+// B5 — the bind-once linking CAPABILITY (domain/sessions), now the PAIR a caller commits: the unexecuted
+// claim `linkExternalIdStatement` and the settlement read `settleUnclaimedLink` (#1707). Proves the identity
+// invariant it enforces (spine U1 — the ONE externalId-linking site): the claim BINDS an unbound row, and
+// every non-binding case is named from SETTLED durable state — idempotent re-link, unknown row, a row bound
+// to a DIFFERENT subject (bind-once), and a subject already held by ANOTHER row (the unique index is the
+// arbiter). No write escapes on a refusal, and a rejection durable state cannot explain is RETHROWN rather
+// than laundered into an identity outcome. The admin gate + the audited batch that commits the claim live in
+// the admin verb (tested separately).
 
-import type { Db, LibSqlWrap } from "@orb/db";
+import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -46,99 +49,90 @@ async function externalIdOf(id: UserId): Promise<string | null> {
   return row?.externalId ?? null;
 }
 
-type LibSqlClient = Parameters<LibSqlWrap>[0];
-
-function sqlOf(statement: unknown): string {
-  if (typeof statement === "string") {
-    return statement;
+/** What the ADMIN caller does, minus its audit statement: run the claim, and when it bound nothing ask
+ *  durable state why. Spelled out here rather than hidden in a helper because the ORDER is the contract —
+ *  the claim first, the explanation only after it settled. */
+async function claimThenSettle(userId: UserId, externalId: ExternalId): Promise<{ readonly outcome: string; readonly userId?: UserId }> {
+  const bound = await svc.linkExternalIdStatement(userId, externalId, T);
+  const first = bound[0];
+  if (first !== undefined) {
+    return { outcome: "linked", userId: first.id };
   }
-  if (statement !== null && typeof statement === "object" && "sql" in statement) {
-    return String((statement as { readonly sql?: string }).sql ?? "");
-  }
-  return "";
+  return await svc.settleUnclaimedLink(userId, externalId);
 }
 
-function holdSubjectReadsUntilBothComplete(targetDb: Db): { readonly bothRead: Promise<void>; readonly release: () => void } {
-  const bothRead = Promise.withResolvers<void>();
-  const release = Promise.withResolvers<void>();
-  let reads = 0;
-  const client = (targetDb as Db & { readonly $client: LibSqlClient }).$client;
-  const execute = Reflect.get(client, "execute", client);
-  if (typeof execute !== "function") {
-    throw new Error("real libSQL client has no execute method");
-  }
-  Reflect.set(
-    client,
-    "execute",
-    async (...args: unknown[]): Promise<unknown> => {
-      const result = await (execute as (...values: unknown[]) => Promise<unknown>).apply(client, args);
-      const sql = sqlOf(args[0]);
-      if (sql.startsWith("select ") && sql.includes('where "users"."external_id" = ?')) {
-        reads += 1;
-        if (reads === 2) {
-          bothRead.resolve();
-        }
-        await release.promise;
-      }
-      return result;
-    },
-    client,
-  );
-  return { bothRead: bothRead.promise, release: release.resolve };
-}
-
-describe("sessions.linkExternalId — bind-once linking capability (B5)", () => {
-  test("BINDS an unbound row: externalId is stamped, outcome `linked`", async () => {
+describe("sessions link capability — the bind-once claim + its settlement (B5, #1707)", () => {
+  test("BINDS an unbound row: the claim RETURNS the row and externalId is stamped", async () => {
     const id = await seedRow("user_a", castId<Handle>("alice"), null);
-    const result = await svc.linkExternalId(id, EXT_A);
-    expect(result).toEqual({ outcome: "linked", userId: id });
+    const bound = await svc.linkExternalIdStatement(id, EXT_A, T);
+    expect(bound).toEqual([{ id }]);
     expect(await externalIdOf(id)).toBe(EXT_A);
   });
 
-  test("idempotent: re-linking the SAME subject is `already-linked`, no error", async () => {
+  test("the claim is UNEXECUTED until it is awaited — building it writes nothing", async () => {
+    const id = await seedRow("user_a", castId<Handle>("alice"), null);
+    // The whole point of the statement seam: admin hands this to its own `db.batch` beside the audit insert,
+    // so merely BUILDING it must not touch the row (otherwise the bind could outlive a failed audit).
+    svc.linkExternalIdStatement(id, EXT_A, T);
+    expect(await externalIdOf(id)).toBeNull();
+  });
+
+  test("idempotent: re-claiming the SAME subject binds nothing and settles `already-linked`", async () => {
     const id = await seedRow("user_a", castId<Handle>("alice"), EXT_A);
-    const result = await svc.linkExternalId(id, EXT_A);
-    expect(result).toEqual({ outcome: "already-linked", userId: id });
+    expect(await claimThenSettle(id, EXT_A)).toEqual({ outcome: "already-linked", userId: id });
     expect(await externalIdOf(id)).toBe(EXT_A);
   });
 
-  test("not-found: an unknown row id returns `not-found` and writes nothing", async () => {
-    const result = await svc.linkExternalId(castId<UserId>("user_ghost"), EXT_A);
-    expect(result).toEqual({ outcome: "not-found" });
+  test("not-found: an unknown row id binds nothing and settles `not-found`", async () => {
+    expect(await claimThenSettle(castId<UserId>("user_ghost"), EXT_A)).toEqual({ outcome: "not-found" });
   });
 
   test("REFUSES rebinding a row already bound to a DIFFERENT subject (bind-once) — row untouched", async () => {
     const id = await seedRow("user_a", castId<Handle>("alice"), EXT_A);
-    const result = await svc.linkExternalId(id, EXT_B);
-    expect(result).toEqual({ outcome: "target-bound" });
-    // The existing binding is NOT overwritten — fail-closed, no write.
+    expect(await claimThenSettle(id, EXT_B)).toEqual({ outcome: "target-bound" });
+    // The existing binding is NOT overwritten — the claim's own `external_id IS NULL` matched nothing.
     expect(await externalIdOf(id)).toBe(EXT_A);
   });
 
   test("REFUSES a subject already bound to ANOTHER row (duplicate binding) — target untouched", async () => {
     await seedRow("user_a", castId<Handle>("alice"), EXT_A);
     const b = await seedRow("user_b", castId<Handle>("bob"), null);
-    const result = await svc.linkExternalId(b, EXT_A);
-    expect(result).toEqual({ outcome: "subject-taken" });
+    // The claim REJECTS here (`users_external_id_unique` is the arbiter, not a pre-read), and the settlement
+    // converts that rejection into the typed refusal.
+    await expect(svc.linkExternalIdStatement(b, EXT_A, T)).rejects.toThrow();
+    expect(await svc.settleUnclaimedLink(b, EXT_A, new Error("unique violation"))).toEqual({ outcome: "subject-taken" });
     expect(await externalIdOf(b)).toBeNull();
+  });
+
+  test("a failure durable state cannot explain is RETHROWN, never laundered into an identity outcome", async () => {
+    // The bindable case: the row exists, is unbound, and nobody holds the subject — so a rejection did NOT
+    // come from the identity invariant. This is the path a failed audit insert riding the caller's batch
+    // takes, and turning it into a refusal code would report an identity decision that never happened.
+    const id = await seedRow("user_a", castId<Handle>("alice"), null);
+    const failure = new Error("audit_logs FK violation");
+    await expect(svc.settleUnclaimedLink(id, EXT_A, failure)).rejects.toBe(failure);
   });
 
   test("two concurrent unbound targets converge on one durable subject holder with a typed loser", async () => {
     const a = await seedRow("user_a", castId<Handle>("alice"), null);
     const b = await seedRow("user_b", castId<Handle>("bob"), null);
-    const barrier = holdSubjectReadsUntilBothComplete(db);
 
-    const resultsPromise = Promise.allSettled([svc.linkExternalId(a, EXT_A), svc.linkExternalId(b, EXT_A)]);
-    await barrier.bothRead;
-    barrier.release();
-    const results = await resultsPromise;
+    // Both claims are issued before either is settled — the database arbitrates, no read holds a row unbound.
+    const claims = await Promise.allSettled([svc.linkExternalIdStatement(a, EXT_A, T), svc.linkExternalIdStatement(b, EXT_A, T)]);
+    const outcomes = await Promise.all(
+      claims.map(async (claim, index) => {
+        const target = index === 0 ? a : b;
+        if (claim.status === "fulfilled" && claim.value.length > 0) {
+          return "linked";
+        }
+        const settled = await svc.settleUnclaimedLink(target, EXT_A, claim.status === "rejected" ? claim.reason : undefined);
+        return settled.outcome;
+      }),
+    );
 
-    expect(results).toMatchObject([{ status: "fulfilled" }, { status: "fulfilled" }]);
-    expect(results.map((result) => (result.status === "fulfilled" ? result.value.outcome : "rejected")).sort()).toEqual(["linked", "subject-taken"]);
+    expect([...outcomes].sort()).toEqual(["linked", "subject-taken"]);
     const holders = await db.select({ id: users.id }).from(users).where(eq(users.externalId, EXT_A));
     expect(holders).toHaveLength(1);
-    expect(results.flatMap((result) => (result.status === "fulfilled" && result.value.outcome === "linked" ? [result.value.userId] : []))).toEqual([
-      holders[0]?.id,
-    ]);
+    expect(holders[0]?.id).toBe(outcomes[0] === "linked" ? a : b);
   });
 });

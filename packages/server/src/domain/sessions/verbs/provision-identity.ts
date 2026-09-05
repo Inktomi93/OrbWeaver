@@ -286,7 +286,9 @@ async function refuseLostOwnerBind(ctx: SessionsContext, owner: ExistingUser, id
  *  The email refresh is a SEPARATE, non-security write that follows a WON claim: it must never be the thing
  *  that carries the binding, and a claim that lost writes nothing at all. */
 async function bindOwnerSubject(ctx: SessionsContext, owner: ExistingUser, identity: ResolvedIdentity, externalId: ExternalId): Promise<ProvisionResult> {
-  if (!(await claimExternalIdIfUnbound(ctx.db, owner.id, externalId, ctx.now()))) {
+  // EMPTY rows = this login did not win the claim (another owner-policy login bound the row first).
+  const claimed = await claimExternalIdIfUnbound(ctx.db, owner.id, externalId, ctx.now());
+  if (claimed.length === 0) {
     return await refuseLostOwnerBind(ctx, owner, identity, externalId);
   }
   if (identity.email !== null && owner.email !== identity.email) {

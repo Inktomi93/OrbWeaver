@@ -11,12 +11,13 @@ export type CreateUserResult = AdminUserView;
 export type LinkSsoIdentityResult = AdminUserView;
 export type ListSessionsResult = readonly SessionAdminView[];
 
-/** B5 — the outcome shape of the INJECTED sessions `linkExternalId` op (the bind-once capability lives in
- *  domain/sessions; admin declares the cross-feature op's TYPE here per the injected-op rule and gates +
- *  audits around it). Structurally mirrors `LinkExternalIdResult` (domain/sessions/contract/results.ts) —
- *  the composition root maps the real verb into this shape. */
-export type LinkExternalIdOutcome =
-  | { readonly outcome: "linked"; readonly userId: UserId }
+/** B5/#1707 — the outcome shape of the INJECTED sessions link-settlement op: WHY a bind claim bound nothing
+ *  (the bind-once capability lives in domain/sessions; admin declares the cross-feature op's TYPE here per
+ *  the injected-op rule, and gates + audits around it). Structurally mirrors `UnclaimedLinkOutcome`
+ *  (domain/sessions/contract/results.ts) — the composition root maps the real verb into this shape. There is
+ *  no `linked` arm on purpose: a bind that LANDED is what the claim statement's own non-empty `RETURNING`
+ *  reports inside the audited batch, never a settlement read. */
+export type UnclaimedLinkOutcome =
   | { readonly outcome: "already-linked"; readonly userId: UserId }
   | { readonly outcome: "not-found" }
   | { readonly outcome: "target-bound" }
