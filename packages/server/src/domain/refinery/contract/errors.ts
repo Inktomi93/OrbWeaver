@@ -5,7 +5,7 @@
 // minted WITH their throw sites, in the same commit (the discovery errors-file law).
 
 import type { RefineryStage } from "@orb/contracts/refinery";
-import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
+import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_ROUND_IN_FLIGHT_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
 import { DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
 import type { StageBudgetMisfit } from "./prompts.ts";
 
@@ -42,6 +42,23 @@ export class RefineryOutputBudgetError extends DomainOperationError {
       REFINERY_OUTPUT_BUDGET_REASON,
       `This ${stage} run needs about ${misfit.needTokens} output tokens, but your preset caps max output at ${misfit.capTokens} — it would truncate and fail. Raise max output in the preset, or narrow the selection.`,
     );
+    this.name = this.constructor.name;
+  }
+}
+
+/**
+ * A refinement round refused because the session already has one IN FLIGHT (#1568) — the leased claim
+ * `iterate` takes before it spends. NOT retryable-by-machine and not a fault (→ BAD_REQUEST): the session is
+ * busy, and the caller's fix is to wait for the round that is running, which is what the message says.
+ * Thrown AFTER the ownership belt (the same existence-oracle ordering as {@link RefineryStageNotReadyError})
+ * and BEFORE any model call, so a refused round costs nothing.
+ *
+ * THE CLAIM IS A LEASE, so this refusal is bounded even when the holder dies: a crashed round's claim expires
+ * and the next `iterate` takes it. See `substrate/round-claim.ts` for the deadline and why it is that number.
+ */
+export class RefineryRoundInFlightError extends DomainOperationError {
+  constructor() {
+    super(REFINERY_ROUND_IN_FLIGHT_REASON, "A refinement round is already running for this session — wait for it to finish, then iterate again.");
     this.name = this.constructor.name;
   }
 }

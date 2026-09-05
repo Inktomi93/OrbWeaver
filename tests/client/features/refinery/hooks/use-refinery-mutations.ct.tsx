@@ -23,7 +23,7 @@
 //     nothing on screen (EDITSNAP-OK). The `refusal` arm is what makes it visible; the partial-apply twin
 //     proves the arm is narrow (a write that DID land must not be toasted as a failure).
 
-import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
+import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_ROUND_IN_FLIGHT_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
@@ -137,6 +137,30 @@ test("a BUDGET refusal toasts the server's FIT RECEIPT — the numbers and the k
   await expect(toast).toHaveCount(1);
   await expect(toast).toContainText(receipt);
   await expect(toast).not.toContainText("try again");
+  await expect(toast).toHaveAttribute("data-type", "error");
+});
+
+test("a ROUND-IN-FLIGHT refusal toasts the server's sentence — 'try again' would be wrong advice (#1568)", async ({ mount, page }) => {
+  // `RefineryRoundInFlightError`: the session already holds a leased round claim, so this round was refused
+  // BEFORE it spent anything. The generic fallback ("didn't finish — try again") is actively misleading here
+  // — the round never started, and retrying now hits the same live claim — so the server's own sentence,
+  // which names the actual condition and the actual fix, is the only honest toast.
+  const serverSentence = "A refinement round is already running for this session — wait for it to finish, then iterate again.";
+  await routeTrpc(page, {
+    ...REFINERY_SESSION_ROUTES,
+    "refinery.listSessions": () => [rosterRow("Rev")],
+    "refinery.iterate": () => trpcError({ code: "BAD_REQUEST", message: serverSentence, reason: REFINERY_ROUND_IN_FLIGHT_REASON }),
+  });
+
+  const component = await mount(<RefineryDataStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+  await expect(component.getByTestId("roster")).toHaveText("rows=1");
+
+  await component.getByRole("button", { name: "iterate" }).click();
+
+  const toast = page.locator(TOAST);
+  await expect(toast).toHaveCount(1);
+  await expect(toast).toContainText(serverSentence);
+  await expect(toast).not.toContainText("try again.");
   await expect(toast).toHaveAttribute("data-type", "error");
 });
 
