@@ -26,6 +26,14 @@ import { renderSingleBubble } from "./message-row-bubble.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
 import { SwipeStrip } from "./swipe-strip.tsx";
 
+/** #1728 arm B — a chip in a `1fr` RAIL must hug the centred column's edge or it drifts to the far side of
+ *  the margin. Mapped rather than branched, so a new rail member fails tsc here (the house dispatch rule). */
+const GUTTER_RAIL_CLASS: Readonly<Record<"none" | "leading" | "trailing", string>> = {
+  none: "",
+  leading: "@4xl:justify-self-end",
+  trailing: "@4xl:justify-self-start",
+};
+
 /** The settled disclosure's label. A canon-rehydrated row carries no measured think window (`ttftMs` is
  *  time-to-FIRST-token of any channel, `genFinishedAt − genStartedAt` is the whole generation), so naming a
  *  duration here would be a fabricated number — the channel names itself instead. */
@@ -198,6 +206,13 @@ export function renderRowAvatar(args: {
    *  with the name row" CT is the fence). ST's own refs align the chip to the header line, not the card.
    *  False for an `outside` skin, where the header IS the column's first line and nothing is offset. */
   readonly alignToInsideHeader: boolean;
+  /** #1728 arm B — this row's skin seats its column with `columnPlacement: "gutterCentred"`, so at/above
+   *  the `@4xl` crossover the chip lives in a `1fr` RAIL beside the centred column rather than in flow
+   *  beside it. A rail is wider than the chip, so the chip has to hug the column's edge or it drifts to
+   *  the far side of the margin: `justify-self-end` for a leading chip, `justify-self-start` for a
+   *  trailing one. Inert below the crossover and inert for every `anchored` skin, where the row body is
+   *  still a flex line and `justify-self` has no grid to resolve against. */
+  readonly gutterRail: "none" | "leading" | "trailing";
 }): ReactElement | null {
   if (args.attribution.name === null || !args.showInChatAvatars) {
     return null;
@@ -205,7 +220,9 @@ export function renderRowAvatar(args: {
   // The welded portrait spans the card and has no line to align to — offset only the gutter chip.
   // exactOptionalPropertyTypes idiom: OMIT the prop rather than pass `undefined` (the `avatarSrcProp`
   // precedent one file over).
-  const headerOffset = args.alignToInsideHeader ? { className: "mt-row" } : {};
+  const railClass = GUTTER_RAIL_CLASS[args.gutterRail];
+  const chipClass = cn(args.alignToInsideHeader ? "mt-row" : "", railClass);
+  const headerOffset = chipClass === undefined || chipClass === "" ? {} : { className: chipClass };
   if (args.avatarTreatment === "sticky-portrait") {
     const weldRounding = args.role === "user" ? "rounded-l-none rounded-r-card" : "rounded-l-card rounded-r-none";
     return (

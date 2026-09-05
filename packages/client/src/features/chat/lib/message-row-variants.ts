@@ -8,6 +8,7 @@ import { blobBannerUrl, blobPortraitUrl, blobUrl } from "@orb/contracts/assets";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
 import { avatarFallbackHueColor } from "@orb/ui/avatar";
+import { gutterCentredTracks } from "@orb/ui/layout";
 import type { CSSProperties } from "react";
 import { cn, messageBubbleClass } from "#lib";
 import type { RowAttribution } from "./attribution.ts";
@@ -59,6 +60,25 @@ type BubbleLayout = "single" | "trains";
 // shape the skin table already owns, which `no-inline-types` reds.
 type HeaderPlacement = "inside" | "outside";
 
+/** WHERE THIS SKIN SEATS THE READING COLUMN AGAINST THE IDENTITY GUTTER (#1728 arm B, owner 2026-09-05).
+ *
+ *  `anchored` — the row body is a flex line and the gutter is part of it, so the pair (chip + column) is
+ *  placed as one unit against the track's leading or trailing edge. Right for the BUBBLE family, whose rows
+ *  are deliberately edge-anchored: there the 40px chip + 8px gap is the shape, not an annotation, and the
+ *  `dimension.shell-content-floor` derivation spends it as a term.
+ *
+ *  `gutterCentred` — the reading COLUMN is centred on its own and the chip hangs beside it in the margin, so
+ *  toggling `appearance.showInChatAvatars` no longer slides the prose sideways. Right for the CENTRED skins
+ *  (`flat`/`hush` via `flatOuter`, and `document`), which centre their capped column inside the track: with
+ *  the chip inside the centred unit the measured prose sat 285px from the left of a 1280px row and 245px
+ *  from the right, and went symmetric 265/265 the moment avatars were switched off — a 20px slide on a
+ *  toggle. Rides `@orb/ui`'s `Grid cols="gutterCentred"`; the avatar stays a SIBLING of the column (§B.1 is
+ *  intact — only the placement mechanism changed, never the anatomy).
+ *
+ *  A REQUIRED field, like `headerPlacement` and `avatarTreatment`: a new chatStyle fails tsc here until it
+ *  says how its column is seated. */
+type ColumnPlacement = "anchored" | "gutterCentred";
+
 /** Input to a mode's `bubbleDecoration`. The avatar HASH, not a prebuilt URL — each decorator requests
  *  its own correctly-shaped variant (Echo → blobPortraitUrl, Whisper → blobBannerUrl).
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
@@ -93,6 +113,8 @@ export interface BubbleDecoration {
 
 export interface RowSkin {
   readonly outer: (role: MessageRole) => string;
+  /** {@link ColumnPlacement} — how this skin seats the reading column against the identity gutter (#1728). */
+  readonly columnPlacement: ColumnPlacement;
   readonly inner: (role: MessageRole) => string;
   readonly avatarTreatment: (kind: RowAttribution["kind"]) => AvatarTreatment;
   readonly bubbleDecoration?: (args: BubbleDecorationArgs) => BubbleDecoration | null;
@@ -287,10 +309,38 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
   };
 }
 
+/** WHICH GRID RAIL this row's identity chip sits in under `columnPlacement: "gutterCentred"`, or `"none"`
+ *  for an `anchored` skin whose body is still a flex line (#1728 arm B). A bare helper, not inlined, so
+ *  `MessageRow` and `GhostMessageRow` read the SAME decision and neither pays for it in complexity. */
+export function gutterRailFor(skin: RowSkin, role: MessageRole): "none" | "leading" | "trailing" {
+  if (skin.columnPlacement === "anchored") {
+    return "none";
+  }
+  return role === "user" ? "trailing" : "leading";
+}
+
+/** The content column's own sizing class for this skin's placement (#1728 arm B): `flex-1` is the flex
+ *  arm's "take the rest", and `@4xl:col-start-2` is the grid arm's "be the CENTRED rail" — the column must
+ *  be placed explicitly there because a system row has no chip to auto-place before it. */
+export function columnClassFor(skin: RowSkin): string {
+  return skin.columnPlacement === "anchored" ? "min-w-0 flex-1" : "min-w-0 flex-1 @4xl:col-start-2";
+}
+
+/** The row body's own placement classes (#1728 arm B): nothing for `anchored`, which stays the flex line it
+ *  has always been, and `@orb/ui`'s three-rail `gutterCentred` tracks for the centred skins. A CLASS and not
+ *  a choice of ELEMENT because `react-hooks/static-components` bans a render-scoped component binding — and
+ *  it is right to: swapping the element type at a width step would remount the row and drop mid-edit state.
+ *  Homing it here is what keeps `MessageRow` and `GhostMessageRow` under the complexity ceiling reading the
+ *  SAME decision. */
+export function rowBodyClassFor(skin: RowSkin): string {
+  return skin.columnPlacement === "anchored" ? "" : gutterCentredTracks();
+}
+
 /** The exhaustive chatStyle → skin table; a new chatStyle fails to compile without a row here. */
 export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   bubble: {
     outer: bubbleOuter,
+    columnPlacement: "anchored",
     inner: bubbleInner,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
@@ -298,6 +348,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   },
   flat: {
     outer: flatOuter,
+    columnPlacement: "gutterCentred",
     inner: flatInner,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
@@ -308,6 +359,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   },
   document: {
     outer: () => cx(CHAT_TRACK, "items-center"),
+    columnPlacement: "gutterCentred",
     // `max-w-prose` is DELIBERATE RESIDUE here (#1175, refused with a receipt): this is transcript geometry,
     // and #1145's owner ruling is "SPLIT the token, do not narrow the transcript". The reasoning, and why
     // `--reading-measure-min` cannot be spelled as a ceiling either, is in `lib/message-bubble-class.ts`'s
@@ -319,6 +371,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   },
   echo: {
     outer: echoOuter,
+    columnPlacement: "anchored",
     inner: bubbleInner,
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: echoDecoration,
@@ -332,6 +385,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   },
   whisper: {
     outer: bubbleOuter,
+    columnPlacement: "anchored",
     inner: bubbleInner,
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: whisperDecoration,
@@ -344,6 +398,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   },
   hush: {
     outer: flatOuter,
+    columnPlacement: "gutterCentred",
     inner: flatInner,
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: hushDecoration,
@@ -354,6 +409,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   },
   ripple: {
     outer: bubbleOuter,
+    columnPlacement: "anchored",
     inner: bubbleInner,
     avatarTreatment: rippleAvatarTreatment,
     bubbleLayout: "single",
@@ -364,6 +420,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   },
   tide: {
     outer: bubbleOuter,
+    columnPlacement: "anchored",
     inner: bubbleInner,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "trains",
