@@ -496,14 +496,59 @@ do_stop() {
 # Force means verified escalation, never guessed ownership. The manager and detached engines each route
 # through their durable identity verifier; foreign port holders are left untouched and block the restart.
 
-gpu_idle() { # true when every GPU's used VRAM is below the idle floor (~1GiB)
-  local used
+# The GPU occupancy probe answers THREE things, not two (#1495). The old body ran nvidia-smi inside a
+# process substitution feeding `while read`: a MISSING or ERRORING probe produced zero rows, the loop body
+# never ran, and control fell through to an unconditional `return 0` — so force_teardown printed
+# "teardown complete — ports free, GPU idle" over VRAM that was never measured at all. The probe's failure
+# was byte-identical to its success. Exit codes, and every caller must branch on all four:
+#   0  idle          every GPU reported and all are under the floor
+#   1  busy          a GPU reported above the floor
+#   2  UNKNOWN       the probe ran and failed, printed nothing, or printed a non-number — NEVER idle
+#   3  not measured  nvidia-smi is absent from PATH, or the operator opted out. A host with no NVIDIA
+#                    tooling holds no fleet VRAM, so it must still be able to force-restart; that is a
+#                    DIFFERENT fact from "the driver is there and would not answer", which is 2.
+GPU_IDLE_FLOOR_MIB=1024
+gpu_idle() {
+  if [ "${STACK_GPU_CHECK:-on}" = skip ]; then
+    echo "stack: GPU idle check SKIPPED (STACK_GPU_CHECK=skip) — VRAM was NOT measured" >&2
+    return 3
+  fi
+  command -v nvidia-smi >/dev/null 2>&1 || return 3
+  local out used rc=0 rows=0
+  # Captured, never piped: the exit STATUS is half the answer, and a pipeline would hand back the reader's.
+  out="$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null)" || rc=$?
+  [ "$rc" != 0 ] && return 2
   while read -r used; do
     [ -z "$used" ] && continue
-    [ "$used" -gt 1024 ] && return 1
-  done < <(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null)
+    case "$used" in *[!0-9]*) return 2 ;; esac
+    rows=$((rows + 1))
+    [ "$used" -gt "$GPU_IDLE_FLOOR_MIB" ] && return 1
+  done <<<"$out"
+  # A probe that answered with no rows measured no GPU — the exact shape that used to read as idle.
+  [ "$rows" -eq 0 ] && return 2
   return 0
 }
+
+# What a gpu_idle code says out loud. One home, so the completion line and the refusal cannot disagree.
+gpu_state_text() {
+  case "$1" in
+    0) echo "GPU idle" ;;
+    1) echo "GPU busy — VRAM above the ${GPU_IDLE_FLOOR_MIB}MiB idle floor" ;;
+    2) echo "GPU UNKNOWN — nvidia-smi could not be read; refusing to call it idle (STACK_GPU_CHECK=skip proceeds without it)" ;;
+    *) echo "GPU not measured (no nvidia-smi on PATH, or STACK_GPU_CHECK=skip)" ;;
+  esac
+}
+
+# Test seam (tests/tooling/stack/index.int.test.ts), the `STACK_DISPATCH_PROBE` convention: print the GPU
+# verdict and stop. It is the ONLY way to drive the probe's FAILURE arms — its one caller is force_teardown,
+# which SIGKILLs the live stack and the vLLM fleet before it ever asks. Deliberately after the definition
+# and before any action, so nothing is spawned and no port is touched.
+if [ -n "${STACK_GPU_PROBE:-}" ]; then
+  gpu_idle
+  gpu_probe_code=$?
+  echo "GPU code=$gpu_probe_code text=$(gpu_state_text "$gpu_probe_code")"
+  exit 0
+fi
 
 force_teardown() {
   local pid p
@@ -511,15 +556,18 @@ force_teardown() {
   do_stop || return 1
   node "$REPO/tooling/src/stack/ops/engines-ctl.ts" stop || return 1
 
-  # POLL until ports free AND VRAM idle — release may lag after a verified signal.
-  local free
+  # POLL until ports free AND the GPU is either idle or honestly not measurable. UNKNOWN (2) never
+  # satisfies this loop: an unreadable probe is a reason to keep waiting and then REFUSE, never a pass.
+  local free gpu
   for _ in $(seq 1 30); do
     free=1
     for p in "$BACKEND_PORT" "$VITE_PORT" "${FLEET_PORTS[@]}"; do
       [ -n "$(port_pid "$p")" ] && free=""
     done
-    if [ -n "$free" ] && gpu_idle; then
-      echo "force-restart: teardown complete — ports free, GPU idle"
+    gpu_idle
+    gpu=$?
+    if [ -n "$free" ] && { [ "$gpu" = 0 ] || [ "$gpu" = 3 ]; }; then
+      echo "force-restart: teardown complete — ports free, $(gpu_state_text "$gpu")"
       return 0
     fi
     sleep 1
@@ -529,7 +577,9 @@ force_teardown() {
     pid="$(port_pid "$p")"
     [ -n "$pid" ] && echo "force-restart:   :$p still held by pid $pid"
   done
-  gpu_idle || echo "force-restart:   GPU VRAM still above idle floor"
+  gpu_idle
+  gpu=$?
+  [ "$gpu" != 0 ] && [ "$gpu" != 3 ] && echo "force-restart:   $(gpu_state_text "$gpu")" >&2
   return 1
 }
 
