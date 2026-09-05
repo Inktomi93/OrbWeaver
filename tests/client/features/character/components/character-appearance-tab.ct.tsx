@@ -39,6 +39,7 @@ const THEME_LIST = [
     override: { background: "oklch(0.15 0.015 250)", accent: "oklch(0.7 0.14 250)", density: "compact" },
     css: null,
     isSeed: true,
+    isDefault: false,
     createdAt: 0,
     updatedAt: 0,
   },
@@ -159,7 +160,16 @@ test("Save as theme… promotes the LIVE override, defaulted to the character's 
     "settings.listThemes": () => THEME_LIST,
     // The BG-C picker's grid reads the viewer's own backgroundLibrary (#866 S4) — fed empty, never inert.
     "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
-    "settings.promoteTheme": () => ({ id: "theme_new", name: "Aria", override: { accent: "#00ff00" }, css: null, isSeed: false, createdAt: 0, updatedAt: 0 }),
+    "settings.promoteTheme": () => ({
+      id: "theme_new",
+      name: "Aria",
+      override: { accent: "#00ff00" },
+      css: null,
+      isSeed: false,
+      isDefault: false,
+      createdAt: 0,
+      updatedAt: 0,
+    }),
   });
   await mount(<CharacterLookTabStory />);
 

@@ -22,9 +22,9 @@ import { ConfigHostInScrollingHostStory, ConfigHostStory } from "../_ct-stories.
 /** The getUserSettings read-model the Appearance group suspends on — defaults are enough to render it. */
 // The Looks section (#866 S4) reads the theme library — three seeds, no owned rows.
 const LOOKS_THEMES = [
-  { id: "theme_00000000000000000000000001", name: "Hearth", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
-  { id: "theme_00000000000000000000000002", name: "Mocha", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
-  { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+  { id: "theme_00000000000000000000000001", name: "Hearth", override: {}, css: null, isSeed: true, isDefault: true, createdAt: 0, updatedAt: 0 },
+  { id: "theme_00000000000000000000000002", name: "Mocha", override: {}, css: null, isSeed: true, isDefault: false, createdAt: 0, updatedAt: 0 },
+  { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, isDefault: false, createdAt: 0, updatedAt: 0 },
 ];
 const USER_SETTINGS_VIEW = {
   userId: "user_ct_settings",

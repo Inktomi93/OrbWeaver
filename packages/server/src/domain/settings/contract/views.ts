@@ -1,6 +1,6 @@
 // domain/settings/contract/views — the read-models callers receive. UserSettingsView.config is always
 // the parsed+defaulted UserSettings contract, never a raw blob. isSeed derives from ownerId IS NULL at
-// projection, never a stored column.
+// projection and isDefault from the default palette's sentinel id — both derived, never stored columns.
 
 import type { UserSettings } from "@orb/contracts/settings";
 import type { ThemeOverride } from "@orb/contracts/theme";
@@ -29,6 +29,9 @@ export interface ThemeView {
   readonly css: string | null;
   /** Derived (ownerId IS NULL) — a seed palette is un-editable/un-deletable by construction. */
   readonly isSeed: boolean;
+  /** Derived (the row IS the default palette's sentinel row) — what `theme.selectedThemeId: null` resolves
+   *  to. The sentinel id stays domain-internal (`../constants.ts`); this flag is what crosses (#1671). */
+  readonly isDefault: boolean;
   readonly createdAt: number;
   readonly updatedAt: number;
 }

@@ -1,6 +1,7 @@
 // verb: listThemes — owned ∪ seeds, as views; never another user's rows.
 
 import { describe } from "vitest";
+import { THEME_HEARTH_ID } from "../../../../../packages/server/src/domain/settings/constants.ts";
 import { ensureSeedThemes, SEED_THEMES } from "../../../../../packages/server/src/domain/settings/seed-themes.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -29,5 +30,10 @@ describe("listThemes", () => {
     expect(views.every((v) => v.name !== "Theirs")).toBe(true);
     expect(views.find((v) => v.name === "Hearth")?.isSeed).toBe(true);
     expect(views.find((v) => v.name === "Mine")?.isSeed).toBe(false);
+    // …and EXACTLY ONE row of the collection the client actually receives is flagged default (#1671) —
+    // asserted here, past the real seeder + the real read, keyed by the SEEDER'S id rather than by the
+    // display name the client used to compare against (#1667).
+    const flagged = views.filter((v) => v.isDefault);
+    expect(flagged.map((v) => v.id)).toEqual([THEME_HEARTH_ID]);
   });
 });
