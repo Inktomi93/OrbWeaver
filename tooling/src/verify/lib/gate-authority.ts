@@ -1,0 +1,444 @@
+/** Central gate authority coordinator. Detectors never select their own severity or exception door. */
+
+import type {
+  AuthorityConsumption,
+  CoordinatedGateFinding,
+  GateAuthorityAlarm,
+  GateAuthorityBatchInput,
+  GateAuthorityBatchResult,
+  GateAuthorityToolError,
+  GateOwnerCompletion,
+  GateOwnerResult,
+  GrantedGateFinding,
+  RawGateFinding,
+  ReviewedGateGrant,
+  SelectedGatePolicy,
+  WaivedGateFinding,
+} from "../contract/gate-authority.ts";
+
+function isIdentity(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "";
+}
+function isAuthority(value: unknown): boolean {
+  return value === "hard" || value === "ordinary" || value === "reviewed-grant";
+}
+function isSeverity(value: unknown): boolean {
+  return value === "error" || value === "warning";
+}
+function findingOrder(left: CoordinatedGateFinding, right: CoordinatedGateFinding): number {
+  return (
+    left.file.localeCompare(right.file) ||
+    left.line - right.line ||
+    left.column - right.column ||
+    (left.token ?? "").localeCompare(right.token ?? "") ||
+    (left.message ?? "").localeCompare(right.message ?? "") ||
+    left.policyId.localeCompare(right.policyId)
+  );
+}
+function alarmOrder(left: GateAuthorityAlarm, right: GateAuthorityAlarm): number {
+  const leftId = left.kind === "ordinary-waiver" ? (left.waiverId ?? "") : left.grantId;
+  const rightId = right.kind === "ordinary-waiver" ? (right.waiverId ?? "") : right.grantId;
+  return left.policyId.localeCompare(right.policyId) || left.kind.localeCompare(right.kind) || leftId.localeCompare(rightId);
+}
+function toolErrorOrder(left: GateAuthorityToolError, right: GateAuthorityToolError): number {
+  return (
+    (left.policyId ?? "").localeCompare(right.policyId ?? "") ||
+    (left.findingIndex ?? -1) - (right.findingIndex ?? -1) ||
+    left.kind.localeCompare(right.kind) ||
+    (left.grantId ?? "").localeCompare(right.grantId ?? "")
+  );
+}
+function toConsumption(counts: ReadonlyMap<string, number>): readonly AuthorityConsumption[] {
+  return [...counts].map(([id, count]) => ({ id, count })).toSorted((left, right) => left.id.localeCompare(right.id));
+}
+function policyTable(selectedPolicies: readonly SelectedGatePolicy[], errors: GateAuthorityToolError[]): ReadonlyMap<string, SelectedGatePolicy> {
+  const counts = Map.groupBy(selectedPolicies, ({ id }) => id);
+  const table = new Map<string, SelectedGatePolicy>();
+  for (const [id, candidates] of [...counts].toSorted(([left], [right]) => left.localeCompare(right))) {
+    if (!isIdentity(id) || candidates.some(({ authority, severity }) => !(isAuthority(authority) && isSeverity(severity)))) {
+      errors.push({ kind: "invalid-policy", policyId: id, message: `selected policy has an invalid identity, authority, or severity: ${id}` });
+      continue;
+    }
+    if (candidates.length !== 1) {
+      errors.push({ kind: "duplicate-policy", policyId: id, message: `selected policy must be unique: ${id}` });
+      continue;
+    }
+    const policy = candidates[0];
+    if (policy !== undefined) {
+      table.set(id, policy);
+    }
+  }
+  return table;
+}
+interface GrantTable {
+  readonly grants: readonly ReviewedGateGrant[];
+  readonly byIdentity: ReadonlyMap<string, ReviewedGateGrant>;
+  readonly invalidPolicyIds: ReadonlySet<string>;
+}
+function grantIdentity(grant: Pick<ReviewedGateGrant, "policyId" | "subject" | "operation">): string {
+  return `${grant.policyId}\u0000${grant.subject}\u0000${grant.operation}`;
+}
+function grantTable(reviewedGrants: readonly ReviewedGateGrant[], errors: GateAuthorityToolError[]): GrantTable {
+  const valid = reviewedGrants.filter((grant) => {
+    const isValid = [grant.id, grant.policyId, grant.subject, grant.operation, grant.why, grant.endsWhen].every(isIdentity);
+    if (!isValid) {
+      errors.push({
+        kind: "invalid-grant",
+        grantId: grant.id,
+        policyId: grant.policyId,
+        message: `reviewed grant has a blank identity or rationale: ${grant.id}`,
+      });
+    }
+    return isValid;
+  });
+  const byId = Map.groupBy(valid, ({ id }) => id);
+  const byTriple = Map.groupBy(valid, grantIdentity);
+  const invalidIds = new Set<string>();
+  const invalidTriples = new Set<string>();
+  const invalidPolicyIds = new Set<string>();
+
+  for (const [id, candidates] of [...byId].toSorted(([left], [right]) => left.localeCompare(right))) {
+    if (candidates.length > 1) {
+      invalidIds.add(id);
+      for (const { policyId } of candidates) {
+        invalidPolicyIds.add(policyId);
+      }
+      errors.push({ kind: "duplicate-grant-id", grantId: id, message: `reviewed grant id must be unique: ${id}` });
+    }
+  }
+  for (const [identity, candidates] of [...byTriple].toSorted(([left], [right]) => left.localeCompare(right))) {
+    if (candidates.length > 1) {
+      invalidTriples.add(identity);
+      for (const { policyId } of candidates) {
+        invalidPolicyIds.add(policyId);
+      }
+      const candidate = candidates[0];
+      errors.push({
+        kind: "duplicate-grant-identity",
+        ...(candidate === undefined ? {} : { grantId: candidate.id, policyId: candidate.policyId }),
+        message: `reviewed grant policy/subject/operation identity must be unique: ${identity.replaceAll("\u0000", "/")}`,
+      });
+    }
+  }
+
+  const grants = valid.filter((grant) => !(invalidIds.has(grant.id) || invalidTriples.has(grantIdentity(grant))));
+  return { grants, byIdentity: new Map(grants.map((grant) => [grantIdentity(grant), grant])), invalidPolicyIds };
+}
+
+interface RuntimeOwnerCompletion {
+  readonly status?: unknown;
+  readonly population?: unknown;
+  readonly reason?: unknown;
+}
+function isValidCompletion(owner: GateOwnerCompletion): boolean {
+  const candidate: RuntimeOwnerCompletion = owner;
+  if (candidate.status === "success") {
+    return candidate.population === "complete";
+  }
+  if (candidate.status === "not-applicable") {
+    return candidate.population === "complete" && typeof candidate.reason === "string";
+  }
+  return (candidate.status === "failure" || candidate.status === "incomplete") && candidate.population === "incomplete" && typeof candidate.reason === "string";
+}
+function coordinatedFinding(policy: SelectedGatePolicy, finding: RawGateFinding): CoordinatedGateFinding {
+  const { file, line, column, token, message, fix, subject, operation } = finding;
+  return {
+    file,
+    line,
+    column,
+    ...(token === undefined ? {} : { token }),
+    ...(message === undefined ? {} : { message }),
+    ...(fix === undefined ? {} : { fix }),
+    ...(subject === undefined ? {} : { subject }),
+    ...(operation === undefined ? {} : { operation }),
+    policyId: policy.id,
+    severity: policy.severity,
+  };
+}
+
+interface FindingValidationInput {
+  readonly policy: SelectedGatePolicy;
+  readonly finding: RawGateFinding;
+  readonly findingIndex: number;
+  readonly population: ReadonlySet<string>;
+  readonly errors: GateAuthorityToolError[];
+}
+function validateFinding({ policy, finding, findingIndex, population, errors }: FindingValidationInput): boolean {
+  let valid = true;
+  if (Object.hasOwn(finding, "policyId") || Object.hasOwn(finding, "severity") || Object.hasOwn(finding, "authority")) {
+    errors.push({
+      kind: "finding-spoofed-policy",
+      policyId: policy.id,
+      findingIndex,
+      message: `raw finding attempted to supply policy metadata for ${policy.id}`,
+    });
+    valid = false;
+  }
+  if (!isIdentity(finding.file)) {
+    errors.push({ kind: "invalid-finding", policyId: policy.id, findingIndex, message: `finding has a blank file identity for ${policy.id}` });
+    valid = false;
+  }
+  if (!(Number.isInteger(finding.line) && finding.line >= 1 && Number.isInteger(finding.column) && finding.column >= 1)) {
+    errors.push({
+      kind: "invalid-finding-coordinate",
+      policyId: policy.id,
+      findingIndex,
+      message: `finding has invalid coordinates for ${policy.id}: ${finding.line}:${finding.column}`,
+    });
+    valid = false;
+  }
+  if (isIdentity(finding.file) && !population.has(finding.file)) {
+    errors.push({
+      kind: "finding-outside-population",
+      policyId: policy.id,
+      findingIndex,
+      message: `finding falls outside ${policy.id}'s declared population: ${finding.file}`,
+    });
+    valid = false;
+  }
+  if (policy.authority === "reviewed-grant" && !(isIdentity(finding.subject) && isIdentity(finding.operation))) {
+    errors.push({
+      kind: "invalid-reviewed-grant-identity",
+      policyId: policy.id,
+      findingIndex,
+      message: `reviewed-grant finding requires nonempty subject and operation: ${policy.id}`,
+    });
+    valid = false;
+  }
+  return valid;
+}
+function validateResult(policy: SelectedGatePolicy, result: GateOwnerResult, errors: GateAuthorityToolError[]): readonly CoordinatedGateFinding[] | null {
+  if (!(isIdentity(result.policyId) && isValidCompletion(result.owner))) {
+    errors.push({ kind: "invalid-owner-result", policyId: policy.id, message: `owner result is malformed for ${policy.id}` });
+    return null;
+  }
+  const population = new Set(result.populationFiles);
+  if (population.size !== result.populationFiles.length || result.populationFiles.some((file) => !isIdentity(file))) {
+    errors.push({ kind: "invalid-population", policyId: policy.id, message: `owner population is malformed for ${policy.id}` });
+    return null;
+  }
+  if (result.owner.status === "not-applicable" && result.findings.length > 0) {
+    errors.push({ kind: "not-applicable-with-findings", policyId: policy.id, message: `not-applicable owner returned findings for ${policy.id}` });
+  }
+  const coordinated = result.findings.map((candidate) => coordinatedFinding(policy, candidate));
+  let findingsValid = true;
+  for (const [index, candidate] of result.findings.entries()) {
+    if (!validateFinding({ policy, finding: candidate, findingIndex: index, population, errors })) {
+      findingsValid = false;
+    }
+  }
+  if (result.owner.status === "failure") {
+    errors.push({ kind: "owner-failure", policyId: policy.id, message: `owner failed for ${policy.id}: ${result.owner.reason}` });
+  } else if (result.owner.status === "incomplete") {
+    errors.push({ kind: "owner-incomplete", policyId: policy.id, message: `owner was incomplete for ${policy.id}: ${result.owner.reason}` });
+  }
+  return findingsValid && result.owner.status === "success" ? coordinated.toSorted(findingOrder) : null;
+}
+function selectedResults(
+  policies: ReadonlyMap<string, SelectedGatePolicy>,
+  ownerResults: readonly GateOwnerResult[],
+  errors: GateAuthorityToolError[],
+  withheld: Set<string>,
+): ReadonlyMap<string, GateOwnerResult> {
+  const grouped = Map.groupBy(ownerResults, ({ policyId }) => policyId);
+  const selected = new Map<string, GateOwnerResult>();
+  for (const [policyId] of [...policies].toSorted(([left], [right]) => left.localeCompare(right))) {
+    const candidates = grouped.get(policyId) ?? [];
+    if (candidates.length === 0) {
+      errors.push({ kind: "missing-owner-result", policyId, message: `selected policy has no owner result: ${policyId}` });
+      withheld.add(policyId);
+    } else if (candidates.length > 1) {
+      errors.push({ kind: "duplicate-owner-result", policyId, message: `selected policy has multiple owner results: ${policyId}` });
+      withheld.add(policyId);
+    } else {
+      const candidate = candidates[0];
+      if (candidate !== undefined) {
+        selected.set(policyId, candidate);
+      }
+    }
+  }
+  for (const [policyId] of [...grouped].toSorted(([left], [right]) => left.localeCompare(right))) {
+    if (!policies.has(policyId)) {
+      errors.push({ kind: "unselected-owner-result", policyId, message: `owner result was returned for an unselected policy: ${policyId}` });
+    }
+  }
+  return selected;
+}
+interface OrdinaryProcessInput {
+  readonly input: GateAuthorityBatchInput;
+  readonly policy: SelectedGatePolicy;
+  readonly findings: readonly CoordinatedGateFinding[];
+  readonly effective: CoordinatedGateFinding[];
+  readonly waived: WaivedGateFinding[];
+  readonly counts: Map<string, number>;
+  readonly errors: GateAuthorityToolError[];
+}
+function processOrdinary({ input, policy, findings, effective, waived, counts, errors }: OrdinaryProcessInput): boolean {
+  const localEffective: CoordinatedGateFinding[] = [];
+  const localWaived: WaivedGateFinding[] = [];
+  const localCounts = new Map<string, number>();
+  let valid = true;
+  for (const finding of findings) {
+    const waiverId = input.waiverFor?.(finding) ?? null;
+    if (waiverId === null) {
+      localEffective.push(finding);
+    } else if (!isIdentity(waiverId)) {
+      errors.push({ kind: "invalid-waiver-id", policyId: policy.id, message: `ordinary waiver id must be nonempty for ${policy.id}` });
+      valid = false;
+    } else {
+      localCounts.set(waiverId, (localCounts.get(waiverId) ?? 0) + 1);
+      localWaived.push({ finding, waiverId });
+    }
+  }
+  if (!valid) {
+    effective.push(...findings);
+    return false;
+  }
+  effective.push(...localEffective);
+  waived.push(...localWaived);
+  for (const [id, count] of localCounts) {
+    counts.set(id, (counts.get(id) ?? 0) + count);
+  }
+  return true;
+}
+interface CoordinationState {
+  readonly input: GateAuthorityBatchInput;
+  readonly results: ReadonlyMap<string, GateOwnerResult>;
+  readonly grants: GrantTable;
+  readonly effectiveFindings: CoordinatedGateFinding[];
+  readonly waivedFindings: WaivedGateFinding[];
+  readonly grantedFindings: GrantedGateFinding[];
+  readonly ordinaryCounts: Map<string, number>;
+  readonly grantCounts: Map<string, number>;
+  readonly completedOrdinary: Set<string>;
+  readonly completedReviewed: Set<string>;
+  readonly toolErrors: GateAuthorityToolError[];
+  readonly withheld: Set<string>;
+}
+function processPolicy(policy: SelectedGatePolicy, state: CoordinationState): void {
+  const result = state.results.get(policy.id);
+  if (result === undefined) {
+    return;
+  }
+  const findings = validateResult(policy, result, state.toolErrors);
+  if (findings === null || state.grants.invalidPolicyIds.has(policy.id)) {
+    state.withheld.add(policy.id);
+    return;
+  }
+  if (policy.authority === "hard") {
+    state.effectiveFindings.push(...findings);
+    return;
+  }
+  if (policy.authority === "ordinary") {
+    const completed = processOrdinary({
+      input: state.input,
+      policy,
+      findings,
+      effective: state.effectiveFindings,
+      waived: state.waivedFindings,
+      counts: state.ordinaryCounts,
+      errors: state.toolErrors,
+    });
+    if (completed) {
+      state.completedOrdinary.add(policy.id);
+    } else {
+      state.withheld.add(policy.id);
+    }
+    return;
+  }
+
+  state.completedReviewed.add(policy.id);
+  for (const finding of findings) {
+    const grant = state.grants.byIdentity.get(grantIdentity({ policyId: policy.id, subject: finding.subject ?? "", operation: finding.operation ?? "" }));
+    if (grant === undefined) {
+      state.effectiveFindings.push(finding);
+    } else {
+      state.grantCounts.set(grant.id, (state.grantCounts.get(grant.id) ?? 0) + 1);
+      state.grantedFindings.push({ finding, grantId: grant.id });
+    }
+  }
+}
+interface AuthorityReconciliationInput {
+  readonly input: GateAuthorityBatchInput;
+  readonly grants: GrantTable;
+  readonly completedOrdinary: ReadonlySet<string>;
+  readonly completedReviewed: ReadonlySet<string>;
+  readonly ordinaryCounts: ReadonlyMap<string, number>;
+  readonly grantCounts: ReadonlyMap<string, number>;
+}
+function reconcileAuthority(state: AuthorityReconciliationInput): readonly GateAuthorityAlarm[] {
+  const alarms: GateAuthorityAlarm[] = [];
+  if (state.input.reconcileOrdinary !== undefined && state.completedOrdinary.size > 0) {
+    const completedPolicyIds = [...state.completedOrdinary].toSorted();
+    const completedSet = new Set(completedPolicyIds);
+    alarms.push(
+      ...state.input.reconcileOrdinary({ completedPolicyIds, consumption: new Map(state.ordinaryCounts) }).filter(({ policyId }) => completedSet.has(policyId)),
+    );
+  }
+  for (const grant of state.grants.grants) {
+    if (state.completedReviewed.has(grant.policyId) && state.grantCounts.get(grant.id) === 0) {
+      alarms.push({
+        kind: "stale-reviewed-grant",
+        policyId: grant.policyId,
+        grantId: grant.id,
+        subject: grant.subject,
+        operation: grant.operation,
+        message: `reviewed grant was unused after a complete owner run: ${grant.id}`,
+      });
+    }
+  }
+  return alarms.toSorted(alarmOrder);
+}
+
+export function coordinateGateAuthority(input: GateAuthorityBatchInput): GateAuthorityBatchResult {
+  const toolErrors: GateAuthorityToolError[] = [];
+  const withheld = new Set<string>();
+  const policies = policyTable(input.selectedPolicies, toolErrors);
+  for (const { id } of input.selectedPolicies) {
+    if (!policies.has(id)) {
+      withheld.add(id);
+    }
+  }
+  const grants = grantTable(input.reviewedGrants, toolErrors);
+  const results = selectedResults(policies, input.ownerResults, toolErrors, withheld);
+  const effectiveFindings: CoordinatedGateFinding[] = [];
+  const waivedFindings: WaivedGateFinding[] = [];
+  const grantedFindings: GrantedGateFinding[] = [];
+  const ordinaryCounts = new Map<string, number>();
+  const grantCounts = new Map(grants.grants.map(({ id }) => [id, 0]));
+  const completedOrdinary = new Set<string>();
+  const completedReviewed = new Set<string>();
+  const state: CoordinationState = {
+    input,
+    results,
+    grants,
+    effectiveFindings,
+    waivedFindings,
+    grantedFindings,
+    ordinaryCounts,
+    grantCounts,
+    completedOrdinary,
+    completedReviewed,
+    toolErrors,
+    withheld,
+  };
+  for (const [, policy] of [...policies].toSorted(([left], [right]) => left.localeCompare(right))) {
+    processPolicy(policy, state);
+  }
+
+  const sortedEffective = effectiveFindings.toSorted(findingOrder);
+  const errors = sortedEffective.filter(({ severity }) => severity === "error").length;
+  const warnings = sortedEffective.length - errors;
+  const authorityAlarms = reconcileAuthority({ input, grants, completedOrdinary, completedReviewed, ordinaryCounts, grantCounts });
+  return {
+    effectiveFindings: sortedEffective,
+    waivedFindings: waivedFindings.toSorted((left, right) => findingOrder(left.finding, right.finding) || left.waiverId.localeCompare(right.waiverId)),
+    grantedFindings: grantedFindings.toSorted((left, right) => findingOrder(left.finding, right.finding) || left.grantId.localeCompare(right.grantId)),
+    authorityAlarms,
+    toolErrors: toolErrors.toSorted(toolErrorOrder),
+    withheldPolicyIds: [...withheld].filter(isIdentity).toSorted(),
+    ordinaryConsumption: toConsumption(ordinaryCounts),
+    reviewedGrantConsumption: toConsumption(grantCounts),
+    verdict: { errors, warnings, blocking: errors + (input.failOnWarnings ? warnings : 0), failOnWarnings: input.failOnWarnings },
+  };
+}
