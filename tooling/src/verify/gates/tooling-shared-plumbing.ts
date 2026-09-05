@@ -111,6 +111,9 @@ const PROJECT_SITES: ExemptionTable = {
   "tooling/src/verify/gates/enforcement-registry-parity.ts": {
     why: "fsBacked, same reason as dangling-refs: it reconciles the on-disk gate corpus against the enforcement doc, and a conformance temp tree has no shared workspace to read from. Ends on the same diagnostic-legibility-style fold-in.",
   },
+  "tooling/src/verify/lib/spelling-twins.ts": {
+    why: "an in-memory SCRATCH parser (`useInMemoryFileSystem`) that parses each gate's mustFlag fixture STRING at its OWN virtual path to emit its bracket/namespace twins (#1506) — resolves no dependency, walks no workspace. It cannot ride comment-spans' door: that one reuses a single overwritten `comment-scan.tsx` SourceFile, and the namespace twin walks references (GATE-AUTHORING §12: a re-created path serves the PREVIOUS document) and needs the fixture's own extension, not a forced TSX parse. Ends if the twin rewriter becomes purely textual or moves onto conformance.ts's per-example mini-project.",
+  },
 };
 
 const PATH_CALLEES = new Set(["join", "resolve", "mkdir", "mkdirSync"]);
