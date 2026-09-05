@@ -207,7 +207,7 @@ function perfStatus(gaps: readonly EvidenceGap[], withheld: string | null, loadS
 
 /** The FACT's member + detail, as one decision (#1616). `load-suspect` is a real measurement whose steps
  *  and breach counts ride the fact unchanged — only the member stops a reader promoting them. */
-export function interactionPerfFact(input: {
+function interactionPerfFact(input: {
   readonly requested: boolean;
   readonly gaps: readonly EvidenceGap[];
   readonly withheld: string | null;

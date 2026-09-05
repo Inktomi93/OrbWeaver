@@ -48,7 +48,7 @@ test("a planted contended box MEASURES and labels the perf arm load-suspect — 
   const evaluate = vi.fn().mockResolvedValue({
     navigation: { domContentLoadedMs: 11, loadMs: 22, responseMs: 7 },
     orb: { queries: 3 },
-  }) as unknown as Page["evaluate"];
+  }) as Page["evaluate"];
   const { stdout, value: evidence } = await captureStdout(
     async () => await capturePerfEvidence(testPage(evaluate), posture(HARDWARE, { loadavg1: 8, cpuCount: 2 })),
   );

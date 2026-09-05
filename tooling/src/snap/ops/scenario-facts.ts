@@ -7,7 +7,8 @@ import type { BrowserEvidenceRetentionBatch } from "../../_shared/browser-eviden
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { SnapArmFactFor } from "../contract/run-facts.ts";
 import { snapArmFact, snapExitCode, snapExitState } from "../contract/run-facts.ts";
-import type { Args, CaptureOutcome, ScenarioSpec, ShotPlan } from "../contract/types.ts";
+import type { ScenarioSpec } from "../contract/scenario.ts";
+import type { Args, CaptureOutcome, ShotPlan } from "../contract/types.ts";
 import type { SnapFailureSummary } from "../contract/verdict.ts";
 import type { SnapRatePosture } from "../lib/rate-posture.ts";
 import type { RunArms } from "./arms/registry.ts";
