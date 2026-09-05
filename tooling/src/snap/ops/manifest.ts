@@ -312,7 +312,19 @@ export function summarizePageErrorRetention(retention: BrowserEvidenceRetentionB
 }
 
 /** Always-on, bounded input for the run card. It projects already-captured facts through the same disk
- * redaction boundary as the optional full manifest; it never performs another page read. */
+ * redaction boundary as the optional full manifest; it never performs another page read.
+ *
+ * `populations.pageErrors.dropped/complete` come from `summarizePageErrorRetention`'s read of the ring's
+ * retention receipt (#1507-1), not a `dropped: 0, complete: true` literal. #1591 DECIDED that arm's floor
+ * is `summarizePageErrorRetention`'s own unit pin (tests/tooling/snap/ops/manifest.test.ts), not a
+ * compiled red through the real CLI: the observable here (`evidence/core-capture.json`) only differs
+ * after `BROWSER_PAGE_ERROR_CAP` (2048) page errors, and snap's CLI never threads `evidenceLimits`
+ * (`ProbeLaunchOptions`) through to `buildLaunchOptions` — the harness-only override this would need is a
+ * new `process.env` read at that seam, which forces a NEW `noProcessEnv` suppression-baseline door
+ * (`tooling/src/verify/gates/suppressions.baseline.json` carries zero entries for `session.ts`/
+ * `browser-context.ts` today) — verify-side ratchet territory this lane's owner word bans touching. The
+ * unit pin already exercises every branch of the summarizer (dropped is positive, complete, multi-ring, empty); a
+ * compiled overflow-through-CLI red would prove only that 2048 pushes happened, not a new invariant. */
 export async function writeCoreCaptureEvidence(input: ManifestInput, retention: BrowserEvidenceRetentionBatch): Promise<string> {
   const pageErrorRetention = summarizePageErrorRetention(retention);
   const evidence: SnapCoreCaptureEvidence = {
