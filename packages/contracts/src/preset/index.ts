@@ -3190,16 +3190,30 @@ function stPowerUserGenerationKnobs(powerUser: unknown): {
   };
 }
 
-/** Import a SillyTavern Chat Completion preset (parsed JSON) into a validated PromptConfig. Throws when
- *  `raw` isn't a recognizable ST preset (no prompts AND no prompt_order).
+/** The ST reader's TYPED outcome (#1580). The two refusals are DIFFERENT ANSWERS and a caller cannot tell
+ *  them apart from a message: `recognised: false` means the reader never claimed the file (no `prompts`, no
+ *  `prompt_order` — it may be some other tool's JSON entirely), while `recognised: true` means the reader
+ *  DID claim it and then refused what it mapped to (#1363's intact-parse belt). A door that renders both as
+ *  "the reader stopped" tells the owner their SillyTavern preset was not a SillyTavern preset.
+ *
+ *  `recognised` is the discriminant on purpose: it is the question the caller is actually asking, and it
+ *  reads correctly at the call site without the caller re-deriving it from `reason` bytes. */
+export type StImportOutcome =
+  | { readonly ok: true; readonly result: StImportResult }
+  | { readonly ok: false; readonly recognised: false; readonly reason: string }
+  | { readonly ok: false; readonly recognised: true; readonly reason: string };
+
+/** Import a SillyTavern Chat Completion preset (parsed JSON) into a validated PromptConfig, as a TYPED
+ *  OUTCOME (#1580) — the one home for both refusals; {@link importStChatCompletionPreset} is the throwing
+ *  wrapper over this, and the two refusal `reason`s ARE that wrapper's two messages, verbatim.
  *
  *  `powerUser` is ST's GLOBAL `settings.json.power_user` blob, supplied ONLY when importing the LIVE
  *  `oai_settings` preset (see the section above): its generation-adjacent knobs fold onto the config, and its
  *  seat-less ones join `dropped`. Omitted for a saved preset FILE, which carries none of them. */
-export function importStChatCompletionPreset(raw: unknown, powerUser?: unknown): StImportResult {
+export function tryImportStChatCompletionPreset(raw: unknown, powerUser?: unknown): StImportOutcome {
   const parsed = stPresetSchema.safeParse(raw);
   if (!(parsed.success && (parsed.data.prompts || parsed.data.prompt_order))) {
-    throw new Error("Not a SillyTavern Chat Completion preset (expected prompts[] + prompt_order).");
+    return { ok: false, recognised: false, reason: "Not a SillyTavern Chat Completion preset (expected prompts[] + prompt_order)." };
   }
   const data = parsed.data;
   const rawObj: Record<string, unknown> = raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
@@ -3239,15 +3253,28 @@ export function importStChatCompletionPreset(raw: unknown, powerUser?: unknown):
     ...(reasoningParse === undefined ? {} : { reasoningParse }),
   });
   if (!outcome.intact) {
-    throw new Error(
-      `This SillyTavern preset mapped to a config orb cannot store (${outcome.failure}), so nothing was imported — importing it would have silently replaced it with orb's default preset.`,
-    );
+    return {
+      ok: false,
+      recognised: true,
+      reason: `This SillyTavern preset mapped to a config orb cannot store (${outcome.failure}), so nothing was imported — importing it would have silently replaced it with orb's default preset.`,
+    };
   }
   const config = outcome.value;
 
   // The count DESCRIBES THE RETURNED CONFIG, never the array that was built: when the two could disagree,
   // the disagreement was invisible and made the silent-default failure above look like a success (#1363).
-  return { config, dropped, sectionCount: config.sections.length };
+  return { ok: true, result: { config, dropped, sectionCount: config.sections.length } };
+}
+
+/** The THROWING wrapper over {@link tryImportStChatCompletionPreset} — kept because a caller that has no
+ *  door to render a refusal at (the server's bulk ST import) reads better with an exception it contains.
+ *  The thrown message is the outcome's `reason` verbatim, so the two spellings can never drift apart. */
+export function importStChatCompletionPreset(raw: unknown, powerUser?: unknown): StImportResult {
+  const outcome = tryImportStChatCompletionPreset(raw, powerUser);
+  if (!outcome.ok) {
+    throw new Error(outcome.reason);
+  }
+  return outcome.result;
 }
 
 // ── orb native preset file (the lossless full-preset export) ───────────────────────────────────────

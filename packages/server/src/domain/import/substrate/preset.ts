@@ -21,7 +21,7 @@
 // `Default.json`; an unqualified import would silently overwrite an owner's own preset of that name with
 // SillyTavern's, which is the one thing a whole-profile import must never do.
 
-import { buildPresetFile, importStChatCompletionPreset } from "@orb/contracts/preset";
+import { buildPresetFile, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import { regexScriptCardSchema } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
@@ -82,9 +82,12 @@ function parsePresetExtensions(raw: Record<string, unknown>): {
 
 /** Map an already-JSON-parsed ST chat-completion preset → the portable orb file + its unmapped-field list, or
  *  null when the object is not a recognizable chat-completion preset, OR when it maps to a config orb cannot
- *  store (#1363 — the mapper now REFUSES rather than returning orb's default preset dressed as the import).
- *  Never throws (the shared mapper DOES throw on both of those, which is contained here); a refused preset is
- *  reported to the operator as not-imported, never as imported-with-someone-else's-content.
+ *  store (#1363 — the mapper REFUSES rather than returning orb's default preset dressed as the import).
+ *  Never throws: since #1580 the shared mapper ANSWERS both refusals as a typed outcome, so this reads the
+ *  refusal instead of catching one. Both arms are the same `null` here — a BULK import has no door to render
+ *  a per-file reason at (the operator gets the not-imported report) — but the two are now distinguishable if
+ *  that report ever grows a per-file reason. A refused preset is reported as not-imported, never as
+ *  imported-with-someone-else's-content.
  *
  *  `powerUser` is ST's GLOBAL `settings.json.power_user` blob — the OTHER half of what orb calls generation
  *  config (stop strings, the four post-process switches, the inline-reasoning tag pair). Supplied ONLY for the
@@ -94,16 +97,12 @@ export function stPresetFromJson(raw: unknown, name: string, powerUser?: unknown
   if (!isPlainObject(raw)) {
     return null;
   }
-  // @orb-gate-ignore caught-failure-ownership(default:catch): documented above — "Never throws (the shared
-  // mapper DOES throw on a non-preset, which is contained here)"; a non-preset degrades to the consumed
-  // `null` the caller checks.
-  try {
-    const result = importStChatCompletionPreset(raw, powerUser);
-    const { regexScripts, dropped } = parsePresetExtensions(raw);
-    return { name, file: buildPresetFile(name, result.config), unmapped: [...result.dropped, ...dropped], regexScripts };
-  } catch {
+  const outcome = tryImportStChatCompletionPreset(raw, powerUser);
+  if (!outcome.ok) {
     return null;
   }
+  const { regexScripts, dropped } = parsePresetExtensions(raw);
+  return { name, file: buildPresetFile(name, outcome.result.config), unmapped: [...outcome.result.dropped, ...dropped], regexScripts };
 }
 
 /** Parse one saved `OpenAI Settings/<stem>.json` upload. Null on unparseable bytes / a non-preset object. */

@@ -1047,7 +1047,12 @@ const REFUSED_ST_FILE = JSON.stringify({
   ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "lore-dump", enabled: true }] }],
 });
 
-test("#1390 a RECOGNISED-but-refused SillyTavern preset is not told it matched neither format", async ({ mount, page }) => {
+/** VALID JSON that the ST reader never claims: no `prompts`, no `prompt_order`. The other side of #1580's
+ *  split — the reader RECOGNISED NOTHING, so the door's "it isn't an orb export and the ST reader stopped"
+ *  sentence is the honest one and must survive the split intact. */
+const UNRECOGNISED_JSON_FILE = JSON.stringify({ note: "some other tool's export", items: [1, 2, 3] });
+
+test("#1580 a RECOGNISED-but-refused SillyTavern preset is named as recognised, and refused", async ({ mount, page }) => {
   await routeImportLibrary(page, { ok: true, created: true });
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
@@ -1055,15 +1060,33 @@ test("#1390 a RECOGNISED-but-refused SillyTavern preset is not told it matched n
   await page.getByRole("button", { name: "Import a preset", exact: true }).click();
   await page.locator(DROPZONE_INPUT).setInputFiles({ name: "huge-st.json", mimeType: "application/json", buffer: Buffer.from(REFUSED_ST_FILE) });
 
-  // The ST reader's OWN sentence reaches the owner, attributed to the ST reader — and the door still says
-  // the orb arm was ruled out, which is F-10's requirement (a malformed orb file lands in this same arm).
-  await expect(page.getByText(/the SillyTavern reader stopped/u)).toBeVisible();
+  // The door now SAYS which refusal this is (#1580): the reader claimed the file and then refused it. The
+  // old copy could only say the reader "stopped", which reads as "it didn't recognise this" — the one thing
+  // that is NOT what happened here.
+  await expect(page.getByText(/Recognised as a SillyTavern preset, refused:/u)).toBeVisible();
   await expect(page.getByText(/This SillyTavern preset mapped to a config orb cannot store/u)).toBeVisible();
-  // …and the self-contradiction is gone: the old copy denied the format in the same breath as quoting a
-  // reason that names it.
+  // The recognised arm never borrows the unrecognised arm's sentence…
+  await expect(page.getByText(/the SillyTavern reader stopped/u)).toHaveCount(0);
+  // …and the #1390 self-contradiction stays gone: no denial of a format the quoted reason names.
   await expect(page.getByText(/matched neither/u)).toHaveCount(0);
   // A refused file is not a parsed import — nothing is offered for commit.
   await expect(page.getByText(ST_SUMMARY)).toHaveCount(0);
+});
+
+test("#1580 valid JSON the ST reader never claims keeps the RULED-OUT-BOTH-ARMS copy (F-10's requirement)", async ({ mount, page }) => {
+  await routeImportLibrary(page, { ok: true, created: true });
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Import a preset", exact: true }).click();
+  await page.locator(DROPZONE_INPUT).setInputFiles({ name: "other-tool.json", mimeType: "application/json", buffer: Buffer.from(UNRECOGNISED_JSON_FILE) });
+
+  // FENCE (green before #1580 too, deliberately): the split must not repaint the arm where "the orb arm was
+  // ruled out AND the ST reader stopped" is exactly what happened. F-10's rule is that the ST parser must
+  // not speak for the whole door — this sentence keeps both arms in it.
+  await expect(page.getByText(/It isn't an orbweaver preset export, and the SillyTavern reader stopped/u)).toBeVisible();
+  await expect(page.getByText(/Not a SillyTavern Chat Completion preset/u)).toBeVisible();
+  await expect(page.getByText(/Recognised as a SillyTavern preset/u)).toHaveCount(0);
 });
 
 test("#1390 a file that is not JSON at all IS the true `neither format` case", async ({ mount, page }) => {

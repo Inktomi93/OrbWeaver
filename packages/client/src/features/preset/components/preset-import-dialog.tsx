@@ -7,14 +7,16 @@
 //     the commit — a same-named preset is MERGED in place, else created — because "import" silently
 //     overwriting a preset the owner still wants is the one outcome this door must not surprise anyone with.
 //     The server strict-parses and reports a bad file as an OUTCOME, so its error lands in this dialog.
-//   · anything else → the SillyTavern arm: parsed client-side by `importStChatCompletionPreset`, with the
-//     dropped-field report, then created via `preset.create`.
+//   · anything else → the SillyTavern arm: parsed client-side by `tryImportStChatCompletionPreset` (the
+//     TYPED outcome — #1580: the reader's "I never claimed this" and "I claimed it and refused it" are two
+//     different answers to the owner, and one Error could not carry the difference), with the dropped-field
+//     report, then created via `preset.create`.
 //
 // Neither arm re-derives serde: the orb arm ships the file's own bytes to the one import verb, and the ST
 // arm is the landed browser-side mapper.
 
-import type { StDroppedField, StImportResult } from "@orb/contracts/preset";
-import { importStChatCompletionPreset, PRESET_SCHEMA_KIND } from "@orb/contracts/preset";
+import type { StDroppedField, StImportOutcome, StImportResult } from "@orb/contracts/preset";
+import { PRESET_SCHEMA_KIND, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
 import { FileDropzone } from "@orb/ui/file-dropzone";
@@ -39,6 +41,17 @@ type ParsedImport =
  *  to validate; this only picks the arm. */
 function isOrbPresetFile(parsed: unknown): boolean {
   return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) && (parsed as Record<string, unknown>)["schemaKind"] === PRESET_SCHEMA_KIND;
+}
+
+/** The door's sentence for each of the ST reader's TWO refusals (#1580). Split because they are different
+ *  answers to the owner: the reader that claimed nothing leaves both arms ruled out (F-10 — the ST parser
+ *  must not speak for the whole door, since a malformed orb file lands in that same arm), while the reader
+ *  that claimed the file and then refused it must SAY it recognised the format, or the copy denies the very
+ *  thing the quoted reason names (#1390's defect, one level deeper). */
+function stRefusalMessage(outcome: Extract<StImportOutcome, { ok: false }>): string {
+  return outcome.recognised
+    ? `Recognised as a SillyTavern preset, refused: ${outcome.reason}`
+    : `orbweaver couldn't import this file. It isn't an orbweaver preset export, and the SillyTavern reader stopped: ${outcome.reason}`;
 }
 
 /** A thrown value's own sentence — the detail every failure arm below quotes rather than paraphrases. */
@@ -87,7 +100,7 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
     const token = pickToken.current + 1;
     pickToken.current = token;
     // @orb-gate-ignore caught-failure-ownership(promise:text): every failure arm here — the read, the JSON
-    // parse and the ST reader's refusal — explicitly sets a detailed error state, a rendered failure
+    // parse and the ST reader's typed refusal — explicitly sets a detailed error state, a rendered failure
     // surface. Ends if any of those arms stops writing the error state.
     void file
       .text()
@@ -111,22 +124,22 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
           setParsed({ arm: "orb", name: orbFileName(json), fileText: text });
           return;
         }
-        let result: StImportResult;
-        // THE ST READER'S REFUSAL IS ATTRIBUTED, NOT RESTATED AS A VERDICT (#1390, keeping F-10's repair).
-        // Since #1363 this mapper REFUSES a recognised SillyTavern preset that maps to a config orb cannot
-        // store — and its message says so in the first person ("This SillyTavern preset mapped to…"). The
-        // old single catch wrapped that in "it matched neither … nor a SillyTavern Chat Completion preset",
-        // which contradicts the sentence inside its own parentheses. F-10's actual requirement is that the
-        // ST parser must not speak for the WHOLE door (a malformed orb file lands here too), and that is met
-        // by stating the orb arm was ruled out and then quoting the ST reader as the ST reader.
-        try {
-          result = importStChatCompletionPreset(json);
-        } catch (cause: unknown) {
-          setError(`orbweaver couldn't import this file. It isn't an orbweaver preset export, and the SillyTavern reader stopped: ${reasonOf(cause)}`);
+        // THE ST READER'S REFUSAL IS ATTRIBUTED, NOT RESTATED AS A VERDICT (#1390, keeping F-10's repair) —
+        // and since #1580 the door can tell the reader's TWO refusals apart, because the reader answers with
+        // a typed outcome instead of one Error for both. F-10's requirement is that the ST parser must not
+        // speak for the WHOLE door (a malformed orb file lands here too); that is met per arm:
+        //   recognised: false — the reader claimed nothing, so the honest sentence names BOTH arms as ruled
+        //     out and quotes the ST reader as the ST reader.
+        //   recognised: true  — the reader claimed the file and then refused it (#1363's intact belt). Here
+        //     "the reader stopped" would read as "this is not a SillyTavern preset", which is the ONE thing
+        //     that did not happen, so the copy says what it was recognised AS before quoting the refusal.
+        const outcome = tryImportStChatCompletionPreset(json);
+        if (!outcome.ok) {
+          setError(stRefusalMessage(outcome));
           return;
         }
         const base = file.name.replace(JSON_EXT, "");
-        setParsed({ arm: "st", name: base === "" ? "Imported preset" : base, result });
+        setParsed({ arm: "st", name: base === "" ? "Imported preset" : base, result: outcome.result });
       })
       .catch((cause: unknown) => {
         if (pickToken.current !== token) {

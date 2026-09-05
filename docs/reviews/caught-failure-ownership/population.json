@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 538,
-    "enforced": 533,
+    "sites": 537,
+    "enforced": 532,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 533,
+      "deliberate-absorb": 532,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 141,
-      "default": 144,
+      "default": 143,
       "empty": 253
     }
   },
@@ -969,7 +969,7 @@
     {
       "siteId": "packages/client/src/features/preset/components/preset-import-dialog.tsx::promise:text::1",
       "path": "packages/client/src/features/preset/components/preset-import-dialog.tsx",
-      "line": 92,
+      "line": 105,
       "column": 10,
       "grammar": "promise",
       "position": "promise:text",
@@ -977,7 +977,7 @@
       "snippet": "void file",
       "verdict": "deliberate-absorb",
       "reason": "every failure arm here — the read, the JSON",
-      "markerLine": 89
+      "markerLine": 102
     },
     {
       "siteId": "packages/client/src/features/preset/hooks/use-preset-autosave.ts::promise:run::1",
@@ -2373,28 +2373,15 @@
     {
       "siteId": "packages/server/src/domain/import/substrate/preset.ts::default:catch::1",
       "path": "packages/server/src/domain/import/substrate/preset.ts",
-      "line": 104,
+      "line": 115,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "documented above — \"Never throws (the shared",
-      "markerLine": 97
-    },
-    {
-      "siteId": "packages/server/src/domain/import/substrate/preset.ts::default:catch::2",
-      "path": "packages/server/src/domain/import/substrate/preset.ts",
-      "line": 116,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 2,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
       "reason": "pure `JSON.parse` over untrusted upload",
-      "markerLine": 112
+      "markerLine": 111
     },
     {
       "siteId": "packages/server/src/domain/import/substrate/world.ts::default:catch::1",
