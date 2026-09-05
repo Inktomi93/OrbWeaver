@@ -19,7 +19,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../packages/client/src/lib/test-ids.ts";
-import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../support/ct/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
 import { makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CHAT_AMBIENT_ROUTES, chatListResponder, makeChatSummary } from "../features/chat/fixtures.ts";
@@ -710,4 +710,39 @@ test("the DESKTOP census is untouched — it stays in every LIST band and the na
   // The narrow identity arm is in the DOM in both regimes (`shell-topbar.tsx`) — the container query is what
   // picks one — so this asserts PAINT, not presence, or it would pass for the wrong reason.
   await expect(component.locator(".shell-topbar-title")).toBeHidden();
+});
+
+// AN OPEN MEMBER IS NEVER OVERWRITTEN BY THE ROSTER'S CENSUS (#1670 follow-up). The census arm used to be
+// reached whenever `character.get` had not yet produced a NAME, so the phone topbar printed `Characters · 12`
+// OVER an open member while her read was in flight — and would print it for good for a member whose name is
+// legitimately empty (on chats, where a title is stored `""` until renamed, that is the ordinary case, which
+// is why the sibling sections gate on the SELECTION). The arm is the selection now, so this pins the whole
+// journey: roster → her, held → her, landed.
+//
+// HELD, NOT RACED: `trpcHold` suspends her read, so "nothing has named her yet" is an indefinitely stable
+// rendered state rather than a flash a poll would have to catch.
+test.describe("the phone's Characters screen with a member open", () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+  test("an open member's screen keeps the section label while her name is in flight — never the census", async ({ mount, page }) => {
+    const characterGet = trpcHold();
+    await routeTrpc(page, { ...CENSUS_ROUTES, "character.get": characterGet });
+    const component = await mount(<HomePageStory />);
+    await component.locator(".shell-rail").getByRole("button", { name: "Characters", exact: true }).click();
+
+    // The roster arm first, so the census is proven PRESENT before the open is asked to remove it.
+    const screenName = component.locator(".shell-topbar-title");
+    await expect(screenName).toHaveText("Characters · 12");
+
+    // Opened the way a reader opens her: the library row's ACCESSIBLE NAME is her name (#492), scoped to the
+    // LIST panel because home stays mounted with a quick-picks row of the same name.
+    await component.locator('.shell-panel[data-panel-side="list"]').getByRole("button", { name: ARIA.name, exact: true }).click();
+    // The barrier is the HELD request, not a timer: past this the selection is written and the title hook has
+    // re-run with nothing to name her by.
+    await characterGet.requested;
+    await expect(screenName).toHaveText("Characters");
+
+    characterGet.release({ id: ARIA.id, name: ARIA.name, greetings: [] });
+    await expect(screenName).toHaveText(ARIA.name);
+  });
 });
