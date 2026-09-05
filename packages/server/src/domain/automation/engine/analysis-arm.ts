@@ -50,7 +50,7 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { VarOp } from "@orb/kit/macro";
-import { neutralizeMacros } from "@orb/kit/macro";
+import { neutralizeMacros, setVarKey } from "@orb/kit/macro";
 import { sha256Hex } from "@orb/server/kit/content-hash";
 import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
 import { getLog } from "#foundation/observability";
@@ -374,7 +374,9 @@ const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
     const value = String(clamped);
     const ops: readonly VarOp[] = [{ op: "set", key: route.key, value }];
     await deps.ops.chat.applyVariableOps(frame.chatId, ops);
-    frame.env.vars[route.key] = value; // the write-through law (`arm-executors.ts::writeArmVariable`).
+    // The write-through law (`arm-executors.ts::writeArmVariable`), through the plane's OWN-key writer
+    // (#1564): a route key of `__proto__` written with property syntax lands nowhere at all.
+    setVarKey(frame.env.vars, route.key, value);
     return ROUTE_OK;
   },
 };

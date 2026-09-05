@@ -3,8 +3,9 @@
 import { chatParticipants } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createAutomationService, createEnabledRuleIndex, RuleValidationError } from "@orb/server/domain/automation";
+import { createAutomationService, createEnabledRuleIndex, createSuggestionStore, RuleValidationError } from "@orb/server/domain/automation";
 import { and, eq, isNull } from "drizzle-orm";
+import type { SuggestionStore } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedParticipant } from "../../chat/_support.ts";
@@ -152,4 +153,38 @@ test("a SUCCESSOR host cannot point the author's rule at a tool only the SUCCESS
   // from `requireRuleHost`.
   const ok = await fx.svc.updateRule({ principal: principal(successor), ruleId: rule.id, name: "greet3", trigger: MSG_COMMITTED, actions: [SET_VAR] });
   expect(ok.name).toBe("greet3");
+});
+
+// #1564 — #1424's RESIDUAL WINDOW. Voiding only AFTER `applyRuleUpdate` leaves a gap in which the row already
+// says the new thing while the card still holds the old stashed arm: a confirm landing there re-checks a rule
+// that exists, is enabled and is still hosted by its author (all true) and then runs the PRE-EDIT act. The
+// order is the fix, so the order is what this pins — through a db facade that records WHEN the UPDATE was
+// issued relative to the void, rather than through a timing race.
+test("the pending-ask void runs BEFORE the row is written (and again after, for a card raised mid-write)", async () => {
+  const fx = await ruleFixture();
+  const rule = await fx.svc.createRule({ principal: principal(fx.host), chatId: fx.chatId, name: "greet", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+
+  const order: string[] = [];
+  const store = createSuggestionStore();
+  const recordingStore: SuggestionStore = {
+    ...store,
+    voidRule: (ruleId): number => {
+      order.push("void");
+      return store.voidRule(ruleId);
+    },
+  };
+  const tracingDb = new Proxy(fx.db, {
+    get: (target, prop, receiver): unknown => {
+      if (prop === "update") {
+        order.push("update");
+      }
+      return Reflect.get(target, prop, receiver) as unknown;
+    },
+  });
+  const svc = createAutomationService({ ...fx.ctx, db: tracingDb, suggestions: recordingStore });
+
+  await svc.updateRule({ principal: principal(fx.host), ruleId: rule.id, name: "greet2", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+
+  // The FIRST thing that happens to the pending-ask store is the void, and it happens before the row moves.
+  expect(order).toEqual(["void", "update", "void"]);
 });

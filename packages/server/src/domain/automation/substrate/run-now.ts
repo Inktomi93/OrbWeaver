@@ -36,7 +36,10 @@ export async function dispatchRuleNow(ctx: AutomationContext, rule: RuleRow, cha
   const resolved: ResolvedTrigger = { fact: synthFact(trigger, chatId), automationDepth: MANUAL_DEPTH };
   const summary = await runDispatch(ctx, [rule], resolved, { manualBy });
   if (summary.anyDisabled) {
-    await ctx.enabled.reload();
+    // `refresh`, not `reload` (#1564, the #1431 sweep's residue): the auto-disable this reconciles is ALREADY
+    // COMMITTED, so a failed rebuild must latch stale and let the front door retry — never reject a manual run
+    // whose write landed, and never leave a stale index with nobody scheduled to rebuild it.
+    await ctx.enabled.refresh();
   }
   return summary.outcomes[0] ?? null;
 }
