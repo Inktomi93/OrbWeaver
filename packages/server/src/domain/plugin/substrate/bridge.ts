@@ -329,11 +329,15 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       ingest: (doc) => ops.databank.ingest({ installerUserId, name: doc.name, text: doc.text }),
     },
     character: {
-      ingest: (card) => ops.character.ingest({ installerUserId, card }),
+      // `pluginId` rides along for PROVENANCE only (#1702) — the ingest/ingestAsset ops key no per-plugin
+      // belt on it (see the file-header note above this block), so it is the already-derived closure var,
+      // never `requirePluginId` (which would newly refuse the — currently unreachable — transient-snippet
+      // path this capability's fixed grant profile already excludes).
+      ingest: (card) => ops.character.ingest({ installerUserId, card, pluginId }),
       // #798 — the remote-image "summon with art" arm. Closed over the INSTALLER only (a guest names no owner);
       // the compose op reads the PNG from the installer's OWN CAS (owner-gated, leak-free on foreign/absent) and
       // runs the SAME importCharacter funnel `ingest` does. Rides the SAME `character.ingest` grant.
-      ingestAsset: (assetId) => ops.character.ingestAsset({ installerUserId, assetId }),
+      ingestAsset: (assetId) => ops.character.ingestAsset({ installerUserId, assetId, pluginId }),
       // The U8 D148 per-card state write/read. BOTH un-forgeable coordinates are closed over here: `installerUserId`
       // (the owner-scope predicate — a character the installer does not own is the leak-free NOT_FOUND, resolved at
       // compose) and the emitter's own manifest `slug` (`requirePlugin(…).slug` — a guest supplies only the

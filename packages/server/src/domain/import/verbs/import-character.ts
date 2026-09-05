@@ -17,6 +17,7 @@
 // domains already hold, and each plane's op is idempotent for the same (character, card) pair.
 
 import type { AttachedBookRef } from "@orb/contracts/character";
+import { pluginImportedFrom } from "@orb/contracts/character";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
@@ -152,7 +153,7 @@ async function attachAllPlanes(
 
 export function createImportCharacter(ctx: ImportContext): ImportService["importCharacter"] {
   return async ({ card }: ImportCharacterInput): Promise<ImportCharacterResult> => {
-    const { bytes, filename } = card;
+    const { bytes, filename, pluginId } = card;
     const png = isPng(bytes);
     const fallbackName = fallbackNameFrom(filename);
 
@@ -199,10 +200,15 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     const baseInput = cardToCreateInput(characterCard, avatarAssetId);
     // A byte-new card is always a NEW character; only its per-owner-unique handle is disambiguated (the name stays).
     const handle = await freeHandle(ctx, baseInput.handle);
+    // Two provenance channels, never both: a file upload carries a filename; a plugin funnel (#1702) carries
+    // no filename at all (its wire shape is `{card}`/`{assetId}`, never a name) but knows its OWN manifest id
+    // — paired with this card's own `importHash` so a byte-identical re-ingest through the SAME plugin mints
+    // the SAME `importedFrom` (the `findByImportedFrom` re-ingest match).
+    const importedFrom = filename ?? (pluginId === undefined ? null : pluginImportedFrom(pluginId, importHash));
     const ref = await ctx.createCharacter({
       ownerId: ctx.ownerId,
       input: { ...baseInput, handle },
-      importedFrom: filename ?? null,
+      importedFrom,
       importHash,
     });
     const characterId = ref.characterId;

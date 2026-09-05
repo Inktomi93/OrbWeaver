@@ -28,7 +28,7 @@ import type { ImageInput, ResponseFormat } from "@orb/contracts/role-clients";
 import { listSeededBackgrounds } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
@@ -155,6 +155,9 @@ export interface AutomationPluginComposeDeps {
   readonly ingestCharacterCard: (req: {
     readonly installerUserId: UserId;
     readonly card: Record<string, unknown>;
+    /** The calling plugin's own manifest id (#1702 provenance — see `domain/plugin/contract/ops.ts`'s
+     *  `character.ingest` doc). */
+    readonly pluginId: PluginId | null;
     // @foreign-id-ok(characterId): the result id for the installer's own new character, minted under the installer by the import funnel and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
   }) => Promise<{ readonly characterId: string; readonly created: boolean }>;
   /** #798 — the remote-image "summon with art" op, pre-built PER-INSTALLER at the composition root (same
@@ -165,6 +168,8 @@ export interface AutomationPluginComposeDeps {
     readonly installerUserId: UserId;
     // @foreign-id-ok(assetId): the guest's untrusted wire string, owner-scope-gated by the CAS read at the root, cast there — branding here would claim a validation this boundary has not performed.
     readonly assetId: string;
+    /** See `ingestCharacterCard`'s `pluginId` (#1702 provenance). */
+    readonly pluginId: PluginId | null;
     // @foreign-id-ok(characterId): the result id for the installer's own new character, minted under the installer by the import funnel and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
   }) => Promise<{ readonly characterId: string; readonly created: boolean }>;
 }
@@ -802,12 +807,12 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       },
     },
     character: {
-      ingest: ({ installerUserId, card }) => deps.ingestCharacterCard({ installerUserId, card }),
+      ingest: ({ installerUserId, card, pluginId }) => deps.ingestCharacterCard({ installerUserId, card, pluginId }),
       // #798 — the remote-image "summon with art" arm. Built PER-INSTALLER at the root (like `ingestCharacterCard`)
       // because the import-context wiring lives there: it reads the PNG from the installer's OWN CAS (owner-gated,
       // leak-free on foreign/absent) and runs the SAME importCharacter funnel, so the character arrives WITH its
       // embedded avatar. Rides the SAME `character.ingest` grant.
-      ingestAsset: ({ installerUserId, assetId }) => deps.ingestCharacterAsset({ installerUserId, assetId }),
+      ingestAsset: ({ installerUserId, assetId, pluginId }) => deps.ingestCharacterAsset({ installerUserId, assetId, pluginId }),
       // U8 D148 — the per-card state WRITE/READ. Owner-scoped by the persistence `WHERE owner_id` predicate (NO
       // principal resolve — a residual-extensions merge is the installer's OWN reach, the `storage.kv` posture,
       // not the `ingest` import funnel that needs a Principal). The `slug` arrived host-stamped from the bridge,

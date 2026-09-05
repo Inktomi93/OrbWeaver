@@ -2880,7 +2880,7 @@
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 531,
+      "line": 536,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2888,12 +2888,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a refusal",
-      "markerLine": 525
+      "markerLine": 530
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::2",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 550,
+      "line": 555,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2901,12 +2901,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a",
-      "markerLine": 544
+      "markerLine": 549
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::3",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 570,
+      "line": 575,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2914,12 +2914,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: `[]` if",
-      "markerLine": 559
+      "markerLine": 564
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::4",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 721,
+      "line": 726,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2927,7 +2927,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: any",
-      "markerLine": 710
+      "markerLine": 715
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",

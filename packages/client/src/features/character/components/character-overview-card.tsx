@@ -35,6 +35,7 @@
 // GLOSS.
 
 import type { CharacterProvenance } from "@orb/contracts/character";
+import { parsePluginImportedFrom } from "@orb/contracts/character";
 import type { CharacterId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
@@ -180,8 +181,13 @@ const IMPORTED_SOURCE = "Imported";
  */
 function sourceLabel({ provenance, importedFrom }: { readonly provenance: CharacterProvenance; readonly importedFrom: string | null }): string {
   switch (provenance) {
-    case "imported":
-      return importedFrom ?? IMPORTED_SOURCE;
+    case "imported": {
+      // A PLUGIN-FUNNEL import (#1702, e.g. the Card Atlas hub browser) stamps `importedFrom` as
+      // `plugin:<pluginId>:<contentHash>` — a deterministic, unspoofable identity string, but not one a
+      // reader should ever see raw. Print the plugin instead; a file-upload import still shows its filename.
+      const plugin = parsePluginImportedFrom(importedFrom);
+      return plugin === null ? (importedFrom ?? IMPORTED_SOURCE) : `Imported via ${plugin.pluginId}`;
+    }
     case "shipped":
       return SHIPPED_SOURCE;
     case "authored":

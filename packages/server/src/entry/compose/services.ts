@@ -43,7 +43,7 @@ import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResu
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
-import type { AssetId, ChatId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type { AssetId, ChatId, PersonaId, PluginId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
@@ -867,7 +867,17 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // avatar); `character.ingestAsset` (#798) hands the funnel a PNG the installer owns, and a PNG carries its
   // EMBEDDED avatar through (`isPng` → `parseCardPng` → CAS-store the avatar), which is the whole point of #798.
   // @foreign-id-ok(characterId): the import funnel mints this under the installer; it flows out to the guest as inert text through the bridge, never re-parsed as one of ours here. Ends if this helper starts branding its result.
-  const runInstallerCharacterImport = async (installerUserId: UserId, bytes: Uint8Array): Promise<{ characterId: string; created: boolean }> => {
+  // `pluginId` is PROVENANCE ONLY (#1702): neither `character.ingest` arm carries a filename (a guest JSON
+  // card and a CAS-read PNG both arrive nameless), so `importCharacter` derived nothing and every hub-ingested
+  // card read `characterProvenanceOf` as `authored` (row #1702). It rides straight through to `ImportCardInput`,
+  // which mints `importedFrom` from the plugin's OWN verified identity + the card's content hash — never from
+  // guest-authored card content, which is unspoofable-or-bust the whole reason it lives at contracts
+  // (`pluginImportedFrom`, `@orb/contracts/character`).
+  const runInstallerCharacterImport = async (
+    installerUserId: UserId,
+    bytes: Uint8Array,
+    pluginId: PluginId | null,
+  ): Promise<{ characterId: string; created: boolean }> => {
     const principal = await resolveOwnerPrincipal(installerUserId);
     const importCtx = buildImportContext({
       principal,
@@ -878,7 +888,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       linkCarriedBooks: importWorldInfo.linkCarriedBooks,
       importCardScripts: regexCompose.importCardScripts,
     });
-    const { characterId, created } = await createImportService(importCtx).importCharacter({ card: { bytes } });
+    const { characterId, created } = await createImportService(importCtx).importCharacter({
+      card: { bytes, ...(pluginId === null ? {} : { pluginId }) },
+    });
     return { characterId, created };
   };
 
@@ -911,16 +923,17 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // own createFromText content-addresses + dedups + enqueues the ingest workload (the indexer).
     databankCreateFromText: databank.createFromText,
     // #679 U8 seam 17 — the guest JSON card serialized to bytes (no embedded avatar) through the shared funnel.
-    ingestCharacterCard: ({ installerUserId, card }) => runInstallerCharacterImport(installerUserId, new TextEncoder().encode(JSON.stringify(card))),
+    ingestCharacterCard: ({ installerUserId, card, pluginId }) =>
+      runInstallerCharacterImport(installerUserId, new TextEncoder().encode(JSON.stringify(card)), pluginId),
     // #798 — the remote-image "summon with art" arm. Read the PNG from the installer's OWN CAS through the
     // OWNER-GATED `readOwnedAssetBytes` (a foreign/absent id throws leak-free — `AssetNotFoundError` collapses
     // "not yours" and "absent", no existence oracle), then run the SAME funnel: a PNG carries its embedded
     // avatar, so the summoned character arrives WITH its art. Owner-scoped by construction (the read AND the
     // import both run under the installer's own resolved Principal).
-    ingestCharacterAsset: async ({ installerUserId, assetId }) => {
+    ingestCharacterAsset: async ({ installerUserId, assetId, pluginId }) => {
       const principal = await resolveOwnerPrincipal(installerUserId);
       const owned = await assets.readOwnedAssetBytes(principal, castId<AssetId>(assetId));
-      return runInstallerCharacterImport(installerUserId, owned.bytes);
+      return runInstallerCharacterImport(installerUserId, owned.bytes, pluginId);
     },
   });
 

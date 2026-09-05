@@ -1214,6 +1214,7 @@
     "tests/server/domain/import/substrate/world.test.ts",
     "tests/server/domain/import/verbs/backfill-token-usage.int.test.ts",
     "tests/server/domain/import/verbs/backfill-token-usage.test.ts",
+    "tests/server/domain/import/verbs/import-character.int.test.ts",
     "tests/server/domain/import/verbs/import-character.test.ts",
     "tests/server/domain/import/verbs/import-chat-bundle.test.ts",
     "tests/server/domain/import/verbs/import-chat-file.test.ts",
