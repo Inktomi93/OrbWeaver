@@ -71,7 +71,7 @@ const FAMILY_FACE_SLOTS = 4;
  *
  *  THE STRIPE CITE DID NOT TRANSFER. It was justified from `message-row-variants` STRIPE_LEFT — a speaker
  *  stripe on a FLAT, unrounded message row. Rounded + a thick single-edge accent is precisely the shape the
- *  ban names. And the 30% came from the config welcome hearth, where it is a RESTING dim that a
+ *  ban names. And the 30% came from the config welcome hearth (since retired, #1210), where it was a RESTING dim that a
  *  `hover:opacity-75` lifts; this island has no hover arm, so it inherited the dim and never the lift. */
 const GLOW =
   "relative isolate before:pointer-events-none before:absolute before:-inset-px before:-z-10 before:rounded-(--radius-card) before:shadow-glow before:content-['']";

@@ -22,7 +22,7 @@
 // the read does (`substrate/member-visibility.ts` VIEW_EVENT_TYPES), so it is byte-for-byte what a refetch
 // of that row would hand this viewer.
 //
-// THE REFETCH STILL FIRES, deliberately: this patches ONE ROW, while the page also carries `cast` (D137 — a
+// THE REFETCH STILL FIRES, deliberately: this patches ONE ROW, while the page also carries `identities` (D137 — a
 // first-time speaker's portrait/name entry) and the rest of the window. The wire read stays authoritative;
 // the patch only removes the interval in which the cache is KNOWABLY stale.
 
