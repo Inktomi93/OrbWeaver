@@ -1111,6 +1111,12 @@
     "why": "ratified by rule: lint/style/useNamingConvention×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
+  "tests/server/infra/providers/backends/kit/error-classify.test-d.ts": {
+    "count": 4,
+    "ratified": 4,
+    "why": "ratified by rule: @ts-expect-error×4 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
   "tests/server/infra/providers/backends/local-light/embed.int.test.ts": {
     "count": 1,
     "ratified": 1,
