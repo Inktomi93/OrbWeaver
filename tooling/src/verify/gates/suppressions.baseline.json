@@ -378,9 +378,9 @@
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
   "packages/server/src/entry/compose/chat.ts": {
-    "count": 4,
-    "ratified": 4,
-    "why": "ratified by rule: lint/style/noMagicNumbers×2 (ruling), lint/suspicious/noExplicitAny×2 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "count": 2,
+    "ratified": 2,
+    "why": "ratified by rule: lint/suspicious/noExplicitAny×2 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
   "packages/server/src/entry/compose/services.ts": {
