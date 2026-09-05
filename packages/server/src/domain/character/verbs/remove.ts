@@ -1,10 +1,14 @@
-// verb: remove — delete an owned character. Snapshot the avatar id BEFORE the delete (the cascade wipes the
-// row), DELETE … WHERE id=? AND owner_id=? folds the ownership check + deletion (cascades snapshots /
-// personas / downstream FKs — incl. the card's embeddings, so NO `character.updated` emit on delete). The
-// avatar asset is then best-effort reaped via the injected assets op (the FK is SET NULL — deleting a
-// character does NOT delete the asset; the assets domain decides whether the now-unreferenced blob is
-// reaped). A reap failure logs + drops (it never fails the delete). Throws `CharacterNotFoundError` when
-// not owned/found.
+// verb: remove — delete an owned character. Snapshot the avatar id AND the expression-sprite assetIds BEFORE
+// the delete (the cascade wipes both without surfacing them), DELETE … WHERE id=? AND owner_id=? folds the
+// ownership check + deletion (cascades snapshots / personas / downstream FKs — incl. the card's embeddings,
+// so NO `character.updated` emit on delete). The assets are then best-effort reaped via the injected assets
+// op (the FK is SET NULL — deleting a character does NOT delete the asset; the assets domain decides whether
+// the now-unreferenced blob is reaped). A reap failure logs + drops (it never fails the delete). Throws
+// `CharacterNotFoundError` when not owned/found.
+//
+// EVERY DESTRUCTIVE STEP IS DOWNSTREAM OF THE DELETE. The sprite op used to DETACH the bindings before the
+// row delete was known to have succeeded, so a refused delete left a live character with its sprites already
+// freed. Reads come first, destruction comes after the row is gone — see `ListCharacterSpriteAssetsOp`.
 
 import { getLog } from "#foundation/observability";
 import type { CharacterContext } from "../context.ts";
@@ -24,10 +28,10 @@ export function createRemove(ctx: CharacterContext): CharacterService["remove"] 
     const { avatarAssetId, handle } = row;
     const at = ctx.now();
 
-    // Free the expression-sprite bindings BEFORE the row delete so the freed assetIds are surfaced (the FK
-    // cascade wipes the bindings but doesn't return their ids — expressions-design/01 §8). Optional op: a
-    // deploy without the expressions leaf falls back to the cascade + a later GC sweep.
-    const spriteAssetIds = ctx.reapCharacterSprites !== undefined ? await ctx.reapCharacterSprites(characterId) : [];
+    // READ the sprite assetIds before the row delete — the FK cascade wipes the bindings without returning
+    // their ids (expressions-design/01 §8). Optional op: a deploy without the expressions leaf falls back to
+    // the cascade + a later GC sweep. Nothing is detached here; the cascade below does that.
+    const spriteAssetIds = ctx.listCharacterSpriteAssets !== undefined ? await ctx.listCharacterSpriteAssets(characterId) : [];
 
     const deleted = await deleteOwnedCharacter(ctx.db, characterId, ownerId, ctx.bumpStatsCanonVersion);
     if (!deleted) {

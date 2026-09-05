@@ -140,4 +140,20 @@ describe("create", () => {
     ).rejects.toBeInstanceOf(AssetNotFoundError);
     expect(h.events).toHaveLength(0);
   });
+
+  test("an audit that REJECTS leaves no domain event and no user event (emission follows the audit)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    // `emit` is a synchronous void op feeding the embeddings indexer. Firing it ahead of `await ctx.audit`
+    // meant a rejected audit left the indexer embedding a card the caller was told had failed to create.
+    const svc = createCharacterService({ ...h.ctx, audit: (): Promise<void> => Promise.reject(new Error("the audit sink is down")) });
+
+    await expect(svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } })).rejects.toThrow(
+      "the audit sink is down",
+    );
+
+    expect(h.events).toEqual([]);
+    expect(h.userEvents).toEqual([]);
+  });
 });

@@ -4,6 +4,12 @@
 // (best-effort — a reap failure logs + drops, never fails the deletes). No `character.updated` emit (delete
 // cascades the embeddings via FK). The per-id load+delete pairs run concurrently (one libSQL connection
 // serializes them); the single end-of-run reap keeps it to one assets round-trip.
+//
+// ORDER, per id: READ the avatar + sprite assetIds → delete the row → (only for rows that actually died)
+// audit → emit → reap. The sprite op used to DETACH the bindings ahead of the delete, so a refused delete
+// left a live character with freed sprites; and `charactersChanged` used to fire ahead of the audit writes,
+// announcing a change whose audit trail could still reject. Reads first, destruction after the row is gone,
+// the emit after the durable writes it announces.
 
 import type { AssetId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
@@ -25,9 +31,9 @@ export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkR
           if (row === undefined) {
             return null;
           }
-          // Free the sprite bindings BEFORE the row delete (the FK cascade doesn't surface the freed ids —
+          // READ the sprite assetIds before the row delete (the FK cascade doesn't surface the freed ids —
           // expressions-design/01 §8). Optional op: absent falls back to the cascade + a later GC sweep.
-          const spriteAssetIds = ctx.reapCharacterSprites !== undefined ? await ctx.reapCharacterSprites(characterId) : [];
+          const spriteAssetIds = ctx.listCharacterSpriteAssets !== undefined ? await ctx.listCharacterSpriteAssets(characterId) : [];
           const ok = await deleteOwnedCharacter(ctx.db, characterId, ownerId, ctx.bumpStatsCanonVersion);
           return ok ? { row, spriteAssetIds } : null;
         }),
@@ -38,8 +44,6 @@ export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkR
     if (deletedRows.length === 0) {
       return;
     }
-    ctx.emitUserEvent(ownerId, { type: "charactersChanged" });
-
     await Promise.all(
       deletedRows.map((row) =>
         ctx.audit(
@@ -54,6 +58,7 @@ export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkR
         ),
       ),
     );
+    ctx.emitUserEvent(ownerId, { type: "charactersChanged" });
 
     const reap: AssetId[] = [
       ...deletedRows.map((row) => row.avatarAssetId).filter((id): id is AssetId => id !== null),

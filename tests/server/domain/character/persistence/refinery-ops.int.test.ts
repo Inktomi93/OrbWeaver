@@ -7,7 +7,7 @@ import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { createLoadOwnedCard, createStampRefinerySignals } from "../../../../../packages/server/src/domain/character/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/user.ts";
@@ -76,4 +76,33 @@ test("createStampRefinerySignals: halves merge independently; a foreign stamp wr
   await stamp({ ownerId: stranger.id, characterId, patch: { score: 1 } });
   row = (await db.select({ refinery: characters.refinery }).from(characters).where(eq(characters.id, characterId)))[0];
   expect(row?.refinery).toEqual({ score: 8, analysis: ANALYSIS });
+});
+
+test("createStampRefinerySignals: two CONCURRENT stamps of the independent halves both survive", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { handle: castId<Handle>("ops-owner3") });
+  const characterId = await seedCard(db, owner.id, "ops_race");
+  const stamp = createStampRefinerySignals({ db });
+
+  // A score run and an analyze run are legitimate concurrent workloads. Under the read-merge-write this
+  // op used to do, both read the same blob and whoever wrote second clobbered the other's half —
+  // silently, with no error anywhere. Interleaved here the way the two workloads interleave in production.
+  await Promise.all([stamp({ ownerId: owner.id, characterId, patch: { score: 7 } }), stamp({ ownerId: owner.id, characterId, patch: { analysis: ANALYSIS } })]);
+
+  const row = (await db.select({ refinery: characters.refinery }).from(characters).where(eq(characters.id, characterId)))[0];
+  expect(row?.refinery).toEqual({ score: 7, analysis: ANALYSIS });
+});
+
+test("createStampRefinerySignals: an unusable stored blob degrades to the skeleton rather than eating the stamp", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { handle: castId<Handle>("ops-owner4") });
+  const characterId = await seedCard(db, owner.id, "ops_corrupt");
+  // A JSON SCALAR in the column: `json_set` on a `$.score` path whose parent is not an object silently
+  // drops the write. The SQL heal is the twin of the read seam's field-level `.catch`.
+  await db.update(characters).set({ refinery: sql`'"legacy-garbage"'` }).where(eq(characters.id, characterId));
+
+  await createStampRefinerySignals({ db })({ ownerId: owner.id, characterId, patch: { score: 3 } });
+
+  const row = (await db.select({ refinery: characters.refinery }).from(characters).where(eq(characters.id, characterId)))[0];
+  expect(row?.refinery).toEqual({ score: 3, analysis: null });
 });

@@ -6,6 +6,8 @@
 // already-absent tag/junction — idempotent). A blank tag name is a no-op. Freshness mirrors the attach exactly:
 // on any removal it fires `charactersChanged` (the user-bus event that drives `trpc.character.*` — the editor's
 // card + its tag chips), NOT `tagsChanged` (the attach doesn't emit that either; a tag is not card content).
+// The partial-failure posture mirrors the attach exactly: `allSettled`, announce what committed, rethrow the
+// first rejection unchanged (see `bulkAddCardTag`'s header for why `Promise.all` stranded the siblings).
 
 import type { CharacterContext } from "../context.ts";
 import type { BulkRemoveCardTagParams } from "../contract/params.ts";
@@ -20,7 +22,7 @@ export function createBulkRemoveCardTag(ctx: CharacterContext): CharacterService
       return;
     }
 
-    const removedFlags = await Promise.all(
+    const removedFlags = await Promise.allSettled(
       characterIds.map(async (characterId) => {
         const row = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
         if (row === undefined) {
@@ -30,7 +32,7 @@ export function createBulkRemoveCardTag(ctx: CharacterContext): CharacterService
       }),
     );
 
-    const removed = removedFlags.filter(Boolean).length;
+    const removed = removedFlags.filter((result) => result.status === "fulfilled" && result.value).length;
     if (removed > 0) {
       await ctx.audit(
         {
@@ -42,6 +44,10 @@ export function createBulkRemoveCardTag(ctx: CharacterContext): CharacterService
         ctx.now(),
       );
       ctx.emitUserEvent(ownerId, { type: "charactersChanged" });
+    }
+    const failed = removedFlags.find((result) => result.status === "rejected");
+    if (failed !== undefined) {
+      throw failed.reason;
     }
   };
 }

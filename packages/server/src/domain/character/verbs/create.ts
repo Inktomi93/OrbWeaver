@@ -105,8 +105,11 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
       ctx.bumpStatsCanonVersion,
     );
 
-    // A brand-new card is all content → the indexer embeds it (contentChanged is always true for create).
-    ctx.emit({ type: "character.updated", characterId, contentChanged: true });
+    // EMISSION FOLLOWS THE DURABLE WRITE *AND* ITS AUDIT. `emit` is a synchronous void op that hands the
+    // character to the embeddings indexer; it used to fire ahead of `await ctx.audit(...)`, so an audit that
+    // rejected left the caller with a failed create while the indexer had already embedded the row and the
+    // owner's feed had no `charactersChanged` to reconcile it with. The audit is the last thing that can
+    // fail, so nothing is announced until it has landed.
     await ctx.audit(
       {
         actorUserId: ownerId,
@@ -117,6 +120,8 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
       },
       at,
     );
+    // A brand-new card is all content → the indexer embeds it (contentChanged is always true for create).
+    ctx.emit({ type: "character.updated", characterId, contentChanged: true });
     ctx.emitUserEvent(ownerId, { type: "charactersChanged", characterId });
 
     const row = await loadOwnedCharacterWithAvatar(ctx.db, ownerId, characterId);

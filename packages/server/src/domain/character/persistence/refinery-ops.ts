@@ -8,8 +8,8 @@
 // stamp is a derived-signal refresh (F6), not an authored edit; reversibility lives on the APPLY path
 // (`applyFields` snapshots first), never here.
 
-import type { RefinerySignals } from "@orb/contracts/character";
 import { characters } from "@orb/db";
+import type { SQL } from "drizzle-orm";
 import { and, count, eq, sql } from "drizzle-orm";
 import type {
   CharacterRefineryOpsContext,
@@ -18,7 +18,7 @@ import type {
   RefineryScoreTarget,
   StampRefinerySignalsOp,
 } from "../contract/refinery-ops.ts";
-import { cardOf, loadOwnedCharacterRow, refinerySignalsReadParser } from "./queries.ts";
+import { cardOf, loadOwnedCharacterRow } from "./queries.ts";
 
 /** Build the owned-card read op — `loadOwnedCharacterRow` (owner IN the WHERE) + the one-homed `cardOf`
  *  projection. Absent and foreign collapse to `undefined` (the consumer's leak-free not-found). */
@@ -53,27 +53,43 @@ export function createListRefineryScoreTargets(ctx: CharacterRefineryOpsContext)
   };
 }
 
-/** Build the merge-stamp op. Read-merge-write over the JSON column: the patched arm replaces its half,
- *  the OTHER half survives verbatim (the field-level independence the read heal guarantees — a corrupt
- *  stored half degrades to null through the same observable parser the read seam uses, one home). Both
- *  the read and the write carry the owner predicate in the WHERE (injected-op-caller-gate). */
+/** The stored blob a `json_set` may be applied to. `json_set` needs a JSON OBJECT to write a `$.<key>` path
+ *  into: on NULL it would yield NULL, on a scalar or on malformed text it would drop the path silently or
+ *  raise "malformed JSON". So the expression heals in SQL exactly the way the READ seam heals in zod — an
+ *  unusable stored value collapses to the both-halves-null skeleton and the stamp lands on top of it.
+ *
+ *  THE SKELETON CARRIES BOTH KEYS, not `'{}'`: every other writer of this column (`cardOf` through
+ *  `writeCardInPlace`) writes the full `{score, analysis}` object, and a blob missing a key would make the
+ *  read parser's `.catch` fire — emitting a `character.refinery.heal` span for a value that was never
+ *  corrupt, i.e. turning a normal write into a false telemetry signal. */
+const REFINERY_SKELETON = `{"score":null,"analysis":null}`;
+
+function healedRefineryObject(): SQL {
+  return sql`case when json_valid(${characters.refinery}) and json_type(${characters.refinery}) = 'object' then ${characters.refinery} else ${REFINERY_SKELETON} end`;
+}
+
+/** Build the merge-stamp op. ONE `json_set` on the patched arm's own path — never a read-merge-write of the
+ *  whole object. The two halves have INDEPENDENT producers (a score run and an analyze run are legitimate
+ *  concurrent workloads), and a read-merge-write means the slower producer writes back the half it read
+ *  BEFORE the other producer's write: the loser's stamp is erased with no error anywhere. `db.transaction`
+ *  is banned in product code and `batchMany` bans a read ahead of the writes, so the reachable atomic
+ *  instrument is a predicate/mutation INSIDE the write statement — here the mutation itself: SQLite applies
+ *  `json_set` to the CURRENT row value under the statement's own write lock, so the untouched half is read
+ *  and rewritten in the same instant and cannot be stale.
+ *
+ *  A corrupt stored blob still degrades to the both-halves-null skeleton ({@link healedRefineryObject} —
+ *  the SQL twin of the read seam's field-level heal), and the owner predicate rides IN THE WHERE
+ *  (injected-op-caller-gate). A zero-row update stays the silent no-op the op's contract promises: foreign
+ *  or absent needs no pre-SELECT to detect, because there is nothing to report either way. */
 export function createStampRefinerySignals(ctx: CharacterRefineryOpsContext): StampRefinerySignalsOp {
   return async ({ ownerId, characterId, patch }) => {
-    const rows = await ctx.db
-      .select({ refinery: characters.refinery })
-      .from(characters)
-      .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
-      .limit(1);
-    if (rows.length === 0) {
-      // Foreign or absent — the verb's ownership belt already threw for the caller; this arm is the
-      // defense-in-depth no-op (never an existence signal from an op).
-      return;
-    }
-    const current = refinerySignalsReadParser.parse(rows[0]?.refinery) ?? { score: null, analysis: null };
-    const next: RefinerySignals = "score" in patch ? { ...current, score: patch.score } : { ...current, analysis: patch.analysis };
+    // `json(?)` on the analysis arm so the payload lands as a JSON OBJECT rather than as a quoted string
+    // (a bound TEXT parameter is a JSON string to `json_set`); the score arm binds a bare number.
+    const [path, value] =
+      "score" in patch ? (["$.score", sql`${patch.score}`] as const) : (["$.analysis", sql`json(${JSON.stringify(patch.analysis)})`] as const);
     await ctx.db
       .update(characters)
-      .set({ refinery: next })
+      .set({ refinery: sql`json_set(${healedRefineryObject()}, ${path}, ${value})` })
       .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)));
   };
 }

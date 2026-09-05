@@ -5,7 +5,7 @@
 
 import type { WorldBookRole } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
-import { characterBooks, worldBooks } from "@orb/db";
+import { characterBooks, characters, worldBooks } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
@@ -156,5 +156,47 @@ describe("duplicate", () => {
     expect(cloneJunctions).toEqual([]);
     const books = await db.select().from(worldBooks);
     expect(books).toEqual([]);
+  });
+
+  test("a failed book copy leaves NO partial clone, and the retry still mints `-copy`", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const source = await createCharacterService(h.ctx).create({
+      principal: principal(owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "the original" },
+    });
+    h.events.length = 0;
+    h.audits.length = 0;
+    h.userEvents.length = 0;
+
+    // The book copy is ANOTHER domain's write, so it cannot ride the clone's batch — the clone row is
+    // already committed when it fails. Without the compensating delete the caller got a rejection, a
+    // bookless `nyx-copy` in the library, and a retry that read that row as a taken handle and minted
+    // `nyx-copy-2`: one orphan per attempt.
+    let failNextCopy = true;
+    const svc = createCharacterService({
+      ...h.ctx,
+      copyCharacterBooks: async (args): Promise<void> => {
+        if (failNextCopy) {
+          failNextCopy = false;
+          return await Promise.reject(new Error("world-info is unavailable"));
+        }
+        return await h.ctx.copyCharacterBooks(args);
+      },
+    });
+
+    await expect(svc.duplicate({ principal: principal(owner), characterId: source.id })).rejects.toThrow("world-info is unavailable");
+
+    // Nothing partial survives, and nothing was announced.
+    expect(await db.select().from(characters).where(eq(characters.ownerId, owner))).toHaveLength(1);
+    expect(h.events).toEqual([]);
+    expect(h.audits).toEqual([]);
+    expect(h.userEvents).toEqual([]);
+
+    // The retry is a RETRY, not a second clone: the freed handle is available again.
+    const retried = await svc.duplicate({ principal: principal(owner), characterId: source.id });
+    expect(retried.handle).toBe("nyx-copy");
+    expect(await db.select().from(characters).where(eq(characters.ownerId, owner))).toHaveLength(2);
   });
 });

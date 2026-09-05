@@ -9,14 +9,15 @@
 // standalone entities and are NEVER cloned. Emits `character.updated`. Throws `CharacterNotFoundError` when
 // the source isn't owned/found.
 
-import type { CharacterHandle } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { getLog } from "#foundation/observability";
 import { cardContentHash } from "#kit/serde/card";
 import type { CharacterContext } from "../context.ts";
 import { CharacterNotFoundError } from "../contract/errors.ts";
 import type { DuplicateCharacterParams } from "../contract/params.ts";
 import type { CharacterService } from "../contract/service.ts";
-import { insertCharacter } from "../persistence/card.ts";
+import { deleteOwnedCharacter, insertCharacter } from "../persistence/card.ts";
 import { canonicalTagsOf, cardOf, detailOf, listOwnerHandles, loadOwnedCharacterRow, loadOwnedCharacterWithAvatar } from "../persistence/queries.ts";
 import { cardTokenSize } from "../substrate/card-tokens.ts";
 
@@ -34,6 +35,20 @@ function freeCopyHandle(sourceHandle: CharacterHandle, taken: ReadonlySet<string
     n += 1;
   }
   return castId<CharacterHandle>(`${base}-${n}`);
+}
+
+/** Undo a clone whose book copy failed. Best-effort by construction: the caller rethrows the ORIGINAL
+ *  failure either way, so a cleanup that cannot run is logged with the cause it was compensating for and
+ *  nothing else changes. */
+async function deleteClone(ctx: CharacterContext, args: { readonly ownerId: UserId; readonly cloneId: CharacterId; readonly cause: unknown }): Promise<void> {
+  try {
+    await deleteOwnedCharacter(ctx.db, args.cloneId, args.ownerId, ctx.bumpStatsCanonVersion);
+  } catch (cleanupErr) {
+    getLog().error(
+      { err: cleanupErr, cause: args.cause, characterId: args.cloneId },
+      "character: duplicate rollback failed — the clone row survives its failed book copy (orphan heals on the next delete/GC)",
+    );
+  }
 }
 
 export function createDuplicate(ctx: CharacterContext): CharacterService["duplicate"] {
@@ -71,11 +86,27 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
 
     // PD-141: carry the source's attached world-info book REFERENCES onto the duplicate (fresh
     // character_books rows pointing at the SAME books; world-info owns the junction write, D28). Sequential
-    // after the insert (the FK needs the new row); no transaction — matches duplicate's existing op story.
-    await ctx.copyCharacterBooks({ ownerId, fromCharacterId: characterId, toCharacterId: newId });
+    // after the insert (the FK needs the new row).
+    //
+    // A CLONE WITHOUT ITS BOOKS IS NOT HALF A CLONE, IT IS A WRONG ONE — AND IT POISONS THE RETRY. The book
+    // copy is another DOMAIN's write (world-info owns that junction), so `db.batch` cannot span it and the
+    // clone's insert has already committed by the time it can fail. Left alone, the caller saw a rejection
+    // while a bookless `<handle>-copy` sat in the library, and the obvious retry read that row as a taken
+    // handle and minted `-copy-2`: every attempt accumulated one more orphan. So the failure COMPENSATES —
+    // the clone row is deleted and the ORIGINAL error is rethrown, which puts the library back exactly where
+    // the retry expects it. A compensating delete that itself fails is logged and the original error still
+    // wins (the caller must not learn about the cleanup instead of the cause); the leftover row is then the
+    // same orphan the un-compensated path always left, never worse.
+    try {
+      await ctx.copyCharacterBooks({ ownerId, fromCharacterId: characterId, toCharacterId: newId });
+    } catch (err) {
+      await deleteClone(ctx, { ownerId, cloneId: newId, cause: err });
+      throw err;
+    }
 
-    // A duplicate is a fresh card with copied content → embed it (contentChanged always true for duplicate).
-    ctx.emit({ type: "character.updated", characterId: newId, contentChanged: true });
+    // NOTHING IS ANNOUNCED UNTIL BOTH HALVES AND THE AUDIT HAVE LANDED. `emit` fired before the audit here
+    // too (the `create` defect): a rejected audit left the indexer embedding a clone the caller was told had
+    // failed.
     await ctx.audit(
       {
         actorUserId: ownerId,
@@ -86,6 +117,8 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
       },
       at,
     );
+    // A duplicate is a fresh card with copied content → embed it (contentChanged always true for duplicate).
+    ctx.emit({ type: "character.updated", characterId: newId, contentChanged: true });
     ctx.emitUserEvent(ownerId, { type: "charactersChanged", characterId: newId });
 
     const row = await loadOwnedCharacterWithAvatar(ctx.db, ownerId, newId);

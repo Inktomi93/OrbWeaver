@@ -4,7 +4,7 @@
 // RELATIVE path.
 
 import { characterSnapshots, characters } from "@orb/db";
-import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, CharacterSnapshotId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -14,6 +14,7 @@ import {
   deleteOwnedCharacter,
   insertCharacter,
   insertCharacterClaimingProvenance,
+  restoreCardInPlace,
   setArchivedBulk,
   writeCardInPlace,
 } from "../../../../../packages/server/src/domain/character/persistence/card.ts";
@@ -152,6 +153,33 @@ describe("persistence/card", () => {
     const snaps = await db.select().from(characterSnapshots).where(eq(characterSnapshots.characterId, characterId));
     expect(snaps).toHaveLength(1);
     expect(snaps[0]?.label).toBe("v1");
+  });
+
+  test("restoreCardInPlace writes the card and the pre-restore snapshot as ONE unit", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    const characterId = castId<CharacterId>("character_1");
+    await insertCharacter(db, makeRow(owner, "character_1", castId<CharacterHandle>("a")), bumpStatsCanonVersion);
+    const preRestore = {
+      id: castId<CharacterSnapshotId>("character_snapshot_pre"),
+      characterId,
+      content: buildGroupCard(),
+      label: "auto: before restore",
+      createdAt: 2,
+    };
+
+    // A refused write records NOTHING. The pre-restore snapshot used to be its own committed INSERT ahead
+    // of the update, so a restore that could not land still left a "before restore" boundary in the
+    // history — one per retry.
+    expect(await restoreCardInPlace(db, { characterId, ownerId: other }, { name: "Restored" }, preRestore)).toBe("missing");
+    expect(await db.select().from(characterSnapshots)).toEqual([]);
+    expect((await db.select().from(characters).where(eq(characters.id, characterId)))[0]?.name).toBe("X");
+
+    // The owner's restore lands both halves.
+    expect(await restoreCardInPlace(db, { characterId, ownerId: owner }, { name: "Restored" }, preRestore)).toBe("written");
+    expect(await db.select().from(characterSnapshots)).toHaveLength(1);
+    expect((await db.select().from(characters).where(eq(characters.id, characterId)))[0]?.name).toBe("Restored");
   });
 
   test("setArchivedBulk flips only the owner's listed ids", async () => {

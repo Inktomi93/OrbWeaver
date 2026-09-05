@@ -10,7 +10,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characterSummaries, characters, characterTags, chatParticipants, chats, tags } from "@orb/db";
-import { chatRecencyExpr, memberVisibleChatScope, parseStringArrayColumn } from "@orb/db/kit";
+import { chatRecencyExpr, escapeLikeTerm, memberVisibleChatScope, parseStringArrayColumn } from "@orb/db/kit";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
@@ -37,7 +37,9 @@ const depthPromptParser = cardDepthPromptSchema.nullable().catch(null);
 // survives only for the not-an-object / null-column case. The contracts schema stays STRICT (it is the
 // validity authority — the 1-10 score tightening landed in the SAME change as this split, the pass's
 // ordering condition).
-export const refinerySignalsReadParser = z
+// Module-private since the stamp op stopped reading it: the merge is a SQL `json_set` on one path now, so
+// `cardOf` (below) is the only reader of the read-heal.
+const refinerySignalsReadParser = z
   .object({
     score: refinerySignalsSchema.shape.score.catch(() => {
       addSpanEvent("character.refinery.heal", { arm: "score" });
@@ -332,19 +334,24 @@ function keysetFor(db: Db, ownerId: UserId, cursor: CharacterListCursor): SQL | 
  *  client-side `filterCharacters` already matched, kept whole rather than quietly dropped in the move.
  *
  *  PENDING suggestions are NOT searchable: a staged tag is not on the card yet (`canonicalTagsFor` filters
- *  the same way), so matching one would surface a row by a label the user never sees on it. */
+ *  the same way), so matching one would surface a row by a label the user never sees on it.
+ *
+ *  THE NEEDLE IS A LITERAL, NOT A PATTERN. It used to be interpolated raw, so a search for `%` matched the
+ *  ENTIRE library and `_` matched any single character — the user's text was silently compiled into a
+ *  wildcard expression. `escapeLikeTerm` (`@orb/db/kit`, the one home) + an explicit `ESCAPE '\'` on EVERY
+ *  arm makes the term mean itself; the clause is per-arm because SQLite scopes it to one `LIKE`. */
 function searchPredicate(db: Db, needle: string): SQL | undefined {
-  const like = `%${needle}%`;
+  const like = `%${escapeLikeTerm(needle)}%`;
   return or(
-    sql`lower(${characters.name}) like ${like}`,
-    sql`lower(${characters.handle}) like ${like}`,
-    sql`lower(coalesce(${characterSummaries.elevatorPitch}, '')) like ${like}`,
+    sql`lower(${characters.name}) like ${like} escape '\\'`,
+    sql`lower(${characters.handle}) like ${like} escape '\\'`,
+    sql`lower(coalesce(${characterSummaries.elevatorPitch}, '')) like ${like} escape '\\'`,
     exists(
       db
         .select({ labelled: sql`1` })
         .from(characterTags)
         .innerJoin(tags, eq(characterTags.tagId, tags.id))
-        .where(and(eq(characterTags.characterId, characters.id), eq(characterTags.status, "accepted"), sql`lower(${tags.name}) like ${like}`)),
+        .where(and(eq(characterTags.characterId, characters.id), eq(characterTags.status, "accepted"), sql`lower(${tags.name}) like ${like} escape '\\'`)),
     ),
   );
 }
