@@ -18,7 +18,7 @@ import {
   listChatReactions,
   loadCharacterSeatByName,
   loadNewestSelectedSlot,
-  loadPresentCastNames,
+  loadPresentCharacterNames,
   loadPresentHostUserId,
   loadReactorSeatId,
   loadVariantSlotInChat,
@@ -184,7 +184,7 @@ describe("listChatReactions — the window", () => {
 });
 
 describe("the B7 room loaders", () => {
-  test("loadPresentCastNames: PRESENT character seats only — departed seats and humans never key the span grammar", async () => {
+  test("loadPresentCharacterNames: PRESENT character seats only — departed seats and humans never key the span grammar", async () => {
     const { userId, chatId } = await seedRoom("cast");
     const alice = await seedCharacter(db, userId, "Alice");
     const bob = await seedCharacter(db, userId, "Bob");
@@ -193,7 +193,7 @@ describe("the B7 room loaders", () => {
 
     // Bob DEPARTED: his plain `Bob:` lines are prose now — the server parse and the client mirror
     // (`speakerThemesByName` keys) must both drop him or a picked index stops surviving the round trip.
-    expect(await loadPresentCastNames(db, chatId)).toEqual(["Alice"]);
+    expect(await loadPresentCharacterNames(db, chatId)).toEqual(["Alice"]);
   });
 
   test("loadPresentHostUserId: the present host, and undefined for a hostless room", async () => {

@@ -543,7 +543,7 @@ is REFERENCE; where it and this record differ, this record is what was built.
    is canon bytes, NEVER display text: the client renderer parses `renderMessageForDisplay` output
    (`message-content.tsx:135-140`), which regex/macros/plugins can reshape, so display indices are not
    shared truth. Character-name mirror: `speakerThemesByName` keys client-side (`lib/attribution.ts:286` —
-   character seats only) = `loadPresentCastNames` server-side.
+   character seats only) = `loadPresentCharacterNames` server-side.
 2. **The row stores `(segmentIndex, segmentSpeaker, segmentSnippet)`; a stale trio DEGRADES to
    whole-message.** The suite's sharpest finding: `(index, speaker)` alone is defeated by a
    same-speaker structural insert (silent mis-target). The snippet (canon span text, capped

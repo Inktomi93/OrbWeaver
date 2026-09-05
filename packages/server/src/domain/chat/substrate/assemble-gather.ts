@@ -134,9 +134,9 @@ function p6Fields(
   };
 }
 
-/** Resolve the present characters' live cards under the host's ownership — the regex-tier cast source + the
+/** Resolve the present characters' live cards under the host's ownership — the regex-tier character source + the
  *  recall name map. A gone/mid-delete card (`null`) is skipped, never an error. */
-async function loadCastCards(
+async function loadCharacterCards(
   ctx: ChatContext,
   ownerId: UserId,
   characterIds: readonly CharacterId[],
@@ -201,7 +201,7 @@ function toChatInjection(row: Awaited<ReturnType<typeof loadChatInjections>>[num
 }
 
 /** Resolve the `{{memory}}` string for the round PLUS its recall trace (#250). Round-level recall uses the
- *  shared/merged bucket (the synthetic group-as-character, or the primary cast char when none is minted).
+ *  shared/merged bucket (the synthetic group-as-character, or the primary character when none is minted).
  *  Returns `""` with a `null` trace when there is no character to key on — the ONE path where recall did not
  *  run at all, which the assembly trace reports as `memoryRecall: null` rather than as an empty recall. When
  *  `out` is supplied, stages the round-level recall inputs for the engine's per-speaker witnessed re-run (D6). */
@@ -341,13 +341,13 @@ export async function gatherAssembleContext(
 ): Promise<AssembleContext> {
   const { chatId, runAsUserId, model, characterIds, personaIds } = args;
 
-  const [chatRow, canon, injectionRows, storedVariables, variableDeltas, cast] = await Promise.all([
+  const [chatRow, canon, injectionRows, storedVariables, variableDeltas, characterCards] = await Promise.all([
     loadChatRow(ctx.db, chatId),
     loadCanonHistory(ctx.db, chatId),
     loadChatInjections(ctx.db, chatId),
     loadStoredVariables(ctx.db, chatId),
     loadVariableDeltas(ctx.db, chatId),
-    loadCastCards(ctx, runAsUserId, characterIds),
+    loadCharacterCards(ctx, runAsUserId, characterIds),
   ]);
 
   // Two-plane env seed: resolve the config plane (ChoiceBlock picks → concrete map), then overlay the
@@ -391,7 +391,7 @@ export async function gatherAssembleContext(
         characterIds,
         foreign,
         recent: recallRecent,
-        names: cast.names,
+        names: characterCards.names,
         liveWindowCutoffSeq: resolveLiveWindowCutoffSeq(canon),
       },
       out,

@@ -28,7 +28,7 @@
 //
 // THE SEGMENT ANCHOR (MR3) is server-derived, claim-validated: the wire carries an index + the client's
 // claimed speaker; this verb re-parses the variant's CANON with the room's present characters names
-// (`loadPresentCastNames` — the client mirror is `speakerThemesByName`'s key set) and stores ITS OWN
+// (`loadPresentCharacterNames` — the client mirror is `speakerThemesByName`'s key set) and stores ITS OWN
 // speaker + snippet from that parse. A claim the parse refutes is `invalid_segment` (a benign race —
 // refusing beats silently retargeting a member's click), and free text never crosses the wire into a
 // column every transcript renders.
@@ -67,7 +67,7 @@ import {
   listChatReactions,
   loadCharacterSeatByName,
   loadNewestSelectedSlot,
-  loadPresentCastNames,
+  loadPresentCharacterNames,
   loadPresentHostUserId,
   loadReactorSeatId,
   loadVariantSlotInChat,
@@ -204,14 +204,14 @@ function mintSegmentAnchor(
  *  (a `<speaker>` tag splits unconditionally on both sides either way). */
 async function resolveSegmentClaim(
   ctx: ChatContext,
-  chatId: Parameters<typeof loadPresentCastNames>[1],
+  chatId: Parameters<typeof loadPresentCharacterNames>[1],
   slot: { readonly kind: Parameters<typeof isNarratorVoiced>[0]; readonly content: string },
   claim: { readonly segmentIndex: number | undefined; readonly segmentSpeaker: string | null | undefined },
 ): Promise<StoredSegmentAnchor | null> {
   if (claim.segmentIndex === undefined) {
     return null;
   }
-  const characterNames = isNarratorVoiced(slot.kind) ? await loadPresentCastNames(ctx.db, chatId) : [];
+  const characterNames = isNarratorVoiced(slot.kind) ? await loadPresentCharacterNames(ctx.db, chatId) : [];
   return mintSegmentAnchor(slot.content, characterNames, { index: claim.segmentIndex, speaker: claim.segmentSpeaker ?? null });
 }
 
@@ -307,7 +307,7 @@ export function createReactAsCharacter(ctx: ChatContext, deps: ReactionsDeps): R
     }
     const seat = await loadCharacterSeatByName(ctx.db, chatId, characterName);
     if (seat === undefined) {
-      return { ok: false, reason: `No present character named "${characterName}" in this chat — use a cast member's exact name.` };
+      return { ok: false, reason: `No present character named "${characterName}" in this chat — use a present character's exact name.` };
     }
     // THE SEAT KILL-SWITCH (#1402). `disabled` is the host's per-seat mute: the arbiter never selects that
     // character (`participant::isArbiterEligible`) and `{{groupNotMuted}}` excludes it. A reaction is that seat
@@ -326,7 +326,7 @@ export function createReactAsCharacter(ctx: ChatContext, deps: ReactionsDeps): R
     }
     const speaker = toSpeaker?.trim() ?? "";
     const { segment, target } =
-      speaker.length > 0 ? resolveToSpeakerAnchor(slot.content, await loadPresentCastNames(ctx.db, chatId), speaker) : NO_SPEAKER_TARGET;
+      speaker.length > 0 ? resolveToSpeakerAnchor(slot.content, await loadPresentCharacterNames(ctx.db, chatId), speaker) : NO_SPEAKER_TARGET;
     const added = await insertReaction(ctx.db, {
       id: ctx.newMessageReactionId(),
       variantId: slot.variantId,

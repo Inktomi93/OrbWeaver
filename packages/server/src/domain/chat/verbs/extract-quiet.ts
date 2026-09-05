@@ -66,11 +66,11 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
     // {{char}} = the subject (or the roster's first present character), read under the HOST's ownership.
     const roster = await loadRoster(deps.db, p.chatId);
     const hostUserId = hostUserIdOf(roster);
-    const firstCastCharacterId = roster.flatMap((r) => {
+    const firstPresentCharacterId = roster.flatMap((r) => {
       const actor = classifyParticipant(r);
       return actor?.kind === "character" ? [actor.characterId] : [];
     })[0];
-    const subjectId = p.subjectCharacterId ?? firstCastCharacterId ?? null;
+    const subjectId = p.subjectCharacterId ?? firstPresentCharacterId ?? null;
     const charName = hostUserId !== null && subjectId !== null ? ((await deps.getCard({ ownerId: hostUserId, characterId: subjectId }))?.name ?? "") : "";
 
     // The bounded recent-history window (ineligible rows dropped), as the scene the extractor reads.

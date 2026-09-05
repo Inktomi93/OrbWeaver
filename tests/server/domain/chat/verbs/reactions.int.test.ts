@@ -367,7 +367,7 @@ describe("createReactAsCharacter", () => {
     // Unknown character: a legality answer, not a platform fault.
     const noChar = await seedRoom("ref3", { charactersCanReact: true });
     const noCharOut = await op({ principal: principal(noChar.host), chatId: noChar.chatId, characterName: "Nobody", emoji: "👍" });
-    expect(noCharOut).toEqual({ ok: false, reason: 'No present character named "Nobody" in this chat — use a cast member\'s exact name.' });
+    expect(noCharOut).toEqual({ ok: false, reason: 'No present character named "Nobody" in this chat — use a present character\'s exact name.' });
 
     // An empty room (a character seat exists; no message yet).
     const empty = await seedUser(db, castId<Handle>("host-ref4"));

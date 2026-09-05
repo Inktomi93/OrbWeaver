@@ -769,7 +769,7 @@ describe("assemblePrompt — the merged room-scope fallback", () => {
     );
 
     expect(out.static).toBe("ROOM: ACTIVE\n\nPADDED");
-    expect(out.trace.staticCacheBusters).toEqual(["merged-present-cast"]);
+    expect(out.trace.staticCacheBusters).toEqual(["merged-present-characters"]);
   });
 
   test("a SOLO turn collapses to the active value — not merged, no cache-buster, sourced to the card", () => {
@@ -843,7 +843,7 @@ describe("assemblePrompt — the overridable slot's source label", () => {
 
     expect(out.static).toBe("CARD\n\nKAI");
     expect(out.trace.overrideSources).toEqual({ mainPrompt: "merged (present characters)" });
-    expect(out.trace.staticCacheBusters).toEqual(["merged-present-cast"]);
+    expect(out.trace.staticCacheBusters).toEqual(["merged-present-characters"]);
   });
 
   test("an un-overridden slot records NO source at all (absence is the honest fourth arm)", () => {
@@ -952,7 +952,7 @@ describe("assemblePrompt — the merged co-speaker card blocks", () => {
   test("a merged card section DOES flag the static prefix as cache-busted", () => {
     const out = assemblePrompt(cards(), ctxOf({ coSpeakers: [{ name: "Kai", description: "KAI-DESC" }] }));
 
-    expect(out.trace.staticCacheBusters).toEqual(["merged-present-cast"]);
+    expect(out.trace.staticCacheBusters).toEqual(["merged-present-characters"]);
   });
 
   test("an active card that renders blank is dropped from the per-member budget split, not counted empty", () => {

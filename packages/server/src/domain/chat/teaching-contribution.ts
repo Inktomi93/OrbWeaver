@@ -26,7 +26,7 @@ import type { Db } from "@orb/db";
 import { createNamesOnlyRegistry, processMacros } from "@orb/kit/macro";
 import { resolveSegmentAnchor, segmentSnippet } from "@orb/kit/speaker-label";
 import type { ChatTeachingRegistry, TeachingCollection, TeachingContext, TeachingContribution } from "./contract/context.ts";
-import { listAttributionReactions, loadPresentCastNames } from "./persistence/reactions.ts";
+import { listAttributionReactions, loadPresentCharacterNames } from "./persistence/reactions.ts";
 import { NO_HISTORY_FLOOR } from "./substrate/auth/index.ts";
 
 /** Contributor #0 — the rpg gather's injections + tool names, projected onto the teaching contract.
@@ -209,7 +209,7 @@ function createReactionAttribution(db: Db): TeachingContribution {
       if (rows.length === 0) {
         return EMPTY_COLLECTION;
       }
-      const lines = buildAttributionLines(rows, await loadPresentCastNames(db, tctx.chatId));
+      const lines = buildAttributionLines(rows, await loadPresentCharacterNames(db, tctx.chatId));
       if (lines.length === 0) {
         return EMPTY_COLLECTION;
       }
