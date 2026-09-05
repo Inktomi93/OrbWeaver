@@ -73,11 +73,14 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   check` is static and runs no tests.
 - **The THREE-program typecheck truth table** (this is its ONE home; every other file points here):
   `types:graph` EXCLUDES `packages/{ui,client}/src` but sees `tests/` + `scripts/` — and excludes
-  `tests/{ui,client}/**/*.tsx` by directory **AND `tests/e2e/` whole** (a lane touching `tests/e2e` MUST
-  name `typecheck:tests-dom`; `types:graph` is a false clean there); per-package `pnpm typecheck` sees
-  ui/client src AND is the ONLY program that owns `tests/**/*.ct.tsx`; `tests-dom` does NOT see CT tsx (its
-  include is an explicit list of non-CT DOM-coupled escapees). A floor claims only coverage it verified —
-  when uncertain, PLANT a control error; that is the standard, not paranoia.
+  `tests/client/` and `tests/ui/` WHOLE (`tsconfig.json` names the bare directories, `.ts` files included,
+  not just the `.tsx` half — truth-repaired 2026-09-05 after cb-pure-mirrors proved it with a planted TS2322)
+  **AND `tests/e2e/` whole** (a lane touching `tests/client`, `tests/ui` or `tests/e2e` MUST name
+  `typecheck:tests-dom`; `types:graph` is a false clean there); per-package `pnpm typecheck` sees
+  ui/client src AND is the ONLY program that owns `tests/**/*.ct.tsx`; `tests-dom` owns
+  `tests/{client,ui}/**/*.ts` plus an explicit list of non-CT DOM-coupled escapees and does NOT see CT tsx.
+  A floor claims only coverage it verified — when uncertain, PLANT a control error; that is the standard,
+  not paranoia.
 - **A checker OOM / kill / timeout is exit-2 class — NEVER hand-wave it as load** (owner ruling): exit
   134/137, a heap abort, or a wall-clock kill of tsc/depcruise/knip/eslint/a lens/the gate harness means
   THE RUN IS NOT A VERDICT, and "probably contention" is a hypothesis you prove by a quiet re-run.
