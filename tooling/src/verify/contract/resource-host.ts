@@ -2,12 +2,14 @@
 import type { SourceFile } from "ts-morph";
 import type { ResourceFact, ResourceReaderOptions, ResourceReceipt, ResourceTreeEntry, TrackedResourceIndex } from "./resource.ts";
 import type { PackageMetadata, PackageResourceId, StaticConfigFacts, StaticConfigResourceId } from "./resource-config.ts";
+import type { CssFacts, CssInventoryRequest } from "./resource-css.ts";
 import type { AuthoredCssFile, AuthoredTreeId } from "./resource-tree.ts";
 
 export interface ResourceHost {
   readonly authoredTree: (id: AuthoredTreeId) => ResourceFact<readonly ResourceTreeEntry[]>;
   readonly authoredCss: () => ResourceFact<readonly AuthoredCssFile[]>;
   readonly productCss: () => ResourceFact<readonly AuthoredCssFile[]>;
+  readonly cssInventory: (request: CssInventoryRequest) => ResourceFact<CssFacts>;
   readonly packageMetadata: (id: PackageResourceId) => ResourceFact<PackageMetadata>;
   readonly staticConfig: (id: StaticConfigResourceId) => ResourceFact<StaticConfigFacts>;
   readonly trackedFiles: () => ResourceFact<TrackedResourceIndex>;

@@ -41,6 +41,10 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
     authoredTree: (id) => accept({ kind: "authored-tree", id }, () => host.authoredTree(id)),
     authoredCss: () => accept({ kind: "authored-css" }, () => host.authoredCss()),
     productCss: () => accept({ kind: "product-css" }, () => host.productCss()),
+    cssInventory: (request) =>
+      request === "authored"
+        ? accept({ kind: "authored-css" }, () => host.cssInventory(request))
+        : accept({ kind: "product-css" }, () => host.cssInventory(request)),
     packageMetadata: (id) => accept({ kind: "package-metadata", id }, () => host.packageMetadata(id)),
     staticConfig: (id) => accept({ kind: "static-config", id }, () => host.staticConfig(id)),
     trackedFiles: () => accept({ kind: "tracked-files" }, () => host.trackedFiles()),

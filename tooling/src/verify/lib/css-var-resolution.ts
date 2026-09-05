@@ -2,12 +2,12 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import { blankCssComments } from "./comment-spans.ts";
+import { customPropertyDefinitions, customPropertyReferences } from "./css-resource-facts.ts";
+import { parseCssStylesheet } from "./css-rules.ts";
 import { walkStaticClassExpressions } from "./static-class-expression.ts";
 
 const CUSTOM_PROPERTY = "--[a-zA-Z_][a-zA-Z0-9_-]*";
 const CUSTOM_PROPERTY_NAME_RE = new RegExp(`^${CUSTOM_PROPERTY}$`, "u");
-const DEFINITION_RE = new RegExp(`(?<![a-zA-Z0-9_-])(${CUSTOM_PROPERTY})\\s*:`, "gu");
 const VAR_START_RE = new RegExp(`var\\(\\s*(${CUSTOM_PROPERTY})`, "gu");
 const ARBITRARY_VAR_RE = new RegExp(`(?:^|[^a-zA-Z0-9_-])[-a-zA-Z0-9_[\\].:/]+-\\((${CUSTOM_PROPERTY})\\)`, "gu");
 const VENDOR_TABLE_RE = new RegExp(`^\\|\\s*\`(${CUSTOM_PROPERTY})\``, "gmu");
@@ -146,13 +146,13 @@ function cssInventory(
       continue;
     }
     files += 1;
-    const text = blankCssComments(readFileSync(abs, "utf8"));
-    for (const match of text.matchAll(DEFINITION_RE)) {
-      if (match[1] !== undefined) {
-        definitions.add(match[1]);
-      }
+    const text = readFileSync(abs, "utf8");
+    const parsed = parseCssStylesheet(text);
+    const file = { path: rel, text, rules: parsed.rules, atRules: parsed.atRules };
+    for (const definition of customPropertyDefinitions(file)) {
+      definitions.add(definition.name);
     }
-    references.push(...varSites(text, rel));
+    references.push(...customPropertyReferences(file));
   }
   return { definitions, references, files };
 }

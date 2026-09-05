@@ -10,6 +10,7 @@ import type { PackageResourceId, StaticConfigResourceId } from "../contract/reso
 import type { ResourceHost, ResourceHostOptions, ResourceInvocation } from "../contract/resource-host.ts";
 import type { AuthoredTreeId } from "../contract/resource-tree.ts";
 import { loadPackageMetadata, loadStaticConfig } from "./resource-config.ts";
+import { loadCssFacts } from "./resource-css.ts";
 import { createResourceReader } from "./resource-reader.ts";
 import { loadTrackedFiles } from "./resource-tracked.ts";
 import { loadAuthoredCss, loadAuthoredTree, loadProductCss } from "./resource-tree.ts";
@@ -83,10 +84,13 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
       return provider();
     };
   };
+  const authoredCss = cached("authored-css", () => loadAuthoredCss(reader));
+  const productCss = cached("product-css", () => loadProductCss(reader));
   const host: ResourceHost = Object.freeze({
     authoredTree: keyed("authored-tree", (id: AuthoredTreeId) => loadAuthoredTree(reader, id)),
-    authoredCss: cached("authored-css", () => loadAuthoredCss(reader)),
-    productCss: cached("product-css", () => loadProductCss(reader)),
+    authoredCss,
+    productCss,
+    cssInventory: keyed("css-inventory", (request) => loadCssFacts(request === "authored" ? authoredCss() : productCss())),
     packageMetadata: keyed("package", (id: PackageResourceId) => loadPackageMetadata(reader, id)),
     staticConfig: keyed("static-config", (id: StaticConfigResourceId) => loadStaticConfig(reader, id, parseSource)),
     trackedFiles: cached("tracked-files", () => loadTrackedFiles(root)),

@@ -1,4 +1,4 @@
-import type { CssRule } from "../lib/css-rules.ts";
+import type { CssAtRule, CssRule } from "../lib/css-rules.ts";
 
 /** Closed authored roots used by high-fanout resource policies. */
 export const AUTHORED_TREE_PATHS = {
@@ -23,4 +23,5 @@ export interface AuthoredCssFile {
   readonly path: string;
   readonly text: string;
   readonly rules: readonly CssRule[];
+  readonly atRules: readonly CssAtRule[];
 }

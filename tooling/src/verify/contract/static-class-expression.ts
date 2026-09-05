@@ -21,12 +21,12 @@ export interface RuntimeClassPrefix {
   readonly consumers: readonly Node[];
 }
 
-interface StaticClassUnresolved {
+export interface StaticClassUnresolved {
   readonly node: Node;
   readonly reason: string;
 }
 
-interface StaticClassOpaque {
+export interface StaticClassOpaque {
   readonly node: Node;
   readonly reason: string;
 }
@@ -61,3 +61,33 @@ export interface StaticValue {
 
 const COMPOSERS = ["join", "tv", "cva", "tv-factory", "join-factory"] as const;
 export type Composer = (typeof COMPOSERS)[number];
+
+export const STATIC_CLASS_CARRIER_KINDS = ["jsx-class", "jsx-spread", "class-property", "composer"] as const;
+export type StaticClassCarrierKind = (typeof STATIC_CLASS_CARRIER_KINDS)[number];
+
+export interface StaticClassCarrierFact {
+  readonly kind: StaticClassCarrierKind;
+  readonly node: Node;
+  readonly composer?: Extract<Composer, "join" | "tv" | "cva">;
+}
+
+export interface StaticClassTokenFact {
+  readonly value: string;
+  /** Every authored source slice forming this token; a concatenated token may have more than one. */
+  readonly segments: readonly StaticClassSegment[];
+  readonly consumers: readonly Node[];
+}
+
+export interface StaticJsxStylePropertyFact {
+  readonly attribute: Node;
+  readonly name: string;
+  readonly nameNode: Node;
+  readonly value: import("./static-authored-value.ts").StaticAuthoredValue;
+}
+
+/** Invocation-local facts produced only from nodes delivered by the shared policy walk. */
+export interface StaticClassFactResult extends StaticClassEvaluation {
+  readonly carriers: readonly StaticClassCarrierFact[];
+  readonly tokens: readonly StaticClassTokenFact[];
+  readonly styleProperties: readonly StaticJsxStylePropertyFact[];
+}
