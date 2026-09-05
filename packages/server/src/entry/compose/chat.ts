@@ -214,67 +214,99 @@ export function extractTrailingSystemRows(history: readonly TurnMessage[]): { ro
 }
 
 /**
- * The legacy flatten (no-seed fallback): the whole history as one role-labeled blob. Exported for bridge
- * tests only — not a composition surface.
+ * The turn label a history row announces itself with on the agent-sdk arm. TOTAL over `HistoryRole`, and that
+ * is the security property, not a tidiness one (#1457): it used to be a `Partial<Record<…>>` with a
+ * `?? "User"` default, so every tool RESULT rendered as `User: <tool output>` — promoting attacker-influenced
+ * bytes (a fetched page, a databank row, a search hit) from DATA the model may reason about to an INSTRUCTION
+ * apparently authored by the human, which is the confusion role separation exists to prevent. TOTAL, not
+ * defaulted, so the recurrence is a COMPILE error: a new `HISTORY_ROLES` member with no label here fails `tsc`
+ * instead of silently inheriting the user's voice (the §5.5 mapped-Record dispatch shape).
+ */
+const AGENT_ROW_LABELS: Record<TurnMessage["role"], string> = { user: "User", assistant: "Assistant", system: "System", tool: "Tool result" };
+
+/** A run of two-or-more newlines — the blank line that IS a turn boundary in {@link flattenAgentHistory}. */
+const BLANK_LINE_RUN = /\n{2,}/g;
+
+/**
+ * The flatten fallback: the whole history as one role-labeled blob, reached when the history has no trailing
+ * USER row and there is therefore nothing to query the SDK with (continue-mode; a transcript ending in tool
+ * results). Exported for bridge tests only — not a composition surface.
  *
- * THE LABEL MAP IS TOTAL OVER `HistoryRole`, and that is the security property, not a tidiness one (#1457).
- * It used to be a `Partial<Record<…>>` with a `?? "User"` default, and this is the ONE arm a history
- * containing `tool` rows reaches — {@link splitAgentHistory} returns null on exactly that shape — so every
- * tool RESULT was rendered into the prompt as `User: <tool output>`. That promotes tool output from DATA the
- * model may reason about to an INSTRUCTION apparently authored by the human, which is the confusion role
- * separation exists to prevent: a tool that returns attacker-influenced bytes (a fetched page, a databank
- * row, a search hit) got to speak in the user's voice. `tool` now labels as a tool result and can never be
- * mistaken for a turn.
+ * THE TURN BOUNDARY IS UNFORGEABLE FROM CONTENT (#1593), and that is what the `BLANK_LINE_RUN` collapse buys.
+ * In a single prompt string a boundary is TEXT — a blank line plus a label — so hostile content carrying a
+ * literal `\n\nUser: …` opened a user turn the host never wrote. Escaping the label spellings would be a
+ * blocklist, and a blocklist is whitespace-shape-fragile (`\n\n\nUser:`, `\n\n  User:`). Collapsing each ROW's
+ * own blank lines instead makes the host's joiner the only blank line in the blob, so EVERY blank-line-preceded
+ * header is host-written, for every shape. THE PRICE: paragraph breaks inside a flatten-arm row reach the model
+ * as single newlines. The seed arm pays nothing — its rows are separate SDK frames.
+ *
+ * THE LIMIT, stated rather than discovered: a line-initial `User:` after a SINGLE newline is still content, and
+ * a model that reads any such line as a turn is a model-side weakness no string prompt can close. The
+ * structural close is to stop sending a multi-row transcript as a string at all — see {@link splitAgentHistory},
+ * which now covers every history that HAS a user tail.
  *
  * REFUSING the agent-sdk path for tool-bearing histories was the other fail-closed candidate and was
- * rejected: the backend can run those turns, so refusal buys no confidentiality and costs the user their
- * chat. Labelling honestly is the narrowing that actually addresses the confusion.
- *
- * TOTAL, not defaulted, so the recurrence is a COMPILE error: a new `HISTORY_ROLES` member with no label
- * here fails `tsc` instead of silently inheriting the user's voice — the §5.5 mapped-Record dispatch shape.
+ * rejected (#1457): the backend can run those turns, so refusal buys no confidentiality and costs the user
+ * their chat — and the forge is not tool-specific anyway, so refusal would close none of the class.
  */
 export function flattenAgentHistory(history: readonly TurnMessage[]): string {
-  const labels: Record<TurnMessage["role"], string> = { user: "User", assistant: "Assistant", system: "System", tool: "Tool result" };
   return history
     .map((m) => {
-      const prefix = labels[m.role];
+      const prefix = AGENT_ROW_LABELS[m.role];
       const name = m.name !== undefined && m.name.length > 0 ? ` (${m.name})` : "";
       const text = m.content.map((c) => (c.type === "text" ? c.text : "[Image]")).join("");
-      return `${prefix}${name}: ${text}`;
+      return `${prefix}${name}: ${text.replace(BLANK_LINE_RUN, "\n")}`;
     })
-    .join("\n\n");
+    .join(AGENT_PROMPT_TAIL_JOINER);
 }
 
-/** Split the shaped history into the session seed + the joined prompt tail; `null` when the history has
- *  no clean user tail (the caller falls back to {@link flattenAgentHistory}). */
+/**
+ * How each history role rides the SESSION SEED. TOTAL, and both facts are load-bearing: `frame` is the SDK
+ * frame role (the seed vocabulary has exactly two — {@link AgentSeedTurn}), and `announce` says whether the
+ * frame's text must carry its own label. A role with no native frame (`tool`, `system`) can only ride as a
+ * `user` frame, so it MUST announce itself or it wears the human's voice — #1457's confusion, relocated. A new
+ * `HISTORY_ROLES` member fails `tsc` here instead of silently inheriting `user`.
+ */
+const AGENT_SEED_FRAMES: Record<TurnMessage["role"], { readonly frame: AgentSeedTurn["role"]; readonly announce: boolean }> = {
+  user: { frame: "user", announce: false },
+  assistant: { frame: "assistant", announce: false },
+  system: { frame: "user", announce: true },
+  tool: { frame: "user", announce: true },
+};
+
+/**
+ * Split the shaped history into the session seed + the joined prompt tail; `null` when the history has no
+ * trailing USER row (the caller falls back to {@link flattenAgentHistory}).
+ *
+ * THIS IS THE STRUCTURAL ARM (#1593). The seed is not a nicety — `session/frames.ts::buildSeedFrames` emits ONE
+ * `SessionStoreEntry` per seed turn, so a turn boundary here is a JSON frame and content inside a frame cannot
+ * create another frame. Every history that reaches it therefore has boundaries content cannot forge, which is
+ * why a `tool` row no longer forces the flat string: it rides as an ANNOUNCED `user` frame instead.
+ *
+ * THE TAIL IS THE TRAILING RUN OF `user` ROWS, never "everything after the last assistant". The two rules agree
+ * on every tool-free history (system rows near the tail are lifted by {@link extractTrailingSystemRows} first),
+ * and they differ exactly where it matters: a `tool` row after the last assistant would otherwise become the
+ * QUERY PROMPT — tool output handed to the model as the human's own message, #1457 arriving by the other door.
+ * The tail carries NO host labels, so there is nothing in it for content to imitate.
+ */
 export function splitAgentHistory(history: readonly TurnMessage[]): { seed: readonly AgentSeedTurn[]; prompt: string } | null {
-  if (history.some((m) => m.role === "tool")) {
-    return null;
+  let tailStart = history.length;
+  while (tailStart > 0 && history[tailStart - 1]?.role === "user") {
+    tailStart -= 1;
   }
-  let lastAssistant = -1;
-  for (let i = history.length - 1; i >= 0; i--) {
-    if (history[i]?.role === "assistant") {
-      lastAssistant = i;
-      break;
-    }
-  }
-  const tail = history.slice(lastAssistant + 1);
-  if (tail.length === 0) {
-    return null;
-  }
-  const prompt = tail
+  const prompt = history
+    .slice(tailStart)
     .map(agentRowText)
     .filter((t) => t.length > 0)
     .join(AGENT_PROMPT_TAIL_JOINER);
   if (prompt.length === 0) {
     return null;
   }
-  const seed = history.slice(0, lastAssistant + 1).map(
-    (m): AgentSeedTurn => ({
-      role: m.role === "assistant" ? "assistant" : "user",
-      content: agentRowText(m),
-    }),
-  );
+  const seed = history.slice(0, tailStart).map((m): AgentSeedTurn => {
+    const { frame, announce } = AGENT_SEED_FRAMES[m.role];
+    const text = agentRowText(m);
+    return { role: frame, content: announce ? `${AGENT_ROW_LABELS[m.role]}: ${text}` : text };
+  });
   return { seed, prompt };
 }
 

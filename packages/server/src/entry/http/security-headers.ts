@@ -55,7 +55,7 @@
 
 import { CARD_FRAME_ROUTE } from "@orb/contracts/chat";
 import { PLUGIN_FRAME_DOC_PREFIX } from "@orb/contracts/plugin";
-import type { MiddlewareHandler } from "hono";
+import type { MiddlewareHandler, Next } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 
 // THE EXEMPTION LIST, and it is a MECHANICAL necessity, not a policy carve-out: `hono/secure-headers` sets
@@ -74,9 +74,10 @@ import { secureHeaders } from "hono/secure-headers";
 // paths this middleware steps aside for, which is the mechanism this exemption has always been.
 //
 // The exemption is the DOCUMENT path only — each route's `POST` MINT is a JSON reply and keeps the full app
-// header set. The exempted responses are never un-policied: every return path in `card-frame.ts` and
-// `plugin-frame.ts` builds its headers from that file's own frame-header builder, 401 and 404 arms included,
-// and `tests/server/entry/http/{card,plugin}-frame.test.ts` pin the ACTUAL served header on both.
+// header set. The SERVED document and its MISS-404 both build their headers from their own file's
+// frame-header builder, and `tests/server/entry/http/{card,plugin}-frame.test.ts` pin the ACTUAL served
+// header on both. What the exemption may NOT assume is that one of those arms ran at all (#1594) — see
+// {@link securityHeaders}.
 //
 // Each prefix is DERIVED from its route's own contract constant, never re-typed here: a drifted copy would
 // not fail loudly, it would silently serve that document under the app policy.
@@ -106,6 +107,14 @@ function servesOwnPolicy(path: string): boolean {
     return id.length > 0 && !id.includes("/");
   });
 }
+
+/** The header {@link securityHeaders} reads to decide whether an exempt path's response actually came from
+ *  its own-policy handler. `Headers.has` is case-insensitive, so a differently-cased writer still counts. */
+const OWN_POLICY_HEADER = "Content-Security-Policy";
+
+/** The spent downstream handed to `hono/secure-headers` when the response ALREADY exists — it awaits its
+ *  `next` before setting headers, so a resolved no-op makes it a pure header write. */
+const RESPONSE_ALREADY_PRODUCED: Next = () => Promise.resolve();
 
 const SELF = "'self'";
 const NONE = "'none'";
@@ -182,14 +191,43 @@ function policy(opts: { readonly dev: boolean; readonly external: boolean }): Mi
   });
 }
 
+/**
+ * THE STEP-ASIDE IS CONDITIONAL ON THE EXEMPT HANDLER HAVING RUN (#1594). An exempt PATH is not a promise
+ * that a frame handler produced the response: the ingress IP-allowlist refuses with a bare
+ * `c.body(null, 403)` above these routes (`infra/network/ingress.ts`), each document route's own
+ * unauthenticated arm returns a bare 401, and a wrong-METHOD request to a real document path routes to
+ * nothing at all. Under an unconditional step-aside every one of those went out with NO CSP, no
+ * `X-Frame-Options` and no `nosniff` — the same unpoliced-response class #1409 closed for the descendant
+ * path, on responses no frame handler ever touched.
+ *
+ * "Did the exempt handler run" is read off the RESPONSE — does it already carry a policy? — and NOT off a
+ * context flag the handlers would have to set: a flag is a coupled site a new frame route can forget, and
+ * worse, it can be set by a handler that then fails to write the headers it promised. The response read
+ * cannot lie, and it fails closed in both directions: no policy present ⇒ the app policy lands; a frame
+ * handler that ever stopped writing its own CSP gets the app policy (a loudly refused embed) rather than
+ * no policy at all (silence).
+ *
+ * LIMIT, stated rather than discovered: a handler that THROWS is answered by `app.onError`, and hono's
+ * `compose()` routes that throw past this middleware's post-`next()` code (`node_modules/hono/dist/
+ * compose.js` — the catch lives at the frame ABOVE, so nothing after `await next()` runs). An error
+ * response on an exempt path is therefore still un-policied; closing that needs the app's error handler to
+ * carry the policy, which is a separate seam.
+ */
 export function securityHeaders(opts: SecurityHeadersOptions): MiddlewareHandler {
   // Both arms are built ONCE at wiring time; the per-request work is the boolean read + a dispatch.
   const blocked = policy({ dev: opts.dev, external: false });
   const allowed = policy({ dev: opts.dev, external: true });
-  return (c, next) => {
-    if (servesOwnPolicy(c.req.path)) {
-      return next();
+  const appPolicy = (): MiddlewareHandler => (opts.allowExternalMedia() ? allowed : blocked);
+  return async (c, next) => {
+    if (!servesOwnPolicy(c.req.path)) {
+      await appPolicy()(c, next);
+      return;
     }
-    return (opts.allowExternalMedia() ? allowed : blocked)(c, next);
+    await next();
+    if (!c.res.headers.has(OWN_POLICY_HEADER)) {
+      // `hono/secure-headers` awaits its `next` and then `.set()`s onto `c.res`, so handing it a spent
+      // chain writes the app headers onto the already-produced response without re-running anything.
+      await appPolicy()(c, RESPONSE_ALREADY_PRODUCED);
+    }
   };
 }

@@ -297,6 +297,85 @@ describe("securityHeaders", () => {
         expect(res.headers.get("x-frame-options"), path).toBeNull();
       }
     });
+
+    // #1594 — THE EXEMPTION'S FALSE PREMISE, and the half of the class #1409 left open. Stepping aside for
+    // an exempt path assumed the frame handler would RUN and write its own policy. It does not have to.
+    // Three responses on an exempt document path are produced by something else entirely: an ingress refusal
+    // above the routes (`infra/network/ingress.ts` answers a non-allowlisted caller with a bare
+    // `c.body(null, 403)` and writes no headers), the document route's OWN unauthenticated arm
+    // (`card-frame.ts` / `plugin-frame.ts` return `c.body(null, 401)` WITHOUT that file's frame-header
+    // builder — only their 200 and MISS-404 arms use it), and a WRONG-METHOD request to a real document path
+    // (each route registers `GET` only, so a `POST` to it routes to nothing). Under the bare step-aside all
+    // three went out with NO CSP, no `X-Frame-Options` and no `nosniff`: the same unpoliced-response class
+    // #1409 closed for the descendant path, on responses no frame handler ever touched.
+    //
+    // The step-aside is now CONDITIONAL on the exempt handler having run, and "did it run" is read off the
+    // RESPONSE — does it already carry a policy? — never off a context flag a future frame route could
+    // forget to set. That discriminator also fails closed the other way: a frame handler that ever stopped
+    // writing its own CSP would get the APP policy (a loudly refused embed) rather than no policy (silence).
+    async function servedUnderRealRoutes(args: {
+      readonly path: string;
+      readonly method?: string;
+      readonly refuseUpstream?: boolean;
+      readonly unauthenticated?: boolean;
+    }): Promise<Response> {
+      const app = new Hono();
+      app.use("*", securityHeaders({ dev: false, allowExternalMedia: () => false }));
+      if (args.refuseUpstream === true) {
+        // The ingress allowlist's exact refusal shape: an empty 403, no headers, before any auth work.
+        app.use("*", (c) => Promise.resolve(c.body(null, 403)));
+      }
+      const doc = "sandbox; default-src 'none'";
+      for (const route of [CARD_FRAME_ROUTE, PLUGIN_FRAME_ROUTE]) {
+        // The two arms the real document routes have: the bare 401 (no principal) and the served document.
+        app.get(`${route}/:id`, (c) => (args.unauthenticated === true ? c.body(null, 401) : c.body("<p>frame</p>", 200, { "Content-Security-Policy": doc })));
+      }
+      return await app.request(args.path, { method: args.method ?? "GET" });
+    }
+
+    /** Everything the app policy must put on a response that no own-policy handler produced. */
+    function expectAppPolicied(res: Response, label: string): void {
+      expect(res.headers.get("content-security-policy"), label).toContain("default-src 'self'");
+      expect(res.headers.get("x-frame-options"), label).toBe("DENY");
+      expect(res.headers.get("x-content-type-options"), label).toBe("nosniff");
+    }
+
+    test("an INGRESS REFUSAL on a real frame document path is policed — the allowlist 403 is not a headerless hole", async () => {
+      for (const route of [CARD_FRAME_ROUTE, PLUGIN_FRAME_ROUTE]) {
+        const res = await servedUnderRealRoutes({ path: `${route}/${handle}`, refuseUpstream: true });
+        expect(res.status, route).toBe(403);
+        expectAppPolicied(res, route);
+      }
+    });
+
+    test("the frame route's OWN unauthenticated 401 is policed — its frame-header builder never runs on that arm", async () => {
+      for (const route of [CARD_FRAME_ROUTE, PLUGIN_FRAME_ROUTE]) {
+        const res = await servedUnderRealRoutes({ path: `${route}/${handle}`, unauthenticated: true });
+        expect(res.status, route).toBe(401);
+        expectAppPolicied(res, route);
+      }
+    });
+
+    test("a WRONG-METHOD request to a real document path routes to nothing and is policed", async () => {
+      for (const route of [CARD_FRAME_ROUTE, PLUGIN_FRAME_ROUTE]) {
+        const res = await servedUnderRealRoutes({ path: `${route}/${handle}`, method: "POST" });
+        expect(res.status, route).toBe(404);
+        expectAppPolicied(res, route);
+      }
+    });
+
+    // THE POSITIVE CONTROL for the conditional step-aside: when the frame handler DOES run, not one byte of
+    // its response moves — the app policy still never lands on a served frame document, and
+    // `X-Frame-Options` stays absent so our own embed still works.
+    test("the conditional belt adds nothing to a frame document the handler actually served", async () => {
+      for (const route of [CARD_FRAME_ROUTE, PLUGIN_FRAME_ROUTE]) {
+        const res = await servedUnderRealRoutes({ path: `${route}/${handle}` });
+        expect(res.status, route).toBe(200);
+        expect(res.headers.get("content-security-policy"), route).toBe("sandbox; default-src 'none'");
+        expect(res.headers.get("x-frame-options"), route).toBeNull();
+        expect(res.headers.get("x-content-type-options"), route).toBeNull();
+      }
+    });
   });
 
   test("sibling headers: frame-deny, nosniff, referrer, COOP; NO HSTS (plain-http LAN self-host)", async () => {
