@@ -63,6 +63,21 @@ test("inside a Field the Field's label still wins — the instruction fallback n
   await expect(page.getByLabel("Drag and drop, or click to browse", { exact: true })).toHaveCount(0);
 });
 
+test("inside a Field the input keeps Base UI's OWN aria-labelledby — the fallback must not clobber the attribute", async ({ mount, page }) => {
+  await mount(
+    <Field label="Avatar">
+      <FileDropzone instructions="Drag and drop, or click to browse" />
+    </Field>,
+  );
+  // THE ATTRIBUTE, not the name (#1679). The name arm above is a FENCE for this regression and cannot
+  // stand in for it: `Field.Label` defaults to `nativeLabel` and therefore also emits a real
+  // `<label for>` (`@base-ui/react` 1.7 `internals/labelable-provider/useLabel.js` returns
+  // `htmlFor: resolvedControlId` when `native`), so clobbering `aria-labelledby` to `undefined` leaves the
+  // COMPUTED NAME intact and every name assertion green. Measured: with the `aria-labelledby={undefined}`
+  // render-prop form planted, this pin reds (attribute absent) while the name pin above stays green.
+  await expect(page.locator('[data-slot="file-dropzone-input"]')).toHaveAttribute("aria-labelledby", /^base-ui-/u);
+});
+
 test("an EMPTY instructions line mints no name of its own (an empty labelledby target is worse than the UA default)", async ({ mount, page }) => {
   await mount(<FileDropzone instructions="" />);
   await expect(page.locator('[data-slot="file-dropzone-input"]')).not.toHaveAttribute("aria-labelledby", /.+/u);
