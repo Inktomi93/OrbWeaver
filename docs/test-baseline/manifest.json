@@ -1219,6 +1219,7 @@
     "tests/server/domain/notifications/verbs/list.int.test.ts",
     "tests/server/domain/notifications/verbs/read.int.test.ts",
     "tests/server/domain/notifications/verbs/record.int.test.ts",
+    "tests/server/domain/notifications/verbs/replay-since.int.test.ts",
     "tests/server/domain/persona/persistence/import-write.int.test.ts",
     "tests/server/domain/persona/persistence/queries.int.test.ts",
     "tests/server/domain/persona/substrate/dedup-name.test.ts",

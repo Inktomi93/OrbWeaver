@@ -7,7 +7,7 @@
 import type { AutomationContext, AutomationService } from "./contract/service.ts";
 import { createHandleEvent } from "./substrate/handle-event.ts";
 import { createConfirmSuggestion } from "./verbs/confirm-suggestion.ts";
-import { createCreateRule } from "./verbs/create-rule.ts";
+import { createCreateRule, createPlanRule } from "./verbs/create-rule.ts";
 import { createCreateRuleFromPreset } from "./verbs/create-rule-from-preset.ts";
 import { createDeleteGlobalVariable } from "./verbs/delete-global-variable.ts";
 import { createDeleteRule } from "./verbs/delete-rule.ts";
@@ -33,17 +33,19 @@ import { createTestRule } from "./verbs/test-rule.ts";
 import { createUpdateRule } from "./verbs/update-rule.ts";
 
 export function createAutomationService(ctx: AutomationContext): AutomationService {
-  // Built ONCE and injected into the preset mint: a preset creates its rule set through the SAME verb a hand
-  // authored rule goes through (one write path, one host gate, one validation), and the dependency stays
-  // visible at the composition root instead of hiding inside a verb→verb import.
-  const createRule = createCreateRule(ctx);
+  // Built ONCE and injected into BOTH mints: a preset's rule set is validated and shaped by the SAME planner
+  // a hand-authored rule goes through (one validation, one row shape), and the dependency stays visible at
+  // the composition root instead of hiding inside a verb→verb import. The two differ only in how they
+  // COMMIT — one row, or one all-or-nothing batch (#1427).
+  const planRule = createPlanRule(ctx);
+  const createRule = createCreateRule(ctx, planRule);
   return {
     getGlobalVariable: createGetGlobalVariable(ctx),
     setGlobalVariable: createSetGlobalVariable(ctx),
     deleteGlobalVariable: createDeleteGlobalVariable(ctx),
     listGlobalVariables: createListGlobalVariables(ctx),
     createRule,
-    createRuleFromPreset: createCreateRuleFromPreset(createRule),
+    createRuleFromPreset: createCreateRuleFromPreset(ctx, planRule),
     listRulePresets: createListRulePresets(),
     updateRule: createUpdateRule(ctx),
     setRuleEnabled: createSetRuleEnabled(ctx),

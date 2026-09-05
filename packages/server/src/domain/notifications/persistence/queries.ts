@@ -9,7 +9,7 @@ import { notifications } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { NotificationId } from "@orb/kit/ids";
-import { and, desc, eq, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
 
 /** A new notification row — the verb mints `id` + parses the closed `event` + passes its injected clock. */
 interface NotificationInsert {
@@ -87,6 +87,23 @@ export async function selectInbox(
     cursor === undefined ? undefined : lt(notifications.seq, cursor),
   );
   return await db.select(ROW_COLS).from(notifications).where(scoped).orderBy(desc(notifications.seq)).limit(limit);
+}
+
+/** The RESUME page — recipient-scoped, dismissed excluded, `seq` strictly ABOVE the watermark, OLDEST-first.
+ *
+ *  THE ASCENDING ORDER IS THE WHOLE POINT (#1459). `selectInbox` walks DOWN from the newest row, so a bounded
+ *  walk that stops before it reaches the resume watermark has skipped the MIDDLE of the log while holding its
+ *  TOP — and a reader that delivers what it holds advances its watermark past rows it never read. Walking UP
+ *  from the watermark makes a short page a contiguous PREFIX instead: whatever the caller delivered, the next
+ *  page starts exactly one row above it. */
+export async function selectInboxSince(
+  db: Db,
+  recipientUserId: NotificationEvent["recipientUserId"],
+  afterSeq: number,
+  limit: number,
+): Promise<NotificationRow[]> {
+  const scoped = and(eq(notifications.recipientUserId, recipientUserId), isNull(notifications.dismissedAt), gt(notifications.seq, afterSeq));
+  return await db.select(ROW_COLS).from(notifications).where(scoped).orderBy(asc(notifications.seq)).limit(limit);
 }
 
 /** Idempotent recipient-scoped read-flip: set `readAt` only if currently null, pinned to the caller. Returns

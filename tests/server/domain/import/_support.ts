@@ -115,7 +115,12 @@ export function makeHarness(): ImportHarness {
     createCharacter: (args): Promise<{ characterId: CharacterId }> => {
       creates.push(args);
       created += 1;
-      return Promise.resolve({ characterId: castId<CharacterId>(`character_created_${created}`) });
+      const characterId = castId<CharacterId>(`character_created_${created}`);
+      // The REAL create stamps `importHash` on the row, so the by-importHash oracle resolves it from the next
+      // call on. Recording it here is what makes a retry of the same bytes hit the dedup arm the way it does
+      // in production — the #1470 reconcile pin depends on that being the harness's behaviour, not a seed.
+      existingByHash.set(args.importHash, characterId);
+      return Promise.resolve({ characterId });
     },
     findByImportHash: ({ ownerId, importHash }): Promise<CharacterId | null> => {
       finds.push({ ownerId, importHash });

@@ -1,45 +1,26 @@
 // domain/automation/persistence/rules — all `automation_rules` db access (queries only; the verbs own
 // validation + authority). The stored `actions` json is LAZY-PARSED at the read seam with the chat-metadata
 // fault-isolation pattern: a corrupt blob degrades that ONE rule to an empty arm list (never throws, never
-// nukes the chat's rule list — 04 §1). Position is a total order per chat; `applyReorder` rewrites it in one
-// batch.
+// nukes the chat's rule list — 04 §1).
+//
+// POSITION IS ALLOCATED BY THE DB, NEVER BY A CALLER (#1427). It is a total order per scope, so every write
+// that mints it does so inside its own statement — the INSERT carries a `max+1` scalar subquery over the
+// rule's scope, and `applyReorder` rewrites the whole order in one batch. There is no exported way to hand a
+// position in: a caller that could would be a caller that can duplicate one.
 
-import type { AutomationAction, AutomationTrigger, RulePresetId, RulePresetKnobValues } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationTrigger } from "@orb/contracts/automation";
 import { automationActionsSchema } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
-import type { AwaitableBatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
+import { batchMany, batchStmt } from "@orb/db/kit";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
-import type { RuleRow } from "../contract/ops.ts";
+import type { SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import type { PlannedRuleInsert, RuleRow } from "../contract/ops.ts";
 import type { RuleView } from "../contract/results.ts";
 
 const LIMIT_ONE = 1;
-
-/** The columns a `createRule` write supplies (the app-minted id + the injected clock stamp both fields). */
-interface RuleInsert {
-  readonly id: AutomationRuleId;
-  readonly ownerId: UserId;
-  /** NULL = the owner-GLOBAL lane (C5). The column was born nullable for this. */
-  readonly chatId: ChatId | null;
-  readonly name: string;
-  readonly description: string | null;
-  readonly position: number;
-  readonly triggerBus: AutomationTrigger["bus"];
-  readonly triggerType: AutomationTrigger["type"];
-  readonly predicateCel: string | null;
-  readonly actions: readonly AutomationAction[];
-  /** Mint provenance (both-or-neither — the paired db CHECK): non-null ONLY on `createRuleFromPreset`'s
-   *  writes. */
-  readonly rulePresetId: RulePresetId | null;
-  readonly rulePresetKnobs: RulePresetKnobValues | null;
-  readonly matchAutomationEvents: boolean;
-  readonly cooldownSeconds: number;
-  readonly maxFiresPerHour: number;
-  readonly createdAt: number;
-  readonly updatedAt: number;
-}
 
 /** The editable columns `updateRule` replaces (a PUT — the id/chat/owner are immutable). Resets the error
  *  ledger (a fresh authoring pass clears the auto-disable countdown — 04 §2). */
@@ -105,20 +86,38 @@ export function toRuleView(row: RuleRow): RuleView {
   };
 }
 
-/** The highest `position` within ONE SCOPE — a chat's rules, or an owner's chat-less ones — or -1 when the
- *  scope is empty (so `+1` yields 0 for the first).
+/** `position = max + 1` WITHIN ONE SCOPE, as a scalar subquery on the INSERT itself (#1427) — never a JS read
+ *  followed by a write. `-1` for an empty scope, so the first rule lands at 0.
+ *
+ *  IT IS A SUBQUERY BECAUSE THE ALLOCATION IS THE RACE. Read-then-insert is two statements, and two creates
+ *  in one scope that interleave between them both read the same max and both write `max+1` — a duplicate in a
+ *  column whose order is SEMANTICS (a chat's arms mutate one shared write-through env in position order, and
+ *  the `reorder` verb's totality check assumes a total order). Computed inside the INSERT, the allocation is
+ *  atomic with the write; inside a `db.batch` each statement also sees the rows the ones before it wrote, so a
+ *  whole preset SET allocates ascending positions from one snapshot without a read.
  *
  *  THE OWNER PREDICATE IS LOAD-BEARING ON THE GLOBAL ARM, not defensive scoping: `chat_id IS NULL` alone
  *  spans EVERY user's global lane, so without it the first global rule a second user creates would be handed
  *  a position past the first user's — one shared, ever-climbing counter across a partition that is supposed
  *  to be per-owner. (SQL's `= NULL` is never true either, which is why the null arm cannot reuse `eq`.) */
-export async function maxPosition(db: Db, chatId: ChatId | null, ownerId: UserId): Promise<number> {
-  const scope = chatId === null ? and(isNull(automationRules.chatId), eq(automationRules.ownerId, ownerId)) : eq(automationRules.chatId, chatId);
-  const rows = await db
-    .select({ max: sql<number | null>`max(${automationRules.position})` })
-    .from(automationRules)
-    .where(scope);
-  return rows[0]?.max ?? -1;
+function nextPositionInScope(chatId: ChatId | null, ownerId: UserId): SQL<number> {
+  const highest = sql`coalesce(max(${automationRules.position}), -1) + 1`;
+  return chatId === null
+    ? sql<number>`(select ${highest} from ${automationRules} where ${automationRules.chatId} is null and ${automationRules.ownerId} = ${ownerId})`
+    : sql<number>`(select ${highest} from ${automationRules} where ${automationRules.chatId} = ${chatId})`;
+}
+
+/** The unexecuted INSERT for one planned rule — BORN DISABLED, position db-allocated. File-local builder; the
+ *  two executors below own the run (the single-rule write and the all-or-nothing set write). */
+function buildInsertRule(db: Db, row: PlannedRuleInsert): BatchStmt {
+  return batchStmt(
+    db.insert(automationRules).values({
+      ...row,
+      actions: row.actions as RuleRow["actions"],
+      enabled: false,
+      position: nextPositionInScope(row.chatId, row.ownerId),
+    }),
+  );
 }
 
 /** C5 — an OWNER's chat-less rules in list order, `position` then `created_at` (the `listRuleRowsForChat`
@@ -131,8 +130,35 @@ export function listRuleRowsForOwnerGlobal(db: Db, ownerId: UserId): Promise<Rul
     .orderBy(asc(automationRules.position), asc(automationRules.createdAt));
 }
 
-export async function insertRule(db: Db, row: RuleInsert): Promise<void> {
-  await db.insert(automationRules).values({ ...row, actions: row.actions as RuleRow["actions"], enabled: false });
+export async function insertRule(db: Db, row: PlannedRuleInsert): Promise<void> {
+  await insertRules(db, [row]);
+}
+
+/** ALL-OR-NOTHING: one `db.batch`, so a preset's rule set is committed whole or not at all (#1427) — and the
+ *  per-statement position subquery sees the rows the earlier statements wrote, so the set lands at ascending
+ *  positions in the order given, off ONE snapshot and with no read. An empty set writes nothing (libsql
+ *  resolves an empty batch, but there is no statement to build). */
+export async function insertRules(db: Db, rows: readonly PlannedRuleInsert[]): Promise<void> {
+  if (rows.length === 0) {
+    return;
+  }
+  await db.batch(batchMany(rows.map((row) => buildInsertRule(db, row))));
+}
+
+/** The rows for a just-written SET, in the order the db allocated them. `inArray` over app-minted ids the
+ *  caller just inserted — the `selectRuleRow` posture, one read instead of N. */
+// @owner-scope-ok: the ids are the caller's OWN freshly-minted ones (`createRuleFromPreset` passes exactly
+// what it just wrote under its own host gate) — the same proof `selectRuleRow` cites. Ends if a caller ever
+// passes ids it did not mint in the same call.
+export async function selectRuleRowsByIds(db: Db, ruleIds: readonly AutomationRuleId[]): Promise<RuleRow[]> {
+  if (ruleIds.length === 0) {
+    return [];
+  }
+  return await db
+    .select()
+    .from(automationRules)
+    .where(inArray(automationRules.id, [...ruleIds]))
+    .orderBy(asc(automationRules.position), asc(automationRules.createdAt));
 }
 
 // @owner-scope-ok: every caller has already passed `requireRuleHost(ctx, principal, ruleId)` — the D18 host

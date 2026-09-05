@@ -28,3 +28,11 @@ export interface ListInboxParams extends NotificationActorParams {
   readonly cursor?: number;
   readonly limit?: number;
 }
+
+/** The socket's durable RESUME read (#1459) — the caller's own active rows ABOVE a watermark, oldest-first.
+ *  `afterSeq` is a WATERMARK, not a page cursor: it is what the reader has already delivered, so a caller that
+ *  consumes a partial page and re-asks with the last seq it delivered loses nothing and repeats nothing. */
+export interface ReplaySinceParams extends NotificationActorParams {
+  readonly afterSeq: number;
+  readonly limit?: number;
+}

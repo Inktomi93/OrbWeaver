@@ -14,6 +14,9 @@ import type {
   AutomationOrigin,
   AutomationRunOutcome,
   AutomationSuggestionKind,
+  AutomationTrigger,
+  RulePresetId,
+  RulePresetKnobValues,
   SuggestibleAction,
   TriggerFact,
 } from "@orb/contracts/automation";
@@ -32,10 +35,45 @@ import type { AutomationRuleId, AutomationSuggestionId, CharacterId, ChatId, Mes
 import type { VarOp } from "@orb/kit/macro";
 import type { ResolveViewerVisibility } from "#domain/chat";
 import type { AnalysisConfirmAct } from "./analysis.ts";
+import type { CreateRuleParams } from "./params.ts";
 
 /** A stored automation-rule row — the dispatch's unit of work (its `actions` json is parsed at dispatch with
  *  the active disable-on-corrupt). Homed here (not persistence) so the engine/watcher share ONE row type. */
 export type RuleRow = typeof automationRules.$inferSelect;
+
+/** One VALIDATED, ready-to-insert rule — everything `createRule` decides before it writes anything, with the
+ *  id already minted so a caller can read the row back by id after the write.
+ *
+ *  `position` IS ABSENT ON PURPOSE (#1427). It is allocated by the INSERT itself, from a scalar subquery over
+ *  the rule's own scope, because a JS `max+1` read followed by a separate insert is two statements two
+ *  concurrent creates can interleave inside — and they then pick the SAME position, in a column whose order
+ *  is semantics (sibling arms mutate one shared write-through env in position order). */
+export interface PlannedRuleInsert {
+  readonly id: AutomationRuleId;
+  readonly ownerId: UserId;
+  /** NULL = the owner-GLOBAL lane (C5). The column was born nullable for this. */
+  readonly chatId: ChatId | null;
+  readonly name: string;
+  readonly description: string | null;
+  readonly triggerBus: AutomationTrigger["bus"];
+  readonly triggerType: AutomationTrigger["type"];
+  readonly predicateCel: string | null;
+  readonly actions: readonly AutomationAction[];
+  /** Mint provenance (both-or-neither — the paired db CHECK): non-null ONLY on `createRuleFromPreset`'s
+   *  writes. */
+  readonly rulePresetId: RulePresetId | null;
+  readonly rulePresetKnobs: RulePresetKnobValues | null;
+  readonly matchAutomationEvents: boolean;
+  readonly cooldownSeconds: number;
+  readonly maxFiresPerHour: number;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+}
+
+/** The gate-less half of `createRule`: validate a payload and mint its row, writing NOTHING. It is injected
+ *  into `createRuleFromPreset` the same way the whole verb used to be (a verb never imports a sibling verb),
+ *  so a preset set can validate EVERY member before its first write and then commit them in one batch. */
+export type PlanRule = (params: CreateRuleParams) => Promise<PlannedRuleInsert>;
 
 /** The fact resolver's output: the CEL fact + the event's cascade depth (0 = human plane). */
 export interface ResolvedTrigger {

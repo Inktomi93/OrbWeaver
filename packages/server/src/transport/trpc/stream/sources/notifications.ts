@@ -5,7 +5,7 @@
 // ordinal, so a durable cursor has to travel INSIDE the frame).
 //
 // Attach the live listener FIRST (`on()` buffers from that instant), replay the durable rows newer than the
-// room's cursor from the inbox `list` (newest-first paging, returned ASCENDING), then drain live — the
+// room's cursor through the inbox's own ASCENDING resume read (`replaySince`), then drain live — the
 // overlap deduped by the monotonic `seq`. A CURSOR-LESS attach replays NOTHING and goes straight live: the
 // client already loaded the inbox through `notifications.list`, and re-sending the whole inbox on a first
 // attach would be a second copy of a read it just did. That is the same first-subscribe-vs-reconnect
@@ -25,18 +25,17 @@
 // is what makes its `lag` overflow policy legal (`frame-queue.ts`: a shed is refillable only because the rows
 // can be re-read) and what puts it behind the reconnect barrier (`socket.ts`).
 
-import type { Principal } from "@orb/contracts/identity";
+import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
 import type { StreamDataFrame } from "@orb/contracts/stream";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { InboxView, NotificationsService } from "#domain/notifications";
 import { securityEvent } from "#foundation/observability";
 import { subscribeNotifications } from "../../notifications-bus.ts";
 import type { RoomSourceDef } from "../room-source.ts";
 
-// Bound the reconnect replay so a client that resumes from a very old cursor can't page its whole inbox in
-// one attach; older-than-this is the client's job to refetch via `list`.
-const REPLAY_PAGE = 100;
-const MAX_REPLAY_PAGES = 10;
+// The replay's page size. TIED to the read's own ceiling on purpose: `replaySince` clamps to
+// `NOTIFICATIONS_LIST_MAX_LIMIT`, and the loop below reads a SHORT page as "the durable log is exhausted" —
+// so asking for more than the clamp would make every page look short and end the replay after one.
+const REPLAY_PAGE = NOTIFICATIONS_LIST_MAX_LIMIT;
 
 export const notificationsRoomSource: RoomSourceDef<"notifications"> = {
   // The durable inbox table IS this room's resume path (and what makes its `lag` overflow legal).
@@ -62,10 +61,24 @@ export const notificationsRoomSource: RoomSourceDef<"notifications"> = {
     const live = subscribeNotifications(principal.userId, signal);
     let maxSeq = cursor ?? 0;
 
+    // THE WATERMARK NEVER PASSES A ROW THAT WAS NOT YIELDED, by construction (#1459). Every page is read
+    // ASCENDING from `maxSeq` — which is the last row this pump actually YIELDED — so the delivered set is a
+    // contiguous prefix of the log at every instant, and the next page begins exactly one row above it. A
+    // pump that stops anywhere (an abort, a `lag` shed, a socket death) therefore resumes without a gap;
+    // there is no bound to stop short of, because BACKPRESSURE IS THE QUEUE'S JOB — the room's `lag` overflow
+    // policy is legal precisely because this room is durable and its rows can be re-read (see the header's
+    // "LIVE-ONLY IN CONTENT, DURABLE IN RECOVERY" and `frame-queue.ts`). A second bound here would be a
+    // second answer to a question that already has one.
     if (cursor !== null) {
-      for (const view of await collectSince(service, principal, cursor)) {
-        yield { channel: "notifications", seq: view.seq, event: view };
-        maxSeq = view.seq;
+      for (;;) {
+        const page = await service.replaySince({ principal, afterSeq: maxSeq, limit: REPLAY_PAGE });
+        for (const view of page) {
+          yield { channel: "notifications", seq: view.seq, event: view };
+          maxSeq = view.seq;
+        }
+        if (page.length < REPLAY_PAGE) {
+          break; // a short page is the durable tail — go live
+        }
       }
     }
 
@@ -79,28 +92,3 @@ export const notificationsRoomSource: RoomSourceDef<"notifications"> = {
     }
   },
 };
-
-/** Page the durable inbox (newest-first) for rows newer than `resumeSeq`, returned ASCENDING for replay. */
-async function collectSince(service: NotificationsService, principal: Principal, resumeSeq: number): Promise<InboxView[]> {
-  const missed: InboxView[] = [];
-  let cursor: number | undefined;
-  for (let page = 0; page < MAX_REPLAY_PAGES; page++) {
-    const res = await service.list({
-      principal,
-      limit: REPLAY_PAGE,
-      ...(cursor !== undefined ? { cursor } : {}),
-    });
-    for (const view of res.items) {
-      if (view.seq > resumeSeq) {
-        missed.push(view);
-      }
-    }
-    const oldest = res.items.at(-1);
-    if (res.nextCursor === null || (oldest !== undefined && oldest.seq <= resumeSeq)) {
-      break;
-    }
-    cursor = res.nextCursor;
-  }
-  missed.reverse();
-  return missed;
-}

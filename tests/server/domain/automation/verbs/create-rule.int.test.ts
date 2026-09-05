@@ -28,6 +28,22 @@ describe("createRule — authority", () => {
     expect(events).toEqual([{ type: "rulesChanged", chatId }]);
   });
 
+  // #1427 — `position` is a TOTAL order per scope (sibling arms mutate one shared write-through env in
+  // position order, and the reorder verb's totality check assumes it). It used to be a JS `max+1` READ
+  // followed by a separate INSERT, so two creates in one scope that interleaved between those two statements
+  // both read the same max and both wrote it. It is now allocated by the INSERT's own subquery.
+  test("CONCURRENT creates in one chat never collide on a position", async () => {
+    const { host, chatId, svc } = await ruleFixture();
+
+    await Promise.all(
+      ["a", "b", "c", "d", "e"].map((name) => svc.createRule({ principal: principal(host), chatId, name, trigger: MSG_COMMITTED, actions: [SET_VAR] })),
+    );
+
+    const listed = await svc.listRules({ principal: principal(host), chatId });
+    expect(listed).toHaveLength(5);
+    expect(listed.map((rule) => rule.position).toSorted((x, y) => x - y)).toEqual([0, 1, 2, 3, 4]);
+  });
+
   test("a present member who is not host is forbidden — and a refused write announces nothing", async () => {
     const { db, chatId, svc, events } = await ruleFixture();
     const member = await seedUser(db, "user_member");

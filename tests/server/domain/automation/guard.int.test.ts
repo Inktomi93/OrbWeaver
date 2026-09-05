@@ -26,7 +26,6 @@ async function seedRule(
     chatId,
     name: "r",
     description: null,
-    position: 0,
     triggerBus: chatId === null ? "domain" : "chat",
     triggerType: chatId === null ? "character.updated" : "messageCommitted",
     predicateCel: null,

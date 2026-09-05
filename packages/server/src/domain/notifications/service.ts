@@ -1,4 +1,4 @@
-// domain/notifications — COMPOSITION ROOT: wires the verbs (record/markAllRead/dismiss/list) over one
+// domain/notifications — COMPOSITION ROOT: wires the verbs (record/markAllRead/dismiss/list/replaySince) over one
 // shared `NotificationsContext` (zero logic of its own — see contract/service.ts for the domain's D16
 // durable-inbox contract, the `emit` composition, and the one-directional edge from chat).
 
@@ -8,6 +8,7 @@ import type { NotificationsService } from "./contract/service.ts";
 import { createList } from "./verbs/list.ts";
 import { createRead } from "./verbs/read.ts";
 import { createRecord } from "./verbs/record.ts";
+import { createReplaySince } from "./verbs/replay-since.ts";
 
 /** What the composition root needs: the db handle + the injected clock (epoch-ms) + the D60 recipient belt
  *  (`isAgentRecipient` — the sanctioned `users.kind` read the entry root supplies; contract/service.ts). */
@@ -22,5 +23,6 @@ export function createNotificationsService(deps: NotificationsServiceDeps): Noti
     ...createRecord(ctx),
     ...createRead(ctx),
     ...createList(ctx),
+    ...createReplaySince(ctx),
   };
 }
