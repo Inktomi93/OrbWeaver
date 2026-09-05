@@ -9,14 +9,19 @@
 // means exactly "nothing is open".
 
 import { useSuspenseQueries } from "@tanstack/react-query";
-import { useAuthConfig, useTRPC } from "#data";
+import { useMultiHumanCapable, useTRPC } from "#data";
 import type { ChatContextState } from "#lib";
 import { useActiveChatId } from "#state";
 
 export function useChatContextState(): ChatContextState | null {
   const chatId = useActiveChatId();
-  const { data: authConfig } = useAuthConfig();
-  const multiHumanCapable = authConfig?.multiHumanCapable === true;
+  // #476's ONE read of this capability, hint-backed: a device that has been told answers in its FIRST
+  // frame instead of rendering the single-human arm for the whole flight of `/api/auth/config` (#1627 —
+  // adopted here when the bell, this hook's predecessor as the hint's consumer, lost its gate). The server
+  // always wins the instant the read lands, and a device that has never been told falls back to FALSE,
+  // which is exactly the raw read this replaces. A RENDER hint only: `chat.participants`, the invite verbs
+  // and the membership verbs all still answer to the server's own multi-human belt.
+  const multiHumanCapable = useMultiHumanCapable();
   const trpc = useTRPC();
   const chatQueries = useSuspenseQueries({
     queries: (chatId === null ? [] : [chatId]).map((id) => trpc.chat.getChat.queryOptions({ chatId: id })),

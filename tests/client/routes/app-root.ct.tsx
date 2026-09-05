@@ -70,6 +70,13 @@ const HOME_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // never produces (there is no `onSuccess` reading `.reaped`; the only reader is `invalidates`). `{reaped: 0}`
   // is the honest "nothing expired" shape so the invalidation path runs for real.
   "chat.reapTemporaryChats": { reaped: 0 },
+  // The topbar-trail inbox bell (#1627). It used to be gated on `multiHumanCapable`, which is FALSE in
+  // this file (nothing stubs `/api/auth/config`), so the widget simply never mounted here and its read
+  // never fired. The gate is gone — the inbox has single-human sources — so every mount in this file now
+  // runs the bell's `useInbox` for real, and an unfed read would leave that pipeline INERT across the
+  // whole file. An EMPTY inbox is the honest ambient shape: this route's subject is navigation, and a
+  // badged bell would only add noise to the topbar assertions.
+  "notifications.list": { items: [], nextCursor: null },
 };
 
 const IDENTITY_STUB = {

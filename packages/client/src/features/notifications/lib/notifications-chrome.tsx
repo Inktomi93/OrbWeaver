@@ -11,13 +11,11 @@
 // belted, which is why the cast bar's People section and the /join landing still consult the capability.
 //
 // The #476 no-flash machinery went with the gate. An unconditional widget cannot flash-then-yank and cannot
-// shift the trail in from nothing, so this entry no longer reads the capability at all. The hint itself
-// (`#state` deployment-boot-hint → `useMultiHumanCapable`, `#data`) is LEFT STANDING but currently has no
-// render consumer: the other two capability-gated surfaces (`routes/app-root.tsx`'s /join dialog and the
-// cast bar's People section) still read `useAuthConfig().data?.multiHumanCapable` raw. Either they adopt
-// the hint or it retires — flagged with #1627, deliberately not decided inside a bell's entry file.
-// Nothing about the inbox's authorization moved: every read and verb behind this bell still answers to the
-// server's gates.
+// shift the trail in from nothing, so this entry no longer reads the capability at all; the hint itself
+// (`#state` deployment-boot-hint → `useMultiHumanCapable`, `#data`) moved to the two surfaces that are still
+// gated — `routes/app-root.tsx`'s /join dialog and the cast bar's People section — which read it RAW before
+// and carried the first-paint defect #476 measured here. Nothing about the inbox's authorization moved:
+// every read and verb behind this bell still answers to the server's gates.
 
 import type { ReactElement } from "react";
 import type { ChromeEntry } from "#state";

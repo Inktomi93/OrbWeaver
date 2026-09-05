@@ -10,7 +10,7 @@
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { useAuthConfig, useHuskReaper, useInvalidation, useOrbSocket, useRpgBus, useSessionRecovery, useUserBus } from "#data";
+import { useHuskReaper, useInvalidation, useMultiHumanCapable, useOrbSocket, useRpgBus, useSessionRecovery, useUserBus } from "#data";
 import { AppShell } from "#features/app-shell";
 import { clearJoinParam, JoinInviteDialog, readJoinToken } from "#features/chat";
 import { FirstRunPersonaDialog } from "#features/persona";
@@ -20,10 +20,11 @@ import { AppRootSessionBoundary } from "./app-root-session-boundary/index.ts";
 export function AppRoot(): ReactElement {
   // Single-user renders neither remaining multi-human surface: the cast bar's humans row ("People" is the
   // roster's HUMAN SUBSET, not a tab) and the /join landing below. The BELL left this list with #1627 — its
-  // inbox has single-human sources — so the capability now gates only those two.
-  // `false` until the config lands so chrome never flashes-then-yanks.
-  const { data: authConfig } = useAuthConfig();
-  const multiHumanCapable = authConfig?.multiHumanCapable === true;
+  // inbox has single-human sources — so the capability now gates only those two, and both read it through
+  // `useMultiHumanCapable` (#476's ONE hint-backed read, adopted here when the bell stopped being its
+  // consumer). A device that has never been told still answers FALSE while the config is in flight, so
+  // chrome never flashes-then-yanks; a device that HAS been told paints the right arm in its first frame.
+  const multiHumanCapable = useMultiHumanCapable();
   // The one-shot `?join=<token>` handoff — captured at mount then scrubbed from the address bar (a
   // raw invite token must not linger in history).
   const [joinToken, setJoinToken] = useState(readJoinToken);
