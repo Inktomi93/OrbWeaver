@@ -32,8 +32,27 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
   relationalAccounting["row-void"] = { candidates: 0, judged: 0, withheld: {}, excluded: {} };
   relationalAccounting["pane-ink"] = { candidates: 0, judged: 0, withheld: {}, excluded: {} };
 
-  function withholdRelational(accounting, reason) {
+  // A WITHHELD COUNT WITHOUT A SUBJECT IS UNACTIONABLE (#1704). The relational censuses recorded only a
+  // TALLY, so \`selection-idiom: unmatchedUnselected=2\` told a reader that two cohorts held the whole
+  // surface at population-verdict=NO-VERDICT and gave no way to find either — three design-audit passes on
+  // Characters across a week (08-30, 09-02, 09-05) all ended on that string, and the printed remedy could
+  // not be tested against the cohorts because nobody could name them. Every site now hands the walker's own
+  // \`describe()\` of a representative carrier, so the refusal says WHAT it could not judge.
+  //
+  // BOUNDED AND DEDUPED, and OUTSIDE the settlement arithmetic (the \`carried\` precedent): a subject list is
+  // evidence about the tally, never a second disposition, so it cannot make the numbers stop settling. Three
+  // is a REPRESENTATIVE bound — a reader chasing a NO-VERDICT needs a place to look, not a full census — and
+  // the COUNT beside it is the complete number.
+  var WITHHELD_SUBJECT_CAP = 3;
+  function withholdRelational(accounting, reason, subject) {
     accounting.withheld[reason] = (accounting.withheld[reason] || 0) + 1;
+    if (!accounting.withheldSubjects) accounting.withheldSubjects = {};
+    var subjects = accounting.withheldSubjects[reason];
+    if (subjects === undefined) {
+      subjects = [];
+      accounting.withheldSubjects[reason] = subjects;
+    }
+    if (subjects.length < WITHHELD_SUBJECT_CAP && subjects.indexOf(subject) === -1) subjects.push(subject);
   }
 
   function excludeRelational(accounting, reason) {
@@ -144,7 +163,7 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
         return;
       }
       if (animating) {
-        withholdRelational(relationalAccounting["cohort-anatomy"], "animating");
+        withholdRelational(relationalAccounting["cohort-anatomy"], "animating", describe(parentEl));
         return;
       }
       var sorted = heights.slice().sort(function (a, b) { return a - b; });

@@ -66,6 +66,13 @@ export interface RelationalCensusAccountingInput {
    *  identically to a surface that has none, which is the blindness #1172 named. Absent = the census has
    *  no alternate route. */
   readonly carried?: Readonly<Record<string, number>>;
+  /** A bounded, deduped list of REPRESENTATIVE subjects per withheld reason (#1704) — the walker's own
+   *  `describe()` of a carrier the census could not judge. A withheld tally alone is unactionable: three
+   *  design-audit passes on Characters over a week all ended on `selection-idiom: unmatchedUnselected=2`
+   *  with no way to find either cohort, so the printed remedy could never be tested against them. Outside
+   *  the settlement arithmetic by construction (the `carried` precedent) — evidence ABOUT a tally, never a
+   *  disposition — and capped at 3 per reason, with the COUNT beside it as the complete number. */
+  readonly withheldSubjects?: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface RulePopulationAccounting {
@@ -84,6 +91,10 @@ export interface RulePopulationAccounting {
   /** The walker's `carried` tag, carried through to the printed row — see
    * `RelationalCensusAccountingInput.carried`. Outside the settlement arithmetic by construction. */
   readonly carried?: Readonly<Record<string, number>>;
+  /** The walker's withheld SUBJECTS, carried through to the printed row and to the NO-VERDICT detail —
+   * see `RelationalCensusAccountingInput.withheldSubjects` (#1704). Outside the arithmetic, same as
+   * `carried`. */
+  readonly withheldSubjects?: Readonly<Record<string, readonly string[]>>;
 }
 
 export type PopulationAccounting = Readonly<Partial<Record<DesignAuditRuleId, RulePopulationAccounting>>>;

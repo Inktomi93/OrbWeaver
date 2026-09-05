@@ -127,14 +127,14 @@ export const WALKER_CENSUS_TIER = `  // ── density tier resolution: does the
     }
     var sanctioned = tierSanctioned(el, property, varName);
     if (sanctioned === null) {
-      withholdRelational(relationalAccounting["tier-drift"], "unresolved");
+      withholdRelational(relationalAccounting["tier-drift"], "unresolved", describe(el));
       return;
     }
     var sanctionedRaw = sanctioned.declared;
     var sanctionedValue = tierLengthPx((sanctioned.resolved || "").split(" ")[0]);
     var paintedValue = tierLengthPx((paintedRaw || "").split(" ")[0]);
     if (sanctionedValue === null || paintedValue === null) {
-      withholdRelational(relationalAccounting["tier-drift"], "unresolved");
+      withholdRelational(relationalAccounting["tier-drift"], "unresolved", describe(el));
       return;
     }
     relationalAccounting["tier-drift"].judged += 1;
@@ -160,14 +160,14 @@ export const WALKER_CENSUS_TIER = `  // ── density tier resolution: does the
     }
     var sanctioned = tierSanctioned(el, property, varName);
     if (sanctioned === null) {
-      withholdRelational(relationalAccounting["tier-drift"], "unresolved");
+      withholdRelational(relationalAccounting["tier-drift"], "unresolved", describe(el));
       return;
     }
     var sanctionedRaw = sanctioned.declared;
     var sanctionedValue = parseFloat(sanctioned.resolved);
     var paintedValue = parseFloat(paintedRaw);
     if (!Number.isFinite(sanctionedValue) || !Number.isFinite(paintedValue)) {
-      withholdRelational(relationalAccounting["tier-drift"], "unresolved");
+      withholdRelational(relationalAccounting["tier-drift"], "unresolved", describe(el));
       return;
     }
     relationalAccounting["tier-drift"].judged += 1;
@@ -198,7 +198,7 @@ export const WALKER_CENSUS_TIER = `  // ── density tier resolution: does the
     }
     var sanctioned = tierSanctioned(el, property, varName);
     if (sanctioned === null) {
-      withholdRelational(relationalAccounting["tier-drift"], "unresolved");
+      withholdRelational(relationalAccounting["tier-drift"], "unresolved", describe(el));
       return;
     }
     var sanctionedRaw = sanctioned.declared;
@@ -206,7 +206,7 @@ export const WALKER_CENSUS_TIER = `  // ── density tier resolution: does the
     var paintedLinePx = parseFloat(style.lineHeight);
     var paintedFontPx = parseFloat(style.fontSize);
     if (!Number.isFinite(sanctionedLinePx) || !Number.isFinite(paintedLinePx) || !Number.isFinite(paintedFontPx) || paintedFontPx === 0) {
-      withholdRelational(relationalAccounting["tier-drift"], "unresolved");
+      withholdRelational(relationalAccounting["tier-drift"], "unresolved", describe(el));
       return;
     }
     relationalAccounting["tier-drift"].judged += 1;

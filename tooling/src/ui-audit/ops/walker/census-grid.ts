@@ -152,7 +152,7 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
     // defined by the answer, so an unanswered candidate may not be quietly judged.
     var gtSrOnly = typeof srOnlyText === "function" ? srOnlyText(gtEl, null) : null;
     if (gtSrOnly === null) {
-      withholdRelational(relationalAccounting["off-grid-text"], "srOnlyUnreadable");
+      withholdRelational(relationalAccounting["off-grid-text"], "srOnlyUnreadable", describe(gtEl));
       continue;
     }
     if (gtSrOnly) {
@@ -170,7 +170,7 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
     }
     var gtLanding = gridLandingOf(gtEl);
     if (gtLanding === null) {
-      withholdRelational(relationalAccounting["off-grid-text"], "unmeasurable");
+      withholdRelational(relationalAccounting["off-grid-text"], "unmeasurable", describe(gtEl));
       continue;
     }
     relationalAccounting["off-grid-text"].judged += 1;
@@ -195,7 +195,7 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
     relationalAccounting["promoted-layer-offset"].candidates += 1;
     var gpLanding = gridLandingOf(gpEl);
     if (gpLanding === null) {
-      withholdRelational(relationalAccounting["promoted-layer-offset"], "unmeasurable");
+      withholdRelational(relationalAccounting["promoted-layer-offset"], "unmeasurable", describe(gpEl));
       continue;
     }
     relationalAccounting["promoted-layer-offset"].judged += 1;
@@ -263,7 +263,7 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
       carryRelational(relationalAccounting["promoted-layer-offset"], "pseudo");
       var gsLanding = gridPseudoLanding(gsEl, gsHostStyle, gsStyle);
       if (gsLanding === null) {
-        withholdRelational(relationalAccounting["promoted-layer-offset"], "pseudoBoxUnmeasurable");
+        withholdRelational(relationalAccounting["promoted-layer-offset"], "pseudoBoxUnmeasurable", describe(gsEl));
         continue;
       }
       relationalAccounting["promoted-layer-offset"].judged += 1;
@@ -291,7 +291,7 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
     if (!gxCarries || !isVisible(gxEl)) continue;
     relationalAccounting["off-grid-transform"].candidates += 1;
     if (gridAnimating(gxEl)) {
-      withholdRelational(relationalAccounting["off-grid-transform"], "animating");
+      withholdRelational(relationalAccounting["off-grid-transform"], "animating", describe(gxEl));
       continue;
     }
     var gxMatrix = gridMatrixOf(gxTransform, gxTranslate);
@@ -306,7 +306,7 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
     }
     var gxLanding = gridLandingOf(gxEl);
     if (gxLanding === null) {
-      withholdRelational(relationalAccounting["off-grid-transform"], "unmeasurable");
+      withholdRelational(relationalAccounting["off-grid-transform"], "unmeasurable", describe(gxEl));
       continue;
     }
     relationalAccounting["off-grid-transform"].judged += 1;
