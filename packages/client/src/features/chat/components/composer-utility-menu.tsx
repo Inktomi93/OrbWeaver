@@ -151,7 +151,13 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             />
           }
         />
-        <TooltipPopup side="top">More message actions</TooltipPopup>
+        {/* THE POPUP SPEAKS THE NAME, VERBATIM (#869). It used to read "More message actions" over an
+            accessible name of "Message tools" — and on an icon-only control the popup IS the visible label, so
+            WCAG 2.5.3 (§13.10 N2) failed in letter: the words on screen were not in the name. The 2026-08-21
+            ruling above SURVIVES — one tooltip, no native `title`, and the name stays the "Message tools"
+            string every CT and the e2e room helper address — what changed is the popup's copy, which was the
+            only half free to move. */}
+        <TooltipPopup side="top">Message tools</TooltipPopup>
       </Tooltip>
       <MenuPopup>
         {/* INPUT — the draft-editing actions (most frequent). */}

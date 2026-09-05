@@ -18,7 +18,7 @@ import type { Locator, Page } from "@playwright/test";
 import { ariaTreeFindings } from "../../../../support/ct/accessible-names.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { ctSnapPath } from "../../../../support/ct/snap-out.ts";
-import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { hitBoxes, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import { RpgTakeoverDockedStory, RpgTakeoverFloorStory, RpgTakeoverNotifyStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories.tsx";
 
 const GAME_ID = "rpg_game_ct_keystone";
@@ -4544,4 +4544,61 @@ test("Journal ▸ Cards: a FAILED transcript read never says 'No cards yet' (#15
 
   await expect(component.getByText("Couldn't load the card archive.")).toBeVisible();
   await expect(component.getByText("No cards yet", { exact: false })).toHaveCount(0);
+});
+
+// ── #869 · A COARSE TAP LANDS ON THE DATUM YOU CAN SEE ────────────────────────────────────────────────
+// Every editable value on a Status card is `Button size="inline"` — an ~18px text-height box whose 44px
+// coarse target rides an OVERFLOWING `::after` (layout-neutral by design, so the click-to-edit swap is
+// pixel-stable). Stack two of those closer than 44px and the LOWER one's pseudo, painted later, takes every
+// pixel it overlaps — including the pixels the upper control paints its DATUM on.
+//
+// MEASURED here at 430 coarse on a just-started game (status line directly above `+ condition`, `gap-field`
+// between them), against the source before the fix: `Mara Status line` owned **yExtent=23, xExtent=1** — one
+// column of pixels — because `+ condition` is a full-width control whose 44x198 pseudo covered the row above
+// it. Tapping the visible `—` opened the ADD-CONDITION editor. The populated card was the same defect one
+// row down: `Mara Vitality value` owned yExtent=36, its bottom band resolving to `Mara Resolve value`.
+//
+// The #863 review filed this as an ASYMMETRIC pseudo (`inset: 6.56 -32.33 -37.44 11.67`) — that reading is
+// refuted here: `top:50%` + `-translate-y-1/2` centres the pseudo exactly, and that inset pair is the same
+// centring read BEFORE the transform (a floored row measures the identical numbers while owning a symmetric
+// 44). The defect was PITCH. The fix is `VALUE_ROW_TOUCH_FLOOR_AT_COARSE` on the ROW (never on the value —
+// a 44px rest button breaks the no-shift rule `tracker-value.tsx` states), so each pseudo fits its own band.
+//
+// BOTH FIXTURES RUN, because they are different geometries: the bare card is the pair the owner meets on the
+// first turn of a new game, the populated one is the meter stack. Extents come from `hitExtent`'s
+// `elementFromPoint` walk, never a bounding box — the box is 18px tall in every arm, pass or fail.
+test.describe("#869 — the coarse tap on a visible tracker datum", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 900 } });
+
+  /** A just-started game's card: no trackers written, no conditions — a status line above `+ condition`. */
+  function bareCardTrackerView(): unknown {
+    const base = trackerView(false) as Record<string, unknown>;
+    const mara = (base["actors"] as Record<string, unknown>[]).filter((a) => a["name"] === "Mara");
+    return { ...base, actors: mara.map((a) => ({ ...a, trackers: [], volatile: { ...(a["volatile"] as object), trackerValues: {}, conditions: [] } })) };
+  }
+
+  for (const arm of [
+    { name: "a just-started card (status line above `+ condition`)", tracker: bareCardTrackerView, values: 2 },
+    { name: "a populated card (two meter rows above `+ condition`)", tracker: (): unknown => trackerView(false), values: 6 },
+  ]) {
+    test(`every editable value owns the coarse touch floor on BOTH axes — ${arm.name}`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      await stubTakeover(page, { tracker: arm.tracker() });
+      const component = await mount(<RpgTakeoverStory width={430} height={860} />);
+      await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
+
+      // SETTLED barrier: the card has painted its whole control set before any geometry is read.
+      await expect(component.locator('[data-slot="rpg-status-card"]')).toHaveCount(1);
+      const values = component.locator('[data-slot="tracker-value-rest"]');
+      await expect(values).toHaveCount(arm.values);
+
+      const floor = await touchFloorPx(page);
+      await expect
+        .poll(async () => {
+          const boxes = await hitBoxes(values, arm.values);
+          return boxes.map((box, index) => ({ index, x: box.x, y: box.y })).filter((box) => box.x < floor || box.y < floor);
+        })
+        .toEqual([]);
+    });
+  }
 });

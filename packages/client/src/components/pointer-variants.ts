@@ -54,6 +54,27 @@ export const CHIP_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-target";
  *  CT: tests/client/features/chat/components/chat-recall-indicator.ct.tsx. */
 export const CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE = "pointer-coarse:min-w-touch-target";
 
+/** A STACKED TEXT-HEIGHT VALUE ROW's coarse touch floor — the row, never the value (#869).
+ *
+ *  `TrackerValue`'s rest state is `Button size="inline"`: an ~18px text-height box whose 44px coarse target
+ *  rides an overflowing `::after`, deliberately layout-neutral so the click-to-edit swap is pixel-stable.
+ *  Two of those STACKED closer than 44px do not merely share a boundary — the LOWER one's pseudo, painted
+ *  later, takes every pixel it overlaps, including the pixels the upper control PAINTS ITS DATUM ON.
+ *  MEASURED at 430 coarse on the rpg Status card of a just-started game (status line above `+ condition`,
+ *  `gap-field` between them): the status line's `—` owned `yExtent=23 xExtent=1` — one column of pixels —
+ *  because `+ condition` is a full-width control whose 44x198 pseudo covers the row above it. Tapping the
+ *  visible dash opened the ADD-CONDITION editor. (The #863 review filed this as an asymmetric pseudo; it is
+ *  not — `top:50%` + `-translate-y-1/2` centres it exactly, and the 6.5/-37.5 inset pair is that centring
+ *  read before the transform. The defect is PITCH, not asymmetry.)
+ *
+ *  The floor goes on the ROW (the chip precedent, {@link CHIP_TOUCH_FLOOR_AT_COARSE}), never on the value:
+ *  a 44px rest button would break the no-shift ruling `tracker-value.tsx` states (the revealed input is
+ *  `layout="inline"`, text-height at every pointer) and defeat the `inline` arm's whole contract. At
+ *  `min-h-touch-target` the pseudo fits inside its own row and the neighbour keeps its datum. Fine is
+ *  untouched (a 28px target on an 18px box overflows 5px into a 6px gap — it never reaches the neighbour).
+ *  CT: tests/client/features/rpg/lib/rpg-context-section.ct.tsx ("the coarse tap on a visible datum"). */
+export const VALUE_ROW_TOUCH_FLOOR_AT_COARSE = "pointer-coarse:min-h-touch-target";
+
 /** A TEXT-HEIGHT DISCLOSURE TRIGGER's coarse touch floor. `CollapsibleTrigger` is `inline-flex` with no
  *  control box (it is a line of prose that toggles), so unlike `Button`'s `inline`/`glyph-*` arms it carries
  *  NO hit-area `::after` at all — MEASURED at 430×740 DPR3 `pointer:coarse`, the rpg turn-tool-calls trigger

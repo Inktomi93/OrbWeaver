@@ -15,7 +15,7 @@
 
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Icon, Images, MessagesSquare, Pencil, Swords, X } from "@orb/ui/icons";
+import { Icon, Images, ListChecks, MessagesSquare, Pencil, Swords, X } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
@@ -189,7 +189,11 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
     <>
       <RowActionsMenu
         label="Chat options"
-        tooltip="Manage this chat"
+        // The hover/focus explanation is the LABEL, not a twin of it (#869): the popup used to read "Manage
+        // this chat" over an accessible name of "Chat options", and on an icon-only trigger the popup IS the
+        // visible label — WCAG 2.5.3, so the words a voice-control user could see did not reach the room's
+        // only game door. `tooltip` is a boolean now; the divergence is unrepresentable.
+        tooltip={true}
         destructive={{
           label: "Delete chat",
           separator: false,
@@ -236,7 +240,14 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
             Removed here because each is already a context-panel tab/section: Chat settings (Settings tab),
             Preview request (Preview tab), Injections (Injections tab), and Invite / Hand off host / Leave
             (all in the Members tab's roster admin). Message selection has NO panel home, so it stays. */}
-        <MenuItem onClick={enterSelectionMode}>Select messages…</MenuItem>
+        {/* `ListChecks` is the house's EXISTING selection-mode glyph — the config collection band's bulk-select
+            toggle wears it (`config-list-collection-group.tsx`), and one verb takes one glyph. This item was the
+            only one in the menu with no icon (#869), leaving a hole in the glyph column directly under the game
+            row, which is where the eye lands after it. */}
+        <MenuItem onClick={enterSelectionMode}>
+          <Icon icon={ListChecks} size="sm" />
+          Select messages…
+        </MenuItem>
 
         <MenuSeparator />
         <TrailingItems onRename={openRename} />

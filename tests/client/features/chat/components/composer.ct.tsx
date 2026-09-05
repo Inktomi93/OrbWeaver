@@ -364,12 +364,12 @@ test("#206: every icon control exposes plain-language names and tooltips on hove
   });
   const component = await mount(<ComposerStory />);
   const expectedTooltips = [
-    { name: "Chat options", tooltip: "Manage this chat" },
+    { name: "Chat options", tooltip: "Chat options" },
     { name: "Draft your line", tooltip: `Draft your line — ${ENGINE_OFF_REASON}` },
     { name: "Try another reply", tooltip: `Try another reply — ${ENGINE_OFF_REASON}` },
     { name: "Generate reply", tooltip: `Generate reply — ${ENGINE_OFF_REASON}` },
     { name: "Continue the reply", tooltip: `Continue the reply — ${ENGINE_OFF_REASON}` },
-    { name: "Message tools", tooltip: "More message actions" },
+    { name: "Message tools", tooltip: "Message tools" },
     { name: "Send message", tooltip: ENGINE_OFF_REASON },
   ] as const;
   const composer = component.locator('[data-slot="composer"]');
@@ -377,6 +377,14 @@ test("#206: every icon control exposes plain-language names and tooltips on hove
   await expect(component.getByRole("button", { name: "Send message", exact: true })).toHaveAttribute("aria-disabled", "true");
 
   for (const { name, tooltip } of expectedTooltips) {
+    // #869 — WCAG 2.5.3 Label in Name (§13.10 N2), MECHANICALLY, on every icon control in the composer.
+    // These controls have no visible text but a tooltip, and a tooltip IS visible label text: a voice-control
+    // user says what they can see. So a composer tooltip may only ever be (a) the accessible name verbatim, or
+    // (b) the transient unavailability REASON, which N2 excludes explicitly (it rides `aria-describedby` and
+    // is a description, not a label). Two controls used to spell a third thing — a friendlier twin of the
+    // name ("Manage this chat" over "Chat options", "More message actions" over "Message tools") — and the
+    // words on screen were then in no name at all.
+    expect(tooltip === name || tooltip.includes(ENGINE_OFF_REASON), `${name}: its tooltip must BE its name, or the transient reason`).toBe(true);
     const control = component.getByRole("button", { name, exact: true });
     const popup = page.getByRole("tooltip", { name: tooltip, exact: true });
     await control.hover();
