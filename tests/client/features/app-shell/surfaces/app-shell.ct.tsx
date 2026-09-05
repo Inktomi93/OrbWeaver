@@ -103,6 +103,19 @@ const SHELL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // deliberately — the shell does not request it today, and an unrequested stub costs nothing, but a story
   // that lands the shell IN a room will need it fed rather than nulled.
   ...CHAT_ROOM_ROUTES,
+  // THE TOPBAR'S SCREEN NAME READS THE LIBRARY CENSUS (#1670, the same CASCADE shape as the two rows above).
+  // The shell resolves what the narrow row calls the current screen through the ACTIVE section's
+  // `useSelectionTitle` (`components/section-topbar-title.tsx`), and the Characters section answers that with
+  // `Characters · <census>` when nobody is open — so every mount that lands the shell on Characters now
+  // issues this read for the topbar, not only the library pane. It could not appear in this file's #649
+  // ledger because the topbar did not read it then; the ratchet named it on the first run after #1670.
+  //
+  // NOT GATED TO THE LIBRARY ROUTE ON PURPOSE: the product legitimately issues this read for the title, and
+  // gating the hook would hide a real read from the ratchet rather than exercise it. The empty-but-real
+  // default is the full `CharacterListPageFixture` shape (`tests/client/features/character/fixtures.ts:239`
+  // — `{items, nextCursor, totalCount}`), so the census hook's own zero-suppression runs for real: an empty
+  // library prints the bare section name, which is what every mount in this file expects to see.
+  "character.list": { items: [], nextCursor: null, totalCount: 0 },
 };
 
 /** The thumb-reach budget (L6/J12): rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must
