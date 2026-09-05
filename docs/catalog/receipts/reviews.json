@@ -3123,6 +3123,65 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/misc/2026-09-05-derived-field-fixture-parity.md",
+      "assignedSha256": "da7c2f465cfac2c12c8aa91ba4fc83cddfa520ffaf701bb7cc0d83cfd3b4b861",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "da7c2f465cfac2c12c8aa91ba4fc83cddfa520ffaf701bb7cc0d83cfd3b4b861",
+      "verifiedCommit": "35762a91092ed119ddebba5e158eabc4fd6a8873",
+      "verifiedAt": "2026-09-05",
+      "summary": "The #900 derived-field fixture-parity census: eight derivations whose output a fixture or seed hand-writes, the per-field verdict after the sweep (five now derived, three refused with receipts), and the MEASURED refusal to ratchet an ast-grep arm on the field name — 1 true positive in 42 hits, with the planted controls in both directions. Recommends the compile-time ratchet (a fixture builder returns its real contract type, never `unknown`) that the same lane landed twice.",
+      "evidence": [
+        "docs/reviews/misc/2026-09-05-derived-field-fixture-parity.md:1 written and read in full (150 lines) at 35762a910 by the authoring lane: the census table, the four sweep findings, the two refusals, the ast-grep rule with its scanned-file counts and its 2.4% precision, and the three recommendations."
+      ],
+      "claims": [
+        {
+          "claim": "makeCharacter defaulted characters.content_hash to `hash_<id>`, a value no write path can produce, which makes update's `contentChanged` unconditionally true for every factory-seeded row; it now stamps cardContentHash over the finished row, and a red-first run of the new pin against the unmodified factory failed with `expected 'hash_character_hash01' to be '1110eded…'`.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/character/verbs/update.ts:72"
+            },
+            {
+              "kind": "test",
+              "target": "tests/support/factories/factories.int.test.ts:42"
+            },
+            {
+              "kind": "issue",
+              "target": "#900"
+            }
+          ]
+        },
+        {
+          "claim": "Two CT files spelled an rpg.getGame literal behind a `: unknown` return carrying `statProfile: { attributes: [] }` — one beside `ruleset: \"d20\"`, a pair planLiteGameBirth cannot mint — and omitted required publicConfig members; typing the shared builder as RpgGameView turns each hole into TS2741/TS2739.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/game-mint.ts:23"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/features/rpg/fixtures.ts:50"
+            },
+            {
+              "kind": "issue",
+              "target": "#900"
+            }
+          ]
+        },
+        {
+          "claim": "An ast-grep arm keyed on the census FIELD NAME is not ratchetable: over tests/ (scannedFileCount 581 tsx / 2079 ts) it returns 42 hits of which 1 is the planted violation, because `provenance` names three unrelated concepts and ast-grep cannot see which type an object literal inhabits.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#900"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
