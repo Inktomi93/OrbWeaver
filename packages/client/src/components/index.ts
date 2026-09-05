@@ -34,6 +34,7 @@ export {
   PICKER_GAP_AT_COARSE,
   PIN_REVEAL,
   REVEAL_AT_COARSE,
+  VALUE_ROW_TOUCH_FLOOR_AT_COARSE,
 } from "./pointer-variants.ts";
 export type { RegexScopeOrderProps } from "./regex-scope-order.tsx";
 export { RegexScopeOrder } from "./regex-scope-order.tsx";

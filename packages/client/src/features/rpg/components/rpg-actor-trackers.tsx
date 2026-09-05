@@ -35,7 +35,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CHIP_TOUCH_FLOOR_AT_COARSE, MeterRow, TrackerValue, trackerActionName, trackerFieldName } from "#components";
+import { CHIP_TOUCH_FLOOR_AT_COARSE, MeterRow, TrackerValue, trackerActionName, trackerFieldName, VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
 import { resolveConditionGlyph } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
@@ -253,7 +253,11 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
     );
   }
   return (
-    <Row gap="field" align="center" className="min-w-0">
+    // THE ROW CARRIES THE COARSE TOUCH FLOOR, not the value (#869 — the fragment's own header states the
+    // measurement): a text-height value's 44px hit pseudo overflows into whatever is stacked within 44px of
+    // it, and on a just-started game the `+ condition` control one row down took all but ONE COLUMN of this
+    // dash's pixels. Floored, each row's pseudo fits inside its own band.
+    <Row gap="field" align="center" className={`min-w-0 ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`}>
       <TrackerValue
         ariaLabel={trackerFieldName("Status line", subject)}
         display={status}
@@ -295,7 +299,10 @@ export function ConditionChips({
     return null;
   }
   return (
-    <Row gap="field" className="flex-wrap" data-slot="rpg-conditions">
+    // The coarse floor again (#869): with no chips yet this row is a bare text-height `+ condition`, whose
+    // 44x198 pseudo swallowed the status line ABOVE it. With chips it changes nothing — a chip already
+    // carries `CHIP_TOUCH_FLOOR_AT_COARSE`, so the row is already ≥44 there.
+    <Row gap="field" className={`flex-wrap ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`} data-slot="rpg-conditions">
       {edit === undefined || !edit.isLocked(".conditions") ? null : (
         <RpgFieldLock
           field={subject === undefined ? "the conditions" : trackerFieldName("conditions", subject)}

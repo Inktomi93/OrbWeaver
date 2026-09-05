@@ -59,8 +59,17 @@ export interface RowActionsMenuProps {
   readonly triggerSize?: "icon" | "inline" | "sm";
   /** A3 hover-reveal on the trigger (rest hidden). @defaultValue false — pass true only where the row already hid its cluster. */
   readonly reveal?: boolean;
-  /** Optional plain-language hover/focus explanation for an icon-only trigger. */
-  readonly tooltip?: string;
+  /** Render the trigger's `label` as a hover/focus tooltip — a BOOLEAN, never a second string (#869).
+   *
+   *  It used to take free text, and the one consumer that passed it (the chat room's ⋯) spelled a DIFFERENT
+   *  string from `label`: the popup read "Manage this chat" while the accessible name read "Chat options"
+   *  (measured, `cbrs-tip.log`). On an icon-only trigger the tooltip IS the visible label, so that is WCAG
+   *  2.5.3 Label in Name (§13.10 N2) failing in letter — a voice-control user saying the words they can see
+   *  cannot reach the only start door in the room, and an agent matching on the rendered string misses it.
+   *  A `string` prop cannot be made safe by review: the boolean removes the second string, so the two can no
+   *  longer disagree. A trigger that needs a fuller explanation puts it in `label` (where it becomes the name
+   *  as well as the pixels), never in a divergent twin. @defaultValue false */
+  readonly tooltip?: boolean;
   /** The bottom destructive item + its confirm dialog. Omit for a menu with no destructive action. */
   readonly destructive?: RowDestructiveAction;
 }
@@ -117,7 +126,7 @@ export function RowActionsMenu({
   align = "end",
   triggerSize = "icon",
   reveal = false,
-  tooltip,
+  tooltip = false,
   destructive,
 }: RowActionsMenuProps): ReactElement {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -126,20 +135,7 @@ export function RowActionsMenu({
   return (
     <>
       <Menu>
-        {tooltip === undefined ? (
-          <MenuTrigger
-            render={
-              <Button
-                aria-label={label}
-                className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK}
-                intent="ghost"
-                size={TRIGGER_BUTTON_SIZE[triggerSize]}
-              >
-                <Icon icon={icon} size="sm" />
-              </Button>
-            }
-          />
-        ) : (
+        {tooltip ? (
           <Tooltip>
             <TooltipTrigger
               render={
@@ -157,8 +153,22 @@ export function RowActionsMenu({
                 />
               }
             />
-            <TooltipPopup side="top">{tooltip}</TooltipPopup>
+            {/* The popup text IS the accessible name — the same `label`, never a twin (see the prop's doc). */}
+            <TooltipPopup side="top">{label}</TooltipPopup>
           </Tooltip>
+        ) : (
+          <MenuTrigger
+            render={
+              <Button
+                aria-label={label}
+                className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK}
+                intent="ghost"
+                size={TRIGGER_BUTTON_SIZE[triggerSize]}
+              >
+                <Icon icon={icon} size="sm" />
+              </Button>
+            }
+          />
         )}
         <MenuPopup align={align}>
           {children}

@@ -15,6 +15,7 @@ import type { TrackColor } from "@orb/ui/meter";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "../pointer-variants.ts";
 import { trackerFieldName } from "./tracker-names.ts";
 import { TrackerValue } from "./tracker-value.tsx";
 
@@ -255,7 +256,13 @@ export function MeterRow({
   // the subject (the card already says whose card it is).
   const named = trackerFieldName(label, subject);
   return (
-    <Stack gap="field" data-slot="meter-row" data-unset={value === null}>
+    // THE BLOCK CARRIES THE COARSE TOUCH FLOOR (#869). Two meter rows stack their editable value cells 36px
+    // apart (18px text-height line + the track + `gap-field`), and each cell's 44px hit `::after` therefore
+    // ends 14px below its own centre instead of 22 — the row BELOW, painted later, takes the rest. MEASURED at
+    // 430 coarse on the rpg Status card: `Mara Vitality value` yExtent=36 against a 44 floor, its bottom band
+    // resolving to `Mara Resolve value`. Flooring the BLOCK (never the value — `tracker-value.tsx` states the
+    // no-shift rule the rest→edit swap depends on) makes the pitch ≥44 so each cell's pseudo fits its own band.
+    <Stack gap="field" className={VALUE_ROW_TOUCH_FLOOR_AT_COARSE} data-slot="meter-row" data-unset={value === null}>
       {/* `center` (not `baseline`): the click-to-edit input's border-box baseline sits lower than the
           label's text baseline, so baseline alignment GROWS the row ~4px on reveal — center keeps the
           rest→edit swap pixel-stable (the no-layout-shift bar). */}

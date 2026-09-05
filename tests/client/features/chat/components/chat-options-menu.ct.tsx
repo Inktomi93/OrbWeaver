@@ -81,6 +81,37 @@ test("lifecycle placement: the room ⋯ menu offers NO transcript download (its 
   await expect(page.getByRole("menuitem", { name: ANY_EXPORT })).toHaveCount(0);
 });
 
+// ── #869 (side-eye 2026-08-30, the two P3s stumbled on while driving the game's front door) ──────────
+// BOTH HALVES ARE ABOUT WHAT THE EYE AND THE VOICE CAN REACH:
+//   • the TRIGGER's visible tooltip read "Manage this chat" over an accessible name of "Chat options"
+//     (`cbrs-tip.log`). On an icon-only control the tooltip IS the visible label, so that is WCAG 2.5.3
+//     Label in Name (§13.10 N2) failing in letter — a voice-control user saying the words on screen could
+//     not reach the room's only game door. `RowActionsMenu.tooltip` is a BOOLEAN now (the popup renders
+//     `label`), so the two strings cannot diverge again; this pins the rendered result.
+//   • `Select messages…` was the one item with NO glyph, a hole in the icon column directly under the game
+//     row. The census is over EVERY item, so the next item added without one reds here.
+test("#869: the ⋯ trigger's tooltip speaks its accessible name, verbatim", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES });
+  const component = await mount(<ChatOptionsMenuStory withCharacters={true} />);
+
+  await component.getByRole("button", { name: "Chat options", exact: true }).hover();
+  await expect(page.getByRole("tooltip", { name: "Chat options", exact: true })).toBeVisible();
+  // …and the retired twin is gone, not merely joined: two strings is what let them drift.
+  await expect(page.getByRole("tooltip", { name: /Manage this chat/u })).toHaveCount(0);
+});
+
+test("#869: every item in the ⋯ menu carries a glyph", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES });
+  const component = await mount(<ChatOptionsMenuStory withCharacters={true} />);
+
+  await component.getByRole("button", { name: "Chat options", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Rename", exact: true })).toBeVisible();
+  const glyphless = await page
+    .getByRole("menuitem")
+    .evaluateAll((items) => items.filter((item) => item.querySelector("svg") === null).map((item) => item.textContent ?? ""));
+  expect(glyphless, "every ⋯ item carries a glyph — a hole in the icon column reads as a missing affordance").toEqual([]);
+});
+
 // ── #40/#862/#863: the GAME-MODE section — one start action, one noun, and a transition that reveals
 // itself. Each test names the finding it pins; the old submenu (`Turn on RPG` → `Freeform story`) is gone
 // because the pick it offered is a Game-tab SETTING now (owner ruling 2026-08-30). ───────────────────
