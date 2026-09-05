@@ -13,7 +13,7 @@
 //     without it NOTHING is focusable — a display grid that traps tab stops is worse than no grid.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ActivatableTileGrid, BasicTileGrid, MixedTileGrid, TaggedTileGrid, TileGridSkeleton } from "./media-tile-grid.fixtures.tsx";
+import { ActivatableTileGrid, BadgedTileGrid, BasicTileGrid, MixedTileGrid, TaggedTileGrid, TileGridSkeleton } from "./media-tile-grid.fixtures.tsx";
 
 /** Container widths chosen against the grid's own `@container` breakpoints (2 → @md 3 → @2xl 4). */
 const NARROW_PX = 320;
@@ -96,6 +96,21 @@ test("hub v1.2: an interactive tile's accessible NAME separates title from subti
   await expect(tagRows).toHaveCount(1);
   await expect(tagRows.getByText("fantasy")).toBeVisible();
   await expect(tagRows.getByText("vampire")).toBeVisible();
+});
+
+// #1698 (side-eye 2026-09-05, the hub-ingested arm). The tile's `aria-label` is EXPLICIT, and an explicit
+// name REPLACES the node's content — so the badge, which is the only thing on the tile saying "you already
+// have this one", was invisible to a screen reader: every hub result announced identically whether it was
+// owned or not, on the surface whose entire job is deciding what to add. The name keeps its comma-joined
+// title/subtitle contract (the 2026-08-29 P3 fix, unreversed) and the STATE is appended after the identity.
+test("#1698 a badged tile's accessible NAME carries the badge — ownership is not paint-only", async ({ mount }) => {
+  const component = await mount(<BadgedTileGrid widthPx={WIDE_PX} />);
+
+  await expect(component.getByRole("button", { name: "Illyria, damagecontrol \u00b7 2.8k\u2193, in your library" })).toBeVisible();
+  // The badge is still PAINTED — the name is an addition, not a relocation.
+  await expect(component.getByText("in your library")).toBeVisible();
+  // …and an unbadged tile's name is unchanged: the state clause exists only where there is a state.
+  await expect(component.getByRole("button", { name: "Rebecca, paradigme \u00b7 1.1k\u2193" })).toBeVisible();
 });
 
 test("a cover with no `alt` is DECORATIVE — the tile's own title carries the name, never twice", async ({ mount }) => {
