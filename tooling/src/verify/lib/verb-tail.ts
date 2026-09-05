@@ -29,6 +29,7 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   scoped: "own",
   "scoped-test": "own",
   "new-gate": "own",
+  "gate-contract": "none",
   baseline: "own",
   "tests-membership": "none",
   "tests-execution-membership": "none",
