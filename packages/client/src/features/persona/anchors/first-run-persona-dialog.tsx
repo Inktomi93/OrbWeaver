@@ -9,6 +9,12 @@
 //
 // On the create arm: create, then seed both global pointers. On the recovery arm: save the fields if the
 // reader changed them, then seed — the same dialog, so the same edits mean the same thing on both.
+//
+// PINNED IN TWO PLACES, AND A TRIGGER CHANGE DRIVES BOTH: `first-run-persona-dialog.ct.tsx` owns the arms;
+// `tests/client/routes/app-root.ct.tsx` mounts this as an AppShell sibling in EVERY one of its journeys, so
+// a viewer this gate does not stand down for blocks that whole file behind a modal (#1644 — the pointer
+// trigger above landed while the route CT still seeded a persona ROW with the all-null default seeds, and
+// four of its six tests timed out against the overlay for a day before anything named the file).
 
 import type { PersonaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
