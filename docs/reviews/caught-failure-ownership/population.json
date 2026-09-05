@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 541,
-    "enforced": 536,
+    "sites": 540,
+    "enforced": 535,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 536,
+      "deliberate-absorb": 535,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
       "default": 145,
-      "empty": 254
+      "empty": 253
     }
   },
   "rows": [
@@ -3491,7 +3491,7 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/port.ts::promise:run::1",
       "path": "packages/server/src/infra/plugin-host/port.ts",
-      "line": 354,
+      "line": 369,
       "column": 23,
       "grammar": "promise",
       "position": "promise:run",
@@ -3499,7 +3499,7 @@
       "snippet": "resident.tail = run.then(",
       "verdict": "deliberate-absorb",
       "reason": "the comment above is the contract — the tail is a `void`-typed BARRIER that must never reject, or one deadlined invoke wedges the chain for every later one. Both arms do the identical bookkeeping on purpose, and the caller still gets the real outcome from `return await run` on the next line. Ends if the tail becomes the only reader of `run`.",
-      "markerLine": 353
+      "markerLine": 368
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/sandbox.ts::promise:race::1",
@@ -3526,19 +3526,6 @@
       "verdict": "deliberate-absorb",
       "reason": "an MCP status-probe failure is a diagnostic miss that collapses to undefined (no health reported); it gates no auth/credential/turn decision. Ends if MCP health ever gates a turn.",
       "markerLine": 130
-    },
-    {
-      "siteId": "packages/server/src/infra/providers/backends/agent-sdk/catalog.ts::empty:catch::1",
-      "path": "packages/server/src/infra/providers/backends/agent-sdk/catalog.ts",
-      "line": 78,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "a best-effort turn teardown (interrupt) whose failure means the spawn is already gone — billing-cleanup only, no auth/credential decision; the discovery error itself is propagated by the outer catch. Ends if interrupt gains a caller-visible result.",
-      "markerLine": 75
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/env.ts::empty:catch::1",
@@ -3582,7 +3569,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/runner.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/backends/agent-sdk/runner.ts",
-      "line": 365,
+      "line": 368,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3590,7 +3577,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a bounded context-fill probe collapses any throw/timeout to undefined (usage absent); purely diagnostic, gates no turn/auth decision. Ends if context usage ever gates a turn.",
-      "markerLine": 361
+      "markerLine": 364
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/terminal-tools.ts::empty:err::1",
