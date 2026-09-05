@@ -96,7 +96,7 @@ function personMenuItems(row: MemberPersonRow, actions: MemberRowActions, setCon
     return items;
   }
   // The ellipsis is honest: handing off the room opens a confirm that also carries the OPT-IN property
-  // offer (the departing host may give point-in-time copies of the cast + lore they brought). It used to
+  // offer (the departing host may give point-in-time copies of the characters + lore they brought). It used to
   // fire immediately despite the "…" — the confirm is where the offer now lives.
   if (actions.onNominateHost !== undefined) {
     items.push(

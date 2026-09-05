@@ -64,11 +64,11 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
   // brand-new room wears its card's theme immediately instead of re-skinning itself later (the 2026-08-06
   // owner dogfood, now fixed by the row existing rather than by a second card-reading resolver).
   const { data: roomChat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
-  const carriedCast = useCarriedAppearance(chatId);
-  const roomTheme = resolveRoomTheme(carriedCast);
+  const carried = useCarriedAppearance(chatId);
+  const roomTheme = resolveRoomTheme(carried);
   // Names the room's focus target (finding #2): the chat title, else "Chat room" (a not-yet-resolved room).
   // Without this explicit label the tabindex=-1 focus DIV's name falls to name-from-content — concatenating
-  // the whole toolbar (Cast · Jump to latest · Attach · Send…) into one string.
+  // the whole toolbar (Characters · Jump to latest · Attach · Send…) into one string.
   const roomLabel =
     roomChat === undefined
       ? "Chat room"

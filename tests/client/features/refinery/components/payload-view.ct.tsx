@@ -183,7 +183,13 @@ test("the ANALYZE mock anatomy derives: the verdict banner leads word-first with
   const banner = page.getByTestId("refinery-verdict-banner");
   // Word-primary: the enum member IS the headline; the tone is the authored map's word, as an attribute.
   await expect(banner.getByRole("heading", { name: "NEEDS_REFINEMENT" })).toBeVisible();
-  await expect(banner).toHaveAttribute("data-tone", "warn");
+  // The render-hint tone rides `data-hint-tone` (#1113, mirroring #1097's chip fix): `data-tone` is the
+  // @orb/ui variant-axis channel the ui-audit walker reads as an AUTHORED RECIPE ARM
+  // (tooling/src/ui-audit/ops/walker/target-identity.ts), so a FEATURE word (good/warn/bad/info/neutral)
+  // may not sit in it. Card stamps no tone axis today, so the second assertion pins the channel EMPTY —
+  // it is what turns red the day Card grows one and a call site re-collides the two vocabularies.
+  await expect(banner).toHaveAttribute("data-hint-tone", "warn");
+  await expect(banner).not.toHaveAttribute("data-tone", /./);
   // The axis-hinted soul number docks on the banner (not stolen into a hero gauge).
   await expect(banner.getByText("6/10")).toBeVisible();
   await expect(banner.getByText("Soul")).toBeVisible();

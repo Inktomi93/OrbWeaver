@@ -108,7 +108,7 @@ export const IMPERSONATE_WAIT_FOR_TURN = "wait for the current reply to finish";
  *  `speakerCharacterId`; only the submenu also carries the typed steer and the `afterAssistant` nudge), so
  *  this control is now the ONE door to "who replies next" and its tooltip has to say so. Reads as the clause
  *  after the label + em-dash, like every other cue here. */
-export const RESPONSE_CAST_CUE = "choose who speaks next";
+export const RESPONSE_SPEAKER_CUE = "choose who speaks next";
 
 /** IMP-2 — why EVERY guided icon is idled while the impersonate STREAM is filling the composer. The generic
  *  IMPERSONATE_WAIT_FOR_TURN names a reply that isn't running (nothing is being generated into the

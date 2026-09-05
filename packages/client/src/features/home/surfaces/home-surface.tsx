@@ -192,7 +192,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
               <Grid className="items-start" cols="leadEven" data-home-grid={true} gap="gutter">
                 {/* `min-w-0` IS THE SPLIT (side-eye 2026-08-16 P1-1). A grid TRACK CHILD is `min-width:auto`,
                     so each track is floored at its content's min-content width — and the hero's own
-                    min-content (a 64px cast strip + a headline + a cast/age line) is ~743px, which silently
+                    min-content (a 64px face strip + a headline + a character/age line) is ~743px, which silently
                     overrode the approved `1.55fr/1fr` and rendered 1.92/1 at the 1280px pane (742.06/385.94
                     measured). The shelf paid for it: its face grid dropped from three fixed cells to two and
                     the page grew 1374px against 1177px. The declared ratio only means anything on tracks that

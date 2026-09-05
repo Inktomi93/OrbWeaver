@@ -101,8 +101,8 @@ export interface ResolveRowAttributionInput {
    * That answer HAS to lead: a narrator turn is persisted against the room's SYNTHETIC group character
    * (`domain/character/substrate/group-character.ts` — handle `__group__<chatId>`, card name **"Group"**, a
    * never-rendered memory bucket by its own header), and that id is a real `characters` row, so it rides the
-   * chat's `characterNames` producer like any cast member. Without a leading arm every branch below succeeds
-   * and the reader is shown a fake cast member — "Group", in an id-hashed magenta — in a room that has none
+   * chat's `characterNames` producer like any seated character. Without a leading arm every branch below succeeds
+   * and the reader is shown a fake character — "Group", in an id-hashed magenta — in a room that has none
    * (side-eye 2026-08-03 P1).
    *
    * IT REPLACED `narratorRoom` (the room's CURRENT `group.output === "narrator"` dial). A per-room dial cannot
@@ -270,7 +270,7 @@ function characterTint(characterId: CharacterId, override: ThemeScopeTokens | nu
 
 /** For the merged-narrator speaker-split path: display NAME -\> that character's tint, resolved through the
  *  ONE {@link characterTint} home. EVERY seated character is included (an override-less member resolves to
- *  its id-seeded hash) — the map is therefore also the room's PRESENT CAST-NAME set, which is what the
+ *  its id-seeded hash) — the map is therefore also the room's PRESENT CHARACTER-NAME set, which is what the
  *  plain-`Name:` half of the span parse keys on. */
 export function speakerThemesByName(participants: ReadonlyMap<CharacterId, ParticipantView> | undefined): ReadonlyMap<string, ThemeScopeTokens> {
   const byName = new Map<string, ThemeScopeTokens>();

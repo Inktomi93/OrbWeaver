@@ -48,7 +48,7 @@ const REAP_IDLE_TIMEOUT_MS = 2000;
 const REAP_FALLBACK_DELAY_MS = 1500;
 
 /** ONE creation ceremony: the temp tile opens the SAME character picker every other "New chat" opens,
- *  with the creation-only flag preset — it never forks a second launcher that skips the cast pick. The
+ *  with the creation-only flag preset — it never forks a second launcher that skips the character pick. The
  *  picker mints the seed (preset ⊕ picks) and moves the rail. */
 function startTempChat(): void {
   openNewChatPicker({ temporary: true });

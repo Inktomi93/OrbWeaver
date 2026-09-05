@@ -325,7 +325,7 @@ export function MessageRow({
       showTimestamp: metadataVisibility.showTimestamps,
       stickyAttribution,
       placement: skin.headerPlacement,
-      // B7 — the picker's segment-target parse keys the SAME cast-name set the span renderer uses
+      // B7 — the picker's segment-target parse keys the SAME character-name set the span renderer uses
       // (`speakerThemesByName`'s keys); the actions row narrator-gates it against `message.kind` itself.
       actions: renderRowActions({
         editing,

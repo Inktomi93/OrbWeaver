@@ -3,7 +3,7 @@
 // only while the picker is open, so the mutation's lifetime matches its one consumer.
 //
 // THE PARSE INPUTS MIRROR THE SERVER'S WRITE VALIDATION EXACTLY: the picker parses the variant's CANON
-// (`message.content`, never display text) with the cast names under the SAME `isNarratorVoiced` gate the
+// (`message.content`, never display text) with the character names under the SAME `isNarratorVoiced` gate the
 // server's `resolveSegmentClaim` applies — which is what makes a picked segment index survive the round
 // trip instead of refusing `invalid_segment`. Mount discipline is the CALLER's (`pickerOpen ? … : null` —
 // an unopened row builds no picker subtree), so `open` is pinned true here.

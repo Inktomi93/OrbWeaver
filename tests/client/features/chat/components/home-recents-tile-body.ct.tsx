@@ -38,11 +38,11 @@ const GAME_MARKER_DATUM = /Game chat/u;
 /** The recency STAMP the hero used to carry. It is the MASTHEAD's sentence alone now (rail sweep P2-6 —
  *  the two rendered the same instant 90px apart), so this pattern exists to assert its ABSENCE here. */
 const HERO_STAMP = /last turn/u;
-/** The SHORTENED cast, in credit order — the whole point of `castCredit`. */
-const SHORT_CAST_LINE = /^Calamity · Morgatha$/u;
-/** One seat of the fixture cast, for the island's accessible DESCRIPTION (the credit line rides it). */
-const CAST_IN_DESCRIPTION = /Wren/u;
-const LONG_CAST = makeChatSummary({
+/** The SHORTENED character names, in credit order — the whole point of `characterCredit`. */
+const SHORT_CREDIT_LINE = /^Calamity · Morgatha$/u;
+/** One seat of the fixture room, for the island's accessible DESCRIPTION (the credit line rides it). */
+const CHARACTER_IN_DESCRIPTION = /Wren/u;
+const LONG_ROOM = makeChatSummary({
   id: "chat_long",
   title: "A grand adventure",
   participantNames: ["Calamity, Doomblade of the Ninth Epoch", "Morgatha, the Undying Dark"],
@@ -74,7 +74,7 @@ test("renders the HERO room in its own block, and the also-open list in a SECOND
   // The NEWEST room is the hero — the surface's one focal island, not a row in a list (#102).
   await expect(hero.locator('[data-home-hearth="chat_recent"]')).toBeVisible();
   await expect(hero.getByText("A grand adventure")).toBeVisible();
-  // The credit line — the island's ONE cast rendering (the fixture's subtitle happens to be the same
+  // The credit line — the island's ONE character rendering (the fixture's subtitle happens to be the same
   // word, hence the voice-scoped locator).
   await expect(hero.locator('[data-voice="credit"]').getByText("Wren")).toBeVisible();
   // …and everything else is the dense ALSO-OPEN list, in a block of its own — NOT inside the hero's.
@@ -284,20 +284,20 @@ test("#102-F5 the hero is named 'Resume <room>', arrow and all art excluded", as
   const hero = home.locator('[data-home-hearth="chat_recent"]');
 
   // Exactly the verb phrase: no trailing "→" (rail sweep P3-14 — the visible affordance still ends in the
-  // glyph, the NAME does not), and no cast names bleeding in from art that should not be in the tree.
+  // glyph, the NAME does not), and no character names bleeding in from art that should not be in the tree.
   await expect(hero).toHaveAccessibleName("Resume A grand adventure");
   await expect(hero.getByRole("img")).toHaveCount(0);
-  // …and the cast line rides the description (after the scent line).
-  await expect(hero).toHaveAccessibleDescription(CAST_IN_DESCRIPTION);
+  // …and the credit line rides the description (after the scent line).
+  await expect(hero).toHaveAccessibleDescription(CHARACTER_IN_DESCRIPTION);
 });
 
-// ── RED-FIRST (rail sweep P2-6): the island renders its cast ONCE and its recency NEVER ─────────────
-// It shipped with a 3-face 64px cover-crop strip AND the mono credit line (the same cast twice, one of
+// ── RED-FIRST (rail sweep P2-6): the island renders its characters ONCE and its recency NEVER ─────────────
+// It shipped with a 3-face 64px cover-crop strip AND the mono credit line (the same characters twice, one of
 // them illegible at that crop), plus "· LAST TURN 2W AGO" under a masthead sentence that already said
 // "You left off 2w ago in …". Asserted through what is RENDERED — a thumbnail strip and a stamp string —
 // so it compiles and fails against the old source.
-test("P2-6 the hero has NO thumbnail strip and NO recency stamp — one cast rendering, no duplicated instant", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_CAST]) });
+test("P2-6 the hero has NO thumbnail strip and NO recency stamp — one character rendering, no duplicated instant", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_ROOM]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const hero = home.locator('[data-home-hearth="chat_long"]');
@@ -305,8 +305,8 @@ test("P2-6 the hero has NO thumbnail strip and NO recency stamp — one cast ren
   await expect(hero).toBeVisible();
   await expect(hero.locator('[data-slot="avatar-stack-root"]')).toHaveCount(0);
   await expect(hero.getByText(HERO_STAMP)).toHaveCount(0);
-  // The ONE cast rendering survives, and it is the credit line.
-  await expect(hero.getByText(SHORT_CAST_LINE)).toBeVisible();
+  // The ONE character rendering survives, and it is the credit line.
+  await expect(hero.getByText(SHORT_CREDIT_LINE)).toBeVisible();
 });
 
 // ── RED-FIRST (rail sweep P3-17): "Resume" is a hint on the card, not a link beside it ──────────────
@@ -352,15 +352,15 @@ test("P3-17 the hero's Resume label is not painted as a link", async ({ mount, p
 });
 
 // ── RED-FIRST (#102 review F12/F15/P1-1): the credit line's register, size and NAME LENGTH ──────────
-test("#102-F12 the hero credit line is caps micro-caps at the label step, with SHORT cast names", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_CAST]) });
+test("#102-F12 the hero credit line is caps micro-caps at the label step, with SHORT character names", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_ROOM]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const hero = home.locator('[data-home-hearth="chat_long"]');
-  const credit = hero.getByText(SHORT_CAST_LINE);
+  const credit = hero.getByText(SHORT_CREDIT_LINE);
 
   // The appositive is dropped: "Calamity, Doomblade of the Ninth Epoch" reads "Calamity" here. It is the
-  // room's cast at credit length, not the character library's index.
+  // room's characters at credit length, not the character library's index.
   await expect(credit).toBeVisible();
 
   const readTypeAtAssertion = async (): Promise<typeof type> =>
@@ -390,8 +390,8 @@ test("#102-F12 the hero credit line is caps micro-caps at the label step, with S
   await expect.poll(async () => Number.parseFloat((await readTypeAtAssertion()).size)).toBeGreaterThanOrEqual(11);
 });
 
-// The #102-RULED "the hero cast strip is SQUARE portrait art" pin was DELETED on the 2026-08-17 rail sweep
-// with the strip it described (P2-5/P2-6: the same cast was already spelled out in the credit line, and at
+// The #102-RULED "the hero face strip is SQUARE portrait art" pin was DELETED on the 2026-08-17 rail sweep
+// with the strip it described (P2-5/P2-6: the same characters were already spelled out in the credit line, and at
 // a 64px cover crop the faces were unreadable). The ruling it recorded — hero art is square, chats-list art
 // is circular — has no live subject on this surface any more; the chats-list circle stays pinned by
 // `tests/client/features/chat/surfaces/chat-list-surface.ct.tsx`. `P2-6` above is the arm that now keeps a
@@ -458,7 +458,7 @@ test("a game row's marker is INSIDE the row's description, never an orphan besid
 // `tests/client/features/chat/components/home-masthead-body.ct.tsx` ("F1 the masthead reads 'You left off
 // just now'"). Nothing on this tile composes a relative time any more.
 //
-// The #147 HERO arm ("the cast strip is born at its settled width") went the same way: its subject was the
+// The #147 HERO arm ("the face strip is born at its settled width") went the same way: its subject was the
 // STRIP, which is still deleted. The hero's remaining half is the count assertion in the `P2-6` test above:
 // zero avatar stacks, so there is nothing left that can arrive late and shove a column.
 
@@ -497,13 +497,13 @@ test("an empty chats list renders a TEACHING empty state with an action, not a b
 // The landing's one focal island had no chroma, so the character photo grid across the shelf won every
 // cold eye. The room's own portrait now bleeds in from the island's inline END and dissolves before it
 // reaches any ink. What these pin is the part that is a PROMISE rather than a picture: that the bleed is
-// decoration to AT, that it carries no cast datum (the P2-5/P2-6 fact-once ruling this island was rebuilt
+// decoration to AT, that it carries no character datum (the P2-5/P2-6 fact-once ruling this island was rebuilt
 // under), and that the "faded to clean surface before the prose" half is GEOMETRY — the band starts where
 // the content column is capped, so nothing has to be trusted about a gradient's alpha.
 
 /** The same room with a seat that HAS a portrait — without a hash the hero has nothing to bleed and every
  *  art assertion would pass vacuously against a room that simply has no art. */
-const LONG_CAST_WITH_ART = makeChatSummary({
+const LONG_ROOM_WITH_ART = makeChatSummary({
   id: "chat_long",
   title: "A grand adventure",
   participantNames: ["Calamity, Doomblade of the Ninth Epoch", "Morgatha, the Undying Dark"],
@@ -514,8 +514,8 @@ const LONG_CAST_WITH_ART = makeChatSummary({
  *  rule the shared summary row applies to a single-avatar chat. */
 const FIRST_SEAT_HASH = /hash_calamity_portrait/u;
 
-test("#205 the hero wears its room's art as a bleed — and it is DECORATION: aria-hidden, no cast datum", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_CAST_WITH_ART]) });
+test("#205 the hero wears its room's art as a bleed — and it is DECORATION: aria-hidden, no character datum", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_ROOM_WITH_ART]) });
 
   const home = await mount(<ChatRecentsHeroArtStory />);
   const art = home.locator('[data-slot="art-bleed"]');
@@ -525,14 +525,14 @@ test("#205 the hero wears its room's art as a bleed — and it is DECORATION: ar
   // …and it is invisible to AT: no role, no name, and the island's own name is still the VERB it was
   // rebuilt to be (side-eye F5 — a held-under-attack pin this change must not regress).
   await expect(art).toHaveAttribute("aria-hidden", "true");
-  await expect(home.getByRole("button", { name: `Resume ${LONG_CAST.title}` })).toBeVisible();
-  // The strip P2-5 deleted is still deleted: the bleed restores CHROMA, never a second cast rendering.
+  await expect(home.getByRole("button", { name: `Resume ${LONG_ROOM.title}` })).toBeVisible();
+  // The strip P2-5 deleted is still deleted: the bleed restores CHROMA, never a second character rendering.
   await expect(home.locator('[data-slot="avatar-stack-item"]')).toHaveCount(0);
-  await expect(home.getByText(SHORT_CAST_LINE)).toHaveCount(1);
+  await expect(home.getByText(SHORT_CREDIT_LINE)).toHaveCount(1);
 });
 
 test("#205 the bleed starts where the prose stops — NO ink over art, at either width", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_CAST_WITH_ART]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_ROOM_WITH_ART]) });
 
   const home = await mount(<ChatRecentsHeroArtStory />);
   await expect(home.locator('[data-slot="art-bleed"]')).toBeAttached();
@@ -568,12 +568,12 @@ test("#205 the bleed starts where the prose stops — NO ink over art, at either
   expect(overlap.worst.right, `"${overlap.worst.text}" runs into the art band`).toBeLessThanOrEqual(overlap.bandLeft + 1);
 });
 
-test("#205 a room whose cast has NO portrait renders no band at all — never an empty art slot", async ({ mount, page }) => {
-  // `LONG_CAST` is the same room with every seat's `avatarHash` null.
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_CAST]) });
+test("#205 a room whose characters have NO portrait renders no band at all — never an empty art slot", async ({ mount, page }) => {
+  // `LONG_ROOM` is the same room with every seat's `avatarHash` null.
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_ROOM]) });
 
   const home = await mount(<ChatRecentsHeroArtStory />);
-  await expect(home.getByRole("button", { name: `Resume ${LONG_CAST.title}` })).toBeVisible();
+  await expect(home.getByRole("button", { name: `Resume ${LONG_ROOM.title}` })).toBeVisible();
   await expect(home.locator('[data-slot="art-bleed"]')).toHaveCount(0);
 });
 
@@ -581,10 +581,10 @@ test("#205 a NARROW island keeps its whole width for the prose — the bleed is 
   // The 720px story pane, i.e. the arm the ruling calls "mobile untouched". There is no media query doing
   // this: `inset-inline-start: min(100%, var(--reading-measure))` collapses the band the moment the island
   // is narrower than the measure, so the phone arm and the docked-narrow arm are the same guarantee.
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_CAST_WITH_ART]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_ROOM_WITH_ART]) });
 
   const home = await mount(<ChatRecentsTileStory />);
-  await expect(home.getByRole("button", { name: `Resume ${LONG_CAST.title}` })).toBeVisible();
+  await expect(home.getByRole("button", { name: `Resume ${LONG_ROOM.title}` })).toBeVisible();
   await expect.poll(async () => home.locator('[data-slot="art-bleed"]').evaluate((el) => el.getBoundingClientRect().width)).toBe(0);
 });
 
@@ -637,7 +637,7 @@ test("P3-4 the native hero still reads left-aligned — the UA button centring i
 // row centred `RESUME →` against the PAIR, so the one affordance on the island rendered in the gutter
 // between two lines of its own credit. The row aligns to START now: the action keeps the first line's
 // box, the credit wraps under it, and NO name is dropped — which is the arm this takes over truncating
-// the cast, because the credit line is the island's ONE cast rendering (rail sweep P2-6) and the hero's
+// the characters, because the credit line is the island's ONE character rendering (rail sweep P2-6) and the hero's
 // own title ruling (side-eye F7) is that this island clamps rather than ellipses.
 // Asserted as GEOMETRY (the action's top box against the credit's first line), so it fails against the
 // old source and cannot be satisfied by a class string.
@@ -657,8 +657,8 @@ test.describe("the hero's action row at a phone width", () => {
 
     const home = await mount(<ChatRecentsMobileStory />);
     const hero = home.locator('[data-home-hearth="chat_wrap"]');
-    // Voice-scoped: the fixture's SUBTITLE also contains the cast names, so a bare text match resolves
-    // two elements. The credit line is the `credit`-voiced span (the island's ONE cast rendering).
+    // Voice-scoped: the fixture's SUBTITLE also contains the character names, so a bare text match resolves
+    // two elements. The credit line is the `credit`-voiced span (the island's ONE character rendering).
     const credit = hero.locator('[data-slot="text"][data-voice="credit"]').first();
 
     // The premise, or everything below passes for the wrong reason: at this width the credit really does

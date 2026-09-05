@@ -4,7 +4,7 @@
 // when a room is open — a null-on-pending would flash the placeholder (a lying state).
 //
 // ONE PHASE (chat-creation-draft-mode-replacement.md §4.1, R1). The projection used to be a discriminated
-// union with a `draft` arm carrying a founding-cast array instead of a roster, and every tab body branched
+// union with a `draft` arm carrying a founding-character array instead of a roster, and every tab body branched
 // on it. A room has a chat row from the creation click, so the projection is the committed one and `null`
 // means exactly "nothing is open".
 

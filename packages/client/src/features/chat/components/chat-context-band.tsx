@@ -132,10 +132,10 @@ function membersHoldsTheView(stored: string | null): boolean {
 }
 
 export function ChatContextBand({ state }: ChatContextBandProps): ReactElement {
-  const cast = filterCharacters(state.participants);
+  const characters = filterCharacters(state.participants);
   const title = deriveChatTitle(
     state.title,
-    cast.map((c) => c.displayName),
+    characters.map((c) => c.displayName),
   );
   const memberCount = state.participants.filter((p) => p.leftSeq === null).length;
   const preset = useActivePresetChip();

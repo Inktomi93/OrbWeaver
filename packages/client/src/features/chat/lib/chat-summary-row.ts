@@ -14,7 +14,7 @@ type ChatSummarySeat = ChatSummaryItem["participantPortraits"][number];
 // `deriveChatTitle` MOVED to `#lib/chat-title` (2026-08-09) and is imported from there above, NOT re-exported
 // from here (a re-export would make this a barrel file, which biome forbids): the regex library's room
 // roster names chat rooms, features cannot import each other, and this file's own two-rung copy of the chain
-// is what put "Untitled chat" on rooms the chats list calls by their cast. Every consumer now imports it
+// is what put "Untitled chat" on rooms the chats list calls by their characters. Every consumer now imports
 // from `#lib`.
 
 // `draftChatTitle` + `NEW_CHAT_TITLE` ("New chat") were DELETED 2026-08-14 with draft mode
@@ -37,7 +37,7 @@ type ChatSummarySeat = ChatSummaryItem["participantPortraits"][number];
  *  a server domain — and the alias it extends is the derive, so the wire still owns the shape. */
 export interface ChatRowPortrait extends ChatSummarySeat {}
 
-/** The mock's cast register: a character's SHORT display name, i.e. everything before its first appositive
+/** The mock's credit register: a character's SHORT display name, i.e. everything before its first appositive
  *  comma ("Calamity, Doomblade of the Ninth Epoch" → "Calamity"; "Sabine Veyra" → "Sabine Veyra"). A comma
  *  in a character name is a TITLE, not a surname — the corpus is full of "X, the Y" — and the long form is
  *  what the shelf cell and the character library are for. */
@@ -46,12 +46,12 @@ function shortDisplayName(name: string): string {
   return head.length > 0 ? head : name.trim();
 }
 
-/** The hero's CAST CREDIT — the room's characters at short-name length, middot-joined, for the focal
+/** The hero's CHARACTER CREDIT — the room's characters at short-name length, middot-joined, for the focal
  *  island's foot line. It is not decoration: the full-length names were the measured pressure that pushed
  *  the hearth grid TRACK to a 743px min-content and broke the approved 1.55fr/1fr split (side-eye
- *  2026-08-16 P1-1 / F12) — one room with a three-title cast was setting the width of the whole page.
- *  An empty roster prints the same honest phrase `chatSummaryRowView` falls back to. */
-export function castCredit(participantNames: readonly string[]): string {
+ *  2026-08-16 P1-1 / F12) — one room with three title-bearing characters was setting the width of the whole
+ *  page. An empty roster prints the same honest phrase `chatSummaryRowView` falls back to. */
+export function characterCredit(participantNames: readonly string[]): string {
   const names = participantNames.map(shortDisplayName).filter((name) => name.length > 0);
   return names.length > 0 ? names.join(" · ") : "No characters";
 }

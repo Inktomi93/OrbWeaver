@@ -16,7 +16,7 @@
 // earliest position. When the subject IS global it appears exactly once, in its own place.
 //
 // WHAT IT HONESTLY CANNOT SHOW, and the panel says so rather than implying otherwise:
-//  · the preset / cast / room slices. A library surface has no room, no cast and no active preset, so the
+//  · the preset / character / room slices. A library surface has no room, no characters and no active preset, so the
 //    scripts those scopes contribute are unknowable here.
 //  · `historyDepth`. The gate needs a message's POSITION in an assembled history; a loose sample has none, so
 //    the executor is called with no `depth` and the scope is inert (never half-applied).

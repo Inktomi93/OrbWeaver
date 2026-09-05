@@ -3,13 +3,13 @@
 // through the SANCTIONED §12 cross-feature READ (`#data`'s `useCarriedAppearance`, keyed off the
 // `#state` active-chat pointer — never a `#features/chat` import), exactly as `use-selected-theme` reads
 // `trpc.settings.*`. `undefined` ⇒ no carried override (the viewer's own `appearance` background wins) — the
-// safe floor for landing, a cast-less room, a non-single-human room, or an unresolved read.
+// safe floor for landing, a character-less room, a non-single-human room, or an unresolved read.
 //
-// IT USED TO HAVE TWO CAST SOURCES (owner dogfood 2026-08-06): gating the read on `useActiveChatId` meant a
+// IT USED TO HAVE TWO CHARACTER SOURCES (owner dogfood 2026-08-06): gating the read on `useActiveChatId` meant a
 // pre-send room showed the viewer's default background and swapped to the card's the moment a message
 // landed, so a DRAFT arm read the founding cards directly. A chat row exists from the creation click now
 // (chat-creation-draft-mode-replacement.md §4.1) and `useStartChat` seeds `getChat` from `startChat`'s own
-// response, so ONE cast source is warm on the room's first frame. The composition + cascade are unchanged.
+// response, so ONE character source is warm on the room's first frame. The composition + cascade are unchanged.
 //
 // Non-suspending throughout: the shell must never suspend/crash on decoration — an unresolved/errored read
 // falls back to `undefined` (byte-identical to a viewer-appearance-only background).
@@ -40,7 +40,7 @@ export function useChatBackground(): ThemeBackground | undefined {
   const inRoom = useActiveSection() === ROOM_SECTION;
   const activeChatId = useActiveChatId();
   const chatId = inRoom ? activeChatId : null;
-  const cast = useCarriedAppearance(chatId);
+  const carried = useCarriedAppearance(chatId);
   const { data } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
-  return resolveChatBackgroundSource(cast, data?.background);
+  return resolveChatBackgroundSource(carried, data?.background);
 }

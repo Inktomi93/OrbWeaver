@@ -29,7 +29,7 @@ const RECENTS_TILE_ORDER = 10;
 
 /** The FIRST-BOOT box, in skeleton rows (#92). The body is the HERO ALONE now that the also-open list is
  *  its own tile, and the hero is about three rows tall — a headline, two clamped prose lines, and a credit
- *  line (the 64px cast strip that used to sit beside them went on the 2026-08-17 rail sweep, which makes
+ *  line (the 64px face strip that used to sit beside them went on the 2026-08-17 rail sweep, which makes
  *  this reservation slightly generous rather than short). It was `RECENTS_LIMIT + 2` when this body rendered the hero AND seven
  *  rows; leaving it there would reserve ten rows for a three-row block and snap the whole hearth column up
  *  when the read landed, which is the same defect in the other direction. Re-measure if the hero grows a

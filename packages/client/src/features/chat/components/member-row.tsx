@@ -264,10 +264,10 @@ function CharacterInlineCluster({ row, actions }: { readonly row: MemberCharacte
 /** The HAND-OFF confirm — the one member-row dialog that is a small FORM rather than a yes/no.
  *
  *  Handing off the room is irreversible from the departing host's side (only the new host can hand it back),
- *  so it confirms. The checkbox is the departing host's OPT-IN property offer: their cast and the lore behind
+ *  so it confirms. The checkbox is the departing host's OPT-IN property offer: their characters and the lore behind
  *  it are theirs, and a transfer that silently copied someone's library — or one that silently stranded the
  *  room's characters — would both be the app deciding something the owner should. It defaults OFF: the
- *  unchanged box reproduces the built behavior exactly (the incoming host brings their own cast, D64).
+ *  unchanged box reproduces the built behavior exactly (the incoming host brings their own characters, D64).
  *
  *  The copy names what actually happens, not the mechanism: "copies" (they keep theirs), "used in this room"
  *  (never their whole library). The offer is stored at nominate and executed only if the nominee ACCEPTS. */
@@ -309,7 +309,7 @@ function HandoffConfirm({
       onConfirm={(): void => {
         // `copyGmPreset` rides the SAME class-level opt-in: the GM voice is part of what the departing host
         // brought to the room, and a room whose preset silently reverts is the same broken gift as a room
-        // whose cast silently vanishes. A non-game room has no preset for it to reach.
+        // whose characters silently vanish. A non-game room has no preset for it to reach.
         actions.onNominateHost?.(row.userId, { copyCast, copyGmPreset: copyCast });
         setCopyCast(false);
         setConfirm(null);

@@ -5,7 +5,7 @@
 //
 // ONE ARM (chat-creation-draft-mode-replacement.md §4.1, R1). It had two, because a room had two lives and
 // the pre-send one had no row to read a title off — and the two arms had already drifted once (a group draft
-// read `cast[0]` on the phone and the joined cast on the desktop, side-eye 2026-08-07 finding 1). A room has
+// read the FIRST character on the phone and the joined characters on the desktop, side-eye 2026-08-07 finding 1). A room has
 // a row from the creation click, so there is one arm and nothing left to keep in lockstep.
 
 import { useGatedQuery, useTRPC } from "#data";

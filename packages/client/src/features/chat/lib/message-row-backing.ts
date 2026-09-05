@@ -1,6 +1,6 @@
 // The chat surface's LEGIBILITY BACKINGS — one seam, split out of message-row-variants.ts
 // to keep it under the 450-line component-size cap (UI-Architecture §2.1). Named for the message row it was
-// minted from; the over-art rule it carries is the CHAT SURFACE's, and the cast bar takes it too (#229).
+// minted from; the over-art rule it carries is the CHAT SURFACE's, and the character bar takes it too (#229).
 //
 // ── THE DERIVE LAW (#204) — a plate and its ink come from ONE palette, and a surface cannot exist
 // outside the law ────────────────────────────────────────────────────────────────────────────────────
@@ -116,7 +116,7 @@ export const BG_PHOTO_CHROME_PLATE =
   "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row in-data-[has-bg-image]:text-reading-plate-foreground";
 
 // BAND backing (#229/#237) — the SAME over-art question as the chip above, answered for a full-bleed
-// STRIP rather than a floating chip. The cast bar sits above the transcript inside `.shell-main`, which
+// STRIP rather than a floating chip. The character bar sits above the transcript inside `.shell-main`, which
 // over a wallpaper is `background: transparent` (shell.css) with only the halo text-shadow, so its chips
 // and names floated on the raw photo — the pass-3 character-bar finding, and the same class as the list pane's
 // 3.69:1 under Light. It takes the plate + blur + paired chrome ink and NOTHING ELSE: a band already owns
@@ -142,7 +142,7 @@ export const BG_PHOTO_BAND_PLATE =
 // the fallback painted three `bg-muted` bars directly onto the room's wallpaper with nothing behind them:
 // over art a muted bar is a faint band, and three faint bands over a photo is what "nothing happened"
 // looks like. Every settled thing in this column already answers this — a bubble by its fill, a no-fill
-// mode by BG_PHOTO_READING_PLATE, the chrome by its chip, the cast bar by its band. The loading state was
+// mode by BG_PHOTO_READING_PLATE, the chrome by its chip, the character bar by its band. The loading state was
 // the one member of the column that did not, so it is the one member that vanished.
 //
 // It takes the plate + blur and NOTHING ELSE from the family, plus `rounded-card` — it is a floating

@@ -19,7 +19,7 @@ import { Drama, Icon, Play, Square } from "@orb/ui/icons";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
-import { IMPERSONATE_STOP_LABEL, RESPONSE_CAST_CUE, STEER_CUE_IMPERSONATE, STEER_CUE_RESPONSE, testId } from "#lib";
+import { IMPERSONATE_STOP_LABEL, RESPONSE_SPEAKER_CUE, STEER_CUE_IMPERSONATE, STEER_CUE_RESPONSE, testId } from "#lib";
 import type { filterCharacters } from "../lib/roster.ts";
 
 const ICON_CONTROL_CLASS = "shrink-0 data-disabled:pointer-events-auto";
@@ -71,18 +71,19 @@ function resolveGuidedTitle(args: { disabled: boolean; hasText: boolean; label: 
   return args.hasText ? `${args.label} — ${args.steerCue}` : args.label;
 }
 
-/** The Response tooltip. `hasCast` is the multi-character room, where the trigger opens the SPEAKER submenu —
- *  since #539 retired the standalone speak-as dropdown this control is the one door to "who replies next", so
- *  an idle group-room tooltip says so rather than describing only the plain fire. The disabled reason and the
- *  steer cue keep precedence: an off control explains itself first, and a typed steer is the nearer promise. */
-function responseTitle(label: string, hasText: boolean, disabledReason: string | undefined, hasCast: boolean): string {
+/** The Response tooltip. `multiCharacter` is the multi-character room, where the trigger opens the SPEAKER
+ *  submenu — since #539 retired the standalone speak-as dropdown this control is the one door to "who replies
+ *  next", so an idle group-room tooltip says so rather than describing only the plain fire. The disabled reason
+ *  and the steer cue keep precedence: an off control explains itself first, and a typed steer is the nearer
+ *  promise. */
+function responseTitle(label: string, hasText: boolean, disabledReason: string | undefined, multiCharacter: boolean): string {
   if (disabledReason !== undefined) {
     return `${label} — ${disabledReason}`;
   }
   if (hasText) {
     return `${label} — ${STEER_CUE_RESPONSE}`;
   }
-  return hasCast ? `${label} — ${RESPONSE_CAST_CUE}` : label;
+  return multiCharacter ? `${label} — ${RESPONSE_SPEAKER_CUE}` : label;
 }
 
 /** The impersonation Stop remains a leaf of the cluster's `Your message` ARIA home. */
@@ -171,23 +172,23 @@ export function ImpersonateGuidedButton({
 export function ResponseGuidedButton({
   hasText,
   idle,
-  cast,
+  characters,
   onFire,
   disabledReason,
 }: {
   readonly hasText: boolean;
   readonly idle: boolean;
-  readonly cast: ReturnType<typeof filterCharacters>;
+  readonly characters: ReturnType<typeof filterCharacters>;
   readonly onFire: (speakerCharacterId: CharacterId | null) => void;
   readonly disabledReason: string | undefined;
 }): ReactElement {
   const label = "Generate reply";
   // The submenu arm is the same size-gate the retired speak-as dropdown carried (D16 roster-of-1): a solo room
   // has no "which character" choice, so the trigger fires Auto directly and its tooltip stays the plain label.
-  const hasCast = cast.length > 1;
-  const title = responseTitle(label, hasText, disabledReason, hasCast);
+  const multiCharacter = characters.length > 1;
+  const title = responseTitle(label, hasText, disabledReason, multiCharacter);
   const name = resolveGuidedName(label, hasText);
-  if (!hasCast) {
+  if (!multiCharacter) {
     return (
       <Tooltip>
         <TooltipTrigger
@@ -241,7 +242,7 @@ export function ResponseGuidedButton({
       </Tooltip>
       <MenuPopup>
         <MenuItem onClick={(): void => onFire(null)}>Auto (arbitrate)</MenuItem>
-        {cast.map((member) => (
+        {characters.map((member) => (
           <MenuItem key={member.characterId} onClick={(): void => onFire(member.characterId)}>
             <Icon icon={Drama} size="sm" />
             {member.displayName}

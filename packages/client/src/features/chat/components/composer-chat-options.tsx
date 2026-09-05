@@ -9,9 +9,9 @@
 // case is unrepresentable here.
 //
 // THE DRAFT ARM IS GONE (chat-creation-draft-mode-replacement.md §4.1, R1). There used to be a second wrapper
-// that built its cast from a founding seed plus draft-config additions and rendered the whole menu with the
+// that built its character list from a founding seed plus draft-config additions and rendered the whole menu
 // committed-only actions DISABLED. The room has a chat row from the creation click, so there is one wrapper,
-// one cast source (the roster), and nothing left to grey out.
+// one character source (the roster), and nothing left to grey out.
 
 import type { ChatId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";

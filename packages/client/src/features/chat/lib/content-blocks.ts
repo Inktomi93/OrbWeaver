@@ -7,7 +7,7 @@
 //
 // SEAM (deferred, NOT this task): the display pipeline `renderMessageForDisplay` (#lib/message-render
 // — macros/regex/fixMarkdown) runs UPSTREAM of this, once a MessageRenderContext (participants /
-// persona / cast / env) is threaded to the row; and the `<speaker>`-span split (#21) consumes the
+// persona / characters / env) is threaded to the row; and the `<speaker>`-span split (#21) consumes the
 // same string before projection. Both leave this projection untouched (§12.4: spans survive it).
 
 import type { ContentSpansToBlocksOptions, MessageContentBlock } from "@orb/contracts/chat";

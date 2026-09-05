@@ -1,9 +1,9 @@
-// The group-roster-controls write verbs (task #29 — the cast bar + the CONTEXT-panel Roster tab), each a
+// The group-roster-controls write verbs (task #29 — the character bar + the CONTEXT-panel Roster tab), each a
 // module-scope `createEntityMutation` (§13.1 — the ONE mutation home; a call site never hand-rolls
 // `useMutation` + cache surgery). All are host-only server-side (substrate/auth/matrix.ts); the client
 // host-gates the SURFACE (the Roster tab is host-only, like Preview), so these never fire for a member.
 // Settle-invalidation routes through the central seam:
-//   • setSeatKnobs → refetch `getChat` (the roster read the cast bar + the Roster tab + the message-list
+//   • setSeatKnobs → refetch `getChat` (the roster read the character bar + the Roster tab + the message-list
 //     attribution all share — one query, no extra fetch). The per-kind mute/talkativeness verbs are RETIRED
 //     (D80): one participantId-keyed `setSeatKnobs` projecting `SeatKnobs` (a `patch` of disabled/talkativeness).
 //   • forceCharacterTurn → a TURN trigger (like `generate`): the turn's own lifecycle is bus-driven
@@ -26,7 +26,7 @@ interface AddCharacterToChatVars {
 // All four roster mutations are BUS-DRIVEN on the OPEN chat (the mutation-vs-bus rule, invalidation.ts):
 // the roster verbs emit `chatUpdated` (add/mute/talkativeness) — or a turn (`forceCharacterTurn`) — on the
 // chat you're in, delivered by the active subscription; `chatUpdated`/turn events → chatReads, which covers
-// `getChat` (+ `listMessages`). So all four are `busDriven` — the cast bar + Roster tab read from `getChat`,
+// `getChat` (+ `listMessages`). So all four are `busDriven` — the character bar + Roster tab read from `getChat`,
 // refreshed by the bus, not a redundant mutation-side invalidate.
 export const useAddCharacterToChat = createEntityMutation<AddCharacterToChatVars, unknown>({
   options: (trpc) => trpc.chat.addCharacterToChat.mutationOptions(),

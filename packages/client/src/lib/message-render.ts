@@ -60,8 +60,8 @@ export interface MessageRenderContext {
   readonly fallbackPersonaName?: string | undefined;
   readonly fallbackPersonaDescription?: string | undefined;
   readonly scenario?: string;
-  /** The full cast names in roster order — drives \{\{group\}\} and a human-authored/narrator row's
-   *  \{\{char\}\} (joined cast in multi, the one character in solo). */
+  /** The full character names in roster order — drives \{\{group\}\} and a human-authored/narrator row's
+   *  \{\{char\}\} (joined characters in multi, the one character in solo). */
   readonly characterNames?: readonly string[];
   /** The viewer's display-tier regex scripts (per-user, client-side, ephemeral). */
   readonly displayScripts?: readonly RegexScriptInput[];
@@ -76,7 +76,7 @@ export interface MessageRenderContext {
 
 /** The `{{char}}` subject for the secondary display-tier regex ProcessMacroOptions — mirrors the
  *  primary atom: a voiced row resolves its own character (or speakerCharName), a human-authored /
- *  narrator row resolves the cast (joined in multi, one in solo). Floor "". */
+ *  narrator row resolves the characters (joined in multi, one in solo). Floor "". */
 function regexCtxChar(ctx: MessageRenderContext, characterId: CharacterId | null): string {
   if (characterId !== null) {
     return ctx.characterNamesById.get(characterId)?.name ?? ctx.speakerCharName ?? "";

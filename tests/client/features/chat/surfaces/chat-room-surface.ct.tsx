@@ -7,8 +7,8 @@
 //
 // NOTE: `chat.listMessages` is stubbed at the NETWORK (routeTrpc) — the draft case asserts it is NEVER
 // hit (the surface must not fetch CANON for a chat with no server row yet). `chat.listMessages` returns
-// `MessagesPage { messages, cast }` (Chat-Macro-Resolution.md §1/§3 / D137) — every stub wraps via
-// `makeMessagesPage`; the committed test also stubs `chat.getChat`'s roster + `cast` floor
+// `MessagesPage { messages, identities }` (Chat-Macro-Resolution.md §1/§3 / D137) — every stub wraps via
+// `makeMessagesPage`; the committed test also stubs `chat.getChat`'s roster + `identities` floor
 // (message-list-surface.ct.tsx's `ROSTER_STUB` precedent).
 
 import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
@@ -119,7 +119,7 @@ test("the COMMITTED arm renders that same body identically — the draft is not 
     ...CHAT_AMBIENT_ROUTES,
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_greeting"), role: "assistant", content: FORMATTED_BODY })]),
-    // The committed arm's `{{user}}` subject: the chat's ANCHOR persona + the cast entry that carries it
+    // The committed arm's `{{user}}` subject: the chat's ANCHOR persona + the identity entry that carries it
     // (the exact pair the draft arm predicts client-side).
     "chat.getChat": (): {
       participants: never[];
@@ -151,7 +151,7 @@ test("a committed chat reads canon and renders the rows beside the composer", as
   await expect(component.getByTestId(testId("composer"))).toBeVisible();
 
   // Finding #2: the programmatically-focused room container carries an explicit role + aria-label so its
-  // name never falls to name-from-content (which concatenated the whole toolbar: "Cast · Jump to latest ·
+  // name never falls to name-from-content (which concatenated the whole toolbar: "Characters · Jump to latest ·
   // Attach images · Send message…"). The stubbed getChat has no title/participants, so the label falls to
   // the derived "Untitled chat" — the point is it's a SHORT, chat-scoped name, not the toolbar dump.
   const room = component.getByRole("group", { name: "Untitled chat" });
@@ -672,7 +672,7 @@ test("LIVE: stripping data-surface-tier off the room moves the transcript island
 //
 // Asserted through the RENDERED custom property (the room's `<ThemeScope>` is what paints), never the
 // resolver's return: `--color-primary` is what `accent` clamps to, and it is inherited by everything in
-// the room. The GROUP arm is the discriminator — a fix that takes over from "any card in the cast" passes
+// the room. The GROUP arm is the discriminator — a fix that takes over from "any character card in the room" passes
 // the solo arm and fails it.
 const CARD_ACCENT = "oklch(0.62 0.21 305)";
 const CARD_THEME = { accent: CARD_ACCENT, speaker: CARD_ACCENT };
@@ -715,9 +715,9 @@ test("COMMITTED: the SAME card resolves the SAME room accent through the roster 
   expect(await renderedAccent(bubble)).toBe(CARD_ACCENT);
 });
 
-// ── THE CAST STRIP SERVES BOTH PHASES (side-eye P2, 2026-08-06) ───────────────────────────────────
+// ── THE CHARACTER STRIP SERVES BOTH PHASES (side-eye P2, 2026-08-06) ──────────────────────────────
 // The strip existed only for a COMMITTED chat, so a group DRAFT — a room that already knows its whole
-// founding cast — showed no cast at all above the transcript. Same strip, same >1 floor; the phase only
+// founding characters — showed none of them above the transcript. Same strip, same >1 floor; the phase only
 // decides where the seats come from. The SOLO arm is the discriminator: a fix that mounts the strip
 // unconditionally passes the group case and wrongly paints a one-character room.
 
