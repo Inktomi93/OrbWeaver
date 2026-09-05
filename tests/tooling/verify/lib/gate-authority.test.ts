@@ -3,6 +3,7 @@ import type {
   GateAuthorityBatchResult,
   GateOwnerCompletion,
   GateOwnerResult,
+  OrdinaryAuthorityAlarm,
   RawGateFinding,
   SelectedGatePolicy,
 } from "../../../../tooling/src/verify/contract/gate-authority.ts";
@@ -49,15 +50,6 @@ test("each authority uses only its own exception door and findings derive policy
       return "waiver:ordinary";
     },
     reviewedGrants: [
-      { id: "grant:hard", policyId: "hard-policy", subject: "src/a.ts", operation: "import", why: "fixture", endsWhen: "never" },
-      {
-        id: "grant:ordinary",
-        policyId: "ordinary-policy",
-        subject: "src/a.ts",
-        operation: "import",
-        why: "fixture",
-        endsWhen: "never",
-      },
       {
         id: "grant:reviewed",
         policyId: "reviewed-policy",
@@ -73,11 +65,7 @@ test("each authority uses only its own exception door and findings derive policy
   expect(result.effectiveFindings).toMatchObject([{ policyId: "hard-policy", severity: "error" }]);
   expect(result.waivedFindings).toMatchObject([{ waiverId: "waiver:ordinary", finding: { policyId: "ordinary-policy", severity: "warning" } }]);
   expect(result.grantedFindings).toMatchObject([{ grantId: "grant:reviewed", finding: { policyId: "reviewed-policy", severity: "error" } }]);
-  expect(result.reviewedGrantConsumption).toEqual([
-    { id: "grant:hard", count: 0 },
-    { id: "grant:ordinary", count: 0 },
-    { id: "grant:reviewed", count: 1 },
-  ]);
+  expect(result.reviewedGrantConsumption).toEqual([{ id: "grant:reviewed", count: 1 }]);
 });
 
 test("raw findings cannot spoof policy identity or severity", () => {
@@ -137,6 +125,7 @@ test("used, stale, unselected, and withheld reviewed grants reconcile independen
 
   expect(result.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: "grant:stale", policyId: "reviewed-policy" }]);
   expect(result.authorityAlarms).toHaveLength(1);
+  expect(result.verdict).toMatchObject({ errors: 1, blocking: 1 });
   expect(result.withheldPolicyIds).toEqual(["withheld-policy"]);
   expect(result.reviewedGrantConsumption).toEqual([
     { id: "grant:stale", count: 0 },
@@ -164,6 +153,7 @@ test("ordinary waiver lookup precedes one reconciliation over completed owners",
   expect(calls).toEqual(["lookup:a.ts", "lookup:b.ts", "reconcile:ordinary-policy:1"]);
   expect(result.ordinaryConsumption).toEqual([{ id: "waiver:a", count: 1 }]);
   expect(result.authorityAlarms).toMatchObject([{ kind: "ordinary-waiver", waiverId: "waiver:stale" }]);
+  expect(result.verdict).toMatchObject({ errors: 1, blocking: 1 });
 });
 
 test("missing, duplicate, and unselected owner results are typed tool errors", () => {
@@ -255,6 +245,116 @@ test("blank waiver and reviewed-grant identities are tool errors and cannot supp
   });
   expect(blankGrant.toolErrors).toMatchObject([{ kind: "invalid-grant" }]);
   expect(blankGrant.reviewedGrantConsumption).toEqual([]);
+});
+
+test("identity validation rejects C0 and DEL without delimiter collisions", () => {
+  const collision = coordinate({
+    selectedPolicies: [],
+    ownerResults: [],
+    reviewedGrants: [
+      { id: "first", policyId: "a", subject: "b\u0000c", operation: "d", why: "fixture", endsWhen: "end" },
+      { id: "second", policyId: "a\u0000b", subject: "c", operation: "d", why: "fixture", endsWhen: "end" },
+    ],
+  });
+  expect(collision.toolErrors.map(({ kind }) => kind)).toEqual(["invalid-grant", "invalid-grant"]);
+  expect(collision.toolErrors).not.toMatchObject([{ kind: "duplicate-grant-identity" }]);
+
+  const invalidPolicy = coordinate({
+    selectedPolicies: [{ id: "policy\u007f", authority: "hard", severity: "error" }],
+    ownerResults: [],
+  });
+  expect(invalidPolicy.toolErrors).toMatchObject([{ kind: "invalid-policy" }]);
+
+  const invalidPath = coordinate({
+    selectedPolicies: [POLICIES[0] as SelectedGatePolicy],
+    ownerResults: [{ ...owner("hard-policy", [finding("bad\u0000.ts")]), populationFiles: ["bad\u0000.ts"] }],
+  });
+  expect(invalidPath.toolErrors).toMatchObject([{ kind: "invalid-population", policyId: "hard-policy" }]);
+
+  const invalidWaiver = coordinate({
+    selectedPolicies: [POLICIES[1] as SelectedGatePolicy],
+    ownerResults: [owner("ordinary-policy", [finding("ordinary.ts")])],
+    waiverFor: () => "waiver\u007f",
+  });
+  expect(invalidWaiver.toolErrors).toMatchObject([{ kind: "invalid-waiver-id" }]);
+});
+
+test("successful empty populations withhold ordinary and reviewed reconciliation", () => {
+  let waiverLookups = 0;
+  let ordinaryReconciliations = 0;
+  const result = coordinate({
+    selectedPolicies: [POLICIES[1] as SelectedGatePolicy, POLICIES[2] as SelectedGatePolicy],
+    ownerResults: [owner("ordinary-policy", []), owner("reviewed-policy", [])],
+    reviewedGrants: [{ id: "grant:held", policyId: "reviewed-policy", subject: "s", operation: "o", why: "fixture", endsWhen: "population returns" }],
+    waiverFor: () => {
+      waiverLookups += 1;
+      return null;
+    },
+    reconcileOrdinary: () => {
+      ordinaryReconciliations += 1;
+      return [];
+    },
+  });
+
+  expect(waiverLookups).toBe(0);
+  expect(ordinaryReconciliations).toBe(0);
+  expect(result.toolErrors.map(({ kind }) => kind)).toEqual(["invalid-population", "invalid-population"]);
+  expect(result.withheldPolicyIds).toEqual(["ordinary-policy", "reviewed-policy"]);
+  expect(result.authorityAlarms).toEqual([]);
+});
+
+test("malformed ordinary reconciliation rows are tool errors and withhold that policy", () => {
+  const malformed = [
+    { kind: "ordinary-waiver", policyId: "ordinary-policy", message: "valid before malformed sibling", waiverId: "waiver:valid" },
+    { kind: "wrong-kind", policyId: "ordinary-policy", message: "wrong kind" },
+    { kind: "ordinary-waiver", policyId: "ordinary-policy", message: "" },
+    { kind: "ordinary-waiver", policyId: "ordinary-policy", message: "blank waiver", waiverId: " " },
+    { kind: "ordinary-waiver", policyId: "not-completed", message: "wrong owner" },
+  ] as unknown as readonly OrdinaryAuthorityAlarm[];
+  const result = coordinate({
+    selectedPolicies: [POLICIES[1] as SelectedGatePolicy],
+    ownerResults: [owner("ordinary-policy", [finding("ordinary.ts")])],
+    reconcileOrdinary: () => malformed,
+  });
+
+  expect(result.toolErrors.map(({ kind }) => kind)).toEqual([
+    "invalid-authority-alarm",
+    "invalid-authority-alarm",
+    "invalid-authority-alarm",
+    "invalid-authority-alarm",
+  ]);
+  expect(result.withheldPolicyIds).toEqual(["ordinary-policy"]);
+  expect(result.authorityAlarms).toEqual([]);
+});
+
+test("grants targeting selected hard or ordinary policies tool-error without opening a suppression door", () => {
+  const result = coordinate({
+    selectedPolicies: [POLICIES[0] as SelectedGatePolicy, POLICIES[1] as SelectedGatePolicy],
+    ownerResults: [owner("hard-policy", [finding("hard.ts")]), owner("ordinary-policy", [finding("ordinary.ts")])],
+    reviewedGrants: [
+      { id: "grant:hard", policyId: "hard-policy", subject: "s", operation: "o", why: "fixture", endsWhen: "never" },
+      { id: "grant:ordinary", policyId: "ordinary-policy", subject: "s", operation: "o", why: "fixture", endsWhen: "never" },
+    ],
+  });
+
+  expect(result.toolErrors.map(({ kind }) => kind)).toEqual(["invalid-grant-authority", "invalid-grant-authority"]);
+  expect(result.withheldPolicyIds).toEqual(["hard-policy", "ordinary-policy"]);
+  expect(result.effectiveFindings.map(({ policyId }) => policyId)).toEqual(["hard-policy", "ordinary-policy"]);
+  expect(result.grantedFindings).toEqual([]);
+});
+
+test("non-success completion reasons must be nonblank identities", () => {
+  const result = coordinate({
+    selectedPolicies: POLICIES,
+    ownerResults: [
+      owner("hard-policy", [], { status: "failure", population: "incomplete", reason: "" }),
+      owner("ordinary-policy", [], { status: "incomplete", population: "incomplete", reason: " " }),
+      owner("reviewed-policy", [], { status: "not-applicable", population: "complete", reason: "\u007f" }),
+    ],
+  });
+
+  expect(result.toolErrors.map(({ kind }) => kind)).toEqual(["invalid-owner-result", "invalid-owner-result", "invalid-owner-result"]);
+  expect(result.withheldPolicyIds).toEqual(["hard-policy", "ordinary-policy", "reviewed-policy"]);
 });
 
 test("warning promotion changes blocking without rewriting severity", () => {
