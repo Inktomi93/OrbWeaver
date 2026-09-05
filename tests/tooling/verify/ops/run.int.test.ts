@@ -6,6 +6,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import process from "node:process";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import type { StageDef, StageResult } from "../../../../tooling/src/verify/index.ts";
 import {
@@ -328,20 +329,27 @@ test("the push tier carries the behavioral suites the static tier omits (the `bo
 
 // ── V2 scope propagation (§3.4) — the ONE selection resolver feeds every stage's scopedArgv ──
 
-test("resolveSelection --file: derives the per-tool views (eslint surface, tsc owner, depcruise, docs)", () => {
-  // A ui src file + a docs file. eslint sees the ui file; tsc owns it via packages/ui/tsconfig; depcruise
-  // sees the packages/ file; docs sees the .md.
-  const sel = resolveSelection({
-    kind: "file",
-    paths: ["packages/ui/src/primitives/button/variants.ts", "docs/architecture/core/AGENTS.md"],
-  });
-  expect(sel.eslintPaths).toContain("packages/ui/src/primitives/button/variants.ts");
-  expect(sel.tsconfigs).toContain("packages/ui/tsconfig.json");
-  expect(sel.depcruisePaths).toContain("packages/ui/src/primitives/button/variants.ts");
-  expect(sel.docsPaths).toContain("docs/architecture/core/AGENTS.md");
-  // A docs file is NOT in the eslint/tsc/depcruise surfaces.
-  expect(sel.eslintPaths).not.toContain("docs/architecture/core/AGENTS.md");
-});
+test(
+  "resolveSelection --file: derives the per-tool views (eslint surface, tsc owner, depcruise, docs)",
+  () => {
+    // A ui src file + a docs file. eslint sees the ui file; tsc owns it via packages/ui/tsconfig; depcruise
+    // sees the packages/ file; docs sees the .md.
+    const sel = resolveSelection({
+      kind: "file",
+      paths: ["packages/ui/src/primitives/button/variants.ts", "docs/architecture/core/AGENTS.md"],
+    });
+    expect(sel.eslintPaths).toContain("packages/ui/src/primitives/button/variants.ts");
+    expect(sel.tsconfigs).toContain("packages/ui/tsconfig.json");
+    expect(sel.depcruisePaths).toContain("packages/ui/src/primitives/button/variants.ts");
+    expect(sel.docsPaths).toContain("docs/architecture/core/AGENTS.md");
+    // A docs file is NOT in the eslint/tsc/depcruise surfaces.
+    expect(sel.eslintPaths).not.toContain("docs/architecture/core/AGENTS.md");
+  },
+  // resolveSelection --file resolves through deriveViews → graphMembership() → graphMembershipKey(), which
+  // SHELLS OUT to `git rev-parse HEAD` (program-routing.ts). Vitest's bare 5s default flaked at 5.7-9.8s
+  // under lane load (#1610) — the arm needs the repo's load-scaled budget, not a bare literal.
+  budget(5000),
+);
 
 test("docs:catalog changed scope covers all Markdown and its own control files", () => {
   const design = resolveSelection({ kind: "file", paths: ["docs/history/design/staleness-and-session-freshness.md"] });
