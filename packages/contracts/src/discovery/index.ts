@@ -102,9 +102,10 @@ export type FindDuplicatesWorkloadParams = z.infer<typeof findDuplicatesWorkload
  * crossing the wire.
  *
  * `no-digests` — the input plane is empty: memory has never been backfilled (or memory is disabled).
- * `no-solo-digests` — digests EXIST but every one belongs to a group room, and the theme passes cluster solo
- *   digests only (a group room's digests belong to the synthetic group character). "Run the backfill" is the
- *   wrong sentence there — it already ran (issue #558).
+ * `no-solo-digests` — digests EXIST but every one belongs to a group room, and the passes that attribute a
+ *   digest to a character read solo digests only: `compute-themes` clusters them and `compute-cooccurrence`
+ *   credits their keywords (a group room's digests belong to the synthetic group character, #1467). "Run the
+ *   backfill" is the wrong sentence there — it already ran (issue #558).
  * `no-embeddings` — the EMBEDDINGS plane is empty: nothing has been indexed yet. `csls` scores card vectors
  *   and `find-duplicates` compares card vectors + chat segment hashes, and all of those are written by the
  *   INDEX pass — a different job from the memory backfill the digest reasons point at, so it is a different

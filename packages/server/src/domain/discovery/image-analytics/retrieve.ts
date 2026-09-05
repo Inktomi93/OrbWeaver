@@ -252,12 +252,25 @@ function accumulateClusters(group: readonly AvatarVector[], labels: Map<Characte
   return [...clusters.values()];
 }
 
+/** The cluster's lowest member id — the tie-break key for {@link labelClusters}. Clusters partition the
+ *  space, so no two share a member and the minimum is unique; taking it by VALUE (not by position) makes it
+ *  independent of the row order the members arrived in. */
+function lowestMemberId(acc: VisualClusterAcc): string {
+  return acc.members.reduce<string>((lowest, m) => (lowest === "" || m.characterId < lowest ? m.characterId : lowest), "");
+}
+
 /** Turn accumulated clusters into labelled archetypes. Biggest family picks its label first — the largest
- *  group is the one a reader scans for, so it gets the plainest name and the smaller ones qualify. */
+ *  group is the one a reader scans for, so it gets the plainest name and the smaller ones qualify.
+ *
+ *  SIZE ALONE IS NOT A TOTAL ORDER, and this sort DECIDES the labels (`taken` is threaded through the map, so
+ *  who sorts first gets the plain name and the rest qualify). Two equal-sized families were left in k-means'
+ *  cluster-index order — which is assignment order over an unordered SELECT — so an unchanged corpus could
+ *  swap two families' labels between runs. The member id breaks the tie the same way `mode`/`rankCandidates`
+ *  already break theirs. */
 function labelClusters(accs: readonly VisualClusterAcc[], corpus: FacetCounts, corpusSize: number, model: string): VisualArchetype[] {
   const taken = new Set<string>();
   return accs
-    .toSorted((a, b) => b.members.length - a.members.length)
+    .toSorted((a, b) => b.members.length - a.members.length || (lowestMemberId(a) < lowestMemberId(b) ? -1 : 1))
     .map((acc) => {
       const candidates = acc.analysed === 0 ? [] : rankCandidates(acc.facets, corpus, acc.analysed, corpusSize);
       const label = composeLabel(candidates, taken);

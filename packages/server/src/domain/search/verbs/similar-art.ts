@@ -11,12 +11,14 @@ import type { SearchService } from "../contract/service.ts";
 import { nearestAvatarCharacters, readSeedAvatarVector } from "../persistence/image-nearest.ts";
 import { OWNER_OVERFETCH } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
+import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 const DEFAULT_ART_LENS: ImageLens = "image-raw";
 
 export function createSimilarArt(ctx: SearchContext): SearchService["similarArt"] {
   return async (params: SimilarArtParams): Promise<SimilarArtHit[]> => {
     const { ownerId, characterId, topN } = params;
+    requirePositiveTopN(topN, "similarArt");
     const lens = params.lens ?? DEFAULT_ART_LENS;
     const model = ctx.roleClients.imageEmbedModel;
 

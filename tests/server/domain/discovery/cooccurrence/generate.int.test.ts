@@ -231,3 +231,106 @@ describe("computeCooccurrence", () => {
     expect(stats.digestsRead).toBe(2);
   });
 });
+
+// #1467 item 2: a GROUP room's digest is scoped to the synthetic per-room bucket, not to a character who was
+// in the scene. Tallying it credited a whole room's vocabulary to one synthetic "character" — the theme pass
+// already drops these rows before clustering, and this is the same drop in the sibling pass.
+describe("group-room digests", () => {
+  test("a group-room keyword never lands in character_keyword_profiles, and the pass says so", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const chat = await seedHostedChat(db, "chat_1", owner);
+    const hero = await seedCharacter(db, { id: "character_hero", ownerId: owner, name: "Hero" });
+    await seedChatDigest(db, {
+      id: "digest_solo",
+      chatId: chat,
+      embedding: vec(1),
+      scopedCharacterId: hero,
+      tier: 0,
+      blockIdx: 0,
+      contentHash: "h_solo",
+      keywords: ["duel", "moonlight"],
+    });
+    // The group digest keeps the harness default scopedCharacterId — the synthetic group bucket.
+    await seedChatDigest(db, {
+      id: "digest_group",
+      chatId: chat,
+      embedding: vec(1),
+      tier: 0,
+      blockIdx: 1,
+      isGroup: true,
+      contentHash: "h_group",
+      keywords: ["tavern", "brawl"],
+    });
+
+    const stats = await svcFor(db).computeCooccurrence({ hubFraction: 1 });
+
+    // Both digests were READ; only the solo one is the pass's actual input plane.
+    expect(stats.digestsRead).toBe(2);
+    expect(stats.soloDigestsRead).toBe(1);
+    const profiles = await db.select({ keyword: characterKeywordProfiles.keyword }).from(characterKeywordProfiles);
+    expect(new Set(profiles.map((r) => r.keyword))).toEqual(new Set(["duel", "moonlight"]));
+    expect(await pairsFor(db, owner)).toEqual([{ a: "duel", b: "moonlight", count: 1 }]);
+  });
+
+  test("a GROUP-ROOMS-ONLY corpus reads digests and writes nothing — its own refusal signal", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const chat = await seedHostedChat(db, "chat_1", owner);
+    await seedChatDigest(db, {
+      id: "digest_group",
+      chatId: chat,
+      embedding: vec(1),
+      tier: 0,
+      isGroup: true,
+      contentHash: "h_g",
+      keywords: ["tavern", "brawl"],
+    });
+
+    const stats = await svcFor(db).computeCooccurrence({ hubFraction: 1 });
+
+    expect(stats).toMatchObject({ digestsRead: 1, soloDigestsRead: 0, pairsWritten: 0, charKeywordsWritten: 0 });
+  });
+});
+
+// #1467 item 4: the tally is built from an unordered SELECT through two Maps, so a count-only comparator left
+// the `maxPairs` cut to insertion order — two runs over an UNCHANGED corpus could keep different pairs.
+//
+// HONEST LABEL: a FENCE, not a defect proof. The pre-fix code passes this fixture, because the row order this
+// db happens to return already puts the lexicographic winner first — which is exactly the point: the ORDER IS
+// NOT OURS TO PREDICT, and the pin is that the answer does not depend on it. What is proved is the comparator
+// contract (equal counts resolve on the pair), so a future edit that drops the tie-break goes red here.
+describe("the maxPairs cut is a TOTAL order", () => {
+  test("equal counts break on the keyword pair, not on tally insertion order", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const chat = await seedHostedChat(db, "chat_1", owner);
+    const hero = await seedCharacter(db, { id: "character_hero", ownerId: owner, name: "Hero" });
+    // Seeded (and therefore tallied) z-pair FIRST: under a count-only sort it survives a maxPairs of 1.
+    await seedChatDigest(db, {
+      id: "digest_z",
+      chatId: chat,
+      embedding: vec(1),
+      scopedCharacterId: hero,
+      tier: 0,
+      blockIdx: 0,
+      contentHash: "h_z",
+      keywords: ["zebra", "zulu"],
+    });
+    await seedChatDigest(db, {
+      id: "digest_a",
+      chatId: chat,
+      embedding: vec(1),
+      scopedCharacterId: hero,
+      tier: 0,
+      blockIdx: 1,
+      contentHash: "h_a",
+      keywords: ["alpha", "beta"],
+    });
+
+    const stats = await svcFor(db).computeCooccurrence({ hubFraction: 1, maxPairs: 1 });
+
+    expect(stats.pairsWritten).toBe(1);
+    expect(await pairsFor(db, owner)).toEqual([{ a: "alpha", b: "beta", count: 1 }]);
+  });
+});

@@ -209,3 +209,31 @@ describe("visualArchetypes", () => {
     }
   });
 });
+
+// #1467 item 4: `labelClusters` sorts by size and the sort DECIDES the labels (the biggest family takes the
+// plain name, the rest qualify around it). Equal-sized families were left in k-means' cluster-index order —
+// assignment order over an unordered SELECT — so an unchanged corpus could swap two families' labels.
+describe("visualArchetypes labelling is deterministic across equal-sized families", () => {
+  test("the same corpus seeded in the opposite order produces the same labels", async () => {
+    const labelsFor = async (reversed: boolean): Promise<string[]> => {
+      const db = await freshDb();
+      const owner = await seedUser(db, "user_a");
+      // Two well-separated visual families of the SAME size — the tie the sort has to break. (Well separated
+      // on purpose: k-means itself must land the same PARTITION either way, so the only thing left moving is
+      // the cluster-index order the labeller used to inherit.)
+      const family = [
+        { id: "character_a1", avatarVec: vec(1, 0), style: "anime" },
+        { id: "character_a2", avatarVec: vec(0.99, 0.01), style: "anime" },
+        { id: "character_b1", avatarVec: vec(0, 1), style: "painterly" },
+        { id: "character_b2", avatarVec: vec(0.01, 0.99), style: "painterly" },
+      ];
+      for (const row of reversed ? [...family].reverse() : family) {
+        await seedAvatarChar(db, { id: row.id, ownerId: owner, avatarVec: row.avatarVec, artStyle: row.style });
+      }
+      const archetypes = await svcFor(db).visualArchetypes(owner, 2);
+      return archetypes.map((a) => `${a.label}:${String(a.size)}`);
+    };
+
+    expect(await labelsFor(false)).toEqual(await labelsFor(true));
+  });
+});

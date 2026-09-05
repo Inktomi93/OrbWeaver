@@ -9,10 +9,14 @@ import { assets, characterEmbeddings, characters, chatDigests, chatParticipants,
 import type { AssetId, CharacterId, ChatDigestId, ChatId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, max, min, notInArray, sql } from "drizzle-orm";
+import { ownedRealCharacters } from "./character-scope.ts";
 
 interface DigestKeywordRow {
   readonly ownerId: UserId;
   readonly scopedCharacterId: CharacterId;
+  /** A GROUP-room digest is scoped to the synthetic group bucket, not to a character who was in the scene —
+   *  the cooccurrence pass drops these before crediting keywords, exactly as the theme pass does. */
+  readonly isGroup: boolean;
   readonly contentHash: string;
   readonly keywords: string[];
 }
@@ -65,14 +69,12 @@ export async function readOwnedCharacterHashes(db: Db, ownerId: UserId): Promise
     .select({ characterId: characterEmbeddings.characterId, contentHash: characterEmbeddings.contentHash })
     .from(characterEmbeddings)
     .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
-    .where(and(eq(characters.synthetic, false), eq(characters.ownerId, ownerId)));
+    .where(ownedRealCharacters(ownerId));
 }
 
 // ── duplicate-character pass ──────────────────────────────────────────────────
 /** Every card embedding with its owner, excluding synthetic (per-room group) characters. */
 export async function readOwnedCharacterVectors(db: Db, ownerId?: UserId | null): Promise<OwnedCharacterVector[]> {
-  const scope =
-    ownerId === undefined || ownerId === null ? eq(characters.synthetic, false) : and(eq(characters.synthetic, false), eq(characters.ownerId, ownerId));
   return await db
     .select({
       characterId: characterEmbeddings.characterId,
@@ -83,12 +85,14 @@ export async function readOwnedCharacterVectors(db: Db, ownerId?: UserId | null)
     })
     .from(characterEmbeddings)
     .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
-    .where(scope);
+    .where(ownedRealCharacters(ownerId));
 }
 
 // ── hub passes (always owner-scoped — csls analyzes YOUR OWN library only, no cross-tenant read) ──
 
-/** ONE owner's card embeddings as hub rows (owner via `characters.ownerId`) — the owner-local hub space. */
+/** ONE owner's card embeddings as hub rows (owner via `characters.ownerId`) — the owner-local hub space.
+ *  Synthetic-excluded like every sibling analytics read: the hub space is what the owner's CARDS look like,
+ *  and a per-room group bucket in it shifts the mean every real card's CSLS score is measured against. */
 export async function readCharacterHubVectors(db: Db, ownerId: UserId): Promise<HubVector[]> {
   return await db
     .select({
@@ -99,7 +103,7 @@ export async function readCharacterHubVectors(db: Db, ownerId: UserId): Promise<
     })
     .from(characterEmbeddings)
     .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
-    .where(eq(characters.ownerId, ownerId));
+    .where(ownedRealCharacters(ownerId));
 }
 
 /** ONE owner's digest embeddings as hub rows, carrying `tier` (owner = the present chat host). */
@@ -167,7 +171,10 @@ export async function distinctCharacterHubOwners(db: Db): Promise<UserId[]> {
   const rows = await db
     .selectDistinct({ ownerId: characters.ownerId })
     .from(characterEmbeddings)
-    .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id));
+    .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
+    // Same belt as the per-owner read this enumeration fans out to: an owner whose only embedded characters
+    // are synthetic has NOTHING for the card-hub pass to score, and listing them mints an empty pass.
+    .where(ownedRealCharacters());
   return rows.map((r) => r.ownerId);
 }
 
@@ -272,7 +279,9 @@ export async function readOwnedDigestVectors(db: Db, ownerId?: UserId | null): P
 
 // ── cooccurrence pass ───────────────────────────────────────────────────────
 /** Every tier-0 digest's keyword material tagged with its owner (present chat host) + witnessing character
- *  + contentHash — the cooccurrence + per-character keyword-profile inputs. Tier-0 leaves only. */
+ *  + isGroup + contentHash — the cooccurrence + per-character keyword-profile inputs. Tier-0 leaves only.
+ *  `isGroup` rides the row rather than the predicate (the sibling {@link readOwnedDigestVectors} shape) so the
+ *  pass can report the read plane and its solo sub-plane as separate counts. */
 export async function readOwnedDigestKeywords(db: Db, ownerId?: UserId | null): Promise<DigestKeywordRow[]> {
   const hostJoin =
     ownerId === undefined || ownerId === null
@@ -293,6 +302,7 @@ export async function readOwnedDigestKeywords(db: Db, ownerId?: UserId | null): 
     .select({
       ownerId: chatParticipants.userId,
       scopedCharacterId: chatDigests.scopedCharacterId,
+      isGroup: chatDigests.isGroup,
       contentHash: chatDigests.contentHash,
       keywords: chatDigests.keywords,
     })
@@ -363,33 +373,39 @@ interface Tier0DigestSpan {
   readonly seqEnd: number;
 }
 
-/** Every tier-0 digest with a theme assignment, mapped to its verbatim seq-span — the msgMidAt backfill input. */
+/** Every tier-0 digest with a theme assignment, mapped to its verbatim seq-span — the msgMidAt backfill input.
+ *
+ *  AGGREGATED PER DIGEST, for the same reason {@link readSegmentBlockSpans} aggregates per block (#172):
+ *  `chat_segments` holds N chunk rows for an over-window block, so a distinct row-per-chunk read handed the
+ *  backfill several partial spans for ONE digest. `backfillMsgMidAt` UPDATEs by `digestId`, so the last row in
+ *  an unordered result won — a chunked scene's story-time stamp was whichever chunk the planner emitted last,
+ *  never the whole block's `[min(seqStart), max(seqEnd)]`. */
 export async function readTier0DigestSpans(db: Db, ownerId?: UserId | null): Promise<Tier0DigestSpan[]> {
   const base = db
-    .selectDistinct({
+    .select({
       digestId: chatDigests.id,
       chatId: chatDigests.chatId,
-      seqStart: chatSegments.seqStart,
-      seqEnd: chatSegments.seqEnd,
+      seqStart: min(chatSegments.seqStart),
+      seqEnd: max(chatSegments.seqEnd),
     })
     .from(digestThemeAssignments)
     .innerJoin(chatDigests, eq(chatDigests.id, digestThemeAssignments.digestId))
     .innerJoin(chatSegments, and(eq(chatSegments.chatId, chatDigests.chatId), eq(chatSegments.blockIdx, chatDigests.blockIdx)));
-  if (ownerId === undefined || ownerId === null) {
-    return await base.where(eq(chatDigests.tier, 0));
-  }
-  return await base
-    .innerJoin(
-      chatParticipants,
-      and(
-        eq(chatParticipants.chatId, chatDigests.chatId),
-        eq(chatParticipants.kind, "human"),
-        eq(chatParticipants.role, "host"),
-        eq(chatParticipants.userId, ownerId),
-        isNull(chatParticipants.leftSeq),
-      ),
-    )
-    .where(eq(chatDigests.tier, 0));
+  const scoped =
+    ownerId === undefined || ownerId === null
+      ? base
+      : base.innerJoin(
+          chatParticipants,
+          and(
+            eq(chatParticipants.chatId, chatDigests.chatId),
+            eq(chatParticipants.kind, "human"),
+            eq(chatParticipants.role, "host"),
+            eq(chatParticipants.userId, ownerId),
+            isNull(chatParticipants.leftSeq),
+          ),
+        );
+  const rows = await scoped.where(eq(chatDigests.tier, 0)).groupBy(chatDigests.id, chatDigests.chatId);
+  return rows.flatMap((r) => (r.seqStart === null || r.seqEnd === null ? [] : [{ ...r, seqStart: r.seqStart, seqEnd: r.seqEnd }]));
 }
 
 interface TierKDigestRow {
@@ -469,10 +485,7 @@ export async function readCorpusCoverage(db: Db, ownerId: UserId): Promise<{ cha
     isNull(chatParticipants.leftSeq),
   );
   const [chars, digests, segments] = await Promise.all([
-    db
-      .select({ n: sql<number>`count(*)` })
-      .from(characters)
-      .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false))),
+    db.select({ n: sql<number>`count(*)` }).from(characters).where(ownedRealCharacters(ownerId)),
     db
       .select({ n: sql<number>`count(${chatDigests.id})` })
       .from(chatDigests)
@@ -506,7 +519,9 @@ export async function readThemeClusterMembers(
     .innerJoin(characters, eq(characters.id, chatDigests.scopedCharacterId))
     .where(and(eq(digestThemeAssignments.themeClusterId, themeClusterId), eq(characters.synthetic, false)))
     .groupBy(chatDigests.scopedCharacterId, characters.name)
-    .orderBy(desc(sql`count(*)`))
+    // Total order: equal-count members were left in scan order, so the LIMIT cut a different set between two
+    // identical reads of one theme (#1467 item 4's family).
+    .orderBy(desc(sql`count(*)`), asc(characters.name))
     .limit(limit);
 }
 
@@ -570,7 +585,7 @@ export async function readOwnedAvatarVectors(db: Db, ownerId: UserId): Promise<A
     .from(imageEmbeddings)
     .innerJoin(characters, eq(characters.avatarAssetId, imageEmbeddings.assetId))
     .innerJoin(assets, eq(assets.id, imageEmbeddings.assetId))
-    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS), excludeShared(shared)));
+    .where(and(ownedRealCharacters(ownerId), eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS), excludeShared(shared)));
 }
 
 interface PortraitPair {
@@ -597,7 +612,7 @@ export async function readOwnedPortraitPairs(db: Db, ownerId: UserId): Promise<P
     .innerJoin(characters, eq(characters.avatarAssetId, imageEmbeddings.assetId))
     .innerJoin(assets, eq(assets.id, imageEmbeddings.assetId))
     .innerJoin(characterEmbeddings, and(eq(characterEmbeddings.characterId, characters.id), eq(characterEmbeddings.model, imageEmbeddings.model)))
-    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS), excludeShared(shared)));
+    .where(and(ownedRealCharacters(ownerId), eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS), excludeShared(shared)));
 }
 
 interface CaptionRow {
@@ -623,14 +638,7 @@ async function captionRows(db: Db, ownerId: UserId, extra?: SQL): Promise<Captio
     .innerJoin(characters, eq(characters.avatarAssetId, imageEmbeddings.assetId))
     .innerJoin(assets, eq(assets.id, imageEmbeddings.assetId))
     .where(
-      and(
-        eq(characters.ownerId, ownerId),
-        eq(characters.synthetic, false),
-        eq(imageEmbeddings.lens, IMAGE_CAPTION_LENS),
-        isNotNull(imageEmbeddings.captionMeta),
-        excludeShared(shared),
-        extra,
-      ),
+      and(ownedRealCharacters(ownerId), eq(imageEmbeddings.lens, IMAGE_CAPTION_LENS), isNotNull(imageEmbeddings.captionMeta), excludeShared(shared), extra),
     )
     .orderBy(asc(characters.name));
   return rows.map((r) => ({ ...r, captionMeta: r.captionMeta ?? null }));

@@ -16,6 +16,7 @@ import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGME
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { collapseSegmentChunks } from "../substrate/dedupe.ts";
 import { applyRerank } from "../substrate/rerank.ts";
+import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 interface DiscoverCandidate {
   readonly id: string;
@@ -122,6 +123,8 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
     if (queryText.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "discover requires a queryText to embed + scan");
     }
+    // `poolK` below is `topN × FACTOR` handed straight to a DB limit — guarded before it can become one.
+    requirePositiveTopN(topN, "discover");
     const embedded = await ctx.roleClients.embed(queryText, { inputType: "query" });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
@@ -140,25 +143,31 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
       return [];
     }
 
-    // Collapse each block's chunk rows to its best-scoring one FIRST (#172 — a block is N rows now). Evidence
-    // and `matchCount` are per SCENE: two chunks of one block are the same scene, and counting them twice
-    // would inflate a character's rank on the strength of one long message.
-    const sorted: DiscoverCandidate[] = collapseSegmentChunks([...pool].sort((a, b) => a.distance - b.distance))
-      .map((s) => ({
-        id: blockSlot(s.chatId, s.blockIdx),
-        chatId: s.chatId,
-        blockIdx: s.blockIdx,
-        sourceText: s.text,
-        distance: s.distance,
-        hubScore: s.hubScore,
-        score: cslsAdjust(s.distance, s.hubScore),
-      }))
-      .sort(
-        compareCslsBy(
-          (c) => c.distance,
-          (c) => c.hubScore,
+    // RANK FIRST, COLLAPSE SECOND. Each block's chunk rows collapse to ONE (#172 — a block is N rows now):
+    // evidence and `matchCount` are per SCENE, and counting two chunks of one block twice would inflate a
+    // character's rank on the strength of one long message. But `collapseSegmentChunks` is FIRST-WINS over an
+    // already-ranked list, so the order it is handed IS the choice of which chunk represents the block —
+    // collapsing a raw-distance order threw away the chunk this verb actually ranks by, and a farther chunk
+    // with the better hub adjustment lost its block to a closer, hubbier one. CSLS is the ranking; the
+    // representative is the chunk that wins it.
+    const sorted: DiscoverCandidate[] = collapseSegmentChunks(
+      pool
+        .map((s) => ({
+          id: blockSlot(s.chatId, s.blockIdx),
+          chatId: s.chatId,
+          blockIdx: s.blockIdx,
+          sourceText: s.text,
+          distance: s.distance,
+          hubScore: s.hubScore,
+          score: cslsAdjust(s.distance, s.hubScore),
+        }))
+        .sort(
+          compareCslsBy(
+            (c) => c.distance,
+            (c) => c.hubScore,
+          ),
         ),
-      );
+    );
 
     // Rerank segments before grouping so a promoted segment can pull in a low-CSLS character.
     const ranked = params.rerank === true ? await applyRerank(queryText, sorted, ctx.roleClients.rerank, sorted.length) : sorted;

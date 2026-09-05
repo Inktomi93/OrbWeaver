@@ -28,7 +28,11 @@ import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 import { applyRerank } from "../substrate/rerank.ts";
 
 const MIN_TERM_LEN = 3;
-const WORD_SPLIT = /[^a-z0-9]+/u;
+// SPLIT ON "NOT A LETTER OR DIGIT", NOT ON "NOT ASCII". `[^a-z0-9]+` treated every Cyrillic, Greek, CJK and
+// accented character as a SEPARATOR, so a query in one of those scripts split into empty strings and the
+// keyword fallback this verb documents could never fire for it — the whole population, not an edge case.
+// `\p{L}\p{N}` needs the `u` flag (that is what makes the property escapes legal here).
+const WORD_SPLIT = /[^\p{L}\p{N}]+/u;
 
 function queryTerms(text: string): Set<string> {
   return new Set(

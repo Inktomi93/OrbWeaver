@@ -11,10 +11,12 @@ import { resolveCharacterDisplay } from "../persistence/display.ts";
 import { nearestCharacters, readSeedCharacterVector } from "../persistence/nearest.ts";
 import { OWNER_OVERFETCH } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
+import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 export function createSimilarCharacters(ctx: SearchContext): SearchService["similarCharacters"] {
   return async (params: SimilarCharactersParams): Promise<CharacterCardHit[]> => {
     const { ownerId, characterId, topN } = params;
+    requirePositiveTopN(topN, "similarCharacters");
 
     const seed = await readSeedCharacterVector(ctx.db, ownerId, characterId);
     if (seed === null) {

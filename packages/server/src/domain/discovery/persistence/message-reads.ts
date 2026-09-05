@@ -6,6 +6,7 @@ import type { Db } from "@orb/db";
 import { assets, characters, messages, messageVariants } from "@orb/db";
 import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { aliasedTable, and, desc, eq, gt, sql } from "drizzle-orm";
+import { ownedRealCharacters } from "./character-scope.ts";
 
 interface ForgottenGemCandidateRow {
   readonly characterId: CharacterId;
@@ -34,7 +35,7 @@ export async function readForgottenGemCandidates(db: Db, ownerId: UserId): Promi
     .innerJoin(characters, eq(characters.id, messages.characterId))
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .leftJoin(assets, eq(assets.id, characters.avatarAssetId))
-    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), eq(messages.role, "assistant")))
+    .where(and(ownedRealCharacters(ownerId), eq(messages.role, "assistant")))
     .groupBy(characters.id);
   return rows.map((r) => ({
     characterId: r.characterId,
@@ -58,7 +59,7 @@ export async function readCharacterMessageSamples(db: Db, ownerId: UserId, chara
   return await db
     .select({ content: messageVariants.content, createdAt: messages.createdAt })
     .from(messages)
-    .innerJoin(characters, and(eq(characters.id, messages.characterId), eq(characters.ownerId, ownerId), eq(characters.synthetic, false)))
+    .innerJoin(characters, and(eq(characters.id, messages.characterId), ownedRealCharacters(ownerId)))
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(and(eq(messages.characterId, characterId), eq(messages.role, "assistant")))
     .orderBy(desc(messages.createdAt))
@@ -77,7 +78,14 @@ interface SwipeHotspotRow {
 /** The chat's assistant slots that were re-rolled — `message_variants` COUNT per message, keeping only slots
  *  with \>1 take, most takes first. Owner-belted via `characters.ownerId` ∩ `characters.id = messages.characterId`
  *  (a foreign chat's messages belong to another owner → zero rows, no leak). `snippet` is the SELECTED variant's
- *  content (SEMANTIC only); the COUNT join + the selected-content join never touch an economics column. */
+ *  content (SEMANTIC only); the COUNT join + the selected-content join never touch an economics column.
+ *
+ *  DELIBERATELY NOT synthetic-excluded, unlike every sibling read in this file (#1467 item 1). Those answer
+ *  LIBRARY questions ("which of my cards…"), where the per-room group bucket is not a card. This one answers a
+ *  per-chat FORENSIC question — which slots did I re-roll hardest — and the synthetic group card authors real
+ *  narrator prose (recaps, illustrations) that the owner re-rolls like any other take. Dropping those rows
+ *  would delete real regenerations from the only view that reports them; the owner belt (`characters.ownerId`)
+ *  is what keeps a foreign chat at zero rows, and it is unchanged. */
 export async function readSwipeHotspots(db: Db, ownerId: UserId, chatId: ChatId, limit: number): Promise<SwipeHotspotRow[]> {
   const selected = aliasedTable(messageVariants, "selected_variant");
   const variantCount = sql<number>`count(${messageVariants.id})`;

@@ -39,6 +39,13 @@ interface IndexCacheEntry {
 // ASSUMES(single-replica): per-process index cache — replicas would serve divergent staleness.
 const cache = new Map<UserId, IndexCacheEntry>();
 
+// SINGLE-FLIGHT: the build in progress per owner, so N concurrent misses do ONE load + ONE tokenization pass.
+// A miss is the expensive path (every card's text out of the db, then MiniSearch's full inversion), and the
+// omnibox fires `fields` and `suggest` on the same keystroke — so the misses arrive TOGETHER by construction,
+// each doing the whole job and then racing to publish the same index. Keyed by owner: two owners' rebuilds are
+// unrelated work and must not queue behind each other.
+const inFlight = new Map<UserId, Promise<MiniSearch<CardDoc>>>();
+
 function buildIndex(docs: readonly CardDoc[]): MiniSearch<CardDoc> {
   const index = new MiniSearch<CardDoc>({
     idField: "id",
@@ -65,16 +72,31 @@ function touchAndEvict(ownerId: UserId, entry: IndexCacheEntry): void {
   }
 }
 
-/** Cache hit (fresh) returns without touching the db; miss/stale rebuilds via `load` and caches it. */
+/** Cache hit (fresh) returns without touching the db; miss/stale rebuilds via `load` and caches it. Concurrent
+ *  misses for one owner SHARE that rebuild — the second caller awaits the first's promise instead of running a
+ *  second load. A failed build is not cached: the entry is only published on success, and the in-flight slot is
+ *  released either way, so the next caller retries rather than inheriting the failure. */
 export async function getOrBuildFieldIndex(ownerId: UserId, nowMs: number, load: () => Promise<readonly CardDoc[]>): Promise<MiniSearch<CardDoc>> {
   const cached = cache.get(ownerId);
   if (cached !== undefined && nowMs - cached.builtAtMs < FIELD_INDEX_TTL_MS) {
     touchAndEvict(ownerId, cached);
     return cached.index;
   }
-  const entry: IndexCacheEntry = { index: buildIndex(await load()), builtAtMs: nowMs };
-  touchAndEvict(ownerId, entry);
-  return entry.index;
+  const running = inFlight.get(ownerId);
+  if (running !== undefined) {
+    return await running;
+  }
+  const build = (async (): Promise<MiniSearch<CardDoc>> => {
+    const entry: IndexCacheEntry = { index: buildIndex(await load()), builtAtMs: nowMs };
+    touchAndEvict(ownerId, entry);
+    return entry.index;
+  })();
+  inFlight.set(ownerId, build);
+  try {
+    return await build;
+  } finally {
+    inFlight.delete(ownerId);
+  }
 }
 
 /** Run the BM25 query (fuzzy + prefix + field boosts), return the top `topN` card ids by score. */

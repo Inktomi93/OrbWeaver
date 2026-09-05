@@ -18,6 +18,10 @@ export const SEARCH_SCOPE_UNSUPPORTED = "scope_unsupported";
  *  embedding space). Transport validates it too; the domain re-guards rather than default a lens. */
 export const SEARCH_LENS_REQUIRED = "lens_required";
 
+/** A ranked verb was asked for a non-positive / non-integer `topN`. It never becomes a `LIMIT` — SQLite reads
+ *  a negative limit as NO limit, which turns a nonsense ask into a full corpus scan (`substrate/top-n.ts`). */
+export const SEARCH_INVALID_TOP_N = "invalid_top_n";
+
 export class SearchError extends DomainOperationError {
   constructor(code: string, message: string) {
     super(code, message);
