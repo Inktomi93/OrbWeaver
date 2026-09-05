@@ -66,7 +66,7 @@ import {
   walkFailureGap,
 } from "../../ui-audit/index.ts";
 import type { Args } from "../contract/types.ts";
-import { DESIGN_AUDIT_SELECTOR_PROOF_CAP } from "../lib/budgets.ts";
+import { designAuditSelectorProofCap } from "../lib/budgets.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
@@ -206,7 +206,7 @@ async function proveSelectors(page: Page, findings: readonly Finding[]): Promise
   // instance appears. Proving the row alone would have been a proof of the easy half.
   const emitted = findings.flatMap((finding) => [finding.selector, ...(finding.representatives ?? [])]);
   const askable = [...new Set(emitted)].filter((selector) => selector !== PAGE_SUBJECT_SELECTOR);
-  const distinct = askable.slice(0, DESIGN_AUDIT_SELECTOR_PROOF_CAP);
+  const distinct = askable.slice(0, designAuditSelectorProofCap());
   const proofs: SelectorProof[] = [];
   for (const selector of distinct) {
     // @orb-gate-ignore caught-failure-ownership(empty:catch): a selector the browser refuses to parse is reported as matches=-1, which the arm prints as UNPROVEN and counts as non-unique — the failure IS the published value. Ends if -1 stops being read as "not proven".

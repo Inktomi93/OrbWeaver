@@ -11,6 +11,7 @@
 // detail and `next=` narrowing to `--arm <it>`), the fallback fires only when no arm is in a voting state,
 // and every row states which run counter its evidence entered.
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import type { DiskSafeBrowserDiagnostic } from "../../../../tooling/src/snap/contract/browser-evidence-redaction.ts";
 import type { SnapRunIndex } from "../../../../tooling/src/snap/contract/run-index.ts";
 import { collectSnapFindings } from "../../../../tooling/src/snap/lib/run-findings.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -32,13 +33,44 @@ function armVerdict(over: Partial<SnapRunIndex["verdict"]["arms"][number]>): Sna
 function input(
   arms: readonly SnapRunIndex["verdict"]["arms"][number][],
   state: "failed" | "refused" | "passed" = "failed",
+  diagnostics: readonly DiskSafeBrowserDiagnostic[] = [],
 ): Parameters<typeof collectSnapFindings>[0] {
   return {
     indexPath: INDEX_PATH,
     verdict: { exit: state === "passed" ? EXIT.clean : EXIT.violations, state, arms },
     artifacts: [],
     diagnosticsState: "complete",
-    diagnostics: [],
+    diagnostics,
+  };
+}
+
+/** The redaction receipt every disk-safe record carries — a real empty one, so a diagnostic fixture is
+ *  the contract's own shape rather than a double-cast past it (`no-test-fabrication`). */
+const NO_LIMITS = {
+  policy: { maxDepth: 8, maxFields: 256, maxStringBytes: 4096, maxBodyBytes: 0, maxEntries: 128, maxUrlBytes: 2048 },
+  events: [],
+} satisfies DiskSafeBrowserDiagnostic["_orbMeasuredLimit"];
+
+function diagnostic(over: Partial<DiskSafeBrowserDiagnostic>): DiskSafeBrowserDiagnostic {
+  return {
+    origin: "page-console",
+    source: "console-api",
+    level: "error",
+    category: null,
+    text: "boom",
+    timestamp: 0,
+    location: null,
+    stack: null,
+    requestId: null,
+    issueCode: null,
+    details: null,
+    backendNodeId: null,
+    contextIndex: 0,
+    pageIndex: 0,
+    evidenceWindow: 0,
+    raw: null,
+    _orbMeasuredLimit: NO_LIMITS,
+    ...over,
   };
 }
 
@@ -68,6 +100,33 @@ test("a WITHHELD arm's row cannot claim completeness — an absent measurement i
   const findings = await collectSnapFindings(input([armVerdict({ arm: "motion", state: "withheld", detail: "nothing composited" })]));
 
   expect(findings[0]?.completeness).toBe("incomplete");
+});
+
+test("a failing arm gets its row even BESIDE another error row — the arm rows are not a fallback (#1566)", async () => {
+  // The defect: #1385 emitted these inside the "no error draft at all" branch, so a contrast failure
+  // alongside an unrelated page error got no row of its own. The page error is a DIFFERENT fact, and the
+  // arm that actually voted went unexplained on the end card.
+  const findings = await collectSnapFindings(
+    input([armVerdict({ detail: "2 contrast check(s) failed: CONTRAST [x]: 1.69:1 FAIL" })], "failed", [
+      diagnostic({ origin: "page-error", source: "pageerror", text: "TypeError: boom" }),
+    ]),
+  );
+
+  expect(findings.some((row) => row.what.includes("TypeError: boom"))).toBe(true);
+  expect(findings.some((row) => row.arms.includes("contrast"))).toBe(true);
+});
+
+test("an arm a PRODUCER already described gets no second row — de-duplicated by arm, not suppressed by luck", async () => {
+  // The other half of the same change: an analyzer that wrote its own problem rows has said everything the
+  // per-arm row would, so emitting one anyway would be noise wearing the same arm's name. Here the
+  // diagnostic is attributed to `motion`, and the failing arm IS motion.
+  const findings = await collectSnapFindings(
+    input([armVerdict({ arm: "motion", detail: "dropped frames over budget" })], "failed", [
+      diagnostic({ text: "%c10:54:43.115 [drop]%c 70ms rendered frame mid-animation (budget 50ms)" }),
+    ]),
+  );
+
+  expect(findings.filter((row) => row.arms.includes("motion"))).toHaveLength(1);
 });
 
 test("THE FALLBACK STILL EXISTS: a non-passing run with no voting arm at all keeps the unattributed row", async () => {

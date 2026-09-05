@@ -191,7 +191,12 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
       logFile: null,
       failureExcerpt: null,
       runsAt: plan.runsAt,
-      notices: [],
+      // The CONDITION, in the stage's own words, on a channel the summary prints and verify.json keeps
+      // (#1566). The one-line `stageLine` says THAT the precondition declined; this says WHICH one, so a
+      // reader can tell "my diff touched no instrument" from "the gate is broken" without opening the
+      // registry.
+      notices:
+        plan.mode === "skipped" && plan.runsAt !== null && stage.tierPrecondition !== undefined ? [`tier precondition: ${stage.tierPrecondition.reason}`] : [],
     };
   }
   const argv = plan.argv as readonly [string, ...string[]];

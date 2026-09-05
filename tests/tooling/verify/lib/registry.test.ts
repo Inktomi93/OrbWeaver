@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { StageDef } from "../../../../tooling/src/verify/contract/stage.ts";
 import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
+import { stageLine } from "../../../../tooling/src/verify/lib/run-render.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function stage(tier: Parameters<typeof stagesForTier>[0], name: string): StageDef {
@@ -68,6 +69,28 @@ test("an UNANSWERABLE precondition returns null — which the runner treats as R
   } finally {
     rmSync(outside, { recursive: true, force: true });
   }
+});
+
+// #1566: `skipped` carries TWO different facts and the console printed only one of them. A scoped skip
+// means the selection held no relevant file; a tier-precondition skip is a WHOLE-tier run, where "no files
+// in scope" is simply false — and the reader deciding whether their push was really covered is reading
+// this line, not verify.json.
+test("a tier-precondition skip says so and names the tier that DOES run it; a scoped skip is unchanged", () => {
+  const base = {
+    name: "tests:tooling",
+    group: "tests",
+    mode: "skipped",
+    ok: true,
+    exitCode: 0,
+    durationMs: 0,
+    logFile: null,
+    failureExcerpt: null,
+    notices: [],
+  } as const;
+
+  expect(stageLine({ ...base, runsAt: "verify --full" })).toContain("skipped — tier precondition not met; runs at verify --full");
+  // THE CONTROL: `runsAt: null` is what a SCOPED skip carries, and its wording must not have moved.
+  expect(stageLine({ ...base, name: "lint:eslint", group: "lint", runsAt: null })).toContain("skipped (no files in scope)");
 });
 
 test("a checkout that DID touch an instrument satisfies the precondition — this very worktree", ({ repoRoot }) => {

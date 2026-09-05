@@ -85,6 +85,12 @@ interface TapTargetPopulationResult {
 interface JudgedTapTarget {
   readonly input: TapTargetInput;
   readonly finding: Finding | null;
+  /** Excluded by a rendered sub-floor ruling (#1381). Carried on the row rather than re-derived, so the
+   *  DENOMINATOR and the accounting cannot disagree about it — the defect #1566 caught was exactly that
+   *  split: `excluded(ruledSubFloor=1)` beside a printed "(2 affected of 3 judged)", because only the
+   *  accounting subtracted the exclusion and the per-group `measured` set did not. One predicate, one
+   *  evaluation, two readers. */
+  readonly ruledOut: boolean;
 }
 
 function tapTargetDecisionKey(input: TapTargetInput): string {
@@ -138,7 +144,10 @@ function targetPopulationFindings(groups: ReadonlyMap<string, readonly JudgedTap
   let representatives = 0;
   let capped = 0;
   for (const group of groups.values()) {
-    const measured = group.filter(({ input }) => input.extentTruncated !== true);
+    // THE DENOMINATOR IS WHAT THIS RULE ACTUALLY JUDGED. A truncated extent is an absent measurement and
+    // a ruled sub-floor is a proven exclusion — different polarities, same consequence here: neither was
+    // judged, so neither may be counted in the "N affected of M judged" a reader acts on (#1566).
+    const measured = group.filter(({ input, ruledOut }) => input.extentTruncated !== true && !ruledOut);
     const failures = measured.filter((row) => row.finding !== null);
     const first = failures[0];
     if (first?.finding === null || first === undefined) {
@@ -178,7 +187,12 @@ export function checkTapTargetPopulations(inputs: readonly TapTargetInput[], poi
   if (identityRows !== 0 && identityRows !== inputs.length) {
     throw new Error(`INSTRUMENT ERROR: tap-target identity is partial (${String(identityRows)}/${String(inputs.length)})`);
   }
-  const judged: JudgedTapTarget[] = inputs.map((input) => ({ input, finding: checkTapTarget(input, pointerCoarse) }));
+  // ONE evaluation of the ruling predicate, read by both the denominator and the accounting (#1566).
+  const judged: JudgedTapTarget[] = inputs.map((input) => ({
+    input,
+    finding: checkTapTarget(input, pointerCoarse),
+    ruledOut: isRuledSubFloor(input, pointerCoarse),
+  }));
   const nestedOwned = nestedOwnedTargets(judged);
   const result = targetPopulationFindings(targetDecisionGroups(judged, nestedOwned));
   const extentTruncated = inputs.filter((input) => input.extentTruncated === true).length;
@@ -186,7 +200,7 @@ export function checkTapTargetPopulations(inputs: readonly TapTargetInput[], poi
   // recorded ruling placing it outside this rule's population at fine pointer — that is proof of
   // inapplicability, the exact polarity `excluded` carries. A truncated extent, by contrast, is an absent
   // measurement and stays `withheld`. Both are counted, so the denominator still names every candidate.
-  const ruledSubFloor = inputs.filter((input) => input.extentTruncated !== true && isRuledSubFloor(input, pointerCoarse)).length;
+  const ruledSubFloor = judged.filter(({ input, ruledOut }) => input.extentTruncated !== true && ruledOut).length;
   if (result.affected > inputs.length - extentTruncated - ruledSubFloor || result.representatives + result.capped !== result.affected) {
     throw new Error("INSTRUMENT ERROR: tap-target population accounting does not settle");
   }

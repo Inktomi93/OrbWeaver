@@ -568,6 +568,8 @@ test("tests:node scopedArgv: --passWithNoTests rides the SCOPED lane only, order
     "unit",
     "--project",
     "integration",
+    "--project",
+    "tooling",
     "--passWithNoTests",
     "--changed",
     "HEAD",
@@ -580,6 +582,8 @@ test("tests:node scopedArgv: --passWithNoTests rides the SCOPED lane only, order
     "unit",
     "--project",
     "integration",
+    "--project",
+    "tooling",
     "--passWithNoTests",
     "--changed",
   ]);
@@ -591,6 +595,8 @@ test("tests:node scopedArgv: --passWithNoTests rides the SCOPED lane only, order
     "unit",
     "--project",
     "integration",
+    "--project",
+    "tooling",
     "--passWithNoTests",
     "--changed",
   ]);
