@@ -44,9 +44,11 @@ export interface SnapshotSummary {
   readonly createdAt: number;
 }
 
-/** One snapshot WITH its card blob — the compare/inspect read (`getSnapshot`). Read-only: the blob is the
- *  D28 opaque history entry, never re-validated against today's schema (it describes the card as it
- *  stood). */
+/** One snapshot WITH its card blob — the compare/inspect read (`getSnapshot`). Read-only: the STORED row
+ *  is the D28 opaque history entry and is never rewritten, healed or migrated (it describes the card as it
+ *  stood). What crosses THIS boundary is the `cardOf` projection of it — the same seam `restore` reads the
+ *  blob through — so `content` is an honest `CharacterCard` and the compare view shows what a restore
+ *  would actually produce. */
 export interface SnapshotView extends SnapshotSummary {
   readonly content: CharacterCard;
 }

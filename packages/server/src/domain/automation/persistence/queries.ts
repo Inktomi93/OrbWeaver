@@ -6,6 +6,7 @@
 import type { GlobalVariableView } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { globalVariables } from "@orb/db";
+import { escapeLikeTerm } from "@orb/db/kit";
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, eq, sql } from "drizzle-orm";
 
@@ -15,12 +16,6 @@ type GlobalVariableRow = typeof globalVariables.$inferSelect;
 
 function toView(row: GlobalVariableRow): GlobalVariableView {
   return { key: row.key, value: row.value, updatedAt: row.updatedAt };
-}
-
-// Escape the LIKE metacharacters (\ % _) in a user-supplied prefix so a key like "a%b" filters literally
-// rather than as a wildcard. Paired with the `ESCAPE '\'` clause below.
-function escapeLikePrefix(prefix: string): string {
-  return prefix.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
 /** Read one owner-scoped global's value, or `null` (a foreign-owned/absent key reads as null — the owner
@@ -52,7 +47,7 @@ export async function deleteGlobalVariable(db: Db, ownerId: UserId, key: string)
  *  the filter never acts as a wildcard. */
 export async function listGlobalVariables(db: Db, ownerId: UserId, prefix?: string): Promise<GlobalVariableView[]> {
   const owned = eq(globalVariables.ownerId, ownerId);
-  const where = prefix !== undefined && prefix !== "" ? and(owned, sql`${globalVariables.key} LIKE ${`${escapeLikePrefix(prefix)}%`} ESCAPE '\\'`) : owned;
+  const where = prefix !== undefined && prefix !== "" ? and(owned, sql`${globalVariables.key} LIKE ${`${escapeLikeTerm(prefix)}%`} ESCAPE '\\'`) : owned;
   const rows = await db.select().from(globalVariables).where(where).orderBy(asc(globalVariables.key));
   return rows.map(toView);
 }
