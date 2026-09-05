@@ -73,7 +73,10 @@ export interface OrbNavHandle {
   readonly capabilities: () => OrbNavCapabilities;
   readonly section: (id: string) => NavResult;
   readonly openModal: (slot: string) => NavResult;
-  readonly openConfig: (group: string, sub?: string) => NavResult;
+  /** Land the Config workspace on a group, optionally its section, optionally one setting LEAF — the same
+   *  three-part address `openConfigTo(group, sub?, setting?)` and the `/config?to=g.s.l` link grammar
+   *  carry. A leaf without its section is REFUSED, never silently widened to the section above it. */
+  readonly openConfig: (group: string, sub?: string, setting?: string) => NavResult;
   readonly contextTab: (name: string) => Promise<NavResult>;
   readonly openChat: (idOrTitleOrPosition: string) => Promise<NavResult>;
   readonly openCharacter: (idOrName: string) => Promise<NavResult>;

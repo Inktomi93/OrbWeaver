@@ -143,7 +143,7 @@ const ORB_DEBUG_CAPABILITIES = {
   appearanceMatrixContract: "read the live Appearance carrier matrix contract and reached subject counts",
   setMotionAuditDropTrackingPaused: "coordinate in-page drop tracking with motion-audit",
   snap: "read a cheap combined bridge overview",
-  nav: "call __orb.nav.capabilities() for exact vocabularies; section(id), openModal(slot), openConfig(group,sub?), closeModal(), focus(on) and awaited contextTab(id), openChat(id|title|first|latest|current), openCharacter(id|name), panel(name,mode) return {ok:true}|{ok:false,reason}",
+  nav: "call __orb.nav.capabilities() for exact vocabularies; section(id), openModal(slot), openConfig(group,sub?,setting?), closeModal(), focus(on) and awaited contextTab(id), openChat(id|title|first|latest|current), openCharacter(id|name), panel(name,mode) return {ok:true}|{ok:false,reason}",
   seed: "call await __orb.seed.game({profile:'d20'|'freeform',title?}) -> {chatId}; creates a fresh complete development game through production APIs",
   rpg: "call await __orb.rpg() -> {chatId,game,tracker,journal,turnToolCalls}; reads the active game through production APIs",
   pluginLog: "read installed plugins or one server-runtime host log",

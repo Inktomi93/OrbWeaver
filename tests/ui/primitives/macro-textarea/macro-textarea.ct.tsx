@@ -200,12 +200,17 @@ test("the field is a native multiline textbox whose name is its LABEL, closed AN
 test("a 60-word ghost default never becomes the field's accessible name", async ({ mount, page }) => {
   // The exact defect shape: the accname algorithm's combobox arm fell through to the VALUE, so a template
   // editor announced its entire 60-word template as the field's own name, twice.
+  //
+  // THE ROLE IS WHAT THIS PINS, and the two lines below are the whole proof (#1258): restoring
+  // `role="combobox"` on the control makes the `textbox` locator miss and this test reds. A third
+  // assertion used to poll `el.labels[0].textContent` for the ghost text; it was DELETED rather than
+  // replaced, because a labelling ELEMENT's own text is a static fact of the story's composition — it
+  // reads "Template" whatever the primitive does with role/aria-*, so nothing about this defect could
+  // make it fail. Measured, not reasoned: with the control's own accname source planted as a
+  // fall-through to the ghost placeholder, that poll still passed.
   await mount(<GhostDefaultStory />);
   const control = page.getByRole("textbox", { name: "Template" });
   await expect(control).toHaveAccessibleName("Template");
-  await expect
-    .poll(async () => await control.evaluate((el) => (el as HTMLTextAreaElement).labels?.[0]?.textContent ?? ""))
-    .not.toContain("Forget all other previous instructions");
 });
 
 // `maxRows` must reach the underlying control THROUGH this wrapper (the same conditional-spread seam
