@@ -58,6 +58,7 @@ import { createApp } from "./app.ts";
 import { createAuthSeam, createHostPrincipalResolver } from "./auth/index.ts";
 import {
   DB_LAUNCHED,
+  migrateHandoffOfferVocabOnBoot,
   reclaimLocksOnBoot,
   runBootMigrations,
   seedCasSchedules,
@@ -300,6 +301,12 @@ export function createLifecycle(): Lifecycle {
     // `launched` is REQUIRED and passed explicitly (#1392) — the omission here is what left the
     // auto-wipe refusal inert on every real boot.
     await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, launched: DB_LAUNCHED });
+
+    // #1649 DATA migration, immediately after the schema migrations and before anything reads a chat: the
+    // host-handoff offer's `$.copyCast` key became `$.copyCharacters`, and the offer's read seam degrades an
+    // unrecognised blob to NO_HANDOFF_OFFER rather than failing, so an un-migrated row silently drops a
+    // departing host's recorded consent. Idempotent — a no-op on every boot after the first.
+    await migrateHandoffOfferVocabOnBoot({ db });
 
     // Resolve the owner id before compose (the owner role-clients bundle resolves against it). A
     // transient sessions service is built only to run the owner seed; compose owns the real one.

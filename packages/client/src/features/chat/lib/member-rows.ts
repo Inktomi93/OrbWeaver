@@ -72,7 +72,7 @@ export const MEMBER_ROW_CONFIRMS = ["kick", "leave", "handoff"] as const;
 export interface MemberRowActions {
   readonly onKick?: ((userId: UserId) => void) | undefined;
   /** Hand the room to this member (host-only). `offer` is the departing host's OPT-IN property gift — the
-   *  confirm step's checkbox — and DEFAULTS TO GIVING NOTHING: a `{copyCast:false, copyGmPreset:false}` offer
+   *  confirm step's checkbox — and DEFAULTS TO GIVING NOTHING: a `{copyCharacters:false, copyGmPreset:false}` offer
    *  is byte-identical to the pre-offer handoff (the new host adds their own characters, D64). */
   readonly onNominateHost?: ((userId: UserId, offer: HandoffOffer) => void) | undefined;
   readonly onLeave?: (() => void) | undefined;

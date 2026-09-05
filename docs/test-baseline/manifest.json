@@ -1664,6 +1664,7 @@
     "tests/server/entry/app.test.ts",
     "tests/server/entry/auth/seam.test.ts",
     "tests/server/entry/boot/apply-distributed-plugins.test.ts",
+    "tests/server/entry/boot/migrate-handoff-offer-vocab.int.test.ts",
     "tests/server/entry/boot/migrate.int.test.ts",
     "tests/server/entry/boot/reclaim-locks.int.test.ts",
     "tests/server/entry/boot/seed-atlas-realm-dates.suite.test.ts",

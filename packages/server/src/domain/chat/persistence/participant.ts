@@ -290,3 +290,48 @@ export function acceptHostHandoffSwapStatements(
       .where(eq(chats.id, params.chatId)),
   ];
 }
+
+/** The `$.copyCast` → `$.copyCharacters` key rewrite over every `chats.pending_handoff_offer` blob written
+ *  before the #1649 vocabulary rename (owner-ruled 2026-09-05 arm (a): rename the wire field WITH a data
+ *  migration, no read-compat shim). Returns the number of rows rewritten.
+ *
+ *  WHY A DATA MIGRATION AND NOT A SHIM: the offer's read seam is
+ *  `handoffOfferSchema.catch(NO_HANDOFF_OFFER).parse(...)` (`persistence/queries.ts#loadPendingHandoff`), so an
+ *  un-migrated blob does not fail loudly — it degrades to the no-offer offer and the departing host's
+ *  recorded consent to hand over their characters is silently dropped at accept. The column is plain TEXT
+ *  (`pending_handoff_offer`), so this is a DATA rewrite with NO DDL: it does not touch `0000_baseline.sql`
+ *  and cannot be squashed into it (Tier-1-DB §"Regime 1" covers schema, and a baseline reset would not reach
+ *  an installed db anyway).
+ *
+ *  ONE statement, evaluated against the row under its own write lock — the `chat-metadata-write` json-path
+ *  posture, never a read-merge-write:
+ *   • IDEMPOTENT — the WHERE fires only on a blob that still carries `$.copyCast`, and the SET removes it, so
+ *     the second and every later boot match zero rows.
+ *   • VALUE-PRESERVING for the untouched half — `copyGmPreset` is never named by the statement, so its stored
+ *     value survives verbatim (SQLite's json functions re-serialize the object, so KEY ORDER is not preserved;
+ *     the blob is parsed by zod at every read seam and never compared as bytes).
+ *   • TOTAL — every row carrying the key is rewritten, including a corrupt one. `json_extract` of a JSON
+ *     boolean yields the INTEGER 0/1, which `z.boolean()` would reject, so the new value is re-minted as real
+ *     JSON `true`/`false` through `json(...)` (the `theme-queries` `json('null')` precedent). A non-boolean
+ *     `copyCast` therefore lands as `false` — exactly what the `.catch` seam already resolved it to.
+ *   • FAIL-OPEN ON GARBAGE — a blob that is not JSON at all is left alone for the read seam's `.catch`; see
+ *     the `json_valid` note on the predicate for why that guard is nested rather than a sibling AND term. */
+export async function migrateHandoffOfferVocab(db: Db): Promise<number> {
+  const rows = await db
+    .update(chats)
+    .set({
+      pendingHandoffOffer: sql`json_remove(json_set(${chats.pendingHandoffOffer}, '$.copyCharacters', json(CASE WHEN json_extract(${chats.pendingHandoffOffer}, '$.copyCast') THEN 'true' ELSE 'false' END)), '$.copyCast')`,
+    })
+    .where(
+      and(
+        isNotNull(chats.pendingHandoffOffer),
+        // The `json_valid` guard is INSIDE `json_type`'s first argument, not a sibling AND term: SQLite may
+        // reorder AND operands, and `json_type` on a non-JSON string RAISES — which at this call site would
+        // abort boot on one corrupt row. A blob that is not JSON resolves to `'{}'`, matches nothing, and is
+        // left for the read seam's `.catch`.
+        sql`json_type(CASE WHEN json_valid(${chats.pendingHandoffOffer}) THEN ${chats.pendingHandoffOffer} ELSE '{}' END, '$.copyCast') is not null`,
+      ),
+    )
+    .returning({ id: chats.id });
+  return rows.length;
+}

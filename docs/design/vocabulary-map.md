@@ -72,14 +72,24 @@ The map's own instruction is *"if the concept you need is not in the table, that
 rather than minting a word."* These are that finding — each is a REAL distinct concept the rename
 waves have never had a word for, so #903 deliberately left every one of them alone rather than invent
 one. **A `cast` in `domain/chat/**` or `contracts/src/chat/**` is otherwise a defect on sight** (D137(F)),
-so this list is the complete set of chat-side survivors and must shrink, not grow. **The four rows below are HELD, not sanctioned** (#1680): they are one persisted wire field and its readers, awaiting the owner's arm on **#1649** — migrate the field, or ratify it as a survivor. The table stated ZERO rows while all four were live, which read as "chat is clean"; it is not, and these rows close when #1649 is ruled.
+so this list is the complete set of chat-side survivors and must shrink, not grow.
+
+**The handoff-offer rows CLOSED (#1649, owner-ruled arm (a) 2026-09-05):** the persisted wire field and its
+three readers were renamed to `copyCharacters` (the seated-characters row above owns the word) WITH a
+boot-time data migration over live `pending_handoff_offer` blobs and no read-compat shim
+(`entry/boot/migrate-handoff-offer-vocab.ts`), together with `offerCast` → `offerCharacters` (the
+observability key) and the chats-list `summaryCast` → `summaryParticipantNames`.
+
+**Re-derive this table before trusting it** — it is a census, not a memory:
+`/usr/bin/grep -rn --exclude-dir=node_modules -iE 'cast[A-Z]|\bcast\b' packages/server/src/domain/chat packages/contracts/src/chat packages/client/src/features/chat`,
+then fence the false stems below. What that census legitimately still prints, and which is NOT a row here:
+`castId` coercions and TYPE-cast prose, dated pre-#903 archaeology (a comment saying a symbol "was spelled
+`cast`"), and the rpg register's own `cast` (`rpgCastSlug`, the seeder's `{kind:"cast"}` actor ref — #906).
+Everything else IS a row.
 
 | Still-`cast` concept | Where | Disposition |
 | - | - | - |
-| The host-handoff offer's "copy the old host's seated characters" flag — the WIRE FIELD | `copyCast: z.boolean()` + `NO_HANDOFF_OFFER` (`packages/contracts/src/chat/roster.ts:476,488`) | **HELD by #1649, not sanctioned.** A PERSISTED wire field: it is a key inside the `pendingHandoffOffer` JSON column on live rows, and `Core-Path-Registry.md:418` records the shape verbatim as `HandoffOffer {copyCast, copyGmPreset}`. Renaming it is a data migration + a ledger edit, so the owner picks the arm (migrate vs. ratify as a survivor). The #903 wave renamed the other four `Cast` symbols in this same file and left this one — deliberately, but without a recorded ruling, which is the gap #1649 closes. |
-| The same flag, READ at the copy seam | `offer.copyCast` (`packages/server/src/domain/chat/substrate/handoff-copy.ts:119`) | **HELD by #1649** — a reader of the wire field above; it renames when, and only when, the field does. |
-| The same flag, RE-SPELLED as an observability metadata key | `offerCast` (`packages/server/src/domain/chat/verbs/roster.ts:975`) | **HELD by #1649.** Note it is a THIRD spelling of the concept (`copyCast` → `offerCast`), so the #1649 ruling covers two renames, not one. |
-| The same flag, on the client: the confirm-step checkbox and the doc of its default | `copyCast` / `setCopyCast` (`packages/client/src/features/chat/components/member-row.tsx:285-314`) and the `{copyCast:false, copyGmPreset:false}` default doc (`packages/client/src/features/chat/lib/member-rows.ts:75`) | **HELD by #1649** — client state named after the wire field; it follows the field. The checkbox's own visible copy already says "characters", so nothing user-facing is waiting on this. |
+| The narrator round's co-speaker card heading — the PROSE-SLOT ID | `"chat.group.castMember"` (`contracts/src/chat/prose.ts:174-175` · `contracts/src/prose-slot/index.ts:120` · `contracts/src/preset/index.ts:1296,1301` · `contracts/src/prose/prose-baseline.json:195` · the reader `domain/chat/assembly/assemble.ts:235`) | **HELD, not sanctioned — the #1649-shaped successor, surfaced by the #1649 lane's own closing census 2026-09-05.** Same class as `copyCast` was: a PERSISTED key, not a symbol. It is `home: "preset"`, so every host's prose override is stored under this id and stamped with a `baseVersion` — renaming it is a preset-override data migration plus a `PROSE_SLOT_IDS` tuple edit, which is owner-priced exactly as #1649 was. Its default TEXT was already de-`cast`ed at v2 (owner 2026-08-30, "[Character — {{name}}]"); only the id survives. The #903 wave never saw it because the slot was minted after that wave (2026-08-08, D-ledger (B-amendment) F4 re-home). **Do not rename it locally** — it needs its own owner arm: migrate, or ratify with the reason. |
 
 ## The rpg register (D151 · `AGENTS.md` §3)
 

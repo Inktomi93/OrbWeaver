@@ -36,7 +36,7 @@ import { REMOVED_MEMBER_LABEL } from "#domain/chat";
  *
  * THE COST ARGUMENT IS PRESERVED, not discarded — it is why this is TWO statements and not an N+1:
  *   • the room read is one filtered join over an already-bounded candidate id set;
- *   • the cast read is ONE more statement over the ids that read returned, with the character/persona/user
+ *   • the participant-name read is ONE more statement over the ids that read returned, with the character/persona/user
  *     joins inlined. There is no per-room query, and an attachment with no visible room asks nothing.
  * What is NOT re-derived here is the title CHAIN itself: this hands back the chain's inputs and the client's
  * one `deriveChatTitle` runs it (see `VisibleRoomRef`). A second copy of the rule is what caused the defect.
@@ -55,13 +55,13 @@ export function createResolveVisibleRooms(db: Db): ResolveVisibleRoomsOp {
     if (rooms.length === 0) {
       return [];
     }
-    const castByRoom = await loadRoomCasts(
+    const namesByRoom = await loadRoomParticipantNames(
       db,
       rooms.map((room) => room.id),
       principal.userId,
     );
     return rooms
-      .map((room) => ({ id: room.id, title: room.title, participantNames: castByRoom.get(room.id) ?? [], at: room.at }))
+      .map((room) => ({ id: room.id, title: room.title, participantNames: namesByRoom.get(room.id) ?? [], at: room.at }))
       .sort((a, b) => b.at - a.at || a.id.localeCompare(b.id));
   };
 }
@@ -80,10 +80,10 @@ export function createResolveVisibleRooms(db: Db): ResolveVisibleRoomsOp {
  * The persona join is OWNER-SCOPED to the seat's own user — the `resolveUserPublics` predicate verbatim, so a
  * persona that somehow outlived its owner's seat can never lend its name to someone else's row.
  *
- * VIEWER SUPPRESSION is the chats list's `summaryCast` rule, floor included: drop the caller's own seat,
- * unless dropping it would empty the cast (a solo room keeps its name instead of collapsing to "Untitled").
+ * VIEWER SUPPRESSION is the chats list's `summaryParticipantNames` rule, floor included: drop the caller's own seat,
+ * unless dropping it would empty the row (a solo room keeps its name instead of collapsing to "Untitled").
  */
-async function loadRoomCasts(db: Db, roomIds: readonly ChatId[], viewerUserId: UserId): Promise<ReadonlyMap<ChatId, readonly string[]>> {
+async function loadRoomParticipantNames(db: Db, roomIds: readonly ChatId[], viewerUserId: UserId): Promise<ReadonlyMap<ChatId, readonly string[]>> {
   const seats = await db
     .select({
       chatId: chatParticipants.chatId,
@@ -110,13 +110,13 @@ async function loadRoomCasts(db: Db, roomIds: readonly ChatId[], viewerUserId: U
     }
   }
 
-  const casts = new Map<ChatId, readonly string[]>();
+  const namesByRoom = new Map<ChatId, readonly string[]>();
   for (const [chatId, bucket] of byRoom) {
     const others = bucket.filter((seat) => seat.userId !== viewerUserId);
-    casts.set(
+    namesByRoom.set(
       chatId,
       (others.length > 0 ? others : bucket).map((seat) => seat.name),
     );
   }
-  return casts;
+  return namesByRoom;
 }
