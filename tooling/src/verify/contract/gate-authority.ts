@@ -85,7 +85,17 @@ export interface StaleGrantAuthorityAlarm {
   readonly message: string;
 }
 
-export type GateAuthorityAlarm = OrdinaryAuthorityAlarm | StaleGrantAuthorityAlarm;
+interface OverBroadGrantAuthorityAlarm {
+  readonly kind: "over-broad-reviewed-grant";
+  readonly policyId: string;
+  readonly grantId: string;
+  readonly subject: string;
+  readonly operation: string;
+  readonly count: number;
+  readonly message: string;
+}
+
+export type GateAuthorityAlarm = OrdinaryAuthorityAlarm | StaleGrantAuthorityAlarm | OverBroadGrantAuthorityAlarm;
 
 export const GATE_AUTHORITY_TOOL_ERROR_KINDS = [
   "invalid-policy",

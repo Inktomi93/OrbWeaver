@@ -19,6 +19,7 @@ interface ModuleOptions {
   readonly population?: string;
   readonly exportName?: string;
   readonly extra?: string;
+  readonly severity?: "error" | "warning";
   readonly secondDescriptor?: boolean;
 }
 
@@ -33,7 +34,7 @@ function moduleSource(repoRoot: string, id: string, options: ModuleOptions = {})
     id: ${JSON.stringify(id)},
     family: ${JSON.stringify(options.family ?? id)},
     authority: "hard",
-    severity: "error",
+    severity: ${JSON.stringify(options.severity ?? "error")},
     population: ${population},
     analysis: ${JSON.stringify(analysis)},
     execution: "selected-files",
@@ -120,6 +121,38 @@ test("validates every required axis and the population expression", async ({ rep
     const root = join(scratch, name.replace(".ts", ""));
     writeModules(root, { [name]: source });
     await expect(loadPolicyCorpus(root)).rejects.toThrow();
+  }
+});
+
+test("warning debt requires one positive work-item issue and error policies cannot carry it", async ({ repoRoot, scratch }) => {
+  const validWarning = join(scratch, "valid-warning");
+  writeModules(validWarning, { "warning-policy.ts": moduleSource(repoRoot, "warning-policy", { severity: "warning", extra: "workItem: 1584," }) });
+  await expect(loadPolicyCorpus(validWarning)).resolves.toMatchObject({
+    gates: [{ id: "warning-policy", severity: "warning", workItem: 1584 }],
+  });
+
+  const invalidRows: Readonly<Record<string, { readonly source: string; readonly message: RegExp }>> = {
+    "missing-work-item.ts": {
+      source: moduleSource(repoRoot, "missing-work-item", { severity: "warning" }),
+      message: /warning.*workItem|workItem.*warning/i,
+    },
+    "zero-work-item.ts": {
+      source: moduleSource(repoRoot, "zero-work-item", { severity: "warning", extra: "workItem: 0," }),
+      message: /workItem.*positive.*safe integer/i,
+    },
+    "string-work-item.ts": {
+      source: moduleSource(repoRoot, "string-work-item", { severity: "warning", extra: 'workItem: "1584",' }),
+      message: /workItem.*positive.*safe integer/i,
+    },
+    "error-work-item.ts": {
+      source: moduleSource(repoRoot, "error-work-item", { extra: "workItem: 1584," }),
+      message: /workItem.*forbidden.*error|error.*must not.*workItem/i,
+    },
+  };
+  for (const [name, { source, message }] of Object.entries(invalidRows)) {
+    const root = join(scratch, name.replace(".ts", ""));
+    writeModules(root, { [name]: source });
+    await expect(loadPolicyCorpus(root)).rejects.toThrow(message);
   }
 });
 

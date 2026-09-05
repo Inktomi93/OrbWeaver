@@ -38,7 +38,7 @@ function sourcePolicy(id: string, overrides: Partial<GatePolicy> = {}): GatePoli
     mustFlag: [SOURCE_FLAG],
     mustPass: [SOURCE_PASS],
     ...overrides,
-  });
+  } as GatePolicy);
 }
 
 test("source and types proofs receive their exact files and relative imports resolve", () => {
@@ -108,6 +108,7 @@ test("source and types proofs receive their exact files and relative imports res
 test("mustFlag precision uses effective warnings and finding or descriptor messages", () => {
   const warning = sourcePolicy("warning-precision", {
     severity: "warning",
+    workItem: 1584,
     message: "descriptor fallback message",
     create: (ctx) => ({
       visitors: [

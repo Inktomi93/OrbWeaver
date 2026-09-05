@@ -258,6 +258,7 @@ interface CoordinationState {
 }
 function processReviewed(policy: SelectedGatePolicy, findings: readonly CoordinatedGateFinding[], state: CoordinationState): void {
   state.completedReviewed.add(policy.id);
+  const candidatesByGrant = new Map<string, { readonly grant: ValidatedReviewedGrants["grants"][number]; readonly findings: CoordinatedGateFinding[] }>();
   for (const finding of findings) {
     const grant = state.grants.byIdentity.get(
       reviewedGrantIdentity({ policyId: policy.id, subject: finding.subject ?? "", operation: finding.operation ?? "" }),
@@ -265,8 +266,18 @@ function processReviewed(policy: SelectedGatePolicy, findings: readonly Coordina
     if (grant === undefined) {
       state.effectiveFindings.push(finding);
     } else {
-      state.grantCounts.set(grant.id, (state.grantCounts.get(grant.id) ?? 0) + 1);
-      state.grantedFindings.push({ finding, grantId: grant.id });
+      const candidates = candidatesByGrant.get(grant.id) ?? { grant, findings: [] };
+      candidates.findings.push(finding);
+      candidatesByGrant.set(grant.id, candidates);
+    }
+  }
+  for (const { grant, findings: candidates } of candidatesByGrant.values()) {
+    state.grantCounts.set(grant.id, candidates.length);
+    const [candidate] = candidates;
+    if (candidates.length === 1 && candidate !== undefined) {
+      state.grantedFindings.push({ finding: candidate, grantId: grant.id });
+    } else {
+      state.effectiveFindings.push(...candidates);
     }
   }
 }
@@ -313,7 +324,8 @@ function reconcileAuthority(state: CoordinationState): readonly GateAuthorityAla
     alarms.push(...validated.alarms);
   }
   for (const grant of state.grants.grants) {
-    if (state.completedReviewed.has(grant.policyId) && state.grantCounts.get(grant.id) === 0) {
+    const count = state.grantCounts.get(grant.id) ?? 0;
+    if (state.completedReviewed.has(grant.policyId) && count === 0) {
       alarms.push({
         kind: "stale-reviewed-grant",
         policyId: grant.policyId,
@@ -321,6 +333,16 @@ function reconcileAuthority(state: CoordinationState): readonly GateAuthorityAla
         subject: grant.subject,
         operation: grant.operation,
         message: `reviewed grant was unused after a complete owner run: ${grant.id}`,
+      });
+    } else if (state.completedReviewed.has(grant.policyId) && count > 1) {
+      alarms.push({
+        kind: "over-broad-reviewed-grant",
+        policyId: grant.policyId,
+        grantId: grant.id,
+        subject: grant.subject,
+        operation: grant.operation,
+        count,
+        message: `reviewed grant matched ${count} findings after a complete owner run: ${grant.id}`,
       });
     }
   }

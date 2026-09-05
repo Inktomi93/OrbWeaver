@@ -12,6 +12,7 @@ const POLICY_KEYS = new Set([
   "family",
   "authority",
   "severity",
+  "workItem",
   "population",
   "analysis",
   "execution",
@@ -154,6 +155,16 @@ function isExplicitNone(population: PopulationExpr): boolean {
   return typeof population === "object" && !Array.isArray(population) && "of" in population && population.of === "none";
 }
 
+function assertSeverityWorkItem(policy: Readonly<Record<string, unknown>>): void {
+  if (policy["severity"] === "warning") {
+    if (!(Number.isSafeInteger(policy["workItem"]) && (policy["workItem"] as number) > 0)) {
+      invalid("descriptor.workItem must be a positive safe integer when severity is warning");
+    }
+  } else if (Object.hasOwn(policy, "workItem")) {
+    invalid("descriptor.workItem is forbidden when severity is error");
+  }
+}
+
 export function assertGatePolicyDescriptor(value: unknown): asserts value is GatePolicy {
   const policy = record(value, "descriptor");
   exactKeys(policy, POLICY_KEYS, "descriptor");
@@ -169,6 +180,7 @@ export function assertGatePolicyDescriptor(value: unknown): asserts value is Gat
   if (!(GATE_SEVERITIES as readonly unknown[]).includes(policy["severity"])) {
     invalid("descriptor.severity is required and invalid");
   }
+  assertSeverityWorkItem(policy);
   if (!(GATE_POLICY_ANALYSES as readonly unknown[]).includes(policy["analysis"])) {
     invalid("descriptor.analysis is required and invalid");
   }
