@@ -138,7 +138,7 @@ export function stageStatus(): string {
     const idle = view.row === null && !view.bandBound;
     // The band's own idle timer (#1163 arm b) — how long it has left, or the fact that it is DEAD/absent,
     // which is protection the operator would otherwise assume was there.
-    const timer = view.row === null ? "" : ` · ${describeStageKeeper(view.row, nowMs, limits.ttlMs, pidAlive)}`;
+    const timer = view.row === null ? "" : ` · ${describeStageKeeper({ home, row: view.row, nowMs, ttlMs: limits.ttlMs }, pidAlive)}`;
     lines.push(idle ? describeStageBandRow(view, nowMs) : `${describeStageBandRow(view, nowMs)} · ${SWEEP_BAND_LINE[verdict]}${dangling}${timer}`);
   }
   // Stage DIRS are per-checkout by design (each is a worktree of its own checkout) — this half is local.

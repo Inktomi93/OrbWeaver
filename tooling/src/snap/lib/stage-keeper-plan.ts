@@ -27,7 +27,7 @@
 // uncertainty (an unidentifiable peer, an unreadable row) resolves to `wait`.
 import { reservedPort } from "../../_shared/ports.ts";
 import type { StageKeeperEvidence, StageKeeperVerdict, StageRow } from "../contract/stage.ts";
-import { describeStageAgePhrase, shortSha, stageIdleMs } from "./stage-plan.ts";
+import { describeStageAgePhrase, shortSha, stageIdleMs, stageKeeperLogPath } from "./stage-plan.ts";
 
 const MS_PER_MINUTE = 60_000;
 
@@ -123,7 +123,11 @@ export function stageKeeperReservedRefusal(row: StageRow, reserved: readonly num
 /** The keeper's half of a `--stage-status` band line. A row with no keeper, or one whose keeper pid is
  *  gone, says so OUT LOUD and names the arms that still cover it — a silent "timer" column would read as
  *  protection that is not there. */
-export function describeStageKeeper(row: StageRow, nowMs: number, ttlMs: number, keeperAlive: (pid: number) => boolean): string {
+export function describeStageKeeper(
+  input: { readonly home: string; readonly row: StageRow; readonly nowMs: number; readonly ttlMs: number },
+  keeperAlive: (pid: number) => boolean,
+): string {
+  const { home, row, nowMs, ttlMs } = input;
   const keeper = row.keeper;
   if (keeper === undefined) {
     return "timer none — reap-on-acquire and `--stage-sweep` are its only arms";
@@ -132,5 +136,8 @@ export function describeStageKeeper(row: StageRow, nowMs: number, ttlMs: number,
     return `timer DEAD (pid ${keeper.pid}) — reap-on-acquire and \`--stage-sweep\` still cover this band`;
   }
   const remaining = keeperRemainingMs(row, nowMs, ttlMs);
-  return `timer ${Math.ceil(remaining / MS_PER_MINUTE)}m left (pid ${keeper.pid})`;
+  // The LOG is named here rather than left implicit: the keeper writes its reap/refusal line to a file
+  // under `.cache/` (it is detached, so it cannot write to any caller's stdout), and a gitignored artifact
+  // nothing points at is an artifact nobody reads.
+  return `timer ${Math.ceil(remaining / MS_PER_MINUTE)}m left (pid ${keeper.pid}, log ${stageKeeperLogPath(home, row.band)})`;
 }

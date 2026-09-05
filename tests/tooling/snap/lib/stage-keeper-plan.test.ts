@@ -17,6 +17,7 @@ import {
   keeperRemainingMs,
   reservedRowPorts,
   stageKeeperClaim,
+  stageKeeperLogPath,
   stageKeeperReapLine,
   stageKeeperReservedRefusal,
   stageKeeperVerdict,
@@ -28,6 +29,8 @@ const MS_PER_MINUTE = 60_000;
 const TTL_MS = 60 * MS_PER_MINUTE;
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const CHECKOUT = "/home/dev/orbweaver";
+/** The band table's home — where the keeper's log lives beside `bands.json`. */
+const HOME = "/home/dev/orbweaver";
 const KEEPER_PID = 4242;
 const OTHER_PID = 4243;
 const FROZEN_ISO = new Date(FROZEN_AT_MS).toISOString();
@@ -160,12 +163,15 @@ describe("the operator-facing text", () => {
   });
 
   test("the status column says LEFT, DEAD or NONE — never a silent column implying protection", () => {
-    expect(describeStageKeeper(row({ lastUsedAt: FRESH_ISO }), FROZEN_AT_MS, TTL_MS, () => true)).toBe(`timer 1m left (pid ${KEEPER_PID})`);
-    expect(describeStageKeeper(row(), FROZEN_AT_MS, TTL_MS, () => false)).toContain(`timer DEAD (pid ${KEEPER_PID})`);
-    expect(
-      describeStageKeeper(row(), FROZEN_AT_MS, TTL_MS, () => false),
-      "and it names the arms that still cover the band",
-    ).toContain("`--stage-sweep` still cover");
-    expect(describeStageKeeper(rowWithoutKeeper(), FROZEN_AT_MS, TTL_MS, () => true)).toContain("timer none");
+    const at = (subject: StageRow, alive: boolean): string =>
+      describeStageKeeper({ home: HOME, row: subject, nowMs: FROZEN_AT_MS, ttlMs: TTL_MS }, () => alive);
+    const live = at(row({ lastUsedAt: FRESH_ISO }), true);
+    expect(live).toContain(`timer 1m left (pid ${KEEPER_PID}`);
+    // The keeper is DETACHED, so its reap line can only reach a file — and a gitignored artifact nothing
+    // points at is one nobody reads. The status column names it.
+    expect(live, "the status line names the keeper's log").toContain(stageKeeperLogPath(HOME, 3));
+    expect(at(row(), false)).toContain(`timer DEAD (pid ${KEEPER_PID})`);
+    expect(at(row(), false), "and it names the arms that still cover the band").toContain("`--stage-sweep` still cover");
+    expect(at(rowWithoutKeeper(), true)).toContain("timer none");
   });
 });

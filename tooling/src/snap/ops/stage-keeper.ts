@@ -32,6 +32,8 @@
 // exactly as reapable by reap-on-acquire and `--stage-sweep` as it was before this file existed, and
 // `armStageKeeper` re-spawns one whenever it finds the recorded pid gone. `--stage-status` says so out
 // loud rather than printing a timer column that might be protection nobody is providing.
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
@@ -49,6 +51,7 @@ import {
   stageKeeperReservedRefusal,
   stageKeeperVerdict,
 } from "../lib/stage-keeper-plan.ts";
+import { stageKeeperLogPath } from "../lib/stage-plan.ts";
 import { liveSessionNames } from "./session-registry.ts";
 import { stageLimits } from "./stage-census.ts";
 import { repoRoot } from "./stage-git.ts";
@@ -78,7 +81,17 @@ export function armStageKeeper(home: string, row: StageRow): StageRow {
   if (stageKeeperAlive(row)) {
     return row;
   }
-  const child = spawnNicedChild(process.execPath, [SNAP_CLI, "--stage-keeper", String(row.band)], { cwd: process.cwd() });
+  // A LOG FILE, NEVER A PIPE, and the reason is the launcher as much as the child (`_shared/proc.ts`
+  // `spawnNicedChild`): with no `logPath` the child gets `["ignore","pipe","pipe"]`, and (a) the keeper's
+  // first write after this snap call exits would be EPIPE — losing the one line #1163 asks it to print —
+  // while (b) the parent's stream handles stay referenced, so `child.unref()` alone does NOT let a short
+  // `snap` call's event loop drain. This is the session daemon's shape, applied to the second detached
+  // child snap owns.
+  mkdirSync(dirname(stageKeeperLogPath(home, row.band)), { recursive: true });
+  const child = spawnNicedChild(process.execPath, [SNAP_CLI, "--stage-keeper", String(row.band)], {
+    cwd: process.cwd(),
+    logPath: stageKeeperLogPath(home, row.band),
+  });
   // The keeper outlives this process by design; without `unref` node would hold the caller open until the
   // child exits, which for a 60-minute idle timer means never.
   child.unref();
@@ -88,7 +101,9 @@ export function armStageKeeper(home: string, row: StageRow): StageRow {
   }
   const keeper = { pid: child.pid, armedAt: new Date().toISOString() };
   setStageKeeper(home, row.band, keeper);
-  print(`[snap-stage] band ${row.band} idle timer armed (pid ${keeper.pid}, TTL ${Math.round(stageLimits().ttlMs / MS_PER_MINUTE)}m)`);
+  print(
+    `[snap-stage] band ${row.band} idle timer armed (pid ${keeper.pid}, TTL ${Math.round(stageLimits().ttlMs / MS_PER_MINUTE)}m, log ${stageKeeperLogPath(home, row.band)})`,
+  );
   return { ...row, keeper };
 }
 
