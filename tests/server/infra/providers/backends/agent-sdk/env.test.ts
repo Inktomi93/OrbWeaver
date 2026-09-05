@@ -266,6 +266,72 @@ describe("the escape hatch is allowlisted to the Claude runtime knob namespace",
   });
 });
 
+// #1541 — THE PAIR THE RUNTIME REFUSES. `CLAUDE_CODE_MAX_CONTEXT_TOKENS` together with
+// `DISABLE_AUTO_COMPACT` is a hard SDK `is_error` (live-verified both ways, 2026-07-24): with auto-compaction
+// off the runtime has no mechanism left to honour a context cap, so it fails the turn instead. `translate.ts`
+// already refuses to MINT the pair from the typed knobs (it drops the cap under managed compaction) — but the
+// preset hatch writes into the SAME env AFTER those knobs, so either half could still arrive from
+// `advanced.claudeEnv` and produce a turn that always errors. The repo refuses at the boundary rather than
+// documenting a footgun, and the boundary is the BUILDER: it is the only place that sees the merged result of
+// the compaction mode AND the hatch (the write schema sees the hatch alone, so it cannot tell).
+const COMPACTION_PAIR_RE = /DISABLE_AUTO_COMPACT/u;
+
+describe("the compaction pair is refused at the env boundary (#1541)", () => {
+  test("mode-1: a hatch-supplied context cap under managed compaction is REFUSED, typed and readable", () => {
+    let thrown: unknown;
+    try {
+      buildClaudeSdkEnv({ disableAutoCompact: true, userEnv: Object.fromEntries([["CLAUDE_CODE_MAX_CONTEXT_TOKENS", "100000"]]) });
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toMatchObject({ name: "ProviderError", kind: "invalid", retryable: false });
+    // The message names BOTH halves and says which way out exists — a refusal nobody can act on is a wall.
+    expect((thrown as Error).message).toMatch(COMPACTION_PAIR_RE);
+    expect((thrown as Error).message).toMatch(/CLAUDE_CODE_MAX_CONTEXT_TOKENS/u);
+  });
+
+  test("the other direction: a hatch-supplied DISABLE_AUTO_COMPACT under a typed context cap is REFUSED", () => {
+    expect(() => buildClaudeSdkEnv({ maxContextTokens: 100_000, userEnv: Object.fromEntries([["DISABLE_AUTO_COMPACT", "1"]]) })).toThrow(COMPACTION_PAIR_RE);
+  });
+
+  test("both halves from the hatch alone are REFUSED too (the typed knobs are not the only door)", () => {
+    expect(() =>
+      buildClaudeSdkEnv({
+        userEnv: Object.fromEntries([
+          ["DISABLE_AUTO_COMPACT", "1"],
+          ["CLAUDE_CODE_MAX_CONTEXT_TOKENS", "100000"],
+        ]),
+      }),
+    ).toThrow(COMPACTION_PAIR_RE);
+  });
+
+  test("every builder refuses — the firewall has three doors and the SDK is the same behind all of them", () => {
+    const pair = { disableAutoCompact: true, userEnv: Object.fromEntries([["CLAUDE_CODE_MAX_CONTEXT_TOKENS", "100000"]]) };
+    expect(() => buildClaudeOpenRouterEnv(OR_KEY, TIER_MODELS, pair)).toThrow(COMPACTION_PAIR_RE);
+    expect(() => buildClaudeAnthEnv(ANTH_KEY, pair)).toThrow(COMPACTION_PAIR_RE);
+  });
+
+  // POSITIVE CONTROLS — the refusal is the PAIR, not either knob. A blanket ban would pass every pin above.
+  test("either half ALONE still reaches the child", () => {
+    expect(buildClaudeSdkEnv({ disableAutoCompact: true })["DISABLE_AUTO_COMPACT"]).toBe("1");
+    const capped = buildClaudeSdkEnv({ maxContextTokens: 100_000 });
+    expect(capped["CLAUDE_CODE_MAX_CONTEXT_TOKENS"]).toBe("100000");
+    expect(capped["DISABLE_AUTO_COMPACT"]).toBeUndefined();
+  });
+
+  test("a hatch that UNSETS one half cures the pair — the guard reads the merged env, not the intent", () => {
+    const env = buildClaudeSdkEnv({
+      disableAutoCompact: true,
+      userEnv: Object.fromEntries([
+        ["DISABLE_AUTO_COMPACT", null],
+        ["CLAUDE_CODE_MAX_CONTEXT_TOKENS", "100000"],
+      ]),
+    });
+    expect(env["DISABLE_AUTO_COMPACT"]).toBeUndefined();
+    expect(env["CLAUDE_CODE_MAX_CONTEXT_TOKENS"]).toBe("100000");
+  });
+});
+
 // #1536 — THE ALLOWLIST'S RESIDUE. Flipping the hatch to the `CLAUDE_*` namespace (#1472) admitted the
 // namespace the APP'S OWN deploy pins live in: `ISOLATION_PINS` + the CLAUDE.md suppression are all
 // `CLAUDE_CODE_*`, and `RESERVED_CLAUDE_ENV_KEYS` covered only auth/routing/config-dir — so a preset could
@@ -589,8 +655,13 @@ describe("agent-sdk env — bundled-runtime name parity (SDK-upgrade tripwire)",
     expect(disabled["DISABLE_AUTO_COMPACT"]).toBe("1");
     expect(disabled["CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"]).toBe("90");
     // Every guarded name the builder emits must be in the guarded set (so a NEW emitted name can't silently escape
-    // the parity pin) — the builder's compaction/context keys are a subset of GUARDED_ENV_NAMES.
-    const emitted = new Set(Object.keys(buildClaudeSdkEnv({ disableAutoCompact: true, autoCompactPct: 90, maxContextTokens: 1000, maxOutputTokens: 500 })));
+    // the parity pin) — the builder's compaction/context keys are a subset of GUARDED_ENV_NAMES. TWO calls, not
+    // one: the cap and the compaction-disable may not ride the same env (#1541 — the runtime refuses the pair),
+    // so the name census is their UNION rather than a build nothing may produce.
+    const emitted = new Set([
+      ...Object.keys(buildClaudeSdkEnv({ disableAutoCompact: true, autoCompactPct: 90, maxOutputTokens: 500 })),
+      ...Object.keys(buildClaudeSdkEnv({ maxContextTokens: 1000, maxOutputTokens: 500 })),
+    ]);
     for (const name of ["DISABLE_AUTO_COMPACT", "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE", "CLAUDE_CODE_MAX_CONTEXT_TOKENS", "CLAUDE_CODE_MAX_OUTPUT_TOKENS"]) {
       expect(emitted.has(name)).toBe(true);
     }
