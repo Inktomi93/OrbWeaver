@@ -307,7 +307,10 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
         const result = await service.importCharacter({
           card: { bytes: file.bytes, filename: file.filename },
         });
-        return { ok: true, created: result.created };
+        // #1688 + #1598: a card whose character already holds an edited primary book imports WITHOUT
+        // re-asserting the card's lorebook. The verb records that; this is where it stops being invisible to
+        // whoever is reading the restore.
+        return { ok: true, created: result.created, ...(result.skippedOverlays.length > 0 ? { notes: result.skippedOverlays } : {}) };
       } catch (err) {
         return errorOutcome(err);
       }
@@ -347,7 +350,12 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       try {
         const service = await buildOwnerImport(deps, ownerId);
         const outcome = await service.importChatFile({ filename: file.filename, bytes: file.bytes });
-        return outcome.ok ? { ok: true, created: outcome.created } : { ok: false, error: outcome.error };
+        // #1688: an orb-native bundle carries planes the room's canon write does not own (the tag overlay, the
+        // rpg campaign). The verb names each one it could not restore; forwarding them is what keeps a bundle
+        // that dropped a campaign from reporting clean.
+        return outcome.ok
+          ? { ok: true, created: outcome.created, ...(outcome.skippedOverlays.length > 0 ? { notes: outcome.skippedOverlays } : {}) }
+          : { ok: false, error: outcome.error };
       } catch (err) {
         return errorOutcome(err);
       }
