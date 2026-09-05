@@ -41,6 +41,15 @@
 //     tracking, same 8.45:1 ink) and moved that mark to a Badge. The band's two marks were the same shape,
 //     one level down, and are Badges now for the same reason.
 //
+// ITS SCOPE IS THE WHOLE PANE, AND THAT IS NOW SWEPT RATHER THAN ASSUMED (#1714, 2026-09-05). The budget
+// was derived from this file and the collection BAND; the four collections' MEMBER rows sat on the other
+// side of the #925 species fence and were never checked against it. The owner retired that fence
+// (`docs/design/config-revamp-design.md` §8.1a), so they were swept — `tag-collection-rows.tsx`,
+// `regex-collection-rows.tsx`, `world-info-collection-rows.tsx`, `roster-collection-rows.tsx`, two methods.
+// They speak `datum` (a count) and `gloss` (an empty library's sentence) and nothing else: ZERO violations,
+// zero changes. The budget already held across a boundary nobody had looked over — which is exactly the
+// class of claim a retired fence turns from an assumption into a receipt.
+//
 // ── THE RULING FORK, STATED (#1099 Errand A's own clause in this file, preserved) ───────────────────────
 // The modified mark's note here read "`kicker` is a text voice, not a box: the band's height is untouched",
 // and that MECHANISM is the thing the clause was protecting — a band that grows when a setting changes
