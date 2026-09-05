@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-09-02
+updated: 2026-09-05
 ---
 
 # Config revamp — ONE configuration surface, search-first, with the context pane as the teacher (#866)
@@ -746,10 +746,13 @@ file headers carry the per-site reasoning.
 
 ### 8.1 The ruling set, compressed
 
-1. **SPECIES.** Collections (Tags · Regex scripts · World Info · Rosters) are a genuinely distinct species
-   from settings groups and that distinctness is legitimate — the bar is that **they must WORK**: no dead
-   ends, no capability lies. An earlier comment's "the axis is CONSISTENCY, collections are config sections
-   with a member list" was retracted by the owner minutes later and is NOT law.
+1. **SPECIES — THE FENCE IS RETIRED (amended 2026-09-05, #1714; see §8.1a).** As ruled on 2026-09-02:
+   collections (Tags · Regex scripts · World Info · Rosters) are a genuinely distinct species from settings
+   groups and that distinctness is legitimate — the bar is that **they must WORK**: no dead ends, no
+   capability lies. An earlier comment's "the axis is CONSISTENCY, collections are config sections with a
+   member list" was retracted by the owner minutes later and is NOT law. **The "must WORK" bar stands. The
+   "distinct species → therefore do not converge" half no longer does** — read §8.1a before citing this
+   clause against a convergence.
 2. **LANDING.** The CONTENT-side "Not built yet" band DIES. Feature status belongs to the LIST: a genuinely
    unbuilt group is a GREYED but clickable row whose activation renders the coming-soon body in CONTENT.
    No parallel status region.
@@ -757,6 +760,38 @@ file headers carry the per-site reasoning.
    LIVE row with an honest empty state; only a genuinely unbuilt feature greys.
 4. **ARRIVAL.** Config opens SHOWING SETTINGS — default-select the first group, sections expanded when the
    pane has room — instead of a landing gauntlet. The owner's lens is CLICK COUNT.
+
+### 8.1a The species fence is RETIRED — the ruling survives, its INPUT changed (owner, 2026-09-05, #1714)
+
+**Owner word, verbatim (Nate, 2026-09-05 \~15:45Z, mid-fold of #1169):** *"also yes i changed my stance on
+collections in case you or anyone is getting hung up on it lol my most recent ruling is the preference."*
+The most recent ruling is #1169's **"receipt + full convergence"** (2026-09-05 \~13:50Z): a cohort-anatomy
+census across all four LIST panes, then config rows adopt the shared machinery wherever the collections
+species does not forbid it. This clause is what "does not forbid it" now means.
+
+**What SURVIVES — all four #925 rulings, as BUILT behaviour, untouched by this amendment:**
+
+1. The **must-WORK bar** (ruling 1's substance): no dead ends, no capability lies. A zero-member band is
+   still a control, a bulk toggle still follows its members.
+2. The **landing** (ruling 2): feature status is the LIST's; the CONTENT-side "Not built yet" band stays
+   dead; `CONFIG_UNBUILT_MARKER` keeps its one home.
+3. The **classification** (ruling 3): built-but-empty is a LIVE row with an honest empty state.
+4. The **arrival default** (ruling 4): first group active on arrival, sections expanded, never on a phone —
+   and the **select-and-disclose ENTER** contract on a collection band (§8.3 row 1), which #1714 preserves
+   by name.
+
+**What is RETIRED — one inference, not a ruling.** "Collections are a distinct species" was being read as
+"therefore a divergence between the two arms needs no justification of its own", and it was cited that way:
+`docs/reviews/misc/2026-09-05-config-list-pane-divergence.md` §3a rested five LIST-pane verdicts on it. That
+inference is gone. **A divergence is now legitimate only where a STRUCTURAL reason holds and is stated** —
+what the thing IS, what its click DOES, what data it actually has. "It is a different species" is no longer
+an answer; it is a restatement of the question.
+
+**The re-judgment is done and its receipts are in the review doc §8** (#1714, lane cb-config-list, on this
+tree at `9629e0b96`). Every verdict that had cited the species survived on a structural reason and none was
+converged away — which is the outcome the amendment was for: the reasons are now load-bearing rather than
+inherited. The §8.3 table below is re-read the same way: each row's "Verdict" column is a structural claim
+about members-vs-body, and none of them says "species" as its reason.
 
 ### 8.2 The classification receipt (ruling 3, re-derived against the tree)
 
@@ -786,8 +821,15 @@ from that one difference, and each divergence from the settings species is marke
 
 The one anatomy the welcome's launcher and the CONTENT landing share is
 `features/config/components/config-library-glance.tsx` — two hosts, one wall, no second spelling.
-**Left as a clean seam for #1169** (LIST-pane consistency): the divergences above are stated as species
-facts, so a convergence pass can price each one instead of re-deriving them.
+
+**The seam this section left for #1169 is CLOSED (2026-09-05, #1714).** Every row above was priced against
+the tree with the species fence retired (§8.1a) and all six held on their structural reason — members vs a
+body, a live census vs a compile-time registry, a click that ENTERS vs one that ACTIVATES. Two more in-pane
+divergences the fence had made invisible were priced at the same time and also held, both by TYPE rather
+than by taste: a collection band can carry no **Modified** mark because `useConfigModified` resolves a
+section's `owns` `SettingsKeyClaim` and a collection declares none, and it can carry no **Not built yet**
+mark because `ConfigGroupBody` is a three-arm union in which `collection` and `{ placeholder: true }` are
+mutually exclusive. Receipts: review doc §8.
 
 ### 8.4 The landing redesign (ruling 2) and what it deleted
 

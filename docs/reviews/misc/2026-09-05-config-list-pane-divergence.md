@@ -55,6 +55,13 @@ the band and the leaf**, which is a layer the other three panes do not have.
 
 ### 3a. SPECIES-LEGITIMATE (do not converge)
 
+> **AMENDED 2026-09-05 (#1714) — the authority these four verdicts cite is RETIRED; the verdicts are not.**
+> The owner changed his stance on collections mid-fold of #1169 (*"my most recent ruling is the
+> preference"*), retiring the "distinct species → therefore do not converge" fence at its one home,
+> `docs/design/config-revamp-design.md` §8.1 clause 1 → §8.1a. Every verdict below was re-judged on the tree
+> WITHOUT that authority and each one survived on a structural reason of its own. **Read §8 for the
+> per-axis re-judgment; do not cite the word "species" from this section as a reason for anything.**
+
 - **The intermediate group band (13 `Button` disclosures).** Config's LIST is a two-level **MAP** of a
   fixed registry — shelf → group → section — and its rows are a map of the pane BESIDE it, not a roster of
   entities you open. Chats / characters / presets are flat rosters of one entity kind. A disclosure band
@@ -293,3 +300,73 @@ converged to a `Badge` at #1214-2. Nothing to build.
   its behaviour at scale.
 - Nothing on the tree carries `{ placeholder: true }` today, so the unbuilt band arm has no live subject
   and every claim about it in §7.7 is a CT receipt, not a rendered one.
+
+---
+
+## 8. The re-judgment with the species fence retired (#1714, lane cb-config-list)
+
+**Owner word, verbatim (Nate, 2026-09-05 \~15:45Z, mid-fold of #1169):** *"also yes i changed my stance on
+collections in case you or anyone is getting hung up on it lol my most recent ruling is the preference."*
+The most recent ruling is #1169's "receipt + full convergence". The fence it supersedes — "collections are
+a genuinely distinct species, therefore do not converge" — is retired at its ONE home,
+`docs/design/config-revamp-design.md` §8.1 clause 1, amended in the same commit as this section (§8.1a
+there carries the full statement of what survives and what does not).
+
+§3a rested four LIST-pane verdicts on that authority and §7.1 carried them forward. **Every one is
+re-judged below on the tree at `9629e0b96`, with the word "species" unavailable as a reason.** The default
+posture was the owner's — where the ONLY reason was the species, converge.
+
+### 8.1 The per-axis re-judgment
+
+| axis | old verdict | new verdict | the reason WITHOUT the species, and its receipt |
+| - | - | - | - |
+| row-GROUPING disclosure bands (14 vs 0) | SPECIES (§3a) | **KEEP — structural** | The bands are not a stylistic layer, they ARE the pane's job: `config-list-surface.tsx:1-4` states it ("four named shelves … the one place the macOS negative control is refuted: the LIST ALWAYS shows where you are"). Converging = deleting a two-level map of a two-level registry, which §4's must-NOT list already ruled independently of #925. It is also the axis the #925 **arrival default** depends on — that ruling is BUILT behaviour #1714 preserves by name, and it has nothing to select and expand without a band. And the anatomy is not even config-only: `preset/components/actions-view.tsx:151-238` borrowed it (§7.2). |
+| search affordance (`combobox` vs `Input`) | SPECIES (§3a) | **KEEP — structural** | Different VERB, not different taste. The peers' `Input` narrows one homogeneous roster IN PLACE; config's index spans groups · sections · leaves · every collection's dynamic member rows, carries a typed `@` grammar, and a hit **jumps** (`openConfigTo`) — `config-search-input.tsx`. A control that navigates is not the control that filters. `library-surface.tsx` records the reciprocal fact from the other side. |
+| band census (`Settings`, no count) | SPECIES (§3a) | **KEEP — structural** | `ListPaneHeader.count` is documented as "a live census"; config's pane-level population is a compile-time registry the reader can neither create nor delete. The pane's only LIVE censuses are the four libraries', and they are already printed — on their own bands, where they are true. There is no honest number for this slot, which is a different statement from "config is special". |
+| band primary action (none) | SPECIES (§7.1) | **KEEP — structural, and it never cited the species** | Config has no PANE-level create verb to offer; each collection carries its own on its band. The precedent is non-collections: corpus and analytics also pass no `action` to `ListPaneHeader` (`corpus-list-header.tsx`, `analytics-list-header.tsx:39`). |
+| `interactiveKicker` on the group band | SPECIES (§3a) | **KEEP — structural, and now ratified** | A band NAMES A REGION and is a control; that is the #1169 voice budget's own definition of the register (`config-list-group.tsx` header). The peers have no such element because they have no such region. |
+| the three payload axes (subtitle / leading / actions, 0/9) | structural (§7.3) | **KEEP — unchanged, and now MEASURED in one pane** | A section is not an entity: it has no portrait, no scent and no lifecycle verbs. The proof is now in-pane rather than cross-pane — see §8.2. |
+
+### 8.2 The seam §8.3 of the design doc left open — priced, and the two divergences the fence hid
+
+`config-revamp-design.md` §8.3 ends by leaving its own divergence table "as a clean seam for #1169". That
+seam was never priced by §7 above, because §7 compared config to the OTHER PANES and this table is about
+the two arms INSIDE config. With the fence gone it is in scope, and all of it holds:
+
+- **A band's click.** Settings band ACTIVATES (never a bare toggle; the active group cannot collapse from
+  its own band). Collection band ENTERS when it is not the location and TOGGLES once it is. Structural — a
+  settings group's rows are the map of the pane beside it, a library's rows are its contents. It is also
+  \#925 ruling 2's select-and-disclose ENTER, which #1714 preserves by name.
+- **`aria-current` on the band.** A settings band with rows never carries it (its child does); a collection
+  band carries it while no member is open. Structural: one-current-per-location, applied where the children
+  are members and nothing below the band is the location until one opens.
+- **The collection band carries no `Modified` mark** — and this is the first divergence the fence made
+  invisible. It is not taste and not species: `useConfigModified` resolves a section contribution's `owns`
+  `SettingsKeyClaim` against `DEFAULT_USER_SETTINGS`, and a collection declares no claim, so "differs from
+  its default" is not a question a library can be asked. Refused by DATA, not by policy.
+- **The collection band carries no `Not built yet` mark** — the second. `ConfigGroupBody` is a three-arm
+  union (`state/config-group-registry.ts`) in which `collection` and `{ placeholder: true }` are mutually
+  exclusive, so `isCollectionGroup` and `isPlaceholderGroup` cannot both hold. Refused by TYPE.
+- **Member rows vs section rows.** Every collection's LIST renderer uses `LibraryRow` → `ListRow` with a
+  subtitle and a kebab — i.e. the PEERS' entity-row grammar, inside config
+  (`tag-collection-rows.tsx:225`, `regex-collection-rows.tsx:254`/`:269`,
+  `world-info-collection-rows.tsx:168`, `roster-collection-rows.tsx`). So the 35-vs-44 delta of §7.1 exists
+  INSIDE one pane, between two row kinds drawn by the same primitive, and it tracks the payload each row
+  honestly has. That is §7.3's structural claim, measured at the place the fence used to stand.
+
+### 8.3 The voice budget's scope, verified rather than asserted
+
+The #1169 budget in `config-list-group.tsx`'s header claims to govern "every element the Settings LIST
+draws", but it was derived from the settings arm and the collection BAND only — the member rows sat on the
+other side of the fence. Swept now, two methods over the four LIST renderers named above: the only voices
+they speak are `datum` (a count) and `gloss` (an empty library's sentence). **Zero violations, zero
+changes** — the budget already held across the boundary it had never been checked over, and its header now
+says so with the sweep instead of assuming it.
+
+### 8.4 What this section did NOT land
+
+No convergence. Every verdict the retired fence had been carrying stood up on its own legs when it was made
+to, and the two in-pane divergences the fence had hidden are refused by DATA and by TYPE respectively. A
+convergence landed here would have had to be invented, and the ruling asked for the right answer, not for a
+diff. The value delivered is that none of these reasons is inherited any more — §8.1's right-hand column is
+the deliverable.
