@@ -73,6 +73,47 @@ test("follows a re-export of the final defineGate", () => {
   expect(report.findings.filter((finding) => finding.code === "descriptor-wrapper")).toHaveLength(0);
 });
 
+test("refuses ambiguous explicit, star-mixed, and multi-hop re-export origins", () => {
+  const consumer = `
+    import { defineGate } from "./policy-door.ts";
+    export const gate = defineGate({ create() { return { visitors: {} }; } });
+  `;
+  const explicit = inspect(consumer, {
+    "tooling/src/verify/gates/policy-door.ts": 'export { defineGate } from "../contract/policy.ts";\nexport { defineGate } from "./wrong.ts";\n',
+    "tooling/src/verify/gates/wrong.ts": "export function defineGate<T>(policy: T): T { return policy; }\n",
+  });
+  const starMixed = inspect(consumer, {
+    "tooling/src/verify/gates/policy-door.ts": 'export * from "../contract/policy.ts";\nexport { defineGate } from "./wrong.ts";\n',
+    "tooling/src/verify/gates/wrong.ts": "export function defineGate<T>(policy: T): T { return policy; }\n",
+  });
+  const multiHop = inspect(consumer, {
+    "tooling/src/verify/gates/policy-door.ts": 'export { defineGate } from "./inner-door.ts";\n',
+    "tooling/src/verify/gates/inner-door.ts": 'export { defineGate } from "../contract/policy.ts";\nexport { defineGate } from "./wrong.ts";\n',
+    "tooling/src/verify/gates/wrong.ts": "export function defineGate<T>(policy: T): T { return policy; }\n",
+  });
+  for (const report of [explicit, starMixed, multiHop]) {
+    expect(report.findings.filter((finding) => finding.code === "descriptor-wrapper")).toHaveLength(1);
+  }
+});
+
+test("refuses namespace, computed, and dynamic defineGate call shapes", () => {
+  const namespace = inspect(`
+    import * as Policy from "../contract/policy.ts";
+    export const gate = Policy.defineGate({ create() { return { visitors: {} }; } });
+  `);
+  const computed = inspect(`
+    import * as Policy from "../contract/policy.ts";
+    export const gate = Policy["defineGate"]({ create() { return { visitors: {} }; } });
+  `);
+  const dynamic = inspect(`
+    import { defineGate } from "../contract/policy.ts";
+    export const gate = (true ? defineGate : defineGate)({ create() { return { visitors: {} }; } });
+  `);
+  for (const report of [namespace, computed, dynamic]) {
+    expect(report.findings.filter((finding) => finding.code === "descriptor-wrapper")).toHaveLength(1);
+  }
+});
+
 test("refuses local, legacy, and wrong-module defineGate lookalikes", () => {
   const local = inspect(`
     function defineGate<T>(policy: T): T { return policy; }
