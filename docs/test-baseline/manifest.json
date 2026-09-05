@@ -1936,6 +1936,7 @@
     "tests/server/transport/trpc/routers/chat.int.test.ts",
     "tests/server/transport/trpc/routers/chat.test.ts",
     "tests/server/transport/trpc/routers/credentials.test.ts",
+    "tests/server/transport/trpc/routers/notifications.int.test.ts",
     "tests/server/transport/trpc/routers/notifications.test.ts",
     "tests/server/transport/trpc/routers/persona.test.ts",
     "tests/server/transport/trpc/routers/plugin.int.test.ts",

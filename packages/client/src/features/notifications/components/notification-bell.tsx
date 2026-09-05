@@ -2,7 +2,8 @@
 // transient toast region. An unread-badged bell opening an anchored popover of inbox rows: an invite
 // row carries inline Accept/Decline; a handoff-nominated row carries Accept/Dismiss (no decline verb —
 // a nomination is host-retractable, not invitee-settleable); other reasons render copy + a dismiss.
-// Mounted only while the deployment is multi-human capable.
+// Mounted for every authed principal (#1627 — the inbox has single-human sources: a crash-disabled plugin,
+// an auto-disabled automation rule, the plugin consent prompt).
 //
 // Read/act contract: opening the popover marks every unread row read via one markAllRead mutation (the
 // badge is "new since you looked", not "un-acted"); acting on an invite dismisses its row.
@@ -75,7 +76,7 @@ export interface NotificationBellProps {
   readonly presentation?: ChromePresentation;
 }
 
-/** The unread-badged bell + inbox popover. Mount only while the deployment is multi-human capable. */
+/** The unread-badged bell + inbox popover. No deployment gate — see the file header (#1627). */
 export function NotificationBell({ presentation = "bar" }: NotificationBellProps = {}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();

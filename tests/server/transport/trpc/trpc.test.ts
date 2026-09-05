@@ -3,15 +3,15 @@
 // adminProcedure rejects a plain user but passes owner ∪ admin (LAYER-1, no db); a representative router
 // delegates to the injected service verb with the Principal; the CSRF gate fires on cookie mutations only;
 // the injected rate-limit gate's throw maps to TOO_MANY_REQUESTS; the multi-human belt (PD-106) 404s the
-// documented single-user-refused surface list and stays open in multi-user mode; and the errorFormatter's
+// documented single-user-refused surface list (the invites router + `notifications.presence` — the inbox
+// CRUD trio LEFT that list with #1627) and stays open in multi-user mode; and the errorFormatter's
 // PROD-LEAK belt keeps `stack` off the wire shape in EVERY env.
 
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, ChatInviteId, NotificationId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
 import type { ChatService } from "@orb/server/domain/chat";
-import type { NotificationsService } from "@orb/server/domain/notifications";
 import type { PersonaService } from "@orb/server/domain/persona";
 import type { SettingsService } from "@orb/server/domain/settings";
 import { logger } from "@orb/server/foundation/observability";
@@ -175,14 +175,13 @@ describe("the injected rate-limit gate", () => {
   });
 });
 
-const notificationId = castId<NotificationId>("notification_1");
 const chatId = castId<ChatId>("chat_1");
 const inviteId = castId<ChatInviteId>("chatinvite_1");
 const kickTarget = castId<UserId>("user_target");
 
 /** One documented single-user-refused surface (Tier-4 §"multi-human surface"). `probe` proves the
- *  multi-user path got through the belt: the domain verb for the CRUD trio, the `presence.connect` spy
- *  for the subscription (its handler ref-counts presence before streaming — no domain verb to observe). */
+ *  multi-user path got through the belt: the chat-service verb for an invites row, the presence registry's
+ *  own `read` spy for the disclosure read (transport-owned state — there is no domain verb to observe). */
 interface BeltSurface {
   readonly path: string;
   readonly make: () => {
@@ -207,14 +206,18 @@ function inviteSurface(verb: keyof ChatService, drive: (ctx: Context) => Promise
   };
 }
 
-// The full multi-human surface list at transport today — the notifications CRUD trio + the
-// invites/membership router (FINAL-Auth-Modes §7 P1 — the PD-106 burn-down).
+// The full multi-human surface list at transport today — the invites/membership router (FINAL-Auth-Modes
+// §7 P1 — the PD-106 burn-down) + `notifications.presence`.
 //
-// The inbox STREAM is no longer on this list, and its belt did not weaken: at SSE-1 S3 it folded into the
-// multiplexed socket, so the belt moved off `multiHumanProcedure` onto the `notifications` room's
-// `authorizeAttach` (the socket itself must stay `authedProcedure` — a single-user deployment still needs its
-// user/chat/rpg rooms). Both arms of the same refusal are pinned where the verdict now lives:
-// tests/server/transport/trpc/stream/sources/notifications.test.ts.
+// NEITHER THE INBOX CRUD TRIO NOR THE INBOX STREAM IS ON THIS LIST ANY MORE (#1627). PD-106's ruling
+// survives, its INPUT changed: the belt covered the inbox because every notification SOURCE was
+// multi-human, and single-human sources now exist (`plugin-disabled`, `automation-notice`, the plugin
+// consent prompt), so the belt was hiding durable rows from the only human on a single-user box. The trio
+// widened to `authedProcedure` and the room's `authorizeAttach` became a no-op; what holds the per-user
+// partition instead is the `recipient_user_id` WHERE clause, PROBED at the wire in
+// tests/server/transport/cross-tenant-sweep.suite.int.test.ts. The widened arms are pinned at
+// tests/server/transport/trpc/routers/notifications.test.ts and .../stream/sources/notifications.test.ts.
+// `presence` stays: online state about OTHER humans is a multi-human surface either way.
 const beltSurfaces: readonly BeltSurface[] = [
   inviteSurface("createInvite", (ctx) => caller(ctx).invites.createInvite({ chatId, input: {} })),
   inviteSurface("previewInvite", (ctx) => caller(ctx).invites.previewInvite({ token: "tok" })),
@@ -226,22 +229,6 @@ const beltSurfaces: readonly BeltSurface[] = [
   inviteSurface("selfLeave", (ctx) => caller(ctx).invites.selfLeave({ chatId })),
   inviteSurface("nominateHostHandoff", (ctx) => caller(ctx).invites.nominateHostHandoff({ chatId, userId: kickTarget })),
   inviteSurface("acceptHostHandoff", (ctx) => caller(ctx).invites.acceptHostHandoff({ chatId })),
-  {
-    path: "notifications.list",
-    make: () => {
-      const list = vi.fn<NotificationsService["list"]>();
-      return { services: { notifications: { list } }, presence: inertPresence, probe: list };
-    },
-    drive: (ctx) => caller(ctx).notifications.list(),
-  },
-  {
-    path: "notifications.dismiss",
-    make: () => {
-      const dismiss = vi.fn<NotificationsService["dismiss"]>();
-      return { services: { notifications: { dismiss } }, presence: inertPresence, probe: dismiss };
-    },
-    drive: (ctx) => caller(ctx).notifications.dismiss({ notificationId }),
-  },
   {
     // #1039 — the presence DISCLOSURE read. It reaches no domain verb (presence is transport-owned state),
     // so the probe is the registry's own `read` spy: not called ⇒ the belt refused before any presence fact
@@ -284,14 +271,18 @@ describe("multiHumanProcedure — the multi-human capability 404 belt (PD-106 / 
     });
   }
 
+  // Driven through `notifications.presence` — a belted QUERY, so the probe reaches the ordering question
+  // without the CSRF gate in the way. It moved here from `notifications.list` when the inbox trio left the
+  // belt (#1627): `list` now answers UNAUTHORIZED to this call, which is the right answer for an
+  // `authedProcedure` and says nothing about belt-vs-auth ORDER.
   test("fires BEFORE the auth gate: an anonymous probe while not capable sees NOT_FOUND, not UNAUTHORIZED", async () => {
     const ctx = makeContext({ auth: null, multiHumanCapable: false });
-    await expect(caller(ctx).notifications.list()).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).notifications.presence({ userIds: [kickTarget] })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   test("multi-human capable still requires auth (the belt adds no anonymous bypass)", async () => {
     const ctx = makeContext({ auth: null, multiHumanCapable: true });
-    await expect(caller(ctx).notifications.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller(ctx).notifications.presence({ userIds: [kickTarget] })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   // §9 ruling 3 (CRUCIAL): the belt gates only the second-HUMAN seat. Multi-CHARACTER group chat —

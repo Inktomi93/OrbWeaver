@@ -52,7 +52,11 @@ export function NotificationBellSheetStory(): ReactElement {
 /** The topbar TRAIL slot exactly as the shell assembles it: the registered chrome entry decides its own
  *  visibility (`useVisible`) and renders its own `"bar"` body. The story deliberately mounts the ENTRY, not
  *  the bell — the claim under test is what the trail paints in its FIRST frame while `/api/auth/config` is
- *  still in flight (#476), which is a property of the gate, not of the bell. */
+ *  still in flight, which is a property of the ENTRY's gate, not of the bell.
+ *
+ *  The entry declares NO `useVisible` since #1627 (the inbox has single-human sources), so the optional-call
+ *  below is what the shell itself does (`app-shell.tsx`: `entry.useVisible?.() ?? true`) and reads TRUE. It
+ *  stays spelled out rather than collapsed: a re-added gate must show up in this story, not be bypassed by it. */
 function ChromeTrailSlot(): ReactElement {
   const visible = notificationsChrome.useVisible?.() !== false;
   const { behavior } = notificationsChrome;

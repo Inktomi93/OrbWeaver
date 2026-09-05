@@ -87,9 +87,11 @@ const DEVICE_LOCAL_REGISTRY: ExemptionTable = {
       "deployment last served at `/api/auth/config`, a CACHE over a server-derived per-request value (the " +
       "`appearance-boot` precedent), and it could not live in the synced user_settings blob even in " +
       "principle — that blob is read through tRPC, strictly later than the fetch this hint exists to cover. " +
-      "It exists because `/api/auth/config` is fetched at app-root MOUNT, so the topbar-trail bell's gate " +
-      "reads FALSE for the first frames of every boot and the bell then mounts INTO the trail (measured " +
-      "0.00015 layout shift, under the `[cls]` flagger's own reporting floor). A RENDER hint only, never an " +
+      "It exists because `/api/auth/config` is fetched at app-root MOUNT, so a capability-gated slot reads " +
+      "FALSE for the first frames of every boot and then mounts INTO the layout (measured on the topbar-trail " +
+      "bell: 0.00015 layout shift, under the `[cls]` flagger's own reporting floor — that bell lost its gate " +
+      "with #1627 and the hint currently has no render consumer, the /join dialog and the People section " +
+      "being the candidates). A RENDER hint only, never an " +
       "authorization input: it decides whether a slot is drawn, while every read and verb behind that slot " +
       "still answers to the real config and the server's gates. The server value always wins the instant it " +
       "lands (so a capability flip corrects rather than being masked), and a device that has never been told " +

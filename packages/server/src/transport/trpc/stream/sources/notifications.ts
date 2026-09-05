@@ -11,14 +11,21 @@
 // attach would be a second copy of a read it just did. That is the same first-subscribe-vs-reconnect
 // asymmetry `lastEventId` expressed before the fold.
 //
-// AUTHZ — THE PD-106 MULTI-HUMAN BELT, RELOCATED FROM THE PROCEDURE TO THIS ATTACH. The inbox is a
-// multi-human surface (invite/kick/host-handoff delivery), so a deployment that cannot seat a second human
-// refuses it as NONEXISTENT — a uniform NOT_FOUND, never a FORBIDDEN that advertises the capability. The
-// belt could not stay on the procedure: the socket itself is `authedProcedure` by design (a single-user
-// deployment must still get its user/chat/rpg rooms), so the belt is a per-ROOM concern and this is the room.
-// The verdict, its code, and its security event are the middleware's, verbatim — only the site moved.
-// Everything BELOW the attach is self-scoped: the channel key IS `principal.userId` and the durable `list`
-// is caller-scoped inside the verb, so there is no per-yield re-gate (there never was one).
+// AUTHZ — AUTHED IS THE WHOLE GATE (#1627, 2026-09-05). There is nothing left to refuse here: the channel
+// key IS `principal.userId` (never client input — the `notifications` room ref carries no field that could
+// widen it), the durable resume read is caller-scoped inside the verb, and `stream.attach`/`connect` are
+// `authedProcedure`. So this room takes the `user` room's posture: `authorizeAttach` is a no-op and there is
+// no per-yield re-gate (there never was one).
+//
+// IT USED TO CARRY THE PD-106 MULTI-HUMAN BELT, relocated here from `multiHumanProcedure` when the stream
+// folded into the socket (the socket itself had to stay `authedProcedure` so a single-user deployment kept
+// its user/chat/rpg rooms, which made the belt a per-ROOM concern). PD-106's RULING survives — its INPUT
+// changed: the belt existed because every notification SOURCE was multi-human, and single-human sources
+// now exist (`plugin-disabled` from the crash policy, `automation-notice` from an auto-disabling rule,
+// plus the plugin consent prompt), so a single-user deployment was accumulating durable rows its only
+// human could neither list nor stream. The belt is untouched where it still applies —
+// `notifications.presence` and the whole invites router still ride `multiHumanProcedure`. The router-side
+// half of this change, and what now holds the per-user partition, is `routers/notifications.ts`.
 //
 // LIVE-ONLY IN CONTENT, DURABLE IN RECOVERY. The client consumer treats every frame as a pure "refetch the
 // inbox" trigger, but the room is genuinely RESUMABLE (a durable `notifications` table + `list` cursor), which
@@ -27,8 +34,6 @@
 
 import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
 import type { StreamDataFrame } from "@orb/contracts/stream";
-import { DomainNotFoundError } from "@orb/kit/errors";
-import { securityEvent } from "#foundation/observability";
 import { subscribeNotifications } from "../../notifications-bus.ts";
 import type { RoomSourceDef } from "../room-source.ts";
 
@@ -41,19 +46,9 @@ export const notificationsRoomSource: RoomSourceDef<"notifications"> = {
   // The durable inbox table IS this room's resume path (and what makes its `lag` overflow legal).
   resumable: true,
 
-  // The PD-106 belt, moved here from `multiHumanProcedure` (see the header). Same verdict, same NOT_FOUND,
-  // same security event — a refusal that reads exactly like a room that does not exist.
-  authorizeAttach: ({ multiHumanCapable }) => {
-    if (multiHumanCapable) {
-      return Promise.resolve();
-    }
-    securityEvent(
-      "multi_human_unavailable",
-      { path: "stream.attach (notifications room)" },
-      "security: multi-human surface refused (deployment not multi-human capable)",
-    );
-    return Promise.reject(new DomainNotFoundError("stream room", "notifications"));
-  },
+  // Nothing to gate (see the header): the socket's authed gate is the belt, and the channel key is the
+  // caller's own userId. The `user` room's posture, for the same reason.
+  authorizeAttach: () => Promise.resolve(),
 
   async *run({ principal, services, cursor, signal }): AsyncGenerator<StreamDataFrame> {
     const service = services.notifications;
