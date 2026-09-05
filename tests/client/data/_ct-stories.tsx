@@ -4,6 +4,7 @@
 // why that seam is story-side, not beforeMount). The `.ct.tsx` beside this file mounts ONLY these
 // exports. This file is the template every client feature agent copies.
 
+import type { CardFrameRequest, PluginFrameRequest } from "@orb/client/data";
 import {
   __resetSessionFreshness,
   createCollectionSurface,
@@ -12,6 +13,7 @@ import {
   SkeletonRows,
   sessionFreshnessAgeMs,
   skeletonRowCountFor,
+  useCardFrameSrc,
   useCarriedAppearance,
   useColorQuotedSpeech,
   useDisplayScripts,
@@ -21,6 +23,7 @@ import {
   useOnlineStatus,
   useOpenRefinery,
   usePluginDisplayText,
+  usePluginFrameSrc,
   usePromptMacroSuggestions,
   useSessionRecovery,
   useSettingsViewerView,
@@ -45,7 +48,7 @@ import {
 } from "@orb/client/state";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
-import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, PersonaId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -1148,6 +1151,71 @@ export function PluginDisplayTextStory({ text = "a rendered line" }: { readonly 
   return (
     <CtDataProviders>
       <PluginDisplayTextBody text={text} />
+    </CtDataProviders>
+  );
+}
+
+// ── THE FRAME-MINT MEMOS (#1486) ──────────────────────────────────────────────────────────────────
+//
+// Both frame hooks memoize the mint promise per SERIALIZED BODY, module-wide, for the tab's life — and both
+// collapse every failure into a resolved `undefined`. So a memo that keeps the failed promise answers one
+// bad second forever: the card renders the srcdoc floor and the plugin surface renders NOTHING, for those
+// exact bytes, until the page is reloaded. The probes below remount a reader at the SAME body (the `key`
+// bump), which is what a collapse/expand, a scroll-back or a re-opened panel does in the app — so a second
+// attempt either re-mints or proves the memo poisoned itself.
+
+const MEMO_CARD_REQUEST: CardFrameRequest = {
+  chatId: castId<ChatId>("chat_ct_frame_memo"),
+  characterId: castId<CharacterId>("character_ct_frame_memo"),
+  html: "<p>a sealed letter</p>",
+  css: undefined,
+  themeTokens: { "--sandbox-bg": "#101014" },
+  fontFamily: undefined,
+};
+
+const MEMO_PLUGIN_REQUEST: PluginFrameRequest = {
+  pluginId: castId<PluginId>("plugin_ct_frame_memo"),
+  surfaceId: "board",
+  themeTokens: { "--sandbox-bg": "#101014" },
+  styleTokens: { "--sandbox-radius": "0.5rem" },
+  fontFamily: undefined,
+};
+
+function CardFrameSrcReader(): ReactElement {
+  const src = useCardFrameSrc(MEMO_CARD_REQUEST);
+  return <output data-testid="frame-src">{src ?? "floor"}</output>;
+}
+
+function PluginFrameSrcReader(): ReactElement {
+  const src = usePluginFrameSrc(MEMO_PLUGIN_REQUEST);
+  return <output data-testid="frame-src">{src ?? "nothing"}</output>;
+}
+
+/** A remount button plus one reader, so a CT can ask the same body twice from a fresh hook instance. */
+function FrameMemoProbe({ reader }: { readonly reader: "card" | "plugin" }): ReactElement {
+  const [attempt, setAttempt] = useState(0);
+  return (
+    <div>
+      <button data-testid="ct-remount-frame" onClick={(): void => setAttempt((n) => n + 1)} type="button">
+        remount
+      </button>
+      {reader === "card" ? <CardFrameSrcReader key={attempt} /> : <PluginFrameSrcReader key={attempt} />}
+    </div>
+  );
+}
+
+export function CardFrameMemoStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <FrameMemoProbe reader="card" />
+    </CtDataProviders>
+  );
+}
+
+export function PluginFrameMemoStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <FrameMemoProbe reader="plugin" />
     </CtDataProviders>
   );
 }

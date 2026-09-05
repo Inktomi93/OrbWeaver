@@ -293,7 +293,7 @@
     {
       "siteId": "packages/client/src/data/use-card-frame.ts::default:catch::1",
       "path": "packages/client/src/data/use-card-frame.ts",
-      "line": 91,
+      "line": 71,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -301,12 +301,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented in the JSDoc above — any failure resolves to undefined and the caller renders the floor. Ends if the floor stops being an acceptable fallback UI.",
-      "markerLine": 80
+      "markerLine": 60
     },
     {
       "siteId": "packages/client/src/data/use-card-frame.ts::promise:pending::1",
       "path": "packages/client/src/data/use-card-frame.ts",
-      "line": 123,
+      "line": 103,
       "column": 5,
       "grammar": "promise",
       "position": "promise:pending",
@@ -314,12 +314,12 @@
       "snippet": "pending.then(",
       "verdict": "deliberate-absorb",
       "reason": "mintCardFrame's own catch already collapsed any failure to `undefined`; the reject arm here only exists for symmetry and sets the same render-floor state as the resolve arm. Ends if mintCardFrame stops swallowing its own failures.",
-      "markerLine": 122
+      "markerLine": 102
     },
     {
       "siteId": "packages/client/src/data/use-plugin-frame.ts::default:catch::1",
       "path": "packages/client/src/data/use-plugin-frame.ts",
-      "line": 67,
+      "line": 76,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -327,12 +327,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented in the JSDoc above — any failure resolves to undefined and the caller renders nothing. Ends if rendering nothing stops being an acceptable fallback.",
-      "markerLine": 56
+      "markerLine": 65
     },
     {
       "siteId": "packages/client/src/data/use-plugin-frame.ts::promise:pending::1",
       "path": "packages/client/src/data/use-plugin-frame.ts",
-      "line": 92,
+      "line": 101,
       "column": 5,
       "grammar": "promise",
       "position": "promise:pending",
@@ -340,7 +340,7 @@
       "snippet": "pending.then(",
       "verdict": "deliberate-absorb",
       "reason": "mintPluginFrame's own catch already collapsed any failure to `undefined`; the reject arm here only exists for symmetry and sets the same render-floor state as the resolve arm. Ends if mintPluginFrame stops swallowing its own failures.",
-      "markerLine": 91
+      "markerLine": 100
     },
     {
       "siteId": "packages/client/src/data/use-session-recovery.ts::promise:bindDurableLocalToUser::1",

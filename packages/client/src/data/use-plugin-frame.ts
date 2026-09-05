@@ -19,6 +19,7 @@ import type { PluginFrameMintRequest, PluginFrameMintResponse } from "@orb/contr
 import { PLUGIN_FRAME_ROUTE, pluginFrameMintResponseSchema } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
+import { forgetIfCurrent, rememberBounded } from "./bounded-memo.ts";
 
 /** What a caller knows about ONE frame surface. Everything here is either an id the caller already holds or a
  *  theme value the server re-clamps. */
@@ -36,8 +37,16 @@ export interface PluginFrameRequest {
 /** Per-tab memo so a re-render, a collapse/expand, or a scroll-back re-uses one handle instead of minting a
  *  fresh document per paint. Keyed on the SERIALIZED body, which is both the natural cache key and the effect's
  *  only dependency — a theme flip changes the bytes, hence the key, hence mints anew rather than serving a frame
- *  built under a stale palette. */
+ *  built under a stale palette.
+ *
+ *  BOUNDED, exactly as the card memo is (`use-card-frame.ts`, #711 D3): each distinct body is a fresh key, so a
+ *  long-lived tab with many theme flips and many visited surfaces would grow this map without limit.
+ *  `rememberBounded` caps it at {@link MINTED_CACHE_CAP} with LRU eviction — an evicted key just re-mints. */
 const minted = new Map<string, Promise<string | undefined>>();
+
+/** Cap on the per-tab mint memo. Comfortably above the handful of frame surfaces a page shows at once; older
+ *  keys (a since-replaced theme, a closed surface) evict rather than accreting for the tab's lifetime. */
+const MINTED_CACHE_CAP = 128;
 
 /** The wire body for one frame. Pure + exported so the shape is testable without a browser. */
 export function pluginFrameMintBody(request: PluginFrameRequest): PluginFrameMintRequest {
@@ -87,15 +96,23 @@ export function usePluginFrameSrc(request: PluginFrameRequest | undefined): stri
     }
     let live = true;
     const pending = minted.get(body) ?? mintPluginFrame(body);
-    minted.set(body, pending);
+    rememberBounded(minted, body, pending, MINTED_CACHE_CAP);
     // @orb-gate-ignore caught-failure-ownership(promise:pending): mintPluginFrame's own catch already collapsed any failure to `undefined`; the reject arm here only exists for symmetry and sets the same render-floor state as the resolve arm. Ends if mintPluginFrame stops swallowing its own failures.
     pending.then(
       (url) => {
+        // A FAILED MINT IS NOT AN ANSWER, so it must not be remembered as one: `mintPluginFrame` collapses a
+        // 404, an offline blip and a version-skewed body alike into `undefined`, and caching that settled
+        // promise would render this surface as NOTHING for the rest of the tab's life over one bad second.
+        // Evicted OUTSIDE the `live` gate — an unmounted surface must not leave the poison behind.
+        if (url === undefined) {
+          forgetIfCurrent(minted, body, pending);
+        }
         if (live) {
           setResolved({ body, url });
         }
       },
       () => {
+        forgetIfCurrent(minted, body, pending);
         if (live) {
           setResolved({ body, url: undefined });
         }

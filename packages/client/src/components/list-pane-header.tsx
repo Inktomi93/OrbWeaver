@@ -110,7 +110,11 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
               </Text>
             )}
           </Text>
-          {count === undefined || count === 0 ? null : (
+          {/* ZERO IS SUPPRESSED IN BOTH SPELLINGS. `count` is `number | string`, so a numeric-only test let a
+              string `"0"` — the same fact, built by a caller that formats its own datum — render the empty
+              count the numeric arm exists to hide. Only the bare `"0"`: a composed `"0 of 896"` is a real
+              sentence about a filter and stays. */}
+          {count === undefined || count === 0 || count === "0" ? null : (
             // THE COUNT RIDES `label`, NOT `micro` (#1136): beside a 24px name a 10.5px datum is not quiet,
             // it is unreadable. The step is a LEGIBILITY call and nothing else — measured in the CT browser
             // inside the real band, the datum lands at top 15.5 either way, because the .5 is the BAND's,
