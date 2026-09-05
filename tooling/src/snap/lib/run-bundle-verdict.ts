@@ -40,13 +40,17 @@ export function terminalSnapResultPairs(
   ];
 }
 
+/** WORST-FIRST. `load-suspect` sits between `withheld` and `absent` (#1616): a measured-but-unpromotable
+ *  number is MORE informative than "no number at all" and LESS of a verdict than an ordinary pass, so an
+ *  arm that was load-suspect on any page reports that rather than the `passed` it must never claim. */
 const STATE_RANK: Readonly<Record<SnapArmState, number>> = {
   refused: 0,
   failed: 1,
   withheld: 2,
-  absent: 3,
-  passed: 4,
-  off: 5,
+  "load-suspect": 3,
+  absent: 4,
+  passed: 5,
+  off: 6,
 };
 
 function armFacts(results: SnapRunResults, arm: Arm): readonly SnapArmFact[] {

@@ -235,30 +235,63 @@ env_file_posture() { # the `.env` pin, if any — the value the SERVER's resolve
   sed -n 's/^[[:space:]]*ENGINES_POSTURE[[:space:]]*=[[:space:]]*\([^[:space:]#]*\).*/\1/p' "$REPO/.env" | tail -1
 }
 ENV_FILE_POSTURE="$(env_file_posture)"
+#
+# ONE POSTURE VARIABLE ALWAYS REACHES engines.sh (#1618 — the #1567 spawn through its SECOND door).
+# The old shape branched on `VLLM_DISABLED` being NON-EMPTY, which is true of `false`/`0`/`no` as well:
+# such a caller set NO `ENGINES_POSTURE`, SKIPPED the `.env` pin below, and engines.sh — which reads only
+# `ENGINES_POSTURE` — fell back to its own `adopt-or-start` default and SPAWNED, while the server ran
+# `.env`'s adopt-only. The branch's own comment claimed the caller "gets the mapping the server's resolver
+# applies", and that was the false premise: the server's resolver is not in this path at all.
+# So: a TRUTHY VLLM_DISABLED maps EXPLICITLY to `ENGINES_POSTURE=off` (the documented off⇔disabled
+# mapping, now spelled where engines.sh can see it), and a FALSY one normalises and FALLS THROUGH to the
+# `.env` pin / default exactly like unset — because "vllm is not disabled" says nothing about which of
+# off/adopt-only/adopt-or-start the operator wants.
+vllm_disabled_truthy() {
+  case "${VLLM_DISABLED:-}" in
+    1 | on | yes | true) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 if [ -n "${ENGINES_POSTURE:-}" ]; then
   ENGINES_POSTURE_SRC=host
   export ENGINES_POSTURE
-elif [ -n "${VLLM_DISABLED:-}" ]; then
-  # UNCHANGED and deliberately AHEAD of the .env pin: a caller who spells VLLM_DISABLED still gets the
-  # normalization (the schema takes exactly "true"|"false") and the mapping the server's resolver applies.
-  case "${VLLM_DISABLED}" in
-    1 | on | yes) VLLM_DISABLED=true ;;
-    0 | off | no) VLLM_DISABLED=false ;;
-  esac
-  export VLLM_DISABLED
-elif [ -n "$ENV_FILE_POSTURE" ]; then
-  # The .env pin is what the server will run under regardless of what we pass; the supervisor honouring a
-  # DIFFERENT posture is exactly the #1567 split (an .env-pinned adopt-only that still cold-spawned 38 GB
-  # of vLLM, owner-witnessed 2026-09-04). Adopt it so one posture governs both halves. Today's `.env` pins
-  # adopt-only, which is also the default below — so this branch changes no VALUE, only its provenance…
-  # and the provenance is the half that decides whether engines.sh may spawn.
-  ENGINES_POSTURE="$ENV_FILE_POSTURE"
-  ENGINES_POSTURE_SRC=.env
-  export ENGINES_POSTURE
+elif vllm_disabled_truthy; then
+  # Normalized because the server's env schema takes exactly "true"|"false" (a stale ambient
+  # `VLLM_DISABLED=1` from the pre-rebuild devcontainer is fatal), and mapped to the posture so the
+  # supervisor and the server agree without either guessing.
+  VLLM_DISABLED=true
+  ENGINES_POSTURE=off
+  ENGINES_POSTURE_SRC="VLLM_DISABLED=true"
+  export VLLM_DISABLED ENGINES_POSTURE
 else
-  ENGINES_POSTURE=adopt-only
-  ENGINES_POSTURE_SRC=default
+  # A falsy VLLM_DISABLED is normalised for the schema and then IGNORED as a posture input.
+  if [ -n "${VLLM_DISABLED:-}" ]; then
+    VLLM_DISABLED=false
+    export VLLM_DISABLED
+  fi
+  if [ -n "$ENV_FILE_POSTURE" ]; then
+    # The .env pin is what the server will run under regardless of what we pass; the supervisor honouring a
+    # DIFFERENT posture is exactly the #1567 split (an .env-pinned adopt-only that still cold-spawned 38 GB
+    # of vLLM, owner-witnessed 2026-09-04). Adopt it so one posture governs both halves. Today's `.env` pins
+    # adopt-only, which is also the default below — so this branch changes no VALUE, only its provenance…
+    # and the provenance is the half that decides whether engines.sh may spawn.
+    ENGINES_POSTURE="$ENV_FILE_POSTURE"
+    ENGINES_POSTURE_SRC=.env
+  else
+    ENGINES_POSTURE=adopt-only
+    ENGINES_POSTURE_SRC=default
+  fi
   export ENGINES_POSTURE
+fi
+
+# Test seam, the posture twin of STACK_DISPATCH_PROBE (#1618): print what engines.sh will actually receive
+# and stop, so the RESOLUTION can be driven without spawning a stack or a single vLLM process. Deliberately
+# AFTER the posture block and BEFORE any action — that is the surface under test
+# (tests/tooling/stack/index.int.test.ts). The standing ban on running the real launcher is
+# .claude/rules/lane-standing-facts.md.
+if [ -n "${STACK_POSTURE_PROBE:-}" ]; then
+  echo "POSTURE engines=${ENGINES_POSTURE:-—} source=${ENGINES_POSTURE_SRC:-—} vllm-disabled=${VLLM_DISABLED:-—} env-pin=${ENV_FILE_POSTURE:-—}"
+  exit 0
 fi
 
 # The one posture line every boot path prints BEFORE it boots (up · restart · force-restart · start-fg).

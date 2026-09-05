@@ -1627,6 +1627,14 @@ test("R-OBS composed-real: a folded turn records its mount, its calls, its flush
   const flush = events.find((event): event is Extract<RpgTraceEvent, { phase: "flush" }> => event.phase === "flush");
   expect(flush).toMatchObject({ turnId: TURN, path: "folded", fallbackReason: null });
 
+  // 3b. THAT THE WRITE BOUNDARY CLOSED (#1493). The `flush` event above is a DISPATCH receipt — it exists as
+  // soon as the vehicle is chosen — so it is not the observable a reader (or an e2e barrier) may treat as
+  // "the extraction is over". `flushed` is, and it must come AFTER the dispatch receipt in the ring.
+  const flushed = events.find((event): event is Extract<RpgTraceEvent, { phase: "flushed" }> => event.phase === "flushed");
+  expect(flushed).toMatchObject({ turnId: TURN, wrote: true, droppedReason: null });
+  const phases = events.map((event) => event.phase);
+  expect(phases.indexOf("flushed")).toBeGreaterThan(phases.indexOf("flush"));
+
   // 4. WHAT REACHED THE PANEL.
   expect(events.filter((event) => event.phase === "bus").length).toBeGreaterThan(0);
 
@@ -1635,6 +1643,7 @@ test("R-OBS composed-real: a folded turn records its mount, its calls, its flush
   const byTurn = recorder.recent({ turnId: TURN }).map((record) => record.event.phase);
   expect(byTurn).toContain("tool");
   expect(byTurn).toContain("flush");
+  expect(byTurn).toContain("flushed");
   expect(byTurn).not.toContain("mount");
 });
 

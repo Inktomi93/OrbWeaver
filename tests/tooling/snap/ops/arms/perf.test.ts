@@ -1,6 +1,9 @@
 // Snap's perf RATE is one arm among independent verdict members. These planted load readings exercise
-// the real arm capture and RESULT-pair functions: contention withholds before page.evaluate, while the
-// quiet twin collects navigation evidence. Neither path contributes a pass/fail count.
+// the real arm capture and RESULT-pair functions: contention MEASURES and LABELS (owner ruling
+// 2026-09-05, #1616 — the arm used to skip the `page.evaluate` entirely and publish nothing, which on a
+// box that is never quiet meant no number ever), while the quiet twin collects the same evidence
+// unlabelled. Neither path contributes a pass/fail count, and `load-suspect` moves no exit code.
+// The one remaining WITHHELD cause is an unproven/software browser — no number exists there at all.
 import process from "node:process";
 import type { Page } from "@playwright/test";
 import { vi } from "vitest";
@@ -41,17 +44,45 @@ async function captureStdout<T>(run: () => Promise<T>): Promise<{ readonly stdou
   }
 }
 
-test("a planted contended box withholds the perf arm and never reads rate evidence", async () => {
-  const evaluate = vi.fn() as Page["evaluate"];
+test("a planted contended box MEASURES and labels the perf arm load-suspect — it never withholds for load (#1616)", async () => {
+  const evaluate = vi.fn().mockResolvedValue({
+    navigation: { domContentLoadedMs: 11, loadMs: 22, responseMs: 7 },
+    orb: { queries: 3 },
+  }) as unknown as Page["evaluate"];
   const { stdout, value: evidence } = await captureStdout(
     async () => await capturePerfEvidence(testPage(evaluate), posture(HARDWARE, { loadavg1: 8, cpuCount: 2 })),
   );
 
+  // THE NUMBER EXISTS. The read happens, the navigation evidence lands, and the label is what stops the
+  // reader (and the RESULT line) from promoting it.
+  expect(evaluate).toHaveBeenCalledTimes(1);
+  expect(evidence?.navigation).toEqual({ domContentLoadedMs: 11, loadMs: 22, responseMs: 7 });
+  expect(evidence?.rate.status).toBe("load-suspect");
+  expect(stdout).toContain("LOAD-SUSPECT (ORB-LOAD-SUSPECT");
+  expect(stdout, "load must never print the withhold marker again").not.toContain("ORB-LOAD-WITHHOLD");
+  expect(appSnapshotResultPair([evidence])).toEqual(["app-snapshot", "load-suspect"]);
+  // NO PROMOTION IN EITHER DIRECTION: a labelled number is not a failure count and not a pass.
+  expect(APP_SNAPSHOT_ARM.lifecycle.failures()).toEqual({});
+});
+
+test("an unproven browser still WITHHOLDS — the member that survives is the one with no number at all", async () => {
+  const evaluate = vi.fn() as Page["evaluate"];
+  const software: BrowserAccelerationEvidence = {
+    backend: "SwiftShader",
+    posture: "software",
+    gpuCompositing: "disabled",
+    rasterization: "disabled",
+    webgl: "disabled",
+    webgpu: "disabled",
+  };
+  const { stdout, value: evidence } = await captureStdout(
+    async () => await capturePerfEvidence(testPage(evaluate), posture(software, { loadavg1: 0.2, cpuCount: 2 })),
+  );
+
   expect(evaluate).not.toHaveBeenCalled();
   expect(evidence?.rate.status).toBe("withheld");
-  expect(stdout).toContain("WITHHELD (ORB-LOAD-WITHHOLD");
+  expect(stdout).toContain("WITHHELD (");
   expect(appSnapshotResultPair([evidence])).toEqual(["app-snapshot", "withheld"]);
-  expect(APP_SNAPSHOT_ARM.lifecycle.failures()).toEqual({});
 });
 
 test("the quiet planted control collects the real arm shape and reports measured", async () => {

@@ -229,6 +229,44 @@ test("a SIBLING stream stub does not eat the socket — both route on the PROCED
   expect(impersonation.count(), "the impersonate stub answered a stream that is not chat.impersonateStream").toBe(0);
 });
 
+test("the TWIN: the socket stub registered LAST still lets an impersonate stream through (#1491)", async ({ mount, page }) => {
+  // THE OTHER HALF OF THE SAME COLLISION, and the one the arm above cannot see. Playwright runs route
+  // handlers in REVERSE registration order, so registering the impersonate stub second (as that arm does)
+  // puts the IMPERSONATE handler first — and it falls through for everything that is not
+  // `chat.impersonateStream`. That arm therefore proves the impersonate stub's narrowness and says NOTHING
+  // about the socket stub's: with `isOrbSocketRequest` reverted to the accept-header-only match, it stays
+  // 11/0 green. Registering the SOCKET stub last inverts the order, so the socket handler decides first and
+  // its predicate is what is on trial.
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
+  const impersonation = await routeImpersonateStream(page, ["I step into the tavern."]);
+  const socket = await routeOrbSocket(page, { frames: [USER_FRAME], awaitAttaches: 1 });
+
+  await mount(<UserBusStory />);
+  await expect(page.getByTestId("user-events")).toHaveText("tagsChanged");
+
+  // The impersonate subscription's OWN wire shape (an EventSource GET on that procedure — what
+  // httpSubscriptionLink opens; this story mounts no composer, so the request is made directly rather than
+  // through a second feature's UI). The socket handler sees it FIRST and must fall through.
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve) => {
+      const source = new EventSource(`/api/trpc/chat.impersonateStream?input=${encodeURIComponent(JSON.stringify({ chatId: "chat_ct_game_01" }))}`);
+      const done = (): void => {
+        source.close();
+        resolve();
+      };
+      source.addEventListener("message", done);
+      source.addEventListener("error", done);
+    });
+  });
+
+  // THE ASSERTION: the impersonate stub served it — i.e. the socket stub declined a procedure that is not
+  // `stream.connect`. Reverting `isOrbSocketRequest` makes this 0 (the socket answers it with socket frames).
+  await expect.poll(() => impersonation.count()).toBe(1);
+  // …and the socket itself is untouched: one connect, still the same one room.
+  await expect.poll(() => socket.connects()).toBe(1);
+  await expect.poll(() => socket.attachedChannels()).toEqual(["user"]);
+});
+
 test("a frame for a room nobody joined is dropped, not fanned out", async ({ mount, page }) => {
   await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
   // The socket serves an rpg frame while only the USER room is joined — the real server never would, and the

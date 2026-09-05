@@ -56,9 +56,18 @@ describe("rpgStateMoved", () => {
 });
 
 describe("hasRpgFlush", () => {
-  test("only a `flush` phase counts — a mounted turn or a bus announcement is not a settled extraction", () => {
+  test("only the `flushed` WRITE-BOUNDARY phase counts — a mount, a tool call or a bus announcement does not", () => {
     expect(hasRpgFlush([])).toBe(false);
     expect(hasRpgFlush([{ event: { phase: "mount" } }, { event: { phase: "tool" } }, { event: { phase: "bus" } }])).toBe(false);
-    expect(hasRpgFlush([{ event: { phase: "mount" } }, { event: { phase: "flush" } }])).toBe(true);
+    expect(hasRpgFlush([{ event: { phase: "mount" } }, { event: { phase: "flushed" } }])).toBe(true);
+  });
+
+  test("the DISPATCH receipt is not a settle — `flush` names the vehicle before the round runs (#1493 fix-back)", () => {
+    // THE SECOND HALF OF THE SAME DEFECT. Barriering on `flush` looked right (the trace header called it the
+    // write boundary) and was still early: `resolveStateRound` raises it when it picks the vehicle. A poll
+    // released there is racing the extraction exactly as the tick-one arm was, one step further along.
+    expect(hasRpgFlush([{ event: { phase: "flush" } }])).toBe(false);
+    // …and the pair together is a settled turn: the dispatch happened AND the boundary closed.
+    expect(hasRpgFlush([{ event: { phase: "flush" } }, { event: { phase: "flushed" } }])).toBe(true);
   });
 });

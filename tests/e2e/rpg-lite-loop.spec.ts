@@ -10,8 +10,9 @@
 //   • BE/DB = `rpg.getTrackerView` — the persisted-snapshot projection. There is NO rpg raw-TABLE debug dump,
 //           so this projection READS the `rpg_snapshots` rows live — it is the rpg-plane DB witness AND the
 //           flush/snapshot RESULT at once. (The rpg FLIGHT RECORDER is a separate instrument and is now ON for
-//           this harness — `RPG_TRACE=on` in support/modes.ts, #1493: its `flush` event is the only observable
-//           that says the state round SETTLED, which is what the live-loop poll below barriers on.)
+//           this harness — `RPG_TRACE=on` in support/modes.ts, #1493: its `flushed` event is the only observable
+//           that says the state round SETTLED — the WRITE BOUNDARY's own settle, not the `flush` DISPATCH receipt
+//           beside it, which is true before the round runs — and that is what the live-loop poll below barriers on.)
 //           Plus `rpg.getGame`/`getConfigView`/`listJournal`/`listCheckpoints` for the sibling reads.
 //   • chat-DB = `/api/_debug/db/chat/:id` (inspectChatState) — the INDEPENDENT DB witness that a turn's canon
 //           rows + bus events landed (distinct from the tRPC read path); `/api/_debug/wire/captures` = the true
@@ -445,8 +446,9 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
           // never a code defect. THE RULING SURVIVES; ITS INPUT CHANGED (#1493): the empty-delta arm used to be
           // `(await fetchDebugErrors()).length === 0`, which is true on TICK ONE — an empty error ring is the
           // app's normal state, so this "wait for the flush" returned before the state round had run and every
-          // assertion below raced it. The arm now OBSERVES the flush through the rpg flight recorder, the one
-          // event that cannot exist before the extraction settled. The predicate itself is pure and
+          // assertion below raced it. The arm now OBSERVES the write boundary through the rpg flight recorder's
+          // `flushed` phase, the one event that cannot exist before the extraction settled (the fix-back: the
+          // `flush` phase this first barriered on is raised at DISPATCH, so it was early too). The predicate itself is pure and
           // fixture-proven (support/rpg-settle.ts + its unit spec).
           return rpgTurnSettled({
             view: after,

@@ -1817,6 +1817,18 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
         "rpg flush CANCELLED (the caller aborted the turn) — no snapshot, no journal, no emits",
       );
     },
+    // OBSERVABILITY (#1493): the WRITE BOUNDARY settled. `onStateRoundPath` above is a DISPATCH receipt, so
+    // until this event nothing in the trail — log or trace ring — said the extraction was over, and the e2e
+    // barrier that polled the `flush` phase was racing the write it claimed to wait for. `debug`, because a
+    // settle is the normal end of every turn; the interesting arms (drop, cancel, fallback) keep their own
+    // louder lines. The trace phase is what a barrier polls.
+    onFlushSettled: (info) => {
+      deps.trace?.({ phase: "flushed", chatId: info.chatId, turnId: info.turnId, wrote: info.wrote, droppedReason: info.droppedReason });
+      logger.debug(
+        { event: "rpg.flush.settled", chatId: info.chatId, gameId: info.gameId, turnId: info.turnId, wrote: info.wrote, droppedReason: info.droppedReason },
+        "rpg state round settled at the write boundary",
+      );
+    },
     onFlushDropped: (info) => {
       logger.warn(
         { event: "rpg.flush.dropped", chatId: info.chatId, gameId: info.gameId, variantId: info.variantId, reason: info.reason },

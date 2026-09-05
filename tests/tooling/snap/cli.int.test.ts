@@ -3,7 +3,7 @@
 // proving the instrument is not always-red. `--file` mode: no stack, a real headless chromium.
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { expect, test } from "../../support/tool-fixtures.ts";
-import { scaledBudget, withholdMeasurement } from "../_load-budget.ts";
+import { isJudgeableMeasurement, labelRateLoad, scaledBudget } from "../_load-budget.ts";
 
 const BAD_HTML = `<!doctype html><html><body style="background:#8a8a8a">
 <p style="color:#7a7a7a;font-size:16px">barely there text</p>
@@ -247,10 +247,12 @@ function frameMs(stdout: string): number {
 test("--cpu-throttle REACHES the page: the same in-page loop stretches its frame at 8x", { timeout: 3 * BROWSER_TIMEOUT_MS }, async ({
   plantedTree,
   runCli,
-  skip,
   task,
 }) => {
-  withholdMeasurement({ task, skip }, "snap's --cpu-throttle frame-stretch ratio");
+  // MEASURE, LABEL, DON'T SKIP (#1616). The arm runs at any load: the throttle plumbing, the published
+  // `throttle=` pairs and the exit code are facts load cannot change, and the two RATIO assertions — the
+  // only load-destroyed half — stand down under the label instead of taking the whole arm with them.
+  const rate = labelRateLoad({ task }, "snap's --cpu-throttle frame-stretch ratio");
   const root = await plantedTree({ "loop.html": CPU_LOOP_HTML });
   const argv = ["--file", `${root}/loop.html`, "--eval", CPU_LOOP_EVAL, "--no-shot", "--no-failure-evidence"];
   const rest = await runCli("snap", argv, { timeoutMs: BROWSER_TIMEOUT_MS });
@@ -259,8 +261,19 @@ test("--cpu-throttle REACHES the page: the same in-page loop stretches its frame
   const restMs = frameMs(rest.stdout);
   const loadedMs = frameMs(loaded.stdout);
   expect(restMs, "the unthrottled arm must have measured a frame at all").toBeGreaterThan(0);
-  expect(loadedMs - restMs, `8x CPU throttling must stretch the frame (rest ${restMs}ms vs loaded ${loadedMs}ms)`).toBeGreaterThan(60);
-  expect(loadedMs / restMs, `…and by a ratio, not just an absolute (rest ${restMs}ms vs loaded ${loadedMs}ms)`).toBeGreaterThan(1.8);
+  // THE THRESHOLD VERDICT, as a MEMBER rather than a conditional assertion (#1616): `unjudged` under the
+  // label, `stretched`/`not-stretched` on a quiet box. One unconditional expect, so the arm still reds for
+  // real on a quiet tree, and the measured numbers ride the message either way.
+  const stretched = loadedMs - restMs > 60 && loadedMs / restMs > 1.8;
+  const reading = `rest ${String(restMs)}ms vs loaded ${String(loadedMs)}ms (ratio ${(loadedMs / restMs).toFixed(2)})`;
+  const judged = stretched ? "stretched" : "not-stretched";
+  const verdict = isJudgeableMeasurement(rate) ? judged : "unjudged (load-suspect)";
+  if (!isJudgeableMeasurement(rate)) {
+    // The NUMBER lands where a reader can see it (#1616's "report its number") beside the reason — a
+    // labelled arm that printed nothing would be a skip wearing a green tick.
+    task.meta.orbLoadSuspect = `${rate.reason} · measured ${reading}`;
+  }
+  expect(verdict, `8x CPU throttling must stretch the frame, by a ratio and not just an absolute — ${reading}`).not.toBe("not-stretched");
   // …and the arm is published, so no reader has to re-derive it from the argv.
   expect(rest.stdout).toContain("throttle=cpu:1x/net:live");
   expect(loaded.stdout).toContain("throttle=cpu:8x/net:live");

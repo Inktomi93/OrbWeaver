@@ -12,17 +12,23 @@
 //     ceiling (`ORB_BUDGET_CEILING_MS`, default 10 min — fork F11) so a genuinely WEDGED subject still
 //     surfaces inside one lane's patience. A budget that fires is an honest exit-2 ("could not measure")
 //     carrying LOAD_KILL_MARKER, never a violation.
-//   RATE — dropped-frame %, CLS deltas, LoAF/INP, any A/B delta: WITHHELD at the SAME boundary before the
-//     arm votes (`judgeMeasurementLoad`). Load does not scale a rate, it destroys it: measured on identical
-//     code, motion-audit's mobile arm read 47.54% dropped frames at per-core 1.04, then 10%, then clean
-//     (#1040). There is no multiplier that turns 47.54% back into the truth — so the arm declines to vote.
-//     Never widened, never red ("withhold, don't red").
+//   RATE — dropped-frame %, CLS deltas, LoAF/INP, any A/B delta: MEASURED at any load and LABELLED
+//     `load-suspect` above the SAME boundary (`judgeMeasurementLoad`). Load does not scale a rate, it
+//     destroys it: measured on identical code, motion-audit's mobile arm read 47.54% dropped frames at
+//     per-core 1.04, then 10%, then clean (#1040) — so the number above the boundary is NOT a verdict and
+//     can never be promoted. What changed on 2026-09-05 (OWNER RULING, #1616) is what we do about it:
+//     "LABEL, DON'T WITHHOLD". The old arm DECLINED TO VOTE, and since our steady state is lanes + engines
+//     (per-core ≥ 1.0 means loadavg ≥ 24 on this 16c/24t box) that made every rate arm unavailable most of
+//     the day — the owner, on a snap withheld at loadavg 26-31: "that's dumb." So the arm now RUNS, reports
+//     its number, and stamps `load-suspect` on it; the number is readable, and every promotion path stays
+//     shut (§7.1). Still never widened, never red.
 //   IDLE — session/stage TTLs: NOT a budget. Idle is not load; a TTL is never scaled and never withheld.
 //
 // THE THRESHOLD IS NOT A SECOND CONSTANT. Both consequences key off `computeLoadFactor`'s own quiet/
 // contended boundary (per-core 1-minute loadavg ≥ 1.0, factor 1 → >1). A quiet box therefore leaves every
-// budget BYTE-IDENTICAL to its base and every rate arm MEASURING — the withhold can never become a way to
-// stop testing (planted control T15, tests/tooling/_shared/load-budget.test.ts).
+// budget BYTE-IDENTICAL to its base and every rate arm reporting `complete` — and above the boundary the
+// arm still MEASURES, so the label can never become a way to stop measuring (planted control T15,
+// tests/tooling/_shared/load-budget.test.ts).
 //
 // PURE except for `readBoxLoad` (the one `os.loadavg()` read) and `budgetCeilingMs` (the one env read).
 // Every judging function takes the reading as a value, so a planted control forces the loaded condition
@@ -34,18 +40,23 @@ import process from "node:process";
 export const LOAD_KILL_MARKER = "ORB-LOAD-KILL";
 
 /** Sibling vocabulary to LOAD_KILL_MARKER, deliberately a DIFFERENT token: a kill is a run that BROKE, a
- *  withhold is a run that DECLINED TO VOTE. Conflating them would make "we chose not to measure" read as
- *  "the instrument failed", and every summary has to tell them apart. */
-export const LOAD_WITHHOLD_MARKER = "ORB-LOAD-WITHHOLD";
+ *  load-suspect number is one that WAS measured and cannot be promoted. Conflating them would make "this
+ *  reading is about the box" read as "the instrument failed", and every summary has to tell them apart.
+ *
+ *  RENAMED 2026-09-05 from `LOAD_WITHHOLD_MARKER`/`ORB-LOAD-WITHHOLD` (#1616): under the owner ruling the
+ *  arm no longer withholds, so a marker that says WITHHOLD would be the lie this module exists to prevent.
+ *  Every spelling moved in the same commit — the old token appears nowhere on the tree. */
+export const LOAD_SUSPECT_MARKER = "ORB-LOAD-SUSPECT";
 
-/** The vitest `task.meta` key a withheld arm stamps on its own task (the reporter-visible channel — a bare
- *  `ctx.skip(reason)` puts the reason NOWHERE in reports/test-report.json). Held as a VALUE so the
+/** The vitest `task.meta` key a load-suspect arm stamps on its own task (the reporter-visible channel — a
+ *  bare stderr line puts the reason NOWHERE in reports/test-report.json). Held as a VALUE so the
  *  supervisor's JS side and the TS side cannot drift apart. */
-export const LOAD_WITHHOLD_META_KEY = "orbLoadWithheld";
+export const LOAD_SUSPECT_META_KEY = "orbLoadSuspect";
 
-/** The Playwright annotation TYPE a withheld CT stamps — `test.info().annotations` is the reporter-visible
- *  channel, the CT twin of `task.meta`. Counted by tooling/src/verify/ops/ct-flaky-reporter.ts. */
-export const LOAD_WITHHOLD_ANNOTATION = "orb-load-withheld";
+/** The Playwright annotation TYPE a load-suspect CT stamps — `test.info().annotations` is the
+ *  reporter-visible channel, the CT twin of `task.meta`. Counted by
+ *  tooling/src/verify/ops/ct-flaky-reporter.ts. */
+export const LOAD_SUSPECT_ANNOTATION = "orb-load-suspect";
 
 /** The factor ceiling. A runaway loadavg must not inflate a 30s budget into hours — a wedged run should
  *  surface legibly through the kill path, not by hanging the battery. */
@@ -132,35 +143,62 @@ export function loadResultPairs(read: BoxLoadReader = readBoxLoad): readonly (re
   ];
 }
 
-export interface MeasurementWithholding {
-  readonly withheld: boolean;
-  /** Populated in BOTH directions — the quiet arm's reason is the receipt that the box WAS read. */
+/** THE ONE RATE-VERDICT VOCABULARY (#1616). Three members, closed, and every consumer dispatches on the
+ *  member rather than on a boolean — which is what makes a new member a COMPILE error at every call site:
+ *
+ *  · `complete`     — the box was quiet; the number is a verdict and may be judged against a threshold.
+ *  · `load-suspect` — the box was loaded; the number WAS MEASURED and is reported, but it is a reading
+ *                     about the box as much as the code, so nothing may promote it: no threshold verdict,
+ *                     no exit contribution, no problem row (§7.1).
+ *  · `withheld`     — no number exists at all. This member survives the ruling because one cause still
+ *                     produces nothing to label: an unproven / software-rendered browser, where the
+ *                     "rate" would describe a software rasteriser (snap/lib/rate-posture.ts). LOAD never
+ *                     lands here any more. */
+export const MEASUREMENT_DISPOSITIONS = ["complete", "load-suspect", "withheld"] as const;
+export type MeasurementDisposition = (typeof MEASUREMENT_DISPOSITIONS)[number];
+
+export interface MeasurementVerdict {
+  readonly disposition: MeasurementDisposition;
+  /** Populated in EVERY direction — the quiet arm's reason is the receipt that the box WAS read. */
   readonly reason: string;
 }
 
-/** PURE. Is this box quiet enough for a measured RATE to be about the code? The threshold is not a new
- *  constant: a measurement is withheld exactly when `computeLoadFactor` leaves 1 — the same boundary that
- *  starts stretching wall clocks. Below it the factor is exactly 1 and solo behaviour is untouched, so a
- *  quiet box still MEASURES. */
-export function judgeMeasurementLoad(box: BoxLoad, what: string): MeasurementWithholding {
+/** May this number be judged (a threshold, an exit, a problem row)? ONLY `complete`. The other two are
+ *  deliberately collapsed here: a `load-suspect` number exists and a `withheld` one does not, but neither
+ *  may be promoted, and a caller that has to remember which is which will eventually forget. */
+export function isJudgeableMeasurement(verdict: MeasurementVerdict): boolean {
+  return verdict.disposition === "complete";
+}
+
+/** Did a number come back at all? `complete` and `load-suspect` both measured; `withheld` did not. */
+export function hasMeasurement(verdict: MeasurementVerdict): boolean {
+  return verdict.disposition !== "withheld";
+}
+
+/** PURE. Is this box quiet enough for a measured RATE to be a verdict about the code? The threshold is not
+ *  a new constant: a measurement is `load-suspect` exactly when `computeLoadFactor` leaves 1 — the same
+ *  boundary that starts stretching wall clocks. Below it the factor is exactly 1 and solo behaviour is
+ *  untouched. IT NEVER RETURNS `withheld`: under the #1616 ruling load labels, it does not withhold. */
+export function judgeMeasurementLoad(box: BoxLoad, what: string): MeasurementVerdict {
   const where = `loadavg ${box.loadavg1.toFixed(1)} / ${String(box.cpuCount)} cores`;
   if (computeLoadFactor(box.loadavg1, box.cpuCount) === 1) {
-    return { withheld: false, reason: `${what}: box quiet enough to measure (${where})` };
+    return { disposition: "complete", reason: `${what}: box quiet enough to measure (${where})` };
   }
   return {
-    withheld: true,
+    disposition: "load-suspect",
     reason:
-      `${LOAD_WITHHOLD_MARKER}: box too loaded to measure (${where}) — WITHHELD, not passed and not failed. ` +
-      `${what} is a measured rate, and load does not scale a rate: the same code has read 47.54%, 10% and ` +
-      "clean across contention levels (#1040), so this run is NOT a verdict. Re-run on a quiet tree.",
+      `${LOAD_SUSPECT_MARKER}: box loaded while measuring (${where}) — the number below was MEASURED and is ` +
+      `reported, but it is LOAD-SUSPECT: not passed, not failed, and never promotable. ${what} is a measured ` +
+      "rate, and load does not scale a rate: the same code has read 47.54%, 10% and clean across contention " +
+      "levels (#1040). Read the number; re-run on a quiet tree before treating it as a verdict.",
   };
 }
 
 /** The RATE-arm door for a caller that has no vitest task and no Playwright testInfo (an instrument's own
- *  verdict path): judge the live box and hand back the verdict. The CALLER owns the consequence — an
- *  instrument whose ONLY output is the rate exits 2; one with other verdict members marks that arm
- *  `<arm>=withheld` and keeps the rest. */
-export function withholdRate(what: string, read: BoxLoadReader = readBoxLoad): MeasurementWithholding {
+ *  verdict path): judge the live box and hand back the verdict. The CALLER owns the consequence — and
+ *  since #1616 the load consequence is a LABEL: the arm measures, prints its number, and marks that arm
+ *  `<arm>=load-suspect`. The exit stays whatever the other members decide. */
+export function judgeRateLoad(what: string, read: BoxLoadReader = readBoxLoad): MeasurementVerdict {
   return judgeMeasurementLoad(read(), what);
 }
 
@@ -171,24 +209,39 @@ export interface AnnotatableTest {
   readonly annotations: { type: string; description?: string }[];
 }
 
-/** The CT twin of `withholdMeasurement`: judge the box for a RATE-measuring component test and, when the
- *  box is too loaded, stamp `orb-load-withheld` where the REPORTER can see it (`test.info().annotations`
- *  is the CT's only per-test reporter-visible channel — the twin of vitest's `task.meta`). It does NOT
- *  skip: skipping is `test.skip(verdict.withheld, verdict.reason)` at the call site, because Playwright's
- *  skip is a static on `test`, not a member of `TestInfo`. Counted by
- *  tooling/src/verify/ops/ct-flaky-reporter.ts beside the flake tally, so a withheld CT is never a silent
- *  green skip. */
-export function annotateRateWithhold(info: AnnotatableTest, what: string, read: BoxLoadReader = readBoxLoad): MeasurementWithholding {
+/** The CT twin of `labelRateLoad`: judge the box for a RATE-measuring component test and, on a loaded box,
+ *  stamp `orb-load-suspect` where the REPORTER can see it (`test.info().annotations` is the CT's only
+ *  per-test reporter-visible channel — the twin of vitest's `task.meta`). It never skipped and it still
+ *  does not; since #1616 the CALLER must not skip either — it measures, annotates, and does not assert its
+ *  threshold. Counted by tooling/src/verify/ops/ct-flaky-reporter.ts beside the flake tally, so a
+ *  load-suspect CT is never a silent green. */
+export function annotateRateLoad(info: AnnotatableTest, what: string, read: BoxLoadReader = readBoxLoad): MeasurementVerdict {
   const verdict = judgeMeasurementLoad(read(), what);
-  if (verdict.withheld) {
-    info.annotations.push({ type: LOAD_WITHHOLD_ANNOTATION, description: verdict.reason });
+  if (verdict.disposition === "load-suspect") {
+    info.annotations.push({ type: LOAD_SUSPECT_ANNOTATION, description: verdict.reason });
   }
   return verdict;
 }
 
-/** The RESULT-pair spelling for a withheld arm: `<arm>=withheld`. */
-export function withheldPair(arm: string): string {
-  return `${arm}=withheld`;
+/** The RESULT-pair spelling for a rate arm: `<arm>=complete|load-suspect|withheld` — the member itself, so
+ *  the terminal transcript carries the same closed vocabulary the facts do. */
+export function ratePair(arm: string, verdict: MeasurementVerdict): string {
+  return `${arm}=${verdict.disposition}`;
+}
+
+/** The RESULT-line pair naming WHICH arms came back load-suspect, printed beside `load=`/`budget-factor=`
+ *  so one line answers "was anything measured under load, and how loaded was it?" (#1616 done-criterion 1).
+ *  Absent when nothing was suspect — a reader must never have to distinguish "none" from "not reported". */
+export function loadSuspectPair(arms: readonly string[]): readonly (readonly [string, string])[] {
+  return arms.length === 0 ? [] : [["load-suspect", [...arms].sort().join(",")]];
+}
+
+/** The summary DERIVED from the pairs an instrument already printed, never accumulated a second time — a
+ *  second accumulator is how a summary and its own arms come to disagree. Any pair whose VALUE is the
+ *  `load-suspect` member names its arm, whatever case the arm printed it in (`motion=LOAD-SUSPECT`,
+ *  `app-snapshot=load-suspect`). */
+export function loadSuspectSummary(pairs: readonly (readonly [string, string | number])[]): readonly (readonly [string, string])[] {
+  return loadSuspectPair(pairs.filter(([, value]) => String(value).toLowerCase() === "load-suspect").map(([arm]) => arm));
 }
 
 /** What was killed and against which numbers. `baseMs` is optional because two callers exist: one that

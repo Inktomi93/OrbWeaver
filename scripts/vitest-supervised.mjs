@@ -91,14 +91,14 @@
 //
 // HONESTY: a shard that had to be re-run is announced loudly on stderr AND recorded in the merged report's
 // `orbShards[].wedges` — a green that hides a wedge would read as "fixed" when it is only "contained".
-// The same posture covers the OTHER kind of not-quite-clean green, the #1040 WITHHOLD: a `live-drive`
-// measured-rate arm that declined to vote on a contended box lands as vitest `status:"skipped"`, and a
-// skipped test is INVISIBLE in a batch summary — vitest's json reporter drops the skip reason entirely
-// (measured 2026-09-02: `{status:"skipped", failureMessages:[], meta:{}}`). So a withheld arm stamps its
-// reason into `meta.orbLoadWithheld` (`tests/tooling/_load-budget.ts`, the one field the reporter DOES
-// serialize for a skip), this script counts those stamps per shard into `orbShards[].withheld`, and a run
-// carrying any of them says so on stderr. A green with withheld arms is NOT a clean measurement pass, and
-// it must never read as one.
+// The same posture covers the OTHER kind of not-quite-clean green, the #1040 rate reading — now a LABEL
+// rather than a withhold (#1616, owner ruling 2026-09-05: a loaded box MEASURES and marks the number
+// `load-suspect` instead of declining to vote). Such an arm now PASSES, which makes it even more invisible
+// in a batch summary than the old skip was: nothing about a green line says its number was taken on a
+// loaded box. So the arm stamps its reason into `meta.orbLoadSuspect` (`tests/tooling/_load-budget.ts`),
+// this script counts those stamps per shard into `orbShards[].loadSuspect`, and a run carrying any of them
+// says so on stderr. A green with load-suspect arms is NOT a clean measurement pass, and it must never
+// read as one.
 //
 // OVERRIDES: `ORB_TEST_HANG_TIMEOUT_MS` raises/lowers the no-output-and-no-CPU limit · `ORB_TEST_HANG_MAX_MS`
 // the absolute silence ceiling · `ORB_VITEST_BIN` the vitest entry (the guard test points it at a fake).
@@ -248,13 +248,15 @@ function verdictFromReport(path) {
   return clean ? 0 : 1;
 }
 
-/** The `meta` key a withheld live-drive arm stamps on its own task (`tests/tooling/_load-budget.ts`). */
-const WITHHELD_META_KEY = "orbLoadWithheld";
+/** The `meta` key a LOAD-SUSPECT live-drive arm stamps on its own task (`tests/tooling/_load-budget.ts`).
+ *  ONE spelling on both sides of the JS/TS line — mirrors `LOAD_SUSPECT_META_KEY` in
+ *  `tooling/src/_shared/load-budget.ts`; a second literal is how the two halves drift apart. */
+const LOAD_SUSPECT_META_KEY = "orbLoadSuspect";
 
-/** Every withheld arm in a shard report, as `<file> › <test title>` lines. Read from `meta` rather than
- *  from the skip note, because the note is not serialized. A missing/unparseable report yields none —
- *  that case is already a verdict-level failure via `verdictFromReport`. */
-function withheldFromReport(path) {
+/** Every load-suspect arm in a shard report, as `<file> › <test title>` lines. Read from `meta` because
+ *  the stderr line is attributed to no test. A missing/unparseable report yields none — that case is
+ *  already a verdict-level failure via `verdictFromReport`. */
+function loadSuspectFromReport(path) {
   let report;
   try {
     report = JSON.parse(readFileSync(path, "utf-8"));
@@ -264,7 +266,7 @@ function withheldFromReport(path) {
   const out = [];
   for (const file of report.testResults ?? []) {
     for (const assertion of file.assertionResults ?? []) {
-      if (typeof assertion.meta?.[WITHHELD_META_KEY] === "string") {
+      if (typeof assertion.meta?.[LOAD_SUSPECT_META_KEY] === "string") {
         out.push(`${relative(root, file.name ?? "<unknown file>")} › ${assertion.fullName ?? assertion.title}`);
       }
     }
@@ -518,14 +520,14 @@ async function runShard({ args, reportFile, label }) {
   // wedged and then RE-RAN to a natural exit has a real verdict — vitest finalized on attempt 2 — while a
   // shard whose final attempt was killed has only a report we read off the floor. The caller's exit code
   // keys on `wedged`; the count stays for the evidence line.
-  return { label, code: result.code, wedged: result.wedged, wedges, reportFile, withheld: withheldFromReport(reportFile) };
+  return { label, code: result.code, wedged: result.wedged, wedges, reportFile, loadSuspect: loadSuspectFromReport(reportFile) };
 }
 
 /** Fold the shard reports into the ONE `--outputFile.json` contract the rest of the repo reads. Numeric
  *  `num*` counters sum, `testResults` concatenate, and `success` is true only when every shard's own
  *  verdict is 0 — so the merged file satisfies the SAME predicate a single run's report does. */
 function foldShardInto(merged, shard) {
-  merged.orbShards.push({ project: shard.label, exitCode: shard.code, wedges: shard.wedges, withheld: shard.withheld });
+  merged.orbShards.push({ project: shard.label, exitCode: shard.code, wedges: shard.wedges, loadSuspect: shard.loadSuspect });
   let report;
   try {
     report = JSON.parse(readFileSync(shard.reportFile, "utf-8"));
@@ -606,18 +608,18 @@ function announceWedges(shards) {
   }
 }
 
-/** Shout the #1040 withholds. Silence here is a claim that every measured-rate arm actually measured. */
-function announceWithheld(shards) {
-  const all = shards.flatMap((s) => s.withheld.map((row) => `${s.label}: ${row}`));
+/** Shout the #1616 load-suspect arms. Silence here is a claim that every measured rate was a verdict. */
+function announceLoadSuspect(shards) {
+  const all = shards.flatMap((s) => s.loadSuspect.map((row) => `${s.label}: ${row}`));
   if (all.length === 0) {
     return;
   }
-  log(`MEASUREMENT WITHHELD — ${all.length} live-drive arm(s) declined to vote because the box was too loaded to measure:`);
+  log(`MEASUREMENT LOAD-SUSPECT — ${all.length} live-drive arm(s) measured on a loaded box, so their thresholds were not judged:`);
   for (const row of all) {
     log(`  · ${row}`);
   }
-  log("This verdict is INCOMPLETE, not clean: those budgets were not exercised. Re-run them on a quiet tree.");
-  log("(Reasons are in the report's testResults[].assertionResults[].meta.orbLoadWithheld.)");
+  log("This verdict is INCOMPLETE, not clean: those numbers exist but describe the box as much as the code. Re-run on a quiet tree to judge them.");
+  log("(Reasons are in the report's testResults[].assertionResults[].meta.orbLoadSuspect.)");
 }
 
 async function main() {
@@ -644,7 +646,7 @@ async function main() {
     const args = [...baseArgs, ...projects.flatMap((p) => ["--project", p]), `--outputFile.json=${mergedFile}`];
     const shard = await runShard({ args, reportFile: mergedFile, label: projects[0] ?? "all" });
     announceWedges([shard]);
-    announceWithheld([shard]);
+    announceLoadSuspect([shard]);
     publish(alias, false);
     process.exit(exitCodeFor([shard]));
   }
@@ -661,7 +663,7 @@ async function main() {
   mergeReports(shards, mergedFile);
   publish(alias, true);
   announceWedges(shards);
-  announceWithheld(shards);
+  announceLoadSuspect(shards);
   for (const shard of shards) {
     log(`shard ${shard.label}: exit ${shard.code}${shard.wedges > 0 ? ` (after ${shard.wedges} wedge kill(s))` : ""}`);
   }
