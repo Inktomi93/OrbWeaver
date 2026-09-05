@@ -6,7 +6,7 @@
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
 import { setTimeout as sleep } from "node:timers/promises";
-import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
+import type { ChatContentPart, DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { Can, Principal } from "@orb/contracts/identity";
@@ -113,10 +113,34 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
 // their own frames (#1593), and a history with NO trailing user row seeds everything and asks the
 // host-authored continuation stub (#1607) — there is no flattened-transcript prompt string on this wire at all.
 
-/** One rendered row: image parts become a placeholder (no vision on this path); the wire `name` label is
- *  stamped into the text (agent-sdk seed frames carry no `name` field). */
+/**
+ * What a NON-TEXT content part leaves behind in a seed frame's text — TOTAL over `ChatContentPart`, because the
+ * honest answer is per-KIND (#1606). It used to be one literal `[Image]` for every part, so a real `tool` row —
+ * which carries a `tool-result` part and no text (`domain/chat/engine/pipeline.ts::toolExchangeMessages` is the
+ * only producer) — announced itself to the model as `Tool result: [Image]`: a false statement about the
+ * transcript, and one that hides the drop (the model cannot tell that bytes it was told about are missing).
+ *
+ * NAMES THE KIND, NEVER THE PAYLOAD. Emitting a tool result's bytes here would widen what the agent-sdk request
+ * carries — the separate structural arm (#1605), not a rendering decision. The wording follows the house drop
+ * vocabulary already used at the engine's own media seam (`droppedMediaPlaceholder`, `[<kind> omitted]`).
+ *
+ * A MAPPED RECORD, not a switch (§5.5 admits both, and only one of them lints): a `switch` over a value typed
+ * `Exclude<ChatContentPart, {type:"text"}>` makes biome's type service call EVERY case unreachable
+ * (`lint/suspicious/noUnnecessaryConditions` — the computed-type sibling of the cross-module-union and
+ * intersection cases). The Record keeps the enforcement identical: a new `ChatContentPart` member is a missing
+ * property here and fails `tsc` (verified by planting one — `TS2345`/`TS2741` at this site).
+ */
+const DROPPED_PART_TEXT: Record<Exclude<ChatContentPart, { type: "text" }>["type"], string> = {
+  image: "[image omitted]",
+  video: "[video omitted]",
+  "tool-call": "[tool call omitted]",
+  "tool-result": "[tool result omitted]",
+};
+
+/** One rendered row: a non-text part leaves the marker naming its own kind ({@link DROPPED_PART_TEXT}); the
+ *  wire `name` label is stamped into the text (agent-sdk seed frames carry no `name` field). */
 function agentRowText(m: TurnMessage): string {
-  const text = m.content.map((c) => (c.type === "text" ? c.text : "[Image]")).join("");
+  const text = m.content.map((c) => (c.type === "text" ? c.text : DROPPED_PART_TEXT[c.type])).join("");
   return m.name !== undefined && m.name.length > 0 ? `${m.name}: ${text}` : text;
 }
 

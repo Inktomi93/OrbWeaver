@@ -18,6 +18,12 @@ function row(role: TurnMessage["role"], text: string, name?: string): TurnMessag
   return name !== undefined ? { role, content, name } : { role, content };
 }
 
+/** A row carrying REAL non-text parts — what the engine actually materializes for a tool exchange (D48) and
+ *  for a media turn, as opposed to the text-only rows the rest of this file builds. */
+function partsRow(role: TurnMessage["role"], content: TurnMessage["content"]): TurnMessage {
+  return { role, content };
+}
+
 describe("splitAgentHistory — seed + prompt tail", () => {
   test("splits at the last assistant row: prior turns seed, the trailing user rows are the prompt", () => {
     const split = splitAgentHistory([row("user", "hello"), row("assistant", "hi there"), row("user", "next question")]);
@@ -112,6 +118,53 @@ describe("splitAgentHistory — seed + prompt tail", () => {
     const split = splitAgentHistory([row("assistant", "greeting"), row("user", "")]);
     expect(split.seed).toEqual([{ role: "assistant", content: "greeting" }]);
     expect(split.prompt).toBe(AGENT_CONTINUATION_PROMPT_STUB);
+  });
+});
+
+// #1606 — A DROPPED PART MUST NAME ITS OWN KIND. Every non-text `ChatContentPart` used to render as the
+// literal `[Image]`, so a real `tool` row — which carries a `tool-result` part, never text
+// (`domain/chat/engine/pipeline.ts::toolExchangeMessages` is the only producer) — reached the model as
+// `Tool result: [Image]`: a statement about the transcript that is simply false, and one that hides from the
+// model that any bytes were dropped at all. The rendering is now TOTAL over the union with `assertNever`, so a
+// new part kind is a tsc error rather than a silent new lie. It still emits NO payload — naming the kind is
+// honesty, emitting the bytes would be a different (and wider) decision.
+describe("agentRowText — a dropped part names its kind, never [Image]", () => {
+  test("a real tool row (a tool-result part, no text) says a tool result was omitted", () => {
+    const split = splitAgentHistory([
+      row("user", "what does the page say?"),
+      partsRow("assistant", [{ type: "tool-call", toolCallId: "call_1", name: "fetch", arguments: "{}" }]),
+      partsRow("tool", [{ type: "tool-result", toolCallId: "call_1", content: "the sky is blue" }]),
+    ]);
+    expect(split.seed.at(-1)?.content).toBe("Tool result: [tool result omitted]");
+    // The defect, as its own assertion: never the image lie, and never the tool bytes.
+    expect(split.seed.at(-1)?.content).not.toContain("[Image]");
+    expect(split.seed.at(-1)?.content).not.toContain("the sky is blue");
+  });
+
+  test("an assistant tool-call part says a tool call was omitted, not that an image was shown", () => {
+    const split = splitAgentHistory([
+      row("user", "go"),
+      partsRow("assistant", [
+        { type: "text", text: "let me look" },
+        { type: "tool-call", toolCallId: "call_1", name: "fetch", arguments: '{"url":"https://x"}' },
+      ]),
+    ]);
+    expect(split.seed.at(-1)?.content).toBe("let me look[tool call omitted]");
+    // The ARGUMENTS never ride: naming the kind is the fix, widening the payload is not.
+    expect(split.seed.at(-1)?.content).not.toContain("https://x");
+  });
+
+  test("image and video parts name their own kinds (the agent-sdk seed carries no media)", () => {
+    const split = splitAgentHistory([
+      partsRow("user", [
+        { type: "text", text: "look: " },
+        { type: "image", url: "https://cas/img" },
+        { type: "video", url: "https://cas/vid" },
+      ]),
+      row("assistant", "ok"),
+    ]);
+    expect(split.seed[0]?.content).toBe("look: [image omitted][video omitted]");
+    expect(split.seed[0]?.content).not.toContain("https://cas");
   });
 });
 
