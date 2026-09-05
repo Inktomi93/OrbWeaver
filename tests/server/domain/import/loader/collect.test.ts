@@ -156,3 +156,95 @@ describe("collectBundlesFromDir — #763 infra-failure fault injection", () => {
     expect(result.personas).toEqual([{ parsed: expect.objectContaining({ name: "Alice", avatarFile: "avatar1.png" }) }]);
   });
 });
+
+// #1469 items 1+2 — the two SILENT-LOSS arms the #763 sweep left behind: the directory-entry ceiling
+// truncated a huge dir with NO entry in `CollectResult` at all (characters/chats/worlds/groups/themes/
+// backgrounds could vanish from a large profile while the report read normal), and the BULK readers (cards,
+// chat files, worlds, presets, themes, backgrounds, groups, every `readdir`) called the port with no typed
+// wrapper, so an EACCES/EIO there propagated RAW instead of as the `ImportInfraFailureError` whose whole
+// contract is naming the path + operation that broke.
+describe("collectBundlesFromDir — the entry ceiling is REPORTED, never silent (#1469 item 1)", () => {
+  /** A readdir answering `count` synthetic entries for `dir`, delegating every other dir. */
+  function hugeDir(base: ImportFsPort, dir: string, count: number): ImportFsPort {
+    const entries = Array.from({ length: count }, (_unused, i) => ({ name: `z-${String(i).padStart(7, "0")}.json`, kind: "other" as const }));
+    return { ...base, readdir: (d) => (d === dir ? Promise.resolve(entries) : base.readdir(d)) };
+  }
+
+  test("a truncated directory lands in `truncatedDirs` with its kept/total counts", async () => {
+    const fs = hugeDir(memoryFs(BASE_FILES), "root/worlds", 100_002);
+
+    const result = await collectBundlesFromDir(fs, "root");
+
+    expect(result.truncatedDirs).toEqual([{ dir: "root/worlds", kept: 100_000, total: 100_002 }]);
+  });
+
+  test("a directory under the ceiling reports NOTHING (the field is empty, not absent)", async () => {
+    const result = await collectBundlesFromDir(memoryFs(BASE_FILES), "root");
+
+    expect(result.truncatedDirs).toEqual([]);
+  });
+});
+
+describe("collectBundlesFromDir — the BULK readers fail with the typed infra error (#1469 item 2)", () => {
+  const cardPath = "root/characters/Aria.png";
+  const worldPath = "root/worlds/lore.json";
+  const chatPath = "root/chats/Aria/chat1.jsonl";
+  const bulkFiles: Record<string, Uint8Array> = {
+    ...BASE_FILES,
+    [cardPath]: ENC.encode("not-a-png — these arms fail before the parse"),
+    [worldPath]: ENC.encode(JSON.stringify({ entries: {} })),
+    "root/OpenAI Settings/p.json": ENC.encode(JSON.stringify({ preset: true })),
+    "root/themes/t.json": ENC.encode(JSON.stringify({ name: "t" })),
+    "root/backgrounds/bg.png": ENC.encode("bg-bytes"),
+    // biome-ignore lint/style/useNamingConvention: ST wire field names (snake_case) are the interchange format and appear verbatim in the fixtures.
+    [chatPath]: ENC.encode(JSON.stringify({ user_name: "u", character_name: "Aria", create_date: "2025-07-18@12h00m00s" })),
+  };
+  const bulkArms: { readonly name: string; readonly path: string }[] = [
+    { name: "collectCards", path: cardPath },
+    { name: "collectWorlds", path: worldPath },
+    { name: "collectPresetDir", path: "root/OpenAI Settings/p.json" },
+    { name: "collectThemes", path: "root/themes/t.json" },
+    { name: "collectBackgrounds", path: "root/backgrounds/bg.png" },
+    { name: "collectGroups", path: "root/groups/g1.json" },
+    { name: "collectChatsForDir", path: chatPath },
+  ];
+
+  for (const arm of bulkArms) {
+    test(`${arm.name}: an EACCES on ${arm.path} arrives as ImportInfraFailureError with path + operation`, async () => {
+      const fs = failRead(memoryFs(bulkFiles), arm.path, new FsError("EACCES"));
+
+      const error: unknown = await collectBundlesFromDir(fs, "root").catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ImportInfraFailureError);
+      expect(error).toMatchObject({ path: arm.path, operation: "readFile" });
+    });
+  }
+
+  test("collectChatsForDir: an EIO from `stat` arrives as ImportInfraFailureError naming the stat operation", async () => {
+    const base = memoryFs(bulkFiles);
+    const fs: ImportFsPort = { ...base, stat: (p) => (p === chatPath ? Promise.reject(new FsError("EIO")) : base.stat(p)) };
+
+    const error: unknown = await collectBundlesFromDir(fs, "root").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ImportInfraFailureError);
+    expect(error).toMatchObject({ path: chatPath, operation: "stat" });
+  });
+
+  test("an EACCES from `readdir` arrives as ImportInfraFailureError naming the dir + readdir", async () => {
+    const base = memoryFs(bulkFiles);
+    const fs: ImportFsPort = { ...base, readdir: (d) => (d === "root/characters" ? Promise.reject(new FsError("EACCES")) : base.readdir(d)) };
+
+    const error: unknown = await collectBundlesFromDir(fs, "root").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ImportInfraFailureError);
+    expect(error).toMatchObject({ path: "root/characters", operation: "readdir" });
+  });
+
+  test("a group-chat leaf EIO still rejects — the leaf's own catch must not swallow the TYPED error", async () => {
+    const fs = failRead(memoryFs(bulkFiles), GROUP_LEAF_PATH, new FsError("EIO"));
+
+    const error: unknown = await collectBundlesFromDir(fs, "root").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ImportInfraFailureError);
+  });
+});
