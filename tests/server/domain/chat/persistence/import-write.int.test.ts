@@ -461,7 +461,7 @@ describe("createBulkImportChats", () => {
     });
 
     const seats = await db.select().from(chatParticipants);
-    const seatFor = (characterId: string): (typeof seats)[number] | undefined => seats.find((r) => r.characterId === characterId);
+    const seatFor = (characterId: CharacterId): (typeof seats)[number] | undefined => seats.find((r) => r.characterId === characterId);
     expect(seatFor(muted.id)?.disabled).toBe(true);
     // The unnamed seats are untouched: the knobs are SPREAD, never defaulted at the write, so a room with one
     // muted member is byte-identical to the pre-#1687 row everywhere else.
