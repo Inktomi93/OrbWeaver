@@ -1,6 +1,7 @@
-import type { Expression, Identifier, Node, SourceFile, VariableDeclaration } from "ts-morph";
+import type { Expression, Identifier, Node, ObjectLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { SyntaxKind, Node as TsNode, VariableDeclarationKind } from "ts-morph";
 import type { GateContractCode, GateContractFinding, GateContractReport } from "../contract/gate-contract.ts";
+import { readExpressionString } from "./config-static-read.ts";
 
 const LEGACY_FIELDS: ReadonlySet<string> = new Set(["scanRoot", "scopeSafety", "begin", "finalize", "run"]);
 const DIRECT_WALK_METHODS: ReadonlySet<string> = new Set([
@@ -152,14 +153,19 @@ function usesDefineGate(sf: SourceFile): boolean {
   });
 }
 
-function propertyName(property: Node): string | undefined {
+function descriptorPropertyName(property: Node): string | undefined {
   if (
     TsNode.isPropertyAssignment(property) ||
     TsNode.isMethodDeclaration(property) ||
     TsNode.isGetAccessorDeclaration(property) ||
     TsNode.isSetAccessorDeclaration(property)
   ) {
-    return staticName(property.getNameNode());
+    const name = property.getNameNode();
+    if (TsNode.isComputedPropertyName(name)) {
+      const read = readExpressionString(name.getExpression());
+      return read.unresolved.length === 0 && read.values.length === 1 ? read.values[0] : undefined;
+    }
+    return staticName(name);
   }
   return TsNode.isShorthandPropertyAssignment(property) ? property.getName() : undefined;
 }
@@ -202,6 +208,32 @@ function isProjectConstructor(expression: Expression, bindings: ReturnType<typeo
   return false;
 }
 
+function descriptorNameNode(property: Node): Node | undefined {
+  return TsNode.isPropertyAssignment(property) ||
+    TsNode.isMethodDeclaration(property) ||
+    TsNode.isGetAccessorDeclaration(property) ||
+    TsNode.isSetAccessorDeclaration(property)
+    ? property.getNameNode()
+    : undefined;
+}
+
+function inspectDescriptorFields(object: ObjectLiteralExpression, root: string, out: GateContractFinding[]): void {
+  for (const property of object.getProperties()) {
+    if (TsNode.isSpreadAssignment(property)) {
+      out.push(location(root, property, "descriptor-wrapper", "descriptor spreads are forbidden; every field must be visible in the `defineGate` object"));
+      continue;
+    }
+    const nameNode = descriptorNameNode(property);
+    const name = descriptorPropertyName(property);
+    if (nameNode !== undefined && TsNode.isComputedPropertyName(nameNode)) {
+      out.push(location(root, nameNode, "descriptor-wrapper", "computed descriptor keys are forbidden; spell the required field directly"));
+    }
+    if (name !== undefined && LEGACY_FIELDS.has(name)) {
+      out.push(location(root, property, "legacy-field", `legacy descriptor field \`${name}\` is forbidden`));
+    }
+  }
+}
+
 function inspectDescriptor(sf: SourceFile, root: string, out: GateContractFinding[]): void {
   const declaration = sf.getVariableDeclaration("gate");
   if (declaration === undefined) {
@@ -231,12 +263,7 @@ function inspectDescriptor(sf: SourceFile, root: string, out: GateContractFindin
   if (object === undefined || !TsNode.isObjectLiteralExpression(object)) {
     return;
   }
-  for (const property of object.getProperties()) {
-    const name = propertyName(property);
-    if (name !== undefined && LEGACY_FIELDS.has(name)) {
-      out.push(location(root, property, "legacy-field", `legacy descriptor field \`${name}\` is forbidden`));
-    }
-  }
+  inspectDescriptorFields(object, root, out);
 }
 
 function inspectWalksAndProjects(sf: SourceFile, root: string, out: GateContractFinding[]): void {
@@ -293,9 +320,24 @@ function inspectModuleState(sf: SourceFile, root: string, out: GateContractFindi
 }
 
 function inspectBaselines(sf: SourceFile, root: string, out: GateContractFinding[]): void {
-  for (const literal of [...sf.getDescendantsOfKind(SyntaxKind.StringLiteral), ...sf.getDescendantsOfKind(SyntaxKind.NoSubstitutionTemplateLiteral)]) {
-    if (literal.getLiteralText().endsWith(BASELINE_SUFFIX)) {
-      out.push(location(root, literal, "baseline-ledger", "gate-owned baseline ledgers are forbidden; use exact grants or warning debt"));
+  const candidates: Node[] = [
+    ...sf.getDescendantsOfKind(SyntaxKind.StringLiteral),
+    ...sf.getDescendantsOfKind(SyntaxKind.NoSubstitutionTemplateLiteral),
+    ...sf.getDescendantsOfKind(SyntaxKind.TemplateExpression),
+    ...sf.getDescendantsOfKind(SyntaxKind.BinaryExpression).filter((binary) => binary.getOperatorToken().getKind() === SyntaxKind.PlusToken),
+  ];
+  for (const candidate of candidates) {
+    const parent = candidate.getParent();
+    if (
+      (TsNode.isBinaryExpression(parent) && parent.getOperatorToken().getKind() === SyntaxKind.PlusToken) ||
+      TsNode.isTemplateExpression(parent) ||
+      TsNode.isTemplateSpan(parent)
+    ) {
+      continue;
+    }
+    const read = readExpressionString(candidate);
+    if (read.unresolved.length === 0 && read.values.some((value) => value.endsWith(BASELINE_SUFFIX))) {
+      out.push(location(root, candidate, "baseline-ledger", "gate-owned baseline ledgers are forbidden; use exact grants or warning debt"));
     }
   }
 }

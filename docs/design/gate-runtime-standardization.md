@@ -25,8 +25,8 @@ This is a rewrite of the live gate runtime, not a second gate system. These exis
 
 Current `main` has 255 gates. The shared node dispatcher is real, but most of the fleet can bypass it:
 
-- 189 gates define their own `scanRoot`; 72 are multi-clause predicates and absence means admit-all.
-- 91 gates own free-form `run` hooks.
+- 188 gates define their own `scanRoot`; 72 are multi-clause predicates and absence means admit-all.
+- 99 gates own free-form `run` hooks.
 - gate/helper code contains 250 `getDescendantsOfKind` calls across 84 files and 78 `getSourceFiles` calls across 57 files.
 - six verify modules still construct their own ts-morph `Project`.
 - 23 gates carry top-level `let` state; many more mutate module-level Maps/Sets reset by `begin`.
@@ -72,6 +72,8 @@ Each module exports exactly one policy and `id` equals its filename. `family` is
 
 Every self-proof row declares its fixture mode and paths explicitly. Source/type fixtures run in the in-memory workspace; resource fixtures materialize their declared files. No default path inferred from population and no fake real-tree anchor decides which substrate a proof receives.
 
+No proof writes `__g_`/`__dc_` files into the developer's working tree. Gitignore is not cleanup: it would hide crash leftovers while filesystem-based gates could still load them and change cross-file populations. Syntax/type proofs use virtual files, resource proofs use auto-cleaned temp roots, and real-corpus controls add a virtual overlay to the loaded Project. The current live-tree planting suite cleans reserved leftovers on entry and in `finally` during migration, then is retired at cutover with the reserved probe-artifact filters.
+
 ## Standard capabilities
 
 Every Orb gate gets the same behavior without implementing it itself:
@@ -85,6 +87,8 @@ Every Orb gate gets the same behavior without implementing it itself:
 - missing/empty/unresolved population refusal and failed-owner reconciliation withholding;
 - per-gate files/members/resources/timing receipts;
 - the same fixture runtime for `mustFlag`/`mustPass`, with an explicit fixture mode instead of fake real-tree anchors.
+
+The historical six-case marker probe becomes a central authority proof rather than six copied cases per gate. The ordinary-waiver engine proves unmarked, exact-position, stale/dead-position, malformed, over-broad, and consumption-order behavior once. Each ordinary policy proves that its own report supplies the correct policy and position identity. Hard policies have no waiver arm; reviewed-grant policies prove subject/operation identity while central grant tests own malformed/stale reconciliation. Every policy still carries its founding `mustFlag`, legitimate near-miss and declared-limit `mustPass` rows, and empty/unresolved-subject controls wherever its verdict depends on a derived population.
 
 ## Shared query boundary
 
@@ -107,7 +111,7 @@ A unique policy algorithm may live in `verify/lib`, but repository walking, bind
 
 Use the parked dispatch-fence research as evidence, not verbatim policy. Run its off-tree equivalence diff against all 255 current predicates first. The owner has now supplied the previously missing second use: generic Orb policies must be intentionally applicable to `tooling/src` and `tests/tooling`, not excluded because a copied client/package predicate forgot them.
 
-Named roots and conventions cover ordinary breadth. Sanctioned homes remain exact reviewed grants with rename/deletion liveness, not fence subtraction. Resource gates declare `@none` for TS dispatch and their explicit resource population. A complex predicate that cannot be represented without loss stays a named population resolver in the one population module; it does not remain an anonymous closure in a gate.
+Named roots exist only for independently selectable workspace packages and top-level authored trees. Nested implementation directories such as DB schema, server domain/infra/transport, and the gate corpus use `under`/`notUnder` conventions; they do not get another hand-maintained root alias. Sanctioned homes remain exact reviewed grants with rename/deletion liveness, not population subtraction. Resource gates declare `@none` for TS dispatch and their explicit resource population. A predicate that cannot be represented without loss blocks that conversion until the shared algebra gains one reviewed, tested operator or the population change is explicitly classified; there is no custom-resolver escape hatch.
 
 ## Exceptions and debt
 
@@ -193,6 +197,7 @@ For all 13, `evaluate` runs after the shared walk and before central waiver/gran
 
 - all 255 current policies have one live owner or explicit retirement;
 - zero `scanRoot`, `scopeSafety`, `begin`, `finalize`, free-form `run`, direct project/descendant walk, gate-owned Project, or mutable module-state accumulator remains in gate modules;
+- zero gate-owned filesystem glob, path-corpus regex, comment/suppression parser, binding/symbol resolver, static-value parser, resource loader, or workspace cache remains;
 - every registered policy supports all declared command/scope/severity/report/authority capabilities;
 - all source/helper/tests/exemptions were read in full and every current-main delta re-attested;
 - aliases, namespace/re-export/destructure/computed/wrapper/shadow/write/cycle/dynamic variants are planted wherever identity matters;
