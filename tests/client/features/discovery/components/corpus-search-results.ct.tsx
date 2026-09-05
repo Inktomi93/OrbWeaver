@@ -53,6 +53,12 @@ const CORPUS_AMBIENT_ROUTES: TrpcRoutes = {
   // The LIST pane's lens vocabularies, at the pre-distill floor.
   "discovery.characterFacets": { genres: [], tones: [] },
   "discovery.catalog": { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 0 },
+  // The BROWSE view's keyset-paged infinite query (#1631) — `CorpusListSurfaceNavStory` mounts
+  // `CorpusListSurface` → `CorpusBrowseView`, whose `discovery.browseCharacters` read was UNFED, so whether
+  // this file tripped the CT unfed-read ratchet depended on the query landing before the test ended. Shape
+  // source-verified against `BrowseCharactersPage` (server/domain/discovery/contract/results.ts:131) — an
+  // empty FIRST page with no cursor, the same `EMPTY_BROWSE` the corpus-list-surface CT already serves.
+  "discovery.browseCharacters": { items: [], nextCursor: null, totalCount: 0 },
   // The CONTENT pane's dossier reads — the shape `corpus-list-surface.ct.tsx`'s EMPTY_CORPUS_CONTENT uses.
   "discovery.home": {
     coverage: { characters: 0, digests: 0, segments: 0 },
