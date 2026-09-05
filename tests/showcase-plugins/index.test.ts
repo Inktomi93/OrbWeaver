@@ -33,7 +33,7 @@ const PACKED_SHA256: Readonly<Record<(typeof SHOWCASE_PLUGIN_SLUGS)[number], str
   "pocket-arcade": "7143d14c13b0e562e49b5834792e8205ba3e39c10bae4791508e9d4e768c4bbb",
   "research-familiar": "618d950dc5be019212fb7793a4c60d715d24b1ed8ba303abe0cd0069acaaf01e",
   "scene-chips": "f3cebbf02131bd20b2f7a5f2bfd34eabcbf29e1b3369ca3be8150582f531527e",
-  "story-clocks": "e821fd2d7edef27d62c6669da4fa25b99a49b3e6e24cb76e06ae9b6f942432f8",
+  "story-clocks": "1a6cb109a08497a4eabe231a46a9f88561589c2f9d05a7d9fbce40582a4ed68c", // re-pinned at the fold: #1555 changed the tick (conditional write) after the move
 };
 
 function sha256(bytes: Uint8Array): string {

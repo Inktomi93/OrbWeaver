@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 540,
-    "enforced": 535,
+    "sites": 541,
+    "enforced": 536,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 535,
+      "deliberate-absorb": 536,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
-      "default": 144,
+      "default": 145,
       "empty": 254
     }
   },
@@ -2802,7 +2802,7 @@
     {
       "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::1",
       "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 33,
+      "line": 37,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2810,12 +2810,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a missing/unreadable",
-      "markerLine": 27
+      "markerLine": 31
     },
     {
       "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::2",
       "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 74,
+      "line": 61,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2823,46 +2823,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — the header states the",
-      "markerLine": 69
-    },
-    {
-      "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::3",
-      "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 101,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 3,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — SCOPED to the read",
-      "markerLine": 96
-    },
-    {
-      "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::4",
-      "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 140,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 4,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — an example with no",
-      "markerLine": 135
-    },
-    {
-      "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::5",
-      "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 160,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 5,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — the header states the",
-      "markerLine": 155
+      "markerLine": 56
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::1",
@@ -3036,7 +2997,7 @@
     {
       "siteId": "packages/server/src/entry/compose/services.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/services.ts",
-      "line": 445,
+      "line": 446,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -3044,7 +3005,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the ONE `requireOwner`/`can()`",
-      "markerLine": 439
+      "markerLine": 440
     },
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::default:catch::1",
@@ -4046,6 +4007,58 @@
       "verdict": "deliberate-absorb",
       "reason": "documented above — a DomainError becomes a",
       "markerLine": 31
+    },
+    {
+      "siteId": "packages/showcase-plugins/src/index.ts::default:catch::1",
+      "path": "packages/showcase-plugins/src/index.ts",
+      "line": 95,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — the header states the",
+      "markerLine": 90
+    },
+    {
+      "siteId": "packages/showcase-plugins/src/index.ts::default:catch::2",
+      "path": "packages/showcase-plugins/src/index.ts",
+      "line": 118,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a bundle with no",
+      "markerLine": 113
+    },
+    {
+      "siteId": "packages/showcase-plugins/src/index.ts::default:catch::3",
+      "path": "packages/showcase-plugins/src/index.ts",
+      "line": 147,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — SCOPED to the read",
+      "markerLine": 142
+    },
+    {
+      "siteId": "packages/showcase-plugins/src/index.ts::default:catch::4",
+      "path": "packages/showcase-plugins/src/index.ts",
+      "line": 184,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 4,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — \"this package ships",
+      "markerLine": 179
     },
     {
       "siteId": "packages/ui/src/content/message-media/message-media.tsx::empty:catch::1",
