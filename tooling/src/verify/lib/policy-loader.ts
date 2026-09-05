@@ -63,11 +63,25 @@ function assertFilenameIds(imported: readonly ImportedPolicy[]): void {
   }
 }
 
+function familyNames(gates: readonly GatePolicy[]): readonly string[] {
+  const groups = Map.groupBy(gates, ({ family }) => family);
+  for (const [family, members] of [...groups].toSorted(([left], [right]) => left.localeCompare(right))) {
+    const only = members[0];
+    if (members.length === 1 && only !== undefined && only.id !== family) {
+      throw new Error(`singleton family ${family} must equal its sole policy id ${only.id}`);
+    }
+  }
+  return [...groups.keys()].toSorted();
+}
+
 /** Auto-discover and import every corpus module. Today's legacy corpus intentionally fails this door. */
 export async function loadPolicyCorpus(root: string): Promise<GatePolicyCorpus> {
   const files = globSync("tooling/src/verify/gates/*.ts", { cwd: root })
     .filter((path) => !DECLARATION_RE.test(path))
     .sort();
+  if (files.length === 0) {
+    throw new Error(`gate policy corpus resolved zero modules under ${root}`);
+  }
   const imported: ImportedPolicy[] = [];
   for (const rel of files) {
     imported.push(await importPolicy(root, rel));
@@ -75,7 +89,7 @@ export async function loadPolicyCorpus(root: string): Promise<GatePolicyCorpus> 
   assertUniqueIds(imported);
   assertFilenameIds(imported);
   const gates = imported.map(({ gate }) => gate);
-  return { gates, files, families: [...new Set(gates.map(({ family }) => family))].toSorted() };
+  return { gates, files, families: familyNames(gates) };
 }
 
 export async function loadPolicies(root: string): Promise<readonly GatePolicy[]> {

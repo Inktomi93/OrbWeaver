@@ -1,4 +1,6 @@
 // Fail-closed runtime validation shared by policy loading and invocation boundaries.
+
+import { SyntaxKind } from "ts-morph";
 import { GATE_AUTHORITIES, GATE_SEVERITIES } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyAnalysis, GatePolicyHooks, GatePolicyProof, GatePolicyProofMode } from "../contract/policy.ts";
 import { GATE_POLICY_ANALYSES, GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "../contract/policy.ts";
@@ -193,7 +195,11 @@ function assertVisitors(value: unknown): void {
     const visitor = record(candidate, `visitor[${index}]`);
     exactKeys(visitor, VISITOR_KEYS, `visitor[${index}]`);
     const kinds = visitor["kinds"];
-    if (!Array.isArray(kinds) || kinds.length === 0 || kinds.some((kind) => !Number.isInteger(kind))) {
+    if (
+      !Array.isArray(kinds) ||
+      kinds.length === 0 ||
+      kinds.some((kind) => !(Number.isInteger(kind) && (kind as number) > SyntaxKind.Unknown && (kind as number) < SyntaxKind.Count))
+    ) {
       invalid(`visitor[${index}].kinds must be a nonempty SyntaxKind array`);
     }
     if (new Set(kinds).size !== kinds.length) {

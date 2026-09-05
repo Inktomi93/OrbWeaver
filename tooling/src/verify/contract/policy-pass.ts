@@ -11,7 +11,7 @@ import type {
 } from "./gate-authority.ts";
 import type { GatePolicy } from "./policy.ts";
 
-export const POLICY_PHASES = ["population", "create", "visitFile", "visit", "evaluate"] as const;
+export const POLICY_PHASES = ["population", "create", "visitFile", "visit", "evaluate", "receipt"] as const;
 export type PolicyPhase = (typeof POLICY_PHASES)[number];
 
 export interface PolicyPopulationReceipt {

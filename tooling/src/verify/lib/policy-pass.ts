@@ -5,6 +5,7 @@ import { collectByKinds } from "@orb/tooling/_shared/ts-workspace";
 import type { SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
 import type { GateOwnerCompletion, RawGateFinding } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyHooks } from "../contract/policy.ts";
+import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type {
   PolicyOwnerResult,
   PolicyPassInput,
@@ -18,7 +19,7 @@ import type {
 import { POLICY_PHASES } from "../contract/policy-pass.ts";
 import { coordinateGateAuthority } from "./gate-authority.ts";
 import { makePolicyContext } from "./policy-pass-context.ts";
-import { assertGatePolicyHooks, assertRepoPathIdentity, normalizePathSet } from "./policy-validation.ts";
+import { assertGatePolicyDescriptor, assertGatePolicyHooks, assertRepoPathIdentity, normalizePathSet } from "./policy-validation.ts";
 import { resolvePopulation } from "./population-resolver.ts";
 
 interface MutableTiming {
@@ -47,7 +48,7 @@ const EMPTY_POPULATION: PolicyPopulationReceipt = {
 };
 
 function phaseRecord(): Record<PolicyPhase, number> {
-  return { population: 0, create: 0, visitFile: 0, visit: 0, evaluate: 0 };
+  return { population: 0, create: 0, visitFile: 0, visit: 0, evaluate: 0, receipt: 0 };
 }
 
 function floorMs(value: number): number {
@@ -119,6 +120,24 @@ function canonicalFindings(findings: readonly RawGateFinding[]): readonly RawGat
       (left.token ?? "").localeCompare(right.token ?? "") ||
       (left.message ?? "").localeCompare(right.message ?? ""),
   );
+}
+
+function assertInvocationPolicies(policies: readonly GatePolicy[]): void {
+  const value: unknown = policies;
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error("runPolicyPass requires a nonempty policy array");
+  }
+  const ids = new Set<string>();
+  for (const candidate of value) {
+    if (!isDefinedGatePolicy(candidate)) {
+      throw new Error("runPolicyPass accepts only policies branded by defineGate");
+    }
+    assertGatePolicyDescriptor(candidate);
+    if (ids.has(candidate.id)) {
+      throw new Error(`runPolicyPass received duplicate policy id ${candidate.id}`);
+    }
+    ids.add(candidate.id);
+  }
 }
 
 function newRun(policy: GatePolicy): PolicyRun {
@@ -275,12 +294,31 @@ function walkRuns(runs: readonly PolicyRun[], sourceFiles: ReadonlyMap<string, S
   }
 }
 
+function receiptFailures(receipt: PolicySemanticReceipt): readonly string[] {
+  const count = receipt.kind === "population" ? receipt.members : receipt.resources;
+  const label = receipt.kind === "population" ? "members" : "resources";
+  const failures: string[] = [];
+  if (count === 0) {
+    failures.push(`${receipt.kind} ${JSON.stringify(receipt.source)} resolved zero ${label}`);
+  }
+  if (receipt.unresolved > 0) {
+    failures.push(`${receipt.kind} ${JSON.stringify(receipt.source)} left ${receipt.unresolved} unresolved`);
+  }
+  return failures;
+}
+
 function evaluateRuns(runs: readonly PolicyRun[], errors: PolicyToolError[]): void {
   for (const run of runs) {
     if (run.hooks?.evaluate !== undefined) {
       guard(run, "evaluate", errors, () => run.hooks?.evaluate?.());
     }
     run.receipts = run.finishReceipts?.() ?? [];
+    guard(run, "receipt", errors, () => {
+      const failures = run.receipts.flatMap(receiptFailures);
+      if (failures.length > 0) {
+        throw new Error(`policy receipt refused: ${failures.join("; ")}`);
+      }
+    });
   }
 }
 
@@ -297,6 +335,7 @@ function ownerResult(run: PolicyRun): PolicyOwnerResult {
 
 /** Run every selected policy with invocation-local state, then coordinate all authority centrally. */
 export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
+  assertInvocationPolicies(input.policies);
   const started = performance.now();
   const toolErrors: PolicyToolError[] = [];
   const { runs, sourceFiles } = resolveRuns(input, toolErrors);

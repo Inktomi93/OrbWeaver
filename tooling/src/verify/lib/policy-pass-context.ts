@@ -46,6 +46,13 @@ function assertOptionalText(value: unknown, label: string): void {
   }
 }
 
+function requiredText(value: unknown, label: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`${label} must be a nonempty string`);
+  }
+  return value;
+}
+
 function findingDetails(details: GatePolicyFindingDetails | undefined): GatePolicyFindingDetails {
   const safe = details ?? {};
   for (const key of COMMON_DETAIL_KEYS) {
@@ -90,45 +97,54 @@ function assertCount(value: unknown, label: string): number {
   return value as number;
 }
 
-function receiptKey(receipt: GatePolicyReceipt): string {
-  return JSON.stringify([receipt.kind, receipt.source]);
+function receiptRecord(value: unknown): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("policy receipt must be an object with an exact discriminant");
+  }
+  return value as Record<string, unknown>;
 }
 
-function acceptPopulationReceipt(receipts: Map<string, PolicySemanticReceipt>, receipt: Extract<GatePolicyReceipt, { kind: "population" }>): void {
+function acceptPopulationReceipt(receipts: Map<string, PolicySemanticReceipt>, receipt: Record<string, unknown>): void {
   exactKeys(receipt, POPULATION_RECEIPT_KEYS, "policy receipt");
-  const members = assertCount(receipt.members, "policy receipt members");
-  const unresolved = assertCount(receipt.unresolved ?? 0, "policy receipt unresolved");
-  const key = receiptKey(receipt);
+  const source = requiredText(receipt["source"], "policy receipt source");
+  const members = assertCount(receipt["members"], "policy receipt members");
+  const unresolved = assertCount(receipt["unresolved"] ?? 0, "policy receipt unresolved");
+  const key = JSON.stringify(["population", source]);
   const prior = receipts.get(key);
   receipts.set(key, {
     kind: "population",
-    source: receipt.source,
+    source,
     members: (prior?.kind === "population" ? prior.members : 0) + members,
     unresolved: (prior?.unresolved ?? 0) + unresolved,
   });
 }
 
-function acceptResourceReceipt(receipts: Map<string, PolicySemanticReceipt>, receipt: Extract<GatePolicyReceipt, { kind: "resource" }>): void {
+function acceptResourceReceipt(receipts: Map<string, PolicySemanticReceipt>, receipt: Record<string, unknown>): void {
   exactKeys(receipt, RESOURCE_RECEIPT_KEYS, "policy receipt");
-  const resources = assertCount(receipt.resources, "policy receipt resources");
-  const unresolved = assertCount(receipt.unresolved ?? 0, "policy receipt unresolved");
-  const key = receiptKey(receipt);
+  const source = requiredText(receipt["source"], "policy receipt source");
+  const resources = assertCount(receipt["resources"], "policy receipt resources");
+  const unresolved = assertCount(receipt["unresolved"] ?? 0, "policy receipt unresolved");
+  const key = JSON.stringify(["resource", source]);
   const prior = receipts.get(key);
   receipts.set(key, {
     kind: "resource",
-    source: receipt.source,
+    source,
     resources: (prior?.kind === "resource" ? prior.resources : 0) + resources,
     unresolved: (prior?.unresolved ?? 0) + unresolved,
   });
 }
 
-function acceptReceipt(receipts: Map<string, PolicySemanticReceipt>, receipt: GatePolicyReceipt): void {
-  assertOptionalText(receipt.source, "policy receipt source");
-  if (receipt.kind === "population") {
+function acceptReceipt(receipts: Map<string, PolicySemanticReceipt>, value: unknown): void {
+  const receipt = receiptRecord(value);
+  if (receipt["kind"] === "population") {
     acceptPopulationReceipt(receipts, receipt);
     return;
   }
-  acceptResourceReceipt(receipts, receipt);
+  if (receipt["kind"] === "resource") {
+    acceptResourceReceipt(receipts, receipt);
+    return;
+  }
+  throw new Error(`policy receipt has invalid discriminant ${JSON.stringify(receipt["kind"])}`);
 }
 
 /** Construct one invocation-local context. No internal Project/root reference is exposed on it. */
@@ -157,23 +173,32 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   const reportNode = (node: Node, rawDetails?: GatePolicyNodeFindingDetails): void => {
     const details = rawDetails ?? {};
     exactKeys(details, NODE_DETAIL_KEYS, "node finding");
-    findingDetails(details);
+    const common = findingDetails(details);
     const path = relativePath(node.getSourceFile());
     let position = node.getStart();
-    if (details.token !== undefined) {
+    const runtime = details as GatePolicyFindingDetails & { readonly token?: unknown; readonly offset?: unknown };
+    const token = runtime.token;
+    const offset = runtime.offset;
+    if ((token === undefined) !== (offset === undefined)) {
+      throw new Error("node finding token and offset must be supplied together");
+    }
+    if (token !== undefined && offset !== undefined) {
+      const anchoredToken = requiredText(token, "node finding token");
+      const text = node.getText();
       if (
         !(
-          Number.isInteger(details.offset) &&
-          details.offset >= 0 &&
-          node.getText().slice(details.offset, details.offset + details.token.length) === details.token
+          Number.isInteger(offset) &&
+          (offset as number) >= 0 &&
+          (offset as number) + anchoredToken.length <= text.length &&
+          text.slice(offset as number, (offset as number) + anchoredToken.length) === anchoredToken
         )
       ) {
-        throw new Error(`node finding token ${JSON.stringify(details.token)} is not anchored at its declared offset`);
+        throw new Error(`node finding token ${JSON.stringify(anchoredToken)} is not anchored at its declared offset`);
       }
-      position += details.offset;
+      position += offset as number;
     }
     const { line, column } = node.getSourceFile().getLineAndColumnAtPos(position);
-    input.findings.push(appendDetails({ file: path, line, column }, details));
+    input.findings.push(appendDetails({ file: path, line, column }, token === undefined ? common : { ...common, token: token as string }));
   };
   const reportFile = (path: string, rawDetails?: GatePolicyFileFindingDetails): void => {
     assertRepoPathIdentity(path, "finding file");
@@ -188,7 +213,8 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
       appendDetails({ file: path, line: assertCoordinate(details.line, "finding line"), column: assertCoordinate(details.column, "finding column") }, details),
     );
   };
-  const context: GatePolicyContext = {
+  const report = Object.freeze({ node: reportNode, file: reportFile });
+  const context: GatePolicyContext = Object.freeze({
     files,
     resourcePaths,
     relativePath,
@@ -199,9 +225,9 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
       }
       return input.checker();
     },
-    report: { node: reportNode, file: reportFile },
-    receipt: (receipt) => acceptReceipt(receipts, receipt),
-  };
+    report,
+    receipt: (receipt: GatePolicyReceipt) => acceptReceipt(receipts, receipt),
+  });
   return {
     context,
     finishReceipts: () => [...receipts.values()].toSorted((left, right) => left.kind.localeCompare(right.kind) || left.source.localeCompare(right.source)),
