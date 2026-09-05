@@ -4,11 +4,11 @@
   "totals": {
     "sites": 543,
     "enforced": 538,
-    "reported": 1,
+    "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 537,
+      "deliberate-absorb": 538,
       "detached-owned": 5,
-      "unproven": 1
+      "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
@@ -6396,9 +6396,9 @@
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a truncated/garbage ledger reads as \"no reaps recorded\", which is the same line a fresh checkout prints; nothing decides anything on this file. Ends if any verdict starts reading it back.",
+      "markerLine": 63
     },
     {
       "siteId": "tooling/src/snap/ops/stage-source.ts::empty:catch::1",
