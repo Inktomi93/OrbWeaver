@@ -51,7 +51,11 @@ export function CollectionListGroup({ group, active, bandRef }: CollectionListGr
   // Every hook runs UNCONDITIONALLY over the door-frozen registry (the `useVisible` contract) — the
   // visibility verdict gates the RENDER, never the hook call.
   const visible = collection.useVisible?.() ?? true;
-  const count = collection.useCount?.();
+  // The BAND reads the number only. A census that failed has no number, which is the same thing the band
+  // draws for one that has not landed — a bare "TAGS" with no figure, never a fabricated `0`. The FAILURE
+  // half is the LANDING's to say (#1546): it is the pane the reader is looking at, and it is the surface
+  // that can carry a retry without turning a one-line band into an error state.
+  const count = collection.useCount?.().count;
   const create = collection.create.useRun();
   const open = useConfigGroupOpen(group.id);
   const selection = useCollectionSelection();

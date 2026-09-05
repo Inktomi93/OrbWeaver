@@ -21,11 +21,17 @@
 //     (`data-conflict`, the invalid skin, a title naming the incoming value) instead of silently resolved.
 //     Confirming again overwrites deliberately; Escape takes the incoming value. Reseeding the draft was
 //     the other arm and is refused: it destroys keystrokes the user can still see.
+//
+// THE DECISION ITSELF LIVES IN `lib/edit-session.ts` (#1561), because the same three cases turned up in a
+// second editor (the chronicle beat body) with only two of them implemented. This file owns the SURFACE of
+// the conflict — the attribute, the invalid skin, the title, the key grammar — and nothing else.
 import { Button } from "@orb/ui/button";
 import { Input } from "@orb/ui/input";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
+import type { EditSession } from "#lib";
+import { resolveCommit } from "#lib";
 
 export interface TrackerValueProps {
   /** The current value, pre-formatted by the block (e.g. "24/30", "wary", "16"). */
@@ -62,30 +68,6 @@ export interface TrackerValueProps {
    *  no length contract, and a truncated datum hides the datum (the text IS the value). Numerics and
    *  host-named values keep the default single-line truncate (their width is layout-owned). @defaultValue false */
   readonly wrap?: boolean;
-}
-
-/** One OPEN edit — the three facts that only mean anything together (see the header's commit ruling). */
-interface EditSession {
-  /** What the field currently holds. Seeded from the value at open; only the user's typing moves it. */
-  readonly draft: string;
-  /** The value the draft was seeded FROM. The commit is judged against THIS, never against the live one. */
-  readonly openedFrom: string;
-  /** The value that arrived underneath this edit, once a commit has found one. `null` = uncontested. */
-  readonly conflict: string | null;
-}
-
-/**
- * What a commit does — as a pure decision, so the three cases read as three cases (#1485).
- * `send: null` means nothing goes to `onEdit`; `next: null` means the editor closes.
- */
-function resolveCommit(session: EditSession, source: string): { readonly send: string | null; readonly next: EditSession | null } {
-  if (session.draft === session.openedFrom) {
-    return { send: null, next: null }; // nothing typed — never write, however far the value has moved
-  }
-  if (source !== session.openedFrom && session.conflict === null) {
-    return { send: null, next: { ...session, conflict: source } }; // two writers — surface it, hold the edit
-  }
-  return { send: session.draft, next: null }; // an ordinary commit, or a deliberate overwrite of a conflict
 }
 
 /** The REST state of an editable value — a real button CARRYING the datum text (see the header). Split out

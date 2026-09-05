@@ -80,6 +80,21 @@ export interface CorpusAnalysisState {
  */
 type CorpusPassCount = number | "pending" | "unavailable";
 
+/**
+ * WHETHER A PASS HAS EVER SUCCEEDED — and the third answer the rail owes when nobody can say (#1546).
+ *
+ * Every `*EverRan` fact on this rail is read off ONE `workloads.list` query, and that read can FAIL. Until
+ * this existed the failure collapsed into `false`, so a broken queue printed "not run" for five passes that
+ * may all have run — the #164 defect this module was rebuilt to prevent, arriving through a different door.
+ * "It has not run" is a claim about the PASS; "we could not ask" is a claim about the READ, and the surface
+ * offers the second one a retry.
+ *
+ * MODULE-PRIVATE for the reason {@link CorpusPassCount} is: an EXPORTED type alias outside a type home is
+ * `no-inline-types` RED. Callers never name it — they hand in {@link CorpusAnalysisInput.queueRead} plus the
+ * plain booleans, and this module derives.
+ */
+type CorpusPassRan = boolean | "unknown";
+
 /** Exactly the fields the four suspended discovery reads contribute — no query shapes leak in here. */
 export interface CorpusAnalysisInput {
   readonly characters: number;
@@ -110,6 +125,19 @@ export interface CorpusAnalysisInput {
   /** Has the near-duplicate pass ever succeeded? Zero pairs means two entirely different things depending on
    *  this, and the rail used to print the reassuring one for both (issue #164 item 4). */
   readonly duplicatesEverRan: boolean;
+  /**
+   * DID THE QUEUE READ THE THREE `*EverRan` FLAGS COME FROM ACTUALLY ANSWER? (#1546.)
+   *
+   * One field rather than three widened flags, because there is one fact: all three are `some(row => …)`
+   * over a single `workloads.list` result, so a failure moves them together and stating it three times
+   * would let the three drift. `"failed"` turns every `false` flag beside it into {@link CorpusPassRan}'s
+   * `"unknown"` — a flag that is TRUE still means the pass ran, because a row that says so is a row we saw.
+   *
+   * The surface's own conservative pre-answer for a read still IN FLIGHT stays `"answered"` + `false` ("not
+   * run"), which is the ruling `corpus-home-surface.tsx` records and this does not disturb: a settling queue
+   * resolves in a beat, a failed one does not resolve at all.
+   */
+  readonly queueRead: "answered" | "failed";
 }
 
 // The locale is FIXED for the same reason the preset surface fixes its own (`preset/lib/format-count.ts`):
@@ -155,17 +183,35 @@ function plural(count: number, one: string, many = `${one}s`): string {
  * both — and the identical count stands ALONE when the pass has never run, because "2 identical copies" is
  * something we know from the cards themselves and does not depend on a pass at all.
  */
-function duplicatesDatum(everRan: boolean, found: number, identical: number): string {
+function duplicatesDatum(everRan: CorpusPassRan, found: number, identical: number): string {
   const passPart = passDatum(everRan, found, `${formatCount(found)} found`);
   return identical === 0 ? passPart : `${passPart} · ${formatCount(identical)} identical`;
 }
 
-/** The shared three-state reading of a pass: it has not run · it ran and found nothing · what it found. */
-function passDatum(everRan: boolean, found: number, foundLabel: string): string {
-  if (!everRan) {
+/** A pass's ran/not-ran flag READ IN THE LIGHT OF THE QUEUE THAT PRODUCED IT (#1546). A `false` flag means
+ *  "the queue holds no successful run of this pass", which is only "it never ran" when the queue ANSWERED.
+ *  ONE place makes that call, so the five rows cannot disagree about it. */
+function passRan(flag: boolean, queueRead: CorpusAnalysisInput["queueRead"]): CorpusPassRan {
+  if (flag) {
+    return true;
+  }
+  return queueRead === "answered" ? false : "unknown";
+}
+
+/** The shared reading of a pass: it has not run · nobody could ask · it ran and found nothing · what it
+ *  found. The fourth state is the queue read's own failure (#1546) — and it only reaches the datum when the
+ *  pass produced NOTHING, because output IS evidence the pass ran, whatever the queue says. */
+function passDatum(everRan: CorpusPassRan, found: number, foundLabel: string): string {
+  if (everRan === false) {
     return "not run";
   }
-  return found === 0 ? "none found" : foundLabel;
+  if (found === 0) {
+    // "none found" is a MEASUREMENT and this row has none: with the queue unreachable we cannot tell a pass
+    // that ran and clustered nothing from one that never started, and the rail's whole contract is that
+    // those two get different words.
+    return everRan === "unknown" ? "unknown" : "none found";
+  }
+  return foundLabel;
 }
 
 /**
@@ -182,8 +228,8 @@ function passDatum(everRan: boolean, found: number, foundLabel: string): string 
  * The un-run arm still outranks everything: a queue that says the pass never succeeded is a fact about the
  * pass, not about the read, and it is true whatever the keyword table happens to hold.
  */
-function keywordsDatum(everRan: boolean, count: CorpusPassCount): string {
-  if (!everRan) {
+function keywordsDatum(everRan: CorpusPassRan, count: CorpusPassCount): string {
+  if (everRan === false) {
     return "not run";
   }
   if (count === "pending") {
@@ -339,13 +385,13 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
       // surviving in the one row that never got an `everRan` input: on the audited library the pass HAD
       // succeeded and clustered nothing, and the rail called that never-run beside a button offering to
       // run it. `passDatum` is the shared reading its four siblings already go through.
-      datum: passDatum(input.storyThemesEverRan, storyThemes, `${plural(storyThemes, "theme")} computed`),
+      datum: passDatum(passRan(input.storyThemesEverRan, input.queueRead), storyThemes, `${plural(storyThemes, "theme")} computed`),
       done: storyThemes > 0,
     },
     {
       id: "keywords",
       label: "Keywords",
-      datum: keywordsDatum(input.keywordsEverRan, input.keywords),
+      datum: keywordsDatum(passRan(input.keywordsEverRan, input.queueRead), input.keywords),
       done: typeof input.keywords === "number" && input.keywords > 0,
     },
     {
@@ -356,7 +402,7 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
       // the owner read "none found" on a 327-card imported library and reasonably took it for a defect. It
       // was not; `find-duplicates` simply had not run yet (it later found 30 pairs). The rail's whole
       // contract is "a zero must be a state a reader can act on", and those two zeros need different actions.
-      datum: duplicatesDatum(input.duplicatesEverRan, nearDuplicates, input.identicalCharacterPairs),
+      datum: duplicatesDatum(passRan(input.duplicatesEverRan, input.queueRead), nearDuplicates, input.identicalCharacterPairs),
       done: nearDuplicates > 0 || input.identicalCharacterPairs > 0,
     },
   ];

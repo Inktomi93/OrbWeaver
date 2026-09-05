@@ -94,8 +94,24 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
   // Draft fields keyed by the loaded row; the mounted editor's Save is the one write affordance.
   const [name, setName] = useState(cast.name);
   const [description, setDescription] = useState(cast.description);
+  /**
+   * WHAT THE EDITOR OPENED WITH — the `lib/edit-session.ts` rule in its save-button form (#1561).
+   *
+   * The drafts above are seeded ONCE, so `name !== cast.name` is TRUE whenever the ROW moved underneath an
+   * untouched editor (another seat, another tab, an apply that renamed it). `dirty` gated the Save button
+   * on exactly that comparison, so a second writer LIT UP the one write affordance on the surface and a
+   * press would have sent the opened-with text back over what arrived — the suppress-a-pointless-write
+   * guard performing a destructive write, which is the class in its purest form.
+   *
+   * A once-seeded value, not a ref: it is read during render, and refs are handler/cleanup-only here.
+   */
+  const [openedFrom] = useState(() => ({ name: cast.name, description: cast.description }));
   const busy = update.isPending || apply.isPending || isStarting;
-  const dirty = name.trim() !== cast.name || description !== cast.description;
+  const dirty = name.trim() !== openedFrom.name || description !== openedFrom.description;
+  // BOTH MOVED — a real conflict between two writers, surfaced rather than resolved (the tracker's third
+  // case). Save stays live because saving is then a DELIBERATE overwrite; what changes is that the host is
+  // told, instead of discovering it afterwards.
+  const contested = dirty && (cast.name !== openedFrom.name || cast.description !== openedFrom.description);
 
   const onSave = (): void => {
     update.mutate({
@@ -149,6 +165,13 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
             Start chat
           </Button>
         </Row>
+        {/* The two-writer collision, STATED (#1561). It rides beside the Save it qualifies rather than at
+            the top of the surface: the decision it changes is that press. */}
+        {contested ? (
+          <Text data-slot="roster-editor-conflict" voice="label">
+            {`This roster changed elsewhere while you were editing — it is now “${cast.name}”. Saving replaces that with your text.`}
+          </Text>
+        ) : null}
         {/* `Section kicker` renders the SAME caps-micro band the two groupings had as bare spans — and a
             real <h3> under it (side-eye P2-5: the editor's only heading was the roster name, so heading
             navigation gave a screen-reader user one stop in a two-section surface, while the sibling

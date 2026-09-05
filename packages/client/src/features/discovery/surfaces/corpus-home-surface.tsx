@@ -138,6 +138,11 @@ function CorpusHomeBody(): ReactElement {
   // The queue is the only place that knows, and `workloads.list` with `{}` is the SAME input the invitation's
   // hook already holds, so this is a cache hit rather than a second question. NON-suspending: an unresolved
   // queue must not hold the whole surface, and its honest pre-answer is the conservative "not run".
+  // …AND A QUEUE THAT DID NOT ANSWER IS NOT A QUEUE THAT SAID NO (#1546). The conservative pre-answer above
+  // is right for a read still IN FLIGHT — it settles in a beat — and wrong for one that FAILED, which does
+  // not settle at all: three rows then printed "not run" for passes that may all have run, with no failure
+  // said and nothing to press. The flags stay plain booleans (they are `some(…)` over one result); WHICH
+  // read produced them travels beside them as `queueRead`, and the rail carries the retry.
   const runs = useQuery(trpc.workloads.list.queryOptions({}));
   const ranSuccessfully = (kind: string): boolean => (runs.data ?? []).some((row) => row.kind === kind && row.status === "succeeded");
   // KEYWORDS ARE THEIR OWN PASS (issue #164's lesson, applied one row up). The rail row said "Story themes &
@@ -174,6 +179,7 @@ function CorpusHomeBody(): ReactElement {
     duplicateChats: home.duplicateCounts.chats,
     identicalCharacterPairs: home.duplicateCounts.identicalCharacterPairs,
     duplicatesEverRan: ranSuccessfully("find-duplicates"),
+    queueRead: runs.error === null ? "answered" : "failed",
   });
 
   if (state.phase === "empty") {
@@ -278,7 +284,11 @@ function CorpusHomeBody(): ReactElement {
             <CorpusFamilyMap canOpenFamilies={catalog.totalDistilled > 0} families={families} focal={mapIsFocal} />
           </Stack>
           <Stack className="min-w-0" gap="section">
-            <CorpusReadinessRail showRerun={mapIsFocal} stages={state.stages} />
+            <CorpusReadinessRail
+              queue={{ failed: runs.error !== null, onRetry: (): void => void runs.refetch() }}
+              showRerun={mapIsFocal}
+              stages={state.stages}
+            />
           </Stack>
         </Grid>
 

@@ -173,11 +173,21 @@ test("a rejected add batch stays visible and retryable, then closes after the re
 // `.mutate`, so a rejected remove put the reader back at a grid that still showed the image they had just
 // confirmed deleting, with nothing to retry from.
 //
-// THE CONFIRM IS NOT THE RETRY SURFACE, AND CANNOT BE: `components/confirm-dialog.tsx:37` records that the
-// dialog "closes itself via AlertDialogClose regardless of outcome" — a shared-component ruling this lane
-// did not touch. So the reachable, and correct, retry surface is the LIGHTBOX, which carries the Remove
-// button; that is what this asserts.
-test("a REJECTED remove keeps the LIGHTBOX open — the retry, instead of a grid that still has the image (#1501)", async ({ mount, page }) => {
+// THE RETRY SURFACE IS NOW THE CONFIRM ITSELF, AND BOTH READINGS ARE KEPT (#1563 changed #1501's input).
+//   WHAT THIS PIN USED TO SAY, verbatim: "THE CONFIRM IS NOT THE RETRY SURFACE, AND CANNOT BE:
+//     `components/confirm-dialog.tsx:37` records that the dialog closes itself via AlertDialogClose
+//     regardless of outcome — a shared-component ruling this lane did not touch. So the reachable, and
+//     correct, retry surface is the LIGHTBOX, which carries the Remove button."
+//   WHAT CHANGED: that shared-component ruling was the DEFECT #1563 filed and fixed. `ConfirmDialog` now
+//     waits on the settle a caller returns, so the confirm holds open on rejection with the reason and its
+//     own button as the retry. The SYMPTOM #1501 filed is unchanged and still pinned — a rejected remove
+//     must never dump the reader at a grid that still shows the image with nothing to press — but the
+//     surface that answers it is one level nearer the act.
+//   THE LIGHTBOX IS STILL THERE, and this asserts that too: it is behind a modal dialog (Base UI hides the
+//     rest of the document from the a11y tree while one is open, which is why the role query for its button
+//     only resolves once the confirm is dismissed), so the reader who cancels lands exactly where #1501
+//     said they must.
+test("a REJECTED remove holds the CONFIRM open as the retry, over a lightbox that survives (#1501 · #1563)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "assets.listGallery": () => [ITEM],
     "assets.removeFromGallery": () => trpcError({ message: "remove failed" }),
@@ -186,9 +196,15 @@ test("a REJECTED remove keeps the LIGHTBOX open — the retry, instead of a grid
   await mount(<CharacterGalleryDialogStory />);
   await openLightbox(page);
   await page.getByRole("button", { name: "Remove from gallery" }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Remove", exact: true }).click();
+  const confirm = page.getByRole("alertdialog");
+  await confirm.getByRole("button", { name: "Remove", exact: true }).click();
 
   await expect.poll(() => trpc.count("assets.removeFromGallery"), { intervals: [20, 50, 100] }).toBe(1);
+  // The confirm states the failure and is still standing — its own Remove is the retry.
+  await expect(confirm.locator('[data-slot="confirm-dialog-failure"]')).toContainText("remove failed");
+  await expect(confirm.getByRole("button", { name: "Remove", exact: true })).toBeVisible();
+  // …and the image is still in the grid behind it, which is the half #1501 filed.
+  await confirm.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("button", { name: "Remove from gallery" })).toBeVisible();
 });
 

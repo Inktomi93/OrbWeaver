@@ -14,7 +14,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { readEscapedAbsolutes } from "../../../../support/ct/settings-geometry.ts";
 import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
 import { ConfigHostInScrollingHostStory, ConfigHostStory } from "../_ct-stories.tsx";
@@ -988,6 +988,38 @@ test("…and the wall it replaced is gone: no chip census, no dead +N more", asy
   await expect(content.getByText(/^\+\d+ more$/)).toHaveCount(0);
   // …and no member NAME is restated on the pane except inside a real door's own label ("Open orphan-tag").
   await expect(content.getByText("used-a", { exact: true })).toHaveCount(0);
+});
+
+// ── A LIBRARY WHOSE CENSUS FAILED IS NOT A LIBRARY THAT IS SETTLING (#1546) ──────────────────────────
+// `useCount` answered `number | undefined`, so a failed census and a settling one were the SAME value and
+// this pane had no arm for the first: it fell through to the populated layout — glance, hint and create
+// verb over a library it could not count — with the failure unsaid and nothing to press. The settling
+// ruling survives; what changed is its input.
+test("a library whose census FAILED says so on the landing, and offers a retry that re-asks (#1546)", async ({ mount, page }) => {
+  // The census answers by a FLAG the test flips, never by a request counter: the pane's own reads share one
+  // key and the shell fires more than one round trip before the first paint, so "fail the first request"
+  // is not the same claim as "the census is down" (measured — it answered the landing from request two).
+  // WHAT THE STUB ANSWERS NEXT, as a PUSHED array rather than a boolean flip: biome narrows a
+  // `= false` initializer to the literal type and reds the later flip as an always-falsy condition,
+  // and the `: boolean` that would fix that is itself `noInferrableTypes`. Data, not a flag.
+  const rows: unknown[] = [trpcError({ message: "the census is down" })];
+  await stub(page, { "regex.listScripts": (): unknown => rows.at(-1) });
+  const component = await mount(<ConfigHostStory />);
+
+  await component.locator(EMPTY_BAND).click();
+  const landing = component.getByRole("region", { name: "Settings", exact: true }).locator('[data-slot="config-collection-landing"]');
+  // The library still NAMES itself — the reader came here on purpose.
+  await expect(landing.getByRole("heading", { level: 2, name: "Regex scripts" })).toBeVisible();
+  await expect(landing.getByText("Couldn't load regex scripts.")).toBeVisible();
+  // …and the populated layout is NOT what a pane with no number draws.
+  await expect(landing.getByText(LANDING_HINT)).toHaveCount(0);
+  await expect(landing.getByRole("button", { name: "New script" })).toHaveCount(0);
+
+  rows.push(POPULATED_SCRIPTS);
+  await landing.getByRole("button", { name: "Retry" }).click();
+  // A real refetch, and the pane returns to the arm the answer earns.
+  await expect(landing.getByText(LANDING_HINT)).toBeVisible();
+  await expect(landing.getByText("Couldn't load regex scripts.")).toHaveCount(0);
 });
 
 // ── THE EMPTY LANDING TEACHES (#1213) ────────────────────────────────────────────────────────────────

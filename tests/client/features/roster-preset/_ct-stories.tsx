@@ -15,12 +15,13 @@
 // `notify` is main.tsx-bound in production, so every story binds it to a DOM sink: the apply doors report
 // through `notify`, and a toast that is never rendered is exactly the defect P1-2 filed.
 
-import { QueryBoundary, SkeletonRows } from "@orb/client/data";
+import { QueryBoundary, SkeletonRows, useTRPC } from "@orb/client/data";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, toNotice } from "@orb/client/lib";
 import { selectChat } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { RosterPicker } from "../../../../packages/client/src/features/roster-preset/components/roster-picker.tsx";
@@ -80,6 +81,35 @@ export function RosterPickerHostStory({ width = 480 }: { readonly width?: number
       </div>
       {sink.node}
     </CtDataProviders>
+  );
+}
+
+/** The editor with a SECOND WRITER — the roster row is refetched (and comes back renamed) while the host
+ *  has the editor open (#1561). The row cannot express this by itself: `rosterPreset.get` is a suspending
+ *  read, so the arrival has to be an INVALIDATION driven from outside, which is what this button is. The
+ *  `.ct.tsx` flips its own route responder before pressing it. */
+export function RosterMemberEditorTwoWritersStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 480 }}>
+        <QueryBoundary fallback={<SkeletonRows count={4} shape="avatar-row" />}>
+          <RosterMemberSurface view={{ memberId: "roster_preset_ct_a" }} />
+        </QueryBoundary>
+        <RosterArrival />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The arrival trigger, INSIDE the providers — `useTRPC`/`useQueryClient` resolve against the CT's own
+ *  singletons only from under them, which is why this is its own component rather than a line above. */
+function RosterArrival(): ReactElement {
+  const queryClient = useQueryClient();
+  const trpc = useTRPC();
+  return (
+    <button onClick={(): void => void queryClient.invalidateQueries(trpc.rosterPreset.get.pathFilter())} type="button">
+      arrive rename
+    </button>
   );
 }
 

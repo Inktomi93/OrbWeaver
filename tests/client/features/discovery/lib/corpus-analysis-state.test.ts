@@ -29,6 +29,9 @@ const AUDITED: CorpusAnalysisInput = {
   // The audited instance HAD run the dedup pass — which is what makes its zero a result. Issue #164 item 4
   // is the other case, pinned below: the same zero from a pass that never ran is a different sentence.
   duplicatesEverRan: true,
+  // The queue ANSWERED — which is what makes every `false` above a claim about the PASS rather than about
+  // the read. The failed-queue arms are pinned in their own block below (#1546).
+  queueRead: "answered",
 };
 
 function stageDatum(input: CorpusAnalysisInput, id: string): string {
@@ -245,6 +248,47 @@ describe("the readiness rail — a measurement or an honest 'not run', never a b
       expect(stage.datum).not.toBe("0");
       expect(stage.datum.length).toBeGreaterThan(0);
     }
+  });
+
+  // ── THE QUEUE READ ITSELF CAN FAIL (#1546) ──────────────────────────────────────────────────────
+  // Three of the five rows read their ran/not-run half off ONE `workloads.list` query. That read collapsed
+  // into `false` when it FAILED, so a broken queue printed "not run" for three passes that may all have
+  // run — the #164 defect arriving through a different door, and the one state the rail's three-state
+  // doctrine had no word for.
+
+  test("a FAILED queue read makes an empty pass 'unknown', never 'not run'", () => {
+    // A failed read produces NO rows, so every flag it feeds arrives `false` — which is exactly the
+    // collapse this fixes: `false` from a read that answered and `false` from one that did not.
+    const broken: CorpusAnalysisInput = { ...AUDITED, duplicatesEverRan: false, queueRead: "failed" };
+    expect(stageDatum(broken, "storyThemes"), "we could not ask, so we do not claim it never ran").toBe("unknown");
+    expect(stageDatum(broken, "duplicates")).toBe("unknown");
+    expect(stageDatum(broken, "keywords")).toBe("unknown");
+  });
+
+  test("…but OUTPUT is its own evidence: a pass with results reads as run whatever the queue did", () => {
+    // The flags that are TRUE stay true (a row saying "succeeded" is a row we saw), and a pass that
+    // produced something ran by definition — so the failure only reaches the rows that have nothing.
+    const broken: CorpusAnalysisInput = { ...AUDITED, duplicatesEverRan: false, queueRead: "failed", arcThemes: 4, duplicateChats: 3 };
+    expect(stageDatum(broken, "storyThemes")).toBe("4 themes computed");
+    expect(stageDatum(broken, "duplicates")).toBe("3 found");
+    expect(stageDatum({ ...broken, storyThemesEverRan: true }, "storyThemes")).toBe("4 themes computed");
+  });
+
+  test("the queue's failure never fabricates a dot, and never becomes 'none found'", () => {
+    const broken = deriveCorpusAnalysisState({ ...AUDITED, duplicatesEverRan: false, queueRead: "failed" });
+    for (const id of ["storyThemes", "duplicates", "keywords"]) {
+      const row = broken.stages.find((stage) => stage.id === id);
+      expect(row?.done, `${id} produced nothing, so its dot stays dark`).toBe(false);
+      expect(row?.datum, `${id} may not claim a measurement nobody took`).not.toBe("none found");
+    }
+  });
+
+  test("the pass-level 'unavailable' and the queue-level 'unknown' stay different words", () => {
+    // They answer different questions: the keyword COUNT read broke (the surface offers that one its own
+    // retry) versus the RUN HISTORY read broke (the rail offers that one its own). Collapsing them would
+    // send the reader to the wrong door.
+    const broken: CorpusAnalysisInput = { ...AUDITED, queueRead: "failed", keywords: "unavailable", keywordsEverRan: false };
+    expect(stageDatum(broken, "keywords")).toBe("unavailable");
   });
 
   test("a partial pass is DONE-with-a-count, so the dot means 'produced something', not 'finished'", () => {

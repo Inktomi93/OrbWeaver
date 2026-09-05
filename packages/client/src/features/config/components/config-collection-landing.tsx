@@ -9,6 +9,7 @@ import { Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { QueryErrorState } from "#data";
 import type { CollectionInsight } from "#lib";
 import type { CollectionGroupDefinition } from "#state";
 import { CONFIG_COLLECTION_LANDING } from "../lib/config-copy.ts";
@@ -47,12 +48,30 @@ import { ConfigLibraryGlance } from "./config-library-glance.tsx";
  *    are, and the create verb. No door to itself: the reader is already here.
  *  · settling — the name, the blurb and the hint, with no action row: the arm is not yet known, and the
  *    band's own `+` is on screen throughout, so nothing is unreachable during that beat.
+ *  · FAILED — the name, and the read's own error with a retry (#1546). The settling ruling above SURVIVES
+ *    and its INPUT changed: it was minted when `useCount` answered `number | undefined`, so a failed census
+ *    and a settling one were the same value and this pane fell through to the POPULATED layout — glance,
+ *    facts, hint and create verb over a library it could not count, with nothing said and nothing to press.
+ *    A failure is not a quiet beat you wait out, so it is the one arm that is neither of the other two.
  */
 export function ConfigCollectionLanding({ group }: { readonly group: CollectionGroupDefinition }): ReactNode {
   const collection = group.body.collection;
-  const count = collection.useCount?.();
+  const census = collection.useCount?.();
+  const count = census?.count;
   const insights = collection.insights?.useInsights();
   const create = collection.create.useRun();
+  // A census that FAILED and produced no number. A failed REFETCH over a warm cache still has a number, and
+  // that arm keeps stating it — the pane says "couldn't load" only when it genuinely has nothing to say.
+  if (census !== undefined && census.failed && count === undefined) {
+    return (
+      <Stack data-collection={group.id} data-slot="config-collection-landing" gap="section">
+        {/* The library still NAMES itself while its census is broken: the reader navigated here on purpose,
+            and a pane that answers a click with an error alone loses the one fact it never had to read. */}
+        <ConfigLibraryGlance group={group} level={2} />
+        <QueryErrorState label={group.label.toLowerCase()} onRetry={census.retry} />
+      </Stack>
+    );
+  }
   if (count === 0) {
     return (
       <EmptyState

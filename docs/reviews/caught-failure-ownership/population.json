@@ -1073,7 +1073,7 @@
     {
       "siteId": "packages/client/src/features/roster-preset/surfaces/roster-member-surface.tsx::promise:startChat::1",
       "path": "packages/client/src/features/roster-preset/surfaces/roster-member-surface.tsx",
-      "line": 119,
+      "line": 135,
       "column": 5,
       "grammar": "promise",
       "position": "promise:startChat",
@@ -1081,7 +1081,7 @@
       "snippet": "startChat({",
       "verdict": "deliberate-absorb",
       "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning. Ends if either mutation stops owning its failure copy.",
-      "markerLine": 118
+      "markerLine": 134
     },
     {
       "siteId": "packages/client/src/features/rpg/components/rpg-dice-tool-card.tsx::empty:catch::1",

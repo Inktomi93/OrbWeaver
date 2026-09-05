@@ -4,17 +4,20 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useInvalidation, useTRPC } from "#data";
-import type { CollectionInsight } from "#lib";
+import type { CollectionCount, CollectionInsight } from "#lib";
 import { notify, regexScriptTitle, timeLib } from "#lib";
 import { selectCollectionMember, toggleRegexBulkMode, useRegexBulkActive } from "#state";
 import { REGEX_COLLECTION_ID } from "../lib/regex-model.ts";
 import { useCreateRegexScript, useImportRegexScriptFile } from "./use-regex-library.ts";
 import { makeRegexScriptDefaults } from "./use-regex-script-form.ts";
 
-/** The group band's live census — a NON-suspending read sharing the rows' cache. */
-export function useRegexCount(): number | undefined {
+/** The group band's live census — a NON-suspending read sharing the rows' cache. A FAILED read says so
+ *  rather than reading as absence (#1546 — see {@link CollectionCount}). */
+export function useRegexCount(): CollectionCount {
   const trpc = useTRPC();
-  return useQuery(trpc.regex.listScripts.queryOptions()).data?.length;
+  const census = useQuery(trpc.regex.listScripts.queryOptions());
+  // `refetch` takes an OPTIONS BAG, so it is wrapped rather than passed by reference.
+  return { count: census.data?.length, failed: census.error !== null, retry: (): void => void census.refetch() };
 }
 
 /**

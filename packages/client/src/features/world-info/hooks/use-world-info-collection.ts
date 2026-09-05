@@ -4,7 +4,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useInvalidation, useTRPC } from "#data";
-import type { CollectionInsight } from "#lib";
+import type { CollectionCount, CollectionInsight } from "#lib";
 import { notify } from "#lib";
 import { selectCollectionMember } from "#state";
 import { WORLD_INFO_COLLECTION_ID } from "../lib/world-info-model.ts";
@@ -12,10 +12,13 @@ import { useCreateWorldBook, useImportWorldBookFile } from "./use-world-info-mut
 
 const NEW_BOOK_NAME = "New book";
 
-/** The group band's live census — a NON-suspending read sharing the rows' cache. */
-export function useWorldInfoCount(): number | undefined {
+/** The group band's live census — a NON-suspending read sharing the rows' cache. A FAILED read says so
+ *  rather than reading as absence (#1546 — see {@link CollectionCount}). */
+export function useWorldInfoCount(): CollectionCount {
   const trpc = useTRPC();
-  return useQuery(trpc.worldInfo.listBooksWithUsage.queryOptions()).data?.length;
+  const census = useQuery(trpc.worldInfo.listBooksWithUsage.queryOptions());
+  // `refetch` takes an OPTIONS BAG, so it is wrapped rather than passed by reference.
+  return { count: census.data?.length, failed: census.error !== null, retry: (): void => void census.refetch() };
 }
 
 /**

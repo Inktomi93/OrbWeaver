@@ -36,6 +36,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { RECEDED_INK } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { QueryErrorState } from "#data";
 import { openConfigTo } from "#state";
 import { useUnderstandingPass, useUnderstandingPassTail } from "../hooks/use-understanding-pass.ts";
 import type { CorpusReadinessStage } from "../lib/corpus-analysis-state.ts";
@@ -44,9 +45,13 @@ export interface CorpusReadinessRailProps {
   readonly stages: readonly CorpusReadinessStage[];
   /** Render the re-run door. True only once the passes have run — see the header. */
   readonly showRerun: boolean;
+  /** THE QUEUE READ every row's ran/not-run half comes from (#1546). When it FAILED, three rows read
+   *  "unknown" rather than "not run" and the rail — the surface's one home for what has and has not run —
+   *  is where that says so and where the retry lives. */
+  readonly queue: { readonly failed: boolean; readonly onRetry: () => void };
 }
 
-export function CorpusReadinessRail({ stages, showRerun }: CorpusReadinessRailProps): ReactElement {
+export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadinessRailProps): ReactElement {
   return (
     // THE ROWS KEEP THEIR OWN PITCH, AND THE ISLAND OWNS THE LEFTOVER (side-eye corpus re-pass #2,
     // 2026-08-19 P2-1 — this REVERSES the distribute that landed hours earlier, and both readings are kept).
@@ -102,6 +107,12 @@ export function CorpusReadinessRail({ stages, showRerun }: CorpusReadinessRailPr
           </Row>
         ))}
       </Stack>
+      {/* THE READ BEHIND THE RAIL'S OWN VERDICTS, WHEN IT BROKE (#1546). Three of the five rows read
+          "unknown" in this state, which is honest but inert on its own — the reader is owed what could not
+          be asked and a way to ask again. It sits UNDER the rows and above the re-run for the reason the
+          rows are ordered as they are: it qualifies the readings above it. The shared read-error block, not
+          a hand-rolled one (`render-error-via-battery`'s whole point). */}
+      {queue.failed ? <QueryErrorState label="which passes have run" onRetry={queue.onRetry} /> : null}
       {showRerun ? <CorpusReadinessRerun /> : null}
     </Section>
   );
