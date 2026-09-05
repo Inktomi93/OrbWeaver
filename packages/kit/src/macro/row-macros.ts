@@ -52,9 +52,9 @@ export interface RowMacroStamps {
 /** The per-chat name producer + the fallback subjects a caller supplies:
  *  `speakerCharName` — the turn's OWN `{{char}}` default (the SOLO character) used only when a
  *  characterId-carrying row's `characterId` doesn't resolve; `characterNames` — the present characters (roster order),
- *  the `{{char}}` subject for a HUMAN-authored / narrator row (`characterId === null`): the joined cast in
+ *  the `{{char}}` subject for a HUMAN-authored / narrator row (`characterId === null`): the joined character names in
  *  a multi-character room (== `{{group}}`), the one character in solo — so a user's own `{{char}}`
- *  is the room's cast, resolved IDENTICALLY on server-assemble and client-display (never the arbitrary
+ *  is the room's character names, resolved IDENTICALLY on server-assemble and client-display (never the arbitrary
  *  current speaker); `fallbackPersonaName`/`fallbackPersonaDescription` — the null-stamp
  *  `{{user}}`/`{{persona}}` fallback subject: the chat-level ANCHOR persona, NEVER the reader's own
  *  active persona (identity is the row's or the chat anchor's, never the viewer's — a greeting/AI line
@@ -75,10 +75,10 @@ const UNKNOWN_CHARACTER_NAME = "Character";
 // The ultimate `{{user}}`/`{{persona}}`-name floor (matches every existing consumer).
 const UNKNOWN_PERSONA_NAME = DEFAULT_PERSONA_NAME;
 
-/** `{{char}}` for a HUMAN-authored / narrator row (`characterId === null`): the joined CAST in a
+/** `{{char}}` for a HUMAN-authored / narrator row (`characterId === null`): the joined CHARACTER NAMES in a
  *  multi-character room (== `{{group}}`), the one character in solo, else the caller's
- *  `speakerCharName` default, then the literal floor. Gated on cast SIZE (`length > 1`) — never an
- *  `isGroup` flag: a cast-of-one collapses to the one name, so solo and group are one code path. */
+ *  `speakerCharName` default, then the literal floor. Gated on character-count (`length > 1`) — never an
+ *  `isGroup` flag: a room of one character collapses to the one name, so solo and group are one code path. */
 function charFromCharacterNames(ctx: RowMacroNameContext): string {
   const characterNames = ctx.characterNames;
   if (characterNames !== undefined && characterNames.length > 1) {
@@ -95,9 +95,9 @@ function charFromCharacterNames(ctx: RowMacroNameContext): string {
  * - `{{char}}` → for a VOICED row (`characterId` set): the ROW's own speaker,
  *   `characterNamesById.get(stamps.characterId)?.name`, falling back to `ctx.speakerCharName`, then the
  *   literal floor (a past line by Aria stays Aria's even when a different character speaks the CURRENT
- *   turn). For a HUMAN-authored / narrator row (`characterId === null`): the room's CAST — the joined
+ *   turn). For a HUMAN-authored / narrator row (`characterId === null`): the room's CHARACTER NAMES — the joined
  *   `ctx.characterNames` in a multi-character room (== `{{group}}`), or the one character in solo — so a
- *   user's own `{{char}}` addresses the whole cast, resolved identically on both consumers (never the
+ *   user's own `{{char}}` addresses every present character, resolved identically on both consumers (never the
  *   arbitrary current speaker).
  * - `{{user}}` / `{{persona}}` → the ROW's own author: `personaNamesById.get(stamps.personaId)`, whose
  *   `name` resolves `{{user}}` (falling back to the chat ANCHOR `ctx.fallbackPersonaName`, then "User")
