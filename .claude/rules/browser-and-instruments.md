@@ -23,10 +23,11 @@ paths:
 - **Under multi-lane load the `--workers=2` cap is mandatory** — measured 2026-08-21 at load-avg 170,
   the default worker count timed out EVERY test at `mount()` on pure contention (zero signal), while
   `--workers=2` came back green in 53s. A contention timeout is not a failing test.
-- **NEVER run two `ct:scoped` invocations concurrently in ONE worktree** — the script's `rm -rf
-  playwright/.cache` + rebuild is single-flight per TREE, so a sibling replaces the component index
-  mid-flight and everything that MOUNTS fails while the few tests that don't still pass. Its tell — a
-  *registered* component list naming stories you did not select — is in `reports/ct-report.json`.
+- **Two `ct:scoped` runners in ONE worktree are REFUSED (#1581, 2026-09-05):** each invocation builds in its own
+  `.cache/ct/build-<pid>-<ms>` (handed to playwright-ct via `ORB_CT_CACHE_DIR` → `use.ctCacheDir`) and holds
+  `.cache/ct/runner.lock`, so a second runner exits 2 (`CT RUNNER BUSY`) naming the first's pid; a dead
+  holder's lock is stolen with a printed note. Load for a flake proof still comes from a DIFFERENT worktree,
+  and that worktree needs its own `CT_PORT` — the CT vite port is box-wide.
 - **The CT summary reporter is TRUSTED** (#1006 cleared it by reproduction; the counting is pure and
   pinned by `tooling/src/verify/ops/ct-run-tally.ts` + its test). The old "pass `--reporter=list` until
   the summary is fixed" interim rule is RETIRED — an inverted count today means a cache clobber, i.e. two
