@@ -54,6 +54,7 @@ export {
   stPresetFromJson,
   stPresetName,
 } from "./substrate/preset.ts";
+export { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "./substrate/staging.ts";
 export { parseStThemeFile, ST_THEME_DIR, stThemeFromJson, stThemeName } from "./substrate/theme.ts";
 export { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
 export { createImportWorkloadContributions } from "./workload-contributions.ts";

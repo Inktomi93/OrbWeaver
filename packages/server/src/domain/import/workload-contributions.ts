@@ -7,6 +7,14 @@
 // nature — the profile importer fans into character/chat/persona/world-info/tag/assets); what lives here is
 // the CONTRIBUTION: the params/result contract, the lane/resume policy, the post-settle stats reconcile, and
 // the STAGING-CONTAINMENT belts (import logic, never compose logic).
+//
+// EVERY HANDLE RESOLVES UNDER THE ROW OWNER'S OWN STAGING ROOT (#1534). `params.token`/`params.stagedDir` are
+// caller-settable on an `authedProcedure` singular kind, so a handle names bytes but authorizes nothing; the
+// authority is `ctx.ownerId` — the server-stamped row owner, which is also the library the import WRITES to.
+// `stagedOwnerRoot` is the one derivation the staging routes and this file share (`substrate/staging.ts`
+// states the why), so another user's handle simply does not exist under this run's root and dies on the
+// containment belt's `staged_path_missing` before any read — and, just as load-bearing, before the cleanup
+// `finally` can delete someone else's staged upload.
 
 import { constants as fsConstants } from "node:fs";
 import { lstat, open, realpath, rm } from "node:fs/promises";
@@ -17,6 +25,7 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { WorkloadContribution } from "#domain/workloads";
 import type { ImportWorkloadDeps } from "./contract/workloads.ts";
+import { stagedOwnerRoot } from "./substrate/staging.ts";
 import { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
 
 /** Post-settle side effects of an import-st run: surface the skip count + report path to the workload
@@ -63,8 +72,8 @@ type ImportContributions = readonly [
  * whose own components are symlinks pointing anywhere on the box — and `readFile` / the profile-tree walker
  * then follow them. So the string check is only the cheap first pass: the belt is `realpath`, on the root
  * (the configured root may itself sit behind a link) and on the target, with the two required to agree.
- * The default staging root is the OS temp dir, which is world-writable on a shared box, so "no writer of
- * ours creates symlinks there" is not a containment argument.
+ * "No writer of ours creates symlinks under the staging root" is not a containment argument either: the root
+ * is operator-configurable (`IMPORT_STAGING_DIR`) and may point anywhere, including a shared directory.
  */
 async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Promise<string> {
   const root = resolve(stagingRoot);
@@ -144,7 +153,8 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
         report({ message: dryRun ? "import ST (dry run)" : "importing ST profiles" });
         // A folder-upload override resolves the server-minted handle to a PROPER STRICT DESCENDANT of the
         // staging root (throws on any traversal attempt, before any fs read); absent ⇒ the configured root.
-        const profileRoot = params.stagedDir !== undefined ? await resolveStagedPath(deps.stagingRoot, params.stagedDir) : deps.stProfileDir;
+        const ownerRoot = stagedOwnerRoot(deps.stagingRoot, targetOwnerId);
+        const profileRoot = params.stagedDir !== undefined ? await resolveStagedPath(ownerRoot, params.stagedDir) : deps.stProfileDir;
         let result: { readonly scanned: number; readonly changed: number; readonly failed: number; readonly reportPath?: string };
         try {
           result = await deps.runProfileDirImport({ profileRoot, ownerId: targetOwnerId, dryRun, signal });
@@ -152,7 +162,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           // A folder-upload staging tree is owned by this run; remove it (success OR error) through the
           // contained-rm belt. The configured default profile dir is persistent and is NEVER removed here.
           if (params.stagedDir !== undefined) {
-            await rmContained(deps.stagingRoot, profileRoot);
+            await rmContained(ownerRoot, profileRoot);
           }
         }
         await settleImportRun({
@@ -197,12 +207,13 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           throw new DomainOperationError("import_target_required", "import-bundle: no target owner (a bundle must be scoped to the uploader)");
         }
         report({ message: "importing bundle" });
-        const stagedPath = await resolveStagedPath(deps.stagingRoot, params.token);
+        const ownerRoot = stagedOwnerRoot(deps.stagingRoot, targetOwnerId);
+        const stagedPath = await resolveStagedPath(ownerRoot, params.token);
         try {
           const report_ =
             params.source === "dir"
               ? await deps.runStagedDirImport({ stagedPath, ownerId: targetOwnerId, signal })
-              : await deps.runBundleImport({ archive: await readStagedFile(stagedPath), ownerId: targetOwnerId, stagingRoot: deps.stagingRoot, signal });
+              : await deps.runBundleImport({ archive: await readStagedFile(stagedPath), ownerId: targetOwnerId, stagingRoot: ownerRoot, signal });
           // #23: a background bundle/tree import that wrote canon refreshes the owner's character + chat lists
           // (the client's own completion invalidation only fires while the import UI stayed mounted).
           if (report_.imported > 0) {
@@ -210,7 +221,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           }
           return { imported: report_.imported, skipped: report_.skipped, failed: report_.failed };
         } finally {
-          await rmContained(deps.stagingRoot, stagedPath);
+          await rmContained(ownerRoot, stagedPath);
         }
       },
     },

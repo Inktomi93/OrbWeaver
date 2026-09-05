@@ -2412,7 +2412,7 @@
     {
       "siteId": "packages/server/src/domain/import/workload-contributions.ts::promise:lstat::1",
       "path": "packages/server/src/domain/import/workload-contributions.ts",
-      "line": 120,
+      "line": 129,
       "column": 22,
       "grammar": "promise",
       "position": "promise:lstat",
@@ -2420,7 +2420,7 @@
       "snippet": "const link = await lstat(resolved).catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "both arms of this stat converge on \"remove nothing\" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed.",
-      "markerLine": 119
+      "markerLine": 128
     },
     {
       "siteId": "packages/server/src/domain/plugin/substrate/plugin-macros.ts::default:catch::1",
@@ -3101,7 +3101,7 @@
     {
       "siteId": "packages/server/src/entry/http/import-tree.ts::empty:err::1",
       "path": "packages/server/src/entry/http/import-tree.ts",
-      "line": 315,
+      "line": 321,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3109,7 +3109,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "propagated — the HTTP entry boundary's own error",
-      "markerLine": 296
+      "markerLine": 302
     },
     {
       "siteId": "packages/server/src/entry/http/plugin-frame.ts::empty:catch::1",

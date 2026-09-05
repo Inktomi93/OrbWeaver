@@ -293,7 +293,10 @@ const envSchema = z
     // Content-addressed asset blob root (card PNGs, avatars); the DB holds metadata, bytes live here.
     ASSETS_DIR: z.string().min(1).default("./data/assets"),
     // The controlled root the bundle-import extractor stages its per-upload dir under (a portability zip
-    // decompresses to disk, not RAM). Unset ⇒ the OS temp dir.
+    // decompresses to disk, not RAM). Unset ⇒ the app-owned `DEFAULT_IMPORT_STAGING_DIR`
+    // (`domain/import/substrate/staging.ts`), deliberately NOT the OS temp dir: a shared world-listable
+    // namespace lets any other local process read an unconsumed upload's bytes. Whatever the root, each
+    // upload stages under a PER-OWNER subdir of it (#1534) — the handle is a name, never a capability.
     IMPORT_STAGING_DIR: z.string().min(1).optional(),
     // The staged ST profile snapshot the `import-st` workload reads (one subdir per ST user profile, each
     // with characters/chats/settings.json/User Avatars). Unset ⇒ repo-root `.st-data`.
