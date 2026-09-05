@@ -86,6 +86,13 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   default self-cap is \~4GB even on the 128GB box); `ts7.cjs` carries the flag internally. **`npx` NEVER
   carries it — that is the whole tool family, not a list of two** — and neither does a bare
   `node tooling/src/<tool>/cli.ts`.
+- **eslint owns `packages/{ui,client}/src`, `tooling/src/**`, and the test trees
+  `tests/{tooling,server,kit,db,contracts,support,e2e,client,ui}/**/*.ts` plus the CT surface (`*.ct.tsx`,
+  `*.fixtures.tsx` under `tests/ui`, `_ct-stories.tsx`)** (#1574, 2026-09-05). A file outside those globs answers
+  "File ignored because no matching configuration was supplied" — RED under `--max-warnings 0` and SILENT under
+  the scoped verify lane (it passes `--no-warn-ignored`), so a lane that lints an uncovered path has measured
+  nothing. Still uncovered by design: the 31 `.tsx` story/fixture modules named in `eslint.config.js`'s
+  `TESTS_DOM_OWNED` note (#1590).
 - **The spellings: a named pnpm script when one exists, else `pnpm exec <tool> …` — never `npx`.** Scoped
   biome is `pnpm exec biome check <paths> --diagnostic-level=error`; scoped CT is `pnpm ct:scoped <paths>`
   (it carries BOTH the cache-clear and the nice). An OOM under THAT ceiling is a real finding to report,
