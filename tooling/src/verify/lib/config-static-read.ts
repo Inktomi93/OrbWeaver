@@ -137,7 +137,14 @@ export function readExpressionString(node: Node): StaticRead {
  *  `baseui-read.ts` precedent and carries a cited `PROJECT_SITES` row in `tooling-shared-plumbing.ts`.
  *  Each file is created at its OWN path, so the overwrite-identity trap (GATE-AUTHORING.md §5 — one reused SourceFile
  *  object answering every later call with the FIRST file's text) cannot arise between reads. */
-const scratch = new Project({ useInMemoryFileSystem: true, compilerOptions: { allowJs: true } });
+let scratch: Project | undefined;
+
+/** Lazily create the parser project. Importing the verify CLI must remain an argv-only operation so every
+ * verb can answer `--help` under the small-heap contract without constructing a ts-morph Project. */
+function scratchProject(): Project {
+  scratch ??= new Project({ useInMemoryFileSystem: true, compilerOptions: { allowJs: true } });
+  return scratch;
+}
 
 /** Read + parse one repo-relative source. Missing and SYNTACTICALLY BROKEN both refuse loudly. */
 export function readStaticSource(root: string, rel: string): ConfigRead {
@@ -146,8 +153,9 @@ export function readStaticSource(root: string, rel: string): ConfigRead {
     return { kind: "missing" };
   }
   const text = readFileSync(abs, "utf-8");
-  const sf = scratch.createSourceFile(rel, text, { overwrite: true });
-  const diags = scratch.getProgram().getSyntacticDiagnostics(sf);
+  const project = scratchProject();
+  const sf = project.createSourceFile(rel, text, { overwrite: true });
+  const diags = project.getProgram().getSyntacticDiagnostics(sf);
   const first = diags[0];
   if (first !== undefined) {
     const message = first.getMessageText();

@@ -10,6 +10,10 @@ export function runGateContract(root: string): number {
   const project = getWorkspace({ root, globs: [`${root}/tooling/src/verify/gates/*.ts`] });
   const report = inspectGateContract(project.getSourceFiles(), root);
   process.stdout.write(`gate-contract: ${report.findings.length} finding(s) across ${report.files} gate module(s)\n`);
+  if (report.files === 0) {
+    process.stderr.write("gate-contract: TOOL ERROR — gate discovery resolved zero modules, so this run is not a migration verdict\n");
+    return EXIT.toolError;
+  }
   for (const finding of report.findings) {
     process.stdout.write(`${finding.file}:${finding.line}:${finding.column} [${finding.code}] ${finding.detail}\n`);
   }
