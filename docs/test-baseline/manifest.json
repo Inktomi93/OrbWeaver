@@ -1317,6 +1317,7 @@
     "tests/server/domain/preset/constants.test.ts",
     "tests/server/domain/preset/contract/packaged.test.ts",
     "tests/server/domain/preset/persistence/handoff-copy-write.int.test.ts",
+    "tests/server/domain/preset/persistence/migrate-prose-slot-vocab.int.test.ts",
     "tests/server/domain/preset/persistence/queries.int.test.ts",
     "tests/server/domain/preset/seed.int.test.ts",
     "tests/server/domain/preset/substrate/names.test.ts",

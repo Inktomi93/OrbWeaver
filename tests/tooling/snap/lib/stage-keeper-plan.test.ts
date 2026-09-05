@@ -22,8 +22,9 @@ import {
   stageKeeperReservedRefusal,
   stageKeeperVerdict,
 } from "@orb/tooling/snap";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const MS_PER_MINUTE = 60_000;
 const TTL_MS = 60 * MS_PER_MINUTE;

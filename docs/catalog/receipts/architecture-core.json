@@ -926,14 +926,15 @@
     },
     {
       "path": "docs/architecture/core/Tier-3b-Providers.md",
-      "assignedSha256": "bbde1b6faa655e3882cfa9eba4c6261d4ef7fe189d3459d14f12b75ad2cf9df0",
+      "assignedSha256": "8df663fc88e6fb3c5aa9804f19bd277bfa5554d110d0067c7abc503d7d08f05e",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "bbde1b6faa655e3882cfa9eba4c6261d4ef7fe189d3459d14f12b75ad2cf9df0",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "8df663fc88e6fb3c5aa9804f19bd277bfa5554d110d0067c7abc503d7d08f05e",
+      "verifiedCommit": "73c2fe6d1f8d90238877a73fb0e6299d14fb1a7d",
+      "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested after the agent-sdk frames fold (#1605 8946078de real tool_use/tool_result seed blocks; #1607 f8a754555 continue turn = frames + host stub) at 73c2fe6d1",
         "docs/architecture/core/Tier-3b-Providers.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"

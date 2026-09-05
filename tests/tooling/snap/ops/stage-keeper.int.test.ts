@@ -29,11 +29,12 @@ import type { NicedChild } from "@orb/tooling/_shared/proc";
 import { inheritedProcessEnv, runNicedSync, spawnNiced, spawnNicedChild } from "@orb/tooling/_shared/proc";
 import type { StageRow } from "@orb/tooling/snap";
 import { readBands, readStageReaps, stageKeeperLogPath } from "@orb/tooling/snap";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, vi } from "vitest";
 // The table's WRITERS are not front-door members (the door exports the readers a sibling tool needs), so
 // this proof reaches them at their source path — the spelling tests/tooling/snap/ops/stage-marker.int.test.ts
 // already uses for the same modules.
 import { bindSessionToBand, touchRow, unbindSessionFromBand, writeRow } from "../../../../tooling/src/snap/ops/stage-marker.ts";
+import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CASE_BUDGET_MS = scaledBudget(120_000, 4);
@@ -48,6 +49,14 @@ const SHA = "0123456789abcdef0123456789abcdef01234567";
 const BAND = 7;
 
 const SNAP_CLI = join(REPO_ROOT, "tooling/src/snap/cli.ts");
+
+// WALL CLOCK, deliberately, and through ONE door: the subject of every arm below is a SPAWNED keeper's elapsed
+// real time against its TTL, and a child process has no injectable clock — so every row stamp and every
+// deadline this file writes must be measured on the clock the keeper reads. Nothing else here reads time.
+// @orb-gate-ignore test-determinism: the SUBJECT is a spawned keeper's elapsed real time against its TTL — a child process has no injectable clock, and every stamp and deadline here must share its wall clock
+const wallNowMs = (): number => Date.now();
+/** The same instant as the ISO stamp the band table stores. */
+const wallNowIso = (): string => new Date(wallNowMs()).toISOString();
 
 /** A loopback pair that answers nothing and never exits — the smallest thing that is INDISTINGUISHABLE
  *  from a stage to every probe production uses: two bound ports and a process rooted in a stage dir. */
@@ -92,8 +101,8 @@ function scratchHome(label: string): string {
 }
 
 async function until(predicate: () => boolean, budgetMs: number): Promise<boolean> {
-  const deadline = Date.now() + budgetMs;
-  while (Date.now() < deadline) {
+  const deadline = wallNowMs() + budgetMs;
+  while (wallNowMs() < deadline) {
     if (predicate()) {
       return true;
     }
@@ -135,8 +144,8 @@ function plantRow(home: string, stage: PlantedStage, idleMs: number, over: Parti
     vitePort: stage.vitePort,
     checkout: home,
     ownerPid: stage.child.pid ?? null,
-    startedAt: new Date(Date.now() - idleMs).toISOString(),
-    lastUsedAt: new Date(Date.now() - idleMs).toISOString(),
+    startedAt: new Date(wallNowMs() - idleMs).toISOString(),
+    lastUsedAt: new Date(wallNowMs() - idleMs).toISOString(),
     sessions: [],
     dbProvenance: null,
     rsyncs: 0,
@@ -201,7 +210,7 @@ function keeperProcessCount(): number {
 /** The session-registry row a live daemon writes — `daemonPid` is THIS process, so `liveSessionNames`
  *  answers "alive" against a pid that genuinely exists rather than a number that happens to be free. */
 function writeLiveSessionRow(home: string, name: string): void {
-  const now = new Date().toISOString();
+  const now = wallNowIso();
   writeFileSync(
     join(home, "sessions", `${name}.json`),
     JSON.stringify({
@@ -268,7 +277,7 @@ describe("the stage's own idle timer", () => {
     // production heartbeat (`touchRow`) that `ensureStage`, a session call and an attached run all write.
     for (let beat = 0; beat < 6; beat += 1) {
       await sleep(TTL_MS / 3);
-      touchRow(home, BAND, new Date().toISOString());
+      touchRow(home, BAND, wallNowIso());
       expect(rowOf(home), `the timer reaped a stage that was used ${TTL_MS / 3}ms ago (beat ${beat}) — ${keeper.log()}`).toBeDefined();
     }
     expect(keeper.child.hasExited(), "the keeper must still be waiting, not dead").toBe(false);
@@ -286,8 +295,8 @@ describe("the stage's own idle timer", () => {
     writeLiveSessionRow(home, name);
     // Binding is itself an interaction and stamps the heartbeat, so re-age the row: the ONLY thing that
     // can save it now is the session ref.
-    bindSessionToBand(home, BAND, name, new Date().toISOString());
-    touchRow(home, BAND, new Date(Date.now() - 10 * 60_000).toISOString());
+    bindSessionToBand(home, BAND, name, wallNowIso());
+    touchRow(home, BAND, new Date(wallNowMs() - 10 * 60_000).toISOString());
 
     const keeper = startKeeper(home);
     await sleep(TTL_MS * 2);
@@ -328,13 +337,13 @@ describe("the stage's own idle timer", () => {
     // `ensureStage`, which `configureStage` only reaches under `--isolated` — so a file run must allocate
     // no band, arm no timer, and above all EXIT: a detached child holding a pipe to this process would
     // keep its event loop referenced and turn every `--file` suite into a timeout.
-    const startedAtMs = Date.now();
+    const startedAtMs = wallNowMs();
     const run = await spawnNiced(process.execPath, [SNAP_CLI, "--file", fixture, "--no-shot", "--no-deadcss", "--no-failure-evidence"], {
       // `spawnNiced` merges its `env` over the ambient one itself, so only the OVERRIDE goes here.
       env: Object.fromEntries([["ORB_SNAP_STAGE_HOME", home]]),
       timeoutMs: CASE_BUDGET_MS,
     });
-    const elapsed = Date.now() - startedAtMs;
+    const elapsed = wallNowMs() - startedAtMs;
 
     expect(run.timedOut, `the CLI did not exit within ${CASE_BUDGET_MS}ms — ${run.stdout}${run.stderr}`).toBe(false);
     expect(run.code, run.stdout).toBe(0);

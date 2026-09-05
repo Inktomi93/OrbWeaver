@@ -75,6 +75,12 @@ const ALLOWLIST: ExemptionTable = {
   "regexScripts.behavior": {
     why: "BOTH writers are key-wise in fact: `bulk-set-placement.ts` LOADS each row, spreads `toRow(record)` and re-parses, then hands persistence a precomputed `{ id, behavior }[]` — so the row taint is real but crosses a MODULE boundary through an array element, one hop past this gate's declared one-helper-hop taint reach. Ends when the classifier follows cross-module taint, or if that verb ever stops reading the stored row first (then it is a genuine straddle and this row must go)",
   },
+  "chats.pendingHandoffOffer": {
+    why: "every REAL writer of the offer REPLACES it whole (nominate sets it, accept/decline clear it); the one key-wise writer is the one-shot boot rename `migrateHandoffOfferVocab` (#1649), which moves a KEY and never merges a value onto a client image, so no read-modify-write can be undone. Ends when that migration is retired (then the column no longer straddles and this row must go)",
+  },
+  "presets.config": {
+    why: "same shape one table over: the one key-wise writer is the one-shot boot rename `migrateProseSlotVocab` (#1737), moving the `chat.group.castMember` override key; the whole-replace writers carry either a packaged constant or the editor's guarded read (#1026, the ARM B rows below), never an image a rename could be undone by. Ends when that migration is retired",
+  },
   "userSettings.config": {
     why: "the DELIBERATE #471 design: `writeUserConfig` is a whole-blob write by contract (the service builds the next blob by spreading a guarded read) and the only key-wise sibling is `clearSelectedThemeIds`'s cross-user `json_set` heal, an admin sweep that is not part of any user's read-modify-write. The residual is a race, not a straddle: a heal landing between one user's read and write is undone. Ends if that race is ruled a defect (then the heal moves behind the same seam) — orchestrator-notified at landing, #879",
   },
@@ -84,12 +90,6 @@ const ALLOWLIST: ExemptionTable = {
  *  column may run UNDOMINATED by `requireIntactStoredConfig`. Two-sided: a row whose writer no longer
  *  violates (it grew the guard, or it left the tree) is RED. */
 const GUARD_EXEMPT: ExemptionTable = {
-  "packages/server/src/domain/chat/persistence/participant.ts#setPendingHostStatement": {
-    why: "every REAL writer of chats.pendingHandoffOffer REPLACES the whole offer (nominate sets it, accept/decline clear it); the one key-wise writer on that column is the one-shot boot rename migrateHandoffOfferVocab (#1649), which renames a KEY and never merges a value. Ends when that migration is retired.",
-  },
-  "packages/server/src/domain/chat/persistence/participant.ts#acceptHostHandoffSwapStatements": {
-    why: "same #1649 class, the clearing half: the offer is nulled whole at accept; the only key-wise writer is the one-shot boot rename. Ends when that migration is retired.",
-  },
   "packages/server/src/domain/preset/persistence/queries.ts#replacePresetConfig": {
     why: "ISSUE #1026's RULING, and now the whole class this table holds: a whole-replace whose CONTENT DOES NOT DESCEND FROM A READ of the row it lands on. #1026 split `presets.config`'s single writer in two by provenance — `updatePresetRow` carries the editor's read-derived image and GREW the guard (its degraded GET → whole-blob PUT was the real #471 hop, one hop out over the wire), while this function carries content the caller brought with it: the reset verb's DEFAULT_PROMPT_CONFIG and the import verb's strictly-parsed backup file. Guarding these would refuse the user's own explicit repair — the very affordance the guarded editor path tells them to reach for when a preset cannot be read — while preventing no silent loss. Ends if either caller starts merging onto the stored value, or if a third caller reaches this function with a read-derived image (then it owes the guard and this row must go)",
   },
