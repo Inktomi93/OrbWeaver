@@ -111,7 +111,18 @@ export function ParamsDeck({ form, capability, effective, capabilityError }: Par
           got bigger. The cap is `--width-content-col` (720px, the token whose own description IS this
           measure), and it is CENTERED inside the breathing column so the surplus is a symmetric margin
           rather than a one-sided void. Nothing else moves: the label cell, the numeric twin and the reset are
-          fixed-width by token, so capping the row caps exactly the cell that was over-growing. */}
+          fixed-width by token, so capping the row caps exactly the cell that was over-growing.
+
+          THIS IS THE TOKEN'S ONE RATIFIED EXCEPTION, AND IT HAS NOW BEEN AUDITED AS ONE (#1682, refused).
+          `--width-content-col` has eight consumers; #1664 gave seven of them the token's full stated
+          consumption (`mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide)`),
+          and a count over the remaining spellings read this site as the eighth oversight. It is not: an
+          INSTRUMENT whose only flexing cell is a control track holds the cap and does NOT breathe, which is
+          the 2026-08-19 ruling above. Measured again when the audit landed, by planting the briefed change
+          here: the knob row went 720px → 896px, i.e. straight back into the over-grown rail that ruling
+          exists to prevent — and it reds the `params-deck.ct.tsx` pin that asserts the row IS the cap. The
+          deck is centered (`mx-auto w-full`) precisely so it sits symmetrically inside the column that DOES
+          breathe around it. */}
       <Stack className="mx-auto w-full max-w-(--width-content-col)" gap="section">
         <QualityCluster effective={effective} form={form} />
         {/* ONE gate for the model-fed clusters, never three copies of the same sentence (F-02). Its arms are
