@@ -67,13 +67,14 @@ export function createCheckForUpdates(ctx: PluginContext): PluginService["checkF
       // client's one-click will use are ONE decision, and a row the check reports on but the button cannot serve
       // (or the reverse) is the defect this ordering forbids. A row with neither — a hand upload — is simply
       // absent from the batch, which is distinct from "unreachable".
-      owned.map((row) => {
+      owned.flatMap((row) => {
         if (row.sourceUrl !== null) {
-          return checkUrl(row.id, row.sourceUrl, row.version);
+          return [checkUrl(row.id, row.sourceUrl, row.version)];
         }
-        return ctx.showcase.slugs.has(row.slug) ? checkShowcase(row.id, row.slug, row.version) : null;
+        return ctx.showcase.slugs.has(row.slug) ? [checkShowcase(row.id, row.slug, row.version)] : [];
       }),
     );
+    // Each checker may still resolve `null` (an unreachable url, a bundle the build no longer ships).
     return checks.filter((check): check is PluginUpdateCheck => check !== null);
   };
 }

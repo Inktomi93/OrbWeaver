@@ -2301,14 +2301,17 @@
     },
     {
       "path": "docs/design/mocks/regex-section/PROPOSAL-sys.md",
-      "assignedSha256": "bda98ea0f179a3258c04adb88f6aefeab5709b847a699f8cbf930fa04585a1f1",
+      "assignedSha256": "b6f54c8a246d49dc7c807298880882d609995702d4cdb7b70f779bfac9552ff8",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "bda98ea0f179a3258c04adb88f6aefeab5709b847a699f8cbf930fa04585a1f1",
-      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+      "verifiedSha256": "b6f54c8a246d49dc7c807298880882d609995702d4cdb7b70f779bfac9552ff8",
+      "verifiedCommit": "fb912327b0a5522b765493b0e50e3562806cabea",
       "verifiedAt": "2026-09-05",
-      "evidence": ["Read in full by the orchestrator at the fold: the systems lens; its tier/dedup model is what resolveRegexTiers implements."],
+      "evidence": [
+        "re-attested after the dangling-refs fix (the two queries.ts line ranges each carry their path) on top of fb912327b",
+        "Read in full by the orchestrator at the fold: the systems lens; its tier/dedup model is what resolveRegexTiers implements."
+      ],
       "claims": [
         {
           "claim": "The tier model landed as resolveRegexTiers.",

@@ -95,7 +95,7 @@ display-leg render path and the host toggle, 10 files).
   (`contracts/src/regex/index.ts:277-282`) — re-spelling a tier union here would be a `no-inline-union-redecl`
   violation and a second home for the axis.
 - **`position` is the RANK WITHIN THE SLICE, and that is exact, not an approximation.** Every `listFor*`
-  query orders by the junction `position` (`domain/regex/persistence/queries.ts:162-190, 230-237`) and
+  query orders by the junction `position` (`domain/regex/persistence/queries.ts:162-190` and `domain/regex/persistence/queries.ts:230-237`) and
   `applyScopeOrder` writes positions back **by array index** (`apply-scope-order.ts:55-56`). Read-rank and
   write-index are the same number, so the panel can hand the reordered array straight back with no position
   arithmetic and no schema change.

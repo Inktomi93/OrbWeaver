@@ -19,6 +19,11 @@ import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
+// WALL CLOCK, through ONE door: the subject of the arms below is a real deadline settling on real time (a
+// socket that says nothing, a child that hangs) — there is no clock to inject into the other side.
+// @orb-gate-ignore test-determinism: the SUBJECT is a real deadline measured on real time — the far side (a mute socket / a hung child) has no injectable clock
+const wallNowMs = (): number => Date.now();
+
 /** The child body: fork a DESCENDANT, publish both pids, then hang forever. The descendant is spawned
  *  WITHOUT `detached`, so it inherits the child's process group — which is exactly the tree a
  *  direct-child-only kill leaves behind. */
@@ -91,13 +96,13 @@ test("spawnNicedTranscript: a wedged child settles AT the deadline, says so, and
   const pidFile = path.join(home, "pids.json");
   let pids: ChildPids | null = null;
   try {
-    const started = Date.now();
+    const started = wallNowMs();
     const result = await spawnNicedTranscript(process.execPath, ["-e", hangWithDescendant(pidFile)], {
       cwd: home,
       env: CAPTURE_ENV,
       timeoutMs: DEADLINE_MS,
     });
-    const elapsed = Date.now() - started;
+    const elapsed = wallNowMs() - started;
     pids = JSON.parse(readFileSync(pidFile, "utf8")) as ChildPids;
 
     // It SETTLED — the whole point. Before the fix this promise never resolved at all.
