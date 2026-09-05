@@ -29,7 +29,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { selectCorpusCharacter } from "#state";
 
 type ThemeLevel = "scene" | "arc";
@@ -100,9 +100,14 @@ function ThemeGroup({
 function ThemeDetailCard({ selection, onDismiss }: { readonly selection: ThemeSelection; readonly onDismiss: () => void }): ReactElement {
   return (
     <Card>
+      {/* RESERVED (#1098). This Card is a drill-in that re-suspends on every theme you pick, and it sits in
+          a scrolling column with the rest of the section under it — so each pick collapsed the card to a
+          sentence and shoved the content below up and back. The detail's anatomy is fixed (title, keyword
+          rail, member list), so the box this device measured predicts the next theme well. */}
       <QueryBoundary
-        fallback={<Text voice="gloss">Loading theme…</Text>}
+        fallback={<SkeletonRows count={4} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the theme" onRetry={retry} />}
+        reserveKey="corpus.themeDetail"
       >
         <ThemeDetailBody onDismiss={onDismiss} selection={selection} />
       </QueryBoundary>

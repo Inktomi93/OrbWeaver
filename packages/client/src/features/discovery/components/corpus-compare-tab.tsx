@@ -46,6 +46,12 @@ const PICKER_PAGE = 200;
 
 export function CorpusCompareTab(): ReactElement {
   return (
+    // DELIBERATELY UNRESERVED (#1098) — a GEOMETRY refusal, not a product one. `CompareBody`'s root IS the
+    // tab's scroll container (`min-h-0 flex-1 overflow-y-auto`), and `reserveKey` wraps the settled child
+    // in an auto-height Stack: the scroller would resolve against an indefinite parent and stop scrolling,
+    // stranding everything past the fold — the #1133 defect paid for on `character.editor`. Keying this
+    // tab means hoisting the scroll box ABOVE the boundary first (its sibling corpus tabs, which key, have
+    // no scroller of their own).
     <QueryBoundary
       fallback={<Text voice="gloss">Loading characters…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}
