@@ -3092,14 +3092,15 @@
     },
     {
       "path": "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md",
-      "assignedSha256": "9ffb18918bd536978366aa66eb9f0daad5567e273b570ff52e1c2de9fc8c2812",
+      "assignedSha256": "2a0903138996206b4b0f12e1698a78fac6f33737a7bbc09164144c921fff6341",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "9ffb18918bd536978366aa66eb9f0daad5567e273b570ff52e1c2de9fc8c2812",
-      "verifiedCommit": "9e70e5db38aff73ae5683bf7246f418dfd9a2132",
+      "verifiedSha256": "2a0903138996206b4b0f12e1698a78fac6f33737a7bbc09164144c921fff6341",
+      "verifiedCommit": "24d2c6ab3902f2952c3a38914cd597c312640f8b",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at 24d2c6ab3 by the orchestrator after reading the #1714 addition in full: a dated blockquote at §3a retires the species authority for its verdicts, and NEW §8 re-judges every axis on the tree without it (all KEEP on a stated structural reason; the §8.3 in-pane seam priced; nothing converged, nothing landed in code beyond header comments); §7's claims stand.",
         "re-attested at 9e70e5db3 by the orchestrator after reading §7 in full (cb-config-list, #1169): the census table at fine + coarse, the inverted preset-borrow premise (§7.2), D1 refused on the coarse receipt (§7.3), the meta datum landed with the measured Badge-in-markers control Set{35,42} (§7.4), the voice budget + the #1099 Errand A ruling fork reconciled as 'the ruling survives, its input changed' (§7.5), D3 refused (§7.6); disposition needs-owner → current now that the ruling landed; the §3a/§7.1 SPECIES verdicts are open for re-judgment under #1714.",
         "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md:1-140 full read by the orchestrator at 20ca3612a (lane cb-client-config-polish, #1169 arm a: measured comparison receipt, three drift candidates proposed, nothing landed)",
         "the two converged axes verified on tree: features/config/lib/config-section.tsx:79 passes ListPaneHeader; features/config/components/config-list-group.tsx:288 renders ListRow"

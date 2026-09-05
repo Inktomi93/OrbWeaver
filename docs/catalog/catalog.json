@@ -12005,29 +12005,30 @@
       "path": "docs/design/config-revamp-design.md",
       "lane": "design",
       "issue": 5,
-      "lines": 925,
-      "bytes": 146101,
-      "sha256": "8134d570c30f337b955830780c664c2e580945e4516a8ff8e4477c81ee7aa0b8",
+      "lines": 967,
+      "bytes": 149435,
+      "sha256": "de6d7cc58b36190a302de926d62265e22729b01d345429b0b61e0ba64e9013e4",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-09-02"
+          "updated": "2026-09-05"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/config-revamp-design.md",
-        "assignedSha256": "8134d570c30f337b955830780c664c2e580945e4516a8ff8e4477c81ee7aa0b8",
+        "assignedSha256": "de6d7cc58b36190a302de926d62265e22729b01d345429b0b61e0ba64e9013e4",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "8134d570c30f337b955830780c664c2e580945e4516a8ff8e4477c81ee7aa0b8",
-        "verifiedCommit": "89ba3e6cfd50d2adada5478f8dacc9ad91e243c2",
+        "verifiedSha256": "de6d7cc58b36190a302de926d62265e22729b01d345429b0b61e0ba64e9013e4",
+        "verifiedCommit": "24d2c6ab3902f2952c3a38914cd597c312640f8b",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested at 24d2c6ab3 by the orchestrator after reading the #1714 amendment in full (cb-config-list): §8.1 clause 1 keeps the must-WORK bar and the four #925 landing rulings as built behaviour; NEW §8.1a carries the owner's verbatim 2026-09-05 word and retires the 'distinct species → do not converge' inference (the ruling survives, its INPUT changed); §8.3's 'clean seam for #1169' paragraph is replaced by the priced result (all six divergences hold on structural reasons; two more in-pane divergences hold by TYPE); frontmatter updated 2026-09-05. Not touched: the rest of the program.",
           "re-attested at 89ba3e6cf by the orchestrator after reading the #1175/#1152 diff in full (cb-client-seams): a RESOLVED bullet records that the “#920 cold contract” premise was in no doc and §498-506 was already true; no other line changed; frontmatter dated 2026-09-05.",
           "re-attested at 306371232 (#1209 #1210 #1212 #1213 #1214 #1217 #1218, claude-b lane cb-collections batch, two commits): §8.5 arrival receipt amended; NEW §8.6 — ConfigWelcome RETIRED (no reachable door on any viewport; the Hearth vocabulary collision noted and corrected), the populated landing states LIBRARY-LEVEL facts via CollectionInsight (the preview seam fully retired, no half-migration; import/export doors PRICED as gaps, not stubbed), the empty landing teaches; NEW §8.7 — the five mechanicals (bulk toggle follows members, the a11y trio with a partial refutation, auto-opened arrival group folds, arrival focus target = the active group's band — a stated ruling fork). Read in full at the fold by the primary orchestrator (96 added lines).",
           "re-attested at dad0162ae (#925 #1043, claude-b lane cb-collections): NEW §8 — the COLLECTIONS species contract and the landing redesign (four owner rulings of 2026-09-02 compressed in §8.1; the classification receipt in §8.2: all four collections BUILT, the greyed arm has zero occupants and stays pinned; the species/divergence table in §8.3 left as the clean seam for #1169 and #1191). Section read in full at the fold by the primary orchestrator.",
@@ -29159,9 +29160,9 @@
       "path": "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 295,
-      "bytes": 21141,
-      "sha256": "9ffb18918bd536978366aa66eb9f0daad5567e273b570ff52e1c2de9fc8c2812",
+      "lines": 372,
+      "bytes": 29015,
+      "sha256": "2a0903138996206b4b0f12e1698a78fac6f33737a7bbc09164144c921fff6341",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29174,14 +29175,15 @@
       },
       "receipt": {
         "path": "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md",
-        "assignedSha256": "9ffb18918bd536978366aa66eb9f0daad5567e273b570ff52e1c2de9fc8c2812",
+        "assignedSha256": "2a0903138996206b4b0f12e1698a78fac6f33737a7bbc09164144c921fff6341",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "9ffb18918bd536978366aa66eb9f0daad5567e273b570ff52e1c2de9fc8c2812",
-        "verifiedCommit": "9e70e5db38aff73ae5683bf7246f418dfd9a2132",
+        "verifiedSha256": "2a0903138996206b4b0f12e1698a78fac6f33737a7bbc09164144c921fff6341",
+        "verifiedCommit": "24d2c6ab3902f2952c3a38914cd597c312640f8b",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested at 24d2c6ab3 by the orchestrator after reading the #1714 addition in full: a dated blockquote at §3a retires the species authority for its verdicts, and NEW §8 re-judges every axis on the tree without it (all KEEP on a stated structural reason; the §8.3 in-pane seam priced; nothing converged, nothing landed in code beyond header comments); §7's claims stand.",
           "re-attested at 9e70e5db3 by the orchestrator after reading §7 in full (cb-config-list, #1169): the census table at fine + coarse, the inverted preset-borrow premise (§7.2), D1 refused on the coarse receipt (§7.3), the meta datum landed with the measured Badge-in-markers control Set{35,42} (§7.4), the voice budget + the #1099 Errand A ruling fork reconciled as 'the ruling survives, its input changed' (§7.5), D3 refused (§7.6); disposition needs-owner → current now that the ruling landed; the §3a/§7.1 SPECIES verdicts are open for re-judgment under #1714.",
           "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md:1-140 full read by the orchestrator at 20ca3612a (lane cb-client-config-polish, #1169 arm a: measured comparison receipt, three drift candidates proposed, nothing landed)",
           "the two converged axes verified on tree: features/config/lib/config-section.tsx:79 passes ListPaneHeader; features/config/components/config-list-group.tsx:288 renders ListRow"
