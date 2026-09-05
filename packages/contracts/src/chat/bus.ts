@@ -10,7 +10,7 @@
 //     TYPE-LEVEL UNREPRESENTABLE (no member declares a field to carry one).
 
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, WorldEntryId } from "@orb/kit/ids";
-import type { ChatApi, CredentialSource } from "#connection";
+import type { ChatApi, CredentialSource, EffortLevel } from "#connection";
 import type { WiBusEvent } from "#world-info";
 import type { MessageView } from "./messages.ts";
 import type { ReactionEmoji } from "./reactions.ts";
@@ -65,10 +65,13 @@ export type ChatContentPart =
       readonly isError?: boolean | undefined;
     };
 
-/** Why the engine dropped content from a turn (the domain-originated `warning` bus event — distinct from the
- *  infra runner's `ResolvedWarning`/`WARNING_CODES`, which report resolve/wire drops). One home; the union is
- *  derived from this tuple (no inline re-spell). */
-export const CHAT_WARNING_CODES = [
+/** The warning codes whose user-facing notice is written from the CODE ALONE — every degrade except the
+ *  `settings_adjusted` carrier, which needs its payload (#1440). Its own tuple rather than an
+ *  `Exclude<ChatWarningCode, …>` for a measured reason: biome's type service does not evaluate a conditional
+ *  type, so an `Exclude`-typed field makes it call every arm of the client's copy switch unreachable
+ *  (`lint/suspicious/noUnnecessaryConditions`) while `tsc` is fine — the cross-module-union family. A tuple
+ *  it can read keeps the switch legible to BOTH checkers. */
+export const PLAIN_CHAT_WARNING_CODES = [
   // Image parts were stripped because the resolved model's `input.vision` isn't true (D45).
   "image_dropped",
   // Video parts (mp4/webm/animated-gif attachments, #317) were stripped because the resolved model's
@@ -126,7 +129,109 @@ export const CHAT_WARNING_CODES = [
   // tuples so the map is a MATCH, never a re-spell. Dropped-and-loud (D41), never silently swallowed.
   "custom_parameters_ignored",
 ] as const;
+/** @public twin: PLAIN_CHAT_WARNING_CODES — the codes a notice can be written for without a payload. */
+export type PlainChatWarningCode = (typeof PLAIN_CHAT_WARNING_CODES)[number];
+
+/** Why the engine dropped content from a turn (the domain-originated `warning` bus event — distinct from the
+ *  infra runner's `ResolvedWarning`/`WARNING_CODES`, which report resolve/wire drops). One home; the union is
+ *  derived from this tuple (no inline re-spell), and the tuple COMPOSES the plain codes above with the one
+ *  detail-bearing carrier so neither list can drift from the other.
+ *
+ *  THE PROVIDER-ADJUSTMENT CARRIER (#1440, owner ruling 2026-09-05). Ten resolve/wire degradation classes
+ *  used to map to `null` at the domain boundary (`engine.ts` `toChatWarning`) and were filtered out, so a
+ *  user believed a requested knob/budget/tool result applied when the provider had ignored or clamped it.
+ *  They surface as ONE code carrying STRUCTURED detail rather than ten members, because the ten share a
+ *  single user sentence — "the provider did not do what you asked, here is what it did instead" — and the
+ *  thing that differs is DATA (which knob, which value), not copy structure. The detail rides
+ *  `adjustment` (+ `knob`/`appliedBudget`/`appliedEffort`); the client renders one notice per class. */
+export const CHAT_WARNING_CODES = [...PLAIN_CHAT_WARNING_CODES, "settings_adjusted"] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
+
+/** WHICH provider degradation a `settings_adjusted` warning reports — the chat-side vocabulary for the
+ *  resolve/wire drop classes the infra runners raise (`infra/providers/contract/resolve.ts` `WARNING_CODES`).
+ *  Spelled IDENTICALLY to that tuple's ten degradation members so the domain map is a MATCH, never a
+ *  re-spell — the `custom_parameters_ignored` precedent. It is a SEPARATE tuple by necessity and by design:
+ *  `contracts` sits below `server`, so it cannot import infra's vocabulary, and chat must stay free to
+ *  classify a drop differently from the runner that raised it. One home; the union derives from it. */
+export const PROVIDER_ADJUSTMENT_KINDS = [
+  // A sampling/quality knob was not sent: the resolved model exposes no range for it, does not support it,
+  // or (for `thinkingBudgetTokens`) reasons by effort level and has no budget field. `knob` names which.
+  "sampling_knob_dropped",
+  // The requested reasoning effort is not one the model lists — it chose its own.
+  "effort_dropped",
+  // A thinking-budget request hit an ADAPTIVE-reasoning model, which budgets itself (an explicit budget 400s it).
+  "adaptive_budget_dropped",
+  // The requested reasoning-display mode is not one the model offers.
+  "display_dropped",
+  // The requested verbosity level is not one the model offers.
+  "verbosity_dropped",
+  // The per-turn system half was asked to ride the mid-conversation hook channel on a model that does not
+  // honor one, so it was folded into the system block instead.
+  "dynamic_context_demoted",
+  // Reasoning is MANDATORY on this model, so an off/absent effort was clamped UP. `appliedEffort` is what ran.
+  "reasoning_mandatory_clamp",
+  // A budget-mode reasoning budget was clamped DOWN to leave the visible reply headroom under the output
+  // cap. `appliedBudget` is the budget that ran.
+  "reasoning_budget_clamped",
+  // A history tool-result carried `isError`, which this wire cannot express — the model reads a failed tool
+  // result as an ordinary one.
+  "tool_result_error_dropped",
+  // The turn carried a content prefill AND asked for thinking — mutually exclusive on this wire, so the
+  // prefill won and the thinking kwargs were dropped.
+  "reasoning_dropped_for_prefill",
+] as const;
+export type ProviderAdjustmentKind = (typeof PROVIDER_ADJUSTMENT_KINDS)[number];
+
+/** The knob a `sampling_knob_dropped` adjustment NAMES — a closed subset of `UserIntent`'s own knob field
+ *  names (pinned in `tests/contracts/chat/index.test-d.ts`: every member is a `keyof UserIntent`, so this
+ *  tuple cannot drift into naming a setting that does not exist). A CLOSED union rather than free text
+ *  BY CONSTRUCTION: the bus's raw-string pin admits exactly two anchored free-text keys and this is not one
+ *  of them — the `ReactionEmoji`/`MemoryRecallPhase` precedent. One home; the union derives from it. */
+export const ADJUSTED_KNOBS = [
+  "temperature",
+  "topP",
+  "topK",
+  "frequencyPenalty",
+  "presencePenalty",
+  "repetitionPenalty",
+  "minP",
+  "topA",
+  "seed",
+  "logitBias",
+  "stop",
+  // The quality DIAL (not a sampling knob): dropped when the stored value is not a known quality level.
+  "quality",
+  // The reasoning token budget, dropped on an effort-mode model that has no budget field.
+  "thinkingBudgetTokens",
+] as const;
+export type AdjustedKnob = (typeof ADJUSTED_KNOBS)[number];
+
+/** The PAYLOAD half of a `warning` bus event — the shape a client's copy mapper dispatches on.
+ *  `settings_adjusted` ALWAYS carries its `adjustment`; every other code carries none, and `tsc` enforces
+ *  both directions.
+ *
+ *  DECLARED, not derived, and the two arms below are spelled a second time on the bus union — deliberately,
+ *  against this repo's own no-doubling instinct, because BOTH readers have a hard constraint:
+ *    • biome's type service cannot see through a distributive-conditional `Omit` of the bus union: every
+ *      `case` of the client's copy switch reads `lint/suspicious/noUnnecessaryConditions` "unreachable"
+ *      while tsc is fine (the cross-module-union family — declare the type, never re-derive it).
+ *    • the bus union must stay a set of PLAIN OBJECT LITERALS: `index.test-d.ts` walks its members' keys
+ *      with a mapped type, and an intersection or a conditional arm hides keys from that walk (a false
+ *      clean on the D16 anchor allowlist), while `bus-payload-allowlist` refuses an unmodelled shape kind.
+ *  The doubling is therefore ENFORCED rather than trusted: `index.test-d.ts` pins that the bus's `warning`
+ *  members and this type are the same set, so a field added to one and not the other fails `tsc`. */
+export type ChatWarning = { code: PlainChatWarningCode } | ChatSettingsAdjustedWarning;
+
+/** The detail-bearing arm on its own — a NAMED type rather than an `Extract<ChatWarning, …>` at each reader,
+ *  for the same measured reason the code tuple is split: biome does not evaluate a conditional type, so a copy
+ *  mapper whose parameter is an `Extract<>` has every arm of its `adjustment` switch called unreachable. */
+export interface ChatSettingsAdjustedWarning {
+  code: "settings_adjusted";
+  adjustment: ProviderAdjustmentKind;
+  knob?: AdjustedKnob | undefined;
+  appliedBudget?: number | undefined;
+  appliedEffort?: EffortLevel | undefined;
+}
 
 /** The turn kinds a lifecycle bus event reports. One home (no inline re-spell across the three members). */
 export const TURN_INTENTS = ["send", "swipe", "continue", "generate", "impersonate"] as const;
@@ -379,7 +484,29 @@ export type ChatBusEvent =
   // `count` is null on `"recalling"` (not known yet) and the surfaced block count on `"recalled"`.
   | { type: "memoryRecall"; chatId: ChatId; phase: MemoryRecallPhase; count: number | null }
   // ── Turn warning (domain-originated; e.g. image parts dropped for a non-vision model, D45) ──
-  | { type: "warning"; chatId: ChatId; code: ChatWarningCode }
+  //    TWO ARMS, and the split is the enforcer (#1440): `settings_adjusted` is the only code whose notice
+  //    cannot be written from the code alone, so it is the only arm that carries detail — and it carries it
+  //    REQUIRED, so an emit site cannot ship the carrier without saying what the provider actually did.
+  //    Every field is an enum literal or a plain number: no structured carrier (the D16 anchor allowlist
+  //    admits only `view`/`delta`) and no raw string (the two anchored free-text keys are spoken for), so
+  //    both `index.test-d.ts` pins hold BY CONSTRUCTION rather than by exemption.
+  | { type: "warning"; chatId: ChatId; code: PlainChatWarningCode }
+  | {
+      type: "warning";
+      chatId: ChatId;
+      code: "settings_adjusted";
+      /** WHICH degradation class — the dispatch axis the client's copy switch is total over. */
+      adjustment: ProviderAdjustmentKind;
+      /** The setting a `sampling_knob_dropped` names; absent on every class that names itself. */
+      knob?: AdjustedKnob | undefined;
+      /** The reasoning budget, IN TOKENS, that actually ran (`reasoning_budget_clamped`). Named
+       *  `appliedBudget` rather than `appliedTokens` deliberately: the `bus-payload-allowlist` gate reads
+       *  `token` as a credential word, and it is right to — a name is the honest fix here, never a
+       *  sanctioned-field row for a field that only looks like auth by accident. */
+      appliedBudget?: number | undefined;
+      /** The reasoning effort that actually ran (`reasoning_mandatory_clamp`). */
+      appliedEffort?: EffortLevel | undefined;
+    }
   // ── World-info ACTIVATION (which entries FIRED during this turn's assembly — distinct from the
   //    attachment changes in WiBusEvent; ST WORLD_INFO_ACTIVATED — the "what lore fired" automation hook) ──
   //    `automationDepth` is the cascade depth of the GENERATING turn (the same plain scalar `turnAborted`

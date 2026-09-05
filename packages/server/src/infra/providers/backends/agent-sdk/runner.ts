@@ -334,7 +334,7 @@ function appendWarnings(result: ChatResult, warnings: readonly ResolvedWarning[]
   if (warnings.length === 0) {
     return result;
   }
-  const events = warnings.map(({ code, message }): ChatEvent => ({ kind: "warning", at, code, message }));
+  const events = warnings.map((warning): ChatEvent => ({ kind: "warning", at, ...warning }));
   for (const event of events) {
     onEvent?.(event);
   }

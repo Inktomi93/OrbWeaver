@@ -266,9 +266,11 @@ describe("activePersonaIdFor — the TurnTrigger binding", () => {
 // `ChatResult.events` — `custom_parameters_ignored`, `tool_result_error_dropped`, every resolve-chat knob drop —
 // died at this seam. Producer coverage existed (two runner suites); the READ side had none.
 //
-// The bridge CARRIES infra codes verbatim (the chat-vocabulary narrowing is the domain's, at
-// `engine.ts` `toChatWarningCode`). Under test here: warnings become chunks at all, they land BEFORE the
-// terminal `final` (which ends the drain), a repeat collapses, and non-warning runner events never leak in.
+// The bridge CARRIES infra warnings verbatim (the chat-vocabulary narrowing is the domain's, at
+// `engine.ts` `toChatWarning`). Under test here: warnings become chunks at all, they carry the drop's
+// STRUCTURED half (#1440 — without it the domain cannot say WHICH knob was refused), they land BEFORE the
+// terminal `final` (which ends the drain), an identical repeat collapses while two DIFFERENT drops sharing a
+// code do not, and non-warning runner events never leak in.
 describe("createRunChatTurnBridge — the runner-warning carry", () => {
   /** FABRICATION-OK: a minimal successful `ChatResult` — only `events` is under test. */
   const baseResult = {
@@ -333,20 +335,27 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
   test("a runner warning rides as a `warning` chunk, BEFORE the terminal `final`", async () => {
     const chunks = await chunksFor([warningEvent("custom_parameters_ignored")]);
     expect(chunks.map((c) => c.kind)).toEqual(["warning", "final"]);
-    expect(chunks[0]).toEqual({ kind: "warning", code: "custom_parameters_ignored" });
+    // WHOLE, not just the code (#1440): `message` is the operator prose the outcome ring keeps, and the
+    // structured half rides the same way — a bridge that dropped either would leave the domain guessing.
+    expect(chunks[0]).toEqual({ kind: "warning", code: "custom_parameters_ignored", message: "custom_parameters_ignored happened" });
   });
 
-  test("a code with no chat twin still rides — the bridge carries, the DOMAIN decides what surfaces", async () => {
-    // `sampling_knob_dropped` is a declared `toChatWarningCode` null (it needs its own CHAT_WARNING_CODES
-    // member + owner-authored copy before it can toast — board row INFRA-WARN-DEAF), but that ruling belongs
-    // to the domain: filtering it here would put chat's vocabulary decision in the composition root.
-    const chunks = await chunksFor([warningEvent("sampling_knob_dropped")]);
-    expect(chunks.map((c) => c.kind)).toEqual(["warning", "final"]);
+  test("a knob drop's STRUCTURED half survives the bridge — the domain cannot re-derive it (#1440)", async () => {
+    const chunks = await chunksFor([{ kind: "warning", at: 1000, code: "sampling_knob_dropped", knob: "topK", message: "topK ignored" }]);
+    expect(chunks[0]).toEqual({ kind: "warning", code: "sampling_knob_dropped", knob: "topK", message: "topK ignored" });
   });
 
-  test("a repeated code yields ONE chunk (one degrade, one notice)", async () => {
+  test("a repeated degrade yields ONE chunk (one degrade, one notice)", async () => {
     const chunks = await chunksFor([warningEvent("custom_parameters_ignored"), warningEvent("custom_parameters_ignored")]);
     expect(chunks.filter((c) => c.kind === "warning")).toHaveLength(1);
+  });
+
+  test("two DIFFERENT knobs under one code are two chunks — a code-keyed dedupe would lie about one", async () => {
+    const chunks = await chunksFor([
+      { kind: "warning", at: 1000, code: "sampling_knob_dropped", knob: "topK", message: "topK ignored" },
+      { kind: "warning", at: 1000, code: "sampling_knob_dropped", knob: "minP", message: "minP ignored" },
+    ]);
+    expect(chunks.filter((c) => c.kind === "warning")).toHaveLength(2);
   });
 
   // The DENOMINATOR carry (docs/design/streaming-shape-churn.md §7.5's phantom cost bug). `tokensOut` is a

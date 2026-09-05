@@ -1,4 +1,5 @@
-import type { ChatBusEvent, ChatContentPart, InviteView, MessageSlot, MessageView } from "@orb/contracts/chat";
+import type { AdjustedKnob, ChatBusEvent, ChatContentPart, ChatWarning, InviteView, MessageSlot, MessageView } from "@orb/contracts/chat";
+import type { UserIntent } from "@orb/contracts/preset";
 import { expectTypeOf, test } from "vitest";
 
 // Type-level pins for the chat contract (moved out of `.contract.test.ts` per core/Spine-Testing.md §1 — the
@@ -113,7 +114,49 @@ test("ChatBusEvent's key vocabulary is CLOSED (a new member's free-text field is
     | "variantId"
     | "emoji"
     | "added"
+    // #1440 provider-degradation detail, all four on the `settings_adjusted` warning arm. A DELIBERATE,
+    // reviewed vocabulary extension — the shape the pins below defend is preserved by construction rather
+    // than by exemption: `adjustment` and `knob` are CLOSED string-literal unions (the `emoji`/`phase`
+    // precedent, so they stay out of the raw-string pin), `appliedEffort` is the `EffortLevel` enum, and
+    // `appliedBudget` is a plain number. Nothing here is a structured carrier, so the anchor allowlist below
+    // is untouched — which is exactly why the detail is FLAT rather than a nested `{ adjustment: … }` object.
+    | "adjustment"
+    | "knob"
+    | "appliedBudget"
+    | "appliedEffort"
   >();
+});
+
+// ── #1440: the provider-degradation carrier's own shape ───────────────────────────────────────────────
+// `settings_adjusted` is ONE code over ten degradation classes, so the detail is the notice: a member that
+// could ship the code without its class would put "something was adjusted" in front of a user, which is the
+// silence the carrier exists to end. These pin that the split is enforced by the TYPE, not by a convention.
+
+test("the settings_adjusted warning arm REQUIRES its class; no other warning may carry one (#1440)", () => {
+  // Required on the carrier: `adjustment` is not optional, so a bare `{ code: "settings_adjusted" }` is
+  // unrepresentable — the emit site must say WHICH degradation it is reporting.
+  expectTypeOf<Extract<ChatWarning, { code: "settings_adjusted" }>>().toHaveProperty("adjustment");
+  expectTypeOf<Extract<ChatWarning, { code: "settings_adjusted" }>["adjustment"]>().not.toBeUndefined();
+  // Absent everywhere else: the OTHER arm cannot declare detail, so a copy mapper reading `adjustment` has
+  // narrowed first by construction.
+  expectTypeOf<UnionMemberHasKey<Exclude<ChatWarning, { code: "settings_adjusted" }>, "adjustment">>().toEqualTypeOf<false>();
+});
+
+test("ChatWarning IS the bus's warning payload — the two spellings cannot drift apart", () => {
+  // `ChatWarning` is DECLARED rather than projected off the bus (biome cannot narrow a switch over a
+  // conditional-derived union, and the bus members must stay plain literals for the key-vocabulary walk
+  // above). This equality is what makes that doubling safe: a field added to one spelling and not the
+  // other fails HERE, at `tsc`, rather than in a copy mapper that silently stops seeing the detail.
+  expectTypeOf<WarningPayload<ChatBusEvent>>().toEqualTypeOf<ChatWarning>();
+});
+
+/** The bus's `warning` members with the envelope keys stripped — the projection `ChatWarning` must equal. */
+type WarningPayload<E> = E extends { readonly type: "warning" } ? Omit<E, "type" | "chatId"> : never;
+
+test("every ADJUSTED_KNOBS member names a real UserIntent knob (the tuple cannot drift into fiction)", () => {
+  // A knob the user cannot set is a knob no provider can drop, so a name outside `UserIntent` could only
+  // ever produce a notice about a setting that does not exist. `never` is the whole pin.
+  expectTypeOf<Exclude<AdjustedKnob, keyof UserIntent>>().toEqualTypeOf<never>();
 });
 
 test("free text on the chat bus is turnStarted.model + the ANCHORED delta.memberText (D16 anchor allowlist)", () => {

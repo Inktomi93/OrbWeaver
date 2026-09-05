@@ -40,6 +40,53 @@ function withSampling(sampling: ModelCapability["sampling"]): ModelCapability {
   return { ...FULL, sampling };
 }
 
+// #1440 — THE STRUCTURED HALF. `message` is operator prose and cannot cross to a user (the chat bus admits
+// no unanchored free text), so these three fields are the ONLY way a notice can name the setting the provider
+// refused and the value it used instead. They are produced HERE and nowhere else: the domain re-voices them,
+// it never re-derives them.
+describe("resolveChat — a warning names WHAT was dropped and to what (#1440)", () => {
+  test("a capability-gated sampling knob names ITSELF, not just its class", () => {
+    const out = resolveChat({ temperature: 0.9, topK: 40 }, withSampling({ topK: { min: 0, max: 100 } }));
+    const dropped = out.warnings.filter((w) => w.code === "sampling_knob_dropped");
+    expect(dropped.map((w) => w.knob)).toEqual(["temperature"]);
+  });
+
+  test("an unsupported FLAG knob names itself too (the resolveFlag arm)", () => {
+    const out = resolveChat({ seed: 7 }, withSampling({ ...FULL.sampling, seed: false }));
+    expect(out.warnings.map((w) => w.knob)).toEqual(["seed"]);
+  });
+
+  test("a budget on an effort-mode model is a THINKING-BUDGET drop, named as such", () => {
+    const out = resolveChat({ effort: "low", thinkingBudgetTokens: 4096 }, FULL);
+    const dropped = out.warnings.filter((w) => w.code === "sampling_knob_dropped");
+    expect(dropped.map((w) => w.knob)).toEqual(["thinkingBudgetTokens"]);
+  });
+
+  test("the mandatory-reasoning clamp carries the effort that ACTUALLY ran", () => {
+    const cap = withReasoning({ mode: "effort", enabled: true, mandatory: true, effortLevels: ["medium", "high"] });
+    const out = resolveChat({}, cap);
+    const clamp = out.warnings.find((w) => w.code === "reasoning_mandatory_clamp");
+    expect(clamp?.appliedEffort).toBe("medium");
+    expect(out.reasoning.effort).toBe("medium");
+  });
+
+  test("the budget clamp carries the budget that ACTUALLY ran", () => {
+    const cap = withReasoning({ mode: "budget", enabled: true, budgetRange: { min: 128, max: 32_000 } });
+    const out = resolveChat({ effort: "high", thinkingBudgetTokens: 4000, maxOutputTokens: 2048 }, cap);
+    const clamp = out.warnings.find((w) => w.code === "reasoning_budget_clamped");
+    expect(clamp?.appliedBudget).toBe(out.reasoning.budgetTokens);
+    expect(clamp?.appliedBudget).toBe(1536);
+  });
+
+  test("a class that names itself carries NO detail — an absent field, never a fabricated one", () => {
+    const out = resolveChat({ verbosity: "high" }, FULL);
+    const dropped = out.warnings.find((w) => w.code === "verbosity_dropped");
+    expect(dropped?.knob).toBeUndefined();
+    expect(dropped?.appliedBudget).toBeUndefined();
+    expect(dropped?.appliedEffort).toBeUndefined();
+  });
+});
+
 describe("resolveChat — the reasoning on/off decision", () => {
   test("OFF when the user named no effort (undefined is not 'asked')", () => {
     const out = resolveChat({}, FULL);
@@ -90,6 +137,7 @@ describe("resolveChat — R0 reasoning: mandatory clamp + defaultEffort preceden
     expect(out.reasoning.enabled).toBe(true); // clamped on, never a silent 400
     expect(out.reasoning.effort).toBe("low"); // lowest by canonical order (not array position)
     expect(out.warnings).toContainEqual({
+      appliedEffort: "low",
       code: "reasoning_mandatory_clamp",
       message: 'reasoning is mandatory on this model: clamped effort "none" up to the lowest supported "low"',
     });
@@ -287,6 +335,7 @@ describe("resolveChat — sampling capability-gating", () => {
     expect(out.sampling.temperature).toBeUndefined();
     expect(out.warnings).toContainEqual({
       code: "sampling_knob_dropped",
+      knob: "temperature",
       message: "temperature ignored: model does not expose a temperature range",
     });
   });
@@ -302,6 +351,7 @@ describe("resolveChat — sampling capability-gating", () => {
     expect(out.sampling.topA).toBeUndefined();
     expect(out.warnings).toContainEqual({
       code: "sampling_knob_dropped",
+      knob: "topA",
       message: "topA ignored: model does not expose a topA range",
     });
   });
@@ -319,6 +369,7 @@ describe("resolveChat — sampling capability-gating", () => {
     expect(out.sampling.seed).toBeUndefined();
     expect(out.warnings).toContainEqual({
       code: "sampling_knob_dropped",
+      knob: "seed",
       message: "seed ignored: model does not support seed",
     });
   });
@@ -353,6 +404,7 @@ describe("resolveChat — the quality dial → sampling (Proposal 2, sampling ha
     expect(out.sampling.temperature).toBeUndefined();
     expect(out.warnings).toContainEqual({
       code: "sampling_knob_dropped",
+      knob: "temperature",
       message: "temperature ignored: model does not expose a temperature range",
     });
   });
@@ -381,6 +433,7 @@ describe("resolveChat — the quality dial → sampling (Proposal 2, sampling ha
     expect(out.sampling.topP).toBe(0.5); // the rest of the funnel still resolves
     expect(out.warnings).toContainEqual({
       code: "sampling_knob_dropped",
+      knob: "quality",
       message: 'quality "ludicrous" ignored: not a known quality level (fast, balanced, deep)',
     });
   });
@@ -403,6 +456,7 @@ describe("resolveChat — minP (D68-A)", () => {
     expect(out.sampling.minP).toBeUndefined();
     expect(out.warnings).toContainEqual({
       code: "sampling_knob_dropped",
+      knob: "minP",
       message: "minP ignored: model does not expose a minP range",
     });
   });

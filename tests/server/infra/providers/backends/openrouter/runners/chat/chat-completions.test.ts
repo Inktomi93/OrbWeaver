@@ -352,6 +352,7 @@ describe("runChatCompletionTurn — wire shaping", () => {
         kind: "warning",
         at: FIXED_NOW,
         code: "sampling_knob_dropped",
+        knob: "seed",
         message: "seed ignored: model does not support seed",
       },
     ]);

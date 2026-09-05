@@ -245,7 +245,7 @@ export function buildReasoningRequest(reasoning: ResolvedReasoning): ReasoningRe
 }
 
 export function warningEvents(warnings: readonly ResolvedWarning[], at: number): ChatEvent[] {
-  return warnings.map(({ code, message }) => ({ kind: "warning", at, code, message }));
+  return warnings.map((warning) => ({ kind: "warning", at, ...warning }));
 }
 
 const SAMPLING_KNOBS = [

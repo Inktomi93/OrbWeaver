@@ -244,6 +244,7 @@ describe("toSdkGeneration — maps the resolved decision into SDK Options", () =
     const gen = toSdkGeneration({ effort: "high", temperature: 0.7 }, EFFORT_CAP);
     expect(gen.warnings).toContainEqual({
       code: "sampling_knob_dropped",
+      knob: "temperature",
       message: "temperature ignored: model does not expose a temperature range",
     });
   });

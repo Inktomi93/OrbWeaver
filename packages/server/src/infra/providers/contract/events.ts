@@ -2,6 +2,8 @@
 // Metadata only, never RP content. SDK-decoupled: status/limit fields are plain string/number, never an
 // `@anthropic-ai/claude-agent-sdk` type — the agent-sdk backend maps its SDK events at its boundary.
 
+import type { AdjustedKnob } from "@orb/contracts/chat";
+import type { EffortLevel } from "@orb/contracts/connection";
 import type { WarningCode } from "./resolve.ts";
 
 export type { ChatDeltaEvent } from "@orb/contracts/chat";
@@ -67,10 +69,17 @@ export type ChatEvent =
       readonly billed: readonly string[];
     }
   | {
+      // The runner's honest-degrade report. `message` is OPERATOR prose (logs + the wire-outcome ring); the
+      // STRUCTURED fields below are what the chat domain re-voices for a user (#1440), because the chat bus
+      // admits no unanchored free text. They mirror `ResolvedWarning`'s own optional half one-for-one — a
+      // warning is carried here whole, never re-derived.
       readonly kind: "warning";
       readonly at: number;
       readonly code: WarningCode;
       readonly message: string;
+      readonly knob?: AdjustedKnob | undefined;
+      readonly appliedBudget?: number | undefined;
+      readonly appliedEffort?: EffortLevel | undefined;
     }
   | {
       // `category` is an open vocab; `explanation` is unstable human prose — display only, never parse.

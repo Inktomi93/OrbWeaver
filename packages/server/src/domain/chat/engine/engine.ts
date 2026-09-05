@@ -16,7 +16,7 @@
 // The chat bus emit, the per-member budget debit, and the per-turn host policy are not ChatContext ops —
 // they're injected as engine deps wired at the entry composition root.
 
-import type { AssembleContext, ChatWarningCode, DurableChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
+import type { AssembleContext, ChatWarning, DurableChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
 import { buildIdentityNameContext, DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 
@@ -40,7 +40,7 @@ import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observab
 // arm needs `instanceof` against the real class to read a thrown turn's OWN classification (see
 // `providerTerminalReason`). Legal in the tier order (domain sits ABOVE infra); the reverse edge is what
 // `infra-below-domain` bans.
-import type { WarningCode } from "#infra/providers";
+import type { ResolvedWarning } from "#infra/providers";
 import { ProviderError } from "#infra/providers";
 import type { ChatContext } from "../context.ts";
 import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
@@ -1216,6 +1216,10 @@ function captureTurnOutcome(prep: TurnPrep, result: Awaited<ReturnType<typeof ru
     modelCalls: economics?.modelCalls ?? null,
     reasoningEffort: economics?.reasoningEffort ?? null,
     toolCalls: result.toolRecords.map((record) => ({ name: record.name, args: record.arguments })),
+    // The RAW provider degradations, operator prose and all — the half the user's re-voiced chat warning
+    // deliberately does not carry (#1440). This ring is where "which knob did the provider refuse, and what
+    // did it clamp to" is answered after the fact.
+    warnings: result.runnerWarnings.map((warning) => ({ code: warning.code, message: warning.message })),
   });
 }
 
@@ -1379,6 +1383,8 @@ function captureTurnFault(prep: TurnPrep, err: unknown, reason: TurnAbortReason,
       modelCalls: null,
       reasoningEffort: prep.intent.effort ?? null,
       toolCalls: [],
+      // A fault threw out of the pipeline, so no warning it may have carried survived to this arm.
+      warnings: [],
     });
   } catch (recordErr) {
     getLog().warn({ err: recordErr, chatId: prep.chatId }, "chat: the turn-fault outcome record failed (the original turn error is unaffected)");
@@ -2080,9 +2086,11 @@ export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine
  *  tools, structured output) PLUS the INFRA-originated runner warnings it carried up (resolve/wire drops the
  *  runners raised, narrowed to chat's vocabulary at the compose bridge — D41's read end). Extracted so the
  *  generation lifecycle stays under the cognitive-complexity cap.
- *  @internal exported for the drop-warning unit test — the structured-output flag has no engine INPUT path yet
- *  (no chat consumer sets `responseFormat`, 04 §3), so the emit branch is only reachable directly. */
-async function emitCapabilityDropWarnings(
+ *  @internal exported for the drop-warning unit test (`tests/server/domain/chat/engine/engine.test.ts`) — the
+ *  structured-output flag has no engine INPUT path yet (no chat consumer sets `responseFormat`, 04 §3), so that
+ *  emit branch is only reachable directly, and the infra→chat translation below is total over a tuple a turn
+ *  cannot produce all of. The export was CLAIMED by this doc line long before it existed (#1440 restored it). */
+export async function emitCapabilityDropWarnings(
   emit: (event: DurableChatBusEvent) => Promise<void>,
   chatId: ChatId,
   result: {
@@ -2091,7 +2099,7 @@ async function emitCapabilityDropWarnings(
     readonly toolsUnsupported: boolean;
     readonly structuredOutputUnsupported: boolean;
     readonly guidedPlacedAsInjection: boolean;
-    readonly runnerWarnings: readonly WarningCode[];
+    readonly runnerWarnings: readonly ResolvedWarning[];
   },
 ): Promise<void> {
   if (result.imageDropped) {
@@ -2112,12 +2120,9 @@ async function emitCapabilityDropWarnings(
     await emit({ type: "warning", chatId, code: "guided_placed_as_injection" });
   }
   // The infra runners' own drops (D41 read end). Deduped upstream; independent of each other, so they fan
-  // concurrently — all awaited here, which is what keeps them BEFORE the turn's terminal bus event.
-  const runnerCodes = result.runnerWarnings.flatMap((code) => {
-    const chatCode = toChatWarningCode(code);
-    return chatCode === null ? [] : [chatCode];
-  });
-  await Promise.all(runnerCodes.map((code) => emit({ type: "warning", chatId, code })));
+  // concurrently — all awaited here, which is what keeps them BEFORE the turn's terminal bus event. TOTAL
+  // since #1440: the translation answers for every infra code, so nothing is filtered out here any more.
+  await Promise.all(result.runnerWarnings.map((warning) => emit({ type: "warning", chatId, ...toChatWarning(warning) })));
 }
 
 /** The infra→chat warning translation (D41 no-silent-degrade, the READ end). Chat OWNS its bus vocabulary, so
@@ -2129,18 +2134,21 @@ async function emitCapabilityDropWarnings(
  *  `tsc` here until someone rules on it, so a runner drop can never go silently un-surfaced again — the exact
  *  failure this seam was built to end (the runners produced these for months and nothing read them).
  *
- *  `null` is a DECLARED not-yet-surfaced, never a fallthrough: each of those codes needs its own
- *  `CHAT_WARNING_CODES` member plus owner-authored user copy before it can toast, and several are per-turn
- *  clamps whose toast-worthiness is a product call (board row INFRA-WARN-DEAF). Listing them one by one is what
- *  keeps the `assertNever` honest — a `default: return null` would silently re-open the hole. */
-function toChatWarningCode(code: WarningCode): ChatWarningCode | null {
+ *  TOTAL IN ITS RETURN TOO, since #1440 (owner ruling 2026-09-05). Ten of those codes used to return `null` —
+ *  a "declared not-yet-surfaced" arm that `emitCapabilityDropWarnings` then filtered out, so a user believed a
+ *  requested knob / reasoning budget / tool result had applied when the provider had ignored or clamped it.
+ *  The owner ruled SURFACE: they ride ONE `settings_adjusted` code carrying the drop's structured detail, which
+ *  the client re-voices per class. No `null` arm survives, and no `default: return null` may replace this list
+ *  — listing every code one by one is what keeps the `assertNever` honest. */
+function toChatWarning(warning: ResolvedWarning): ChatWarning {
+  const code = warning.code;
   switch (code) {
     case "custom_parameters_ignored":
-      return "custom_parameters_ignored";
+      return { code: "custom_parameters_ignored" };
     // Not producible on the chat-turn path (it is the IMAGE runner's belt, which reaches the bus through
-    // `verbs/generate-image.ts`) — mapped rather than nulled because the two vocabularies agree on it.
+    // `verbs/generate-image.ts`) — mapped rather than carried because the two vocabularies agree on it.
     case "image_edit_dropped":
-      return "image_edit_dropped";
+      return { code: "image_edit_dropped" };
     case "sampling_knob_dropped":
     case "effort_dropped":
     case "adaptive_budget_dropped":
@@ -2151,12 +2159,17 @@ function toChatWarningCode(code: WarningCode): ChatWarningCode | null {
     case "reasoning_budget_clamped":
     case "tool_result_error_dropped":
     case "reasoning_dropped_for_prefill":
-      return null;
+      // `adjustment: code` IS the MATCH: the ten infra spellings and `PROVIDER_ADJUSTMENT_KINDS` are separate
+      // tuples (contracts sits below server and cannot import infra), so a rename on either side fails `tsc`
+      // right here. The three detail fields ride straight through — the resolver is the only layer that knows
+      // them, and re-deriving them in the domain would be inventing a fact. `undefined` is the honest absent
+      // (optional on both sides; JSON drops it on the durable log).
+      return { adjustment: code, appliedEffort: warning.appliedEffort, appliedBudget: warning.appliedBudget, code: "settings_adjusted", knob: warning.knob };
     default:
       return assertNeverWarningCode(code);
   }
 }
 
 function assertNeverWarningCode(code: never): never {
-  throw new Error(`toChatWarningCode: unhandled infra WarningCode ${JSON.stringify(code)}`);
+  throw new Error(`toChatWarning: unhandled infra WarningCode ${JSON.stringify(code)}`);
 }

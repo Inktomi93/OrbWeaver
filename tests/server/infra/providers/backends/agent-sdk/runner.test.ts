@@ -837,6 +837,7 @@ describe("createAgentSdkBackend", () => {
         kind: "warning",
         at: FIXED_NOW,
         code: "sampling_knob_dropped",
+        knob: "temperature",
         message: "temperature ignored: model does not expose a temperature range",
       },
     ]);

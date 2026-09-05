@@ -38,6 +38,7 @@ export {
   type WireCaptureFilter,
   type WireOutcome,
   type WireToolCall,
+  type WireWarning,
 } from "./debug/index.ts";
 export {
   bindRequestUser,

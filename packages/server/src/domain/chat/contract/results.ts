@@ -26,7 +26,7 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
-import type { HistoryRole, ToolCallInput, ToolChoice, WarningCode, WireTool } from "#infra/providers";
+import type { HistoryRole, ResolvedWarning, ToolCallInput, ToolChoice, WireTool } from "#infra/providers";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
 import type { ReactAsCharacterParams, RequestTurnParams } from "./params.ts";
 import type { ChatDetail, ChatVariables } from "./views.ts";
@@ -213,13 +213,21 @@ export interface HistoryMacroNames {
  *  The `warning` arm is the CHAT role's infra→domain warning hop (D41 no-silent-degrade). The runners raise
  *  resolve/wire drops as infra `WARNING_CODES` on `ChatResult.events`; the compose bridge
  *  (`createRunChatTurnBridge`) carries them here VERBATIM, in the infra vocabulary. Chat owns its own bus
- *  vocabulary and translates at the engine (`toChatWarningCode`) — the mirror of the IMAGE role's hop, where
+ *  vocabulary and translates at the engine (`toChatWarning`) — the mirror of the IMAGE role's hop, where
  *  compose hands over a narrowed infra code and `verbs/generate-image.ts` re-maps it to a `ChatWarningCode`.
- *  A code with no chat twin is dropped THERE, exhaustively and deliberately. */
+ *  Every infra code has a chat surface as of #1440 — the ten resolve/wire degradations that used to be
+ *  dropped there now ride the `settings_adjusted` carrier — and the translation stays exhaustive by
+ *  `assertNever`, so a NEW infra code fails `tsc` until someone rules on it.
+ *
+ *  The warning rides WHOLE (`& ResolvedWarning`), not as a bare code (#1440): the structured half
+ *  (`knob`/`appliedBudget`/`appliedEffort`) is the only thing that can tell a user WHICH setting the
+ *  provider refused and what it used instead, and re-deriving it in the domain would be inventing a fact
+ *  the resolver already knows. `message` rides too — operator prose for the wire-outcome ring, never a
+ *  user surface. */
 export type TurnStreamChunk =
   | { readonly kind: "text"; readonly text: string }
   | { readonly kind: "reasoning"; readonly text: string }
-  | { readonly kind: "warning"; readonly code: WarningCode }
+  | ({ readonly kind: "warning" } & ResolvedWarning)
   | { readonly kind: "final"; readonly economics: TurnEconomics };
 
 /** The post-generation economics a role turn reports, folded onto the variant. All optional: a runner that

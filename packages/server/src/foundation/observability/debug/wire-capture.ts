@@ -154,6 +154,16 @@ export interface WireToolCall {
   readonly args: string;
 }
 
+/** One RAW provider degradation the turn's runner raised, exactly as it was raised (#1440). The user gets a
+ *  re-voiced `settings_adjusted` chat warning; the OPERATOR gets this — the runner's own code + prose, which
+ *  names the knob and the value it clamped to. Foundation cannot import infra's `WARNING_CODES`, so `code` is
+ *  a plain string here for the same reason `terminalReason` is: assignability at the engine's call site is
+ *  the enforcer. */
+export interface WireWarning {
+  readonly code: string;
+  readonly message: string;
+}
+
 /** What the model actually returned for one turn. Lengths, not bodies (see the header). */
 export interface WireOutcome {
   readonly chatId: ChatId;
@@ -192,6 +202,9 @@ export interface WireOutcome {
   readonly modelCalls: number | null;
   readonly reasoningEffort: string | null;
   readonly toolCalls: readonly WireToolCall[];
+  /** The RAW provider degradations this turn carried — empty on a fault (the pipeline threw before it could
+   *  report any) and on a turn the provider ran exactly as asked. */
+  readonly warnings: readonly WireWarning[];
 }
 
 const outcomeRing = createBoundedRing<WireOutcome>(WIRE_CAPTURE_RING_CAPACITY);

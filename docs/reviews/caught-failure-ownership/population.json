@@ -2022,7 +2022,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:catch::2",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1836,
+      "line": 1842,
       "column": 13,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2035,7 +2035,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:deltaErr::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1862,
+      "line": 1868,
       "column": 7,
       "grammar": "empty",
       "position": "empty:deltaErr",
@@ -2043,12 +2043,12 @@
       "snippet": "} catch (deltaErr) {",
       "verdict": "deliberate-absorb",
       "reason": "explicitly classified below — a `deltaErr` equal",
-      "markerLine": 1856
+      "markerLine": 1862
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::promise:releasedBody::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1968,
+      "line": 1974,
       "column": 10,
       "grammar": "promise",
       "position": "promise:releasedBody",
@@ -2932,7 +2932,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1016,
+      "line": 1021,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -2940,12 +2940,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 1012
+      "markerLine": 1017
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1049,
+      "line": 1054,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2953,12 +2953,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 1038
+      "markerLine": 1043
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1086,
+      "line": 1091,
       "column": 11,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2966,12 +2966,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1078
+      "markerLine": 1083
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 806,
+      "line": 811,
       "column": 9,
       "grammar": "empty",
       "position": "empty:err",
@@ -2979,12 +2979,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — documented below: only a",
-      "markerLine": 801
+      "markerLine": 806
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::promise:runChatTurn::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 725,
+      "line": 730,
       "column": 10,
       "grammar": "promise",
       "position": "promise:runChatTurn",
@@ -2992,7 +2992,7 @@
       "snippet": "void deps",
       "verdict": "deliberate-absorb",
       "reason": "propagated — the rejection reaches",
-      "markerLine": 722
+      "markerLine": 727
     },
     {
       "siteId": "packages/server/src/entry/compose/emit-chat-changed.ts::empty:catch::1",
@@ -3296,7 +3296,7 @@
     {
       "siteId": "packages/server/src/foundation/observability/debug/wire-capture.ts::default:catch::1",
       "path": "packages/server/src/foundation/observability/debug/wire-capture.ts",
-      "line": 255,
+      "line": 268,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3304,12 +3304,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — an unserializable body is not",
-      "markerLine": 250
+      "markerLine": 263
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/wire-capture.ts::empty:catch::1",
       "path": "packages/server/src/foundation/observability/debug/wire-capture.ts",
-      "line": 270,
+      "line": 283,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3317,12 +3317,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — first write of a fresh",
-      "markerLine": 265
+      "markerLine": 278
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/wire-capture.ts::promise:spillChain::1",
       "path": "packages/server/src/foundation/observability/debug/wire-capture.ts",
-      "line": 261,
+      "line": 274,
       "column": 16,
       "grammar": "promise",
       "position": "promise:spillChain",
@@ -3330,7 +3330,7 @@
       "snippet": "spillChain = spillChain",
       "verdict": "deliberate-absorb",
       "reason": "documented above the spillChain",
-      "markerLine": 258
+      "markerLine": 271
     },
     {
       "siteId": "packages/server/src/infra/auth/config.ts::default:catch::1",

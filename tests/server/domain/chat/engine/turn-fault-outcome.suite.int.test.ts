@@ -196,3 +196,29 @@ describe("a THROWN turn leaves a wire-outcome row (the §7.5 silent 500)", () =>
     expect(recentTurnOutcomes({ chatId })).toHaveLength(1);
   });
 });
+
+// #1440 — THE OPERATOR HALF of the provider-degradation surface. The user's `settings_adjusted` toast is
+// deliberately RE-VOICED and carries no provider prose (the chat bus admits no unanchored free text), so if
+// the ring did not keep the RAW warning, "which knob did this backend refuse, and what did it clamp to" would
+// be unanswerable after the fact — exactly the diagnosis this ring exists for. No second store was minted:
+// the warnings ride the outcome row the engine already writes on every resolved turn.
+describe("a COMPLETED turn's wire-outcome row carries the raw provider warnings", () => {
+  test("the runner's own code AND its operator prose survive to the ring", async () => {
+    const chatId = await seedChat(db, "outcome-warnings");
+    const engine = engineOver(db, () =>
+      (async function* (): AsyncGenerator<TurnStreamChunk> {
+        await Promise.resolve();
+        yield { kind: "warning", code: "sampling_knob_dropped", knob: "topK", message: "topK ignored: model does not expose a topK range" };
+        yield { kind: "text", text: "a reply" };
+      })(),
+    );
+
+    await engine.runTurn(prepOf(chatId));
+
+    const [row] = recentTurnOutcomes({ chatId });
+    expect(row).toMatchObject({
+      disposition: "completed",
+      warnings: [{ code: "sampling_knob_dropped", message: "topK ignored: model does not expose a topK range" }],
+    });
+  });
+});

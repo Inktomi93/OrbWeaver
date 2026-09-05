@@ -8,45 +8,112 @@
 // SPLIT (a scannable title + the detail below it, never one three-line bold sentence), and it speaks the
 // UI's own connection vocabulary — "direct/BYOK" named a concept that appears on no screen in the app.
 
-import { CHAT_WARNING_CODES } from "@orb/contracts/chat";
+import type { ChatSettingsAdjustedWarning, ChatWarning, ProviderAdjustmentKind } from "@orb/contracts/chat";
+import { CHAT_WARNING_CODES, PROVIDER_ADJUSTMENT_KINDS } from "@orb/contracts/chat";
 import { warningNotice } from "../../../../../packages/client/src/features/chat/lib/warning-notice.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 // ── Specific arms: each degrade reads honestly + names WHAT was dropped ──────────────────────────────
 
+/** The mapper's own return shape — `NotifyNotice` is a client-internal type this lane has no import path to. */
+type Notice = ReturnType<typeof warningNotice>;
+
+/** Every code except the detail-bearing carrier is written from the code alone. */
+function noticeFor(code: Exclude<ChatWarning["code"], "settings_adjusted">): Notice {
+  return warningNotice({ code });
+}
+
+/** A `settings_adjusted` warning as the bus delivers it — the class plus whatever detail that class carries. */
+function adjusted(adjustment: ProviderAdjustmentKind, detail: Omit<ChatSettingsAdjustedWarning, "adjustment" | "code"> = {}): Notice {
+  return warningNotice({ ...detail, adjustment, code: "settings_adjusted" });
+}
+
 test("image_dropped → the model can't see images", () => {
-  expect(warningNotice("image_dropped").description).toContain("can't see images");
+  expect(noticeFor("image_dropped").description).toContain("can't see images");
 });
 
 test("video_dropped → the model can't watch videos (#317)", () => {
-  expect(warningNotice("video_dropped").description).toContain("can't watch videos");
+  expect(noticeFor("video_dropped").description).toContain("can't watch videos");
 });
 
 test("tools_unsupported → tools were turned off", () => {
-  expect(warningNotice("tools_unsupported").title).toContain("Tools were turned off");
+  expect(noticeFor("tools_unsupported").title).toContain("Tools were turned off");
 });
 
 test("image_edit_dropped → generated without your reference", () => {
-  expect(warningNotice("image_edit_dropped").description).toContain("without your reference");
+  expect(noticeFor("image_edit_dropped").description).toContain("without your reference");
 });
 
 test("guided_placed_as_injection → steering added inline, no marker to place it in", () => {
-  expect(warningNotice("guided_placed_as_injection").description).toContain("inline instruction");
+  expect(noticeFor("guided_placed_as_injection").description).toContain("inline instruction");
+});
+
+// ── #1440: the ten provider degradations. Each one's notice must name the SETTING (or the substitute the
+// provider used), because "something was adjusted" is exactly the silence this carrier exists to end. ──
+
+test("a dropped sampling knob is named by the word the preset deck prints", () => {
+  expect(adjusted("sampling_knob_dropped", { knob: "topP" }).title).toContain("Top-P");
+  expect(adjusted("sampling_knob_dropped", { knob: "repetitionPenalty" }).title).toContain("Repetition penalty");
+});
+
+test("the thinking-budget drop says what to set INSTEAD (a mode mismatch, not a missing capability)", () => {
+  expect(adjusted("sampling_knob_dropped", { knob: "thinkingBudgetTokens" }).description).toContain("effort dial");
+});
+
+test("an unknown quality level reads as OUR stale value, never as a model limitation", () => {
+  expect(adjusted("sampling_knob_dropped", { knob: "quality" }).description).toContain("isn't one this app knows");
+});
+
+test("a knob-less sampling drop never invents a setting name", () => {
+  const notice = adjusted("sampling_knob_dropped");
+  expect(notice.title).toBe("A generation setting wasn't used for this reply");
+});
+
+test("the mandatory-reasoning clamp names the effort that ran", () => {
+  expect(adjusted("reasoning_mandatory_clamp", { appliedEffort: "medium" }).description).toContain("medium");
+});
+
+test("the budget clamp names the budget that ran", () => {
+  expect(adjusted("reasoning_budget_clamped", { appliedBudget: 1536 }).description).toContain("1536");
+});
+
+test("a clamp with no value still reads honestly, without a fabricated number", () => {
+  const notice = adjusted("reasoning_budget_clamped");
+  expect(notice.description).toContain("no room");
+  expect(notice.description).not.toMatch(/\d/);
+});
+
+test("the tool-result drop warns that the model may read a FAILURE as a success", () => {
+  expect(adjusted("tool_result_error_dropped").description).toContain("read it as one that worked");
+});
+
+test("the prefill drop explains the trade the turn actually made", () => {
+  expect(adjusted("reasoning_dropped_for_prefill").description).toContain("continued your text");
+});
+
+test("every provider-degradation class has its own distinct, split notice (exhaustive)", () => {
+  const notices = PROVIDER_ADJUSTMENT_KINDS.map((kind) => adjusted(kind));
+  for (const notice of notices) {
+    expect(notice.title.length).toBeGreaterThan(0);
+    expect(notice.title.length).toBeLessThanOrEqual(60);
+    expect(notice.description).toBeDefined();
+  }
+  expect(new Set(notices.map((notice) => notice.title)).size).toBe(PROVIDER_ADJUSTMENT_KINDS.length);
 });
 
 // ── The #9 compaction degrades the restoration must surface (was silently swallowed) ─────────────────
 
 test("compaction_failed → the summary couldn't update, reply unaffected", () => {
-  expect(warningNotice("compaction_failed").title).toContain("summary couldn't update");
-  expect(warningNotice("compaction_failed").description).toContain("Your reply is unaffected");
+  expect(noticeFor("compaction_failed").title).toContain("summary couldn't update");
+  expect(noticeFor("compaction_failed").description).toContain("Your reply is unaffected");
 });
 
 test("context_trimmed_no_summary → the no-wall belt fired (oldest messages dropped to keep going)", () => {
-  expect(warningNotice("context_trimmed_no_summary").description).toContain("oldest messages were dropped");
+  expect(noticeFor("context_trimmed_no_summary").description).toContain("oldest messages were dropped");
 });
 
 test("memory_rerank_unavailable → vector recall continued for this turn", () => {
-  const notice = warningNotice("memory_rerank_unavailable");
+  const notice = noticeFor("memory_rerank_unavailable");
   expect(notice.title).toContain("Memory reranking");
   expect(notice.description).toContain("vector recall");
   expect(notice.description).toContain("this turn");
@@ -55,7 +122,7 @@ test("memory_rerank_unavailable → vector recall continued for this turn", () =
 // ── P1-3: the copy speaks the UI's OWN connection vocabulary ─────────────────────────────────────────
 
 test("custom_parameters_ignored names the real connection labels, never 'direct' or 'BYOK'", () => {
-  const notice = warningNotice("custom_parameters_ignored");
+  const notice = noticeFor("custom_parameters_ignored");
   expect(notice.description).toContain("OpenRouter");
   // The label the Connections pane prints for this source (connections-model.ts SOURCE_LABELS).
   expect(notice.description).toContain("Custom OpenAI-compatible");
@@ -66,18 +133,23 @@ test("custom_parameters_ignored names the real connection labels, never 'direct'
 const BANNED_VOCABULARY = [/\bbyok\b/i, /custom-byo/i, /\bdirect connection\b/i];
 
 test("no notice uses vocabulary that exists nowhere in the UI", () => {
-  for (const code of CHAT_WARNING_CODES) {
-    const { title, description } = warningNotice(code);
+  for (const notice of everyNotice()) {
     for (const pattern of BANNED_VOCABULARY) {
-      expect(`${title} ${description ?? ""}`).not.toMatch(pattern);
+      expect(`${notice.title} ${notice.description ?? ""}`).not.toMatch(pattern);
     }
   }
 });
 
+/** Every notice this mapper can produce: one per code, and one per degradation class behind the carrier. */
+function everyNotice(): readonly Notice[] {
+  const codes = CHAT_WARNING_CODES.filter((code) => code !== "settings_adjusted").map((code) => noticeFor(code));
+  return [...codes, ...PROVIDER_ADJUSTMENT_KINDS.map((kind) => adjusted(kind))];
+}
+
 // ── Totality: EVERY CHAT_WARNING_CODES member maps to non-empty, distinct copy (no silent degrade) ───
 
 test("every CHAT_WARNING_CODES value yields a non-empty, distinct, SPLIT notice (exhaustive)", () => {
-  const notices = CHAT_WARNING_CODES.map((code) => warningNotice(code));
+  const notices = everyNotice();
   for (const notice of notices) {
     expect(notice.title.length).toBeGreaterThan(0);
     // Split, not one sentence: the title scans, the description explains. Every degrade has both.
@@ -86,5 +158,5 @@ test("every CHAT_WARNING_CODES value yields a non-empty, distinct, SPLIT notice 
     expect(notice.title.length).toBeLessThanOrEqual(60);
   }
   // Distinct: a per-degrade drop must read specifically, never collapsed to one generic line.
-  expect(new Set(notices.map((notice) => notice.title)).size).toBe(CHAT_WARNING_CODES.length);
+  expect(new Set(notices.map((notice) => notice.title)).size).toBe(notices.length);
 });

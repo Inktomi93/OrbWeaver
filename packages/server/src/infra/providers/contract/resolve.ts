@@ -1,6 +1,7 @@
 // The resolved-chat-knobs type home: the output shape of the (UserIntent x ModelCapability) → wire knobs
 // funnel (resolve-chat.ts). Only resolve-chat builds these; both sealed chat runners consume an identical shape.
 
+import type { AdjustedKnob } from "@orb/contracts/chat";
 import type { EffortLevel, ReasoningDisplayMode, ReasoningMode, Verbosity } from "@orb/contracts/connection";
 
 // One code per distinct drop site a resolver/runner actually emits; clamps are silent (no clamp code). Most
@@ -49,7 +50,18 @@ export type DynamicContextChannel = (typeof DYNAMIC_CONTEXT_CHANNELS)[number];
 
 export interface ResolvedWarning {
   readonly code: WarningCode;
+  /** OPERATOR prose — the logs and the wire-outcome ring read it; the USER never does. The chat bus admits
+   *  no unanchored free text (D16), so what crosses to a user is the STRUCTURED half below, re-voiced by the
+   *  client's own copy mapper (#1440). */
   readonly message: string;
+  /** WHICH setting a `sampling_knob_dropped` refers to — the drop's only unrecoverable-from-the-code fact.
+   *  Required on that code by the resolver's own call shape; absent on every code that names itself. */
+  readonly knob?: AdjustedKnob | undefined;
+  /** What the provider USED after a clamp: the reasoning budget in TOKENS (`reasoning_budget_clamped`).
+   *  Not `appliedTokens` — the chat bus's credential-word predicate reads `token` (see the contracts twin). */
+  readonly appliedBudget?: number | undefined;
+  /** What the provider USED after a clamp: the reasoning effort (`reasoning_mandatory_clamp`). */
+  readonly appliedEffort?: EffortLevel | undefined;
 }
 
 /** The capability-resolved reasoning decision after the adaptive/budget guard, effort clamp, and display gate. */
