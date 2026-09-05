@@ -40,6 +40,7 @@ import { useEffect, useState } from "react";
 // feature's internals to mount the REAL production host (the app-shell stories do the same).
 import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { CharacterHistoryTab } from "../../../../packages/client/src/features/character/components/character-history-tab.tsx";
+import { CharacterOverviewCard } from "../../../../packages/client/src/features/character/components/character-overview-card.tsx";
 import { CharacterTagsRow } from "../../../../packages/client/src/features/character/components/character-tags-row.tsx";
 import { CtAppDataProviders, CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
@@ -604,4 +605,17 @@ export function CharacterLibraryWelcomeListModeStory(): ReactElement {
 function CharacterSelectionReadout(): ReactElement {
   const selected = useSelectedCharacterId();
   return <p>selected: {selected ?? "nobody"}</p>;
+}
+
+/** The CONTEXT Field tab's RESTING overview card, mounted alone at the docked panel's 384px. Alone on
+ *  purpose: the card's read arms are the subject, and the whole context pane would drag in five ambient
+ *  reads whose failures are not what is being asserted. */
+export function CharacterOverviewCardStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ padding: 16, width: 384 }}>
+        <CharacterOverviewCard characterId={castId<CharacterId>("character_ctoverviewcard1")} />
+      </div>
+    </CtDataProviders>
+  );
 }

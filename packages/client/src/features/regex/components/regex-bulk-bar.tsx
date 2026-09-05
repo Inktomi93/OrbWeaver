@@ -84,9 +84,20 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
       notify.success(bulkToast(verb, affected));
     };
 
+  // THE SELECTION IS THE RETRY (#1501). Enable/Disable below already clear inside `onSuccess`; these four
+  // verbs cleared on the same tick as `.mutate`, so a rejected batch dropped the checked set that named its
+  // own targets — leaving a toast about scripts the reader could no longer re-select. Same shape everywhere
+  // now: the selection survives a failure, and only a landed write dismisses the bar.
   const applyPlacement = (placement: RegexPlacement[]): void => {
-    setPlacement.mutate({ scriptIds, placement }, { onSuccess: report("updated") });
-    onClear();
+    setPlacement.mutate(
+      { scriptIds, placement },
+      {
+        onSuccess: (outcome: RegexBulkOutcome): void => {
+          report("updated")(outcome);
+          onClear();
+        },
+      },
+    );
   };
 
   const admitEnabledWrite = (): boolean => {
@@ -148,10 +159,18 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
             title: `Delete ${scriptCount(count)}?`,
             description: "Deleting these removes them from every preset, character, and room they're attached to. This can't be undone.",
             onConfirm: (): void => {
-              remove.mutate({ scriptIds }, { onSuccess: report("deleted") });
-              // Leave bulk mode entirely: the rows the mode was operating on are gone, so a still-armed mode
-              // over an emptier list is a surface pointing at nothing.
-              exitRegexBulkMode();
+              remove.mutate(
+                { scriptIds },
+                {
+                  onSuccess: (outcome: RegexBulkOutcome): void => {
+                    report("deleted")(outcome);
+                    // Leave bulk mode entirely: the rows the mode was operating on are gone, so a still-armed
+                    // mode over an emptier list is a surface pointing at nothing. On a REJECTED delete they
+                    // are all still there, so the mode — and the selection naming them — has to be too.
+                    exitRegexBulkMode();
+                  },
+                },
+              );
             },
           }}
           label={`More actions for ${scriptCount(count)}`}
@@ -163,8 +182,15 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
           </MenuItem>
           <MenuItem
             onClick={(): void => {
-              setGlobal.mutate({ scriptIds, global: true }, { onSuccess: report("now run in every chat") });
-              onClear();
+              setGlobal.mutate(
+                { scriptIds, global: true },
+                {
+                  onSuccess: (outcome: RegexBulkOutcome): void => {
+                    report("now run in every chat")(outcome);
+                    onClear();
+                  },
+                },
+              );
             }}
           >
             <Icon icon={Globe} size="sm" />
@@ -172,8 +198,15 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
           </MenuItem>
           <MenuItem
             onClick={(): void => {
-              setGlobal.mutate({ scriptIds, global: false }, { onSuccess: report("no longer run in every chat") });
-              onClear();
+              setGlobal.mutate(
+                { scriptIds, global: false },
+                {
+                  onSuccess: (outcome: RegexBulkOutcome): void => {
+                    report("no longer run in every chat")(outcome);
+                    onClear();
+                  },
+                },
+              );
             }}
           >
             <Icon icon={Ban} size="sm" />

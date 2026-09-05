@@ -26,6 +26,7 @@ import {
   ParamsDeckCapabilityErrorStory,
   ParamsDeckCapabilityNonRoutingStory,
   ParamsDeckCapabilityTransportFailureStory,
+  ParamsDeckCustomParamsResetStory,
   ParamsDeckCustomParamsStory,
   ParamsDeckExplicitStory,
   ParamsDeckGhostStory,
@@ -985,4 +986,29 @@ test.describe("coarse pointer — every knob explainer clears the touch floor", 
     expect(measured.fontSize, "the trigger's label rides the control type step, not the eyebrow").toBe(measured.labelStep);
     expect(measured.height, "the trigger's row box clears the coarse floor").toBeGreaterThanOrEqual(measured.floor);
   });
+});
+
+// ── #1520 item 1 · A PRESET RESET MUST REACH THE CUSTOM-PARAMETER ROWS ────────────────────────────
+// The editor seeded `rows` ONCE, on the reasoning that the session boundary remounts this subtree whenever
+// the server row underneath changes. That is TRUE OF AN ENTITY SWITCH — the boundary bumps a remount key —
+// and FALSE OF A RESET: the clean server-echo path pushes the new truth in with `form.setFieldValue` on the
+// still-mounted form, which remounts nothing. So after a reset the rows still held the PRE-reset values,
+// and the next add/remove/edit rebuilt the whole `customParameters` record from them — writing the stale
+// parameters back over the freshly-reset server value, plus that one edit.
+//
+// Asserted on the RENDERED CELLS, which is what the reader sees and what the next `commit()` would send.
+test("CUSTOM PARAMS — a RESET reseeds the rows; the pre-reset keys do not survive it (#1520)", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckCustomParamsResetStory />);
+  await openAdvanced(deck);
+
+  await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toHaveValue("dry_multiplier");
+  await expect(deck.getByRole("textbox", { name: "Parameter 2 name" })).toHaveValue("stream");
+
+  await deck.getByRole("button", { name: "Reset the preset" }).click();
+
+  // The reset value, and ONLY it. A surviving `dry_multiplier` cell is the defect: it is the value the next
+  // edit's `commit()` would write back over the server's fresh one.
+  await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toHaveValue("top_a");
+  await expect(deck.getByRole("textbox", { name: "Parameter 1 value" })).toHaveValue("0.1");
+  await expect(deck.getByRole("textbox", { name: "Parameter 2 name" })).toHaveCount(0);
 });

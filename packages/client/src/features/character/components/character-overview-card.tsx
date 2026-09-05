@@ -42,7 +42,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { useTRPC } from "#data";
+import { QueryErrorState, useTRPC } from "#data";
 import { deriveChatTitle, timeLib } from "#lib";
 import { EMPTY_VALUE } from "../lib/empty-vocabulary.ts";
 
@@ -65,12 +65,19 @@ export interface CharacterOverviewCardProps {
  *  last spoke — with the pick-a-field hint demoted to the footer. */
 export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProps): ReactElement {
   const trpc = useTRPC();
-  const { data } = useQuery(trpc.character.get.queryOptions({ characterId }));
+  const { data, isError, refetch } = useQuery(trpc.character.get.queryOptions({ characterId }));
   // HER page-of-one (2026-08-09): `items[0]` is her newest-updated thread, and the list's own order is
   // last-activity — so that row IS the last time you two spoke, and it is the same row the chats projection's
   // identity gloss reads, so the two surfaces cannot print different "last" times.
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({ characterId, limit: NEWEST_THREAD_ONLY }));
 
+  // A FAILED READ IS NOT A SLOW ONE (#1500). `data === undefined` used to be the only branch, so once the
+  // client's two retries were spent the card sat on "Loading…" forever with no recovery but a page reload —
+  // the panel's whole content, stuck, claiming to be working. The error arm comes FIRST because it is the
+  // narrower claim: `isError` implies `data === undefined`, never the reverse.
+  if (isError) {
+    return <QueryErrorState label="this character" onRetry={(): void => void refetch()} />;
+  }
   if (data === undefined) {
     return <Text voice="quiet">Loading…</Text>;
   }

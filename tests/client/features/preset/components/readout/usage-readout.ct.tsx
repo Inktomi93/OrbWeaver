@@ -120,3 +120,24 @@ test("a GM-VOICE room is named by the ONE title chain and OPENS (#279)", async (
   await expect(probe).toContainText("section=chats");
   await expect(probe).toContainText(`chat=${GM_ROOM}`);
 });
+
+// A FAILED `preset.listUsage` PRINTED "Checking…" FOR THE REST OF THE SESSION (#1500). `usage.data ===
+// undefined` was the block's only branch, so once the client's retries were spent the one panel that answers
+// "what breaks if I change this" claimed to still be looking, with no recovery but a page reload. The pin
+// drives a fail-then-succeed script so the RETRY is proven to re-read rather than merely re-render.
+test("a FAILED usage read says so and its Retry really re-reads — never a permanent 'Checking…' (#1500)", async ({ mount, page }) => {
+  let attempts = 0;
+  const trpc = await routeTrpc(page, {
+    ...usageRoutes({ isUserDefault: true, gmRooms: [] }),
+    "preset.listUsage": () => (attempts++ === 0 ? trpcError({ message: "usage read failed" }) : { isUserDefault: true, gmRooms: [] }),
+  });
+  const panel = await mount(<PresetReadoutUsageStory />);
+  const block = panel.locator('[data-slot="preset-usage"]');
+
+  await expect(block.getByText("Couldn't load what uses this preset.")).toBeVisible();
+  await expect(block.getByText("Checking…")).toHaveCount(0);
+
+  await block.getByRole("button", { name: "Retry" }).click();
+  await expect.poll(() => trpc.count("preset.listUsage"), { intervals: [20, 50, 100] }).toBe(2);
+  await expect(block.getByText(ACTIVE_LINE)).toBeVisible();
+});

@@ -22,7 +22,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
 import { testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
@@ -309,6 +309,10 @@ function classOf(snapshot: SnapshotRow): { word: string; tone: RenderHintTone } 
   return { word: "Manual", tone: "neutral" };
 }
 
+/** Placeholder rows while the snapshot walk lands — enough to hold the tab's height without asserting a
+ *  population. */
+const SNAPSHOT_PENDING_ROWS = 3;
+
 /** The Versions empty-state's next action: mint the FIRST snapshot by hand (the same verb the History
  *  tab offers) — rides character's user-bus for the card half; the list is writer-local. */
 const useSnapshotCharacterNow = createEntityMutation<{ characterId: RefineryContextState["characterId"]; label: string }, unknown>({
@@ -336,7 +340,16 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
   // fetch-content-per-pair posture — the `getSnapshot` read).
   const comparing = useGatedQuery(compareId, (snapshotId) => trpc.character.getSnapshot.queryOptions({ characterId: state.characterId, snapshotId }));
   const snapshotNow = useSnapshotCharacterNow({ trpc, invalidation });
-  const rows = snapshots.data ?? [];
+  // "NO VERSIONS YET" IS A CLAIM ABOUT THE SNAPSHOT LOG (#1500). `snapshots.data ?? []` collapsed three
+  // states into that one sentence — and its empty state offers to MINT the first snapshot, so a reader whose
+  // list merely failed to load was being invited to write a version of a card that already has a dozen.
+  if (snapshots.isError) {
+    return <QueryErrorState label="this card's versions" onRetry={(): void => void snapshots.refetch()} />;
+  }
+  if (snapshots.isPending) {
+    return <SkeletonRows count={SNAPSHOT_PENDING_ROWS} shape="line" />;
+  }
+  const rows = snapshots.data;
   if (rows.length === 0) {
     return (
       <EmptyState

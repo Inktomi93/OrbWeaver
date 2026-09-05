@@ -232,3 +232,20 @@ test("the CONTEXT groups are CD1 kickers, hairline and all (P2)", async ({ mount
       { name: "Retrieval", transform: "uppercase", separators: 1 },
     ]);
 });
+
+// "NOWHERE YET" IS A CLAIM ABOUT THE JUNCTION TABLE (#1500). The block branched on `isPending` alone, so a
+// failed `listAttachments` emptied both lists and the pane stated that this document feeds nothing — the
+// exact sentence a reader would act on, about data the pane had not read.
+test("a FAILED attachments read never claims the document is attached NOWHERE (#1500)", async ({ mount, page }) => {
+  const trpc = await stubDatabank(page, { "databank.listAttachments": () => trpcError({ message: "attachments read failed" }) });
+  const workspace = await mount(<DatabankWorkspaceStory />);
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  await expect(workspace.getByRole("heading", { name: "Active in" })).toBeVisible();
+
+  await expect(workspace.getByText("Couldn't load where this document is active.")).toBeVisible();
+  await expect(workspace.getByText("Nowhere yet — it only feeds chats you attach it to.")).toHaveCount(0);
+
+  const before = trpc.count("databank.listAttachments");
+  await workspace.getByRole("button", { name: "Retry" }).click();
+  await expect.poll(() => trpc.count("databank.listAttachments"), { intervals: [20, 50, 100] }).toBe(before + 1);
+});

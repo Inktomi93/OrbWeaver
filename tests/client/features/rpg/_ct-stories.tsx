@@ -28,7 +28,7 @@ import { ConditionChips } from "../../../../packages/client/src/features/rpg/com
 import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/rpg/components/rpg-freshness-indicator.tsx";
 import { RpgGameDoor } from "../../../../packages/client/src/features/rpg/components/rpg-game-door.tsx";
 import { PackBody } from "../../../../packages/client/src/features/rpg/components/rpg-pack-rows.tsx";
-import { RpgCardLightbox } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards.tsx";
+import { RpgCardLightbox, RpgSceneCards } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards.tsx";
 import { useUpdateConfig } from "../../../../packages/client/src/features/rpg/hooks/use-rpg-mutations.ts";
 import type { ArchivedCard } from "../../../../packages/client/src/features/rpg/lib/archived-cards.ts";
 import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
@@ -425,6 +425,18 @@ export function TurnToolCallsUserRowStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 480 }}>
         <RenderFooterContribution message={makeMessageView({ role: "user", selectedVariantId: castId<MessageVariantId>("mv_ct_folded") })} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Scene tab's CARD ARCHIVE section alone, at the docked context width — the projection over
+ *  `chat.listMessages` + `chat.getChat` whose read arms the `.ct.tsx` drives. */
+export function RpgSceneCardsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ padding: 16, width: 384 }}>
+        <RpgSceneCards chatId={CHAT_ID} enabled={true} />
       </div>
     </CtDataProviders>
   );

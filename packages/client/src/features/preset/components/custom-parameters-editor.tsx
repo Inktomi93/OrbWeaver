@@ -39,10 +39,57 @@ export interface CustomParametersEditorProps {
   readonly form: AppFormInstance<PromptConfig>;
 }
 
+/**
+ * THE EDITOR IS SUBSCRIBED TO ITS OWN FIELD, and that is the whole of the #1520 item-1 fix.
+ *
+ * The rows used to be seeded ONCE, on the reasoning that "the session boundary remounts this subtree on an
+ * entity switch or a reseed, so the seed is re-taken exactly when the server row underneath actually
+ * changes". That is TRUE OF A SWITCH and FALSE OF A RESET — the ruling survives, its input changed. An
+ * entity switch bumps `create-autosave-entity-form.tsx`'s remount key, so the seed really is re-taken; the
+ * clean server-echo RESET pushes the new truth in with `form.setFieldValue` field by field on the
+ * STILL-MOUNTED form, which remounts nothing. So after a reset these rows still held the pre-reset values,
+ * and the next add/remove/edit rebuilt the whole record from them — writing the stale parameters back over
+ * the freshly-reset server value, plus that one edit.
+ *
+ * The subscription is what makes the change VISIBLE to this subtree at all (nothing here re-rendered on a
+ * `setFieldValue` before), and the body reseeds on it.
+ */
 export function CustomParametersEditor({ form }: CustomParametersEditorProps): ReactElement {
-  // Seeded ONCE from the mounted config: the session boundary remounts this subtree on an entity switch or
-  // a reseed, so the seed is re-taken exactly when the server row underneath actually changes.
-  const [rows, setRows] = useState<CustomParameterRow[]>(() => customParameterRows(form.state.values.customParameters));
+  return (
+    <form.Subscribe selector={(state): PromptConfig["customParameters"] => state.values.customParameters}>
+      {(stored): ReactElement => <CustomParametersBody form={form} stored={stored} />}
+    </form.Subscribe>
+  );
+}
+
+/** Is `stored` the record these rows already represent? Deliberately a CONTENT comparison and not an
+ *  identity one: `commit` sets the field from `customParameterRecord(rows)`, so our own write always
+ *  produces a fresh object that means exactly what the rows already say — reseeding on it would destroy row
+ *  identity (a rename would become a delete + add) and drop the pending, not-yet-valid rows the model keeps
+ *  as `undefined` markers. Key order is the list's by construction on both sides, so the serialisation is
+ *  stable for the one comparison this needs to make. */
+function sameStoredParameters(stored: PromptConfig["customParameters"], fromRows: PromptConfig["customParameters"]): boolean {
+  return JSON.stringify(stored) === JSON.stringify(fromRows);
+}
+
+function CustomParametersBody({
+  form,
+  stored,
+}: {
+  readonly form: AppFormInstance<PromptConfig>;
+  readonly stored: PromptConfig["customParameters"];
+}): ReactElement {
+  const [rows, setRows] = useState<CustomParameterRow[]>(() => customParameterRows(stored));
+  // The last field value this body has accounted for. Compared during render — the React-documented shape for
+  // "a prop changed, so state derived from it must change too" — rather than in an effect, which would render
+  // the stale rows for a frame and let a keystroke in that frame commit them.
+  const [seen, setSeen] = useState<PromptConfig["customParameters"]>(stored);
+  if (stored !== seen) {
+    setSeen(stored);
+    if (!sameStoredParameters(stored, customParameterRecord(rows))) {
+      setRows(customParameterRows(stored));
+    }
+  }
 
   const commit = (next: readonly CustomParameterRow[]): void => {
     setRows([...next]);

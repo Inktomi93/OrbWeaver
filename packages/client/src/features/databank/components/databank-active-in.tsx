@@ -36,7 +36,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { QueryErrorState, useTRPC } from "#data";
 import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 import { selectCharacter, selectChat, setActiveSection } from "#state";
 
@@ -55,32 +55,39 @@ export function ActiveInSection({ documentId }: { readonly documentId: DocumentI
   const everywhere = attachments.data?.global === true;
   const nowhere = !everywhere && rooms.length === 0 && characters.length === 0;
 
-  return (
-    <Section kicker="Active in">
-      {attachments.isPending ? (
-        <Text voice="gloss">Checking…</Text>
-      ) : (
-        <Stack gap="row">
-          {everywhere ? (
-            <Row>
-              <Badge intent="success" size="sm" tone="soft">
-                Every chat
-              </Badge>
-            </Row>
-          ) : null}
-          <RoomDoors rooms={rooms} />
-          <Stack gap="tight">
-            {characters.map((character) => (
-              <CharacterDoor id={character.id} key={character.id} name={character.name} />
-            ))}
-          </Stack>
-          {/* Never render nothing: "no attachments" is a real, common state and a blank block reads as a
-              failed load (empty states are load-bearing). */}
-          {nowhere ? <Text voice="gloss">Nowhere yet — it only feeds chats you attach it to.</Text> : null}
+  // "NOWHERE YET" IS A CLAIM ABOUT THE JUNCTION TABLE, SO IT NEEDS THE JUNCTION TABLE (#1500). The block
+  // branched on `isPending` alone, so a failed `listAttachments` left every list empty and the panel stated
+  // that this document feeds nothing — a confident answer about the reader's own data that the pane had no
+  // basis for. A read that failed says so, and offers the re-read.
+  let body: ReactElement;
+  if (attachments.isError) {
+    body = <QueryErrorState label="where this document is active" onRetry={(): void => void attachments.refetch()} />;
+  } else if (attachments.isPending) {
+    body = <Text voice="gloss">Checking…</Text>;
+  } else {
+    body = (
+      <Stack gap="row">
+        {everywhere ? (
+          <Row>
+            <Badge intent="success" size="sm" tone="soft">
+              Every chat
+            </Badge>
+          </Row>
+        ) : null}
+        <RoomDoors rooms={rooms} />
+        <Stack gap="tight">
+          {characters.map((character) => (
+            <CharacterDoor id={character.id} key={character.id} name={character.name} />
+          ))}
         </Stack>
-      )}
-    </Section>
-  );
+        {/* Never render nothing: "no attachments" is a real, common state and a blank block reads as a
+            failed load (empty states are load-bearing). */}
+        {nowhere ? <Text voice="gloss">Nowhere yet — it only feeds chats you attach it to.</Text> : null}
+      </Stack>
+    );
+  }
+
+  return <Section kicker="Active in">{body}</Section>;
 }
 
 /** The rooms, named by the ONE chain and stamped only where two of them would otherwise read alike. Split

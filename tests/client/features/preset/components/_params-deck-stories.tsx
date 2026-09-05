@@ -235,3 +235,26 @@ function DeckHarness({ params, effective, capability = STORY_CAPABILITY, customP
     </StoryForm>
   );
 }
+
+/** THE PRESET RESET AS THE FORM PERFORMS IT (#1520 item 1) — a clean SERVER-ECHO reseed, which is a
+ *  different path from an entity SWITCH and the whole reason the defect existed. A switch bumps the
+ *  boundary's remount key and the editor reseeds for free; a reset arrives as new `serverValues` on the
+ *  STILL-MOUNTED form, which `create-autosave-entity-form.tsx` pushes in with `form.setFieldValue` field by
+ *  field, remounting nothing. The button swaps the stored blob to model exactly that. */
+export function ParamsDeckCustomParamsResetStory(): ReactElement {
+  const [reset, setReset] = useState(false);
+  // Built from PAIRS for the same reason the sibling story is: these keys are provider wire names.
+  const before = Object.fromEntries([
+    ["dry_multiplier", 0.8],
+    ["stream", false],
+  ]);
+  const after = Object.fromEntries([["top_a", 0.1]]);
+  return (
+    <>
+      <button onClick={(): void => setReset(true)} type="button">
+        Reset the preset
+      </button>
+      <DeckHarness customParameters={reset ? after : before} effective={GHOST_EFFECTIVE} params={{}} />
+    </>
+  );
+}
