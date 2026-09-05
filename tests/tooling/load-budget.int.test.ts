@@ -9,21 +9,21 @@
 // RATES, which scaling cannot save and which must decline to vote instead of false-redding or, worse,
 // having its budget widened.
 import { expect, test } from "../support/tool-fixtures.ts";
-import type { WithholdableTest } from "./_load-budget.ts";
+import type { LabellableTest } from "./_load-budget.ts";
 import {
   computeLoadFactor,
   isLoadKill,
   isTimeoutKill,
   judgeMeasurementLoad,
   LOAD_KILL_MARKER,
-  LOAD_WITHHOLD_MARKER,
-  LOAD_WITHHOLD_META_KEY,
+  LOAD_SUSPECT_MARKER,
+  LOAD_SUSPECT_META_KEY,
+  labelRateLoad,
   readBoxLoad,
   runNodeWithBudget,
   runPnpmWithBudget,
   scaledBudget,
   spawnNodeWithBudget,
-  withholdMeasurement,
 } from "./_load-budget.ts";
 
 // A child that outlives any budget we hand it — the planted SLOW case. Kept well above the 300ms budget so
@@ -120,19 +120,20 @@ test("isLoadKill rejects a plain assertion-style error — the two are never con
   expect(isLoadKill("not even an error")).toBe(false);
 });
 
-// ── THE WITHHOLD (#1040) ─────────────────────────────────────────────────────────────────────────────
+// ── THE LABEL (#1040 measured it, #1616 ruled on it) ─────────────────────────────────────────────────
 // The PERMANENT planted control for the third lever. The loaded condition is FORCED through the injected
 // box reader rather than by spinning the box — a control that needed a load-avg of 40 to fire would be a
-// control nobody can run. Both directions, because a withhold that never fires and a withhold that always
-// fires are the same lie in opposite coats: the loaded arm must skip WITH its reason reaching the
-// reporter-visible channel, and the quiet arm must fall through and let the measurement happen.
+// control nobody can run. Both directions, because a label that never fires and a label that always fires
+// are the same lie in opposite coats: the loaded arm must MEASURE and stamp its reason on the
+// reporter-visible channel, and the quiet arm must stamp nothing and let the number be judged.
 
 const LOADED_BOX = { loadavg1: 40, cpuCount: 24 } as const;
 const QUIET_BOX = { loadavg1: 8, cpuCount: 24 } as const;
 
-/** A stand-in for vitest's own test context: records the skip note instead of aborting, so both arms are
- *  observable from ONE test (the real `ctx.skip` throws, which would end the test at the first arm). */
-function fakeCtx(): { ctx: WithholdableTest; skips: string[] } {
+/** A stand-in for vitest's own test context. It still carries a `skip` recorder — not because the seam
+ *  calls it, but because "nothing was skipped" is now an ASSERTION (#1616): the old code called
+ *  `ctx.skip`, and a regression to it must red here rather than quietly removing an arm from the fleet. */
+function fakeCtx(): { ctx: LabellableTest & { skip: (note?: string) => void }; skips: string[] } {
   const skips: string[] = [];
   return {
     ctx: {
@@ -145,48 +146,53 @@ function fakeCtx(): { ctx: WithholdableTest; skips: string[] } {
   };
 }
 
-test("the withhold judgment fires exactly at computeLoadFactor's own quiet/contended boundary", () => {
-  // Loaded: per-core 40/24 ≈ 1.67 → the factor has left 1, so the rate is not about the code.
+test("the load judgment fires exactly at computeLoadFactor's own quiet/contended boundary", () => {
+  // Loaded: per-core 40/24 ≈ 1.67 → the factor has left 1, so the rate is not ONLY about the code — the
+  // arm still measures, and the number is LABELLED rather than withheld (#1616).
   const loaded = judgeMeasurementLoad(LOADED_BOX, "the dropped-frame budget");
-  expect(loaded.withheld).toBe(true);
-  expect(loaded.reason).toContain(LOAD_WITHHOLD_MARKER);
-  expect(loaded.reason).toContain("box too loaded to measure (loadavg 40.0 / 24 cores)");
-  expect(loaded.reason).toContain("NOT a verdict");
+  expect(loaded.disposition).toBe("load-suspect");
+  expect(loaded.reason).toContain(LOAD_SUSPECT_MARKER);
+  expect(loaded.reason).toContain("box loaded while measuring (loadavg 40.0 / 24 cores)");
+  expect(loaded.reason).toContain("never promotable");
   // Quiet: per-core 8/24 = 0.33 → factor exactly 1, the SAME input `scaledBudget` calls solo. The
-  // measurement still runs, and the reason records that the box was actually read.
+  // measurement is a VERDICT, and the reason records that the box was actually read.
   const quiet = judgeMeasurementLoad(QUIET_BOX, "the dropped-frame budget");
-  expect(quiet.withheld).toBe(false);
+  expect(quiet.disposition).toBe("complete");
   expect(quiet.reason).toContain("box quiet enough to measure (loadavg 8.0 / 24 cores)");
-  expect(quiet.reason).not.toContain(LOAD_WITHHOLD_MARKER);
+  expect(quiet.reason).not.toContain(LOAD_SUSPECT_MARKER);
   // The boundary is ONE number shared with the scaling lever, not a second threshold that can drift.
   expect(computeLoadFactor(QUIET_BOX.loadavg1, QUIET_BOX.cpuCount)).toBe(1);
   expect(computeLoadFactor(LOADED_BOX.loadavg1, LOADED_BOX.cpuCount)).toBeGreaterThan(1);
 });
 
-test("a withheld arm stamps its reason on the REPORTER-VISIBLE meta channel, never a silent skip", () => {
+test("a LOAD-SUSPECT arm stamps its reason on the REPORTER-VISIBLE meta channel — and is NEVER skipped", () => {
   const loaded = fakeCtx();
-  withholdMeasurement(loaded.ctx, "the dropped-frame budget", () => LOADED_BOX);
-  // `meta` is the only per-test field vitest's json reporter serializes for a SKIPPED test (probed
-  // 2026-09-02: a bare `ctx.skip(reason)` lands as `{status:"skipped", failureMessages:[], meta:{}}`).
-  // Without this stamp the withhold is invisible in reports/test-report.json — the silent skip #1040 bans.
-  expect(loaded.ctx.task.meta[LOAD_WITHHOLD_META_KEY]).toContain(LOAD_WITHHOLD_MARKER);
-  expect(loaded.skips).toHaveLength(1);
-  expect(loaded.skips[0]).toContain("box too loaded to measure");
+  const verdict = labelRateLoad(loaded.ctx, "the dropped-frame budget", () => LOADED_BOX);
+  // `meta` is the per-test field vitest's json reporter serializes; a green line says nothing about the
+  // box it was measured on, so without this stamp the label is invisible in reports/test-report.json.
+  expect(loaded.ctx.task.meta[LOAD_SUSPECT_META_KEY]).toContain(LOAD_SUSPECT_MARKER);
+  expect(verdict.disposition).toBe("load-suspect");
+  // THE #1616 RULING, pinned: the arm is NOT skipped — it returns, so the caller measures and prints its
+  // number and only its THRESHOLD stands down. A skip here would be the old behaviour wearing a new name.
+  expect(loaded.skips, "labelRateLoad must never skip — the ruling is measure-and-label").toEqual([]);
 
-  // The quiet twin: nothing is skipped and nothing is stamped, so the arm goes on to MEASURE. This is the
-  // half that keeps the withhold from quietly becoming a way to stop testing.
+  // The quiet twin: nothing is stamped, so the arm's number is an ordinary verdict. This is the half that
+  // keeps the label from quietly becoming a way to stop judging.
   const quiet = fakeCtx();
-  withholdMeasurement(quiet.ctx, "the dropped-frame budget", () => QUIET_BOX);
+  expect(labelRateLoad(quiet.ctx, "the dropped-frame budget", () => QUIET_BOX).disposition).toBe("complete");
   expect(quiet.skips).toEqual([]);
   expect(quiet.ctx.task.meta).toEqual({});
 });
 
-test("withholdMeasurement reads the REAL box when no reader is injected", () => {
+test("labelRateLoad reads the REAL box when no reader is injected", () => {
   // The default path is what every live-drive suite actually calls; an injected-only proof would leave
   // `readBoxLoad` unexercised. The verdict depends on this box's load, so assert the SHAPE and that the
   // two levers agree about it — never a fixed outcome, which would be a flake of exactly the kind #1040
   // is about.
   const box = readBoxLoad();
   expect(box.cpuCount).toBeGreaterThan(0);
-  expect(judgeMeasurementLoad(box, "probe").withheld).toBe(computeLoadFactor(box.loadavg1, box.cpuCount) > 1);
+  const live = judgeMeasurementLoad(box, "probe").disposition;
+  expect(live).toBe(computeLoadFactor(box.loadavg1, box.cpuCount) > 1 ? "load-suspect" : "complete");
+  // …and NEVER `withheld`: load has no route to that member any more, whatever this box is doing.
+  expect(live).not.toBe("withheld");
 });

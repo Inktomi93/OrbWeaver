@@ -5,7 +5,7 @@ import type { Browser } from "@playwright/test";
 import type { ResultPair } from "../../_shared/artifacts.ts";
 import type { BrowserAccelerationEvidence } from "../../_shared/browser-acceleration.ts";
 import { readBrowserAcceleration } from "../../_shared/browser-acceleration.ts";
-import type { BoxLoad, MeasurementWithholding } from "../../_shared/load-budget.ts";
+import type { BoxLoad, MeasurementVerdict } from "../../_shared/load-budget.ts";
 import { computeLoadFactor, judgeMeasurementLoad, readBoxLoad } from "../../_shared/load-budget.ts";
 import type { SnapRatePosture } from "../contract/rate-posture.ts";
 import { snapRatePostureIdSchema } from "../contract/rate-posture.ts";
@@ -54,11 +54,14 @@ export async function sampleSnapRatePosture(browser: Browser, readers: SnapRateP
 }
 
 /** Pure arm-specific wording over one run-owned receipt. */
-export function ratePostureDisposition(receipt: SnapRatePosture, what: string): MeasurementWithholding & { readonly postureId: SnapRatePosture["id"] } {
+export function ratePostureDisposition(receipt: SnapRatePosture, what: string): MeasurementVerdict & { readonly postureId: SnapRatePosture["id"] } {
   const acceleration = receipt.acceleration;
   if (receipt.accelerationError !== null) {
     return {
-      withheld: true,
+      // STILL `withheld`, and this is that member's remaining occupant (#1616): an unproven browser leaves
+      // NO number worth labelling — a rate read off a software rasteriser is not a suspect reading of the
+      // product, it is a reading of something else. LOAD never lands here any more.
+      disposition: "withheld",
       reason: `BROWSER-ACCELERATION-WITHHOLD: acceleration could not be proven (${receipt.accelerationError}) — ${what} is NOT a verdict`,
       postureId: receipt.id,
     };
@@ -69,7 +72,7 @@ export function ratePostureDisposition(receipt: SnapRatePosture, what: string): 
         ? `${acceleration.backend} is software rendering`
         : `${acceleration.backend} did not prove enabled GPU compositing and rasterization`;
     return {
-      withheld: true,
+      disposition: "withheld",
       reason: `${acceleration.posture === "software" ? "SOFTWARE" : "BROWSER"}-ACCELERATION-WITHHOLD: ${detail} — ${what} is NOT a verdict`,
       postureId: receipt.id,
     };

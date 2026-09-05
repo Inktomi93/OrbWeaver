@@ -183,8 +183,15 @@ function resolveStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTur
  *  referencing a state the panel can't resolve. Canon stays uncorrupted by construction.
  *
  *  RETURNS the dotted paths the FOLD's hand locks suppressed (#77) — empty on every arm that folded nothing.
- *  The caller unions them with the accumulator's own and records the pair on the turn's tool calls. */
-async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFlush, turn: CompletedTurn): Promise<readonly string[]> {
+ *  The caller unions them with the accumulator's own and records the pair on the turn's tool calls — paired
+ *  with the backstop's `droppedReason` (`null` ⇒ the flush WROTE), which the caller publishes on the settle
+ *  event (#1493), the only place a reader learns this boundary is done. */
+async function writeFlush(
+  ctx: RpgContext,
+  game: RpgGameRow,
+  flush: StagedTurnFlush,
+  turn: CompletedTurn,
+): Promise<{ readonly suppressed: readonly string[]; readonly droppedReason: string | null }> {
   const snapshotId = ctx.ids.snapshot();
   // Parse and mint every journal row before the batch starts. A corrupt type therefore writes neither plane;
   // once valid, the snapshot statement and every journal insert share one same-DB commit boundary.
@@ -210,7 +217,7 @@ async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFl
     // fired, produced applicable output, and it vanished — the log names WHICH field the write contract
     // rejected so the mismatch is root-causable from the provider trail, not a dark panel with no signal.
     ctx.onFlushDropped({ chatId: game.chatId, gameId: game.id, variantId: turn.variantId, reason: written.reason });
-    return [];
+    return { suppressed: [], droppedReason: written.reason };
   }
   // HAND-EDIT-VS-FLUSH: a hand row may now OUTRANK the row we just wrote (the host edited the panel during
   // the round's 0.8-2.9s flight). Fold this turn's state into it, locks-honored, BEFORE the emits — so the
@@ -223,7 +230,7 @@ async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFl
   if (flush.journal.length > 0) {
     ctx.emitBus({ type: "journalChanged", chatId: game.chatId });
   }
-  return fold.suppressed;
+  return { suppressed: fold.suppressed, droppedReason: null };
 }
 
 /** Fold this flush's state into a HAND ROW that shadows it, and return the snapshot id that is now HEAD (the
@@ -317,12 +324,22 @@ async function flushWritableTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGam
   // second write, which is the same lie with a shorter life (#77).
   const flush = ctx.staging.take(turn.turnId);
   const suppressed: string[] = [...(flush?.suppressedByLocks ?? [])];
+  let wrote = false;
+  let droppedReason: string | null = null;
   try {
     if (flush !== undefined) {
-      suppressed.push(...(await writeFlush(ctx, game, flush, turn)));
+      const written = await writeFlush(ctx, game, flush, turn);
+      suppressed.push(...written.suppressed);
+      wrote = written.droppedReason === null;
+      droppedReason = written.droppedReason;
     }
   } finally {
     await recordTurnCalls(ctx, game, turn, { roundCalls, suppressed });
+    // THE SETTLE (#1493), and it is TOTAL: every arm past the cancel gate lands here — a flush that wrote, a
+    // flush the F1 backstop dropped, a turn that staged nothing, and a write boundary that THREW (the `finally`
+    // runs before the throw propagates). Until this event, nothing in the trail said "the extraction is over":
+    // `onStateRoundPath` fires at DISPATCH, so a barrier polling it was racing the write it waited for.
+    ctx.onFlushSettled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, wrote, droppedReason });
   }
 }
 

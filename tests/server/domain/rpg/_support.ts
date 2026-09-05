@@ -318,6 +318,11 @@ export interface RpgFakes {
   /** The flushes CANCELLED at the write boundary (`onStateRoundCancelled`) — the ONLY evidence a correct,
    *  deliberate discard happened, so a cancel test asserts here as well as on the absent snapshot row. */
   readonly stateRoundCancels: { chatId: ChatId; turnId: ChatTurnId; discardedStagedWrites: boolean }[];
+  /** The WRITE-BOUNDARY SETTLES (`onFlushSettled`, #1493) — raised on EVERY arm past the cancel gate, in the
+   *  order the boundary reached them. This is what proves the settle is TOTAL (a dropped flush and a turn that
+   *  staged nothing settle too) and that it lands AFTER the durable write, which is the property the e2e
+   *  barrier depends on. */
+  readonly flushSettles: { chatId: ChatId; turnId: ChatTurnId; wrote: boolean; droppedReason: string | null; busEventsAtSettle: number }[];
   /** Per post-commit round: was its OWN signal aborted by the time the round's body resumed (read AFTER
    *  `stateRoundGate`)? The real vehicles hand that same signal to the provider, so `true` here is the proof the
    *  cancellation reached the model call — not merely the write boundary one step later. */
@@ -395,6 +400,7 @@ export function makeRpgService(
     flushDrops: [],
     barrierTimeouts: [],
     stateRoundCancels: [],
+    flushSettles: [],
     stateRoundSignalAborted: [],
   };
 
@@ -578,6 +584,18 @@ export function makeRpgService(
     },
     onStateRoundPath: (info) => {
       fakes.stateRoundPaths.push({ chatId: info.chatId, mode: info.mode, path: info.path, fallbackReason: info.fallbackReason });
+    },
+    onFlushSettled: (info) => {
+      // `busEventsAtSettle` is the ORDER WITNESS (#1493): the flush emits `snapshotPatched` only after its
+      // durable snapshot+journal commit returns, so a settle recorded with that emit already counted is a
+      // settle that landed AFTER the write. Reading the db here is not an option — the hook is sync `void`.
+      fakes.flushSettles.push({
+        chatId: info.chatId,
+        turnId: info.turnId,
+        wrote: info.wrote,
+        droppedReason: info.droppedReason,
+        busEventsAtSettle: fakes.busEvents.length,
+      });
     },
     onFoldBuildFailed: (info) => {
       fakes.foldBuildFailures.push({ chatId: info.chatId, gameId: info.gameId });

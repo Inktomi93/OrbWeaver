@@ -147,7 +147,7 @@ async function collectPerfEvidence(
   ctx: ArmRunContext,
   data: MeterData[],
   gaps: EvidenceGap[],
-): Promise<{ readonly reports: StepReport[]; readonly withheld: string | null; readonly artifact: string }> {
+): Promise<{ readonly reports: StepReport[]; readonly withheld: string | null; readonly loadSuspect: string | null; readonly artifact: string }> {
   for (const context of ctx.session.contexts) {
     if (context.owned === false) {
       continue;
@@ -170,7 +170,10 @@ async function collectPerfEvidence(
   }
   const reports = data.flatMap(buildReports);
   const disposition = ratePostureDisposition(ctx.ratePosture, "Snap --perf per-step timing columns");
-  const withheld = disposition.withheld ? disposition.reason : null;
+  // ONLY a `withheld` posture (an unproven browser) suppresses this arm's vote. A LOADED box measures and
+  // is LABELLED instead (#1616) — the timing columns below are printed either way.
+  const withheld = disposition.disposition === "withheld" ? disposition.reason : null;
+  const loadSuspect = disposition.disposition === "load-suspect" ? disposition.reason : null;
   const artifact = await artifactFile("perf", `${ctx.name}-perf`, ".json", {
     producer: "perf",
     producerArm: "interaction-perf",
@@ -187,14 +190,47 @@ async function collectPerfEvidence(
     artifact,
     `${JSON.stringify({ contract: "snap-interaction-perf-v1", cycles: ctx.opts.perfCycles, raw: data, reports, problems: interactionPerfProblems(reports, gaps, withheld), gaps, withheld }, null, 2)}\n`,
   );
-  return { reports, withheld, artifact };
+  return { reports, withheld, loadSuspect, artifact };
 }
 
-function perfStatus(gaps: readonly EvidenceGap[], withheld: string | null): string {
+/** The arm's RESULT member. `load-suspect` is a MEASURED run whose numbers nothing may promote — the
+ *  timing table is printed in full beside it (#1616). */
+function perfStatus(gaps: readonly EvidenceGap[], withheld: string | null, loadSuspect: string | null): string {
   if (gaps.length > 0) {
     return "REFUSED";
   }
-  return withheld === null ? "measured" : "withheld";
+  if (withheld !== null) {
+    return "withheld";
+  }
+  return loadSuspect === null ? "measured" : "load-suspect";
+}
+
+/** The FACT's member + detail, as one decision (#1616). `load-suspect` is a real measurement whose steps
+ *  and breach counts ride the fact unchanged — only the member stops a reader promoting them. */
+export function interactionPerfFact(input: {
+  readonly requested: boolean;
+  readonly gaps: readonly EvidenceGap[];
+  readonly withheld: string | null;
+  readonly loadSuspect: string | null;
+  readonly breaches: number;
+}): { readonly state: "off" | "refused" | "withheld" | "load-suspect" | "passed"; readonly detail: string | null } {
+  if (!input.requested) {
+    return { state: "off", detail: null };
+  }
+  if (input.gaps.length > 0) {
+    return { state: "refused", detail: input.gaps[0]?.detail ?? "interaction performance evidence was unavailable" };
+  }
+  if (input.withheld !== null) {
+    return { state: "withheld", detail: input.withheld };
+  }
+  if (input.loadSuspect !== null) {
+    return { state: "load-suspect", detail: input.loadSuspect };
+  }
+  const measured =
+    input.breaches === 0
+      ? "measured; no breach steps observed; interaction thresholds are non-voting"
+      : `measured; ${String(input.breaches)} breach step(s) observed; interaction thresholds are non-voting`;
+  return { state: "passed", detail: measured };
 }
 
 export const INTERACTION_PERF_ARM = {
@@ -278,6 +314,7 @@ export const INTERACTION_PERF_ARM = {
       const gaps: EvidenceGap[] = [];
       let artifact: string | null = null;
       let withheld: string | null = null;
+      let loadSuspect: string | null = null;
       let nextStep = 0;
       return {
         prepare: async (): Promise<void> => {
@@ -329,6 +366,7 @@ export const INTERACTION_PERF_ARM = {
           const collected = await collectPerfEvidence(ctx, data, gaps);
           reports = collected.reports;
           withheld = collected.withheld;
+          loadSuspect = collected.loadSuspect;
           artifact = collected.artifact;
         },
         report: (): Promise<void> => {
@@ -339,10 +377,15 @@ export const INTERACTION_PERF_ARM = {
             printEvidenceGaps(gaps);
           }
           print(`--- PERFORMANCE  steps=${String(reports.length)} cycles=${String(opts.perfCycles)} ---`);
-          if (withheld === null) {
-            printTable(reports);
-          } else {
+          if (withheld !== null) {
             print(`WITHHELD (${withheld})`);
+          } else {
+            // MEASURED EITHER WAY (#1616): the table prints under load too, with the label above it so a
+            // reader cannot mistake the numbers for a verdict.
+            if (loadSuspect !== null) {
+              print(`LOAD-SUSPECT (${loadSuspect})`);
+            }
+            printTable(reports);
           }
           if (artifact !== null) {
             print(`perf json   ${artifact}`);
@@ -357,7 +400,7 @@ export const INTERACTION_PERF_ARM = {
           }
           const breach = interactionPerfBreachCount(reports);
           return [
-            ["perf", perfStatus(gaps, withheld)],
+            ["perf", perfStatus(gaps, withheld, loadSuspect)],
             ["perf-artifact", artifact ?? "absent"],
             ["steps", reports.length],
             ["breach-steps", breach],
@@ -366,24 +409,13 @@ export const INTERACTION_PERF_ARM = {
           ];
         },
         facts: (): readonly ArmFactEmission<"interaction-perf">[] => {
-          let state: "off" | "refused" | "withheld" | "passed" = "off";
-          let detail: string | null = null;
-          if (opts.interactionPerf) {
-            if (gaps.length > 0) {
-              state = "refused";
-              detail = gaps[0]?.detail ?? "interaction performance evidence was unavailable";
-            } else if (withheld !== null) {
-              state = "withheld";
-              detail = withheld;
-            } else {
-              const breaches = interactionPerfBreachCount(reports);
-              state = "passed";
-              detail =
-                breaches === 0
-                  ? "measured; no breach steps observed; interaction thresholds are non-voting"
-                  : `measured; ${String(breaches)} breach step(s) observed; interaction thresholds are non-voting`;
-            }
-          }
+          const { state, detail } = interactionPerfFact({
+            requested: opts.interactionPerf,
+            gaps,
+            withheld,
+            loadSuspect,
+            breaches: interactionPerfBreachCount(reports),
+          });
           return [
             {
               scope: exactScope(0, 0, "action-tape"),

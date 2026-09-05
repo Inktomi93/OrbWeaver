@@ -123,6 +123,28 @@ test("a WITHHELD arm's row cannot claim completeness — an absent measurement i
   expect(findings[0]?.completeness).toBe("incomplete");
 });
 
+test("a LOAD-SUSPECT arm annotates even a PASSING run, and the annotation can never be counted (#1616)", async () => {
+  // The ruling's reader half. The arm MEASURED (there is a number), so nothing withheld and nothing
+  // refused — but the number was taken on a loaded box and must not be read as a verdict. If the row only
+  // appeared on non-passing runs, the common case (a green run whose rate is load-suspect) would publish
+  // the number with nothing beside it saying so.
+  const findings = await collectSnapFindings(
+    input([armVerdict({ arm: "motion", state: "load-suspect", detail: "dropped 47.54% at loadavg 26.1/24" })], "passed"),
+  );
+
+  const annotation = findings.find((row) => row.arms.includes("motion"));
+  expect(annotation?.severity).toBe("annotation");
+  expect(annotation?.what).toBe("dropped 47.54% at loadavg 26.1/24");
+  expect(annotation?.disposition).toEqual({ counted: false, reason: "load-suspect" });
+  // The arm's threshold went unjudged, so the row may not claim a complete reading.
+  expect(annotation?.completeness).toBe("incomplete");
+  // (`correlation` is the drafting-layer dedup key and is stripped before emission — the emitted row
+  // names the arm through `where`.)
+  expect(annotation?.where).toBe("arm motion");
+  // NEGATIVE CONTROL: it is not a voting row, so the passing run stays free of error rows.
+  expect(findings.some((row) => row.severity === "error")).toBe(false);
+});
+
 test("a failing arm gets its row even BESIDE another error row — the arm rows are not a fallback (#1566)", async () => {
   // The defect: #1385 emitted these inside the "no error draft at all" branch, so a contrast failure
   // alongside an unrelated page error got no row of its own. The page error is a DIFFERENT fact, and the

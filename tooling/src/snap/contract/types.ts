@@ -387,7 +387,10 @@ export interface AssertionOutcome {
 // The `--network`/`--cpu-throttle` vocabulary and the drive ceilings live in ./load-emulation.ts.
 
 export interface PerfEvidence {
-  readonly rate: { readonly status: "measured" | "withheld"; readonly reason: string };
+  /** The three members of the ONE rate vocabulary (`_shared/load-budget.ts` `MEASUREMENT_DISPOSITIONS`),
+   *  spelled in this arm's own words: `measured` = `complete`. `load-suspect` carries a REAL number that
+   *  nothing may promote (#1616); `withheld` carries none at all (an unproven browser). */
+  readonly rate: { readonly status: "measured" | "load-suspect" | "withheld"; readonly reason: string };
   readonly acceleration: BrowserAccelerationEvidence;
   readonly navigation: { readonly domContentLoadedMs: number; readonly loadMs: number; readonly responseMs: number } | null;
   readonly orb: unknown;

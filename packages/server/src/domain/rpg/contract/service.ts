@@ -681,6 +681,12 @@ export interface RpgContext {
    *  remove. So the resolution is named on every flush, with the reason when it is not what the knob asked for.
    *  Wired at compose to a log line; a fake recorder asserts it in tests. Fire-and-forget (`void`). */
   readonly onStateRoundPath: (info: StateRoundPathInfo) => void;
+  /** OBSERVABILITY: the WRITE BOUNDARY SETTLED (#1493). {@link onStateRoundPath} above names the vehicle at
+   *  DISPATCH — before the round runs — so nothing in this contract said "the extraction is over" until this
+   *  hook; an e2e barrier polling the dispatch event was racing the write it claimed to wait for. Called on
+   *  EVERY arm past the cancel gate (wrote / backstop-dropped / staged-nothing / threw), from a `finally`, so
+   *  "settled" is total. Wired at compose to the `flushed` trace phase + a debug log. Fire-and-forget (`void`). */
+  readonly onFlushSettled: (info: FlushSettledInfo) => void;
   /** OBSERVABILITY: the folded turn's TOOL-MOUNT failed (R1). The mount is the fold's only PRE-commit step and
    *  it reads the db, so it is caught and swallowed to protect the character turn — which means the ONLY trace
    *  a broken mount leaves is this line. Without it a game would quietly stop folding (and quietly start paying
@@ -735,6 +741,18 @@ interface StateRoundCancelInfo {
    *  common case — the abort landed during the model call), which is a cheaper, quieter event than throwing
    *  away a finished extraction. */
   readonly discardedStagedWrites: boolean;
+}
+
+/** The write-boundary SETTLE signal (#1493) — the round is over, whatever it did. `wrote` is the durable half
+ *  (a snapshot landed); `droppedReason` is the F1 backstop's field-level refusal and is `null` on every arm
+ *  that did not drop, INCLUDING the arm that staged nothing (a quiet beat is not a drop).
+ *  Non-exported: reachable only through `RpgContext.onFlushSettled`'s signature — no consumer names it (knip). */
+interface FlushSettledInfo {
+  readonly chatId: ChatId;
+  readonly gameId: RpgGameId;
+  readonly turnId: ChatTurnId;
+  readonly wrote: boolean;
+  readonly droppedReason: string | null;
 }
 
 /** The write-boundary drop signal (the F1 backstop refused a contract-invalid state at flush). Carries the id

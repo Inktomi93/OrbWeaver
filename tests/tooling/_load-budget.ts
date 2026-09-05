@@ -1,11 +1,13 @@
 // THE VITEST SEAM of the ONE load policy (NOT a test file — no `.test` suffix, so test-layout ignores it,
 // the `_support.ts` precedent). The POLICY itself moved DOWN to `@orb/tooling/_shared/load-budget` on
 // 2026-09-02 (#1232, docs/design/1208-instrument-substrate.md §7.1): the box reading, the factor, the
-// wall-clock `budget()`, the withhold judgment, the two markers and the kill message are shared with the
+// wall-clock `budget()`, the rate judgment, the two markers and the kill message are shared with the
 // INSTRUMENTS, the two runner configs and the stack launcher, and a policy that lives under `tests/` can
 // serve none of them. What stays here is exactly what only vitest can use:
-//   • the `TaskMeta` augmentation + `withholdMeasurement` (stamping a withheld arm where the json reporter
-//     can see it — a bare `ctx.skip(reason)` records the reason NOWHERE);
+//   • the `TaskMeta` augmentation + `labelRateLoad` (stamping a LOAD-SUSPECT arm where the json reporter
+//     can see it — stderr alone records the reason NOWHERE in reports/test-report.json). Since #1616 it
+//     LABELS and returns; it no longer skips, so the arm's numbers still get measured and printed and
+//     only its THRESHOLD assertions stand down;
 //   • the CHILD RUNNERS (`runNodeWithBudget` / `runPnpmWithBudget` / `spawnNodeWithBudget`), the shape a
 //     tooling self-test uses to shell a real CLI and get a LEGIBLE kill instead of an opaque red. They are
 //     synchronous `execFileSync`/`spawnSync` doors built for a test body; the instruments spawn through
@@ -14,30 +16,32 @@
 // import site, one policy underneath.
 import { execFileSync, spawnSync } from "node:child_process";
 import process from "node:process";
-import type { BoxLoad } from "@orb/tooling/_shared/load-budget";
-import { budget, isTimeoutKill, judgeMeasurementLoad, LOAD_WITHHOLD_META_KEY, loadKillError, readBoxLoad } from "@orb/tooling/_shared/load-budget";
+import type { BoxLoad, MeasurementVerdict } from "@orb/tooling/_shared/load-budget";
+import { budget, isTimeoutKill, judgeMeasurementLoad, LOAD_SUSPECT_META_KEY, loadKillError, readBoxLoad } from "@orb/tooling/_shared/load-budget";
 import type { TaskMeta } from "vitest";
 
-export type { BoxLoad } from "@orb/tooling/_shared/load-budget";
+export type { BoxLoad, MeasurementVerdict } from "@orb/tooling/_shared/load-budget";
 export {
   computeLoadFactor,
+  isJudgeableMeasurement,
   isLoadKill,
   isTimeoutKill,
   judgeMeasurementLoad,
   LOAD_KILL_MARKER,
-  LOAD_WITHHOLD_MARKER,
-  LOAD_WITHHOLD_META_KEY,
+  LOAD_SUSPECT_MARKER,
+  LOAD_SUSPECT_META_KEY,
   readBoxLoad,
 } from "@orb/tooling/_shared/load-budget";
 
-// The reporter-visible channel for a withheld arm, declared where the withhold lives. `TaskMeta` is
-// vitest's own augmentation point and `meta` is the ONLY per-test field its json reporter serializes for a
-// SKIPPED test — so this augmentation is not decoration, it is the whole reason a withhold is legible in
-// `reports/test-report.json` at all (see `withholdMeasurement` + scripts/vitest-supervised.mjs).
+// The reporter-visible channel for a LOAD-SUSPECT arm, declared where the label lives. `TaskMeta` is
+// vitest's own augmentation point and `meta` is a per-test field the json reporter serializes for a PASSING
+// test as well as a skipped one — so this augmentation is not decoration, it is the whole reason the label
+// is legible in `reports/test-report.json` at all (see `labelRateLoad` + scripts/vitest-supervised.mjs).
 declare module "vitest" {
   interface TaskMeta {
-    /** The #1040 withhold reason, set by `withholdMeasurement` immediately before `ctx.skip`. */
-    orbLoadWithheld?: string;
+    /** The #1040 load reason, set by `labelRateLoad` when the box was loaded while the arm measured
+     *  (#1616 — it labels the number now; it does not skip the test). */
+    orbLoadSuspect?: string;
   }
 }
 
@@ -53,31 +57,30 @@ export function scaledBudget(baseMs: number, cap?: number): number {
  *  pin itself to a whole `TestContext` (which a planted control could not construct). The real context
  *  satisfies it: `task` is `Readonly<Test>` whose `meta` is the augmented `TaskMeta`, and `skip`'s
  *  `(note?: string): never` overload is assignable to the one-arg signature below. */
-export interface WithholdableTest {
+export interface LabellableTest {
   readonly task: { readonly meta: TaskMeta };
-  readonly skip: (note?: string) => unknown;
 }
 
-/** Withhold a MEASURED-RATE arm when the box is too loaded for the number to mean anything. On a loaded
- *  box this stamps the reason into `task.meta` (the reporter-visible channel), shouts it on stderr, and
- *  calls `skip(reason)` — which THROWS, so nothing after the call runs and the arm never votes. On a quiet
- *  box it returns and the caller measures exactly as before.
+/** LABEL a MEASURED-RATE arm when the box is loaded — never skip it (#1616, owner ruling). On a loaded box
+ *  this stamps the reason into `task.meta` (the reporter-visible channel) and shouts it on stderr, then
+ *  RETURNS the verdict so the caller can measure, print its numbers, and gate only its THRESHOLD
+ *  assertions on `isJudgeableMeasurement(verdict)`. On a quiet box it returns `complete` and the caller
+ *  judges exactly as before.
  *
- *  CALL IT AS `withholdMeasurement({ task, skip }, "…")`, destructuring both members out of the test's own
- *  argument list. It cannot take the whole context: every suite here runs on a `test.extend` fixture, and
- *  vitest's fixture parser REFUSES a non-destructured first parameter outright — it throws
- *  `FixtureParseError: The 1st argument inside a fixture must use object destructuring pattern` — which
- *  FAILS the test rather than skipping it, i.e. exactly the false red this seam exists to prevent. `task`
- *  and `skip` are ordinary context members, so naming them alongside the fixtures is free, and `skip` is
- *  an arrow closed over the task (vitest's own runner chunk) so it survives destructuring. */
-export function withholdMeasurement(ctx: WithholdableTest, what: string, read: () => BoxLoad = readBoxLoad): void {
+ *  IT USED TO CALL `ctx.skip(reason)`, which threw and stopped the arm dead. That is what the ruling
+ *  reversed: our steady state is loaded, so the skip made these arms unavailable most of the day. The
+ *  numbers are worth reading even when they cannot be judged.
+ *
+ *  CALL IT AS `labelRateLoad({ task }, "…")`, destructuring `task` out of the test's own argument list:
+ *  every suite here runs on a `test.extend` fixture and vitest's fixture parser REFUSES a non-destructured
+ *  first parameter outright (`FixtureParseError`), which FAILS the test rather than labelling it. */
+export function labelRateLoad(ctx: LabellableTest, what: string, read: () => BoxLoad = readBoxLoad): MeasurementVerdict {
   const verdict = judgeMeasurementLoad(read(), what);
-  if (!verdict.withheld) {
-    return;
+  if (verdict.disposition === "load-suspect") {
+    ctx.task.meta[LOAD_SUSPECT_META_KEY] = verdict.reason;
+    process.stderr.write(`${verdict.reason}\n`);
   }
-  ctx.task.meta[LOAD_WITHHOLD_META_KEY] = verdict.reason;
-  process.stderr.write(`${verdict.reason}\n`);
-  ctx.skip(verdict.reason);
+  return verdict;
 }
 
 export interface ChildBudgetOpts {

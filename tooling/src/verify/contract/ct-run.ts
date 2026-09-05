@@ -60,12 +60,13 @@ export interface CtRunFacts {
   readonly executedFiles: readonly string[];
 }
 
-/** One CT that DECLINED TO VOTE because the box was too loaded for its measured rate to mean anything
- *  (#1232 section 7.1, `annotateRateWithhold`). Not a flake and not a failure — a third outcome the
- *  reporter names out loud so a green bar with a missing arm is never mistaken for a full run. */
-export interface CtWithheldTest {
+/** One CT whose measured rate was taken on a LOADED box (#1232 §7.1 as amended by #1616's owner ruling,
+ *  `annotateRateLoad`). It MEASURED — the number exists and the test still ran — but nothing may promote
+ *  it, so it is neither a flake nor a failure nor a clean pass. The reporter names it out loud, because a
+ *  green bar over an unpromotable number is exactly the disappearing act this reporter exists to end. */
+export interface CtLoadSuspectTest {
   readonly file: string;
   readonly title: string;
-  /** The withhold reason, carrying the loadavg receipt. */
+  /** The load-suspect reason, carrying the loadavg receipt. */
   readonly reason: string;
 }

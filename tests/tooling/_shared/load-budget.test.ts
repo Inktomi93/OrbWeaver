@@ -4,29 +4,34 @@
 // load the box could never run in the battery, and one that did would be measuring the battery.
 //
 // What each proves, and why the pair is the proof:
-//   T14 a FORCED-LOAD reading makes a rate arm WITHHOLD, naming the loadavg — never a red;
-//   T15 a QUIET reading leaves factor 1, every budget BYTE-IDENTICAL to its base and the arm MEASURING.
-//       This is the positive control that the withhold cannot become a way to stop testing (#1040) and
-//       that scaling cannot become a way to stop failing — without it T14 is satisfied by a stub that
-//       always withholds;
+//   T14 a FORCED-LOAD reading LABELS a rate arm `load-suspect`, naming the loadavg — and it still
+//       MEASURES (#1616, owner ruling 2026-09-05: "label, don't withhold"). Never a red, never a skip;
+//   T15 a QUIET reading leaves factor 1, every budget BYTE-IDENTICAL to its base and the arm `complete`.
+//       This is the positive control that the LABEL cannot become a way to stop MEASURING (#1040/#1616)
+//       and that scaling cannot become a way to stop failing — without it T14 is satisfied by a stub that
+//       always labels;
 //   T16 a genuinely HUNG subject under the SAME forced load still dies at its scaled ceiling, with a
 //       message naming base×factor and the loadavg. The ceiling is not a way to hang.
 import {
-  annotateRateWithhold,
+  annotateRateLoad,
   budget,
   computeLoadFactor,
+  hasMeasurement,
+  isJudgeableMeasurement,
   isLoadKill,
   isTimeoutKill,
   judgeMeasurementLoad,
+  judgeRateLoad,
   LOAD_KILL_MARKER,
-  LOAD_WITHHOLD_MARKER,
+  LOAD_SUSPECT_MARKER,
   loadKillError,
   loadKillMessage,
   loadLine,
   loadResultPairs,
+  loadSuspectPair,
+  loadSuspectSummary,
+  ratePair,
   readBoxLoad,
-  withheldPair,
-  withholdRate,
 } from "@orb/tooling/_shared/load-budget";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -38,35 +43,80 @@ const QUIET = { loadavg1: 7.2, cpuCount: 24 } as const;
 const readLoaded = (): typeof LOADED => LOADED;
 const readQuiet = (): typeof QUIET => QUIET;
 
-// ── T14: a forced-load reading WITHHOLDS a rate arm, and names the box ──────────────────────────────
-test("T14 — a rate arm on a forced-load reading WITHHOLDS with the loadavg receipt, and is never a red", () => {
-  const verdict = withholdRate("motion-audit's dropped-frame rate", readLoaded);
-  expect(verdict.withheld).toBe(true);
-  // The receipt must NAME THE BOX: a withhold whose reason does not say what was loaded is indistinguishable
-  // from a skip somebody left behind.
-  expect(verdict.reason).toContain(LOAD_WITHHOLD_MARKER);
+// ── T14: a forced-load reading LABELS a rate arm — and it still MEASURES ────────────────────────────
+test("T14 — a rate arm on a forced-load reading is LOAD-SUSPECT with the loadavg receipt, never a red", () => {
+  const verdict = judgeRateLoad("motion-audit's dropped-frame rate", readLoaded);
+  expect(verdict.disposition).toBe("load-suspect");
+  // THE HALF THE #1616 RULING ADDED: the arm MEASURED. `hasMeasurement` is what every caller keys its
+  // "print the number" branch on, and a label that answered false here would be the old withhold wearing a
+  // new name.
+  expect(hasMeasurement(verdict)).toBe(true);
+  // …and it is UNJUDGEABLE: no threshold, no exit contribution, no problem row.
+  expect(isJudgeableMeasurement(verdict)).toBe(false);
+  // The receipt must NAME THE BOX: a label whose reason does not say what was loaded is indistinguishable
+  // from a note somebody left behind.
+  expect(verdict.reason).toContain(LOAD_SUSPECT_MARKER);
   expect(verdict.reason).toContain("96.0 / 24 cores");
   // …and it is emphatically NOT a kill: the two vocabularies are different tokens on purpose (a kill is a
-  // run that broke, a withhold is a run that declined to vote), and conflating them is how "we chose not to
-  // measure" would read as "the instrument failed".
+  // run that broke, a load-suspect number is one that was taken on a loaded box), and conflating them is
+  // how "this reading is about the box" would read as "the instrument failed".
   expect(verdict.reason).not.toContain(LOAD_KILL_MARKER);
   expect(isLoadKill(new Error(verdict.reason))).toBe(false);
-  expect(withheldPair("dropped")).toBe("dropped=withheld");
+  expect(ratePair("dropped", verdict)).toBe("dropped=load-suspect");
+  expect(loadSuspectPair(["motion", "app-snapshot"])).toEqual([["load-suspect", "app-snapshot,motion"]]);
+  // NOTHING suspect ⇒ NO pair at all: a reader must never have to tell "none" from "not reported".
+  expect(loadSuspectPair([])).toEqual([]);
 });
 
-test("T14 — the CT channel stamps the withhold where the REPORTER can see it", () => {
-  // The CT twin of `task.meta`: a Playwright skip carries no output at all, so an un-annotated withhold is
-  // a silent green. `annotateRateWithhold` is the ONLY thing that makes it legible to ct-flaky-reporter.
+test("T14 — the RESULT-line summary is DERIVED from the arms' own pairs, in every case they print", () => {
+  // ONE LINE ANSWERS "was anything measured under load?" (#1616 done-criterion 1) — and it is derived, not
+  // accumulated a second time, because a summary with its own counter is how a run comes to disagree with
+  // its own arms. The case-insensitive read is load-bearing: motion prints `motion=LOAD-SUSPECT` (its
+  // status vocabulary is upper-case) while snap's perf arms print the member lower-case.
+  expect(
+    loadSuspectSummary([
+      ["motion", "LOAD-SUSPECT"],
+      ["app-snapshot", "load-suspect"],
+      ["contrast", "passed"],
+      ["steps", 4],
+      ["perf", "withheld"],
+    ]),
+  ).toEqual([["load-suspect", "app-snapshot,motion"]]);
+  // A withheld arm is NOT a load-suspect one — the summary must not blur the two members.
+  expect(
+    loadSuspectSummary([
+      ["perf", "withheld"],
+      ["contrast", "passed"],
+    ]),
+  ).toEqual([]);
+});
+
+test("T14 — the WITHHELD member survives for the one cause that yields NO number", () => {
+  // #1616 retired the LOAD withhold, not the member: an unproven/software-rendered browser still produces
+  // nothing to label (snap/lib/rate-posture.ts). This pins the collapse rule both ways.
+  const withheld = { disposition: "withheld", reason: "SOFTWARE-ACCELERATION-WITHHOLD: …" } as const;
+  expect(hasMeasurement(withheld)).toBe(false);
+  expect(isJudgeableMeasurement(withheld)).toBe(false);
+  expect(ratePair("perf", withheld)).toBe("perf=withheld");
+  // …and load NEVER lands there any more — the arm this ruling governs cannot reach the member.
+  expect(judgeRateLoad("x", readLoaded).disposition).not.toBe("withheld");
+});
+
+test("T14 — the CT channel stamps the LABEL where the REPORTER can see it, and never skips", () => {
+  // The CT twin of `task.meta`: a green CT carries no output at all, so an un-annotated load-suspect run is
+  // a silent green. `annotateRateLoad` is the ONLY thing that makes it legible to ct-flaky-reporter — and
+  // it MUST NOT skip: the test runs, the number exists, only its threshold stands down (#1616).
   const annotations: { type: string; description?: string }[] = [];
   const info = { annotations };
-  const loaded = annotateRateWithhold(info, "a CT-measured rate", readLoaded);
-  expect(loaded.withheld).toBe(true);
+  const loaded = annotateRateLoad(info, "a CT-measured rate", readLoaded);
+  expect(loaded.disposition).toBe("load-suspect");
+  expect(hasMeasurement(loaded)).toBe(true);
   expect(info.annotations).toHaveLength(1);
-  expect(info.annotations[0]?.type).toBe("orb-load-withheld");
-  expect(info.annotations[0]?.description).toContain(LOAD_WITHHOLD_MARKER);
-  // The quiet arm stamps NOTHING — an annotation on a measuring test would inflate the census.
-  const quiet = annotateRateWithhold(info, "a CT-measured rate", readQuiet);
-  expect(quiet.withheld).toBe(false);
+  expect(info.annotations[0]?.type).toBe("orb-load-suspect");
+  expect(info.annotations[0]?.description).toContain(LOAD_SUSPECT_MARKER);
+  // The quiet arm stamps NOTHING — an annotation on a clean measurement would inflate the census.
+  const quiet = annotateRateLoad(info, "a CT-measured rate", readQuiet);
+  expect(quiet.disposition).toBe("complete");
   expect(info.annotations).toHaveLength(1);
 });
 
@@ -78,17 +128,18 @@ test("T15 — a quiet reading leaves factor 1 and every budget BYTE-IDENTICAL to
   for (const base of [5000, 10_000, 15_000, 30_000, 180_000, 240_000]) {
     expect(budget(base, readQuiet)).toBe(base);
   }
-  // …and the arm MEASURES. Without this half, a stub that always withholds satisfies T14.
-  expect(judgeMeasurementLoad(QUIET, "the dropped-frame rate").withheld).toBe(false);
+  // …and the arm's number is a VERDICT. Without this half, a stub that always labels satisfies T14.
+  expect(judgeMeasurementLoad(QUIET, "the dropped-frame rate").disposition).toBe("complete");
+  expect(isJudgeableMeasurement(judgeMeasurementLoad(QUIET, "the dropped-frame rate"))).toBe(true);
 });
 
 test("T15 — the boundary is computeLoadFactor's own, not a second constant", () => {
-  // Per-core EXACTLY 1.0 is the first contended reading: the factor leaves 1, so the withhold fires. The
+  // Per-core EXACTLY 1.0 is the first contended reading: the factor leaves 1, so the LABEL fires. The
   // 47.54% false red (#1040) was taken at per-core 1.04 — the first hair above this line.
   expect(computeLoadFactor(24, 24)).toBe(1);
-  expect(judgeMeasurementLoad({ loadavg1: 24, cpuCount: 24 }, "x").withheld).toBe(false);
+  expect(judgeMeasurementLoad({ loadavg1: 24, cpuCount: 24 }, "x").disposition).toBe("complete");
   expect(computeLoadFactor(24.96, 24)).toBeGreaterThan(1);
-  expect(judgeMeasurementLoad({ loadavg1: 24.96, cpuCount: 24 }, "x").withheld).toBe(true);
+  expect(judgeMeasurementLoad({ loadavg1: 24.96, cpuCount: 24 }, "x").disposition).toBe("load-suspect");
 });
 
 test("T15 — a loaded reading STRETCHES a budget, and the stretch is capped in both directions", () => {

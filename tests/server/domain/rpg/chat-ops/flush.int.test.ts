@@ -179,6 +179,44 @@ test("a turn that staged nothing writes NO snapshot (byte-identical non-writing 
   ]);
 });
 
+test("#1493 SETTLE: the write boundary announces AFTER the durable write — and on every arm, including nothing-staged", async () => {
+  // WHY THIS EXISTS. `onStateRoundPath` is raised at DISPATCH (`resolveStateRound` picking the vehicle), so
+  // until this hook nothing in the trail said the extraction was OVER; the live-loop e2e barriered on that
+  // dispatch event and released while the round was still running. The settle must therefore be (a) AFTER the
+  // durable write and (b) TOTAL — a turn that wrote nothing settles too, or the barrier hangs on the quiet
+  // beat that is the 8B model's most common outcome.
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db);
+  await rpgToolDefinitions(h.ctx)[2]?.handler({ location: "the settled hall" }, exec(chatId, TURN)); // [2] = update_scene
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  h.fakes.busEvents.length = 0;
+
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
+
+  // The snapshot LANDED, and exactly one settle names it.
+  expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the settled hall");
+  expect(h.fakes.flushSettles).toHaveLength(1);
+  expect(h.fakes.flushSettles[0]).toMatchObject({ chatId, turnId: TURN, wrote: true, droppedReason: null });
+  // ORDER: `snapshotPatched` is emitted only after the snapshot+journal commit returns, so a settle that
+  // already counted it is a settle that happened after the durable write — the property the barrier needs.
+  expect(h.fakes.busEvents.map((event) => event.type)).toContain("snapshotPatched");
+  const patchedAt = h.fakes.busEvents.findIndex((event) => event.type === "snapshotPatched");
+  expect(h.fakes.flushSettles[0]?.busEventsAtSettle).toBeGreaterThan(patchedAt);
+});
+
+test("#1493 SETTLE: a turn that staged NOTHING still settles — the quiet beat is terminal, not a hang", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db);
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
+
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+  // The one difference from the arm above: nothing was WRITTEN, and nothing was DROPPED either — a quiet
+  // beat is not a backstop refusal, and conflating them would make the empty delta read as data loss.
+  expect(h.fakes.flushSettles).toEqual([{ chatId, turnId: TURN, wrote: false, droppedReason: null, busEventsAtSettle: expect.any(Number) }]);
+});
+
 test("F1: a negative pool delta on a fresh pool flushes a CONTRACT-VALID row (getTrackerView does not throw)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
@@ -237,6 +275,12 @@ test("F1 (structural backstop): a would-be-INVALID staged state DROPS the whole 
   expect(h.fakes.flushDrops).toHaveLength(1);
   expect(h.fakes.flushDrops[0]?.variantId).toBe(variantId);
   expect(h.fakes.flushDrops[0]?.reason).toMatch(POOLS_MAX_RE);
+  // …and the DROP still SETTLES (#1493), carrying the same field-level reason: `droppedReason` on the trace
+  // has a real emitter here, which is why the field exists at all. A barrier that only released on a
+  // successful write would hang forever on exactly the turn a reader most needs to see.
+  expect(h.fakes.flushSettles).toHaveLength(1);
+  expect(h.fakes.flushSettles[0]?.wrote).toBe(false);
+  expect(h.fakes.flushSettles[0]?.droppedReason).toMatch(POOLS_MAX_RE);
 });
 
 test("ROUND-TRIP (the exec's replayed output): extraction JSON → delta → flush → getTrackerView reads it back", async () => {

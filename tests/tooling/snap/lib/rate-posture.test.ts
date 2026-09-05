@@ -29,7 +29,7 @@ test("one immutable run posture keeps all rate consumers consistent when a secon
   expect(acceleration).toHaveBeenCalledOnce();
   expect(load).toHaveBeenCalledOnce();
   expect(Object.isFrozen(receipt)).toBe(true);
-  expect(dispositions.map((row) => row.withheld)).toEqual([false, false, false]);
+  expect(dispositions.map((row) => row.disposition)).toEqual(["complete", "complete", "complete"]);
   expect(new Set(dispositions.map((row) => row.postureId))).toEqual(new Set([receipt.id]));
   expect(receipt.load).toEqual({ loadavg1: 0.5, cpuCount: 8 });
   expect(receipt.id).toMatch(/^sha256:[a-f0-9]{64}$/u);
@@ -46,6 +46,6 @@ test("one failed acceleration read is owned once and withholds every rate consum
 
   expect(acceleration).toHaveBeenCalledOnce();
   expect(load).toHaveBeenCalledOnce();
-  expect(dispositions.every((row) => row.withheld)).toBe(true);
+  expect(dispositions.every((row) => row.disposition === "withheld")).toBe(true);
   expect(dispositions.every((row) => row.reason.includes("planted SystemInfo refusal"))).toBe(true);
 });

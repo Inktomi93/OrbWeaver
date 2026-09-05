@@ -9,6 +9,7 @@ import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { summarizeOrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdictReceipt } from "../../_shared/evidence.ts";
+import { loadSuspectSummary } from "../../_shared/load-budget.ts";
 import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
 import type { ArmPairInput, ArmRunContext } from "../contract/arms.ts";
 import type { EvidenceWindow, SessionRunHooks, SessionRunTarget, SnapDetailedPlan, SnapDetailedResult } from "../contract/run.ts";
@@ -279,6 +280,12 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       ...diffPairs,
       ...ratePostureResultPairs(ratePosture),
     ];
+    // ONE LINE ANSWERS "was anything measured under load, and how loaded was it?" (#1616 done-criterion 1).
+    // The arms already publish their own member (`motion=LOAD-SUSPECT`, `app-snapshot=load-suspect`,
+    // `perf=load-suspect`), so the aggregate is DERIVED from the pairs rather than plumbed a second time —
+    // a second accumulator is how a summary and its own arms come to disagree. It rides beside the
+    // `load=`/`budget-factor=` pair the rate posture already prints.
+    resultPairs.push(...loadSuspectSummary(resultPairs));
     const terminal = printVerdictReceipt("snap", {
       verdict: red ? 1 : 0,
       denominators: { pages: { value: totalPages, refuseWhen: "zero" }, ...arms.denominators() },

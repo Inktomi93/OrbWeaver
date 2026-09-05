@@ -55,10 +55,10 @@ import { adoptRunSlot } from "@orb/tooling/_shared/artifact-out";
 import type { RunSlot } from "@orb/tooling/_shared/artifacts";
 import { publishRunSlot, transferRunSlotOwnership } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import { LOAD_WITHHOLD_ANNOTATION } from "@orb/tooling/_shared/load-budget";
+import { LOAD_SUSPECT_ANNOTATION } from "@orb/tooling/_shared/load-budget";
 import { readBudgetRows } from "@orb/tooling/_shared/ratchet-rows";
 import type { FullResult, Reporter, Suite, TestCase, TestResult } from "@playwright/test/reporter";
-import type { CtFlakyTest, CtRunFacts, CtWithheldTest } from "../contract/ct-run.ts";
+import type { CtFlakyTest, CtLoadSuspectTest, CtRunFacts } from "../contract/ct-run.ts";
 import { RULE, readRun, summaryLines } from "./ct-run-tally.ts";
 import type { UnfedRatchetVerdict } from "./ct-unfed-ratchet.ts";
 import { ACTIVE_MARKER, BASELINE_REL, judgeUnfedReads, owesActiveMarker } from "./ct-unfed-ratchet.ts";
@@ -145,20 +145,19 @@ function announceUnstubbed(byFile: ReadonlyMap<string, ReadonlySet<string>>): vo
   process.stdout.write(`${lines.join("\n")}\n`);
 }
 
-/** Print the LOAD WITHHOLDS (#1232 section 7.1). A CT whose verdict is a measured RATE declines to vote on
- *  a contended box (`annotateRateWithhold`, _shared/load-budget.ts) — that is the right answer, but a bare
- *  Playwright skip is INVISIBLE in a green bar, which is the same disappearing act this reporter exists to
- *  end for retry-masked flakes. So a withheld arm is announced by name with the loadavg that caused it: not
- *  a failure, and never silence.
+/** Print the LOAD-SUSPECT arms (#1232 §7.1 as amended by #1616). A CT whose verdict is a measured RATE now
+ *  MEASURES on a contended box and LABELS the number (`annotateRateLoad`, _shared/load-budget.ts) — but a
+ *  bare annotation is INVISIBLE in a green bar, which is the same disappearing act this reporter exists to
+ *  end for retry-masked flakes. So each one is announced by name with the loadavg that caused it.
  *
- *  NOT run status. A withhold is "we chose not to measure", so it must not fail the run — it must be
- *  READABLE, so the next reader knows the green bar is missing an arm and why. */
-function announceWithheld(withheld: readonly CtWithheldTest[]): void {
-  const lines = ["", RULE, `  LOAD WITHHOLDS — ${String(withheld.length)} rate-measuring test(s) declined to vote on this box`, RULE];
-  for (const w of withheld) {
+ *  NOT run status. A load-suspect number is "measured, unpromotable", so it must not fail the run — it must
+ *  be READABLE, so the next reader knows which arm's number is about the box. */
+function announceLoadSuspect(suspect: readonly CtLoadSuspectTest[]): void {
+  const lines = ["", RULE, `  LOAD-SUSPECT — ${String(suspect.length)} rate-measuring test(s) measured on a loaded box`, RULE];
+  for (const w of suspect) {
     lines.push(`  ~ ${w.file}  ${w.title}`, `      ${w.reason}`);
   }
-  lines.push(RULE, '  a withhold is NOT a failure and NOT a pass (#1040 "withhold, don\'t red") — re-run on a quiet tree.', RULE, "");
+  lines.push(RULE, '  load-suspect is NOT a failure and NOT a pass (#1616 "label, don\'t withhold") — re-run on a quiet tree to judge.', RULE, "");
   process.stdout.write(`${lines.join("\n")}\n`);
 }
 
@@ -173,7 +172,7 @@ class CtFlakyReporter implements Reporter {
   readonly #instrumented = new Set<string>();
   /** Rate-measuring tests that WITHHELD on this box (#1232). Collected from the reporter-visible
    *  annotation channel rather than from stderr: a skip carries no output at all. */
-  readonly #withheld: CtWithheldTest[] = [];
+  readonly #loadSuspect: CtLoadSuspectTest[] = [];
 
   constructor(options: CtFlakyReporterOptions = {}) {
     if (options.slotDir === undefined) {
@@ -193,9 +192,9 @@ class CtFlakyReporter implements Reporter {
   // RESULT; a statically declared one lands on the CASE. Read both — a withhold seen in only one place
   // would make the census depend on where the arm happened to declare itself.
   onTestEnd(test: TestCase, result: TestResult): void {
-    const note = [...result.annotations, ...test.annotations].find((a) => a.type === LOAD_WITHHOLD_ANNOTATION);
+    const note = [...result.annotations, ...test.annotations].find((a) => a.type === LOAD_SUSPECT_ANNOTATION);
     if (note !== undefined) {
-      this.#withheld.push({ file: relative(process.cwd(), test.location.file), title: test.title, reason: note.description ?? LOAD_WITHHOLD_ANNOTATION });
+      this.#loadSuspect.push({ file: relative(process.cwd(), test.location.file), title: test.title, reason: note.description ?? LOAD_SUSPECT_ANNOTATION });
     }
   }
 
@@ -254,8 +253,8 @@ class CtFlakyReporter implements Reporter {
     if (this.#unstubbed.size > 0) {
       announceUnstubbed(this.#unstubbed);
     }
-    if (this.#withheld.length > 0) {
-      announceWithheld(this.#withheld);
+    if (this.#loadSuspect.length > 0) {
+      announceLoadSuspect(this.#loadSuspect);
     }
     // The RATCHET (#637). Judged whenever there is a suite to judge, and printed only when it has something
     // to say — a silent ratchet on a clean run is the point.

@@ -24,7 +24,7 @@ const SNAP_CLI = fileURLToPath(new URL("../../../tooling/src/snap/cli.ts", impor
 // took no notice of the box: six drives in one battery (2026-09-01) blew it under sibling-lane load and
 // surfaced as generic timeouts indistinguishable from assertion reds. Load stretches a wall clock roughly
 // linearly, which is exactly the case `scaledBudget` covers — the measured-RATE case it does NOT cover is
-// `withholdMeasurement`, and this file has no rate arms: every assertion here is a DOM/byte fact. Cap 4
+// `labelRateLoad` (#1616), and this file has no rate arms: every assertion here is a DOM/byte fact. Cap 4
 // matches the other heavy tooling suites. The file lives in the `live-drive` project (vitest.config.ts).
 const RUN_TIMEOUT_MS = scaledBudget(60_000, 4);
 vi.setConfig({ testTimeout: RUN_TIMEOUT_MS, hookTimeout: RUN_TIMEOUT_MS });

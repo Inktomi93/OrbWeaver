@@ -609,10 +609,71 @@ test("a TERM while dev.sh waits on engines EXITS it — no orphan server boot (#
       new Promise<boolean>((resolve) => setTimeout(() => resolve(false), DEV_SIGNAL_EXIT_GRACE_MS)),
     ]);
     expect(exited, "dev.sh must act on TERM immediately, not queue it behind the engines wait").toBe(true);
+    // …and it SIGNAL-EXITS: 143 = 128 + SIGTERM, the shell's own convention. "It exited" was too weak a
+    // claim (chunk L, #1618 addendum) — a script that fell out of its own logic and exited 0 would satisfy
+    // it, which is the very shape the orphan came from.
+    expect(child.exitCode, "a signalled dev.sh must exit 143 (128 + SIGTERM), not merely stop").toBe(143);
     // The orphan's signature: the signalled script went on to bind the server anyway.
     expect(existsSync(marker), "a signalled dev.sh must NEVER go on to boot the watched server").toBe(false);
   } finally {
     killGroup(pid);
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// ── #1618: the SECOND spawn door — a FALSY `VLLM_DISABLED` ───────────────────────────────────────────
+//
+// `stack.sh` branched on `VLLM_DISABLED` being NON-EMPTY, which `false`/`0`/`no` satisfies. Such a caller
+// therefore set NO `ENGINES_POSTURE`, SKIPPED the `.env` pin, and engines.sh — which reads ONLY
+// `ENGINES_POSTURE` — fell back to its own `adopt-or-start` default and SPAWNED, while the server ran
+// `.env`'s adopt-only. Same 38 GB as #1567, through a door that fix did not close.
+//
+// NOTHING IS SPAWNED HERE. `STACK_POSTURE_PROBE=1` is the posture twin of `STACK_DISPATCH_PROBE`: it
+// prints what engines.sh will receive and exits, after the resolution and before any action.
+// A key mapped to `undefined` is DELETED, not passed empty — and that matters here: `vitest.config.ts`
+// pins `VLLM_DISABLED: "true"` for the whole suite env, so a probe that merely OMITS the key still
+// inherits a TRUTHY one and measures the wrong branch entirely.
+function postureProbe(env: Record<string, string | undefined>): string {
+  const childEnv: Record<string, string | undefined> = { ...process.env, STACK_POSTURE_PROBE: "1" };
+  for (const [key, value] of Object.entries(env)) {
+    if (value === undefined) {
+      delete childEnv[key];
+    } else {
+      childEnv[key] = value;
+    }
+  }
+  // `<string | null>`, not node's `<string>` — same reason as `dispatch()` above: a spawn that never STARTS
+  // returns null pipes, so the `?? ""` is load-bearing rather than a defensive habit.
+  const res: SpawnSyncReturns<string | null> = spawnSync("bash", [STACK_SH, "up"], {
+    encoding: "utf8",
+    env: childEnv,
+  });
+  return (res.stdout ?? "").split("\n").find((line) => line.startsWith("POSTURE ")) ?? "";
+}
+
+test("a FALSY VLLM_DISABLED falls through to the pin/default — it never leaves engines.sh posture-less (#1618)", () => {
+  // The defect, exactly: `false` used to consume the branch and export no posture at all.
+  const line = postureProbe({ VLLM_DISABLED: "false" });
+  expect(line).toContain("vllm-disabled=false");
+  expect(line, "a posture MUST be resolved — an empty one is what let engines.sh default to adopt-or-start").not.toContain("engines=—");
+  // …and it is the NON-SPAWNING one: whatever the `.env` pin says, or the adopt-only default.
+  expect(line).toMatch(/engines=(adopt-only|off)\b/u);
+  expect(line, "…and it must NOT be the spawning posture").not.toContain("engines=adopt-or-start");
+});
+
+test("a TRUTHY VLLM_DISABLED maps EXPLICITLY to posture off, named by its source (#1618)", () => {
+  const line = postureProbe({ VLLM_DISABLED: "true" });
+  expect(line).toContain("engines=off");
+  expect(line).toContain("source=VLLM_DISABLED=true");
+  expect(line).toContain("vllm-disabled=true");
+});
+
+test("the resolution order is host > VLLM_DISABLED > .env pin > default, and the SOURCE is printed (#1618)", () => {
+  // A host export still wins outright (the e2e harness's adopt-only depends on it).
+  expect(postureProbe({ ENGINES_POSTURE: "adopt-or-start", VLLM_DISABLED: "false" })).toContain("engines=adopt-or-start source=host");
+  // Unset behaves exactly like the falsy case — that equivalence IS the fix. The key is DELETED, not
+  // omitted: the suite env pins VLLM_DISABLED=true, so an omitted key would be the truthy branch.
+  const unset = postureProbe({ VLLM_DISABLED: undefined });
+  const falsy = postureProbe({ VLLM_DISABLED: "false" });
+  expect(unset.replace(/vllm-disabled=\S+/u, "")).toBe(falsy.replace(/vllm-disabled=\S+/u, ""));
 });

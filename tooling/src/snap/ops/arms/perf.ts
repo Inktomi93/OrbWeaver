@@ -22,16 +22,23 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 export async function capturePerfEvidence(page: Pick<Page, "evaluate">, ratePosture: SnapRatePosture): Promise<PerfEvidence | null> {
   const disposition = ratePostureDisposition(ratePosture, "Snap's navigation timing rate");
-  if (disposition.withheld) {
+  if (disposition.disposition === "withheld") {
+    // NO NUMBER EXISTS — an unproven/software browser. The load arm no longer reaches here (#1616).
     print(`WITHHELD (${disposition.reason})`);
     return { rate: { status: "withheld", reason: disposition.reason }, acceleration: ratePosture.acceleration, navigation: null, orb: null };
   }
+  if (disposition.disposition === "load-suspect") {
+    // MEASURE ANYWAY, LABEL THE NUMBER (#1616). The read below is identical; only the status it lands
+    // under changes, and `app-snapshot=load-suspect` is what the RESULT line then carries.
+    print(`LOAD-SUSPECT (${disposition.reason})`);
+  }
+  const status = disposition.disposition === "load-suspect" ? ("load-suspect" as const) : ("measured" as const);
   // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — perf evidence is a nice-to-have from window.__orb, null on any failure (old build, dev-only bridge absent) and the caller treats null as "no perf evidence", never a failure. Ends if a caller starts requiring perf evidence to be present.
   try {
     // #1004 — validated so a malformed payload reaches the `catch → null` arm below (optional read,
     // absent is fine) instead of landing in the report as fabricated navigation numbers.
     return {
-      rate: { status: "measured", reason: "navigation timings were collected on a quiet, hardware-accelerated browser" },
+      rate: { status, reason: disposition.reason },
       acceleration: ratePosture.acceleration,
       ...perfEvidence(
         await page.evaluate(`(() => {
@@ -52,11 +59,16 @@ export async function capturePerfEvidence(page: Pick<Page, "evaluate">, ratePost
   }
 }
 
-/** The actual RESULT member for this arm. A loaded rate is withheld without changing any other arm's
- *  pass/fail contribution; an absent optional bridge remains distinct from both states. */
+/** The actual RESULT member for this arm — THE ONE CLOSED VOCABULARY, straight through (#1616): an
+ *  unproven browser is `withheld` (no number), a loaded box is `load-suspect` (a number, unpromotable),
+ *  a quiet one is `measured`, and an absent optional bridge stays distinct from all three. Neither
+ *  non-`measured` member changes any other arm's pass/fail contribution. */
 export function appSnapshotResultPair(evidence: readonly (PerfEvidence | null)[]): ResultPair {
   if (evidence.some((entry) => entry?.rate.status === "withheld")) {
     return ["app-snapshot", "withheld"];
+  }
+  if (evidence.some((entry) => entry?.rate.status === "load-suspect")) {
+    return ["app-snapshot", "load-suspect"];
   }
   return ["app-snapshot", evidence.some((entry) => entry?.rate.status === "measured") ? "measured" : "absent"];
 }
@@ -104,12 +116,17 @@ export const APP_SNAPSHOT_ARM = {
       });
     },
     facts: ({ outcomes }): readonly ArmFactEmission<"app-snapshot">[] => {
-      const snapshots = outcomes.filter((outcome) => outcome.perf?.rate.status === "measured").length;
+      // A load-suspect page DID take a snapshot, so it counts as one; what it must never do is read as a
+      // clean `passed` (#1616 — the no-promotion rule at the FACT).
+      const snapshots = outcomes.filter((outcome) => outcome.perf?.rate.status === "measured" || outcome.perf?.rate.status === "load-suspect").length;
       const withheld = outcomes.some((outcome) => outcome.perf?.rate.status === "withheld");
+      const suspect = outcomes.some((outcome) => outcome.perf?.rate.status === "load-suspect");
       const unavailable = outcomes.length - snapshots;
-      let state: "withheld" | "passed" | "absent" = "absent";
+      let state: "withheld" | "load-suspect" | "passed" | "absent" = "absent";
       if (withheld) {
         state = "withheld";
+      } else if (suspect) {
+        state = "load-suspect";
       } else if (snapshots > 0) {
         state = "passed";
       }
