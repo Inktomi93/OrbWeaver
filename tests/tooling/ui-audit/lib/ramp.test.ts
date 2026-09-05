@@ -7,7 +7,7 @@ import { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, RAMP_FONT_FACES, TEXT_MICRO_P
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // ── THE COUPLING THIS EXISTS FOR (docs/design/integer-line-boxes.md §3b/§6) ──────────────────────────
-// `leading.*` becomes a px-resolving DIMENSION emitted as `round(1rem, 1px)`, so `TOKENS[path].value`
+// `leading.*` becomes a px-resolving DIMENSION emitted as `round(up, 1rem, 1px)`, so `TOKENS[path].value`
 // stops being a number and `Number(...)` of it is NaN. §6 routes the re-derivation
 // (`SNAPPED_LENGTH_BASE_PX["leading.label"] / (parseFloat(TOKENS["text.label"].value) * REM_PX)`
 // = 16/13 ≈ 1.2308) — that companion map is the sanctioned surface because §3b's own rule is
@@ -17,7 +17,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 // fail open": it does the OPPOSITE. `checkTightLeading` returns null when
 // `ratio >= LEADING_FLOOR - EPSILON`, and EVERY comparison against NaN is false, so the guard never
 // returns and the rule FIRES ON EVERY qualifying text — a P3 flood printing "floor NaN", not a silence.
-// Node, against the post-change spelling: ratios 1.55 / 1.25 / 1.05 all fire under `Number("round(1rem,
+// Node, against the post-change spelling: ratios 1.55 / 1.25 / 1.05 all fire under `Number("round(up, 1rem,
 // 1px)")`. Loud rather than silent is the better failure, but it is a different failure, and the fix is
 // the same one either way.
 //

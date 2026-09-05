@@ -197,7 +197,7 @@ auditRuleTest(
 // ── the SANCTIONED side is a token stream, not a number (#1037) ──────────────
 //
 // Every leading token on the live tree is a LENGTH written as a math function — theme.css:
-// `--leading-label: round(1rem, 1px)` — and a custom property is unregistered, so its computed value is
+// `--leading-label: round(up, 1rem, 1px)` — and a custom property is unregistered, so its computed value is
 // that stream verbatim. The census used to `parseFloat` it (NaN → withheld "unresolved"), which withheld
 // twelve live candidates on the characters surface and would have compared a ratio against a length the
 // moment a token became parseable. These two fixtures reproduce the real token shape: the sanctioned side
@@ -207,7 +207,7 @@ const LEADING_TIER_CSS = `<style>
   [data-surface-tier="instrument"] {
     --orb-tier-row-title-size: 13px;
     --orb-tier-row-title-weight: 600;
-    --orb-tier-row-title-leading: round(1rem, 1px);
+    --orb-tier-row-title-leading: round(up, 1rem, 1px);
   }
   [data-surface-tier] [data-slot="list-row-title"] {
     font-size: var(--orb-tier-row-title-size);
@@ -222,7 +222,7 @@ auditRuleTest(
       rule: "tier-drift",
       kind: "silent",
       reason:
-        "a list-row-title whose leading token is the live tree's own `round(1rem, 1px)` LENGTH shape and whose painted line-height resolves to exactly it — judged clean, never withheld as an unresolvable chain",
+        "a list-row-title whose leading token is the live tree's own `round(up, 1rem, 1px)` LENGTH shape and whose painted line-height resolves to exactly it — judged clean, never withheld as an unresolvable chain",
     },
   ],
   "a math-function leading token is resolved and judged, not withheld as unresolved",
@@ -241,7 +241,7 @@ auditRuleTest(
       rule: "tier-drift",
       kind: "fires",
       reason:
-        "an inline line-height of 30px on a list-row-title whose instrument tier sanctions a `round(1rem, 1px)` leading — the arm could never fire at all while the sanctioned side was string-parsed",
+        "an inline line-height of 30px on a list-row-title whose instrument tier sanctions a `round(up, 1rem, 1px)` leading — the arm could never fire at all while the sanctioned side was string-parsed",
     },
   ],
   "a leading that diverges from a math-function tier token is a tier-drift",

@@ -16,7 +16,7 @@
 // the consumed set.
 //
 // AND THE SANCTIONED SIDE IS PINNED AS A TOKEN STREAM (#1037). The census once `parseFloat`-ed the raw
-// `--orb-tier-*` value; every leading token on this tree is `round(<rem>, 1px)`, so that read was NaN and
+// `--orb-tier-*` value; every leading token on this tree is `round(up, <rem>, 1px)`, so that read was NaN and
 // twelve live candidates were withheld as "unresolved" while their paint matched the tier exactly. The
 // premise is now derived instead of trusted — theme.css is read for the token each tier var points at, a
 // floor guard proves at least one of them is NOT bare-number-shaped, and the walker string is pinned to
