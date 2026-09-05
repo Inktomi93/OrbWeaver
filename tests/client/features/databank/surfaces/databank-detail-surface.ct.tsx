@@ -491,3 +491,84 @@ test("no absolutely-positioned box escapes the databank detail scroller (the con
 
   expect(await readPhantomScrollers(page)).toEqual([]);
 });
+
+// ── #1653 — the MAINTENANCE gloss is a PARAGRAPH, and it never took a reading measure ──────────────────
+// #1175 gave this pane `--width-content-col` on the block that holds its CONTROLS, and said in the same
+// breath that "a block holding controls keeps the wider measure while the paragraph inside it takes this
+// one". The paragraph never got the second half. The Maintenance sentence ("Re-chunk and re-embed this
+// document — after a settings change, or to heal a partial index.") is the longest running copy in the
+// editor, it sits in a `justify="between"` row with the Reindex button, and the only cap above it is the
+// 720px content column — which is a control measure, not a reading one. Measured pre-fix in this browser
+// with real Geist: 446.2px = 90.0 average glyph advances per line, at 1280 / 1440 / 1920 alike (the mount
+// is width-fixed, so the three viewports are the RANGE receipt, not three different layouts).
+//
+// THE ASSERTION IS IN THE LAW'S UNIT, NOT THE TOKEN'S — canvas `measureText` over the paragraph's own
+// resolved font, judged against the design law's 75 (`.claude/skills/side-eye-design-review/SKILL.md` §2),
+// exactly as `compact-summary-peek.ct.tsx` and `home-surface.ct.tsx` measure it. A `ch` comparison would
+// only restate the token. And the paragraph is found by its own COPY rather than by a `data-slot`, so this
+// pin compiles and runs against the pre-fix source: it is a DEFECT PROOF, not a fence.
+const PROSE_WIDTHS = [1280, 1440, 1920] as const;
+/** The design law's line-length ceiling, in typographic characters — never a px and never a token value. */
+const LAW_CHARACTERS_PER_LINE = 75;
+/** The Maintenance sentence's own opening — enough to find the paragraph, not the whole string, so the pin
+ *  is about the MEASURE rather than about the wording. */
+const REINDEX_GLOSS = "Re-chunk and re-embed this document";
+
+interface ProseReading {
+  readonly widthPx: number;
+  readonly lawCharacters: number;
+  readonly proseTokenPx: number;
+}
+
+/** The Maintenance paragraph measured in its OWN resolved font, against `--reading-measure-prose` resolved
+ *  in that same font (a `ch` resolves at the using element — the #213/#1130 failure the token's contract
+ *  names). The probe is absolutely positioned and removed before layout can see it. */
+function measureReindexGloss(page: import("@playwright/test").Page, opening: string): Promise<ProseReading> {
+  return page.evaluate((needle: string) => {
+    const paragraph = [...document.querySelectorAll("p,span")].find((el) => el.children.length === 0 && (el.textContent ?? "").startsWith(needle));
+    if (!(paragraph instanceof HTMLElement)) {
+      throw new Error("#1653: no Maintenance paragraph to measure");
+    }
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    if (context === null) {
+      throw new Error("#1653: no 2d context to measure glyph advance through");
+    }
+    const style = getComputedStyle(paragraph);
+    context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const text = (paragraph.textContent ?? "").replace(/\s+/gu, " ").trim();
+    const advance = context.measureText(text).width / text.length;
+    const probe = document.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.width = "var(--reading-measure-prose)";
+    paragraph.append(probe);
+    const proseTokenPx = probe.getBoundingClientRect().width;
+    probe.remove();
+    const widthPx = paragraph.getBoundingClientRect().width;
+    return { widthPx, lawCharacters: widthPx / advance, proseTokenPx };
+  }, opening);
+}
+
+test("#1653 the Maintenance gloss reads inside the prose measure at every desktop width", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const wide = await mount(<DatabankDetailWideStory />);
+  await wide.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  // SETTLED: the document's own readout has painted, so the Maintenance section exists to measure.
+  await expect(wide.getByText("application/pdf")).toBeVisible();
+  await expect(wide.getByText(REINDEX_GLOSS, { exact: false })).toBeVisible();
+
+  const rows: string[] = [];
+  for (const width of PROSE_WIDTHS) {
+    await page.setViewportSize({ width, height: 900 });
+    // Barrier on a SETTLED box — a read on the same tick as the viewport change is the pre-reflow one.
+    await expect.poll(async () => Math.round((await measureReindexGloss(page, REINDEX_GLOSS)).widthPx)).toBeGreaterThan(0);
+    const reading = await measureReindexGloss(page, REINDEX_GLOSS);
+    rows.push(`${String(width)}\t${reading.widthPx.toFixed(1)}px\tlaw ${reading.lawCharacters.toFixed(1)}\ttoken ${reading.proseTokenPx.toFixed(1)}px`);
+    // ON the token, not merely under some width: the paragraph must resolve THIS measure in its own font.
+    expect(reading.widthPx, `#1653 at ${String(width)}: ${rows.join(" | ")}`).toBeLessThanOrEqual(reading.proseTokenPx + 0.5);
+    expect(reading.lawCharacters, `#1653 at ${String(width)}: ${rows.join(" | ")}`).toBeLessThanOrEqual(LAW_CHARACTERS_PER_LINE);
+  }
+  // The rows ride every assertion message above, so a RED prints the measurement that earned it.
+  expect(rows).toHaveLength(PROSE_WIDTHS.length);
+});
