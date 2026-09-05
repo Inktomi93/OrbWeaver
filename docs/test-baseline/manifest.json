@@ -1668,6 +1668,7 @@
     "tests/server/entry/auth/seam.test.ts",
     "tests/server/entry/boot/apply-distributed-plugins.test.ts",
     "tests/server/entry/boot/migrate-handoff-offer-vocab.int.test.ts",
+    "tests/server/entry/boot/migrate-prose-slot-vocab.int.test.ts",
     "tests/server/entry/boot/migrate.int.test.ts",
     "tests/server/entry/boot/reclaim-locks.int.test.ts",
     "tests/server/entry/boot/seed-atlas-import-outcome.suite.test.ts",

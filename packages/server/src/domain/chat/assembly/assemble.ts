@@ -309,7 +309,7 @@ function resolveScopeFallback(
  *  contradicts the round's own nudge. Keyed on the speaker arm, never on a `cardScope`/`isGroup` re-derive:
  *  the arm is what the SHAPE already decided. */
 function memberHeadingSlot(ctx: AssembleContext): ProseSlotId {
-  return ctx.speaker?.kind === "multi-voice" ? "chat.group.castMember" : "chat.group.alsoPresent";
+  return ctx.speaker?.kind === "multi-voice" ? "chat.group.characterHeading" : "chat.group.alsoPresent";
 }
 
 /** ONE present roster member's merged card block, or "" when they contribute nothing. */

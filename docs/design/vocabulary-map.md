@@ -67,13 +67,16 @@ never a palette"), and the swept tree had zero crossings at #1220. A THIRD sense
 hearth" launcher landing — died with `ConfigWelcome` (#1210, `6b00c37fd`); the surviving mentions are
 archaeology naming a retired surface, not a live use, and no new one may be minted.
 
-## Concepts still spelled `cast` that this map has NO word for (found by #903 C2)
+## Concepts still spelled `cast` that this map has NO word for (found by #903 C2) — **EMPTY as of 2026-09-05**
 
 The map's own instruction is *"if the concept you need is not in the table, that is a finding: say so
-rather than minting a word."* These are that finding — each is a REAL distinct concept the rename
-waves have never had a word for, so #903 deliberately left every one of them alone rather than invent
-one. **A `cast` in `domain/chat/**` or `contracts/src/chat/**` is otherwise a defect on sight** (D137(F)),
-so this list is the complete set of chat-side survivors and must shrink, not grow.
+rather than minting a word."* This section was that finding — each row a REAL distinct concept the
+rename waves had never had a word for, so #903 deliberately left it alone rather than invent one.
+**A `cast` in `domain/chat/**` or `contracts/src/chat/**` is otherwise a defect on sight** (D137(F)),
+so this list is the complete set of chat-side survivors and must shrink, not grow. It has now shrunk to
+NOTHING — the two closures below took the last two rows. The section stays (with its re-derivation
+command and its false-stem fence) because it is the thing a future census is checked AGAINST: a new row
+here is a finding to route to the owner, never a word to mint locally.
 
 **The handoff-offer rows CLOSED (#1649, owner-ruled arm (a) 2026-09-05):** the persisted wire field and its
 three readers were renamed to `copyCharacters` (the seated-characters row above owns the word) WITH a
@@ -88,9 +91,18 @@ then fence the false stems below. What that census legitimately still prints, an
 `cast`"), and the rpg register's own `cast` (`rpgCastSlug`, the seeder's `{kind:"cast"}` actor ref — #906).
 Everything else IS a row.
 
-| Still-`cast` concept | Where | Disposition |
-| - | - | - |
-| The narrator round's co-speaker card heading — the PROSE-SLOT ID | `"chat.group.castMember"` (`contracts/src/chat/prose.ts:174-175` · `contracts/src/prose-slot/index.ts:120` · `contracts/src/preset/index.ts:1296,1301` · `contracts/src/prose/prose-baseline.json:195` · the reader `domain/chat/assembly/assemble.ts:235`) | **HELD, not sanctioned — the #1649-shaped successor, surfaced by the #1649 lane's own closing census 2026-09-05.** Same class as `copyCast` was: a PERSISTED key, not a symbol. It is `home: "preset"`, so every host's prose override is stored under this id and stamped with a `baseVersion` — renaming it is a preset-override data migration plus a `PROSE_SLOT_IDS` tuple edit, which is owner-priced exactly as #1649 was. Its default TEXT was already de-`cast`ed at v2 (owner 2026-08-30, "[Character — {{name}}]"); only the id survives. The #903 wave never saw it because the slot was minted after that wave (2026-08-08, D-ledger (B-amendment) F4 re-home). **Do not rename it locally** — it needs its own owner arm: migrate, or ratify with the reason. |
+**The prose-slot id row CLOSED (#1737, owner-ruled arm (a) 2026-09-05) — the LAST row:** the persisted
+`home: "preset"` slot id `chat.group.castMember` became **`chat.group.characterHeading`**
+(`contracts/src/chat/prose.ts` · `contracts/src/prose-slot/index.ts` · `contracts/src/preset/index.ts` ·
+`contracts/src/prose/prose-baseline.json` · the reader `domain/chat/assembly/assemble.ts`), WITH a boot-time
+data migration re-keying every host's stored `promptConfig.prose` override and CARRYING its `baseVersion`
+stamp, and no read-compat shim (`domain/preset/persistence/migrate-prose-slot-vocab.ts`, run from
+`entry/boot/migrate-prose-slot-vocab.ts`). The word is the seated-characters row above; the `Heading` suffix
+is the one the slot's own group siblings already carry, and **`Member` was deliberately NOT used** — this map
+gives `Member` to the HUMANS in a room, so a `…Member` suffix on a character-only slot would have swapped one
+crossed word for another. The slot's `version` stays 2: the TEXT did not change, only the key it is stored
+under. The 2026-08-30 ruling recorded in the slot's own header survives with its INPUT changed — it warned
+against a SILENT id edit stranding every host's stamp, and this edit is neither silent nor stamp-stranding.
 
 ## The rpg register (D151 · `AGENTS.md` §3)
 
