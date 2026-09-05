@@ -4,8 +4,10 @@
 // ../ops/run.ts.
 import type { Selection } from "./selection.ts";
 
-const TIERS = ["changed", "static", "push", "full", "manual"] as const;
-export type Tier = (typeof TIERS)[number];
+export const VERIFY_TIERS = ["changed", "static", "push", "full", "manual"] as const;
+export type Tier = (typeof VERIFY_TIERS)[number];
+export type RunnableVerifyTier = Exclude<Tier, "manual">;
+export const RUNNABLE_VERIFY_TIERS: readonly RunnableVerifyTier[] = VERIFY_TIERS.filter((tier): tier is RunnableVerifyTier => tier !== "manual");
 
 const STAGE_GROUPS = ["lint", "types", "structure", "imports", "deps", "docs", "tests", "browser", "quality"] as const;
 export type StageGroup = (typeof STAGE_GROUPS)[number];

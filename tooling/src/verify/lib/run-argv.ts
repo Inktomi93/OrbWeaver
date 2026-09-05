@@ -6,6 +6,7 @@ import { parseArgs } from "node:util";
 import { resolveOperand, unresolvedOperands, unresolvedRefusal } from "@orb/tooling/_shared/scoped-run-paths";
 import type { Selection, SelectionRequest } from "../contract/selection.ts";
 import type { Tier } from "../contract/stage.ts";
+import { RUNNABLE_VERIFY_TIERS } from "../contract/stage.ts";
 import { ROOT } from "./repo-paths.ts";
 import { resolveSelection } from "./selection.ts";
 
@@ -47,7 +48,7 @@ const OPTIONS = {
 const VALUE_OPTIONS = new Set(["package", "scope", "tier"]);
 
 /** A --tier <name> value must name a real, non-manual tier. */
-const RUNNABLE_TIERS: ReadonlySet<Tier> = new Set<Tier>(["changed", "static", "push", "full"]);
+const RUNNABLE_TIERS: ReadonlySet<Tier> = new Set<Tier>(RUNNABLE_VERIFY_TIERS);
 
 interface ParsedValues {
   readonly package?: string;
@@ -174,7 +175,7 @@ function tierFor(v: ParsedValues, scoped: boolean): Tier | { readonly error: str
   }
   if (v.tier !== undefined) {
     if (!RUNNABLE_TIERS.has(v.tier as Tier)) {
-      return { error: `--tier must be one of changed / static / push / full (got "${v.tier}")` };
+      return { error: `--tier must be one of ${RUNNABLE_VERIFY_TIERS.join(" / ")} (got "${v.tier}")` };
     }
     named.add(v.tier as Tier);
   }

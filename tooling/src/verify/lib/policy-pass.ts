@@ -7,6 +7,7 @@ import type { GateOwnerCompletion, RawGateFinding } from "../contract/gate-autho
 import type { GatePolicy, GatePolicyHooks } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type {
+  PolicyOwnerPlan,
   PolicyOwnerResult,
   PolicyPassInput,
   PolicyPassResult,
@@ -16,7 +17,7 @@ import type {
   PolicyTiming,
   PolicyToolError,
 } from "../contract/policy-pass.ts";
-import { POLICY_PHASES } from "../contract/policy-pass.ts";
+import { POLICY_OWNER_PLAN_MODES, POLICY_PHASES } from "../contract/policy-pass.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { coordinateGateAuthority } from "./gate-authority.ts";
 import { makePolicyContext } from "./policy-pass-context.ts";
@@ -207,6 +208,48 @@ function resolveRun({ run, candidates, sourceFiles, requestedPaths, resources }:
   }
 }
 
+function applyOwnerPlan(run: PolicyRun, plan: PolicyOwnerPlan): void {
+  if (JSON.stringify(plan.population) !== JSON.stringify(run.population)) {
+    throw new Error(`planned population disagrees with dispatcher resolution for ${run.policy.id}`);
+  }
+  if (plan.mode === "run") {
+    if (run.owner.status !== "success") {
+      throw new Error(`planned runnable policy resolved ${run.owner.status}: ${run.policy.id}`);
+    }
+    return;
+  }
+  if (run.owner.status === "success" || plan.reason === null) {
+    throw new Error(`planned ${plan.mode} policy disagrees with dispatcher applicability: ${run.policy.id}`);
+  }
+  run.owner = { status: "not-applicable", population: "complete", reason: plan.reason };
+}
+
+function assertOwnerPlans(input: PolicyPassInput): void {
+  const plans = input.ownerPlansByPolicy;
+  if (plans === undefined) {
+    return;
+  }
+  if (!(plans instanceof Map)) {
+    throw new Error("runPolicyPass owner plans must be a Map");
+  }
+  const expected = input.policies.map(({ id }) => id).toSorted();
+  const actual = [...plans.keys()].toSorted();
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error("runPolicyPass owner plans must cover exactly the selected policies");
+  }
+  for (const [policyId, plan] of plans) {
+    if (!(POLICY_OWNER_PLAN_MODES as readonly string[]).includes(plan.mode)) {
+      throw new Error(`runPolicyPass owner plan mode is invalid for ${policyId}`);
+    }
+    if ((plan.mode === "run") !== (plan.reason === null)) {
+      throw new Error(`runPolicyPass owner plan reason disagrees with mode for ${policyId}`);
+    }
+    if (plan.reason !== null && plan.reason.trim().length === 0) {
+      throw new Error(`runPolicyPass owner plan reason is blank for ${policyId}`);
+    }
+  }
+}
+
 function resolveRuns(input: PolicyPassInput, errors: PolicyToolError[]): { readonly runs: PolicyRun[]; readonly sourceFiles: ReadonlyMap<string, SourceFile> } {
   const sourceFiles = new Map<string, SourceFile>();
   for (const sourceFile of input.project.getSourceFiles()) {
@@ -224,6 +267,10 @@ function resolveRuns(input: PolicyPassInput, errors: PolicyToolError[]): { reado
       charge(run.timing, "population", () => {
         const resources = normalizePathSet(input.resourcePathsByPolicy?.get(run.policy.id) ?? [], `resource path for ${run.policy.id}`);
         resolveRun({ run, candidates, sourceFiles, requestedPaths, resources });
+        const ownerPlan = input.ownerPlansByPolicy?.get(run.policy.id);
+        if (ownerPlan !== undefined) {
+          applyOwnerPlan(run, ownerPlan);
+        }
       });
     } catch (error) {
       markIncomplete(run, "population", error, errors);
@@ -349,6 +396,7 @@ function ownerResult(run: PolicyRun): PolicyOwnerResult {
 /** Run every selected policy with invocation-local state, then coordinate all authority centrally. */
 export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   assertInvocationPolicies(input.policies);
+  assertOwnerPlans(input);
   const started = performance.now();
   const toolErrors: PolicyToolError[] = [];
   const { runs, sourceFiles } = resolveRuns(input, toolErrors);

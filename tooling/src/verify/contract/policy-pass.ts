@@ -24,6 +24,15 @@ export interface PolicyPopulationReceipt {
   readonly effectiveResourcePaths: readonly string[];
 }
 
+export const POLICY_OWNER_PLAN_MODES = ["run", "deferred", "skipped"] as const;
+export type PolicyOwnerPlanMode = (typeof POLICY_OWNER_PLAN_MODES)[number];
+
+export interface PolicyOwnerPlan {
+  readonly mode: PolicyOwnerPlanMode;
+  readonly reason: string | null;
+  readonly population: PolicyPopulationReceipt;
+}
+
 export type PolicySemanticReceipt =
   | { readonly kind: "population"; readonly source: string; readonly members: number; readonly unresolved: number }
   | { readonly kind: "resource"; readonly source: string; readonly resources: number; readonly unresolved: number };
@@ -60,6 +69,8 @@ export interface PolicyPassInput {
   readonly project: Project;
   readonly requestedPaths?: readonly string[];
   readonly resourcePathsByPolicy?: ReadonlyMap<string, readonly string[]>;
+  /** Planner-owned disposition and exact population; absent only for direct/conformance pass callers. */
+  readonly ownerPlansByPolicy?: ReadonlyMap<string, PolicyOwnerPlan>;
   /** Fixture overlays/parser injection cannot override this invocation's root or reuse a prior host. */
   readonly resourceOptions?: Omit<ResourceHostOptions, "root">;
   readonly reviewedGrants: readonly ReviewedGateGrant[];
