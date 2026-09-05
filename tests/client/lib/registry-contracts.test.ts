@@ -2,10 +2,15 @@
 // the M3 correctness core: when-filtering, own-then-contributor declared order, the duplicate-id THROW at
 // mint construction, null-state passthrough, and actions binding.
 
-import type { ContextRegionDef, ContextTabDef, ContextTabsSpec } from "@orb/client/lib";
+import { createAppQueryClient, createTrpcClient, createTrpcProxy } from "@orb/client/data";
+import { automationActivityTab } from "@orb/client/features/automation";
+import { chatContextTabs } from "@orb/client/features/chat";
+import { makeRpgContextTabs } from "@orb/client/features/rpg";
+import type { ChatContextState, ContextRegionDef, ContextTabDef, ContextTabsSpec } from "@orb/client/lib";
 import { createContributorRegistry, defineContextRegion, defineContextTabs, resolveContextTabs } from "@orb/client/lib";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
+import { CT_META_RAIL_CROWNED_IDS } from "../features/app-shell/_crowned-tabs.ts";
 
 interface State {
   readonly n: number;
@@ -189,5 +194,70 @@ describe("defineContextTabs", () => {
       throw new Error("expected a tabs ContextDefinition");
     }
     expect(definition.useResolved()?.tabs.map((t) => t.id)).toEqual(["a"]);
+  });
+});
+
+// ── THE CROWN FLAG'S POPULATION (#1629) — the app-shell meta-rail fixture, checked against the LIVE defs ──
+//
+// The block above pins that `resolveContextTabs` CARRIES `crown` through, defaulted to false. This one pins
+// WHO SETS IT: the app-shell story that renders the meta rail declares a crowned set (`_crowned-tabs.ts`),
+// and nothing checked it against the definitions, so the next def to gain or lose a crown would re-green the
+// fixture silently. It lives HERE — beside `crown`'s own declaration in `lib/registry-contracts.ts` — because
+// the `test-layout` mirror is `packages/<pkg>/src/<path>` with a MATCHING extension: a `.test.ts` can only
+// mirror a `.ts` source, and every candidate closer to the rail (`context-rail.tsx`, `_ct-stories.tsx`,
+// `compose/authed-app.tsx`) is `.tsx`. `crown`'s declaring file is the honest home anyway: this is the
+// population of that one field.
+//
+// THE DEFECT CLASS. #875 F15 re-ordered the meta rail by partitioning on `crown`, its CT went green, and the
+// change was a NO-OP: three live cells carry `crown: true`, so the partition could not move anything — the
+// story fixture crowned `Game` alone and agreed with the fix rather than with the product. #898 corrected the
+// fixture and wrote the durable rule at `_ct-stories.tsx`'s `CTX_META_RAIL_TABS` header ("a fixture's AXIS
+// DATA … must be derived from the live definitions or checked against them"); this is the enforcer it lacked.
+//
+// #900 refused a fixture-DERIVED crown set on the premise that two of the three crowned defs are minted
+// inside factories needing runtime deps. THAT RULING SURVIVES — ITS INPUT CHANGED: the deps are only CLOSED
+// OVER (`makeIsGameChat` never touches them at construction), so the factories construct in a node process
+// with the real singletons, and the third owner (`automationActivityTab`) is a ready module-level def.
+//
+// WHY IT READS THE DEFS AND NOT THE COMPOSED SECTION: `defineContextTabs` closes its tabs inside a
+// `useResolved` hook, so the composed `chats` section can only surrender its crowned set to a RENDER — and
+// the CT harness hands chat an EMPTY contributor registry (`ct-data-providers.tsx`), so a browser read would
+// see chat's own tabs only and miss two of the three crowns. The three OWNING modules are the authority.
+//
+// COST: these imports pull the chat/rpg/automation feature graphs into this file (~5s of transform on a cold
+// unit lane). That is the price of reading the REAL definitions instead of a second copy of them.
+
+/** Every context tab the three OWNING modules define, in the door's own assembly order
+ *  (`compose/authed-app.tsx`: chat's own tabs, then the rpg factory's, then automation's ready def). The
+ *  deps are the real singleton shapes the door injects; the factories only close over them. */
+function liveContextTabs(): readonly ContextTabDef<ChatContextState>[] {
+  const queryClient = createAppQueryClient();
+  const trpc = createTrpcProxy(createTrpcClient(), queryClient);
+  return [
+    // The section seam the chat tabs forward — empty here: no tab's `crown` depends on it, and this pin
+    // never calls a `body`.
+    ...chatContextTabs(createContributorRegistry("chat-settings-sections", [])),
+    ...makeRpgContextTabs({ trpc, queryClient }),
+    automationActivityTab,
+  ];
+}
+
+describe("the meta rail's crowned set", () => {
+  test("the live definitions still crown exactly the three tabs the story fixture declares", () => {
+    const live = liveContextTabs();
+    // A POSITIVE CONTROL on the read itself: an empty or crownless live set would satisfy an equality
+    // against an empty fixture, which is the "empty population vs broken probe" failure this pin must not
+    // have. The read is only a verdict if it saw the definitions at all.
+    expect(live.length).toBeGreaterThan(5);
+    const crowned = live.filter((def) => def.crown === true).map((def) => def.id);
+    expect(crowned.length).toBeGreaterThan(0);
+    // Sorted on both sides: the fixture declares a SET, and the rail's ORDER is the door's assembly order,
+    // which is a separate axis with its own pins.
+    expect([...crowned].sort()).toEqual([...CT_META_RAIL_CROWNED_IDS].sort());
+  });
+
+  test("each crowned id belongs to a tab that still exists and is still crowned by its own owner", () => {
+    const byId = new Map(liveContextTabs().map((def) => [def.id, def]));
+    expect(CT_META_RAIL_CROWNED_IDS.map((id) => [id, byId.get(id)?.crown ?? "no such tab"])).toEqual(CT_META_RAIL_CROWNED_IDS.map((id) => [id, true]));
   });
 });

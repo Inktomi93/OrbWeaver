@@ -78,7 +78,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
   const presetId = castId<RosterPresetId>(view.memberId);
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { data: cast } = useSuspenseQuery(trpc.rosterPreset.get.queryOptions({ presetId }));
+  const { data: roster } = useSuspenseQuery(trpc.rosterPreset.get.queryOptions({ presetId }));
   // B10's rules rider — the catalogue row behind each captured rule preset: its TITLE, and the knob
   // LABELS the stored bag's gloss is built from. Shared with the picker through the one hook (the query is
   // gated off a rules-free roster, but the Start door below can report a REFUSED rule by name whatever this
@@ -92,12 +92,12 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   // Draft fields keyed by the loaded row; the mounted editor's Save is the one write affordance.
-  const [name, setName] = useState(cast.name);
-  const [description, setDescription] = useState(cast.description);
+  const [name, setName] = useState(roster.name);
+  const [description, setDescription] = useState(roster.description);
   /**
    * WHAT THE EDITOR OPENED WITH — the `lib/edit-session.ts` rule in its save-button form (#1561).
    *
-   * The drafts above are seeded ONCE, so `name !== cast.name` is TRUE whenever the ROW moved underneath an
+   * The drafts above are seeded ONCE, so `name !== roster.name` is TRUE whenever the ROW moved underneath an
    * untouched editor (another seat, another tab, an apply that renamed it). `dirty` gated the Save button
    * on exactly that comparison, so a second writer LIT UP the one write affordance on the surface and a
    * press would have sent the opened-with text back over what arrived — the suppress-a-pointless-write
@@ -105,13 +105,13 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
    *
    * A once-seeded value, not a ref: it is read during render, and refs are handler/cleanup-only here.
    */
-  const [openedFrom] = useState(() => ({ name: cast.name, description: cast.description }));
+  const [openedFrom] = useState(() => ({ name: roster.name, description: roster.description }));
   const busy = update.isPending || apply.isPending || isStarting;
   const dirty = name.trim() !== openedFrom.name || description !== openedFrom.description;
   // BOTH MOVED — a real conflict between two writers, surfaced rather than resolved (the tracker's third
   // case). Save stays live because saving is then a DELIBERATE overwrite; what changes is that the host is
   // told, instead of discovering it afterwards.
-  const contested = dirty && (cast.name !== openedFrom.name || cast.description !== openedFrom.description);
+  const contested = dirty && (roster.name !== openedFrom.name || roster.description !== openedFrom.description);
 
   const onSave = (): void => {
     update.mutate({
@@ -119,10 +119,10 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
       input: {
         name: name.trim(),
         description,
-        anchorPersonaId: cast.anchorPersonaId,
-        groupConfig: cast.groupConfig,
-        members: memberInputsOf(cast),
-        rules: ruleInputsOf(cast),
+        anchorPersonaId: roster.anchorPersonaId,
+        groupConfig: roster.groupConfig,
+        members: memberInputsOf(roster),
+        rules: ruleInputsOf(roster),
       },
     });
   };
@@ -133,15 +133,15 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
     }
     // @orb-gate-ignore caught-failure-ownership(promise:startChat): startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning. Ends if either mutation stops owning its failure copy.
     startChat({
-      characterIds: cast.members.map((m) => m.characterId),
-      anchorPersonaId: cast.anchorPersonaId,
+      characterIds: roster.members.map((m) => m.characterId),
+      anchorPersonaId: roster.anchorPersonaId,
       // The room is named after the roster it was started from (side-eye P3-4).
-      title: cast.name,
+      title: roster.name,
     })
       .then(async (chatId) => {
         // This door used to report NOTHING at all — not the member skips, not the rules it switched on,
         // not the reason a rule refused (side-eye P1-2). One report, said by all three doors.
-        const notice = applyNotice({ castName: cast.name, result: await apply.mutateAsync({ presetId, chatId }), ruleTitleOf: titleOf });
+        const notice = applyNotice({ rosterName: roster.name, result: await apply.mutateAsync({ presetId, chatId }), ruleTitleOf: titleOf });
         notify[notice.channel](notice.line);
       })
       .catch(() => undefined); // both mutations toast their own failures.
@@ -153,7 +153,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
           member editor's twin: this block holds controls, so the prose token is forbidden here by its own
           contract, and `max-w-prose` was a third un-derived width. */}
       <Stack className="max-w-(--width-content-col) outline-none" data-slot="roster-member-editor" gap="section" ref={surfaceRef} tabIndex={-1}>
-        <Heading level={2}>{cast.name}</Heading>
+        <Heading level={2}>{roster.name}</Heading>
         {/* NO `aria-label` on either cell (#1587). A `<Field>`'s label reaches its control through Base UI's
             `aria-labelledby`, which OUTRANKS `aria-label` in the accname algorithm — so "Roster name" /
             "Roster description" named nothing and the cells already announced "Name" / "Description"
@@ -178,7 +178,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
             the top of the surface: the decision it changes is that press. */}
         {contested ? (
           <Text data-slot="roster-editor-conflict" voice="label">
-            {`This roster changed elsewhere while you were editing — it is now “${cast.name}”. Saving replaces that with your text.`}
+            {`This roster changed elsewhere while you were editing — it is now “${roster.name}”. Saving replaces that with your text.`}
           </Text>
         ) : null}
         {/* `Section kicker` renders the SAME caps-micro band the two groupings had as bare spans — and a
@@ -186,7 +186,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
             navigation gave a screen-reader user one stop in a two-section surface, while the sibling
             "This chat" pane names every section at level 3). */}
         <Section kicker="Members">
-          {cast.members.map((member) => (
+          {roster.members.map((member) => (
             <Row align="center" gap="field" key={member.characterId}>
               <Text voice="label" className="min-w-0 flex-1 truncate">
                 {member.name}
@@ -208,9 +208,9 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
           ))}
           <Text voice="gloss">To re-compose the roster, arrange a room you host and save it as a new roster — the saved-rosters door in Members.</Text>
         </Section>
-        {cast.rules.length > 0 ? (
+        {roster.rules.length > 0 ? (
           <Section kicker="Rules" data-slot="roster-rules">
-            {cast.rules.map((rule) => (
+            {roster.rules.map((rule) => (
               <RosterRuleBlock knobs={rule.knobs} key={rule.rulePresetId} preset={presetOf(rule.rulePresetId)} rulePresetId={rule.rulePresetId} />
             ))}
             <Text voice="gloss">

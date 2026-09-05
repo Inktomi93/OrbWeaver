@@ -15,6 +15,12 @@
 // when hosting), the shape-matched skeleton (the modal def's QueryBoundary), and QueryBoundary's error
 // arm. Freshness is bus-driven end to end: `rosterPresetsChanged` covers the list, `chatUpdated` covers
 // the room the apply mutated.
+//
+// THE WORD IS `roster`, AND IT IS NOT A LOCAL CHOICE (#1650). This family named a saved RosterPresetSummary
+// value `cast` in ~60 places, which is neither of the two concepts that word can mean: docs/design/vocabulary-map.md
+// row 4 gives `character` to the seated characters in a room and row 46 gives Roster / `rosterPreset` to this
+// saved template, "CONFORMING, never renamed". A value of that type is a `roster` here and in every sibling
+// module; look the word up in the map rather than off a neighbour before re-opening it.
 
 import type { RulePresetView } from "@orb/contracts/automation";
 import type { ApplyRosterPresetResult, RosterPresetSummary } from "@orb/contracts/roster-preset";
@@ -61,27 +67,27 @@ type SavedRosterSummary = RosterPresetSummary;
  *  member count also moves into the subtitle beside the member NAMES, which is the one grammar the two
  *  badges never had: a bare digit read as decoration next to a labelled pill. */
 function RosterRow(props: {
-  readonly cast: SavedRosterSummary;
+  readonly roster: SavedRosterSummary;
   readonly canAddToChat: boolean;
   readonly busy: boolean;
-  readonly onStart: (cast: SavedRosterSummary) => void;
-  readonly onAddToChat: (cast: SavedRosterSummary) => void;
-  readonly onDelete: (cast: SavedRosterSummary) => void;
+  readonly onStart: (roster: SavedRosterSummary) => void;
+  readonly onAddToChat: (roster: SavedRosterSummary) => void;
+  readonly onDelete: (roster: SavedRosterSummary) => void;
 }): ReactElement {
-  const { cast, canAddToChat, busy, onStart, onAddToChat, onDelete } = props;
-  const memberNames = cast.members.map((m) => m.name).join(", ");
-  const counts = rosterCountsSuffix(cast.memberCount, cast.rules.length, cast.hasGroupConfig);
+  const { roster, canAddToChat, busy, onStart, onAddToChat, onDelete } = props;
+  const memberNames = roster.members.map((m) => m.name).join(", ");
+  const counts = rosterCountsSuffix(roster.memberCount, roster.rules.length, roster.hasGroupConfig);
   return (
     <Stack gap="tight" padding="block" className="@container border-border border-b last:border-b-0" data-slot="roster-row">
       <Row align="center" gap="field" className="@max-md:flex-col @max-md:items-stretch">
         <Stack gap="tight" className="min-w-0 flex-1">
           <Row align="center" gap="field">
             <Text voice="label" className="min-w-0 flex-1 truncate">
-              {cast.name}
+              {roster.name}
             </Text>
-            {cast.rules.length > 0 ? (
+            {roster.rules.length > 0 ? (
               <Badge className="shrink-0" intent="neutral" tone="soft">
-                {cast.rules.length} rule{cast.rules.length === 1 ? "" : "s"}
+                {roster.rules.length} rule{roster.rules.length === 1 ? "" : "s"}
               </Badge>
             ) : null}
             {/* #1032 — the THIRD thing an apply carries. `hasGroupConfig` was served and never read, so a
@@ -89,30 +95,30 @@ function RosterRow(props: {
                 same face as one that only adds seats. Same badge grammar as the rules pill; the word is the
                 settings section's own ("Group behavior"), and the fact rides the apply doors' accessible
                 names through `rosterCountsSuffix` — a `<span>` badge has no name to carry it. */}
-            {cast.hasGroupConfig ? (
+            {roster.hasGroupConfig ? (
               <Badge className="shrink-0" intent="neutral" tone="soft">
                 group behavior
               </Badge>
             ) : null}
           </Row>
           <Text voice="gloss" className="truncate">
-            {cast.memberCount} member{cast.memberCount === 1 ? "" : "s"} · {memberNames}
+            {roster.memberCount} member{roster.memberCount === 1 ? "" : "s"} · {memberNames}
           </Text>
         </Stack>
         <Row align="center" gap="tight" justify="end" className="shrink-0">
-          <Button disabled={busy} intent="ghost" size="sm" onClick={(): void => onStart(cast)} aria-label={`Start a chat with ${cast.name}${counts}`}>
+          <Button disabled={busy} intent="ghost" size="sm" onClick={(): void => onStart(roster)} aria-label={`Start a chat with ${roster.name}${counts}`}>
             <Icon icon={MessagesSquare} size="sm" />
             Start
           </Button>
           {canAddToChat ? (
-            <Button disabled={busy} intent="ghost" size="sm" onClick={(): void => onAddToChat(cast)} aria-label={`Add ${cast.name} to this chat${counts}`}>
+            <Button disabled={busy} intent="ghost" size="sm" onClick={(): void => onAddToChat(roster)} aria-label={`Add ${roster.name} to this chat${counts}`}>
               <Icon icon={UserPlus} size="sm" />
               Add to chat
             </Button>
           ) : null}
           {/* The destructive door keeps a bare name: the counts inform CONSENT to apply, and a delete that
               recited them would read as though it were deleting the members too. */}
-          <Button disabled={busy} intent="ghost" size="icon-sm" onClick={(): void => onDelete(cast)} aria-label={`Delete ${cast.name}`}>
+          <Button disabled={busy} intent="ghost" size="icon-sm" onClick={(): void => onDelete(roster)} aria-label={`Delete ${roster.name}`}>
             <Icon icon={Trash2} size="sm" />
           </Button>
         </Row>
@@ -227,7 +233,7 @@ function SaveCurrentRoster(props: {
 }
 
 export function RosterPicker(): ReactElement {
-  const casts = useSavedRosters();
+  const rosters = useSavedRosters();
   const active = useActiveRosterChat();
   const ruleCapture = useRosterRuleCapture(active);
   // The catalogue is a static CODE catalogue and every door in this surface needs it: the include-line's
@@ -246,40 +252,40 @@ export function RosterPicker(): ReactElement {
   /** The ONE apply report, said by every door (side-eye P1-2: the Start door applied a roster's rules in
    *  total silence, discarding the `rulesSkipped` REASONS the build record §6.4 requires be reported —
    *  and that is the exact click B10's own acceptance test names). */
-  const reportApply = (cast: SavedRosterSummary, result: ApplyRosterPresetResult): void => {
-    const notice = applyNotice({ castName: cast.name, result, ruleTitleOf: catalogue.titleOf });
+  const reportApply = (roster: SavedRosterSummary, result: ApplyRosterPresetResult): void => {
+    const notice = applyNotice({ rosterName: roster.name, result, ruleTitleOf: catalogue.titleOf });
     notify[notice.channel](notice.line);
   };
 
-  const onStart = (cast: SavedRosterSummary): void => {
+  const onStart = (roster: SavedRosterSummary): void => {
     if (isStarting) {
       return; // one creation at a time — a double-fire would mint two rooms for one intent.
     }
-    // @orb-gate-ignore caught-failure-ownership(promise:startChat): startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the picked cast survives for retry. Ends if either mutation stops owning its failure copy.
+    // @orb-gate-ignore caught-failure-ownership(promise:startChat): startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the picked roster survives for retry. Ends if either mutation stops owning its failure copy.
     startChat({
-      characterIds: cast.members.map((m) => m.characterId),
-      anchorPersonaId: cast.anchorPersonaId,
+      characterIds: roster.members.map((m) => m.characterId),
+      anchorPersonaId: roster.anchorPersonaId,
       // The room is named after the roster it was started from (side-eye P3-4): the name was discarded the
       // moment it was used, so a room born from "Spire Trio" showed as its character list.
-      title: cast.name,
+      title: roster.name,
     })
       .then(async (chatId) => {
         closeModal();
         // The POLISH call — knobs + group config + the rules rider onto the fresh room. It REPORTS: a
         // room that silently differs from the roster the host picked is the defect, not the noise.
-        reportApply(cast, await apply.mutateAsync({ presetId: cast.id, chatId }));
+        reportApply(roster, await apply.mutateAsync({ presetId: roster.id, chatId }));
       })
       .catch(() => undefined); // both mutations toast their own failures; the picked state survives for retry.
   };
 
-  const onAddToChat = (cast: SavedRosterSummary): void => {
+  const onAddToChat = (roster: SavedRosterSummary): void => {
     if (active === null) {
       return;
     }
     apply
-      .mutateAsync({ presetId: cast.id, chatId: active.chatId })
+      .mutateAsync({ presetId: roster.id, chatId: active.chatId })
       .then((result) => {
-        reportApply(cast, result);
+        reportApply(roster, result);
         closeModal();
       })
       .catch(() => undefined); // errorToast owns the failure copy.
@@ -335,7 +341,7 @@ export function RosterPicker(): ReactElement {
   // you, and saving the current room stays one glance below (it is authoring, not the errand).
   return (
     <Stack gap="section">
-      {casts.length === 0 ? (
+      {rosters.length === 0 ? (
         <EmptyState
           icon={<Icon icon={Users} size="lg" />}
           title="No saved rosters yet"
@@ -371,15 +377,15 @@ export function RosterPicker(): ReactElement {
         />
       ) : (
         <Stack gap="row">
-          {casts.map((cast) => (
+          {rosters.map((roster) => (
             <RosterRow
               canAddToChat={active?.isHost === true}
               busy={busy}
-              key={cast.id}
+              key={roster.id}
               onAddToChat={onAddToChat}
               onDelete={setConfirmDelete}
               onStart={onStart}
-              cast={cast}
+              roster={roster}
             />
           ))}
         </Stack>

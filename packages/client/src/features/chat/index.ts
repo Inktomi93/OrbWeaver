@@ -28,7 +28,7 @@ export { chatMessageHandlingSection } from "./lib/chat-behavior-message-handling
 export { chatStreamingSection } from "./lib/chat-behavior-streaming-section.tsx";
 export { makeChatControlsContribution } from "./lib/chat-controls-contribution.tsx";
 export { chatSlashCommands } from "./lib/chat-slash-commands.ts";
-export { makeChatsSection } from "./lib/chats-section.tsx";
+export { chatContextTabs, makeChatsSection } from "./lib/chats-section.tsx";
 export { commandModal } from "./lib/command-modal.tsx";
 export { isContinueEligible } from "./lib/continue-on-empty.ts";
 export { databankSettingsSection } from "./lib/databank-settings-section.tsx";

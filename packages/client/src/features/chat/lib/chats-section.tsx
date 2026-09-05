@@ -58,7 +58,14 @@ function toMembersTabProps(s: CommittedChatContext): CommittedMembersTabProps {
 // A FUNCTION OF THE SECTION SEAM, not a module const (#616): the "This chat" body forwards the §6c
 // SECTION contributors, which arrive at the factory. The list itself is unchanged data — it is built once
 // per `makeChatsSection` call (once per app), not per render.
-function chatContextTabs(
+//
+// EXPORTED for the CROWN-PARITY pin (#1629, `tests/client/lib/registry-contracts.test.ts`):
+// `Preview` is one of the three live `crown: true` context tabs, and the other two are already reachable as
+// values (`automationActivityTab`, `makeRpgContextTabs`). Without this export the crowned set could only be
+// hand-copied into a fixture — the exact #898 defect the pin exists to make impossible. It is a pure list
+// builder the pin reads, never a registry assembly, so `client-compose-door-only` is untouched: assembly
+// still happens only at `compose/authed-app.tsx`.
+export function chatContextTabs(
   settingsSections: ContributorRegistry<ChatSettingsSectionContribution>,
 ): readonly (ContextTabDef<ChatContextState> & { readonly id: ChatContextTabId })[] {
   return [

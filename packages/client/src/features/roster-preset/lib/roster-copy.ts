@@ -92,11 +92,11 @@ export function rosterRuleLine(preset: RulePresetView | undefined, rulePresetId:
  *  named WITH automation's own reason (build record §6.4) — a count would tell a host that something did
  *  not happen without ever saying what. */
 function applySentence(args: {
-  readonly castName: string;
+  readonly rosterName: string;
   readonly result: ApplyRosterPresetResult;
   readonly ruleTitleOf: (id: RulePresetId) => string;
 }): string {
-  const { castName, result, ruleTitleOf } = args;
+  const { rosterName, result, ruleTitleOf } = args;
   const parts: string[] = [];
   if (result.added.length > 0) {
     parts.push(`added ${result.added.length} member${result.added.length === 1 ? "" : "s"}`);
@@ -113,7 +113,7 @@ function applySentence(args: {
   for (const skip of result.rulesSkipped) {
     parts.push(`${ruleTitleOf(skip.rulePresetId)} skipped — ${skip.reason}`);
   }
-  return `${castName}: ${parts.length === 0 ? "nothing to change" : parts.join(" · ")}`;
+  return `${rosterName}: ${parts.length === 0 ? "nothing to change" : parts.join(" · ")}`;
 }
 
 /** THE apply report — every one of the three doors says this and nothing else. The CHANNEL rides with the
@@ -121,7 +121,7 @@ function applySentence(args: {
  *  honest degrade — the apply worked, but not all of what the roster promised landed — and a skipped member
  *  or a refused rule announced on the SUCCESS channel is the same under-report in a friendlier colour. */
 export function applyNotice(args: {
-  readonly castName: string;
+  readonly rosterName: string;
   readonly result: ApplyRosterPresetResult;
   readonly ruleTitleOf: (id: RulePresetId) => string;
 }): { readonly channel: "success" | "warn"; readonly line: string } {

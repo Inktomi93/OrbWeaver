@@ -1060,15 +1060,15 @@
     {
       "siteId": "packages/client/src/features/roster-preset/components/roster-picker.tsx::promise:startChat::1",
       "path": "packages/client/src/features/roster-preset/components/roster-picker.tsx",
-      "line": 259,
+      "line": 265,
       "column": 5,
       "grammar": "promise",
       "position": "promise:startChat",
       "ordinal": 1,
       "snippet": "startChat({",
       "verdict": "deliberate-absorb",
-      "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the picked cast survives for retry. Ends if either mutation stops owning its failure copy.",
-      "markerLine": 258
+      "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the picked roster survives for retry. Ends if either mutation stops owning its failure copy.",
+      "markerLine": 264
     },
     {
       "siteId": "packages/client/src/features/roster-preset/surfaces/roster-member-surface.tsx::promise:startChat::1",

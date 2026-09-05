@@ -19,9 +19,9 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { RosterPickerHostStory, RosterPickerStory } from "../_ct-stories.tsx";
 
-const CAST_A: RosterPresetSummary = {
+const ROSTER_A: RosterPresetSummary = {
   id: castId<RosterPresetId>("roster_preset_ct_a"),
-  name: "Adventuring Cast",
+  name: "Adventuring Roster",
   description: "",
   memberCount: 2,
   members: [
@@ -37,7 +37,7 @@ const CAST_A: RosterPresetSummary = {
   ],
   updatedAt: 1,
 };
-const CAST_B: RosterPresetSummary = {
+const ROSTER_B: RosterPresetSummary = {
   id: castId<RosterPresetId>("roster_preset_ct_b"),
   name: "Book Club",
   description: "",
@@ -92,11 +92,11 @@ function applyResult(over: Record<string, unknown> = {}): Record<string, unknown
 }
 
 test("renders the routed library: names, member counts, previews; chat-scoped affordances stay hidden with no room open", async ({ mount, page }) => {
-  await routeTrpc(page, { "rosterPreset.list": [CAST_A, CAST_B], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
+  await routeTrpc(page, { "rosterPreset.list": [ROSTER_A, ROSTER_B], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
 
   await mount(<RosterPickerStory />);
 
-  await expect(page.getByText("Adventuring Cast")).toBeVisible();
+  await expect(page.getByText("Adventuring Roster")).toBeVisible();
   await expect(page.getByText("Book Club")).toBeVisible();
   await expect(page.getByText("Ash, Brook")).toBeVisible();
   // B10's rules rider — the badge names the count on a ruled roster and is ABSENT on a rules-free one
@@ -104,7 +104,7 @@ test("renders the routed library: names, member counts, previews; chat-scoped af
   await expect(page.getByText("2 rules")).toBeVisible();
   await expect(page.getByText(/rule/).filter({ hasText: "0" })).toHaveCount(0);
   // Per-row START is reachable…
-  await expect(page.getByRole("button", { name: "Start a chat with Adventuring Cast" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Start a chat with Adventuring Roster" })).toBeEnabled();
   // …while the chat-scoped affordances are ABSENT (no room open): no add-to-chat, no save-current.
   await expect(page.getByRole("button", { name: /Add .* to this chat/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Save this room's roster" })).toHaveCount(0);
@@ -140,14 +140,14 @@ test("#848: a HOST's empty library offers no room-abandoning CTA, and says why S
   // The dim Save now carries its reason, and the reason CLEARS the moment the condition does.
   await expect(page.getByRole("button", { name: "Save this room's roster" })).toBeDisabled();
   await expect(page.getByText("Name this roster to save it.")).toBeVisible();
-  await page.getByRole("textbox", { name: "New roster name" }).fill("Fresh cast");
+  await page.getByRole("textbox", { name: "New roster name" }).fill("Fresh roster");
   await expect(page.getByText("Name this roster to save it.")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Save this room's roster" })).toBeEnabled();
 });
 
 test("delete rides the ConfirmDialog and fires the REAL remove wire call with the row's presetId", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "rosterPreset.list": [CAST_A],
+    "rosterPreset.list": [ROSTER_A],
     "rosterPreset.remove": {},
     "automation.listRulePresets": [PACING_PRESET],
     "automation.listRules": [],
@@ -155,7 +155,7 @@ test("delete rides the ConfirmDialog and fires the REAL remove wire call with th
 
   await mount(<RosterPickerStory />);
 
-  await page.getByRole("button", { name: "Delete Adventuring Cast" }).click();
+  await page.getByRole("button", { name: "Delete Adventuring Roster" }).click();
   // The confirm ceremony — a destructive action never fires off the row click alone. The dialog's
   // visibility is the settled barrier; the zero read is retrying-form for the oneshot gate, and the
   // ==1 transition below is what gives it teeth (a fired-early remove can never come back to 0).
@@ -168,7 +168,7 @@ test("delete rides the ConfirmDialog and fires the REAL remove wire call with th
 });
 
 // ── #810 — the row's geometry across the WIDTH RANGE (side-eye P1-1) ─────────────────────────────────
-// 316px is the row's real width inside the 430×932 coarse dialog, where the measured defect was: cast name
+// 316px is the row's real width inside the 430×932 coarse dialog, where the measured defect was: roster name
 // `clientWidth` 0 (natural 57), the rules badge overlapping Start by 48px, and `elementFromPoint` at the
 // badge's own centre returning Start's `<svg>` — a tap on "2 rules" mints a room. 480 is the desktop
 // dialog and 768 the tablet arm: a point measurement never proves a range property, so the widths run as
@@ -179,14 +179,14 @@ test("delete rides the ConfirmDialog and fires the REAL remove wire call with th
 // picker is reached from the room's Members toolbar, so the row carries THREE actions (Start · Add to this
 // chat · Delete), not the library plane's two.
 const GEOMETRY_ROUTES = {
-  "rosterPreset.list": [CAST_A, CAST_B],
+  "rosterPreset.list": [ROSTER_A, ROSTER_B],
   "chat.getChat": HOST_CHAT,
   "automation.listRules": [ROOM_RULE],
   "automation.listRulePresets": [PACING_PRESET],
 };
 
 async function expectRowIsLegible(page: import("@playwright/test").Page): Promise<void> {
-  const name = page.getByText("Adventuring Cast");
+  const name = page.getByText("Adventuring Roster");
   await expect(name).toBeVisible();
   // TRUNCATED-TO-NOTHING: a label that exists in the DOM at 0px is invisible to the user, and neither
   // `design-audit --mobile` nor `--expect-no-overflow` reports it (the collision is INSIDE the dialog).
@@ -194,7 +194,7 @@ async function expectRowIsLegible(page: import("@playwright/test").Page): Promis
   await expect.poll(() => name.evaluate((el) => el.clientWidth)).toBeGreaterThan(0);
 
   const badge = page.getByText("2 rules");
-  const start = page.getByRole("button", { name: /^Start a chat with Adventuring Cast/ });
+  const start = page.getByRole("button", { name: /^Start a chat with Adventuring Roster/ });
   // The rects' worst-axis overlap: ≤ 0 means they do not intersect. A missing box (not laid out yet) reads
   // as maximally overlapping so the poll keeps waiting rather than passing on an absence.
   await expect
@@ -232,7 +232,7 @@ test.describe("the roster row under a COARSE pointer (the phone arm)", () => {
   test.use({ hasTouch: true });
 
   test("the CT context reports a coarse pointer (the emulation's own positive control)", async ({ mount, page }) => {
-    await routeTrpc(page, { "rosterPreset.list": [CAST_A], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
+    await routeTrpc(page, { "rosterPreset.list": [ROSTER_A], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
     await mount(<RosterPickerStory width={316} />);
 
     // ONESHOT-OK: the pointer media is a browser-CONTEXT option (`hasTouch`) fixed before this page existed — not mutable async state.
@@ -247,7 +247,7 @@ test.describe("the roster row under a COARSE pointer (the phone arm)", () => {
 
       // The settled barrier before any geometry read (a same-tick read of an unpainted row is a false
       // negative by construction); the width matrix's real assertions are in the helper.
-      await expect(page.getByRole("button", { name: /^Add Adventuring Cast to this chat/ })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Add Adventuring Roster to this chat/ })).toBeVisible();
       await expectRowIsLegible(page);
     });
   }
@@ -260,30 +260,30 @@ for (const width of [316, 480, 768]) {
     await mount(<RosterPickerHostStory width={width} />);
 
     // The settled barrier before any geometry read; the matrix's real assertions are in the helper.
-    await expect(page.getByRole("button", { name: /^Add Adventuring Cast to this chat/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Add Adventuring Roster to this chat/ })).toBeVisible();
     await expectRowIsLegible(page);
   });
 }
 
 // ── #812 P2-1 — both counts ride the row controls' ACCESSIBLE NAMES ──────────────────────────────────
 test("the row's apply doors announce the member and rule counts; a rules-free roster says only its members", async ({ mount, page }) => {
-  await routeTrpc(page, { "rosterPreset.list": [CAST_A, CAST_B], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
+  await routeTrpc(page, { "rosterPreset.list": [ROSTER_A, ROSTER_B], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
 
   await mount(<RosterPickerStory />);
 
-  // #1032 adds the THIRD carried thing: CAST_A has `hasGroupConfig: true`, so its apply also rewrites the
-  // room's reply mode / speaker labels / card visibility, and the door that does it now says so. CAST_B
+  // #1032 adds the THIRD carried thing: ROSTER_A has `hasGroupConfig: true`, so its apply also rewrites the
+  // room's reply mode / speaker labels / card visibility, and the door that does it now says so. ROSTER_B
   // carries neither rules nor group config and still announces only its members.
-  await expect(page.getByRole("button", { name: "Start a chat with Adventuring Cast — 2 members, 2 rules, group behavior", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start a chat with Adventuring Roster — 2 members, 2 rules, group behavior", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Start a chat with Book Club — 1 member", exact: true })).toBeVisible();
   // Delete stays a bare name: the counts inform CONSENT at the apply doors, not the destructive one.
-  await expect(page.getByRole("button", { name: "Delete Adventuring Cast", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Delete Adventuring Roster", exact: true })).toBeVisible();
 });
 
 // #1032 — the badge half of the same fact. A `<span>` badge carries no accessible name, which is exactly
 // why the fact ALSO rides the door names above; this pins that the visual signal exists and is per-row.
 test("the group-behavior badge shows on the roster that carries one, and only on that roster", async ({ mount, page }) => {
-  await routeTrpc(page, { "rosterPreset.list": [CAST_A, CAST_B], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
+  await routeTrpc(page, { "rosterPreset.list": [ROSTER_A, ROSTER_B], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
 
   await mount(<RosterPickerStory />);
 
@@ -297,7 +297,7 @@ test("the group-behavior badge shows on the roster that carries one, and only on
 // ── #811 — the Start door REPORTS, and the started room takes the roster's name (#813 P3-4) ────────────
 test("Start reports the rules it switched on plus each skipped rule's REASON, and names the room after the roster", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "rosterPreset.list": [CAST_A],
+    "rosterPreset.list": [ROSTER_A],
     "automation.listRulePresets": [PACING_PRESET],
     "automation.listRules": [],
     "chat.startChat": { chat: { ...HOST_CHAT, id: "chat_started_ct" } },
@@ -309,19 +309,19 @@ test("Start reports the rules it switched on plus each skipped rule's REASON, an
   });
 
   await mount(<RosterPickerStory />);
-  await page.getByRole("button", { name: /^Start a chat with Adventuring Cast/ }).click();
+  await page.getByRole("button", { name: /^Start a chat with Adventuring Roster/ }).click();
 
   const notice = page.getByTestId("cbcf-notice");
-  await expect(notice).toContainText("Adventuring Cast:");
+  await expect(notice).toContainText("Adventuring Roster:");
   await expect(notice).toContainText("1 rule on");
   // The build record §6.4 law: a skipped rule is reported WITH its reason, not as a count.
   await expect(notice).toContainText("this chat has no lorebook attached");
-  await expect.poll(() => trpc.lastInput("chat.startChat")).toMatchObject({ title: "Adventuring Cast" });
+  await expect.poll(() => trpc.lastInput("chat.startChat")).toMatchObject({ title: "Adventuring Roster" });
 });
 
 test("the add-to-chat door reports an idempotent re-apply without a leading 'Added 0'", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "rosterPreset.list": [CAST_A],
+    "rosterPreset.list": [ROSTER_A],
     "chat.getChat": HOST_CHAT,
     "automation.listRules": [ROOM_RULE],
     "automation.listRulePresets": [PACING_PRESET],
@@ -329,16 +329,16 @@ test("the add-to-chat door reports an idempotent re-apply without a leading 'Add
   });
 
   await mount(<RosterPickerHostStory />);
-  await page.getByRole("button", { name: /^Add Adventuring Cast to this chat/ }).click();
+  await page.getByRole("button", { name: /^Add Adventuring Roster to this chat/ }).click();
 
   const notice = page.getByTestId("cbcf-notice");
-  await expect(notice).toHaveText("Adventuring Cast: everything is already here · 1 rule on");
+  await expect(notice).toHaveText("Adventuring Roster: everything is already here · 1 rule on");
 });
 
 // ── #812 P2-2/P2-3 — the include-line's four arms ────────────────────────────────────────────────────
 test("the include-line names each rule WITH its resolved knobs", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "rosterPreset.list": [CAST_A],
+    "rosterPreset.list": [ROSTER_A],
     "chat.getChat": HOST_CHAT,
     "automation.listRules": [ROOM_RULE],
     "automation.listRulePresets": [PACING_PRESET],
@@ -356,7 +356,7 @@ test("the include-line names each rule WITH its resolved knobs", async ({ mount,
 
 test("a room with no enabled rules says so instead of rendering nothing", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "rosterPreset.list": [CAST_A],
+    "rosterPreset.list": [ROSTER_A],
     "chat.getChat": HOST_CHAT,
     "automation.listRules": [],
     "automation.listRulePresets": [PACING_PRESET],
@@ -367,14 +367,14 @@ test("a room with no enabled rules says so instead of rendering nothing", async 
   await expect(page.getByText("No enabled rules to include.")).toBeVisible();
   // The name is FILLED first, so the enabled/disabled reads below are about the CAPTURE and not about an
   // empty input (which disables Save for its own reason and would make both arms pass vacuously).
-  await page.getByRole("textbox", { name: "New roster name" }).fill("Fresh cast");
+  await page.getByRole("textbox", { name: "New roster name" }).fill("Fresh roster");
   await expect(page.getByRole("button", { name: "Save this room's roster" })).toBeEnabled();
 });
 
 test("the capture's LOADING arm says it is checking, and Save waits", async ({ mount, page }) => {
   const hold = trpcHold();
   await routeTrpc(page, {
-    "rosterPreset.list": [CAST_A],
+    "rosterPreset.list": [ROSTER_A],
     "chat.getChat": HOST_CHAT,
     "automation.listRules": hold,
     "automation.listRulePresets": [PACING_PRESET],
@@ -386,7 +386,7 @@ test("the capture's LOADING arm says it is checking, and Save waits", async ({ m
   // A held request is an indefinitely STABLE pending state — not a flash.
   await expect(page.getByText("Checking this room's rules…")).toBeVisible();
   // Named first, so Save being disabled can only be the capture (an empty name disables it anyway).
-  await page.getByRole("textbox", { name: "New roster name" }).fill("Fresh cast");
+  await page.getByRole("textbox", { name: "New roster name" }).fill("Fresh roster");
   await expect(page.getByRole("button", { name: "Save this room's roster" })).toBeDisabled();
 
   hold.release([]);
@@ -396,7 +396,7 @@ test("the capture's LOADING arm says it is checking, and Save waits", async ({ m
 test("a FAILED capture says so and offers a retry, instead of disabling Save forever in silence", async ({ mount, page }) => {
   let attempts = 0;
   const trpc = await routeTrpc(page, {
-    "rosterPreset.list": [CAST_A],
+    "rosterPreset.list": [ROSTER_A],
     "chat.getChat": HOST_CHAT,
     "automation.listRules": () => (attempts++ === 0 ? trpcError({ message: "scripted listRules failure" }) : []),
     "automation.listRulePresets": [PACING_PRESET],
