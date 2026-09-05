@@ -15,6 +15,13 @@
 #   pnpm engines:wake       clear hold → reconcile → VRAM gate → wake + wait.
 #   pnpm engines:reconcile  orphan-family sweep (also runs pre-spawn).
 #
+# ENGINES_POSTURE gates the SPAWN half of ensure/start (#1567 — the branch this script was missing):
+#   off             ensure/start are a no-op
+#   adopt-only      adopt a healthy fleet; with nothing to adopt, REFUSE to spawn (and say so, exit 0)
+#   adopt-or-start  the default when unset — adopt if healthy, else spawn (the manager)
+# Anything else REFUSES with exit 3 (misuse). stop/status/sleep/wake/reconcile are posture-blind: they
+# act on whatever fleet exists, and reading is never a spawn.
+#
 # OWNERSHIP INVERSION: no stack owns the engines as process children anymore. The
 # detached boot (engines.ts --detach) leaves each engine as its OWN setsid group
 # leader and EXITS, so the fleet survives the launcher's death — the bit-us-twice
@@ -45,6 +52,32 @@ EMBED_PORT="${VLLM_EMBED_PORT:-8701}"
 RERANK_PORT="${VLLM_RERANK_PORT:-8702}"
 GEN_PORT="${VLLM_GEN_PORT:-8703}"
 PORTS=("$EMBED_PORT" "$RERANK_PORT" "$GEN_PORT")
+
+# ── ENGINES_POSTURE: the SPAWN AUTHORITY (#1567) ──────────────────────────────
+# This shim — not dev.sh, not stack.sh — is the ONE place the posture decides whether a spawn may happen,
+# because it is the only place a spawn is issued (`pnpm engines:start` by hand routes here too, and
+# dev.sh's boot is a plain call into it). Before #1567 this script read the posture NOWHERE: stack.sh
+# defaulted/exported `ENGINES_POSTURE=adopt-only` (owner ruling 2026-08-01: "ADOPTS a running fleet —
+# never spawns one"), dev.sh called `engines.sh start` unconditionally, and with no fleet to adopt the
+# start verb cold-spawned the trio anyway (owner-witnessed 2026-09-04: 38 GB on the GPUs from a bare
+# `pnpm stack restart` under an `.env`-pinned adopt-only). The posture the SERVER honoured was not the
+# posture the SUPERVISOR honoured.
+#
+# The three members mirror the server's resolver EXACTLY (packages/server/src/foundation/env/posture.ts —
+# ENGINES_POSTURES): off · adopt-only · adopt-or-start. Unset ⇒ adopt-or-start, the same default that
+# resolver logs, so a hand-run `pnpm engines` is unchanged. An UNRECOGNISED value REFUSES loudly (exit 3 =
+# misuse, the repo's exit-code contract) instead of falling through to a spawn — a typo'd posture must
+# never read as "manage the fleet".
+ENGINES_POSTURE="${ENGINES_POSTURE:-adopt-or-start}"
+case "$ENGINES_POSTURE" in
+  off | adopt-only | adopt-or-start) ;;
+  *)
+    echo "engines: ENGINES_POSTURE='$ENGINES_POSTURE' is not one of off|adopt-only|adopt-or-start — refusing." >&2
+    echo ""
+    echo "RESULT engines verb=${1:-ensure} status=bad-posture posture=$ENGINES_POSTURE"
+    exit 3
+    ;;
+esac
 
 mkdir -p "$RUN_DIR"
 
@@ -183,10 +216,25 @@ reprobe_late() {
 
 do_start() {
   skip_if_disabled start
+  if [ "$ENGINES_POSTURE" = off ]; then
+    echo "engines: ENGINES_POSTURE=off — not running the local model engines."
+    echo ""
+    echo "RESULT engines verb=start status=posture-off"
+    return 0
+  fi
   if fleet_healthy; then
     echo "engines: fleet already healthy on ${PORTS[*]} — nothing to spawn (idempotent)."
     echo ""
     echo "RESULT engines verb=start status=already-up"
+    return 0
+  fi
+  # adopt-only: there was nothing to adopt. Say so and STOP — this is the branch whose absence spawned
+  # 38 GB of vLLM under an adopt-only pin (#1567). Exit 0: "no fleet to adopt" is the posture working as
+  # ruled, not a failure, and dev.sh's boot continues into a server that fails-fast per role.
+  if [ "$ENGINES_POSTURE" = adopt-only ]; then
+    echo "engines: adopt-only — no fleet to adopt; NOT spawning (set ENGINES_POSTURE=adopt-or-start to spawn)"
+    echo ""
+    echo "RESULT engines verb=start status=adopt-only-no-fleet ports=${PORTS[*]}"
     return 0
   fi
   local launcher=""
@@ -247,6 +295,9 @@ do_ensure() {
     echo "engines: fleet already healthy on ${PORTS[*]} — adopting (no spawn)."
   else
     do_start || return 1
+    # do_start can legitimately decline to spawn (posture off / adopt-only with nothing to adopt). There
+    # are then no engine logs to follow, so `ensure` ends on its verdict instead of tailing empty files.
+    fleet_healthy || return 0
   fi
   echo "engines: following logs — Ctrl-C DETACHES (the fleet stays warm; \`pnpm engines:stop\` kills it)."
   # tail -F survives log rotation; Ctrl-C ends the tail only, never the detached engines.

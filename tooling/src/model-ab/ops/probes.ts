@@ -19,7 +19,15 @@ import {
   VISION_MAX_TOKENS,
   VISION_TEST_PNG_B64,
 } from "../lib/scene.ts";
-import { findRefusalMarkers, parseStructured, parseToolArguments, verifyPrefillContent, verifyPrefillThinking } from "../lib/verify.ts";
+import {
+  findRefusalMarkers,
+  parseStructured,
+  parseToolArguments,
+  verifyChatCompletion,
+  verifyContentPresent,
+  verifyPrefillContent,
+  verifyPrefillThinking,
+} from "../lib/verify.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/model-ab/cli.ts <verb>");
 
@@ -101,6 +109,9 @@ export const PROBES: readonly Probe[] = [
   {
     name: "rp-think-off",
     body: (): Record<string, unknown> => ({ messages: [{ role: "system", content: RP_SYSTEM }, ...RP_TURNS], ...INSTRUCT_SAMPLING }),
+    // Thinking is OFF, so this turn's whole claim is prose in `content` (#1507 — the row used to carry no
+    // verifier at all and reported ok for any 200, body unread).
+    verify: verifyContentPresent,
   },
   ...EFFORTS.map(
     (effort): Probe => ({
@@ -111,6 +122,10 @@ export const PROBES: readonly Probe[] = [
         max_tokens: THINK_MAX_TOKENS,
         chat_template_kwargs: { enable_thinking: true, reasoning_effort: effort },
       }),
+      // Thinking ON: a row that spends its whole budget in the reasoning channel is a MATRIX FINDING the
+      // columns already show, not a broken response — so the floor is "a completion came back with
+      // something generated in it", never "content specifically" (#1507).
+      verify: verifyChatCompletion,
     }),
   ),
   {
@@ -124,6 +139,7 @@ export const PROBES: readonly Probe[] = [
       ],
       ...INSTRUCT_SAMPLING,
     }),
+    verify: verifyContentPresent,
   },
   {
     name: "no-user-narration",
@@ -134,6 +150,7 @@ export const PROBES: readonly Probe[] = [
       ],
       ...INSTRUCT_SAMPLING,
     }),
+    verify: verifyContentPresent,
   },
   {
     name: "tool-roundtrip",
@@ -189,6 +206,9 @@ export const PROBES: readonly Probe[] = [
       temperature: 0,
       max_tokens: DIFFABLE_MAX_TOKENS,
     }),
+    // The diff column is only meaningful against real text: two empty completions render as identical
+    // blanks, which reads as "the variants agree" (#1507).
+    verify: verifyContentPresent,
   },
   {
     name: "prefill-content",

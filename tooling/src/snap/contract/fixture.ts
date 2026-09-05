@@ -16,3 +16,20 @@ export interface FixtureTargetOverride {
 }
 
 export type FixtureStatus = { readonly up: true } | { readonly up: false; readonly reason: string };
+
+/** The `/api/auth/config` fields the fixture probe reads (all optional — a single-user stack answers a
+ *  different shape, and telling the two apart is the probe's whole job). */
+export interface AuthConfig {
+  readonly mode?: string;
+  readonly localEnabled?: boolean;
+  readonly multiHumanCapable?: boolean;
+}
+
+/** What the LIVE port owner's own environment says about AUTH_MODE. THREE outcomes, not two (#1507): the
+ *  probe can also fail to ASK, and "could not ask" is not "answered no" and is certainly not "answered
+ *  yes" — the arm the old `boolean | null` let `fixtureStatus` fall through as `{ up: true }`. Every
+ *  unreadable arm carries the sentence a caller needs to act on it. */
+export type PortOwnerAuthProbe =
+  | { readonly kind: "local" }
+  | { readonly kind: "not-local"; readonly mode: string }
+  | { readonly kind: "unreadable"; readonly reason: string };

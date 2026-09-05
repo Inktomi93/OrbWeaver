@@ -3,6 +3,36 @@
 // IS the harness's definition of "this variant behaves".
 import type { ChatResponse } from "../contract/types.ts";
 
+/** THE FLOOR every probe gets, even one whose only claim is "the model answered" (#1507).
+ *
+ *  `runProbe` parses the body with `.catch(() => ({}))`, so an HTTP 200 carrying HTML, a truncated stream
+ *  or an error envelope arrives here as an empty object. With `verify` optional, that response was
+ *  reported `ok: true` — a green about a response nobody read. This asks the one question that is true of
+ *  every probe in the matrix: did a chat completion come back with SOMETHING generated in it? Reasoning
+ *  counts as generated text, because a thinking probe that spends its whole budget in the reasoning
+ *  channel is a matrix FINDING (the columns show it), not a broken response. */
+export function verifyChatCompletion(r: ChatResponse): string | null {
+  const choice = r.choices?.[0];
+  if (choice === undefined) {
+    return "no choices in the response (a 200 that is not a chat completion)";
+  }
+  const msg = choice.message ?? {};
+  const generated = (msg.content ?? "").trim().length + (msg.reasoning_content ?? msg.reasoning ?? "").trim().length;
+  return generated === 0 ? "empty completion — neither content nor reasoning came back" : null;
+}
+
+/** The floor for a probe that asked for PROSE with thinking off (the instruct rows): reasoning-only is not
+ *  an answer there, so `content` itself must carry something. Same #1507 rationale as
+ *  `verifyChatCompletion` — this is the stronger of the two, used wherever the probe's own request makes
+ *  content the thing being measured. */
+export function verifyContentPresent(r: ChatResponse): string | null {
+  const completion = verifyChatCompletion(r);
+  if (completion !== null) {
+    return completion;
+  }
+  return (r.choices?.[0]?.message?.content ?? "").trim().length === 0 ? "empty content (the model answered in the reasoning channel only)" : null;
+}
+
 export function verifyPrefillContent(r: ChatResponse, prefix: string): string | null {
   const content = r.choices?.[0]?.message?.content ?? "";
   if (content.length === 0) {

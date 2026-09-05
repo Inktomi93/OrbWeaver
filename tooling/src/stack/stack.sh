@@ -50,7 +50,9 @@
 #
 # ENV PINS: exported here with `: "${VAR:=default}"` so a host export still
 # wins. VLLM_DISABLED=true maps to ENGINES_POSTURE=off (no engines in-stack;
-# an explicit ENGINES_POSTURE from the caller — e.g. e2e's adopt-only — wins) ·
+# an explicit ENGINES_POSTURE from the caller — e.g. e2e's adopt-only — wins,
+# then the `.env` pin, then the adopt-only default; every boot path prints the
+# effective posture AND which of the three it came from — #1567) ·
 # AUTH_MODE=single-user · deterministic DEV-ONLY secrets so a caller flipping
 # AUTH_MODE=local/oidc doesn't trip the env superRefine boot-fatality
 # (packages/server/src/foundation/env/index.ts) · DEV_SEED=on, the dev twin of
@@ -222,18 +224,53 @@ done
 # The old engines-off default silently unwired the vllm backend on any restart that lost the posture env
 # (the 12:39 incident: saved vllm connection + bare restart = every turn dead in 2ms, zero logs).
 # Engines-off is now the explicit opt-in: ENGINES_POSTURE=off or VLLM_DISABLED=true.
+#
+# THE SOURCE RIDES THE VALUE (#1567). "adopt-only" printed with no provenance is what let a spawn hide in
+# plain sight: the supervisor's posture and the SERVER's posture are resolved by different code, and the
+# server re-reads `.env` with override:true AFTER spawn. So we resolve host → .env pin → default here,
+# record which one won in ENGINES_POSTURE_SRC, and print both on every boot (`posture_report`).
+ENGINES_POSTURE_SRC=""
+env_file_posture() { # the `.env` pin, if any — the value the SERVER's resolver will actually see
+  [ -f "$REPO/.env" ] || return 0
+  sed -n 's/^[[:space:]]*ENGINES_POSTURE[[:space:]]*=[[:space:]]*\([^[:space:]#]*\).*/\1/p' "$REPO/.env" | tail -1
+}
+ENV_FILE_POSTURE="$(env_file_posture)"
 if [ -n "${ENGINES_POSTURE:-}" ]; then
+  ENGINES_POSTURE_SRC=host
   export ENGINES_POSTURE
 elif [ -n "${VLLM_DISABLED:-}" ]; then
+  # UNCHANGED and deliberately AHEAD of the .env pin: a caller who spells VLLM_DISABLED still gets the
+  # normalization (the schema takes exactly "true"|"false") and the mapping the server's resolver applies.
   case "${VLLM_DISABLED}" in
     1 | on | yes) VLLM_DISABLED=true ;;
     0 | off | no) VLLM_DISABLED=false ;;
   esac
   export VLLM_DISABLED
+elif [ -n "$ENV_FILE_POSTURE" ]; then
+  # The .env pin is what the server will run under regardless of what we pass; the supervisor honouring a
+  # DIFFERENT posture is exactly the #1567 split (an .env-pinned adopt-only that still cold-spawned 38 GB
+  # of vLLM, owner-witnessed 2026-09-04). Adopt it so one posture governs both halves. Today's `.env` pins
+  # adopt-only, which is also the default below — so this branch changes no VALUE, only its provenance…
+  # and the provenance is the half that decides whether engines.sh may spawn.
+  ENGINES_POSTURE="$ENV_FILE_POSTURE"
+  ENGINES_POSTURE_SRC=.env
+  export ENGINES_POSTURE
 else
   ENGINES_POSTURE=adopt-only
+  ENGINES_POSTURE_SRC=default
   export ENGINES_POSTURE
 fi
+
+# The one posture line every boot path prints BEFORE it boots (up · restart · force-restart · start-fg).
+# It names the effective value, where it came from, and — when a host export is overriding an .env pin —
+# the value the server itself will resolve, which is the pair that made #1567 invisible.
+posture_report() {
+  local line="stack: engines posture ${ENGINES_POSTURE:-—} (${ENGINES_POSTURE_SRC:-via VLLM_DISABLED=${VLLM_DISABLED:-—}})"
+  if [ "$ENGINES_POSTURE_SRC" = host ] && [ -n "$ENV_FILE_POSTURE" ] && [ "$ENV_FILE_POSTURE" != "${ENGINES_POSTURE:-}" ]; then
+    line="$line — NOTE: .env pins ENGINES_POSTURE=$ENV_FILE_POSTURE and the server re-reads .env with override:true, so the SERVER will run $ENV_FILE_POSTURE"
+  fi
+  echo "$line"
+}
 : "${AUTH_MODE:=single-user}"
 # DEV-ONLY deterministic secrets — INSECURE BY DESIGN, never for a real deploy.
 # They exist so AUTH_MODE=local (superRefine: SESSION_SECRET ≥32 chars +
@@ -274,7 +311,7 @@ backend_env_var() { # pid name → value (from /proc environ; keys loaded from .
 env_pin_report() {
   local bpid="$1" line="" v live
   # Engine topology: whichever of ENGINES_POSTURE / VLLM_DISABLED is set (one of them always is).
-  line="$line ENGINES_POSTURE=${ENGINES_POSTURE:-—} VLLM_DISABLED=${VLLM_DISABLED:-—}"
+  line="$line ENGINES_POSTURE=${ENGINES_POSTURE:-—}(${ENGINES_POSTURE_SRC:-—}) VLLM_DISABLED=${VLLM_DISABLED:-—}"
   # AUTH_MODE here is the SHELL pin (this script's `:=`/host export) — it does NOT account for a checked-in
   # `.env`, which the server loads with override:true and which therefore WINS. The `effective` line below is
   # the truth; this one is only "what the launcher intended". (#301 — the pin line used to be read as gospel.)
@@ -300,11 +337,31 @@ env_pin_report() {
   fi
 }
 
+# A TERM the child never acts on is how the boot-failure path leaked an orphan (#1567): the leader
+# TERM'd dev.sh and returned, dev.sh was blocked in engines.sh with the signal QUEUED, and the moment the
+# leader died it reparented to `systemd --user` and went on to bind :8788 under a dead pidfile group.
+# dev.sh's own signal handler is fixed to exit; this is the leader's half — VERIFY the child is gone, and
+# escalate to KILL rather than trust a signal we never confirmed. Bash's BUILTIN kill only (never procps:
+# a negative pgid trips its argument parser), and only ever on our own child pid.
+reap_child() { # pid label → TERM, bounded wait, then KILL
+  local pid="$1" label="$2" i
+  [ -n "$pid" ] || return 0
+  kill -TERM "$pid" 2>/dev/null
+  for i in $(seq 1 20); do
+    kill -0 "$pid" 2>/dev/null || return 0
+    sleep 0.5
+  done
+  echo "stack: $label (pid $pid) ignored TERM after 10s — escalating to KILL"
+  kill -KILL "$pid" 2>/dev/null
+  return 0
+}
+
 # ── the leader body — ONE source of truth for both start (setsid) and start-fg.
 run_leader() {
   local server_pid="" client_pid=""
   # shellcheck disable=SC2064
   trap 'kill -TERM ${client_pid:-} ${server_pid:-} 2>/dev/null; wait 2>/dev/null; exit 0' TERM INT HUP
+  posture_report
   echo "stack: booting server :$BACKEND_PORT (log $SERVER_LOG)"
   rotate_log "$SERVER_LOG"
   bash "$REPO/tooling/src/stack/dev.sh" >"$SERVER_LOG" 2>&1 &
@@ -323,7 +380,7 @@ run_leader() {
   if [ -z "$up" ]; then
     echo "stack: TIMEOUT (${SERVER_HEALTHZ_TIMEOUT}s) waiting for $HEALTHZ — last log lines:"
     tail -15 "$SERVER_LOG"
-    kill -TERM "$server_pid" 2>/dev/null
+    reap_child "$server_pid" dev.sh
     return 1
   fi
   echo "stack: server healthy — booting client vite :$VITE_PORT (log $CLIENT_LOG)"
@@ -342,7 +399,8 @@ run_leader() {
   # stack is worse than a down one — the vite proxy would 502 or serve stale).
   wait -n 2>/dev/null
   echo "stack: a child exited — tearing down the stack"
-  kill -TERM "$client_pid" "$server_pid" 2>/dev/null
+  reap_child "$client_pid" vite
+  reap_child "$server_pid" dev.sh
   wait 2>/dev/null
   return 1
 }
@@ -524,6 +582,7 @@ do_start() {
     [ "$pf" = 1 ] && return 1
   fi
 
+  posture_report
   rotate_log "$LOG"
   # setsid: new session ⇒ new process group whose PGID == the leader's PID.
   # The leader (this script, `_leader` verb — env pins ride the export) owns
@@ -576,14 +635,13 @@ do_force_restart() {
   # the NEW server starts under: the stale pinned posture cannot survive a real
   # restart. Pinned SECRETS (SESSION_SECRET/CREDENTIALS_KEY/…) still default in.
   FORCE=1
-  # dev.sh → engines.sh gates the in-stack fleet on VLLM_DISABLED, not ENGINES_POSTURE.
-  # A caller who forces ENGINES_POSTURE=off means "no engines" — bridge it to
-  # VLLM_DISABLED=true (the documented off⇔disabled mapping) so the fresh boot
-  # does NOT cold-spawn a fleet the caller just tore down. The exported var is
-  # inherited by the setsid leader re-exec (and by dev.sh under it). Force-only:
-  # normal start/restart are untouched. Non-off postures reach engines.sh as before.
+  # engines.sh honours ENGINES_POSTURE itself since #1567, so `off` no longer NEEDS the bridge — we keep
+  # it because VLLM_DISABLED=true is also what the SERVER's deprecated-input path maps to `off`, and a
+  # caller who forces off after a teardown must not have the fleet re-spawned by either half. The exported
+  # var is inherited by the setsid leader re-exec (and by dev.sh under it). Force-only: normal
+  # start/restart are untouched. Non-off postures reach engines.sh as before.
   if [ "${ENGINES_POSTURE:-}" = off ]; then export VLLM_DISABLED=true; fi
-  echo "force-restart: caller posture — ENGINES_POSTURE=${ENGINES_POSTURE:-—} VLLM_DISABLED=${VLLM_DISABLED:-—} (wins over any pin)"
+  echo "force-restart: caller posture — ENGINES_POSTURE=${ENGINES_POSTURE:-—}(${ENGINES_POSTURE_SRC:-—}) VLLM_DISABLED=${VLLM_DISABLED:-—} (wins over any pin)"
   force_teardown || return 1
   do_start
   local rc=$?

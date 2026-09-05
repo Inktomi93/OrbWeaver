@@ -1004,9 +1004,10 @@ export function wireMessagesText(capture: WireCapture): string {
   return (messages as readonly { readonly content?: unknown }[]).map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content))).join("\n");
 }
 
-// ── The CHAT-side DB witness (`/api/_debug/db/chat/:id` — inspectChatState). rpg has NO raw-table debug dump
-// (the rpg flight recorder is an unbuilt seam, RPG_TRACE off), so getTrackerView is the rpg-plane DB read; THIS
-// is the independent DB witness for the message/event landings the turn produced (canon rows + bus events). ──
+// ── The CHAT-side DB witness (`/api/_debug/db/chat/:id` — inspectChatState). rpg has NO raw-TABLE debug dump,
+// so getTrackerView is the rpg-plane DB read; THIS is the independent DB witness for the message/event landings
+// the turn produced (canon rows + bus events). The rpg FLIGHT RECORDER is a different instrument and is wired
+// for this harness since #1493 (`fetchRpgTraces` below; RPG_TRACE=on in support/modes.ts). ──
 
 /** The chat-inspection subset the exhaustive spec cross-checks against (`/api/_debug/db/chat/:id`). */
 export interface ChatDbInspection {
@@ -1034,6 +1035,29 @@ export async function fetchDebugErrors(): Promise<readonly unknown[]> {
   }
   const body = (await res.json()) as { readonly errors?: readonly unknown[] };
   return body.errors ?? [];
+}
+
+/** One record from the rpg flight recorder (`/api/_debug/rpg/traces`, `domain/rpg/contract/trace.ts`). The
+ *  `phase` is the only field a harness reads — `flush` is the event that means THE EXTRACTION SETTLED and
+ *  the write boundary ran, which is the one observable that separates "the model produced an empty delta"
+ *  from "the flush has not happened yet" (#1493). Spelled structurally rather than imported: this support
+ *  tree stays import-free of the app packages (see the file header). */
+export interface RpgTraceRecord {
+  readonly seq: number;
+  readonly at: number;
+  readonly event: { readonly phase: string; readonly droppedReason?: string };
+}
+
+/** Read a chat's rpg trace ring. REQUIRES `RPG_TRACE=on` in the stack's env (the harness sets it per mode in
+ *  support/modes.ts); without it the route is not even registered and this throws rather than reporting a
+ *  clean empty ring — "the recorder is off" must never read as "the flush never happened". */
+export async function fetchRpgTraces(chatId: ChatId): Promise<readonly RpgTraceRecord[]> {
+  const res = await fetch(`${BASE_URL}/api/_debug/rpg/traces?chatId=${chatId}`, { headers: debugHeaders() });
+  if (!res.ok) {
+    throw new Error(`e2e rpg/traces read failed (${res.status}) — is RPG_TRACE=on for this stack? An unwired recorder has no route.`);
+  }
+  const body = (await res.json()) as { readonly events?: readonly RpgTraceRecord[] };
+  return body.events ?? [];
 }
 
 /** Delete message slots (`chat.deleteMessages`) — the sad-path "deleted turn" driver. */

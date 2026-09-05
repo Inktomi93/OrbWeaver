@@ -9,6 +9,8 @@ import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-cap
 import type { BrowserPageError } from "../../_shared/browser-contract.ts";
 import type { BrowserDiagnostic, OrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
 import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
+import type { BrowserEvidenceRetentionBatch } from "../../_shared/browser-evidence-ring.ts";
+import { BROWSER_EVIDENCE_SOURCES } from "../../_shared/browser-evidence-ring.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ThemeRequest } from "../../_shared/theme.ts";
 import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
@@ -99,8 +101,16 @@ interface SnapManifest {
 interface SnapCoreCaptureEvidence {
   readonly v: 1;
   readonly populations: {
-    readonly pageErrors: { readonly records: number; readonly dropped: 0; readonly complete: true; readonly basis: "all-observed" };
+    /** #1507: `dropped`/`complete` are READ OFF the page-error ring's retention receipt, never asserted.
+     *  They were hardcoded `0`/`true` over a `BoundedEvidenceRing` that has always tracked a real
+     *  per-scope eviction count — so a capacity-evicted page error made this row a lie, at the exact
+     *  moment the evidence mattered most. `basis` stays "all-observed": the ring observes every error and
+     *  says how many it had to drop. */
+    readonly pageErrors: { readonly records: number; readonly dropped: number; readonly complete: boolean; readonly basis: "all-observed" };
     readonly failedRequests: { readonly records: number; readonly dropped: null; readonly complete: false; readonly basis: "latest-per-url" };
+    /** EARNED, re-derived #1507: captures are the `CaptureOutcome[]` the run built, one row per page it
+     *  actually captured (ops/run.ts → `capturePages`) — a plain array with no ring, no capacity and no
+     *  eviction path. Nothing can drop a capture without the run itself failing, so 0/true is a fact. */
     readonly captures: { readonly records: number; readonly dropped: 0; readonly complete: true; readonly basis: "all-pages" };
   };
   readonly failures: SnapFailureSummary;
@@ -278,13 +288,42 @@ async function writeManifest(name: string, input: ManifestInput): Promise<string
   return path;
 }
 
+/** The page-error ring's own verdict about itself (#1507).
+ *
+ *  `BoundedEvidenceRing.receipts()` emits `[aggregate, ...one row per exact scope]`, and
+ *  `browserEvidenceRetention` concatenates that per BROWSER CONTEXT — so the batch holds one AGGREGATE row
+ *  per ring plus its per-scope breakdown, and summing every row would double-count every eviction. The
+ *  aggregate rows are the ring-level totals (their scope is aggregate on all three axes), so those are what
+ *  the population reports; the exact rows stay in the retention fact for attribution.
+ *
+ *  No aggregate row at all is NOT a clean zero: it is "we never measured", so `complete` is false and the
+ *  artifact says the receipt was missing instead of printing an earned-looking 0/true. */
+export function summarizePageErrorRetention(retention: BrowserEvidenceRetentionBatch): {
+  readonly dropped: number;
+  readonly complete: boolean;
+  readonly rows: number;
+} {
+  const rows = retention.rows.filter((row) => row.source === BROWSER_EVIDENCE_SOURCES.pageErrors && row.scope.context.kind === "aggregate");
+  return {
+    dropped: rows.reduce((total, row) => total + row.dropped, 0),
+    complete: rows.length > 0 && rows.every((row) => row.complete),
+    rows: rows.length,
+  };
+}
+
 /** Always-on, bounded input for the run card. It projects already-captured facts through the same disk
  * redaction boundary as the optional full manifest; it never performs another page read. */
-export async function writeCoreCaptureEvidence(input: ManifestInput): Promise<string> {
+export async function writeCoreCaptureEvidence(input: ManifestInput, retention: BrowserEvidenceRetentionBatch): Promise<string> {
+  const pageErrorRetention = summarizePageErrorRetention(retention);
   const evidence: SnapCoreCaptureEvidence = {
     v: 1,
     populations: {
-      pageErrors: { records: input.pageErrors.length, dropped: 0, complete: true, basis: "all-observed" },
+      pageErrors: {
+        records: input.pageErrors.length,
+        dropped: pageErrorRetention.dropped,
+        complete: pageErrorRetention.complete,
+        basis: "all-observed",
+      },
       // The browser source is a URL-keyed Map: repeated attempts replace the prior row. Preserve that
       // useful latest failure, but never mislabel it as a complete request-event population.
       failedRequests: { records: input.failedRequests.length, dropped: null, complete: false, basis: "latest-per-url" },
@@ -321,7 +360,9 @@ export async function writeCoreCaptureEvidence(input: ManifestInput): Promise<st
     schema: "snap-core-capture-v1",
     role: "primary",
     completeness: "bounded",
-    completenessDetail: "page-error and capture populations are complete; failed requests are a latest-per-URL projection",
+    completenessDetail: pageErrorRetention.complete
+      ? "page-error and capture populations are complete; failed requests are a latest-per-URL projection"
+      : `the page-error population is BOUNDED (${pageErrorRetention.rows === 0 ? "no retention receipt — completeness was not measured" : `${pageErrorRetention.dropped} evicted by ring capacity`}); failed requests are a latest-per-URL projection`,
     scope: aggregateScope(),
     records: evidence.pageErrors.length + evidence.failedRequests.length + evidence.captures.length,
     limits: [
@@ -339,6 +380,26 @@ export async function writeCoreCaptureEvidence(input: ManifestInput): Promise<st
           },
         ],
       },
+      // #1507: the page-error ring files a receipt ONLY when it actually lost something (or could not say)
+      // — a complete population adds no row, so a clean run's artifact is byte-identical to before.
+      ...(pageErrorRetention.complete
+        ? []
+        : [
+            {
+              source: "page-errors-ring",
+              complete: false,
+              policy: null,
+              events: [
+                {
+                  kind: pageErrorRetention.rows === 0 ? "unmeasured" : "eviction",
+                  path: "$.pageErrors",
+                  original: null,
+                  retained: evidence.pageErrors.length,
+                  omitted: pageErrorRetention.rows === 0 ? null : pageErrorRetention.dropped,
+                },
+              ],
+            } satisfies InstrumentArtifactLimitReceipt,
+          ]),
     ],
   });
   await writeFile(path, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");

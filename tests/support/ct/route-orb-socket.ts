@@ -127,6 +127,13 @@ function decodeStreamAttaches(req: Request, url: URL, wanted: "attach" | "detach
   return attaches;
 }
 
+/** Matches the ONE multiplexed socket subscription (`stream.connect`) — the procedure
+ *  `use-orb-socket.ts` opens. Exported as the sibling of `isImpersonateStreamRequest`: a CT that watches
+ *  socket connects needs the same predicate the stub routes on, or the two drift. */
+export function isOrbSocketRequest(request: { url: () => string }): boolean {
+  return request.url().includes("stream.connect");
+}
+
 /** Stub the ONE multiplexed socket and record its lifecycle. Non-socket traffic falls through to routeTrpc. */
 export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {}): Promise<OrbSocketRecorder> {
   const frames = opts.frames ?? [];
@@ -141,7 +148,12 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
     const req = route.request();
     const url = new URL(req.url());
 
-    if ((req.headers()["accept"] ?? "").includes("text/event-stream")) {
+    // The SOCKET is ONE procedure — `stream.connect` (packages/client/src/data/bus/use-orb-socket.ts's
+    // `trpc.stream.connect.subscriptionOptions`). Matching on the accept header alone (#1491) made this
+    // stub answer EVERY tRPC subscription in the CT, `chat.impersonateStream` included: a story that opens
+    // both got socket frames on its impersonation stream, and any CT that depended on that was passing
+    // because of the stub's reach rather than the app's behaviour. A non-socket stream falls through.
+    if ((req.headers()["accept"] ?? "").includes("text/event-stream") && isOrbSocketRequest(req)) {
       connects += 1;
       // The handshake: hold the stream open until the rooms this script targets have attached. A route
       // handler is async, so "not answering yet" IS a live stream from the client's point of view.

@@ -7,9 +7,11 @@
 // THE INSTRUMENTS (each hop cross-checked against all that apply):
 //   • FE  = the CP-4 takeover panel DOM (the 4 lite tabs: Status/Sheet/Inventory/Scene — the Scene tab is the
 //           richest witness: ambient + cast + relationship + trackers + quests + beats).
-//   • BE/DB = `rpg.getTrackerView` — the persisted-snapshot projection. There is NO separate rpg-table debug
-//           dump (the rpg flight recorder is an unbuilt seam, RPG_TRACE off), so this projection READS the
-//           `rpg_snapshots` rows live — it is the rpg-plane DB witness AND the flush/snapshot RESULT at once.
+//   • BE/DB = `rpg.getTrackerView` — the persisted-snapshot projection. There is NO rpg raw-TABLE debug dump,
+//           so this projection READS the `rpg_snapshots` rows live — it is the rpg-plane DB witness AND the
+//           flush/snapshot RESULT at once. (The rpg FLIGHT RECORDER is a separate instrument and is now ON for
+//           this harness — `RPG_TRACE=on` in support/modes.ts, #1493: its `flush` event is the only observable
+//           that says the state round SETTLED, which is what the live-loop poll below barriers on.)
 //           Plus `rpg.getGame`/`getConfigView`/`listJournal`/`listCheckpoints` for the sibling reads.
 //   • chat-DB = `/api/_debug/db/chat/:id` (inspectChatState) — the INDEPENDENT DB witness that a turn's canon
 //           rows + bus events landed (distinct from the tRPC read path); `/api/_debug/wire/captures` = the true
@@ -38,6 +40,7 @@ import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room.ts";
+import { hasRpgFlush, rpgTurnSettled } from "./support/rpg-settle.ts";
 import type { ActorRefInput, ChatRoute, TrackerActor, TrackerView } from "./support/trpc.ts";
 import {
   abortTurn,
@@ -47,6 +50,7 @@ import {
   deleteMessages,
   editSnapshot,
   fetchDebugErrors,
+  fetchRpgTraces,
   fetchWireCaptures,
   getChatRoute,
   getConfigView,
@@ -438,12 +442,18 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
           // Settled once the barrier releases: EITHER the state moved (a beat / location / condition landed)
           // OR the extraction produced an empty delta and canon is intact (pre-seeded location still present).
           // Both are terminal — the 8B empty-delta is an accepted honest-arms ceiling (plan-for-small-hardware),
-          // never a code defect. This poll waits for the flush, then the assertions below hold in BOTH outcomes.
-          const moved =
-            after.recentBeats.length > 0 ||
-            after.ambient?.location !== "The Rusted Gate tavern" ||
-            after.actors.some((a) => (a.volatile?.conditions.length ?? 0) > 0);
-          return moved || (await fetchDebugErrors()).length === 0;
+          // never a code defect. THE RULING SURVIVES; ITS INPUT CHANGED (#1493): the empty-delta arm used to be
+          // `(await fetchDebugErrors()).length === 0`, which is true on TICK ONE — an empty error ring is the
+          // app's normal state, so this "wait for the flush" returned before the state round had run and every
+          // assertion below raced it. The arm now OBSERVES the flush through the rpg flight recorder, the one
+          // event that cannot exist before the extraction settled. The predicate itself is pure and
+          // fixture-proven (support/rpg-settle.ts + its unit spec).
+          return rpgTurnSettled({
+            view: after,
+            seededLocation: "The Rusted Gate tavern",
+            flushed: hasRpgFlush(await fetchRpgTraces(chatId)),
+            errorCount: (await fetchDebugErrors()).length,
+          });
         },
         { timeout: 75_000, intervals: [1500] },
       )

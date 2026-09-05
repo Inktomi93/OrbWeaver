@@ -212,8 +212,20 @@ const TOOLING_TESTS = "tests/tooling/**/*.ts";
 // root program EXCLUDES both. That is why these dirs ride the escapee parser below rather than
 // projectService (#1231) — an upward search lands on the root tsconfig and finds them excluded.
 const NODE_TEST_DIRS = ["tests/server/**/*.ts", "tests/kit/**/*.ts", "tests/db/**/*.ts", "tests/contracts/**/*.ts"];
-// The two trees the root program does NOT own — see the parser note above.
-const TESTS_DOM_OWNED = ["tests/support/**/*.ts", "tests/e2e/**/*.ts"];
+// The trees the root program does NOT own — see the parser note above; every one of them is rooted by
+// `tsconfig.tests-dom.json`, which is why they share the escapee parser.
+//
+// #1574: `tests/client/**/*.ts` and `tests/ui/**/*.ts` were added 2026-09-04. They matched NO config
+// object at all, so `pnpm exec eslint <one of them> --max-warnings 0` answered "File ignored because no
+// matching configuration was supplied" — which the scoped verify lane passes `--no-warn-ignored` for, so
+// the hole was silent there and RED elsewhere. Census at the time: 2642 tracked `tests/**` ts+tsx files,
+// 274 uncovered — 202 `tests/client/**/*.ts`, 41 `tests/ui/**/*.ts` (both closed here), plus 31 `.tsx`
+// story/fixture modules that the CT surface's narrower globs miss (`*.fixtures.tsx` under tests/client,
+// `_*-stories.tsx` other than the exact `_ct-stories.tsx`, `tests/ui/**/*.stories.tsx`) — a REACT-surface
+// question, deliberately left for its own row rather than folded in here.
+// These two trees are exactly what tsconfig.tests-dom.json claims wholesale (#1243), so the escapee
+// parser already has their program; no tsconfig moves with this.
+const TESTS_DOM_OWNED = ["tests/support/**/*.ts", "tests/e2e/**/*.ts", "tests/client/**/*.ts", "tests/ui/**/*.ts"];
 // Every TS program that ROOTS a file under tests/**. The escapee parser is handed all three and uses
 // whichever one owns the file, so no block here ever restates a tsconfig's include list (a copy rots).
 // packages/client/tsconfig.json is in the set for exactly ONE file — tests/support/ct/ct-config-groups.ts,

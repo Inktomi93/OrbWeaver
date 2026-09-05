@@ -4804,7 +4804,7 @@
     {
       "siteId": "tooling/src/model-ab/lib/verify.ts::empty:catch::1",
       "path": "tooling/src/model-ab/lib/verify.ts",
-      "line": 74,
+      "line": 104,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4812,12 +4812,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the function's whole job is to return a verdict string or null — a JSON.parse failure IS one of the verdicts (\"arguments not valid JSON\"), not a swallowed failure. Ends if the return type stops being read as the probe's verdict.",
-      "markerLine": 70
+      "markerLine": 100
     },
     {
       "siteId": "tooling/src/model-ab/lib/verify.ts::empty:catch::2",
       "path": "tooling/src/model-ab/lib/verify.ts",
-      "line": 84,
+      "line": 114,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4825,7 +4825,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "same verdict-string contract as parseToolArguments above — a parse failure returns the verdict \"content is not the schema JSON\" rather than swallowing it. Ends if the return type stops being read as the probe's verdict.",
-      "markerLine": 80
+      "markerLine": 110
     },
     {
       "siteId": "tooling/src/model-ab/ops/probe.ts::promise:json::1",
@@ -4947,7 +4947,7 @@
     {
       "siteId": "tooling/src/render-trace/ops/fire.ts::empty:catch::2",
       "path": "tooling/src/render-trace/ops/fire.ts",
-      "line": 201,
+      "line": 209,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4955,7 +4955,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort teardown of a scratch tempDir on process exit — force:true already tolerates a missing path, and there is no caller left to hand a failure to at this point. Ends if this tempDir starts holding anything a later step depends on existing/not-existing.",
-      "markerLine": 198
+      "markerLine": 206
     },
     {
       "siteId": "tooling/src/review-mirror/ops/generate.ts::empty:error::1",

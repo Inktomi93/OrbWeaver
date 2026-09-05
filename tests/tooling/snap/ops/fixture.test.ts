@@ -10,11 +10,13 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DEV_PORTS, FIXTURE_PORTS } from "../../../../tooling/src/_shared/ports.ts";
+import type { PortOwnerAuthProbe } from "../../../../tooling/src/snap/contract/fixture.ts";
 import {
   defaultFixtureUsers,
   FIXTURE_BASE_URL_DEFAULT,
   FIXTURE_CREDENTIALS,
   FIXTURE_SERVER_URL_DEFAULT,
+  fixtureVerdict,
   resolveFixtureTarget,
   resolveFixtureUsers,
 } from "../../../../tooling/src/snap/ops/fixture.ts";
@@ -94,4 +96,51 @@ test("defaultFixtureUsers hands out the roster in order and refuses past its end
 test("resolveFixtureUsers refuses an unknown handle instead of guessing a password", () => {
   const bad = resolveFixtureUsers(["stranger"]);
   expect("error" in bad && bad.error).toContain('unknown fixture handle "stranger"');
+});
+
+// ── the port-owner verdict (#1507): "could not ask" is not "yes" ─────────────────────────────────────
+//
+// `livePortOwnerIsLocalAuth` returned `boolean | null` and its OWN header said null meant "can't prove
+// it's the fixture, same as a mismatch" — while `fixtureStatus` refused only on `false`. So every
+// unprovable case (no `ss` on PATH, a port owned by another user, no `/proc`, a non-Linux host) returned
+// `{ up: true }`: the check that exists to tell the fixture apart from the single-user dev stack answered
+// "yes, that's the fixture" about a process nobody had identified. `fixtureVerdict` is the same decision
+// with the probes injected, so all four arms are provable with no stack running.
+const FIXTURE_TARGET = { serverUrl: "http://127.0.0.1:8790", baseUrl: "http://localhost:5175", serverPort: 8790 } as const;
+const FIXTURE_CONFIG = { mode: "local", localEnabled: true, multiHumanCapable: true } as const;
+
+test("an UNREADABLE port owner fails CLOSED and names what could not be read (#1507 red-first)", () => {
+  const status = fixtureVerdict(FIXTURE_TARGET, {
+    healthz: true,
+    config: FIXTURE_CONFIG,
+    owner: () => ({ kind: "unreadable", reason: "no process could be identified as the owner of :8790" }),
+  });
+  expect(status.up).toBe(false);
+  expect(status.up === false && status.reason).toContain("could not prove :8790 is the fixture");
+  expect(status.up === false && status.reason).toContain("no process could be identified");
+});
+
+test("a PROVEN local port owner is still up (#1507 positive control)", () => {
+  expect(fixtureVerdict(FIXTURE_TARGET, { healthz: true, config: FIXTURE_CONFIG, owner: () => ({ kind: "local" }) })).toEqual({ up: true });
+});
+
+test("a port owner running another AUTH_MODE is refused, and the reason names the mode", () => {
+  const status = fixtureVerdict(FIXTURE_TARGET, {
+    healthz: true,
+    config: FIXTURE_CONFIG,
+    owner: () => ({ kind: "not-local", mode: "single-user" }),
+  });
+  expect(status.up === false && status.reason).toContain("AUTH_MODE=single-user");
+});
+
+test("the /proc probe is only asked once the cheap HTTP evidence agrees", () => {
+  let asked = 0;
+  const owner = (): PortOwnerAuthProbe => {
+    asked += 1;
+    return { kind: "local" };
+  };
+  expect(fixtureVerdict(FIXTURE_TARGET, { healthz: false, config: FIXTURE_CONFIG, owner }).up).toBe(false);
+  expect(fixtureVerdict(FIXTURE_TARGET, { healthz: true, config: null, owner }).up).toBe(false);
+  expect(fixtureVerdict(FIXTURE_TARGET, { healthz: true, config: { mode: "single-user" }, owner }).up).toBe(false);
+  expect(asked, "a run that already knows the origin is wrong must not shell out to /proc").toBe(0);
 });

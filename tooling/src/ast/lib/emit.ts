@@ -37,13 +37,41 @@ function applyNearFlag(flags: Flags, rest: readonly string[], i: number): number
 
 /** The value-taking flags, dictionary-dispatched for the same reason `BOOLEAN_FLAGS` is — keeps
  *  `parseFlags` a flat two-branch loop under the complexity ceiling however many flags this file grows. */
+/** A REQUIRED value: missing, or another `--flag`, is MISUSE — never the value (#1507).
+ *
+ *  `--in`/`--max` used to take `rest[i + 1]` unconditionally, so `pnpm ast refs Foo --in --json` filtered
+ *  the results by the literal path fragment `"--json"` — zero hits, no warning, and the `--json` the
+ *  caller asked for silently un-set. A filter that matches nothing prints exactly like a clean answer,
+ *  which is the whole family this repo treats as a lying instrument. Same posture as `rejectUnknownArg`
+ *  below it: exit 3, naming the flag. (`--near`'s number is genuinely OPTIONAL and keeps its own
+ *  handler — a bare `--near` has a documented default, so nothing is being swallowed there.) */
+function requireValue(flag: string, rest: readonly string[], i: number): string {
+  const next = rest[i + 1];
+  if (next === undefined) {
+    throw new UsageError(`${flag} needs a value and was the LAST argument — nothing followed it.`);
+  }
+  if (next.startsWith("--")) {
+    throw new UsageError(
+      `${flag} needs a value, but the next token is ${JSON.stringify(next)} — another flag, not a value. Consuming it would filter against the literal text "${next}" and print a clean zero.`,
+    );
+  }
+  return next;
+}
+
 const VALUE_FLAGS: Readonly<Record<string, ValueFlagHandler>> = {
   "--in": (flags, rest, i) => {
-    flags.in = rest[i + 1] ?? null;
+    flags.in = requireValue("--in", rest, i);
     return 1;
   },
   "--max": (flags, rest, i) => {
-    flags.max = Number(rest[i + 1] ?? DEFAULT_MAX) || DEFAULT_MAX;
+    const raw = requireValue("--max", rest, i);
+    const parsed = Number(raw);
+    if (!(Number.isFinite(parsed) && parsed > 0)) {
+      // Same class: `--max abc` used to fall back to the default cap and report a truncated run as if the
+      // caller had chosen that number.
+      throw new UsageError(`--max needs a positive number, got ${JSON.stringify(raw)}.`);
+    }
+    flags.max = parsed;
     return 1;
   },
   "--near": applyNearFlag,

@@ -79,6 +79,16 @@
 // code is 0 only if EVERY shard's verdict is 0, and the merged report carries the same shape (plus an
 // `orbShards` provenance array) so it satisfies the same predicate.
 //
+// A CONTAINED WEDGE IS A TOOL ERROR — exit 2, never 0 (#1490, 2026-09-04). The self-heal arm above ("a
+// wedge whose report is already a complete pass has self-healed") governs the RE-RUN policy and still
+// does: such a shard is not re-run. But it used to govern the EXIT CODE too, and there it was a lie — the
+// watchdog SIGKILLed a vitest that never finalized, and `process.exit(shard.code)` handed back the 0 read
+// off the report the corpse left. `pnpm verify --push` keys on the exit code, so a killed run read as
+// green. The number now follows the repo's exit contract (0 clean · 1 violations · 2 TOOL ERROR · 3
+// misuse): if the LAST attempt of any shard was killed, the run exits 2 and `merged.success` is false. A
+// shard that wedged and then RE-RAN to a natural exit keeps 0/1 — that attempt finalized, which is the
+// whole point of the re-run. Containment, the dump, and the report-derived shard verdict are unchanged.
+//
 // HONESTY: a shard that had to be re-run is announced loudly on stderr AND recorded in the merged report's
 // `orbShards[].wedges` — a green that hides a wedge would read as "fixed" when it is only "contained".
 // The same posture covers the OTHER kind of not-quite-clean green, the #1040 WITHHOLD: a `live-drive`
@@ -113,6 +123,10 @@ const MAX_ATTEMPTS = 2;
  *  in `ep_poll` at exactly 0; any real work is orders of magnitude above this. */
 const CPU_PROGRESS_JIFFIES = 5;
 const DEFAULT_HARD_CEILING_MS = 1_800_000;
+/** The repo's exit-code contract (`UNIFIED-VERIFICATION-DESIGN.md`): 0 clean · 1 violations · 2 TOOL ERROR
+ *  · 3 misuse. A run whose LAST attempt had to be KILLED never finished, so its number is 2 — see the
+ *  "A CONTAINED WEDGE IS A TOOL ERROR" note in the header. */
+const EXIT_TOOL_ERROR = 2;
 
 const root = process.cwd();
 /** THIS invocation's private artifact slot (#1029, `_shared/artifacts.ts`). Every shard report, the merged
@@ -499,7 +513,12 @@ async function runShard({ args, reportFile, label }) {
   }
   // A run that EXITED mirrors vitest's own exit code (unchanged from #345): vitest finalized, so its code
   // is a verdict. The report is only consulted when the watchdog had to kill a wedged parent.
-  return { label, code: result.code, wedges, reportFile, withheld: withheldFromReport(reportFile) };
+  //
+  // `wedged` is the LAST attempt's state, and it is NOT the same fact as `wedges > 0` (#1490). A shard that
+  // wedged and then RE-RAN to a natural exit has a real verdict — vitest finalized on attempt 2 — while a
+  // shard whose final attempt was killed has only a report we read off the floor. The caller's exit code
+  // keys on `wedged`; the count stays for the evidence line.
+  return { label, code: result.code, wedged: result.wedged, wedges, reportFile, withheld: withheldFromReport(reportFile) };
 }
 
 /** Fold the shard reports into the ONE `--outputFile.json` contract the rest of the repo reads. Numeric
@@ -528,8 +547,25 @@ function foldShardInto(merged, shard) {
   }
 }
 
+/** THE RUN'S ONE EXIT CODE (#1490). A CONTAINED WEDGE IS A TOOL ERROR, never a verdict: the watchdog had
+ *  to SIGKILL a vitest that never finalized, and the code we hand back was read off whatever report the
+ *  corpse happened to leave. Before this, a shard that wedged AFTER writing a complete-pass report finished
+ *  as `{ wedged: true, code: 0 }`, was not re-run (the re-run only fires on a non-zero code), and
+ *  `process.exit(shard.code)` shipped a 0 — so `pnpm verify --push`, which keys on the exit code, read a
+ *  killed run as green. The containment MECHANISM is unchanged (kill · dump · consult the report · one
+ *  re-run); only the number is honest now. A shard that wedged and then RE-RAN to a natural exit is still
+ *  0/1: that attempt finalized, which is exactly what the re-run is for. */
+function exitCodeFor(shards) {
+  if (shards.some((s) => s.wedged)) {
+    return EXIT_TOOL_ERROR;
+  }
+  return shards.every((s) => s.code === 0) ? 0 : 1;
+}
+
 function mergeReports(shards, out) {
-  const merged = { success: shards.every((s) => s.code === 0), testResults: [], orbShards: [] };
+  // `success` obeys the same rule as the exit code: a run whose final attempt was killed is not a pass,
+  // whatever the report the corpse left behind says (#1490).
+  const merged = { success: shards.every((s) => s.code === 0 && !s.wedged), testResults: [], orbShards: [] };
   for (const shard of shards) {
     foldShardInto(merged, shard);
   }
@@ -550,6 +586,24 @@ function publish(alias, sharded) {
   }
   publishRunSlot(root, slot, aliases);
   log(`report → ${slot.relDir}/${REPORT_NAME} (published at reports/${alias})`);
+}
+
+/** Shout every wedge kill, and say what it costs the verdict. Both call sites (sharded and not) go through
+ *  here so the containment story is spelled ONCE — a green that hides a wedge reads as "fixed" when it is
+ *  only "contained", and since #1490 a run whose final attempt was killed is not even green. */
+function announceWedges(shards) {
+  const hit = shards.filter((s) => s.wedges > 0);
+  if (hit.length === 0) {
+    return;
+  }
+  log(`WEDGE CONTAINED — ${hit.map((s) => `${s.label} (killed ${s.wedges}×)`).join(", ")}. Evidence: ${slot.relDir}/test-wedge-*.txt.`);
+  log("This verdict is CONTAINED, not clean: the shard(s) above hit the vitest #345/#1012 shutdown wedge.");
+  const unfinished = shards.filter((s) => s.wedged);
+  if (unfinished.length > 0) {
+    log(
+      `EXIT ${EXIT_TOOL_ERROR} (TOOL ERROR, not a verdict): ${unfinished.map((s) => s.label).join(", ")} — the LAST attempt was killed, so vitest never finalized. Re-run on a quiet tree.`,
+    );
+  }
 }
 
 /** Shout the #1040 withholds. Silence here is a claim that every measured-rate arm actually measured. */
@@ -589,12 +643,10 @@ async function main() {
   if (projects.length < 2) {
     const args = [...baseArgs, ...projects.flatMap((p) => ["--project", p]), `--outputFile.json=${mergedFile}`];
     const shard = await runShard({ args, reportFile: mergedFile, label: projects[0] ?? "all" });
-    if (shard.wedges > 0) {
-      log(`WEDGE CONTAINED: the run was killed ${shard.wedges}× by the watchdog — this green is contained, not clean.`);
-    }
+    announceWedges([shard]);
     announceWithheld([shard]);
     publish(alias, false);
-    process.exit(shard.code);
+    process.exit(exitCodeFor([shard]));
   }
 
   const shards = [];
@@ -608,16 +660,12 @@ async function main() {
   }
   mergeReports(shards, mergedFile);
   publish(alias, true);
-  const rerun = shards.filter((s) => s.wedges > 0);
-  if (rerun.length > 0) {
-    log(`WEDGE CONTAINED — ${rerun.map((s) => `${s.label} (killed ${s.wedges}×)`).join(", ")}. Evidence: ${slot.relDir}/test-wedge-*.txt.`);
-    log("This verdict is CONTAINED, not clean: the shard(s) above hit the vitest #345/#1012 shutdown wedge.");
-  }
+  announceWedges(shards);
   announceWithheld(shards);
   for (const shard of shards) {
     log(`shard ${shard.label}: exit ${shard.code}${shard.wedges > 0 ? ` (after ${shard.wedges} wedge kill(s))` : ""}`);
   }
-  process.exit(shards.every((s) => s.code === 0) ? 0 : 1);
+  process.exit(exitCodeFor(shards));
 }
 
 await main();

@@ -218,7 +218,10 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       captures: outcomes,
       ...(watchTicks.length === 0 ? {} : { watch: { totalMs: opts.watchMs, intervalMs: opts.watchEveryMs, ticks: watchTicks } }),
     } as const;
-    await writeCoreCaptureEvidence(manifestInput);
+    // The retention batch rides in (#1507): the core-capture populations REPORT what the bounded rings did
+    // rather than asserting a clean zero over them. Sampled here, where the capture is settled — the same
+    // question the run's `snap-browser-retention-v1` fact asks a few lines below.
+    await writeCoreCaptureEvidence(manifestInput, browserEvidenceRetention(session));
     // #1342: every page arm files what it PRINTED, before the facts are registered — the run index binds
     // each artifact to its producer arm's fact, so `EVIDENCE <run.json>` names a slot a second reader can
     // actually open.
