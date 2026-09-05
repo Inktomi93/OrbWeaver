@@ -28,11 +28,12 @@ export {
   runProfileDirImport,
 } from "./run-profile-dir-import.ts";
 export type {
+  CardLorebookRestoreDeps,
   FailedCard,
   ImportedCard,
   ImportFile,
   ProfileImportDeps,
   ProfileImportResult,
 } from "./run-profile-import.ts";
-export { runProfileImport } from "./run-profile-import.ts";
+export { runCardLorebookRestore, runProfileImport } from "./run-profile-import.ts";
 export { sniffTreeLayout } from "./sniff-tree-layout.ts";

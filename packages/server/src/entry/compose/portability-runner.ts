@@ -175,6 +175,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     storeAvatar: deps.assets.store,
     attachCardTag: deps.attachCardTag,
     importLorebook: deps.importWorldInfo.importLorebook,
+    hasPrimaryBook: deps.importWorldInfo.hasPrimaryBook,
     linkCarriedBooks: deps.importWorldInfo.linkCarriedBooks,
     importCardScripts: deps.importCardScripts,
     bulkImportChats: deps.bulkImportChats,

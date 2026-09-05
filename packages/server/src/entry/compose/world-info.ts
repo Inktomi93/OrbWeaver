@@ -23,7 +23,7 @@ import { createBulkImportPersonas } from "#domain/persona";
 import type { SessionsService } from "#domain/sessions";
 import { bumpStatsCanonVersion } from "#domain/stats";
 import type { WorldInfoService } from "#domain/world-info";
-import { createBulkImportLorebook, createLinkCarriedBooks, createWorldInfoService } from "#domain/world-info";
+import { createBulkImportLorebook, createHasPrimaryBook, createLinkCarriedBooks, createWorldInfoService } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
 import { createBulkImportChats, requireHost, requireParticipant } from "../../domain/chat/index.ts";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
@@ -92,6 +92,10 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
       newBookId: minter(ID_PREFIX.worldBook),
       newEntryId: minter(ID_PREFIX.worldEntry),
     }),
+    // #1598: the seat oracle the card-import verb asks BEFORE the write above — it travels with it so no
+    // composition can write the embedded book without being able to check whether that would replace a book
+    // the owner has since edited.
+    hasPrimaryBook: createHasPrimaryBook({ db }),
     // PD-144: re-link a portable card's carried attached-book references (owned-source gated); the
     // persistence-factory twin of the duplicate carry, db + clock only.
     linkCarriedBooks: createLinkCarriedBooks({ db, now }),

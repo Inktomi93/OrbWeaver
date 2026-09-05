@@ -4,6 +4,8 @@
 // hono/body-limit stream cap (413 over-size, rejected before the whole body is buffered).
 //   • POST /api/assets/upload — a single asset file → assets.store({ enforceMagic:true, maxBytes }).
 //   • POST /api/import — character-card file(s) → delegates to entry/import/run-profile-import.
+//   • POST /api/import/restore-card-lorebook — ONE card file → re-asserts its embedded lorebook over the
+//     character those bytes imported as (#1598; a plain re-upload keeps the owner's edited book instead).
 //
 // The import route accepts already-extracted card files; a profile ZIP / dir collection is a later wave.
 
@@ -16,7 +18,7 @@ import { bodyLimit } from "hono/body-limit";
 import type { DatabankService } from "#domain/databank";
 import { hasCsrfHeader } from "#infra/auth";
 import type { ImportAssetPort, ImportCharacterPort, ImportFile, ImportTagPort, ImportWorldInfoPort, ProfileImportResult } from "../import/index.ts";
-import { runProfileImport } from "../import/index.ts";
+import { runCardLorebookRestore, runProfileImport } from "../import/index.ts";
 import type { PrincipalEnv } from "./blob.ts";
 
 const UNAUTHORIZED = 401;
@@ -26,6 +28,9 @@ const PAYLOAD_TOO_LARGE = 413;
 const FALLBACK_MIME = "application/octet-stream";
 const ASSET_UPLOAD_ROUTE = "/api/assets/upload";
 const IMPORT_ROUTE = "/api/import";
+// The #1598 RESTORE door: an ordinary re-upload through IMPORT_ROUTE now KEEPS an edited primary book, so
+// "put the card's own lorebook back" is this separate, explicitly-asked-for route.
+const LOREBOOK_RESTORE_ROUTE = "/api/import/restore-card-lorebook";
 const DATABANK_UPLOAD_ROUTE = "/api/databank/upload";
 const UPLOAD_FIELD = "file";
 const KIND_FIELD = "kind";
@@ -156,6 +161,30 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
       name: name.length > 0 ? name : "document",
     });
     return c.json(result);
+  });
+
+  // #1598 — the explicit restore. ONE card file, the same belts as the batch import (auth → CSRF → body cap).
+  // Every refusal (unreadable card, no embedded book, no character imported from these exact bytes) comes back
+  // as the verb's own operator-facing sentence with a 400, never a throw: the door renders what the domain said.
+  app.post(LOREBOOK_RESTORE_ROUTE, authCsrfGuard, bodyCap(IMPORT_MAX_TOTAL_BYTES), async (c) => {
+    const principal = c.get("principal");
+    if (principal === null) {
+      return c.body(null, UNAUTHORIZED);
+    }
+    const form = await c.req.formData();
+    const file = form.get(UPLOAD_FIELD);
+    if (!(file instanceof File)) {
+      return c.json({ error: `missing "${UPLOAD_FIELD}" card upload` }, BAD_REQUEST);
+    }
+    const outcome = await runCardLorebookRestore({
+      principal,
+      character: deps.character,
+      assets: deps.assets,
+      tag: deps.tag,
+      worldInfo: deps.worldInfo,
+      file: { bytes: await fileBytes(file), filename: file.name },
+    });
+    return outcome.ok ? c.json(outcome) : c.json(outcome, BAD_REQUEST);
   });
 
   app.post(IMPORT_ROUTE, authCsrfGuard, bodyCap(IMPORT_MAX_TOTAL_BYTES), async (c) => {

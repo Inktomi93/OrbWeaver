@@ -17,6 +17,7 @@ import { createImportOrphanCharacter } from "./verbs/import-orphan-character.ts"
 import { createImportPersonas } from "./verbs/import-personas.ts";
 import { createImportPresets } from "./verbs/import-presets.ts";
 import { createImportThemes } from "./verbs/import-themes.ts";
+import { createRestoreCharacterBook } from "./verbs/restore-character-book.ts";
 
 export function createImportService(ctx: ImportContext): ImportService {
   // The single-chat door is a thin arm over the two format verbs; all three are wired HERE (a verb never
@@ -26,6 +27,7 @@ export function createImportService(ctx: ImportContext): ImportService {
   const importChatBundle = createImportChatBundle(ctx);
   return {
     importCharacter: createImportCharacter(ctx),
+    ...createRestoreCharacterBook(ctx),
     importOrphanCharacter: createImportOrphanCharacter(ctx),
     importChats,
     importChatBundle,

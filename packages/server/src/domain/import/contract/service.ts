@@ -12,7 +12,7 @@ import type { ImportPreset } from "#domain/preset";
 import type { ImportCardScripts, ImportPresetScripts } from "#domain/regex";
 import type { ImportRpgGame } from "#domain/rpg";
 import type { SettingsImportOutcome } from "#domain/settings";
-import type { ImportCharacterInput, ImportOrphanCharacterInput } from "./params.ts";
+import type { ImportCharacterInput, ImportOrphanCharacterInput, RestoreCharacterBookInput } from "./params.ts";
 import type {
   ImportCharacterResult,
   ImportChatFileOutcome,
@@ -23,6 +23,7 @@ import type {
   ImportPersonasResult,
   ImportPresetsResult,
   ImportThemesResult,
+  RestoreCharacterBookResult,
 } from "./results.ts";
 import type { CollectedPreset, CollectedTheme, ImportChatFileInput, ImportChatsInput, ImportGroupsInput, ImportPersonaInput } from "./views.ts";
 
@@ -48,12 +49,22 @@ export type StoreImportAsset = (args: { readonly ownerId: UserId; readonly bytes
 /** Attaches one author-shipped card tag by name as a card/pending suggestion; idempotent, race-safe. */
 type AttachImportedCardTag = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
 
-/** World-info-owned lorebook bulk-import write op; optional (card-only upload path skips embedded books). */
+/** World-info-owned lorebook bulk-import write op; optional (card-only upload path skips embedded books).
+ *  DESTRUCTIVE on a character that already holds a primary book — it REPLACES that book's entries (#1598),
+ *  which is why the card-import verb gates it behind {@link HasPrimaryBookOp} and only the explicit restore
+ *  verb calls it into an occupied seat. */
 type BulkImportLorebookOp = (args: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly book: BulkImportLorebookInput;
 }) => Promise<BulkImportLorebookResult>;
+
+/** World-info-owned READ: does this character already hold a PRIMARY book? The non-destructiveness oracle
+ *  for a card RE-UPLOAD (#1598, owner ruling 2026-09-05 — "re-uploading a card must not revert my edits").
+ *  Wired from the SAME `ImportWorldInfoPort` as {@link BulkImportLorebookOp}, so a composition that can write
+ *  the embedded book can always ask first; optional here on that op's own precedent, and an absent oracle
+ *  keeps the pre-#1598 behavior of whatever `importLorebook` that same composition supplied. */
+type HasPrimaryBookOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<boolean>;
 
 /** World-info-owned re-link op for a portable card's carried attached-book references (PD-144); optional —
  *  the card-only upload path omits it. Links only ids the importer OWNS, returns linked/skipped counts. */
@@ -144,6 +155,8 @@ export interface ImportContext {
   readonly storeAsset: StoreImportAsset;
   readonly attachCardTag: AttachImportedCardTag;
   readonly importLorebook?: BulkImportLorebookOp;
+  /** The #1598 skip oracle — see {@link HasPrimaryBookOp}. Travels with `importLorebook`. */
+  readonly hasPrimaryBook?: HasPrimaryBookOp;
   readonly linkCarriedBooks?: LinkCarriedBooksOp;
   /** D121-E: the card LIFT — a card's by-value ST scripts become library rows + a `character_regex_scripts`
    *  attachment, with carried references re-linked instead of cloned. Optional/absent ⇒ a card's scripts are
@@ -155,6 +168,14 @@ export interface ImportContext {
 export interface ImportService {
   /** Imports one ST character card; idempotent by importHash, falls back to a handle match re-import. */
   readonly importCharacter: (input: ImportCharacterInput) => Promise<ImportCharacterResult>;
+  /** THE RESTORE DOOR (#1598, owner ruling 2026-09-05). Re-asserts a card file's EMBEDDED lorebook over the
+   *  character that card imported as — the explicit, opt-in half of the non-destructive re-upload: an ordinary
+   *  re-upload now KEEPS the owner's edited primary book, and this is how they ask for the card's own version
+   *  back. Owner-gated twice over: the card resolves to a character through the caller's own
+   *  `(ownerId, importHash)` dedup oracle, and the world-info write re-asserts ownership before it touches a
+   *  row. Refuses (never throws a bare Error) when the bytes are not a card, when the card carries no
+   *  embedded book, or when no character of THIS owner was imported from those bytes. */
+  readonly restoreCharacterBook: (input: RestoreCharacterBookInput) => Promise<RestoreCharacterBookResult>;
   /** Mints a MINIMAL placeholder character for an ORPHAN chats/ directory (card PNG absent) from the dir's
    *  own evidence — name at most, never invented prose — so its transcripts can import instead of being
    *  skipped. Idempotent via a synthetic dir-keyed importHash. The driver then runs the ordinary
