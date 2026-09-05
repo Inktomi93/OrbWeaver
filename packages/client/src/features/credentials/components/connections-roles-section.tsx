@@ -16,7 +16,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
-import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { SectionSaveStatus } from "#forms";
 import { configAnchorId } from "#state";
@@ -58,9 +58,11 @@ function scrollToKeys(): void {
 
 export function ConnectionsRolesSection(): ReactElement {
   return (
+    // RESERVED (#1098) — a config section that settles into one row per model role — the tallest block on this pane.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading your model roles…</Text>}
+      fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your model roles" onRetry={retry} />}
+      reserveKey="config.connections.roles"
     >
       <ModelRolesSection />
     </QueryBoundary>

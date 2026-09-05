@@ -23,7 +23,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -133,9 +133,11 @@ function diffNumeric(effective: ResolvedMemoryDefaults, draft: NumericDraft): Me
 /** The section's own suspense/error boundary so it is self-contained. */
 export function MemoryTuningSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
+    // RESERVED (#1098) — one of the two LONGEST admin knob stacks — the sentence it replaced under-reserved by most of a screen.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading memory tuning…</Text>}
+      fallback={<SkeletonRows count={5} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="memory tuning — administrators only" onRetry={retry} />}
+      reserveKey="config.admin.memoryTuning"
     >
       <MemoryTuningBody sectionId={sectionId} />
     </QueryBoundary>

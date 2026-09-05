@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -47,9 +47,11 @@ function useIsBoxOwner(): boolean {
  *  itself, so it must recover for itself. */
 export function SharedAccessSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
+    // RESERVED (#1098) — the D17 governance trio, settling into three override rows.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading shared access…</Text>}
+      fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="shared access — administrators only" onRetry={retry} />}
+      reserveKey="config.admin.sharedAccess"
     >
       <SharedAccessBody sectionId={sectionId} />
     </QueryBoundary>
@@ -154,9 +156,11 @@ function SharedAccessBody({ sectionId }: { readonly sectionId: string }): ReactE
 /** Multi-user — the local-mode seating switch (owner-only) beside the login-page posture (admin-writable). */
 export function MultiUserSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
+    // RESERVED (#1098) — the seating switch plus the login-page posture — a small but fixed knob stack.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading multi-user…</Text>}
+      fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="multi-user — administrators only" onRetry={retry} />}
+      reserveKey="config.admin.multiUser"
     >
       <MultiUserBody sectionId={sectionId} />
     </QueryBoundary>

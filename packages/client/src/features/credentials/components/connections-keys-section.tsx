@@ -11,7 +11,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { configAnchorId } from "#state";
 import { groupCredentialsByProvider, PROVIDER_LABELS } from "../lib/connections-model.ts";
 import { CONNECTIONS_KEYS_SUBCATEGORY } from "../lib/connections-nav.ts";
@@ -20,9 +20,11 @@ import { CredentialKeyRow } from "./credential-key-row.tsx";
 
 export function ConnectionsKeysSection(): ReactElement {
   return (
+    // RESERVED (#1098) — a config section that settles into the saved-key library, with every later Connections section stacked under it.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading your saved keys…</Text>}
+      fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your saved keys" onRetry={retry} />}
+      reserveKey="config.connections.keys"
     >
       <SavedKeysSection />
     </QueryBoundary>

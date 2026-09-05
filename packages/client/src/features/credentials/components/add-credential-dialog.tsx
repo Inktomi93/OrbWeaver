@@ -41,6 +41,9 @@ export function AddCredentialDialog({ open, onOpenChange, trpc, invalidation }: 
       open={open}
       title="Add a provider key"
     >
+      {/* DELIBERATELY UNRESERVED (#1098). A DIALOG body: the modal sizes itself around whatever is inside
+          it, so there is no page flow below to hold still — and a remembered box would inflate the dialog
+          to its settled height around a centred spinner before the capability read has answered. */}
       <QueryBoundary fallback={<WebSpinner label="Checking key storage…" />}>
         <AddCredentialGate trpc={trpc} invalidation={invalidation} onDone={(): void => onOpenChange(false)} />
       </QueryBoundary>

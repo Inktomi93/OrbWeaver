@@ -33,6 +33,10 @@ import { RhythmFigures } from "./rhythm-figures.tsx";
 
 export function AnalyticsTimeTab(): ReactElement {
   return (
+    // DELIBERATELY UNRESERVED (#1098) — a GEOMETRY refusal. The settled body's own root IS this tab's
+    // scroll container (`min-h-0 flex-1 overflow-y-auto`), and `reserveKey` wraps the settled child in an
+    // auto-height Stack: the scroller would resolve against an indefinite parent and strand everything
+    // past the fold (#1133). Keying analytics means hoisting the scroll box ABOVE the boundary first.
     <QueryBoundary
       fallback={<Text voice="gloss">Loading activity…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="activity" onRetry={retry} />}
