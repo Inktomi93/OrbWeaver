@@ -124,6 +124,10 @@ function stub(page: Page, tags: readonly unknown[] = WINDOWED_TAGS): Promise<Trp
     "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),
     "worldInfo.listBooksWithUsage": () => [BOOK],
     "worldInfo.listGlobal": () => [],
+    // The BOOK EDITOR's own two reads — the drill-row pin below opens a book, and an unstubbed suspense
+    // read resolves `null` and throws INSIDE the boundary, which reads as "the header is missing".
+    "worldInfo.getBook": () => BOOK,
+    "worldInfo.listEntries": () => [],
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
   });
@@ -306,14 +310,43 @@ test("drilling into a member gets a Back to the library, and the member is named
   await expect(header.getByRole("button", { name: "Back to Tags" })).toBeVisible();
   // NO LIFECYCLE CHROME IN A DRILLED HEADER (D121(D), #271) — Delete stays on the row's kebab.
   await expect(header.getByRole("button", { name: /Delete/ })).toHaveCount(0);
-  // EXACTLY ONE HEADING NAMES THE MEMBER, and it is the member surface's own. This is the pin behind the
-  // stated delta in `CollectionDrillHeader`'s header: a host heading here printed the name TWICE and took
-  // two unrelated CTs red on a strict-mode violation. `toHaveCount(1)` is the assertion the board's own
-  // one-name intent survives as while the two rows are still two rows.
+  // EXACTLY ONE HEADING NAMES THE MEMBER, and since #1747 it is IN THIS ROW — the board's single row, made
+  // real. The count assertion is the older half of the pin and it survives verbatim: a host heading over
+  // four surfaces that each draw their own `h2` printed the name twice and took two unrelated CTs red on a
+  // strict-mode violation, which is why the row went to the surface rather than the name to the host.
+  await expect(header.getByRole("heading", { name: "zeal" })).toHaveCount(1);
   await expect(content.getByRole("heading", { name: "zeal" })).toHaveCount(1);
 
   // Back is a real exit: it pops the selection and the library is the pane again.
   await header.getByRole("button", { name: "Back to Tags" }).click();
   await expect(workspace.locator(CONTROL_ROW)).toBeVisible();
   await expect(content.locator('[data-slot="config-drill-header"]')).toHaveCount(0);
+});
+
+// THE ROW IS ONE ROW (#1747) — boards 03/05/06 draw `← Back to <library>` · the NAME · the member's own
+// verbs together, and world info is the collection that has all three: Edit details · Backfill · New entry.
+// Before this commit the Back sat alone in a host-drawn row and the name + the verbs were one row lower, on
+// the surface's own header. The fix is the member surface OWNING the whole row through its existing
+// `detail` render, so the pin is "the verbs are INSIDE the header", not merely "the verbs exist".
+test("the drill row carries the member's own verbs beside its name (board 06)", async ({ mount, page }) => {
+  await stub(page, FEW_TAGS);
+  const workspace = await mount(<ConfigHostStory height={900} target="worldInfo" width={INTERACTIVE_WIDTH} />);
+  const content = workspace.locator(CONTENT_PANE);
+  await content
+    .getByRole("button", { name: /Ninefold Reach/ })
+    .first()
+    .click();
+
+  const header = content.locator('[data-slot="config-drill-header"]');
+  await expect(header.getByRole("button", { name: "Back to World Info" })).toBeVisible();
+  await expect(header.getByRole("heading", { name: BOOK.name })).toHaveCount(1);
+  // The three verbs the board draws, in the row the board draws them in. `Edit details` is a NAMED button
+  // here and was an icon-only pencil whose whole name lived in an `aria-label` — the board names it.
+  await expect(header.getByRole("button", { name: "Edit details" })).toBeVisible();
+  await expect(header.getByRole("button", { name: "Backfill titles" })).toBeVisible();
+  await expect(header.getByRole("button", { name: "New entry" })).toBeVisible();
+  // Still no lifecycle chrome in a drilled header (D121(D), #271) — the row's kebab owns Delete.
+  await expect(header.getByRole("button", { name: /Delete/ })).toHaveCount(0);
+  // And the name is stated ONCE on the whole pane, exactly as the tags pin above requires.
+  await expect(content.getByRole("heading", { name: BOOK.name })).toHaveCount(1);
 });

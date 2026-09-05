@@ -6,7 +6,7 @@
 // artifact the room already composes).
 
 import type { ReactElement } from "react";
-import type { CollectionContribution, CollectionDetailView, CollectionListView } from "#lib";
+import type { CollectionContribution, CollectionListView, CollectionMemberView } from "#lib";
 import { RosterCollectionRows } from "../components/roster-collection-rows.tsx";
 import { useCreateRosterMember, useRosterCount, useRosterInsights, useRosterMemberTitle } from "../hooks/use-roster-collection.ts";
 import { RosterMemberSurface } from "../surfaces/roster-member-surface.tsx";
@@ -15,7 +15,7 @@ function renderList(view: CollectionListView): ReactElement {
   return <RosterCollectionRows view={view} />;
 }
 
-function renderDetail(view: CollectionDetailView): ReactElement {
+function renderDetail(view: CollectionMemberView): ReactElement {
   return <RosterMemberSurface view={view} />;
 }
 

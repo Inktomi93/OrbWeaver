@@ -94,7 +94,7 @@ export function RosterMemberEditorTwoWritersStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 480 }}>
         <QueryBoundary fallback={<SkeletonRows count={4} shape="avatar-row" />}>
-          <RosterMemberSurface view={{ memberId: "roster_preset_ct_a" }} />
+          <RosterMemberSurface view={{ library: "Rosters", memberId: "roster_preset_ct_a" }} />
         </QueryBoundary>
         <RosterArrival />
       </div>
@@ -128,7 +128,8 @@ export function RosterMemberEditorStory({
     <CtDataProviders>
       <div style={{ width }}>
         <QueryBoundary fallback={<SkeletonRows count={4} shape="avatar-row" />}>
-          <RosterMemberSurface view={{ memberId }} />
+          {/* `library` is the host's own group label (`roster-group.tsx`) — the drill exit (#1747). */}
+          <RosterMemberSurface view={{ library: "Rosters", memberId }} />
         </QueryBoundary>
       </div>
       {sink.node}

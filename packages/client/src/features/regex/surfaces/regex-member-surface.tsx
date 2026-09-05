@@ -15,15 +15,18 @@
 import type { CreateRegexScriptInput, RegexScriptRow } from "@orb/contracts/regex";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Code, Icon } from "@orb/ui/icons";
-import { Container, Row, Stack } from "@orb/ui/layout";
-import { Heading } from "@orb/ui/text";
+import { Container, Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
+import type { MemberDrillBack } from "#components";
+import { MemberDrillHeader } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { AutosaveStatus } from "#forms";
+import type { CollectionMemberView } from "#lib";
 import { regexScriptTitle, useFocusOnMount } from "#lib";
+import { clearCollectionSelection } from "#state";
 import { RegexEditorFields } from "../components/regex-editor-fields.tsx";
 import { useUpdateRegexScript } from "../hooks/use-regex-library.ts";
 import { RegexScriptForm } from "../hooks/use-regex-script-form.ts";
@@ -35,19 +38,26 @@ function toFormValues(row: RegexScriptRow): CreateRegexScriptInput {
   return authored;
 }
 
-export function RegexMemberSurface({ memberId }: { readonly memberId: string }): ReactElement {
+export function RegexMemberSurface({ view }: { readonly view: CollectionMemberView }): ReactElement {
   const trpc = useTRPC();
   const { data: scripts } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
-  const row = scripts.find((script) => script.id === memberId);
+  const row = scripts.find((script) => script.id === view.memberId);
+  const back = { label: `Back to ${view.library}`, onClick: (): void => clearCollectionSelection() };
   if (row === undefined) {
     // Reachable for real: another device deleted this script while it was open here (the regex verbs are
-    // bus-driven, so the list refetches under the editor).
-    return <EmptyState description="This script was deleted. Pick another from the list." icon={<Icon icon={Code} size="lg" />} title="Script not found" />;
+    // bus-driven, so the list refetches under the editor). The EXIT rides along (#1747): the drill row is
+    // this surface's, so the gone-member arm owes it too or a drilled reader is stranded.
+    return (
+      <Stack gap="block">
+        <MemberDrillHeader back={back} />
+        <EmptyState description="This script was deleted. Pick another from the list." icon={<Icon icon={Code} size="lg" />} title="Script not found" />
+      </Stack>
+    );
   }
-  return <RegexMemberEditor row={row} />;
+  return <RegexMemberEditor back={back} row={row} />;
 }
 
-function RegexMemberEditor({ row }: { readonly row: RegexScriptRow }): ReactElement {
+function RegexMemberEditor({ row, back }: { readonly row: RegexScriptRow; readonly back: MemberDrillBack }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdateRegexScript({ trpc, invalidation });
@@ -55,12 +65,20 @@ function RegexMemberEditor({ row }: { readonly row: RegexScriptRow }): ReactElem
 
   return (
     <RegexScriptForm entityId={row.id} save={save} serverValues={toFormValues(row)}>
-      {(session): ReactElement => <RegexMemberEditorBody row={row} session={session} />}
+      {(session): ReactElement => <RegexMemberEditorBody back={back} row={row} session={session} />}
     </RegexScriptForm>
   );
 }
 
-function RegexMemberEditorBody({ row, session }: { readonly row: RegexScriptRow; readonly session: AutosaveSession<CreateRegexScriptInput> }): ReactElement {
+function RegexMemberEditorBody({
+  row,
+  session,
+  back,
+}: {
+  readonly row: RegexScriptRow;
+  readonly session: AutosaveSession<CreateRegexScriptInput>;
+  readonly back: MemberDrillBack;
+}): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
@@ -78,10 +96,15 @@ function RegexMemberEditorBody({ row, session }: { readonly row: RegexScriptRow;
         ref={surfaceRef}
         tabIndex={-1}
       >
-        <Row align="center" gap="field" justify="between">
-          <Heading level={2}>{regexScriptTitle(row)}</Heading>
-          <AutosaveStatus onRetry={session.retrySave} state={session.saveState} />
-        </Row>
+        {/* THE DRILL ROW (#1747, DESIGN.md §3.4, board 05): `← Back to <library>` · the script's name · the
+            member's own verbs. The autosave readout takes the trailing cluster because it is what this
+            surface has there — a STATUS, and this editor's only report that a keystroke landed.
+            THE BOARD'S "Test against a sample" IS NOT BUILT AS A VERB and is deliberately not invented
+            here: the tester is two live PANELS at the foot of the editor (`regex-editor-fields.tsx`'s
+            `RegexTestPanel` + `RegexPipelinePanel`, the REGX2 two-questions ruling), so a header button
+            would be a second door onto a panel already on screen. The mock draws the button because it
+            draws no panels; converging the two is a design decision this lane refuses to take silently. */}
+        <MemberDrillHeader actions={<AutosaveStatus onRetry={session.retrySave} state={session.saveState} />} back={back} title={regexScriptTitle(row)} />
 
         {/* Delete lives on the ROW's kebab now (config-delete #271) — the editor is autosave-only. */}
         <RegexEditorFields form={session.form} scriptId={row.id} />

@@ -10,6 +10,7 @@
 // The `reset groups` button is determinism, not product: the disclosure store is device-local
 // (localStorage), and a CT that inherited another run's expanded set would assert the wrong first frame.
 
+import { AppShell } from "@orb/client/features/app-shell";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
 import { bindConfigPaletteGroups, configPaletteSource } from "@orb/client/features/config";
 import type { CommandPaletteSource } from "@orb/client/lib";
@@ -19,19 +20,22 @@ import {
   __resetConfigGroupOpen,
   __resetConfigNav,
   CommandPaletteSourceRegistryProvider,
+  clearActiveConfigGroup,
   clearCollectionSelection,
   openConfigTo,
+  setActiveSection,
   setMobileViewport,
+  setPanelMode,
 } from "@orb/client/state";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { makeConfigSection } from "../../../../packages/client/src/features/config/lib/config-section.tsx";
 import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface.tsx";
 import { ConfigListSurface } from "../../../../packages/client/src/features/config/surfaces/config-list-surface.tsx";
 import { placeholderConfigGroups, realConfigGroups } from "../../../support/ct/ct-config-groups.ts";
-import { CtDataProviders, CtRealConfigSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders, CtRealConfigSectionRegistry, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The determinism button every story carries: the disclosure memory, the nav and the selection all reset. */
 function ResetGroupsButton(): ReactElement {
@@ -237,6 +241,56 @@ export function ConfigMobileListStory(): ReactElement {
       </CtRealConfigSectionRegistry>
     </CtDataProviders>
   );
+}
+
+/** THE CONFIG SECTION INSIDE THE REAL APP SHELL, at a phone (#1747) — the ONE mount in which the mobile
+ *  ONE-SHELL rule and its BACK STACK exist at all.
+ *
+ *  WHY NOT `ConfigHostStory mobile`: that story publishes the viewport REGIME and then renders both panes
+ *  side by side in a fixed flex box, so "the LIST is the screen" and "Back pops one rung" are not properties
+ *  it can have — the shell owns both (`use-shell-layout.ts`: `listIsPrimaryContent`, and `backToList`, which
+ *  is the config section's OWN declared `selection.clear`, `config-section.tsx`'s three-rung stack). This
+ *  story mounts the production `AppShell` over the REAL section registry, so the rungs under test are the
+ *  ones the phone actually pops.
+ *
+ *  THE `show the list` BUTTON IS A DRIVER, NOT PRODUCT, AND IT NAMES A DEFECT: on a phone the section
+ *  arrives INSIDE CONTENT with the LIST collapsed (#1741, measured on the live stage at two shas — the
+ *  arrival default's phone guard is bypassed and something selects on arrival), so a cold mount here cannot
+ *  reach the LIST-is-the-screen arm at all. The button drives the store to the state the phone SHOULD arrive
+ *  in — nothing selected, no active group, the LIST docked — and this story neither fixes nor hides #1741;
+ *  it declares the workaround so the back-stack can be pinned while that bug is open. */
+export function ConfigMobileShellStory(): ReactElement {
+  useState(() => {
+    __resetConfigNav();
+    clearCollectionSelection();
+    return null;
+  });
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <LandOnConfig />
+        <button
+          onClick={(): void => {
+            clearCollectionSelection();
+            clearActiveConfigGroup();
+            setPanelMode("list", "docked");
+          }}
+          type="button"
+        >
+          show the list
+        </button>
+        <AppShell />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** Lands the shell on Configuration — the rail tap, without the tap. */
+function LandOnConfig(): null {
+  useEffect(() => {
+    setActiveSection("config");
+  }, []);
+  return null;
 }
 
 /** The whole Configuration workspace: LIST roster · CONTENT · CONTEXT, over the real registries. */

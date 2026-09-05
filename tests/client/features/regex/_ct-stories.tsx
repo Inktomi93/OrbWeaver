@@ -58,7 +58,8 @@ export function RegexMemberStory({
     <CtDataProviders>
       <div style={{ height: 700, overflow: "auto", width }}>
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
-          <RegexMemberSurface memberId={memberId} />
+          {/* `library` is the host's own group label (`regex-group.tsx`) — the drill row's exit (#1747). */}
+          <RegexMemberSurface view={{ library: "Regex scripts", memberId }} />
         </QueryBoundary>
       </div>
     </CtDataProviders>
