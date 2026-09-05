@@ -107,6 +107,8 @@ export const GATE_AUTHORITY_TOOL_ERROR_KINDS = [
   "invalid-grant",
   "duplicate-grant-id",
   "duplicate-grant-identity",
+  "invalid-grant-authority",
+  "invalid-authority-alarm",
 ] as const;
 export type GateAuthorityToolErrorKind = (typeof GATE_AUTHORITY_TOOL_ERROR_KINDS)[number];
 
