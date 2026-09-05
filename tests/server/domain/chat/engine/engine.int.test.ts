@@ -672,7 +672,7 @@ describe("createTurnEngine — D46 runtime plane (delta persist + cache recomput
 describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", () => {
   test("the memory build throwing emits warning(memory_build_failed) but the turn itself still completes", async () => {
     const chatId = await seedChat(db, "memfail");
-    // A cast character in the roster — `chars.length > 0` is what actually drives the engine into calling
+    // A seated character in the roster — `chars.length > 0` is what actually drives the engine into calling
     // `deps.generateDigests` (an empty roster short-circuits `Promise.all([])`, never reaching the throw).
     await seedUser(db, castId<Handle>("host"));
     const char = await seedCharacter(db, HOST, "aria");
@@ -711,7 +711,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     expect(warning).toMatchObject({ type: "warning", chatId, code: "memory_build_failed" });
   });
 
-  test("F3: threads the resolved cast NAME map into the segment + digest builds (not raw typeids)", async () => {
+  test("F3: threads the resolved character NAME map into the segment + digest builds (not raw typeids)", async () => {
     const chatId = await seedChat(db, "memnames");
     await seedUser(db, castId<Handle>("host"));
     const char = await seedCharacter(db, HOST, "aria"); // id character_aria, name "aria"
@@ -748,7 +748,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     expect(digNames.every((m) => m?.characterNamesById.get(char)?.name === "aria")).toBe(true);
   });
 
-  test("F3b: threads each cast character's WITNESSING horizons into its SCOPED digest build (D6)", async () => {
+  test("F3b: threads each seated character's WITNESSING horizons into its SCOPED digest build (D6)", async () => {
     const chatId = await seedChat(db, "memwitness");
     await seedUser(db, castId<Handle>("host"));
     const char = await seedCharacter(db, HOST, "aria");
@@ -1500,7 +1500,7 @@ describe("createTurnEngine — I-7 trace-ring landing proofs", () => {
   test("the post-turn memory build opens its OWN request trace", async () => {
     initTracing();
     const chatId = await seedChat(db, "memory-trace");
-    // A cast character seat, so `chars.length >= 1` and the scoped-digest `Promise.all` below actually
+    // A seated character seat, so `chars.length >= 1` and the scoped-digest `Promise.all` below actually
     // reaches `generateDigests` (an empty roster resolves it with zero calls — the completion signal below
     // would never fire).
     await seedUser(db, castId<Handle>("host"));

@@ -1,6 +1,6 @@
 // substrate/backfill — the PD-41 corpus sweeps. Pins the ENUMERATION (the sweep's own job — the per-chat
 // build logic is pinned by the memory build suites): segments visit every chat; digest buckets mirror the
-// engine's post-turn scopes (`__group__` bucket ONLY for >1-character rooms, then every cast character);
+// engine's post-turn scopes (`__group__` bucket ONLY for >1-character rooms, then every seated character);
 // the group-character sweep mints ONLY for group rooms lacking one (idempotent, host-owned); the signal
 // aborts cooperatively (an aborted sweep does zero work).
 
@@ -32,7 +32,7 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-/** Seed: a solo room (1 char), a group room (2 chars), and an empty room (no cast). Tiny canon (none) —
+/** Seed: a solo room (1 char), a group room (2 chars), and an empty room (no characters). Tiny canon (none) —
  *  every memory build early-returns (cutoff < blockSize), so the sweep's ENUMERATION is what's observable. */
 async function seedRooms(host: UserId): Promise<{ soloChar: CharacterId; groupChars: number }> {
   const soloChar = await seedCharacter(db, host, "solo_c");
@@ -50,7 +50,7 @@ async function seedRooms(host: UserId): Promise<{ soloChar: CharacterId; groupCh
 }
 
 describe("backfillMemory — the chat × scope enumeration", () => {
-  test("segments visit every chat; digest buckets mirror the engine's scopes (group bucket only >1 cast)", async () => {
+  test("segments visit every chat; digest buckets mirror the engine's scopes (group bucket only >1 character)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     await seedRooms(host);
     // The shared group bucket is find-or-minted (the REAL synthetic-char id — inv 8), so the sweep resolves
@@ -63,14 +63,14 @@ describe("backfillMemory — the chat × scope enumeration", () => {
 
     // 3 chats swept for segments (solo + group + empty).
     expect(counts.segments).toEqual({ scanned: 3, changed: 0 });
-    // Digest buckets: solo → 1 (its cast char; NO group bucket at cast=1); group → 3 (synthetic group char +
-    // 2 cast); empty → 0 (no cast, no buckets). Zero writes (no canon past the window).
+    // Digest buckets: solo → 1 (its seated char; NO group bucket at one character); group → 3 (synthetic group char +
+    // 2 seated); empty → 0 (no characters, no buckets). Zero writes (no canon past the window).
     expect(counts.digests).toEqual({ scanned: 4, changed: 0 });
     // A clean sweep reports zero failures — the isolation catch never fired (#41).
     expect(counts.failed).toBe(0);
   });
 
-  test("WITNESSING wiring (D6): a kicked-then-rejoined cast char's SCOPED bucket excludes the kicked block; the GROUP bucket stays full", async () => {
+  test("WITNESSING wiring (D6): a kicked-then-rejoined seated char's SCOPED bucket excludes the kicked block; the GROUP bucket stays full", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const g1 = await seedCharacter(db, host, "g1");
     const g2 = await seedCharacter(db, host, "g2");
@@ -220,7 +220,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, enabledMemory);
 
     // … both chats were swept for segments; only the HEALTHY room's digest buckets enumerated (synthetic +
-    // 2 cast = 3) — the poisoned room contributed zero digest scans but did NOT abort the healthy one.
+    // 2 seated = 3) — the poisoned room contributed zero digest scans but did NOT abort the healthy one.
     expect(counts.segments.scanned).toBe(2);
     expect(counts.digests.scanned).toBe(3);
     // …and the poisoned room is NOT swallowed silently (#41): its failure is COUNTED (surfaced to the
@@ -273,7 +273,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, resolve);
 
     // The disabled host's room is skipped ENTIRELY — no segment scan, no scope enumeration, no synthetic mint.
-    // Only the enabled room builds: 1 segment scan + its 3 digest buckets (synthetic group + 2 cast).
+    // Only the enabled room builds: 1 segment scan + its 3 digest buckets (synthetic group + 2 seated).
     expect(counts.segments).toEqual({ scanned: 1, changed: 0 });
     expect(counts.digests).toEqual({ scanned: 3, changed: 0 });
     expect(mint).toHaveBeenCalledTimes(1);

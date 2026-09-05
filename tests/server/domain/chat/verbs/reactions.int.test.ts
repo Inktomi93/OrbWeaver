@@ -257,7 +257,7 @@ describe("toggleReaction — the segment anchor", () => {
       .toggleReaction({ principal: principal(host), chatId, variantId, emoji: "👍", segmentIndex: 5, segmentSpeaker: "Bob" })
       .catch((e: unknown) => e);
     expect((range as ChatOperationError).code).toBe("invalid_segment");
-    // Wrong speaker at a real index: span 0 is Alice's — a content/cast race must REFUSE, never silently
+    // Wrong speaker at a real index: span 0 is Alice's — a content/speaker race must REFUSE, never silently
     // land the click on somebody else's line.
     const wrong = await verb
       .toggleReaction({ principal: principal(host), chatId, variantId, emoji: "👍", segmentIndex: 0, segmentSpeaker: "Bob" })
@@ -269,7 +269,7 @@ describe("toggleReaction — the segment anchor", () => {
 
   test("the narrator-voice gate: plain `Name:` labels split ONLY a narrator row; `<speaker>` tags split any row", async () => {
     const { host, chatId } = await seedNarratorRoom("gate");
-    // A STANDARD row with the same plain-label body: the cast set does NOT apply (any other kind is one
+    // A STANDARD row with the same plain-label body: the character-name set does NOT apply (any other kind is one
     // speaker's row, so `Alice:` is prose) — the body is ONE null span and the speaker claim refuses.
     const standard = await seedMessage(db, chatId, 3, { content: NARRATOR_BODY });
     const verb = reactions();

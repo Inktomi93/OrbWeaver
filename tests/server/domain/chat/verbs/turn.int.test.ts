@@ -139,7 +139,7 @@ function harness(
     promptConfig?: PromptConfig;
     /** Capture the args `loadRoom` resolved into the FOREIGN read for the round. */
     onForeignInputs?: (args: { readonly presentHumanUserIds: readonly UserId[] }) => void;
-    /** Override server-derived presence (default = everyone online; a cast-gating test marks a member away). */
+    /** Override server-derived presence (default = everyone online; a presence-gating test marks a member away). */
     readPresence?: ChatContext["readPresence"];
     /** Override the disabled-account gate (default = everyone enabled; the containment test disables a
      *  member). */
@@ -963,7 +963,7 @@ describe("send — narrator output (group character authors the turn)", () => {
   });
 });
 
-// A NARRATOR round voices the whole cast in ONE generation authored by the synthetic group character — it
+// A NARRATOR round voices every seated character in ONE generation authored by the synthetic group character — it
 // never consumes an arbitrated speaker. So the `smart` side-LLM turn arbiter must not run there: it costs a
 // real model call whose verdict is discarded, and its degrade would warn the room about a decision that
 // governs nothing. `policy` STAYS on the narrator arm (a mode toggle round-trips the host's choice) — it just
@@ -1767,7 +1767,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    // bryn is a DEPARTED cast seat: its participant row + card survive, but leftSeq is set (no longer present).
+    // bryn is a DEPARTED character seat: its participant row + card survive, but leftSeq is set (no longer present).
     const departed = await seedCharacter(db, host, "bryn");
     await seedParticipant(db, { chatId, key: "bryn", characterId: departed, joinSeq: 0, leftSeq: 1 });
     const h = harness(db, names);

@@ -382,7 +382,7 @@ describe("assemblePrompt — merged co-speaker scenario (F6: single emission)", 
 
 // ── THE FACTORY main_prompt IS MODE-AWARE (C4) ───────────────────────────────────────────────────────
 // The shipped default framing says "You are {{char}} … write {{char}}'s perspective only" — true for a
-// per-speaker turn and FALSE for a narrator round, which is ONE generation voicing the whole cast (the
+// per-speaker turn and FALSE for a narrator round, which is ONE generation voicing every seated character (the
 // 2026-08-07 live drive read "write Charlotte, JFC's perspective only", a self-contradictory instruction).
 // The default now selects on the SAME axis the card-heading slot selects on (`speaker.kind === "multi-voice"`,
 // `memberHeadingSlot`); every other turn keeps its bytes EXACTLY. Asserted on the assembled bytes — the
@@ -431,7 +431,7 @@ describe("assemblePrompt — the factory main_prompt default is MODE-AWARE (narr
     expect(out.static).not.toContain("perspective only");
     expect(out.static).not.toContain("You are Aria, Kai in an immersive");
     // …replaced by a framing that names the job the round actually has, with `{{char}}` still bound to the
-    // joined cast (the one place cast-binding belongs — preset-authored framing, not card text).
+    // joined character names (the one place that binding belongs — preset-authored framing, not card text).
     expect(out.static).toContain("You are the narrator");
     expect(out.static).toContain("voicing Aria, Kai");
     // The address clause is preserved VERBATIM on this arm too (owner ruling 2026-08-02).

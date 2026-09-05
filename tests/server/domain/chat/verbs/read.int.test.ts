@@ -61,7 +61,7 @@ import {
 } from "../_support.ts";
 
 // The `DEFAULT_PROMPT_CONFIG` main-section framing, `{{char}}` resolved through the speaker arm: the JOINED
-// cast (narrator) vs a SINGLE primary (per-speaker). The two arms also resolve DIFFERENT default texts —
+// every seated character (narrator) vs a SINGLE primary (per-speaker). The two arms also resolve DIFFERENT default texts —
 // the narrator arm gets `NARRATOR_MAIN_PROMPT_TEMPLATE` ("…voicing {{char}} and the world around them"),
 // every other arm keeps the shipped per-speaker bytes. Hoisted per biome's top-level-regex rule.
 const JOINED_CAST_FRAMING = /You are the narrator of an immersive[^\n]*voicing (Aria, Kai|Kai, Aria) and the world around them/;
@@ -129,7 +129,7 @@ describe("read — listings (membership-scoped, D18)", () => {
     expect(chats.map((c) => c.id)).not.toContain(theirs);
     expect(chats[0]?.messageCount).toBe(1);
     expect(chats[0]?.lastMessageAt).not.toBeNull();
-    // The cast is the OTHER seats (see the viewer-suppression arms below) — here, the room's character.
+    // The characters are the OTHER seats (see the viewer-suppression arms below) — here, the room's character.
     expect(chats[0]?.participantNames).toEqual(["character_mine_char"]);
   });
 
@@ -154,7 +154,7 @@ describe("read — listings (membership-scoped, D18)", () => {
       expect(theirs?.participantNames).toEqual(["character_shared_char", "user_me"]);
     });
 
-    test("a SOLO chat keeps the viewer's name — suppression never empties the cast", async () => {
+    test("a SOLO chat keeps the viewer's name — suppression never empties the characters", async () => {
       const me = await seedUser(db, castId<Handle>("me"));
       const solo = await seedChat(db, "solo");
       await seedParticipant(db, { chatId: solo, key: "solo_me", userId: me, role: "host" });
@@ -573,7 +573,7 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
     const row = (await listChats({ principal: principal(me), limit: 50 })).items[0];
 
     expect(row?.participantPortraits.map((seat) => seat.characterId)).toEqual([her, him]);
-    // The human host holds a seat and a name, but not a FACE: the leading slot is the room's CAST.
+    // The human host holds a seat and a name, but not a FACE: the leading slot is the room's CHARACTER.
     expect(row?.participantPortraits.some((seat) => seat.characterId === castId<CharacterId>(me))).toBe(false);
     // …while the reverse read keeps the departed seat, exactly as its own promise says.
     expect([...(row?.participantCharacterIds ?? [])].sort()).toEqual([gone, her, him].sort());
@@ -761,7 +761,7 @@ describe("read — single reads", () => {
     expect(detail.participants.some((p) => p.role === "host" && p.userId === me)).toBe(true);
     expect(detail.group.output).toBe("per-speaker"); // DEFAULT_GROUP_CONFIG applied
     expect(detail.opening).toBeNull();
-    // The participant-scoped cast producer (Chat-Macro-Resolution.md §1 / D137) covers the roster's character.
+    // The participant-scoped identity producer (Chat-Macro-Resolution.md §1 / D137) covers the roster's character.
     expect(detail.identities.some((e) => e.kind === "character" && e.name === "room_char")).toBe(true);
     // The viewer-scoped fields (host-of-this-room, no persona set yet).
     expect(detail.viewerUserId).toBe(me);
@@ -1441,12 +1441,12 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(cardsRow?.text).toBe([mara?.text, niko?.text].join("\n\n"));
   });
 
-  // NARRATOR-CAST follow-up: buildPreviewContext / shapeNextTurn hardcoded `output: "per-speaker"`, so a
-  // NARRATOR room previewed its per-speaker shape — under-reporting the joined-cast `{{char}}` binding and
+  // NARRATOR follow-up: buildPreviewContext / shapeNextTurn hardcoded `output: "per-speaker"`, so a
+  // NARRATOR room previewed its per-speaker shape — under-reporting the joined-character-names `{{char}}` binding and
   // framing the co-speaker cards as bystanders. The fix threads the room's `GroupConfig.output` (the SAME axis
   // `TurnSpeakerShape` carries into the turn) through `PreviewInputs`. Asserted through the surface the host
   // reads: `prompt.static`.
-  test("a NARRATOR room previews its CAST shape — joined {{char}} + [Cast —] framing, not per-speaker", async () => {
+  test("a NARRATOR room previews its NARRATOR shape — joined {{char}} + [Character —] framing, not per-speaker", async () => {
     const me = await seedUser(db, castId<Handle>("narr_host"));
     // The narrator arm is a `strictObject`; `policy` is its only non-defaulted field, so this parses to a real
     // narrator GroupConfig (a malformed blob `.catch`es to the per-speaker default and would silently defeat
@@ -1469,7 +1469,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const { prompt } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
 
     // The `DEFAULT_PROMPT_CONFIG` main section is a TOP-LEVEL (non-card) framing, so its `{{char}}` resolves
-    // through the speaker arm: a narrator turn binds it to the JOINED cast. The shipped preview bound it to a
+    // through the speaker arm: a narrator turn binds it to the JOINED character names. The shipped preview bound it to a
     // single primary name. The narrator arm also resolves the narrator-true DEFAULT — the host previewing a
     // narrator room must see the bytes that round actually sends, never the per-speaker framing.
     expect(prompt.static).toMatch(JOINED_CAST_FRAMING);
@@ -1506,7 +1506,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(prompt.static).toMatch(SINGLE_SPEAKER_FRAMING);
     expect(prompt.static).not.toMatch(JOINED_CAST_ANYWHERE);
     expect(prompt.static).toContain("[Also present — ");
-    expect(prompt.static).not.toContain("[Cast —");
+    // The mirror of the narrator arm's own fence. This used to read `not.toContain("[Cast —")` — the narrator
+    // heading's PRE-v2 bytes, which no default has produced since 2026-08-30, so the fence was vacuously true
+    // and would not have caught a per-speaker preview taking the narrator framing (#1738).
+    expect(prompt.static).not.toContain("[Character — ");
   });
 
   test("the budget ceiling is the CONNECTED model's window; an unknown window says so (owner bug, D41)", async () => {

@@ -104,7 +104,7 @@ const card = (name: string, greetings: readonly string[] = []): CharacterCard =>
   ({ name, avatarAssetId: null, greetings: greetings.map((text) => ({ text })) }) as unknown as CharacterCard;
 
 /** An owner-scoped `getCard` fake mirroring the REAL one (D28 — `loadOwnedCharacterRow`): the card resolves
- *  only for its OWNER, `null` for a non-owner. The handoff cast-drop resolver (D64 / F4) calls this per seated
+ *  only for its OWNER, `null` for a non-owner. The handoff character-drop resolver (D64 / F4) calls this per seated
  *  character to decide which seats the NEW host doesn't own (→ dropped); the harness default is a bare `null`. */
 function ownedCard(): (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<CharacterCard | null> {
   return async ({ ownerId, characterId }) => {
@@ -1347,7 +1347,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
   test("handoff to a non-owner SUCCEEDS: the outgoing host's characters are dropped, the owner's kept, humans remain", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));
-    // Single-owner cast (D28): aria belongs to the OUTGOING host, bella to the NOMINEE. After the handoff the
+    // Single-owner characters (D28): aria belongs to the OUTGOING host, bella to the NOMINEE. After the handoff the
     // new host (member) resolves bella but NOT aria → aria's seat drops, bella's stays.
     const aria = await seedCharacter(db, host, "aria");
     const bella = await seedCharacter(db, member, "bella");
@@ -1469,7 +1469,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     expect(chatRow?.anchorPersonaId).toBe(anchor);
   });
 
-  test("a nominee who owns the WHOLE seated cast keeps every character seat on handoff", async () => {
+  test("a nominee who owns EVERY seated character keeps every character seat on handoff", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));
     // The nominee owns the seated character → the new host resolves it, so no seat drops.

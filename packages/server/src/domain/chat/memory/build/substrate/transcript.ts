@@ -8,7 +8,7 @@
 //
 // IDENTITY RESOLUTION (§8 / G1): the transcript BODY resolves its `{{char}}`/`{{user}}`/`{{persona}}` macros
 // against each row's OWN stamps via the shared `resolveRowMacros` atom (`@orb/kit/macro`) — the SAME atom
-// server-assemble + client-display use, so the summarizer/embedding sees the real cast + persona names, never
+// server-assemble + client-display use, so the summarizer/embedding sees the real character + persona names, never
 // the literal macro or the raw typeid. VOLATILE macros ({{roll}}/{{time}}/…) re-emit verbatim (names-only
 // registry) — byte-stable across builds. The row STAMPS carry `personaId` (D-100) so `{{user}}` resolves to
 // the authoring persona per-row (a multi-human block distinguishes two humans by persona name, not "User").

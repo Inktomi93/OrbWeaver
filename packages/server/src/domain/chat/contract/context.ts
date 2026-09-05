@@ -736,7 +736,7 @@ export interface ChatRpgOps {
    *  `steerIdentity` is chat's authoritative identity binding for the host-authored `steeringNote`, both values
    *  resolved CHAT-SIDE (chat owns `{{user}}`/`{{char}}` resolution): `user` = the triggering human's ACTIVE
    *  persona display name (`undefined` ⇒ no active persona → the "User" floor); `char` = the Ruling-B
-   *  host/null-speaker `{{char}}` (Chat-Macro-Resolution.md ruling B — the JOINED CAST in a multi-character
+   *  host/null-speaker `{{char}}` (Chat-Macro-Resolution.md ruling B — the JOINED CHARACTER NAMES in a multi-character
    *  room / the single character in solo). Threaded so rpg can render the steeringNote's identity macros
    *  (guided-safe subset only, mirroring the nudge/guided path) instead of shipping literal braces — rpg SPLICES
    *  chat's values, never re-deriving identity. Absent ⇒ the steeringNote ships verbatim (byte-identical).

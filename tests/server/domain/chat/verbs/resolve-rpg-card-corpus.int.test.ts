@@ -75,7 +75,7 @@ test("a card unreadable under the room host resolves NULL (the verb refuses rath
 
 // ── #1448: the SEAT is the scope, not the host's library ─────────────────────────────────────────────
 // This file's own header calls the input "one ROSTER character", and the rpg verb that consumes it is a
-// per-actor round over the room's cast. Nothing enforced it: `characterId` arrives from
+// per-actor round over the room's characters. Nothing enforced it: `characterId` arrives from
 // `params.actorRef.characterId`, a wire parameter on `rpg.populateFromCharacter` validated only for
 // `kind === "character"`, so a host could name ANY card in their library and pull its prose into this
 // room's corpus (and, downstream, mint an `rpg_sheets` row for a character with no seat). The room's

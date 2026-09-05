@@ -66,7 +66,7 @@ const CARD: CharacterCard = {
   refinery: null,
 };
 
-/** No per-row stamps in these fixtures — `{{char}}` then resolves through the ctx cast, which is what the
+/** No per-row stamps in these fixtures — `{{char}}` then resolves through the ctx characters, which is what the
  *  ORDER pin below exercises. */
 const NO_MACRO_NAMES: HistoryMacroNames = {
   characterNamesById: new Map<CharacterId, RowCharacterName>(),
