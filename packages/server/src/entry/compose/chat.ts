@@ -6,7 +6,7 @@
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
 import { setTimeout as sleep } from "node:timers/promises";
-import type { ChatContentPart, DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { Can, Principal } from "@orb/contracts/identity";
@@ -91,7 +91,7 @@ import { createCopyHandoffBooks } from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatement, recordMemoryLog } from "#foundation/observability";
-import type { AgentSeedTurn, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, RoleClientsWithSignal } from "#infra/providers";
+import type { AgentSeedBlock, AgentSeedTurn, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, RoleClientsWithSignal } from "#infra/providers";
 import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, createAgentToolServer } from "#infra/providers";
 import { createRegexApplyReplace, createRegexTest } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit.ts";
@@ -125,22 +125,39 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
  * vocabulary already used at the engine's own media seam (`droppedMediaPlaceholder`, `[<kind> omitted]`).
  *
  * A MAPPED RECORD, not a switch (§5.5 admits both, and only one of them lints): a `switch` over a value typed
- * `Exclude<ChatContentPart, {type:"text"}>` makes biome's type service call EVERY case unreachable
+ * `Exclude<TurnContentPart, {type:"text"}>` makes biome's type service call EVERY case unreachable
  * (`lint/suspicious/noUnnecessaryConditions` — the computed-type sibling of the cross-module-union and
- * intersection cases). The Record keeps the enforcement identical: a new `ChatContentPart` member is a missing
- * property here and fails `tsc` (verified by planting one — `TS2345`/`TS2741` at this site).
+ * intersection cases). The Record keeps the enforcement identical: a new content-part member is a missing
+ * property here and fails `tsc` (verified by planting one — `TS2741` at this site).
  */
-const DROPPED_PART_TEXT: Record<Exclude<ChatContentPart, { type: "text" }>["type"], string> = {
+/**
+ * One part of a row compose was handed — DERIVED from the domain message, never re-spelled and deliberately
+ * not the D51 seam symbol: compose does not PRODUCE content parts (the engine request seam does) and does not
+ * put them on a wire (the sealed runners do). It maps the message it is given onto the provider request, and
+ * this alias is the type of what is already in its hand.
+ */
+type TurnContentPart = TurnMessage["content"][number];
+
+const DROPPED_PART_TEXT: Record<Exclude<TurnContentPart, { type: "text" }>["type"], string> = {
   image: "[image omitted]",
   video: "[video omitted]",
   "tool-call": "[tool call omitted]",
   "tool-result": "[tool result omitted]",
 };
 
-/** One rendered row: a non-text part leaves the marker naming its own kind ({@link DROPPED_PART_TEXT}); the
- *  wire `name` label is stamped into the text (agent-sdk seed frames carry no `name` field). */
-function agentRowText(m: TurnMessage): string {
-  const text = m.content.map((c) => (c.type === "text" ? c.text : DROPPED_PART_TEXT[c.type])).join("");
+/**
+ * One rendered row: a non-text part leaves the marker naming its own kind ({@link DROPPED_PART_TEXT}); the wire
+ * `name` label is stamped into the text (agent-sdk seed frames carry no `name` field).
+ *
+ * `parts` defaults to the whole row and is narrowed by the seed builder, which lifts the parts that ride as
+ * REAL SDK blocks (#1605) out first and renders only what is left. An EMPTY render takes no name stamp: an
+ * empty row is not a turn, and `Alice: ` is not a truer statement of that than `` is.
+ */
+function agentRowText(m: TurnMessage, parts: readonly TurnContentPart[] = m.content): string {
+  const text = parts.map((c) => (c.type === "text" ? c.text : DROPPED_PART_TEXT[c.type])).join("");
+  if (text.length === 0) {
+    return "";
+  }
   return m.name !== undefined && m.name.length > 0 ? `${m.name}: ${text}` : text;
 }
 
@@ -230,7 +247,7 @@ export function extractTrailingSystemRows(history: readonly TurnMessage[]): { ro
   }
   const text = history
     .slice(sysStart, sysEnd)
-    .map(agentRowText)
+    .map((m) => agentRowText(m))
     .filter((t) => t.length > 0)
     .join(AGENT_PROMPT_TAIL_JOINER);
   // Drop the system band; keep the canon head AND the nudge tail (the nudge is a real user turn).
@@ -259,6 +276,11 @@ const AGENT_ROW_LABELS: Record<TurnMessage["role"], string> = { user: "User", as
  * frame's text must carry its own label. A role with no native frame (`tool`, `system`) can only ride as a
  * `user` frame, so it MUST announce itself or it wears the human's voice — #1457's confusion, relocated. A new
  * `HISTORY_ROLES` member fails `tsc` here instead of silently inheriting `user`.
+ *
+ * `announce` governs the TEXT half only. A tool exchange that rides as real `tool_use`/`tool_result` blocks
+ * (#1605) needs no label at all — the wire carries the role — and {@link seedBlocksFor} stamps one only on what
+ * is left as prose. The `tool` row's `user` frame is therefore the CARRIER of the blocks, not a claim about who
+ * spoke.
  */
 const AGENT_SEED_FRAMES: Record<TurnMessage["role"], { readonly frame: AgentSeedTurn["role"]; readonly announce: boolean }> = {
   user: { frame: "user", announce: false },
@@ -298,21 +320,156 @@ export function splitAgentHistory(history: readonly TurnMessage[]): { seed: read
   }
   const tail = history
     .slice(tailStart)
-    .map(agentRowText)
+    .map((m) => agentRowText(m))
     .filter((t) => t.length > 0)
     .join(AGENT_PROMPT_TAIL_JOINER);
   // An empty tail means the trailing user run said nothing (or there was none): the whole history seeds and the
   // stub is the query. Never a blank prompt, and never a bare tool row promoted to one.
   const seedRows = tail.length > 0 ? history.slice(0, tailStart) : history;
-  const seed = seedRows.flatMap((m): AgentSeedTurn[] => {
-    const { frame, announce } = AGENT_SEED_FRAMES[m.role];
-    const text = agentRowText(m);
-    if (text.length === 0) {
-      return [];
+  return { seed: seedTurnsFor(seedRows), prompt: tail.length > 0 ? tail : AGENT_CONTINUATION_PROMPT_STUB };
+}
+
+/**
+ * The tool-call ids whose exchange may ride the seed STRUCTURALLY — both halves present AND ADJACENT: a
+ * `tool-call` part on an assistant row, answered by a `tool-result` with the same id in the tool run that
+ * immediately follows it.
+ *
+ * THE ADJACENCY IS A FAIL-CLOSED RULE, not tidiness. The Anthropic wire requires every `tool_use` to be
+ * answered by a `tool_result` in the very next message and refuses an orphan in either direction, so a seed
+ * that emits half a pair is not a degraded turn — it is a 400 on EVERY later turn of that lineage. A history
+ * can arrive half-paired for ordinary reasons (a context-window slide cuts between the call and its result,
+ * an assembly materializes a recorded-but-unexecuted call), so the unpaired half degrades to the announced
+ * text it rode as before #1605 and the turn still runs.
+ *
+ * PARSEABILITY IS PART OF THE SAME QUESTION. The wire's `tool_use.input` is an OBJECT and `arguments` is the
+ * RAW model-emitted string, so a blob that is not a JSON object cannot become a valid `tool_use` — and the
+ * decision has to be made HERE, with the pair, or the frame builder would drop one half of a pair this
+ * function had already blessed and mint the orphan itself.
+ */
+function pairedToolCallIds(history: readonly TurnMessage[]): ReadonlySet<string> {
+  const paired = new Set<string>();
+  history.forEach((row, index) => {
+    if (row.role !== "assistant") {
+      return;
     }
-    return [{ role: frame, content: announce ? `${AGENT_ROW_LABELS[m.role]}: ${text}` : text }];
+    const answered = answeredIdsAfter(history, index);
+    for (const part of row.content) {
+      if (part.type === "tool-call" && answered.has(part.toolCallId) && isJsonObject(part.arguments)) {
+        paired.add(part.toolCallId);
+      }
+    }
   });
-  return { seed, prompt: tail.length > 0 ? tail : AGENT_CONTINUATION_PROMPT_STUB };
+  return paired;
+}
+
+/** The tool-call ids answered by the run of `tool` rows IMMEDIATELY following `index` — the only place the wire
+ *  accepts an answer, so a result further down the transcript does not count as one. */
+function answeredIdsAfter(history: readonly TurnMessage[], index: number): ReadonlySet<string> {
+  const answered = new Set<string>();
+  for (let j = index + 1; j < history.length && history[j]?.role === "tool"; j += 1) {
+    for (const part of history[j]?.content ?? []) {
+      if (part.type === "tool-result") {
+        answered.add(part.toolCallId);
+      }
+    }
+  }
+  return answered;
+}
+
+/** Does this raw model-emitted argument blob parse to a JSON OBJECT — the only thing the wire's `tool_use.input`
+ *  may be? `JSON.parse`, never an object literal: `parse` defines a `__proto__` key as an OWN property where a
+ *  literal would set the prototype. */
+function isJsonObject(raw: string): boolean {
+  let parsed: unknown;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): CLASSIFIER, not a failure — "does this model-emitted blob parse to an object" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice.
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return false;
+  }
+  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed);
+}
+
+/** Is this part riding as a REAL SDK block rather than as announced text? Only a tool part, and only when its
+ *  other half is present and adjacent ({@link pairedToolCallIds}). */
+function ridesAsBlock(part: TurnContentPart, paired: ReadonlySet<string>): boolean {
+  return (part.type === "tool-call" || part.type === "tool-result") && paired.has(part.toolCallId);
+}
+
+/**
+ * One history row's seed blocks: the rendered text (label- and name-stamped) FIRST, then the structural tool
+ * blocks in their own order — the shape the engine actually produces (`[text?, tool-call…]` on the assistant
+ * row, `[tool-result]` on each tool row).
+ *
+ * A STRUCTURAL BLOCK TAKES NO LABEL, and that is the point of the arm: `Tool result:` is a host claim the
+ * model has to believe, where a `tool_result` block is a role the wire itself carries. The label survives for
+ * everything that still rides as text — a degraded pair, a system row — so nothing ever wears the human's
+ * voice by default (#1457).
+ */
+function seedBlocksFor(m: TurnMessage, paired: ReadonlySet<string>): AgentSeedBlock[] {
+  const structural: AgentSeedBlock[] = [];
+  const rendered: TurnContentPart[] = [];
+  for (const part of m.content) {
+    if (ridesAsBlock(part, paired)) {
+      structural.push(part as AgentSeedBlock);
+    } else {
+      rendered.push(part);
+    }
+  }
+  const text = agentRowText(m, rendered);
+  const labelled = text.length > 0 && AGENT_SEED_FRAMES[m.role].announce ? `${AGENT_ROW_LABELS[m.role]}: ${text}` : text;
+  return [...(labelled.length > 0 ? [{ type: "text", text: labelled } as const] : []), ...structural];
+}
+
+/**
+ * The seed: one turn per history row, EXCEPT that a contiguous run of `tool` rows folds into ONE `user` turn.
+ * The fold is required by the same wire rule the pairing check serves — every `tool_result` answering one
+ * assistant message must ride in a SINGLE following user message, and the engine emits one `tool` row per
+ * executed call, so a row-per-turn seed would split a two-call batch across two user messages and 400.
+ *
+ * A row that renders to nothing contributes NO frame: `content: [{type:"text", text:""}]` is a body the
+ * Anthropic wire rejects, and an empty frame is not a turn anyone took.
+ */
+function seedTurnsFor(rows: readonly TurnMessage[]): AgentSeedTurn[] {
+  const paired = pairedToolCallIds(rows);
+  const seed: AgentSeedTurn[] = [];
+  let i = 0;
+  while (i < rows.length) {
+    const row = rows[i];
+    if (row === undefined) {
+      i += 1;
+      continue;
+    }
+    if (row.role === "tool") {
+      const run = foldToolRun(rows, i, paired);
+      if (run.content.length > 0) {
+        seed.push({ role: AGENT_SEED_FRAMES.tool.frame, content: run.content });
+      }
+      i = run.next;
+      continue;
+    }
+    const content = seedBlocksFor(row, paired);
+    if (content.length > 0) {
+      seed.push({ role: AGENT_SEED_FRAMES[row.role].frame, content });
+    }
+    i += 1;
+  }
+  return seed;
+}
+
+/** The blocks of the whole contiguous `tool` run starting at `start`, plus the index after it. */
+function foldToolRun(rows: readonly TurnMessage[], start: number, paired: ReadonlySet<string>): { content: AgentSeedBlock[]; next: number } {
+  const content: AgentSeedBlock[] = [];
+  let i = start;
+  while (i < rows.length) {
+    const row = rows[i];
+    if (row === undefined || row.role !== "tool") {
+      break;
+    }
+    content.push(...seedBlocksFor(row, paired));
+    i += 1;
+  }
+  return { content, next: i };
 }
 
 /** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling

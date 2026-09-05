@@ -64,10 +64,24 @@ export interface ToolCallInput {
   readonly arguments: string;
 }
 
-/** One rendered transcript turn the agent-sdk backend seeds its session from. Role + final text only — no session vocab. */
+/**
+ * The content a seed frame may carry — DERIVED from {@link ChatContentPart}, never re-spelled, so the seed
+ * vocabulary is a closed SUBSET of the transcript's own and a new part kind cannot silently join it.
+ *
+ * Media is excluded because the agent-sdk seed has no image/video channel (the compose seam renders those as
+ * their kind markers). The D48 tool-exchange parts ARE here, and that is #1605: the SDK admits a real
+ * `tool_use`/`tool_result` PAIR across a resume with the id intact (measured 2026-09-04 on the mode-3 loopback
+ * construction capture — `scripts/probes/sdk-tool-seed-probe.ts --wire`; there is no observable production wire
+ * body on this path). A tool exchange therefore rides as STRUCTURE rather than as announced prose, which is the
+ * full #1593 arm: role separation the model reads natively instead of a label it has to believe.
+ */
+export type AgentSeedBlock = Extract<ChatContentPart, { type: "text" | "tool-call" | "tool-result" }>;
+
+/** One rendered transcript turn the agent-sdk backend seeds its session from. Role + content BLOCKS — no
+ *  session vocab, and no SDK spelling (`tool_use`/`tool_result` are minted inside the backend's `session/frames.ts`). */
 export interface AgentSeedTurn {
   readonly role: "user" | "assistant";
-  readonly content: string;
+  readonly content: readonly AgentSeedBlock[];
 }
 
 /** Mode-2 (OR-Anthropic skin) tier → OpenRouter slug map, written into the spawn's ANTHROPIC_DEFAULT_*_MODEL envs. */

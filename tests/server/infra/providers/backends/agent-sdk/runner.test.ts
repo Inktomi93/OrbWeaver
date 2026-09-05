@@ -57,6 +57,11 @@ const MID_CONV_CAPABILITY = makeModelCapability({
   },
 });
 
+/** A text-only seed turn — the agent-sdk seed carries content BLOCKS since #1605. */
+function seedTurn(role: "user" | "assistant", text: string): { role: "user" | "assistant"; content: [{ type: "text"; text: string }] } {
+  return { role, content: [{ type: "text", text }] };
+}
+
 function streamOf(messages: readonly unknown[]): MessageStream {
   return sharedStreamOf(messages) as MessageStream;
 }
@@ -645,10 +650,7 @@ describe("createAgentSdkBackend", () => {
       refreshHostSubToken: () => Promise.resolve(false),
     });
     const run = backend.runChatTurn as ChatTurn;
-    const seed = [
-      { role: "user" as const, content: "hello" },
-      { role: "assistant" as const, content: "hi there" },
-    ];
+    const seed = [seedTurn("user", "hello"), seedTurn("assistant", "hi there")];
     // Turn 1 is a COLD cache (no recorded session) → resumes the deterministic seed-derived id.
     await run({ ...buildReq(castId<ChatId>("chat-seeded")), seed, prompt: "next question" });
     expect(fakeQuery.mock.calls[0]?.[0]?.options?.resume).toBe(seedSessionId(castId<ChatId>("chat-seeded"), seed));
@@ -656,7 +658,7 @@ describe("createAgentSdkBackend", () => {
     // Turn 1's stream reported session_id=SESSION_ID → recorded. Turn 2's canon DIVERGES (swipe), and
     // the store is replace-capable → reseed IN PLACE under the RECORDED id (keeps the conv cache
     // lineage), NOT a fresh deterministic id.
-    const swipeSeed = [...seed, { role: "user" as const, content: "prompt" }];
+    const swipeSeed = [...seed, seedTurn("user", "prompt")];
     await run({ ...buildReq(castId<ChatId>("chat-seeded")), seed: swipeSeed, prompt: "regenerate" });
     expect(fakeQuery.mock.calls[1]?.[0]?.options?.resume).toBe(SESSION_ID);
   });
@@ -967,7 +969,7 @@ describe("provider.* observability taxonomy", () => {
       refreshHostSubToken: () => Promise.resolve(false),
     });
     const run = backend.runChatTurn as ChatTurn;
-    const seed = [{ role: "user" as const, content: "hello" }];
+    const seed = [seedTurn("user", "hello")];
     await run({ ...buildReq(castId<ChatId>("chat-sess")), seed });
     const sessions = providerLines(debug, "provider.session");
     expect(sessions).toHaveLength(1);

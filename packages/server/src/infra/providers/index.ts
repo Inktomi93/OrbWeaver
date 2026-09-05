@@ -170,6 +170,7 @@ export type {
   AgentMcpSseServer,
   AgentMcpStdioServer,
   AgentSdkChatRequest,
+  AgentSeedBlock,
   AgentSeedTurn,
   AgentToolServer,
   AgentTurnRequest,

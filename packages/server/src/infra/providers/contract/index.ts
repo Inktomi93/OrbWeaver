@@ -53,6 +53,7 @@ export { BACKEND_KEYS, PROVIDER_ROLES } from "./backend.ts";
 export type {
   AgentMcpServerHealth,
   AgentSdkChatRequest,
+  AgentSeedBlock,
   AgentSeedTurn,
   ChatHistoryMessage,
   ChatRequest,
