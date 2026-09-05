@@ -1,0 +1,325 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { SyntaxKind } from "ts-morph";
+import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
+import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
+import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { expect, test } from "../../../support/tool-fixtures.ts";
+
+const SOURCE_FLAG: GatePolicyProof = {
+  mode: "source",
+  files: { "packages/client/src/proof.ts": "export const planted = true;\n" },
+  why: "the founding defect",
+};
+const SOURCE_PASS: GatePolicyProof = {
+  mode: "source",
+  files: { "packages/client/src/proof.ts": "export const clean = true;\n" },
+  why: "the nearest legal shape",
+};
+
+function sourcePolicy(id: string, overrides: Partial<GatePolicy> = {}): GatePolicy {
+  return defineGate({
+    id,
+    family: id,
+    authority: "hard",
+    severity: "error",
+    population: "@client",
+    analysis: "syntax",
+    execution: "selected-files",
+    message: `${id} message`,
+    create: (ctx) => ({
+      visitFile: (sourceFile) => {
+        if (sourceFile.getFullText().includes("planted")) {
+          ctx.report.file(ctx.relativePath(sourceFile));
+        }
+      },
+    }),
+    mustFlag: [SOURCE_FLAG],
+    mustPass: [SOURCE_PASS],
+    ...overrides,
+  });
+}
+
+test("source and types proofs receive their exact files and relative imports resolve", () => {
+  const seen: string[][] = [];
+  const source = sourcePolicy("source-population", {
+    create: (ctx) => ({
+      evaluate: () => {
+        seen.push(ctx.files.map(ctx.relativePath));
+        const current = ctx.files[0] as NonNullable<(typeof ctx.files)[number]>;
+        if (current.getFullText().includes("planted")) {
+          ctx.report.file(ctx.relativePath(current));
+        }
+      },
+    }),
+    mustPass: [
+      {
+        mode: "source",
+        files: { "packages/client/src/pass.ts": "export const clean = true;\n" },
+        why: "the second example has a different population",
+      },
+    ],
+  });
+  const typed = defineGate({
+    id: "relative-type-identity",
+    family: "relative-type-identity",
+    authority: "hard",
+    severity: "error",
+    population: "@client",
+    analysis: "types",
+    execution: "selected-files",
+    message: "the relative import resolves to the planted declaration",
+    create: (ctx) => ({
+      evaluate: () => {
+        const main = ctx.sourceFile("packages/client/src/main.ts");
+        const imported = main.getImportDeclarationOrThrow("./value.js").getModuleSpecifierSourceFileOrThrow();
+        if (imported.getVariableDeclarationOrThrow("value").getInitializerOrThrow().getText() === '"bite"') {
+          ctx.report.file(ctx.relativePath(main));
+        }
+      },
+    }),
+    mustFlag: [
+      {
+        mode: "types",
+        files: {
+          "packages/client/src/main.ts": 'import { value } from "./value.js";\nexport const result = value;\n',
+          "packages/client/src/value.ts": 'export const value = "bite";\n',
+        },
+        why: "relative multi-file identity",
+      },
+    ],
+    mustPass: [
+      {
+        mode: "types",
+        files: {
+          "packages/client/src/main.ts": 'import { value } from "./value.js";\nexport const result = value;\n',
+          "packages/client/src/value.ts": 'export const value = "clean";\n',
+        },
+        why: "the same import with a legal declaration",
+      },
+    ],
+  });
+
+  expect(verifyPolicyProofs([source, typed])).toEqual([]);
+  expect(seen).toEqual([["packages/client/src/proof.ts"], ["packages/client/src/pass.ts"]]);
+});
+
+test("mustFlag precision uses effective warnings and finding or descriptor messages", () => {
+  const warning = sourcePolicy("warning-precision", {
+    severity: "warning",
+    message: "descriptor fallback message",
+    create: (ctx) => ({
+      visitors: [
+        {
+          kinds: [SyntaxKind.VariableDeclaration],
+          visit: (node) => {
+            if (node.getText().startsWith("bad")) {
+              ctx.report.node(node, { token: "bad", offset: 0, message: "finding override detail" });
+            } else if (node.getText().startsWith("fallback")) {
+              ctx.report.node(node);
+            }
+          },
+        },
+      ],
+    }),
+    mustFlag: [
+      {
+        mode: "source",
+        files: { "packages/client/src/proof.ts": "const ok = 1;\nconst bad = 2;\n" },
+        expect: { count: 1, line: 2, token: "bad", messageIncludes: "override detail" },
+        why: "exact warning precision",
+      },
+      {
+        mode: "source",
+        files: { "packages/client/src/proof.ts": "const fallback = 1;\n" },
+        expect: { messageIncludes: "fallback message" },
+        why: "descriptor message fallback",
+      },
+    ],
+  });
+
+  expect(verifyPolicyProofs([warning])).toEqual([]);
+
+  const wrongCount = sourcePolicy("wrong-count", {
+    mustFlag: [{ ...SOURCE_FLAG, expect: { count: 2 } }],
+  });
+  expect(verifyPolicyProofs([wrongCount])).toEqual([
+    {
+      policyId: "wrong-count",
+      arm: "mustFlag",
+      exampleIndex: 0,
+      why: "the founding defect",
+      detail: "expected effective finding count=2 but got 1",
+    },
+  ]);
+});
+
+test("tool failures, authority failures, bad receipts, and population mismatch fail distinctly", () => {
+  const thrown = sourcePolicy("hook-throw", {
+    create: () => ({
+      evaluate: () => {
+        throw new Error("provider exploded");
+      },
+    }),
+  });
+  const badReceipt = sourcePolicy("bad-receipt", {
+    create: (ctx) => ({ evaluate: () => ctx.receipt({ kind: "population", source: "subjects", members: 0 }) }),
+  });
+  const reviewed = sourcePolicy("bad-reviewed-finding", {
+    authority: "reviewed-grant",
+    create: (ctx) => ({ evaluate: () => ctx.report.file("packages/client/src/proof.ts") }),
+  });
+  const mismatch = sourcePolicy("population-mismatch", { population: "@server" });
+
+  const failures = verifyPolicyProofs([mismatch, reviewed, badReceipt, thrown]);
+
+  expect(failures.map(({ policyId, arm, exampleIndex }) => `${policyId}:${arm}[${exampleIndex}]`)).toEqual([
+    "bad-receipt:mustFlag[0]",
+    "bad-receipt:mustPass[0]",
+    "bad-reviewed-finding:mustFlag[0]",
+    "bad-reviewed-finding:mustPass[0]",
+    "hook-throw:mustFlag[0]",
+    "hook-throw:mustPass[0]",
+    "population-mismatch:mustFlag[0]",
+    "population-mismatch:mustPass[0]",
+  ]);
+  expect(failures.find(({ policyId }) => policyId === "hook-throw")?.detail).toMatch(/^PASS TOOL ERROR .*provider exploded/u);
+  expect(failures.find(({ policyId }) => policyId === "bad-receipt")?.detail).toMatch(/^PASS TOOL ERROR .*resolved zero members/u);
+  expect(failures.find(({ policyId }) => policyId === "bad-reviewed-finding")?.detail).toMatch(/^AUTHORITY TOOL ERROR /u);
+  expect(failures.find(({ policyId }) => policyId === "population-mismatch")?.detail).toMatch(/OWNER .*incomplete|PASS TOOL ERROR/u);
+});
+
+test("resource proofs materialize exact content and clean temp roots after success and throw", () => {
+  const before = new Set(readdirSync(tmpdir()).filter((name) => name.startsWith("orb-policy-conformance-")));
+  const roots: string[] = [];
+  const observed: unknown[] = [];
+  const resource = defineGate({
+    id: "resource-substrate",
+    family: "resource-substrate",
+    authority: "hard",
+    severity: "error",
+    population: "@client",
+    analysis: "resource",
+    execution: "selected-files",
+    message: "resource content is planted",
+    create: (ctx) => ({
+      evaluate: () => {
+        const source = ctx.sourceFile("packages/client/src/provider.ts");
+        const root = source.getFilePath().slice(0, -"packages/client/src/provider.ts".length);
+        roots.push(root);
+        const content = readFileSync(join(root, "resources/config.json"), "utf8");
+        observed.push({
+          source: source.getFullText(),
+          resources: ctx.resourcePaths,
+          content,
+        });
+        if (content.includes("bite") && ctx.resourcePaths.length === 1) {
+          ctx.report.file(ctx.resourcePaths[0] as string);
+        }
+      },
+    }),
+    mustFlag: [
+      {
+        mode: "resource",
+        files: {
+          "packages/client/src/provider.ts": "export const provider = true;\n",
+          "resources/config.json": '{"state":"bite"}\n',
+        },
+        why: "resource identity and content",
+      },
+    ],
+    mustPass: [
+      {
+        mode: "resource",
+        files: {
+          "packages/client/src/provider.ts": "export const provider = false;\n",
+          "resources/config.json": '{"state":"clean"}\n',
+        },
+        why: "the clean resource",
+      },
+    ],
+  });
+
+  expect(verifyPolicyProofs([resource])).toEqual([]);
+  expect(observed).toEqual([
+    {
+      source: "export const provider = true;\n",
+      resources: ["resources/config.json"],
+      content: '{"state":"bite"}\n',
+    },
+    {
+      source: "export const provider = false;\n",
+      resources: ["resources/config.json"],
+      content: '{"state":"clean"}\n',
+    },
+  ]);
+  expect(roots).toHaveLength(2);
+  expect(roots.every((root) => !existsSync(root))).toBe(true);
+
+  const throwingResource = defineGate({
+    ...resource,
+    id: "resource-throw",
+    family: "resource-throw",
+    create: (ctx) => ({
+      evaluate: () => {
+        roots.push(dirname(dirname(dirname(dirname(ctx.files[0]?.getFilePath() ?? "")))));
+        throw new Error("resource provider exploded");
+      },
+    }),
+  });
+  expect(verifyPolicyProofs([throwingResource])).toHaveLength(2);
+  expect(roots.every((root) => !existsSync(root))).toBe(true);
+  const after = readdirSync(tmpdir()).filter((name) => name.startsWith("orb-policy-conformance-") && !before.has(name));
+  expect(after).toEqual([]);
+});
+
+test("reused projects isolate every example and repeated invocations are deterministic", () => {
+  const populations: string[][] = [];
+  const isolating = sourcePolicy("isolation-proof", {
+    create: (ctx) => ({
+      evaluate: () => {
+        populations.push(ctx.files.map(ctx.relativePath));
+        if (ctx.files.some((file) => file.getFullText().includes("planted"))) {
+          ctx.report.file(ctx.relativePath(ctx.files[0] as NonNullable<(typeof ctx.files)[number]>));
+        }
+      },
+    }),
+    mustFlag: [SOURCE_FLAG, { ...SOURCE_FLAG, files: { "packages/client/src/second.ts": "export const planted = 2;\n" }, why: "second bite" }],
+    mustPass: [{ ...SOURCE_PASS, files: { "packages/client/src/final.ts": "export const clean = true;\n" } }],
+  });
+  const failing = sourcePolicy("repeatable-failure", { mustFlag: [{ ...SOURCE_FLAG, expect: { count: 2 } }] });
+
+  expect(verifyPolicyProofs([isolating])).toEqual([]);
+  expect(populations).toEqual([["packages/client/src/proof.ts"], ["packages/client/src/second.ts"], ["packages/client/src/final.ts"]]);
+  expect(verifyPolicyProofs([failing])).toEqual(verifyPolicyProofs([failing]));
+});
+
+test("failure order is policy, arm, then example index", () => {
+  const alwaysWrong = (id: string): GatePolicy =>
+    sourcePolicy(id, {
+      create: (ctx) => ({
+        visitFile: (sourceFile) => {
+          if (sourceFile.getFullText().includes("REPORT")) {
+            ctx.report.file(ctx.relativePath(sourceFile));
+          }
+        },
+      }),
+      mustFlag: [
+        { ...SOURCE_FLAG, files: { "packages/client/src/a.ts": "const CLEAN = 1;\n" }, why: "flag zero" },
+        { ...SOURCE_FLAG, files: { "packages/client/src/b.ts": "const CLEAN = 2;\n" }, why: "flag one" },
+      ],
+      mustPass: [{ ...SOURCE_PASS, files: { "packages/client/src/c.ts": "const REPORT = 3;\n" }, why: "pass zero" }],
+    });
+
+  expect(
+    verifyPolicyProofs([alwaysWrong("policy-b"), alwaysWrong("policy-a")]).map(({ policyId, arm, exampleIndex }) => [policyId, arm, exampleIndex]),
+  ).toEqual([
+    ["policy-a", "mustFlag", 0],
+    ["policy-a", "mustFlag", 1],
+    ["policy-a", "mustPass", 0],
+    ["policy-b", "mustFlag", 0],
+    ["policy-b", "mustFlag", 1],
+    ["policy-b", "mustPass", 0],
+  ]);
+});
