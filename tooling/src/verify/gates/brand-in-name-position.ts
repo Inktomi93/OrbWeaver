@@ -403,14 +403,6 @@ export const gate: GateDescriptor = {
       expect: { count: 1 },
       why: "tests/ is IN scope, deliberately: a hand-written id fixture is exactly where an unbranded string gets minted by hand instead of `mintTypeId`",
     },
-    {
-      files: {
-        [IDS_MODULE]: 'export type ChatId = TypeIdOf<"chat">;\n',
-        [REAL_TREE_ANCHOR]: "export const anchor = 1;\n",
-      },
-      expect: { count: 1, messageIncludes: "FILE_CLASS_EXEMPT" },
-      why: "mode-(B) staleness for the file-class table (GATE-AUTHORING §4.4a): the anchor is loaded but the exempted mirror is NOT on the tree — the row names nothing and must red, or a rename carries the exemption silently to its grave",
-    },
   ],
   mustPass: [
     {

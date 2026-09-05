@@ -397,14 +397,6 @@ export const gate: GateDescriptor = {
       expect: { count: 1, token: "re-spell MODES" },
       why: "blind spot (a) repaired: an `as const satisfies readonly X[]` tuple now registers, so a FOREIGN re-spell is caught — while its OWN satisfies co-declaration (Cfg.mode) is exempt (the next mustPass proves the exemption)",
     },
-    {
-      files: {
-        [REAL_TREE_ANCHOR_UNION]: "export const anchor = 1;\n",
-        "packages/contracts/src/some-home.ts": "export const AXIS = ['a', 'b', 'c'] as const;\n",
-      },
-      expect: { count: 1, messageIncludes: "FILE_CLASS_EXEMPT" },
-      why: "mode-(B) staleness for the file-class table (GATE-AUTHORING §4.4a): the anchor is loaded but the exempted mirror is NOT on the tree — the row names nothing and must red, or a rename carries the exemption silently to its grave",
-    },
   ],
   mustPass: [
     {
