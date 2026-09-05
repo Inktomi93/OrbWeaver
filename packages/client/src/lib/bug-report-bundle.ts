@@ -41,15 +41,47 @@ export const RENDERS_UNFILTERABLE_REASON = "the render heatmap is aggregate coun
  *  why the button's CT can mount it directly (a `useRouterState` read would need a RouterProvider that no
  *  other CT in this repo stands up). */
 export interface BugReportRoute {
-  /** The full location — the one URL fact worth keeping, verbatim. */
-  readonly href: string;
+  /** The scheme+host the report was taken from. */
+  readonly origin: string;
+  /** The path, WITHOUT its query string or fragment — see {@link bugReportRouteFrom}. */
   readonly pathname: string;
-  readonly search: string;
-  readonly hash: string;
   /** The shell's active section marker (`aria-current="page"`'s accessible name), as `__orb.shell()` derives it. */
   readonly section: string | null;
   /** Panel modes + whether a room is open, straight off `__orb.shell()`; `null` when no bridge is installed. */
   readonly shell: unknown;
+}
+
+/** The `Location` slice {@link bugReportRouteFrom} is handed. It NAMES the parts that get dropped on purpose:
+ *  the drop has to happen somewhere a test can hand it a hostile URL, and a reducer whose input is already
+ *  reduced pins nothing. */
+export type BugReportLocationRead = Pick<Location, "origin" | "pathname" | "search" | "hash">;
+
+/**
+ * Reduce a live `Location` to the route facts a report may carry: ORIGIN + PATH, never the query string or
+ * the fragment.
+ *
+ * SECURITY (#1535, the #1473 class): a bug-report artifact is a durable file an owner attaches to an issue or
+ * hands to an agent, and the only scrub the server applies to it is BY VALUE over env-derived secret literals
+ * (`foundation/observability/debug/bug-report.ts::secretLiterals`) — which cannot see a credential that rode
+ * in on a URL. A report taken on an OAuth callback (`?code=…&state=…`), an invite-accept route, or any
+ * future token-in-query link would have written that credential into the artifact verbatim, and the capture
+ * shipped `href` (the WHOLE url) as well as `search` and `hash`. #1473 already made this exact reduction for
+ * the client-error TELEMETRY line (`foundation/observability/client-error.ts::pathOnly`); the artifact is the
+ * same class and was missed.
+ *
+ * WHICH ROUTE threw is the diagnostic value; what a route puts in its query is not — and here even less than
+ * in the telemetry case, because {@link BugReportRoute} deliberately answers "where is the owner" from the
+ * SHELL rather than the URL (see above). The reduction costs this bundle nothing it was using.
+ *
+ * The dropped fields are gone from the TYPE, not merely unset here: there is no longer a field on
+ * `BugReportRoute` for a query to ride in, so a future caller cannot reintroduce one without saying so.
+ */
+export function bugReportRouteFrom(args: {
+  readonly location: BugReportLocationRead;
+  readonly section: string | null;
+  readonly shell: unknown;
+}): BugReportRoute {
+  return { origin: args.location.origin, pathname: args.location.pathname, section: args.section, shell: args.shell };
 }
 
 /** The browser facts a rendered defect is usually a function of. */
