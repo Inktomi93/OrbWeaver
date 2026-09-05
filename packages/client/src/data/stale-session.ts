@@ -253,6 +253,13 @@ export function bindSessionRecovery(next: SessionRecoveryHost | null): void {
   unsubscribeSiblings?.();
   unsubscribeSiblings = null;
   if (next === null) {
+    // THE LADDER MUST ALWAYS TERMINATE. `promptReauth` hands its resolver to the modal and then AWAITS it
+    // while holding the recovery lock, so an unbind with a prompt still outstanding — the shell unmounting
+    // out from under an open re-auth modal — used to leave `runLadder` suspended forever: `recovering` never
+    // released, and every later 401 in that tab was swallowed by the single-flight latch for the life of the
+    // page. Unbinding the host IS the modal going away, so its verdict is `dismissed` — the same outcome
+    // `promptReauth` already returns when there is no host to prompt with, and it falls through to rung 2.
+    completeReauth("dismissed");
     return;
   }
   unsubscribeSiblings = onSessionMessage((message) => {

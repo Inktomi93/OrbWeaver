@@ -46,6 +46,12 @@ type Status =
   | { readonly kind: "saved"; readonly id: string; readonly path: string }
   | { readonly kind: "failed"; readonly reason: string };
 
+/** The failed arm for a thrown value, from either half of the capture (the synchronous assembly or the POST).
+ *  A non-Error throw still names itself rather than reading as "undefined" in the status line. */
+function failedStatus(error: unknown): Status {
+  return { kind: "failed", reason: error instanceof Error ? error.message : String(error) };
+}
+
 /** The dev top-rail bug-report affordance. Exported for its chrome entry AND for its CT, which mounts it
  *  directly (a CT's production build cannot reach the dev-gated entry — see the header). */
 export function BugReportButton(): ReactElement {
@@ -63,20 +69,29 @@ export function BugReportButton(): ReactElement {
       return;
     }
     setStatus({ kind: "saving" });
-    const bundle = captureBugReportBundle({
-      note: trimmed,
-      windowMinutes: WHEN_OPTIONS.find((option) => option.value === when)?.minutes ?? null,
-    });
-    void submitBugReport(bundle)
-      .then((result) => {
-        setStatus(result.ok ? { kind: "saved", id: result.id, path: result.json } : { kind: "failed", reason: result.reason });
-        if (result.ok) {
-          setNote("");
-        }
-      })
-      .catch((error: unknown) => {
-        setStatus({ kind: "failed", reason: error instanceof Error ? error.message : String(error) });
+    // THE ASSEMBLY IS INSIDE THE TRY, not just the POST. `captureBugReportBundle` reads the location, the
+    // environment and every `__orb` census handle with no catch of its own, so a census provider that throws
+    // is a SYNCHRONOUS throw out of this handler — which left the button disabled at "Capturing…" until the
+    // page was reloaded. A bug-report button that silently wedges is the one state it must never enter, so
+    // both halves report through the same failed arm.
+    try {
+      const bundle = captureBugReportBundle({
+        note: trimmed,
+        windowMinutes: WHEN_OPTIONS.find((option) => option.value === when)?.minutes ?? null,
       });
+      void submitBugReport(bundle)
+        .then((result) => {
+          setStatus(result.ok ? { kind: "saved", id: result.id, path: result.json } : { kind: "failed", reason: result.reason });
+          if (result.ok) {
+            setNote("");
+          }
+        })
+        .catch((error: unknown) => {
+          setStatus(failedStatus(error));
+        });
+    } catch (error: unknown) {
+      setStatus(failedStatus(error));
+    }
   };
 
   return (

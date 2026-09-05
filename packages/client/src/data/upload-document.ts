@@ -4,12 +4,17 @@
 // `file`+`name` FormData body, the CSRF header every mutation carries, and a validated response. The
 // server's `UploadResult` is domain-internal (not a wire schema), so the load-bearing half — the returned
 // `DocumentView` — is validated here at the boundary against the exported `documentViewSchema` (the
-// `storedAssetSchema` posture); the two tiny server-controlled enums (`outcome`/`ingest`) ride as typed
-// pass-through (the `import-tree.ts` client-data response-type precedent).
+// `storedAssetSchema` posture).
 //
-// PORTED VERBATIM from `legacy-main:packages/client/src/data/upload-document.ts` (databank-surface-spec §4 —
-// "it is already correct"). The one named edit is at the CALLER, not here: the client-side size pre-check
-// derives from `useUploadCaps().databankUpload`, never legacy's hardcoded 20 MiB literal (§2.2).
+// SO ARE THE DISPOSITIONS (#1488). They used to ride as a typed PASS-THROUGH — a `as { outcome: … }`
+// assertion read straight off the parsed JSON, which is a claim about the body rather than a check of it. A
+// 2xx says the upload succeeded, not that the body is the shape it promised, so a version skew or a proxy's
+// own JSON could drive the caller's created-vs-duplicate UI off a value nothing validated. All three closed
+// vocabularies are now checked against the tuples they are typed from.
+//
+// PORTED from `legacy-main:packages/client/src/data/upload-document.ts` (databank-surface-spec §4). The one
+// named edit is at the CALLER: the client-side size pre-check derives from `useUploadCaps().databankUpload`,
+// never legacy's hardcoded 20 MiB literal (§2.2).
 
 import type { DocumentView } from "@orb/contracts/databank";
 import { documentViewSchema } from "@orb/contracts/databank";
@@ -20,17 +25,38 @@ const UPLOAD_URL = "/api/databank/upload";
 const UPLOAD_FIELD = "file";
 const NAME_FIELD = "name";
 
+/** The route's three closed vocabularies, spelled ONCE each: the tuple is what the response is CHECKED
+ *  against and the interface below derives its member type from the same tuple, so the check and the type
+ *  can never drift apart. */
+const OUTCOMES = ["created", "duplicate"] as const;
+const INGESTS = ["queued", "skipped"] as const;
+const WARNINGS = ["empty-extraction"] as const;
+
 /** The databank upload route's response — the producer verb's `UploadResult` shape: a created/duplicate
  *  `DocumentView` plus its ingest disposition (`queued` on a fresh upload, `skipped` on a dedup hit). */
 export interface UploadDocumentResult {
   readonly document: DocumentView;
-  readonly outcome: "created" | "duplicate";
-  readonly ingest: "queued" | "skipped";
-  readonly warning?: "empty-extraction";
+  readonly outcome: (typeof OUTCOMES)[number];
+  readonly ingest: (typeof INGESTS)[number];
+  readonly warning?: (typeof WARNINGS)[number];
+}
+
+/** The one member of `allowed` that `value` IS, or a throw naming the field. A 2xx is the server saying the
+ *  upload SUCCEEDED, which says nothing about the body being the shape it promised — a version skew or a
+ *  proxy's own JSON reaches here with a valid status, and an unchecked disposition then drives the caller's
+ *  created-vs-duplicate UI off a value nothing validated. The `document` half has always been parsed; these
+ *  three were read straight off the type assertion, which is a claim, not a check. */
+function memberOf<T extends string>(field: string, value: unknown, allowed: readonly T[]): T {
+  const member = allowed.find((candidate) => candidate === value);
+  if (member === undefined) {
+    throw new Error(`uploadDocument: response field "${field}" was not one of ${allowed.join(" | ")}`);
+  }
+  return member;
 }
 
 /** POST a picked `File` to the databank upload route; validate the returned `document` against
- *  {@link documentViewSchema} (never bare-cast). Throws on a non-OK response or a malformed document — the
+ *  {@link documentViewSchema} and its dispositions against their own vocabularies (never bare-cast). Throws
+ *  on a non-OK response, a malformed document, or an unknown disposition — the
  *  caller (an upload component/mutation) owns the try/catch + loading-state UI (the `FileDropzone`
  *  `loading`/`success` contract, `@orb/ui`). `name` defaults to the file's own name server-side when omitted. */
 export async function uploadDocument(file: File, name?: string): Promise<UploadDocumentResult> {
@@ -47,16 +73,11 @@ export async function uploadDocument(file: File, name?: string): Promise<UploadD
   if (!response.ok) {
     await throwHttpError("uploadDocument", response);
   }
-  const raw = (await response.json()) as {
-    document: unknown;
-    outcome: UploadDocumentResult["outcome"];
-    ingest: UploadDocumentResult["ingest"];
-    warning?: UploadDocumentResult["warning"];
-  };
+  const raw = (await response.json()) as { document: unknown; outcome: unknown; ingest: unknown; warning?: unknown };
   return {
     document: documentViewSchema.parse(raw.document),
-    outcome: raw.outcome,
-    ingest: raw.ingest,
-    ...(raw.warning === undefined ? {} : { warning: raw.warning }),
+    outcome: memberOf("outcome", raw.outcome, OUTCOMES),
+    ingest: memberOf("ingest", raw.ingest, INGESTS),
+    ...(raw.warning === undefined ? {} : { warning: memberOf("warning", raw.warning, WARNINGS) }),
   };
 }

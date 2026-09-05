@@ -1,8 +1,9 @@
 // data/upload-document — the databank multipart upload POST. Pins the request shape (POST
 // `/api/databank/upload`, a `file` (+ optional `name`) FormData body, the CSRF header every mutation
 // carries), that the load-bearing half of the response is VALIDATED against `documentViewSchema` rather
-// than cast, and that the two server-controlled dispositions (`outcome`/`ingest`/`warning`) survive to the
-// caller — the dedup + empty-extraction signals legacy swallowed. `fetch` is stubbed at the global boundary
+// than cast, and that the server-controlled dispositions (`outcome`/`ingest`/`warning`) both survive to the
+// caller — the dedup + empty-extraction signals legacy swallowed — and are CHECKED against their own closed
+// vocabularies rather than asserted (#1488). `fetch` is stubbed at the global boundary
 // (the sanctioned "fake at the edges" seam, the `upload-asset` precedent), never a hand-mock of the helper.
 
 import { uploadDocument } from "@orb/client/data/pure";
@@ -93,6 +94,24 @@ test("a MALFORMED document is a throw, not a silent cast — the boundary valida
   );
 
   await expect(uploadDocument(new File(["bytes"], "notes.md", { type: "text/markdown" }))).rejects.toThrow();
+});
+
+// A 2xx says the UPLOAD succeeded; it says nothing about the body being the shape the route promised. These
+// three fields used to ride a type ASSERTION straight off the parsed JSON, so a version skew or a proxy's own
+// JSON would have driven the caller's created-vs-duplicate UI off a value nothing checked. The `document` half
+// was always parsed — this is the other half of the same boundary.
+test("an UNKNOWN disposition on a 200 is a throw, and the message names the field", async () => {
+  const file = new File(["bytes"], "notes.md", { type: "text/markdown" });
+
+  vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ document: documentView(), outcome: "perhaps", ingest: "queued" })));
+  await expect(uploadDocument(file)).rejects.toThrow(/response field "outcome"/u);
+
+  vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ document: documentView(), outcome: "created", ingest: 7 })));
+  await expect(uploadDocument(file)).rejects.toThrow(/response field "ingest"/u);
+
+  // An ABSENT warning stays absent (the optional's own arm) — only a PRESENT unknown one is a refusal.
+  vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ document: documentView(), outcome: "created", ingest: "queued", warning: "on-fire" })));
+  await expect(uploadDocument(file)).rejects.toThrow(/response field "warning"/u);
 });
 
 test("throws on a non-OK response", async () => {

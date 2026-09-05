@@ -108,6 +108,24 @@ test("an ATTACHED tag is never suggested (its only outcome would be a no-op writ
   await expect(page.getByRole("option", { name: "fantasy" })).toHaveCount(0);
 });
 
+// The other half of "never suggested": the create-vs-attach QUESTION must not inherit the suggestion
+// filter. Deriving the exact match from the FILTERED candidates made an already-attached tag look UNKNOWN,
+// so typing its own name read `Create "fantasy"` — this dialog offering the duplicate spelling it exists to
+// prevent, over a tag the target already has.
+test("typing an ALREADY-ATTACHED tag's name says so — it never offers to create the duplicate", async ({ mount, page }) => {
+  await stub(page, LIBRARY);
+  const dialog = await mount(<TagPickerDialogHarness attachedNames={["fantasy"]} />);
+  await expect(page.getByText("Start typing to search your 1 tag.")).toBeVisible();
+
+  await page.getByRole("combobox", { name: "Tag name" }).fill("FANTASY");
+  await expect(page.getByText('"fantasy" is already attached.')).toBeVisible();
+  await expect(page.getByRole("button", { name: 'Create "FANTASY"' })).toHaveCount(0);
+  // Nothing left to confirm, by BOTH paths — the button is refused and Enter submits nothing.
+  await expect(page.getByRole("button", { name: "Apply", exact: true })).toBeDisabled();
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByTestId("submitted")).toHaveText("");
+});
+
 test("a case-only difference ATTACHES the existing tag, and submits the library's spelling", async ({ mount, page }) => {
   await stub(page, LIBRARY);
   const dialog = await mount(<TagPickerDialogHarness />);

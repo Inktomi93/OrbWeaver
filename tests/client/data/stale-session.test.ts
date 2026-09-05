@@ -260,6 +260,19 @@ describe("rung 1 — re-auth in place", () => {
     await vi.waitFor(() => expect(rec.assign).toHaveBeenCalledWith("/login"));
   });
 
+  // THE LADDER MUST ALWAYS TERMINATE (#1489). `promptReauth` awaits the modal's verdict while holding the
+  // recovery lock, so if the shell unmounts under an open prompt there is nobody left to call
+  // `completeReauth` — `runLadder` stayed suspended, `recovering` never released, and every later 401 in
+  // that tab was swallowed by the single-flight latch for the life of the page. Unbinding the host IS the
+  // modal going away, so it settles the outstanding prompt as `dismissed` and rung 2 finishes the job.
+  test("unbinding the host mid-prompt settles the ladder instead of wedging it forever", async () => {
+    const { ladder, rec } = await ladderFor({ me: [{ authenticated: false, handle: null }], mode: "local" });
+    ladder.recoverIfStaleSession(UNAUTHORIZED);
+    await vi.waitFor(() => expect(rec.prompts()).toBe(1));
+    ladder.bindSessionRecovery(null);
+    await vi.waitFor(() => expect(rec.assign).toHaveBeenCalledWith("/login"));
+  });
+
   test("oidc mode bounces to the IdP start route (F3), never to a modal", async () => {
     const { ladder, rec } = await ladderFor({ me: [{ authenticated: false, handle: null }], mode: "oidc" });
     ladder.recoverIfStaleSession(UNAUTHORIZED);

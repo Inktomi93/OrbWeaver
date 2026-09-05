@@ -12,9 +12,6 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, describe, vi } from "vitest";
-// Direct source import (not the barrel): `rememberBounded` is the module-internal cache primitive, exported
-// `@public` for this pin only — the mint memo's bounding is invisible through the hook.
-import { rememberBounded } from "../../../packages/client/src/data/use-card-frame.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 // A client-asserted policy field must not be spellable in the mint body — the server owns the verdict.
@@ -55,35 +52,9 @@ describe("cardFrameMintBody", () => {
   });
 });
 
-// #711 D3: the per-tab mint memo is keyed on the full serialized card body and NEVER evicted — a long
-// session with many theme flips / distinct cards grows it without bound. `rememberBounded` caps it with LRU
-// eviction. The bounding is invisible through the hook, so it is pinned on the primitive directly.
-describe("rememberBounded — the mint memo cannot grow without bound", () => {
-  test("evicts the oldest entries once the cap is reached, so size never exceeds the cap", () => {
-    const map = new Map<string, number>();
-    const cap = 3;
-    for (let i = 0; i < 6; i += 1) {
-      rememberBounded(map, `k${i}`, i, cap);
-    }
-    expect(map.size).toBe(cap);
-    // The three oldest keys evicted in insertion (LRU) order; only the newest `cap` survive.
-    expect([...map.keys()]).toEqual(["k3", "k4", "k5"]);
-    expect(map.has("k0")).toBe(false);
-  });
-
-  test("a repeated key is an LRU touch — it moves to the tail and survives the next eviction", () => {
-    const map = new Map<string, number>();
-    const cap = 3;
-    rememberBounded(map, "a", 1, cap);
-    rememberBounded(map, "b", 2, cap);
-    rememberBounded(map, "c", 3, cap);
-    rememberBounded(map, "a", 10, cap); // re-serve "a": touch to tail (order → b, c, a) AND refresh its value
-    rememberBounded(map, "d", 4, cap); // at cap: evict the OLDEST ("b"), not the just-touched "a"
-    expect([...map.keys()]).toEqual(["c", "a", "d"]);
-    expect(map.get("a")).toBe(10);
-    expect(map.has("b")).toBe(false);
-  });
-});
+// The mint MEMO's own two properties — the LRU bound (#711 D3) and the failed-mint eviction (#1486) — moved
+// to the primitives they are built from: `bounded-memo.test.ts` for the helpers, `use-card-frame.ct.tsx` for
+// the behaviour a user can see (a failed mint that re-mints instead of being served forever).
 
 describe("mintCardFrame — degrade, never block", () => {
   test("a granted mint returns the routed URL", async () => {

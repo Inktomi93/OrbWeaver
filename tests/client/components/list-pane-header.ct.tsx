@@ -51,6 +51,14 @@ test("the count is mono at the LABEL step; a ZERO count renders nothing at all",
 
   await component.update(<ListPaneHeader count={0} title="Chats" />);
   await expect(page.getByText("0", { exact: true })).toHaveCount(0);
+
+  // `count` is `number | string`, and a caller that formats its own datum hands over the SAME fact as a
+  // string — which a numeric-only suppression rendered as a lone "0" beside the name. A composed census
+  // still paints: `"0 of 896"` is a sentence about a filter, not the empty datum this arm hides.
+  await component.update(<ListPaneHeader count="0" title="Chats" />);
+  await expect(page.getByText("0", { exact: true })).toHaveCount(0);
+  await component.update(<ListPaneHeader count="0 of 896" title="Chats" />);
+  await expect(page.getByText("0 of 896", { exact: true })).toBeVisible();
 });
 
 // #525 (side-eye 2026-08-22 rail-chats). A FILTERED census is a phrase, not a number — and it inherited the

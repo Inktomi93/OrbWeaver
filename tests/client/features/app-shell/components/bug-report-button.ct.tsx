@@ -239,6 +239,48 @@ test("a refused capture SAYS SO, and names WHICH ARM refused (#1193)", async ({ 
   await expect(status).toContainText("no x-debug-token header was sent");
 });
 
+test("a capture that throws while ASSEMBLING says so too — the button never wedges at 'Capturing…'", async ({ mount, page }) => {
+  // The assembly runs BEFORE the POST and reads the location, the environment and every `__orb` census with
+  // no catch of its own, so a census provider that throws is a SYNCHRONOUS throw out of the click handler.
+  // That used to escape past the submit's `.then`/`.catch` entirely: the status stayed `saving`, the button
+  // stayed disabled reading "Capturing…", and only a reload got it back. A bug-report button that silently
+  // wedges is the one state it must never enter — it is the affordance an owner reaches for when something
+  // else already broke.
+  let posts = 0;
+  await page.route(ROUTE, async (route) => {
+    posts += 1;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: "z", written: { json: "/repo/bug-reports/z.json" } }) });
+  });
+
+  await mount(<BugReportButton />);
+  // A bridge whose FIRST census read throws — the real shape of a broken debug handle, not a mocked capture.
+  await page.evaluate(() => {
+    Object.assign(globalThis, {
+      __orb: {
+        queries: () => [],
+        bus: () => ({ live: 0, events: [] }),
+        motion: () => {
+          throw new Error("the motion census exploded");
+        },
+        flags: () => [],
+        renders: () => [],
+        perf: () => [],
+        shell: () => ({ section: "Chats", panels: [], chatOpen: true, focus: false }),
+      },
+    });
+  });
+
+  await page.getByRole("button", { name: "Report a bug" }).click();
+  await page.getByRole("textbox", { name: "What happened?" }).fill("the capture itself is broken");
+  const submit = page.getByRole("button", { name: "Capture report" });
+  await submit.click();
+
+  await expect(page.locator('[data-slot="bug-report-status"]')).toHaveText("Capture failed: the motion census exploded");
+  // …and the control is USABLE again: the label is back and the button is not stuck disabled.
+  await expect(submit).toBeEnabled();
+  expect(posts, "the assembly threw, so nothing was ever POSTed").toBe(0);
+});
+
 test("a refusal with NO gate body says only the status — no invented cause", async ({ mount, page }) => {
   // A proxy 502 / an HTML error page has no `reason`. Naming an arm here would be a guess, and a guessed
   // cause on a diagnostics failure is how an owner spends an evening on the wrong thing.

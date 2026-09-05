@@ -32,6 +32,12 @@
 // said so FOREVER, with no error and no retry — then invited creating a tag the user already owns, which is
 // the exact duplicate rot this component exists to prevent. Five states, one total Record.
 //
+// AN ATTACHED TAG IS A MATCH, NOT AN UNKNOWN NAME (#1488). The suggestions drop what is already attached;
+// the create-vs-attach QUESTION must not, or typing the exact name of a tag the target already has reads
+// `Create "fantasy"` — this component offering the duplicate spelling it exists to prevent. So the exact
+// match is taken from the whole library and gets its own third arm: the confirm is refused (button AND
+// Enter) and the helper line says the name is already attached.
+//
 // CANONICAL NAME ON THE WIRE: when the typed text case-insensitively matches an existing tag, the EXISTING
 // tag's spelling is submitted, not the typed one — the server folds case on create, but sending "Fantasy"
 // for a library that says "fantasy" is how a display-name drifts from what the user picked.
@@ -102,7 +108,13 @@ export function TagPickerDialog({
   const known = state !== "loading" && state !== "error";
 
   const trimmed = name.trim();
-  const existing = candidates.find((tag) => tag.name.toLowerCase() === trimmed.toLowerCase());
+  // MATCHED AGAINST THE WHOLE LIBRARY, never the offered candidates. `candidates` has the attached names
+  // filtered OUT (they are no-op suggestions), so deriving the match from it made an already-attached tag
+  // look UNKNOWN: typing the exact name of a tag the target already has read `Create "fantasy"`, i.e. this
+  // dialog offering the duplicate spelling it exists to prevent. The filter belongs to the SUGGESTIONS; the
+  // question "does this name already name a tag" is the library's.
+  const existing = library.find((tag) => tag.name.toLowerCase() === trimmed.toLowerCase());
+  const alreadyAttached = existing !== undefined && attached.has(existing.name.toLowerCase());
   const creating = known && trimmed !== "" && existing === undefined;
   // WE filter (`mode="none"` — Base UI shows exactly what we hand it) so the match count driving the list
   // is the same number it renders. Letting Base UI filter would mean guessing its predicate.
@@ -122,7 +134,9 @@ export function TagPickerDialog({
   };
 
   const confirm = (): void => {
-    if (trimmed === "") {
+    // An already-attached name has nothing to confirm — the submit is disabled for it, and this is the
+    // keyboard path's half of the same refusal (Enter reaches here without touching the button).
+    if (trimmed === "" || alreadyAttached) {
       return;
     }
     onSubmit(existing?.name ?? trimmed);
@@ -140,7 +154,7 @@ export function TagPickerDialog({
         onOpenChange(next);
       }}
       open={open}
-      submit={{ label: creating ? `Create "${trimmed}"` : confirmLabel, onSubmit: confirm, disabled: trimmed === "" }}
+      submit={{ label: creating ? `Create "${trimmed}"` : confirmLabel, onSubmit: confirm, disabled: trimmed === "" || alreadyAttached }}
       title={title}
     >
       <Stack gap="field">
@@ -166,7 +180,7 @@ export function TagPickerDialog({
               attach) happens while the user is typing INTO the field it describes — a describedby alone is
               only read on focus, so the one moment it matters would be silent. */}
           <Text aria-live="polite" className="min-w-0 flex-1" id={helperId} voice="gloss">
-            {helperText(state, candidates.length, trimmed, existing?.name)}
+            {helperText(state, candidates.length, trimmed, existing === undefined ? undefined : { name: existing.name, attached: alreadyAttached })}
           </Text>
           {state === "error" ? (
             <Button intent="secondary" onClick={(): void => void libraryQuery.refetch()} size="sm" type="button">
@@ -213,15 +227,25 @@ const RESTING_COPY: Record<PickerState, string | null> = {
   ready: null,
 };
 
-/** The persistent line under the field — the library's state at rest, the confirm's sentence while typing. */
-function helperText(state: PickerState, candidateCount: number, trimmed: string, matched: string | undefined): string {
+/** The persistent line under the field — the library's state at rest, the confirm's sentence while typing.
+ *  THREE typed arms, not two: create, attach, and the tag that is ALREADY on this target, whose honest
+ *  sentence is that there is nothing left to do (its confirm is disabled, so the line is what explains it). */
+function helperText(
+  state: PickerState,
+  candidateCount: number,
+  trimmed: string,
+  match: { readonly name: string; readonly attached: boolean } | undefined,
+): string {
   if (trimmed !== "") {
     // Without the library there is no create-vs-attach FACT to state, so the sentence states the OUTCOME
     // both arms share (the server folds case on create, so this is true either way).
     if (state === "loading" || state === "error") {
       return `Applies the tag "${trimmed}".`;
     }
-    return matched === undefined ? `Creates a new tag "${trimmed}".` : `Attaches the existing tag "${matched}".`;
+    if (match === undefined) {
+      return `Creates a new tag "${trimmed}".`;
+    }
+    return match.attached ? `"${match.name}" is already attached.` : `Attaches the existing tag "${match.name}".`;
   }
   return RESTING_COPY[state] ?? `Start typing to search your ${candidateCount} tag${candidateCount === 1 ? "" : "s"}.`;
 }
