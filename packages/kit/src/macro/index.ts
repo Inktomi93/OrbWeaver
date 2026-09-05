@@ -66,6 +66,8 @@ export { MACRO_ARG_TYPES, MACRO_CATEGORIES, MACRO_FLAG_DEFS, MACRO_SOURCE_KINDS 
 // The #24 typed-input fold: preset/game-authored user macros as first-class registry entries + the typed
 // choice-block input vocabulary and its pure values-bag resolution (random-pick draws freeze-at-commit).
 export {
+  findOffVocabularyPicks,
+  type OffVocabularyPick,
   type RegisterUserMacrosOptions,
   type RejectedUserMacro,
   type ResolvedUserMacroInputs,

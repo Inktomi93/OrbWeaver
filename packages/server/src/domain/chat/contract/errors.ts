@@ -136,6 +136,14 @@ export const CHAT_OP_CODES = {
    *  speaker's). Almost always a benign race — the content or cast changed between the picker's parse and
    *  the write — and refusing beats silently retargeting the member's click at the whole message. */
   invalidSegment: "invalid_segment",
+  /** #1356 — a `setUserMacroValues` flush carried a `single-select`/`multi-select` pick that is not one of
+   *  the input's DECLARED options. The pick is spliced into the author's prompt template, so an
+   *  unconstrained value is arbitrary prose in someone else's prompt; the write is refused whole rather
+   *  than partially cleaned, and the message names the field and the declared vocabulary so the pane can
+   *  say WHICH knob went stale. The caller IS a member and `getUserMacroPicks` already hands them these
+   *  options, so a coded refusal leaks nothing. The resolve-side belt (kit `resolveStaticInput`) still
+   *  drops an already-STORED pick whose option was renamed away after the write. */
+  unknownMacroPick: "unknown_macro_pick",
 } as const;
 
 /** The reason-code union (derived from the one tuple of values — never re-spelled). */

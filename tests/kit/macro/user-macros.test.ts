@@ -6,7 +6,7 @@
 // byte-parity pin (same defs + values ⇒ identical bytes on independently composed registries).
 
 import type { MacroDiagnostic, MacroRegistry, ProcessMacroOptions, UserMacroDef, UserMacroInputDef, VarOp } from "@orb/kit/macro";
-import { createDefaultRegistry, processMacros, registerUserMacros, resolveUserMacroInputs, ZWSP } from "@orb/kit/macro";
+import { createDefaultRegistry, findOffVocabularyPicks, processMacros, registerUserMacros, resolveUserMacroInputs, ZWSP } from "@orb/kit/macro";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -269,6 +269,43 @@ describe("typed inputs — resolution matrix", () => {
     expect(resolveUserMacroInputs([multi], { themes: ["loss", "war"] }, { prng: seq() }).bindings).toEqual({ themes: "loss + war" });
     expect(resolveUserMacroInputs([multi], { themes: [] }, { prng: seq() }).bindings).toEqual({ themes: "" });
     expect(resolveUserMacroInputs([multi], {}, { prng: seq() }).bindings).toEqual({ themes: "war" });
+  });
+
+  // #1356 — the DECLARED-vocabulary belt: a pick outside the input's declared options never reaches the
+  // prompt. This is the RESOLVE-side belt (the second one); the wire refuses new off-vocabulary writes.
+  test("single-select: an off-vocabulary pick is UNPICKED — it falls to the default ladder, never verbatim", () => {
+    expect(resolveUserMacroInputs([single], { pov: "second" }, { prng: seq() }).bindings).toEqual({ pov: "third" });
+    // No default either ⇒ the first declared option, exactly as an absent pick resolves.
+    const noDefault = { ...single, defaultValue: "" };
+    expect(resolveUserMacroInputs([noDefault], { pov: "second" }, { prng: seq() }).bindings).toEqual({ pov: "first" });
+  });
+
+  test("multi-select: foreign picks are dropped and the declared siblings keep PICK order in the join", () => {
+    expect(resolveUserMacroInputs([multi], { themes: ["loss", "plague", "war"] }, { prng: seq() }).bindings).toEqual({ themes: "loss + war" });
+  });
+
+  test("multi-select: a WHOLLY foreign selection is unpicked (the default), distinct from an explicit [] none", () => {
+    expect(resolveUserMacroInputs([multi], { themes: ["plague", "famine"] }, { prng: seq() }).bindings).toEqual({ themes: "war" });
+    expect(resolveUserMacroInputs([multi], { themes: [] }, { prng: seq() }).bindings).toEqual({ themes: "" });
+  });
+
+  // The WRITE-side belt's pure half (#1356) — the server refuses a flush carrying any of these.
+  test("findOffVocabularyPicks names every foreign select pick with its declared options, and nothing else", () => {
+    const found = findOffVocabularyPicks([single, toggle, multi], { pov: "second", grim: true, themes: ["war", "plague"] });
+    expect(found).toEqual([
+      { input: "pov", value: "second", options: ["first", "third"] },
+      { input: "themes", value: "plague", options: ["war", "loss"] },
+    ]);
+  });
+
+  test("findOffVocabularyPicks is silent on unset, empty and undeclared entries — only a foreign VALUE is a finding", () => {
+    // Unset ("" / absent / []), a mistyped leaf, and a bag key no input declares are all benign: the pane
+    // flushes the whole bag, so an orphan left by a def edit must not read as an attack.
+    expect(findOffVocabularyPicks([single, multi], { pov: "", themes: [], retired: "gone" })).toEqual([]);
+    expect(findOffVocabularyPicks([single], {})).toEqual([]);
+    // A random-pick POOL is NOT vocabulary-bound at the wire — `poolOf` already normalises it at resolve.
+    const pool = input({ kind: "random-pick", name: "twist", options: [{ label: "A", value: "betrayal" }] });
+    expect(findOffVocabularyPicks([pool], { twist: ["nonsense"] })).toEqual([]);
   });
 
   test("static kinds never draw — the prng is untouched and draws stay empty", () => {
