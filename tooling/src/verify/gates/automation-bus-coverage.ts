@@ -1,81 +1,77 @@
-// Gate: automation-bus-coverage (ledger D50 twin; client-architecture-lockdown.md §13 law 4) — the
-// AutomationBusEvent emit-coverage ratchet, the fourth SPEC on the shared reconcile
-// (tooling/src/verify/lib/bus-coverage.ts). COMMENT POSTURE: comment-SAFE AST notify calls only.
-//
-// WHY IT EXISTS, measured not argued (event-bus coverage survey §2.3): the automation bus was built AFTER
-// the three ratchets and shipped WITHOUT a `*_EVENT_TYPES` belt, so `bus-definition-belts` never found it
-// and no coverage spec could. `rulesChanged` was therefore declared, room-filtered, and emitted NOWHERE —
-// D50's exact "declared, replay-guarded, never emitted" class, invisible to every gate on the tree. The
-// emit landed in bus wave 2 (the five rule-CRUD verbs through the injected `notify` sink); this ratchet is
-// what keeps it landed.
-//
-// SCOPE SUBTLETY, worth stating because it looks like a hole: the shared reconcile's `EMIT_SCOPE` is
-// `server/src/{domain,transport}` and deliberately EXCLUDES `entry/compose` (compose is wiring, not a
-// producer home). `quickReplySurfaced` has a plugin-side emit at `entry/compose/automation-plugin.ts:277`
-// that the corpus cannot see — the member stays covered by its RULE-side emit
-// (`domain/automation/engine/arm-executors.ts`), which is in scope. Widening EMIT_SCOPE to entry would
-// weaken every twin; documenting the asymmetry here is the correct trade.
+// AutomationBusEvent producer coverage: every declared member has a canonical executable server emitter.
+// The shared bus fact owns union/member/call identity and refuses incomplete derivations.
+import type { AutomationBusEvent } from "@orb/contracts/automation";
+import { busByUnion, recordReadyBusFact } from "../contract/bus-fact.ts";
+import { defineGate } from "../contract/policy.ts";
+import { createBusFactQuery } from "../lib/bus-fact.ts";
 
-import type { GateDescriptor } from "../contract/gate.ts";
-import type { BusCoverageSpec } from "../contract/readers.ts";
-import { reconcileBusCoverage } from "../lib/bus-coverage.ts";
+const UNION = { path: "packages/contracts/src/automation/index.ts", exportName: "AutomationBusEvent" } as const;
+const MESSAGE =
+  "AutomationBusEvent member has NO server emit site — a declared-never-emitted bus member is silently dead wire (D50; Core-Laws-and-Precedents.md §7 D50).";
 
-const MISSING_MESSAGE_PREFIX =
-  "AutomationBusEvent member has NO server emit site and no DEFERRED entry — a declared-never-emitted bus member is silently dead wire (D50 — see Core-Laws-and-Precedents.md §7 D50). This is the exact state `rulesChanged` shipped in. Wire the emit or add a cited DEFERRED entry: ";
-const STALE_MESSAGE_PREFIX =
-  "DEFERRED automation-bus member now HAS an emit site — delete its stale allowlist entry in tooling/src/verify/gates/automation-bus-coverage.ts: ";
-
-/** Declared-not-emitted members, each with its citation. EMPTY at mint — all five emit in `domain/automation`
- *  (`engine/dispatch.ts` ruleFired/ruleErrored/ruleAutoDisabled · `engine/arm-executors.ts`
- *  quickReplySurfaced · the five rule-CRUD verbs rulesChanged). A member re-added here while its emit lives
- *  is STALE-red; an emit LOST on a live member is MISSING-red. */
-const SPEC: BusCoverageSpec = {
-  contractsFile: /\/packages\/contracts\/src\/automation\/index\.ts$/u,
-  typesConst: "AUTOMATION_BUS_EVENT_TYPES",
-  keyShape: "object",
-  reportFile: "packages/contracts/src/automation/index.ts",
-  deferred: {},
-  missingPrefix: MISSING_MESSAGE_PREFIX,
-  stalePrefix: STALE_MESSAGE_PREFIX,
-};
-
-export const gate: GateDescriptor = {
-  name: "automation-bus-coverage",
-  docRow: "ledger D50 twin (Core-Laws-and-Precedents.md §7 D50) · client-architecture-lockdown.md §13 law 4",
-  status: "active",
-  scopeSafety: "whole-project",
-  message: MISSING_MESSAGE_PREFIX,
-  fix: "wire the emit through the injected `notify` sink in packages/server/src/domain/automation/, or add a cited DEFERRED entry in tooling/src/verify/gates/automation-bus-coverage.ts.",
-  run: (ctx) => {
-    for (const v of reconcileBusCoverage(ctx.project, SPEC)) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-    }
+export const gate = defineGate({
+  id: "automation-bus-coverage",
+  family: "bus-fact",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@authored"], ext: ["ts", "tsx"] },
+  analysis: "types",
+  execution: "entire-population",
+  message: MESSAGE,
+  fix: "wire the canonical automation notify operation for the member.",
+  create: (ctx) => {
+    const query = createBusFactQuery<AutomationBusEvent>(ctx);
+    return {
+      visitors: query.visitors,
+      evaluate: () => {
+        const fact = query.finish();
+        recordReadyBusFact(ctx, fact);
+        const bus = busByUnion(fact, UNION);
+        if (bus === undefined) {
+          throw new Error(`expected bus union is missing: ${UNION.path}#${UNION.exportName}`);
+        }
+        const emitted = new Set(bus.emitters.map(({ member }) => member.name));
+        for (const member of bus.declaredMembers) {
+          if (!emitted.has(member.name)) {
+            ctx.report.node(member.anchor.node, { message: `${MESSAGE} Member: ${member.name}` });
+          }
+        }
+      },
+    };
   },
   mustFlag: [
     {
+      mode: "types",
       files: {
-        "packages/contracts/src/automation/index.ts": "export const AUTOMATION_BUS_EVENT_TYPES = { rulesChanged: true } satisfies Record<never, true>;\n",
-        "packages/server/src/domain/automation/engine/dispatch.ts": 'export const q = "rulesChanged";\n',
+        "packages/contracts/src/automation/index.ts":
+          'export type AutomationBusEvent = { type: "rulesChanged" };\nexport const AUTOMATION_BUS_EVENT_TYPES = { rulesChanged: true } satisfies Record<AutomationBusEvent["type"], true>;\n',
+        "packages/server/src/domain/automation/engine/dispatch.ts": 'export const decoy = "rulesChanged";\n',
       },
-      expect: { messageIncludes: "NO server emit site" },
-      why: "`rulesChanged` named by an arbitrary literal but never carried by notify — the founding dead-wire class",
+      expect: { count: 1, messageIncludes: "rulesChanged" },
+      why: "an arbitrary matching literal is not the automation notify operation",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/automation/index.ts":
+          'export type AutomationBusEvent = { type: "quickReplySurfaced" };\nexport const AUTOMATION_BUS_EVENT_TYPES = { quickReplySurfaced: true } satisfies Record<AutomationBusEvent["type"], true>;\n',
+        "packages/server/src/entry/compose/automation-plugin.ts":
+          'import type { AutomationBusEvent } from "../../../../contracts/src/automation/index.ts";\nexport function publish(pluginNotify: (event: AutomationBusEvent) => void): void { pluginNotify({ type: "quickReplySurfaced" }); }\n',
+      },
+      expect: { count: 1 },
+      why: "a compose-only automation publisher is wiring, not a domain/transport producer",
     },
   ],
   mustPass: [
     {
+      mode: "types",
       files: {
-        "packages/contracts/src/automation/index.ts": "export const AUTOMATION_BUS_EVENT_TYPES = { rulesChanged: true } satisfies Record<never, true>;\n",
-        "packages/server/src/domain/automation/verbs/create-rule.ts": 'ctx.notify({ type: "rulesChanged" });\n',
+        "packages/contracts/src/automation/index.ts":
+          'export type AutomationBusEvent = { type: "rulesChanged" };\nexport const AUTOMATION_BUS_EVENT_TYPES = { rulesChanged: true } satisfies Record<AutomationBusEvent["type"], true>;\n',
+        "packages/server/src/domain/automation/verbs/create-rule.ts":
+          'import type { AutomationBusEvent } from "../../../../../contracts/src/automation/index.ts";\nexport function create(ctx: { notify: (event: AutomationBusEvent) => void }): void { ctx.notify({ type: "rulesChanged" }); }\n',
       },
-      why: "the member's discriminator is carried by the injected notify call — the post-wave-2 real shape",
-    },
-    {
-      files: {
-        "packages/contracts/src/automation/index.ts": "export const AUTOMATION_BUS_EVENT_TYPES = { quickReplySurfaced: true } satisfies Record<never, true>;\n",
-        "packages/server/src/entry/compose/automation-plugin.ts": 'pluginNotify({ type: "quickReplySurfaced" });\n',
-        "packages/server/src/domain/automation/engine/arm-executors.ts": 'deps.notify({ type: "quickReplySurfaced" });\n',
-      },
-      why: "DECLARED LIMIT pinned: the plugin-side emit under `entry/compose` is OUTSIDE the shared EMIT_SCOPE and contributes nothing — coverage here rests entirely on the domain-scope rule-side emit, exactly as the header states",
+      why: "the member is carried by the canonical injected automation notifier",
     },
   ],
-};
+});

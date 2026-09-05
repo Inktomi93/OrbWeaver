@@ -1,66 +1,66 @@
-// Gate: domain-events-coverage (ledger D50 twin; event-bus coverage survey §3.3) — the DomainEvent
-// emit-coverage ratchet, the fifth SPEC on the shared reconcile (tooling/src/verify/lib/bus-coverage.ts).
-// Minted 2026-08-14 with the G-B belt-existence arm, when `DOMAIN_EVENT_TYPES` gained its
-// `satisfies readonly DomainEvent["type"][]`.
-//
-// This bus is SERVER-INTERNAL: in-process, fire-and-forget, error-isolated, and it never leaves the
-// process (entry/compose/event-bus.ts). Its consumer belt is therefore a server-side exhaustive dispatch
-// (`assertNeverEvent` at entry/compose/search-discovery.ts), NOT a client total map — the declared
-// SERVER_INTERNAL reach lane in bus-definition-belts.ts. The producer side is what THIS gate holds: both
-// members emit today (`character.updated` from the character verbs, `asset.created` from assets/verbs/store),
-// so the ratchet's real job is the NEXT member — the union's own header plans `crew.*`/`rpg.*` grafts back
-// onto it. COMMENT POSTURE: comment-SAFE — AST emit calls + event objects only.
+// DomainEvent producer coverage: every declared member has a canonical executable server emitter.
+// The shared bus fact owns union/member/call identity and refuses incomplete derivations.
+import type { DomainEvent } from "@orb/contracts/events";
+import { busByUnion, recordReadyBusFact } from "../contract/bus-fact.ts";
+import { defineGate } from "../contract/policy.ts";
+import { createBusFactQuery } from "../lib/bus-fact.ts";
 
-import type { GateDescriptor } from "../contract/gate.ts";
-import type { BusCoverageSpec } from "../contract/readers.ts";
-import { reconcileBusCoverage } from "../lib/bus-coverage.ts";
+const UNION = { path: "packages/contracts/src/events/index.ts", exportName: "DomainEvent" } as const;
+const MESSAGE =
+  "DomainEvent member has NO server emit site — a declared-never-emitted bus member is silently dead wire (D50; Core-Laws-and-Precedents.md §7 D50).";
 
-const MISSING_MESSAGE_PREFIX =
-  "DomainEvent member has NO server emit site and no DEFERRED entry — a declared-never-emitted bus member is silently dead wire (D50 — see Core-Laws-and-Precedents.md §7 D50). Wire the `ctx.emit` in the owning domain or add a cited DEFERRED entry: ";
-const STALE_MESSAGE_PREFIX =
-  "DEFERRED domain-event member now HAS an emit site — delete its stale allowlist entry in tooling/src/verify/gates/domain-events-coverage.ts: ";
-
-/** Declared-not-emitted members, each with its citation. EMPTY at mint — `character.updated` emits from
- *  character create/update/duplicate/restore, `asset.created` from `assets/verbs/store.ts`. */
-const SPEC: BusCoverageSpec = {
-  contractsFile: /\/packages\/contracts\/src\/events\/index\.ts$/u,
-  typesConst: "DOMAIN_EVENT_TYPES",
-  keyShape: "array",
-  reportFile: "packages/contracts/src/events/index.ts",
-  deferred: {},
-  missingPrefix: MISSING_MESSAGE_PREFIX,
-  stalePrefix: STALE_MESSAGE_PREFIX,
-};
-
-export const gate: GateDescriptor = {
-  name: "domain-events-coverage",
-  docRow: "ledger D50 twin (Core-Laws-and-Precedents.md §7 D50) · client-architecture-lockdown.md §13 law 4",
-  status: "active",
-  scopeSafety: "whole-project",
-  message: MISSING_MESSAGE_PREFIX,
-  fix: "emit the member through the injected `EmitDomainEvent` op in its OWNING domain (never by reaching the bus directly — packages/contracts/src/events/index.ts states the injection model), or add a cited DEFERRED entry in tooling/src/verify/gates/domain-events-coverage.ts.",
-  run: (ctx) => {
-    for (const v of reconcileBusCoverage(ctx.project, SPEC)) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-    }
+export const gate = defineGate({
+  id: "domain-events-coverage",
+  family: "bus-fact",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@authored"], ext: ["ts", "tsx"] },
+  analysis: "types",
+  execution: "entire-population",
+  message: MESSAGE,
+  fix: "emit the member through the injected EmitDomainEvent operation in its owning domain.",
+  create: (ctx) => {
+    const query = createBusFactQuery<DomainEvent>(ctx);
+    return {
+      visitors: query.visitors,
+      evaluate: () => {
+        const fact = query.finish();
+        recordReadyBusFact(ctx, fact);
+        const bus = busByUnion(fact, UNION);
+        if (bus === undefined) {
+          throw new Error(`expected bus union is missing: ${UNION.path}#${UNION.exportName}`);
+        }
+        const emitted = new Set(bus.emitters.map(({ member }) => member.name));
+        for (const member of bus.declaredMembers) {
+          if (!emitted.has(member.name)) {
+            ctx.report.node(member.anchor.node, { message: `${MESSAGE} Member: ${member.name}` });
+          }
+        }
+      },
+    };
   },
   mustFlag: [
     {
+      mode: "types",
       files: {
-        "packages/contracts/src/events/index.ts": 'export const DOMAIN_EVENT_TYPES = ["crew.updated"] as const satisfies readonly never[];\n',
-        "packages/server/src/domain/character/verbs/update.ts": 'export const q = "crew.updated";\n',
+        "packages/contracts/src/events/index.ts":
+          'export type DomainEvent = { type: "crew.updated" };\nexport const DOMAIN_EVENT_TYPES = ["crew.updated"] as const satisfies readonly DomainEvent["type"][];\n',
+        "packages/server/src/domain/character/verbs/update.ts": 'export const decoy = "crew.updated";\n',
       },
-      expect: { messageIncludes: "NO server emit site" },
-      why: "the GRAFT member is named by an arbitrary literal but never carried by ctx.emit — still dead wire",
+      expect: { count: 1, messageIncludes: "crew.updated" },
+      why: "an arbitrary matching literal is not the injected domain-event operation",
     },
   ],
   mustPass: [
     {
+      mode: "types",
       files: {
-        "packages/contracts/src/events/index.ts": 'export const DOMAIN_EVENT_TYPES = ["asset.created"] as const satisfies readonly never[];\n',
-        "packages/server/src/domain/assets/verbs/store.ts": 'ctx.emit({ type: "asset.created" });\n',
+        "packages/contracts/src/events/index.ts":
+          'export type DomainEvent = { type: "asset.created" };\nexport const DOMAIN_EVENT_TYPES = ["asset.created"] as const satisfies readonly DomainEvent["type"][];\n',
+        "packages/server/src/domain/assets/verbs/store.ts":
+          'import type { DomainEvent } from "../../../../../contracts/src/events/index.ts";\nexport function store(ctx: { emit: (event: DomainEvent) => void }): void { ctx.emit({ type: "asset.created" }); }\n',
       },
-      why: "the live state — a DOTTED discriminator carried by ctx.emit is read as one exact value",
+      why: "the member is carried by the canonical injected domain-event operation",
     },
   ],
-};
+});
