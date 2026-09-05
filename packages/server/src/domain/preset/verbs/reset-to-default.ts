@@ -6,7 +6,7 @@ import { PresetNotFoundError } from "../contract/errors.ts";
 import type { ResetToDefaultParams } from "../contract/params.ts";
 import type { PresetService } from "../contract/service.ts";
 import type { PresetDetail } from "../contract/views.ts";
-import { readablePreset, updatePresetRow } from "../persistence/queries.ts";
+import { readablePreset, replacePresetConfig } from "../persistence/queries.ts";
 import { toPresetDetail } from "../substrate/views.ts";
 
 // verb: resetToDefault — replace an OWNED preset's config with DEFAULT_PROMPT_CONFIG (re-stamping the
@@ -27,7 +27,10 @@ export function createResetToDefault(ctx: PresetContext): Pick<PresetService, "r
       return toPresetDetail(current);
     }
     const now = ctx.now();
-    const row = await updatePresetRow(ctx.db, params.id, params.userId, {
+    // `replacePresetConfig`, not `updatePresetRow`: the new content is DEFAULT_PROMPT_CONFIG, which does
+    // not descend from the row's stored blob — so the #471 refusal does not apply, and resetting stays
+    // available as the in-place repair for a preset the current build cannot read (#1026).
+    const row = await replacePresetConfig(ctx.db, params.id, params.userId, {
       config: DEFAULT_PROMPT_CONFIG,
       schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
       updatedAt: now,

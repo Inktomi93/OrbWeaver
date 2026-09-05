@@ -1,12 +1,19 @@
 // All `presets`-table access (queries only). User-scoped: reads are the two-armed "owner's row OR the
 // system default"; owned writes scope on `ownerId = userId`. The system default's own lifecycle has its
 // dedicated key-on-sentinel queries. Timestamps arrive as params.
+//
+// THE CONFIG COLUMN HAS TWO WRITE SEAMS, split by PROVENANCE (#1026): `updatePresetRow` carries a patch
+// that DESCENDS FROM A READ of the row (the editor's whole-blob PUT) and is guarded by the #471 refusal;
+// `replacePresetConfig` carries content independent of the row (the schema default, an imported file) and
+// is deliberately unguarded. Each function states its own half.
 
 import type { PromptConfig } from "@orb/contracts/preset";
+import { promptConfigConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, isNull, notExists, or, sql } from "drizzle-orm";
+import { requireIntactStoredConfig } from "#kit/stored-config";
 import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
 
 type PresetRow = typeof presets.$inferSelect;
@@ -143,11 +150,62 @@ export async function findOwnedPresetByName(db: Db, userId: UserId, name: string
 }
 
 /** Patch an OWNED row (scoped on `ownerId = userId` — never matches the null-owner system default),
- *  RETURNING the updated row (undefined when nothing matched: missing or not the caller's). */
+ *  RETURNING the updated row (undefined when nothing matched: missing or not the caller's).
+ *
+ *  THE #471 WRITE BOUNDARY, one hop out (#1026). This is the seam a READ-DERIVED patch crosses: the preset
+ *  editor GETs a config through the lenient read seam (`substrate/views.ts::toPresetDetail` →
+ *  `parsePromptConfig`, which degrades an unreadable blob to `DEFAULT_PROMPT_CONFIG`) and PUTs the whole
+ *  blob back, so a stored blob this build cannot read would come back as the stand-in and overwrite the
+ *  real one. When the patch carries `config`, the row is re-read and the write REFUSES
+ *  (`stored_config_unreadable`) unless the stored blob is intact.
+ *
+ *  THE GUARD IS SCOPED TO THE CONFIG WRITE, deliberately: a name/kind-only patch cannot lose the blob, so
+ *  an unreadable row stays RENAMEABLE — the refusal costs the config write, not the whole row. And a write
+ *  whose content does NOT descend from the stored blob (the reset verb's schema default, an imported backup
+ *  file) is not this function's job at all: it goes through {@link replacePresetConfig}, because refusing
+ *  the user's own explicit replacement would close the only in-place repair a corrupt preset has while
+ *  buying no protection. `#kit/stored-config` carries the full reasoning + the tradeoff. */
 export async function updatePresetRow(db: Db, id: PresetId, userId: UserId, patch: PresetPatch): Promise<PresetRow | undefined> {
+  if (patch.config !== undefined) {
+    const stored = await db
+      .select({ config: presets.config, schemaVersion: presets.schemaVersion })
+      .from(presets)
+      .where(and(eq(presets.id, id), eq(presets.ownerId, userId)))
+      .limit(1);
+    const row = stored.at(0);
+    // An ABSENT row (missing, or not the caller's) has no blob to lose — the UPDATE below simply matches
+    // nothing and returns undefined, which is this function's existing not-found contract.
+    if (row !== undefined) {
+      requireIntactStoredConfig(promptConfigConfig.parseOutcome(row.config, row.schemaVersion), `presets.config for ${id}`);
+    }
+  }
   const updated = await db
     .update(presets)
     .set(patch)
+    .where(and(eq(presets.id, id), eq(presets.ownerId, userId)))
+    .returning();
+  return updated.at(0);
+}
+
+/** Replace an OWNED row's config with content that does NOT descend from the stored blob — the reset verb's
+ *  `DEFAULT_PROMPT_CONFIG` and the import verb's parsed backup file. Same owner scoping as
+ *  {@link updatePresetRow}; RETURNS the row (undefined when nothing matched).
+ *
+ *  SEPARATE FROM `updatePresetRow` ON PURPOSE (#1026, constitution §3 "one folder, two jobs = split"): the
+ *  #471 guard's premise is that the write DESCENDS FROM A READ of the row it replaces, and neither of these
+ *  callers reads it. Guarding them would refuse a reset/import over a corrupt preset — the user's own
+ *  explicit repair, and the affordance the guarded editor path tells them to reach for — while preventing
+ *  no silent loss. The exemption is recorded two-sidedly in `json-column-write-parity`'s GUARD_EXEMPT
+ *  table, so a future caller that starts merging onto the stored value turns the row RED. */
+export async function replacePresetConfig(
+  db: Db,
+  id: PresetId,
+  userId: UserId,
+  replacement: { config: PromptConfig; schemaVersion: number; updatedAt: number },
+): Promise<PresetRow | undefined> {
+  const updated = await db
+    .update(presets)
+    .set(replacement)
     .where(and(eq(presets.id, id), eq(presets.ownerId, userId)))
     .returning();
   return updated.at(0);

@@ -16,6 +16,7 @@ import {
   listOwned,
   listReadable,
   readablePreset,
+  replacePresetConfig,
   reseedSystemDefault,
   selectPackagedPreset,
   selectSystemDefault,
@@ -134,6 +135,106 @@ describe("updatePresetRow (owned-only)", () => {
     expect(
       await updatePresetRow(db, SYSTEM_DEFAULT_PRESET_ID, owner, {
         name: "X",
+        updatedAt: FROZEN_AT,
+      }),
+    ).toBeUndefined();
+  });
+});
+
+// The #471 write boundary, one hop out (#1026). The preset editor GETs a LENIENTLY parsed config
+// (`substrate/views.ts::toPresetDetail` → `parsePromptConfig`) and PUTs the whole blob back, so a stored
+// blob this build cannot read comes back as a stand-in and would overwrite the real one. `updatePresetRow`
+// is the seam every read-derived patch crosses; the two provenance-free replacements (reset, import) cross
+// `replacePresetConfig` instead and are deliberately NOT guarded.
+describe("updatePresetRow — refuses a config write over an unreadable stored blob (#1026)", () => {
+  /** A blob from a NEWER build: no lift exists for it, so this build would silently strip every field it
+   *  has never heard of (`versionFromFuture`). The row is FINE on the build that wrote it. */
+  const fromTheFuture = { config: DEFAULT_PROMPT_CONFIG, schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion + 900 };
+  /** A genuinely corrupt blob: the stored version is not a usable start version, and the blob itself fails
+   *  the current schema (`schemaRejected`). */
+  const corrupt = { config: { ...DEFAULT_PROMPT_CONFIG, schemaVersion: 0 }, schemaVersion: 0 };
+
+  test.each([
+    ["a blob from a newer build", fromTheFuture],
+    ["a corrupt blob", corrupt],
+  ])("REFUSES the whole-replace over %s and leaves the row untouched", async (_label, stored) => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const id = await seedPreset(db, { id: castId<PresetId>("preset_degraded"), ownerId: owner, ...stored });
+
+    await expect(
+      updatePresetRow(db, id, owner, {
+        config: DEFAULT_PROMPT_CONFIG,
+        schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+        updatedAt: FROZEN_AT + 1,
+      }),
+    ).rejects.toMatchObject({ code: "stored_config_unreadable" });
+
+    const after = await readablePreset(db, owner, id);
+    expect(after?.schemaVersion).toBe(stored.schemaVersion);
+    expect(after?.config).toEqual(stored.config);
+    expect(after?.updatedAt).toBe(FROZEN_AT);
+  });
+
+  test("a name-only patch still lands — an unreadable blob costs the CONFIG write, not the whole row", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const id = await seedPreset(db, { id: castId<PresetId>("preset_rename"), ownerId: owner, ...fromTheFuture });
+    const row = await updatePresetRow(db, id, owner, { name: "Renamed", updatedAt: FROZEN_AT + 1 });
+    expect(row?.name).toBe("Renamed");
+    expect(row?.schemaVersion).toBe(fromTheFuture.schemaVersion);
+  });
+
+  test("an INTACT stored blob writes normally", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const id = await seedPreset(db, { id: castId<PresetId>("preset_intact"), ownerId: owner });
+    const next = { ...DEFAULT_PROMPT_CONFIG, params: { temperature: 0.42 } };
+    const row = await updatePresetRow(db, id, owner, { config: next, schemaVersion: next.schemaVersion, updatedAt: FROZEN_AT + 1 });
+    expect(row?.config).toEqual(next);
+  });
+
+  test("an ABSENT row is not a refusal — there is no stored blob to protect", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    expect(
+      await updatePresetRow(db, castId<PresetId>("preset_missing"), owner, {
+        config: DEFAULT_PROMPT_CONFIG,
+        schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+        updatedAt: FROZEN_AT,
+      }),
+    ).toBeUndefined();
+  });
+});
+
+describe("replacePresetConfig — the UNGUARDED half of the split (#1026)", () => {
+  test("overwrites a blob this build cannot read — the explicit repair reset/import perform", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const id = await seedPreset(db, {
+      id: castId<PresetId>("preset_repair"),
+      ownerId: owner,
+      config: DEFAULT_PROMPT_CONFIG,
+      schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion + 900,
+    });
+    const row = await replacePresetConfig(db, id, owner, {
+      config: DEFAULT_PROMPT_CONFIG,
+      schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+      updatedAt: FROZEN_AT + 1,
+    });
+    expect(row?.schemaVersion).toBe(DEFAULT_PROMPT_CONFIG.schemaVersion);
+    expect(row?.updatedAt).toBe(FROZEN_AT + 1);
+  });
+
+  test("keeps the owner scoping — another owner's row is never replaced", async () => {
+    const db = await freshDb();
+    const a = await seedUser(db, "a");
+    const b = await seedUser(db, "b");
+    const bsPreset = await seedPreset(db, { id: castId<PresetId>("preset_b_repair"), ownerId: b });
+    expect(
+      await replacePresetConfig(db, bsPreset, a, {
+        config: DEFAULT_PROMPT_CONFIG,
+        schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
         updatedAt: FROZEN_AT,
       }),
     ).toBeUndefined();

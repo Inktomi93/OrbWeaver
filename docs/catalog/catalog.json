@@ -1164,7 +1164,7 @@
               },
               {
                 "kind": "code",
-                "target": "packages/server/src/domain/settings/substrate/stored-config.ts:26"
+                "target": "packages/server/src/kit/stored-config/index.ts:44"
               },
               {
                 "kind": "code",

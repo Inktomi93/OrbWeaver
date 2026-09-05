@@ -52,4 +52,23 @@ describe("resetToDefault", () => {
     const bsPreset = await seedPreset(db, { id: castId<PresetId>("preset_b"), ownerId: b });
     await expect(svc.resetToDefault({ userId: a, id: bsPreset })).rejects.toThrow(PresetNotFoundError);
   });
+
+  // #1026: reset is the IN-PLACE REPAIR for a preset this build cannot read, so it must stay open where the
+  // editor's read-derived save is refused. It writes DEFAULT_PROMPT_CONFIG, which descends from nothing.
+  test("still resets a preset whose stored blob this build cannot read", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createPresetService(h.ctx);
+    const owner = await seedUser(db);
+    const id = await seedPreset(db, {
+      id: castId<PresetId>("preset_degraded"),
+      ownerId: owner,
+      config: CUSTOM_CONFIG,
+      schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion + 900,
+    });
+
+    const detail = await svc.resetToDefault({ userId: owner, id });
+    expect(detail.schemaVersion).toBe(DEFAULT_PROMPT_CONFIG.schemaVersion);
+    expect(detail.config.sections.length).toBe(DEFAULT_PROMPT_CONFIG.sections.length);
+  });
 });

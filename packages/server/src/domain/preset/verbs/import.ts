@@ -7,7 +7,7 @@ import { parsePresetFile } from "@orb/contracts/preset";
 import { getLog } from "#foundation/observability";
 import type { PresetContext } from "../context.ts";
 import type { ImportPreset, PresetImportOutcome } from "../contract/portability.ts";
-import { findOwnedPresetByName, insertPreset, updatePresetRow } from "../persistence/queries.ts";
+import { findOwnedPresetByName, insertPreset, replacePresetConfig } from "../persistence/queries.ts";
 
 const PRESET_IMPORT = "preset.import";
 const PRESET_ENTITY = "preset";
@@ -39,7 +39,11 @@ export function createImport(ctx: PresetContext): ImportPreset {
     const existingId = await findOwnedPresetByName(ctx.db, ownerId, name);
 
     if (existingId !== null) {
-      await updatePresetRow(ctx.db, existingId, ownerId, {
+      // `replacePresetConfig`, not `updatePresetRow`: the new content is the uploaded FILE's config
+      // (strictly parsed by `parsePresetFile`) and never descends from the row it lands on — so the #471
+      // refusal does not apply, and re-importing a backup over a preset the current build cannot read is
+      // exactly the recovery the guard exists to leave open (#1026).
+      await replacePresetConfig(ctx.db, existingId, ownerId, {
         config,
         schemaVersion: config.schemaVersion,
         updatedAt: at,

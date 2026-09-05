@@ -28,8 +28,9 @@
 // ARM B — THE DOMINANCE ARM (#879, from the #471 settings-blob wipe). A JSON column whose `$type<T>` is a
 // type a `defineVersionedConfig(...)` OWNS carries a blob whose READ seam DEGRADES an unreadable value to
 // schema defaults; a whole-replace write built on that read persists the stand-in and destroys the real
-// blob silently and permanently. `domain/settings/substrate/stored-config.ts`'s
-// `requireIntactStoredConfig(...)` is the ONE refusal seam, and until this arm its totality over future
+// blob silently and permanently. `@orb/server/kit`'s `stored-config` module (it lived at
+// `domain/settings/substrate/stored-config.ts` until #1026 gave it a second domain caller) and its
+// `requireIntactStoredConfig(...)` are the ONE refusal seam, and until this arm its totality over future
 // writers rested on a header sentence (0 of 233 gate files referenced it). So: EVERY whole-replace writer
 // of a versioned-config column must be DOMINATED by that call inside its own function body — dominance,
 // not presence: the guard's own top-level statement must PRECEDE the write's top-level statement in the
@@ -83,14 +84,14 @@ const ALLOWLIST: ExemptionTable = {
  *  column may run UNDOMINATED by `requireIntactStoredConfig`. Two-sided: a row whose writer no longer
  *  violates (it grew the guard, or it left the tree) is RED. */
 const GUARD_EXEMPT: ExemptionTable = {
-  "packages/server/src/domain/preset/persistence/queries.ts#updatePresetRow": {
-    why: "the patch is the CALLER's image and this seam performs no read at all, so there is no degraded read for it to persist HERE — the #471 shape for presets lives one hop further out (the client GETs a leniently-parsed config and PUTs the whole blob back). Ends when issue #1026 rules that path: either the verb reads through `parseOutcome` and this row is deleted, or the guard lands in this function and the row is deleted",
+  "packages/server/src/domain/preset/persistence/queries.ts#replacePresetConfig": {
+    why: "ISSUE #1026's RULING, and now the whole class this table holds: a whole-replace whose CONTENT DOES NOT DESCEND FROM A READ of the row it lands on. #1026 split `presets.config`'s single writer in two by provenance — `updatePresetRow` carries the editor's read-derived image and GREW the guard (its degraded GET → whole-blob PUT was the real #471 hop, one hop out over the wire), while this function carries content the caller brought with it: the reset verb's DEFAULT_PROMPT_CONFIG and the import verb's strictly-parsed backup file. Guarding these would refuse the user's own explicit repair — the very affordance the guarded editor path tells them to reach for when a preset cannot be read — while preventing no silent loss. Ends if either caller starts merging onto the stored value, or if a third caller reaches this function with a read-derived image (then it owes the guard and this row must go)",
   },
   "packages/server/src/domain/preset/persistence/queries.ts#reseedSystemDefault": {
-    why: "the boot reseed of the system-default row writes a PACKAGED registry constant, never a value derived from a read of the stored blob — overwriting a corrupt system default with the packaged one is the repair, not the defect. Ends if the reseed ever starts merging onto the stored value (then it owes the guard), or with issue #1026's ruling",
+    why: "same #1026 class: the boot reseed of the system-default row writes a PACKAGED registry constant, never a value derived from a read of the stored blob — overwriting a corrupt system default with the packaged one is the repair, not the defect, and refusing it would wedge boot. Ends if the reseed ever starts merging onto the stored value (then it owes the guard)",
   },
   "packages/server/src/domain/preset/persistence/queries.ts#reseedPackagedPreset": {
-    why: "same boot reseed, one shape over: name/kind/config all come from the packaged template registry, not from a read of the row being replaced. Same two end conditions (a merge-onto-stored rewrite, or issue #1026)",
+    why: "same #1026 class, one shape over: name/kind/config all come from the packaged template registry, not from a read of the row being replaced. Same end condition (a merge-onto-stored rewrite)",
   },
 };
 
@@ -822,13 +823,14 @@ export const gate: GateDescriptor = {
           "export const promptConfigConfig = defineVersionedConfig<PromptConfig>({ schema: s, version: 1, lifts: {}, default: d });\n",
         "packages/db/src/schema/preset.ts":
           'export const presets = sqliteTable("presets", {\n  config: text("config", { mode: "json" }).$type<PromptConfig>().notNull(),\n});\n',
-        // Deliberately NOT the live `queries.ts#updatePresetRow` path: an example landing on a GUARD_EXEMPT
-        // key would be absolved by the table and prove nothing (it did, on the first draft of this row).
+        // Deliberately a SYNTHETIC path: an example landing on a real GUARD_EXEMPT key would be absolved by
+        // the table and prove nothing (it did, on the first draft of this row, against the
+        // `queries.ts#updatePresetRow` entry #1026 has since deleted).
         "packages/server/src/domain/preset/persistence/writes.ts":
           "export async function writePresetRow(db, id, patch) {\n  await db.update(presets).set(patch).where(eq(presets.id, id));\n}\n",
       },
       expect: { count: 1 },
-      why: "FAIL-CLOSED (#944 posture): a `.set(<identifier>)` on a versioned-config-owning table is OPAQUE — the gate cannot read which columns it assigns — so it is JUDGED, never skipped. A silent skip is the audited escape verbatim, and this is the live `updatePresetRow` shape",
+      why: "FAIL-CLOSED (#944 posture): a `.set(<identifier>)` on a versioned-config-owning table is OPAQUE — the gate cannot read which columns it assigns — so it is JUDGED, never skipped. A silent skip is the audited escape verbatim, and `.set(patch)` is the live `updatePresetRow` shape (which since #1026 satisfies the arm with a dominating guard rather than an exemption row)",
     },
     {
       files: {

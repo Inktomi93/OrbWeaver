@@ -5,6 +5,7 @@
 // here rather than a special-cased guard).
 
 import { DomainNotFoundError } from "@orb/kit/errors";
+import { STORED_CONFIG_UNREADABLE } from "#kit/stored-config";
 
 /** The `DomainOperationError.code` discriminators settings verbs throw. */
 export const SETTINGS_OP_CODES = {
@@ -17,8 +18,10 @@ export const SETTINGS_OP_CODES = {
   incoherentRoleModel: "incoherent_role_model",
   /** A settings write found the EXISTING stored blob unreadable and refused rather than overwrite it with
    *  the degraded default the read seam hands out (#471 — the silent whole-blob wipe class). The row is
-   *  left exactly as it was; the failure reason rides the message. */
-  storedConfigUnreadable: "stored_config_unreadable",
+   *  left exactly as it was; the failure reason rides the message. Thrown by `#kit/stored-config`, which
+   *  is the code's ONE home — this catalog entry references it so settings' reason codes stay enumerable
+   *  in one place without re-spelling the wire string. */
+  storedConfigUnreadable: STORED_CONFIG_UNREADABLE,
 } as const;
 
 /** A theme the caller may read/own does not exist (or is not theirs, or is a seed on a write verb). Maps to
