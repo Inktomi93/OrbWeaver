@@ -49,7 +49,7 @@ import { printHeadBanner, printList, printSummary, stageLine } from "../lib/run-
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");
 
 /** Resolve how a stage runs at this tier+scope: its concrete argv, or a mode sentinel. */
-function planStage(
+export function planStage(
   stage: StageDef,
   selection: Selection | undefined,
   tier?: Tier,
@@ -177,27 +177,36 @@ interface RunContext {
   readonly verbose: boolean;
 }
 
+/** THE RESULT A STAGE THAT DID NOT RUN PUBLISHES — one home, and EXPORTED so the notice has a producer
+ *  test (#1566). It was inline, which left the notice provable only through a hand-built `StageResult`:
+ *  a renderer pin that stayed green with the notice line deleted. This is the smallest honest seam — the
+ *  planner decides, this shapes the row, and both are now reachable from a test.
+ *
+ *  THE NOTICE IS THE CONDITION, in the stage's own words. `stageLine` says THAT the precondition
+ *  declined; this says WHICH one, so a reader can tell "my diff touched no instrument" from "the gate is
+ *  broken" without opening the registry — and because `notices` is a `StageResult` field, the same string
+ *  is in verify.json by construction. */
+export function nonRunningStageResult(stage: StageDef, plan: { readonly mode: StageMode; readonly runsAt: string | null }): StageResult {
+  return {
+    name: stage.name,
+    group: stage.group,
+    mode: plan.mode,
+    ok: true, // a deferred/skipped stage is not a failure — it just didn't run here
+    exitCode: EXIT.clean,
+    durationMs: 0,
+    logFile: null,
+    failureExcerpt: null,
+    runsAt: plan.runsAt,
+    notices:
+      plan.mode === "skipped" && plan.runsAt !== null && stage.tierPrecondition !== undefined ? [`tier precondition: ${stage.tierPrecondition.reason}`] : [],
+  };
+}
+
 async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selection | undefined, tier: Tier): Promise<StageResult> {
   const { root, slot, verbose } = ctx;
   const plan = planStage(stage, selection, tier, root);
   if (plan.mode === "deferred" || plan.mode === "skipped") {
-    return {
-      name: stage.name,
-      group: stage.group,
-      mode: plan.mode,
-      ok: true, // a deferred/skipped stage is not a failure — it just didn't run here
-      exitCode: EXIT.clean,
-      durationMs: 0,
-      logFile: null,
-      failureExcerpt: null,
-      runsAt: plan.runsAt,
-      // The CONDITION, in the stage's own words, on a channel the summary prints and verify.json keeps
-      // (#1566). The one-line `stageLine` says THAT the precondition declined; this says WHICH one, so a
-      // reader can tell "my diff touched no instrument" from "the gate is broken" without opening the
-      // registry.
-      notices:
-        plan.mode === "skipped" && plan.runsAt !== null && stage.tierPrecondition !== undefined ? [`tier precondition: ${stage.tierPrecondition.reason}`] : [],
-    };
+    return nonRunningStageResult(stage, plan);
   }
   const argv = plan.argv as readonly [string, ...string[]];
   const header = `\n=== ${stage.name} (${argv.join(" ")})${plan.mode === "scoped" ? " [scoped]" : ""} ===\n`;

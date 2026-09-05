@@ -226,14 +226,27 @@ async function openSlot(
   };
 }
 
+/** The ROW THAT MENTIONS AN ARM (#1566). Every other planted diagnostic is prose the attribution parser
+ *  ignores, which is exactly why this suite could not reach the dedup regression: with no arm-attributed
+ *  console draft in the fixture, the pre-fix `described` set had nothing to sweep in and the population
+ *  never moved. This one carries the client logger's fixed `%c<time> [tag]%c` grammar over `console-api`,
+ *  and `[css]` attributes to **dead-css** — an arm this run REFUSES and which no analyzer describes, so
+ *  the pre-fix dedup deletes its problem row and the post-fix one does not. `motion` would prove nothing:
+ *  it already has its own producer row and is deduped in BOTH versions. */
+const ARM_ATTRIBUTED_INDEX = 21;
+const ARM_ATTRIBUTED_TEXT = "%c10:54:43.115 [css]%c 3 dead token(s) on the settled surface color:#c60;font-weight:bold color:#888";
+
 function diagnostic(index: number): BrowserDiagnostic {
   const error = index >= 22;
+  const attributed = index === ARM_ATTRIBUTED_INDEX;
+  const plainSource = error ? "uncaught" : "console";
+  const plainText = error ? `planted-last-error-${String(index)}` : `planted-warning-${String(index)}`;
   return {
     origin: "orb-console-ring",
-    source: error ? "uncaught" : "console",
+    source: attributed ? "console-api" : plainSource,
     level: error ? "error" : "warning",
     category: error ? "exception" : "deprecation",
-    text: error ? `planted-last-error-${String(index)}` : `planted-warning-${String(index)}`,
+    text: attributed ? ARM_ATTRIBUTED_TEXT : plainText,
     timestamp: index,
     location: null,
     stack: null,
@@ -695,17 +708,37 @@ test("multi-arm diagnostics round-trip preserves severity/caps and keeps trace.z
   expect(index.verdict.arms.every((arm) => arm.source !== "" && arm.lifetime !== "")).toBe(true);
   expect(receiptLines.filter((line) => line.startsWith("FINDING    "))).toHaveLength(5);
   expect(receiptLines.filter((line) => line.startsWith("FINDING    ")).every((line) => line.startsWith("FINDING    error"))).toBe(true);
-  // THE POPULATION IS DERIVED, SO STATE HOW (#1566). 55 = 51 diagnostic/analyzer drafts + one PER-ARM row
-  // for each of the four refused arms that no producer described (`motion` and `interaction-perf` are
-  // deduped against their own analyzer problem rows, which is why the count rises by four and not six).
-  // It was 51 while a console line that merely MENTIONED an arm suppressed that arm's own row — the
-  // regression this suite could not see, because a bare count is not a claim about which rows exist.
-  const armRows = index.verdict.arms.filter((arm) => arm.state === "refused" || arm.state === "failed" || arm.state === "withheld");
-  const describedByProducer = new Set(["motion", "interaction-perf"]);
-  const expectedFindings = 51 + armRows.filter((arm) => !describedByProducer.has(arm.arm)).length;
+  // THE PRINTED DENOMINATOR IS THE INDEXED POPULATION — derived from the run's own index rather than
+  // written down, because a LITERAL here is only ever right until the fixture changes size. That is not a
+  // hypothetical: the previous literal (`51`) was stale and this suite was RED on main before #1566
+  // touched it, while the run itself printed `50 of 55`. The population was 55 both before and after the
+  // dedup fix, so no count could ever have fenced that regression; the assertion that CAN is the one
+  // below, which names the row by its arm.
+  const expectedFindings = index.findings.length;
   expect(receiptLines).toContain(
     `FINDINGS   omitted=${String(expectedFindings - 5)} of ${String(expectedFindings)}; full population in run.json and READ below`,
   );
+
+  // THE #1566 FENCE. `dead-css` is REFUSED here and no analyzer wrote a problem row for it, so it owns a
+  // per-arm row — unless a console line that merely MENTIONS it (the `[css]`-tagged draft this fixture
+  // now plants, `ARM_ATTRIBUTED_TEXT`) is allowed to count as "a producer already described this arm".
+  // Pre-fix that annotation deleted this row; the count did not move, which is exactly why a bare
+  // `omitted=N of M` could not see it.
+  const deadCssRow = index.findings.find((row) => row.severity === "error" && row.arms.includes("dead-css"));
+  expect(
+    deadCssRow?.what,
+    `no dead-css problem row in:\n${index.findings.map((row) => `${row.severity} ${row.arms.join(",")} ${row.what}`).join("\n")}`,
+  ).toContain("enabled arm emitted no typed fact");
+  // …and the annotation it must NOT be suppressed by is really in the population, so the fence above is
+  // asserting over the fixture we think it is.
+  expect(index.findings.some((row) => row.severity === "annotation" && row.arms.includes("dead-css"))).toBe(true);
+  // THE OTHER DIRECTION. `motion` IS described by its own analyzer problem row, so it gets exactly one
+  // error row — the producer's. Without this the suite would pass with the dedup disabled entirely (a
+  // derived denominator moves with the population, so no count can catch that), and a fence that only
+  // bites one way is half an instrument.
+  const motionRows = index.findings.filter((row) => row.severity === "error" && row.arms.includes("motion"));
+  expect(motionRows).toHaveLength(1);
+  expect(motionRows[0]?.what).toContain("motion-evidence");
   expect(receiptLines).toContain(`FORENSICS  open the raw chromium-trace at ${chromiumTracePath}`);
   expect(receiptLines).not.toContain(`VIEW       pnpm exec playwright show-trace ${chromiumTracePath}`);
 

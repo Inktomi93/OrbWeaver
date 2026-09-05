@@ -21,6 +21,7 @@ import {
   resolveSelection,
   stagesForTier,
 } from "../../../../tooling/src/verify/index.ts";
+import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify/ops/run.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** A parse result that IS a misuse error (what main() maps to exit 3). */
@@ -119,20 +120,33 @@ test("printSummary renders a notice in the TAIL block while the verdict stays PA
 });
 
 test("a tier-precondition SKIP carries its reason to the tail and to verify.json (#1566)", () => {
-  // The skip line says THAT the precondition declined; the notice says WHICH one. Both must reach the
-  // console — a reader deciding whether their push was really covered is looking at the tail, not at the
-  // registry — and `notices` is a StageResult field, so the same string is in verify.json by construction.
-  // The reason is READ OFF THE REGISTRY rather than restated, so a reworded precondition cannot leave this
-  // pin asserting a sentence the runner no longer prints.
-  const reason = stagesForTier("push").find((row) => row.name === "tests:tooling")?.tierPrecondition?.reason;
-  expect(reason, "tests:tooling has no push-tier precondition to render").toBeTypeOf("string");
-  const skipped: StageResult = {
-    ...failedStage("tests:tooling", 0),
-    ok: true,
-    mode: "skipped",
-    runsAt: "verify --full",
-    notices: [`tier precondition: ${String(reason)}`],
+  // THE PRODUCER, NOT A HAND-BUILT ROW. The first cut of this test wrote its own `StageResult` with the
+  // notice already in it, so deleting the line in `ops/run.ts` that ATTACHES the notice left it green —
+  // a renderer pin wearing a producer's clothes. It now drives the real pair: `planStage` decides (with a
+  // precondition that answers FALSE), and `nonRunningStageResult` shapes the row the runner returns.
+  const stageDef = stagesForTier("push").find((row) => row.name === "tests:tooling");
+  expect(stageDef?.tierPrecondition?.reason, "tests:tooling has no push-tier precondition to render").toBeTypeOf("string");
+  const reason = String(stageDef?.tierPrecondition?.reason);
+  // A repo-less directory would answer `null` (cannot tell ⇒ RUN); this test needs the FALSE arm, so the
+  // stage is copied with a precondition that says so. Everything else is the REAL registry row.
+  const declining: StageDef = {
+    ...(stageDef as StageDef),
+    tierPrecondition: { ...((stageDef as StageDef).tierPrecondition as NonNullable<StageDef["tierPrecondition"]>), satisfied: () => false },
   };
+  const plan = planStage(declining, undefined, "push", "/nonexistent");
+
+  // The planner's half: a declined precondition is a SKIP that names the tier which runs it anyway.
+  expect(plan.mode).toBe("skipped");
+  expect(plan.runsAt).toBe("verify --full");
+
+  // The producer's half: the notice is attached HERE, and `notices` is a StageResult field, so the same
+  // string is in verify.json by construction.
+  const skipped = nonRunningStageResult(declining, plan);
+  expect(skipped.notices).toEqual([`tier precondition: ${reason}`]);
+  expect(skipped.ok, "a skip is not a failure").toBe(true);
+  // …and a stage with NO precondition gets no notice, so the line above is conditional, not unconditional.
+  expect(nonRunningStageResult(stage("types:graph"), { mode: "deferred", runsAt: "verify --static" }).notices).toEqual([]);
+
   const report = { tier: "push", scope: "whole", ok: true, exitCode: 0, failed: 0, stages: [skipped] } as const;
   const out = captureStdout(() => {
     printSummary(report);
