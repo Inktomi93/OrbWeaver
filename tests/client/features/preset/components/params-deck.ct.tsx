@@ -782,6 +782,14 @@ test("P2 the deck holds a MEASURE at both ends of the width matrix — the track
   const cap = tokenPx(TOKENS["width.content-col"].value);
   const wide = await row.boundingBox();
   expect(Math.round(wide?.width ?? 0), "the knob row is capped at the measure token, not the pane").toBe(cap);
+  // …AND IT IS THE CAP, NEVER THE BREATHE STEP (#1682, refused). Seven other `--width-content-col`
+  // consumers take `@5xl:max-w-(--width-content-col-wide)` (#1664) and an rg count read this deck as the
+  // eighth oversight. Stated against the WIDE token by name so the next audit fails on the RULING rather
+  // than on a number that happens to be 720: an instrument whose only flexing cell is a control track
+  // holds the cap. Measured when #1682 was refused — planting the breathe here took this row to 896.
+  expect(Math.round(wide?.width ?? 0), "an INSTRUMENT does not breathe: the deck holds the cap inside the column that does").not.toBe(
+    tokenPx(TOKENS["width.content-col-wide"].value),
+  );
   const wideTrack = await deck.locator('[data-slot="slider-control"]').first().boundingBox();
   // The track is what was over-growing; everything else in the row is a fixed token box.
   expect(wideTrack?.width ?? 0).toBeLessThan(cap - tokenPx(TOKENS["width.label-col"].value) - tokenPx(TOKENS["width.number-inline"].value));
