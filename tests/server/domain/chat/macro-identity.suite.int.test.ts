@@ -11,14 +11,14 @@
 //     `resolveMessageRenderContext` (features/chat/lib/message-render-context — the `MessageRow` adapter)
 //     fed to the REAL `renderMessageForDisplay` (lib/message-render — the kit-atom display pass `MessageRow`
 //     runs). No hand-rolled reconstruction: the oracle exercises BOTH real adapters, so a drift in either
-//     (e.g. the context builder's anchor/cast derivation vs. what the atom expects) fails the paired assert.
+//     (e.g. the context builder's anchor/character-name derivation vs. what the atom expects) fails the paired assert.
 //     Both fns are pure (type-only / `@orb/kit`-only imports — no React), deep-imported here (the module,
 //     never the `lib/index.ts` barrel, which drags React). The builder's own units stay pinned in
 //     `tests/client/features/chat/lib/message-render-context.test.ts`.
 //
-// FOUR scenarios (D16 — solo is a cast-of-one group, never an `isGroup` flag): S1 solo 1H+1C · S2 group
+// FOUR scenarios (D16 — solo is a one-character group, never an `isGroup` flag): S1 solo 1H+1C · S2 group
 // 1H+NC · S3 group MH+NC · S4 group MH+1C. Rulings under proof: A (greeting/AI `{{user}}`/`{{persona}}` →
-// anchor), B (a human's `{{char}}` → the cast in multi / the one char in solo). The prompt-config `{{user}}`
+// anchor), B (a human's `{{char}}` → the character names in multi / the one char in solo). The prompt-config `{{user}}`
 // → triggerer wiring is proven at the compose-root seam (a separate test). `[server, client]` is asserted as
 // a PAIR against `[ideal, ideal]` — one `expect` proves the ideal AND server == client (the oracle).
 
@@ -62,7 +62,7 @@ async function seedScene(
   db: Db,
   spec: {
     readonly key: string;
-    /** Character display names, in roster (join) order — the cast. */
+    /** Character display names, in roster (join) order. */
     readonly characters: readonly string[];
     /** Humans: their persona key (→ display name `<key>-<key>`) + optional description; seated as active. */
     readonly humans: readonly { readonly personaKey: string; readonly description?: string }[];
@@ -111,18 +111,18 @@ async function seedScene(
   const anchorPersonaId = spec.anchor === null ? null : (personas[spec.anchor] ?? null);
   await db.update(chats).set({ anchorPersonaId }).where(eq(chats.id, chatId));
 
-  // The cast NAMES are the seeded characters' db names (`seedCharacter` sets name = the key = `<key>_<name>`)
+  // The character NAMES are the seeded characters' db names (`seedCharacter` sets name = the key = `<key>_<name>`)
   // — the SAME names the real producer + roster expose. Both homes' `{{char}}`/`{{group}}` join these.
-  const castNames = spec.characters.map((n) => `${spec.key}_${n}`);
+  const characterNames = spec.characters.map((n) => `${spec.key}_${n}`);
 
   // The CLIENT roster the real `resolveMessageRenderContext` reads — it consults ONLY `kind`/`displayName`
-  // per entry (to derive the solo `{{char}}` default + the cast join), keyed by CharacterId in join order.
-  // Roster (Map insertion) order == `castNames` order → the client cast join matches the server `ctx.cast`
+  // per entry (to derive the solo `{{char}}` default + the character-name join), keyed by CharacterId in join order.
+  // Roster (Map insertion) order == `characterNames` order → the client character-name join matches the server `ctx.characterNames`
   // join byte-for-byte.
   const participants = new Map<CharacterId, ParticipantView>();
   spec.characters.forEach((shortName, i) => {
     const id = chars[shortName];
-    const displayName = castNames[i];
+    const displayName = characterNames[i];
     if (id !== undefined && displayName !== undefined) {
       // FABRICATION-OK: the builder reads only kind/displayName; a full 20+-field ParticipantView would be noise.
       participants.set(id, { kind: "character", displayName } as unknown as ParticipantView);
@@ -138,23 +138,23 @@ async function seedScene(
         };
 
   // The SERVER minimal AssembleContext (FABRICATION-OK double — `renderHistoryMacros`/`charForSpeaker` read
-  // only these fields): the cast (roster order), the current speaker, and the anchor as `pinnedPersona`.
-  const primary = { name: castNames[0] ?? "Character" };
+  // only these fields): the character names (roster order), the current speaker, and the anchor as `pinnedPersona`.
+  const primary = { name: characterNames[0] ?? "Character" };
   // FABRICATION-OK: `renderHistoryMacros`/`charForSpeaker` read ONLY these fields; a full 30+-field AssembleContext would be noise.
   const serverCtx = {
     character: primary,
-    characters: castNames.map((name) => ({ name })),
+    characters: characterNames.map((name) => ({ name })),
     speaker: { kind: "single", character: primary },
     pinnedPersona: anchorPersona,
     activePersona: anchorPersona,
   } as unknown as AssembleContext;
 
   const resolve = async (row: Row): Promise<{ server: string; client: string }> => {
-    // The cast producer covers every participant id UNION the row's own stamps (a reattributed /
+    // The identity producer covers every participant id UNION the row's own stamps (a reattributed /
     // since-switched persona resolves to its OWN name even when no participant seats it).
-    const producerCast = await loadChatIdentityProducer(db, {
+    const producerIdentities = await loadChatIdentityProducer(db, {
       participants: [
-        ...castNames.map((n) => ({ characterId: chars[n] ?? null, activePersonaId: null })),
+        ...characterNames.map((n) => ({ characterId: chars[n] ?? null, activePersonaId: null })),
         ...Object.values(personas).map((activePersonaId) => ({
           characterId: null,
           activePersonaId,
@@ -162,7 +162,7 @@ async function seedScene(
       ],
       messages: [{ characterId: row.characterId, personaId: row.personaId }],
     });
-    const { characterNamesById, personaNamesById } = buildIdentityNameContext(producerCast);
+    const { characterNamesById, personaNamesById } = buildIdentityNameContext(producerIdentities);
     const stamps: RowMacroStamps = { characterId: row.characterId, personaId: row.personaId };
 
     // SERVER — mirror `toShapeCanon`: an assistant row passes the producer's card name as `speakerCharName`;
@@ -174,7 +174,7 @@ async function seedScene(
     });
 
     // CLIENT — the REAL DISPLAY pipeline: the room context the real `resolveMessageRenderContext` builds
-    // from this room's roster + producer + anchor id (deriving the solo `{{char}}` default, the full cast /
+    // from this room's roster + producer + anchor id (deriving the solo `{{char}}` default, the full character-name list /
     // ruling B, and the anchor as the null-stamp `{{user}}`/`{{persona}}` fallback / ruling A ITSELF —
     // looked up from `personaNamesById`, not hand-fed), fed to the real `renderMessageForDisplay` with the
     // row's OWN stamps as `MessageRow` passes them. No displayScripts / autoFixMarkdown ⇒ output is the pure
@@ -297,9 +297,9 @@ test("S1 solo: greeting {{user}} → the one human's persona (anchor == active b
   expect([out.server, out.client]).toStrictEqual(["Hello a2s1_mara", "Hello a2s1_mara"]);
 });
 
-// ═══ Axis 3 / ruling B — a HUMAN's `{{char}}` → the CAST (group in multi, the one char in solo) ═══════════
+// ═══ Axis 3 / ruling B — a HUMAN's `{{char}}` → the CHARACTER NAMES (group in multi, the one char in solo) ═══════════
 // THE FLIP: against the OLD code this diverged (server = the arbitrary current speaker; client = the
-// "Character" floor). Both now resolve to the room's cast.
+// "Character" floor). Both now resolve to the room's character names.
 
 test("S2 group 1xN: a user's {{char}} → the JOINED character names (== {{group}}), server == client", async () => {
   const db = await freshDb();
@@ -423,7 +423,7 @@ test("SAD deleted character → the CLIENT display floors {{char}} to 'Character
     anchor: "mara",
   });
   // A VOICED row stamped a since-deleted characterId (producer miss) — the atom floors to "Character", NOT
-  // the cast join (only a NULL characterId means "the cast"). The server's `charForSpeaker` fallback to the
+  // the character-name join (only a NULL characterId means "every character"). The server's `charForSpeaker` fallback to the
   // current live speaker is a separate pre-existing `{{char}}` concern outside these rulings; assert the atom
   // floor (the CLIENT/DISPLAY home).
   const out = await scene.resolve({

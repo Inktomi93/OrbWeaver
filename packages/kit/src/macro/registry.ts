@@ -473,7 +473,7 @@ const setGlobalVar: MacroHandler = (args, ctx) => {
   return "";
 };
 
-// Absent `characterNames` ⇒ the cast-of-one [char], so {{group}} == {{char}} for solo.
+// Absent `characterNames` ⇒ the one-character [char], so {{group}} == {{char}} for solo.
 function characterNamesOf(ctx: MacroContext): readonly string[] {
   return ctx.characterNames && ctx.characterNames.length > 0 ? ctx.characterNames : [ctx.char];
 }
