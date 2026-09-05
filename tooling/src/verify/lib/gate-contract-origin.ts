@@ -145,15 +145,44 @@ export function isTsMorphProjectConstructor(node: MorphNode): boolean {
   );
 }
 
+function visibleExportName(specifier: import("ts-morph").ExportSpecifier): string {
+  return specifier.getAliasNode()?.getText() ?? specifier.getName();
+}
+
+function reExportOriginCount(sourceFile: import("ts-morph").SourceFile, exportedName: string): number {
+  return sourceFile.getExportDeclarations().reduce((count, declaration) => {
+    if (declaration.hasNamedExports()) {
+      return count + declaration.getNamedExports().filter((specifier) => visibleExportName(specifier) === exportedName).length;
+    }
+    if (declaration.getNamespaceExport() !== undefined) {
+      return count;
+    }
+    const source = declaration.getModuleSpecifierSourceFile();
+    return count + (source?.getExportSymbols().some((symbol) => symbol.getName() === exportedName) === true ? 1 : 0);
+  }, 0);
+}
+
 /** True only when the callable resolves to the final policy contract's defineGate export. */
 export function isCanonicalDefineGate(node: MorphNode): boolean {
   const fact = resolveModuleMemberOrigin(node);
   if (fact.kind === "unresolved" || fact.value.exportedName !== "defineGate" || fact.value.memberPath.length > 0) {
     return false;
   }
-  return [...fact.trace.declarations, fact.value.declaration].some((declaration) =>
-    declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(FINAL_POLICY_MODULE),
+  const declarations = [...fact.trace.declarations, fact.value.declaration];
+  const canonicalDeclarations = new Set(
+    declarations
+      .filter((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(FINAL_POLICY_MODULE))
+      .map((declaration) => declaration.compilerNode),
   );
+  if (canonicalDeclarations.size !== 1) {
+    return false;
+  }
+  const reExportSources = new Set(
+    declarations
+      .filter((declaration) => Node.isExportSpecifier(declaration) || Node.isExportDeclaration(declaration))
+      .map((declaration) => declaration.getSourceFile()),
+  );
+  return [...reExportSources].every((sourceFile) => reExportOriginCount(sourceFile, "defineGate") === 1);
 }
 
 function isTopLevel(declaration: VariableDeclaration): boolean {
