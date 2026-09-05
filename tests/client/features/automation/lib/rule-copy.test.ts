@@ -14,14 +14,18 @@ import {
   fireDetailLine,
   hasSpendArm,
   lastRunLine,
-  RULE_UNREADABLE_BADGE,
   ruleGloss,
-  ruleUnreadableEnableRefusal,
-  ruleUnreadableLine,
-  ruleUnreadableRunRefusal,
   runOutcomeNotice,
   triggerLabel,
 } from "../../../../../packages/client/src/features/automation/lib/rule-copy.ts";
+// The unreadable-rule refusal vocabulary moved to its own module when #1673 pushed rule-copy.ts past the
+// component-size cap (29e77ae2c); the #1665 pins below still own these four symbols.
+import {
+  RULE_UNREADABLE_BADGE,
+  ruleUnreadableEnableRefusal,
+  ruleUnreadableLine,
+  ruleUnreadableRunRefusal,
+} from "../../../../../packages/client/src/features/automation/lib/rule-refusal-copy.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CAPS = { cooldownSeconds: 45, maxFiresPerHour: 30 } as const;
