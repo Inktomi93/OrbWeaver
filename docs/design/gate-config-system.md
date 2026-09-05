@@ -1,10 +1,12 @@
 ---
 kind: design
-status: draft
+status: superseded
 updated: 2026-09-04
 ---
 
 # Gate configuration — the dispatch fence
+
+> SUPERSEDED 2026-09-05 by [gate-runtime-standardization.md](gate-runtime-standardization.md). Its measurements and rejected designs remain evidence; the owner has now ruled a fleet-wide standardized ts-morph runtime rather than a dispatch-only slice.
 
 > PROPOSED (not built). Answers owner complaints #1 (`pnpm check` duration) and #2 (scope lives in 187 hand-written closures). It answers #2 for the walk half of the fleet and does NOT answer #1 — §1 states both limits before anything else. Supersedes nothing; the gate contract is `tooling/src/verify/contract/gate.ts` and the authoring law is `tooling/src/verify/gates/GATE-AUTHORING.md`, which stay the homes for everything this document does not move.
 
