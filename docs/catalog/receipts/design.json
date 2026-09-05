@@ -1841,14 +1841,15 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "03886120cd496ce05c5ff4bef7b02b0288e48cbfbd1d75d0d230082262fa29f7",
+      "assignedSha256": "14293b60aa5e47b8623793130004ff2236bbc1d81e85b039576b06e54689af2f",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "03886120cd496ce05c5ff4bef7b02b0288e48cbfbd1d75d0d230082262fa29f7",
-      "verifiedCommit": "2eed0d66bd7211f0c49eff3b4fcf02e9b14c9933",
+      "verifiedSha256": "14293b60aa5e47b8623793130004ff2236bbc1d81e85b039576b06e54689af2f",
+      "verifiedCommit": "c545899ab5807230330db4b1f5de6345bbe5c79c",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at c545899ab by the orchestrator after reading the #1718 row in full (cb-mobile-shell): a Filters row — the phone chats pane's ONE shared filter trigger names every bound in force (Filters / Filters: chats up to <month> / Filters: chats with <character> / both), grammar homed at phoneFiltersLabel in chat-list-scope.ts; #1350's 'the trigger carries the bound' principle survives with its input changed.",
         "re-attested at 2eed0d66b by the orchestrator after reading the #1649/#1049 edit in full: the four HELD handoff-offer rows CLOSED (copyCast → copyCharacters with a boot data migration; offerCast → offerCharacters; summaryCast → summaryParticipantNames); the table now carries its own re-derivation command and the false-stem fence; ONE new HELD row — the persisted prose-slot id chat.group.castMember (#1737, owner arm) — so the survivor table stays truthful.",
         "re-attested at b64f6bdc0 by the orchestrator after reading the #1662 row in full (cb-mobile-shell): a Resume row — the verb leads the accessible name of a door that re-enters an existing room (Resume <room title> on home; Resume the chat with <character> on the faces strip), homed at state/active-chat-store resumeChat; no other row changed.",
         "re-attested at 0edf956f1 (#1220 arm a + #1680, cb-vocab-hygiene leg 3): the hearth palette cell census widened to packages/tooling/scripts with the three tooling carriers and both instrument corrections stated verbatim; the chat sanctioned-survivor table carries four HELD rows citing #1649. Read in full by the orchestrator.",
