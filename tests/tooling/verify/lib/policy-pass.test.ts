@@ -497,3 +497,19 @@ test("the public context type and runtime surface expose neither Project nor roo
   expect(frozen).toEqual([true, true, true, true]);
   expect(mutations).toEqual([false, false, true]);
 });
+
+test("declared resources without acquisition receipts cannot complete or reconcile grants", () => {
+  const gate = policy("unread-resource", {
+    analysis: "resource",
+    authority: "reviewed-grant",
+    population: { of: "none", why: "resource-only owner" },
+  });
+  const result = run([gate], projectOf({}), {
+    resourcePathsByPolicy: new Map([[gate.id, ["package.json"]]]),
+    reviewedGrants: [{ id: "unread-grant", policyId: gate.id, subject: "package.json", operation: "read", why: "fixture grant", endsWhen: "fixture ends" }],
+  });
+  expect(result.policies[0]?.owner.status).toBe("incomplete");
+  expect(result.toolErrors).toMatchObject([{ phase: "receipt", message: expect.stringContaining("no resource receipt") }]);
+  expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+});
