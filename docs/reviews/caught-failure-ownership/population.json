@@ -4414,7 +4414,7 @@
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::1",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 101,
+      "line": 105,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4422,12 +4422,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.",
-      "markerLine": 87
+      "markerLine": 91
     },
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::2",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 214,
+      "line": 222,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4435,7 +4435,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block.",
-      "markerLine": 211
+      "markerLine": 219
     },
     {
       "siteId": "tooling/src/_shared/debugging-endpoint.ts::empty:catch::1",
@@ -6260,7 +6260,7 @@
     {
       "siteId": "tooling/src/snap/ops/session-daemon.ts::empty:error::1",
       "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 223,
+      "line": 224,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -6268,12 +6268,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "a browser that fails to close is logged and the teardown proceeds to the registry half — the row + socket must go regardless, or the session reads as live forever. Ends if a failed browser close must abort the teardown.",
-      "markerLine": 219
+      "markerLine": 220
     },
     {
       "siteId": "tooling/src/snap/ops/session-daemon.ts::promise:readSessionRequestLine::1",
       "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 193,
+      "line": 194,
       "column": 5,
       "grammar": "promise",
       "position": "promise:readSessionRequestLine",
@@ -6281,7 +6281,7 @@
       "snippet": "readSessionRequestLine(socket)",
       "verdict": "deliberate-absorb",
       "reason": "the failure is reported to the caller as SESSION SERVE ERROR and the request's `done` carries toolError — the caller's exit IS the report, and the daemon stays up (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.",
-      "markerLine": 192
+      "markerLine": 193
     },
     {
       "siteId": "tooling/src/snap/ops/session-registry.ts::empty:catch::1",

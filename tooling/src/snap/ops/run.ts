@@ -28,6 +28,7 @@ import { snapDestination } from "./guards.ts";
 import { appliedAcrossContexts, writeCoreCaptureEvidence, writeManifestIfRequested } from "./manifest.ts";
 import { fileOriginNoiseCount, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
 import {
+  deviceResultValue,
   extendEvidenceThroughWatch,
   motionResultValue,
   navResultVerdict,
@@ -263,6 +264,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       ["json", manifestPath ?? "none"] as const,
       ...ledger.some("shot", "crop"),
       ["scale", scaleResultValue(opts, browserEnvironment)] as const,
+      ["device", deviceResultValue(browserEnvironment)] as const,
       ["motion-evidence", motionResultValue(opts)] as const,
       ["throttle", throttleResultValue(opts.cpuThrottle, opts.network)] as const,
       ["file-actions", outcomes.reduce((count, outcome) => count + outcome.fileActions.length, 0)] as const,

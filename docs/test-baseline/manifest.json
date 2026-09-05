@@ -2113,6 +2113,7 @@
     "tests/tooling/snap/ops/contrast-edge.int.test.ts",
     "tests/tooling/snap/ops/contrast-fill.int.test.ts",
     "tests/tooling/snap/ops/core-capture-redaction.suite.int.test.ts",
+    "tests/tooling/snap/ops/device-viewport.suite.int.test.ts",
     "tests/tooling/snap/ops/file-actions.suite.int.test.ts",
     "tests/tooling/snap/ops/fixture.test.ts",
     "tests/tooling/snap/ops/manifest.test.ts",

@@ -39,6 +39,11 @@ export interface SessionRunProvenance {
  *  sibling's environment contract is the session's, never a guess, and what `--session-status` prints. */
 interface SessionEnvironment {
   readonly viewport: Viewport;
+  /** Whether that viewport was an explicit `--viewport` ask (#1668). A session BOOTS a context from this
+   *  row, so without the marker `--session-start --mobile --viewport 320x740` would hand every later call
+   *  the device's own size and silently drop the override — the same lie one layer down. Optional: rows
+   *  written before this field simply have no override. */
+  readonly viewportExplicit?: boolean;
   readonly device: string | null;
   readonly colorScheme: "light" | "dark" | null;
   readonly reducedMotion: boolean;

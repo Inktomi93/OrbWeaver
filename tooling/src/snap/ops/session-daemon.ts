@@ -50,6 +50,7 @@ function bindingOf(bootArgs: Args): SessionRow["binding"] {
 export function sessionEnvironmentOf(bootArgs: Args): SessionRow["environment"] {
   return {
     viewport: bootArgs.viewport,
+    viewportExplicit: bootArgs.viewportExplicit,
     device: bootArgs.device,
     colorScheme: bootArgs.colorScheme,
     reducedMotion: bootArgs.reducedMotion || bootArgs.probe,

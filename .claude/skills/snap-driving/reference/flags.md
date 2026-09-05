@@ -117,11 +117,11 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--full-motion` | render with the app's own reduce-motion setting OFF |
 | `--light` | emulate the OS colour-scheme media query: light |
 | `--matrix` | rated pairwise appearance-invariant matrix (requires --isolated/--dirty/--ref) |
-| `--mobile` | iPhone 14 Pro Max emulation: touch, pointer:coarse, DPR 3 |
+| `--mobile` | iPhone 14 Pro Max emulation: touch, pointer:coarse, DPR 3 (compose with --viewport for a coarse WxH) |
 | `--network <value>` | DevTools network preset applied before navigation |
 | `--reduced-motion` | emulate the OS prefers-reduced-motion media query (not the app's own setting) |
 | `--theme <value>` | render as if that theme were selected; none = no selection |
-| `--viewport <value>` | explicit WxH viewport (default 1280x800) |
+| `--viewport <value>` | explicit WxH viewport (default 1280x800); under --mobile it WINDOWS the device, keeping touch/DPR/UA |
 | `--wide` | 1920x1080 viewport |
 
 ## Measure

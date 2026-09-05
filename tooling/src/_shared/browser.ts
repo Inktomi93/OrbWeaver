@@ -11,7 +11,7 @@ import { browserArgsWithAcceleration } from "./browser-acceleration.ts";
 import { createPageCapture, watchProbeContextPages } from "./browser-capture.ts";
 import { buildProbeContext, probeContext, probeSession, resolveDeviceDescriptor } from "./browser-context.ts";
 import type { ProbeAttachOptions, ProbeContext, ProbeLaunchOptions, ProbeSession } from "./browser-contract.ts";
-import { resolveBrowserEnvironmentContract } from "./browser-environment.ts";
+import { effectiveContextViewport, resolveBrowserEnvironmentContract } from "./browser-environment.ts";
 import { resolveProbeMedia } from "./browser-media.ts";
 import { DEV_PORTS } from "./ports.ts";
 
@@ -51,8 +51,12 @@ async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (t
   if (opts.persistentProfileDir === undefined) {
     return { browser: await chromium.launch({ headless: opts.headless, args: browserArgs }) };
   }
+  // ONE SIZE ANSWER (#1668): the descriptor supplies touch/DPR/UA/isMobile, `effectiveContextViewport`
+  // supplies the SIZE — so an explicit `--viewport` under `--mobile` windows the device instead of
+  // silently demoting it to a desktop, and a run's receipt states the size the browser actually got.
   const sizing = {
-    ...(deviceDescriptor ?? { viewport: opts.viewport }),
+    ...(deviceDescriptor ?? {}),
+    viewport: effectiveContextViewport(opts, deviceDescriptor),
     ...(opts.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: opts.deviceScaleFactor }),
   };
   const persistentContext = await chromium.launchPersistentContext(opts.persistentProfileDir, {
@@ -129,8 +133,12 @@ async function attachRecordedContext(
 ): Promise<ProbeSession> {
   const deviceDescriptor = resolveDeviceDescriptor(environment);
   const environmentContract = resolveBrowserEnvironmentContract(environment, deviceDescriptor);
+  // ONE SIZE ANSWER (#1668): the descriptor supplies touch/DPR/UA/isMobile, `effectiveContextViewport`
+  // supplies the SIZE — so an explicit `--viewport` under `--mobile` windows the device instead of
+  // silently demoting it to a desktop, and a run's receipt states the size the browser actually got.
   const sizing = {
-    ...(deviceDescriptor ?? { viewport: environment.viewport }),
+    ...(deviceDescriptor ?? {}),
+    viewport: effectiveContextViewport(environment, deviceDescriptor),
     ...(environment.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: environment.deviceScaleFactor }),
   };
   // The attached browser is the existing authorization boundary. Clone its live, memory-only storage
