@@ -107,6 +107,16 @@ test.describe("compilePopulation", () => {
     const compiled = compilePopulation("@client");
     expect(() => compiled("/packages/client/src/file.ts")).toThrow(/path/i);
   });
+
+  test("snapshots depth and extension operands before returning the predicate", () => {
+    const expression: PopulationExpr = { in: ["@server"], depth: "flat", ext: ["ts"], notExt: ["tsx"] };
+    const compiled = compilePopulation(expression);
+    Object.assign(expression, { depth: undefined, ext: ["tsx"], notExt: ["ts"] });
+
+    expect(compiled("packages/server/src/file.ts")).toBe(true);
+    expect(compiled("packages/server/src/file.tsx")).toBe(false);
+    expect(compiled("packages/server/src/domain/file.ts")).toBe(false);
+  });
 });
 
 test.describe("runtime validation", () => {
@@ -166,6 +176,16 @@ test.describe("runtime validation", () => {
   ])("refuses invalid candidate path %s", (path) => {
     expect(() => populationIncludes("@client", path)).toThrow(/path/i);
   });
+
+  test.each([
+    ["0000", "\u0000"],
+    ["0001", "\u0001"],
+    ["001F", "\u001f"],
+    ["007F", "\u007f"],
+  ])("refuses ASCII control U+%s in candidate paths and patterns", (_label, control) => {
+    expect(() => populationIncludes("@client", `packages/client/src/bad${control}.ts`)).toThrow(/path/i);
+    expect(() => assertPopulationExpr({ in: ["@client"], under: [`**/bad${control}/**`] })).toThrow(/population/i);
+  });
 });
 
 test.describe("resolvePopulation", () => {
@@ -189,5 +209,18 @@ test.describe("resolvePopulation", () => {
   test("validates the expression even when the candidate set is empty", () => {
     // FABRICATION-OK: the malformed runtime input deliberately violates PopulationExpr to prove the JS boundary refuses it.
     expect(() => resolvePopulation({ in: [] } as never, [])).toThrow(/population/i);
+  });
+
+  test.each([
+    [{ in: ["@tooling"], under: ["**/verify/**"], notUnder: ["**/verify/gates/**"] }, ["tooling/src/verify/gates/example.ts"]],
+    [{ in: ["@tooling"], named: ["population-resolver.ts"], notNamed: ["population*.ts"] }, ["tooling/src/verify/lib/population-resolver.ts"]],
+    [{ in: ["@client"], ext: ["ts"], notNamed: ["*"] }, ["packages/client/src/example.ts"]],
+  ] as const)("refuses a non-none expression whose valid filters admit zero candidates", (expression, candidates) => {
+    expect(() => resolvePopulation(expression, candidates)).toThrow(/population.*zero/i);
+  });
+
+  test("refuses an empty candidate corpus except for the explicit resource-only population", () => {
+    expect(() => resolvePopulation("@authored", [])).toThrow(/population.*empty/i);
+    expect(resolvePopulation({ of: "none", why: "resource-only policy" }, [])).toEqual({ paths: [], admitted: 0, rejected: 0, candidates: 0 });
   });
 });

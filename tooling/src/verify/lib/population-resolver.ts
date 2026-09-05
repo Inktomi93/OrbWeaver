@@ -8,6 +8,8 @@ const SET_REFS = new Set<string>(Object.keys(POPULATION_SETS));
 const EXPRESSION_KEYS = new Set(["in", "not", "under", "notUnder", "named", "notNamed", "ext", "notExt", "depth"]);
 const SENTINEL_KEYS = new Set(["of", "why"]);
 const LOADABLE_EXTENSIONS = new Set<string>(["ts", "tsx"] satisfies readonly LoadableExt[]);
+const ASCII_C0_MAX = 0x1f;
+const ASCII_DELETE = 0x7f;
 
 function invalid(detail: string): never {
   throw new Error(`Invalid population expression: ${detail}`);
@@ -48,8 +50,18 @@ function assertNonEmptyUniqueArray(value: unknown, label: string, assertMember: 
   }
 }
 
+function hasAsciiControl(value: string): boolean {
+  for (const char of value) {
+    const codePoint = char.codePointAt(0);
+    if (codePoint !== undefined && (codePoint <= ASCII_C0_MAX || codePoint === ASCII_DELETE)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function assertPattern(value: unknown, label: "under" | "notUnder" | "named" | "notNamed"): void {
-  if (typeof value !== "string" || value.length === 0 || value.trim() !== value) {
+  if (typeof value !== "string" || value.length === 0 || value.trim() !== value || hasAsciiControl(value)) {
     invalid(`${label} members must be non-empty strings without surrounding whitespace`);
   }
   if (value.startsWith("/") || /^[A-Za-z]:\//u.test(value) || value.includes("\\")) {
@@ -170,7 +182,15 @@ export function assertPopulationExpr(value: unknown): asserts value is Populatio
 }
 
 function assertRepoRelativePosixPath(value: string): void {
-  if (value.length === 0 || value.trim() !== value || value.startsWith("/") || /^[A-Za-z]:\//u.test(value) || value.endsWith("/") || value.includes("\\")) {
+  if (
+    value.length === 0 ||
+    value.trim() !== value ||
+    hasAsciiControl(value) ||
+    value.startsWith("/") ||
+    /^[A-Za-z]:\//u.test(value) ||
+    value.endsWith("/") ||
+    value.includes("\\")
+  ) {
     throw new Error(`Invalid repository path ${JSON.stringify(value)}: expected a repo-relative POSIX file path`);
   }
   const segments = value.split("/");
@@ -239,15 +259,18 @@ function passesExtensionFilters(extension: string, ext: readonly LoadableExt[] |
 function compileOperator(expr: Extract<PopulationExpr, { readonly in: readonly PopulationRef[] }>): (path: string) => boolean {
   const includedRoots = rootPaths(expr.in);
   const excludedRoots = expr.not === undefined ? undefined : rootPaths(expr.not);
+  const depth = expr.depth;
   const under = compilePatterns(expr.under);
   const notUnder = compilePatterns(expr.notUnder);
   const named = compilePatterns(expr.named);
   const notNamed = compilePatterns(expr.notNamed);
+  const ext = expr.ext === undefined ? undefined : [...expr.ext];
+  const notExt = expr.notExt === undefined ? undefined : [...expr.notExt];
   return (path) => {
     if (!hasRoot(path, includedRoots) || (excludedRoots !== undefined && hasRoot(path, excludedRoots))) {
       return false;
     }
-    if (expr.depth === "flat" && !isFlatChild(path, includedRoots)) {
+    if (depth === "flat" && !isFlatChild(path, includedRoots)) {
       return false;
     }
     if (under !== undefined && !matchesAny(path, under)) {
@@ -261,7 +284,7 @@ function compileOperator(expr: Extract<PopulationExpr, { readonly in: readonly P
       return false;
     }
     const extension = basename.slice(basename.lastIndexOf(".") + 1);
-    return passesExtensionFilters(extension, expr.ext, expr.notExt);
+    return passesExtensionFilters(extension, ext, notExt);
   };
 }
 
@@ -295,6 +318,13 @@ export function resolvePopulation(expr: PopulationExpr, candidatePaths: readonly
   const includes = compilePopulation(expr);
   const candidates = [...new Set(candidatePaths)];
   const paths = candidates.filter(includes).sort();
+  const explicitNone = isRecord(expr) && "of" in expr && expr["of"] === "none";
+  if (!explicitNone && candidates.length === 0) {
+    throw new Error("Invalid population resolution: candidate corpus is empty");
+  }
+  if (!explicitNone && paths.length === 0) {
+    throw new Error(`Invalid population resolution: expression admitted zero paths from ${candidates.length} candidate(s)`);
+  }
   return {
     paths,
     admitted: paths.length,
