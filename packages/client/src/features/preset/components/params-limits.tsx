@@ -23,6 +23,8 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Field, FieldLayout } from "@orb/ui/field";
+import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, X } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -139,6 +141,10 @@ function OutputCluster({
   );
 }
 
+/** The stop-sequence group's hover hint — hoisted out of the JSX so the legend row and the `subject` it
+ *  names read as one decision. */
+const STOP_SEQUENCE_HINT = "The model stops generating when it would emit one of these. Type a sequence and press Enter.";
+
 /** G2 — the `params.stop` chip list. No chip-input primitive exists in the seal and none is needed: Badge
  *  chips + a ghost × + an add Input is the landed tag-chip anatomy. */
 function StopSequences({ form }: { readonly form: AppForm }): ReactElement {
@@ -159,12 +165,25 @@ function StopSequences({ form }: { readonly form: AppForm }): ReactElement {
           field.handleChange([...stops, next]);
           input.value = "";
         };
-        // HINT, not `description` (crunch-list 21): a Field description renders at the 13px/muted step,
-        // which is a FIFTH type tuple on a deck whose helper voice is `gloss`. The deck's one helper voice
-        // is the gloss; explanatory prose rides the hover hint (§4.1's rule), which is what every other row
-        // here already does.
+        // A FIELDSET, NOT A FIELD (#1620, closing what #1587 opened). This row is a GROUP — N chips plus an
+        // add box — and a `Field` names exactly ONE control: Base UI reaches the sole `Field.Control` (the
+        // add Input) with the label's `aria-labelledby`, which OUTRANKS `aria-label` by the accname spec's
+        // own precedence. So the box announced "Stop sequences" (the group's name, on the wrong element) and
+        // "Add stop sequence" was unreachable — #1587 correctly refused to keep a dead attribute and stated
+        // the fork here rather than faking a fix. The legend is that fork resolved: `Fieldset`/`FieldsetLegend`
+        // name the GROUP (the macro-picks-pane anatomy), which frees the add box to carry its own name.
+        //
+        // HINT, not `description` (crunch-list 21): a Field description renders at the 13px/muted step, which
+        // is a FIFTH type tuple on a deck whose helper voice is `gloss`. A Fieldset has no hint slot, so the
+        // trigger is composed beside the legend the way `Field` composes it beside its label — a SIBLING,
+        // never a descendant, because nesting it leaks "More info" into the group's name through the W3C
+        // accname subtree concatenation. `knob-row.tsx` already does exactly this on this deck.
         return (
-          <Field hint="The model stops generating when it would emit one of these. Type a sequence and press Enter." label="Stop sequences" name={field.name}>
+          <Fieldset>
+            <Row align="center" gap="tight">
+              <FieldsetLegend>Stop sequences</FieldsetLegend>
+              <HintTrigger className="shrink-0" hint={STOP_SEQUENCE_HINT} subject="Stop sequences" />
+            </Row>
             <Row className="flex-wrap" gap="field">
               {stops.map((stop) => (
                 <Badge intent="neutral" key={stop} size="sm" tone="soft">
@@ -180,15 +199,12 @@ function StopSequences({ form }: { readonly form: AppForm }): ReactElement {
                   </Button>
                 </Badge>
               ))}
-              {/* No `aria-label` (#1587): this Input is the Field's control, so the Field's label reaches it
-                  through Base UI's `aria-labelledby` and OUTRANKS an `aria-label` — "Add stop sequence" named
-                  nothing and the box already announced "Stop sequences". Removed rather than kept as a
-                  source-only claim. Giving the add box its own name means giving the GROUP a legend instead of
-                  a Field label (`Fieldset`/`FieldsetLegend`, the macro-picks-pane anatomy), which is a deck
-                  layout change and its own row. */}
-              <Input onKeyDown={add} placeholder="add…" />
+              {/* Now REACHABLE: outside a `Field` there is no context-injected `aria-labelledby` to outrank
+                  it, so this is the box's actual accessible name (pinned in params-deck.ct.tsx by role+name,
+                  which is red against the Field anatomy above). */}
+              <Input aria-label="Add stop sequence" onKeyDown={add} placeholder="add…" />
             </Row>
-          </Field>
+          </Fieldset>
         );
       }}
     </form.AppField>
@@ -317,6 +333,11 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
             <form.Subscribe selector={(state): boolean => state.values.params.advanced?.parallelToolCalls === true}>
               {(parallel): ReactElement => (
                 <Field hint="Let the model emit several tool calls in one turn." label="Parallel tool calls">
+                  {/* The `aria-label` is UNREACHABLE and still REQUIRED (#1621) — the Field's label reaches
+                      this control through Base UI's `aria-labelledby` and outranks it
+                      (`tests/client/a11y/field-control-name.suite.ct.tsx`), but `jsx-a11y` resolves `Switch`
+                      to `button`, outside its `ignoreElements`, so dropping it reds
+                      `control-has-associated-label`. A lint obligation, not an accessible name. */}
                   <Switch
                     aria-label="Parallel tool calls"
                     checked={parallel}
@@ -375,8 +396,11 @@ function LogitBiasField({ form }: { readonly form: AppForm }): ReactElement {
     <form.Subscribe selector={(state): string => serializeLogitBias(state.values.params.logitBias)}>
       {(serialized): ReactElement => (
         <Field hint="A JSON map of token id → bias (-100…100). Nudges or blocks specific tokens. Invalid JSON is ignored." label="Logit bias">
+          {/* No `aria-label` (#1621, the Textarea family): this box is the Field's sole `Field.Control`, so
+              the label reaches it through Base UI's `aria-labelledby`, which outranks the attribute. The name
+              is unchanged — `params-deck.ct.tsx` finds it by `getByRole("textbox", { name: "Logit bias" })`
+              both before and after. Measured at `tests/client/a11y/field-control-name.suite.ct.tsx`. */}
           <Textarea
-            aria-label="Logit bias"
             defaultValue={serialized}
             key={`${String(blurEpoch)}:${serialized}`}
             onBlur={(e): void => {

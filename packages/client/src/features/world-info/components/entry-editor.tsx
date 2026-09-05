@@ -162,8 +162,12 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
       <form.Subscribe selector={(state): readonly string[] => state.values.keys}>
         {(keys): ReactElement => (
           <Field label="Keyword triggers" description="Enter or comma commits a keyword. Matched case-insensitively, whole-word, against recent messages.">
+            {/* No `aria-label` (#1621, the Combobox family): the chip input is the Field's sole
+                `Field.Control`, so the label reaches it through Base UI's `aria-labelledby`, which outranks
+                the attribute — it was the same string, unreachable. `entry-editor.ct.tsx`'s
+                `getByLabel("Keyword triggers")` resolves identically. Measured per family at
+                `tests/client/a11y/field-control-name.suite.ct.tsx`. */}
             <Combobox
-              aria-label="Keyword triggers"
               value={keys}
               maxItems={KEYS_MAX}
               placeholder="Type a keyword, then Enter"

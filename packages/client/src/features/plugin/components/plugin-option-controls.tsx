@@ -80,8 +80,12 @@ export function TabsStrip({
   const picked = values[node.name] ?? "";
   return (
     <Field label={node.label}>
-      {/* aria-label mirrors the Field label onto the GROUP so the radiogroup carries its OWN accessible
-            name — the same reason the Select and Switch arms above carry one. */}
+      {/* KEEP — and NOT for the reason this comment used to give (#1621). It claimed the same rationale as
+            the Select and Switch arms; measurement says the opposite. A `ToggleGroup` is not a
+            `Field.Control`, so the enclosing Field's label reaches NOTHING here and this attribute is the
+            radiogroup's ONLY accessible name — where a Switch's identical-looking attribute was dead and was
+            removed. Deleting this one for symmetry leaves the group anonymous.
+            Per-family evidence: `tests/client/a11y/field-control-name.suite.ct.tsx`. */}
       <ToggleGroup
         aria-label={node.label}
         onValueChange={(groupValue): void => {

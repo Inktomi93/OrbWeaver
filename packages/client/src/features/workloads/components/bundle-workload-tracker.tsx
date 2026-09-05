@@ -57,15 +57,16 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
   // cleanup so there is one teardown to reason about. Read and written only in callbacks and that cleanup,
   // never during render.
   //
-  // NOT CT-PINNED, and the honest reason is that NOTHING MOUNTS THIS TRACKER IN ANY TEST — there is no story
-  // for it, so there is no place to drive an unmount-mid-request from. (An earlier note here claimed
-  // `routeOrbSocket`'s `dropFirstConnection` had "no existing consumer in tests/**"; that was simply wrong —
-  // it has three: `tests/client/features/chat/surfaces/message-list-surface.ct.tsx:427`,
-  // `tests/client/data/bus/use-chat-bus.ct.tsx:34`, `tests/client/data/bus/use-user-bus.ct.tsx:83`. The
-  // affordance works; the gap is the missing mount.) Reaching `reconcile` needs a socket DROP AND RE-ATTACH
-  // (`onSocketLive` is deliberately not fired on a room's first live edge — `use-workload-subscription.ts` /
-  // BOOT-4X). The story + the unmount-mid-request pin are #1601; until that lands this guard is carried by
-  // review.
+  // CT-PINNED SINCE #1601 — `tests/client/features/workloads/components/bundle-workload-tracker.ct.tsx`, over
+  // the story that finally MOUNTS this component (nothing in `tests/**` did before it, which is why the guard
+  // shipped carried by review). Both arms are red against this file's pre-#1570 shape (418d40c7f^): an unmount
+  // while the read is in flight reported `onSucceeded` on a gone caller, and a read that failed after teardown
+  // scheduled another attempt. Reaching `reconcile` needs a socket DROP AND RE-ATTACH (`onSocketLive` is
+  // deliberately not fired on a room's first live edge — `use-workload-subscription.ts` / BOOT-4X), which the
+  // CT drives with `routeOrbSocket`'s `dropFirstConnection`, and the teardown is sequenced against a HELD
+  // request rather than a sleep. STILL UNPINNED, stated where the fix is: the `clearTimeout` sweep of an
+  // ALREADY-TICKING timer — reaching that state means beating the 250ms first backoff with a click, and the
+  // page-clock fake that would make it deterministic freezes the reconnect the scenario is built on.
   const retryTimersRef = useRef<Set<ReturnType<typeof setTimeout>> | null>(null);
   const aliveRef = useRef(true);
   useEffect(() => {
