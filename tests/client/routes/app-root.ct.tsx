@@ -36,11 +36,16 @@ const CLOSE_AFFORDANCE_RE = /close/iu;
 const ONE_CHARACTER = { items: [ARIA], nextCursor: null };
 const NO_CHARACTERS = { items: [], nextCursor: null };
 
-// A non-empty `persona.list` — the route mounts `<FirstRunPersonaDialog>` as an AppShell sibling,
-// which forces a blocking, undismissable gate open whenever the viewer owns zero personas. These
-// tests are about the home page's normal (has-persona) render, so a seeded persona keeps the gate
-// closed and out of the way.
-const PERSONAS = [{ id: "persona_home", name: "Nate", description: "", avatarHash: null, starred: true }];
+// A non-empty `persona.list` — the route mounts `<FirstRunPersonaDialog>` as an AppShell sibling, which
+// forces a blocking, undismissable gate open over a viewer who cannot SPEAK yet. These tests are about the
+// home page's normal (settled-identity) render, so this viewer must be one the gate stands down for.
+//
+// OWNING A PERSONA IS NOT ENOUGH (#1570, 418d40c7f): the trigger is derived from the SEED POINTERS, not
+// from the row count — a persona that no `seeds.currentPersonaId`/`defaultPersonaId` names is the ORPHAN
+// the gate now offers to recover, so a row plus the DEFAULT (all-null) seeds is precisely the state that
+// opens it. {@link SEEDED_SETTINGS_ROUTE} points both pointers at this row; the two must always move together.
+const HOME_PERSONA = { id: "persona_home", name: "Nate", description: "", avatarHash: null, starred: true };
+const PERSONAS = [HOME_PERSONA];
 
 // The seeded draft's greeting row resolves `{{user}}` against the anchor the commit WILL write, so it
 // reads the same two identity sources the server's seed chain does: the viewer's persona connections for
@@ -51,16 +56,34 @@ const PERSONAS = [{ id: "persona_home", name: "Nate", description: "", avatarHas
 const EMPTY_BANK_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, total: 0 };
 
 /**
+ * The viewer's settings with BOTH persona seed pointers naming {@link HOME_PERSONA} — the state of an
+ * ordinary returning reader, and the one the first-run gate stands down for (#1570). `DEFAULT_USER_SETTINGS`
+ * seeds them NULL, which since 418d40c7f is the ORPHAN state the gate opens over to recover, so every mount
+ * in this file that means "a viewer who is set up" must say so with the pointers, not with the row alone.
+ */
+const SEEDED_SETTINGS_ROUTE = {
+  "settings.getUserSettings": {
+    userId: castId<UserId>("user_ct"),
+    schemaVersion: 1,
+    config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: HOME_PERSONA.id, defaultPersonaId: HOME_PERSONA.id } },
+    updatedAt: 0,
+  },
+};
+
+/**
  * The route's own AMBIENT reads (#649) — every `HomePageStory` mount is the composition root, so it always
  * carries the composer's send-gate + display-script tier ({@link CHAT_AMBIENT_ROUTES}), the room bus's
  * attach/detach mutations ({@link STREAM_MUTATION_ROUTES}), and the viewer identity read the settings-pane
  * nav resolves off (`sessions.me`). None of these are any ONE test's subject, but leaving them unfed ran
  * every one of those pipelines INERT across this whole file. Spread FIRST in each `routeTrpc` call so a
- * test's own per-fixture value (a specific `settings.getUserSettings` via {@link IDENTITY_STUB}, say) wins.
+ * test's own per-fixture value (the zero-persona gate test's unseeded `settings.getUserSettings`, say) wins.
  */
 const HOME_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   ...CHAT_AMBIENT_ROUTES,
   ...STREAM_MUTATION_ROUTES,
+  // The viewer's own settings, OVERRIDING the all-null-seeds default {@link CHAT_AMBIENT_ROUTES} carries:
+  // every test below (bar the zero-persona gate ones) needs a viewer whose identity is fully resolved.
+  ...SEEDED_SETTINGS_ROUTE,
   "sessions.me": { userId: castId<UserId>("user_ct"), globalRole: "user", handle: "app_root" },
   // The temp-chat tile's fire-and-forget janitor mutation fires once per HOME mount, on an idle deadline
   // (home-temp-chat-tile-body.tsx REAP_IDLE_TIMEOUT_MS) — every test in this file mounts Home. The feed is
@@ -79,14 +102,12 @@ const HOME_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   "notifications.list": { items: [], nextCursor: null },
 };
 
+// The greeting-preview identity reads. `settings.getUserSettings` is NOT re-spelled here: it is fed
+// ambiently by {@link SEEDED_SETTINGS_ROUTE}, and a second spelling of it in this position (the per-test
+// value, which WINS over the ambient one) is exactly how the plain `DEFAULT_USER_SETTINGS` — all seed
+// pointers null — used to reopen the first-run gate over these journeys.
 const IDENTITY_STUB = {
   "persona.listConnectedToCharacter": (): readonly never[] => [],
-  "settings.getUserSettings": (): { userId: UserId; schemaVersion: number; config: unknown; updatedAt: number } => ({
-    userId: castId<UserId>("user_ct"),
-    schemaVersion: 1,
-    config: DEFAULT_USER_SETTINGS,
-    updatedAt: 0,
-  }),
 };
 
 // ── THE CREATED ROOM (chat-creation-draft-mode-replacement.md §4.1, R1) ────────────────────────────
@@ -322,7 +343,9 @@ test("the temp tile starts its room through the SHARED picker, and the unsent li
 // The server half (the seeder's auto-create arm is now automation-only, so a REAL first sign-in leaves the
 // library empty) is pinned at tests/server/entry/compose/assets-character.int.test.ts. THIS is the half the
 // user meets: with zero personas the gate opens, blocks the app, and offers exactly one way out — creating
-// the persona. Every other test in this file seeds `PERSONAS` precisely to keep it shut.
+// the persona. Every other test in this file seeds `PERSONAS` **and** {@link SEEDED_SETTINGS_ROUTE}'s
+// pointers precisely to keep it shut — since #1570 the trigger is "can this viewer SPEAK", so the row and
+// the pointers are one fixture and neither half alone closes the gate.
 
 test("zero personas: the first-run persona ask is FORCED open — no dismiss, one way out", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -332,6 +355,10 @@ test("zero personas: the first-run persona ask is FORCED open — no dismiss, on
     "databank.bankHealth": EMPTY_BANK_HEALTH,
     "character.list": NO_CHARACTERS,
     "persona.list": [],
+    // A REAL first sign-in all the way down: no persona rows AND no seed pointers. Overriding the ambient
+    // {@link SEEDED_SETTINGS_ROUTE} keeps the fixture coherent — pointers naming a persona that does not
+    // exist would be a state the server never writes.
+    "settings.getUserSettings": { userId: castId<UserId>("user_ct"), schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
   });
   await mount(<HomePageStory />);
 
@@ -362,7 +389,14 @@ test("a user who owns a persona never sees the gate (the automation-seeded + ret
   });
   await mount(<HomePageStory />);
 
-  // The home surface renders unblocked — this is what a harness boot and every later sign-in look like.
+  // BARRIER ON THE SETTLED ARM FIRST. The gate's trigger reads BOTH `persona.list` and
+  // `settings.getUserSettings` and renders nothing until both have settled (#1570), so a bare
+  // `toHaveCount(0)` is satisfied by the in-flight frame and passes for the wrong reason. The rail-foot
+  // avatar's accessible name is `Playing as <current>`, resolved from those SAME two reads
+  // (`persona-panel-surface.tsx` PanelTrigger ← resolveCurrentPersona(personas, seeds)) — so it appears
+  // only once the viewer's identity is fully resolved, which is exactly when the gate would open if it
+  // were going to.
+  await expect(page.getByRole("button", { name: `Playing as ${HOME_PERSONA.name}` })).toBeVisible();
   await expect(page.locator('[data-home-tile="chat.recents"]')).toBeVisible();
   await expect(page.getByTestId(testId("firstRunPersonaDialog"))).toHaveCount(0);
 });
