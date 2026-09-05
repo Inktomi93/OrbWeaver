@@ -17,6 +17,7 @@
     "tests/client/components/list-pane-header.ct.tsx",
     "tests/client/components/regex-scope-order.ct.tsx",
     "tests/client/components/regex-script-picker.ct.tsx",
+    "tests/client/components/row-actions-menu.ct.tsx",
     "tests/client/components/row-toggle-action.ct.tsx",
     "tests/client/components/setting-switch-row.ct.tsx",
     "tests/client/components/setting-teach-row.ct.tsx",

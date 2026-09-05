@@ -52,8 +52,10 @@ export interface RowActionsMenuProps {
   readonly icon?: LucideIcon;
   /** Popup alignment. @defaultValue "end" */
   readonly align?: "center" | "end" | "start";
-  /** Trigger button size. `"inline"` is the HintTrigger-parity box (the config setting row pairs the ⋯
-   *  with the tiny `i` and must not inflate the row). @defaultValue "icon" */
+  /** Trigger button size — this composite's OWN vocabulary, resolved to a Button size arm by
+   *  `TRIGGER_BUTTON_SIZE` below, never a passthrough. `"inline"` is the HintTrigger-parity box (the
+   *  config setting row pairs the ⋯ with the tiny `i` and must not inflate the row); `"sm"` is the
+   *  small SQUARE trigger for a row whose scale is the `sm` control step. @defaultValue "icon" */
   readonly triggerSize?: "icon" | "inline" | "sm";
   /** A3 hover-reveal on the trigger (rest hidden). @defaultValue false — pass true only where the row already hid its cluster. */
   readonly reveal?: boolean;
@@ -76,6 +78,32 @@ export interface RowActionsMenuProps {
 // button CT are untouched), and the component whose whole identity is "demoted" states its own ink at the
 // two trigger sites below. `RECEDED_INK`'s module header owns the full fork and the unprefixed-so-hover-
 // still-wins reasoning.
+
+/**
+ * THIS COMPOSITE'S TRIGGER VOCABULARY → the `Button` size arm that carries it (#1613).
+ *
+ * The trigger is ICON-ONLY at every arm — a glyph with an `aria-label` and no text run — so it must be
+ * sized on an axis that floors BOTH sides. `triggerSize` used to be a raw passthrough, and its `"sm"`
+ * value therefore named Button's TEXT step (`h-control-sm px-block text-label`): a pointer-conditional
+ * HEIGHT with a CONTENT width of `px-block × 2 + a 16px glyph` = 40px, i.e. 40×44 under a finger. That
+ * is the D62 P1 floor missed on the short side, filed by design-audit's `tap-target` against the theme
+ * Looks rows (`[aria-label="Actions for Hearth"]` / "Light" / "Mocha" — 3 affected of 3 judged, short
+ * side 40px, settings:appearance --mobile 2026-09-05).
+ *
+ * `icon-sm` is the SAME `--spacing-control-sm` box on both axes (44px coarse / 32px fine — the token is
+ * pointer-conditional, so the box IS the tap floor and needs none of the `glyph-*` ramp's hit-area
+ * pseudo; button/variants.ts states that arm's contract). Row HEIGHT is unchanged at both pointer
+ * classes; the trigger gains 4px of width at a coarse pointer and sheds 8 at a fine one, which is the
+ * square an icon-only control should always have been.
+ *
+ * A MAP, not a ternary: a new member of the union above fails `tsc` here rather than silently falling
+ * through to a text step — the same one-union-plus-mapped-Record discipline the spine asks of every
+ * dispatch axis.
+ */
+const TRIGGER_BUTTON_SIZE = { icon: "icon", inline: "inline", sm: "icon-sm" } as const satisfies Record<
+  NonNullable<RowActionsMenuProps["triggerSize"]>,
+  "icon" | "icon-sm" | "inline"
+>;
 
 /**
  * The one row/entity actions menu — ghost ⋯ trigger, a popup of `children` items, and an optional
@@ -101,7 +129,12 @@ export function RowActionsMenu({
         {tooltip === undefined ? (
           <MenuTrigger
             render={
-              <Button aria-label={label} className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK} intent="ghost" size={triggerSize}>
+              <Button
+                aria-label={label}
+                className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK}
+                intent="ghost"
+                size={TRIGGER_BUTTON_SIZE[triggerSize]}
+              >
                 <Icon icon={icon} size="sm" />
               </Button>
             }
@@ -112,7 +145,12 @@ export function RowActionsMenu({
               render={
                 <MenuTrigger
                   render={
-                    <Button aria-label={label} className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK} intent="ghost" size={triggerSize}>
+                    <Button
+                      aria-label={label}
+                      className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK}
+                      intent="ghost"
+                      size={TRIGGER_BUTTON_SIZE[triggerSize]}
+                    >
                       <Icon icon={icon} size="sm" />
                     </Button>
                   }

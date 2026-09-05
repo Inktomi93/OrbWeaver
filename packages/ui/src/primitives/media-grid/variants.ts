@@ -16,7 +16,17 @@ export const mediaGridVariants = tv({
       // (DESIGN.md §5). The ring keeps the crisp edge; the glow lifts it off the grid.
       "data-selected:ring-2 data-selected:ring-primary data-selected:shadow-glow",
     ],
-    image: "h-full w-full object-cover",
+    // THE IMAGE STATES ITS OWN RESERVATION (#1159). The cell above already reserves the square, so
+    // nothing can shift here — but "nothing shifts" was true only of the CELL, and the `<img>` itself
+    // declared no box of its own: no `width`+`height` attributes, no aspect-ratio, only percentage
+    // sizing. The client's `[space]` flagger reads AUTHORED intent, never the resolved height
+    // (motion-flaggers.ts states why: a computed height is reported for a bare `<img>` too, so a
+    // resolved-height check never fires), and it filed `<img> has no reserved box · [data-slot=
+    // media-grid-image]` on the Background surface (side-eye 2026-09-02 config drive 2, G7). Declaring
+    // the ratio the cell already imposes makes the reservation legible to a reader and to the flagger.
+    // GEOMETRY-PRESERVING: `h-full`/`w-full` are both definite inside the square cell, so the ratio
+    // never participates in sizing — it is the authored statement of a box the layout already had.
+    image: "aspect-square h-full w-full object-cover",
     placeholder: "h-full w-full bg-muted",
     selectedBadge: "absolute top-field right-field flex items-center justify-center rounded-full bg-primary p-field text-primary-foreground",
   },
