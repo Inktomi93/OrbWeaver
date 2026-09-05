@@ -928,14 +928,15 @@
     },
     {
       "path": "docs/design/integer-line-boxes.md",
-      "assignedSha256": "e00ff4575a859d1a4b3708849046ed9f7ec4b8d2e601e757f1ec5dae2783177f",
+      "assignedSha256": "0e1faa9a0987bf81ce75d4b98dd842dbf7634836140ee37a5349f222eaf348ff",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "e00ff4575a859d1a4b3708849046ed9f7ec4b8d2e601e757f1ec5dae2783177f",
-      "verifiedCommit": "d17bebced4dac4153e48e2efc034b689dd721c5d",
+      "verifiedSha256": "0e1faa9a0987bf81ce75d4b98dd842dbf7634836140ee37a5349f222eaf348ff",
+      "verifiedCommit": "89514942d5fee15338752f724bad03ee9226d8e3",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at 89514942d by the orchestrator after reading the §2 amendment in full (cb-token-belts, #1640): the residual sentence ('--spacing-* offsets are fractional regardless') is REPLACED — all 27 spacing tokens + the 8 pointerFine arms carry orb.output: snapped (integer at the 16px root, identity at scale 1, both pointer arms through one serialization); the remaining residual is restated with the switch matrix (odd container−content → a half-pixel centred offset, 1.25 row DPR-2-only) and its pins named.",
         "re-attested at d17bebced by the orchestrator after reading the #1160 diff in full (cb-rendered-polish): §3b retitled and records the snapped belt’s ROUND-UP strategy as a second invariant (round(up, <rem>, 1px) in tokens.build.ts; nearest-rounding shrank a leading box by up to half a pixel while the font scaled continuously, dropping the ratio below LEADING_FLOOR at scales no authored value can see); identity at scale 1 for all seven snapped tokens; frontmatter dated 2026-09-05.",
         "docs/design/integer-line-boxes.md:1 (full read; measured defect, multiplier cross, snapped-dimension architecture, re-pairing sweep, four-arm gate, ramp coherence, declared residuals)",
         "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #997 Law-1 design and implementation bytes)",
