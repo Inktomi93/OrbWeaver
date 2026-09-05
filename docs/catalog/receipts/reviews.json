@@ -3092,33 +3092,51 @@
     },
     {
       "path": "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md",
-      "assignedSha256": "5fc08c42f9ece4fd0daa077ca7c19fe66bee35495063d7afd073d104494f7010",
-      "disposition": "needs-owner",
+      "assignedSha256": "9ffb18918bd536978366aa66eb9f0daad5567e273b570ff52e1c2de9fc8c2812",
+      "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "5fc08c42f9ece4fd0daa077ca7c19fe66bee35495063d7afd073d104494f7010",
-      "verifiedCommit": "20ca3612a278fc20c3014d5ffccf8c72e24d231f",
+      "verifiedSha256": "9ffb18918bd536978366aa66eb9f0daad5567e273b570ff52e1c2de9fc8c2812",
+      "verifiedCommit": "9e70e5db38aff73ae5683bf7246f418dfd9a2132",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at 9e70e5db3 by the orchestrator after reading §7 in full (cb-config-list, #1169): the census table at fine + coarse, the inverted preset-borrow premise (§7.2), D1 refused on the coarse receipt (§7.3), the meta datum landed with the measured Badge-in-markers control Set{35,42} (§7.4), the voice budget + the #1099 Errand A ruling fork reconciled as 'the ruling survives, its input changed' (§7.5), D3 refused (§7.6); disposition needs-owner → current now that the ruling landed; the §3a/§7.1 SPECIES verdicts are open for re-judgment under #1714.",
         "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md:1-140 full read by the orchestrator at 20ca3612a (lane cb-client-config-polish, #1169 arm a: measured comparison receipt, three drift candidates proposed, nothing landed)",
         "the two converged axes verified on tree: features/config/lib/config-section.tsx:79 passes ListPaneHeader; features/config/components/config-list-group.tsx:288 renders ListRow"
       ],
-      "summary": "Measured comparison of the Config LIST pane against the chats/characters/presets LIST panes; the owner decides which drift candidates (D1 row payload, D2 voice budget, D3 shelf kicker) to take — #1169 in Needs owner.",
+      "summary": "Measured comparison of the Config LIST pane against the chats/characters/presets LIST panes, then (§7) the cohort-anatomy census at both pointer classes and the convergence #1169's 'receipt + full convergence' ruling decided: the section row carries the Modified datum in ListRow.meta, band state marks are Badges, the voice budget has one home; species-based verdicts are re-judged under #1714 (owner's changed collections stance).",
       "claims": [
         {
-          "claim": "Config's chrome band and leaf rows already use the shared primitives; only the group-band layer diverges, and the three drift candidates are proposals tracked on #1169.",
+          "claim": "The section row carries the modified datum in ListRow.meta and the band's state marks are Badges, with the voice budget homed in the group component's header.",
           "evidence": [
             {
               "kind": "code",
-              "target": "packages/client/src/features/config/lib/config-section.tsx:79"
+              "target": "packages/client/src/features/config/components/config-list-group.tsx:27"
             },
             {
               "kind": "code",
-              "target": "packages/client/src/features/config/components/config-list-group.tsx:288"
+              "target": "packages/client/src/features/config/components/config-list-group.tsx:312"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/config/surfaces/config-list-surface.tsx:159"
             },
             {
               "kind": "issue",
               "target": "#1169"
+            }
+          ]
+        },
+        {
+          "claim": "The #1099 Errand A no-growth mechanism survives: the band is a fixed-height control and the CT pins its height at both pointer classes.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/config/components/config-list-group.tsx:44"
+            },
+            {
+              "kind": "issue",
+              "target": "#1099"
             }
           ]
         }
