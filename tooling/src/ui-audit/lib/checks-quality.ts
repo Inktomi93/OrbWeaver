@@ -235,10 +235,35 @@ interface DuplicateDoorPopulationResult {
   readonly accounting: RulePopulationAccounting;
 }
 
+/** A TOOLBAR CELL IS A VIEW SWITCH, NOT A SECOND DOOR (#1705, from #891's side-eye ruling). On home, the
+ *  primary `nav`'s "Chats" button NAVIGATES THE APP, while `#context-cell-chats` inside
+ *  `toolbar "Character"` REPAINTS THE CONTEXT REGION with this character's chats —
+ *  `docs/architecture/core/UI-Architecture-and-Layout.md` §4.1–4.3 assigns those two jobs to two regions,
+ *  so they are two verbs that happen to share a noun, not one verb with two homes. The rule's own message
+ *  ("one verb wants one home per plane") is the thing that does not apply.
+ *
+ *  Scoped to `role="toolbar"` deliberately, and no wider: the same rule's five per-character-name findings
+ *  on the landing (a list row against the "Recently chatted" shelf) are a RULING (#1662, ruled
+ *  DIFFERENTIATE), not a mechanism fence, and must keep firing.
+ *
+ *  EXCLUDED, not dropped: the cell stays in `candidates` and prints as `excluded(viewSwitchCell=N)`, so a
+ *  widening reach shows up in the denominator instead of as a quieter clean run. STATED RESIDUAL: two cells
+ *  of ONE toolbar sharing an accessible name are now outside this rule's population entirely — that is a
+ *  same-region collision, which `aria-name` and the region censuses own, and inventing a second pairing
+ *  mode here would re-import the exact cross-region comparison the ruling refuses. */
+function isViewSwitchCell(door: ActionDoorInput): boolean {
+  return door.toolbarKey !== null;
+}
+
 export function checkDuplicateDoorPopulations(doors: readonly ActionDoorInput[]): DuplicateDoorPopulationResult {
   const groups = new Map<string, ActionDoorInput[]>();
+  let viewSwitchCells = 0;
   for (const door of doors) {
     if (door.name.length === 0) {
+      continue;
+    }
+    if (isViewSwitchCell(door)) {
+      viewSwitchCells += 1;
       continue;
     }
     const key = `${door.role}|${door.name}`;
@@ -279,13 +304,13 @@ export function checkDuplicateDoorPopulations(doors: readonly ActionDoorInput[])
   return {
     findings,
     accounting: settledPopulationAccounting("duplicate-action-door", {
-      candidates: affected,
+      candidates: affected + viewSwitchCells,
       judged: affected,
       affected,
       populations: findings.length,
       emitted,
       withheld: { cap: capped },
-      excluded: {},
+      excluded: viewSwitchCells === 0 ? {} : { viewSwitchCell: viewSwitchCells },
       collapsed: {},
     }),
   };

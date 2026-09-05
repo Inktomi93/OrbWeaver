@@ -1883,9 +1883,11 @@ auditRuleTest(
 // every virtualized list at coarse pointer — where every row's action cluster is permanent rather than
 // hover-revealed, so two rows' doors are on one plane at once.
 
-/** A door as the walker emits it; `list`/`item` default to the not-in-a-list case. */
+/** A door as the walker emits it; `list`/`item` default to the not-in-a-list case. `toolbarKey` is null
+ *  throughout: the view-switch-cell exclusion (#1705) is a DOM fact, so its proof is the rendered fixture in
+ *  `ops/walker/census-interactive.int.test.ts`, not a hand-built sample. */
 function door(selector: string, path: string, list: string | null = null, item: string | null = null): ActionDoorInput {
-  return { selector, role: "button", name: "more message actions", path, listKey: list, itemKey: item };
+  return { selector, role: "button", name: "more message actions", path, listKey: list, itemKey: item, toolbarKey: null };
 }
 
 auditRuleTest(
