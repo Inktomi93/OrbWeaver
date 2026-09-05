@@ -12780,29 +12780,30 @@
       "path": "docs/design/mocks/README.md",
       "lane": "design",
       "issue": 5,
-      "lines": 42,
-      "bytes": 4241,
-      "sha256": "5d8fd1e1006bc574c693221c954de83660232ddad673c6c8551b2ed118bc33dd",
+      "lines": 43,
+      "bytes": 4705,
+      "sha256": "ecacf3ccf3c92833c0f893915a73dddb0e3d4244fa05ef51af6a6ac74ee9a1bf",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "archived",
-          "updated": "2026-08-30"
+          "updated": "2026-09-05"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/mocks/README.md",
-        "assignedSha256": "5d8fd1e1006bc574c693221c954de83660232ddad673c6c8551b2ed118bc33dd",
+        "assignedSha256": "ecacf3ccf3c92833c0f893915a73dddb0e3d4244fa05ef51af6a6ac74ee9a1bf",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "5d8fd1e1006bc574c693221c954de83660232ddad673c6c8551b2ed118bc33dd",
-        "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
+        "verifiedSha256": "ecacf3ccf3c92833c0f893915a73dddb0e3d4244fa05ef51af6a6ac74ee9a1bf",
+        "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested at ffd7d9a33 by the orchestrator: the regex-section/ row added (#1742 canvas source; five boards × two themes; updated 2026-09-05).",
           "re-attested at 626a06121 by the orchestrator: the config-collections/ row added (#1725 canvas source; build.mjs → canvas.html; eleven boards × two themes).",
           "docs/design/mocks/README.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
@@ -13100,6 +13101,316 @@
           }
         ],
         "summary": "Context bracket mock (#860): the context panel as ONE head+foot chrome for chats, game rooms and characters — the canvas source (build.mjs → seven .dc.html + canvas.json), true-size default-state renders, the ruling, the slot table, the rulings that survive with a changed input, and the coupled sites for the build lane."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/regex-section/DESIGN.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 150,
+      "bytes": 15380,
+      "sha256": "1bf8b73a50ee6f734a997b38c13372f87f10af97a51ff9110b5f0174a95320fc",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/regex-section/DESIGN.md",
+        "assignedSha256": "1bf8b73a50ee6f734a997b38c13372f87f10af97a51ff9110b5f0174a95320fc",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "1bf8b73a50ee6f734a997b38c13372f87f10af97a51ff9110b5f0174a95320fc",
+        "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+        "verifiedAt": "2026-09-05",
+        "evidence": [
+          "Read in full by the orchestrator at the fold (cb-regex-section): v2 redrawn from side-eye + stickler review; the server half (the effective read, the per-chat levers, #1733's room fan) landed with this fold; the section itself (step 4) is a fresh lane on the same worktree."
+        ],
+        "claims": [
+          {
+            "claim": "The owner approved v2 and the server half landed; the section build is step 4.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1742"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/chat/substrate/regex-tier.ts:1"
+              }
+            ]
+          }
+        ],
+        "summary": "The room's Regex section (#1742), owner-approved 2026-09-05 ('regex approved' on v2): a This-chat DisclosureSection with a lever strip (master + per-tier switches incl. Everywhere), the effective prompt-side list in run order, the On-screen roster, the member view and the phone; §4 mints the vocabulary; five boards in both themes."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/regex-section/PROPOSAL-ia.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 566,
+      "bytes": 48700,
+      "sha256": "95ae188c15124db6f1c8ec59a2c5c8710bc8d8702dd0c57d061511fefbe2c757",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "draft",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/regex-section/PROPOSAL-ia.md",
+        "assignedSha256": "95ae188c15124db6f1c8ec59a2c5c8710bc8d8702dd0c57d061511fefbe2c757",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "95ae188c15124db6f1c8ec59a2c5c8710bc8d8702dd0c57d061511fefbe2c757",
+        "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+        "verifiedAt": "2026-09-05",
+        "evidence": ["Read in full by the orchestrator at the fold: one of three lens proposals the design synthesised; frozen as an input (status draft)."],
+        "claims": [
+          {
+            "claim": "An input proposal to the approved design.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1742"
+              }
+            ]
+          }
+        ],
+        "summary": "Information-architecture proposal for the regex one-place (lane cb-regex-ia): where the section sits, what it lists, what it hides; an input to DESIGN.md."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/regex-section/PROPOSAL-sys.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 378,
+      "bytes": 33560,
+      "sha256": "bda98ea0f179a3258c04adb88f6aefeab5709b847a699f8cbf930fa04585a1f1",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/regex-section/PROPOSAL-sys.md",
+        "assignedSha256": "bda98ea0f179a3258c04adb88f6aefeab5709b847a699f8cbf930fa04585a1f1",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "bda98ea0f179a3258c04adb88f6aefeab5709b847a699f8cbf930fa04585a1f1",
+        "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+        "verifiedAt": "2026-09-05",
+        "evidence": ["Read in full by the orchestrator at the fold: the systems lens; its tier/dedup model is what resolveRegexTiers implements."],
+        "claims": [
+          {
+            "claim": "The tier model landed as resolveRegexTiers.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1742"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/chat/substrate/regex-tier.ts:1"
+              }
+            ]
+          }
+        ],
+        "summary": "Systems-lens proposal for the regex panel (lane cb-regex-sys): tiers, precedence, dedup at the winning tier, the room fan — the half that became the server read."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/regex-section/PROPOSAL-ux.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 610,
+      "bytes": 41462,
+      "sha256": "7c031afc1ebf37a1972a9011bbb239425c1427fbc89be925c43dcce65b2695eb",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/regex-section/PROPOSAL-ux.md",
+        "assignedSha256": "7c031afc1ebf37a1972a9011bbb239425c1427fbc89be925c43dcce65b2695eb",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "7c031afc1ebf37a1972a9011bbb239425c1427fbc89be925c43dcce65b2695eb",
+        "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+        "verifiedAt": "2026-09-05",
+        "evidence": ["Read in full by the orchestrator at the fold: the UX lens the design took its lever strip and phone sheet from."],
+        "claims": [
+          {
+            "claim": "An input proposal to the approved design.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1742"
+              }
+            ]
+          }
+        ],
+        "summary": "Interaction-design proposal for the Regex section (lane cb-regex-ux): the lever strip, switch sizes, the member view, the phone sheet."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/regex-section/REVIEW-sideeye.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 529,
+      "bytes": 46494,
+      "sha256": "661c33d1b0cb9e7cb0afda7407c466a440fb524590e8dc5f46791b67ef59af7f",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/regex-section/REVIEW-sideeye.md",
+        "assignedSha256": "661c33d1b0cb9e7cb0afda7407c466a440fb524590e8dc5f46791b67ef59af7f",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "661c33d1b0cb9e7cb0afda7407c466a440fb524590e8dc5f46791b67ef59af7f",
+        "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+        "verifiedAt": "2026-09-05",
+        "evidence": [
+          "Read in full by the orchestrator at the fold: frozen review evidence of v1; v2 answered its findings (lever strip incl. Everywhere, two legs/two rosters, readable off rows, shipped switch sizes)."
+        ],
+        "claims": [
+          {
+            "claim": "v1 findings answered in v2.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1742"
+              }
+            ]
+          }
+        ],
+        "summary": "Side-eye review of the regex panel mock v1 (UX/visual/a11y, both themes) — the findings v2 was redrawn to answer."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/regex-section/REVIEW-stickler.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 438,
+      "bytes": 43124,
+      "sha256": "8c5983bceefb71fc02cb8fd7960d6d5c17b490be33ab0bc06012c562b8c5bfd3",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/regex-section/REVIEW-stickler.md",
+        "assignedSha256": "8c5983bceefb71fc02cb8fd7960d6d5c17b490be33ab0bc06012c562b8c5bfd3",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "8c5983bceefb71fc02cb8fd7960d6d5c17b490be33ab0bc06012c562b8c5bfd3",
+        "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+        "verifiedAt": "2026-09-05",
+        "evidence": ["Read in full by the orchestrator at the fold: frozen review evidence of v1; #1739 filed from it as a prerequisite/arm of step 4."],
+        "claims": [
+          {
+            "claim": "v1 findings answered in v2; #1739 filed.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1742"
+              },
+              {
+                "kind": "issue",
+                "target": "#1739"
+              }
+            ]
+          }
+        ],
+        "summary": "Stickler review of the regex section mock v1 (IA vs law, coupled sites): the findings v2 answered, plus #1739 (chat-tier regex survives a host handoff but the new host cannot switch/detach it)."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/regex-section/STUDY.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 123,
+      "bytes": 11012,
+      "sha256": "d00e89a960e3351ed7b9da64ef3c0f5af0c52ebaeab51fa5f5b6500a07acb697",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/regex-section/STUDY.md",
+        "assignedSha256": "d00e89a960e3351ed7b9da64ef3c0f5af0c52ebaeab51fa5f5b6500a07acb697",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "d00e89a960e3351ed7b9da64ef3c0f5af0c52ebaeab51fa5f5b6500a07acb697",
+        "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+        "verifiedAt": "2026-09-05",
+        "evidence": ["Read in full by the orchestrator at the fold: the ST parity study behind DESIGN.md (the neo-parity oracle is a floor, never a golden)."],
+        "claims": [
+          {
+            "claim": "The parity floor the design honours.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1742"
+              }
+            ]
+          }
+        ],
+        "summary": "A study of SillyTavern's Regex panel and what the one-place panel must be — the parity floor the design was drawn against."
       },
       "receiptCurrent": true
     },
@@ -14134,9 +14445,9 @@
       "path": "docs/design/vocabulary-map.md",
       "lane": "design",
       "issue": 5,
-      "lines": 157,
-      "bytes": 23356,
-      "sha256": "ff881eb0e5e3e255f83169d57eec8259e4f6c5d978c55aaf967baa88817fdc96",
+      "lines": 186,
+      "bytes": 26768,
+      "sha256": "1cf1e90f8b636ecec8708e7309089fa014a9988bd758c367b16f2dc1d4ba7fb1",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14149,14 +14460,15 @@
       },
       "receipt": {
         "path": "docs/design/vocabulary-map.md",
-        "assignedSha256": "ff881eb0e5e3e255f83169d57eec8259e4f6c5d978c55aaf967baa88817fdc96",
+        "assignedSha256": "1cf1e90f8b636ecec8708e7309089fa014a9988bd758c367b16f2dc1d4ba7fb1",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "ff881eb0e5e3e255f83169d57eec8259e4f6c5d978c55aaf967baa88817fdc96",
-        "verifiedCommit": "b0e62f3bdebc42d7d85b919a0c0cb7f6fd0387c2",
+        "verifiedSha256": "1cf1e90f8b636ecec8708e7309089fa014a9988bd758c367b16f2dc1d4ba7fb1",
+        "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested at ffd7d9a33 by the orchestrator after reading the regex REGISTER in full (cb-regex-section, #1742): five minted rows recorded BEFORE the strings exist (the map's own rule — a word changes HERE first) plus the REUSED table citing each shipped carrier; the server half landed with the mint, the client half is the step-4 build.",
           "re-attested at b0e62f3bd by the orchestrator after reading the #1737/#1738 edit in full: the HELD survivor table is EMPTY (its last row, the prose-slot id, closed by the rename) and is replaced by a dated closure paragraph; the section keeps its re-derivation command and the false-stem fence; the drive-axis prose sweep (#1738) took the map's words (seated/present characters, joined character names, multi-voice, presence-gating).",
           "re-attested at c545899ab by the orchestrator after reading the #1718 row in full (cb-mobile-shell): a Filters row — the phone chats pane's ONE shared filter trigger names every bound in force (Filters / Filters: chats up to <month> / Filters: chats with <character> / both), grammar homed at phoneFiltersLabel in chat-list-scope.ts; #1350's 'the trigger carries the bound' principle survives with its input changed.",
           "re-attested at 2eed0d66b by the orchestrator after reading the #1649/#1049 edit in full: the four HELD handoff-offer rows CLOSED (copyCast → copyCharacters with a boot data migration; offerCast → offerCharacters; summaryCast → summaryParticipantNames); the table now carries its own re-derivation command and the false-stem fence; ONE new HELD row — the persisted prose-slot id chat.group.castMember (#1737, owner arm) — so the survivor table stays truthful.",
