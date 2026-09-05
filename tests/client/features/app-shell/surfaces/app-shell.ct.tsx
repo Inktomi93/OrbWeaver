@@ -34,7 +34,7 @@ import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/modal-s
 import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
 import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/_shared/appearance-presets.json" with { type: "json" };
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { makeCharacterSummary } from "../../character/fixtures.ts";
+import { makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { GrainDoublePaintFixture, OverArtGlassCensusFixture, ShellCascadeFixture } from "../_cascade-fixtures.tsx";
 import {
@@ -5807,4 +5807,122 @@ test("#623 census: every other glass surface over worst-case art, LIGHT arm — 
   // Only the surface #237 already fixed is ASSERTED: it is this census's positive control, and a census that
   // RED on surfaces this lane is fenced out of would be parking someone else's work inside a failing test.
   expect(panel.ratio).toBeGreaterThanOrEqual(AA_NORMAL);
+});
+
+// -- #1669 arm A: THE CHARACTERS PANE'S PHONE CHROME, MEASURED ON THE REAL SCREEN --------------------
+// WHY IT LIVES IN THE APP-SHELL CT and not beside the surface it is about. The saving this ratchets is a
+// CSS one the shell owns: shell.css's "...AND THE BAND GOES WITH IT WHEN NOTHING IS LEFT" `:has()` chain
+// sheds the LIST chrome band once nothing but the identity cluster is in it, and that rule is keyed on
+// `.shell-grid[data-list-mode="docked"]` inside the `<=48rem` media query. The surface CT's own story mounts
+// the band WITHOUT the shell grid and at a fixed-width div inside a desktop viewport, so neither condition
+// can hold there and its "#1661 the phone's chrome budget" fence structurally cannot see the shed - it
+// measures the SURFACE's own chrome and keeps doing so. This is the whole-screen number the #1669 ruling was
+// written against (`snap --goto characters --isolated --mobile`, 280px of a 740px phone at 430 coarse):
+// topbar 48 + LIST band 48 + body pad 8 + search/sort 44 + gap 6 + VIEW 53 + gap 8 + FILTERS 57 + gap 8.
+//
+// WHAT MOVED: the band's `[import][+ New]` cluster is a SECTION-SCOPED `topbar.trail` chrome entry on a
+// phone (`features/character/lib/character-create-chrome.tsx`), so the band has nothing left and goes. The
+// desktop band is untouched, and #520's "one New door on the plane" is preserved by the entry's third gate -
+// it stands down when the LIST is not the screen, which is exactly where the landing mints its own doors.
+//
+// MEASURED HERE, both arms: **288px** with the band shed, against **336px** on the unmodified source - the
+// red-first receipt, taken by restoring `characters-list-header.tsx` + the CT chrome registry from HEAD and
+// re-running these same two mounts, which also reported the trail carrying no `New` at all. That is 48px,
+// the band's own row; the ruling predicted ~56 on the assumption of a gap under it, and there is none. It is
+// WIDTH-INVARIANT across the phone band: nothing in this chrome wraps at either end, so the smaller phone is
+// no worse and the bigger one no better. 290 is the measured number plus 2px of sub-pixel headroom. Its
+// POSITIVE CONTROL is the desktop twin at the foot of this block, which measures the same plane in the state
+// that must NOT shed.
+const CHARACTERS_PHONE_CHROME_CEILING_PX = 290;
+const CHARACTERS_PHONE_ARMS = [320, 390] as const;
+
+/** The routes the Characters plane needs on top of the shell's own ambient set. `character.get` is fed
+ *  because the #520 half of the trail pin OPENS her - the editor beside the list is a real read, and an
+ *  unfed one leaves that pipeline inert while this file claims to have driven a selection. */
+function charactersPlaneRoutes(): Readonly<Record<string, unknown>> {
+  return {
+    ...SHELL_AMBIENT_ROUTES,
+    "chat.listChats": chatListResponder([]),
+    "character.list": { items: [makeCharacterSummary({ id: "char_phone", name: "Starla" })], nextCursor: null, totalCount: 1 },
+    "character.get": makeCharacterDetail({ id: "char_phone", name: "Starla" }),
+    // The editor's own two ambient reads, fed empty: opening her is half the #520 pin, and an unfed read
+    // leaves those pipelines inert while this file claims to have driven a selection.
+    "tag.listPendingSuggestions": [],
+    "regex.listForCharacter": [],
+  };
+}
+
+/** Her LIST row, addressed inside the list pane. The CONTENT pane's landing shelves offer a button with the
+ *  same accessible name, so an unscoped `getByRole` is two elements on the desktop arm. */
+function starlaRow(page: Page): Locator {
+  return page.locator('.shell-panel[data-panel-side="list"]').getByRole("button", { name: "Starla", exact: true });
+}
+
+/** The whole screen's chrome: the top of the shell to the top of the character list. */
+async function charactersScreenChrome(shell: Locator): Promise<number> {
+  const list = shell.getByRole("list", { name: "Character library" });
+  const [shellBox, listBox] = await Promise.all([shell.boundingBox(), list.boundingBox()]);
+  return Math.round((listBox?.y ?? 0) - (shellBox?.y ?? 0));
+}
+
+test.describe("#1669 the Characters plane's phone chrome", () => {
+  test.use({ hasTouch: true });
+
+  for (const width of CHARACTERS_PHONE_ARMS) {
+    test(`at ${String(width)}px coarse the LIST band is shed and the chrome above the first row holds its budget`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      await page.setViewportSize({ width, height: 740 });
+      await routeTrpc(page, charactersPlaneRoutes());
+      const shell = await mount(<AppShellOnSectionStory section="characters" />);
+      await expect(starlaRow(page)).toBeVisible();
+
+      // THE GEOMETRY IS READ FIRST, deliberately: a red here has to PRINT the number this fence is about,
+      // and an earlier structural assertion would abort the test before any pixel was measured.
+      expect(await charactersScreenChrome(shell)).toBeLessThanOrEqual(CHARACTERS_PHONE_CHROME_CEILING_PX);
+      // ...AND THE BAND IS GONE, measured as PAINT and not as a class: `display:none` is what the `:has()`
+      // chain resolves to, and a band that merely lost its title would still be a 48px row here.
+      await expect(page.locator('.shell-panel[data-panel-side="list"] .shell-panel-header')).toBeHidden();
+    });
+
+    test(`at ${String(width)}px coarse the band's two doors are on the TOPBAR TRAIL, and only while the list is the screen`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      await page.setViewportSize({ width, height: 740 });
+      await routeTrpc(page, charactersPlaneRoutes());
+      await mount(<AppShellOnSectionStory section="characters" />);
+      await expect(starlaRow(page)).toBeVisible();
+
+      // Both verbs, in the trail, by their production accessible names - the SAME cluster the desktop band
+      // renders, so neither is buried a click deep inside the other.
+      const trail = page.locator(".shell-topbar-trail");
+      await expect(trail.getByRole("button", { name: "New", exact: true })).toBeVisible();
+      await expect(trail.getByRole("button", { name: "Import a character card" })).toBeVisible();
+
+      // ...AND THE TRAIL STILL SAYS WHERE YOU ARE. The topbar's whole job on a phone is the screen title
+      // (side-eye leg-4 P2, the budget `plugin-commands-chrome.tsx` records), so the entry is only paid for
+      // if the title survives beside it with a real box.
+      // `[data-identity="narrow"]` — the row paints TWO identity cells and swaps them by container
+      // query; the wide one is the empty box at this width, so a bare class selector is two elements.
+      const identity = page.locator('.shell-topbar-identity[data-identity="narrow"]');
+      expect((await identity.boundingBox())?.width ?? 0).toBeGreaterThan(0);
+
+      // #520 IS INTACT: open a character and the LIST stops being the screen, so the trail entry stands
+      // down and the landing's own doors are the only ones on the plane.
+      await starlaRow(page).click();
+      await expect(trail.getByRole("button", { name: "New", exact: true })).toHaveCount(0);
+    });
+  }
+});
+
+// The DESKTOP twin, and the arm that goes red if the phone entry leaks past its applicability: the band
+// keeps its cluster and the trail carries no section primary at all.
+test("#1669 @desktop: the Characters LIST band keeps its own doors and the topbar trail carries none", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await routeTrpc(page, charactersPlaneRoutes());
+  await mount(<AppShellOnSectionStory section="characters" />);
+  await expect(starlaRow(page)).toBeVisible();
+
+  const band = page.locator('.shell-panel[data-panel-side="list"] .shell-panel-header');
+  await expect(band).toBeVisible();
+  await expect(band.getByRole("button", { name: "New", exact: true })).toBeVisible();
+  await expect(page.locator(".shell-topbar-trail").getByRole("button", { name: "New", exact: true })).toHaveCount(0);
 });

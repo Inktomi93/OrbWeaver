@@ -3,7 +3,8 @@
 // It is the chats HOME quick-picks shelf cell's anatomy (`features/chat/components/home-quick-picks-tile-body.tsx`),
 // rebuilt here rather than imported: `client-features-no-cross` seals a feature's components from another
 // feature, and the two cells are the same PATTERN with different jobs — that one starts a chat, this one
-// opens somebody in the editor beside the list. Every ruling that cell paid for is carried across
+// opens somebody in the editor beside the list (or RESUMES her newest room, on the ONE shelf that has one to
+// resume — see {@link ShelfFaceResume}). Every ruling that cell paid for is carried across
 // deliberately, and each is restated where it applies:
 //   · the NAME is the button's `aria-label` and the caption rides `aria-describedby`, because adjacent
 //     inline nodes concatenate with no separator and AT read the two as one run-on string;
@@ -22,7 +23,7 @@
 // in flow) rather than an absolute pair, so the art still sizes the cell.
 
 import { blobUrl } from "@orb/contracts/assets";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
@@ -43,10 +44,40 @@ export interface CharacterShelfFaceProps {
   readonly caption: string | null;
   /** The caption element's id — minted ONCE per shelf and suffixed by this face's id, never a hook in a map. */
   readonly captionId: string;
+  /** WHAT PRESSING THIS FACE DOES — `null` = it OPENS her in the editor beside the list, which is what
+   *  every shelf but one does; a value = it RESUMES the room named here (#1662). See {@link ShelfFaceResume}. */
+  readonly resume: ShelfFaceResume | null;
   readonly onOpen: (id: CharacterId) => void;
 }
 
-export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, caption, captionId, onOpen }: CharacterShelfFaceProps): ReactElement {
+/**
+ * THE RESUME DOOR (#1662, owner-ruled 2026-09-05). The Recently-chatted shelf pressed `onOpen(id)` — the
+ * SAME door the library row beside it offers, so design-audit's `duplicate-action-door` paired the two on
+ * five populations: a button named "<character>" in the list and a button named "<character>" on the
+ * landing, one verb wearing two homes on one plane. The landing's shelf is the one that had a second thing
+ * to say: it is sorted by last chat and prints "chatted 3h ago · 4 chats", so the honest door under that
+ * caption is the ROOM, not the card. The list row keeps opening the character.
+ *
+ * The chat id is NOT NULLABLE here: a face with no room cannot resume, so the shelf that resumes filters to
+ * the faces that have one (`hasChatted`) and every other shelf passes `null`. That is what keeps the
+ * announced verb and the landing place the same fact — a control that says resume and opens an editor is
+ * the defect this replaced, one layer down.
+ */
+export interface ShelfFaceResume {
+  readonly chatId: ChatId;
+  readonly onResume: (chatId: ChatId) => void;
+}
+
+/** THE NAME SAYS WHAT THE PRESS DOES (#1662, WCAG 2.5.3 + the `duplicate-action-door` finding this
+ *  closes): two buttons both named "Sera" were two doors AT accessed identically; "Resume the chat with
+ *  Sera" and "Sera" are two different offers, which is what they actually are. `starred` still rides the
+ *  tail rather than the head, so the verb leads in both arms. */
+function faceActionName(name: string, starred: boolean, resume: ShelfFaceResume | null): string {
+  const offer = resume === null ? name : `Resume the chat with ${name}`;
+  return starred ? `${offer}, starred` : offer;
+}
+
+export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, caption, captionId, resume, onOpen }: CharacterShelfFaceProps): ReactElement {
   return (
     // `role="listitem"` rides a layout-primitive WRAPPER, never the Button — an interactive element assigned
     // a non-interactive role is a lie to AT (and eslint's `no-interactive-element-to-noninteractive-role`).
@@ -54,11 +85,12 @@ export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, capti
       <Button
         // STARRED IS PART OF THE NAME, not a silent decoration (the `invisible-is-the-finding` rule): the
         // mark is the only thing on the cell that says it, and on Recently chatted — where the shelf's own
-        // eyebrow does not — a sighted reader gets a fact a screen-reader user would not.
-        aria-label={starred ? `${name}, starred` : name}
+        // eyebrow does not — a sighted reader gets a fact a screen-reader user would not. The VERB leads it
+        // now (#1662) — see {@link faceActionName}.
+        aria-label={faceActionName(name, starred, resume)}
         className="flex-col items-stretch gap-tight text-left"
         intent="ghost"
-        onClick={(): void => onOpen(id)}
+        onClick={(): void => (resume === null ? onOpen(id) : resume.onResume(resume.chatId))}
         size="media"
         {...(caption === null ? {} : { "aria-describedby": captionId })}
       >

@@ -1,7 +1,12 @@
-// Pure view helpers for the character LIST — the categorized group-by-tag fold
-// and the resume-or-new target map. All pure + structural (they take the minimal row/chat shape, not the
-// full tRPC types) so they unit-test without a data layer. The surface composes them in RENDER (§5.1
-// render-only reader taxonomy — no effect keyed on selection/prefs).
+// Pure view helpers for the character LIST — the categorized group-by-tag fold. Pure + structural (it takes
+// the minimal row shape, not the full tRPC types) so it unit-tests without a data layer. The surface
+// composes it in RENDER (§5.1 render-only reader taxonomy — no effect keyed on selection/prefs).
+//
+// THE RESUME-OR-NEW MAP IS GONE (#1662). `resumeTargets` reverse-indexed a BOUNDED `listChats` page into
+// `characterId -> chatId`, which answered about the last 100 rooms: a character outside that window fell
+// through to "start a new chat" from a CTA that said resume, and the file's own note called the fix "a new
+// server capability, not this lane's". It is `CharacterSummary.lastChatId` now — the SAME total order
+// (recency -> updatedAt -> id, #1503) in SQL, over the whole library, on the row the surface already has.
 //
 // THE CHIP FILTER IS NOT HERE ANY MORE (owner ruling 2026-08-13): `filterByChips` ran the favorites /
 // archived / three-state tag predicates over the loaded keyset window, which is a filter over "whatever
@@ -9,7 +14,7 @@
 // (`domain/character/verbs/list.ts`), so the semantics they encoded live in SQL beside the search.
 
 import type { TagFolderType } from "@orb/contracts/tag";
-import type { CharacterId, ChatId, TagId } from "@orb/kit/ids";
+import type { TagId } from "@orb/kit/ids";
 
 /** The tag shape the categorized fold reads (a structural subset of `TagView`). */
 export interface RowTag {
@@ -99,58 +104,4 @@ export function groupStartsOpen(tag: RowTag | null): boolean {
 
 function assertNeverFolderType(folderType: never): never {
   throw new Error(`groupStartsOpen: unhandled TagFolderType ${JSON.stringify(folderType)}`);
-}
-
-/** The chat shape the resume map reads (a structural subset of `ChatSummary`). */
-export interface ResumableChat {
-  readonly id: ChatId;
-  readonly participantCharacterIds: readonly CharacterId[];
-  readonly lastMessageAt: number | null;
-  readonly updatedAt: number;
-}
-
-/** How recent a chat is FOR RESUME PURPOSES: its last message, or — for a chat that was created and never
- *  spoken in — when it was last touched. A never-messaged chat is still a resumable place. */
-function recencyOf(chat: ResumableChat): number {
-  return chat.lastMessageAt ?? chat.updatedAt;
-}
-
-/** Is `candidate` the better resume target than the one held? A TOTAL order, in three steps (#1503).
- *  Recency alone is not one: two chats with the same `lastMessageAt` (a bulk seed, a same-millisecond pair,
- *  and every never-messaged chat sharing an `updatedAt`) compared EQUAL, and a plain `>` then kept whichever
- *  the list happened to yield first — so the CTA for one character could resume a different chat depending
- *  on how `listChats` was sorted, with nothing on screen explaining the change. `updatedAt` breaks the first
- *  tie (the chat touched more recently is the one you were last in) and the id breaks the last one, so the
- *  answer is a property of the DATA and not of the iteration order. */
-function isBetterResume(candidate: ResumableChat, held: ResumableChat): boolean {
-  const candidateRecency = recencyOf(candidate);
-  const heldRecency = recencyOf(held);
-  if (candidateRecency !== heldRecency) {
-    return candidateRecency > heldRecency;
-  }
-  if (candidate.updatedAt !== held.updatedAt) {
-    return candidate.updatedAt > held.updatedAt;
-  }
-  return candidate.id > held.id;
-}
-
-/** §4.4/§9c reverse read: characterId → the MOST-RECENT chat that includes them (by `lastMessageAt` desc,
- *  falling back to `updatedAt` for a never-messaged chat, then `updatedAt` and the id as tie-breaks —
- *  `isBetterResume`). The row's dual-purpose CTA resumes `get(id)` when present, else starts new — a pure
- *  render derivation over the already-loaded `listChats`, never an effect. */
-export function resumeTargets(chats: readonly ResumableChat[]): ReadonlyMap<CharacterId, ChatId> {
-  const best = new Map<CharacterId, ResumableChat>();
-  for (const chat of chats) {
-    for (const characterId of chat.participantCharacterIds) {
-      const current = best.get(characterId);
-      if (current === undefined || isBetterResume(chat, current)) {
-        best.set(characterId, chat);
-      }
-    }
-  }
-  const map = new Map<CharacterId, ChatId>();
-  for (const [characterId, chat] of best) {
-    map.set(characterId, chat.id);
-  }
-  return map;
 }

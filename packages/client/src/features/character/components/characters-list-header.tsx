@@ -26,11 +26,23 @@
 
 import type { ReactElement } from "react";
 import { ListPaneHeader } from "#components";
+import { useMobileViewport } from "#state";
 import { useCharacterCensus } from "../hooks/use-character-census.ts";
 import { CHARACTERS_SECTION_LABEL } from "../lib/characters-section-label.ts";
 import { CharacterCreateActions } from "./character-create-actions.tsx";
 
 export function CharactersListHeader(): ReactElement {
   const count = useCharacterCensus();
-  return <ListPaneHeader action={<CharacterCreateActions />} count={count ?? 0} title={CHARACTERS_SECTION_LABEL} />;
+  // ON A PHONE THE BAND CARRIES NO ACTION, AND SO THE BAND GOES (#1669 arm A, owner-ruled 2026-09-05). The
+  // ONE-NAME rule had already shed the title here; the `action` slot was the only thing left keeping a 48px
+  // chrome row alive, and shell.css's "…AND THE BAND GOES WITH IT WHEN NOTHING IS LEFT" `:has()` chain sheds
+  // the row the moment nothing but the identity cluster is in it. The cluster is not deleted — it MOVES to
+  // the phone's topbar trail as a section-scoped chrome entry (`lib/character-create-chrome.tsx`, which
+  // states the whole ruling and the measurement it was bought with), so the same two doors are one tap away
+  // on the one row a phone always paints. The DESKTOP band is untouched.
+  //
+  // IT MUST BE AN OMITTED PROP, NEVER A HIDDEN ONE: a `display:none` action is still a child, and the shed
+  // rule is `:has(> *:not([data-slot="list-pane-identity"]))` — CSS cannot un-see it.
+  const mobile = useMobileViewport();
+  return <ListPaneHeader count={count ?? 0} title={CHARACTERS_SECTION_LABEL} {...(mobile ? {} : { action: <CharacterCreateActions /> })} />;
 }

@@ -27,7 +27,7 @@ import {
 } from "@orb/client/features/app-shell";
 import { reauthModal } from "@orb/client/features/auth";
 import { automationBudgetSection, automationLibraryRulesSection } from "@orb/client/features/automation";
-import { librarySettingsSection, makeCharactersSection } from "@orb/client/features/character";
+import { characterCreateChrome, librarySettingsSection, makeCharactersSection } from "@orb/client/features/character";
 import {
   appearanceAvatarsSection,
   appearanceMessageDetailsSection,
@@ -373,7 +373,10 @@ const realChromeRegistry: ChromeRegistry = createContributorRegistry(
   assembleChrome({
     sections: realRegistry.list(),
     modals: realModalRegistry.list(),
-    widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome, personaChrome],
+    // `characterCreateChrome` (#1669) is the door's SECTION-scoped trail entry — the Characters pane's
+    // primary, on a phone, where the LIST band that used to carry it is shed. It has to be here or the
+    // real-registry shell CTs measure a phone topbar the product does not ship.
+    widgets: [notificationsChrome, characterCreateChrome, fullscreenChrome, contextToggleChrome, personaChrome],
   }),
 );
 

@@ -23,7 +23,7 @@ import { committedChat, isCommitted, isLanding, landingChat } from "./chat-handl
 import { readComposerDraft } from "./composer-draft-store.ts";
 import { createPersistedStore } from "./create-persisted-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
-import { openModal, setOpenOverlayPanel } from "./shell-store.ts";
+import { openModal, setActiveSection, setOpenOverlayPanel } from "./shell-store.ts";
 
 /** The CREATION-ONLY parameters of a new chat — what a launcher pre-arms the picker with, and what the
  *  picker hands `chat.startChat`. All fields optional: an empty intent is a legal narrator-only room. */
@@ -160,6 +160,21 @@ export function goToLanding(): void {
     const createdChatId = releaseCreatedChat(null);
     useActiveChatStore.setState({ handle: landingChat(), newChatIntent: undefined, createdChatId }, true, "activeChat/goToLanding");
   });
+}
+
+/**
+ * RESUME an existing room FROM ANOTHER SECTION (#1662) — the Characters plane's two resume doors: the
+ * library row's Chat CTA and the landing's Recently-chatted faces.
+ *
+ * `selectChat` alone makes the room active in a section the reader is not looking at, so the two callers
+ * both spelled `selectChat(id); setActiveSection("chats")` — the same two-line intent written twice, which
+ * is how one of them comes to skip the section change. One intent, one name, one home; the WORD is the
+ * product's (`docs/design/vocabulary-map.md` — resume = re-enter the room you were already in, as opposed
+ * to start, which mints one).
+ */
+export function resumeChat(chatId: ChatId): void {
+  selectChat(chatId);
+  setActiveSection("chats");
 }
 
 /** Land on a chat from the LIST AND close any open LIST slide-over — the viewport-unaware intent form of

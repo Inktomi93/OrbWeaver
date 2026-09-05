@@ -177,6 +177,49 @@ describe("persistence/queries", () => {
     expect(byHandle.get(castId<CharacterHandle>("none"))?.chatCount).toBe(0);
   });
 
+  // ── the resume target (#1662) ────────────────────────────────────────────────────────────────────
+  // These three properties are the ones the RETIRED client fold (`resumeTargets`, #1503) used to own. They
+  // moved here with their subject: the target is a correlated subquery over the same visibility scope and
+  // the same recency clock as `lastChattedAt`, so this is where the order now executes.
+  test("summaryOf names WHICH room lastChattedAt maxed over, and null when there is no visible room (#1662)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const busy = await seedRawCharacter(db, { id: "character_busy", ownerId: owner, handle: castId<CharacterHandle>("busy") });
+    const hidden = await seedRawCharacter(db, { id: "character_hidden", ownerId: owner, handle: castId<CharacterHandle>("hidden") });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_old"), ownerId: owner, characterId: busy, recencyAt: 1_700_000_000_000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_new"), ownerId: owner, characterId: busy, recencyAt: 1_800_000_000_000 });
+    // Seated only in rooms the library cannot see — a husk, a temporary room, a room she has left. The
+    // stamp is null there, so the TARGET must be null too: a face with a room and no stamp (or the reverse)
+    // is what lets a resume door and its caption name two different facts.
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_h1"), ownerId: owner, characterId: hidden, recencyAt: 9000, started: false });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_h2"), ownerId: owner, characterId: hidden, recencyAt: 9000, temporary: true });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_h3"), ownerId: owner, characterId: hidden, recencyAt: 9000, present: false });
+
+    const rows = await listOwnedCharactersWithAvatar(db, { ownerId: owner, limit: 10, sort: "recent", cursor: undefined });
+    const byHandle = new Map(rows.map((r) => [r.character.handle, summaryOf(r, [], NO_AMBIGUOUS_NAMES)]));
+    const busyRow = byHandle.get(castId<CharacterHandle>("busy"));
+    expect(busyRow?.lastChatId).toBe("chat_new");
+    expect(busyRow?.lastChattedAt).toBe(1_800_000_000_000);
+    expect(byHandle.get(castId<CharacterHandle>("hidden"))?.lastChatId).toBeNull();
+    expect(byHandle.get(castId<CharacterHandle>("hidden"))?.lastChattedAt).toBeNull();
+  });
+
+  test("an equal-recency pair resolves by DATA, never by insertion order (#1503's order, in SQL)", async () => {
+    // Recency alone is not an order: a bulk seed, a same-millisecond pair and every never-messaged room
+    // share a value, so the winner would be whichever row the engine yielded first — and one character's
+    // resume door would change target with nothing on screen explaining it. The id is the last resort, and
+    // the highest one wins, which is the direction the retired client fold used.
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const twinned = await seedRawCharacter(db, { id: "character_twin", ownerId: owner, handle: castId<CharacterHandle>("twin") });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_bbb"), ownerId: owner, characterId: twinned, recencyAt: 500 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_aaa"), ownerId: owner, characterId: twinned, recencyAt: 500 });
+
+    const rows = await listOwnedCharactersWithAvatar(db, { ownerId: owner, limit: 10, sort: "recent", cursor: undefined });
+    const byHandle = new Map(rows.map((r) => [r.character.handle, summaryOf(r, [], NO_AMBIGUOUS_NAMES)]));
+    expect(byHandle.get(castId<CharacterHandle>("twin"))?.lastChatId).toBe("chat_bbb");
+  });
+
   test("summaryOf projects the closed provenance verdict — imported beats shipped beats authored (#865)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });

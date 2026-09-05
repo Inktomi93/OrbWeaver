@@ -1,18 +1,24 @@
 // lib/character-list-view — the pure LIST view helpers (§4.3/§4.4). DOM-free logic extracted for a
 // browser-free test (Spine-Testing.md §7): the categorized group-by-tag fold (multi-tag duplication + the
-// Uncategorized tail + empty-group drop) and the resume-or-new most-recent-chat reduction.
+// Uncategorized tail + empty-group drop).
+//
+// THE RESUME-OR-NEW PINS MOVED WITH THEIR SUBJECT (#1662). `resumeTargets` — and #1503's total-order pins
+// over it — are retired: the resume target is `CharacterSummary.lastChatId`, computed in SQL over the whole
+// library. The same three properties (recency wins · a never-messaged room falls back to its row stamp · an
+// equal-recency pair resolves by DATA, not by iteration order) are pinned where they now execute,
+// `tests/server/domain/character/persistence/queries.int.test.ts` ("the resume target").
 //
 // The chip-filter pins moved OUT with `filterByChips` (owner ruling 2026-08-13 — favorites/archived/tag
 // narrowing is `character.list` query input now). Their semantics are pinned where they execute:
 // `tests/server/domain/character/verbs/list.int.test.ts` ("server-side chip filters").
 
 import type { TagFolderType } from "@orb/contracts/tag";
-import type { CharacterId, ChatId, TagId } from "@orb/kit/ids";
+import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 // Deep import the PURE lib module (NOT the "@orb/client/features/character" barrel): a barrel import drags
 // browser TSX into the dom-less root typecheck:graph program (the theme clamp.ts relative-import precedent).
-import type { FilterableRow, ResumableChat } from "../../../../../packages/client/src/features/character/lib/character-list-view.ts";
-import { groupByTag, groupStartsOpen, resumeTargets } from "../../../../../packages/client/src/features/character/lib/character-list-view.ts";
+import type { FilterableRow } from "../../../../../packages/client/src/features/character/lib/character-list-view.ts";
+import { groupByTag, groupStartsOpen } from "../../../../../packages/client/src/features/character/lib/character-list-view.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const tag = (id: string, name: string, isHiddenOnCard = false, folderType: TagFolderType = "NONE"): FilterableRow["tags"][number] => ({
@@ -64,45 +70,4 @@ test("groupStartsOpen: the Uncategorized bucket (no tag) always starts expanded"
   // It has no folderType to read and no editor to configure it — a catch-all the user cannot open by
   // configuration must not be closed by default.
   expect(groupStartsOpen(null)).toBe(true);
-});
-
-test("resumeTargets: characterId → the most-recent chat (lastMessageAt desc, updatedAt tiebreak)", () => {
-  const cid = castId<CharacterId>("char_a");
-  const chat = (id: string, lastMessageAt: number | null, updatedAt: number): ResumableChat => ({
-    id: castId<ChatId>(id),
-    participantCharacterIds: [cid],
-    lastMessageAt,
-    updatedAt,
-  });
-  const map = resumeTargets([chat("chat_old", 100, 1), chat("chat_new", 200, 1)]);
-  expect(map.get(cid)).toBe("chat_new");
-
-  // A never-messaged chat (null lastMessageAt) falls back to updatedAt for recency.
-  const map2 = resumeTargets([chat("chat_msg", 50, 1), chat("chat_fresh", null, 999)]);
-  expect(map2.get(cid)).toBe("chat_fresh");
-});
-
-test("resumeTargets: an equal-recency pair resolves by DATA, never by iteration order (#1503)", () => {
-  // The fold used to compare one scalar with `>`, so a tie kept whichever chat the list yielded first —
-  // and `listChats` is a sorted server read whose order can change under the same underlying rows. The CTA
-  // for a character would then resume a different chat with nothing on screen to explain it. Both
-  // orderings of the SAME pair must therefore agree.
-  const cid = castId<CharacterId>("char_a");
-  const chat = (id: string, lastMessageAt: number | null, updatedAt: number): ResumableChat => ({
-    id: castId<ChatId>(id),
-    participantCharacterIds: [cid],
-    lastMessageAt,
-    updatedAt,
-  });
-
-  // Same lastMessageAt → the chat touched more recently wins, from either direction.
-  const older = chat("chat_1", 500, 10);
-  const touched = chat("chat_2", 500, 40);
-  expect(resumeTargets([older, touched]).get(cid)).toBe("chat_2");
-  expect(resumeTargets([touched, older]).get(cid)).toBe("chat_2");
-
-  // Fully identical timestamps (a bulk seed) → the id is the last resort, and it is still order-independent.
-  const twinA = chat("chat_aaa", 500, 40);
-  const twinB = chat("chat_bbb", 500, 40);
-  expect(resumeTargets([twinA, twinB]).get(cid)).toBe(resumeTargets([twinB, twinA]).get(cid));
 });

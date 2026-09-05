@@ -71,6 +71,10 @@ export interface CharacterSummaryFixture {
   readonly tags: readonly CharacterSummaryFixtureTag[];
   readonly elevatorPitch: string | null;
   readonly lastChattedAt: number | null;
+  /** #1662 — WHICH room that stamp belongs to (`CharacterSummary.lastChatId`); null = never chatted. The
+   *  landing's Recently-chatted faces are a door into it, so a fixture that omits it renders an OPEN door
+   *  where the product renders a RESUME one. */
+  readonly lastChatId: string | null;
   /** #865 — the `character_stats.chats` rollup, projected onto the row (0 when the join misses; never null). */
   readonly chatCount: number;
   /** #865 — the CLOSED where-it-came-from verdict the server derives once (`characterProvenanceOf`). The
@@ -226,6 +230,7 @@ export function makeCharacterSummary(overrides: Partial<CharacterSummaryFixture>
     tags: [],
     elevatorPitch: null,
     lastChattedAt: null,
+    lastChatId: null,
     chatCount: 0,
     provenance: DEFAULT_PROVENANCE,
     nameIsAmbiguous: false,

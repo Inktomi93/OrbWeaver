@@ -21,6 +21,25 @@
 // composing it stays a pure data object (the character/preset/world-info library-surface precedent); writes
 // the choice out via onSelect/onNewChat/onDeletedChat.
 //
+// BOTH `new chat` DOORS STAY — the ONE ruled exception to "never two doors at once" (#1361 item 2, owner
+// 2026-09-05). The Characters precedent (`character/components/character-create-actions.tsx`) is the general
+// law: the landing there mints doors ONLY in the arm where the band's are off screen, because two doors on
+// one plane is the more-than-one-home IA class. This pane is the exception the owner ruled: the LIST band's
+// `New` is a chrome affordance whose kicker supplies the noun (#864's band idiom, so it reads "New" and not
+// "New chat"), and the EMPTY state's `New chat` is the only thing on an otherwise empty pane — an empty pane
+// that dead-ends is the defect the empty-state action rule exists to stop, and it is the arm where the
+// band's button is 300px of nothing away from the eye that is reading "No chats yet". They are the same
+// handler and they can never mint differently.
+//
+// NO ALLOWANCE ROW IS MINTED FOR IT, and that is a receipt rather than an omission. The family has two
+// enforcement halves and NEITHER pairs these doors: the STATIC gate (`duplicate-action-doors`) censuses tRPC
+// MUTATION call sites per rail section, and both doors reach the room through `openNewChatPicker` /
+// `useStartChat` in `#data` — zero call sites inside `features/chat`, so a row in its `EXEMPT_PROCEDURES`
+// would grant nothing and its own stale-exemption arm would RED it; the RUNTIME half (design-audit's
+// `duplicate-action-door`) groups by `role|accessible name` and has no allowance table at all, and "New" and
+// "New chat" are different names, so it never pairs them either. The ruling therefore lives HERE and in
+// `components/chat-list-header.tsx` — at both doors, so neither can be "tidied away" as the odd one out.
+//
 // THE THREE NARROWING AXES ARE STORE STATE, NOT LOCAL STATE (#490 — `state/chat-list-filter-store.ts`). The
 // per-character filter always was; search and month joined it, because the LIST CHROME BAND that prints the
 // census (`components/chat-list-header.tsx`) feeds a different shell slot and could not see a `useState`
@@ -254,6 +273,9 @@ function ChatListBody({
   if (collection.isEmpty && query === "") {
     return (
       <EmptyState
+        // THE SECOND RULED `new chat` DOOR (#1361 item 2) — see this file's header for why it stands beside
+        // the LIST band's `New` when the general law is one door per plane, and why no allowance table row
+        // is minted for it.
         action={
           <Button intent="primary" onClick={onNewChat} size="sm">
             <Icon icon={Plus} size="sm" />

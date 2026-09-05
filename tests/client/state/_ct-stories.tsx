@@ -75,6 +75,7 @@ import {
   reportSectionSaveStatus,
   requestComposerFocus,
   requestRefineryLandingFocus,
+  resumeChat,
   revealContextPanel,
   revealContextPanelBesideContent,
   SECTION_IDS,
@@ -430,6 +431,7 @@ const PROBE_OTHER_CHAT = castId<ChatId>("chat_probe_other");
 export function ActiveChatStoreProbe(): ReactElement {
   const handle = useActiveChatHandle();
   const openOverlayPanel = useOpenOverlayPanel();
+  const activeSection = useActiveSection();
   const intent = useNewChatIntent();
   const modal = useOpenModal();
   const [reaped, setReaped] = useState<string[]>([]);
@@ -442,6 +444,10 @@ export function ActiveChatStoreProbe(): ReactElement {
       {/* A `p`, not a second `<output>` — the store CTs read the state line as `locator("output")`. */}
       <p data-testid="new-chat-intent">{`modal=${modal ?? "none"} temporary=${intent === undefined ? "none" : String(intent.temporary === true)}`}</p>
       <p data-testid="active-chat-inspection">{inspection}</p>
+      {/* A SEPARATE line, never folded into `<output>`: the store CTs assert that line's exact text and a
+          new field in it would rewrite every one of them. `resumeChat` is the only action here whose whole
+          point is the SECTION it lands in, so the section is read where that action is proved. */}
+      <p data-testid="active-section">{`section=${activeSection}`}</p>
       <button type="button" onClick={(): void => setInspection(`active=${activeChatId() ?? "none"}`)}>
         inspect active chat
       </button>
@@ -459,6 +465,13 @@ export function ActiveChatStoreProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => selectChat(PROBE_SELECT_CHAT)}>
         select chat
+      </button>
+      {/* #1662 — the cross-section RESUME intent: make the room active AND land in Chats. The Characters
+          plane's two resume doors (the library row's Chat CTA, the landing's Recently-chatted faces) both
+          call it, and a `selectChat` that forgot the section change would leave the reader looking at the
+          library with a room quietly active behind it. */}
+      <button type="button" onClick={(): void => resumeChat(PROBE_SELECT_CHAT)}>
+        resume chat
       </button>
       {/* Types into the CREATED room's composer scope — the reap SKIP condition (unsent text means the
           user may come back; the TTL belt covers them if they do not). */}

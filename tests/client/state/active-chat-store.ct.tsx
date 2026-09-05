@@ -32,6 +32,26 @@ test("selectChat makes an existing chat active; goToLanding returns to the landi
   await expect(state).toHaveText("handle=landing openOverlayPanel=none reaped=none");
 });
 
+// #1662 — `resumeChat` is `selectChat` PLUS the section landing, and the section half is the whole reason
+// it exists: the Characters plane's two resume doors (the library row's Chat CTA and the landing's
+// Recently-chatted faces) both fire it from a section that is not Chats, and a bare `selectChat` there
+// leaves a room quietly active behind a library the reader is still looking at. BOTH halves are asserted,
+// because either alone is satisfied by the wrong action.
+test("resumeChat makes the room active AND lands in Chats — the cross-section intent, both halves", async ({ mount }) => {
+  const probe = await mount(<ActiveChatStoreProbe />);
+  const state = probe.locator("output");
+  const section = probe.getByTestId("active-section");
+
+  await expect(state).toHaveText("handle=landing openOverlayPanel=none reaped=none");
+  // The control: the store starts somewhere that is NOT chats, so "landed in chats" is a transition rather
+  // than a default this test happened to read.
+  await expect(section).not.toHaveText("section=chats");
+
+  await probe.getByRole("button", { name: "resume chat", exact: true }).click();
+  await expect(state).toHaveText("handle=committed:chat_probe_select openOverlayPanel=none reaped=none");
+  await expect(section).toHaveText("section=chats");
+});
+
 test("a room CREATED here and then left is published as a husk-reap candidate — exactly once", async ({ mount }) => {
   const probe = await mount(<ActiveChatStoreProbe />);
   const state = probe.locator("output");

@@ -22,8 +22,9 @@ export { CharacterLibraryWelcome } from "./components/character-library-welcome.
 export type { CharacterRelationsTabProps } from "./components/character-relations-tab.tsx";
 export { CharacterRelationsTab } from "./components/character-relations-tab.tsx";
 export { CharacterTrustTab } from "./components/character-trust-tab.tsx";
-export type { FilterableRow, ResumableChat, RowTag, TagGroup } from "./lib/character-list-view.ts";
-export { groupByTag, resumeTargets } from "./lib/character-list-view.ts";
+export { characterCreateChrome } from "./lib/character-create-chrome.tsx";
+export type { FilterableRow, RowTag, TagGroup } from "./lib/character-list-view.ts";
+export { groupByTag } from "./lib/character-list-view.ts";
 export { characterSlashCommands } from "./lib/character-slash-commands.ts";
 export { makeCharactersSection } from "./lib/characters-section.tsx";
 export { librarySettingsSection } from "./lib/library-settings-section.tsx";

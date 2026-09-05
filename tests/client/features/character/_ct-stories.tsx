@@ -602,10 +602,20 @@ export function CharacterLibraryWelcomeListModeStory(): ReactElement {
   );
 }
 
-/** The selection store, as one line of text — see {@link CharacterLibraryWelcomeListModeStory}. */
+/** WHERE THE LANDING'S DOORS LAND, as two lines of text — see {@link CharacterLibraryWelcomeListModeStory}.
+ *  The landing offers TWO different doors now (#1662): a shelf face either OPENS a character (the selection
+ *  store) or RESUMES her newest room (the active chat + the chats section), and a readout that printed only
+ *  the selection could not tell "resumed" from "did nothing". */
 function CharacterSelectionReadout(): ReactElement {
   const selected = useSelectedCharacterId();
-  return <p>selected: {selected ?? "nobody"}</p>;
+  const section = useActiveSection();
+  const activeChatId = useActiveChatId();
+  return (
+    <>
+      <p>selected: {selected ?? "nobody"}</p>
+      <p>{`room: ${activeChatId ?? "none"} in ${section}`}</p>
+    </>
+  );
 }
 
 /** The CONTEXT Field tab's RESTING overview card, mounted alone at the docked panel's 384px. Alone on
