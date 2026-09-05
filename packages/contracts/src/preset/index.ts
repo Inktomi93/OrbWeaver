@@ -2127,7 +2127,13 @@ void _userMacroIsKitDef;
 /** The per-turn per-user input VALUES bag (#24): macro name → input name → pick. This is the WIRE shape
  *  the FOREIGN-inputs threading (`ResolveForeignInputsOp`, the post-P2 stint) carries UNRESHAPED into
  *  kit's `resolveUserMacroInputs` — string (single-select) · boolean (boolean-toggle) · string[]
- *  (multi-select picks / the random-pick POOL). */
+ *  (multi-select picks / the random-pick POOL).
+ *
+ *  This schema bounds the value's TYPE and LENGTH and can never bound its VOCABULARY: it is per-VALUE, and
+ *  the declared `options` live on the macro DEFINITION, one level up and in another row. The membership
+ *  check therefore lives at the seam that holds both — `domain/chat` `setUserMacroValues` refuses a new
+ *  off-vocabulary select pick (`unknown_macro_pick`, #1356) — with kit's `resolveStaticInput` as the
+ *  resolve-side belt for values already stored. Do not "fix" that by reshaping this union. */
 export const userMacroInputValueSchema = z.union([
   z.string().max(MAX_CHOICE_VALUE_LENGTH),
   z.boolean(),

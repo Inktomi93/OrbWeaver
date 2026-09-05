@@ -46,11 +46,13 @@ export interface UserMacroInputOption {
 /** One typed input of a user macro — a FLAT shape (kind + the per-kind knobs; irrelevant knobs are
  *  inert), mirroring the ChoiceBlock authoring idiom so the editor binds fields directly. Semantics by
  *  `kind` (resolveUserMacroInputs is the ONE resolution home):
- *   single-select  — the pick (a string) or `defaultValue` (else the first option's value).
+ *   single-select  — the pick (a string, and one of the DECLARED options — #1356) or `defaultValue`
+ *                    (else the first option's value).
  *   boolean-toggle — a boolean pick renders `onValue`/`offValue`; unpicked ⇒ `defaultValue` truthiness
  *                    (the `{{if}}` vocabulary) decides.
- *   multi-select   — the picks (a string[]) joined by `separator` in pick order; unpicked ⇒
- *                    `defaultValue` verbatim (an author-joined string).
+ *   multi-select   — the picks (a string[]) filtered to the DECLARED options (#1356) and joined by
+ *                    `separator` in pick order; an explicit `[]` is a real "none"; unpicked (absent, or a
+ *                    selection nothing survives) ⇒ `defaultValue` verbatim (an author-joined string).
  *   random-pick    — the user pre-selects a POOL (a string[]); each generation draws ONE via the
  *                    injected PRNG; unpicked ⇒ the pool is ALL options. */
 export interface UserMacroInputDef {
@@ -130,10 +132,31 @@ function poolOf(input: UserMacroInputDef, value: UserMacroInputValue | undefined
   return pool.length > 0 ? pool : all;
 }
 
+// The DECLARED vocabulary of a select-family input. An input with NO declared options has an empty
+// vocabulary by construction: nothing is pickable, so every pick is foreign (the picks pane renders its
+// controls from `options`, and there is no free-text input kind).
+function declaredValues(input: UserMacroInputDef): ReadonlySet<string> {
+  return new Set(input.options.map((o) => o.value));
+}
+
 // The non-random kinds — pure value→string per the UserMacroInputDef kind table.
+//
+// #1356 — the SECOND vocabulary belt (the first refuses the write at the seam that has both the values
+// and the defs, `domain/chat` `setUserMacroValues`): a select value outside the input's DECLARED options
+// never reaches the rendered prompt. This belt exists because a stored pick outlives its definition — an
+// author renaming/deleting an option leaves the persisted bag naming a value that no longer exists — and
+// because a hand-crafted write must not be able to inject arbitrary prose into the author's template.
+//
+// The arms differ from `poolOf`'s ON PURPOSE, twice over:
+//  • ORDER — `poolOf` re-orders the survivors into OPTIONS order (a draw is order-blind, so the pool is
+//    normalised for determinism); a multi-select JOIN is author-visible, so the survivors keep the
+//    caller's PICK order and a valid selection renders byte-identically to before this belt.
+//  • THE EMPTY CASE — `poolOf` falls back to ALL options because a pool can never be dead (there must be
+//    something to draw). A static select has no such constraint, so the symmetric reading is the ladder
+//    it already uses for "unpicked": a selection that survives no filtering is UNPICKED.
 function resolveStaticInput(input: UserMacroInputDef, value: UserMacroInputValue | undefined): string {
   if (input.kind === "single-select") {
-    if (typeof value === "string" && value.length > 0) {
+    if (typeof value === "string" && value.length > 0 && declaredValues(input).has(value)) {
       return value;
     }
     return input.defaultValue.length > 0 ? input.defaultValue : (input.options[0]?.value ?? "");
@@ -142,12 +165,59 @@ function resolveStaticInput(input: UserMacroInputDef, value: UserMacroInputValue
     const on = typeof value === "boolean" ? value : userMacroToggleDefaultsOn(input.defaultValue);
     return on ? input.onValue : input.offValue;
   }
-  // multi-select: an explicit [] is a real "none" pick (renders empty); absent/mistyped ⇒ the
-  // author-joined defaultValue verbatim.
-  if (Array.isArray(value)) {
-    return (value as readonly string[]).join(input.separator);
+  return Array.isArray(value) ? resolveMultiSelect(input, value as readonly string[]) : input.defaultValue;
+}
+
+// multi-select's arm: an explicit [] is a real "none" pick (renders empty); a non-empty selection is
+// filtered to the declared options in PICK order; a wholly-foreign selection is unpicked ⇒ the
+// author-joined defaultValue, as an absent/mistyped value already is.
+function resolveMultiSelect(input: UserMacroInputDef, picks: readonly string[]): string {
+  if (picks.length === 0) {
+    return "";
   }
-  return input.defaultValue;
+  const declared = declaredValues(input);
+  const kept = picks.filter((v) => declared.has(v));
+  return kept.length > 0 ? kept.join(input.separator) : input.defaultValue;
+}
+
+/** One select-family pick that names a value the input does not declare (#1356). `options` carries the
+ *  declared vocabulary so the refusal can SAY what was allowed instead of just "invalid". */
+export interface OffVocabularyPick {
+  readonly input: string;
+  readonly value: string;
+  readonly options: readonly string[];
+}
+
+/** Every off-vocabulary select pick in one macro's values bag — the pure half of the WRITE-side belt
+ *  (#1356): the server refuses a `setUserMacroValues` flush that carries one, naming the field and its
+ *  declared options. Deliberately narrow: only `single-select`/`multi-select` values are vocabulary-bound
+ *  (a `random-pick` POOL is already normalised by {@link poolOf}, and a boolean has no vocabulary), and a
+ *  bag entry naming an input the def does not declare is IGNORED rather than refused — the picks pane
+ *  rebuilds the whole bag, so an entry orphaned by a def edit is a benign race, not an attack. */
+export function findOffVocabularyPicks(inputs: readonly UserMacroInputDef[], bag: UserMacroInputValueBag): readonly OffVocabularyPick[] {
+  const found: OffVocabularyPick[] = [];
+  for (const input of inputs) {
+    if (input.kind !== "single-select" && input.kind !== "multi-select") {
+      continue;
+    }
+    const declared = declaredValues(input);
+    const options = input.options.map((o) => o.value);
+    for (const pick of selectPicksOf(bag[input.name])) {
+      if (!declared.has(pick)) {
+        found.push({ input: input.name, value: pick, options });
+      }
+    }
+  }
+  return found;
+}
+
+// The values a select-family entry CLAIMS to have picked. An EMPTY single-select string is "unset" (the
+// resolution ladder's own reading), never a bad value; a mistyped leaf carries no claim at all.
+function selectPicksOf(value: UserMacroInputValue | undefined): readonly string[] {
+  if (typeof value === "string") {
+    return value.length > 0 ? [value] : [];
+  }
+  return Array.isArray(value) ? (value as readonly string[]) : [];
 }
 
 // One random-pick input: frozen replay wins; else draw from the pool and report the fresh draw.

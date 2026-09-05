@@ -35,13 +35,14 @@
 // preset's declared defaults, with `withRandomPick: false` so the read is stable.
 
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
-import type { UserMacroSpec } from "@orb/contracts/preset";
+import type { UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { MacroSourceRef } from "@orb/kit/macro";
+import type { MacroSourceRef, OffVocabularyPick } from "@orb/kit/macro";
+import { findOffVocabularyPicks } from "@orb/kit/macro";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, isNotNull, isNull, lt, ne, not, or } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
@@ -425,15 +426,63 @@ function createSetVariables(ctx: ChatContext, emit: EmitChatEvent, claimChat: Cl
  *  macro→input→typed pick bag) to `chats.user_macro_values`. The `setVariables` sibling — a distinct column
  *  because the nested-typed shape can't share the flat `variableValues` map. Re-validates through
  *  `userMacroValuesSchema` at the verb (defense-in-depth over the tRPC boundary parse) — a malformed bag is
- *  refused rather than persisted; the turn build reads it back as the `values` bag. Emits `chatUpdated`. */
+ *  refused rather than persisted; the turn build reads it back as the `values` bag. Emits `chatUpdated`.
+ *
+ *  #1356 — and the VOCABULARY belt: the wire schema is per-VALUE (it can never see the def's `options`), so
+ *  the membership check lives HERE, the one seam that holds both the picks and the definitions. A select
+ *  pick is spliced into the author's template, so an off-vocabulary value is arbitrary prose in someone
+ *  else's prompt — refused whole with a typed reason, never silently cleaned (a partial write would tell the
+ *  member their pick landed). Kit's `resolveStaticInput` is the second belt, for picks ALREADY stored when
+ *  their option was renamed away. */
 function createSetUserMacroValues(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setUserMacroValues"] {
   return async ({ principal, chatId, values }: SetUserMacroValuesParams): Promise<void> => {
     await requireParticipant(ctx, principal, chatId);
     await claimChat(chatId);
     const parsed = userMacroValuesSchema.parse(values);
+    await assertDeclaredPicks(ctx, chatId, parsed);
     await commitFencedChatWrite(ctx, chatId, ctx.db.update(chats).set({ userMacroValues: parsed, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
     await emit({ type: "chatUpdated", chatId });
   };
+}
+
+/** The #1356 vocabulary gate over one flush. The def set is resolved exactly as the picks pane resolves it
+ *  — BOTH authoring homes under the ruled preset↔game shadow — so the write is judged against the def the
+ *  turn will actually render, never a preset def the game has replaced. A bag entry naming a macro or an
+ *  input NO def declares is ignored: the pane rebuilds the whole bag, so an orphan left by a def edit is a
+ *  benign race (the same posture `getVariablePicks` takes on an orphaned ChoiceBlock pick), and refusing it
+ *  would wedge the pane against a preset the member cannot edit. */
+async function assertDeclaredPicks(ctx: ChatContext, chatId: ChatId, values: UserMacroValues): Promise<void> {
+  const [presetDefs, gameDefs, stored] = await Promise.all([
+    ctx.resolvePromptUserMacros(chatId),
+    ctx.rpg === null ? Promise.resolve<readonly UserMacroSpec[]>([]) : ctx.rpg.resolveUserMacros(chatId),
+    loadStoredUserMacroValues(ctx.db, chatId),
+  ]);
+  for (const def of [...gameDefs, ...shadowPresetUserMacros(presetDefs, gameDefs)]) {
+    const bag = values[def.name];
+    if (bag === undefined) {
+      continue;
+    }
+    // ONLY A NEW off-vocabulary pick is refused. The pane is a whole-bag flush (`withPick` carries every
+    // OTHER knob forward untouched), so a pick that went stale when its option was renamed away would
+    // otherwise wedge the member out of editing ANY knob in the room until someone fixed the preset. A
+    // value already in the stored bag is grandfathered here and neutralised by the RESOLVE belt instead —
+    // that split is the whole reason the ruling has two belts.
+    const grandfathered = new Set(findOffVocabularyPicks(def.inputs, stored[def.name] ?? {}).map(pickKey));
+    const offending = findOffVocabularyPicks(def.inputs, bag).find((pick) => !grandfathered.has(pickKey(pick)));
+    if (offending !== undefined) {
+      throw new ChatOperationError(
+        CHAT_OP_CODES.unknownMacroPick,
+        `${def.name}.${offending.input}: "${offending.value}" is not one of the declared options [${offending.options.join(", ")}]`,
+      );
+    }
+  }
+}
+
+/** One off-vocabulary pick's identity for the grandfather set — input + value. The space is an unambiguous
+ *  delimiter here: an input NAME is `MACRO_NAME_RE`-shaped and can never contain one, so the first space
+ *  always ends the name and no two distinct picks collide into one key. */
+function pickKey(pick: OffVocabularyPick): string {
+  return `${pick.input} ${pick.value}`;
 }
 
 /** `getUserMacroPicks` (#24) — member. The picks pane's ONE read: the chat's PICKABLE user macros (those
