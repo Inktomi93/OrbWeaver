@@ -2364,6 +2364,7 @@
     "tests/ui/primitives/media-grid/media-grid.ct.tsx",
     "tests/ui/primitives/media-tile-grid/media-tile-grid.ct.tsx",
     "tests/ui/primitives/menu/menu.ct.tsx",
+    "tests/ui/primitives/message-list/content-growth.test.ts",
     "tests/ui/primitives/message-list/message-list.ct.tsx",
     "tests/ui/primitives/message-list/pin-spacer.test.ts",
     "tests/ui/primitives/number-field/number-field.ct.tsx",

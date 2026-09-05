@@ -6,10 +6,10 @@ import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, u
 import type { GapToken } from "#lib";
 import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE, gapPxFor, usePrefersReducedMotion } from "#lib";
 import { rowLiveness } from "./announce.ts";
+import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
 import type { MessageListRowMeta } from "./list-window.ts";
 import { composeRangeExtractor, updateEdgeFades } from "./list-window.ts";
-import { pinSpacerSpent } from "./pin-spacer.ts";
 import type { MessageListRowNavigation } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
 
@@ -228,12 +228,9 @@ export function MessageList<T>({
     useFlushSync: false,
   });
 
-  // THE CONTENT-GROWTH SIGNAL COMES FROM VIRTUAL-CORE, NOT FROM A ResizeObserver (#1384). The two effects below
-  // need "the measured content got taller"; both used to observe `viewportNodeRef` — virtual-core's own container
-  // (`setViewportRef` → `containerRef`), whose height IT writes from inside its own `measureElement` ResizeObserver
-  // callback. Observing a box another observer resizes is what Chrome reports as `ResizeObserver loop completed
-  // with undelivered notifications` (×2 per room open, live-A/B isolated to exactly these two); `getTotalSize()`
-  // IS that written number, so this keys on the CAUSE, not the effect, and costs no observer at all.
+  // The content-growth signal both `contentHeightPx` effects key on — virtual-core's own written number,
+  // never a ResizeObserver on the box it writes. The mechanism, and the two timing facts the shape
+  // produces, are `./content-growth.ts`'s header (#1384).
   const contentHeightPx = virtualizer.getTotalSize();
 
   // The tail-adjustment veto (see `follow-yield.ts` for WHY — it is the fix for the 12px march that
@@ -274,15 +271,7 @@ export function MessageList<T>({
     virtualizer.scrollToEnd({ behavior: "auto" });
   }, [virtualizer]);
 
-  // followOnAppend only re-pins on a count change, never on an existing row growing taller — so a just-sent
-  // message + streaming ghost re-measuring past their estimate can strand the reader above their own message.
-  // Re-pin on measured growth; `contentHeightPx > 0` is that trigger AND the measured-yet gate (nothing to pin to).
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (tailFollowActive && contentHeightPx > 0 && stickToBottomRef.current && el !== null && el.clientHeight > 0) {
-      virtualizer.scrollToEnd({ behavior: "auto" });
-    }
-  }, [virtualizer, tailFollowActive, contentHeightPx]);
+  useTailRepin({ contentHeightPx, scrollRef, stickToBottomRef, tailFollowActive, virtualizer });
 
   // A scroll position matching virtual-core's last recorded write is its own drift/re-pin — ignore
   // it for FOLLOW intent (edge fades track every scroll, whoever moved it). Anything else was moved
@@ -365,42 +354,10 @@ export function MessageList<T>({
   // Unbounded-height tripwire: thrown, not warned — identical to virtual-list.
   useLayoutEffect(() => assertBoundedScrollHeight(scrollRef.current, "MessageList"), []);
 
-  // Seed + track edge-fade state outside scroll events: mount, content growth (a streaming ghost, a prepend)
-  // and container resizes all change whether an edge has hidden content behind it. Those triggers have two
-  // carriers now — the #1384 fix: CONTAINER resizes stay a ResizeObserver on the scroller (nobody else writes
-  // that box); CONTENT growth rides `contentHeightPx` (see its note).
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (el === null) {
-      return;
-    }
-    const sync = (): void => {
-      updateEdgeFades(el);
-      // The `exceedsViewport` denominator. Guarded on equality: a row growing changes the OL's height, not the
-      // scrollport's, so a streaming turn never re-renders the list through this path.
-      setScrollportHeightPx((prev) => (prev === el.clientHeight ? prev : el.clientHeight));
-      // pin-prompt: drop the pin once the spacer is spent (pin-spacer.ts owns that decision).
-      const pinnedIndex = pinnedIndexRef.current;
-      if (pinnedIndex === null) {
-        return;
-      }
-      const rendered = virtualizer.getVirtualItems();
-      const pinned = rendered.find((v) => v.index === pinnedIndex);
-      if (pinSpacerSpent(el.clientHeight, pinned, rendered.at(-1))) {
-        pinnedIndexRef.current = null;
-        setPinSpacerPx(0);
-      }
-    };
-    if (contentHeightPx > 0) {
-      sync();
-    }
-    if (typeof ResizeObserver === "undefined") {
-      return;
-    }
-    const observer = new ResizeObserver(sync);
-    observer.observe(el);
-    return (): void => observer.disconnect();
-  }, [virtualizer, contentHeightPx]);
+  // Edge fades, the `exceedsViewport` denominator and pin-prompt's spacer release — everything that keys on
+  // the SCROLLPORT rather than on a scroll event. Both of its triggers, and why the scroller keeps a real
+  // ResizeObserver while content growth does not, are `./content-growth.ts`'s header.
+  useScrollportSync({ contentHeightPx, pinnedIndexRef, scrollRef, setPinSpacerPx, setScrollportHeightPx, virtualizer });
 
   // Late-bind the roving hook's scroll (declared above the virtualizer, used below it).
   useEffect((): void => {
