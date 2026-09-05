@@ -648,6 +648,9 @@ const chatSchema = z
       .object({
         enabled: z.boolean().default(false),
         minLength: z.number().int().nonnegative().default(AUTO_SWIPE_MIN_LENGTH_DEFAULT),
+        // NO `.catch` (#1532's versioned-config class sweep, `#versioned-config`'s header §2): a bad element
+        // refuses the WHOLE settings write (loud), deliberately, rather than silently dropping a blacklist
+        // entry a swipe-time comparison still needs (lossy with no on-screen signal).
         blacklist: z.array(z.string()).default([]),
         // PD-146: the max auto-swipe regenerations for a rejected reply (the bound the turn engine's
         // AUTO_SWIPE loop reads). Default 1 = the neo-parity ONE-follow-up floor (byte-identical).

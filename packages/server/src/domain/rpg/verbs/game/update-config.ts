@@ -25,7 +25,21 @@ import { listSheets } from "../../persistence/sheets.ts";
  *
  *  Enforced HERE and not as a zod refine because `rpgGameConfigSchema` is parse-on-read: a refine would
  *  make an existing bad blob permanently unreadable rather than refusing the write that creates one. The
- *  contract-side header (`@orb/contracts/rpg` profile.ts, `rpgStatProfileSchema`) records that trade. */
+ *  contract-side header (`@orb/contracts/rpg` profile.ts, `rpgStatProfileSchema`) records that trade.
+ *
+ *  WHOLE-ENVELOPE REFUSAL IS DELIBERATE HERE, unlike the ST-import mapper's per-field `dropped: [...]`
+ *  list (#1532 sweep-record — a REVIEW asked whether this should align with that shape instead). The two
+ *  are different problem classes: the import mapper drops UNMAPPABLE FOREIGN fields the host never edited
+ *  in orb's own vocabulary — silently ignoring a field ST carries that orb has no seat for costs nothing
+ *  the host authored. A duplicate attribute key / dangling reference is not an unmappable field; it is a
+ *  LOGICAL CONTRADICTION inside the host's OWN edit of orb's own vocabulary, and every violation here
+ *  names a field this profile's OTHER fields still point at (a `defaultAttribute` naming a key that would
+ *  be "dropped", a `skillGoverning` entry governing an attribute that would be "dropped") — silently
+ *  dropping the offending piece would either leave a dangling reference the drop was supposed to prevent,
+ *  or require ALSO silently rewriting the fields that reference it, which is a bigger unannounced edit
+ *  than the one the host asked for. Refusing the whole submission and telling the host exactly which
+ *  invariant broke is the honest response to a self-contradictory edit; ends if a future coherence rule is
+ *  provably independent of every other field (then it can drop in isolation like an import mapper does). */
 function assertProfileCoherent(next: RpgStatProfile): void {
   const seen = new Set<string>();
   for (const attr of next.attributes) {
