@@ -191,19 +191,41 @@ function doorsFor(listOffScreen: boolean): ReactElement | null {
 /** How many names the week's-additions line will read out before it stops naming and starts counting. */
 const WEEK_LINE_NAMES = 3;
 
-/** "3 characters added this week — Avel the Quiet, Tobias Brand, Lin." The foot line names WHO, because the
+/** "3 characters added this week: Avel the Quiet · Tobias Brand · Lin." The foot line names WHO, because the
  *  count alone is a number with nothing to do; the names are the reason to look.
  *
  *  IT STOPS NAMING AT THREE (measured on the stage, 2026-08-30): a fresh install's whole seeded roster is
  *  "added this week", so the unbounded form printed ten names, wrapped to two lines, and turned a footnote
  *  into the second-longest paragraph on the pane. Three is the artboard's own roll-call; past that the line
- *  says how many more, which is the fact a reader can act on. */
+ *  says how many more, which is the fact a reader can act on.
+ *
+ *  THE SEPARATOR IS A MIDDLE DOT, NOT A COMMA (side-eye 2026-09-02 nit 17, #1139): a character name may
+ *  CONTAIN a comma — the seeded roster ships "Calamity, Doomblade of the Ninth Epoch" — so a comma-joined
+ *  roll printed four names where three exist. The middle dot is a separator no name can spell. The
+ *  count/roll join is a colon for the same reason the rest of this pane has none: an em-dash is a copy tell. */
 function weekLine(added: readonly CharacterRow[]): string {
   const count = added.length === 1 ? "1 character" : `${String(added.length)} characters`;
   const named = added.slice(0, WEEK_LINE_NAMES).map((character) => character.name);
   const rest = added.length - named.length;
-  const roll = rest === 0 ? named.join(", ") : `${named.join(", ")} and ${String(rest)} more`;
-  return `${count} added this week — ${roll}.`;
+  const roll = rest === 0 ? named.join(" · ") : `${named.join(" · ")} · and ${String(rest)} more`;
+  return `${count} added this week: ${roll}.`;
+}
+
+/** WHICH ROWS THE WEEK LINE MAY CLAIM (side-eye 2026-09-02 nit 17, #1139). Two suppressions, each because
+ *  the sentence would otherwise assert something untrue or empty:
+ *
+ *  1. A `provenance: "shipped"` row arrived WITH the app — the pane's own fresh-install arm labels that set
+ *     "Shipped with Orbweaver". Its `createdAt` is the install, so "added this week" reads as a claim the
+ *     reader made a choice they did not make.
+ *  2. A set that covers the WHOLE unarchived library carries no information: "10 characters added this week"
+ *     over a 10-character library is the library's own count wearing a recency badge. The line exists to
+ *     distinguish the new from the rest, so with no rest there is nothing to distinguish (the same honesty
+ *     the shipped-shelf label already applies to an un-computable census, one property over).
+ *
+ *  `totalCount` is the census the SERVER counted, never `items.length` — the page is a window. */
+function weekLineRows(newestItems: readonly CharacterRow[], libraryCount: number): readonly CharacterRow[] {
+  const added = newestItems.filter((character) => character.provenance !== "shipped" && timeLib.now() - character.createdAt < MS_PER_WEEK);
+  return added.length >= libraryCount ? [] : added;
 }
 
 /**
@@ -257,6 +279,7 @@ function CharacterLandingBody(): ReactElement {
   }
   return (
     <ResumeArm
+      libraryCount={newestPage.totalCount}
       listOffScreen={listOffScreen}
       newestItems={newestPage.items}
       recentFaces={recentFaces}
@@ -298,12 +321,14 @@ function FreshInstallArm({ listOffScreen, newest }: { readonly listOffScreen: bo
 
 /** THE RESTING STATE — at least one shelf has faces. */
 function ResumeArm({
+  libraryCount,
   listOffScreen,
   recentFaces,
   starredFaces,
   starredCount,
   newestItems,
 }: {
+  readonly libraryCount: number;
   readonly listOffScreen: boolean;
   readonly recentFaces: readonly ShelfFace[];
   readonly starredFaces: readonly ShelfFace[];
@@ -316,7 +341,7 @@ function ResumeArm({
     // characters nobody reads at shelf density, on a shelf whose whole claim is RECENCY. The
     // sentence-relative form is also the one that freezes under `--probe`.
     .map((character) => faceOf(character, `added ${timeLib.formatRelativeAgo(character.createdAt)}`, null));
-  const addedThisWeek = newestItems.filter((character) => timeLib.now() - character.createdAt < MS_PER_WEEK);
+  const addedThisWeek = weekLineRows(newestItems, libraryCount);
   return (
     <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? LEAD_GLOSS_COLLAPSED : LEAD_GLOSS_DOCKED} title="Pick up where you left off">
       <Stack gap="section">

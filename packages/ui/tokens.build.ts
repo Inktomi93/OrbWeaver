@@ -182,7 +182,19 @@ function renderPortableToken(token: TransformedToken, contractToken: ContractTok
       // The device-pixel belt (docs/design/integer-line-boxes.md §3b): a snapped dimension is authored
       // integer at the 16px root and emitted through round() so every --font-scale value — the slider is
       // continuous — resolves the box back onto the device-pixel grid. Identity at the default scale.
-      return `round(${renderDimension(resolvedValue(token), path)}, 1px)`;
+      //
+      // THE STRATEGY IS `up`, NOT THE DEFAULT `nearest` (#1160, measured 2026-09-05). Snapping to the
+      // NEAREST integer may round a box DOWN by up to half a pixel while the paired font size scales
+      // continuously, which drops the resolved RATIO below the ratified leading floor
+      // (`LEADING_FLOOR` = leading.label / text.label = 16/13 ≈ 1.2308) — a defect no authored value can
+      // see. Measured on `settings:appearance --appearance-preset reading` (--font-scale 1.25, root
+      // 20px): text.micro resolves 13.125px and `round(0.8125rem, 1px)` resolved 16px, ratio 1.219 —
+      // four `tight-leading` findings on the setting-row gloss. `up` never shrinks the box, so the
+      // resolved ratio is always ≥ the AUTHORED ratio and the floor holds at every stop of the slider;
+      // and because every snapped token is authored integer at the 16px root (the gate's ARM T), `up` is
+      // still the identity at the default scale. `nearest` also broke leading.label on text.label, whose
+      // authored ratio IS the floor exactly — half a pixel of slack in either direction is below it.
+      return `round(up, ${renderDimension(resolvedValue(token), path)}, 1px)`;
     case "light-dark":
       if (lightToken === undefined) {
         throw new Error(`${path}: light-dark output has no Light arm`);

@@ -633,9 +633,15 @@ test("F4/#513 the Overview tab rests on an overview card carrying what CONTENT d
   await expect(row("HTML")).toHaveCount(0);
   await expect(row("External media")).toHaveCount(0);
 
-  // The old resting state is still gone; the instruction survives as the footer gloss.
+  // The old resting state is still gone; the instruction survives, and it LEADS the pane.
   await expect(component.getByText("Open a field to inspect it")).toHaveCount(0);
-  await expect(overview.getByText(INSPECT_HINT_RE)).toBeVisible();
+  const hint = overview.getByText(INSPECT_HINT_RE);
+  await expect(hint).toBeVisible();
+  // #1139 nit 27 — the sentence that explains what this pane DOES sat below Origin, Activity and Tags,
+  // i.e. after everything it introduces. RENDERED GEOMETRY, not DOM order: the pane is a scroll container,
+  // so "first" is a `y` question. Red on the pre-fix tree, where the hint's top was ~200px BELOW Origin's.
+  const [hintBox, originBox] = await Promise.all([hint.boundingBox(), overview.getByText("Origin", { exact: true }).boundingBox()]);
+  expect(hintBox?.y ?? 0).toBeLessThan(originBox?.y ?? 0);
 });
 
 // MACU-2 (owner ruling 2026-08-03, "the macro plane goes everywhere macros WORK") — a card's free-text facets
