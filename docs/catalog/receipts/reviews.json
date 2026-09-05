@@ -3093,14 +3093,15 @@
     },
     {
       "path": "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md",
-      "assignedSha256": "2a0903138996206b4b0f12e1698a78fac6f33737a7bbc09164144c921fff6341",
+      "assignedSha256": "bffe43ce614feccbfbb390d2a04b4b4670a19a1493b7084f3352329eff5518a2",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "2a0903138996206b4b0f12e1698a78fac6f33737a7bbc09164144c921fff6341",
-      "verifiedCommit": "24d2c6ab3902f2952c3a38914cd597c312640f8b",
+      "verifiedSha256": "bffe43ce614feccbfbb390d2a04b4b4670a19a1493b7084f3352329eff5518a2",
+      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at 626a06121 by the orchestrator after reading the §8 amendment in full: the 'member rows in LIST' verdict is superseded by #1725 (owner ~16:40Z: collections move into CONTENT); every other axis stands.",
         "re-attested at 24d2c6ab3 by the orchestrator after reading the #1714 addition in full: a dated blockquote at §3a retires the species authority for its verdicts, and NEW §8 re-judges every axis on the tree without it (all KEEP on a stated structural reason; the §8.3 in-pane seam priced; nothing converged, nothing landed in code beyond header comments); §7's claims stand.",
         "re-attested at 9e70e5db3 by the orchestrator after reading §7 in full (cb-config-list, #1169): the census table at fine + coarse, the inverted preset-borrow premise (§7.2), D1 refused on the coarse receipt (§7.3), the meta datum landed with the measured Badge-in-markers control Set{35,42} (§7.4), the voice budget + the #1099 Errand A ruling fork reconciled as 'the ruling survives, its input changed' (§7.5), D3 refused (§7.6); disposition needs-owner → current now that the ruling landed; the §3a/§7.1 SPECIES verdicts are open for re-judgment under #1714.",
         "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md:1-140 full read by the orchestrator at 20ca3612a (lane cb-client-config-polish, #1169 arm a: measured comparison receipt, three drift candidates proposed, nothing landed)",

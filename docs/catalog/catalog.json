@@ -12012,9 +12012,9 @@
       "path": "docs/design/config-revamp-design.md",
       "lane": "design",
       "issue": 5,
-      "lines": 967,
-      "bytes": 149435,
-      "sha256": "de6d7cc58b36190a302de926d62265e22729b01d345429b0b61e0ba64e9013e4",
+      "lines": 1023,
+      "bytes": 154409,
+      "sha256": "47221dfcf3d134bd685c27320db1f8d238e1100621337e2415c0e2c248a90854",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12027,14 +12027,15 @@
       },
       "receipt": {
         "path": "docs/design/config-revamp-design.md",
-        "assignedSha256": "de6d7cc58b36190a302de926d62265e22729b01d345429b0b61e0ba64e9013e4",
+        "assignedSha256": "47221dfcf3d134bd685c27320db1f8d238e1100621337e2415c0e2c248a90854",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "de6d7cc58b36190a302de926d62265e22729b01d345429b0b61e0ba64e9013e4",
-        "verifiedCommit": "24d2c6ab3902f2952c3a38914cd597c312640f8b",
+        "verifiedSha256": "47221dfcf3d134bd685c27320db1f8d238e1100621337e2415c0e2c248a90854",
+        "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested at 626a06121 by the orchestrator after reading NEW §8.1b in full (cb-config-list, #1725): the four-ruling verdict table — #925 ENTER (select survives, disclose retired), D121(D) Import (band → overflow), #1099 F5 intact, #1211 copy survives with a changed address; the member lists now live in CONTENT (config-collection-landing); updated 2026-09-05.",
           "re-attested at 24d2c6ab3 by the orchestrator after reading the #1714 amendment in full (cb-config-list): §8.1 clause 1 keeps the must-WORK bar and the four #925 landing rulings as built behaviour; NEW §8.1a carries the owner's verbatim 2026-09-05 word and retires the 'distinct species → do not converge' inference (the ruling survives, its INPUT changed); §8.3's 'clean seam for #1169' paragraph is replaced by the priced result (all six divergences hold on structural reasons; two more in-pane divergences hold by TYPE); frontmatter updated 2026-09-05. Not touched: the rest of the program.",
           "re-attested at 89ba3e6cf by the orchestrator after reading the #1175/#1152 diff in full (cb-client-seams): a RESOLVED bullet records that the “#920 cold contract” premise was in no doc and §498-506 was already true; no other line changed; frontmatter dated 2026-09-05.",
           "re-attested at 306371232 (#1209 #1210 #1212 #1213 #1214 #1217 #1218, claude-b lane cb-collections batch, two commits): §8.5 arrival receipt amended; NEW §8.6 — ConfigWelcome RETIRED (no reachable door on any viewport; the Hearth vocabulary collision noted and corrected), the populated landing states LIBRARY-LEVEL facts via CollectionInsight (the preview seam fully retired, no half-migration; import/export doors PRICED as gaps, not stubbed), the empty landing teaches; NEW §8.7 — the five mechanicals (bulk toggle follows members, the a11y trio with a partial refutation, auto-opened arrival group folds, arrival focus target = the active group's band — a stated ruling fork). Read in full at the fold by the primary orchestrator (96 added lines).",
@@ -12776,9 +12777,9 @@
       "path": "docs/design/mocks/README.md",
       "lane": "design",
       "issue": 5,
-      "lines": 41,
-      "bytes": 3715,
-      "sha256": "b83b79c02687e190319454701cc16357428c814a2d334868187fbf97c681272d",
+      "lines": 42,
+      "bytes": 4241,
+      "sha256": "5d8fd1e1006bc574c693221c954de83660232ddad673c6c8551b2ed118bc33dd",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12791,14 +12792,15 @@
       },
       "receipt": {
         "path": "docs/design/mocks/README.md",
-        "assignedSha256": "b83b79c02687e190319454701cc16357428c814a2d334868187fbf97c681272d",
+        "assignedSha256": "5d8fd1e1006bc574c693221c954de83660232ddad673c6c8551b2ed118bc33dd",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "b83b79c02687e190319454701cc16357428c814a2d334868187fbf97c681272d",
-        "verifiedCommit": "c41bcfa25fbe49071aa47cc952f96fb80af3069f",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "5d8fd1e1006bc574c693221c954de83660232ddad673c6c8551b2ed118bc33dd",
+        "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
+        "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested at 626a06121 by the orchestrator: the config-collections/ row added (#1725 canvas source; build.mjs → canvas.html; eleven boards × two themes).",
           "docs/design/mocks/README.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
@@ -12857,6 +12859,142 @@
           }
         ],
         "summary": "Characters landing mock (#864): the CONTENT pane at rest as a library — recently chatted, starred, just added, a fresh-install 'Meet the cast', the list-collapsed arm that owns the doors, and the phone sheet — drawn only from what character.list carries plus the two fields #865 wires; canvas source + renders + the fences for the build lane."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/config-collections/DESIGN.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 138,
+      "bytes": 11241,
+      "sha256": "25158120dfa13e0c410ff115843cc1389791edd369a41a8359e282c854f897b8",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/config-collections/DESIGN.md",
+        "assignedSha256": "25158120dfa13e0c410ff115843cc1389791edd369a41a8359e282c854f897b8",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "25158120dfa13e0c410ff115843cc1389791edd369a41a8359e282c854f897b8",
+        "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
+        "verifiedAt": "2026-09-05",
+        "evidence": [
+          "Read in full by the orchestrator at the fold (cb-config-list, #1725): v3 canvas redrawn from the live SectionsBand anatomy after side-eye + stickler review; owner word verbatim ('redesign approved it can be built to spec but must match the mockups'); the build (commit 2) landed against §5 with the named delta (sort row placement, commit 3) and the COLLECTION_WINDOW_MAX_HEIGHT re-bind fork recorded."
+        ],
+        "claims": [
+          {
+            "claim": "The owner approved v3 and the build must match the renders; commit 2 moved the member lists into CONTENT under the config-collection-landing host.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1725"
+              },
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/config/components/config-collection-landing.tsx:1"
+              }
+            ]
+          }
+        ],
+        "summary": "Config collections in CONTENT mock (#1725, owner-approved 2026-09-05): eleven boards in both themes; §5 is the build obligations; the LIST keeps one band kind and the library (glance, control row, insights, rows) lives in CONTENT."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/config-collections/REVIEW-sideeye.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 218,
+      "bytes": 29648,
+      "sha256": "c00f3a3558d3a7ae11c15e274640e6ea29acd2d8a0e887bb6b298ae833f203ec",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/config-collections/REVIEW-sideeye.md",
+        "assignedSha256": "c00f3a3558d3a7ae11c15e274640e6ea29acd2d8a0e887bb6b298ae833f203ec",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "c00f3a3558d3a7ae11c15e274640e6ea29acd2d8a0e887bb6b298ae833f203ec",
+        "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
+        "verifiedAt": "2026-09-05",
+        "evidence": [
+          "Read in full by the orchestrator at the fold: frozen review evidence of v2; each finding is answered in v3 (one band kind, no row switch, one create home, rows sized to the pane, facts drawn once)."
+        ],
+        "claims": [
+          {
+            "claim": "Each v2 finding is answered in v3.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1725"
+              }
+            ]
+          }
+        ],
+        "summary": "Side-eye review of the #1725 mock v2 (UX/visual/a11y, both themes): build-with-changes — board 1 was a fiction of Settings, the regex switch was dead, create sat in two homes, rows were 67% void at pane width, facts were drawn twice; v3 answers each."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/config-collections/REVIEW-stickler.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 221,
+      "bytes": 46333,
+      "sha256": "a37de24febc3710377662741fbc46a3e007822704e190eff7ca22d71098671bb",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/config-collections/REVIEW-stickler.md",
+        "assignedSha256": "a37de24febc3710377662741fbc46a3e007822704e190eff7ca22d71098671bb",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "a37de24febc3710377662741fbc46a3e007822704e190eff7ca22d71098671bb",
+        "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
+        "verifiedAt": "2026-09-05",
+        "evidence": [
+          "Read in full by the orchestrator at the fold: frozen review evidence of v2; its P0s are absent from v3 and its coupled-site list is what commit 2 followed (isPushingGroup split not flipped, clear()'s entry rung, the landing as the keyed host)."
+        ],
+        "claims": [
+          {
+            "claim": "The three P0s were removed in v3 and the coupled-site list drove commit 2.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1725"
+              }
+            ]
+          }
+        ],
+        "summary": "Stickler review of the #1725 mock v2 (IA vs law, back-stack, coupled sites): three P0 (regex on-row switch vs the 2026-08-19 fork; drag handles for a per-scope order; header Delete vs D121(D)) that v3 removed; carries the verified coupled-site list the build brief used."
       },
       "receiptCurrent": true
     },
@@ -29171,9 +29309,9 @@
       "path": "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 372,
-      "bytes": 29015,
-      "sha256": "2a0903138996206b4b0f12e1698a78fac6f33737a7bbc09164144c921fff6341",
+      "lines": 382,
+      "bytes": 29866,
+      "sha256": "bffe43ce614feccbfbb390d2a04b4b4670a19a1493b7084f3352329eff5518a2",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29186,14 +29324,15 @@
       },
       "receipt": {
         "path": "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md",
-        "assignedSha256": "2a0903138996206b4b0f12e1698a78fac6f33737a7bbc09164144c921fff6341",
+        "assignedSha256": "bffe43ce614feccbfbb390d2a04b4b4670a19a1493b7084f3352329eff5518a2",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "2a0903138996206b4b0f12e1698a78fac6f33737a7bbc09164144c921fff6341",
-        "verifiedCommit": "24d2c6ab3902f2952c3a38914cd597c312640f8b",
+        "verifiedSha256": "bffe43ce614feccbfbb390d2a04b4b4670a19a1493b7084f3352329eff5518a2",
+        "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested at 626a06121 by the orchestrator after reading the §8 amendment in full: the 'member rows in LIST' verdict is superseded by #1725 (owner ~16:40Z: collections move into CONTENT); every other axis stands.",
           "re-attested at 24d2c6ab3 by the orchestrator after reading the #1714 addition in full: a dated blockquote at §3a retires the species authority for its verdicts, and NEW §8 re-judges every axis on the tree without it (all KEEP on a stated structural reason; the §8.3 in-pane seam priced; nothing converged, nothing landed in code beyond header comments); §7's claims stand.",
           "re-attested at 9e70e5db3 by the orchestrator after reading §7 in full (cb-config-list, #1169): the census table at fine + coarse, the inverted preset-borrow premise (§7.2), D1 refused on the coarse receipt (§7.3), the meta datum landed with the measured Badge-in-markers control Set{35,42} (§7.4), the voice budget + the #1099 Errand A ruling fork reconciled as 'the ruling survives, its input changed' (§7.5), D3 refused (§7.6); disposition needs-owner → current now that the ruling landed; the §3a/§7.1 SPECIES verdicts are open for re-judgment under #1714.",
           "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md:1-140 full read by the orchestrator at 20ca3612a (lane cb-client-config-polish, #1169 arm a: measured comparison receipt, three drift candidates proposed, nothing landed)",
