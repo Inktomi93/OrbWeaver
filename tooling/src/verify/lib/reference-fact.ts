@@ -1,7 +1,8 @@
 // Final spelling-independent binding/reference facts for the shared gate runtime.
-import type { Identifier, Node as MorphNode, SourceFile } from "ts-morph";
+import type { Identifier, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import type {
+  GlobalMemberOrigin,
   MemberReference,
   ModuleMemberOrigin,
   ReferenceFact,
@@ -10,18 +11,22 @@ import type {
   ResolvedReferenceFact,
   UnresolvedReferenceFact,
 } from "../contract/reference-fact.ts";
+import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
 import { resolveModuleMemberOriginWith } from "./reference-fact-module.ts";
+import { isReferenceWriteTarget, lexicalReferenceSymbol, reassignedReferenceSymbols, writtenReferenceSymbols } from "./reference-fact-writes.ts";
 
 interface ResolutionState {
   readonly declarations: MorphNode[];
   readonly visited: Set<object>;
   readonly writtenSymbolsBySource: Map<object, ReadonlySet<object>>;
+  readonly reassignedSymbolsBySource: Map<object, ReadonlySet<object>>;
 }
 
 type WriteInspection = { readonly kind: "stable" } | { readonly kind: "written" } | { readonly kind: "unsupported"; readonly detail: string };
+type WriteScope = "binding" | "value";
 
 function state(): ResolutionState {
-  return { declarations: [], visited: new Set<object>(), writtenSymbolsBySource: new Map<object, ReadonlySet<object>>() };
+  return { declarations: [], visited: new Set<object>(), writtenSymbolsBySource: new Map(), reassignedSymbolsBySource: new Map() };
 }
 
 function appendDeclaration(target: ResolutionState, declaration: MorphNode): void {
@@ -91,106 +96,46 @@ function bindingNameNode(declaration: MorphNode): MorphNode | undefined {
     name = declaration.getAliasNode() ?? declaration.getNameNode();
   } else if (Node.isNamespaceImport(declaration)) {
     name = declaration.getNameNode();
+  } else if (Node.isImportClause(declaration)) {
+    name = declaration.getDefaultImport();
   }
   return name;
 }
 
-function isDeclarationName(node: MorphNode): boolean {
-  const parent = node.getParent();
-  if (parent === undefined) {
-    return false;
-  }
-  if (Node.isVariableDeclaration(parent) || Node.isBindingElement(parent) || Node.isParameterDeclaration(parent) || Node.isNamespaceImport(parent)) {
-    return parent.getNameNode() === node;
-  }
-  if (Node.isImportSpecifier(parent) || Node.isExportSpecifier(parent)) {
-    return parent.getNameNode() === node || parent.getAliasNode() === node;
-  }
-  return false;
-}
-
-function isTransparentWriteWrapper(parent: MorphNode, child: MorphNode): boolean {
-  return (
-    (Node.isParenthesizedExpression(parent) || Node.isAsExpression(parent) || Node.isSatisfiesExpression(parent) || Node.isNonNullExpression(parent)) &&
-    parent.getExpression() === child
-  );
-}
-
-function isAssignmentContainer(parent: MorphNode, child: MorphNode): boolean {
-  if (Node.isArrayLiteralExpression(parent)) {
-    return parent.getElements().some((element) => element.compilerNode === child.compilerNode);
-  }
-  if (Node.isObjectLiteralExpression(parent)) {
-    return parent.getProperties().some((property) => property.compilerNode === child.compilerNode);
-  }
-  if (Node.isPropertyAssignment(parent)) {
-    return parent.getInitializer() === child;
-  }
-  if (Node.isShorthandPropertyAssignment(parent)) {
-    return parent.getNameNode() === child;
-  }
-  return (Node.isSpreadAssignment(parent) || Node.isSpreadElement(parent)) && parent.getExpression() === child;
-}
-
-function isDirectWriteTarget(parent: MorphNode, child: MorphNode): boolean {
-  if (Node.isBinaryExpression(parent) && parent.getLeft() === child) {
-    const operator = parent.getOperatorToken().getKind();
-    return operator >= SyntaxKind.FirstAssignment && operator <= SyntaxKind.LastAssignment;
-  }
-  if ((Node.isPrefixUnaryExpression(parent) || Node.isPostfixUnaryExpression(parent)) && parent.getOperand() === child) {
-    const operator = parent.getOperatorToken();
-    return operator === SyntaxKind.PlusPlusToken || operator === SyntaxKind.MinusMinusToken;
-  }
-  return (
-    (Node.isDeleteExpression(parent) && parent.getExpression() === child) ||
-    ((Node.isForInStatement(parent) || Node.isForOfStatement(parent)) && parent.getInitializer() === child)
-  );
-}
-
-function isWriteTarget(node: MorphNode): boolean {
-  let current = node;
-  let parent = current.getParent();
-  while (parent !== undefined && (isTransparentWriteWrapper(parent, current) || isAssignmentContainer(parent, current))) {
-    current = parent;
-    parent = current.getParent();
-  }
-  return parent !== undefined && isDirectWriteTarget(parent, current);
-}
-
-function writtenSymbols(sourceFile: SourceFile, target: ResolutionState): ReadonlySet<object> {
-  const key: object = sourceFile.compilerNode;
-  const cached = target.writtenSymbolsBySource.get(key);
-  if (cached !== undefined) {
-    return cached;
-  }
-  const symbols = new Set<object>();
-  for (const identifier of sourceFile.getDescendantsOfKind(SyntaxKind.Identifier)) {
-    if (isDeclarationName(identifier) || !isWriteTarget(identifier)) {
-      continue;
-    }
-    const symbol = identifier.getSymbol();
-    if (symbol !== undefined) {
-      symbols.add(symbol.compilerSymbol);
-    }
-  }
-  target.writtenSymbolsBySource.set(key, symbols);
-  return symbols;
-}
-
-function inspectWrites(declaration: MorphNode, target: ResolutionState): WriteInspection {
+function inspectWrites(declaration: MorphNode, target: ResolutionState, scope: WriteScope): WriteInspection {
   const name = bindingNameNode(declaration);
   if (name === undefined || !Node.isIdentifier(name)) {
     return { kind: "unsupported", detail: `ts-morph cannot enumerate writes for ${declaration.getKindName()}` };
   }
-  const symbol = name.getSymbol();
+  const symbol = lexicalReferenceSymbol(name);
   if (symbol === undefined) {
     return { kind: "unsupported", detail: `ts-morph cannot resolve the binding symbol for ${name.getText()}` };
   }
-  return writtenSymbols(name.getSourceFile(), target).has(symbol.compilerSymbol) ? { kind: "written" } : { kind: "stable" };
+  const written =
+    scope === "binding"
+      ? reassignedReferenceSymbols(name.getSourceFile(), target.reassignedSymbolsBySource)
+      : writtenReferenceSymbols(name.getSourceFile(), target.writtenSymbolsBySource);
+  return written.has(symbol.compilerSymbol) ? { kind: "written" } : { kind: "stable" };
+}
+
+/** Refuse when this lexical symbol is assigned, updated, deleted, or used as the root of a member write. */
+export function inspectReferenceWrites(identifier: Identifier): ReferenceFact<true> {
+  const symbol = lexicalReferenceSymbol(identifier);
+  return symbol === undefined
+    ? unresolved("missing", identifier, state(), `no lexical symbol binds ${identifier.getText()}`)
+    : inspectSymbolWrites(symbol, identifier);
+}
+
+/** Refuse when the checker symbol is written anywhere in this authored source file. */
+export function inspectSymbolWrites(symbol: import("ts-morph").Symbol, node: MorphNode): ReferenceFact<true> {
+  const target = state();
+  return writtenReferenceSymbols(node.getSourceFile(), target.writtenSymbolsBySource).has(symbol.compilerSymbol)
+    ? unresolved("write", node, target, `the reference ${node.getText()} is assigned or has a member assigned`)
+    : resolved(true, target, node);
 }
 
 function uniqueDeclaration(identifier: Identifier, target: ResolutionState): ReferenceFact<MorphNode> {
-  const symbol = identifier.getSymbol();
+  const symbol = lexicalReferenceSymbol(identifier);
   if (symbol === undefined) {
     return unresolved("missing", identifier, target, `no lexical symbol binds ${identifier.getText()}`);
   }
@@ -207,8 +152,8 @@ function uniqueDeclaration(identifier: Identifier, target: ResolutionState): Ref
     : resolved(declaration, target, declaration);
 }
 
-function writtenBinding(declaration: MorphNode, target: ResolutionState): UnresolvedReferenceFact | undefined {
-  const inspection = inspectWrites(declaration, target);
+function writtenBinding(declaration: MorphNode, target: ResolutionState, scope: WriteScope): UnresolvedReferenceFact | undefined {
+  const inspection = inspectWrites(declaration, target, scope);
   let fact: UnresolvedReferenceFact | undefined;
   if (inspection.kind === "written") {
     fact = unresolved("write", declaration, target, `the binding ${declaration.getText()} is reassigned or updated`);
@@ -222,11 +167,11 @@ function importedTarget(current: Identifier, declaration: import("ts-morph").Imp
   if (!enterDeclaration(target, declaration)) {
     return unresolved("cycle", declaration, target, `import alias cycle at ${declaration.getText()}`);
   }
-  const importWrite = writtenBinding(declaration, target);
+  const importWrite = writtenBinding(declaration, target, "binding");
   if (importWrite !== undefined) {
     return importWrite;
   }
-  const targets = current.getSymbol()?.getAliasedSymbol()?.getDeclarations() ?? [];
+  const targets = lexicalReferenceSymbol(current)?.getAliasedSymbol()?.getDeclarations() ?? [];
   if (targets.length === 0) {
     return unresolved("missing", declaration, target, `the imported binding ${current.getText()} has no resolvable declaration`);
   }
@@ -255,7 +200,7 @@ function constInitializer(current: Identifier, declaration: MorphNode, target: R
   if (declaration.getParentIfKind(SyntaxKind.VariableDeclarationList)?.getDeclarationKind() !== VariableDeclarationKind.Const) {
     return unresolved("write", declaration, target, `binding ${declaration.getName()} is mutable`);
   }
-  const write = writtenBinding(declaration, target);
+  const write = writtenBinding(declaration, target, "binding");
   if (write !== undefined) {
     return write;
   }
@@ -287,7 +232,7 @@ function resolveStableExpressionInternal(raw: MorphNode, target: ResolutionState
     : resolved(current, target, current);
 }
 
-/** Resolve wrappers and immutable aliases to one terminal expression, or return the exact refusal. */
+/** Resolve stable bindings to their source expression; origin/value readers separately refuse member effects. */
 export function resolveStableExpression(node: MorphNode): ReferenceFact<MorphNode> {
   return resolveStableExpressionInternal(node, state());
 }
@@ -299,11 +244,11 @@ export function readStaticString(node: MorphNode): ReferenceFact<string> {
     return fact;
   }
   const terminal = unwrapExpression(fact.value);
+  const target = state();
+  appendTrace(target, fact.trace.declarations);
   if (Node.isStringLiteral(terminal) || Node.isNoSubstitutionTemplateLiteral(terminal)) {
-    const target: ResolutionState = { declarations: [...fact.trace.declarations], visited: new Set<object>(), writtenSymbolsBySource: new Map() };
     return resolved(terminal.getLiteralText(), target, terminal);
   }
-  const target: ResolutionState = { declarations: [...fact.trace.declarations], visited: new Set<object>(), writtenSymbolsBySource: new Map() };
   return unresolved("unsupported", terminal, target, `${terminal.getKindName()} is not a static string`);
 }
 
@@ -360,7 +305,7 @@ function computedName(node: MorphNode, target: ResolutionState): ReferenceFact<s
 export function readMemberReference(node: MorphNode): ReferenceFact<MemberReference> {
   const access = unwrapExpression(node);
   const target = state();
-  if ((Node.isPropertyAccessExpression(access) || Node.isElementAccessExpression(access)) && isWriteTarget(access)) {
+  if ((Node.isPropertyAccessExpression(access) || Node.isElementAccessExpression(access)) && isReferenceWriteTarget(access)) {
     return unresolved("write", access, target, `member ${access.getText()} is an assignment, update, or delete target`);
   }
   if (Node.isPropertyAccessExpression(access)) {
@@ -399,22 +344,29 @@ function inspectStableBinding(declaration: MorphNode): ReferenceFact<true> {
   if (owner !== undefined && owner.getParentIfKind(SyntaxKind.VariableDeclarationList)?.getDeclarationKind() !== VariableDeclarationKind.Const) {
     return unresolved("write", declaration, target, `binding ${declaration.getText()} is mutable`);
   }
-  if (owner === undefined && !Node.isImportSpecifier(declaration) && !Node.isNamespaceImport(declaration)) {
+  if (owner === undefined && !Node.isImportSpecifier(declaration) && !Node.isNamespaceImport(declaration) && !Node.isImportClause(declaration)) {
     return unresolved("unsupported", declaration, target, `${declaration.getKindName()} is not an immutable binding`);
   }
-  const write = writtenBinding(declaration, target);
+  const write = writtenBinding(declaration, target, "value");
   return write ?? resolved(true, target, declaration);
 }
 
-const MODULE_SERVICES = {
+export const referenceResolutionServices = {
   unwrapExpression,
   declarationOf,
   inspectStableBinding,
+  inspectReferenceWrites,
+  inspectSymbolWrites,
   readComputedName: (node: MorphNode): ReferenceFact<string> => computedName(node, state()),
   readMemberReference,
 } satisfies ReferenceResolutionServices;
 
 /** Resolve a reference to its module export through aliases, namespaces, re-exports, and destructuring. */
 export function resolveModuleMemberOrigin(node: MorphNode): ReferenceFact<ModuleMemberOrigin> {
-  return resolveModuleMemberOriginWith(node, MODULE_SERVICES);
+  return resolveModuleMemberOriginWith(node, referenceResolutionServices);
+}
+
+/** Resolve a checker-proven ambient global through immutable aliases, members, and destructuring. */
+export function resolveGlobalMemberOrigin(node: MorphNode): ReferenceFact<GlobalMemberOrigin> {
+  return resolveGlobalMemberOriginWith(node, referenceResolutionServices);
 }

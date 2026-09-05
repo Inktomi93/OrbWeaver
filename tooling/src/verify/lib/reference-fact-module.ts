@@ -1,5 +1,5 @@
 // Module-origin traversal for reference-fact.ts, separated from static expression/value resolution.
-import type { BindingElement, ExportSpecifier, ImportSpecifier, Node as MorphNode, Symbol as MorphSymbol, SourceFile } from "ts-morph";
+import type { BindingElement, ExportSpecifier, ImportClause, ImportSpecifier, Node as MorphNode, Symbol as MorphSymbol, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type {
   ModuleMemberOrigin,
@@ -13,32 +13,24 @@ import type {
 interface ModuleState {
   readonly declarations: MorphNode[];
   readonly visited: Set<object>;
+  readonly services: ReferenceResolutionServices;
 }
-
 type NamespaceBinding =
   | { readonly kind: "project"; readonly moduleSpecifier: string; readonly declaration: MorphNode; readonly sourceFile: SourceFile }
   | { readonly kind: "external"; readonly moduleSpecifier: string; readonly declaration: MorphNode };
-
-function state(): ModuleState {
-  return { declarations: [], visited: new Set<object>() };
-}
-
-function cloneState(input: ModuleState): ModuleState {
-  return { declarations: [...input.declarations], visited: new Set(input.visited) };
-}
-
+type CanonicalModuleTarget = ModuleMemberOrigin["canonical"];
+const state = (services: ReferenceResolutionServices): ModuleState => ({ declarations: [], visited: new Set<object>(), services });
+const cloneState = (input: ModuleState): ModuleState => ({ ...input, declarations: [...input.declarations], visited: new Set(input.visited) });
 function appendDeclaration(target: ModuleState, declaration: MorphNode): void {
   if (!target.declarations.some((existing) => existing.compilerNode === declaration.compilerNode)) {
     target.declarations.push(declaration);
   }
 }
-
 function appendTrace(target: ModuleState, declarations: readonly MorphNode[]): void {
   for (const declaration of declarations) {
     appendDeclaration(target, declaration);
   }
 }
-
 function enterDeclaration(target: ModuleState, declaration: MorphNode): boolean {
   const identity: object = declaration.compilerNode;
   if (target.visited.has(identity)) {
@@ -48,7 +40,6 @@ function enterDeclaration(target: ModuleState, declaration: MorphNode): boolean 
   appendDeclaration(target, declaration);
   return true;
 }
-
 function enterSymbol(target: ModuleState, symbol: MorphSymbol): boolean {
   const identity: object = symbol.compilerSymbol;
   if (target.visited.has(identity)) {
@@ -57,20 +48,16 @@ function enterSymbol(target: ModuleState, symbol: MorphSymbol): boolean {
   target.visited.add(identity);
   return true;
 }
-
 function resolved<T>(value: T, target: ModuleState, origin: MorphNode): ResolvedReferenceFact<T> {
   return { kind: "resolved", value, trace: { declarations: [...target.declarations], origin } };
 }
-
 function unresolved(reason: ReferenceUnresolvedReason, node: MorphNode, target: ModuleState, detail: string): UnresolvedReferenceFact {
   return { kind: "unresolved", reason, detail, node, trace: { declarations: [...target.declarations], origin: node } };
 }
-
 function mergeUnresolved(fact: UnresolvedReferenceFact, target: ModuleState): UnresolvedReferenceFact {
   appendTrace(target, fact.trace.declarations);
   return unresolved(fact.reason, fact.node, target, fact.detail);
 }
-
 function inspectStableBinding(declaration: MorphNode, target: ModuleState, services: ReferenceResolutionServices): UnresolvedReferenceFact | undefined {
   if (!enterDeclaration(target, declaration)) {
     return unresolved("cycle", declaration, target, `binding cycle at ${declaration.getText()}`);
@@ -79,7 +66,6 @@ function inspectStableBinding(declaration: MorphNode, target: ModuleState, servi
   appendTrace(target, fact.trace.declarations);
   return fact.kind === "unresolved" ? mergeUnresolved(fact, target) : undefined;
 }
-
 function declarationOf(identifier: import("ts-morph").Identifier, target: ModuleState, services: ReferenceResolutionServices): ReferenceFact<MorphNode> {
   const fact = services.declarationOf(identifier);
   if (fact.kind === "unresolved") {
@@ -92,7 +78,33 @@ function importDeclarationOf(node: MorphNode): import("ts-morph").ImportDeclarat
   return node.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
 }
 
-function resolveExportSpecifier(declaration: ExportSpecifier, symbol: MorphSymbol, exportName: string, target: ModuleState): ReferenceFact<MorphNode> {
+const requiresResolvedSource = (moduleSpecifier: string): boolean =>
+  moduleSpecifier.startsWith(".") || moduleSpecifier.startsWith("/") || moduleSpecifier.startsWith("#");
+
+const projectTarget = (declaration: MorphNode, exportedName: string): CanonicalModuleTarget => ({
+  kind: "project",
+  sourceFile: declaration.getSourceFile(),
+  exportedName,
+  declaration,
+});
+
+const externalTarget = (declaration: MorphNode, moduleSpecifier: string, exportedName: string): CanonicalModuleTarget => ({
+  kind: "external-door",
+  moduleSpecifier,
+  exportedName,
+  declaration,
+});
+
+function originFromTarget(moduleSpecifier: string, exportedName: string, canonical: CanonicalModuleTarget): ModuleMemberOrigin {
+  return { kind: "module", moduleSpecifier, exportedName, memberPath: [], declaration: canonical.declaration, canonical };
+}
+
+function resolveExportSpecifier(
+  declaration: ExportSpecifier,
+  symbol: MorphSymbol,
+  exportName: string,
+  target: ModuleState,
+): ReferenceFact<CanonicalModuleTarget> {
   if (!enterDeclaration(target, declaration)) {
     return unresolved("cycle", declaration, target, `module export cycle at ${declaration.getText()}`);
   }
@@ -101,24 +113,28 @@ function resolveExportSpecifier(declaration: ExportSpecifier, symbol: MorphSymbo
   if (nextSource !== undefined) {
     return resolveExportedDeclaration(nextSource, declaration.getName(), target);
   }
-  if (exportDeclaration?.getModuleSpecifierValue() !== undefined) {
-    return resolved(declaration, target, declaration);
+  const externalSpecifier = exportDeclaration?.getModuleSpecifierValue();
+  if (externalSpecifier !== undefined) {
+    if (requiresResolvedSource(externalSpecifier)) {
+      return unresolved("missing", declaration, target, `re-export door ${externalSpecifier} has no resolvable source file`);
+    }
+    return resolved(externalTarget(declaration, externalSpecifier, declaration.getName()), target, declaration);
   }
   const aliasedTargets = symbol.getAliasedSymbol()?.getDeclarations() ?? [];
-  if (aliasedTargets.length === 0) {
+  const aliased = aliasedTargets[0];
+  if (aliased === undefined) {
     return unresolved("missing", declaration, target, `local export ${exportName} has no resolvable declaration`);
   }
   if (aliasedTargets.length !== 1) {
     return unresolved("ambiguous", declaration, target, `local export ${exportName} resolves to ${aliasedTargets.length} declarations`);
   }
-  const aliased = aliasedTargets[0];
-  if (aliased === undefined) {
-    return unresolved("missing", declaration, target, `local export ${exportName} has no resolvable declaration`);
+  if (aliased.getSourceFile() !== declaration.getSourceFile()) {
+    return unresolved("unsupported", declaration, target, `local export ${exportName} forwards an imported binding without a proven canonical export`);
   }
   if (!enterDeclaration(target, aliased)) {
     return unresolved("cycle", aliased, target, `module export cycle at ${aliased.getText()}`);
   }
-  return resolved(aliased, target, aliased);
+  return validatedProjectTarget(aliased, exportName, target);
 }
 
 function starExportCandidates(sourceFile: SourceFile, exportName: string): readonly import("ts-morph").ExportDeclaration[] {
@@ -131,7 +147,7 @@ function starExportCandidates(sourceFile: SourceFile, exportName: string): reado
   });
 }
 
-function resolveStarExport(sourceFile: SourceFile, exportName: string, target: ModuleState): ReferenceFact<MorphNode> | undefined {
+function resolveStarExport(sourceFile: SourceFile, exportName: string, target: ModuleState): ReferenceFact<CanonicalModuleTarget> | undefined {
   const candidates = starExportCandidates(sourceFile, exportName);
   if (candidates.length === 0) {
     return;
@@ -152,28 +168,44 @@ function resolveStarExport(sourceFile: SourceFile, exportName: string, target: M
     : resolveExportedDeclaration(exportedSource, exportName, target);
 }
 
-function resolveExportedDeclaration(sourceFile: SourceFile, exportName: string, target: ModuleState): ReferenceFact<MorphNode> {
+function isBindingAliasInitializer(node: MorphNode, services: ReferenceResolutionServices): boolean {
+  const current = services.unwrapExpression(node);
+  return Node.isIdentifier(current) || Node.isPropertyAccessExpression(current) || Node.isElementAccessExpression(current);
+}
+
+function validatedProjectTarget(declaration: MorphNode, exportedName: string, target: ModuleState): ReferenceFact<CanonicalModuleTarget> {
+  const initializer = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
+  if (initializer !== undefined && isBindingAliasInitializer(initializer, target.services)) {
+    return unresolved("unsupported", initializer, target, `export ${exportedName} aliases another binding whose canonical origin is not proven`);
+  }
+  return resolved(projectTarget(declaration, exportedName), target, declaration);
+}
+
+function uniqueExportSymbol(sourceFile: SourceFile, exportName: string, target: ModuleState): ReferenceFact<MorphSymbol> {
   const symbols = sourceFile.getExportSymbols().filter((exportedSymbol) => exportedSymbol.getName() === exportName);
-  if (symbols.length === 0) {
+  const symbol = symbols[0];
+  if (symbol === undefined) {
     return unresolved("missing", sourceFile, target, `${sourceFile.getFilePath()} exports no member named ${exportName}`);
   }
   if (symbols.length !== 1) {
     return unresolved("ambiguous", sourceFile, target, `${sourceFile.getFilePath()} exposes ${symbols.length} export symbols named ${exportName}`);
   }
-  const symbol = symbols[0];
-  if (symbol === undefined) {
-    return unresolved("missing", sourceFile, target, `${sourceFile.getFilePath()} exports no member named ${exportName}`);
+  return resolved(symbol, target, sourceFile);
+}
+
+function resolveExportedDeclaration(sourceFile: SourceFile, exportName: string, target: ModuleState): ReferenceFact<CanonicalModuleTarget> {
+  const symbolFact = uniqueExportSymbol(sourceFile, exportName, target);
+  if (symbolFact.kind === "unresolved") {
+    return symbolFact;
   }
+  const symbol = symbolFact.value;
   const declarations = symbol.getDeclarations();
-  if (declarations.length === 0) {
+  const declaration = declarations[0];
+  if (declaration === undefined) {
     return unresolved("missing", sourceFile, target, `export ${exportName} has no declaration`);
   }
   if (declarations.length !== 1) {
     return unresolved("ambiguous", sourceFile, target, `export ${exportName} has ${declarations.length} declarations`);
-  }
-  const declaration = declarations[0];
-  if (declaration === undefined) {
-    return unresolved("missing", sourceFile, target, `export ${exportName} has no declaration`);
   }
   if (declaration.getSourceFile() !== sourceFile) {
     const star = resolveStarExport(sourceFile, exportName, target);
@@ -187,13 +219,14 @@ function resolveExportedDeclaration(sourceFile: SourceFile, exportName: string, 
   if (Node.isExportSpecifier(declaration)) {
     return resolveExportSpecifier(declaration, symbol, exportName, target);
   }
-  return enterDeclaration(target, declaration)
-    ? resolved(declaration, target, declaration)
-    : unresolved("cycle", declaration, target, `module export cycle at ${declaration.getText()}`);
+  if (!enterDeclaration(target, declaration)) {
+    return unresolved("cycle", declaration, target, `module export cycle at ${declaration.getText()}`);
+  }
+  return validatedProjectTarget(declaration, exportName, target);
 }
 
 function moduleOriginFromDoor(
-  door: ImportSpecifier | import("ts-morph").NamespaceImport,
+  door: ImportClause | ImportSpecifier | import("ts-morph").NamespaceImport,
   exportedName: string,
   target: ModuleState,
 ): ReferenceFact<ModuleMemberOrigin> {
@@ -204,13 +237,40 @@ function moduleOriginFromDoor(
   const moduleSpecifier = importDeclaration.getModuleSpecifierValue();
   const sourceFile = importDeclaration.getModuleSpecifierSourceFile();
   if (sourceFile === undefined) {
-    return resolved({ moduleSpecifier, exportedName, memberPath: [], declaration: door }, target, door);
+    if (requiresResolvedSource(moduleSpecifier)) {
+      return unresolved("missing", importDeclaration.getModuleSpecifier(), target, `module door ${moduleSpecifier} has no resolvable source file`);
+    }
+    const canonical = externalTarget(door, moduleSpecifier, exportedName);
+    return resolved(originFromTarget(moduleSpecifier, exportedName, canonical), target, door);
   }
   const terminal = resolveExportedDeclaration(sourceFile, exportedName, target);
   if (terminal.kind === "unresolved") {
     return terminal;
   }
-  return resolved({ moduleSpecifier, exportedName, memberPath: [], declaration: terminal.value }, target, terminal.value);
+  return resolved(originFromTarget(moduleSpecifier, exportedName, terminal.value), target, terminal.value.declaration);
+}
+
+function namespaceImportBinding(
+  declaration: import("ts-morph").NamespaceImport,
+  target: ModuleState,
+  services: ReferenceResolutionServices,
+): ReferenceFact<NamespaceBinding> {
+  const refusal = inspectStableBinding(declaration, target, services);
+  if (refusal !== undefined) {
+    return refusal;
+  }
+  const importDeclaration = importDeclarationOf(declaration);
+  if (importDeclaration === undefined) {
+    return unresolved("missing", declaration, target, `namespace ${declaration.getName()} has no import declaration`);
+  }
+  const moduleSpecifier = importDeclaration.getModuleSpecifierValue();
+  const sourceFile = importDeclaration.getModuleSpecifierSourceFile();
+  if (sourceFile === undefined) {
+    return requiresResolvedSource(moduleSpecifier)
+      ? unresolved("missing", importDeclaration.getModuleSpecifier(), target, `namespace door ${moduleSpecifier} has no resolvable source file`)
+      : resolved({ kind: "external", moduleSpecifier, declaration }, target, declaration);
+  }
+  return resolved({ kind: "project", moduleSpecifier, declaration, sourceFile }, target, declaration);
 }
 
 function namespaceBindingInternal(node: MorphNode, target: ModuleState, services: ReferenceResolutionServices): ReferenceFact<NamespaceBinding> {
@@ -224,19 +284,7 @@ function namespaceBindingInternal(node: MorphNode, target: ModuleState, services
   }
   const declaration = declarationFact.value;
   if (Node.isNamespaceImport(declaration)) {
-    const refusal = inspectStableBinding(declaration, target, services);
-    if (refusal !== undefined) {
-      return refusal;
-    }
-    const importDeclaration = importDeclarationOf(declaration);
-    if (importDeclaration === undefined) {
-      return unresolved("missing", declaration, target, `namespace ${declaration.getName()} has no import declaration`);
-    }
-    const moduleSpecifier = importDeclaration.getModuleSpecifierValue();
-    const sourceFile = importDeclaration.getModuleSpecifierSourceFile();
-    return sourceFile === undefined
-      ? resolved({ kind: "external", moduleSpecifier, declaration }, target, declaration)
-      : resolved({ kind: "project", moduleSpecifier, declaration, sourceFile }, target, declaration);
+    return namespaceImportBinding(declaration, target, services);
   }
   if (Node.isVariableDeclaration(declaration)) {
     const refusal = inspectStableBinding(declaration, target, services);
@@ -256,16 +304,13 @@ function namespaceBindingInternal(node: MorphNode, target: ModuleState, services
 
 function originFromNamespace(namespace: NamespaceBinding, exportedName: string, target: ModuleState): ReferenceFact<ModuleMemberOrigin> {
   if (namespace.kind === "external") {
-    return resolved(
-      { moduleSpecifier: namespace.moduleSpecifier, exportedName, memberPath: [], declaration: namespace.declaration },
-      target,
-      namespace.declaration,
-    );
+    const canonical = externalTarget(namespace.declaration, namespace.moduleSpecifier, exportedName);
+    return resolved(originFromTarget(namespace.moduleSpecifier, exportedName, canonical), target, namespace.declaration);
   }
   const terminal = resolveExportedDeclaration(namespace.sourceFile, exportedName, target);
   return terminal.kind === "unresolved"
     ? terminal
-    : resolved({ moduleSpecifier: namespace.moduleSpecifier, exportedName, memberPath: [], declaration: terminal.value }, target, terminal.value);
+    : resolved(originFromTarget(namespace.moduleSpecifier, exportedName, terminal.value), target, terminal.value.declaration);
 }
 
 function appendMemberPath(fact: ResolvedReferenceFact<ModuleMemberOrigin>, name: string): ResolvedReferenceFact<ModuleMemberOrigin> {
@@ -298,6 +343,9 @@ function moduleOriginFromBinding(binding: BindingElement, target: ModuleState, s
   const variable = binding.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
   if (!Node.isObjectBindingPattern(pattern) || variable === undefined || pattern.getParent() !== variable) {
     return unresolved("unsupported", binding, target, "nested and array destructuring are not module-member bindings");
+  }
+  if (binding.getInitializer() !== undefined) {
+    return unresolved("dynamic", binding, target, "a destructuring default chooses its origin at runtime");
   }
   const refusal = inspectStableBinding(binding, target, services);
   if (refusal !== undefined) {
@@ -355,6 +403,10 @@ function moduleOriginFromIdentifier(
     const refusal = inspectStableBinding(declaration, target, services);
     return refusal ?? moduleOriginFromDoor(declaration, declaration.getName(), target);
   }
+  if (Node.isImportClause(declaration)) {
+    const refusal = inspectStableBinding(declaration, target, services);
+    return refusal ?? moduleOriginFromDoor(declaration, "default", target);
+  }
   if (Node.isBindingElement(declaration)) {
     return moduleOriginFromBinding(declaration, target, services);
   }
@@ -394,5 +446,5 @@ function resolveInternal(node: MorphNode, target: ModuleState, services: Referen
 
 /** Internal engine; reference-fact.ts owns the one-argument public API and injects its shared readers. */
 export function resolveModuleMemberOriginWith(node: MorphNode, services: ReferenceResolutionServices): ReferenceFact<ModuleMemberOrigin> {
-  return resolveInternal(node, state(), services);
+  return resolveInternal(node, state(services), services);
 }
