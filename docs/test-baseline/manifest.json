@@ -458,6 +458,7 @@
     "tests/client/lib/appearance-carrier-manifest.ct.tsx",
     "tests/client/lib/appearance-carrier-manifest.test.ts",
     "tests/client/lib/appearance-message-registry.test.ts",
+    "tests/client/lib/bug-report-bundle.test.ts",
     "tests/client/lib/chat-title.test.ts",
     "tests/client/lib/client-error-report.test.ts",
     "tests/client/lib/config-search-tokens.test.ts",
