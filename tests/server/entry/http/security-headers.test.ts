@@ -376,6 +376,45 @@ describe("securityHeaders", () => {
         expect(res.headers.get("x-content-type-options"), route).toBeNull();
       }
     });
+
+    // #1611 — THE `%2F` AGREEMENT between hono's path decode and this exemption. `servesOwnPolicy` decides
+    // "one more segment", which RE-DERIVES a routing decision, so the two readings must never disagree: an
+    // exemption wider than the router leaves an unrouted path unpoliced (the #1409 class), one narrower
+    // stamps the app policy onto a served frame document (the exemption's whole reason to exist).
+    //
+    // `%2F` is where a decoder split would show first. `getPath` decodes with `decodeURI` (`tryDecodeURI`,
+    // hono/dist/utils/url.js), which preserves `%2F`, so `<prefix>a%2Fb` is ONE segment to the router's
+    // `[^/]+` and one to this predicate. This arm pins the OBSERVABLE end of that: the frame handler's own
+    // response, under the FRAME CSP — never the app policy, and never no policy at all.
+    //
+    // NOT a coincidence of decoders, measured 2026-09-05: hono computes the path once in `#dispatch`
+    // (`const path = this.getPath(request, { env })`) and passes that ONE string to both
+    // `router.match(method, path)` and the `Context`, so `c.req.path` IS the router's match input. A decoder
+    // change moves both together, and the safe way (`a/b` ⇒ two segments ⇒ not exempt ⇒ the app policy lands
+    // on the 404). What this arm actually guards is hono ever splitting those two reads — or an app-level
+    // `getPath` option overriding one of them — which would be silent everywhere else.
+    test("a %2F in the id is ONE segment to the router AND to the exemption — the frame handler serves it under the FRAME CSP", async () => {
+      for (const route of [CARD_FRAME_ROUTE, PLUGIN_FRAME_ROUTE]) {
+        const res = await servedByRealFrameRoutes(`${route}/a%2Fb`);
+        // The premise, asserted rather than assumed: `%2F` survives the decode, so `:id` matches it.
+        expect(res.status, route).toBe(200);
+        expect(res.headers.get("content-security-policy"), route).toBe("sandbox; default-src 'none'");
+        // Neither failure mode: not the app policy (a lost exemption), not `null` (an unpoliced response).
+        expect(res.headers.get("content-security-policy"), route).not.toContain("default-src 'self'");
+        expect(res.headers.get("x-frame-options"), route).toBeNull();
+      }
+    });
+
+    // The other side of the same agreement, and the arm that would go red if the decoder ever DID split:
+    // a REALLY-slashed descendant is two segments to both, so it routes to nothing and is app-policied.
+    // Same fact as the #1409 pin above — repeated here because it is the control for the `%2F` arm, and a
+    // one-sided decoder pin proves nothing about the pair.
+    test("a literal slash in the same position is TWO segments to both — unrouted and app-policied", async () => {
+      const res = await servedByRealFrameRoutes(`${CARD_FRAME_ROUTE}/a/b`);
+      expect(res.status).toBe(404);
+      expect(res.headers.get("content-security-policy")).toContain("default-src 'self'");
+      expect(res.headers.get("x-frame-options")).toBe("DENY");
+    });
   });
 
   test("sibling headers: frame-deny, nosniff, referrer, COOP; NO HSTS (plain-http LAN self-host)", async () => {
