@@ -13,11 +13,14 @@
 // tools, events, transforms — is absent from the profile by construction, because a transient anonymous
 // snippet has no plugin identity to attribute or disable.
 //
-// REFUSALS ARE SHOWN, NEVER HUNG. Two distinct outcomes and they are not the same thing: the mutation
-// THROWS on the per-user concurrency ceiling (`PluginSnippetBusyError` — up to 4 contexts at once, whose
-// message already says "wait for one to finish"), which rides the shared error toast; and the mutation
-// RESOLVES with a contained `error` field when the snippet itself threw or hit its 5 s wall, which is data
-// and is rendered inline beside the log. A REPL that swallowed the second one would look like a hang.
+// REFUSALS ARE SHOWN, NEVER HUNG. THREE distinct outcomes, and the split is between "never ran" and "ran":
+// the mutation THROWS on either ceiling — the per-USER one (`PluginSnippetBusyError`, up to 4 contexts at
+// once, whose message already says "wait for one to finish") or the per-PROCESS one (the plugin host's
+// concurrent-snippet pool, #1474; both are CONFLICT-class and both ride the shared error toast) — and it
+// RESOLVES with a contained `error` field only when the snippet ITSELF threw or hit its 5 s wall, which is
+// data and is rendered inline beside the log. The two ceilings are separate numbers on purpose (one member
+// cannot hold the whole host), but they are one outcome here: nothing ran, so nothing is rendered inline.
+// A REPL that swallowed the third one would look like a hang.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";

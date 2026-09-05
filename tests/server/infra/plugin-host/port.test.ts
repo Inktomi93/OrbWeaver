@@ -20,6 +20,7 @@ import {
   PLUGIN_LOG_RING_LINES,
   PLUGIN_MEMORY_LIMIT_BYTES,
   PLUGIN_RESIDENT_RUNTIME_MAX,
+  PLUGIN_SNIPPET_RUNTIME_MAX,
   Sandbox,
 } from "@orb/server/infra/plugin-host";
 import { describe, vi } from "vitest";
@@ -1160,6 +1161,48 @@ describe("runSnippet — process-wide snippet admission", () => {
     });
     expect(after.error).toBeUndefined();
     expect(after.logLines).toContain("[info] after");
+  });
+
+  // The OTHER direction of the same claim. Green today (the two pools are independent closures in
+  // `port.ts` — one `createAdmission` per ceiling), so this is a FENCE too, not a defect proof: it is what
+  // fails the day someone "simplifies" the two counters into one. Stated BOTH ways on purpose — "separate
+  // pools" is a symmetric claim, and a one-directional test lets the merge land as long as the merged pool
+  // happens to be big enough for the one arm that is tested.
+  test("FENCE: a snippet storm cannot refuse an ACTIVATION (the separation holds in both directions)", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const releases: (() => void)[] = [];
+    const heldBridge = heldSnippetBridge(releases);
+    const { bridge } = fakeBridge();
+    const held: Promise<unknown>[] = [];
+    let activated: PluginInstance | undefined;
+    try {
+      // Fill the snippet pool to its ceiling and leave every one of them in flight on the bridge gate.
+      for (let index = 0; index < PLUGIN_SNIPPET_RUNTIME_MAX; index += 1) {
+        held.push(
+          host
+            .runSnippet({ code: heldSnippetCode, grants: ["chat.read"], bridge: heldBridge, chat: { chatId: CHAT, canWrite: false, automationDepth: 0 } })
+            .then(
+              () => "ran",
+              (err: unknown) => err,
+            ),
+        );
+      }
+      await settleTicks();
+      // A NINTH snippet would be refused here — an activation must not be.
+      const outcome = await host.createInstance({ mainJs: "'ok'", grants: [], bridge, chat: noChat });
+      expect(outcome.ok).toBe(true);
+      if (outcome.ok) {
+        activated = outcome.instance;
+      }
+    } finally {
+      if (activated !== undefined) {
+        host.dispose(activated);
+      }
+      for (const release of releases) {
+        release();
+      }
+      await Promise.all(held);
+    }
   });
 
   // GREEN BEFORE THE FIX, and labelled as such: this is a REGRESSION FENCE on the pool-separation decision,

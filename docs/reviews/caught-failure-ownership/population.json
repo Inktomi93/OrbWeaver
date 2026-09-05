@@ -813,7 +813,7 @@
     {
       "siteId": "packages/client/src/features/plugin/components/snippet-console.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/plugin/components/snippet-console.tsx",
-      "line": 69,
+      "line": 72,
       "column": 5,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -821,7 +821,7 @@
       "snippet": "runSnippet.mutateAsync({ chatId, code }).then(setResult, () => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "useRunSnippet carries",
-      "markerLine": 66
+      "markerLine": 69
     },
     {
       "siteId": "packages/client/src/features/plugin/hooks/use-plugin-commands.ts::promise:mutateAsync::1",

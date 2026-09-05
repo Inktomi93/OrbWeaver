@@ -28,18 +28,23 @@ function fakeClient(): { client: VllmEngineClient; hits: EngineHit[] } {
   const client: VllmEngineClient = {
     enginePost: <T>(engine: string, path: string, body: unknown): Promise<T> => {
       hits.push({ engine, path });
-      const b = body as { input?: unknown; messages?: unknown };
+      const b = body as { input?: unknown; messages?: unknown; dimensions?: number };
+      // The fake answers at the width the surface ASKED for. It used to answer a fixed 2 while the real
+      // default is 1024 — a fiction no engine produces, and one the surface now refuses outright (#1635:
+      // a narrower-than-requested vector is a malformed response, never a width to accept).
+      const width = b.dimensions ?? 1;
+      const vector = Array.from({ length: width }, (_, i) => (i === 0 ? 1 : 0));
       if (Array.isArray(b.input)) {
         // FABRICATION-OK: `enginePost<T>` is generic over the caller's expected response shape — no real factory can target an unbound T.
         return Promise.resolve({
-          data: b.input.map((_, i) => ({ index: i, embedding: [1, 0] })),
+          data: b.input.map((_, i) => ({ index: i, embedding: vector })),
           model: "served",
         } as T);
       }
       if (b.messages !== undefined) {
         // FABRICATION-OK: see the T rationale above.
         return Promise.resolve({
-          data: [{ index: 0, embedding: [1, 0] }],
+          data: [{ index: 0, embedding: vector }],
           model: "served",
           choices: [{ message: { content: "ok" } }],
         } as T);

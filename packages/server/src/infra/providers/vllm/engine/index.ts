@@ -10,10 +10,10 @@ export type { EnginePostOpts, VllmEngineClient } from "./client.ts";
 export { createVllmEngineClient } from "./client.ts";
 export {
   DOC_INSTRUCTION,
+  fitToDim,
   normalizeVector,
   QUERY_INSTRUCTION,
   toEmbedPrompt,
-  truncateToDim,
 } from "./embedding.ts";
 export type { VllmEngineController } from "./engine-control.ts";
 export { getVllmEngineController, registerVllmEngineController } from "./engine-control.ts";
