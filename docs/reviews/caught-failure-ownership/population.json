@@ -800,7 +800,7 @@
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-surface-renderer.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/plugin/components/plugin-surface-renderer.tsx",
-      "line": 247,
+      "line": 260,
       "column": 12,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -808,7 +808,7 @@
       "snippet": "void invoke",
       "verdict": "deliberate-absorb",
       "reason": "the comment above explains — the",
-      "markerLine": 244
+      "markerLine": 257
     },
     {
       "siteId": "packages/client/src/features/plugin/components/snippet-console.tsx::promise:mutateAsync::1",

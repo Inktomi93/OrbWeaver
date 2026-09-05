@@ -288,6 +288,56 @@ test("#860: the context bracket's head band carries the room's title WHOLE and t
   await expect(cell(component, "Members")).toHaveAttribute("aria-current", "true");
 });
 
+test("#1502: the preset chip SAYS it could not name the preset — it does not vanish into looking like no preset", async ({ mount, page }) => {
+  // THE DEFECT: the chip rendered nothing whenever the name was not in hand, so a settled-but-unnameable
+  // read (the list failed, or the seed points at a preset that is gone) was pixel-identical to a band that
+  // simply carries no preset chip. Both SETTLED arms are driven here — a named preset and an unnameable
+  // one — because the difference between them is the whole finding. The PENDING arm is deliberately not
+  // asserted: it exists only while a query is in flight, so pinning it would be a flake by construction.
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...THIS_CHAT_TAB_READS,
+    "chat.getChat": () => ({
+      ...(multiHumanChat(true, [humanSeat("ct", "Nate", "host")]) as object),
+      participants: [humanSeat("ct", "Nate", "host"), character("aria"), character("buddy")],
+      title: "Example — The Ashen Spire",
+    }),
+    // The viewer's seed names a preset the library does NOT contain — the settled, unnameable case.
+    "preset.list": () => [],
+    "settings.getUserSettings": () => ({
+      userId: "user_ct",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: "preset_ct_gone" } },
+      updatedAt: 0,
+    }),
+  });
+  const component = await mount(<ChatContextPanelStory />);
+  const chip = component.locator('[data-slot="chat-context-band-preset"]');
+  // Present, and saying which of the three states it is in — not absent.
+  await expect(chip).toBeVisible();
+  await expect(chip).toHaveAttribute("data-preset-state", "unnameable");
+  await expect(chip).toHaveText("Preset unavailable");
+  await expect(chip).toHaveAttribute("title", /Couldn't name the preset/u);
+});
+
+test("#1502: a viewer on the built-in preset is an ANSWER, and reads as one", async ({ mount, page }) => {
+  // The other settled arm, and the one the absence used to be confused with: `defaultPresetId: null` means
+  // the built-in governs — a fact, needing no second read to be true.
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...THIS_CHAT_TAB_READS,
+    "chat.getChat": () => ({
+      ...(multiHumanChat(true, [humanSeat("ct", "Nate", "host")]) as object),
+      participants: [humanSeat("ct", "Nate", "host"), character("aria"), character("buddy")],
+      title: "Example — The Ashen Spire",
+    }),
+  });
+  const component = await mount(<ChatContextPanelStory />);
+  const chip = component.locator('[data-slot="chat-context-band-preset"]');
+  await expect(chip).toHaveAttribute("data-preset-state", "named");
+  await expect(chip).toHaveText("Built-in preset");
+});
+
 // ── #875 F6: THE BAND'S INTERACTIVE TEXT OBEYS THE FLOOR THE RAIL BESIDE IT REFUSES TO BREAK ───────────
 // `context-rail.tsx` states it: the mock draws 10.5px cell captions and is NOT followed, because the
 // readable-floor ruling (side-eye #102, which drove sub-11px interactive text to zero) outranks the

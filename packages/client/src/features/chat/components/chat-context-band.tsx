@@ -22,7 +22,9 @@
 //     that impossible and a gate enforces it): the chip names the preset that governs generation for the
 //     viewer in this room — `settings.config.seeds.defaultPresetId` (null = the built-in), resolved against
 //     `preset.list` — the same two cache-first reads the preset library hub makes. Plain `useQuery`: the band
-//     never suspends on its own account.
+//     never suspends on its own account, so the chip has THREE states and says which one it is in
+//     (`PresetChipState`): a name, "still reading", or "could not name it". It never renders nothing —
+//     absence was indistinguishable from a band that has no preset chip at all (#1502).
 
 import { Badge } from "@orb/ui/badge";
 import { Row, Stack } from "@orb/ui/layout";
@@ -45,20 +47,65 @@ export interface ChatContextBandProps {
   readonly state: ChatContextState;
 }
 
-/** The viewer's active preset NAME, cache-first (`undefined` while either read is still on its way — the
- *  chip then renders nothing rather than a guess). */
-function useActivePresetName(): string | undefined {
+/** What the preset chip says when the reads have SETTLED and still cannot name the preset — the list read
+ *  failed, or the seed points at a preset that is no longer there. Either way the honest statement is that
+ *  the name is unavailable, not that there is no preset. */
+const UNNAMEABLE_PRESET_LABEL = "Preset unavailable";
+
+/** What the chip says while the two reads are still on their way. The chip STAYS ON SCREEN saying this:
+ *  rendering nothing is what made a loading band and a preset-less one look identical. */
+const PENDING_PRESET_LABEL = "Preset…";
+
+/**
+ * The preset chip's state — THREE arms, because "we have not looked yet", "we looked and could not name
+ * it" and "the built-in governs" are three different facts about the room (#1502).
+ *
+ * They used to collapse into one `string | undefined`, and the chip rendered nothing for `undefined`. A
+ * band still fetching, a band whose `preset.list` read failed, and a band on a chat with no preset chip at
+ * all were therefore pixel-identical — and the one of those three that is a real answer ("the built-in
+ * preset governs generation for you here") never got to be told apart from the two that are not.
+ */
+type PresetChipState = { readonly kind: "pending" } | { readonly kind: "unnameable" } | { readonly kind: "named"; readonly name: string };
+
+/** What the chip's `title` explains, per arm — a mapped Record over the union, so a fourth arm fails tsc
+ *  here rather than shipping a chip with no explanation (§5.5). */
+const PRESET_CHIP_TITLES: Record<PresetChipState["kind"], string> = {
+  named: "The preset that governs generation for you in this room",
+  pending: "Reading which preset governs generation for you in this room…",
+  unnameable: "Couldn't name the preset that governs generation for you here — the preset list didn't load, or the one you had is gone",
+};
+
+/** The chip's visible text, per arm. */
+function presetChipLabel(state: PresetChipState): string {
+  if (state.kind === "named") {
+    return state.name;
+  }
+  return state.kind === "pending" ? PENDING_PRESET_LABEL : UNNAMEABLE_PRESET_LABEL;
+}
+
+/** The viewer's active preset, cache-first. `pending` only while a read is genuinely still in flight —
+ *  a SETTLED read that cannot produce a name is `unnameable`, never pending forever. */
+function useActivePresetChip(): PresetChipState {
   const trpc = useTRPC();
-  const { data: settings } = useQuery(trpc.settings.getUserSettings.queryOptions());
-  const { data: presets } = useQuery(trpc.preset.list.queryOptions());
+  const settingsQuery = useQuery(trpc.settings.getUserSettings.queryOptions());
+  const presetsQuery = useQuery(trpc.preset.list.queryOptions());
+  const settings = settingsQuery.data;
   if (settings === undefined) {
-    return;
+    return settingsQuery.isError ? { kind: "unnameable" } : { kind: "pending" };
   }
   const activeId = settings.config.seeds.defaultPresetId;
   if (activeId === null) {
-    return BUILT_IN_PRESET_LABEL;
+    // The seed stores "no explicit preset" as `null`, never the built-in row's own id — this is an ANSWER,
+    // and it needs no second read to be true.
+    return { kind: "named", name: BUILT_IN_PRESET_LABEL };
   }
-  return presets?.find((preset) => preset.id === activeId)?.name;
+  const name = presetsQuery.data?.find((preset) => preset.id === activeId)?.name;
+  if (name !== undefined) {
+    return { kind: "named", name };
+  }
+  // A named preset the list has not yet delivered is PENDING; one the list settled without is UNNAMEABLE
+  // (the read failed, or the seed points at a row that is gone).
+  return presetsQuery.data === undefined && !presetsQuery.isError ? { kind: "pending" } : { kind: "unnameable" };
 }
 
 /** The Members cell's id — ONE spelling, read by both the chip's action and its is-this-the-view test. */
@@ -91,7 +138,7 @@ export function ChatContextBand({ state }: ChatContextBandProps): ReactElement {
     cast.map((c) => c.displayName),
   );
   const memberCount = state.participants.filter((p) => p.leftSeq === null).length;
-  const presetName = useActivePresetName();
+  const preset = useActivePresetChip();
   const membersIsCurrent = membersHoldsTheView(useContextTab());
   return (
     <Stack gap="row" data-slot="chat-context-band" className="min-w-0">
@@ -126,11 +173,22 @@ export function ChatContextBand({ state }: ChatContextBandProps): ReactElement {
             screen-reader user and fails everyone reading the screen. The topbar mount stays glyph-only; the
             band has the room the topbar row does not. */}
         <ChatRecallIndicator chatId={state.chatId} viewerIsHost={state.isHost} wordy={true} />
-        {presetName === undefined ? null : (
-          <Badge tone="soft" size="sm" intent="neutral" data-slot="chat-context-band-preset" title="The preset that governs generation for you in this room">
-            {presetName}
-          </Badge>
-        )}
+        {/* THE CHIP IS ALWAYS THERE, and it SAYS which of its three states it is in (#1502). It used to
+            render nothing whenever the name was not in hand, so "still loading" and "the list read failed"
+            were the same absence as a band that simply has no preset chip — the reader could not tell a
+            missing answer from a missing feature, and the slot moved under them when the name arrived. The
+            same inert `Badge` the members chip wears at rest carries all three; `data-preset-state` is the
+            automatable fact, and the `title` says WHY on the two arms that are not an answer. */}
+        <Badge
+          tone="soft"
+          size="sm"
+          intent="neutral"
+          data-slot="chat-context-band-preset"
+          data-preset-state={preset.kind}
+          title={PRESET_CHIP_TITLES[preset.kind]}
+        >
+          {presetChipLabel(preset)}
+        </Badge>
       </Row>
     </Stack>
   );
