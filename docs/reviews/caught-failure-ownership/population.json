@@ -12,8 +12,8 @@
     },
     "byGrammar": {
       "promise": 142,
-      "default": 145,
-      "empty": 253
+      "default": 144,
+      "empty": 254
     }
   },
   "rows": [
@@ -2256,7 +2256,7 @@
     {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::default:error::1",
       "path": "packages/server/src/domain/import/loader/collect.ts",
-      "line": 356,
+      "line": 412,
       "column": 5,
       "grammar": "default",
       "position": "default:error",
@@ -2264,12 +2264,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "`rethrowInfraFailure` escalates any real infra",
-      "markerLine": 350
+      "markerLine": 406
     },
     {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::default:error::2",
       "path": "packages/server/src/domain/import/loader/collect.ts",
-      "line": 475,
+      "line": 531,
       "column": 5,
       "grammar": "default",
       "position": "default:error",
@@ -2277,12 +2277,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "`rethrowInfraFailure` escalates real infra",
-      "markerLine": 469
+      "markerLine": 525
     },
     {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::default:error::3",
       "path": "packages/server/src/domain/import/loader/collect.ts",
-      "line": 504,
+      "line": 560,
       "column": 5,
       "grammar": "default",
       "position": "default:error",
@@ -2290,12 +2290,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "`rethrowInfraFailure` escalates real infra",
-      "markerLine": 498
+      "markerLine": 554
     },
     {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::default:error::4",
       "path": "packages/server/src/domain/import/loader/collect.ts",
-      "line": 614,
+      "line": 670,
       "column": 5,
       "grammar": "default",
       "position": "default:error",
@@ -2303,12 +2303,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "`rethrowInfraFailure` escalates real infra",
-      "markerLine": 609
+      "markerLine": 665
     },
     {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::empty:error::1",
       "path": "packages/server/src/domain/import/loader/collect.ts",
-      "line": 393,
+      "line": 449,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -2316,12 +2316,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "`rethrowInfraFailure` escalates real infra",
-      "markerLine": 383
+      "markerLine": 439
     },
     {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::empty:error::2",
       "path": "packages/server/src/domain/import/loader/collect.ts",
-      "line": 459,
+      "line": 515,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -2329,12 +2329,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "`rethrowInfraFailure` escalates real infra",
-      "markerLine": 446
+      "markerLine": 502
     },
     {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::empty:error::3",
       "path": "packages/server/src/domain/import/loader/collect.ts",
-      "line": 599,
+      "line": 655,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -2342,12 +2342,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "`rethrowInfraFailure` escalates real infra",
-      "markerLine": 594
+      "markerLine": 650
     },
     {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::empty:error::4",
       "path": "packages/server/src/domain/import/loader/collect.ts",
-      "line": 629,
+      "line": 685,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -2355,7 +2355,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "`rethrowInfraFailure` escalates real infra",
-      "markerLine": 624
+      "markerLine": 680
     },
     {
       "siteId": "packages/server/src/domain/import/substrate/card.ts::default:catch::1",
@@ -2408,6 +2408,19 @@
       "verdict": "deliberate-absorb",
       "reason": "pure `JSON.parse` over untrusted upload",
       "markerLine": 80
+    },
+    {
+      "siteId": "packages/server/src/domain/import/verbs/import-presets.ts::empty:err::1",
+      "path": "packages/server/src/domain/import/verbs/import-presets.ts",
+      "line": 58,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:err",
+      "ordinal": 1,
+      "snippet": "} catch (err) {",
+      "verdict": "deliberate-absorb",
+      "reason": "bookkeeping — the failure is recorded into",
+      "markerLine": 53
     },
     {
       "siteId": "packages/server/src/domain/import/workload-contributions.ts::promise:lstat::1",
@@ -3153,7 +3166,7 @@
     {
       "siteId": "packages/server/src/entry/import/run-bundle-import.ts::empty:err::1",
       "path": "packages/server/src/entry/import/run-bundle-import.ts",
-      "line": 109,
+      "line": 130,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3161,25 +3174,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded as an",
-      "markerLine": 96
-    },
-    {
-      "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::default:catch::1",
-      "path": "packages/server/src/entry/import/run-profile-dir-import.ts",
-      "line": 1048,
-      "column": 9,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "documented above — the PORT'S OWN contract",
-      "markerLine": 1042
+      "markerLine": 117
     },
     {
       "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::empty:err::1",
       "path": "packages/server/src/entry/import/run-profile-dir-import.ts",
-      "line": 461,
+      "line": 473,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3187,12 +3187,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded into",
-      "markerLine": 449
+      "markerLine": 460
     },
     {
       "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::empty:err::2",
       "path": "packages/server/src/entry/import/run-profile-dir-import.ts",
-      "line": 718,
+      "line": 790,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3200,12 +3200,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded into",
-      "markerLine": 694
+      "markerLine": 766
     },
     {
       "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::empty:err::3",
       "path": "packages/server/src/entry/import/run-profile-dir-import.ts",
-      "line": 824,
+      "line": 918,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3213,7 +3213,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded into",
-      "markerLine": 808
+      "markerLine": 902
     },
     {
       "siteId": "packages/server/src/entry/import/run-profile-import.ts::empty:err::1",

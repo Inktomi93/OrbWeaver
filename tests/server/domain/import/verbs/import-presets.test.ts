@@ -215,8 +215,12 @@ describe("importPresets", () => {
   // contract (the header says so) and the lift is the one call that did not honour it.
   test("a THROWING script lift is one recorded skip — the presets already imported keep their counts", async () => {
     const importPreset = vi.fn((_args: unknown) => Promise.resolve({ ok: true, created: true, presetId: castId<PresetId>("preset_row_4") }));
-    const importPresetScripts = vi.fn(() => Promise.reject(new Error("regex library write failed\nUNIQUE constraint failed: regex_scripts.name")));
-    const service = createImportService(ctxWith(importPreset, importPresetScripts as unknown as ImportProfileDeps["importPresetScripts"]));
+    // Typed at the op's OWN return type rather than double-cast: a rejection IS a legal value of that
+    // Promise, so the fake stays honest if the op's shape changes.
+    const importPresetScripts: NonNullable<ImportProfileDeps["importPresetScripts"]> = vi.fn(() =>
+      Promise.reject(new Error("regex library write failed\nUNIQUE constraint failed: regex_scripts.name")),
+    );
+    const service = createImportService(ctxWith(importPreset, importPresetScripts));
 
     const result = await service.importPresets({
       presets: [

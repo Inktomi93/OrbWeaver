@@ -313,7 +313,6 @@ describe("importGroupChats", () => {
     const written: Written = { calls: [] };
     const service = createImportService(ctxWith(written));
 
-    // biome-ignore lint/style/useNamingConvention: ST group wire field names (snake_case) are the interchange format.
     const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"], { disabled_members: ["Bram.png"] })]));
 
     // The cast is unchanged — Bram keeps his seat (the recorded ruling).

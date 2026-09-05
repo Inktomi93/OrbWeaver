@@ -1097,7 +1097,6 @@ describe("runProfileDirImport — a partial run says so", () => {
         JSON.stringify({
           power_user: { personas: { "nate.png": "Nate" }, default_persona: "nate.png" },
           tags: [{ id: "t1", name: "bard" }],
-          // biome-ignore lint/style/useNamingConvention: ST wire field names (snake_case) are the interchange format.
           tag_map: { "Aria.png": ["t1"] },
         }),
       ),
