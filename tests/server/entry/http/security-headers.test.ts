@@ -415,6 +415,41 @@ describe("securityHeaders", () => {
       expect(res.headers.get("content-security-policy")).toContain("default-src 'self'");
       expect(res.headers.get("x-frame-options")).toBe("DENY");
     });
+
+    // #1615 — THE ERROR PATHS ON AN EXEMPT PATH, measured rather than reasoned (security review 2026-09-05).
+    // The step-aside runs `await next()` and then decides; a handler that THROWS is the case where "then"
+    // might never arrive. It does arrive: hono's `compose()` catches at the throwing handler's own dispatch
+    // frame, runs `app.onError` there and assigns `context.res`, so every outer middleware's `await next()`
+    // resolves normally and this middleware's post-`next()` write lands on the 500 — fully policied.
+    //
+    // The ACTUAL limit is narrower and is documented in `security-headers.ts` rather than fixed here: a
+    // NON-`Error` throw fails `compose()`'s `err instanceof Error && onError` predicate, is rethrown past
+    // every middleware, and the adapter's own 500 goes out bare. That arm asserts the REJECTION, which is
+    // the honest observable — there is no response object of ours to inspect.
+    async function servedByThrowingFrameRoute(thrown: unknown): Promise<Response> {
+      const app = new Hono();
+      app.onError((_err, c) => c.body(null, 500));
+      app.use("*", securityHeaders({ dev: false, allowExternalMedia: () => false }));
+      app.get(`${CARD_FRAME_ROUTE}/:id`, () => {
+        throw thrown;
+      });
+      return await app.request(`${CARD_FRAME_ROUTE}/${handle}`, { method: "GET" });
+    }
+
+    test("an exempt path whose handler throws an Error is FULLY policied — the 500 is not a headerless hole", async () => {
+      const res = await servedByThrowingFrameRoute(new Error("frame handler exploded"));
+      expect(res.status).toBe(500);
+      // The handler never wrote a CSP, so the conditional step-aside falls through to the app policy.
+      expectAppPolicied(res, "Error throw on an exempt path");
+    });
+
+    test("a NON-Error throw is the documented limit — it escapes onError entirely and rejects", async () => {
+      // `compose()`'s predicate is `err instanceof Error && onError`, so a bare value is rethrown past every
+      // middleware. Nothing of ours runs after that; the adapter answers, and this file's header comment
+      // says so. Asserting the rejection is what keeps that paragraph honest — if hono ever widened the
+      // predicate, this goes red and the comment gets corrected instead of quietly rotting.
+      await expect(servedByThrowingFrameRoute("a bare string, not an Error")).rejects.toThrow();
+    });
   });
 
   test("sibling headers: frame-deny, nosniff, referrer, COOP; NO HSTS (plain-http LAN self-host)", async () => {
