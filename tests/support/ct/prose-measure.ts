@@ -13,8 +13,20 @@
 // inside the paragraph reads it at the wrong font size — the #213/#1130 failure the token's own contract
 // names. The probe div is appended to the paragraph, measured, and removed before layout can see it.
 //
-// FOUR CTs grew their own copy of this before it had a home (compaction peek #1175, home #1130, databank
-// #1653, and the tag/regex editors #1653). New callers use this one.
+// Every CT grew its own copy of this before it had a home. SIX now read through this one: databank #1653,
+// the tag and regex editors #1653, and — converged by #1683 — the compaction peek #1175, the roster editor
+// #1653, and the Effects gloss. New callers use this one.
+//
+// THREE canvas-`measureText` probes are deliberately NOT callers, because they ask a different question
+// (widening this API to swallow them would put two questions in one home — #1683 refused them by name):
+//   · `home-surface.ct.tsx` #1145 SWEEPS every `p` on the surface and needs `max-width`, the CSS-`ch`
+//     reading and `--reading-measure` alongside the prose token — a per-paragraph verdict table, not one
+//     paragraph's reading, and it resizes the fold pane between readings.
+//   · `corpus-home-surface.ct.tsx` #536 measures the ZERO-GLYPH advance (`measureText("0")` + letter-spacing)
+//     over every `p[data-slot="text"]` because it must be denominated identically to the detector it
+//     mirrors (`tooling/src/ui-audit/ops/walker/census-text.ts`). Averaged advance would silently disagree.
+//   · `section-drill-in.ct.tsx` O-14 measures an `<input>`'s PLACEHOLDER against the field's inner box —
+//     a ghost-fits-its-cell question about a control, with no paragraph and no reading measure in it.
 
 import type { Page } from "@playwright/test";
 

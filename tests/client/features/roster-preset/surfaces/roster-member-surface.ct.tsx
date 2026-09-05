@@ -10,8 +10,8 @@
 
 import type { RulePresetView } from "@orb/contracts/automation";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
 import { measureContentColumn } from "../../../../support/ct/measure-content-column.ts";
+import { readProseMeasure } from "../../../../support/ct/prose-measure.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { RosterMemberContentColumnStory, RosterMemberEditorStory, RosterMemberEditorTwoWritersStory } from "../_ct-stories.tsx";
 
@@ -175,7 +175,7 @@ test("…and a real edit racing a rename SAYS so beside the Save it changes (#15
 // ── #1653 — the editor's two STANDALONE GLOSS PARAGRAPHS take the reading measure ───────────────────────
 // Both live directly inside a `Section` rather than in a control `Row`, so nothing else was capping them:
 // measured on this mount's real 480px container (real Geist, canvas `measureText` over each paragraph's own
-// resolved font — the #1145 method, lifted from `compact-summary-peek.ct.tsx`'s #1175 test) they read 95.7
+// resolved font — the #1145 method, now read through the shared `tests/support/ct/prose-measure.ts`) they read 95.7
 // and 95.4 LAW CHARACTERS against the 65-75 design band, while `--reading-measure-prose` resolves to 329px
 // here. The cap rides the PARAGRAPH, never a wrapper: a CSS `ch` resolves in the element's OWN font, which
 // is the #213/#1130 failure the prose token's contract names.
@@ -189,38 +189,10 @@ test("…and a real edit racing a rename SAYS so beside the Save it changes (#15
  *  token value, so passing proves the DERIVATION rather than restating it. */
 const LAW_CHARACTERS_PER_LINE = 75;
 
-interface ProseReading {
-  readonly widthPx: number;
-  readonly advanceCh: number;
-  readonly proseTokenPx: number;
-}
-
-/** One paragraph, addressed by its own rendered COPY (no test-only attribute), measured in its own resolved
- *  font against the prose token resolved in that same font. The probe is absolutely positioned and removed
- *  before layout can see it. */
-function measureParagraph(page: Page, snippet: string): Promise<ProseReading> {
-  return page.getByText(snippet).evaluate((paragraph: HTMLElement) => {
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
-    if (context === null) {
-      throw new Error("#1653: no 2d context to measure glyph advance through");
-    }
-    const style = getComputedStyle(paragraph);
-    context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    const text = (paragraph.textContent ?? "").replace(/\s+/gu, " ").trim();
-    const advance = context.measureText(text).width / text.length;
-    const probe = document.createElement("div");
-    probe.style.position = "absolute";
-    probe.style.visibility = "hidden";
-    probe.style.width = "var(--reading-measure-prose)";
-    paragraph.append(probe);
-    const proseTokenPx = probe.getBoundingClientRect().width;
-    probe.remove();
-    const widthPx = paragraph.getBoundingClientRect().width;
-    return { widthPx, advanceCh: widthPx / advance, proseTokenPx };
-  });
-}
-
+// The measurement itself is the SHARED reading-measure reader's (#1683, `tests/support/ct/prose-measure.ts`):
+// one home for "how many typographic characters does this paragraph render", so this pin and its siblings
+// cannot drift apart. Each paragraph is still addressed by its own rendered COPY (no test-only attribute) —
+// the reader matches on the OPENING, which is what these snippets already are.
 const GLOSS_PARAGRAPHS = [
   { name: "the Members re-compose note", snippet: "To re-compose the roster" },
   { name: "the Rules apply note", snippet: "Applied with the roster" },
@@ -236,11 +208,11 @@ test("#1653: the editor's standalone gloss paragraphs stay inside the reading me
 
   const rows: string[] = [];
   for (const paragraph of GLOSS_PARAGRAPHS) {
-    const reading = await measureParagraph(page, paragraph.snippet);
-    rows.push(`${paragraph.name}\t${reading.widthPx.toFixed(1)}px\tlaw ${reading.advanceCh.toFixed(1)}\ttoken ${reading.proseTokenPx.toFixed(1)}px`);
+    const reading = await readProseMeasure(page, paragraph.snippet);
+    rows.push(`${paragraph.name}\t${reading.widthPx.toFixed(1)}px\tlaw ${reading.lawCharacters.toFixed(1)}\ttoken ${reading.proseTokenPx.toFixed(1)}px`);
     // ON the token, not merely under some width: the paragraph must resolve THIS measure in its own font.
     expect(reading.widthPx, `#1653 ${paragraph.name}: ${rows.join(" | ")}`).toBeLessThanOrEqual(reading.proseTokenPx + 0.5);
-    expect(reading.advanceCh, `#1653 ${paragraph.name}: ${rows.join(" | ")}`).toBeLessThanOrEqual(LAW_CHARACTERS_PER_LINE);
+    expect(reading.lawCharacters, `#1653 ${paragraph.name}: ${rows.join(" | ")}`).toBeLessThanOrEqual(LAW_CHARACTERS_PER_LINE);
   }
   // The rows ride every assertion message above, so a RED prints the measurement that earned it.
   expect(rows).toHaveLength(GLOSS_PARAGRAPHS.length);
