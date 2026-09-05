@@ -4076,14 +4076,14 @@
     {
       "siteId": "packages/ui/src/markdown/shiki-plugin.ts::promise:highlightAsync::1",
       "path": "packages/ui/src/markdown/shiki-plugin.ts",
-      "line": 223,
+      "line": 227,
       "column": 5,
       "grammar": "promise",
       "position": "promise:highlightAsync",
       "ordinal": 1,
       "snippet": "highlightAsync(options.code, options.language)",
       "verdict": "deliberate-absorb",
-      "reason": "documented below — a grammar",
+      "reason": "the unfired callback is the",
       "markerLine": 220
     },
     {

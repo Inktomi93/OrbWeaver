@@ -5,6 +5,7 @@ import type { ReactElement, ReactNode, Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import type { GapToken } from "#lib";
 import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE, gapPxFor, usePrefersReducedMotion } from "#lib";
+import { rowLiveness } from "./announce.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
 import type { MessageListRowMeta } from "./list-window.ts";
 import { composeRangeExtractor, updateEdgeFades } from "./list-window.ts";
@@ -418,15 +419,13 @@ export function MessageList<T>({
       }}
       role="log"
       aria-label={ariaLabel}
-      aria-live="polite"
+      // OFF is explicit because `role="log"` implies polite — `announce.ts` owns the whole rule (#1499).
+      aria-live="off"
       onScroll={onScrollTracked}
       className={cn("relative overflow-auto overscroll-contain", className)}
       data-slot="message-list-scroll"
     >
-      {/* The live log contains a real list. Semantic list rows make the virtual position metadata valid.
-          The list keeps `role="log"` + `aria-live` and does NOT become a `feed` or a `grid`: `feed` has no
-          live region (the streaming ghost needs one) and `grid` promises tabular two-axis navigation this
-          surface does not have. Roving tabindex is a focus-order technique, not a role. */}
+      {/* A real list inside the log: semantic rows make the virtual position metadata valid. WHAT ANNOUNCES — why `log` not `feed`/`grid`, why only the tail is live: ./announce.ts. */}
       <ol ref={setViewportRef} className="relative m-0 w-full list-none p-0" data-slot="message-list-viewport">
         {virtualizer.getVirtualItems().map((virtualItem) => (
           <li
@@ -437,6 +436,7 @@ export function MessageList<T>({
             className={cn("absolute inset-x-0", roving && FOCUS_RING_OUTLINE)}
             aria-setsize={items.length}
             aria-posinset={virtualItem.index + 1}
+            aria-live={rowLiveness(virtualItem.index, items.length)}
             {...(roving ? { tabIndex: virtualItem.index === activeIndex ? 0 : -1, "data-active": virtualItem.index === activeIndex ? "" : undefined } : {})}
           >
             {renderItem(itemAt(virtualItem.index), virtualItem.index, {

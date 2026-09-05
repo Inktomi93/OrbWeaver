@@ -261,13 +261,15 @@ test("the tripwire THROWS when the parent gives no bounded height", async ({ mou
   await expect(alert).toContainText("no bounded height");
 });
 
-test("the scroll wrapper exposes role=log + aria-live=polite (arriving messages are announced)", async ({ mount }) => {
+// The NAMED LOG half. Its `aria-live` half moved to the tail-row test at the foot of this file: the
+// wrapper is still the `role="log"` a reader navigates to by landmark, but it is no longer the live
+// REGION — see the #1499 note there (and packages/ui/src/primitives/message-list/announce.ts).
+test("the scroll wrapper exposes a NAMED role=log a reader can find", async ({ mount }) => {
   const component = await mount(
     <AppendableList ariaLabel="Conversation messages" initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />,
   );
   const log = component.getByRole("log", { name: "Conversation messages" });
   await expect(log).toBeVisible();
-  await expect(log).toHaveAttribute("aria-live", "polite");
 });
 
 // R7 (ui-primitive-contract, the systemic gap missing from all 3 virtual seals): the parent
@@ -592,4 +594,37 @@ test("the yield holds under prefers-reduced-motion", async ({ mount, page }) => 
   const parked = await readScrollTop(component);
 
   expect(await highestScrollTopSeen(component, page)).toBeLessThanOrEqual(parked + PARKED_SLACK_PX);
+});
+
+// ── #1499: WHAT A VIRTUALIZED LOG ANNOUNCES (packages/ui/src/primitives/message-list/announce.ts) ──
+// `role="log"` carries an implicit `aria-live="polite"`, and the element carrying it is the virtualizer's
+// SCROLL CONTAINER — so every historical row the virtualizer mounted on a scroll-back was an "addition"
+// inside a live region and a screen reader read the thread out at a reader who was paging back through it.
+// The container declares OFF explicitly (omission cannot drop the implicit politeness) and the live region
+// moves to the APPEND POINT, which is where genuinely new content — the streaming tail — arrives.
+test("only the TAIL row is a live region: the container is aria-live=off and history announces nothing", async ({ mount }) => {
+  const component = await mount(
+    <AppendableList initialCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} ariaLabel="Conversation messages" />,
+  );
+  const scroller = component.locator('[data-slot="message-list-scroll"]');
+  await expect(scroller).toHaveAttribute("role", "log");
+  await expect(scroller).toHaveAttribute("aria-live", "off");
+
+  // Bottom-anchored at mount: exactly one live region, and it is the last item — not the container.
+  const live = component.locator('[aria-live="polite"]');
+  await expect(live).toHaveCount(1);
+  await expect(live).toHaveAttribute("aria-posinset", String(ITEM_COUNT));
+
+  // A genuinely new message MOVES the live region to the new tail — the announcement the log exists for.
+  await component.getByTestId("append").click();
+  await expect(component.locator('[aria-live="polite"]')).toHaveCount(1);
+  await expect(component.locator('[aria-live="polite"]')).toHaveAttribute("aria-posinset", String(ITEM_COUNT + 1));
+
+  // Scrolled back to the top, the mounted rows are ALL history: no live region is present at all, so
+  // remounting them says nothing.
+  await scroller.evaluate((el: HTMLElement) => {
+    el.scrollTop = 0;
+  });
+  await expect(component.locator('[data-slot="message-list-row"]').first()).toHaveAttribute("aria-posinset", "1");
+  await expect(component.locator('[aria-live="polite"]')).toHaveCount(0);
 });

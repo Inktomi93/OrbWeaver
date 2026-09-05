@@ -28,6 +28,17 @@ export function useSmoothText(target: string, opts: UseSmoothTextOptions): strin
   const reducedMotion = usePrefersReducedMotion();
   const enabled = opts.enabled && !reducedMotion;
   const [shown, setShown] = useState(0);
+  // A SECOND STREAM STARTS AT ZERO. `shown`/`cursorRef` are per-MOUNT, and the ghost row outlives a turn:
+  // with the cursor left where the last stream ENDED, the first paint of the next one showed that many of
+  // its characters at once (and the in-loop rewind below could not help — it only fires when the new
+  // target is SHORTER than the old cursor, and it needs a frame that has not happened yet). Rewinding
+  // `shown` DURING the enabling render is what keeps that paint from ever reaching the screen; the cursor
+  // itself is a ref, so it is rewound in the effect below (refs are not written during render).
+  const [pacing, setPacing] = useState(enabled);
+  if (pacing !== enabled) {
+    setPacing(enabled);
+    setShown(0);
+  }
   // Float cursor + last-frame timestamp live in refs — they advance sub-character amounts per frame
   // and must not trigger renders themselves.
   const cursorRef = useRef(0);
@@ -41,6 +52,16 @@ export function useSmoothText(target: string, opts: UseSmoothTextOptions): strin
     targetRef.current = target;
   }, [target]);
 
+  // The cursor half of the rewind above: the render-phase `setShown(0)` cannot touch a ref, and the pacing
+  // effect below deliberately does NOT reset it (it re-arms on a `cps` change too, and rewinding an
+  // in-flight reveal to zero would blank text a reader is mid-sentence on).
+  useEffect(() => {
+    if (enabled) {
+      cursorRef.current = 0;
+      lastFrameRef.current = null;
+    }
+  }, [enabled]);
+
   useEffect(() => {
     if (!enabled) {
       return;
@@ -50,24 +71,13 @@ export function useSmoothText(target: string, opts: UseSmoothTextOptions): strin
       cursorRef.current = targetRef.current.length;
       setShown(targetRef.current.length);
     };
-    // rAF doesn't fire in hidden tabs, so flush the backlog outright rather than pace an unwatched reveal.
-    const onVisibilityChange = (): void => {
-      if (document.visibilityState === "hidden") {
-        flushToEnd();
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    if (document.visibilityState === "hidden") {
-      // eslint-disable-next-line react-you-might-not-need-an-effect/no-external-store-subscription -- the visibility subscription drives an IMPERATIVE flush (jump the reveal cursor to the end of the buffer), not a state mirror; useSyncExternalStore has no imperative sink and would have to snapshot a value nothing renders.
-      flushToEnd();
-    }
 
     let raf = 0;
     const frame = (now: number): void => {
       const live = targetRef.current;
+      raf = 0;
       if (document.visibilityState === "hidden") {
         flushToEnd();
-        raf = requestAnimationFrame(frame);
         return;
       }
       // New stream (or reset): target no longer extends the shown prefix.
@@ -92,9 +102,39 @@ export function useSmoothText(target: string, opts: UseSmoothTextOptions): strin
       }
       raf = requestAnimationFrame(frame);
     };
-    raf = requestAnimationFrame(frame);
-    return (): void => {
+
+    const stop = (): void => {
       cancelAnimationFrame(raf);
+      raf = 0;
+    };
+    const start = (): void => {
+      if (raf === 0) {
+        raf = requestAnimationFrame(frame);
+      }
+    };
+    // rAF doesn't fire in hidden tabs, so flush the backlog outright rather than pace an unwatched reveal —
+    // and STOP the loop rather than re-arm it (the `frame` branch above returns for the same reason). A tab
+    // whose frames keep coming while `visibilityState` reads hidden — screen capture, a headless browser —
+    // otherwise re-flushed and re-armed forever, burning a callback per vsync on a reveal nobody watches.
+    // Coming back visible re-arms here, with the frame clock re-zeroed so the gap isn't charged as `dt`.
+    const onVisibilityChange = (): void => {
+      if (document.visibilityState === "hidden") {
+        stop();
+        flushToEnd();
+        return;
+      }
+      lastFrameRef.current = null;
+      start();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    if (document.visibilityState === "hidden") {
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-external-store-subscription -- the visibility subscription drives an IMPERATIVE flush (jump the reveal cursor to the end of the buffer), not a state mirror; useSyncExternalStore has no imperative sink and would have to snapshot a value nothing renders.
+      flushToEnd();
+    } else {
+      start();
+    }
+    return (): void => {
+      stop();
       document.removeEventListener("visibilitychange", onVisibilityChange);
       lastFrameRef.current = null;
     };

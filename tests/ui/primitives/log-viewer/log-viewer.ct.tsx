@@ -186,7 +186,11 @@ test("a long log windows its DOM via the virtual-list seal instead of rendering 
   );
   await expect.poll(async () => await component.locator("[data-log-line]").count()).toBeGreaterThan(0);
   await expect.poll(async () => await component.locator("[data-log-line]").count()).toBeLessThan(500);
-  await expect(component.getByRole("log")).toHaveAttribute("aria-live", "polite");
+  // The VIRTUALIZED arm delegates the log to `MessageList`, whose live region is the TAIL ROW, not the
+  // scroll container (#1499 — a container-level region announced every line the virtualizer remounted on
+  // a scroll-back). The container is still the named `role="log"`; the liveness sits on the last line.
+  await expect(component.getByRole("log")).toHaveAttribute("aria-live", "off");
+  await expect(component.locator('[aria-live="polite"]')).toHaveCount(1);
   await expect(component.getByText("line 499", { exact: true })).toBeVisible();
   await expect(component.getByText("line 0", { exact: true })).toHaveCount(0);
 });

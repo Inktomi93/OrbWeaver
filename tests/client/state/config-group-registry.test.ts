@@ -30,13 +30,15 @@ const library: ConfigGroupDefinition = {
   description: "d",
   body: {
     kind: "collection",
-    // The LIVE contract's required arms, structurally (list · detail · context · create · emptyText).
+    // The LIVE contract's required arms, structurally (list · detail · context · create · emptyText ·
+    // useMemberTitle — required since #1219, because the host's call must not be conditional).
     collection: {
       emptyText: "none yet",
       list: () => null,
       detail: () => null,
       context: { kind: "none", title: "Nothing to attach", description: "d" },
       create: { label: "New tag", useRun: () => () => undefined },
+      useMemberTitle: () => undefined,
     },
   },
 };

@@ -59,6 +59,8 @@ export interface MarkdownProps {
 
 interface BoundaryProps {
   readonly children: ReactNode;
+  /** The RENDER INPUTS whose change makes a retry meaningful — see the reset note on the boundary. */
+  readonly resetKeys: readonly unknown[];
 }
 interface BoundaryState {
   readonly failed: boolean;
@@ -66,6 +68,15 @@ interface BoundaryState {
 
 // Streamdown's lazy CodeBlock/Mermaid chunks can crash on a stale deploy hash — a class error
 // boundary converts that white-screen into a graceful fallback (React error boundaries have no hook form).
+//
+// AND IT RETRIES, because the boundary wraps ONE message's `<Streamdown>` for that message's whole life:
+// a latched `failed` turned a single transient throw (a chunk that failed to load once mid-stream) into a
+// permanently dead message — "Content failed to render." for the rest of the session, over content that
+// renders fine. It resets when `resetKeys` change, which for the streaming path is the next delta and for
+// a settled one is the next edit/swipe. NOT a `key` on the boundary: keying it on the body would remount
+// the whole Streamdown subtree on every streamed delta, which is the cost the seal's stable-identity
+// props (SEAL_COMPONENTS, revealPlugins) exist to avoid. A deterministic failure re-throws and latches
+// again on the same commit — the fallback still holds; only the LATCH is gone.
 class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
   override state: BoundaryState = { failed: false };
 
@@ -75,6 +86,13 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 
   override componentDidCatch(_error: Error, _info: ErrorInfo): void {
     // Swallow — the fallback renders the raw text; nothing actionable at the call site.
+  }
+
+  override componentDidUpdate(prev: BoundaryProps): void {
+    const changed = prev.resetKeys.length !== this.props.resetKeys.length || prev.resetKeys.some((key, i) => key !== this.props.resetKeys[i]);
+    if (this.state.failed && changed) {
+      this.setState({ failed: false });
+    }
   }
 
   override render(): ReactNode {
@@ -207,7 +225,7 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
   // dragging a horizontal scrollbar onto the whole surface. Inert for normal prose (only breaks a word
   // that can't otherwise fit) and inert inside code fences (white-space:pre never wraps).
   return (
-    <MarkdownErrorBoundary>
+    <MarkdownErrorBoundary resetKeys={[body, mode, trust]}>
       <Streamdown
         mode={mode}
         dir="auto"
