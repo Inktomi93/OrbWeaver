@@ -159,7 +159,7 @@ No adapter survives the branch. No gate is credited because a similarly named mo
 
 The current 255-module corpus has four mutually exclusive hook shapes: 122 node-visitor, 34 file-hook, 86 run-only, and 13 mixed run plus visitor/file-hook. The mixed 13 migrate last because their post-walk ordering is load-bearing. Cross-cutting prerequisites are 188 population predicates, 66 `begin` hooks, 80 `finalize` hooks, 81 gate modules with descendant walks, 49 with `getSourceFiles`, 53 `fsBacked` gates, and only seven current consumers of the canonical symbol reader.
 
-`pnpm gate:contract` is the temporary migration census, not a second conformance runtime or a ratchet. On the 2026-09-05 base it reports 1,579 concrete sites across all 255 modules: 255 descriptor wrappers, 688 legacy fields, 436 direct walk/source lookups, two gate-owned Projects, 40 module-scope `let`/`var` statements, 145 proven mutated module bindings, and 13 baseline-path literals. It is deleted after all counts reach zero and `gate-modernization` owns the permanent rules.
+`pnpm gate:contract` is the temporary migration census, not a second conformance runtime or a ratchet. On the 2026-09-05 base it reports 1,489 concrete sites across all 255 modules: 255 descriptor wrappers, 688 legacy fields, 345 symbol-proven direct walk/source lookups, two gate-owned Projects, 40 module-scope `let`/`var` statements, 145 proven mutated module bindings, and 14 baseline-path expressions. It is deleted after all counts reach zero and `gate-modernization` owns the permanent rules.
 
 Work proceeds in dependency order:
 
