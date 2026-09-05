@@ -42,7 +42,10 @@ interface FsDirEntry {
 /** Injected filesystem surface (domain-no-node-fs keeps node:fs out of the domain; real impl at
  *  entry/import/run-profile-dir-import.ts — `createNodeFsImportPort`). */
 export interface ImportFsPort {
-  /** Must resolve to [] (never throw) for a missing/unreadable dir — a profile may carry only one subdir. */
+  /** Must resolve to [] (never throw) for a MISSING dir — a profile may carry only one subdir. An
+   *  INFRASTRUCTURE fault on a dir that exists (EACCES/EIO/ELOOP/…) must REJECT: folding it into the same
+   *  empty listing reads as "that plane is empty" and imports a truncated profile while reporting success
+   *  (#1469). The collector wraps the rejection as `ImportInfraFailureError` naming the dir + `readdir`. */
   readonly readdir: (dir: string) => Promise<readonly FsDirEntry[]>;
   readonly readFile: (path: string) => Promise<Uint8Array>;
   readonly stat: (path: string) => Promise<{ readonly size: number }>;
@@ -263,6 +266,10 @@ export interface CollectResult {
   readonly collidedCards: { readonly file: string; readonly handle: CharacterHandle }[];
   /** Matched by the second-chance fuzzy pairing (trailing-digit / main_<Name>_spec_vN). */
   readonly fuzzyPairedDirs: { readonly chatDir: string; readonly handle: CharacterHandle }[];
+  /** Directories whose listing breached the collector's entry CEILING: everything past `kept` was never
+   *  examined, so cards/chats/worlds/groups/themes/backgrounds in the tail did not import. The cap protects
+   *  the loop from a hostile staging dir; this list is what keeps the truncation from being silent. */
+  readonly truncatedDirs: { readonly dir: string; readonly kept: number; readonly total: number }[];
 }
 
 export interface ImportPersonaInput {
@@ -274,6 +281,32 @@ export interface ImportPersonaInput {
 export interface ImportSkippedCard {
   readonly file: string;
   readonly reason: string;
+}
+
+/** One ST library tag that did NOT attach to the character it belongs to. Per-tag isolation is preserved (the
+ *  character imported), but the attach's `allSettled` outcome used to be discarded, so a rejected tag left the
+ *  card with fewer labels than the profile carried and the report said nothing. `character` is the CARD
+ *  FILENAME — the same key `tag_map` uses. */
+export interface ImportSkippedCardTag {
+  readonly character: string;
+  readonly tag: string;
+  readonly reason: string;
+}
+
+/** What a DRY RUN would attempt, per wave. A dry run performs zero writes, so every write-wave count in the
+ *  report is zero BY CONSTRUCTION — which reads exactly like a profile that carries none of those planes.
+ *  This census is the collect-time arithmetic that tells the two apart (#1469). Null on a real run. */
+export interface ImportDryRunCensus {
+  readonly characters: number;
+  readonly personas: number;
+  readonly chats: number;
+  readonly worlds: number;
+  readonly presets: number;
+  readonly themes: number;
+  readonly backgrounds: number;
+  readonly groups: number;
+  readonly groupChats: number;
+  readonly orphanChatDirs: number;
 }
 
 /** One imported ST preset's honest lossiness note: which orb preset it became and which ST fields did not
@@ -314,6 +347,33 @@ export interface ImportUnresolvedPinnedPersona {
   readonly persona: string;
 }
 
+/** One group's resolved seating, computed ONCE in the wave loop and handed to the importer: the cast in ST's
+ *  own member order (the first is the room's primary) plus the display-name fallback map with the ambiguous
+ *  names already withheld ({@link ImportAmbiguousSpeakerName}). */
+export interface GroupSeats {
+  readonly seated: readonly { readonly file: string; readonly characterId: CharacterId }[];
+  readonly speakerByName: ReadonlyMap<string, CharacterId>;
+}
+
+/** A display NAME two or more of a room's seated cards share, so a transcript line that names only that name
+ *  (a pre-`original_avatar` export) cannot say WHICH seat spoke. The line falls through to the room's primary
+ *  and the ambiguity is reported — never resolved by pick-the-last, which silently misattributed the turn. */
+export interface ImportAmbiguousSpeakerName {
+  readonly group: string;
+  readonly name: string;
+  /** How many seated cards carry this display name (≥2 by construction). */
+  readonly seats: number;
+}
+
+/** One member ST had DISABLED in its group file. The member IS seated (the room's cast is the cast); this
+ *  record is the report's way of saying the disabled FLAG itself did not travel — orb's per-seat mute is not
+ *  reachable through the bulk-import wire, which seats a flat character list with no knob channel. */
+export interface ImportSeatedDisabledMember {
+  readonly group: string;
+  /** The CARD FILENAME ST listed, the same key `memberFiles` uses. */
+  readonly member: string;
+}
+
 /** One group MEMBER that did not make it into the room: the card is neither in this import set nor already in
  *  the library. The group still imports with the members that DID resolve (per-member isolation). */
 export interface ImportSkippedGroupMember {
@@ -328,6 +388,13 @@ export interface ImportSkippedGroupMember {
 export interface ImportReport {
   readonly scanned: number;
   readonly changed: number;
+  /** True when the run WROTE NOTHING (`dryRun`). Every write-wave count below is then zero by construction,
+   *  which is why {@link dryRunWouldImport} carries what the run WOULD have attempted. */
+  readonly dryRun: boolean;
+  /** The dry run's per-wave census, or null on a real run. */
+  readonly dryRunWouldImport: ImportDryRunCensus | null;
+  /** ST library tags that did not attach to their imported card (the attach is per-tag isolated). */
+  readonly skippedCardTags: readonly ImportSkippedCardTag[];
   /** Cards skipped by per-card isolation (validation defect repair could not fix), with the reason each. */
   readonly skippedCards: readonly ImportSkippedCard[];
   readonly unreadableCards: readonly string[];
@@ -365,6 +432,11 @@ export interface ImportReport {
   readonly groupChatsImported: number;
   readonly skippedGroups: readonly ImportSkippedGroup[];
   readonly skippedGroupMembers: readonly ImportSkippedGroupMember[];
+  /** Room display names two seated cards share — the name-only speaker fallback is withheld there, so those
+   *  lines fall to the room's primary instead of being assigned to whichever seat happened to be last. */
+  readonly ambiguousSpeakerNames: readonly ImportAmbiguousSpeakerName[];
+  /** Members ST had DISABLED that the imported room seats active — the flag itself has no travel path. */
+  readonly seatedDisabledMembers: readonly ImportSeatedDisabledMember[];
   /** A transcript leaf a group's own `chats[]` claimed with no readable file under `group chats/`. */
   readonly missingGroupChats: readonly string[];
   readonly skippedChats: readonly string[];
@@ -374,6 +446,10 @@ export interface ImportReport {
   readonly unhandled: readonly string[];
   /** settings.json sections the importer does not process (only personas are read). */
   readonly unhandledSettings: readonly string[];
+  /** Directories the collector TRUNCATED at its entry ceiling — everything past `kept` was never examined,
+   *  so the operator is told exactly which plane lost its tail instead of reading a normal-looking report
+   *  over a partial import (#1469). */
+  readonly truncatedDirs: readonly { readonly dir: string; readonly kept: number; readonly total: number }[];
   /** Chats whose ST chat-bound persona pick named a persona this install does not have (solo + group waves
    *  merged). The chats imported; only the pin did not travel. */
   readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];

@@ -76,6 +76,10 @@ interface CollectState {
   readonly unhandled: string[];
   /** settings.json top-level sections the importer does not process (only `power_user.personas` is read). */
   readonly unhandledSettings: string[];
+  /** Directories whose listing hit `MAX_DIR_ENTRIES` — the ceiling TRUNCATES, so everything past it was
+   *  never examined. Recorded (never silent): a huge `characters/` or `chats/<dir>/` used to lose its tail
+   *  while the report read normal. */
+  readonly truncatedDirs: { dir: string; kept: number; total: number }[];
 }
 
 /** The flat profile-level dir holding EVERY group's transcripts (ST does not sub-directory them per group the
@@ -118,10 +122,55 @@ function group(state: CollectState, handle: CharacterHandle): Group {
   return fresh;
 }
 
-// Sorted so collision disambiguation is deterministic — readdir order is filesystem-dependent.
-async function listDir(fs: ImportFsPort, dir: string): Promise<{ name: string; kind: string }[]> {
-  const sorted = (await fs.readdir(dir)).toSorted((a, b) => a.name.localeCompare(b.name));
-  return sorted.length > MAX_DIR_ENTRIES ? sorted.slice(0, MAX_DIR_ENTRIES) : sorted;
+// Sorted so collision disambiguation is deterministic — readdir order is filesystem-dependent. A listing
+// that breaches the ceiling is TRUNCATED and RECORDED on `truncatedDirs`: the cap protects the loop from a
+// hostile staging dir, but a silent slice is exactly the "reports success over an incomplete import" shape
+// this collector's header forbids. The port's own failures arrive typed here too (the dir EXISTS but is
+// unreadable ⇒ `ImportInfraFailureError`, never a raw errno escaping the domain).
+async function listDir(fs: ImportFsPort, dir: string, state: CollectState): Promise<{ name: string; kind: string }[]> {
+  let entries: readonly { name: string; kind: string }[];
+  // @orb-gate-ignore caught-failure-ownership(rethrow): the catch RE-THROWS — `rethrowInfraFailure` maps an
+  // infra fault to the typed error and the trailing `throw` re-raises anything else unchanged (a missing dir
+  // is the PORT's `[]`, so nothing is swallowed here).
+  try {
+    entries = await fs.readdir(dir);
+  } catch (error) {
+    rethrowInfraFailure(error, dir, "readdir");
+    throw error;
+  }
+  const sorted = entries.toSorted((a, b) => a.name.localeCompare(b.name));
+  if (sorted.length <= MAX_DIR_ENTRIES) {
+    return sorted;
+  }
+  state.truncatedDirs.push({ dir, kept: MAX_DIR_ENTRIES, total: sorted.length });
+  return sorted.slice(0, MAX_DIR_ENTRIES);
+}
+
+/** `fs.readFile` for the BULK staged readers (cards, chat files, worlds, presets, themes, backgrounds,
+ *  groups) — the ones with NO best-effort fallback of their own. They used to call the port bare, so an
+ *  EACCES/EIO propagated as a raw errno: the caller saw "collection failed" with no path and no operation,
+ *  which is precisely the claim {@link ImportInfraFailureError} exists to make. A non-infra error (a
+ *  race-deleted `ENOENT`, anything `.code`-less) re-raises UNCHANGED — this wrapper only types the fault. */
+async function readStagedFile(fs: ImportFsPort, path: string): Promise<Uint8Array> {
+  // @orb-gate-ignore caught-failure-ownership(rethrow): the catch RE-THROWS in both arms (typed infra error,
+  // else the original) — nothing is swallowed.
+  try {
+    return await fs.readFile(path);
+  } catch (error) {
+    rethrowInfraFailure(error, path, "readFile");
+    throw error;
+  }
+}
+
+/** {@link readStagedFile}'s `stat` twin — the chat-size gate reads a file's size before deciding to read it. */
+async function statStagedFile(fs: ImportFsPort, path: string): Promise<{ readonly size: number }> {
+  // @orb-gate-ignore caught-failure-ownership(rethrow): the catch RE-THROWS in both arms.
+  try {
+    return await fs.stat(path);
+  } catch (error) {
+    rethrowInfraFailure(error, path, "stat");
+    throw error;
+  }
 }
 
 function rethrowProfileLimit(error: unknown): void {
@@ -150,6 +199,13 @@ function isInfraFailure(error: unknown): boolean {
  *  is the documented behavior for THOSE two cases, and this function must not touch it. */
 function rethrowInfraFailure(error: unknown, path: string, operation: string): void {
   rethrowProfileLimit(error);
+  // An ALREADY-typed failure from a nested wrapper rides through untouched. Without this the collectors that
+  // own a documented fallback (the group-chat leaf, a persona avatar) would fold an inner
+  // `ImportInfraFailureError` into "missing" — `isInfraFailure` keys on `.code`, and this error's own coded
+  // shape is `import_infra_failure`, so the second pass would either re-wrap it or swallow it as absent.
+  if (error instanceof ImportInfraFailureError) {
+    throw error;
+  }
   if (isInfraFailure(error)) {
     throw new ImportInfraFailureError(operation, path, error);
   }
@@ -172,11 +228,11 @@ function disambiguate(state: CollectState, base: string, file: string): Characte
 
 async function collectCards(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
   const charsDir = fs.join(profileDir, "characters");
-  for (const ent of await listDir(fs, charsDir)) {
+  for (const ent of await listDir(fs, charsDir, state)) {
     if (ent.kind !== "file" || !PNG_EXT.test(ent.name)) {
       continue;
     }
-    const bytes = await fs.readFile(fs.join(charsDir, ent.name));
+    const bytes = await readStagedFile(fs, fs.join(charsDir, ent.name));
     const stem = ent.name.replace(PNG_EXT, "");
     const parsed = await parseCardPng(bytes, stem);
     if (parsed === null) {
@@ -211,17 +267,17 @@ async function collectChatsForDir(args: {
   }
   const dirPath = fs.join(chatsDir, dirName);
   group(state, handle).dirName ??= dirName;
-  for (const fileEnt of await listDir(fs, dirPath)) {
+  for (const fileEnt of await listDir(fs, dirPath, state)) {
     if (fileEnt.kind !== "file" || !JSONL_EXT.test(fileEnt.name)) {
       continue;
     }
     const filePath = fs.join(dirPath, fileEnt.name);
-    const sz = await fs.stat(filePath);
+    const sz = await statStagedFile(fs, filePath);
     if (sz.size > MAX_JSONL_BYTES) {
       state.skippedChats.push(fs.join(dirName, fileEnt.name));
       continue;
     }
-    const bytes = await fs.readFile(filePath);
+    const bytes = await readStagedFile(fs, filePath);
     const parsed = parseChatJsonl(new TextDecoder().decode(bytes), {
       fileName: fileEnt.name,
       charDirName: dirName,
@@ -266,11 +322,11 @@ function fuzzyPair(state: CollectState): { chatDir: string; handle: CharacterHan
 // (name = filename stem); an unparseable file is recorded, never silent. A missing `worlds/` dir yields [].
 async function collectWorlds(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
   const worldsDir = fs.join(profileDir, "worlds");
-  for (const ent of await listDir(fs, worldsDir)) {
+  for (const ent of await listDir(fs, worldsDir, state)) {
     if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
       continue;
     }
-    const bytes = await fs.readFile(fs.join(worldsDir, ent.name));
+    const bytes = await readStagedFile(fs, fs.join(worldsDir, ent.name));
     const book = parseStWorldFile(bytes, ent.name.replace(JSON_EXT, ""));
     if (book === null) {
       state.unreadableWorlds.push(ent.name);
@@ -285,12 +341,12 @@ async function collectWorlds(fs: ImportFsPort, profileDir: string, state: Collec
 // file is recorded, never silent. A missing dir yields nothing (the port resolves [] for a missing dir).
 async function collectPresetDir(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
   const dir = fs.join(profileDir, ST_PRESET_DIR);
-  for (const ent of await listDir(fs, dir)) {
+  for (const ent of await listDir(fs, dir, state)) {
     if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
       continue;
     }
     const sourceFile = fs.join(ST_PRESET_DIR, ent.name);
-    const bytes = await fs.readFile(fs.join(dir, ent.name));
+    const bytes = await readStagedFile(fs, fs.join(dir, ent.name));
     const parsed = parseStPresetFile(bytes, ent.name.replace(JSON_EXT, ""));
     if (parsed === null) {
       state.unreadablePresets.push(sourceFile);
@@ -306,12 +362,12 @@ async function collectPresetDir(fs: ImportFsPort, profileDir: string, state: Col
 // nothing.
 async function collectThemes(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
   const dir = fs.join(profileDir, ST_THEME_DIR);
-  for (const ent of await listDir(fs, dir)) {
+  for (const ent of await listDir(fs, dir, state)) {
     if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
       continue;
     }
     const sourceFile = fs.join(ST_THEME_DIR, ent.name);
-    const bytes = await fs.readFile(fs.join(dir, ent.name));
+    const bytes = await readStagedFile(fs, fs.join(dir, ent.name));
     const result = parseStThemeFile(bytes, ent.name.replace(JSON_EXT, ""));
     if (!result.ok) {
       state.refusedThemes.push({ file: sourceFile, reason: result.reason });
@@ -326,7 +382,7 @@ async function collectThemes(fs: ImportFsPort, profileDir: string, state: Collec
 // dir yields nothing.
 async function collectBackgrounds(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
   const dir = fs.join(profileDir, ST_BACKGROUND_DIR);
-  for (const ent of await listDir(fs, dir)) {
+  for (const ent of await listDir(fs, dir, state)) {
     if (ent.kind !== "file") {
       continue;
     }
@@ -336,7 +392,7 @@ async function collectBackgrounds(fs: ImportFsPort, profileDir: string, state: C
       state.skippedBackgrounds.push({ file: sourceFile, reason: "not an importable image/video file (unrecognized extension)" });
       continue;
     }
-    const bytes = await fs.readFile(fs.join(dir, ent.name));
+    const bytes = await readStagedFile(fs, fs.join(dir, ent.name));
     state.backgrounds.push({ filename: sourceFile, name: stBackgroundName(ent.name), mime, bytes });
   }
 }
@@ -384,7 +440,7 @@ async function collectGroupChats(args: {
     // faults; a missing/unreadable leaf is recorded on `missingChatLeaves` (the function header: "a claimed
     // leaf with no readable/parseable file is recorded on the group, never silent"), never dropped.
     try {
-      const sz = await fs.stat(filePath);
+      const sz = await statStagedFile(fs, filePath);
       if (sz.size > MAX_JSONL_BYTES) {
         missingChatLeaves.push(fileName);
         continue;
@@ -417,12 +473,12 @@ async function collectGroupChats(args: {
 // characterId mapping only exists after the character wave, so the driver owns the resolve.
 async function collectGroups(fs: ImportFsPort, profileDir: string, state: CollectState, wallClockZone: string | undefined): Promise<void> {
   const groupsDir = fs.join(profileDir, GROUPS_DIR);
-  for (const ent of await listDir(fs, groupsDir)) {
+  for (const ent of await listDir(fs, groupsDir, state)) {
     if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
       continue;
     }
     const sourceFile = fs.join(GROUPS_DIR, ent.name);
-    const bytes = await fs.readFile(fs.join(groupsDir, ent.name));
+    const bytes = await readStagedFile(fs, fs.join(groupsDir, ent.name));
     const parsed = parseStGroupFile(bytes, ent.name.replace(JSON_EXT, ""));
     if (parsed === null) {
       state.unreadableGroups.push(sourceFile);
@@ -437,7 +493,7 @@ async function collectGroups(fs: ImportFsPort, profileDir: string, state: Collec
 // every settings.json top-level section outside HANDLED_SETTINGS. Feeds the import report so a whole-folder
 // import is honest about what it left behind (presets, quick replies, themes, extension configs, …).
 async function collectUnhandled(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
-  for (const ent of await listDir(fs, profileDir)) {
+  for (const ent of await listDir(fs, profileDir, state)) {
     if (!HANDLED_ENTRIES.has(ent.name)) {
       state.unhandled.push(ent.kind === "directory" ? `${ent.name}/` : ent.name);
     }
@@ -560,16 +616,16 @@ async function collectCharLore(fs: ImportFsPort, profileDir: string): Promise<Ma
  *  gallery (orb counterpart: the assets gallery verbs). BOTH are EMPTY on the real corpus, so the write
  *  waves are a named follow-up — this count line is what guarantees a future profile that carries data can
  *  never again lose it silently. */
-async function countUserPlanes(fs: ImportFsPort, profileDir: string): Promise<{ databankFiles: number; galleryImages: number }> {
+async function countUserPlanes(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<{ databankFiles: number; galleryImages: number }> {
   let databankFiles = 0;
-  for (const ent of await listDir(fs, fs.join(profileDir, "user", "files"))) {
+  for (const ent of await listDir(fs, fs.join(profileDir, "user", "files"), state)) {
     if (ent.kind === "file") {
       databankFiles += 1;
     }
   }
   let galleryImages = 0;
   const imagesDir = fs.join(profileDir, "user", "images");
-  for (const ent of await listDir(fs, imagesDir)) {
+  for (const ent of await listDir(fs, imagesDir, state)) {
     if (ent.kind === "file") {
       galleryImages += 1;
       continue;
@@ -577,7 +633,7 @@ async function countUserPlanes(fs: ImportFsPort, profileDir: string): Promise<{ 
     if (ent.kind !== "directory") {
       continue;
     }
-    for (const sub of await listDir(fs, fs.join(imagesDir, ent.name))) {
+    for (const sub of await listDir(fs, fs.join(imagesDir, ent.name), state)) {
       if (sub.kind === "file") {
         galleryImages += 1;
       }
@@ -663,6 +719,7 @@ export async function collectBundlesFromDir(
     collidedCards: [],
     unhandled: [],
     unhandledSettings: [],
+    truncatedDirs: [],
   };
 
   await collectCards(fs, profileDir, state);
@@ -675,7 +732,7 @@ export async function collectBundlesFromDir(
   await collectUnhandled(fs, profileDir, state);
 
   const chatsDir = fs.join(profileDir, "chats");
-  for (const dirEnt of await listDir(fs, chatsDir)) {
+  for (const dirEnt of await listDir(fs, chatsDir, state)) {
     if (dirEnt.kind === "directory") {
       await collectChatsForDir({ fs, chatsDir, dirName: dirEnt.name, state, wallClockZone });
     }
@@ -687,7 +744,7 @@ export async function collectBundlesFromDir(
   const appearance = await collectAppearance(fs, profileDir);
   const globalRegex = await collectGlobalRegexScripts(fs, profileDir);
   const extraBooksByCardStem = await collectCharLore(fs, profileDir);
-  const userPlanes = await countUserPlanes(fs, profileDir);
+  const userPlanes = await countUserPlanes(fs, profileDir, state);
 
   const bundles: CollectedCard[] = [];
   const orphanChatDirs: string[] = [];
@@ -732,6 +789,7 @@ export async function collectBundlesFromDir(
     collidedCards: state.collidedCards,
     unhandled: state.unhandled,
     unhandledSettings: state.unhandledSettings,
+    truncatedDirs: state.truncatedDirs,
     fuzzyPairedDirs,
   };
 }
