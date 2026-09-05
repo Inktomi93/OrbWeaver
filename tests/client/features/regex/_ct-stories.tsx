@@ -82,16 +82,27 @@ export function RegexLibraryGroupStory(): ReactElement {
   );
 }
 
+/** Has this PAGE already entered bulk mode? See the seed below — the store's own door is a toggle, and a
+ *  render initializer may run more than once. */
+let bulkModeSeeded = false;
+
 function RegexBulkBarHarness(): ReactElement {
   const trpc = useTRPC();
   const [selectedIds, setSelectedIds] = useState<readonly string[]>(["regex_script_stripooc00000", "regex_script_narrate000000"]);
   // TWO observables, because the bar has two ways of standing down and only one of them is `onClear`: the
   // per-verb CLEAR (the host's prop) and the DELETE arm's `exitRegexBulkMode()`, which writes the shared
   // bulk store the host never sees. A pin on the count alone is blind to the delete verb entirely.
-  // The store defaults to `active: false` and is fresh per CT page, so one toggle IS "enter bulk mode" —
-  // the same door the config band's toggle uses.
+  // ENTERING BULK MODE HAS TO BE IDEMPOTENT HERE. `toggleRegexBulkMode` is a FLIP, and a render-phase
+  // initializer is not called exactly once — StrictMode, a double render or a remount all re-run it, and a
+  // second flip turns bulk mode back OFF, silently inverting the premise of every pin below. The guard makes
+  // the seed a SET: the first call enters the mode, every later call is a no-op. Module-scoped rather than
+  // component state because it is a property of the PAGE (each CT test gets a fresh realm and a fresh store),
+  // not of one mount.
   useState((): null => {
-    toggleRegexBulkMode();
+    if (!bulkModeSeeded) {
+      bulkModeSeeded = true;
+      toggleRegexBulkMode();
+    }
     return null;
   });
   return (

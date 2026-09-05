@@ -46,21 +46,34 @@ const RECONCILE_RETRY_BACKOFF_MS = [RECONCILE_RETRY_FIRST_MS, RECONCILE_RETRY_SE
 export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onFailed }: BundleWorkloadTrackerProps): null {
   const trpcClient = useTRPCClient();
   const id = castId<WorkloadId>(workloadId);
-  // THE LADDER MUST NOT OUTLIVE THE TRACKER (#1570). The retry `setTimeout` had no cancel, so a tracker torn
-  // down mid-ladder — the import section unmounts it the moment the run resolves, and the route can leave
-  // entirely — still fired up to ~1s later and called `onProgress`/`onFailed` on a caller that is gone. A SET
-  // and not one handle: `onSocketLive` can fire again while a ladder is pending, so two can legitimately
-  // overlap and both owe a cancel. Read and written only in callbacks and the cleanup, never during render.
+  // NOTHING THIS TRACKER STARTED MAY SPEAK AFTER IT IS GONE (#1570). Two halves, and the timer was only one
+  // of them:
+  //   · the retry `setTimeout` had no cancel, so a tracker torn down mid-ladder still fired up to ~1s later;
+  //   · the `workloads.get` REQUEST itself has no cancel either — an unmount while it is in flight still ran
+  //     the `.then` and called `onSucceeded`/`onFailed`/`onProgress` on a caller that is gone, bounded by
+  //     network latency rather than by the ladder's ~1s.
+  // The timers are a SET, not one handle: `onSocketLive` can fire again while a ladder is pending, so two can
+  // legitimately overlap and both owe a cancel. `alive` covers the request half, and both flip in the SAME
+  // cleanup so there is one teardown to reason about. Read and written only in callbacks and that cleanup,
+  // never during render.
+  //
+  // NOT CT-PINNED, and the reason is a tooling gap rather than a judgment: reaching `reconcile` at all needs
+  // a socket DROP AND RE-ATTACH (`onSocketLive` is deliberately not fired on a room's first live edge —
+  // `use-workload-subscription.ts` / BOOT-4X), and `routeOrbSocket`'s `dropFirstConnection` — the affordance
+  // built for exactly that — has NO existing consumer in `tests/**` and did not deliver the reconnect in two
+  // attempts here. Proving or repairing it is its own row; until then this guard is carried by review.
   const retryTimersRef = useRef<Set<ReturnType<typeof setTimeout>> | null>(null);
-  useEffect(
-    () => (): void => {
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return (): void => {
+      aliveRef.current = false;
       for (const handle of retryTimersRef.current ?? []) {
         clearTimeout(handle);
       }
       retryTimersRef.current?.clear();
-    },
-    [],
-  );
+    };
+  }, []);
 
   /**
    * RE-DERIVE THE RUN AFTER A GAP — AND DO NOT GO PERMANENTLY SILENT IF THAT READ FAILS (#1503).
@@ -73,6 +86,27 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
    * claim, but the gap actually gets closed. The ladder is short and bounded — the next reconnect brings
    * another `onSocketLive` anyway, so this only has to survive a flap that outlives the reconnect by a beat.
    */
+  /** Report the durable row the gap-heal read back. Split out from the `.then` so the alive guard and the
+   *  status dispatch are one decision each rather than one nested chain. */
+  const report = (row: Awaited<ReturnType<typeof trpcClient.workloads.get.query>>): void => {
+    if (row.status === "succeeded") {
+      onSucceeded(asBundleCounts(row.result));
+      return;
+    }
+    if (row.status === "failed" || row.status === "worker_died") {
+      onFailed(row.error ?? UNEXPLAINED_FAILURE);
+      return;
+    }
+    if (row.status === "cancelled") {
+      onFailed(CANCELLED_MESSAGE);
+      return;
+    }
+    if (row.progress !== null) {
+      // Still running: the durable snapshot replaces whatever the bar was showing when the gap opened.
+      onProgress(toProgressView(row.progress));
+    }
+  };
+
   const reconcile = (attempt: number): void => {
     // @orb-gate-ignore caught-failure-ownership(promise:query): the rejection drives the bounded retry above and
     // is deliberately never converted into a terminal outcome (#222) — the run's state stays whatever the stream
@@ -80,18 +114,14 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
     void trpcClient.workloads.get
       .query({ id })
       .then((row): void => {
-        if (row.status === "succeeded") {
-          onSucceeded(asBundleCounts(row.result));
-        } else if (row.status === "failed" || row.status === "worker_died") {
-          onFailed(row.error ?? UNEXPLAINED_FAILURE);
-        } else if (row.status === "cancelled") {
-          onFailed(CANCELLED_MESSAGE);
-        } else if (row.progress !== null) {
-          // Still running: the durable snapshot replaces whatever the bar was showing when the gap opened.
-          onProgress(toProgressView(row.progress));
+        if (aliveRef.current) {
+          report(row); // …and if it is NOT alive: torn down mid-read, so the caller and its callbacks are gone
         }
       })
       .catch((): void => {
+        if (!aliveRef.current) {
+          return; // …and a failed read after teardown schedules nothing either
+        }
         const backoff = RECONCILE_RETRY_BACKOFF_MS[attempt];
         if (backoff === undefined) {
           return; // out of attempts — the stream is still attached and remains the authority

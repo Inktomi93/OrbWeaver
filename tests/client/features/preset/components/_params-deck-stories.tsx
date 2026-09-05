@@ -258,3 +258,20 @@ export function ParamsDeckCustomParamsResetStory(): ReactElement {
     </>
   );
 }
+
+/** A LOGIT-BIAS map that CHANGES on a still-mounted form — #1502's own case, and the property the blur epoch
+ *  must not have weakened: the box belongs to the preset, so a switch REPLACES its text rather than leaving
+ *  the previous preset's JSON sitting there for the next blur to write back. Same reseed path as the
+ *  custom-parameters story above (new `serverValues`, no remount key bump), because that is what a preset
+ *  switch does to this subtree. */
+export function ParamsDeckLogitBiasSwitchStory(): ReactElement {
+  const [switched, setSwitched] = useState(false);
+  return (
+    <>
+      <button onClick={(): void => setSwitched(true)} type="button">
+        Switch the preset
+      </button>
+      <DeckHarness effective={GHOST_EFFECTIVE} params={{ logitBias: switched ? { "9": -10 } : { "7": 50 } }} />
+    </>
+  );
+}

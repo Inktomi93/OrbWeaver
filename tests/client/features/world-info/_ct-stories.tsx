@@ -10,7 +10,7 @@ import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { EntryEditor } from "../../../../packages/client/src/features/world-info/components/entry-editor.tsx";
 import { WorldInfoCollectionRows } from "../../../../packages/client/src/features/world-info/components/world-info-collection-rows.tsx";
 import { WorldInfoContextBody } from "../../../../packages/client/src/features/world-info/components/world-info-context-body.tsx";
@@ -41,6 +41,21 @@ export function WorldInfoCollectionRowsStory({
   readonly filter?: string;
   readonly selectedId?: string | null;
 } = {}): ReactElement {
+  // SEEDED HERE, IN A LAZY INITIALIZER, AND IDEMPOTENT — the three properties together are the point.
+  //   · HERE, not in the probe: a component that writes a store it also SUBSCRIBES to during its own render
+  //     does not reliably see its own write, which is what the first attempt at this hit. The parent's
+  //     initializer runs before the probe mounts, so the probe's first read is already the seeded value.
+  //   · a LAZY INITIALIZER, not an effect: the rows mount in the same pass, so a delete driven before an
+  //     effect ran would read an empty store — and a `setState`-shaped write in a prop-keyed effect is the
+  //     exact shape the hooks lint refuses.
+  //   · IDEMPOTENT: `selectCollectionMember` is a plain SET, so a double-invoked initializer (StrictMode, a
+  //     remount) lands the same value rather than flipping state.
+  useState((): null => {
+    if (selectedId !== null) {
+      selectCollectionMember("worldInfo", selectedId);
+    }
+    return null;
+  });
   return (
     <CtDataProviders>
       <div style={{ height: 700, overflow: "auto", width: 330 }}>
@@ -48,7 +63,7 @@ export function WorldInfoCollectionRowsStory({
             when one is open, so whether a rejected delete ejects the reader from a book that still exists
             is unobservable without one — and `clearCollectionSelection` writes the STORE, so the probe
             reads the store rather than a rendered echo (this story mounts no CONTENT pane to echo it). */}
-        <CollectionSelectionProbe selectedId={selectedId} />
+        <CollectionSelectionProbe />
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
           <WorldInfoCollectionRows view={{ selectedId, onSelect: (): void => undefined, filter }} />
         </QueryBoundary>
@@ -57,15 +72,9 @@ export function WorldInfoCollectionRowsStory({
   );
 }
 
-/** Seeds the collection selection during the FIRST render pass (never in an effect — the rows mount in the
- *  same pass, and a delete fired before the effect ran would read an empty store), then prints what the
- *  store holds. `null` selects nothing, which is the default arm every existing pin in this file uses. */
-function CollectionSelectionProbe({ selectedId }: { readonly selectedId: string | null }): ReactElement {
-  useEffect(() => {
-    if (selectedId !== null) {
-      selectCollectionMember("worldInfo", selectedId);
-    }
-  }, [selectedId]);
+/** READ-ONLY: prints what the selection store holds. The seed is the story's (see above) — this component
+ *  only subscribes, so it can never be a writer that misses its own write. */
+function CollectionSelectionProbe(): ReactElement {
   const open = useCollectionSelection();
   return <output aria-label="Open collection member">{open === null ? "none" : open.memberId}</output>;
 }

@@ -22,6 +22,10 @@ import { FirstRunPersonaDialogStory } from "../_ct-stories.tsx";
 
 const CREATED = { id: "persona_000000000000000000001", name: "Alex", description: "", title: null };
 
+/** A SECOND owned persona, with a LOWER id than {@link CREATED} — the orphan pick has to be a property of
+ *  the set, not of the order the server happened to return it in. */
+const OLDER = { id: "persona_000000000000000000000", name: "Ada", description: "A cartographer.", title: null };
+
 /** The viewer's settings row with BOTH persona pointers unset — the orphan state a create-succeeds /
  *  seed-fails run leaves behind, and the state a RELOAD lands back in. */
 const UNSEEDED_SETTINGS = { userId: "user_ct_firstrun", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
@@ -120,4 +124,84 @@ test("a viewer with a persona AND a pointer never sees the gate (#1570)", async 
   await mount(<FirstRunPersonaDialogStory />);
 
   await expect(page.getByTestId(testId("firstRunPersonaDialog"))).toHaveCount(0);
+});
+
+// ── #1570 · THE RECOVERY ARM WRITES WHAT IT SHOWS ────────────────────────────────────────────────
+// The arm paints an editable, pre-filled Name and Description over a persona that already has both, then
+// went straight to `setSeed` — so a reader who fixed the name they typed before the interruption pressed
+// Finish, saw no error, and kept the old values. That is the "state that lies" class this gate was reopened
+// for, one layer in: the box is the promise, and the write is what has to keep it.
+test("editing the fields on the RECOVERY arm actually saves them (#1570)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "persona.list": () => [CREATED],
+    "persona.create": () => CREATED,
+    "persona.update": () => CREATED,
+    "settings.getUserSettings": () => UNSEEDED_SETTINGS,
+    "settings.updateUserSettingsSection": () => null,
+  });
+  await mount(<FirstRunPersonaDialogStory />);
+
+  // Both fields are adopted from the orphan — an empty Description box over a persona that has one is the
+  // same lie as an empty Name box would be.
+  await expect(page.getByTestId(testId("firstRunPersonaName"))).toHaveValue(CREATED.name);
+  await page.getByTestId(testId("firstRunPersonaName")).fill("Nathaniel");
+
+  await page.getByTestId(testId("firstRunPersonaCreate")).click();
+
+  await expect
+    .poll(() => trpc.lastInput("persona.update"), { intervals: [20, 50, 100] })
+    .toEqual({ personaId: CREATED.id, input: { name: "Nathaniel", description: CREATED.description } });
+  // …and the seed still lands, on the SAME persona, with no second row minted.
+  await expect.poll(() => trpc.count("settings.updateUserSettingsSection"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.count("persona.create"), { intervals: [20, 50, 100] }).toBe(0);
+});
+
+// …and an UNTOUCHED recovery stays two round trips, so the write above is the edit's consequence rather
+// than a third call every orphan pays for.
+test("an untouched RECOVERY arm writes no update — only the seed (#1570)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "persona.list": () => [CREATED],
+    "persona.update": () => CREATED,
+    "settings.getUserSettings": () => UNSEEDED_SETTINGS,
+    "settings.updateUserSettingsSection": () => null,
+  });
+  await mount(<FirstRunPersonaDialogStory />);
+  await page.getByTestId(testId("firstRunPersonaCreate")).click();
+
+  await expect.poll(() => trpc.count("settings.updateUserSettingsSection"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.count("persona.update"), { intervals: [20, 50, 100] }).toBe(0);
+});
+
+// THE PICK IS A PROPERTY OF THE SET, NOT OF THE LIST ORDER. `persona.list` is ordered `desc(createdAt)`
+// server-side and the row carries no timestamp, so a client taking `personas[0]` would be choosing by an
+// ordering it cannot see. The stub deliberately returns the higher id FIRST: the gate must still offer the
+// lower one, and must offer the same one whichever way the list arrives.
+for (const [label, rows] of [
+  ["newest first", [CREATED, OLDER]],
+  ["oldest first", [OLDER, CREATED]],
+] as const) {
+  test(`the orphan is picked deterministically by id — ${label} (#1570)`, async ({ mount, page }) => {
+    await routeTrpc(page, {
+      "persona.list": () => rows,
+      "settings.getUserSettings": () => UNSEEDED_SETTINGS,
+      "settings.updateUserSettingsSection": () => null,
+    });
+    await mount(<FirstRunPersonaDialogStory />);
+
+    await expect(page.getByTestId(testId("firstRunPersonaName"))).toHaveValue(OLDER.name);
+  });
+}
+
+// The name is REQUIRED on the recovery arm too — it is the same editable box, and blanking it would rename
+// the viewer to nothing. (The arm used to wave an empty name through, which only became reachable once the
+// fields started being written.)
+test("the RECOVERY arm refuses an empty name (#1570)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "persona.list": () => [CREATED],
+    "settings.getUserSettings": () => UNSEEDED_SETTINGS,
+  });
+  await mount(<FirstRunPersonaDialogStory />);
+
+  await page.getByTestId(testId("firstRunPersonaName")).fill("   ");
+  await expect(page.getByTestId(testId("firstRunPersonaCreate"))).toBeDisabled();
 });
