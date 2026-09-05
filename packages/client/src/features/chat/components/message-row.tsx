@@ -144,9 +144,23 @@ const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
   showGenerationCost: false,
 };
 
-/** An avatar in ONE of the row's two width-gated slots: the wide `gutter` beside the bubble, or the narrow
- *  `inline` slot in the name row. Both are always in the DOM and the row's `@container` query shows one —
- *  see the `inlineAvatar` note in `MessageRow` for why the gutter cannot survive a phone-width column. */
+/** THE ROW HAS EXACTLY ONE AVATAR SLOT: the identity GUTTER, a SIBLING of the content column (§B.1 — a law
+ *  with its own pins, not this file's to reverse), placed leading for a non-user row and trailing for a user
+ *  one. This docblock used to describe a second, narrow `inline` slot in the name row and a `@container`
+ *  query that CHOSE between them; no such slot and no such gate exist (`inlineAvatar` has zero definitions
+ *  on the tree — it survived only as this comment's own dangling self-reference), and reading it as live
+ *  anatomy is what makes "the reading column is inset on the left" look like a leak.
+ *
+ *  WHAT THE `@container` QUERY ACTUALLY DOES IS SCALE THE SLOT, NEVER HIDE IT (the `@max-md:` pair on the
+ *  row body below): at a phone-width column the chip steps DOWN from `avatar-md` 32px to `size-6` 24px and
+ *  the gap from `row` 8px to `field` 6px, so the gutter the content column is offset by is 40px at a desktop
+ *  and 30px at a phone one. Both numbers are RATIFIED, not incidental: `dimension.shell-content-floor`'s
+ *  derivation (tokens.json, #1204) spends "a 32px `md` avatar chip + its 8px gap" as a term, so removing or
+ *  centring the gutter would invalidate the chat-width dial's own floor.
+ *
+ *  THE SLOT'S ABSENT ARM COSTS NOTHING, by construction: `renderRowAvatar` returns null when
+ *  `showInChatAvatars` is off or the row resolved no name, and a null child is no flex item — `gap` applies
+ *  only BETWEEN adjacent items, so there is no phantom inset to remove on that arm. */
 export function MessageRow({
   message,
   chatStyle,
