@@ -10,13 +10,18 @@
 // Both are fixed at the drafting layer: a failing ARM VERDICT becomes its own row (with the arm's own
 // detail and `next=` narrowing to `--arm <it>`), the fallback fires only when no arm is in a voting state,
 // and every row states which run counter its evidence entered.
+import { mkdir, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { aggregateScope, artifactRef } from "@orb/tooling/_shared/artifact-scope";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { DiskSafeBrowserDiagnostic } from "../../../../tooling/src/snap/contract/browser-evidence-redaction.ts";
 import type { SnapRunIndex } from "../../../../tooling/src/snap/contract/run-index.ts";
 import { collectSnapFindings } from "../../../../tooling/src/snap/lib/run-findings.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const INDEX_PATH = "/tmp/orb-run/run.json";
+const SLOT_DIR = join(tmpdir(), "orb-findings-fixture");
+const INDEX_PATH = `${SLOT_DIR}/run.json`;
 
 function armVerdict(over: Partial<SnapRunIndex["verdict"]["arms"][number]>): SnapRunIndex["verdict"]["arms"][number] {
   return {
@@ -50,6 +55,22 @@ const NO_LIMITS = {
   policy: { maxDepth: 8, maxFields: 256, maxStringBytes: 4096, maxBodyBytes: 0, maxEntries: 128, maxUrlBytes: 2048 },
   events: [],
 } satisfies DiskSafeBrowserDiagnostic["_orbMeasuredLimit"];
+
+/** A real analyzer artifact row — `readSnapAnalyzerProblems` gates on producer + schema, so both are the
+ *  live spellings (`motion` / `snap-motion-v1`) rather than a shape cast past the reader. */
+function motionArtifact(path: string): SnapRunIndex["artifacts"][number] {
+  return {
+    path,
+    relativePath: artifactRef("motion/motion.json"),
+    bytes: 1,
+    producer: "motion",
+    producerArm: "motion",
+    schema: "snap-motion-v1",
+    role: "primary",
+    completeness: "complete",
+    scope: aggregateScope(),
+  };
+}
 
 function diagnostic(over: Partial<DiskSafeBrowserDiagnostic>): DiskSafeBrowserDiagnostic {
   return {
@@ -116,17 +137,54 @@ test("a failing arm gets its row even BESIDE another error row — the arm rows 
   expect(findings.some((row) => row.arms.includes("contrast"))).toBe(true);
 });
 
-test("an arm a PRODUCER already described gets no second row — de-duplicated by arm, not suppressed by luck", async () => {
-  // The other half of the same change: an analyzer that wrote its own problem rows has said everything the
-  // per-arm row would, so emitting one anyway would be noise wearing the same arm's name. Here the
-  // diagnostic is attributed to `motion`, and the failing arm IS motion.
+test("a console line that merely MENTIONS an arm does not cost that arm its own problem row", async () => {
+  // THE REGRESSION THIS FILE MISSED ONCE (#1566 review). The first dedup counted EVERY draft's arms as
+  // "described", including the console-attributed ANNOTATION rows — so this exact fixture (a failing
+  // `motion` arm beside the app's own `[drop]` console line, which is attributed to `motion`) lost the
+  // arm's error row and fell through to the fallback, whose text claims the producer evidence was absent
+  // while sitting beside it. The old assertion — `filter(arms.includes("motion")).length === 1` — was
+  // satisfied by the ANNOTATION alone, so it could not see the error row disappear. These assert the row
+  // by its SEVERITY and its CONTENT, which is what actually changed.
   const findings = await collectSnapFindings(
     input([armVerdict({ arm: "motion", detail: "dropped frames over budget" })], "failed", [
       diagnostic({ text: "%c10:54:43.115 [drop]%c 70ms rendered frame mid-animation (budget 50ms)" }),
     ]),
   );
 
-  expect(findings.filter((row) => row.arms.includes("motion"))).toHaveLength(1);
+  const problem = findings.find((row) => row.severity === "error");
+  expect(problem?.arms).toEqual(["motion"]);
+  expect(problem?.what).toBe("dropped frames over budget");
+  // The fallback's claim is FALSE here, so it must not be made.
+  expect(findings.some((row) => row.what.includes("no structured problem row"))).toBe(false);
+  // …and the annotation still rides beside it — the arm row REPLACES nothing.
+  expect(findings.some((row) => row.severity === "annotation" && row.arms.includes("motion"))).toBe(true);
+});
+
+test("an arm a PRODUCER already described gets no second row — de-duplicated by PROVENANCE, not by mention", async () => {
+  // The other half: a real analyzer artifact (motion's own problem rows) has said everything the per-arm
+  // row would, so a second one would be noise wearing the same arm's name. The discriminator is WHO WROTE
+  // IT — a producer's structured evidence dedups; a console observation does not (the arm above).
+  const artifact = join(SLOT_DIR, "motion", "motion.json");
+  await mkdir(dirname(artifact), { recursive: true });
+  await writeFile(
+    artifact,
+    JSON.stringify({
+      problems: [
+        { arm: "motion", kind: "threshold", metric: "dropped-frames", subject: "[data-slot=list]", observed: "30%", threshold: "5%", detail: "over budget" },
+      ],
+    }),
+  );
+
+  const findings = await collectSnapFindings({
+    ...input([armVerdict({ arm: "motion", detail: "dropped frames over budget" })]),
+    artifacts: [motionArtifact(artifact)],
+  });
+
+  // ONE motion problem row, and it is the PRODUCER's (its metric, not the arm verdict's detail).
+  const problems = findings.filter((row) => row.severity === "error" && row.arms.includes("motion"));
+  expect(problems).toHaveLength(1);
+  expect(problems[0]?.what).toContain("dropped-frames");
+  expect(findings.some((row) => row.what === "dropped frames over budget")).toBe(false);
 });
 
 test("THE FALLBACK STILL EXISTS: a non-passing run with no voting arm at all keeps the unattributed row", async () => {

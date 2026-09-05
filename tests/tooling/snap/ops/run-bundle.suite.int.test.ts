@@ -695,7 +695,17 @@ test("multi-arm diagnostics round-trip preserves severity/caps and keeps trace.z
   expect(index.verdict.arms.every((arm) => arm.source !== "" && arm.lifetime !== "")).toBe(true);
   expect(receiptLines.filter((line) => line.startsWith("FINDING    "))).toHaveLength(5);
   expect(receiptLines.filter((line) => line.startsWith("FINDING    ")).every((line) => line.startsWith("FINDING    error"))).toBe(true);
-  expect(receiptLines).toContain("FINDINGS   omitted=46 of 51; full population in run.json and READ below");
+  // THE POPULATION IS DERIVED, SO STATE HOW (#1566). 55 = 51 diagnostic/analyzer drafts + one PER-ARM row
+  // for each of the four refused arms that no producer described (`motion` and `interaction-perf` are
+  // deduped against their own analyzer problem rows, which is why the count rises by four and not six).
+  // It was 51 while a console line that merely MENTIONED an arm suppressed that arm's own row — the
+  // regression this suite could not see, because a bare count is not a claim about which rows exist.
+  const armRows = index.verdict.arms.filter((arm) => arm.state === "refused" || arm.state === "failed" || arm.state === "withheld");
+  const describedByProducer = new Set(["motion", "interaction-perf"]);
+  const expectedFindings = 51 + armRows.filter((arm) => !describedByProducer.has(arm.arm)).length;
+  expect(receiptLines).toContain(
+    `FINDINGS   omitted=${String(expectedFindings - 5)} of ${String(expectedFindings)}; full population in run.json and READ below`,
+  );
   expect(receiptLines).toContain(`FORENSICS  open the raw chromium-trace at ${chromiumTracePath}`);
   expect(receiptLines).not.toContain(`VIEW       pnpm exec playwright show-trace ${chromiumTracePath}`);
 
@@ -704,7 +714,9 @@ test("multi-arm diagnostics round-trip preserves severity/caps and keeps trace.z
   expect(report.stdout).toContain("DIAGNOSTICS  omitted=5 highest-severity rows shown");
   expect(report.stdout.match(/^PROBLEM\s+/gmu)).toHaveLength(20);
   expect(report.stdout).toContain("PROBLEMS     omitted=6 of 26 analyzer-owned rows");
-  expect(report.stdout).toContain("FINDINGS     omitted=31 of 51 indexed rows");
+  // Same derived population as the receipt above (#1566) — the reader's row cap differs, the DENOMINATOR
+  // does not, so both surfaces must move together when the arm rows do.
+  expect(report.stdout).toContain(`FINDINGS     omitted=${String(expectedFindings - 20)} of ${String(expectedFindings)} indexed rows`);
   expect(report.stdout).toContain("planted highest-severity problem beyond the source-order display cap");
   expect(report.stdout).toContain("planted-last-error-24");
   expect(report.stdout).toContain(`RAW FALLBACK ${join(slot.dir, "traces", "trace.zip")}`);

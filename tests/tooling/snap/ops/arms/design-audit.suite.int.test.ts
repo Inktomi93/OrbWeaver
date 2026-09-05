@@ -281,30 +281,38 @@ test("#1538 — the five verdict channels are INDEPENDENT: one withheld channel 
     unprovenSelectors: 0,
   });
 
-  // …and a surface whose SELECTION IDIOM only exists once driven withholds `population` and NOTHING else
-  // (#1114's structural no-verdict: one selected row with no unselected twin). The whole point of five
-  // named channels is that a fact-only consumer can tell WHICH half was withheld — a shape assertion over
-  // a `complete|no-verdict` union cannot see the difference between this fact and the one above.
+  // …and a surface whose SELECTION IDIOM has no selected twin withholds `population` and NOTHING else.
+  // TWO unselected rows sharing one authored claim + home and NO selected sibling: `census-selection.ts`
+  // needs SELECT_COMPARISON_MIN_MEMBERS (2) in the group to get past `insufficientPopulation`, then finds
+  // `group.selected.length === 0` and withholds `unmatchedUnselected` (#1114's structural no-verdict).
+  // A ONE-row fixture does not reach it — it is EXCLUDED as insufficient, which is why the first draft of
+  // this test came back all-`complete` and proved nothing.
   const partial = await plant(
     scratch,
     "withheld.html",
     page(
       '<main style="background:#000;color:#fff"><ul style="list-style:none;margin:0;padding:0">' +
-        '<li><button data-slot="row" aria-selected="true" style="width:200px;height:44px">Only row</button></li>' +
+        '<li><button data-slot="row" aria-selected="false" style="width:200px;height:44px">First row</button></li>' +
+        '<li><button data-slot="row" aria-selected="false" style="width:200px;height:44px">Second row</button></li>' +
         "</ul></main>",
     ),
   );
-  const withheld = await auditFact((await runCli("snap", ["--file", partial, "--design-audit", "--json", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS })).stdout);
+  const run = await runCli("snap", ["--file", partial, "--design-audit", "--json", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  const withheld = await auditFact(run.stdout);
 
-  // The four the walk DID reach stay complete — that is the independence claim, and it is the assertion a
-  // single stringMatching over one channel could never make.
+  // THE INDEPENDENCE CLAIM, both halves: ONE channel says no-verdict and the OTHER FOUR still say
+  // complete. A shape assertion over the `complete|no-verdict` union cannot tell this fact from the
+  // baseline above; these two lines can.
+  expect(withheld["populationVerdict"]).toBe("no-verdict");
   expect(withheld).toMatchObject({
     censusCapVerdict: "complete",
     hoverVerdict: "complete",
     forceVerdict: "complete",
     instrumentPageErrorVerdict: "complete",
   });
-  expect(["complete", "no-verdict"]).toContain(withheld["populationVerdict"]);
+  // …and the run says WHICH rule withheld, so the channel is attributable rather than merely non-clean.
+  expect(run.stdout).toContain("selection-idiom: unmatchedUnselected=1");
+  await expect(run).toExitWith(EXIT.toolError);
 });
 
 test("#1538 — a TRUNCATED selector proof publishes its remainder end-to-end, and never reads as a clean sweep", async ({ runCli, scratch }) => {
