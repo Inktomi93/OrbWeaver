@@ -1,8 +1,16 @@
 {
   // @orb/ui is browser code (the frontend cake leaf: kit ← ui ← client). DOM libs + JSX on top of
-  // the isomorphic base — mirrors packages/client. NO node types: ui never imports node:* (the
-  // ui-no-node-builtins dep-cruiser rule is the backstop). tokens.build.ts (a codegen SCRIPT, not
-  // package source) is typechecked by the root aggregator, not here.
+  // the isomorphic base — mirrors packages/client. ui never imports node:*; the enforcers are
+  // dep-cruiser `ui-no-node-builtins` (import edges, incl. process.getBuiltinModule) and biome
+  // `style/noRestrictedGlobals` (bare globals — Buffer/setImmediate/global/…, biome.json's last
+  // override). tokens.build.ts (a codegen SCRIPT, not package source) is typechecked by the root
+  // aggregator, not here.
+  //
+  // #1312 (2026-09-05): the base's `types: []` is NOT a program-level browser-purity guarantee — it
+  // only suppresses AUTO-inclusion of `@types/*`, and cannot suppress the `/// <reference
+  // types="node" />` a DEPENDENCY .d.ts injects (measured: vite's index.d.ts pulls @types/node into
+  // THIS program, so `Buffer.from("x")` typechecks clean here). That is why the browser-global fence
+  // is a lint rule, not a type-layer one.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     // VITE is this package's resolver, so it stays on the bundler pair while the base went nodenext

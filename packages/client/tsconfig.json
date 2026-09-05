@@ -14,6 +14,15 @@
   // chain, but being `.ts` (not `.tsx`) no directory-glob reach-back above claims it. It used to reach
   // this program's dom lib ONLY via the root aggregator's leaked `/// <reference lib="dom" />`
   // (scripts/probes/st-goldens/generate-goldens.ts); the root aggregator now excludes it explicitly.
+  //
+  // #1312 (2026-09-05): browser purity is NOT enforced by the base's `types: []` — that only
+  // suppresses AUTO-inclusion of `@types/*`, and cannot suppress the `/// <reference types="node" />`
+  // a DEPENDENCY .d.ts injects (measured: the type-only `import type { AppRouter } from "@orb/server"`
+  // edge — 5 sites, sanctioned by dep-cruiser `client-no-backend-runtime` — reaches pino-std-serializers
+  // and undici-types, which reference `node`, so `Buffer.from("x")` typechecks clean here). The real
+  // enforcers are dep-cruiser `client-no-backend-runtime` (runtime import edges), biome
+  // `correctness/noNodejsModules` (node:* import form) and biome `style/noRestrictedGlobals` (bare
+  // globals — Buffer/setImmediate/global/…, biome.json's last override).
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     // VITE is this package's resolver, so it stays on the bundler pair while the base went nodenext
