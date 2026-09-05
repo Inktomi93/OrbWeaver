@@ -156,19 +156,30 @@ export function deleteOwnedCredential(db: Db, ownerId: UserId, credentialId: Use
   return db.delete(userCredentials).where(and(eq(userCredentials.id, credentialId), eq(userCredentials.ownerId, ownerId)));
 }
 
-/** Mark a credential revoked by id — the runner path (no owner scope). Idempotent (a re-revoke re-stamps).
+/** Mark a credential revoked — OWNER-SCOPED, every revoke path. Idempotent (a re-revoke re-stamps).
+ *
+ *  It used to be `WHERE id = ?` with an `@owner-scope-write-ok` marker arguing that a foreign row was
+ *  unreachable "by construction" from today's callers. That argument was true and worthless: it was a claim
+ *  about call sites, and the next wiring inherits nothing that says so (`injected-op-caller-param`). Now the
+ *  scope is a QUERY PREDICATE — a credentialId the owner does not hold matches zero rows — which is why the
+ *  marker is gone rather than re-justified.
+ *
+ *  RETURNS THE MATCHED IDS so a caller that did NOT pre-prove ownership can tell "revoked" from "matched
+ *  nothing" (the strike-out reports the miss; the pre-fetching callers ignore it).
+ *
  *  `reason` is REQUIRED, not optional: `revoked_at` and `revoked_reason` are written in one statement at every
  *  call site, so "revoked with no reason" is unrepresentable rather than merely discouraged (the writer-set
  *  discipline a stated column biconditional actually needs — a convention the next `.set()` can forget is
  *  worth nothing). Its inverse is {@link CLEARED_REVOCATION}. */
-// @owner-scope-write-ok: DELIBERATELY unscoped — the runner-internal revoke (`markRevoked`, NOT exposed on the
-// tRPC router) proved access by HOLDING the credential through a completed turn, and the post-generation
-// `maybeRevokeOnAuthFailed` has only the id the generation ran under (`ResolvedConnection.credential`, minted
-// for that principal by `resolve`, so a foreign row is not reachable at this call). The user-facing twin
-// `markRevokedByUser` DOES prove ownership first (`fetchOwnedCredential` → `requireOwned`) before calling this.
-// Ends the day the runner revoke path threads a userId — the verb header already names that as the merge condition.
-export function setRevokedById(db: Db, credentialId: UserCredentialId, revokedAt: number, reason: CredRevokedReason): Promise<unknown> {
-  return db.update(userCredentials).set({ revokedAt, revokedReason: reason, updatedAt: revokedAt }).where(eq(userCredentials.id, credentialId));
+export function setRevokedById(
+  db: Db,
+  args: { readonly ownerId: UserId; readonly credentialId: UserCredentialId; readonly revokedAt: number; readonly reason: CredRevokedReason },
+): Promise<{ id: UserCredentialId }[]> {
+  return db
+    .update(userCredentials)
+    .set({ revokedAt: args.revokedAt, revokedReason: args.reason, updatedAt: args.revokedAt })
+    .where(and(eq(userCredentials.id, args.credentialId), eq(userCredentials.ownerId, args.ownerId)))
+    .returning({ id: userCredentials.id });
 }
 
 /** Clear a revocation (owner-scoped) — the user knows the key is good again. */

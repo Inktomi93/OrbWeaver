@@ -11,13 +11,16 @@
 // carries none.
 //
 // `credentialId === null` is the keyless arm (vllm/local-light/max-pro-sub own no row), so those sources
-// skip by construction rather than by a caller remembering to check.
+// skip by construction rather than by a caller remembering to check. `ownerId` is the TENANT SCOPE and lands
+// in the WHERE: this is the only revoke path with no Principal to prove ownership from, so a mismatch is
+// refused by the query and REPORTED (`reportOwnerMismatch`) rather than trusted to the caller's discipline.
 //
 // Best-effort: a revoke-write failure is logged and swallowed — the caller is already inside a catch
 // surfacing the generation's OWN error, and replacing it with a db error would misreport the failure.
 // Idempotent (re-revoking re-stamps `revoked_at`/`revoked_reason`).
 
 import { errorMessage } from "@orb/kit/error-message";
+import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { getLog, securityEvent } from "#foundation/observability";
 import type { ProviderErrorKind } from "#infra/providers";
 import type { CredentialContext } from "../context.ts";
@@ -30,17 +33,52 @@ import { setRevokedById } from "../persistence/queries.ts";
  *  union and quietly turn the guard below into a comparison that proves nothing. */
 const AUTH_FAILED = "auth_failed" satisfies ProviderErrorKind;
 
+/** A strike naming a credential its claimed owner does not hold. UNREACHABLE from the live wiring — the engine
+ *  can only name `ResolvedConnection.credential`, which `resolve` minted for that same principal — so reaching
+ *  here means a wiring is wrong or something is naming ids it does not hold. Either way it is a fact an
+ *  operator has to be able to find AFTER the fact, which is why it takes a DURABLE audit row and not just a
+ *  log line. System-attributed (`actorUserId: null`): no Principal was proven at this seam, and stamping the
+ *  claimed owner as the actor would launder an unverified id into the audit trail's actor column. */
+async function reportOwnerMismatch(
+  ctx: CredentialContext,
+  args: { readonly ownerId: UserId; readonly credentialId: UserCredentialId; readonly now: number },
+): Promise<void> {
+  await ctx.audit(
+    {
+      actorUserId: null,
+      action: "credential.revokeOwnerMismatch",
+      entityType: "credential",
+      entityId: args.credentialId,
+      metadata: { claimedOwnerId: args.ownerId, path: "auth_failed" },
+    },
+    args.now,
+  );
+  securityEvent(
+    "credential_revoke_owner_mismatch",
+    { credentialId: args.credentialId, claimedOwnerId: args.ownerId, path: "auth_failed" },
+    "credentials: a post-generation strike-out named a credential this owner does not hold — nothing revoked",
+  );
+}
+
 export function createMaybeRevokeOnAuthFailed(ctx: CredentialContext): CredentialsService["maybeRevokeOnAuthFailed"] {
   return async (params: MaybeRevokeParams): Promise<void> => {
     if (params.errorKind !== AUTH_FAILED || params.credentialId === null) {
       return;
     }
-    const { credentialId } = params;
+    const { credentialId, ownerId } = params;
+    const now = ctx.now();
     try {
-      await setRevokedById(ctx.db, credentialId, ctx.now(), "auth_failed");
+      // OWNER-SCOPED: `ownerId` is the WHERE predicate, not a comment. This is the one revoke path that does
+      // NOT pre-prove ownership (the runner holds an id, never a Principal), so the empty result is the only
+      // place a mismatch can be noticed at all.
+      const revoked = await setRevokedById(ctx.db, { ownerId, credentialId, revokedAt: now, reason: "auth_failed" });
+      if (revoked.length === 0) {
+        await reportOwnerMismatch(ctx, { ownerId, credentialId, now });
+        return;
+      }
       securityEvent(
         "credential_revoked",
-        { credentialId, reason: params.errorMessage, path: "auth_failed" },
+        { credentialId, ownerId, reason: params.errorMessage, path: "auth_failed" },
         "credentials: marked revoked (post-generation auth_failed strike-out)",
       );
     } catch (err) {

@@ -2022,7 +2022,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:catch::2",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1742,
+      "line": 1743,
       "column": 13,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2035,7 +2035,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:deltaErr::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1768,
+      "line": 1769,
       "column": 7,
       "grammar": "empty",
       "position": "empty:deltaErr",
@@ -2043,12 +2043,12 @@
       "snippet": "} catch (deltaErr) {",
       "verdict": "deliberate-absorb",
       "reason": "explicitly classified below — a `deltaErr` equal",
-      "markerLine": 1762
+      "markerLine": 1763
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::promise:releasedBody::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1874,
+      "line": 1875,
       "column": 10,
       "grammar": "promise",
       "position": "promise:releasedBody",

@@ -152,12 +152,35 @@ describe("persistence/queries", () => {
       active: true,
       now: FROZEN_AT,
     });
-    await setRevokedById(db, id, FROZEN_AT, "auth_failed");
+    expect(await setRevokedById(db, { ownerId: owner, credentialId: id, revokedAt: FROZEN_AT, reason: "auth_failed" })).toEqual([{ id }]);
     // The pair is written and cleared TOGETHER (#1373) — a live row carrying a stale reason would tell the
     // Connections pane a working key had been rejected.
     expect(await fetchOwnedCredential(db, owner, id)).toMatchObject({ revokedAt: FROZEN_AT, revokedReason: "auth_failed" });
     await clearRevokedOwned(db, owner, id, FROZEN_AT);
     expect(await fetchOwnedCredential(db, owner, id)).toMatchObject({ revokedAt: null, revokedReason: null });
+  });
+
+  test("setRevokedById is OWNER-SCOPED — a foreign owner matches no row and writes nothing", async () => {
+    // The predicate IS the belt (#1373 fix leg). This used to be `WHERE id = ?` behind an
+    // `@owner-scope-write-ok` marker arguing the callers could not reach a foreign row; the empty return here
+    // is what makes that a property of the QUERY instead of a claim about call sites.
+    const db = await freshDb();
+    const alice = await seedUser(db, { id: "user_a", role: "user" });
+    const bob = await seedUser(db, { id: "user_b", role: "user" });
+    const id = nextId();
+    await insertSealed(db, {
+      id,
+      ownerId: bob,
+      provider: "openrouter",
+      label: "default",
+      sealed: box.encrypt("k", aadFor(bob, "openrouter")),
+      metadata: null,
+      active: true,
+      now: FROZEN_AT,
+    });
+
+    expect(await setRevokedById(db, { ownerId: alice, credentialId: id, revokedAt: FROZEN_AT, reason: "auth_failed" })).toEqual([]);
+    expect(await fetchOwnedCredential(db, bob, id)).toMatchObject({ revokedAt: null, revokedReason: null });
   });
 
   test("deleteOwnedCredential is owner-scoped (a non-owner delete is a no-op)", async () => {

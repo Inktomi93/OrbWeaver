@@ -20,7 +20,7 @@ export function createMarkRevokedByUser(ctx: CredentialContext): CredentialsServ
     requireOwned(await fetchOwnedCredential(ctx.db, ownerId, credentialId), credentialId);
     const now = ctx.now();
     const reason = params.reason ?? DEFAULT_REASON;
-    await setRevokedById(ctx.db, credentialId, now, "user");
+    await setRevokedById(ctx.db, { ownerId, credentialId, revokedAt: now, reason: "user" });
     await ctx.audit(
       { actorUserId: ownerId, action: "credential.markRevokedByUser", entityType: "credential", entityId: credentialId, metadata: { reason, path: "user" } },
       now,

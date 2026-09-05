@@ -4,7 +4,7 @@
 
 import type { CredentialProvider, CredentialSource, ProviderMetadata } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
-import type { UserCredentialId } from "@orb/kit/ids";
+import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import type { ProviderErrorKind } from "#infra/providers";
 
 /** Common to every ownership-scoped credential verb: the acting principal (`principal.userId` is the
@@ -32,8 +32,15 @@ export interface ResolveCredentialParams extends CredentialActorParams {
  *  here, a caller spelling a non-member is a compile error at the seam.
  *
  *  `errorMessage` is operator-facing provenance that reaches the security-event log, so it must be
- *  secret-free — `ProviderError.message` is contractually so (infra/providers/contract/errors.ts). */
+ *  secret-free — `ProviderError.message` is contractually so (infra/providers/contract/errors.ts).
+ *
+ *  `ownerId` IS THE SCOPE, and it is required for the same reason the op declares it (`injected-op-caller-param`):
+ *  an injected op is the domain boundary, so the boundary — not the discipline of today's call sites — has to
+ *  carry it. It becomes the WHERE predicate of the revoke, so a credentialId this owner does not hold matches
+ *  no row and the strike refuses loudly instead of writing to a stranger. The chat engine supplies the turn's
+ *  frozen `runAsUserId`, which is exactly the principal `resolve` minted this credential for. */
 export interface MaybeRevokeParams {
+  readonly ownerId: UserId;
   readonly credentialId: UserCredentialId | null;
   readonly errorKind: ProviderErrorKind;
   readonly errorMessage: string;
@@ -62,9 +69,12 @@ export interface TestHealthParams extends CredentialActorParams {
   readonly credentialId: UserCredentialId;
 }
 
-/** Runner-internal revoke — no principal (the runner discovers a 401 and reports the credentialId).
- *  Public callers use {@link MarkRevokedByUserParams}. `reason` is log-only. */
+/** Runner-internal revoke — no Principal (the runner discovers a 401 and reports the id), but it DOES carry
+ *  the `ownerId` the row must belong to: the write is owner-scoped, so "no Principal" now means "no role
+ *  check", never "no tenant scope". Public callers use {@link MarkRevokedByUserParams}. `reason` is log-only
+ *  free text; the PERSISTED cause is the `CRED_REVOKED_REASONS` member the verb writes. */
 export interface MarkRevokedParams {
+  readonly ownerId: UserId;
   readonly credentialId: UserCredentialId;
   readonly reason: string;
 }
