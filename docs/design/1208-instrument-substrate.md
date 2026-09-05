@@ -1450,6 +1450,42 @@ and `file:` only, never dropped, counted as `file-origin-noise`. And the selecto
 page-subject sentinel (`script-error` / `off-theme-font` / `flat-type-hierarchy` all name the DOCUMENT) as
 unlocatable; `PAGE_SUBJECT_SELECTOR` is now named in `contract/findings.ts` and skipped by the proof.
 
+### 10.11 What the 4 KB stdout budget measures (ruled 2026-09-05, #1556 + #1675)
+
+The end card is an agent-facing contract with a hard size constraint: the Bash tool truncates long output,
+and a truncated snap run loses the END CARD — the one block carrying the verdict, the findings and the
+READ pointer. `tests/tooling/snap/ops/agent-readable-output.suite.int.test.ts` holds the 4096-byte budget
+(4 KB, not 8 — §10.7's citation shrink).
+
+**The budget measures the AGENT-READABLE BODY, not the whole stream.** A line belongs to the body when its
+length is a function of THIS run's own arms and findings. The two run-identity lines — `CONCURRENT` and
+`PROVENANCE` — are EXCLUDED, because their length is a function of how many OTHER snap runs happen to be
+live on this checkout: the racing census names each sibling's run id, pid and start time in both lines.
+That is a property of the box, not of snap's output. Measured (#1675): co-scheduled with
+`design-audit.suite`, an otherwise 8/8-green run gained ~230 bytes of census and the budget arm read
+4204/4096 — a green contract turned red by scheduling alone. Reproduced deterministically 2026-09-05 by
+planting one `.inflight` marker naming the test's own pid: 4154 bytes whole, ~3.9 KB in the body.
+
+**Excluded is not unmeasured.** The same arm asserts that the plant reached the census (both lines really
+are carrying it), that the exclusion removes EXACTLY those two lines and nothing else (byte arithmetic
+against the removed lines), and that both lines are present at all — so the budget cannot be widened later
+by relabelling a body line as provenance, and a run that stopped stating its provenance goes red.
+
+**The RESULT line is inside the body and is the thing that will break next.** It is one line of ~40
+`key=value` pairs, one per arm-owned result pair; the fold added 38 bytes and #1538 another 22, leaving
+roughly 200 bytes of headroom on a quiet box. The deliberate decision: **the budget does not move, and the
+RESULT line does not grow without paying for it.** An arm that adds a pair either replaces one, or the arm
+that adds it also removes an equivalent-width pair, or its author folds the multi-token group behind a
+single derived token (`load-suspect=<arm>` is the existing precedent — one token standing for a whole
+paragraph the reader can expand through `--report`). Raising 4096 is not a fix: it re-creates the
+truncation the budget exists to prevent, one Bash call later.
+
+**What a load-suspect run does NOT do to the budget.** Under #1616 a contended box LABELS rather than
+withholds, and the run-global annotation's ~600-byte reason paragraph IS body — it is about this run. The
+suite therefore plants a QUIET box (`BOX_LOAD_ENV`) for every child rather than excusing the bytes: the
+output contract is judged on a quiet box, and the loaded-box arm that needs the annotation asserts its
+NAMING, not its size.
+
 ## 11. Cost
 
 | Item | Estimate |
