@@ -143,14 +143,62 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
   );
 }
 
-/** The band's primary, alone — file-local (see the header for why it is no longer exported). */
+// ── THE BAND'S NARROW ARM (#1697, side-eye 2026-09-05) ───────────────────────────────────────────────
+// THE DEFECT. Docking the CONTEXT pane fires shell.css's #242 conditional squeeze and narrows the LIST
+// track 307 → 272px. The band is `space-between` with two flex children, and only ONE of them may shrink:
+// the identity cluster carries `min-w-0`, while the action cluster's two buttons hold their intrinsic
+// widths. So the section's own NAME was the first thing to give up width, and it gave it up in the state
+// the section exists for — measured on the tree, `[data-slot="list-pane-title"] span`:
+//
+//   pane 307 → band 306 · identity 159 · title lane 127 of 127 needed · import 32 · New 74   → `Characters`
+//   pane 272 → band 271 · identity 127 · title lane  95 of 127 needed · import 32 · New 74   → `Chara…`
+//
+// THE THRESHOLD IS DERIVED, NOT PICKED. The band spends `pane − 1 (border) − 24 (padding-inline) − 8 (band
+// gap) − 6 (action gap) − 32 (import) − 74 (labelled New) = pane − 145` on the identity cluster, and the
+// identity cluster needs `127 (the word "Characters" at the display step) + 8 (the row gap) + 24 (a bare
+// three-digit census) = 159`. So the labelled arm fits exactly while `pane >= 304`, which is 19rem — the
+// clean step the measurement lands on, which is why the literal is a rem and not a pixel count.
+//
+// WIDTH-KEYED, NOT VIEWPORT-KEYED, AND CSS-ONLY. The question is "how wide is THIS PANE", which no viewport
+// media query can answer (the same 1440px desktop produces both widths) — and `.shell-panel` is already an
+// `inline-size` container, so the unnamed container variants below resolve against exactly the box whose
+// squeeze caused the defect. A JS branch would also be the wrong tier: chrome that responds to its own box
+// is a CSS decision here by the same reasoning `pager-chrome.ts` records for the swipe strip.
+//
+// A CONTAINER QUERY CONDITION CANNOT READ A CUSTOM PROPERTY (`var()` is invalid in `@container`), so this
+// threshold cannot ride the spacing tokens the band is built from — the derivation above is what keeps it
+// honest, exactly as the pager module's own thresholds do.
+//
+// WHY A DISPLAY PAIR RATHER THAN HIDING THE WORD. `sr-only`-ing the label inside one button would leave a
+// 16px glyph wearing a TEXT step's `px-block` padding: a 40px-wide box at a control-step height, which is
+// the #842 shape (an icon-only control 4px under the touch floor on its short side at a coarse pointer)
+// that the import ghost beside it already had to be rebuilt to escape. Two buttons gated by `display` give
+// the narrow arm a real `icon-sm` SQUARE — 32px fine, 44px coarse — and put exactly one of the pair in
+// layout, and therefore in the a11y tree, at any given pane width.
+
+/** The LABELLED arm: stands down below the derived 19rem pane width. */
+const CREATE_LABELLED_ARM = "@max-[19rem]:hidden";
+
+/** The ICON-ONLY arm: exists only below it. Tailwind v4 emits these as the complementary range conditions
+ *  (`width < 19rem` / `width >= 19rem`), so the pair can neither overlap nor leave a gap at the boundary. */
+const CREATE_ICON_ARM = "@[19rem]:hidden";
+
+/** The band's primary, alone — file-local (see the header for why it is no longer exported).
+ *
+ *  TWO ARMS, ONE DOOR: the same dialog state, the same verb, one of them in layout per pane width (see the
+ *  block above). The narrow arm names itself `New character` because an icon-only `New` names nothing; the
+ *  wide arm is named by the word it paints, and "New" is contained in "New character", so a voice-control
+ *  user saying what they can see reaches the door in either arm (WCAG 2.5.3). */
 function CharacterCreateButton(): ReactElement {
   const [createOpen, setCreateOpen] = useState(false);
   return (
     <>
-      <Button intent="primary" onClick={(): void => setCreateOpen(true)} size="sm">
+      <Button className={CREATE_LABELLED_ARM} intent="primary" onClick={(): void => setCreateOpen(true)} size="sm">
         <Icon icon={Plus} size="sm" />
         New
+      </Button>
+      <Button aria-label="New character" className={CREATE_ICON_ARM} intent="primary" onClick={(): void => setCreateOpen(true)} size="icon-sm" type="button">
+        <Icon icon={Plus} size="sm" />
       </Button>
       <NewCharacterDialog onOpenChange={setCreateOpen} open={createOpen} />
     </>
