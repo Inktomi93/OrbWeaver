@@ -520,7 +520,7 @@ describe("gatherAssembleContext — the host-tier regex union (D53 as amended by
           preset: [regexScript("preset", "p", "q", "WORLD_INFO")],
           // PER SEAT (#1742/F3) — one slice per seated character, so the gather can key a per-character
           // allow off it. Concatenating the slices reproduces the flat list this used to be.
-          character: [{ characterId: aria, scripts: [regexScript("cast", "a", "b", "WORLD_INFO")] }],
+          character: [{ characterId: aria, scripts: [regexScript("character", "a", "b", "WORLD_INFO")] }],
           chat: [regexScript("room", "r", "s", "WORLD_INFO")],
         });
       },
@@ -538,7 +538,7 @@ describe("gatherAssembleContext — the host-tier regex union (D53 as amended by
       foreignOf(),
     );
 
-    expect((out.hostTierRegexScripts ?? []).map((s) => s.name)).toEqual(["global", "preset", "cast", "room"]);
+    expect((out.hostTierRegexScripts ?? []).map((s) => s.name)).toEqual(["global", "preset", "character", "room"]);
     // The scope keys the gather handed the resolver: the FROZEN host (D19 — never the calling member), the
     // room, and the roster's characters in order. A drift here is a silently wrong (or cross-tenant) source set.
     expect(seen.ownerId).toBe(host);
