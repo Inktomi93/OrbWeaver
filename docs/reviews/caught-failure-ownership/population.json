@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 535,
-    "enforced": 530,
+    "sites": 537,
+    "enforced": 532,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 530,
+      "deliberate-absorb": 532,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 140,
       "default": 144,
-      "empty": 251
+      "empty": 253
     }
   },
   "rows": [
@@ -1825,6 +1825,19 @@
       "markerLine": 99
     },
     {
+      "siteId": "packages/server/src/domain/automation/engine/prompt-transforms.ts::empty:catch::1",
+      "path": "packages/server/src/domain/automation/engine/prompt-transforms.ts",
+      "line": 190,
+      "column": 9,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "DELIBERATE ABSORBER, the enabled index's twin",
+      "markerLine": 184
+    },
+    {
       "siteId": "packages/server/src/domain/automation/substrate/authority.ts::default:catch::1",
       "path": "packages/server/src/domain/automation/substrate/authority.ts",
       "line": 43,
@@ -1836,6 +1849,19 @@
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the ONE `can()` kernel's refusal",
       "markerLine": 37
+    },
+    {
+      "siteId": "packages/server/src/domain/automation/substrate/enabled-index.ts::empty:catch::1",
+      "path": "packages/server/src/domain/automation/substrate/enabled-index.ts",
+      "line": 54,
+      "column": 9,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "DELIBERATE ABSORBER. The owner is the STALE",
+      "markerLine": 47
     },
     {
       "siteId": "packages/server/src/domain/automation/substrate/plugin-subscribers.ts::empty:catch::1",
