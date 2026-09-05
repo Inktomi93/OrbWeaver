@@ -142,8 +142,14 @@ function formOf(...files: readonly File[]): FormData {
   return form;
 }
 
+/** The uploader's OWN staging subdir (#1534): the route stages under `<root>/<userId>/`, so a staged tree is
+ *  only ever addressable by a workload row owned by that user. Absent subdir = nothing was staged. */
+function ownerStagingRoot(userId: UserId = OWNER.userId): string {
+  return join(stagingDir, userId);
+}
+
 async function stagedSubdirs(): Promise<string[]> {
-  const ents = await readdir(stagingDir, { withFileTypes: true });
+  const ents = await readdir(ownerStagingRoot(), { withFileTypes: true }).catch(() => []);
   return ents.filter((e) => e.isDirectory()).map((e) => e.name);
 }
 
@@ -243,7 +249,9 @@ describe("registerImportTree — layout sniff dispatch (caller-scoped ownerId)",
     expect(call?.ownerId).toBe(OWNER.userId);
     // The picked-folder wrapper is stripped: the staged tree has entity dirs at its root.
     const token = call?.input.params["token"] as string;
-    expect(await readdir(join(stagingDir, token))).toEqual(expect.arrayContaining(["characters", "personas", "presets"]));
+    expect(await readdir(join(ownerStagingRoot(), token))).toEqual(expect.arrayContaining(["characters", "personas", "presets"]));
+    // The staged tree sits under the UPLOADER, never at the shared root.
+    expect(await readdir(stagingDir)).toEqual([OWNER.userId]);
   });
 
   test("ST profile tree → import-st {stagedDir}, re-nested under one profile subdir", async () => {
@@ -255,10 +263,10 @@ describe("registerImportTree — layout sniff dispatch (caller-scoped ownerId)",
     expect(call?.ownerId).toBe(OWNER.userId);
     const token = call?.input.params["stagedDir"] as string;
     // importAll walks a PARENT-of-profiles: exactly one profile subdir under the staged root.
-    const roots = await readdir(join(stagingDir, token), { withFileTypes: true });
+    const roots = await readdir(join(ownerStagingRoot(), token), { withFileTypes: true });
     const dirs = roots.filter((e) => e.isDirectory());
     expect(dirs).toHaveLength(1);
-    expect(await readdir(join(stagingDir, token, dirs[0]?.name ?? ""))).toEqual(expect.arrayContaining(["characters", "settings.json", "chats"]));
+    expect(await readdir(join(ownerStagingRoot(), token, dirs[0]?.name ?? ""))).toEqual(expect.arrayContaining(["characters", "settings.json", "chats"]));
   });
 
   test("ambiguous (orb dir + ST settings.json) → 400, nothing staged", async () => {

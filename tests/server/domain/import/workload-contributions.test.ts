@@ -7,6 +7,10 @@
 // resolved `".."` to the staging root's PARENT, which the unconditional cleanup `rm` then recursively
 // deleted (a `/`-wipe when the default staging root is the OS temp dir).
 //
+// Since #1534 the belt runs against the ROW OWNER's subdir of the staging root (`stagedOwnerRoot`), which is
+// the second half of the same story: a handle is a NAME, and the only thing that makes it readable is being
+// staged for the account whose run is asking. Its own describe block drives two owners.
+//
 // The rest pins the contribution's own logic: the ownerless-row guard, the dryRun echo, and the post-settle
 // stats reconcile (only on a real run that changed rows).
 
@@ -23,6 +27,7 @@ import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
 const T0 = 1_700_000_000_000;
+const STRANGER_ID = castId<UserId>("user_stranger");
 const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, now: () => T0 };
 const sig = (): AbortSignal => new AbortController().signal;
 
@@ -58,16 +63,19 @@ const bases: string[] = [];
 
 /** A fresh staging root plus a SIBLING `victim/keep.txt` (the parent-directory blast target `stagedDir: ".."`
  *  used to delete) — the escape belt must leave both the root and the sibling untouched. */
-async function makeStaging(): Promise<{ stagingRoot: string; victim: string; victimFile: string }> {
+async function makeStaging(): Promise<{ stagingRoot: string; ownerRoot: string; victim: string; victimFile: string }> {
   const base = await mkdtemp(join(tmpdir(), "orb-staging-belt-"));
   bases.push(base);
   const stagingRoot = join(base, "staging");
+  // #1534: handles resolve under the ROW OWNER's subdir, so that is where the upload routes write and where
+  // these fixtures stage. `stagingRoot` itself holds no handles.
+  const ownerRoot = join(stagingRoot, OWNER_ID);
   const victim = join(base, "victim");
   const victimFile = join(victim, "keep.txt");
-  await mkdir(stagingRoot, { recursive: true });
+  await mkdir(ownerRoot, { recursive: true });
   await mkdir(victim, { recursive: true });
   await writeFile(victimFile, "keep");
-  return { stagingRoot, victim, victimFile };
+  return { stagingRoot, ownerRoot, victim, victimFile };
 }
 
 afterEach(async () => {
@@ -121,9 +129,9 @@ describe("import-st — staging containment", () => {
   });
 
   test("a stagedDir SYMLINKED out of the root is refused — containment is resolved, not string-matched", async () => {
-    const { stagingRoot, victim, victimFile } = await makeStaging();
+    const { stagingRoot, ownerRoot, victim, victimFile } = await makeStaging();
     // Charset-legal handle, lexically in-root, but the entry itself points at the sibling tree.
-    await symlink(victim, join(stagingRoot, SYMLINK_TOKEN), "dir");
+    await symlink(victim, join(ownerRoot, SYMLINK_TOKEN), "dir");
     const { deps, contributions } = build(stagingRoot);
     await expect(contributions[0].run(ctx, { stagedDir: SYMLINK_TOKEN }, vi.fn(), sig())).rejects.toThrow(ESCAPE_ERROR);
     // The victim tree is never walked, and the cleanup rm never reaches it.
@@ -133,8 +141,8 @@ describe("import-st — staging containment", () => {
   });
 
   test("a valid staged handle resolves IN-ROOT, runs, and its cleanup stays inside the root", async () => {
-    const { stagingRoot, victim } = await makeStaging();
-    const stagedPath = join(stagingRoot, VALID_TOKEN);
+    const { stagingRoot, ownerRoot, victim } = await makeStaging();
+    const stagedPath = join(ownerRoot, VALID_TOKEN);
     await mkdir(stagedPath, { recursive: true });
     const { deps, contributions } = build(stagingRoot);
     const result = await contributions[0].run(ctx, { stagedDir: VALID_TOKEN }, vi.fn(), sig());
@@ -206,8 +214,8 @@ describe("import-bundle — staging containment", () => {
   });
 
   test("a token SYMLINKED at a file outside the root is refused before the archive is read", async () => {
-    const { stagingRoot, victim, victimFile } = await makeStaging();
-    await symlink(victimFile, join(stagingRoot, SYMLINK_TOKEN), "file");
+    const { stagingRoot, ownerRoot, victim, victimFile } = await makeStaging();
+    await symlink(victimFile, join(ownerRoot, SYMLINK_TOKEN), "file");
     const { deps, contributions } = build(stagingRoot);
     await expect(contributions[2].run(ctx, { token: SYMLINK_TOKEN }, vi.fn(), sig())).rejects.toThrow(ESCAPE_ERROR);
     // The out-of-root file's BYTES never reach the importer, and it is still there afterwards.
@@ -217,8 +225,8 @@ describe("import-bundle — staging containment", () => {
   });
 
   test("a valid token imports a staged DIR and scopes cleanup to inside the root", async () => {
-    const { stagingRoot, victim } = await makeStaging();
-    const stagedPath = join(stagingRoot, VALID_TOKEN);
+    const { stagingRoot, ownerRoot, victim } = await makeStaging();
+    const stagedPath = join(ownerRoot, VALID_TOKEN);
     await mkdir(stagedPath, { recursive: true });
     const { deps, contributions } = build(stagingRoot);
     const result = await contributions[2].run(ctx, { token: VALID_TOKEN, source: "dir" }, vi.fn(), sig());
@@ -230,8 +238,8 @@ describe("import-bundle — staging containment", () => {
   });
 
   test("the default (zip) source reads the staged archive and removes it afterwards", async () => {
-    const { stagingRoot } = await makeStaging();
-    const stagedPath = join(stagingRoot, "import-bundle-abc.zip");
+    const { stagingRoot, ownerRoot } = await makeStaging();
+    const stagedPath = join(ownerRoot, "import-bundle-abc.zip");
     await writeFile(stagedPath, "not-a-real-zip");
     const { deps, contributions } = build(stagingRoot);
     const result = await contributions[2].run(ctx, { token: "import-bundle-abc.zip" }, vi.fn(), sig());
@@ -247,14 +255,14 @@ describe("import-bundle — staging containment", () => {
   });
 
   test("a bundle that imported canon fans the owner's library-changed refresh; an empty import does not (#23)", async () => {
-    const { stagingRoot } = await makeStaging();
-    const stagedPath = join(stagingRoot, VALID_TOKEN);
+    const { stagingRoot, ownerRoot } = await makeStaging();
+    const stagedPath = join(ownerRoot, VALID_TOKEN);
     await mkdir(stagedPath, { recursive: true });
     const { deps, contributions } = build(stagingRoot);
     await contributions[2].run(ctx, { token: VALID_TOKEN, source: "dir" }, vi.fn(), sig()); // runStagedDirImport ⇒ imported: 3
     expect(deps.emitLibraryChanged).toHaveBeenCalledExactlyOnceWith({ ownerId: OWNER_ID });
 
-    const emptyStaged = join(stagingRoot, `${VALID_TOKEN}-empty`);
+    const emptyStaged = join(ownerRoot, `${VALID_TOKEN}-empty`);
     await mkdir(emptyStaged, { recursive: true });
     const { deps: emptyDeps, contributions: emptyContributions } = build(stagingRoot, {
       runStagedDirImport: vi.fn(async () => ({ imported: 0, skipped: 4, failed: 0 })),
@@ -315,6 +323,64 @@ describe("import-token-usage-backfill — provenance settlement", () => {
     expect(result).toMatchObject({ scanned: 2, exactRecovered: 1, estimated: 1, ownersReconciled: 0, dryRun: true });
     expect(deps.compareAndSetTokenUsage).not.toHaveBeenCalled();
     expect(deps.reconcileImportStats).not.toHaveBeenCalled();
+  });
+});
+
+describe("staged handles are per-owner, not bearer tokens (#1534)", () => {
+  test("a SECOND owner's run cannot read the handle staged for another owner, and cannot delete it either", async () => {
+    const { stagingRoot } = await makeStaging();
+    // A's staged upload, in A's own namespace — exactly where the route writes it.
+    const aRoot = join(stagingRoot, OWNER_ID);
+    await mkdir(aRoot, { recursive: true });
+    const aStaged = join(aRoot, VALID_TOKEN);
+    await writeFile(aStaged, "user-a-private-bundle");
+    // A DECOY at the bare staging root under the same handle — where the pre-#1534 belt resolved handles.
+    // Without it this arm passes vacuously (any missing path refuses); with it, a belt that resolves off the
+    // row owner reads SOMEBODY'S bundle and the arm goes red.
+    const rootDecoy = join(stagingRoot, VALID_TOKEN);
+    await writeFile(rootDecoy, "not-the-stranger's-either");
+    const { deps, contributions } = build(stagingRoot);
+
+    // B names A's handle on a run of B's own (`workloads.start` is `authedProcedure`; this is the whole
+    // exploit — nothing but the row's ownerId distinguishes the two calls).
+    const strangerCtx: WorkloadRunContext = { ...ctx, userId: STRANGER_ID, ownerId: STRANGER_ID };
+    await expect(contributions[2].run(strangerCtx, { token: VALID_TOKEN }, vi.fn(), sig())).rejects.toThrow(/staging root/u);
+
+    // A's bytes never reached the importer, and B's cleanup `finally` did not delete them.
+    expect(deps.runBundleImport).not.toHaveBeenCalled();
+    expect(await exists(aStaged)).toBe(true);
+    expect(await exists(rootDecoy)).toBe(true);
+  });
+
+  test("the OWNER's own run reads the same handle and imports it (the positive control)", async () => {
+    const { stagingRoot } = await makeStaging();
+    const aRoot = join(stagingRoot, OWNER_ID);
+    await mkdir(aRoot, { recursive: true });
+    await writeFile(join(aRoot, VALID_TOKEN), "user-a-private-bundle");
+    const { deps, contributions } = build(stagingRoot);
+
+    const result = await contributions[2].run(ctx, { token: VALID_TOKEN }, vi.fn(), sig());
+
+    expect(deps.runBundleImport).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ imported: 7, skipped: 1, failed: 0 });
+    expect(await exists(join(aRoot, VALID_TOKEN))).toBe(false);
+  });
+
+  test("import-st's stagedDir is namespaced the same way — a stranger's handle resolves nothing", async () => {
+    const { stagingRoot } = await makeStaging();
+    const aStagedDir = join(stagingRoot, OWNER_ID, VALID_TOKEN);
+    await mkdir(aStagedDir, { recursive: true });
+    // The same decoy at the bare root the pre-#1534 belt would have walked (keeps this arm differential).
+    const rootDecoy = join(stagingRoot, VALID_TOKEN);
+    await mkdir(rootDecoy, { recursive: true });
+    const { deps, contributions } = build(stagingRoot);
+    const strangerCtx: WorkloadRunContext = { ...ctx, userId: STRANGER_ID, ownerId: STRANGER_ID };
+
+    await expect(contributions[0].run(strangerCtx, { stagedDir: VALID_TOKEN }, vi.fn(), sig())).rejects.toThrow(/staging root/u);
+
+    expect(deps.runProfileDirImport).not.toHaveBeenCalled();
+    expect(await exists(aStagedDir)).toBe(true);
+    expect(await exists(rootDecoy)).toBe(true);
   });
 });
 

@@ -141,8 +141,10 @@ function handler(): Handler {
   return h;
 }
 
-async function stagedFiles(): Promise<string[]> {
-  return await readdir(stagingDir);
+/** The uploader OWN staging subdir (#1534) - the route stages under root/userId, so the belts
+ *  "was it removed?" receipts read there. An absent subdir means nothing was ever staged. */
+async function stagedFiles(userId: UserId = HEADER_USER.userId): Promise<string[]> {
+  return await readdir(join(stagingDir, userId)).catch(() => []);
 }
 
 beforeEach(async () => {
@@ -270,6 +272,25 @@ describe("registerImportBundle — owner scoping + the server-minted staging tok
     expect(typeof token).toBe("string");
     expect(await stagedFiles()).toEqual([token]);
     expect(String(token)).toMatch(/^import-bundle-[0-9a-f-]{36}\.zip$/u);
+  });
+
+  // #1534 — the staging namespace is PER-UPLOADER, and that is what makes the handle safe to hand out: the
+  // import contribution re-derives the same subdir from ITS row's owner, so a second account naming this
+  // token resolves a path that does not exist under its own root. Nothing lands at the bare staging root.
+  test("the staged file lands under the UPLOADER's own subdir, never at the shared root", async () => {
+    const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04]);
+    await handler()(makeCtx(HEADER_USER, streamOf(bytes)).ctx);
+    const token = startSpy.mock.calls[0]?.[0]?.input.params["token"];
+
+    expect(await readdir(stagingDir)).toEqual([HEADER_USER.userId]);
+    expect(await readdir(join(stagingDir, HEADER_USER.userId))).toEqual([token]);
+
+    // A DIFFERENT principal's upload lands in a DIFFERENT subdir — two accounts never share a directory.
+    startSpy.mockResolvedValue({ id: castId<WorkloadId>("workload_bundle_2") });
+    await handler()(makeCtx(FALLBACK_OWNER, streamOf(bytes), { [CSRF_HEADER]: "1" }).ctx);
+    const otherToken = startSpy.mock.calls[1]?.[0]?.input.params["token"];
+    expect((await readdir(stagingDir)).sort()).toEqual([HEADER_USER.userId, FALLBACK_OWNER.userId].sort());
+    expect(await readdir(join(stagingDir, FALLBACK_OWNER.userId))).toEqual([otherToken]);
   });
 
   test("two uploads mint DISTINCT tokens (no fixed path a second caller could race or overwrite)", async () => {

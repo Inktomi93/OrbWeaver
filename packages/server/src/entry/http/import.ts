@@ -5,14 +5,20 @@
 // touched) → CSRF → a DoS byte cap on the staging write (413, partial file removed) → owner-scoped start.
 // The staged zip is owned by the workload from `start` on (its runner-env op cleans it up in a finally);
 // a pre-dispatch failure removes it here instead.
+//
+// PER-UPLOADER STAGING ROOT (#1534): the bytes land under `<root>/<uploader userId>/`, the namespace the
+// import contribution re-derives from ITS row's owner. The handle is not a capability — `workloads.start` is
+// `authedProcedure` and would otherwise accept another user's handle from anyone who learned it (and it is
+// echoed in the uploader's own workload row). `domain/import/substrate/staging.ts` is the one home for both
+// the derivation and the app-owned default root (never the shared OS temp dir).
 
 import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { Hono } from "hono";
+import { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "#domain/import";
 import type { WorkloadService } from "#domain/workloads";
 import { hasCsrfHeader } from "#infra/auth";
 import { IMPORT_MAX_TOTAL_BYTES } from "../import/index.ts";
@@ -25,6 +31,8 @@ const PAYLOAD_TOO_LARGE = 413;
 const CONFLICT = 409;
 const ACCEPTED = 202;
 const BUNDLE_ROUTE = "/api/import/bundle";
+/** Staging dirs are per-uploader, so they are created rwx for the app user only. */
+const OWNER_ONLY_DIR = 0o700;
 
 export interface ImportBundleDeps {
   readonly workloads: Pick<WorkloadService, "start">;
@@ -34,7 +42,7 @@ export interface ImportBundleDeps {
 /** Write the upload stream to `path`, aborting (returning `false`) the instant it exceeds `maxBytes`.
  *  O_CREAT|O_EXCL|O_NOFOLLOW (the flags the zip + folder-tree stagers already carry): a staged upload is
  *  always a fresh regular file, so nothing our own writers put under the staging root can be a symlink for
- *  the import contribution's containment belt to meet. The default root is the OS temp dir. */
+ *  the import contribution's containment belt to meet. */
 async function stageCapped(body: ReadableStream<Uint8Array>, path: string, maxBytes: number): Promise<boolean> {
   // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (the sibling staging writers carry the same exemption).
   const handle = await open(path, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW);
@@ -78,8 +86,10 @@ export function registerImportBundle(app: Hono<PrincipalEnv>, deps: ImportBundle
       return c.json({ error: "empty request body — expected a zip bundle" }, BAD_REQUEST);
     }
 
-    const stagingRoot = deps.stagingDir ?? tmpdir();
-    await mkdir(stagingRoot, { recursive: true });
+    // The uploader's OWN staging namespace — the import run re-derives it from its row owner, so a handle
+    // only ever resolves for the account it was staged for. 0o700: the directory is not a shared inbox.
+    const stagingRoot = stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId);
+    await mkdir(stagingRoot, { recursive: true, mode: OWNER_ONLY_DIR });
     const token = `import-bundle-${randomUUID()}.zip`;
     const stagedPath = join(stagingRoot, token);
     const staged = await stageCapped(body, stagedPath, IMPORT_MAX_TOTAL_BYTES);

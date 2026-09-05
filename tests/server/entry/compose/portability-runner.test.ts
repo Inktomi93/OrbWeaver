@@ -3,10 +3,13 @@
 // nowhere else:
 //
 //   • THE STAGING ROOT MUST AGREE WITH THE UPLOAD ROUTES. `entry/http/import.ts` writes the staged zip under
-//     `deps.stagingDir ?? tmpdir()`; the contribution reads under `deps.importStagingDir ?? tmpdir()`. If
-//     the two defaults ever diverge, every uploaded bundle stages fine and then imports NOTHING — and the
-//     staging root is also the fence the domain resolves staged handles strictly inside, so a wrong root is
-//     a path-containment question, not just a plumbing one.
+//     `stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, uploader)`; the contribution reads
+//     under `stagedOwnerRoot(deps.importStagingDir ?? DEFAULT_IMPORT_STAGING_DIR, its row owner)`. If the two
+//     defaults ever diverge, every uploaded bundle stages fine and then imports NOTHING — and the root is
+//     also the fence the domain resolves staged handles strictly inside, so a wrong root is a
+//     path-containment question, not just a plumbing one. The default is app-owned on purpose (#1534): the
+//     OS temp dir is a shared namespace, and the per-owner subdir is what stops one account's handle from
+//     naming another's staged bytes.
 //   • THE ST PROFILE DEFAULT is the gitignored `.st-data` snapshot; a drifted default would point a real
 //     `import-st` run at some other directory on the operator's box.
 //   • THE THREE BULK RUNS EACH RIDE QUIET MODE and must still RETURN their counts — `withQuietBulkFanout`
@@ -27,6 +30,7 @@ import type { Db } from "@orb/db";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { DEFAULT_IMPORT_STAGING_DIR } from "@orb/server/domain/import";
 import type { StartWorkloadParams, WorkloadService } from "@orb/server/domain/workloads";
 import { subscribeUserEvents } from "@orb/server/transport/trpc";
 import { afterEach, beforeEach, describe, vi } from "vitest";
@@ -101,8 +105,10 @@ afterEach(async () => {
 });
 
 describe("buildPortabilityRunner — the staging root must agree with what the upload routes wrote", () => {
-  test("absent ⇒ the OS temp dir — byte-identical to `entry/http/import.ts`'s own default", () => {
-    expect(build().importWorkloads.stagingRoot).toBe(tmpdir());
+  test("absent ⇒ the app-owned default — byte-identical to `entry/http/import.ts`'s own default", () => {
+    expect(build().importWorkloads.stagingRoot).toBe(DEFAULT_IMPORT_STAGING_DIR);
+    // Never the OS temp dir: a shared, world-listable namespace is not a staging root (#1534).
+    expect(build().importWorkloads.stagingRoot).not.toBe(tmpdir());
   });
 
   test("supplied ⇒ that exact root (the fence staged handles must resolve strictly inside)", () => {

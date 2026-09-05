@@ -8,7 +8,6 @@
 // because the import brain was split between the portability descriptors and the god-hub. It is built ONCE
 // now and shared: the descriptors take it directly, and the import CONTRIBUTION takes the composed drivers.
 
-import { tmpdir } from "node:os";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
@@ -22,6 +21,7 @@ import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCand
 import type { DatabankPortabilityContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImportWorkloadDeps } from "#domain/import";
+import { DEFAULT_IMPORT_STAGING_DIR } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import { findOwnedPersonaByName } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
@@ -88,8 +88,9 @@ export interface PortabilityRunnerComposeDeps {
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
   readonly workloads: Pick<WorkloadService, "start">;
-  /** The staging root the upload routes wrote under; absent ⇒ the OS temp dir (the same default the routes
-   *  resolve, so the contribution reads exactly where the route wrote). */
+  /** The staging root the upload routes wrote under; absent ⇒ {@link DEFAULT_IMPORT_STAGING_DIR} (the same
+   *  default the routes resolve, so the contribution reads exactly where the route wrote — and the routes
+   *  write, and this reads, under the per-owner subdir `stagedOwnerRoot` derives from it). */
   readonly importStagingDir?: string | undefined;
   readonly stProfileDir?: string | undefined;
 }
@@ -207,7 +208,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     ...profileImport,
   });
 
-  const stagingRoot = deps.importStagingDir ?? tmpdir();
+  const stagingRoot = deps.importStagingDir ?? DEFAULT_IMPORT_STAGING_DIR;
   const fs = createNodeFsImportPort();
   const importWorkloads: ImportWorkloadDeps = {
     stagingRoot,

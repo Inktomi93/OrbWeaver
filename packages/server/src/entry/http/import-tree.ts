@@ -4,7 +4,11 @@
 // batch into a fresh unique dir under the staging root, sniffs the tree layout, and enqueues the matching
 // per-owner import workload (import-st for a SillyTavern profile tree, import-bundle for an orb backup tree),
 // replying 202 {workloadId}. The workload owns the staged tree's cleanup (its runner-env op removes it in a
-// finally), mirroring the staged-zip path.
+// finally), mirroring the staged-zip path — including its PER-UPLOADER staging root (#1534): the tree stages
+// under `<root>/<uploader userId>/`, the namespace the import contribution re-derives from its row's owner,
+// so the handle in `params.stagedDir`/`params.token` names bytes for exactly one account and authorizes
+// nothing on its own. One home for the derivation + the app-owned default root:
+// `domain/import/substrate/staging.ts`.
 //
 // Belt order mirrors the sibling upload routes: auth (401 before the body is read) → CSRF (403 on a cookie
 // mutation missing the custom header) → a hono/body-limit total-bytes cap (413) → per-file + count caps
@@ -15,7 +19,6 @@
 import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_FILES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
@@ -23,6 +26,7 @@ import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "#domain/import";
 import type { WorkloadService } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
@@ -37,6 +41,8 @@ const CONFLICT = 409;
 const ACCEPTED = 202;
 const TREE_ROUTE = "/api/import/tree";
 const UPLOAD_FIELD = "file";
+/** Staging dirs are per-uploader, so they are created rwx for the app user only. */
+const OWNER_ONLY_DIR = 0o700;
 
 // Total batch cap — the ceiling on the whole multipart body (formData buffers it in memory). Raised to
 // 1 GiB (owner, 2026-08-08) for whole-ST-profile folder imports: a real SillyTavern default-user tree
@@ -255,7 +261,7 @@ async function stageUpload(
     const found = layout.found.join(", ") || "nothing";
     throw new TreeRejected(BAD_REQUEST, `unrecognized library layout (found: ${found})`);
   }
-  await mkdir(stagingRoot, { recursive: true });
+  await mkdir(stagingRoot, { recursive: true, mode: OWNER_ONLY_DIR });
   const token = `import-tree-${randomUUID()}`;
   const stagedRoot = join(stagingRoot, token);
   await mkdir(stagedRoot, { recursive: true });
@@ -299,7 +305,7 @@ export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps
     // HTTP handler.
     try {
       const parts = await collectParts(await c.req.formData());
-      const { stagedRoot, input } = await stageUpload(orbDirs, deps.stagingDir ?? tmpdir(), parts);
+      const { stagedRoot, input } = await stageUpload(orbDirs, stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId), parts);
       try {
         const { id } = await deps.workloads.start({
           input,
