@@ -17,7 +17,7 @@
 // health UI probes them by id).
 
 import type { ProviderMetadata } from "@orb/contracts/credentials";
-import { CRED_PROVIDERS } from "@orb/contracts/credentials";
+import { CRED_PROVIDERS, CRED_REVOKED_REASONS } from "@orb/contracts/credentials";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
@@ -50,8 +50,18 @@ export const userCredentials = sqliteTable(
     tag: text("tag").notNull(),
     // The one-active-per-(owner,provider) flag (enforced by the partial unique index).
     active: integer("active", { mode: "boolean" }).notNull().default(DEFAULT_ACTIVE),
-    // Set when the credential is revoked (auth_failed strike-out or user action); null = live.
+    // Set when the credential is revoked; null = live. THE POLICY (#1373, wired end to end — adapter
+    // `ProviderErrorKind` → post-generation hook → this row → the Connections pane): ONE provider
+    // `auth_failed` revokes (there is no strike COUNTER on this table and none is wanted — a key the
+    // provider has rejected is dead now, not on the third try); the health probe's 3-strike UNREACHABLE
+    // limit and an explicit user revoke are the other two writers. No `rate_limit`/`billing`/`moderation`/
+    // `forbidden`/network/server failure ever revokes.
     revokedAt: integer("revoked_at"),
+    // WHICH of those wrote `revoked_at`, so the pane can say "the provider rejected it" vs "you revoked it"
+    // instead of a bare Revoked chip. Derives `CRED_REVOKED_REASONS` (never re-spelled). Written in the same
+    // statement as `revokedAt` and cleared with it (`setRevokedById` requires it; `CLEARED_REVOCATION` nulls
+    // the pair at every clear site) — the pairing is a property of the writer SET, enforced by tsc.
+    revokedReason: text("revoked_reason", { enum: CRED_REVOKED_REASONS }),
     // Provider-specific JSON (custom_openai baseUrl/headers). Parsed at
     // the read seam via `parseProviderMetadata` (@orb/contracts/credentials). Nullable: most providers
     // have a fixed base URL and carry no metadata.

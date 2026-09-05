@@ -920,6 +920,7 @@
     "tests/server/domain/chat/contract/metadata.test.ts",
     "tests/server/domain/chat/engine/auto-mode.test.ts",
     "tests/server/domain/chat/engine/budget.test.ts",
+    "tests/server/domain/chat/engine/credential-strikeout.suite.int.test.ts",
     "tests/server/domain/chat/engine/engine-stats.suite.int.test.ts",
     "tests/server/domain/chat/engine/engine.int.test.ts",
     "tests/server/domain/chat/engine/managed-compaction.suite.int.test.ts",

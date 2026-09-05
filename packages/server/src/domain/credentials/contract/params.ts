@@ -5,6 +5,7 @@
 import type { CredentialProvider, CredentialSource, ProviderMetadata } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { UserCredentialId } from "@orb/kit/ids";
+import type { ProviderErrorKind } from "#infra/providers";
 
 /** Common to every ownership-scoped credential verb: the acting principal (`principal.userId` is the
  *  row owner; the guard reads `principal.role`). The runner-internal `markRevoked` is the ONE verb that
@@ -19,11 +20,22 @@ export interface ResolveCredentialParams extends CredentialActorParams {
   readonly source: CredentialSource;
 }
 
-/** Post-turn `auth_failed` side-effect input (chat + compaction inject this verb). `credentialId` is
- *  `null` for keyless sources (vllm/local-light/max-pro-sub) — those have no row to revoke. */
+/** Post-generation `auth_failed` side-effect input (the chat engine's three generation catch seams inject
+ *  this verb). `credentialId` is `null` for keyless sources (vllm/local-light/max-pro-sub) — those have no
+ *  row to revoke — and is the id the generation ACTUALLY authenticated with, never a post-failure re-resolve
+ *  (a rotate between the rejection and the strike would otherwise revoke the user's new, good key).
+ *
+ *  `errorKind` is the CLOSED provider union, not a free string (#1373). It was `string` — an open
+ *  discriminator on an INJECTED op — and that is precisely what hid the defect for the life of the feature:
+ *  the composition-root adapter passed HTTP-status words (`"unauthorized"`/`"forbidden"`) that the verb's
+ *  `!== "auth_failed"` guard could never match, and `tsc` saw two strings and said nothing. With the union
+ *  here, a caller spelling a non-member is a compile error at the seam.
+ *
+ *  `errorMessage` is operator-facing provenance that reaches the security-event log, so it must be
+ *  secret-free — `ProviderError.message` is contractually so (infra/providers/contract/errors.ts). */
 export interface MaybeRevokeParams {
   readonly credentialId: UserCredentialId | null;
-  readonly errorKind: string;
+  readonly errorKind: ProviderErrorKind;
   readonly errorMessage: string;
 }
 

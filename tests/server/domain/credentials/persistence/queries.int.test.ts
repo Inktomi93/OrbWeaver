@@ -138,7 +138,7 @@ describe("persistence/queries", () => {
     expect(await loadActiveCredential(db, bob, "openrouter")).toBeUndefined();
   });
 
-  test("revoke then clear round-trips the revoked_at stamp", async () => {
+  test("revoke then clear round-trips the revoked_at + revoked_reason PAIR", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { id: "user_o", role: "user" });
     const id = nextId();
@@ -152,10 +152,12 @@ describe("persistence/queries", () => {
       active: true,
       now: FROZEN_AT,
     });
-    await setRevokedById(db, id, FROZEN_AT);
-    expect((await fetchOwnedCredential(db, owner, id))?.revokedAt).not.toBeNull();
+    await setRevokedById(db, id, FROZEN_AT, "auth_failed");
+    // The pair is written and cleared TOGETHER (#1373) — a live row carrying a stale reason would tell the
+    // Connections pane a working key had been rejected.
+    expect(await fetchOwnedCredential(db, owner, id)).toMatchObject({ revokedAt: FROZEN_AT, revokedReason: "auth_failed" });
     await clearRevokedOwned(db, owner, id, FROZEN_AT);
-    expect((await fetchOwnedCredential(db, owner, id))?.revokedAt).toBeNull();
+    expect(await fetchOwnedCredential(db, owner, id)).toMatchObject({ revokedAt: null, revokedReason: null });
   });
 
   test("deleteOwnedCredential is owner-scoped (a non-owner delete is a no-op)", async () => {

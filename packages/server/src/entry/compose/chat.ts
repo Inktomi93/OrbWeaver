@@ -903,28 +903,15 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     resolveChat: (params) => resolveChatVia(params.runAsUserId, params.routable),
 
     resolveCredential: async ({ runAsUserId, source }) => input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
-    maybeRevokeOnAuthFailed: async ({ runAsUserId, source, status }) => {
-      // @orb-gate-ignore caught-failure-ownership(empty:catch): best-effort cleanup — the trailing comment
-      // states the contract: never throw into the turn. A missed auto-revocation self-heals on the next
-      // auth failure. Ends if a caller starts depending on this revocation actually landing.
-      try {
-        // biome-ignore lint/style/noMagicNumbers: HTTP status codes
-        if (status === 401 || status === 403) {
-          const cred = await input.credentials.resolve({
-            principal: await realHostPrincipal(runAsUserId),
-            source,
-          });
-          await input.credentials.maybeRevokeOnAuthFailed({
-            credentialId: cred.credentialId,
-            // biome-ignore lint/style/noMagicNumbers: HTTP status code 401
-            errorKind: status === 401 ? "unauthorized" : "forbidden",
-            errorMessage: `Automatic revocation from chat API auth failure (HTTP ${status})`,
-          });
-        }
-      } catch {
-        // Best-effort post-turn — never throw into the turn.
-      }
-    },
+    // THE POST-GENERATION CREDENTIAL STRIKE-OUT (#1373) — a DIRECT wire, deliberately not an adapter. The
+    // adapter that used to sit here was the whole defect: it re-derived the classification from the HTTP
+    // status (`401 → "unauthorized"`, `403 → "forbidden"`) against a verb that gates on `auth_failed`, so the
+    // two vocabularies could never meet, and it RE-RESOLVED the credential after the failure — which under a
+    // rotate/set-active race revokes the user's replacement key instead of the rejected one. The engine now
+    // carries the provider's own `ProviderErrorKind` plus the credentialId the generation authenticated with,
+    // which is exactly `MaybeRevokeParams`; anything else this seam could do would be re-deriving a fact it
+    // was handed. A shape drift on either side is now a `tsc` error rather than a silent no-op.
+    maybeRevokeOnAuthFailed: input.credentials.maybeRevokeOnAuthFailed,
     getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
     // ── HOST-HANDOFF COPY (stickler 2026-08-03 §5) — the three OWNING-domain write factories the accepted
     // property offer executes. Each lives in the domain that owns its tables and is injected here, so chat

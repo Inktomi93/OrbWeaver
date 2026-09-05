@@ -3,7 +3,7 @@
 // active/revoked state · a health probe · set-active · mark-revoked/clear-revoked · remove).
 // Immediate-commit: each control is an independent trpc.credentials.* mutation, no draft/submit lifecycle.
 
-import type { CredentialHealth } from "@orb/contracts/credentials";
+import type { CredentialHealth, CredRevokedReason } from "@orb/contracts/credentials";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Icon, Trash2 } from "@orb/ui/icons";
@@ -65,12 +65,13 @@ export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialK
       .catch((): void => setTestResult({ kind: "error" }));
   };
 
-  const subtitle = credential.hasMetadata ? "Custom endpoint" : undefined;
+  const subtitle = keyRowSubtitle(credential);
 
   return (
     <ListRow
       title={label}
-      {...(subtitle !== undefined ? { subtitle } : {})}
+      {...(subtitle.text !== undefined ? { subtitle: subtitle.text } : {})}
+      subtitleWrap={subtitle.wrap}
       leading={
         <Row gap="field" align="center">
           {credential.active ? (
@@ -159,6 +160,44 @@ export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialK
       }
     />
   );
+}
+
+/** The row's secondary line: WHAT the row is, plus — when revoked — WHY. The bare Revoked chip could not
+ *  tell "you revoked this" from "the provider rejected your key", and those want opposite actions from the
+ *  reader (press Clear revoked, versus paste a new key). `wrap` rides along because the line becomes a
+ *  sentence once a cause joins it, and a clipped explanation of a dead credential is worse than none. */
+function keyRowSubtitle(credential: CredentialListItem): { readonly text: string | undefined; readonly wrap: boolean } {
+  const cause = credential.revokedAt !== null && credential.revokedReason !== null ? revokedReasonCopy(credential.revokedReason) : null;
+  const parts = [credential.hasMetadata ? "Custom endpoint" : null, cause].filter((part) => part !== null);
+  return { text: parts.length > 0 ? parts.join(" · ") : undefined, wrap: cause !== null };
+}
+
+/** The user-facing sentence for each revocation cause — a closed dispatch over `CredRevokedReason`, so a new
+ *  member is a `tsc` error here rather than a row that renders a cause the pane has no words for.
+ *
+ *  The copy is derived ENTIRELY from the enum member: nothing the provider or the endpoint said is echoed,
+ *  so this line cannot become the credential-echo leak class (a user endpoint that reflects the request back
+ *  has repeatedly turned display-bound response text into a key disclosure).
+ *
+ *  The unknown arm returns null — a wire value outside the union is not parsed at this boundary, and the
+ *  honest answer to "why?" we cannot read is silence, never the raw string on screen. */
+function revokedReasonCopy(reason: CredRevokedReason): string | null {
+  switch (reason) {
+    case "auth_failed":
+      // Names the KEY as the problem: the fix is a new key, not "try again in a minute".
+      return "Revoked — the provider rejected this key";
+    case "unreachable":
+      // Deliberately NOT "rejected": nothing answered, so nothing judged the key. Saying otherwise would send
+      // a user to rotate a perfectly good key because their own box was off.
+      return "Revoked — the endpoint stopped responding";
+    case "user":
+      return "Revoked by you";
+    default: {
+      const unhandled: never = reason;
+      void unhandled;
+      return null;
+    }
+  }
 }
 
 /** The Test-result text — the honest health status for every provider. */

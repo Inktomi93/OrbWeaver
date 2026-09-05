@@ -465,6 +465,7 @@ CREATE TABLE `user_credentials` (
 	`tag` text NOT NULL,
 	`active` integer DEFAULT true NOT NULL,
 	`revoked_at` integer,
+	`revoked_reason` text,
 	`metadata` text,
 	`label` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,

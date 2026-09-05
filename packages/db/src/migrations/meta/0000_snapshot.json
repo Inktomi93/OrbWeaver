@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "75a05def-faec-43cc-8a6a-431f682dc6a2",
+  "id": "906a2d48-d402-4e57-884b-6ad31332e294",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -3011,6 +3011,13 @@
         "revoked_at": {
           "name": "revoked_at",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "revoked_reason": {
+          "name": "revoked_reason",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

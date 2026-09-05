@@ -968,6 +968,10 @@ async function runPreTurnCompaction(
   } catch (compactErr) {
     // FAILURE-HONEST: a failed pre-turn compaction NEVER blocks the turn — log + proceed with the current canon.
     getLog().warn({ err: compactErr, chatId }, "chat: pre-turn managed compaction failed (proceeding)");
+    // …but a swallowed failure is exactly where a dead key hides: this arm exists to rescue a chat already
+    // over its window, so without the strike-out that chat re-dials the rejected key on every attempt and
+    // the operator sees only a warn line.
+    await strikeOutCredential(ctx, prep.connection, compactErr, chatId);
   } finally {
     compactionInFlight.delete(chatId);
   }
@@ -1012,11 +1016,12 @@ function compactionRequestId(turnId: ChatTurnId): string {
 }
 
 function fireManagedCompaction(
+  ctx: ChatContext,
   deps: EngineDeps,
   prep: TurnPrep,
-  turnId: ChatTurnId,
-  turn: { readonly result: Awaited<ReturnType<typeof runTurnPipeline>>; readonly canonAll: readonly MessageView[] },
+  turn: { readonly turnId: ChatTurnId; readonly result: Awaited<ReturnType<typeof runTurnPipeline>>; readonly canonAll: readonly MessageView[] },
 ): void {
+  const { turnId } = turn;
   // The EFFECTIVE compaction config (preset params folded with the per-send intent) — NOT `prep.intent` alone.
   const { compaction } = resolveEffectiveCompaction(prep);
   // WRITE is agent-sdk-API-only (the runner axis) — a stateless api never generates a marker.
@@ -1050,6 +1055,7 @@ function fireManagedCompaction(
       // FAILURE-HONEST: a thrown marker build (provider error OR empty generation) leaves the existing marker
       // untouched and surfaces the `compaction_failed` warning (the memory_build_failed mirror).
       getLog().warn({ err: compactErr, chatId }, "chat: managed compaction failed");
+      await strikeOutCredential(ctx, connection, compactErr, chatId);
       await emitQuiet(deps, { type: "warning", chatId, code: "compaction_failed" });
       // Rethrow so the span marks itself ERROR (I-7: previously swallowed here too). Still fire-and-forget —
       // the outer `.catch` below absorbs it.
@@ -1175,23 +1181,81 @@ function captureTurnOutcome(prep: TurnPrep, result: Awaited<ReturnType<typeof ru
 }
 
 /**
- * The provider's OWN classification of a thrown turn, or `null` when the throw did not come from the
- * provider layer at all (a DB fault, a bug, a `ChatOperationError`). NEVER re-derived: the fact is minted
- * inside infra (`ProviderError.terminalReason` is the raw backend terminal/subtype string, `kind` the
- * normalized collapse) and only threaded out here.
+ * The `ProviderError` behind a thrown generation, or `null` when the throw did not come from the provider
+ * layer at all (a DB fault, a bug, a `ChatOperationError`). The ONE classifier both provider-fact readers
+ * below share — the outcome ring's terminal reason and the credential strike-out — so they can never
+ * disagree about whether a failure was the provider's.
  *
  * Walks the `.cause` chain rather than dereferencing once — the `classifyDomainError` precedent: a re-wrap
  * layer anywhere between the runner and this catch would otherwise erase the whole classification. The
  * `seen` set makes a cyclic cause chain terminate.
  */
-function providerTerminalReason(err: unknown): string | null {
+function providerErrorOf(err: unknown): ProviderError | null {
   let cause: unknown = err;
   const seen = new Set<unknown>();
   while (cause instanceof Error && !(cause instanceof ProviderError) && cause.cause !== undefined && !seen.has(cause)) {
     seen.add(cause);
     cause = cause.cause;
   }
-  return cause instanceof ProviderError ? (cause.terminalReason ?? cause.kind) : null;
+  return cause instanceof ProviderError ? cause : null;
+}
+
+/**
+ * The provider's OWN classification of a thrown turn, or `null`. NEVER re-derived: the fact is minted
+ * inside infra (`ProviderError.terminalReason` is the raw backend terminal/subtype string, `kind` the
+ * normalized collapse) and only threaded out here.
+ */
+function providerTerminalReason(err: unknown): string | null {
+  const provider = providerErrorOf(err);
+  return provider === null ? null : (provider.terminalReason ?? provider.kind);
+}
+
+/**
+ * THE POST-GENERATION CREDENTIAL STRIKE-OUT (#1373) — fired from every catch that owns a failed provider
+ * generation: the main turn, the pre-turn compaction and the post-turn compaction hook. Without it a
+ * provider that has rejected the user's key is re-dialled with that same dead key on every subsequent turn,
+ * forever, and `user_credentials.revoked_at` never records the one cause its own schema comment advertises.
+ *
+ * Three threading rules, each load-bearing:
+ *   • THE CLASSIFICATION IS THE PROVIDER'S. Only a `ProviderError` reaches the op at all — a DB fault or a
+ *     bug of ours must never cost a user their key — and its normalized `kind` travels verbatim. WHICH kind
+ *     revokes is not decided here: `domain/credentials/verbs/maybe-revoke-on-auth-failed.ts` is the one home
+ *     of that policy, so all three seams follow it without re-spelling the conditional.
+ *   • THE CREDENTIAL IS THE ONE THIS GENERATION RAN UNDER — `connection.credential.credentialId`, minted for
+ *     the run-as principal at dispatch — never a fresh resolve afterwards, which under a rotate/set-active
+ *     race would revoke the replacement key the user just fixed. Keyless sources carry `null` and no-op.
+ *   • IT IS A PASSENGER. It runs INSIDE a catch that is about to surface the generation's own error, so a
+ *     throw here would replace that error with an unrelated one (emits-are-total). Caught and logged.
+ *
+ * `ProviderError.message` is contractually secret-free (infra/providers/contract/errors.ts's SECURITY note:
+ * messages are built from the source/role/backend vocabulary, never the credential), which is what makes it
+ * safe to carry into the credential audit + security-event trail.
+ */
+async function strikeOutCredential(ctx: ChatContext, connection: ResolvedConnection, err: unknown, chatId: ChatId): Promise<void> {
+  const provider = providerErrorOf(err);
+  if (provider === null) {
+    return;
+  }
+  try {
+    await ctx.maybeRevokeOnAuthFailed({
+      credentialId: connection.credential.credentialId,
+      errorKind: provider.kind,
+      errorMessage: provider.message,
+    });
+  } catch (revokeErr) {
+    getLog().warn({ err: revokeErr, chatId }, "chat: the post-generation credential strike-out failed (the generation's own error is unaffected)");
+  }
+}
+
+/** The MAIN TURN's arm of {@link strikeOutCredential}, gated on a genuine fault. An ABORT (caller cancel or
+ *  a lost turn-lock) is not evidence about the key even when a backend had already classified an auth
+ *  failure when the cancel landed — the turn was killed from OUR side, so the fail-safe answer on an
+ *  ambiguous outcome is to leave the user's credential alone. */
+async function strikeOutOnTurnFault(ctx: ChatContext, prep: TurnPrep, err: unknown, reason: TurnAbortReason): Promise<void> {
+  if (reason !== "error") {
+    return;
+  }
+  await strikeOutCredential(ctx, prep.connection, err, prep.chatId);
 }
 
 /**
@@ -1689,7 +1753,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // Fire-and-forget MANAGED-COMPACTION trigger (the LINEAR memory tier), a sibling of the digest build above
     // and keyed off the SAME fit boundary. Runs only in `compaction.mode:"managed"`, off the hot path, and
     // never blocks/faults the reply.
-    fireManagedCompaction(deps, prep, turnId, { result, canonAll });
+    fireManagedCompaction(ctx, deps, prep, { turnId, result, canonAll });
 
     fireExpressionClassify(ctx, view, turnId);
 
@@ -1725,6 +1789,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // those are awaited/injected and can themselves fail, and the row explaining WHY the turn died must not
     // be hostage to them. Itself throw-safe (see `captureTurnFault`).
     captureTurnFault(prep, err, reason, ctx.now());
+    await strikeOutOnTurnFault(ctx, prep, err, reason);
     // Carry the aborting turn's OWN cascade depth (automation-design/03 §4): an aborted turn commits no reply
     // slot, so the automation fact-resolver cannot read this back through `getTurnOrigin` — it must ride the
     // event. A depth ≥ 1 abort (this turn was itself automation-initiated) makes the `turnAborted` fact depth
