@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 543,
-    "enforced": 538,
+    "sites": 545,
+    "enforced": 540,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 538,
+      "deliberate-absorb": 540,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
-      "default": 146,
+      "default": 148,
       "empty": 255
     }
   },
@@ -2880,20 +2880,33 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1021,
-      "column": 9,
+      "line": 387,
+      "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
+      "reason": "CLASSIFIER, not a failure — \"does this model-emitted blob parse to an object\" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice.",
+      "markerLine": 384
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::2",
+      "path": "packages/server/src/entry/compose/chat.ts",
+      "line": 1184,
+      "column": 9,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 1017
+      "markerLine": 1180
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1054,
+      "line": 1217,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2901,12 +2914,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 1043
+      "markerLine": 1206
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1091,
+      "line": 1254,
       "column": 11,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2914,12 +2927,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1083
+      "markerLine": 1246
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 811,
+      "line": 974,
       "column": 9,
       "grammar": "empty",
       "position": "empty:err",
@@ -2927,12 +2940,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — documented below: only a",
-      "markerLine": 806
+      "markerLine": 969
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::promise:runChatTurn::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 730,
+      "line": 893,
       "column": 10,
       "grammar": "promise",
       "position": "promise:runChatTurn",
@@ -2940,7 +2953,7 @@
       "snippet": "void deps",
       "verdict": "deliberate-absorb",
       "reason": "propagated — the rejection reaches",
-      "markerLine": 727
+      "markerLine": 890
     },
     {
       "siteId": "packages/server/src/entry/compose/emit-chat-changed.ts::empty:catch::1",
@@ -3526,6 +3539,19 @@
       "verdict": "deliberate-absorb",
       "reason": "a bounded context-fill probe collapses any throw/timeout to undefined (usage absent); purely diagnostic, gates no turn/auth decision. Ends if context usage ever gates a turn.",
       "markerLine": 372
+    },
+    {
+      "siteId": "packages/server/src/infra/providers/backends/agent-sdk/session/frames.ts::default:catch::1",
+      "path": "packages/server/src/infra/providers/backends/agent-sdk/session/frames.ts",
+      "line": 112,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "CLASSIFIER, not a failure — the compose seam has already refused an unparseable blob WITH its result half (`isJsonObject`), so this is the belt: `null` becomes an empty `input`, which keeps the pair valid rather than orphaning a `tool_result`. Ends if this function ever becomes the only parseability gate.",
+      "markerLine": 109
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/terminal-tools.ts::empty:err::1",
