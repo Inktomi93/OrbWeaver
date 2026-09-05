@@ -152,13 +152,13 @@ test("the load judgment fires exactly at computeLoadFactor's own quiet/contended
   const loaded = judgeMeasurementLoad(LOADED_BOX, "the dropped-frame budget");
   expect(loaded.disposition).toBe("load-suspect");
   expect(loaded.reason).toContain(LOAD_SUSPECT_MARKER);
-  expect(loaded.reason).toContain("box loaded while measuring (loadavg 40.0 / 24 cores)");
+  expect(loaded.reason).toContain("box loaded while measuring (loadavg 40.0/24 cores)");
   expect(loaded.reason).toContain("never promotable");
   // Quiet: per-core 8/24 = 0.33 → factor exactly 1, the SAME input `scaledBudget` calls solo. The
   // measurement is a VERDICT, and the reason records that the box was actually read.
   const quiet = judgeMeasurementLoad(QUIET_BOX, "the dropped-frame budget");
   expect(quiet.disposition).toBe("complete");
-  expect(quiet.reason).toContain("box quiet enough to measure (loadavg 8.0 / 24 cores)");
+  expect(quiet.reason).toContain("box quiet enough to measure (loadavg 8.0/24 cores)");
   expect(quiet.reason).not.toContain(LOAD_SUSPECT_MARKER);
   // The boundary is ONE number shared with the scaling lever, not a second threshold that can drift.
   expect(computeLoadFactor(QUIET_BOX.loadavg1, QUIET_BOX.cpuCount)).toBe(1);

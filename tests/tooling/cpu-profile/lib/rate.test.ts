@@ -41,7 +41,7 @@ test("a planted contended box MEASURES and labels the rate load-suspect, never m
 
   expect(disposition).toMatchObject({ disposition: "load-suspect" });
   expect(stdout).toContain("LOAD-SUSPECT (ORB-LOAD-SUSPECT");
-  expect(stdout).toContain("loadavg 8.0 / 2 cores");
+  expect(stdout).toContain("loadavg 8.0/2 cores");
   expect(perfRatePair(disposition)).toEqual(["perf", "load-suspect"]);
   // THE NO-PROMOTION RULE, both directions: a load-suspect arm cannot turn a violation into a tool error…
   expect(perfRateExit(disposition, EXIT.violations)).toBe(EXIT.violations);

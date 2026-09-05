@@ -13,7 +13,13 @@ export interface SnapRatePosture {
   readonly id: SnapRatePostureId;
   readonly acceleration: BrowserAccelerationEvidence;
   readonly accelerationError: string | null;
-  readonly load: { readonly loadavg1: number; readonly cpuCount: number };
+  /** The run's ONE box reading. `planted` rides ALONG (#1666): it is the provenance of THIS number, and
+   *  dropping it here would silently un-stamp snap's own RESULT line while every other receipt in the
+   *  fleet still said `(planted)` — an under-claim, which is the dangerous direction for an honesty mark. */
+  //  `| undefined` is REQUIRED, not noise: under `exactOptionalPropertyTypes` a `?:` field means "absent",
+  //  while zod's `.optional()` output is `boolean | undefined` — the schema below is declared
+  //  `z.ZodType<SnapRatePosture>`, so the two must agree exactly (TS2375).
+  readonly load: { readonly loadavg1: number; readonly cpuCount: number; readonly planted?: boolean | undefined };
 }
 
 const accelerationSchema = z.object({
@@ -29,5 +35,5 @@ export const snapRatePostureSchema: z.ZodType<SnapRatePosture> = z.object({
   id: snapRatePostureIdSchema,
   acceleration: accelerationSchema,
   accelerationError: z.string().nullable(),
-  load: z.object({ loadavg1: z.number(), cpuCount: z.number().int().positive() }),
+  load: z.object({ loadavg1: z.number(), cpuCount: z.number().int().positive(), planted: z.boolean().optional() }),
 });

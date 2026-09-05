@@ -14,6 +14,8 @@
 //       message naming base×factor and the loadavg. The ceiling is not a way to hang.
 import {
   annotateRateLoad,
+  BOX_LOAD_ENV,
+  boxLoadKnobError,
   budget,
   computeLoadFactor,
   hasMeasurement,
@@ -27,12 +29,14 @@ import {
   loadKillError,
   loadKillMessage,
   loadLine,
+  loadPairs,
   loadResultPairs,
   loadSuspectPair,
   loadSuspectSummary,
   ratePair,
   readBoxLoad,
 } from "@orb/tooling/_shared/load-budget";
+import { vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 /** Per-core 4.0 on a 24-core box — the FORCED-LOAD reading T14/T16 use. */
@@ -56,7 +60,7 @@ test("T14 — a rate arm on a forced-load reading is LOAD-SUSPECT with the loada
   // The receipt must NAME THE BOX: a label whose reason does not say what was loaded is indistinguishable
   // from a note somebody left behind.
   expect(verdict.reason).toContain(LOAD_SUSPECT_MARKER);
-  expect(verdict.reason).toContain("96.0 / 24 cores");
+  expect(verdict.reason).toContain("96.0/24 cores");
   // …and it is emphatically NOT a kill: the two vocabularies are different tokens on purpose (a kill is a
   // run that broke, a load-suspect number is one that was taken on a loaded box), and conflating them is
   // how "this reading is about the box" would read as "the instrument failed".
@@ -178,6 +182,56 @@ test("T14/T15 — loadResultPairs carries the same two figures as loadLine, as k
   const [load, factor] = loadResultPairs();
   expect(load?.[0]).toBe("load");
   expect(factor?.[0]).toBe("budget-factor");
+});
+
+// ── #1666: the honesty stamp certifies THE NUMBER, not the process ────────────────────────────────
+//
+// The first cut keyed `(planted)` off "is ORB_BOX_LOAD set", so it certified readings it had never seen:
+// under a planted env, an injected reader's own figure came back stamped. A stamp that can be wrong is
+// worse than none — this is the mechanism a reader trusts when deciding whether a receipt describes the
+// real box. Provenance now rides ON the value (`BoxLoad.planted`).
+test("#1666 — an INJECTED reader is never stamped, even while the planted env is set", () => {
+  vi.stubEnv(BOX_LOAD_ENV, "0.2/24");
+  try {
+    // The verifier's exact repro: 7.5/8 was never planted, and must not claim to be.
+    expect(loadPairs(() => ({ loadavg1: 7.5, cpuCount: 8 }))).toEqual(["load=7.5/8", "budget-factor=1.00"]);
+    expect(loadResultPairs(() => ({ loadavg1: 7.5, cpuCount: 8 }))).toEqual([
+      ["load", "7.5/8"],
+      ["budget-factor", "1.00"],
+    ]);
+    // …and the AMBIENT reader — the one that actually took the reading from the knob — still stamps.
+    expect(readBoxLoad()).toEqual({ loadavg1: 0.2, cpuCount: 24, planted: true });
+    expect(loadPairs()).toEqual(["load=0.2/24(planted)", "budget-factor=1.00"]);
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
+
+test("#1666 — the PROSE sites carry the same stamp as the pairs: a planted reason/kill cannot read live", () => {
+  // Both strings are what a reader sees FIRST — a `load-suspect` line and an exit-2 kill. Unstamped, they
+  // were indistinguishable from a live-box sentence taken on a genuinely loaded machine.
+  const planted = { loadavg1: 96, cpuCount: 24, planted: true } as const;
+  expect(judgeMeasurementLoad(planted, "the dropped-frame rate").reason).toContain("96.0/24(planted) cores");
+  expect(loadKillMessage({ what: "a wedged child", budgetMs: 1000 }, () => planted)).toContain("at loadavg 96.0/24(planted) cores");
+  // The live twin is untouched — the stamp appears only where the reading was planted.
+  expect(judgeMeasurementLoad({ loadavg1: 96, cpuCount: 24 }, "x").reason).toContain("96.0/24 cores");
+  expect(judgeMeasurementLoad({ loadavg1: 96, cpuCount: 24 }, "x").reason).not.toContain("planted");
+});
+
+test("#1666 — a MALFORMED knob is a value the CLI door can refuse, not a module-init throw", () => {
+  // The refusal must be reachable BEFORE anything reads a budget: several instruments derive a
+  // module-scope ceiling, so a throw fires inside the import graph — before runTool installs its
+  // handlers — and node's crash exit is 1, which under the house contract means "violations found".
+  for (const spelling of ["not-a-reading", "0.2/0", "0.2", "-1/24", "0.2/2.5"]) {
+    vi.stubEnv(BOX_LOAD_ENV, spelling);
+    expect(boxLoadKnobError(), `${spelling} must be refused`).toContain(BOX_LOAD_ENV);
+    vi.unstubAllEnvs();
+  }
+  // A well-formed knob and an ABSENT knob are both silent — the door only speaks to a real mis-spelling.
+  vi.stubEnv(BOX_LOAD_ENV, "0.2/24");
+  expect(boxLoadKnobError()).toBeNull();
+  vi.unstubAllEnvs();
+  expect(boxLoadKnobError()).toBeNull();
 });
 
 // ── T16 (pure half): the kill is legible and is never confused with a red ──────────────────────────

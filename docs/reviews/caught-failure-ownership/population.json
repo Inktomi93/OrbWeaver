@@ -4622,7 +4622,7 @@
     {
       "siteId": "tooling/src/_shared/run-tool.ts::default:e::1",
       "path": "tooling/src/_shared/run-tool.ts",
-      "line": 48,
+      "line": 57,
       "column": 5,
       "grammar": "default",
       "position": "default:e",
@@ -4630,7 +4630,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "the exit-contract's own door — UsageError writes ARG ERROR and escalates misuse, anything else routes through crashExit which writes stderr, escalates toolError and hard-exits. Ends if a branch here stops writing stderr or escalating.",
-      "markerLine": 45
+      "markerLine": 46
     },
     {
       "siteId": "tooling/src/_shared/scoped-run-paths.ts::empty:catch::1",
