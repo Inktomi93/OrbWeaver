@@ -21,7 +21,7 @@
 // chat") whose ONE home is the client's `deriveChatTitle` — the chats list, the topbar, the palette and
 // every usage roster run it. A server-side name would be a second copy of that rule, and the two-of-three
 // rungs it actually implemented is what made every unnamed room read "Untitled chat" in a roster while the
-// chats list two panes over called the same room by its cast.
+// chats list two panes over called the same room by its characters.
 
 import type { ChatId } from "@orb/kit/ids";
 import type { Principal } from "#identity";
@@ -30,7 +30,7 @@ import type { Principal } from "#identity";
  * ONE room a caller may see, as the naming chain's INPUTS.
  *
  * `at` is the room's last-activity instant — the same `chats.updatedAt` the chats list ORDERS by. It rides
- * the row for the same reason the chats list carries it: once rooms are titled by their cast, several rooms
+ * the row for the same reason the chats list carries it: once rooms are titled by their characters, several rooms
  * legitimately share one title, and the recency stamp is the house disambiguator (`rowQualifiers`).
  */
 export interface VisibleRoomRef {
@@ -38,7 +38,8 @@ export interface VisibleRoomRef {
   /** The AUTHORED title, raw and untrimmed — null or blank means "never renamed", which the chain answers. */
   readonly title: string | null;
   /** The present characters' display names, in roster order, MINUS the caller's own seat (the chats list's own
-   *  `summaryCast` rule: the viewer is in every room they can see, so their name carries no information). */
+   *  `summaryCast` rule: the viewer is in every room they can see, so their name carries no information about
+   *  which characters are present). */
   readonly participantNames: readonly string[];
   /** Last activity (`chats.updatedAt`), epoch-ms. */
   readonly at: number;
