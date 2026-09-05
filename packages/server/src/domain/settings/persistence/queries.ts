@@ -4,9 +4,10 @@
 // THE ONE EXCEPTION (#471): the two whole-blob writers (`writeUserConfig`, `writeAppOverride`) re-read the
 // row they are about to replace and REFUSE when an existing blob is unreadable. It lives here, not in the
 // verbs, because "may this row be overwritten?" is a property of the ROW, and because these two functions
-// are the only whole-blob writers on the tree — guarding them is TOTAL over every present and future
-// caller, where a per-verb check is a convention the next verb forgets. `substrate/stored-config.ts`
-// carries the reasoning + the tradeoff.
+// are the only whole-blob writers of THIS domain's columns — guarding them is TOTAL over every present and
+// future caller, where a per-verb check is a convention the next verb forgets. `#kit/stored-config` carries
+// the reasoning + the tradeoff (it moved out of this domain's `substrate/` in #1026, when `domain/preset`
+// became the second caller and a domain→domain value import was the wrong shape).
 
 import type { AssetKind } from "@orb/contracts/assets";
 import type { UserSettings } from "@orb/contracts/settings";
@@ -20,9 +21,9 @@ import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, inArray, sql } from "drizzle-orm";
+import { requireIntactStoredConfig } from "#kit/stored-config";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 import type { GlobalSettingView, UserSettingsView } from "../contract/views.ts";
-import { requireIntactStoredConfig } from "../substrate/stored-config.ts";
 
 /** Read this user's typed/defaulted UserSettings. A never-touched account returns parsed defaults with no
  *  write (updatedAt: 0) — materializing the row is ensureUserSettings. */

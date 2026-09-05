@@ -296,3 +296,37 @@ describe("update (the fork intent)", () => {
     expect((await svc.list({ userId: owner })).length).toBe(2);
   });
 });
+
+// #1026 — the #471 hop one step out over the wire. The editor GETs a LENIENTLY parsed config (the read seam
+// degrades an unreadable blob to DEFAULT_PROMPT_CONFIG) and PUTs the whole blob back, so the save must be
+// refused rather than persist the stand-in over the user's real generation config.
+describe("update — the read-derived save over an unreadable stored blob", () => {
+  const seedUnreadable = async (db: Awaited<ReturnType<typeof freshDb>>, owner: Awaited<ReturnType<typeof seedUser>>): Promise<PresetId> =>
+    await seedPreset(db, {
+      id: castId<PresetId>("preset_degraded"),
+      ownerId: owner,
+      config: DEFAULT_PROMPT_CONFIG,
+      schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion + 900,
+    });
+
+  test("REFUSES the config save and leaves the stored blob exactly as it was", async () => {
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const owner = await seedUser(db);
+    const id = await seedUnreadable(db, owner);
+
+    await expect(svc.update({ userId: owner, id, config: DEFAULT_PROMPT_CONFIG })).rejects.toMatchObject({ code: "stored_config_unreadable" });
+    expect((await svc.get({ userId: owner, id })).schemaVersion).toBe(DEFAULT_PROMPT_CONFIG.schemaVersion + 900);
+  });
+
+  test("a rename still lands — the refusal costs the config write, not the row", async () => {
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const owner = await seedUser(db);
+    const id = await seedUnreadable(db, owner);
+
+    const detail = await svc.update({ userId: owner, id, name: "Renamed" });
+    expect(detail.name).toBe("Renamed");
+    expect(detail.schemaVersion).toBe(DEFAULT_PROMPT_CONFIG.schemaVersion + 900);
+  });
+});

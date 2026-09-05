@@ -101,4 +101,26 @@ describe("import (orb-native backup)", () => {
     expect(rows.map((r) => r.name)).toEqual(["Traveler"]);
     expect(rows[0]?.config.params.temperature).toBe(0.7);
   });
+
+  // #1026: re-importing a backup over a preset this build cannot read is the other half of the repair the
+  // guarded editor path leaves open. The file's config descends from the FILE, never from the stored row.
+  test("merges onto a same-named preset whose stored blob this build cannot read", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const importPreset = createImportPresets(h.ctx);
+    const owner = await seedUser(db);
+    await seedPreset(db, {
+      ownerId: owner,
+      name: "Traveler",
+      config: richConfig(0.1),
+      schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion + 900,
+    });
+
+    const outcome = await importPreset({ ownerId: owner, bytes: fileBytes("Traveler", richConfig(0.9)) });
+
+    expect(outcome).toMatchObject({ ok: true, created: false });
+    const rows = await ownedRows(db, owner);
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.config.params.temperature).toBe(0.9);
+  });
 });
