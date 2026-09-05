@@ -8,6 +8,7 @@ import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
+import { readMemberAccess, readNumericConstant, readStringConstant } from "../lib/symbol-reference.ts";
 
 /** Legit off-Tailwind inline-style sinks → reason. EMPTY: the two known off-Tailwind radius sinks (ECharts
  *  canvas + CodeMirror decoration) are framework-config OBJECT PROPERTIES, not JSX `style={{…}}`/imperative
@@ -100,21 +101,25 @@ function isRawLiteralValue(value: string): boolean {
   return RAW_UNIT_RE.test(trimmed) || RAW_COLOR_RE.test(trimmed) || RAW_EASE_RE.test(trimmed);
 }
 
-/** The STATIC literal text of a value node — a plain string/number literal only. Returns `""` for a
- *  dynamic value (identifier, member read, interpolated template, conditional), which never trips
- *  `isRawLiteralValue` (an empty string is not a raw literal), so a dynamic value is deliberately skipped. */
+/** The STATIC value text of a value node. Returns `""` for a genuinely dynamic value (a prop, a call, an
+ *  interpolated template), which never trips `isRawLiteralValue` (an empty string is not a raw literal),
+ *  so a dynamic value is deliberately skipped.
+ *
+ *  #1506: a NEGATIVE number is a `PrefixUnaryExpression`, not a NumericLiteral — `margin: -8` produced
+ *  ZERO findings while `margin: 8` flagged, which made every off-token NEGATIVE offset invisible to this
+ *  gate. `readNumericConstant` reads the sign (and a same-file `const GAP = -8`) and still refuses a
+ *  value it cannot establish. */
 function staticLiteral(raw: Node | undefined): string {
   if (raw === undefined) {
     return "";
   }
   const node = unwrapExpression(raw); // see through `"8px" as string` / `("8px")` / `"8px" satisfies X`
-  if (node.isKind(SyntaxKind.StringLiteral) || node.isKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
-    return node.getLiteralText();
+  const text = readStringConstant(node);
+  if (text !== undefined) {
+    return text;
   }
-  if (node.isKind(SyntaxKind.NumericLiteral)) {
-    return node.getText();
-  }
-  return "";
+  const numeric = readNumericConstant(node);
+  return numeric === undefined ? "" : String(numeric);
 }
 
 /** The `{ <prop>: <value> }` object literal of a JSX `style={{…}}` attribute, if this attribute is a
@@ -128,14 +133,16 @@ function styleObjectLiterals(attr: Node): Node[] {
   return obj?.isKind(SyntaxKind.ObjectLiteralExpression) === true ? [obj] : [];
 }
 
-/** Is `expr` a `<something>.style` member access (`el.style`, `ref.current.style`)? */
+/** Is `expr` a `<something>.style` member access (`el.style`, `ref.current.style`, `el["style"]`)? */
 function isStyleAccess(expr: Node): boolean {
-  return expr.isKind(SyntaxKind.PropertyAccessExpression) && expr.getName() === "style";
+  return readMemberAccess(expr)?.name === "style";
 }
 
-/** Is `lhs` a `<expr>.style.<token-prop>` member access (the assignment-target shape)? */
+/** Is `lhs` a `<expr>.style.<token-prop>` member access (the assignment-target shape), in either member
+ *  spelling — `el.style.margin` and `el.style["margin"]` set the same declaration (#1506). */
 function isStyleTokenTarget(lhs: Node): boolean {
-  return lhs.isKind(SyntaxKind.PropertyAccessExpression) && isStyleAccess(lhs.getExpression()) && TOKEN_BACKED_PROPS.has(lhs.getName());
+  const read = readMemberAccess(lhs);
+  return read !== undefined && isStyleAccess(read.receiver) && TOKEN_BACKED_PROPS.has(read.name);
 }
 
 // Three carriers, ONE gate: a JSX `style={{ <prop>: <raw> }}` PropertyAssignment, an imperative
@@ -166,11 +173,8 @@ function isSetPropertyOffender(call: Node): boolean {
   if (!call.isKind(SyntaxKind.CallExpression)) {
     return false;
   }
-  const callee = call.getExpression();
-  if (!callee.isKind(SyntaxKind.PropertyAccessExpression) || callee.getName() !== "setProperty") {
-    return false;
-  }
-  if (!isStyleAccess(callee.getExpression())) {
+  const callee = readMemberAccess(call.getExpression());
+  if (callee === undefined || callee.name !== "setProperty" || !isStyleAccess(callee.receiver)) {
     return false;
   }
   const [propArg, valueArg] = call.getArguments();
@@ -242,6 +246,21 @@ export const gate: GateDescriptor = {
       why: "a raw-literal JSX inline style (borderRadius: '8px') — bypasses the className + CSS token gates",
     },
     {
+      files: "export const G = <div style={{ margin: -8 }} />;\n",
+      at: "packages/client/src/features/demo/negative.tsx",
+      why: "#1506: a NEGATIVE off-token number. `-8` is a PrefixUnaryExpression, not a NumericLiteral, so this produced ZERO findings while `margin: 8` flagged — every negative offset was invisible",
+    },
+    {
+      files: "const GAP = 12;\nexport const G = <div style={{ gap: GAP }} />;\n",
+      at: "packages/client/src/features/demo/named-number.tsx",
+      why: "#1506: an identifier standing for the raw number — the rendered result is the same off-token gap",
+    },
+    {
+      files: 'export function f(el: HTMLElement): void {\n  el.style["borderRadius"] = "8px";\n}\n',
+      at: "packages/client/src/features/demo/bracket-target.tsx",
+      why: '#1506: the bracket spelling of the imperative assignment target — `el.style["borderRadius"]` sets the same declaration as `el.style.borderRadius`',
+    },
+    {
       files: 'export function f(el: HTMLElement): void {\n  el.style.borderRadius = "8px";\n}\n',
       at: "packages/ui/src/primitives/demo/demo.ts",
       why: "an imperative `.style.x = 'raw'` assignment — the second carrier the class gates can't see",
@@ -272,6 +291,16 @@ export const gate: GateDescriptor = {
       files: 'export const G = <div style={{ left: "8px" }} />;\n',
       at: "packages/client/src/features/demo/components/np.tsx",
       why: "a non-token property (left) is out of scope — this gate owns only tokens.json's axes",
+    },
+    {
+      files: "export const G = (props: { gap: number }) => <div style={{ gap: props.gap }} />;\n",
+      at: "packages/client/src/features/demo/dynamic-number.tsx",
+      why: "#1506's NEGATIVE control: a genuinely dynamic number is UNREADABLE and is never accused — the widening resolves names and signs, it does not guess",
+    },
+    {
+      files: "export const G = <div style={{ margin: -0 }} />;\n",
+      at: "packages/client/src/features/demo/negative-zero.tsx",
+      why: "#1506: `-0` is still the no-op ZERO keyword, not a magic value — the sign reader must not turn a legal zero into a finding",
     },
     {
       files: 'export function f(el: HTMLElement): void {\n  el.style.borderRadius = "var(--radius-card)";\n}\n',

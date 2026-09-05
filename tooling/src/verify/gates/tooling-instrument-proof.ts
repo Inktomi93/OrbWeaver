@@ -3,7 +3,9 @@
 // `@instrument-proof:` (a planted DEFECT must RED) and `@instrument-absence-proof:` (a removed apparatus /
 // empty population must NOT read clean). Arms per class: (B) a member with no marker; (C) a marker in a
 // NON-member's tree; (D) a malformed bare marker. Plus (A) a member with no tooling/src/<tool>/ dir and
-// (E) an unreadable registry; (F) a member bypassing the shared printVerdict denominator door.
+// (E) an unreadable registry; (F) a member bypassing the shared printVerdict denominator door — reached
+// by a NAMED import or by an `import * as artifacts` namespace member (either spelling), which walked past
+// arm F in silence until #1506.
 // comments-INTENDED: the marker IS a comment; the matcher anchors on the comment OPENER (mention-fence).
 // THE REGISTRY IS RESOLVED, NOT READ FLAT (#947): INSTRUMENT_TOOLS is read through `lib/tuple-read.ts`, so a
 // member that moves behind `[...CORE_INSTRUMENTS, "snap"]` still owes both proof classes — a direct-element
@@ -16,9 +18,11 @@ import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
+import { namedImportLocalNames, readMemberAccess } from "../lib/symbol-reference.ts";
 import { readTupleDeclaration } from "../lib/tuple-read.ts";
 
 const REGISTRY = "tooling/src/_shared/instruments.ts";
+const PRINT_RESULT = "printResult";
 const ANCHOR = "tooling/src/_shared/exit-contract.ts";
 const TESTS_PREFIX = "tests/tooling/";
 
@@ -117,19 +121,40 @@ function instrumentToolOf(rel: string): string | null {
   return tool === "" || tool === "_shared" || tool === "verify" ? null : tool;
 }
 
+const ARTIFACTS_MODULE = (specifier: string): boolean => specifier.endsWith("_shared/artifacts") || specifier.endsWith("_shared/artifacts.ts");
+
+/** The local names a NAMED `printResult` import binds in this file (alias-aware). */
 function printResultLocalNames(sf: SourceFile): ReadonlySet<string> {
-  const localNames = new Set<string>();
+  return namedImportLocalNames(sf, PRINT_RESULT, ARTIFACTS_MODULE);
+}
+
+/** The local names bound to the artifacts module by an `import * as artifacts` NAMESPACE import.
+ *  #1506: arm F used to read NAMED imports only, so `import * as artifacts; artifacts.printResult(…)`
+ *  produced an EMPTY local-name set and the arm returned before it looked at a single call — the one gate
+ *  that proves an instrument cannot bypass the shared verdict door was itself bypassable in one line. */
+function artifactsNamespaceNames(sf: SourceFile): ReadonlySet<string> {
+  const names = new Set<string>();
   for (const declaration of sf.getImportDeclarations()) {
-    if (!(declaration.getModuleSpecifierValue().endsWith("_shared/artifacts") || declaration.getModuleSpecifierValue().endsWith("_shared/artifacts.ts"))) {
-      continue;
-    }
-    for (const named of declaration.getNamedImports()) {
-      if (named.getName() === "printResult") {
-        localNames.add(named.getAliasNode()?.getText() ?? named.getName());
-      }
+    const namespaceName = declaration.getNamespaceImport()?.getText();
+    if (namespaceName !== undefined && ARTIFACTS_MODULE(declaration.getModuleSpecifierValue())) {
+      names.add(namespaceName);
     }
   }
-  return localNames;
+  return names;
+}
+
+/** Is this call `printResult(…)` — through a named binding, or as a member of the artifacts namespace in
+ *  EITHER member spelling (`artifacts.printResult`, `artifacts["printResult"]`)? */
+function isPrintResultCall(call: Node, localNames: ReadonlySet<string>, namespaceNames: ReadonlySet<string>): boolean {
+  const expression = call.isKind(SyntaxKind.CallExpression) ? call.getExpression() : undefined;
+  if (expression === undefined) {
+    return false;
+  }
+  if (Node.isIdentifier(expression) && localNames.has(expression.getText())) {
+    return true;
+  }
+  const read = readMemberAccess(expression);
+  return read !== undefined && read.name === PRINT_RESULT && Node.isIdentifier(read.receiver) && namespaceNames.has(read.receiver.getText());
 }
 
 function collectVerdictBypasses(sf: SourceFile, rel: string): void {
@@ -138,12 +163,12 @@ function collectVerdictBypasses(sf: SourceFile, rel: string): void {
     return;
   }
   const localNames = printResultLocalNames(sf);
-  if (localNames.size === 0) {
+  const namespaceNames = artifactsNamespaceNames(sf);
+  if (localNames.size === 0 && namespaceNames.size === 0) {
     return;
   }
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const expression = call.getExpression();
-    if (Node.isIdentifier(expression) && localNames.has(expression.getText())) {
+    if (isPrintResultCall(call, localNames, namespaceNames)) {
       state.bypasses.push({ file: rel, line: call.getStartLineNumber(), tool });
     }
   }
@@ -340,6 +365,32 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "calls printResult directly" },
       why: "a registered instrument bypassing the shared denominator door through an aliased printResult import — the sanctioned-door arm F",
     },
+    {
+      files: {
+        "tooling/src/_shared/instruments.ts": 'export const INSTRUMENT_TOOLS = ["snapx"] as const;\n',
+        "tooling/src/_shared/exit-contract.ts": "export const EXIT = 0;\n",
+        "tooling/src/snapx/index.ts": "export {};\n",
+        "tooling/src/snapx/ops/run.ts":
+          'import * as artifacts from "../../_shared/artifacts.ts";\nexport function run(): void { artifacts.printResult("snapx", [["findings", 0]]); }\n',
+        "tests/tooling/snapx/proof.test.ts":
+          "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
+      },
+      expect: { messageIncludes: "calls printResult directly" },
+      why: "#1506: the NAMESPACE spelling of the same bypass. Arm F read NAMED imports only, so this example produced ZERO bypass findings — the gate that exists to stop an instrument shipping an unfalsifiable green was itself one `import * as` from silent",
+    },
+    {
+      files: {
+        "tooling/src/_shared/instruments.ts": 'export const INSTRUMENT_TOOLS = ["snapx"] as const;\n',
+        "tooling/src/_shared/exit-contract.ts": "export const EXIT = 0;\n",
+        "tooling/src/snapx/index.ts": "export {};\n",
+        "tooling/src/snapx/ops/run.ts":
+          'import * as artifacts from "../../_shared/artifacts.ts";\nexport function run(): void { artifacts["printResult"]("snapx", [["findings", 0]]); }\n',
+        "tests/tooling/snapx/proof.test.ts":
+          "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
+      },
+      expect: { messageIncludes: "calls printResult directly" },
+      why: "#1506: the bracket spelling of the namespace bypass — one reference, one finding, whichever way it is written",
+    },
   ],
   mustPass: [
     {
@@ -397,6 +448,18 @@ export const gate: GateDescriptor = {
           "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
       },
       why: "a registered instrument entering the shared verdict door with an explicit non-zero denominator — the honourable arm F shape",
+    },
+    {
+      files: {
+        "tooling/src/_shared/instruments.ts": 'export const INSTRUMENT_TOOLS = ["snapx"] as const;\n',
+        "tooling/src/_shared/exit-contract.ts": "export const EXIT = 0;\n",
+        "tooling/src/snapx/index.ts": "export {};\n",
+        "tooling/src/snapx/ops/run.ts":
+          'import * as other from "../../_shared/elsewhere.ts";\nexport function run(): void { other.printResult("snapx", []); }\n',
+        "tests/tooling/snapx/proof.test.ts":
+          "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
+      },
+      why: "#1506's NEGATIVE control: a `printResult` reached through a namespace of some OTHER module is not the artifacts door — arm F keys on the module, never on the bare member name",
     },
   ],
 };

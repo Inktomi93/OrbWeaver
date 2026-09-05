@@ -8,6 +8,7 @@ import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
+import { readStringConstant } from "../lib/symbol-reference.ts";
 
 /** ARIA roles that mint an INTERACTIVE widget — a feature must reach for the matching `@orb/ui` primitive,
  *  never hand-roll one of these on a div/layout component. Structural + live-region roles are absent by
@@ -62,8 +63,13 @@ function clientRel(path: string): string {
   return idx === -1 ? path : path.slice(idx + 1);
 }
 
-/** Every string/template literal text nested anywhere in the attribute's value (covers `role="button"`,
- *  `role={"button"}`, and conditional/template expressions carrying a banned literal). */
+/** Every string VALUE the attribute can carry — literal texts nested anywhere in it (covers `role="button"`,
+ *  `role={"button"}`, and conditional/template expressions), PLUS an identifier standing for one.
+ *
+ *  #1506: `role={ROLE}` with a same-file `const ROLE = "button"` is a `role="button"` the user hears, and
+ *  it produced ZERO findings while `role="button"` flagged — a LITERAL-kind reader answers "not my
+ *  subject" to a named constant. `readStringConstant` resolves the name; anything genuinely dynamic
+ *  (a prop, a call) still comes back unreadable and is not accused. */
 function literalTextsIn(attr: Node): string[] {
   const texts: string[] = [];
   for (const lit of attr.getDescendantsOfKind(SyntaxKind.StringLiteral)) {
@@ -71,6 +77,12 @@ function literalTextsIn(attr: Node): string[] {
   }
   for (const lit of attr.getDescendantsOfKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
     texts.push(lit.getLiteralText());
+  }
+  for (const identifier of attr.getDescendantsOfKind(SyntaxKind.Identifier)) {
+    const named = readStringConstant(identifier);
+    if (named !== undefined) {
+      texts.push(named);
+    }
   }
   return texts;
 }
@@ -145,6 +157,12 @@ export const gate: GateDescriptor = {
       why: "a braced string-literal widget role — still a hand-roll, flags",
     },
     {
+      files: 'const ROLE = "button";\nexport const G = <Row role={ROLE} />;\n',
+      at: "packages/client/src/features/demo/named.tsx",
+      expect: { count: 1, token: 'role="button"' },
+      why: "#1506: an identifier standing for the literal. A user meets the same forged widget, and this example produced ZERO findings while the spelled-out literal flagged",
+    },
+    {
       files: 'export const G = <Row role={cond ? "button" : undefined} />;\n',
       at: "packages/client/src/features/demo/conditional.tsx",
       why: "a conditional expression carrying a banned widget-role literal — still a hand-roll, flags",
@@ -171,6 +189,11 @@ export const gate: GateDescriptor = {
       files: 'export const G = <div role="img" />;\n',
       at: "packages/client/src/features/demo/img.tsx",
       why: "the img presentation role is structural, not an interactive widget — passes",
+    },
+    {
+      files: "export const G = (props: { role?: string }) => <Row role={props.role} />;\n",
+      at: "packages/client/src/features/demo/dynamic.tsx",
+      why: "#1506's NEGATIVE control: a genuinely dynamic role is UNREADABLE, and an unreadable value is never accused — the widening resolves names, it does not guess",
     },
     {
       files: 'export const G = <div data-role="button" />;\n',

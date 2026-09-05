@@ -3,10 +3,13 @@
 // tables lives in domain/embeddings/persistence/; COSINE (inv 2) — `vector_distance_cos` in code only
 // under domain/search/persistence/; IMPORT — named and `@orb/db` namespace table reads are confined to the
 // sanctioned domain set. Write table args resolve their @orb/db import declaration, so named aliases and
-// namespace members retain the table's ownership identity.
+// namespace members retain the table's ownership identity — and every member read is resolved
+// SPELLING-INDEPENDENTLY (lib/symbol-reference.ts): `db["insert"](schema["chatDigests"])` is the same
+// chokepoint bypass as the dotted spelling, and used to walk past this gate in silence (#1506).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import { MEMBER_ACCESS_KINDS, namespaceImportSpecifier, readsMemberNamed } from "../lib/symbol-reference.ts";
 
 const VECTOR_TABLES = new Set([
   "characterEmbeddings",
@@ -79,20 +82,8 @@ function importedVectorTable(node: Node): string {
   return vectorTableImport(node);
 }
 
-function comesFromDbNamespace(node: Node): boolean {
-  if (!node.isKind(SyntaxKind.Identifier)) {
-    return false;
-  }
-  return node.getDefinitionNodes().some((definition) => {
-    if (definition.getKind() !== SyntaxKind.NamespaceImport) {
-      return false;
-    }
-    const declaration = definition.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
-    return declaration !== undefined && DB_SPECIFIER.test(declaration.getModuleSpecifierValue());
-  });
-}
-
-/** Resolve a direct vector-table identifier, a named \@orb/db import alias, or an \@orb/db namespace member. */
+/** Resolve a direct vector-table identifier, a named \@orb/db import alias, or an \@orb/db namespace member
+ *  IN EITHER SPELLING (`schema.chatDigests` and `schema["chatDigests"]` name the same table — #1506). */
 function vectorTableAccess(node: Node): string {
   if (node.isKind(SyntaxKind.Identifier)) {
     if (VECTOR_TABLES.has(node.getText())) {
@@ -106,26 +97,22 @@ function vectorTableAccess(node: Node): string {
     }
     return "";
   }
-  if (!(node.isKind(SyntaxKind.PropertyAccessExpression) && VECTOR_TABLES.has(node.getName()))) {
+  const read = readsMemberNamed(node, VECTOR_TABLES);
+  if (read === undefined) {
     return "";
   }
-  const receiver = node.getExpression();
-  if (!receiver.isKind(SyntaxKind.Identifier)) {
-    return "";
-  }
-  return comesFromDbNamespace(receiver) ? node.getName() : "";
+  const specifier = namespaceImportSpecifier(read.receiver);
+  return specifier !== undefined && DB_SPECIFIER.test(specifier) ? read.name : "";
 }
 
-/** Is this CallExpression a `.insert/.update/.delete(vectorTable)` write? Returns a label, else "". */
+/** Is this CallExpression a `.insert/.update/.delete(vectorTable)` write? Returns a label, else "".
+ *  The write METHOD is read spelling-independently too: `db["insert"](…)` is the same write as `db.insert(…)`. */
 function vectorWrite(node: Node): string {
   if (!node.isKind(SyntaxKind.CallExpression)) {
     return "";
   }
-  const callee = node.getExpression();
-  if (!callee.isKind(SyntaxKind.PropertyAccessExpression)) {
-    return "";
-  }
-  if (!WRITE_METHODS.has(callee.getName())) {
+  const callee = readsMemberNamed(node.getExpression(), WRITE_METHODS);
+  if (callee === undefined) {
     return "";
   }
   const [firstArg] = node.getArguments();
@@ -133,7 +120,7 @@ function vectorWrite(node: Node): string {
     return "";
   }
   const table = vectorTableAccess(firstArg);
-  return table === "" ? "" : `.${callee.getName()}(${firstArg.getText()})`;
+  return table === "" ? "" : `.${callee.name}(${firstArg.getText()})`;
 }
 
 export const gate: GateDescriptor = {
@@ -144,7 +131,7 @@ export const gate: GateDescriptor = {
   message: GROUP_MESSAGE,
   fix: "go through the ONE search engine with a mandatory producer scope; writes are embeddings.store lens arms, cosine is search/persistence's alone (D20).",
   scanRoot: (p) => SERVER_SRC.test(`/${p}`),
-  kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.CallExpression, ...LITERAL_KINDS],
+  kinds: [SyntaxKind.ImportSpecifier, ...MEMBER_ACCESS_KINDS, SyntaxKind.CallExpression, ...LITERAL_KINDS],
   visit: (node, sf, ctx) => {
     const path = sf.getFilePath();
     // Import arm.
@@ -154,7 +141,7 @@ export const gate: GateDescriptor = {
       return;
     }
     const namespaceTable = IMPORT_SANCTIONED.test(path) ? "" : vectorTableAccess(node);
-    if (namespaceTable !== "" && node.isKind(SyntaxKind.PropertyAccessExpression)) {
+    if (namespaceTable !== "" && (node.isKind(SyntaxKind.PropertyAccessExpression) || node.isKind(SyntaxKind.ElementAccessExpression))) {
       reportAt(ctx, node, namespaceTable);
       return;
     }
@@ -164,8 +151,10 @@ export const gate: GateDescriptor = {
       reportAt(ctx, node, write);
       return;
     }
-    // Cosine arm: a string/template literal PART carrying vector_distance_cos.
-    if (!COSINE_SANCTIONED.test(path) && node.getText().includes(COSINE)) {
+    // Cosine arm: a string/template literal PART carrying vector_distance_cos. LITERAL kinds only — the
+    // gate now also subscribes to element access, whose `getText()` contains its own string-literal child,
+    // so a text scan over every subscribed kind would double-report `db["vector_distance_cos"]`.
+    if (!COSINE_SANCTIONED.test(path) && LITERAL_KINDS.some((kind) => node.isKind(kind)) && node.getText().includes(COSINE)) {
       reportAt(ctx, node, COSINE);
     }
   },
@@ -181,6 +170,21 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/hub/namespace-write.ts",
       expect: { count: 2 },
       why: "a vector table reached through an @orb/db namespace is both an unsanctioned import use and an unsanctioned write; property-access syntax cannot hide either chokepoint bypass",
+    },
+    {
+      // #1506: the BRACKET spelling of the row above. Before the shared reader this example produced ZERO
+      // findings — a `PropertyAccessExpression`-keyed detector cannot see an ElementAccessExpression, so
+      // `db["insert"](schema["chatDigests"])` bypassed BOTH chokepoints in silence.
+      files: 'import * as schema from "@orb/db";\nexport const w = (db: Db) => db["insert"](schema["chatDigests"]);\n',
+      at: "packages/server/src/domain/hub/bracket-write.ts",
+      expect: { count: 2 },
+      why: "the bracket spelling of a namespace-reached vector write is the SAME chokepoint bypass as the dotted one — import use and write, both reported",
+    },
+    {
+      files: 'export const w = (db: { insert: (t: unknown) => void }) => db["insert"](chatDigests);\n',
+      at: "packages/server/src/domain/hub/bracket-method.ts",
+      expect: { token: ".insert(chatDigests)" },
+      why: "#1506: only the write METHOD is bracket-spelled — the table is a bare identifier, so the write arm alone must still bite",
     },
     {
       files: 'import { chatDigests as table } from "@orb/db";\nexport const w = (db: Db) => db.insert(table);\n',
