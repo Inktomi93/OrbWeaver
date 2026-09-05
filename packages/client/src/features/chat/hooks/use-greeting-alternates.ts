@@ -4,7 +4,7 @@
 // needs `character.get` per seated character to know how many there are and which one is showing. Three
 // properties keep that honest:
 //   • WINDOW-GATED. The reads fire only while the room is still in its greeting window (no user row yet) —
-//     i.e. on a brand-new room, for a bounded founding cast, and never again for the rest of the chat's life.
+//     i.e. on a brand-new room, for a bounded founding character set, and never again for the rest of the chat's life.
 //   • NON-SUSPENDING. The strip is an affordance on a row that already rendered; a cold or failed card read
 //     yields no entry, so the row simply shows no pager. It must never block or error the transcript.
 //   • READ-ONLY. It resolves what to OFFER; the server re-reads the same card to resolve what to WRITE, so a

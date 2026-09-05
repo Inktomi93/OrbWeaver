@@ -207,10 +207,10 @@ function AttachmentList({
  * A preset and a character each HAVE a name. A room's title is a fallback CHAIN, and this list used to
  * implement only two of its three rungs server-side: every room nobody had renamed read "Untitled chat",
  * which named nobody and, at three unnamed rooms, produced three identical rows. The chats list two panes
- * over calls the same rooms by their cast. `deriveChatTitle` is that chain's ONE home (it moved into `#lib`
+ * over calls the same rooms by their characters. `deriveChatTitle` is that chain's ONE home (it moved into `#lib`
  * for this), so the list now runs it instead of receiving someone else's answer.
  *
- * AND THE STAMP, for the reason titling by cast CREATES: "Nate, Niko" is a perfectly good title for three
+ * AND THE STAMP, for the reason titling by character names CREATES: "Nate, Niko" is a perfectly good title for three
  * different rooms. `rowQualifiers` is the house answer to exactly that collision on exactly this data (it
  * disambiguates the chats list, whose N rows titled "Azarael" are the same shape), escalating only where it
  * must — the short relative form when the rooms are distinguishable by it, the absolute date-time when they

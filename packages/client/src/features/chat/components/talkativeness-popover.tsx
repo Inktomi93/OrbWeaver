@@ -17,7 +17,7 @@ import type { MemberCharacterRow } from "../lib/member-rows.ts";
 
 // THE NUMBER IS A RELATIVE WEIGHT, AND IT MUST NOT WEAR A PERCENT SIGN (#490) — the dial's scale, its
 // rounding and its spelled-out accessible name now live in ONE home, `#lib`'s `talkativeness.ts`, because
-// the saved-cast editor renders the same seat knob and spelled it `0.5` (side-eye 2026-08-29 P2-5); a
+// the saved-roster editor renders the same seat knob and spelled it `0.5` (side-eye 2026-08-29 P2-5); a
 // feature may not import another feature, so the seam sits on the tier-4 floor. The reasoning is there.
 
 /** The single-thumb scalar from a slider value (ours is single-thumb; a range carries an array). */

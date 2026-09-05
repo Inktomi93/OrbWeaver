@@ -96,7 +96,7 @@ const SOURCE_COLOR: Record<AssemblySource, SeriesColor> = {
   ["history"]: 5,
 };
 
-/** The row label per source. The server's `detail` line carries the specifics (which sections, which cast). */
+/** The row label per source. The server's `detail` line carries the specifics (which sections, which characters). */
 const SOURCE_LABEL: Record<AssemblySource, string> = {
   ["system"]: "System",
   ["cards"]: "Cards",

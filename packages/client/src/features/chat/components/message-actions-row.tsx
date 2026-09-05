@@ -122,7 +122,7 @@ export interface MessageActionsRowProps {
   /** Optional — a caller without it still forks + notifies, just doesn't switch the active chat. */
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   readonly messageActions?: "expanded" | "hover" | undefined;
-  /** B7/MR3 — the room's PRESENT CAST-NAME set (`speakerThemesByName`'s keys, threaded from the row). The
+  /** B7/MR3 — the room's PRESENT CHARACTER-NAME set (`speakerThemesByName`'s keys, threaded from the row). The
    *  picker's segment-target list parses the CANON body with these under the narrator-voice gate — the
    *  identical inputs the server's write validation uses, so a picked index survives the round trip.
    *  Absent ⇒ `[]` ⇒ only `<speaker>`-tagged bodies offer segment targets. */

@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-02
+updated: 2026-09-05
 ---
 
 # THE VOCABULARY MAP — one concept, one word
@@ -50,6 +50,19 @@ finding: say so rather than minting a word.
 | The per-user background execution engine, and the settings pane that runs/monitors it | **Jobs** (pane) · **Runs** (its first section) — **"workload" is never shown to a user** | `workloads` — the system/code noun everywhere: the `workloads` domain + db table family, the tRPC router key, the `workloads` stream channel, the `UserSettings.workloads` namespace, the `ConfigGroupId`, and the `config-anchor-workloads-*` anchors | **landed, CONFORMING — do not rename either half** (owner 2026-08-02). Receipts: `packages/client/src/features/workloads/lib/workloads-group.tsx` (`id: "workloads"`, `label: "Jobs"`, and the side-eye 2026-08-08 P3 ruling-fork note) · `tests/client/features/workloads/lib/workloads-group.ct.tsx`. Recorded here because #978 G10 read the id as insider drift; the split IS this table's own "code spelling (when different)" pattern, it was simply never written down. |
 | A config GROUP's id, as a vocabulary member | — | the owner's OWN exported id — `worldInfo` / `rosterPreset` stay camelCase beside kebab siblings | **CONFORMING, deliberate — not a casing defect.** `packages/client/src/state/config-group-ids.ts` states it: a collection group "keeps the id its owner already exports … rides the `data-collection` attributes the CTs address, and keys the per-device disclosure store", so a config-local kebab-ification would fork the id from the kind everywhere else. `rosterPreset` is additionally ruled never-renamed by the row above. Raised as drift by #978 G10 and refused with this receipt. |
 | The branded-id type coercion | — | `castId` (`@orb/kit/ids`) | **no action, deliberately.** It is a TYPE cast, not this concept family; 8,056 occurrences, and once the word "cast" leaves chat / roster-preset / rpg it is unambiguous by construction. |
+| The DEFAULT seed palette — the base `@theme` ramp every un-themed surface paints from | **Hearth** (a palette name, always Capitalised, always beside another palette name: Light · Mocha · Hearth) | `hearth` as a `SeedThemeName` VALUE only — the db seed row, `packages/ui/src/tokens/themes/`, `[data-theme]`, `snap --theme`; **`null` is its in-code spelling wherever a theme ROW is optional** (`useSelectedTheme` returns `null` for it, `resolveThemeScopeTokens` has no value-set for it because it IS the base ramp) | landed, CONFORMING (#1220). No id, testid, slot or CSS class outside the theme pipeline may take this word. |
+| Home's dominant LEAD column — the rooms you came back for and the doors out of them | **the hearth** (lowercase; a REGISTER word for home's focal region, never shown as a label — the surface says "Recent chats" / "Resume →") | `hearth` as a `HOME_TILE_REGIONS` member (`state/home-tile-contracts.ts`) + `HomeHearthRoom` / `home-hearth-room.tsx` / `data-home-hearth` | landed, CONFORMING (#1220). |
+
+**`hearth` names TWO concepts and that is deliberate** (#1220 — it had zero rows here until then, which
+is why it needed one). They never collide because each owns a DISJOINT carrier: the palette is only ever
+a `SeedThemeName` value (a `[data-theme]` stamp, a theme row, a token file), and the region is only ever
+a `HOME_TILE_REGIONS` member, a `HomeHearth*` component, or the `data-home-hearth` attribute. **The tell
+that a site has crossed: a theme-pipeline file naming home's column, or a home file spelling a colour
+against "Hearth" instead of a token.** `home-hearth-room.tsx`'s own header states that second half in
+place ("EVERY COLOUR HERE IS A PER-THEME TOKEN, not a Hearth literal … 'Hearth Room' is the REGISTER,
+never a palette"), and the swept tree had zero crossings at #1220. A THIRD sense — config's "welcome
+hearth" launcher landing — died with `ConfigWelcome` (#1210, `6b00c37fd`); the surviving mentions are
+archaeology naming a retired surface, not a live use, and no new one may be minted.
 
 ## Concepts still spelled `cast` that this map has NO word for (found by #903 C2)
 

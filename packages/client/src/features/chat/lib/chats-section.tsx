@@ -156,7 +156,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
       // The FOOT rail's name — the artifact noun, printed as its kicker ("CHAT · MEMBERS") and carried as
       // its a11y group name. "Chat", not "Game": the crown host console is a TAB named "Game" in this rail.
       railLabel: "Chat",
-      // No rail-trail actions today: the add-member door lives in the cast bar + the Members tab, both of
+      // No rail-trail actions today: the add-member door lives in the character bar + the Members tab, both of
       // which the room already renders. (It used to hold the DRAFT add-member popover — a rowless room's
       // only way to add characters; the seat verb (`domain/chat/verbs/roster.ts`) serves that now.)
       contributors: contextTabs,

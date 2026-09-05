@@ -83,7 +83,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   const hasText = trimmed.length > 0;
 
   const rewrite = useRewriteModal(trimmed, guided.fireRewrite, onChange);
-  const cast = useCast(chatId);
+  const characters = useRoomCharacters(chatId);
   const game = useGameSteer(chatId);
 
   const canTargetTail = guided.tailAssistantMessageId !== null;
@@ -148,7 +148,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             buttonTestId="composerGuidedSwipe"
             onFire={(): void => guided.fireSwipe(trimmed)}
           />
-          <ResponseGuidedButton hasText={hasText} idle={idle} cast={cast} onFire={fireResponse} disabledReason={persistentOffReason} />
+          <ResponseGuidedButton hasText={hasText} idle={idle} characters={characters} onFire={fireResponse} disabledReason={persistentOffReason} />
           <GuidedIconButton
             icon={FastForward}
             label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
@@ -189,9 +189,9 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   );
 }
 
-/** The room cast for the Response speaker submenu (multi-character rooms). Empty/solo — the Response icon
- *  then fires Auto directly (no submenu). */
-function useCast(chatId: ChatId): ReturnType<typeof filterCharacters> {
+/** The room's seated CHARACTERS for the Response speaker submenu (multi-character rooms). Empty/solo — the
+ *  Response icon then fires Auto directly (no submenu). */
+function useRoomCharacters(chatId: ChatId): ReturnType<typeof filterCharacters> {
   const trpc = useTRPC();
   const rosterQuery = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   return filterCharacters(rosterQuery.data?.participants ?? []);

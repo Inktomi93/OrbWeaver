@@ -13,7 +13,7 @@
 // you are looking at — and the subject is marked in place in the run.
 //
 // WHAT IT REFUSES TO IMPLY. It shows the always-on (global) tier plus this script; it cannot know the preset,
-// the cast or the room, and it cannot honour `historyDepth` because a loose sample has no position in an
+// the characters or the room, and it cannot honour `historyDepth` because a loose sample has no position in an
 // assembled history. Both are said in the panel's own words rather than left for the reader to discover.
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
@@ -230,8 +230,8 @@ function PipelineCaveats({
   return (
     <Stack gap="tight">
       <Text voice="gloss">
-        A preset, a character or a room adds its own scripts AFTER these — in that order — and a library page has no room, no cast and no active preset, so this
-        run can’t include them.
+        A preset, a character or a room adds its own scripts AFTER these — in that order — and a library page has no room, no characters and no active preset,
+        so this run can’t include them.
       </Text>
       {subjectIsGlobal ? null : (
         <Text voice="gloss">This script isn’t in the always-on set, so it is shown last: every scope that can attach it runs after the always-on tier.</Text>

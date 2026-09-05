@@ -87,7 +87,7 @@ function RowLeading({
   readonly portraits: readonly ChatRowPortrait[];
   readonly title: string;
 }): ReactElement {
-  // At least one slot: an empty-cast room still paints the hue-seeded initials blob below.
+  // At least one slot: a character-less room still paints the hue-seeded initials blob below.
   const reserved = avatarStackInlineSize(Math.min(Math.max(portraits.length, 1), STACK_SLOTS), "md");
   return (
     <Row align="center" className="shrink-0" style={{ minInlineSize: reserved }}>
@@ -104,7 +104,7 @@ function RowLeading({
   );
 }
 
-/** A single seat's portrait, or nothing at all (an empty-cast room, a portrait-less character, a room whose
+/** A single seat's portrait, or nothing at all (a character-less room, a portrait-less character, a room whose
  *  only seats have since departed) — the initials blob is the honest fallback. */
 function RowLeadingSingle({
   chatId,

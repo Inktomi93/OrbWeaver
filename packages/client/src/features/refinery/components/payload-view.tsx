@@ -148,7 +148,9 @@ export function PayloadView({ plan, payload, pending = false, arrived = false }:
  *  `axis`-hinted bounded number (soul) docks as the side pill; the first prose sibling is the banner
  *  body. A hintless enum never reaches this — it renders as a neutral chip in `FieldBlock`. */
 /** The banner's tone TINT (word-primary: the enum member is the signal, the tint is secondary — but the
- *  mock's banner IS tinted, so the tone must paint, not just ride a data attribute). */
+ *  mock's banner IS tinted, so the tone must paint, not just ride a data attribute).
+ *  It rides `data-hint-tone`, never `data-tone` (#1113 = #1097's chip fix, whose header holds the reasoning:
+ *  `data-tone` is the recipe-arm channel the ui-audit walker reads as AUTHORED IDENTITY). */
 const BANNER_TONE_CLASSES: Record<string, string> = {
   good: "border-success/40 bg-success/10",
   warn: "border-warning/40 bg-warning/10",
@@ -166,7 +168,7 @@ function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload
   const axisValue = axis !== undefined && typeof payload[axis.key] === "number" ? (payload[axis.key] as number) : null;
   const axisWidget = axis?.widget as GaugeWidget | undefined;
   return (
-    <Card className={BANNER_TONE_CLASSES[tone] ?? ""} data-testid={testId("refineryVerdictBanner")} data-tone={tone}>
+    <Card className={BANNER_TONE_CLASSES[tone] ?? ""} data-testid={testId("refineryVerdictBanner")} data-hint-tone={tone}>
       <Row align="center" gap="block" padding="block">
         <Stack gap="field">
           <Heading level={3}>{value ?? ABSENT_TEXT}</Heading>

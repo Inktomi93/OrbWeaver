@@ -55,9 +55,9 @@ const PEOPLE_TAB_FLOOR = 2;
  *  surface, so a solo chat — the overwhelmingly common shape — rendered a tab containing nothing but the
  *  viewer's own People row, which is exactly the "Chat Members lost detail" the owner reported (#162,
  *  2026-08-17: "it used to show … the characters in the room, now it just shows my email"). The old floor was
- *  written as a DISPLAY rule ("don't show a Cast list of one") and was silently doing duty as an ACCESS rule:
+ *  written as a DISPLAY rule ("don't show a Characters list of one") and was silently doing duty as an ACCESS rule:
  *  it also withheld every per-character control (mute, talkativeness, summon, view card, remove) and — since
- *  the add-character door now lives in this section's header — the only in-tab way to GROW the cast. The
+ *  the add-character door now lives in this section's header — the only in-tab way to ADD a character. The
  *  identical mistake, with the identical shape, as the People floor's host arm below.
  *
  *  NARROWED ONCE, AND ONLY OUTSIDE THIS FUNCTION (#182, owner live report 2026-08-18 — "some group stuff is
@@ -77,7 +77,7 @@ export function charactersSectionVisible(participants: readonly ParticipantView[
  *
  * THE FLOOR IS ZERO FOR A HOST (owner-ruled 2026-08-18 via #162): a committed room ALWAYS has a roster, the
  * Members tab is its ONE home, and every state that used to hide the tab now has real content — the room's
- * cast, or the empty state plus the add/invite doors. This is the third time this gate has been narrowed
+ * characters, or the empty state plus the add/invite doors. This is the third time this gate has been narrowed
  * into an ACCESS rule while written as a DISPLAY rule, and each narrowing hid a door that lives nowhere else:
  *
  *   • \>=2 HUMANS (found 2026-08-03, first real multi-user test) — "Invite people" lives ONLY in this tab, so
@@ -88,7 +88,7 @@ export function charactersSectionVisible(participants: readonly ParticipantView[
  *     roster surface (`SoloRosterMenu`, with its own add-character door) built for exactly the rooms this
  *     floor hid. The floor died; the popover died with it (chat-header's header records the reversal).
  *
- * A non-host with nothing to see — no cast, and no People arm — still gets no tab: an empty pane with no
+ * A non-host with nothing to see — no characters, and no People arm — still gets no tab: an empty pane with no
  * affordance in it is the one state worth hiding.
  */
 export function membersTabJustified(participants: readonly ParticipantView[], multiHumanCapable: boolean, isHost = false): boolean {

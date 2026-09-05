@@ -60,7 +60,7 @@ export function HomeRecentsTileBody(): ReactElement {
   // nothing.
   usePrefetchRoom(page.items[0]?.id ?? null);
   // THE HERO'S ART BLEED (#205; the 3-face cover-crop STRIP it replaced stays deleted). It renders one
-  // portrait as chroma at the island's far edge — `aria-hidden` art, no cast datum at all. Since #192 the
+  // portrait as chroma at the island's far edge — `aria-hidden` art, no character datum at all. Since #192 the
   // face rides the chat ROW itself, so it costs no network at all: the whole-library `character.list` read
   // this used to index into is gone, and a room whose seats have no portrait simply has no bleed.
   const hearth = page.items[0];

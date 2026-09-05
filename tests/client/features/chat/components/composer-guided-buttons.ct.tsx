@@ -5,9 +5,10 @@
 // Deliberately DISJOINT from composer-guided-cluster.ct.tsx, which owns the ORCHESTRATION (which mutation each
 // icon fires, steer consume/keep, the impersonate stream). This file owns the three things that live INSIDE the
 // leaves and nothing else asserts:
-//   1. RESPONSE'S CAST FORK — `ResponseGuidedButton` renders a DIRECT button at cast ≤ 1 and a SPEAKER MENU at
-//      cast > 1 (Auto + one row per character). The cluster CT never stubs a roster, so it only ever meets the
-//      solo arm; the multi-character room — the fork's whole reason to exist — was unexercised.
+//   1. RESPONSE'S CHARACTER-COUNT FORK — `ResponseGuidedButton` renders a DIRECT button at ≤ 1 seated
+//      character and a SPEAKER MENU above that (Auto + one row per character). The cluster CT never stubs a
+//      roster, so it only ever meets the solo arm; the multi-character room — the fork's whole reason to
+//      exist — was unexercised.
 //   2. THE CHARGE ASYMMETRY — `hasText && !disabled` for Swipe/Continue/Impersonate vs bare `hasText` for
 //      Response. So on a room with no assistant tail, typing charges Response and does NOT charge the two
 //      tail-gated icons. `data-cta` (@orb/ui Button's primary marker) is the rendered tell; @orb/ui primitives
@@ -20,7 +21,7 @@
 //
 // Menu POPUPs render through a Base UI Portal — menu-item assertions use the PAGE locator, never `component`.
 
-import { RESPONSE_CAST_CUE, STEER_CUE_RESPONSE, SWIPE_NEEDS_REPLY } from "@orb/client/lib";
+import { RESPONSE_SPEAKER_CUE, STEER_CUE_RESPONSE, SWIPE_NEEDS_REPLY } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ComposerStory } from "../_ct-stories.tsx";
@@ -47,7 +48,7 @@ function character(name: string): Record<string, unknown> {
   };
 }
 
-/** A human seat — present but never a speaker option (the menu is the CHARACTER cast). */
+/** A human seat — present but never a speaker option (the menu is the seated CHARACTERS). */
 const HOST = {
   id: "participant_host",
   kind: "human",
@@ -61,14 +62,14 @@ const HOST = {
 
 const GROUP_ROSTER = { participants: [HOST, character("Aria"), character("Bolt")] };
 
-// ── 1. Response's cast fork ───────────────────────────────────────────────────────────────────────────────
+// ── 1. Response's character-count fork ───────────────────────────────────────────────────────────────────────────────
 
 test("a MULTI-character room turns Response into a speaker menu: picking a name rides speakerCharacterId", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": () => GROUP_ROSTER, "chat.generate": () => ({}) });
   const component = await mount(<ComposerStory />);
 
   await component.getByRole("button", { name: RESPONSE }).click();
-  // The human seat is NOT a speaker option — only the character cast is.
+  // The human seat is NOT a speaker option — only the seated characters are.
   await expect(page.getByRole("menuitem", { name: "Nate" })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: AUTO })).toBeVisible();
   await page.getByRole("menuitem", { name: "Bolt" }).click();
@@ -104,10 +105,10 @@ test("a MULTI-character room's idle Response tooltip announces the speaker choic
   const component = await mount(<ComposerStory />);
 
   await component.getByRole("button", { name: RESPONSE, exact: true }).hover();
-  await expect(page.getByRole("tooltip", { name: `${RESPONSE} — ${RESPONSE_CAST_CUE}`, exact: true })).toBeVisible();
+  await expect(page.getByRole("tooltip", { name: `${RESPONSE} — ${RESPONSE_SPEAKER_CUE}`, exact: true })).toBeVisible();
 });
 
-test("a SOLO-cast room keeps the DIRECT Response button — one click fires, no speaker menu exists", async ({ mount, page }) => {
+test("a SOLO-character room keeps the DIRECT Response button — one click fires, no speaker menu exists", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,

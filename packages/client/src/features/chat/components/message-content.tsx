@@ -24,8 +24,8 @@ import { CardBlock } from "./card-block.tsx";
 import { MessageChoicesBlock } from "./message-choices-block.tsx";
 import { MessageMediaBlock } from "./message-media-block.tsx";
 
-/** A stable empty cast list — a fresh `[]` per render would be a new identity for no reason. */
-const NO_CAST_NAMES: readonly string[] = [];
+/** A stable empty CHARACTER-NAME list — a fresh `[]` per render would be a new identity for no reason. */
+const NO_CHARACTER_NAMES: readonly string[] = [];
 
 function assertNever(value: never): never {
   throw new Error(`MessageContent: unhandled block ${JSON.stringify(value)}`);
@@ -106,9 +106,9 @@ export interface MessageContentProps {
   /** NAME -\> that character's tint (`speakerThemesByName`); absent ⇒ every span uses the hash fallback.
    *  Its KEYS are also the present character-name set the plain-label span grammar keys on. */
   readonly speakerThemes?: ReadonlyMap<string, ThemeScopeTokens> | undefined;
-  /** True only for a row this room voices through the NARRATOR grammar (one generation speaking the whole
-   *  cast). It is the OUTER guard on the plain-`Name:` half of the span parse: in any other grammar a row
-   *  is one speaker's, so a line opening `Alice:` is prose (or, on a USER row, an attribution a member
+  /** True only for a row this room voices through the NARRATOR grammar (one generation speaking every
+   *  character). It is the OUTER guard on the plain-`Name:` half of the span parse: in any other grammar a
+   *  row is one speaker's, so a line opening `Alice:` is prose (or, on a USER row, an attribution a member
    *  could forge) and must never split. The `<speaker>` marker half is unconditional — it is markup, not
    *  prose, and cannot be typed into a body by accident. */
   readonly narratorVoiced?: boolean | undefined;
@@ -136,7 +136,7 @@ export function MessageContent({
   // The LAST step before markup (§5.5/§5.29): the viewer's own plugins annotate what the house pipeline
   // produced. Inert without a row or without a registered transform — same string in, same string out.
   const resolvedContent = usePluginDisplayText(rendered, pluginDisplayRow);
-  const characterNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CAST_NAMES;
+  const characterNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CHARACTER_NAMES;
   const spans = parseSpeakerSpans(resolvedContent, characterNames);
 
   const [onlySpan] = spans;

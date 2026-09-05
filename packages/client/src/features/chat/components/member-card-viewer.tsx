@@ -1,5 +1,5 @@
 // The read-only, level-clamped member card VIEWER (D22 — @orb/contracts/chat/roster `MemberCardView`).
-// Opened from a roster Cast row's "View character" action; it displays ONE roster character's card
+// Opened from a roster Characters row's "View character" action; it displays ONE roster character's card
 // clamped server-side to the room's `memberCardVisibility` (the host always gets `full`). This is a
 // DISPLAY, NOT the owner's card editor — no field is editable here, and macros arrive ALREADY rendered
 // server-side (so the card text is shown as-is; no MacroTextarea, no raw-macro type-as-you-type surface).

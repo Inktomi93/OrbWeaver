@@ -83,7 +83,7 @@ export function ChatListFacesStrip({ characterFilter }: { readonly characterFilt
   // boolean now: `label` is the one name, printed and announced.
   //
   // The strip FOLDS to the pane (FACEFILT — the owner's nine scrolling faces on a six-character library):
-  // the faces that fit stay a one-tap shortcut, and the rest of the cast lives behind the tile, which opens
+  // the faces that fit stay a one-tap shortcut, and the rest of the characters live behind the tile, which opens
   // the house character picker over the WHOLE library — so it also reaches someone you have never opened a
   // chat with, which no amount of scrolling ever could.
   return (

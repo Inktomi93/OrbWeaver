@@ -15,7 +15,7 @@
 // rendered inside it) — so the picker follows it.
 //
 // THE TARGET LIST IS THE CANON PARSE, not the display parse: `parseSpeakerSpans` over the stored
-// `content` with the cast names the caller threads (narrator-gated upstream) — the IDENTICAL inputs the
+// `content` with the character names the caller threads (narrator-gated upstream) — the IDENTICAL inputs the
 // server's write validation runs (`verbs/reactions.ts::resolveSegmentClaim`), which is what makes a picked
 // index survive the round trip instead of refusing `invalid_segment`. Display regex/macros can reshape the
 // RENDERED body (`message-content.tsx` parses that), so a display-derived index would be a different

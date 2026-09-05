@@ -19,12 +19,12 @@
 // committed from frame one. Two properties of that are deliberate and load-bearing:
 //   · BACK STILL MINTS NOTHING. D123's interception principle is preserved exactly — dismissing this modal
 //     costs zero rows. The row is minted by the explicit Start click, which IS the first real edit: a
-//     deliberate creation act naming a cast.
+//     deliberate creation act naming its characters.
 //   · A ROOM STARTED AND ABANDONED IS A HUSK, not litter. It is hidden from the chats list by a server lens,
 //     claimed by its first real activity, and reaped on nav-away + a TTL belt. The picker knows none of that.
 //
 // The modal stays OPEN for the one round-trip, with the confirm item reading its pending state, and closes
-// only on success — a failed create leaves the user's cast picked and the mutation's own toast explaining
+// only on success — a failed create leaves the user's characters picked and the mutation's own toast explaining
 // why, instead of dismissing them into a landing screen with nothing to retry.
 //
 // THE CARET STARTS IN THE SEARCH BOX (#440, side-eye 2026-08-22). This surface used to run
@@ -166,9 +166,9 @@ export function NewChatPicker(): ReactElement {
       return; // one creation at a time — a double-fire would mint two rooms for one intent.
     }
     // `startChat` navigates into the new room itself (it owns the cache seed + the enter action). A failure
-    // is already toasted by the mutation; we simply do not close, so the picked cast survives for a retry.
+    // is already toasted by the mutation; we simply do not close, so the picked characters survive for a retry.
     // @orb-gate-ignore caught-failure-ownership(promise:startChat): useStartChat's mutation carries
-    // errorToast: "Couldn't start the chat." — the toast is the surface; not closing lets the picked cast survive
+    // errorToast: "Couldn't start the chat." — the toast is the surface; not closing lets the picked characters survive
     // a retry. Ends if useStartChat drops errorToast.
     startChat({ ...intent, ...(characterIds.length > 0 ? { characterIds } : {}) })
       .then(closeModal)

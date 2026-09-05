@@ -21,17 +21,17 @@
 // the scope's own primary under an imported one. "Hearth Room" is the REGISTER, never a palette.
 //
 // IT CARRIES EACH FACT ONCE (rail sweep P2-6). The island shipped with a 3-face 64px cover-crop strip AND
-// the mono cast line (the same cast twice, one of them illegible at that crop), and with a
+// the mono credit line (the same characters twice, one of them illegible at that crop), and with a
 // "· LAST TURN 2W AGO" stamp under a masthead sentence that already read "You left off 2w ago in …" (the
-// same instant twice, 90px apart). The strip is deleted and the stamp is the masthead's alone; the cast
-// line is the island's ONE cast rendering and no longer truncates, because nothing shares its row.
+// same instant twice, 90px apart). The strip is deleted and the stamp is the masthead's alone; the credit
+// line is the island's ONE character rendering and no longer truncates, because nothing shares its row.
 //
 // …AND THE ROOM'S ART CAME BACK AS A BLEED (#205, owner-ruled 2026-08-18: "Hero gets its room's art"),
 // which READS as a reversal of P2-5 above and is not one. What P2-5 deleted was a 3-face 64px cover-crop
-// STRIP: art rendered as a DATUM, at a size where the datum was illegible, restating a cast the credit
+// STRIP: art rendered as a DATUM, at a size where the datum was illegible, restating characters the credit
 // line already spells out. This is art as CHROMA — one portrait, `aria-hidden`, at the island's far edge,
 // naming nobody and counting nothing — and the fact-once rule it was deleted under is untouched (the
-// credit line is still the island's ONE cast rendering). The finding it answers is the opposite one: the
+// credit line is still the island's ONE character rendering). The finding it answers is the opposite one: the
 // island had no colour at all, so the character photo grid across the shelf won every cold eye on the
 // landing, and the space beyond the excerpt's reading measure sat dead.
 // The reading-surface rule is kept GEOMETRICALLY, not by taste: this column is capped at
@@ -51,7 +51,7 @@
 // replaced named a path that has never existed on the tree).
 //
 // A11y follows the `ListRow clickable` model rather than inventing one: the island is the operable thing
-// (`Card interactive` — role=button + Enter/Space) and the excerpt + the cast line ride
+// (`Card interactive` — role=button + Enter/Space) and the excerpt + the credit line ride
 // `aria-describedby`. A heading inside a button is not addressable by AT, so the title is
 // `Text voice="focal"`; the block's own `h2` comes from the home tile band above it.
 //
@@ -69,7 +69,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { TrailingArrow } from "#components";
-import { castCredit, chatSummaryRowView } from "../lib/chat-summary-row.ts";
+import { characterCredit, chatSummaryRowView } from "../lib/chat-summary-row.ts";
 
 type HearthChat = Parameters<typeof chatSummaryRowView>[0];
 
@@ -100,8 +100,8 @@ export function HomeHearthRoom({
   const { title, subtitle } = chatSummaryRowView(chat);
   const titleId = useId();
   const scentId = useId();
-  const castId = useId();
-  const cast = castCredit(chat.participantNames);
+  const creditId = useId();
+  const credit = characterCredit(chat.participantNames);
   return (
     <Card
       // THE NAME CARRIES THE VERB (side-eye 2026-08-16 F5). `aria-labelledby={titleId}` named the island
@@ -109,7 +109,7 @@ export function HomeHearthRoom({
       // and a screen-reader user had to infer that activating it resumed anything. `Resume <room>` is the
       // same promise the visible "Resume →" affordance makes, which is also what keeps voice control
       // working (WCAG 2.5.3: the spoken name contains the read label).
-      aria-describedby={`${scentId} ${castId}`}
+      aria-describedby={`${scentId} ${creditId}`}
       aria-label={`Resume ${title}`}
       // A REAL BUTTON, not a `div[role=button]` (side-eye rail-home P3-4, 2026-08-22). The synthesized pair
       // was VERIFIED WORKING before the finding was filed — Enter and Space both resumed the room — so this
@@ -131,16 +131,16 @@ export function HomeHearthRoom({
     >
       {/* THE ROOM'S ART, AS A BLEED — decoration, never a datum (#205, owner-ruled). It is `aria-hidden`
           and carries no name, no seat and no count, so the P2-6 rule this island was rebuilt on ("it
-          carries each fact ONCE") is intact: the cast is still rendered exactly once, by the credit line
+          carries each fact ONCE") is intact: the characters are still rendered exactly once, by the credit line
           below. The layer paints ABOVE the card fill and BELOW the content (both are positioned, so the
           later sibling wins) — a negative z-index would put it behind the card's own background and paint
           nothing. The band is `@orb/ui`'s `ArtBleed` — the kit is the only painter (UI-Arch §1.1), and
           the geometry that makes "faded to clean surface before the prose" a guarantee rather than a hope
           lives with the primitive, beside the `--reading-measure` cap this column takes below. */}
       {artSrc === undefined ? null : <ArtBleed src={artSrc} />}
-      {/* ONE COLUMN, AND THE ART IS NOT IN IT. The cast STRIP is still gone (rail sweep P2-5/P2-6): three
+      {/* ONE COLUMN, AND THE ART IS NOT IN IT. The FACE STRIP is still gone (rail sweep P2-5/P2-6): three
           64px cover-CROPS of portraits are illegible at that size, and every seat in them was already
-          spelled out, in order, in the credit line two rows below — the island rendered its cast twice and
+          spelled out, in order, in the credit line two rows below — the island rendered its characters twice and
           its recency twice (the masthead sentence directly above carries the age). #205 does not restore
           that strip and does not re-render any fact; it gives the island CHROMA at its far edge. What the
           hero owes is still the room's NAME, the line you left on, who is in it, and one affordance.
@@ -185,11 +185,11 @@ export function HomeHearthRoom({
             children are the `credit` voice, so their first-line baselines coincide and the row is
             byte-identical at every width where the credit does not wrap (measured: the hint sat 8px
             below the credit's top at 430 and 0px after).
-            NOT truncation, deliberately: the credit is the island's ONE cast rendering (rail sweep P2-6)
+            NOT truncation, deliberately: the credit is the island's ONE character rendering (rail sweep P2-6)
             and this island's own title ruling is CLAMP-never-truncate (side-eye F7) — dropping a seat
             name to buy a baseline would trade a real fact for a layout convenience. */}
         <Row align="start" gap="row" justify="between">
-          {/* THE CREDIT LINE (side-eye F12/F15) — the island's ONE cast rendering now that the face strip
+          {/* THE CREDIT LINE (side-eye F12/F15) — the island's ONE character rendering now that the face strip
               is gone, and therefore no longer truncated: it used to clip because a 136px strip and a
               stamp span shared the row with it. `credit` is the mock's own register (mono, caps, tracked,
               muted) at the LABEL step, not micro — this line sits inside the hero's own button, so it is
@@ -198,8 +198,8 @@ export function HomeHearthRoom({
               page, what the masthead sentence directly above the island already says ("You left off 2w ago
               in …"). One instant, one rendering — the masthead owns the sentence form (its own header
               carries the `formatRelativeAgo` ruling), and the hero owns the room. */}
-          <Text as="span" className="min-w-0 flex-1" id={castId} voice="credit">
-            {cast}
+          <Text as="span" className="min-w-0 flex-1" id={creditId} voice="credit">
+            {credit}
           </Text>
           {/* NOT a nested button, and no longer dressed as one (rail sweep P3-17). The island IS the
               control; this was `text-primary` — link ink, inside a card whose whole surface is the

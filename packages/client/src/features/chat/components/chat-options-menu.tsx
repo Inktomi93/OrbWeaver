@@ -146,7 +146,7 @@ function GameMenuSection({ chatId }: { readonly chatId: ChatId }): ReactElement 
   );
 }
 
-interface ChatOptionsCastMember {
+interface ChatOptionsCharacter {
   readonly characterId: CharacterId;
   readonly name: string;
 }
@@ -155,7 +155,7 @@ export interface ChatOptionsMenuProps {
   readonly chatId: ChatId;
   readonly title: string | null;
   /** Seeds "New chat with the same characters" and the per-character gallery entries. */
-  readonly characters: readonly ChatOptionsCastMember[];
+  readonly characters: readonly ChatOptionsCharacter[];
 }
 
 export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuProps): ReactElement {
@@ -168,7 +168,7 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
   const { startChat } = useStartChat();
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
-  const [galleryFor, setGalleryFor] = useState<ChatOptionsCastMember | null>(null);
+  const [galleryFor, setGalleryFor] = useState<ChatOptionsCharacter | null>(null);
 
   const characterIds = characters.map((c) => c.characterId);
   const soloCharacter = characters.length === 1 ? characters[0] : undefined;

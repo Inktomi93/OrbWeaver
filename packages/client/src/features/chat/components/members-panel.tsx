@@ -1,4 +1,4 @@
-// The Members panel: one list, two sections (People = humans, Cast = characters). Source-agnostic —
+// The Members panel: one list, two sections (People = humans, Characters = the seated characters). Source-agnostic —
 // the committed surface projects ChatDetail.participants and wires the membership/roster verbs; the
 // draft twin projects the founding cards and wires the draft-config store. One roving tabindex over the
 // whole list; a kick removes its row on the bus echo, so focus is recorded pending and re-asserted onto
