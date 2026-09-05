@@ -31179,6 +31179,63 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-09-05-characters-hub-and-scale.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 846,
+      "bytes": 59912,
+      "sha256": "efaf5076bf34e74202c72f552e118e2d3c80fa4c86c7e4bb1f3b960404b58914",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-09-05-characters-hub-and-scale.md",
+        "assignedSha256": "efaf5076bf34e74202c72f552e118e2d3c80fa4c86c7e4bb1f3b960404b58914",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "efaf5076bf34e74202c72f552e118e2d3c80fa4c86c7e4bb1f3b960404b58914",
+        "verifiedCommit": "3b321d1211084d7e0c27cd9f38585b0293fa368d",
+        "verifiedAt": "2026-09-05",
+        "summary": "Side-eye review: the Characters hub-ingest and 312-row scale arms, and the 2x chats door (#844 #891).",
+        "evidence": [
+          "born-reviewed at 3b321d121 (cb-characters-sideeye, #844 #891): the Characters hub-ingest + 312-row scale arms driven on an isolated stage with receipts; #891 settled as two doors in two regions (tooling fence #1705). Read in full by the orchestrator at the fold."
+        ],
+        "claims": [
+          {
+            "claim": "A hub-ingested card reports Source: Made here because the installer funnel hands the import a card with no filename, so importedFrom is null and the provenance derivation reads authored (#1702).",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/entry/compose/services.ts:1"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/import/verbs/import-character.ts:1"
+              }
+            ]
+          },
+          {
+            "claim": "The design-audit duplicate-action-door pair on Characters is two doors in two regions (the primary nav's Chats navigates; the character toolbar's chats cell repaints context), so the remedy is a tooling fence (#1705), not a client change.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/app-shell/components/rail.tsx:1"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md",
       "lane": "reviews",
       "issue": 7,
