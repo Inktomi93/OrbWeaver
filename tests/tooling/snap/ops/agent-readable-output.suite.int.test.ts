@@ -7,7 +7,8 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { vi } from "vitest";
+import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
+import { beforeEach, vi } from "vitest";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -15,6 +16,16 @@ const CLI_TIMEOUT_MS = scaledBudget(180_000);
 vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 
 const QUIET = ["--no-shot", "--no-deadcss", "--no-failure-evidence"];
+
+/** A PLANTED QUIET BOX for every CLI child here (#1651's class, surfaced again by this suite). Above
+ *  per-core loadavg 1.0 — the fleet's ordinary state while lanes run — every rate arm labels itself
+ *  `load-suspect` and the run gains a run-global annotation, which BOTH breaks the 4 KB budget (its reason
+ *  paragraph is ~600 bytes) and joins the annotation collapse, so the `annotations` line stops starting
+ *  with the console tag these arms assert. Neither is about snap's OUTPUT CONTRACT, which is what this
+ *  file pins. A hook, not module scope: the root config sets `unstubEnvs`. */
+beforeEach(() => {
+  vi.stubEnv(BOX_LOAD_ENV, "0.2/24");
+});
 
 /** The stdout budget a single-action run must stay inside. The Bash tool truncates long output, and a
  *  truncated snap run loses its END CARD — the one block that carries the verdict and the findings.

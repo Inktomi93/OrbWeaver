@@ -201,7 +201,11 @@ export const DESIGN_AUDIT_ARM = {
                           not the app's verdict, so it does not change the exit code. Exit 2 (NO VERDICT)
                           rather than a clean report whenever the page never loaded, a reveal action did
                           not land, the app declared a failure surface, or a rule population was not
-                          completely judged.
+                          completely judged. POSITIVE CONTROL: --eval is the channel — a trailing --eval
+                          runs on the settled surface BEFORE this walk (#1659), so an expression that
+                          appends a defective element is counted by the census in the SAME invocation. On
+                          a COLD --dirty stage pass --idle: two consecutive audits answered NO VERDICT
+                          (data-app-ready DEGRADED) without it.
   --fail-on <P0..P3>      the severity --design-audit exits 1 at (default P1)`,
   result: {
     schema: "snap-arm-design-audit-v1",

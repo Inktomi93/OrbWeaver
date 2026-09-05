@@ -2,7 +2,7 @@
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { snapDiagnosticRetention } from "../contract/run-facts.ts";
-import type { SnapCompositeFinding, SnapRunIndex } from "../contract/run-index.ts";
+import type { SnapCompositeFinding, SnapFindingDisposition, SnapRunIndex } from "../contract/run-index.ts";
 import { findingDispositionDisplay, findingEvidenceDisplay, findingNextDisplay } from "../lib/run-finding-display.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -46,6 +46,28 @@ function worstAnnotation(rows: readonly SnapCompositeFinding[]): string {
   return worst?.text ?? "unstated";
 }
 
+/** The channel an ATTRIBUTED console annotation carries (`lib/run-finding-console-annotation.ts`). Its
+ *  `what` is composed as `<tag> <metric> value=…`, so for those rows — and ONLY those — the first word IS
+ *  the tag. */
+const CONSOLE_ANNOTATION_CHANNEL = "orb-attribution";
+
+/** The collapse used to take the first word of EVERY annotation's text as its tag, which is a tag only for
+ *  the console rows above. #1616's run-global load-suspect annotation reads "the app-snapshot arm MEASURED
+ *  on a loaded box …", so on any contended box the receipt printed `annotations  the=1 perf=1` — a key
+ *  named "the", in the one line whose job is to say what the annotations ARE. A non-console row is named by
+ *  its DISPOSITION REASON (`load-suspect`), which is the thing it actually is. */
+function annotationTag(row: SnapCompositeFinding): string {
+  if (row.channels.includes(CONSOLE_ANNOTATION_CHANNEL)) {
+    return row.what.split(" ")[0] ?? "other";
+  }
+  // ANNOTATED, and the annotation is load-bearing twice over: `disposition` is optional on the READ side
+  // (an immutable index written before that field landed carries none), and without the explicit type
+  // biome's own inference calls the undefined arm unnecessary while tsc calls its absence an error.
+  const disposition: SnapFindingDisposition | undefined = row.disposition;
+  const reason = disposition === undefined ? "" : disposition.reason;
+  return reason === "" ? "other" : reason;
+}
+
 /** ONE line for every ambient annotation (#1372) — counts by tag, the worst value, and the reader that
  *  expands them. They stay in run.json in full; what changes is whether an unasked-for measurement gets
  *  to outweigh the evidence the argv actually requested. */
@@ -55,8 +77,7 @@ function printAnnotationCollapse(rows: readonly SnapCompositeFinding[], index: S
   }
   const byTag = new Map<string, number>();
   for (const row of rows) {
-    const tag = row.what.split(" ")[0] ?? "other";
-    byTag.set(tag, (byTag.get(tag) ?? 0) + row.occurrences);
+    byTag.set(annotationTag(row), (byTag.get(annotationTag(row)) ?? 0) + row.occurrences);
   }
   const counts = [...byTag].map(([tag, count]) => `${tag}=${String(count)}`).join(" ");
   const arm = rows.flatMap((row) => row.arms)[0] ?? "motion";

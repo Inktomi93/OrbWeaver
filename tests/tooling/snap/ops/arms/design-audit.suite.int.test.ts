@@ -367,3 +367,59 @@ test("the arm is OFF by default: an ordinary snap run neither walks nor claims a
   expect(plain.stdout).toContain("design-audit=off");
   expect(plain.stdout).not.toContain("census=");
 });
+
+// ── #1659: `--eval` IS the positive-control channel, because it now runs BEFORE the walk ─────────────
+//
+// The defect this pins, reported by a lane that spent four runs on it: three `--eval` plants (two
+// `<style>` blocks and a real appended `<div>` whose `getBoundingClientRect` came back live) left the
+// design-audit population counts BYTE-IDENTICAL to the unplanted run. The eval had run — it just ran
+// AFTER the census. `ops/capture.ts` split TRAILING evals out of the drive queue and executed them inside
+// the page-arm pass, one line below `runArms.afterSettle`, which is where the design-audit walk lives.
+// The consequence was not cosmetic: the house rule "a bare zero owes a planted positive control in the
+// same invocation" was UNSATISFIABLE for every design-audit rule through the one flag built for it, and
+// worst for the RUNG-1 walker rules (`ui-audit/lib/collect.ts`), which publish no population row at all.
+const EVAL_PLANT =
+  "(() => { const p = document.createElement('p'); p.setAttribute('style', 'background:#000;color:#000;font-size:16px;margin:24px'); " +
+  "p.textContent = 'the planted reading surface'; document.querySelector('main').append(p); " +
+  "return { planted: true, paragraphs: document.querySelectorAll('p').length }; })()";
+
+const EVAL_ONCE =
+  "(() => { globalThis.__evalRuns = (globalThis.__evalRuns ?? 0) + 1; " +
+  "return { runs: globalThis.__evalRuns, ready: document.documentElement.dataset.appReady }; })()";
+
+test("#1659 — an --eval-planted defect ENTERS the design-audit census, and the same run without it does not", async ({ runCli, scratch }) => {
+  // The page is clean on its own: white-on-black text over a real census. Nothing but the plant differs
+  // between the two runs — same file, same argv, same flags.
+  const file = await plant(
+    scratch,
+    "eval-control.html",
+    page(`<main style="background:#000">${READING_SURFACE.replace("%STYLE%", "background:#000;color:#fff")}</main>`),
+  );
+
+  const planted = await runCli("snap", ["--file", file, "--design-audit", "--eval", EVAL_PLANT, ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  // The eval itself ran and says so — the half that was ALREADY true before the fix, and which made the
+  // silence so convincing.
+  expect(planted.stdout).toContain('"planted": true');
+  // …and THIS is the half that was missing: the walk saw it.
+  expect(findingRows(planted.stdout, "contrast"), "the planted 1:1 paragraph must reach the census").not.toEqual([]);
+  await expect(planted).toExitWith(EXIT.violations);
+
+  // THE OTHER DIRECTION, in the same invocation family: without the plant the identical page is clean, so
+  // the arm above cannot be satisfied by a detector that reds everything.
+  const bare = await runCli("snap", ["--file", file, "--design-audit", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(findingRows(bare.stdout, "contrast")).toEqual([]);
+  expect(Number(CENSUS_RE.exec(bare.stdout)?.[1])).toBeGreaterThan(0);
+  await expect(bare).toExitWith(EXIT.clean);
+});
+
+test("#1659 — a trailing --eval still observes the SETTLED surface, and runs exactly ONCE", async ({ runCli, scratch }) => {
+  // The ordering fix must not cost the flag its own guarantee (the eval reads the page AFTER settle), and
+  // must not double-execute: the values are handed to the page-arm pass on the outcome, not re-evaluated.
+  // A counter expression proves both — a second execution would print 2.
+  const file = await plant(scratch, "eval-once.html", page('<main><p style="font-size:16px">settled</p></main>'));
+  const run = await runCli("snap", ["--file", file, "--design-audit", "--eval", EVAL_ONCE, ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+
+  await expect(run).toExitWith(EXIT.clean);
+  expect(run.stdout).toContain('"runs": 1');
+  expect(run.stdout).toContain('"ready": "settled"');
+});
