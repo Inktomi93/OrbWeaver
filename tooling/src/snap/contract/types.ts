@@ -118,6 +118,10 @@ export interface Args {
    *  the exact file to write. Defaults to the route slug. Resolution lives in _shared/artifacts.ts. */
   out: string | null;
   viewport: Viewport;
+  /** Did the CALLER spell `--viewport`? A size override is not a device change (#1668): under `--mobile`
+   *  the descriptor's touch/DPR/UA survive it, and the context is built at this size. `--wide`/`--desktop`
+   *  are device PRESETS and clear it. */
+  viewportExplicit: boolean;
   /** localStorage seeds applied BEFORE navigation (`--local-storage key=value`, repeatable). */
   localStorage: LocalStorageSeed[];
   /** Deterministic-render mode: seed orb:probe-mode + kill animations via injected CSS. */

@@ -228,6 +228,7 @@ function buildLaunchOptions(opts: Args, profile: LaunchProfile): ProbeLaunchOpti
   return {
     headless: !opts.vnc,
     viewport: opts.viewport,
+    viewportExplicit: opts.viewportExplicit,
     colorScheme: opts.colorScheme,
     reducedMotion: opts.reducedMotion || opts.probe,
     contrast: opts.browserContrast ?? null,

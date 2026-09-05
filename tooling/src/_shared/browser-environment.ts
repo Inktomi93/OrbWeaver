@@ -162,10 +162,30 @@ function binaryMedia<T extends string>(first: boolean, firstName: T, second: boo
   return second ? secondName : "no-preference";
 }
 
-/** Resolve the exact context contract before launch. A named descriptor supersedes the raw viewport. */
+/** THE ONE ANSWER TO "what size is this context" (#1668), read by the two context-options spreads and by
+ *  the contract below so a receipt can never describe a size the browser did not get.
+ *
+ *  A device descriptor carries its own viewport, and it wins — EXCEPT when the caller explicitly spelled a
+ *  size, which is a size override and not a device change: `--mobile --viewport 320x740` is "the iPhone,
+ *  windowed to 320x740", keeping touch, DPR and the mobile UA. Without `viewportExplicit` there is no way
+ *  to tell that ask apart from the desktop DEFAULT every Args carries, which is why the flag records it. */
+export function effectiveContextViewport(
+  input: { readonly viewport: Viewport; readonly viewportExplicit?: boolean },
+  descriptor: BrowserDeviceDescriptor | null,
+): Viewport {
+  if (descriptor === null || input.viewportExplicit === true) {
+    return input.viewport;
+  }
+  return descriptor.viewport;
+}
+
+/** Resolve the exact context contract before launch. A named descriptor supplies the touch/DPR/UA/mobile
+ *  identity; the SIZE comes from {@link effectiveContextViewport}, which honours an explicit override. */
 export function resolveBrowserEnvironmentContract(
   input: {
     readonly viewport: Viewport;
+    /** See {@link effectiveContextViewport} — an explicit size override survives a device (#1668). */
+    readonly viewportExplicit?: boolean;
     readonly device?: string | null;
     /** A caller-raised context DPR (snap's `--scale <n>`, #915). The APPLIED contract must carry it, or
      *  identityMismatches reports "DPR expected 1 but observed 2" for a density the caller asked for —
@@ -201,11 +221,15 @@ export function resolveBrowserEnvironmentContract(
       },
     };
   }
+  // The size the context ACTUALLY got: the descriptor's, unless the caller overrode it (#1668). Reading
+  // `descriptor.viewport` unconditionally here is what would make `identityMismatches` red a run for
+  // obeying its own argv — and, worse, make `scale=` on the RESULT line state a size nobody rendered.
+  const viewport = effectiveContextViewport(input, descriptor);
   return {
-    requested: { device, viewport: descriptor.viewport, ...media },
+    requested: { device, viewport, ...media },
     applied: {
       device,
-      viewport: descriptor.viewport,
+      viewport,
       ...media,
       screen: descriptor.screen ?? descriptor.viewport,
       userAgent: descriptor.userAgent,

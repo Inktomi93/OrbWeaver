@@ -253,6 +253,7 @@ export function parseSnapArgs(argv: string[], options: { readonly inheritedSessi
     watchEveryMs: MS_PER_SECOND,
     out: null,
     viewport: DEFAULT_VIEWPORT,
+    viewportExplicit: false,
     cpuThrottle: NO_CPU_THROTTLE,
     network: null,
     localStorage: [],

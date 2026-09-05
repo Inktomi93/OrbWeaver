@@ -224,6 +224,7 @@ export function inheritSessionArgs(bootArgs: Args, call: Args, name: string, inh
     summary: bootArgs.summary || call.summary,
     ...inheritedCallFields(bootArgs, call, inheritOuterCall),
     viewport: bootArgs.viewport,
+    viewportExplicit: bootArgs.viewportExplicit,
     device: bootArgs.device,
     colorScheme: bootArgs.colorScheme,
     reducedMotion: bootArgs.reducedMotion,

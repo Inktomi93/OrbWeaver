@@ -5,7 +5,7 @@ import { installSettingsShim } from "./appearance.ts";
 import type { PageCapture } from "./browser-capture.ts";
 import { createPageCapture, watchProbeContextPages } from "./browser-capture.ts";
 import type { BrowserPageError, ProbeContext, ProbeLaunchOptions, ProbeSession } from "./browser-contract.ts";
-import { resolveBrowserEnvironmentContract } from "./browser-environment.ts";
+import { effectiveContextViewport, resolveBrowserEnvironmentContract } from "./browser-environment.ts";
 import { resolveProbeMedia } from "./browser-media.ts";
 
 export interface BuildContextArgs {
@@ -85,8 +85,12 @@ export function probeSession(
 
 async function openRecordedContext(args: BuildContextArgs): Promise<BrowserContext> {
   const { browser, opts, deviceDescriptor, ownedContexts, persistentContext } = args;
+  // ONE SIZE ANSWER (#1668): the descriptor supplies touch/DPR/UA/isMobile, `effectiveContextViewport`
+  // supplies the SIZE — so an explicit `--viewport` under `--mobile` windows the device instead of
+  // silently demoting it to a desktop, and a run's receipt states the size the browser actually got.
   const sizing = {
-    ...(deviceDescriptor ?? { viewport: opts.viewport }),
+    ...(deviceDescriptor ?? {}),
+    viewport: effectiveContextViewport(opts, deviceDescriptor),
     ...(opts.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: opts.deviceScaleFactor }),
   };
   const context =

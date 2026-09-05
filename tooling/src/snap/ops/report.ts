@@ -60,6 +60,22 @@ export function scaleResultValue(opts: Args, environment: readonly BrowserEnviro
   return shotScaleResultValue(opts.scale, applied?.viewport ?? opts.viewport, applied?.deviceScaleFactor ?? 1);
 }
 
+/** `device=<pointer>:dpr<n>:<WxH>` on the RESULT line (#1668) — the EFFECTIVE device, read from the same
+ *  OBSERVED contract every other receipt uses, so a reader can see what was actually measured instead of
+ *  inferring it from the argv. It exists because `--mobile --viewport 320x740` used to report a desktop at
+ *  320 in total silence: `pointer` is what `matchMedia("(pointer: coarse)")` answered ON THE PAGE, not what
+ *  the descriptor promised, so a device that failed to apply says so here rather than in a lane's re-run.
+ *  `unknown` only when no browser environment was captured at all (a report-only invocation). */
+export function deviceResultValue(environment: readonly BrowserEnvironmentEvidence[]): string {
+  const evidence = environment[0];
+  if (evidence === undefined) {
+    return "unknown";
+  }
+  const { pointer, deviceScaleFactor, innerViewport, viewport } = evidence.actual;
+  const size = viewport ?? innerViewport;
+  return `${pointer}:dpr${String(deviceScaleFactor)}:${String(size.width)}x${String(size.height)}`;
+}
+
 function evidenceRanges(outcomes: readonly CaptureOutcome[]): readonly EvidenceRange[] | null {
   const ranges = outcomes.map((outcome) => outcome.evidenceRange);
   return ranges.some((range) => range === null) ? null : ranges.filter((range): range is EvidenceRange => range !== null);

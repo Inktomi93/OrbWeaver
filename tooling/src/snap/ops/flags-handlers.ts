@@ -259,15 +259,23 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--out": (a, rest) => {
     a.out = rest.shift() ?? null;
   },
-  // --wide/--viewport/--mobile/--desktop all fill ONE slot — last wins. The device presets and the raw
-  // viewport are mutually exclusive, so each clears the other.
+  // A VIEWPORT OVERRIDE IS A SIZE, NOT A DEVICE (#1668). `--viewport` used to null the device, on a
+  // "these are mutually exclusive slots" rule — so `--mobile --viewport 320x740` silently measured a
+  // DESKTOP at 320 (measured on this tree: `matchMedia("(pointer: coarse)")` false, DPR 1, X11 UA), and a
+  // lane reading "320 coarse" got chrome numbers ~40px short of the touch floor. The mirror was just as
+  // silent: `--viewport 320x740 --mobile` kept the device and DROPPED the 320 (the run reported the
+  // iPhone's own 430). Now the two compose — `--mobile` names the device, `--viewport` names the size,
+  // and the descriptor's touch/DPR/UA/isMobile survive the override in either argv order.
+  // `--wide`/`--desktop` are DEVICE PRESETS ("be a desktop at this size"), so they still clear both.
   "--wide": (a) => {
     a.viewport = WIDE_VIEWPORT;
+    a.viewportExplicit = false;
     a.device = null;
   },
   "--viewport": (a, rest) => {
-    a.viewport = parseViewport(rest.shift() ?? "") ?? a.viewport;
-    a.device = null;
+    const parsed = parseViewport(rest.shift() ?? "");
+    a.viewport = parsed ?? a.viewport;
+    a.viewportExplicit = parsed !== null || a.viewportExplicit;
   },
   // Full mobile emulation (touch + mobile UA + DPR), not just a narrow viewport — the app's
   // progressive-disclosure law renders hover-revealed controls ALWAYS-VISIBLE at pointer:coarse, and the
@@ -278,6 +286,7 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   // Explicit alias for the default desktop viewport — lets a script pair --mobile/--desktop symmetrically.
   "--desktop": (a) => {
     a.viewport = DEFAULT_VIEWPORT;
+    a.viewportExplicit = false;
     a.device = null;
   },
   // CDP load emulation (#826). Both are applied to EVERY page before it navigates, so boot itself is

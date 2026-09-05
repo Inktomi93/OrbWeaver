@@ -115,6 +115,11 @@ export interface BrowserEvidenceLimits {
 export interface ProbeLaunchOptions {
   readonly headless: boolean;
   readonly viewport: Viewport;
+  /** Did the CALLER explicitly ask for this size? A size override is not a device change (#1668): with a
+   *  `device` set, an explicit viewport WINDOWS the device (touch/DPR/UA/isMobile survive) instead of
+   *  demoting it, and without this marker that ask is indistinguishable from the desktop default every
+   *  caller carries. Absent ⇒ a device's own viewport wins, exactly as before. */
+  readonly viewportExplicit?: boolean;
   readonly colorScheme: "light" | "dark" | null;
   readonly reducedMotion: boolean;
   readonly contrast?: "more" | "no-preference" | null;
