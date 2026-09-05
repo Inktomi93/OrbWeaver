@@ -677,6 +677,33 @@ html[data-shadow] [data-slot="message-bubble"] {
   max-width: calc(var(--reading-measure) * var(--reading-body-scale, 1));
 }
 
+/* THE ROOM'S TRACK CENTRES ON THE DEVICE-PIXEL GRID (#1362 — integer-line-boxes.md Law 3). The track used
+ * to carry Tailwind's `mx-auto`, which splits the leftover width in half: an ODD remainder lands the track,
+ * and therefore every `backdrop-filter` layer inside it, on a half pixel. Measured on the isolated stage at
+ * 1280x800 with all four blur surfaces on — content pane 893px, track 768px (`clamp(46.125rem, 60dvw,
+ * 100dvw)`), remainder 125, margin 62.5 — `design-audit` reported `left -0.500 device px` on FOUR promoted
+ * layers at once: `[data-slot=composer]`, `[data-slot=swipe-strip]` and two `[data-slot=message-bubble]`s,
+ * plus the `off-grid-text` those bubbles' glyphs inherit. One cause, one repair site, because all of them
+ * resolve their horizontal box through this one track (features/chat/lib/chat-track.ts, #213).
+ *
+ * FLOOR THE START MARGIN, LET THE END ABSORB THE ODD PIXEL. The remainder's parity is not ours: the pane
+ * width belongs to the shell grid and the track width to the reader's `chatWidthPct` dial, so no authored
+ * value can make the split even at every width — which is exactly why Law 3 is a RUNTIME rule with no
+ * authorship half. `round()` is the same platform primitive Law 1's leading belt already rides (§3b), so
+ * this is the belt's horizontal twin rather than a second technique. The end margin stays `auto`, so the
+ * track still fills toward the far edge and a one-pixel asymmetry is the entire cost — against a half-pixel
+ * resample of every glyph in the reading column, which is what it buys.
+ *
+ * IT IS A CLASS AND NOT A SLOT because the track is worn by four different slots (`message-row`,
+ * `composer`, `transcript-loading`, the error state) and a hand-listed selector is exactly the drift
+ * chat-track.ts's own header was minted against. Rendered pin: `pnpm snap / --goto chats --open-chat latest
+ * --design-audit` with `blurSurfaces` including `messages` and a seeded background — a bare room promotes
+ * nothing and is a false clean. */
+.orb-chat-track {
+  margin-inline-start: round(down, calc((100% - min(100%, var(--width-shell-content))) / 2), 1px);
+  margin-inline-end: auto;
+}
+
 /* Reading typography — line-height/letter-spacing/paragraph-spacing/scale. Spacing/sizing only. */
 [data-slot="message-bubble"] {
   font-size: calc(var(--text-body) * var(--reading-body-scale, 1));
