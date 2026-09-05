@@ -14,7 +14,7 @@ import type { ChatBusDeps } from "@orb/client/data/bus";
 import { applyChatBusEvent } from "@orb/client/data/bus";
 import type { TurnSlot } from "@orb/client/state";
 import { chatStream, subscribeTurnSlot } from "@orb/client/state";
-import type { ChatBusEvent, ChatDeltaEvent, ChatWarningCode, TurnIntent } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatDeltaEvent, ChatWarning, TurnIntent } from "@orb/contracts/chat";
 import { CHAT_BUS_EVENT_TYPES } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -27,7 +27,7 @@ import { makeMessageView } from "../../features/chat/fixtures.ts";
 interface Harness {
   readonly deps: ChatBusDeps;
   readonly invalidate: ReturnType<typeof vi.fn<(event: ChatBusEvent) => void>>;
-  readonly onWarning: ReturnType<typeof vi.fn<(code: ChatWarningCode, chatId: ChatId) => void>>;
+  readonly onWarning: ReturnType<typeof vi.fn<(warning: ChatWarning, chatId: ChatId) => void>>;
   readonly onChatDeleted: ReturnType<typeof vi.fn<(chatId: ChatId) => void>>;
   readonly beginTurn: ReturnType<typeof vi.fn<typeof chatStream.beginTurn>>;
   readonly appendDelta: ReturnType<typeof vi.fn<typeof chatStream.appendDelta>>;
@@ -58,7 +58,7 @@ function harness(chatIds: readonly ChatId[]): Harness {
   const setRecallPhase = vi.fn(chatStream.setRecallPhase);
   const resetRecall = vi.fn(chatStream.resetRecall);
   const invalidate = vi.fn((_event: ChatBusEvent): void => undefined);
-  const onWarning = vi.fn((_code: ChatWarningCode, _chatId: ChatId): void => undefined);
+  const onWarning = vi.fn((_warning: ChatWarning, _chatId: ChatId): void => undefined);
   const onChatDeleted = vi.fn((_chatId: ChatId): void => undefined);
   const deps: ChatBusDeps = {
     stream: {
@@ -262,14 +262,29 @@ describe("applyChatBusEvent — stream-transient events", () => {
     h.unsub();
   });
 
-  test("warning → onWarning(code, chatId); no invalidate", () => {
+  test("warning → onWarning(warning, chatId); no invalidate", () => {
     const chatId = freshChatId();
     const h = harness([chatId]);
 
     applyChatBusEvent({ type: "warning", chatId, code: "image_dropped" }, h.deps);
 
-    expect(h.onWarning).toHaveBeenCalledExactlyOnceWith("image_dropped", chatId);
+    expect(h.onWarning).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ code: "image_dropped" }), chatId);
     expect(h.invalidate).not.toHaveBeenCalled();
+    h.unsub();
+  });
+
+  // #1440: the reducer is the only hop between the wire and the copy mapper, and `settings_adjusted`'s
+  // notice is unwritable without the detail — a reducer that forwarded the bare code would strand it.
+  test("a settings_adjusted warning forwards its DETAIL, not just its code", () => {
+    const chatId = freshChatId();
+    const h = harness([chatId]);
+
+    applyChatBusEvent({ type: "warning", chatId, code: "settings_adjusted", adjustment: "sampling_knob_dropped", knob: "topK" }, h.deps);
+
+    expect(h.onWarning).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ adjustment: "sampling_knob_dropped", code: "settings_adjusted", knob: "topK" }),
+      chatId,
+    );
     h.unsub();
   });
 });

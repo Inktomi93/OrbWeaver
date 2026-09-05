@@ -233,7 +233,7 @@ function turnWarnings(resolved: ResolvedChatKnobs, history: readonly ChatHistory
 // ResolvedWarning → the turn's `warning` events — the same channel the hosted runners report degrades on
 // (fired on `onEvent` as the turn completes AND carried on the result).
 function warningEvents(warnings: readonly ResolvedWarning[], at: number): ChatEvent[] {
-  return warnings.map(({ code, message }) => ({ kind: "warning", at, code, message }));
+  return warnings.map((warning) => ({ kind: "warning", at, ...warning }));
 }
 
 function rawHistoryToolCalls(content: readonly ChatContentPart[]): Record<string, unknown>[] {

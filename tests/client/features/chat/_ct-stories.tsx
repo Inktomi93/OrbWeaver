@@ -53,7 +53,7 @@ import type {
   SlashCommandMountProps,
   ToolRenderer,
 } from "@orb/client/lib";
-import { bindNotify, createContributorRegistry, resolveRowRenderPolicy, toNotice } from "@orb/client/lib";
+import { bindNotify, createContributorRegistry, notify, resolveRowRenderPolicy, toNotice } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import {
   cancelEditingMessage,
@@ -171,6 +171,7 @@ import type { PendingAttachment } from "../../../../packages/client/src/features
 import { speakerThemesByName } from "../../../../packages/client/src/features/chat/lib/attribution.ts";
 import { useChatsSelectionTitle } from "../../../../packages/client/src/features/chat/lib/chats-selection-title.ts";
 import type { MemberCharacterRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows.ts";
+import { warningNotice } from "../../../../packages/client/src/features/chat/lib/warning-notice.ts";
 import { __enableAppearanceMessageRegistryForTest } from "../../../../packages/client/src/lib/appearance-message-registry.ts";
 import type { SlashArgOffer } from "../../../../packages/client/src/lib/contribution-contracts.ts";
 import { CtAppDataProviders, CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
@@ -2793,6 +2794,51 @@ export function CharacterGalleryDialogToastStory(): ReactElement {
         </div>
       </CtToastSurface>
     </CtAppDataProviders>
+  );
+}
+
+/** #1440 — a PROVIDER-DEGRADATION warning, driven the way production drives it: a `warning` bus event goes
+ *  through the REAL reducer (`applyChatBusEvent`), whose injected `onWarning` is the REAL copy mapper, into
+ *  the REAL production toast outlet (`CtToastSurface` mounts `AppToaster`). What the CT reads is therefore
+ *  the rendered notice a user sees, not a mapper return value — the unit test already owns that.
+ *
+ *  Only `chat-content.tsx`'s one-line `surfaceWarning` is bypassed (it is module-private); its body is the
+ *  same two calls this story makes, and its `custom_parameters_ignored` action arm is not in scope here.
+ *
+ *  The knob is `topP` because it is the case the toast exists for: the code alone would say "a setting was
+ *  adjusted", and the whole point of the carrier is that the user reads the NAME of the setting.
+ */
+export function ProviderAdjustmentWarningStory(): ReactElement {
+  const busDeps: ChatBusDeps = {
+    stream: chatStream,
+    // A warning invalidates nothing — no canon changed — so the seam is deliberately inert here.
+    invalidate: (): void => undefined,
+    onWarning: (warning): void => notify.warn(warningNotice(warning)),
+  };
+  return (
+    <CtToastSurface>
+      <button
+        type="button"
+        data-testid="raise-knob-drop"
+        onClick={(): void =>
+          applyChatBusEvent({ type: "warning", chatId: CHAT_ID, code: "settings_adjusted", adjustment: "sampling_knob_dropped", knob: "topP" }, busDeps)
+        }
+      >
+        raise knob drop
+      </button>
+      <button
+        type="button"
+        data-testid="raise-budget-clamp"
+        onClick={(): void =>
+          applyChatBusEvent(
+            { type: "warning", chatId: CHAT_ID, code: "settings_adjusted", adjustment: "reasoning_budget_clamped", appliedBudget: 1536 },
+            busDeps,
+          )
+        }
+      >
+        raise budget clamp
+      </button>
+    </CtToastSurface>
   );
 }
 

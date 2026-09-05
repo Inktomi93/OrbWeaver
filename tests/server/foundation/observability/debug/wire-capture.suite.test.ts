@@ -84,6 +84,7 @@ describe("wire-capture OUTCOME arm + spill (WIRE-OUTCOMES)", () => {
       modelCalls: 2,
       reasoningEffort: "medium",
       toolCalls: [{ name: "update_scene", args: '{"location":"the ford"}' }],
+      warnings: [],
     });
     const [outcome] = wc.recentTurnOutcomes({ chatId: CHAT_A });
     expect(outcome).toMatchObject({
@@ -96,6 +97,7 @@ describe("wire-capture OUTCOME arm + spill (WIRE-OUTCOMES)", () => {
       // (a per-call ceiling) — without it a multi-call turn reads as an ignored output cap.
       modelCalls: 2,
       toolCalls: [{ name: "update_scene", args: '{"location":"the ford"}' }],
+      warnings: [],
     });
   });
 
@@ -119,6 +121,7 @@ describe("wire-capture OUTCOME arm + spill (WIRE-OUTCOMES)", () => {
       modelCalls: null,
       reasoningEffort: null,
       toolCalls: [],
+      warnings: [],
     });
     expect(wc.recentTurnOutcomes({ chatId: CHAT_A })).toHaveLength(0);
 
@@ -155,6 +158,7 @@ describe("wire-capture OUTCOME arm + spill (WIRE-OUTCOMES)", () => {
       modelCalls: 1,
       reasoningEffort: null,
       toolCalls: [],
+      warnings: [],
     });
     // Spill is fire-and-forget (a chained promise); give the microtask queue a turn to run it.
     await new Promise((resolve) => setTimeout(resolve, 0));

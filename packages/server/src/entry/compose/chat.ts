@@ -91,7 +91,7 @@ import { createCopyHandoffBooks } from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatement, recordMemoryLog } from "#foundation/observability";
-import type { AgentSeedTurn, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, RoleClientsWithSignal, WarningCode } from "#infra/providers";
+import type { AgentSeedTurn, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, RoleClientsWithSignal } from "#infra/providers";
 import { AGENT_PROMPT_TAIL_JOINER, createAgentToolServer } from "#infra/providers";
 import { createRegexApplyReplace, createRegexTest } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit.ts";
@@ -505,19 +505,24 @@ function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId
 
 /** The runner's `ChatResult.events` → the domain stream's `warning` chunks (D41 no-silent-degrade, the READ
  *  end). The bridge CARRIES the infra codes; it does not translate them — chat owns its bus vocabulary, so the
- *  infra→`ChatWarningCode` narrowing lives in the domain (`engine.ts` `toChatWarningCode`), the mirror of the
+ *  infra→`ChatWarningCode` narrowing lives in the domain (`engine.ts` `toChatWarning`), the mirror of the
  *  IMAGE role's hop where compose hands the domain a narrowed infra code and
  *  `domain/chat/verbs/generate-image.ts` does the re-map. Deduped here because one runner can repeat a code
  *  within a single result; the pipeline dedupes again across recursion depths.
  *  Extracted so the bridge body stays under the cognitive-complexity cap. */
 function warningChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
-  const seen = new Set<WarningCode>();
+  const seen = new Map<string, TurnStreamChunk>();
   for (const event of events) {
     if (event.kind === "warning") {
-      seen.add(event.code);
+      const { kind: _kind, at: _at, ...warning } = event;
+      // KEYED ON THE WHOLE WARNING, not on the code alone (#1440): with the drop's structured half carried
+      // through, two DIFFERENT dropped knobs share the `sampling_knob_dropped` code and are two distinct
+      // degrades — a code-keyed dedupe would silently pick one and lie about the other. Identical repeats
+      // (the same runner re-raising the same drop) still collapse to one.
+      seen.set(JSON.stringify(warning), { kind: "warning", ...warning });
     }
   }
-  return [...seen].map((code) => ({ kind: "warning", code }));
+  return [...seen.values()];
 }
 
 /** The AGENT-SDK arm of the turn mapping: the stateful wire. Trailing depth-0 system rows have already been

@@ -2,6 +2,7 @@
 // runners call this once per turn: reasoning gating, the effort clamp, the adaptive/budget guard, sampling
 // capability-gating, and the output-cap clamp all live here — never re-derived per backend. Pure + clock-free.
 
+import type { AdjustedKnob } from "@orb/contracts/chat";
 import type { EffortLevel, ModelCapability, Range, Verbosity } from "@orb/contracts/connection";
 import { EFFORT_LEVELS } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -25,13 +26,14 @@ function mintTurnId(): string {
   return `turn_${turnCounter}`;
 }
 
-function resolveNumeric(label: string, value: number | undefined, range: Range | undefined, warnings: ResolvedWarning[]): number | undefined {
+function resolveNumeric(label: AdjustedKnob, value: number | undefined, range: Range | undefined, warnings: ResolvedWarning[]): number | undefined {
   if (value === undefined) {
     return;
   }
   if (range === undefined) {
     warnings.push({
       code: "sampling_knob_dropped",
+      knob: label,
       message: `${label} ignored: model does not expose a ${label} range`,
     });
     return;
@@ -39,13 +41,14 @@ function resolveNumeric(label: string, value: number | undefined, range: Range |
   return clampRange(value, range);
 }
 
-function resolveFlag<T>(label: string, value: T | undefined, supported: boolean | undefined, warnings: ResolvedWarning[]): T | undefined {
+function resolveFlag<T>(label: AdjustedKnob, value: T | undefined, supported: boolean | undefined, warnings: ResolvedWarning[]): T | undefined {
   if (value === undefined) {
     return;
   }
   if (supported !== true) {
     warnings.push({
       code: "sampling_knob_dropped",
+      knob: label,
       message: `${label} ignored: model does not support ${label}`,
     });
     return;
@@ -128,6 +131,7 @@ function clampBudgetToOutput(budgetTokens: number, maxOutputTokens: number | und
   }
   const clamped = Math.max(range?.min ?? MIN_VISIBLE_OUTPUT_RESERVE, headroom);
   warnings.push({
+    appliedBudget: clamped,
     code: "reasoning_budget_clamped",
     message: `reasoning budget ${budgetTokens} exceeds the output cap ${maxOutputTokens}: clamped to ${clamped} to keep ~${MIN_VISIBLE_OUTPUT_RESERVE} tokens for the visible output`,
   });
@@ -161,6 +165,7 @@ function clampMandatoryEffort(r: ModelCapability["reasoning"], effort: UserInten
   }
   const lowest = lowestEffort(r.effortLevels);
   warnings.push({
+    appliedEffort: lowest,
     code: "reasoning_mandatory_clamp",
     message: `reasoning is mandatory on this model: clamped effort "${effort ?? "none"}" up to the lowest supported "${lowest}"`,
   });
@@ -203,7 +208,7 @@ function resolveReasoning(
     warnings.push(
       r.mode === "adaptive"
         ? { code: "adaptive_budget_dropped", message: ADAPTIVE_BUDGET_WARNING }
-        : { code: "sampling_knob_dropped", message: EFFORT_BUDGET_WARNING },
+        : { code: "sampling_knob_dropped", knob: "thinkingBudgetTokens", message: EFFORT_BUDGET_WARNING },
     );
   }
   const resolvedEffort = resolveEffort(effort, r.effortLevels, warnings);
@@ -224,6 +229,7 @@ function knownQuality(quality: UserIntent["quality"], warnings: ResolvedWarning[
   if (quality !== undefined && !QUALITY_LEVELS.includes(quality)) {
     warnings.push({
       code: "sampling_knob_dropped",
+      knob: "quality",
       message: `quality "${quality}" ignored: not a known quality level (${QUALITY_LEVELS.join(", ")})`,
     });
     return;

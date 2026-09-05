@@ -58,4 +58,5 @@ export {
   type WireCaptureFilter,
   type WireOutcome,
   type WireToolCall,
+  type WireWarning,
 } from "./wire-capture.ts";

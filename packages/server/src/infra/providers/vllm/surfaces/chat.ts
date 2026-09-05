@@ -453,7 +453,7 @@ function turnWarnings(resolved: ResolvedChatKnobs, req: VllmChatRequest, bodyWar
 // ResolvedWarning → the turn's `warning` events — the same channel every other runner reports degrades on
 // (fired on `onEvent` as the turn completes AND carried on the result).
 function warningEvents(warnings: readonly ResolvedWarning[], at: number): ChatEvent[] {
-  return warnings.map(({ code, message }) => ({ kind: "warning", at, code, message }));
+  return warnings.map((warning) => ({ kind: "warning", at, ...warning }));
 }
 
 export function createVllmChat(deps: VllmChatDeps): (req: VllmChatRequest) => Promise<ChatResult> {

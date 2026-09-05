@@ -5,6 +5,7 @@
 // (budget / consent / locked).
 
 import type { AssembleContext, ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
+import type { ModelCapability } from "@orb/contracts/connection";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -32,6 +33,7 @@ import type { WitnessInterval } from "../../../../../packages/server/src/domain/
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock.ts";
 import { loadCanonHistory, loadMaxMessageSeq, loadTurnOrigin } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { warningEvents, withCustomParametersDrop } from "../../../../../packages/server/src/infra/providers/backends/openrouter/runners/chat/shared.ts";
+import { resolveChat } from "../../../../../packages/server/src/infra/providers/resolve-chat.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
@@ -1900,6 +1902,15 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
     return Promise.resolve({ ...orLeafResult, events: warningEvents(withCustomParametersDrop([], blob), FROZEN_AT) });
   }
 
+  /** A model that exposes NO sampling range — the production shape behind `sampling_knob_dropped`.
+   *  FABRICATION-OK: `resolveChat` reads only these axes. */
+  const NoSamplingCapability: ModelCapability = {
+    reasoning: { mode: "none", enabled: false },
+    sampling: {},
+    output: { maxTokens: { min: 1, max: 4096 } },
+    context: { window: 200_000 },
+  };
+
   function bridged(): ChatContext["runChatTurn"] {
     return createRunChatTurnBridge({
       runChatTurn: orLeaf,
@@ -1923,21 +1934,33 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
     expect(codes).toEqual(["custom_parameters_ignored"]);
   });
 
-  test("an infra code with no chat twin never reaches the bus (the domain's declared not-yet-surfaced arm)", async () => {
-    // `sampling_knob_dropped` maps to null in `toChatWarningCode` — it awaits its own CHAT_WARNING_CODES member
-    // + owner-authored copy (board row INFRA-WARN-DEAF). It must be DROPPED, never leaked as an unknown code
-    // (the client mapper's `assertNever` would throw on one).
-    const chatId = await seedChat(db, "cp-unmapped");
-    const unmapped = createRunChatTurnBridge({
-      runChatTurn: (): Promise<ChatResult> =>
-        Promise.resolve({ ...orLeafResult, events: [{ kind: "warning", at: FROZEN_AT, code: "sampling_knob_dropped", message: "topK dropped" }] }),
+  // THE RULING THIS ARM REPLACES (#1440, owner 2026-09-05). Until now this test asserted the OPPOSITE — that
+  // `sampling_knob_dropped` must NEVER reach the bus, because `toChatWarningCode` mapped it (and nine
+  // siblings) to `null` as a "declared not-yet-surfaced" product call. The owner ruled SURFACE: a user who
+  // sets a temperature the model does not expose was being told nothing at all. The mechanism the old ruling
+  // protected is preserved — chat still owns its vocabulary and still refuses to leak an unknown code — the
+  // INPUT changed: the ten classes now have a chat code (`settings_adjusted`) and authored copy.
+  //
+  // Driven through the REAL resolver, never a hand-written code string: a capability that exposes no
+  // temperature range is exactly what produces this drop in production.
+  test("a knob the model doesn't expose reaches the user, naming that knob (#1440)", async () => {
+    const chatId = await seedChat(db, "cp-knob");
+    const resolved = resolveChat({ temperature: 0.9 }, NoSamplingCapability);
+    const knobDropped = createRunChatTurnBridge({
+      runChatTurn: (): Promise<ChatResult> => Promise.resolve({ ...orLeafResult, events: warningEvents(resolved.warnings, FROZEN_AT) }),
       getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "or/opus", sonnet: "or/sonnet", haiku: "or/haiku" }),
     });
-    const h = harness(db, { runChatTurn: unmapped });
+    const h = harness(db, { runChatTurn: knobDropped });
 
     await h.engine.runTurn(prepOf(chatId));
 
-    expect(types(h.events)).not.toContain("warning");
+    // `JSON.stringify` deliberately, like the sibling above: this assertion must COMPILE against the pre-fix
+    // source (where the bus member carries no detail fields at all), so its RED is a real defect and not a
+    // build error.
+    const emitted = JSON.stringify(h.events.filter((e) => e.type === "warning"));
+    expect(emitted).toContain('"code":"settings_adjusted"');
+    expect(emitted).toContain('"adjustment":"sampling_knob_dropped"');
+    expect(emitted).toContain('"knob":"temperature"');
   });
 
   test("no customParameters blob raises nothing (the belt is conditional, never a per-turn toast)", async () => {

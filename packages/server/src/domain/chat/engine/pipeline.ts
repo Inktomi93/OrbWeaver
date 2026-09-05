@@ -40,7 +40,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { applyReceivePostProcess } from "@orb/server/kit/post-process";
 import { parseReasoningTags } from "@orb/server/kit/reasoning";
 import { getLog } from "#foundation/observability";
-import type { ToolCallInput, WarningCode, WireTool } from "#infra/providers";
+import type { ResolvedWarning, ToolCallInput, WireTool } from "#infra/providers";
 import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
@@ -197,9 +197,9 @@ interface TurnPipelineResult {
   readonly guidedPlacedAsInjection: boolean;
   /** The INFRA-originated honest-degrade codes this turn's runner raised (resolve/wire drops — D41), deduped
    *  across recursion depths and still in the INFRA vocabulary — the engine narrows them to chat's own bus
-   *  codes (`toChatWarningCode`) and emits one `warning` event per surfaced code. Distinct from the boolean
+   *  warnings (`toChatWarning`) and emits one `warning` event per surfaced degrade. Distinct from the boolean
    *  capability-drop flags above: those are the DOMAIN's own gates, these are the runner's. */
-  readonly runnerWarnings: readonly WarningCode[];
+  readonly runnerWarnings: readonly ResolvedWarning[];
   /** The id of the earliest message actually included in the assembled history this turn, or null. */
   readonly contextBoundaryMessageId: MessageId | null;
   /** The turn's TOTAL estimated context consumption (kept history + system prompt + reserved output) — the
@@ -287,11 +287,11 @@ function reasoningClock(now: () => number): {
 async function reduceStream(
   stream: AsyncIterable<{ kind: string }>,
   args: RunTurnPipelineArgs,
-): Promise<{ content: string; reasoning: string | null; economics: TurnEconomics | null; warnings: readonly WarningCode[]; reasoningMs: number | null }> {
+): Promise<{ content: string; reasoning: string | null; economics: TurnEconomics | null; warnings: readonly ResolvedWarning[]; reasoningMs: number | null }> {
   let text = "";
   let reasoning = "";
   let economics: TurnEconomics | null = null;
-  const warnings: WarningCode[] = [];
+  const warnings: ResolvedWarning[] = [];
   const clock = reasoningClock(args.now);
   for await (const chunk of stream as AsyncIterable<TurnStreamChunk>) {
     if (chunk.kind === "text") {
@@ -303,7 +303,8 @@ async function reduceStream(
       reasoning += chunk.text;
       args.onDelta({ chatId: args.chatId, kind: "reasoning", text: chunk.text });
     } else if (chunk.kind === "warning") {
-      warnings.push(chunk.code);
+      const { kind: _kind, ...warning } = chunk;
+      warnings.push(warning);
     } else {
       economics = chunk.economics;
     }
@@ -866,7 +867,7 @@ async function runRecurseLoop(input: {
   economics: TurnEconomics | null;
   records: readonly ToolCallRecord[];
   terminalCalls: readonly ToolCallInput[];
-  warnings: readonly WarningCode[];
+  warnings: readonly ResolvedWarning[];
   reasoningMs: number | null;
 }> {
   const { args, set, terminalNames } = input;
@@ -883,14 +884,16 @@ async function runRecurseLoop(input: {
   const terminalCalls: ToolCallInput[] = [];
   // Deduped across depths: the same request-level degrade (a customParameters blob, a dropped knob) re-fires at
   // every recursion, but it is ONE degrade and the user gets ONE notice (the `image_dropped` "once" precedent).
-  const warnings = new Set<WarningCode>();
+  // KEYED ON THE WHOLE WARNING (#1440): the structured half now distinguishes two drops that share a code
+  // (two different sampling knobs), so a code-keyed set would surface one of them and swallow the other.
+  const warnings = new Map<string, ResolvedWarning>();
   let depth = 0;
   for (;;) {
     // Sequential by design: each recursion depends on the previous depth's executed results.
     const reduced = await reduceStream(args.runChatTurn({ ...input.request, history }), args);
     content += reduced.content;
-    for (const code of reduced.warnings) {
-      warnings.add(code);
+    for (const warning of reduced.warnings) {
+      warnings.set(JSON.stringify(warning), warning);
     }
     if (reduced.reasoning !== null && reduced.reasoning.length > 0) {
       reasoning = (reasoning ?? "") + reduced.reasoning;
@@ -915,7 +918,7 @@ async function runRecurseLoop(input: {
     history = [...history, ...toolExchangeMessages(reduced.content, batch)];
     depth += 1;
   }
-  return { content, reasoning, economics, records, terminalCalls, warnings: [...warnings], reasoningMs };
+  return { content, reasoning, economics, records, terminalCalls, warnings: [...warnings.values()], reasoningMs };
 }
 
 /** Splits ONE depth's model-emitted calls into the two tool classes by NAME (#1404) — the ONE place the

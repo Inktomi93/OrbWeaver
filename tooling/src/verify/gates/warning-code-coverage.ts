@@ -140,13 +140,40 @@ function warningCodesInFile(sf: SourceFile, channel: WarningChannel): string[] {
   return codes;
 }
 
+/** The name of the domain's infra→chat warning TRANSLATION. Its returns are emit sites by proxy: the engine
+ *  spreads them straight onto the `warning` bus event, so the code literal lives here and nowhere else.
+ *  ONE HOME for the name — a rename in the domain silently emptied this reader once (#1440: `toChatWarningCode`
+ *  → `toChatWarning` left three live codes reading as never-emitted), which is the dynamic-seam-owes-its-lens
+ *  hazard in miniature. A rename that does not update this constant reds the gate LOUDLY (every code the
+ *  mapper owns loses its emit), so the failure mode is a false ACCUSATION, never a false clean. */
+const CHAT_WARNING_MAPPER = "toChatWarning";
+
+/** The code a mapper return carries — a bare string literal (`return "x"`) or the `code` property of a
+ *  returned warning payload (`return { code: "x", … }`). BOTH shapes, because the mapper answers with a
+ *  payload the moment one of its codes needs detail (#1440), and a string-only reader would then see nothing. */
+function returnedCode(statement: Node): string | undefined {
+  const expression = Node.isReturnStatement(statement) ? statement.getExpression() : undefined;
+  if (expression === undefined) {
+    return;
+  }
+  const direct = readStringValue(expression);
+  if (direct !== undefined) {
+    return direct;
+  }
+  const object = unwrapExpression(expression);
+  if (!Node.isObjectLiteralExpression(object)) {
+    return;
+  }
+  const property = object.getProperty("code");
+  return Node.isPropertyAssignment(property) ? readStringValue(property.getInitializerOrThrow()) : undefined;
+}
+
 function mapperCodes(sf: SourceFile, channel: WarningChannel): string[] {
   if (channel.tuple !== "CHAT_WARNING_CODES") {
     return [];
   }
-  return (sf.getFunction("toChatWarningCode")?.getDescendantsOfKind(SyntaxKind.ReturnStatement) ?? []).flatMap((statement) => {
-    const expression = statement.getExpression();
-    const value = expression === undefined ? undefined : readStringValue(expression);
+  return (sf.getFunction(CHAT_WARNING_MAPPER)?.getDescendantsOfKind(SyntaxKind.ReturnStatement) ?? []).flatMap((statement) => {
+    const value = returnedCode(statement);
     return value === undefined ? [] : [value];
   });
 }
@@ -347,6 +374,24 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/x.ts": 'emit({ type: "warning", code: "emitted_code" });\n',
       },
       why: "the code is carried by an emitted warning event in the channel scope — covered, passes",
+    },
+    {
+      files: {
+        [PROVIDER_HOME]: PROVIDER_HOME_FIXTURE,
+        [PROVIDER_EMIT]: PROVIDER_EMIT_FIXTURE,
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["mapped_string"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": `function ${CHAT_WARNING_MAPPER}(c) {\n  return "mapped_string";\n}\n`,
+      },
+      why: "the infra→chat TRANSLATION is an emit site by proxy (the engine spreads its answer onto the bus): a code the mapper returns as a bare string is covered",
+    },
+    {
+      files: {
+        [PROVIDER_HOME]: PROVIDER_HOME_FIXTURE,
+        [PROVIDER_EMIT]: PROVIDER_EMIT_FIXTURE,
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["mapped_payload"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": `function ${CHAT_WARNING_MAPPER}(c) {\n  return { code: "mapped_payload", detail: c };\n}\n`,
+      },
+      why: "#1440: the mapper answers with a PAYLOAD once a code carries detail — a string-only reader would call that code dead, so the object shape is covered too",
     },
   ],
 };

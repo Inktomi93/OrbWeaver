@@ -7,7 +7,7 @@
 // turn. A chat row exists from the creation click now (chat-creation-draft-mode-replacement.md §4.1), so
 // there is no promotion left to survive and the key is simply the id.
 
-import type { ChatWarningCode, TurnAbortReason } from "@orb/contracts/chat";
+import type { ChatWarning, TurnAbortReason } from "@orb/contracts/chat";
 import type { ReactElement } from "react";
 import type { ChatBusDeps } from "#data";
 import { useChatBusDeps } from "#data";
@@ -50,9 +50,9 @@ const OPEN_CONNECTIONS: NotifyAction = {
 // not plain info: the turn/image still produced a result, but the thing the user asked for did not happen,
 // and as `info` it arrived with no identity at all (side-eye P2-1). Module-stable so `busDeps` stays
 // referentially calm. Every warning surfaces (the mapper is total — no silenced code).
-function surfaceWarning(code: ChatWarningCode): void {
-  const notice = warningNotice(code);
-  notify.warn(code === "custom_parameters_ignored" ? { ...notice, action: OPEN_CONNECTIONS } : notice);
+function surfaceWarning(warning: ChatWarning): void {
+  const notice = warningNotice(warning);
+  notify.warn(warning.code === "custom_parameters_ignored" ? { ...notice, action: OPEN_CONNECTIONS } : notice);
 }
 
 export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentProps): ReactElement {
