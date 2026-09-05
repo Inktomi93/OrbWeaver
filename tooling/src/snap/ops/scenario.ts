@@ -17,6 +17,7 @@ import type { Args, CaptureOutcome, SessionCounts, ShotPlan } from "../contract/
 import type { SnapFailureSummary } from "../contract/verdict.ts";
 import { HTTP_URL_RE, shouldProduceShot } from "../lib/out-names.ts";
 import { ratePostureResultPairs, sampleSnapRatePosture } from "../lib/rate-posture.ts";
+import { checkpointCssFailed, scenarioValue } from "../lib/scenario-values.ts";
 import { capturePageCssEvidence } from "./arms/cascade.ts";
 import type { RunArms } from "./arms/registry.ts";
 import { beginRunArms, disabledRunArmFailures, pageArmExit, pageArmFailures } from "./arms/registry.ts";
@@ -97,14 +98,6 @@ interface ScenarioEvidenceRange {
   readonly pageErrorStart: number;
   readonly pageErrorEnd: number;
   readonly diagnosticWindow: number;
-}
-
-function scenarioValue<T>(values: readonly T[], index: number, label: string): T {
-  const value = values[index];
-  if (value === undefined) {
-    throw new Error(`INSTRUMENT ERROR: scenario ${label} is missing at checkpoint ${String(index)}`);
-  }
-  return value;
 }
 
 // Raw string, not a function: the tooling program is DOM-less and has no __orb ambient (_shared/browser.ts).
@@ -213,15 +206,6 @@ function scenarioCheckpointSession(session: ProbeSession, outcome: CaptureOutcom
     diagnosticCompleteness: session.diagnosticCompleteness.filter((entry) => entry.evidenceWindow === range.diagnosticWindow),
     diagnosticWindow: { value: range.diagnosticWindow },
   };
-}
-
-function checkpointCssFailed(outcome: CaptureOutcome): boolean {
-  return (
-    outcome.deadCss.length > 0 ||
-    outcome.emptyCss.length > 0 ||
-    (outcome.deadCssEvidence?.unreadable.length ?? 0) > 0 ||
-    outcome.cssEvidence?.status === "instrument-error"
-  );
 }
 
 function printScenarioReports(args: ScenarioReportArgs): void {
