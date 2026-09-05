@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 541,
-    "enforced": 536,
+    "sites": 540,
+    "enforced": 535,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 536,
+      "deliberate-absorb": 535,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
       "default": 144,
-      "empty": 255
+      "empty": 254
     }
   },
   "rows": [
@@ -2577,19 +2577,6 @@
       "verdict": "deliberate-absorb",
       "reason": "§2.7.4 D79-heal DEFENSIVE arm (comment below) —",
       "markerLine": 496
-    },
-    {
-      "siteId": "packages/server/src/domain/sessions/verbs/link-external-id.ts::empty:failure::1",
-      "path": "packages/server/src/domain/sessions/verbs/link-external-id.ts",
-      "line": 70,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:failure",
-      "ordinal": 1,
-      "snippet": "} catch (failure) {",
-      "verdict": "deliberate-absorb",
-      "reason": "propagated — `settleMissedClaim` re-reads",
-      "markerLine": 64
     },
     {
       "siteId": "packages/server/src/domain/sessions/verbs/revoke.ts::default:catch::1",

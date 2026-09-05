@@ -4,16 +4,16 @@
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import type { Sealed } from "#infra/crypto";
 import type { CreateSessionParams, ProvisionIdentityOptions } from "./params.ts";
 import type {
   CreateSessionResult,
-  LinkExternalIdResult,
   ProvisionResult,
   RevokedSession,
   RevokedSessionsSummary,
+  UnclaimedLinkOutcome,
   UserPrincipalFields,
   ValidatedSession,
 } from "./results.ts";
@@ -92,11 +92,20 @@ export interface SessionsService {
    *  unknown/SSO-only/wrong-password/disabled — all collapse into one leak-free null with the same KDF
    *  time burned (no user-enumeration timing oracle). @internal */
   authenticate: (handle: Handle, password: string) => Promise<UserId | null>;
-  /** B5 — stamp a stable external subject onto an existing row (the admin "link SSO identity" capability).
-   *  The SECOND `externalId` writer after `provisionIdentity`; reuses the bind-once guard and refuses a
-   *  subject already bound elsewhere / a row already bound to a different subject (spine U1: one linking
-   *  site). Gating + audit are the admin wrapper's — this enforces only the identity invariant. @internal */
-  linkExternalId: (userId: UserId, externalId: ExternalId) => Promise<LinkExternalIdResult>;
+  /** B5 — the UNEXECUTED bind: stamp a stable external subject onto an existing row (the admin "link SSO
+   *  identity" capability), handed back unrun so the caller commits it INSIDE its own privileged write's
+   *  `db.batch` (#1707 — the bind and its audit row are one atomic unit, or a link returns 200 unaudited).
+   *  The SECOND `externalId` writer after `provisionIdentity` and the SAME single atomic claim (spine U1:
+   *  one linking site), so the bind-once condition rides in the statement's own WHERE. NON-EMPTY rows back
+   *  = bound; EMPTY = nothing was bound, and {@link SessionsService.settleUnclaimedLink} says why. Gating +
+   *  audit are the admin wrapper's — this enforces only the identity invariant. @internal */
+  linkExternalIdStatement: (userId: UserId, externalId: ExternalId, at: number) => AwaitableBatchStmt<{ id: UserId }[]>;
+  /** B5/#1707 — the companion read for a claim that bound nothing (empty RETURNING) or whose batch REJECTED:
+   *  re-reads settled durable state and names the identity refusal (`already-linked`/`not-found`/
+   *  `target-bound`/`subject-taken`). `failure` is the caller's rejection, if any — when durable state does
+   *  not explain it, it was never an identity refusal and the original error is RETHROWN unchanged (a failed
+   *  audit insert riding the same batch lands there). @internal */
+  settleUnclaimedLink: (userId: UserId, externalId: ExternalId, failure?: unknown) => Promise<UnclaimedLinkOutcome>;
   /** B4 — is this a fresh local box whose owner row has no password yet (first-run setup pending)? Drives
    *  the `localFirstRun` config flag. @internal */
   ownerNeedsPassword: () => Promise<boolean>;

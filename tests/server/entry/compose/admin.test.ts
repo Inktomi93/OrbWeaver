@@ -46,7 +46,8 @@ interface Fakes {
   readonly listForUser: ReturnType<typeof vi.fn>;
   readonly revoke: ReturnType<typeof vi.fn>;
   readonly revokeAllForUser: ReturnType<typeof vi.fn>;
-  readonly linkExternalId: ReturnType<typeof vi.fn>;
+  readonly linkExternalIdStatement: ReturnType<typeof vi.fn>;
+  readonly settleUnclaimedLink: ReturnType<typeof vi.fn>;
   readonly evictUser: ReturnType<typeof vi.fn>;
   readonly evictSession: ReturnType<typeof vi.fn>;
   readonly getCard: ReturnType<typeof vi.fn>;
@@ -65,7 +66,8 @@ function fakes(): Fakes {
     listForUser: vi.fn(() => Promise.resolve([VIEW])),
     revoke: vi.fn(() => Promise.resolve<UserId | null>(TARGET)),
     revokeAllForUser: vi.fn(() => Promise.resolve(3)),
-    linkExternalId: vi.fn(() => Promise.resolve({ ok: true })),
+    linkExternalIdStatement: vi.fn(() => ({})),
+    settleUnclaimedLink: vi.fn(() => Promise.resolve({ outcome: "not-found" })),
     evictUser: vi.fn(() => 1),
     evictSession: vi.fn(() => 1),
     getCard: vi.fn(() => Promise.resolve({ name: "Aria" })),
@@ -91,7 +93,13 @@ function build(f: Fakes, withEngine = true): ReturnType<typeof buildAdmin> {
     newUserId: () => castId<UserId>("usr_new"),
     hashPassword: () => Promise.resolve("hashed"),
     audit: f.audit,
-    sessions: { listForUser: f.listForUser, revoke: f.revoke, revokeAllForUser: f.revokeAllForUser, linkExternalId: f.linkExternalId },
+    sessions: {
+      listForUser: f.listForUser,
+      revoke: f.revoke,
+      revokeAllForUser: f.revokeAllForUser,
+      linkExternalIdStatement: f.linkExternalIdStatement,
+      settleUnclaimedLink: f.settleUnclaimedLink,
+    },
     sockets: { evictUser: f.evictUser, evictSession: f.evictSession },
     vllmEngine: engine,
     character: { getCard: f.getCard, loadCardText: f.loadCardText },

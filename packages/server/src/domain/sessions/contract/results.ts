@@ -93,12 +93,17 @@ export type ProvisionResult =
     }
   | { readonly outcome: "denied"; readonly reason?: ProvisionDenyReason };
 
-/** B5 — `linkExternalId` output. `linked` = the subject was stamped onto the row; `already-linked` = the
- *  row already carried exactly this subject (idempotent no-op); `not-found` = no such row; `target-bound` =
- *  the row is already bound to a DIFFERENT stable subject (bind-once refusal — never rebound); `subject-taken`
- *  = the subject already lives on another row. The admin wrapper maps each to a typed operation code. */
-export type LinkExternalIdResult =
-  | { readonly outcome: "linked"; readonly userId: UserId }
+/** B5 — why a link claim bound NOTHING, read from settled durable state after the fact
+ *  ({@link SessionsService.settleUnclaimedLink}). `already-linked` = the row already carried exactly this
+ *  subject (idempotent no-op); `not-found` = no such row; `target-bound` = the row is already bound to a
+ *  DIFFERENT stable subject (bind-once refusal — never rebound); `subject-taken` = the subject already lives
+ *  on another row. The admin wrapper maps each to a typed operation code.
+ *
+ *  THERE IS NO `linked` ARM, and that is the shape of the #1707 seam rather than an omission: the bind is an
+ *  UNEXECUTED statement its caller commits inside its own audited batch, so a successful bind is reported by
+ *  that statement's own non-empty `RETURNING` — no settlement read is involved, and a "linked" value nothing
+ *  could ever hold would be residue. */
+export type UnclaimedLinkOutcome =
   | { readonly outcome: "already-linked"; readonly userId: UserId }
   | { readonly outcome: "not-found" }
   | { readonly outcome: "target-bound" }
