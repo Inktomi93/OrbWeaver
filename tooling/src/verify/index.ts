@@ -35,6 +35,36 @@ export { GATE_CONTRACT_CODES } from "./contract/gate-contract.ts";
 export type { Check, CheckContext, GateResult, Violation } from "./contract/harness.ts";
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
 export type { DeclaredScan, GateIgnoreMarker, GatePassResult, GateScan, PassResult, ToolError } from "./contract/pass.ts";
+export type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProof, GatePolicyReceipt } from "./contract/policy.ts";
+export { defineGate, GATE_POLICY_ANALYSES, GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "./contract/policy.ts";
+export type {
+  PolicyOwnerPlan,
+  PolicyOwnerPlanMode,
+  PolicyOwnerResult,
+  PolicyPassInput,
+  PolicyPassResult,
+  PolicyPopulationReceipt,
+} from "./contract/policy-pass.ts";
+export { POLICY_OWNER_PLAN_MODES } from "./contract/policy-pass.ts";
+export type {
+  PlannedPolicy,
+  PolicyCommandParseResult,
+  PolicyCommandPlan,
+  PolicyCommandRequest,
+  PolicyInspectionPlan,
+  PolicyPlanExecutionInput,
+  PolicyPlanExecutionResult,
+  PolicyPlannerCorpus,
+  PolicyPlannerInput,
+  PolicyPlanningResult,
+  PolicyRosterEntry,
+  PolicyRunPlan,
+  PolicyRunTier,
+  PolicySelector,
+} from "./contract/policy-plan.ts";
+export { POLICY_RUN_TIERS } from "./contract/policy-plan.ts";
+export type { PolicyScopeRequest, PolicyScopeResolution, PolicySemanticPath } from "./contract/policy-scope.ts";
+export { POLICY_SCOPE_KINDS, POLICY_SEMANTIC_PATH_STATUSES } from "./contract/policy-scope.ts";
 export type { RunManifest } from "./contract/run-manifest.ts";
 export type { BootChunkVerdict, ConformanceFailure, LedgerFreshness, SchemaBaselineComparison, ScopedResult } from "./contract/scoped.ts";
 export type { ScopedTestCollection, ScopedTestRunner } from "./contract/scoped-test.ts";
@@ -70,6 +100,12 @@ export { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, 
 export type { GateCorpus } from "./lib/loader.ts";
 export { loadGateCorpus, loadGates } from "./lib/loader.ts";
 export { canonicalSort, fileLoaded, projectCtx, repoRel, runPass, stripProbeFindings, zeroScanGates } from "./lib/pass.ts";
+export { parsePolicyCommand } from "./lib/policy-command.ts";
+export type { GatePolicyCorpus } from "./lib/policy-loader.ts";
+export { loadPolicies, loadPolicyCorpus } from "./lib/policy-loader.ts";
+export { runPolicyPass } from "./lib/policy-pass.ts";
+export { executePolicyPlan, planPolicyArgv, planPolicyCommand, policyPassExitCode } from "./lib/policy-plan.ts";
+export { resolvePolicyScope } from "./lib/policy-scope.ts";
 export { programsFor, staticPrograms } from "./lib/program-routing.ts";
 export { manualStages, REGISTRY, stagesForTier } from "./lib/registry.ts";
 export { renderPass } from "./lib/render.ts";

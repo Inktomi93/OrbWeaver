@@ -5,6 +5,7 @@
 import process from "node:process";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { StageResult, Tier, VerifyReport } from "../contract/stage.ts";
+import { RUNNABLE_VERIFY_TIERS } from "../contract/stage.ts";
 import { manualStages, stagesForTier } from "./registry.ts";
 
 const NAME_PAD = 20; // stage-name column width in `verify --list`.
@@ -101,7 +102,7 @@ export function printSummary(report: VerifyReport): void {
 
 export function printList(): void {
   process.stdout.write("verify — the stage registry (tiers · scope):\n\n");
-  for (const t of ["changed", "static", "push", "full"] as const) {
+  for (const t of RUNNABLE_VERIFY_TIERS) {
     process.stdout.write(`  ${t}:\n`);
     for (const s of stagesForTier(t)) {
       const scoped = s.scopedArgv === undefined ? "whole-only" : "scopable";
