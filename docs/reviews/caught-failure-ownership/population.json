@@ -1047,7 +1047,7 @@
     {
       "siteId": "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx::promise:openRefinery::1",
       "path": "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx",
-      "line": 153,
+      "line": 154,
       "column": 18,
       "grammar": "promise",
       "position": "promise:openRefinery",
@@ -1055,7 +1055,7 @@
       "snippet": "void openRefinery(id).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "useOpenRefinery's own errorToast",
-      "markerLine": 151
+      "markerLine": 152
     },
     {
       "siteId": "packages/client/src/features/roster-preset/components/roster-picker.tsx::promise:startChat::1",
