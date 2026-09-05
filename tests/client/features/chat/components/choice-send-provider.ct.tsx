@@ -7,25 +7,26 @@
 // The knob rides `rpg.getGame.publicConfig.cyoaChoiceBehavior`. The first choice option is
 // "Draw your blade." (the CHOICES_BODY fence in _ct-stories).
 
-import type { RpgCyoaChoiceBehavior } from "@orb/contracts/rpg";
+import type { RpgCyoaChoiceBehavior, RpgGameView } from "@orb/contracts/rpg";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { makeRpgGameView } from "../../rpg/fixtures.ts";
 import { ChoiceProviderStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID } from "../fixtures.ts";
 
-// `rpg.getGame` shaped as the publicConfig slice the provider reads; `chatId` echoes the room. `behavior`
-// is the knob under test; the other play-style fields are the defaults (irrelevant to the branch).
-function gameView(behavior: RpgCyoaChoiceBehavior): unknown {
-  return {
-    id: "rpg_game_ct",
-    chatId: COMPOSER_CHAT_ID,
-    mode: "lite",
-    status: "active",
-    trackersReadOnly: false,
+// `rpg.getGame` for the room the provider reads; `behavior` is the knob under test and every other knob is
+// the born game's own default.
+//
+// IT IS THE REAL `RpgGameView`, BUILT BY THE BIRTH DERIVATION (#900). The literal this replaced returned
+// `unknown` and was missing `canPopulate`, `publicConfig.ruleset` and `publicConfig.dateMode` — three
+// REQUIRED members of the view — while spelling a `statProfile` of one field out of six. None of it changed
+// this file's verdict (the branch keys on `cyoaChoiceBehavior` alone), which is precisely why it survived:
+// a fixture the server cannot mint is a green pin over a product nobody ships.
+function gameView(behavior: RpgCyoaChoiceBehavior): RpgGameView {
+  return makeRpgGameView(COMPOSER_CHAT_ID, {
     extractionMode: "cheap",
-    effectiveDelivery: { path: "tool-round", fallbackReason: null },
-    publicConfig: { statProfile: { attributes: [] }, immersiveHtml: true, cyoa: true, cyoaChoiceBehavior: behavior, plotProgression: true },
-  };
+    features: { immersiveHtml: true, cyoa: true, cyoaChoiceBehavior: behavior, plotProgression: true },
+  });
 }
 
 const FIRST_OPTION = "Draw your blade.";

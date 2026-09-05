@@ -11,6 +11,21 @@
 // art at entry/boot/seed-assets/avatars/<handle>.png and stamps the id — a missing file seeds art-less).
 // `greetings[0]` is NEVER `groupOnly` (the first message is always solo-eligible; contract invariant).
 //
+// WHAT A SEED MAY NEVER HAND-SET (#900 — the derived-field parity rule). A seed row that spells a value the
+// product DERIVES ships the impossible shape to every real user, so:
+//   · The DERIVED COLUMNS are unreachable BY TYPE and stay that way. A card here is a `CreateCharacterInput`,
+//     which carries no `contentHash` (`cardContentHash` over the card's identity fields, stamped by
+//     `verbs/create.ts`), no `tokenSize` (`cardTokenSize`), no `id`/`createdAt`/`updatedAt`, no `refinery`,
+//     and no `importedFrom`/`importHash`. Never widen `SeedCard.input` past that type to "just set one".
+//   · PROVENANCE IS NOT A FIELD AT ALL. `characterProvenanceOf(row)` derives `shipped | imported | authored`
+//     from `creator` + `importedFrom` at the READ seam; this pack's only lever is `creator`, and it spends it
+//     on the shared `AUTHORED_CARD_CREATOR` marker so all ten read `shipped`. A card here that carried a
+//     `source` URL list (the V3 upstream-provenance field) while reading `shipped` would be exactly the
+//     impossible pair #893 found in a fixture — so `source` stays null, pinned in the contract suite.
+//   · The CARRIED BACKGROUND is computed, not typed — see {@link seededBackground}.
+// The two hand-authored fields that DO ride a derivation's output are `creator` (above) and the scene plate;
+// both are pinned against their derivation in `tests/server/domain/character/seeder/cards.contract.test.ts`.
+//
 // RESEED: an ALREADY-SEEDED install reaches this pack through the version stamp, not the boolean latch —
 // bumping `CARD_PACK_VERSION` below is what makes `seeder/seed.ts` run its migration on every library whose
 // `UserSettings.onboarding.defaultCharactersPackVersion` trails it. That migration creates the pack's
@@ -22,6 +37,8 @@
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import { AUTHORED_CARD_CREATOR } from "@orb/contracts/character";
+import type { ThemeBackground } from "@orb/contracts/theme";
+import { canonicalBackgroundSource, themeBackgroundSchema } from "@orb/contracts/theme";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SeedCard } from "../contract/seeder.ts";
@@ -51,12 +68,23 @@ const AUTHORED_CARD_DEFAULTS = {
   avatarAssetId: null,
 } satisfies Partial<CreateCharacterInput>;
 
-/** The non-source fields of a carried background: every card in this pack points at a bundled SEEDED
- *  catalog slug (`<handle>-bg`, published by `@orb/contracts/theme` `listSeededBackgrounds()`), so the
- *  asset/external arms stay empty — `canonicalBackgroundSource` enforces the same shape on every write. */
-const SEEDED_BACKGROUND_BASE = { externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" };
+/** THE CARD'S OWN SCENE PLATE, DERIVED FROM ITS HANDLE — never a hand-typed blob (#900).
+ *
+ *  Every card in this pack points at a bundled SEEDED catalog slug and the slug IS `<handle>-bg` (published by
+ *  `@orb/contracts/theme` `listSeededBackgrounds()`), so the id is computed here rather than retyped beside
+ *  each card: a pack card can no longer point at a sibling's plate, or at a slug the catalog never shipped
+ *  with a matching name.
+ *
+ *  The five non-`seeded` fields are not spelled either. They come from `themeBackgroundSchema`'s own defaults
+ *  and then through `canonicalBackgroundSource` — the SAME canonicalizer every carried-background WRITE path
+ *  runs — so the pack ships exactly the persisted shape the boundary produces, and a future edit cannot
+ *  smuggle an `assetId` onto a non-asset kind (the GC-root hazard `canonicalBackgroundSource` exists to
+ *  close). Hand-spelling those blanks is what made that smuggle one keystroke away. */
+function seededBackground(handle: CharacterHandle): ThemeBackground {
+  return canonicalBackgroundSource(themeBackgroundSchema.parse({ kind: "seeded", seededId: `${handle}-bg` }));
+}
 
-export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
+const AUTHORED_CARDS: readonly SeedCard[] = [
   {
     tags: ["assistant", "default", "utility"],
     presentation: {
@@ -74,7 +102,6 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
         radius: "card",
         background: "oklch(0.15 0.012 255)",
       },
-      backgroundOverride: { ...SEEDED_BACKGROUND_BASE, kind: "seeded", seededId: "assistant-bg" },
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
@@ -123,7 +150,6 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
         radius: "card",
         background: "oklch(0.15 0.009 75)",
       },
-      backgroundOverride: { ...SEEDED_BACKGROUND_BASE, kind: "seeded", seededId: "jfc-coder-bg" },
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
@@ -178,7 +204,6 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
         radius: "card",
         background: "oklch(0.15 0.0135 292)",
       },
-      backgroundOverride: { ...SEEDED_BACKGROUND_BASE, kind: "seeded", seededId: "niko-bg" },
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
@@ -228,7 +253,6 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
         radius: "card",
         background: "oklch(0.15 0.015 265)",
       },
-      backgroundOverride: { ...SEEDED_BACKGROUND_BASE, kind: "seeded", seededId: "hana-bg" },
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
@@ -286,7 +310,6 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
         radius: "card",
         background: "oklch(0.15 0.0165 305)",
       },
-      backgroundOverride: { ...SEEDED_BACKGROUND_BASE, kind: "seeded", seededId: "morgatha-bg" },
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
@@ -339,7 +362,6 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
         radius: "card",
         background: "oklch(0.15 0.0105 238)",
       },
-      backgroundOverride: { ...SEEDED_BACKGROUND_BASE, kind: "seeded", seededId: "sabine-bg" },
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
@@ -392,7 +414,6 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
         radius: "card",
         background: "oklch(0.98 0.004 78)",
       },
-      backgroundOverride: { ...SEEDED_BACKGROUND_BASE, kind: "seeded", seededId: "birdie-bg" },
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
@@ -438,7 +459,6 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
         radius: "card",
         background: "oklch(0.15 0.012 48)",
       },
-      backgroundOverride: { ...SEEDED_BACKGROUND_BASE, kind: "seeded", seededId: "kohaku-bg" },
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
@@ -493,7 +513,6 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
         radius: "card",
         background: "oklch(0.15 0.015 278)",
       },
-      backgroundOverride: { ...SEEDED_BACKGROUND_BASE, kind: "seeded", seededId: "calamity-bg" },
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
@@ -544,7 +563,6 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
         radius: "card",
         background: "oklch(0.15 0.0135 212)",
       },
-      backgroundOverride: { ...SEEDED_BACKGROUND_BASE, kind: "seeded", seededId: "elias-bg" },
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
@@ -574,3 +592,11 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
     },
   },
 ];
+
+/** The shipped pack. The authored literals above carry the CONTENT and the palette; the scene plate is
+ *  attached HERE, from each card's own handle, so the card ↔ catalog coupling is structural rather than a
+ *  convention ten literals have to keep (#900 — a fixture/seed field the product derives is derived, and the
+ *  contract suite pins the result against `listSeededBackgrounds()`). */
+export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = AUTHORED_CARDS.map(
+  (card): SeedCard => ({ ...card, presentation: { ...card.presentation, backgroundOverride: seededBackground(card.input.handle) } }),
+);

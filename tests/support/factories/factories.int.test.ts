@@ -5,6 +5,9 @@
 // slot→variant→pointer dance.
 
 import { assets, characters, chatParticipants, chats, messages, messageVariants, users } from "@orb/db";
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { cardContentHash } from "@orb/server/kit/serde/card";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { FROZEN_AT_MS } from "../clock.ts";
@@ -34,6 +37,27 @@ describe("make* — pure, deterministic builders", () => {
     expect(a.kind).toBe("card");
     expect(a.hash).toHaveLength(64);
     expect(a.hash).not.toBe(b.hash);
+  });
+
+  test("makeCharacter stamps the PRODUCT'S contentHash, moves with card content, and yields to an override (#900)", () => {
+    // The write-side derivation, not a lookalike: `verbs/create.ts` stamps `cardContentHash(card)` and TWO
+    // readers recompute-and-compare it (`verbs/update.ts`'s `contentChanged`, which gates re-embedding, and
+    // the refinery's belt-14 basis fence). The old default was `hash_<id>` — a value no write path can
+    // produce, which makes `contentChanged` unconditionally true on any factory-seeded row.
+    const base = makeCharacter({ id: castId<CharacterId>("character_hash01"), name: "Aria" });
+    expect(base.contentHash).toBe(cardContentHash(base));
+    expect(base.contentHash).toHaveLength(64);
+    expect(base.contentHash).not.toBe(`hash_${base.id}`);
+
+    // It follows the OVERRIDES, not just the defaults: an identity field the caller changed changes it, and
+    // a non-identity column (D28: re-attribution must not change what a card IS) does not.
+    const renamed = makeCharacter({ id: castId<CharacterId>("character_hash01"), name: "Bolt" });
+    expect(renamed.contentHash).not.toBe(base.contentHash);
+    const restarred = makeCharacter({ id: castId<CharacterId>("character_hash01"), name: "Aria", starred: true, creator: "someone" });
+    expect(restarred.contentHash).toBe(base.contentHash);
+
+    // An explicit hash still wins — a suite pinning a stale-basis arm keeps its value.
+    expect(makeCharacter({ contentHash: "pinned" }).contentHash).toBe("pinned");
   });
 
   test("overrides shallow-merge over fully-valid defaults", () => {

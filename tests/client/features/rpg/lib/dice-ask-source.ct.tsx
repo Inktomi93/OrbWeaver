@@ -14,7 +14,7 @@
 
 import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
-import type { RpgRuleset } from "@orb/contracts/rpg";
+import type { RpgGameView, RpgRuleset } from "@orb/contracts/rpg";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -22,25 +22,22 @@ import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { RpgDiceAskStory } from "../../chat/_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
+import { makeRpgGameView } from "../fixtures.ts";
 
 const CHIPS = '[data-slot="chat-control-chips"]';
 
 /** The engaged room's OTHER game read (the composer's choice provider suspends on it once the game gate opens
  *  — the guided-cluster/choice CT precedent): the `publicConfig` slice those readers use. The dice source
  *  itself reads only `chat.getChat.rpg`, but the ROOM mounts game-aware chrome the moment the pointer engages,
- *  so an engaged mount must feed this or a suspending reader renders `QueryErrorState`. */
-function gameView(ruleset: RpgRuleset): unknown {
-  return {
-    id: "rpg_game_ct_dice",
-    chatId: CHAT_ID,
-    mode: "lite",
-    status: "active",
-    trackersReadOnly: false,
-    canPopulate: false,
-    extractionMode: "cheap",
-    effectiveDelivery: { path: "tool-round", fallbackReason: null },
-    publicConfig: { statProfile: { attributes: [] }, ruleset, immersiveHtml: true, cyoa: false, cyoaChoiceBehavior: "compose", plotProgression: false },
-  };
+ *  so an engaged mount must feed this or a suspending reader renders `QueryErrorState`.
+ *
+ *  THE VOCABULARY IS THE RULESET'S, NEVER THIS FILE'S (#900). This literal used to spell
+ *  `statProfile: { attributes: [] }` beside `ruleset: "d20"` — a pair the birth path cannot mint (a d20 game is
+ *  born carrying `RPG_RULESET_PROFILE.d20`), one `RpgStatProfile` field of six, with `dateMode` missing
+ *  outright; the `unknown` return hid all three from tsc. {@link makeRpgGameView} runs the product's own birth
+ *  derivation and answers the real `RpgGameView`. */
+function gameView(ruleset: RpgRuleset): RpgGameView {
+  return makeRpgGameView(CHAT_ID, { gameId: "rpg_game_ct_dice", ruleset, extractionMode: "cheap", features: { immersiveHtml: true } });
 }
 
 /** A baked `rpg.rollDice` outcome — the wire shape (`RollDiceResult`) verbatim. Network-stubbed, so a fixed
@@ -83,7 +80,7 @@ function routeRoom(
     "chat.listMessages": (): unknown =>
       makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_dice_room"), role: "assistant", content: "The corridor forks.", seq: 1 })]),
     // The engaged room's game-aware chrome suspends on getGame; a plain chat never asks for it (no unfed read).
-    ...(engaged ? { "rpg.getGame": (): unknown => gameView(ruleset) } : {}),
+    ...(engaged ? { "rpg.getGame": (): RpgGameView => gameView(ruleset) } : {}),
     "rpg.rollDice": (): unknown => rollOutcome("d20", [14], 14),
     "chat.send": (): unknown => ({ ok: true }),
   });

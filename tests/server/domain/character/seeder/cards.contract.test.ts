@@ -5,9 +5,22 @@
 // Also pins the pack's own structural invariants: unique handles, the welcome-slot handle present,
 // greetings[0] is NEVER groupOnly (the first message is always solo-eligible), tags present, and each card's
 // seeded background slug EXISTS in the one seeded-background catalog (the card ↔ catalog coupling).
+//
+// AND, SINCE #900, THE PACK'S DERIVED-FIELD PARITY. A seed row is a shape a REAL user receives, so any field
+// it hand-authors that some derivation also answers gets pinned against THAT derivation, never against a
+// second copy of the expected value:
+//   · `characterProvenanceOf` over the row this pack produces must answer `shipped` — the Origin readout's
+//     whole verdict, and the #843 defect ("Made here" on all ten shipped cards) re-armed as a per-card pin.
+//     Its input `source` must stay null: an upstream provenance-URL list on a card reading `shipped` is the
+//     impossible pair #893 found in the client fixture, one layer down.
+//   · The carried background must be CANONICAL — `canonicalBackgroundSource` is idempotent on it and the
+//     parse drops nothing — so the pack ships the byte-shape the write boundary produces and cannot smuggle
+//     an asset reference onto a non-asset kind (the GC-root hazard).
+// THESE PASS ON THE UNMODIFIED PACK and are therefore FENCES, not defect proofs: today's pack is correct and
+// the pins are what keep the next hand-edit from quietly minting a row the server cannot.
 
-import { createCharacterSchema } from "@orb/contracts/character";
-import { CARD_EMBEDDABLE_THEME_KEYS, listSeededBackgrounds, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
+import { AUTHORED_CARD_CREATOR, characterProvenanceOf, createCharacterSchema } from "@orb/contracts/character";
+import { CARD_EMBEDDABLE_THEME_KEYS, canonicalBackgroundSource, listSeededBackgrounds, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
 import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -65,6 +78,14 @@ describe("DEFAULT_CHARACTER_CARDS — the authored pack parses at the write boun
       const slug = background.success ? background.data.seededId : "";
       expect(slug, `${handle} background slug`).toBe(`${handle}-bg`);
       expect(CATALOG_IDS.has(slug), `${slug} exists in listSeededBackgrounds()`).toBe(true);
+
+      // #900 — the pack ships the PERSISTED shape, not a hand-typed lookalike. The parse drops nothing
+      // (a field the schema healed away would be a value the pack claims and never stores), and the write
+      // boundary's own canonicalizer is a no-op on it: a `seeded` blob carrying an assetId would be
+      // reshaped here, which is the GC-root smuggle the canonicalizer exists to close.
+      const parsed = background.success ? background.data : null;
+      expect(parsed, `${handle} backgroundOverride survives the parse`).toEqual(card.presentation.backgroundOverride);
+      expect(parsed === null ? null : canonicalBackgroundSource(parsed), `${handle} backgroundOverride is canonical`).toEqual(parsed);
     });
 
     test(`${handle}: authors a COMPLETE palette, and only card-embeddable keys`, () => {
@@ -81,10 +102,23 @@ describe("DEFAULT_CHARACTER_CARDS — the authored pack parses at the write boun
 
     test(`${handle}: ships author tags + the pack's fixed provenance`, () => {
       expect(card.tags.length, `${handle} tags`).toBeGreaterThan(0);
-      expect(card.input.creator).toBe("orbweaver");
+      expect(card.input.creator).toBe(AUTHORED_CARD_CREATOR);
       expect(card.input.cardVersion).toBe("1.0.0");
       // Prompt posture is preset-owned in orbweaver — an authored card never overrides the main prompt.
       expect(card.input.systemPrompt, `${handle} systemPrompt`).toBeNull();
+    });
+
+    test(`${handle}: the ROW this card produces reads as \`shipped\` through the one derivation (#900/#843)`, () => {
+      // The seeder creates through `characters.create`, which stores the input's `creator` verbatim and
+      // leaves `importedFrom` null (no import path is involved) — so this IS the row the read seam sees.
+      // Asserting the derivation rather than the literal is the point: `AUTHORED_CARD_CREATOR` could be
+      // re-spelled and this pin would follow it, while a card that quietly dropped `creator` reds here.
+      expect(characterProvenanceOf({ importedFrom: null, creator: card.input.creator ?? null }), `${handle} provenance`).toBe("shipped");
+      // `source` is the V3 UPSTREAM provenance-URL list. A shipped card carrying one claims two different
+      // origins at once — the impossible-pair class #893 found on the client's own provenance fixture.
+      expect(card.input.source ?? null, `${handle} authors no upstream source`).toBeNull();
+      expect(card.input.creationDate ?? null, `${handle} authors no creation date`).toBeNull();
+      expect(card.input.modificationDate ?? null, `${handle} authors no modification date`).toBeNull();
     });
   }
 
