@@ -19,6 +19,7 @@ import type { CaptureEvidence, PagePlan } from "../contract/plan.ts";
 import type { Args, CaptureOutcome, ShotPlan } from "../contract/types.ts";
 import { planOut } from "../lib/out-names.ts";
 import type { SnapRatePosture } from "../lib/rate-posture.ts";
+import { EVAL_ARM } from "./arms/eval.ts";
 import type { RunArms } from "./arms/registry.ts";
 import { pageArms } from "./arms/registry.ts";
 import { SHOT_ARM } from "./arms/shot.ts";
@@ -113,8 +114,23 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
     outcome.evalResults = driven.evalResults;
     outcome.fileActions = driven.fileActions;
     await settlePage(page, opts);
+    // TRAILING EVALS RUN BEFORE THE RUN-ARM SETTLE HOOK (#1659), and that ordering is the whole reason
+    // `--eval` can be a positive control at all. They used to execute inside the page-arm pass on the line
+    // BELOW, i.e. after `--design-audit`'s walk — so an operator who planted a `<style>` or an appended
+    // `<div>` through `--eval` got a census byte-identical to the unplanted run while the eval demonstrably
+    // ran, and the standing "a bare zero owes a planted positive control in the same invocation" rule was
+    // unsatisfiable for every design-audit rule. The eval still observes the SETTLED surface (`settlePage`
+    // is the line above), so the arm's own guarantee is untouched; what changed is that every settled-
+    // surface reader — the design-audit walk, aria, contrast, map — now sees what the plant did.
+    // Called by hand, the `SHOT_ARM` precedent in the nav-failure arm below: one arm needs a position the
+    // registry's single pass cannot express.
+    if (split.trailingEvals.length > 0) {
+      await EVAL_ARM.lifecycle.run({ page, opts, pageIndex, plan: armPlan, outcome, trailingEvals: split.trailingEvals, ratePosture });
+    }
     await runArms?.afterSettle({ page, opts, pageIndex });
-    await runPageArms({ page, opts, pageIndex, plan: armPlan, outcome, trailingEvals: split.trailingEvals, ratePosture });
+    // …and the page-arm pass is handed NO trailing evals: the values are already on the outcome (the arm's
+    // print/pairs/facts read them from there), so passing them again would evaluate every expression twice.
+    await runPageArms({ page, opts, pageIndex, plan: armPlan, outcome, trailingEvals: [], ratePosture });
     const consoleGap = await collectOrbConsoleDiagnostics(page, evidence.evidence.diagnostics, evidence.evidence.diagnosticCompleteness, opts.file !== null);
     if (consoleGap !== null) {
       evidence.evidence.pageErrors.push(consoleGap, exactScope(evidence.evidence.contextIndex, pageIndex, evidence.diagnosticWindow.value));
