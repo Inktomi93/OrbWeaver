@@ -96,6 +96,19 @@ type PluginVariableOp =
   | { readonly op: "dec"; readonly key: string }
   | { readonly op: "delete"; readonly key: string };
 
+/** One belief about the CURRENT value of a room variable, attached to `chat.applyVariableOps` to make the
+ *  write a compare-and-set. `expected: null` means "I believe this key is unset" (which is NOT the same claim
+ *  as the empty string). */
+interface PluginVariablePrecondition {
+  readonly key: string;
+  readonly expected: string | null;
+}
+
+/** What `chat.applyVariableOps` answers. `applied` = your ops landed. `stale` = one of your preconditions no
+ *  longer held, NOTHING was written, and `actual` carries the live value of each key you named (`null` =
+ *  unset) so you can re-derive and try again. A lost race is DATA, not an exception. */
+type PluginVariableWriteResult = { readonly outcome: "applied" } | { readonly outcome: "stale"; readonly actual: Record<string, string | null> };
+
 /** A lore-book upsert — attached-book-only, `entryKey`-idempotent (same key updates, never duplicates). */
 interface PluginWorldEntryUpsert {
   readonly bookId: string;
@@ -597,8 +610,18 @@ interface PluginHostV1 {
     /** The room's present CHARACTER roster (never humans, never full cards) — this room only, member-gated:
      *  a room you are not in answers `[]`, not an error. capability: chat.read */
     listCharacters: (chat: ChatHandle) => Promise<readonly PluginCharacterView[]>;
-    /** Room-state write, HOST AUTHORITY required (flat refusal elsewhere). capability: chat.variables.write */
-    applyVariableOps: (chat: ChatHandle, ops: readonly PluginVariableOp[]) => Promise<void>;
+    /** Room-state write, HOST AUTHORITY required (flat refusal elsewhere). capability: chat.variables.write
+     *  Pass `expect` to make it a COMPARE-AND-SET: the ops land only while every named key still reads the
+     *  value you believe it holds (`null` = you believe it is unset). A belief that no longer holds writes
+     *  NOTHING and answers `{ outcome: "stale", actual }` — data to branch on, never a throw — with the live
+     *  value of each key, so a read → compute → write (ticking a counter, advancing a clock) can retry instead
+     *  of losing its update to a writer on the other side of the invoke queue. Omit `expect` and the write is
+     *  unconditional, which can only ever answer `applied`. */
+    applyVariableOps: (
+      chat: ChatHandle,
+      ops: readonly PluginVariableOp[],
+      expect?: readonly PluginVariablePrecondition[],
+    ) => Promise<PluginVariableWriteResult>;
     /** Quick-reply chips (≤ 4), always compose-mode, host authority required. capability: chat.quick_reply */
     surfaceQuickReply: (chat: ChatHandle, choices: readonly { label: string; sendText: string }[]) => Promise<void>;
     /** Ask for an autonomous turn — SPEND, budget-gated; without host authority it becomes a confirm card

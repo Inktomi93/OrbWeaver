@@ -44,7 +44,7 @@ function makeOps(captured: Captured): AutomationOps {
       readVariables: () => Promise.resolve({}),
       readChoicePicks: () => Promise.resolve({}),
       resolveChatProse: () => Promise.resolve({}),
-      applyVariableOps: () => Promise.resolve(),
+      applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
       listBackgroundChoices: () => Promise.resolve([]),
       setChatBackground: () => Promise.resolve(),
       requestTurn: (req): Promise<{ messageCount: number }> => {

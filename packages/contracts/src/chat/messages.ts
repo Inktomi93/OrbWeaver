@@ -108,6 +108,43 @@ export const varOpSchema = z.discriminatedUnion("op", [
  *  selected-variant chain (`foldVarOps`) into `chats.runtime_variables` (D46 runtime plane). */
 export const variableDeltaSchema = z.array(varOpSchema);
 
+/** ONE write-time precondition on a runtime-variable write (#1555): "I believe `key` currently reads
+ *  `expected`" — `null` meaning "I believe the key is UNSET". The writer applies its ops only if EVERY
+ *  precondition still holds against the fold it is writing over; otherwise nothing is written and the caller
+ *  is told what the value actually is.
+ *
+ *  DELIBERATELY NOT A MEMBER OF {@link VarOp}, and that is the load-bearing decision. A `VarOp` is a DURABLE,
+ *  REPLAYED record: it is persisted in `message_variants.variable_delta` / `chats.standalone_variable_deltas`
+ *  and re-folded from scratch on every swipe, fork and mutator refold. A precondition is a fact about ONE
+ *  moment at the write door — replaying it later would either be silently ignored (making the stored op a lie)
+ *  or re-evaluated against a different chain (making the fold non-deterministic, which is the exact property
+ *  D46's derive-don't-stamp model exists to guarantee). So the precondition rides the CALL and never the LOG.
+ *
+ *  It is also NOT a version counter, on purpose: a counter is blind to a writer that does not bump it, and
+ *  this plane's writers (an automation arm, the analysis arm, the plugin membrane, a `{{setvar}}` turn) do not
+ *  share one. Comparing the VALUE is the same idiom `applyProseRewrite`'s `expectedContentHash` uses. */
+export interface VariablePrecondition {
+  readonly key: string;
+  readonly expected: string | null;
+}
+export const variablePreconditionSchema = z.object({ key: z.string(), expected: z.string().nullable() }) satisfies z.ZodType<VariablePrecondition>;
+export const variablePreconditionsSchema = z.array(variablePreconditionSchema);
+
+/** What a runtime-variable write answers (#1555). `applied` = the ops landed. `stale` = at least one
+ *  {@link VariablePrecondition} did not hold, NOTHING was written, and `actual` carries the live value of every
+ *  precondition key (`null` = unset) so the caller can re-derive and retry without a second read — which would
+ *  reopen the very window the precondition closed.
+ *
+ *  A REFUSAL IS DATA, NEVER A THROW. This value crosses the plugin membrane, where three uncaught crashes
+ *  auto-disable a plugin (`domain/plugin/activation/crash-policy.ts`): losing a race is the NORMAL outcome of a
+ *  contended write and must not spend a crash strike. An unconditional write (no preconditions) can only ever
+ *  answer `applied`. */
+export type VariableWriteResult = { readonly outcome: "applied" } | { readonly outcome: "stale"; readonly actual: Record<string, string | null> };
+export const variableWriteResultSchema = z.discriminatedUnion("outcome", [
+  z.object({ outcome: z.literal("applied") }),
+  z.object({ outcome: z.literal("stale"), actual: z.record(z.string(), z.string().nullable()) }),
+]) satisfies z.ZodType<VariableWriteResult>;
+
 /** One standalone (out-of-turn) delta batch (`chats.standalone_variable_deltas`) —
  *  a seq-stamped `applyVariableOps` write made with no turn in flight. Parsed at the read seam; folded into
  *  `chats.runtime_variables` interleaved with the message-variant deltas by `seq`. */

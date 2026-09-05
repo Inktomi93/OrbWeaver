@@ -6,7 +6,7 @@
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
 import { setTimeout as sleep } from "node:timers/promises";
-import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { Can, Principal } from "@orb/contracts/identity";
@@ -439,7 +439,7 @@ export interface ChatComposeResult {
   /** The standalone (out-of-turn) runtime-variable write, bound over chat's own
    *  ctx — automation's `set_variable` chat-scope arm injects this at the composition root (chat learns
    *  nothing automation-shaped; principal-free — the author's authority was gated upstream). */
-  readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[]) => Promise<void>;
+  readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[], expect?: readonly VariablePrecondition[]) => Promise<VariableWriteResult>;
   /** The room HOST's app-tier prose overrides for a chat (PROSE-1 §4.3, owner-decision 8 option (a)) —
    *  surfaced so automation's `set_chat_background` quiet pick reads the SAME host prose the room's other
    *  side generations do, instead of re-deriving the host itself. */
@@ -1507,7 +1507,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       resolveChatPresetProse,
     },
     promptTransforms: promptTransformRegistry,
-    applyVariableOps: (chatId, ops) => applyStandaloneVariableOps(chatCtx, chatId, ops),
+    applyVariableOps: (chatId, ops, expect) => applyStandaloneVariableOps(chatCtx, chatId, ops, expect),
     resolveChatProse,
     requestTurn: chatBundle.requestTurn,
     isMemoryEnabled: async (hostUserId): Promise<boolean> => (await resolveMemoryConfig(hostUserId)).mode !== "off",

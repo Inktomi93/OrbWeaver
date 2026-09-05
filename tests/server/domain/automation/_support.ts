@@ -4,7 +4,7 @@
 
 import type { AutomationAction, AutomationActionInput, AutomationBusEvent, AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
 import { automationActionSchema } from "@orb/contracts/automation";
-import type { PromptTransform } from "@orb/contracts/chat";
+import type { PromptTransform, VariableWriteResult } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chats, messages, messageVariants, users } from "@orb/db";
@@ -184,7 +184,7 @@ function testChatOps(db: Db, tools: AutomationOps["tools"] = NO_TOOLS): Automati
       resolveViewerVisibility: createResolveViewerVisibility({ db }),
       // A6 write ops — inert defaults (the shared harness's A3/A4/A5 tests never fire a real arm; the arm
       // tests inject a capturing `AutomationOps`). Overridable via `overrides.ops`.
-      applyVariableOps: async (): Promise<void> => undefined,
+      applyVariableOps: async (): Promise<VariableWriteResult> => ({ outcome: "applied" }),
       // BG-F set_chat_background arm — inert defaults (only the arm tests exercise these).
       listBackgroundChoices: async (): Promise<readonly never[]> => [],
       // PROSE-1 — no host override in the shared harness ⇒ the shipped default clauses.

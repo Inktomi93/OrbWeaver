@@ -13,6 +13,7 @@
 // what falls out of that, and the re-enable row proves it costs no repair step.
 
 import type { AutomationActionInput } from "@orb/contracts/automation";
+import type { VariableWriteResult } from "@orb/contracts/chat";
 import { worldBooks } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AutomationRuleId, UserId, WorldBookId } from "@orb/kit/ids";
@@ -95,9 +96,9 @@ async function pauseFixture(): Promise<{ fixture: Fixture; gate: ToolGate; varOp
     tools: toolsFor(gate),
     chat: {
       ...base.ctx.ops.chat,
-      applyVariableOps: (_chatId, written): Promise<void> => {
+      applyVariableOps: (_chatId, written): Promise<VariableWriteResult> => {
         varOps.push(...written);
-        return Promise.resolve();
+        return Promise.resolve({ outcome: "applied" });
       },
     },
   };

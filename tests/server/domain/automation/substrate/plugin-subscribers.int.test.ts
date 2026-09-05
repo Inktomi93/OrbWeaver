@@ -69,7 +69,7 @@ function depthOps(db: Awaited<ReturnType<typeof freshDb>>, depth: number): Autom
       readVariables: () => Promise.resolve({}),
       readChoicePicks: () => Promise.resolve({}),
       resolveChatProse: () => Promise.resolve({}),
-      applyVariableOps: () => Promise.resolve(),
+      applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
       listBackgroundChoices: () => Promise.resolve([]),
       setChatBackground: () => Promise.resolve(),
       requestTurn: () => Promise.resolve({ costUsd: null, messageCount: 0 }),

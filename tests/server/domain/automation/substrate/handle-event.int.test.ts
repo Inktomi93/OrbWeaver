@@ -128,7 +128,7 @@ function depthOps(depth: number): AutomationOps {
       readVariables: () => Promise.resolve({}),
       readChoicePicks: () => Promise.resolve({}),
       resolveChatProse: () => Promise.resolve({}),
-      applyVariableOps: () => Promise.resolve(),
+      applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
       listBackgroundChoices: () => Promise.resolve([]),
       setChatBackground: () => Promise.resolve(),
       requestTurn: () => Promise.resolve({ costUsd: null, messageCount: 0 }),
@@ -432,7 +432,7 @@ describe("F2 shared-env write-through (order is semantics)", () => {
         resolveChatProse: () => Promise.resolve({}),
         applyVariableOps: (_chatId, varOps) => {
           captured.push(...varOps);
-          return Promise.resolve();
+          return Promise.resolve({ outcome: "applied" });
         },
         listBackgroundChoices: () => Promise.resolve([]),
         setChatBackground: () => Promise.resolve(),
@@ -543,7 +543,7 @@ describe("F3 durable auto-disable author notice", () => {
         readVariables: () => Promise.resolve({}),
         readChoicePicks: () => Promise.resolve({}),
         resolveChatProse: () => Promise.resolve({}),
-        applyVariableOps: () => Promise.resolve(),
+        applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
         listBackgroundChoices: () => Promise.resolve([]),
         setChatBackground: () => Promise.resolve(),
         requestTurn: () => Promise.resolve({ costUsd: null, messageCount: 0 }),
@@ -679,7 +679,7 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
         readVariables: () => Promise.resolve({}),
         readChoicePicks: () => Promise.resolve({}),
         resolveChatProse: () => Promise.resolve({}),
-        applyVariableOps: () => Promise.resolve(),
+        applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
         listBackgroundChoices: () => Promise.resolve([]),
         setChatBackground: () => Promise.resolve(),
         requestTurn: () => Promise.resolve({ costUsd: null, messageCount: 0 }),
@@ -831,7 +831,7 @@ describe("W1 world-info-activation cascade guard (self-chain closed, #704)", () 
         readVariables: () => Promise.resolve({}),
         readChoicePicks: () => Promise.resolve({}),
         resolveChatProse: () => Promise.resolve({}),
-        applyVariableOps: () => Promise.resolve(),
+        applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
         listBackgroundChoices: () => Promise.resolve([]),
         setChatBackground: () => Promise.resolve(),
         requestTurn: (req) => {

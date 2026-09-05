@@ -21,6 +21,14 @@
 // it never becomes a confirm card). The host-controls surface below only MOUNTS for the host, so the human
 // path is coherent by construction; the model's tool path catches the refusal and tells the model instead.
 //
+// THE THIRD LESSON: A READ-MODIFY-WRITE ON A SHARED PLANE NEEDS A COMPARE-AND-SET. Ticking a clock is
+// read `3/6` → write `4/6`, and this plugin has TWO writers that do not see each other: the `advance_clock`
+// tool runs on the plugin's serialized invoke queue, a panel button arrives on a fresh bridge that never
+// touches it. Unconditional writes both "succeed" and one tick vanishes. `chat.applyVariableOps` takes an
+// optional `expect` — the values you believe you read — and refuses AS DATA (`{outcome:"stale", actual}`)
+// when they moved, so `tick` retries against `actual`. If your plugin computes a new value FROM the old one,
+// on any plane a second writer can reach, this is the shape.
+//
 // THE OTHER LESSON HERE: `turn.trigger`. When a human tick fills a clock, the plugin calls
 // `chat.requestTurn` with a guided instruction — a SPEND capability, budget-gated like the automation
 // `trigger_turn` action, and suggest-shaped: without host authority the request becomes a confirm card for
@@ -141,15 +149,36 @@ async function writeClock(chat, slug, value) {
   await host.chat.applyVariableOps(chat, value === null ? [{ op: "delete", key }] : [{ op: "set", key, value }]);
 }
 
-/** Tick one clock by one segment. Returns `{clock, filled}` after the write, or `null` when absent. */
+/** How many times a tick re-derives after losing the compare-and-set. Each loss means ANOTHER writer moved
+ *  this clock, so the loop makes progress by construction; the bound only stops a pathological spin. */
+const TICK_ATTEMPTS = 4;
+
+/** Tick one clock by one segment — a READ-MODIFY-WRITE, and therefore a COMPARE-AND-SET (the lesson this
+ *  function now carries). Two writers reach the same clock from opposite sides of the plugin invoke queue: the
+ *  `advance_clock` TOOL runs on the plugin's resident, where every invoke is serialized, while a panel action
+ *  arrives on a fresh bridge that never touches that queue. Both read `3/6`, both write `4/6`, and one tick is
+ *  gone — silently, because an unconditional write always "succeeds". So the write states the value it was
+ *  derived from; the host refuses it AS DATA when the clock has moved, and we re-derive from the value the
+ *  refusal hands back rather than taking another read (a second read is another window).
+ *
+ *  Returns `{clock, filled}` after the write, `null` when the clock is absent, or `{contended: true}` when the
+ *  room out-ticked us `TICK_ATTEMPTS` times — an honest "try again", never a silent no-op. */
 async function tick(chat, slug, vars) {
-  const existing = parseClock(vars[`${VAR_PREFIX}${slug}`]);
-  if (existing === null) {
-    return null;
+  const key = `${VAR_PREFIX}${slug}`;
+  let live = vars[key] ?? null;
+  for (let attempt = 0; attempt < TICK_ATTEMPTS; attempt += 1) {
+    const existing = parseClock(live);
+    if (existing === null) {
+      return null;
+    }
+    const cur = Math.min(existing.cur + 1, existing.max);
+    const result = await host.chat.applyVariableOps(chat, [{ op: "set", key, value: `${cur}/${existing.max}` }], [{ key, expected: live }]);
+    if (result.outcome === "applied") {
+      return { clock: { slug, cur, max: existing.max }, filled: cur === existing.max && existing.cur < existing.max };
+    }
+    live = result.actual[key] ?? null;
   }
-  const cur = Math.min(existing.cur + 1, existing.max);
-  await writeClock(chat, slug, `${cur}/${existing.max}`);
-  return { clock: { slug, cur, max: existing.max }, filled: cur === existing.max && existing.cur < existing.max };
+  return { contended: true };
 }
 
 /** The filled-clock consequence: ask the narrator to take a turn about it. Suggest-shaped spend — see the
@@ -225,6 +254,11 @@ if (host.grants.includes("tools.register") && host.grants.includes("chat.read") 
         if (result === null) {
           return `No clock named "${displayName(slug)}" is running.`;
         }
+        if (result.contended === true) {
+          // The room ticked this clock underneath us the whole time we were retrying — say so in prose, which
+          // is what the model can act on. Nothing was written, so the count is still honest.
+          return `"${displayName(slug)}" is being changed by someone else right now — read it again before you move it.`;
+        }
         // The model filled it: report the fact and let the model narrate — it is already speaking. The
         // requestTurn arm belongs to the HUMAN tick path only (see the header).
         return result.filled
@@ -263,6 +297,12 @@ async function tickAction(chat, slug, vars) {
   const result = await tick(chat, slug, vars);
   if (result === null) {
     await host.ui.toast("warn", `No clock named "${displayName(slug)}" — Start it first.`);
+    return;
+  }
+  if (result.contended === true) {
+    // Nothing was written: somebody (or the narrator's tool) kept moving this clock while we retried. An
+    // honest "nothing happened, look again" beats a toast claiming a tick that did not land.
+    await host.ui.toast("warn", `"${displayName(slug)}" is moving under you — the panel will refresh; tick it again.`);
     return;
   }
   if (result.filled) {

@@ -153,6 +153,8 @@ export type {
   TokenProvenance,
   ToolCallRecord,
   UserMacroDraws,
+  VariablePrecondition,
+  VariableWriteResult,
 } from "./messages.ts";
 export {
   CHAT_MESSAGE_LIST_MAX_LIMIT,
@@ -169,6 +171,9 @@ export {
   userMacroDrawsSchema,
   VARIANT_METADATA_REASONING_MS_KEY,
   variableDeltaSchema,
+  variablePreconditionSchema,
+  variablePreconditionsSchema,
+  variableWriteResultSchema,
   varOpSchema,
 } from "./messages.ts";
 export type {

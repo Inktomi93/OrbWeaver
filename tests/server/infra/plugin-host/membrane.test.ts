@@ -7,6 +7,7 @@
 // hand-built, i.e. here; the cross-invocation half of that invariant is the escape suite's (it needs a Sandbox).
 // The full end-to-end runtime lives in port.test.ts; this is the module's own-seam mirror.
 
+import type { VariableWriteResult } from "@orb/contracts/chat";
 import type {
   InvocationChat,
   PluginBridge,
@@ -127,7 +128,7 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
       listCharacters: () => Promise.resolve([{ id: "char_seat0000000000000000000", name: "Seat", avatarAssetId: null }]),
       applyVariableOps: () => {
         writes.count += 1;
-        return Promise.resolve();
+        return Promise.resolve({ outcome: "applied" });
       },
       requestTurn: () => {
         performed.turns += 1;
@@ -539,6 +540,84 @@ describe("attachMembrane — opaque handle + host-authority ceiling", () => {
       expect(out).toContain("host authority");
       expect(fake.writes.count).toBe(0);
     });
+  });
+});
+
+// ── The variable-write COMPARE-AND-SET across the membrane (#1555) ───────────────────────────────────────
+// The guard is only worth anything if the guest's preconditions reach the domain UNCHANGED and the refusal
+// comes back as a VALUE. A throw would be catastrophic in the other direction: three uncaught crashes
+// auto-disable a plugin, so losing a contended write — the NORMAL outcome — would eventually uninstall a
+// correct plugin for behaving correctly.
+describe("attachMembrane — chat.applyVariableOps preconditions", () => {
+  /** A bridge whose variable write records what it was handed and answers a fixed result. */
+  function casBridge(result: VariableWriteResult): { bridge: PluginBridge; seen: { expect: unknown } } {
+    const fake = fakeBridge();
+    const seen: { expect: unknown } = { expect: "NEVER CALLED" };
+    const bridge: PluginBridge = {
+      ...fake.bridge,
+      chat: {
+        ...fake.bridge.chat,
+        applyVariableOps: (_chatId, _ops, beliefs): Promise<VariableWriteResult> => {
+          seen.expect = beliefs;
+          return Promise.resolve(result);
+        },
+      },
+    };
+    return { bridge, seen };
+  }
+
+  test("the guest's preconditions cross verbatim and a STALE refusal comes back as DATA, never a throw", async () => {
+    const { bridge, seen } = casBridge({ outcome: "stale", actual: { "clock:x": "2/6" } });
+    await withHost(["chat.read", "chat.variables.write"], true, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        `(async () => {
+           try {
+             const r = await host.chat.applyVariableOps(host.chat.current(), [{op:'set',key:'clock:x',value:'2/6'}], [{key:'clock:x',expected:'1/6'}]);
+             return r.outcome + ':' + r.actual['clock:x'];
+           } catch (e) { return 'THREW:' + e.message }
+         })()`,
+      );
+      // The guest BRANCHED on the refusal — it never entered a catch, which is the whole contract.
+      expect(out).toBe("stale:2/6");
+    });
+    expect(seen.expect).toEqual([{ key: "clock:x", expected: "1/6" }]);
+  });
+
+  test("`expected: null` (the key is unset) survives the crossing — null is a value here, not an absence", async () => {
+    const { bridge, seen } = casBridge({ outcome: "applied" });
+    await withHost(["chat.read", "chat.variables.write"], true, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        `(async () => (await host.chat.applyVariableOps(host.chat.current(), [{op:'set',key:'k',value:'v'}], [{key:'k',expected:null}])).outcome)()`,
+      );
+      expect(out).toBe("applied");
+    });
+    expect(seen.expect).toEqual([{ key: "k", expected: null }]);
+  });
+
+  test("an UNCONDITIONAL write passes NO preconditions through (undefined, never a silent empty guard)", async () => {
+    const { bridge, seen } = casBridge({ outcome: "applied" });
+    await withHost(["chat.read", "chat.variables.write"], true, bridge, async (ctx) => {
+      await runAsync(ctx, `(async () => (await host.chat.applyVariableOps(host.chat.current(), [{op:'set',key:'k',value:'v'}])).outcome)()`);
+    });
+    expect(seen.expect).toBeUndefined();
+  });
+
+  test("a MALFORMED precondition is a loud refusal and the write NEVER reaches the bridge", async () => {
+    const { bridge, seen } = casBridge({ outcome: "applied" });
+    await withHost(["chat.read", "chat.variables.write"], true, bridge, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        `(async () => {
+           try { await host.chat.applyVariableOps(host.chat.current(), [{op:'set',key:'k',value:'v'}], [{key:'k',expected:7}]); return 'WROTE' }
+           catch (e) { return 'caught:' + e.message }
+         })()`,
+      );
+      expect(out).toContain("expect");
+    });
+    // THE POINT: a guard the host could not understand must not degrade into an unconditional write.
+    expect(seen.expect).toBe("NEVER CALLED");
   });
 });
 
