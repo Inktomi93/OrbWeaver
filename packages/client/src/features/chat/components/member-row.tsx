@@ -298,7 +298,7 @@ function HandoffConfirm({
       description={`${row.displayName} becomes the host once they accept. You stay in the chat as a member.`}
       body={
         <SettingCheckboxRow
-          label="Also give copies of your characters & worldbooks used in this room"
+          label="Also give copies of your characters, worldbooks & regex scripts used in this room"
           description="They get their own point-in-time copies when they accept. You keep yours, and editing or deleting them later won't change this room."
           checked={copyCharacters}
           onChange={setCopyCharacters}
@@ -309,7 +309,9 @@ function HandoffConfirm({
       onConfirm={(): void => {
         // `copyGmPreset` rides the SAME class-level opt-in: the GM voice is part of what the departing host
         // brought to the room, and a room whose preset silently reverts is the same broken gift as a room
-        // whose characters silently vanish. A non-game room has no preset for it to reach.
+        // whose characters silently vanish. A non-game room has no preset for it to reach. The room's regex
+        // scripts ride `copyCharacters` server-side for the same reason and ARE named in the label (#1739):
+        // unlike the GM voice they are an EXECUTABLE transform, so what the giver is handing over is stated.
         actions.onNominateHost?.(row.userId, { copyCharacters, copyGmPreset: copyCharacters });
         setCopyCharacters(false);
         setConfirm(null);

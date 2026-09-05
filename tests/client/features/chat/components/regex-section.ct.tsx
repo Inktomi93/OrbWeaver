@@ -228,6 +228,19 @@ test("host: a PREVIOUS host's chat-tier row is marked, has no switch, and its me
   await expect(component.getByRole("button", { name: /^More for .*Sailor slang.*not yours/u })).toBeVisible();
 });
 
+test("host: a PREVIOUS host's row can still be DETACHED — the room gate, not the script's owner (#1739)", async ({ mount, page }) => {
+  const trpc = await stubHost(page, board01());
+  const component = await mount(<RegexSectionStory />);
+  await component.getByRole("button", { name: /^More for .*Sailor slang.*not yours/u }).click();
+  // The switch's absence is the OWNER gate (`enabled` is the library row's); the detach is the ROOM gate,
+  // which `detachFromChat` no longer re-checks ownership against. Both facts live in this one menu.
+  await expect(page.getByRole("menuitem", { name: /Only its owner can switch it off/u })).toBeDisabled();
+  await page.getByRole("menuitem", { name: "Detach from this chat" }).click();
+  await expect
+    .poll(() => trpc.lastInput("regex.detachFromChat") as { scriptId?: string } | undefined, { intervals: [20, 50, 100] })
+    .toMatchObject({ scriptId: "regex_script_ct_sailor" });
+});
+
 test("host: a preset-less room's group says so instead of naming a preset it cannot name (§7.5)", async ({ mount, page }) => {
   const view = board01();
   const tiers = view["tiers"] as Record<string, unknown>[];

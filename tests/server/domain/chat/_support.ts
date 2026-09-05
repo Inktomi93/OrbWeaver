@@ -444,6 +444,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // not a fake, since the whole arm is about what actually lands in the other domain's tables.
     copyHandoffCards: () => Promise.resolve([]),
     copyHandoffBooks: () => Promise.resolve([]),
+    copyHandoffRegexScripts: () => Promise.resolve([]),
     restampHandoffDigests: () => Promise.resolve([]),
     // D22 member-card tags — default "no accepted tags" (safe floor); a member-card test overrides it.
     resolveCharacterTags: () => Promise.resolve([]),

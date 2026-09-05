@@ -192,6 +192,12 @@ type CopyHandoffBooksOp = (args: {
   readonly cardCopies: readonly HandoffCardCopy[];
 }) => Promise<readonly BatchStmt[]>;
 
+/** The host-handoff REGEX copy (regex's `CopyHandoffRegexScripts`, declared structurally). Copies the
+ *  departing host's CHAT-TIER scripts into the nominee's library and returns the UNEXECUTED
+ *  `chat_regex_scripts` re-point. Takes no `cardCopies`: a room's script attachment is room state that stands
+ *  on its own, so unlike the lore arm it is not derived from what the seats did. */
+type CopyHandoffRegexScriptsOp = (args: { readonly fromOwnerId: UserId; readonly toOwnerId: UserId; readonly chatId: ChatId }) => Promise<readonly BatchStmt[]>;
+
 /** The host-handoff DIGEST re-key (embeddings' `HandoffRestampStatements`, declared structurally). Returns
  *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
 type RestampHandoffDigestsOp = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardCopy[] }) => Promise<readonly BatchStmt[]>;
@@ -875,6 +881,9 @@ export interface HandoffCopyPlan {
   readonly cardCopies: readonly HandoffCardCopy[];
   /** The UNEXECUTED `chat_books` detach-original/attach-copy statements world-info minted. */
   readonly bookRepoint: readonly BatchStmt[];
+  /** The UNEXECUTED `chat_regex_scripts` detach-original/attach-copy statements regex minted. Unlike the
+   *  book arm this does not ride on a card copy — a room's script attachment is room state of its own. */
+  readonly regexRepoint: readonly BatchStmt[];
 }
 
 /** The `handoffHealStatements` call args. Chat OWNS this shape (rpg satisfies it — the {@link ForkGameArgs}
@@ -1262,6 +1271,12 @@ export interface ChatContext {
    *  swap batch commits. Injected because the world-info tables are world-info's; a reference-carry would lose
    *  the lore silently (the character-book pool is owner-filtered). */
   readonly copyHandoffBooks: CopyHandoffBooksOp;
+  /** HOST HANDOFF, the accepted offer's REGEX arm: copy the departing host's chat-tier scripts into the
+   *  nominee's library, returning the UNEXECUTED `chat_regex_scripts` re-point the swap batch commits.
+   *  Injected because `regex_scripts` is the regex domain's. Without it the departed host keeps an EDITABLE
+   *  find/replace running on the transferred room's prompts and rendered output — the chat-book license,
+   *  except executable, and un-flippable by anyone still in the room (#1739). */
+  readonly copyHandoffRegexScripts: CopyHandoffRegexScriptsOp;
   /** HOST HANDOFF, the accepted offer's memory arm: the UNEXECUTED digest re-key (`chat_digests.scopedCharacterId`
    *  + `chat_digest_speakers.characterId`) for THIS chat. Injected because both tables are the embeddings
    *  domain's; without it the departed host's card DELETE would cascade the transferred room's memory away. */

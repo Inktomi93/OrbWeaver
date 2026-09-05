@@ -1369,6 +1369,7 @@
     "tests/server/domain/refinery/verbs/update-schema.int.test.ts",
     "tests/server/domain/refinery/verbs/update-session.int.test.ts",
     "tests/server/domain/refinery/workload-contributions.test.ts",
+    "tests/server/domain/regex/persistence/handoff-copy-write.int.test.ts",
     "tests/server/domain/regex/persistence/ownership.int.test.ts",
     "tests/server/domain/regex/persistence/portability-write.int.test.ts",
     "tests/server/domain/regex/persistence/queries.int.test.ts",

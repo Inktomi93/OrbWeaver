@@ -1097,11 +1097,13 @@ async function commitHandoffSwap(
  *  GM-voice preset), and clears the nomination in one batch; emits chatUpdated and notifies the previous host.
  *
  *  WITH AN ACCEPTED OFFER (§5/§6(f)) it also executes the departing host's point-in-time gift: their seated
- *  cards and the lore behind them are copied into the nominee's library, and this room is re-pointed onto the
- *  copies — seats IN PLACE (era, knobs and identity preserved), canon `messages.characterId`, the derived
- *  digest keys, and rpg's sheets. Message VARIANTS need no copying: they are this chat's rows and transfer by
- *  construction. From the swap onward the room references only the new host's property, so the old host
- *  editing or deleting their originals cannot reach it — which is the whole point of the arm.
+ *  cards, the lore behind them and the room's own regex scripts are copied into the nominee's library, and
+ *  this room is re-pointed onto the copies — seats IN PLACE (era, knobs and identity preserved), canon
+ *  `messages.characterId`, the derived digest keys, rpg's sheets, and the `chat_regex_scripts` attachments
+ *  (#1739, at their stored positions so the transform chain survives byte-identical). Message VARIANTS need
+ *  no copying: they are this chat's rows and transfer by construction. From the swap onward the room
+ *  references only the new host's property, so the old host editing or deleting their originals cannot reach
+ *  it — which is the whole point of the arm.
  *
  *  Everything ROOM-side rides ONE batch (including the copy): the heals and the re-points
  *  are properties of the authority move, so a crash must never be able to land the promotion without them.
@@ -1155,6 +1157,7 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       ...plan.cardCopies.map((c) => restampChatCharacterStatement(ctx.db, chatId, c.sourceCharacterId, c.characterId)),
       ...digestRestamp,
       ...plan.bookRepoint,
+      ...plan.regexRepoint,
       ...droppedSeatIds.map((id) => markParticipantLeftStatement(ctx.db, id, dropSeq)),
       ...rpgHeal,
       insertHandoffResumptionStatement(ctx.db, {

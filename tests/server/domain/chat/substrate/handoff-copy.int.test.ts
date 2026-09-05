@@ -1,9 +1,9 @@
 // The HOST-HANDOFF PROPERTY OFFER, end to end against a real libSQL db (stickler 2026-08-03 §5/§6(f)).
 //
-// Composed-REAL on purpose: the three copy ops are the actual domain factories
-// (`createCopyHandoffCards` / `createCopyHandoffBooks` / `createHandoffRestampStatements`), not fakes. The
-// whole claim of this arm is about rows that land in OTHER domains' tables, and a fake would prove only that
-// chat called something. What is pinned here:
+// Composed-REAL on purpose: the four copy ops are the actual domain factories (`createCopyHandoffCards` /
+// `createCopyHandoffBooks` / `createCopyHandoffRegexScripts` / `createHandoffRestampStatements`), not fakes.
+// The whole claim of this arm is about rows that land in OTHER domains' tables, and a fake would prove only
+// that chat called something. What is pinned here:
 //
 //   • NO OFFER = today's behavior, BYTE-IDENTICAL — the D64 drop runs, nothing is copied, nothing is minted.
 //   • WITH the offer: the departing host's seated cards are copied into the NOMINEE's library, this room's
@@ -16,11 +16,14 @@
 //   • LORE: character-attached books are copied BY VALUE (a reference-carry loses them silently — the
 //     character-book pool is owner-filtered) and the room's chat-attached books are re-pointed at copies,
 //     severing the license the old host would otherwise keep over the room's prompt.
+//   • REGEX (#1739): the room's chat-tier scripts move the same way, at their stored positions — the
+//     executable twin of the lore arm, and the one the departed host could otherwise keep EDITING.
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
+import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import {
   auditLogs,
@@ -31,19 +34,22 @@ import {
   chatDigests,
   chatHandoffResumptions,
   chatParticipants,
+  chatRegexScripts,
   messages,
+  regexScripts,
   worldBooks,
   worldEntries,
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, Handle, RegexScriptId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createCopyHandoffCards, handoffProvenance } from "../../../../../packages/server/src/domain/character/index.ts";
 import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
 import { createHandoffRestampStatements } from "../../../../../packages/server/src/domain/embeddings/index.ts";
+import { createCopyHandoffRegexScripts } from "../../../../../packages/server/src/domain/regex/index.ts";
 import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { createCopyHandoffBooks } from "../../../../../packages/server/src/domain/world-info/index.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -88,7 +94,12 @@ function ownedCard(): (params: { readonly ownerId: UserId; readonly characterId:
 }
 
 /** Deterministic minters — a copy's id is `<prefix>_copy_<n>`, so an assertion can name it without reading. */
-function minters(): { newCharacterId: () => CharacterId; newBookId: () => WorldBookId; newEntryId: () => WorldEntryId } {
+function minters(): {
+  newCharacterId: () => CharacterId;
+  newBookId: () => WorldBookId;
+  newEntryId: () => WorldEntryId;
+  newScriptId: () => RegexScriptId;
+} {
   let n = 0;
   return {
     newCharacterId: (): CharacterId => {
@@ -102,6 +113,10 @@ function minters(): { newCharacterId: () => CharacterId; newBookId: () => WorldB
     newEntryId: (): WorldEntryId => {
       n += 1;
       return castId<WorldEntryId>(`world_entry_copy_${n}`);
+    },
+    newScriptId: (): RegexScriptId => {
+      n += 1;
+      return castId<RegexScriptId>(`regex_script_copy_${n}`);
     },
   };
 }
@@ -123,6 +138,7 @@ function copyContext(overrides: NonNullable<Parameters<typeof makeChatContext>[1
       copyAsset: () => Promise.resolve(null),
     }),
     copyHandoffBooks: createCopyHandoffBooks({ db, now: () => 1, newBookId: mint.newBookId, newEntryId: mint.newEntryId }),
+    copyHandoffRegexScripts: createCopyHandoffRegexScripts({ db, now: () => 1, newScriptId: mint.newScriptId }),
     restampHandoffDigests: createHandoffRestampStatements({ db }),
     ...overrides,
   });
@@ -457,5 +473,87 @@ describe("lore — the books are copied BY VALUE, and the room's license is seve
     expect(attachedBook?.ownerId).toBe(member);
     expect(attachedBook?.name).toBe("Room lore");
     expect((await db.select().from(worldBooks).where(eq(worldBooks.id, bookId)))[0]?.ownerId).toBe(host);
+  });
+});
+
+/** Seed one chat-tier regex script owned by `ownerId` and attach it to `chatId` at `position`. */
+async function seedChatScript(
+  chatId: ChatId,
+  ownerId: UserId,
+  over: { readonly id: string; readonly name: string; readonly find: string; readonly position?: number },
+): Promise<RegexScriptId> {
+  const id = castId<RegexScriptId>(over.id);
+  await db.insert(regexScripts).values({
+    id,
+    ownerId,
+    name: over.name,
+    enabled: true,
+    behavior: regexScriptBehaviorSchema.parse({ findRegex: over.find, replaceString: "[redacted]", placement: ["AI_OUTPUT"] }),
+    createdAt: 1,
+    updatedAt: 1,
+  });
+  await db.insert(chatRegexScripts).values({ chatId, regexScriptId: id, position: over.position ?? 0, createdAt: 1 });
+  return id;
+}
+
+// #1739 — REGEX, the executable twin of the lore arm above. A room's chat-tier scripts are resolved UNSCOPED
+// (`domain/regex/persistence/queries.listChatScripts`, "room-public prompt content"), so without this the
+// departed host keeps a live find/replace over the new host's prompts and rendered output — editable and
+// deletable by them, un-flippable by anyone present. The offer moves the SCRIPTS the same way it moves the
+// books: copy into the nominee's library, re-point the junction, leave the original alone.
+describe("regex — the room's chat-tier scripts move with the room", () => {
+  test("the departed host's chat script is re-pointed at a copy the NOMINEE owns, position preserved", async () => {
+    const { host, member, chatId } = await seedTransferRoom();
+    const scriptId = await seedChatScript(chatId, host, { id: "regex_script_room", name: "Room quirk", find: "secret", position: 3 });
+    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+
+    const attached = await db.select().from(chatRegexScripts).where(eq(chatRegexScripts.chatId, chatId));
+    expect(attached).toHaveLength(1);
+    const attachedScript = (
+      await db
+        .select()
+        .from(regexScripts)
+        .where(eq(regexScripts.id, attached[0]?.regexScriptId ?? scriptId))
+    )[0];
+    // The room now runs the NOMINEE's copy — same name and same body, so the effective transform is unchanged.
+    expect(attachedScript?.ownerId).toBe(member);
+    expect(attachedScript?.name).toBe("Room quirk");
+    expect(attachedScript?.behavior.findRegex).toBe("secret");
+    // Execution order is data: the copy inherits the source's position.
+    expect(attached[0]?.position).toBe(3);
+    // The departed host still owns their original — the copy took nothing away from them.
+    expect((await db.select().from(regexScripts).where(eq(regexScripts.id, scriptId)))[0]?.ownerId).toBe(host);
+  });
+
+  test("a chat script the departing host does NOT own is left exactly where it is (a junction is not a license)", async () => {
+    const { host, member, chatId } = await seedTransferRoom();
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
+    const foreign = await seedChatScript(chatId, stranger, { id: "regex_script_foreign", name: "Not theirs", find: "x" });
+    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+
+    // Nothing was minted for the nominee, and the room still names the stranger's row — which the new host
+    // can now DETACH (the room gate), but which nobody gets to give away on the stranger's behalf.
+    expect(await db.select().from(regexScripts).where(eq(regexScripts.ownerId, member))).toHaveLength(0);
+    const attached = await db.select().from(chatRegexScripts).where(eq(chatRegexScripts.chatId, chatId));
+    expect(attached.map((a) => a.regexScriptId)).toEqual([foreign]);
+  });
+
+  test("NO OFFER copies no script — the junction and its owner are byte-identical to today", async () => {
+    const { host, member, chatId } = await seedTransferRoom();
+    const scriptId = await seedChatScript(chatId, host, { id: "regex_script_room", name: "Room quirk", find: "secret" });
+    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+
+    expect(await db.select().from(regexScripts).where(eq(regexScripts.ownerId, member))).toHaveLength(0);
+    const attached = await db.select().from(chatRegexScripts).where(eq(chatRegexScripts.chatId, chatId));
+    expect(attached.map((a) => a.regexScriptId)).toEqual([scriptId]);
   });
 });
