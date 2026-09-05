@@ -478,9 +478,9 @@ async function assertDeclaredPicks(ctx: ChatContext, chatId: ChatId, values: Use
   }
 }
 
-/** One off-vocabulary pick's identity for the grandfather set — input + value. The space is an unambiguous
- *  delimiter here: an input NAME is `MACRO_NAME_RE`-shaped and can never contain one, so the first space
- *  always ends the name and no two distinct picks collide into one key. */
+/** One off-vocabulary pick's identity for the grandfather set — input + value, joined by U+0000 (spelled as
+ *  an escape, never a raw byte: a raw NUL makes git treat the file as binary, #1356). No input NAME or value
+ *  can carry a NUL, so the first NUL always ends the name and no two distinct picks collide into one key. */
 function pickKey(pick: OffVocabularyPick): string {
   return `${pick.input}\u0000${pick.value}`;
 }

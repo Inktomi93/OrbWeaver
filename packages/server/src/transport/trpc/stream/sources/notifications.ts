@@ -1,5 +1,5 @@
 // Room source: `notifications` — the per-user durable inbox stream (SSE-1 §4.2/S3), MOVED from
-// `routers/notifications.ts::notifications` (`notificationStream` + `collectSince`, bodies intact). The
+// `routers/notifications.ts::notifications` (`notificationStream`; the newest-first `collectSince` became the ascending `replaySince` pump in #1459). The
 // durable-first ordering is unchanged; only the transport underneath moved and the resume cursor moved from
 // the tracked envelope's id onto the frame's own `seq` (§3.3 — the socket's tracked id is a per-socket
 // ordinal, so a durable cursor has to travel INSIDE the frame).

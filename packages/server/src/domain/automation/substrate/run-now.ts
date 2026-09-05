@@ -40,7 +40,7 @@ export function dispatchRuleNow(ctx: AutomationContext, rule: RuleRow, chatId: C
   // lanes that only LOOK alike is the same defect wearing a typo.
   //
   // NO RE-ENTRANCY, and it is structural rather than lucky (receipts, 2026-09-05): `dispatchRuleNow` has
-  // exactly two callers — `verbs/run-rule-now.ts:27` (the R7 tRPC verb) and `verbs/confirm-suggestion.ts:282`
+  // exactly two callers — `verbs/run-rule-now.ts:27` (the R7 tRPC verb) and `verbs/confirm-suggestion.ts:300`
   // (the INVITATION branch) — and neither runs inside a lane. The confirm verb's other execution branch (the
   // stashed arm) is EXCLUSIVE with the invitation branch and takes this lane itself, so the two can never
   // nest. Nothing reachable from an arm re-enters here either: the bus door's own entries are all

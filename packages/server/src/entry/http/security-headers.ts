@@ -208,8 +208,8 @@ function policy(opts: { readonly dev: boolean; readonly external: boolean }): Mi
  * no policy at all (silence).
  *
  * LIMIT, stated rather than discovered: a handler that THROWS is answered by `app.onError`, and hono's
- * `compose()` routes that throw past this middleware's post-`next()` code (`node_modules/hono/dist/
- * compose.js` — the catch lives at the frame ABOVE, so nothing after `await next()` runs). An error
+ * `compose()` routes that throw past this middleware's post-`next()` code — the catch lives at the frame
+ * ABOVE in `node_modules/hono/dist/compose.js`, so nothing after `await next()` runs. An error
  * response on an exempt path is therefore still un-policied; closing that needs the app's error handler to
  * carry the policy, which is a separate seam.
  */
