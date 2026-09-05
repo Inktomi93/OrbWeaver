@@ -11,6 +11,25 @@
 // cache-first `useQuery`, so every collection's resolver has the same hook shape and swapping which one
 // runs changes a query KEY, never the hook set. (Calling all of them in a loop instead would be a hook call
 // inside a callback — `useHookAtTopLevel` refuses it, and rightly.)
+//
+// WHY THE `?.` ON `collection` SURVIVES, stated so the next reader does not re-open it as an oversight
+// (#1622, investigated 2026-09-05 and REFUSED with this receipt). The fallback `collectionGroups(groups)[0]`
+// is what keeps the call unconditional when nothing is selected, and it types as possibly-undefined for a
+// reason no local edit reaches:
+//   · `collectionGroups` is a runtime `.filter(isCollectionGroup)` over `Registry.list()`, and no filter can
+//     hand back a type that says "at least one" — under `noUncheckedIndexedAccess`, `[0]` is optional by law;
+//   · the registry COULD carry the guarantee, but only if `Registry<Id, Def>` (`#lib/registry.ts`) narrowed
+//     `Def` PER KEY, so the four collection ids resolved to `CollectionGroupDefinition`. It is uniform in
+//     `Def` for every id, and every registry in the app (sections, modals, chrome, home tiles, config groups)
+//     goes through it — a codebase-wide change, not this row's;
+//   · an assertion cannot stand in: it would have to run BEFORE the hook below, which is an early return in
+//     front of a hook — precisely the rules-of-hooks defect the row set out to remove.
+// The RUNTIME risk is nil and is a separate fact from the type: the door's `Record` is total over
+// `CONFIG_GROUP_IDS`, whose collections segment is four ids, so the list is never empty in a composed app —
+// and `groups` is door-frozen, so this value cannot change identity across renders of one fiber. What DOES
+// govern this site is the #1203 law recorded on `CollectionContribution.useCount`: a persistent, unkeyable
+// hook host — the topbar title is the named example — forces the contract field REQUIRED rather than keying
+// the fiber. That half is #1219's, on `useMemberTitle` itself, not this file's.
 
 import type { ConfigGroupRegistry } from "#state";
 import { isCollectionGroup, useActiveConfigGroup, useCollectionSelection } from "#state";

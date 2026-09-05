@@ -7,8 +7,11 @@ import { useOrbSocket } from "@orb/client/data";
 import { backupExportSection, backupImportSection } from "@orb/client/features/workloads";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
+import type { WorkloadId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
+import { BundleWorkloadTracker } from "../../../../packages/client/src/features/workloads/components/bundle-workload-tracker.tsx";
 import { SchedulesSection } from "../../../../packages/client/src/features/workloads/components/schedules-section.tsx";
 import { WorkloadsJobsSection } from "../../../../packages/client/src/features/workloads/components/workloads-jobs-section.tsx";
 import { WorkloadsTuningSection } from "../../../../packages/client/src/features/workloads/components/workloads-tuning-section.tsx";
@@ -148,6 +151,59 @@ export function LibraryImportEpochStory(): ReactElement {
   return (
     <CtDataProviders>
       <LibraryImportEpochBody />
+    </CtDataProviders>
+  );
+}
+
+/** The two trackers of {@link BundleWorkloadTrackerStory}, with the tally the CT reads.
+ *
+ *  TWO, because one is the CONTROL. The claim under test is an ABSENCE — a torn-down tracker calls nothing
+ *  — and an absence measured alone is indistinguishable from a scenario that never happened at all. The
+ *  second tracker stays mounted on the SAME released response and the SAME retry ladder, so its counters
+ *  moving is the proof that the first one's staying still is a guard rather than a dead test. */
+function BundleTrackerPairBody({ goneId, liveId }: { readonly goneId: string; readonly liveId: string }): ReactElement {
+  const [tailed, setTailed] = useState(true);
+  const [gone, setGone] = useState({ progress: 0, succeeded: 0, failed: 0 });
+  const [live, setLive] = useState({ progress: 0, succeeded: 0, failed: 0 });
+  const tally = (counts: { progress: number; succeeded: number; failed: number }): string =>
+    `${String(counts.progress)}/${String(counts.succeeded)}/${String(counts.failed)}`;
+  return (
+    <>
+      {tailed ? (
+        <BundleWorkloadTracker
+          onFailed={(): void => setGone((c) => ({ ...c, failed: c.failed + 1 }))}
+          onProgress={(): void => setGone((c) => ({ ...c, progress: c.progress + 1 }))}
+          onSucceeded={(): void => setGone((c) => ({ ...c, succeeded: c.succeeded + 1 }))}
+          workloadId={castId<WorkloadId>(goneId)}
+        />
+      ) : null}
+      <BundleWorkloadTracker
+        onFailed={(): void => setLive((c) => ({ ...c, failed: c.failed + 1 }))}
+        onProgress={(): void => setLive((c) => ({ ...c, progress: c.progress + 1 }))}
+        onSucceeded={(): void => setLive((c) => ({ ...c, succeeded: c.succeeded + 1 }))}
+        workloadId={castId<WorkloadId>(liveId)}
+      />
+      <button type="button" onClick={(): void => setTailed(false)}>
+        Unmount the tailed tracker
+      </button>
+      <output data-testid="tracker-tally">{`mounted=${String(tailed)} gone=${tally(gone)} live=${tally(live)}`}</output>
+    </>
+  );
+}
+
+/** #1601 — the FIRST mount of `<BundleWorkloadTracker>` in any test. It renders nothing, so it has no
+ *  surface of its own to drive: the story supplies the two things a CT needs to see it at all — a boolean
+ *  that unmounts one instance mid-flight, and a rendered tally of every callback it fired.
+ *
+ *  Under `SocketHost` because the tracker's tail is a ROOM on the tab's one socket, and the gap-heal edge
+ *  it exists to serve (`onSocketLive` → `reconcile(0)`) only fires on a socket DROP AND RE-ATTACH — which
+ *  is `routeOrbSocket`'s `dropFirstConnection`, never a first live edge (BOOT-4X). */
+export function BundleWorkloadTrackerStory({ goneId, liveId }: { readonly goneId: string; readonly liveId: string }): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <BundleTrackerPairBody goneId={goneId} liveId={liveId} />
+      </SocketHost>
     </CtDataProviders>
   );
 }

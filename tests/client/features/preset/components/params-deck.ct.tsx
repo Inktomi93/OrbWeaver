@@ -311,16 +311,51 @@ test("OUTPUT — the token caps are KnobRows at the model's real ceilings, and a
   await expect(deck.getByRole("textbox", { name: "Max context tokens value", exact: true })).toHaveAttribute("placeholder", "32768");
 });
 
-test("OUTPUT — the stop-sequence chip list adds and removes (G2)", async ({ mount }) => {
+test("OUTPUT — the stop-sequence chip list adds and removes, and the add box carries its OWN name (G2, #1620)", async ({ mount }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
-  // Located by PLACEHOLDER, not by its aria-label: inside a `<Field>` Base UI associates the field's own
-  // Label with the control, and that association wins the accessible name (the Field-forces-a11y reality).
-  await deck.getByPlaceholder("add…").fill("<|im_end|>");
-  await deck.getByPlaceholder("add…").press("Enter");
+  // BY ROLE + NAME, which is the whole of #1620. Under the old `<Field label="Stop sequences">` anatomy the
+  // add Input was the field's sole control, so Base UI's context-injected `aria-labelledby` reached it and
+  // OUTRANKED any `aria-label` — the box announced the GROUP's name and this locator resolved nothing (the
+  // test had to reach for `getByPlaceholder`). A `Fieldset` legend names the group instead, so the box's own
+  // name is reachable: this line is the red-first assertion for the change.
+  const addBox = deck.getByRole("textbox", { name: "Add stop sequence", exact: true });
+  await expect(addBox).toBeVisible();
+  // …and the GROUP still announces itself — the legend is a real name, not a name that was merely moved off.
+  await expect(deck.getByRole("group", { name: "Stop sequences", exact: true })).toBeVisible();
+
+  await addBox.fill("<|im_end|>");
+  await addBox.press("Enter");
 
   await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('values=stop:["<|im_end|>"]');
   await deck.getByRole("button", { name: "Remove stop sequence <|im_end|>" }).click();
   await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("values=stop:[]");
+});
+
+test("OUTPUT — the stop-sequence group holds BOTH ends of the width matrix without spilling (#1620's layout bill)", async ({ mount, page }) => {
+  // A legend is a LAYOUT change, not only an accname one: the row left the deck's horizontal label/control
+  // pair for a stacked group, so the bill is measured at both ends rather than asserted at one
+  // (label-compression-must-be-remeasured-after). NARROW first — the phone pane is where a chip row spills.
+  await page.setViewportSize({ width: 320, height: 900 });
+  const deck = await mount(<ParamsDeckGhostStory />);
+  const group = deck.getByRole("group", { name: "Stop sequences", exact: true });
+  await expect(group).toBeVisible();
+  await deck.getByRole("textbox", { name: "Add stop sequence", exact: true }).fill("<|im_end|>");
+  await deck.getByRole("textbox", { name: "Add stop sequence", exact: true }).press("Enter");
+  await expect(deck.getByRole("button", { name: "Remove stop sequence <|im_end|>" })).toBeVisible();
+
+  // POLLED, never same-tick: a viewport change re-resolves on the next layout pass (the deck's own
+  // container query moves with it), so a bare read here is a false verdict either way.
+  await expect.poll(() => group.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+  await expect.poll(async () => Math.round((await group.boundingBox())?.width ?? 0)).toBeLessThanOrEqual(320);
+
+  // WIDE: the group is a block in the column, so it may not out-grow the pane at the other end either.
+  await page.setViewportSize({ width: 1224, height: 900 });
+  await expect(group).toBeVisible();
+  await expect.poll(() => group.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+  // The chip survives the reflow at both ends — the add box and its chips stay one usable group, which is
+  // the thing a "the legend costs layout" regression would break first.
+  await expect(deck.getByRole("button", { name: "Remove stop sequence <|im_end|>" })).toBeVisible();
+  await expect(deck.getByRole("textbox", { name: "Add stop sequence", exact: true })).toBeVisible();
 });
 
 // ── CONTEXT: the re-homed compaction fields + the two gap-closes ──────────────────────────────────────

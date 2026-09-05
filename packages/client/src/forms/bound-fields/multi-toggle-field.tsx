@@ -31,6 +31,11 @@ export function MultiToggleField(props: MultiToggleFieldProps): ReactElement {
   const { field, fieldProps } = useBoundField<readonly string[]>(props);
   return (
     <Field {...fieldProps} {...(props.error === undefined ? {} : { error: props.error })}>
+      {/* THE `aria-label` BELOW IS LOAD-BEARING and must not be swept as a duplicate of the Field's label
+          (#1621). A `ToggleGroup` is not a `Field.Control`, so Base UI injects no `aria-labelledby` into it
+          and the Field's label reaches nothing — unlike the Input/Switch/Select families, where the same
+          shape made the attribute unreachable and it was removed. Measured per family at
+          `tests/client/a11y/field-control-name.suite.ct.tsx`. */}
       <ToggleGroup
         multiple={true}
         value={field.state.value}

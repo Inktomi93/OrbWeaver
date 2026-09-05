@@ -1,6 +1,7 @@
 {
   "testFiles": [
     "tests/client/a11y/accessible-name-quality.suite.ct.tsx",
+    "tests/client/a11y/field-control-name.suite.ct.tsx",
     "tests/client/agent-nav/index.test.ts",
     "tests/client/agent-nav/panel-request.ct.tsx",
     "tests/client/agent-plugin/index.test.ts",
@@ -412,6 +413,7 @@
     "tests/client/features/user-admin/components/system-tuning-section.ct.tsx",
     "tests/client/features/user-admin/lib/admin-group.ct.tsx",
     "tests/client/features/workloads/components/backup-export-section.ct.tsx",
+    "tests/client/features/workloads/components/bundle-workload-tracker.ct.tsx",
     "tests/client/features/workloads/components/import-library-section.ct.tsx",
     "tests/client/features/workloads/components/schedules-section.ct.tsx",
     "tests/client/features/workloads/components/workloads-jobs-section.ct.tsx",
