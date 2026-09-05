@@ -19,12 +19,12 @@ import { clearCollectionSelection } from "#state";
 import { useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 
 function RosterLibraryRow({
-  cast,
+  roster,
   selected,
   onSelect,
   onDelete,
 }: {
-  readonly cast: RosterPresetSummary;
+  readonly roster: RosterPresetSummary;
   readonly selected: boolean;
   readonly onSelect: () => void;
   readonly onDelete: () => void;
@@ -32,21 +32,21 @@ function RosterLibraryRow({
   return (
     <LibraryRow
       actions={{
-        name: cast.name,
+        name: roster.name,
         onDelete,
         deleteDescription: "This removes the saved roster only — chats you started from it are untouched.",
       }}
       markers={
         <Text as="span" voice="datum">
-          {cast.memberCount}
-          {cast.rules.length > 0 ? ` · ${cast.rules.length} rule${cast.rules.length === 1 ? "" : "s"}` : ""}
+          {roster.memberCount}
+          {roster.rules.length > 0 ? ` · ${roster.rules.length} rule${roster.rules.length === 1 ? "" : "s"}` : ""}
         </Text>
       }
       onSelect={onSelect}
       selected={selected}
-      subtitle={cast.members.map((m) => m.name).join(", ")}
+      subtitle={roster.members.map((m) => m.name).join(", ")}
       subtitleStep="label"
-      title={cast.name}
+      title={roster.name}
     />
   );
 }
@@ -54,26 +54,26 @@ function RosterLibraryRow({
 export function RosterCollectionRows({ view }: { readonly view: CollectionListView }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { data: casts } = useSuspenseQuery(trpc.rosterPreset.list.queryOptions());
+  const { data: rosters } = useSuspenseQuery(trpc.rosterPreset.list.queryOptions());
   const remove = useRemoveRosterPreset({ trpc, invalidation });
 
   const filter = view.filter.trim().toLowerCase();
-  const shown = filter === "" ? casts : casts.filter((cast) => cast.name.toLowerCase().includes(filter));
+  const shown = filter === "" ? rosters : rosters.filter((roster) => roster.name.toLowerCase().includes(filter));
 
   return (
     <Stack gap="tight">
-      {shown.map((cast) => (
+      {shown.map((roster) => (
         <RosterLibraryRow
-          cast={cast}
-          key={cast.id}
+          roster={roster}
+          key={roster.id}
           onDelete={(): void => {
-            remove.mutate({ presetId: cast.id });
-            if (view.selectedId === cast.id) {
+            remove.mutate({ presetId: roster.id });
+            if (view.selectedId === roster.id) {
               clearCollectionSelection();
             }
           }}
-          onSelect={(): void => view.onSelect(cast.id)}
-          selected={view.selectedId === cast.id}
+          onSelect={(): void => view.onSelect(roster.id)}
+          selected={view.selectedId === roster.id}
         />
       ))}
     </Stack>

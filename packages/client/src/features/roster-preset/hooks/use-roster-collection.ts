@@ -23,8 +23,8 @@ export function useRosterCount(): CollectionCount {
 /**
  * THE ROSTER LIBRARY'S OWN LANDING FACTS (the `insights` seam, #1209).
  *
- * WHAT THE LIST CANNOT SAY. A roster row names the cast; what no row states is what the library is FOR at a
- * glance — how many of these casts carry the room's automation rules with them (B10's rider: applying a
+ * WHAT THE LIST CANNOT SAY. A row names one roster; what no row states is what the library is FOR at a
+ * glance — how many of these rosters carry the room's automation rules with them (B10's rider: applying a
  * roster switches those rules on, which is the fact a reader most needs before they drop one into a chat)
  * and which one they saved last. This is the library the reviewer's crash repro reached FIRST because it
  * declared no facts at all: a landing that said the name of the library back to the reader and stopped.

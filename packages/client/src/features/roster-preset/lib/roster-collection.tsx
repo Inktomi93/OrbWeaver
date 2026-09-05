@@ -22,7 +22,7 @@ function renderDetail(view: CollectionDetailView): ReactElement {
 export const rosterCollection: CollectionContribution = {
   emptyText: "No saved rosters yet.",
   useCount: useRosterCount,
-  // The landing's library-level FACTS (#1209): what these casts CARRY (B10's automation-rules rider) and
+  // The landing's library-level FACTS (#1209): what these rosters CARRY (B10's automation-rules rider) and
   // when the library last changed — the two things a row cannot state about the library.
   insights: { useInsights: useRosterInsights },
   useMemberTitle: useRosterMemberTitle,

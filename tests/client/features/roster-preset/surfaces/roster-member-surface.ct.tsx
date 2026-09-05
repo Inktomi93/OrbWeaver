@@ -15,9 +15,9 @@ import { RosterMemberEditorStory, RosterMemberEditorTwoWritersStory } from "../_
 
 /** `rosterPreset.get`'s view, narrowed to what the editor reads. The stored rule carries a NON-DEFAULT
  *  `everyN` (the catalogue default is 8) — the datum every surface used to collapse to "2 rules". */
-const CAST_VIEW = {
+const ROSTER_VIEW = {
   id: "roster_preset_ct_a",
-  name: "Adventuring Cast",
+  name: "Adventuring Roster",
   description: "",
   anchorPersonaId: null,
   groupConfig: null,
@@ -44,12 +44,12 @@ const PACING_PRESET: RulePresetView = {
 };
 
 test("the editor's groupings are real headings, its rules show their resolved knobs, and talkativeness is the room's own spelling", async ({ mount, page }) => {
-  await routeTrpc(page, { "rosterPreset.get": CAST_VIEW, "automation.listRulePresets": [PACING_PRESET] });
+  await routeTrpc(page, { "rosterPreset.get": ROSTER_VIEW, "automation.listRulePresets": [PACING_PRESET] });
 
   await mount(<RosterMemberEditorStory />);
 
-  // Heading navigation: the cast name (h2) plus one heading per grouping.
-  await expect(page.getByRole("heading", { level: 2, name: "Adventuring Cast" })).toBeVisible();
+  // Heading navigation: the roster name (h2) plus one heading per grouping.
+  await expect(page.getByRole("heading", { level: 2, name: "Adventuring Roster" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 3, name: "Members" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 3, name: "Rules" })).toBeVisible();
 
@@ -65,7 +65,7 @@ test("the editor's groupings are real headings, its rules show their resolved kn
 
 test("the editor's Start door reports what it applied and names the room after the roster", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "rosterPreset.get": CAST_VIEW,
+    "rosterPreset.get": ROSTER_VIEW,
     "automation.listRulePresets": [PACING_PRESET],
     "chat.startChat": { chat: { id: "chat_started_ct", viewerIsHost: true, participants: [] } },
     "rosterPreset.applyToChat": {
@@ -83,10 +83,10 @@ test("the editor's Start door reports what it applied and names the room after t
   await page.getByRole("button", { name: "Start chat", exact: true }).click();
 
   const notice = page.getByTestId("cbcf-notice");
-  await expect(notice).toContainText("Adventuring Cast:");
+  await expect(notice).toContainText("Adventuring Roster:");
   await expect(notice).toContainText("1 rule on");
   await expect(notice).toContainText("this chat has no lorebook attached");
-  await expect.poll(() => trpc.lastInput("chat.startChat")).toMatchObject({ title: "Adventuring Cast" });
+  await expect.poll(() => trpc.lastInput("chat.startChat")).toMatchObject({ title: "Adventuring Roster" });
 });
 
 // ── THE ROSTER ROW MOVING UNDER AN OPEN EDITOR (#1561 — the third site of the class) ─────────────────
@@ -96,8 +96,8 @@ test("the editor's Start door reports what it applied and names the room after t
 // what arrived. Same shape as `tracker-value.tsx` (#1485) and `rpg-beat-row.tsx` (#1502/#1559), in its
 // save-button form; the judge is now the value at OPEN time.
 
-/** The same cast after a second writer renamed it. */
-const RENAMED_VIEW = { ...CAST_VIEW, name: "The Lantern Crew", updatedAt: 2 };
+/** The same roster after a second writer renamed it. */
+const RENAMED_VIEW = { ...ROSTER_VIEW, name: "The Lantern Crew", updatedAt: 2 };
 
 // A FENCE, not a defect proof, and labelled as one (#1587). The two text cells carried
 // `aria-label="Roster name"` / `"Roster description"` beside a `<Field label="Name">` / `"Description"`, and
@@ -106,9 +106,9 @@ const RENAMED_VIEW = { ...CAST_VIEW, name: "The Lantern Crew", updatedAt: 2 };
 // as after; what it buys is that the next author who adds an `aria-label` here to change the announced name
 // discovers immediately that it does not, instead of shipping a name only the source claims.
 test("the text cells announce their FIELD labels — an aria-label beside a Field label names nothing (#1587)", async ({ mount, page }) => {
-  await routeTrpc(page, { "rosterPreset.get": CAST_VIEW, "automation.listRulePresets": [PACING_PRESET] });
+  await routeTrpc(page, { "rosterPreset.get": ROSTER_VIEW, "automation.listRulePresets": [PACING_PRESET] });
   await mount(<RosterMemberEditorStory />);
-  await expect(page.getByRole("heading", { level: 2, name: "Adventuring Cast" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Adventuring Roster" })).toBeVisible();
 
   await expect(page.getByRole("textbox", { name: "Name", exact: true })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Description", exact: true })).toBeVisible();
@@ -121,14 +121,14 @@ test("an UNTOUCHED editor does not become dirty because the row moved underneath
   // WHAT THE STUB ANSWERS NEXT, as a PUSHED array rather than a boolean flip: biome narrows a
   // `= false` initializer to the literal type and reds the later flip as an always-falsy condition,
   // and the `: boolean` that would fix that is itself `noInferrableTypes`. Data, not a flag.
-  const rows: unknown[] = [CAST_VIEW];
+  const rows: unknown[] = [ROSTER_VIEW];
   await routeTrpc(page, {
     "rosterPreset.get": (): unknown => rows.at(-1),
     "automation.listRulePresets": [PACING_PRESET],
     "rosterPreset.update": null,
   });
   const component = await mount(<RosterMemberEditorTwoWritersStory />);
-  await expect(page.getByRole("heading", { level: 2, name: "Adventuring Cast" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Adventuring Roster" })).toBeVisible();
   const save = page.getByRole("button", { name: "Save" });
   await expect(save).toBeDisabled();
 
@@ -136,8 +136,8 @@ test("an UNTOUCHED editor does not become dirty because the row moved underneath
   await component.getByRole("button", { name: "arrive rename" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "The Lantern Crew" })).toBeVisible();
 
-  // THE DEFECT: `name !== cast.name` was true, so the one write affordance on the surface invited a press
-  // that would have written "Adventuring Cast" back over the arrived name.
+  // THE DEFECT: `name !== roster.name` was true, so the one write affordance on the surface invited a press
+  // that would have written "Adventuring Roster" back over the arrived name.
   await expect(save, "nothing was typed, so there is nothing to save however far the row has moved").toBeDisabled();
   await expect(component.locator('[data-slot="roster-editor-conflict"]')).toHaveCount(0);
 });
@@ -146,7 +146,7 @@ test("…and a real edit racing a rename SAYS so beside the Save it changes (#15
   // WHAT THE STUB ANSWERS NEXT, as a PUSHED array rather than a boolean flip: biome narrows a
   // `= false` initializer to the literal type and reds the later flip as an always-falsy condition,
   // and the `: boolean` that would fix that is itself `noInferrableTypes`. Data, not a flag.
-  const rows: unknown[] = [CAST_VIEW];
+  const rows: unknown[] = [ROSTER_VIEW];
   await routeTrpc(page, {
     "rosterPreset.get": (): unknown => rows.at(-1),
     "automation.listRulePresets": [PACING_PRESET],
@@ -155,8 +155,8 @@ test("…and a real edit racing a rename SAYS so beside the Save it changes (#15
   const component = await mount(<RosterMemberEditorTwoWritersStory />);
   // Barrier on the SETTLED editor — the surface suspends on `rosterPreset.get`, so the fields do not exist
   // until the row has landed.
-  await expect(page.getByRole("heading", { level: 2, name: "Adventuring Cast" })).toBeVisible();
-  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Adventuring Cast II");
+  await expect(page.getByRole("heading", { level: 2, name: "Adventuring Roster" })).toBeVisible();
+  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Adventuring Roster II");
 
   rows.push(RENAMED_VIEW);
   await component.getByRole("button", { name: "arrive rename" }).click();

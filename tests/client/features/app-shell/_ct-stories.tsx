@@ -67,6 +67,7 @@ import {
   CtStandInChromeRegistry,
 } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
+import { CT_META_RAIL_CROWNED_IDS } from "./_crowned-tabs.ts";
 
 /** Lands the shell on a section before the assertions run. The BORN default is now `home` (owner
  *  decision H1 = D-1), but most shell CTs are about the FRAME's mechanics over a section that has panes —
@@ -903,6 +904,13 @@ export function ContextOwnershipStory({ paneWidth = 384, height = 700 }: { reado
 /** Wide enough that the ring/median sample is the surface and not its neighbours' edge pixels. */
 const PANE_PROBE_WIDTH = 24;
 
+/** The crowned flag for one meta cell, off the ONE declared set (`_crowned-tabs.ts`) the node parity pin
+ *  checks against the live definitions — so this story can never disagree with the product about which
+ *  cells wear the crown. */
+function isCrowned(id: string): boolean {
+  return CT_META_RAIL_CROWNED_IDS.includes(id);
+}
+
 /** The LIVE meta roster of a host's game room, in the order the CONTRIBUTOR REGISTRIES produce it, and
  *  with the CROWN SET THE PRODUCT ACTUALLY HAS (corrected #898, 2026-08-30).
  *
@@ -912,13 +920,20 @@ const PANE_PROBE_WIDTH = 24;
  *  cannot move anything, while a fixture crowning one cell made it look like it could. THE DURABLE RULE:
  *  a fixture's AXIS DATA (here, which cells are crowned) is not decoration — it is the thing under test,
  *  and it must be derived from the live definitions or checked against them. Hand-declaring it is how a
- *  green CT certifies an arrangement the product has never rendered. */
+ *  green CT certifies an arrangement the product has never rendered.
+ *
+ *  THE RULE NOW HAS AN ENFORCER (#1629). The crowned ids moved to `_crowned-tabs.ts` — one home, spelled
+ *  once — and `tests/client/lib/registry-contracts.test.ts` derives the LIVE crowned set from the three OWNING definitions
+ *  (`chatContextTabs`, `makeRpgContextTabs`, `automationActivityTab`) and asserts the two are equal. A
+ *  definition that gains or loses a crown now REDS that pin instead of quietly re-greening this story. The
+ *  Activity cell also takes its REAL id here: the door mints it as `automation.activity`, and `activity`
+ *  was a fourth hand-typed datum with nothing checking it. */
 const CTX_META_RAIL_TABS: readonly ResolvedContextTab[] = [
   resolvedTab({ id: "members", label: "Members", icon: Users, node: <div>members</div> }),
   resolvedTab({ id: "settings", label: "This chat", icon: Settings, node: <div>this chat</div> }),
-  resolvedTab({ id: "preview", label: "Preview", icon: Eye, node: <div>preview</div>, crown: true }),
-  resolvedTab({ id: "rpg.game", label: "Game", icon: Crown, node: <div>game</div>, crown: true }),
-  resolvedTab({ id: "activity", label: "Activity", icon: FlaskConical, node: <div>activity</div>, crown: true }),
+  resolvedTab({ id: "preview", label: "Preview", icon: Eye, node: <div>preview</div>, crown: isCrowned("preview") }),
+  resolvedTab({ id: "rpg.game", label: "Game", icon: Crown, node: <div>game</div>, crown: isCrowned("rpg.game") }),
+  resolvedTab({ id: "automation.activity", label: "Activity", icon: FlaskConical, node: <div>activity</div>, crown: isCrowned("automation.activity") }),
 ];
 
 /** The meta rail at its live roster and crown set — and at a width the five cells cannot fit,

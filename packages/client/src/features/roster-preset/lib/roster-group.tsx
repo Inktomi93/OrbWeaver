@@ -13,7 +13,7 @@ import { ROSTER_COLLECTION_ID } from "./roster-model.ts";
 function useRosterSearchRows(): readonly ConfigSearchRow[] {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.rosterPreset.list.queryOptions());
-  return (data ?? []).map((cast) => ({ id: cast.id, label: cast.name, memberId: cast.id }));
+  return (data ?? []).map((roster) => ({ id: roster.id, label: roster.name, memberId: roster.id }));
 }
 
 export const rosterGroup: ConfigGroupDefinition = {
