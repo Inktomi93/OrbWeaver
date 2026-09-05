@@ -274,6 +274,27 @@ export interface PluginHostV1 {
     set: (key: string, value: string) => Promise<void>; // ≤ 64 KiB value, ≤ 256 keys/plugin
     delete: (key: string) => Promise<void>;
     list: (prefix?: string) => Promise<readonly string[]>;
+    /** ATOMIC compare-and-set — write `next` only if the key still holds `expected` (`null` = "the key must
+     *  not exist"). Resolves `{ applied, current }`: `applied` says whether YOUR write is the one that landed,
+     *  and `current` is what the key holds afterwards — on a refusal that is the value which beat you, and
+     *  therefore your next `expected`, so a retry costs no extra read. Same `storage.kv` grant, same owner
+     *  scope, same ceilings as `set`: it IS `set` with a precondition, never a wider reach. The predicate is
+     *  the VALUE itself, not a version counter — a counter only guards the writers that remember to bump it,
+     *  and here the row's whole content is its value.
+     *
+     *  A LOST RACE IS DATA, NOT AN ERROR: `applied: false` resolves, it never rejects. Three throws
+     *  auto-disable a plugin, and losing a race is the ordinary case this call exists to report.
+     *
+     *  WHY IT EXISTS (#1442). `get` → compute → `set` is not atomic, and a plugin's own handlers race INSIDE
+     *  ONE PROCESS — two chat events, a tool call and a surface action can all be in flight at once, each
+     *  awaiting a host call between the read and the write, so the second write silently discards the first's
+     *  increment. A guest CANNOT solve this itself: the sandbox has no timers, no randomness and no shared
+     *  lock, so there is no backoff to write and nothing to synchronize on. The fix has to be a host
+     *  primitive. The guest idiom is a BOUNDED retry — read, compute, `compareAndSet`, and on a refusal feed
+     *  `current` straight back in as the next `expected`, a fixed small number of times — which needs no clock
+     *  and no jitter because the loop waits on nothing. Every counter, tally and session record in the shipped
+     *  examples uses it; copy that shape. */
+    compareAndSet: (key: string, expected: string | null, next: string) => Promise<{ applied: boolean; current: string | null }>;
   };
 
   readonly notifications: {
@@ -682,6 +703,11 @@ export const HOST_FUNCTION_CAPABILITY = {
   "storage.get": "storage.kv",
   "storage.set": "storage.kv",
   "storage.delete": "storage.kv",
+  // #1442 — the ATOMIC arm of the same plane. Its capability is `storage.kv`, IDENTICAL to `storage.set`:
+  // same grant, same owner scope, no new ownership check, a PRECONDITION added rather than a reach widened.
+  // A distinct consent line would be a lie — a user who allowed the plugin to write its own KV has already
+  // allowed exactly this write.
+  "storage.compareAndSet": "storage.kv",
   "storage.list": "storage.kv",
   "notifications.post": "notify",
   "imagery.generatePicture": "imagery.generate",
@@ -845,6 +871,11 @@ export const UI_PROXYABLE_HOST_FUNCTIONS = [
   "storage.set",
   "storage.delete",
   "storage.list",
+  // #1442 — IN, and the classification is forced rather than chosen: this is a `storage.kv`-plane DATA op,
+  // and its reach is strictly NARROWER than `storage.set` three lines up (same grant, same owner scope, a
+  // precondition added). Excluding it would leave a Tier-C surface — which does the same read-modify-write on
+  // the same keys the server guest does — with no atomic write at all, which is the defect, not a limit.
+  "storage.compareAndSet",
 ] as const satisfies readonly HostFunctionRef[];
 
 /** One proxyable host-function reference — the `fn` field of `plugin.uiHostCall`. */

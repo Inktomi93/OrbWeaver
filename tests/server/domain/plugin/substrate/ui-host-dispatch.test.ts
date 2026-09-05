@@ -64,6 +64,7 @@ function makeBridge(): PluginBridge {
       set: vi.fn(async (_key: string, _value: string) => undefined),
       delete: vi.fn(async (_key: string) => undefined),
       list: vi.fn(async (_prefix: string | undefined) => ["k1", "k2"] as const),
+      compareAndSet: vi.fn(async (_key: string, _expected: string | null, _next: string) => ({ applied: true, current: _next })),
     },
     notifications: { post: notProxied("notifications.post") },
     llm: { quiet: notProxied("llm.quiet") },
@@ -122,6 +123,31 @@ describe("runUiHostCall — a valid call dispatches to the bridge op", () => {
     const value = await runUiHostCall("storage.delete", bridge, ["gone"], null);
     expect(bridge.storage.delete).toHaveBeenCalledExactlyOnceWith("gone");
     expect(value).toBeNull();
+  });
+
+  // #1442 — the ATOMIC arm across the Tier-C proxy. This path is the WHOLE reason the op exists: unlike a
+  // server guest's call it rides no resident and no invoke queue (`verbs/ui-host-call.ts` calls the bridge
+  // directly), so a scripted surface really is a concurrent writer of the same `(plugin, owner)` rows.
+  test("storage.compareAndSet forwards key/expected/next and returns the outcome object", async () => {
+    const bridge = makeBridge();
+    const value = await runUiHostCall("storage.compareAndSet", bridge, ["count", "3", "4"], null);
+    expect(bridge.storage.compareAndSet).toHaveBeenCalledExactlyOnceWith("count", "3", "4");
+    expect(value).toEqual({ applied: true, current: "4" });
+  });
+
+  test("storage.compareAndSet accepts a NULL precondition (the create-if-absent claim)", async () => {
+    const bridge = makeBridge();
+    await runUiHostCall("storage.compareAndSet", bridge, ["seq", null, "1"], null);
+    expect(bridge.storage.compareAndSet).toHaveBeenCalledExactlyOnceWith("seq", null, "1");
+  });
+
+  // A MISSING precondition is a REFUSAL, not a silent create — the schema is `nullable`, never `optional`.
+  // A client that forgot the argument must not be handed an unconditional write through the atomic door
+  // (this file's "a refusal is a different outcome from an empty result" law, applied to the write side).
+  test("storage.compareAndSet REFUSES an omitted precondition rather than treating it as `null`", async () => {
+    const bridge = makeBridge();
+    await expect(runUiHostCall("storage.compareAndSet", bridge, ["seq", "1"], null)).rejects.toThrow();
+    expect(bridge.storage.compareAndSet).not.toHaveBeenCalled();
   });
 
   test("storage.list forwards an explicit prefix", async () => {

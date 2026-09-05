@@ -390,6 +390,42 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   expect(afterReveal.dealt).toBe(1);
 });
 
+// #1442 — A FENCE, AND LABELLED ONE. It PASSES against the pre-fix guest (measured: the old `main.js`
+// restored from HEAD, this file re-run, exit 0), so it is not a defect proof and must not be read as one.
+// The reason is worth recording, because #1442's own stated mechanism — "the plugin's handlers race inside
+// ONE process" — does not survive the tree: `infra/plugin-host/port.ts` (its header: "the queue is a
+// per-instance tail-promise chain") serializes every invoke on one resident, so a tool call, an event
+// delivery and a panel action on the SAME instance cannot interleave. That queue was minted for the strictly
+// worse version of this bug — concurrent `setInvocationChat` corrupting `chat.current()`/`automationDepth`.
+//
+// What this pins is therefore the PROPERTY, not the fix: two draws in flight at once against the real
+// membrane and the real `plugin_kv` deal disjoint cards and account for every one of them. It goes red if
+// either leg of that guarantee is removed — the invoke queue OR the guest's compare-and-set claim.
+//
+// The unserialized caller the CAS actually defends against is Tier C: `domain/plugin/verbs/ui-host-call.ts`
+// calls the bridge directly, with no resident and no queue, and `storage.set` is UI-proxyable. No shipped
+// example writes from a `ui.js` today, which is exactly why this could not be made red here.
+test("oracle deck: two CONCURRENT draws claim DISJOINT cards — the shared session record never loses a write", async () => {
+  const db = await freshDb();
+  const { ops, captured } = recordingOps(db, new Map());
+  const h = makePluginHarness(db, { port: realHost(), ops });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+
+  await installGrantEnable({ h, caller, slug: "oracle-deck", grant: ["storage.kv", "tools.register", "ui.surface", "plugin_events"] });
+  const invoke = requireInvoke(captured);
+  const draw = requireHandler(captured.tools, 0, "tool");
+
+  const [a, b] = await Promise.all([invoke(draw, JSON.stringify({ count: 2 }), null), invoke(draw, JSON.stringify({ count: 2 }), null)]);
+  const first = JSON.parse(a) as { cards: string[]; dealt: number };
+  const second = JSON.parse(b) as { cards: string[]; dealt: number };
+
+  // No card is dealt twice — the property the commitment/reveal ceremony is worthless without.
+  const all = [...first.cards, ...second.cards];
+  expect(new Set(all).size).toBe(all.length);
+  // …and the counter accounts for every card, so the reveal's "Cards dealt" is the truth.
+  expect(Math.max(first.dealt, second.dealt)).toBe(all.length);
+});
+
 test("draft polish: the real bundle registers a user_input transform that tidies a draft", async () => {
   const db = await freshDb();
   const { ops, captured } = recordingOps(db, new Map());
@@ -509,6 +545,49 @@ test("the per-user seeder lands every example installed, disabled and UNGRANTED 
   // persisted latch is the DELETION-RESPECT guard — an example the user removed must not come back).
   await seeder.ensureSeeded(caller);
   expect(await h.service.list({ caller })).toHaveLength(EXAMPLE_PLUGIN_SLUGS.length);
+});
+
+// #1411 — the LATCH IS A COMPLETENESS CLAIM, not a "the pass ran" claim. `seedOne` returning false for a
+// bundle the pack could not produce was fed only into a log-line count, and `markSeeded` ran unconditionally
+// after it — so ONE transiently missing bundle latched `examplePluginsSeeded` forever and every later boot
+// short-circuited in `isSeeded` before `seedOne` could ever retry. The user silently lost that example for
+// the life of the install. The file header's "a missing example skips ONE plugin, it does not fail the pass"
+// still holds and is asserted here (the other eight land, nothing throws) — what changed is that an
+// incomplete pass no longer LATCHES.
+test("a MISSING bundle does not latch — the incomplete pass retries and completes once the bundle appears", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  let latched = false;
+  // A MUTABLE HOLDER, not a bare `let`: biome narrows a `let x = true` initializer and then calls the guard
+  // below "always truthy", while a property read is opaque to that narrowing. Same value, no suppression.
+  const pack: { absent: boolean } = { absent: true };
+  const missingSlug = "oracle-deck";
+
+  const seeder = createExamplePluginSeeder({
+    packBundle: async (slug) => (pack.absent && slug === missingSlug ? null : await packSeedPluginBundle(slug)),
+    install: async ({ caller: principal, bundle }) => await h.service.install({ caller: principal, bundle, grant: [] }),
+    requestConsent: async ({ caller: principal, pluginId }) => {
+      await h.service.setGrant({ caller: principal, pluginId, grant: [], acknowledgedNetHosts: [] });
+    },
+    alreadyInstalled: async (principal, slug) => (await h.service.list({ caller: principal })).some((row) => row.slug === slug),
+    isSeeded: (): Promise<boolean> => Promise.resolve(latched),
+    markSeeded: (): Promise<void> => {
+      latched = true;
+      return Promise.resolve();
+    },
+  });
+
+  await seeder.ensureSeeded(caller);
+  // The pass did NOT fail: every other example is installed (the header's per-slug tolerance, preserved).
+  expect((await h.service.list({ caller })).map((r) => r.slug).sort()).toEqual([...EXAMPLE_PLUGIN_SLUGS].filter((s) => s !== missingSlug).sort());
+  // …but it was INCOMPLETE, so it must stay retryable — both the persisted latch and the in-process memo.
+  expect(latched).toBe(false);
+
+  pack.absent = false;
+  await seeder.ensureSeeded(caller);
+  expect((await h.service.list({ caller })).map((r) => r.slug).sort()).toEqual([...EXAMPLE_PLUGIN_SLUGS].sort());
+  expect(latched).toBe(true);
 });
 
 /** The install-time refusals a copied example must not trip: the packer emits only ADMITTED entries, and every

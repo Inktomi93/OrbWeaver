@@ -167,10 +167,10 @@ export async function claimAndRunNext(deps: WorkloadsWorkerDeps, lane: WorkloadL
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export async function reapOnce(deps: WorkloadsWorkerDeps, reason: WorkloadReapReason): Promise<number> {
-  const { db, contributions, now } = deps.runnerDeps;
+  const { db, now } = deps.runnerDeps;
   const log = getLog().child({ component: LOG_COMPONENT });
   try {
-    const reaped = await deps.reap({ db, contributions, now: now(), reason });
+    const reaped = await deps.reap({ db, now: now(), reason });
     if (reaped > 0) {
       log.info({ reaped, reason }, "workloads-worker: reaped orphans");
     }

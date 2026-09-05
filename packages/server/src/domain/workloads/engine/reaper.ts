@@ -10,6 +10,14 @@
 // — which is exactly what a forensics lane had to work around for the 08-22 long-pass deaths. The sentences
 // themselves live in `reap-record.ts`, shared with the boot reclaim (the OTHER writer of `worker_died`), so
 // the two paths cannot drift into one wording; this sweep declares `heartbeat_stale`.
+//
+// IT DISPOSES, IT DOES NOT READ (#1413). The sweep reads RAW lifecycle columns (`findStaleInFlight` →
+// `WorkloadInFlightRow`), never the params-narrowing `toView`, and therefore spells no domain vocabulary at
+// all — no `WorkloadContributions` reaches this file. That is not a simplification: projecting through the
+// view DROPPED every row whose kind this build does not ship (deploy skew, a kind rename), so such a row
+// could never be terminalized and held its kind's single-active slot forever while the process stayed up.
+// Each stale row gets exactly ONE `markTerminal` + ONE `failed` emission, unknown kind or not — the emission
+// is guarded on the UPDATE having moved the row, which is what makes "exactly once" true rather than assumed.
 
 import type { WorkloadError } from "@orb/contracts/workloads";
 import type { ReapWorkloadsArgs } from "../contract/service.ts";
@@ -21,7 +29,7 @@ const DEFAULT_STALE_THRESHOLD_MS = 15_000;
 
 export async function reapOrphanedWorkloads(args: ReapWorkloadsArgs): Promise<number> {
   const threshold = args.staleThresholdMs ?? DEFAULT_STALE_THRESHOLD_MS;
-  const stale = await findStaleInFlight(args.db, args.contributions, args.now - threshold);
+  const stale = await findStaleInFlight(args.db, args.now - threshold);
   const results = await Promise.all(
     stale.map(async (row) => {
       const message = reapedMessage(args.reason, args.now - row.updatedAt);

@@ -117,11 +117,10 @@ function commitmentFor(seed) {
   return String(hashOf(`commit:${seed}`)).padStart(COMMITMENT_DIGITS, "0");
 }
 
-/** Load the live session, or `null`. A malformed value (hand-edited, or written by an older version of this
+/** Parse one stored session record. A malformed value (hand-edited, or written by an older version of this
  *  plugin) is treated as absent rather than thrown on — a plugin that crashes on its own stored state is a
  *  plugin that auto-disables three invocations later. */
-async function loadSession() {
-  const raw = await host.storage.get(SESSION_KEY);
+function parseSession(raw) {
   if (raw === null) {
     return null;
   }
@@ -133,11 +132,52 @@ async function loadSession() {
   }
 }
 
-/** Start a session: mint the secret from the host's injected id seam and publish its commitment. */
-async function startSession() {
-  const session = { seed: host.ids.mint(), dealt: 0 };
-  await host.storage.set(SESSION_KEY, JSON.stringify(session));
-  return session;
+/** Load the live session, or `null`. Read-only — every WRITE goes through `claimCards`. */
+async function loadSession() {
+  return parseSession(await host.storage.get(SESSION_KEY));
+}
+
+/** How many times a contended compare-and-set is retried before the deal is abandoned. No backoff, and none
+ *  is possible (the sandbox has no timers or randomness) — but none is needed: the loop never waits, it only
+ *  re-reads the record that beat it. */
+const CAS_ATTEMPTS = 5;
+
+/** CLAIM the next `count` cards, atomically, starting a session if there is none. Returns
+ *  `{ session, taken }` where `session.dealt` is the offset the cards were taken FROM (so the caller numbers
+ *  them exactly as before), `taken: []` when the deck is spent, or `null` when the record stayed contended.
+ *
+ *  A read → slice → `storage.set` LOSES DRAWS, and this plugin is the worst possible place for that: two
+ *  claimants that both read `dealt: 3` both deal from index 3, and the second write erases the first's
+ *  advance — two people then see the SAME cards out of a deck whose whole demonstration is that its shuffle
+ *  was committed to in advance.
+ *
+ *  WHY, stated exactly, because the obvious version is wrong: this plugin's own SERVER handlers do NOT race
+ *  each other — `infra/plugin-host/port.ts` runs every invoke on one resident through a serialized tail chain,
+ *  so a tool call, an event delivery and a panel action never interleave. What is NOT serialized is the OTHER
+ *  caller of the same KV rows: a Tier-C scripted `ui.js` reaches `storage.*` through `plugin.uiHostCall`,
+ *  which goes straight to the bridge with no queue at all — and two browser tabs are two such callers. So any
+ *  value derived from its own previous value needs a compare-and-set the moment a plugin grows a client-side
+ *  writer, which is the moment nobody remembers to come back and add one.
+ *
+ *  `host.storage.compareAndSet` writes only while the record still holds what we read, which is what turns a
+ *  deal into a claim. */
+async function claimCards(count) {
+  let raw = await host.storage.get(SESSION_KEY);
+  for (let attempt = 0; attempt < CAS_ATTEMPTS; attempt += 1) {
+    const session = parseSession(raw) ?? { seed: host.ids.mint(), dealt: 0 };
+    const cards = shuffleFor(session.seed);
+    if (session.dealt >= cards.length) {
+      return { session, taken: [] };
+    }
+    const taken = cards.slice(session.dealt, session.dealt + count);
+    const next = JSON.stringify({ seed: session.seed, dealt: session.dealt + taken.length });
+    const result = await host.storage.compareAndSet(SESSION_KEY, raw, next);
+    if (result.applied) {
+      return { session, taken };
+    }
+    raw = result.current;
+  }
+  return null;
 }
 
 /** Clamp a model-supplied count into the legal range. `Number()` on an absent/garbage argument yields NaN,
@@ -229,22 +269,23 @@ if (canDeal) {
     },
     handler: async (args) => {
       const count = clampCount(args ? args.count : MIN_DRAW);
-      const existing = await loadSession();
-      const session = existing ?? (await startSession());
-      const cards = shuffleFor(session.seed);
-
-      if (session.dealt >= cards.length) {
+      const claim = await claimCards(count);
+      if (claim === null) {
+        return "The deck is being dealt from somewhere else right now — ask again in a moment.";
+      }
+      const { session, taken } = claim;
+      if (taken.length === 0) {
         return drawResult(session, [], "The deck is spent. Call reveal to verify this session, then draw again for a fresh shuffle.");
       }
-      const taken = cards.slice(session.dealt, session.dealt + count);
-      await host.storage.set(SESSION_KEY, JSON.stringify({ seed: session.seed, dealt: session.dealt + taken.length }));
 
       const drawn = taken.map((card, i) => `${session.dealt + i + 1}. ${card}`).join("\n");
       await announceDraw(taken, session.dealt + taken.length, commitmentFor(session.seed));
       // The commitment rides in the RESULT on every draw (it is public by construction — only the seed is
       // secret), but the model is TOLD about it only on the first, because that is the moment it means
       // something and repeating it every draw would train everyone to skip the line that matters.
-      const lead = existing === null ? `Commitment ${commitmentFor(session.seed)} — verify it after reveal.` : "";
+      // "First draw of this session" is now read off the CLAIM (`dealt` was 0 when we took these cards)
+      // rather than off a separate pre-read, which the compare-and-set removed along with the race.
+      const lead = session.dealt === 0 ? `Commitment ${commitmentFor(session.seed)} — verify it after reveal.` : "";
       return drawResult({ seed: session.seed, dealt: session.dealt + taken.length }, taken, `${lead ? `${lead}\n\n` : ""}${drawn}`);
     },
   });
@@ -403,15 +444,16 @@ if (host.grants.includes("ui.surface")) {
       // (or absent). No parsing, no trimming, no "is it a string" — the platform did that on both sides.
       const spread = a.values.spread === "past_present_future" ? SPREAD_CARDS : MIN_DRAW;
       const count = clampCount(a.values.count ?? spread);
-      const existing = await loadSession();
-      const session = existing ?? (await startSession());
-      const cards = shuffleFor(session.seed);
-      if (session.dealt >= cards.length) {
+      const claim = await claimCards(count);
+      if (claim === null) {
+        await host.ui.toast("warn", "The deck is being dealt from somewhere else right now — try again in a moment.");
+        return;
+      }
+      const { session, taken } = claim;
+      if (taken.length === 0) {
         await host.ui.toast("warn", "The deck is spent — reveal it to start a fresh shuffle.");
         return;
       }
-      const taken = cards.slice(session.dealt, session.dealt + count);
-      await host.storage.set(SESSION_KEY, JSON.stringify({ seed: session.seed, dealt: session.dealt + taken.length }));
       await publishDeckState();
       await announceDraw(taken, session.dealt + taken.length, commitmentFor(session.seed));
       // The toast is the ANSWER to the command: a command that runs and says nothing reads as broken, and the
@@ -421,7 +463,7 @@ if (host.grants.includes("ui.surface")) {
         a.values.spread === "past_present_future" && taken.length === SPREAD_CARDS
           ? taken.map((card, i) => `${labels[i]}: ${card}`).join(" · ")
           : taken.join(", ");
-      await host.ui.toast("info", `${line} (${session.dealt + taken.length} of ${cards.length} dealt)`);
+      await host.ui.toast("info", `${line} (${session.dealt + taken.length} of ${DECK.length} dealt)`);
     },
   });
 
@@ -458,12 +500,13 @@ if (host.grants.includes("ui.surface")) {
     },
     onAction: async (action) => {
       if (action.actionId === "draw_one") {
-        const existing = await loadSession();
-        const session = existing ?? (await startSession());
-        const cards = shuffleFor(session.seed);
-        if (session.dealt < cards.length) {
-          await host.storage.set(SESSION_KEY, JSON.stringify({ seed: session.seed, dealt: session.dealt + 1 }));
-          await host.ui.toast("info", `${cards[session.dealt]} (${session.dealt + 1} of ${cards.length})`);
+        const claim = await claimCards(1);
+        if (claim === null) {
+          await host.ui.toast("warn", "The deck is being dealt from somewhere else right now — try again in a moment.");
+          return;
+        }
+        if (claim.taken.length > 0) {
+          await host.ui.toast("info", `${claim.taken[0]} (${claim.session.dealt + 1} of ${DECK.length})`);
         } else {
           await host.ui.toast("warn", "The deck is spent — reveal it to start a fresh shuffle.");
         }

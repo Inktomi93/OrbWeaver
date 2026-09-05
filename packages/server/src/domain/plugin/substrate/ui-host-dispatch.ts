@@ -17,7 +17,7 @@
 // from a browser. (2) A REFUSAL IS A DIFFERENT OUTCOME FROM AN EMPTY RESULT: a `storage.get` with a non-string
 // key must reject, not answer `null`, or a plugin author debugging a typo sees "no value" forever.
 //
-// CHAT SCOPE. Two of the nine functions need a room, and they take it from the VERB's already-verified `chatId`
+// CHAT SCOPE. Two of the ten functions need a room, and they take it from the VERB's already-verified `chatId`
 // rather than from the argument bag — a room is authority, and authority never rides in a payload the client
 // composed. A chat-scoped function called with no admitted room is a refusal, not a silent no-op.
 
@@ -34,7 +34,7 @@ const LIST_MESSAGES_LIMIT_MAX = 50;
 
 const kvKey = z.string().min(1).max(KV_KEY_MAX);
 
-/** The nine argument schemas, one per proxyable function. Each parses the DECODED `argsJson` value — a
+/** The ten argument schemas, one per proxyable function. Each parses the DECODED `argsJson` value — a
  *  positional array, mirroring the membrane's own `args` convention so a plugin author writes the same call on
  *  both sides of the wire. */
 const listMessagesArgs = z.tuple([z.object({ limit: z.number().int().positive().max(LIST_MESSAGES_LIMIT_MAX).optional() }).optional()]);
@@ -42,6 +42,10 @@ const noArgs = z.tuple([]);
 const oneKey = z.tuple([kvKey]);
 const keyAndValue = z.tuple([kvKey, z.string()]);
 const optionalPrefix = z.tuple([z.string().max(KV_KEY_MAX).optional()]);
+/** `storage.compareAndSet` (#1442): key, the PRECONDITION (`null` = "must be absent" — `nullable`, never
+ *  optional, so a client that forgot the argument is a refusal rather than a silent create), and the next
+ *  value. Same key/value floor as `keyAndValue`; the real ceilings are the domain op's. */
+const casArgs = z.tuple([kvKey, z.string().nullable(), z.string()]);
 
 /** Thrown when a chat-scoped proxy is called without an admitted room. A distinct MESSAGE because the two
  *  failures a plugin author hits here are genuinely different: "you did not pass the room" (this) versus "you
@@ -100,6 +104,10 @@ const UI_HOST_CALL_IMPLS: Record<UiProxyableHostFunction, UiHostCallImpl> = {
     const [key, value] = keyAndValue.parse(args);
     await bridge.storage.set(key, value);
     return null;
+  },
+  "storage.compareAndSet": async (bridge, args) => {
+    const [key, expected, next] = casArgs.parse(args);
+    return await bridge.storage.compareAndSet(key, expected, next);
   },
   "storage.delete": async (bridge, args) => {
     const [key] = oneKey.parse(args);

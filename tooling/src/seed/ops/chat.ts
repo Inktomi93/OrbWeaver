@@ -21,7 +21,7 @@ import { chatParticipants, chats, createDb, preCloseHousekeeping } from "@orb/db
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
-import { runBootMigrations, seedDefaultCharacters, seedDefaultPersona, seedDefaultPreset, seedOwner, seedThemes } from "@orb/server/entry/boot";
+import { DB_LAUNCHED, runBootMigrations, seedDefaultCharacters, seedDefaultPersona, seedDefaultPreset, seedOwner, seedThemes } from "@orb/server/entry/boot";
 import { createServices } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import { and, desc, eq } from "drizzle-orm";
@@ -89,7 +89,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
 
   const now = (): number => Date.now();
   const db = await createDb(env.DATABASE_URL);
-  await runBootMigrations({ db, databaseUrl: env.DATABASE_URL });
+  await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, launched: DB_LAUNCHED });
 
   const sessionSecret = env.SESSION_SECRET ?? CHAT_SEED_SESSION_SECRET;
   const handles = ownerHandles();

@@ -80,13 +80,19 @@ function isLongNarratorBeat(fact) {
 /** The per-room cooldown, in the plugin's private KV. Claimed BEFORE the surface call, not after: two
  *  deliveries can be in flight at once and a stamp written on success would let both strips through. */
 async function claimCooldown(chatId) {
-  const raw = await host.storage.get(cooldownKey(chatId));
+  const key = cooldownKey(chatId);
+  const raw = await host.storage.get(key);
   const now = host.clock.nowEpochMs();
   if (raw !== null && now - Number(raw) < CHIP_COOLDOWN_MS) {
     return false;
   }
-  await host.storage.set(cooldownKey(chatId), String(now));
-  return true;
+  // COMPARE-AND-SET is what makes the claim a claim. Writing the stamp BEFORE the surface call was already
+  // the right instinct; the compare is what makes it hold against a caller the host does NOT serialize. This
+  // plugin's own server deliveries are mutually exclusive (`infra/plugin-host/port.ts`'s per-instance invoke
+  // queue), but a Tier-C `ui.js` reaches the same key through `plugin.uiHostCall`, which rides no queue — and
+  // a plain `set` lets any two such claimants through, because both read the same stale stamp. The cooldown
+  // belongs only to the claimant whose write actually landed against the stamp it read.
+  return (await host.storage.compareAndSet(key, raw, String(now))).applied;
 }
 
 // Registrations are activation-time, so each sits behind a FEATURE-DETECT — an ungranted host call THROWS,

@@ -57,6 +57,7 @@ import { setChatOpenTap } from "../transport/trpc/index.ts";
 import { createApp } from "./app.ts";
 import { createAuthSeam, createHostPrincipalResolver } from "./auth/index.ts";
 import {
+  DB_LAUNCHED,
   reclaimLocksOnBoot,
   runBootMigrations,
   seedCasSchedules,
@@ -291,7 +292,9 @@ export function createLifecycle(): Lifecycle {
 
     const secretBoxKey = credentialsKeyFromEnv();
 
-    await runBootMigrations({ db, databaseUrl: env.DATABASE_URL });
+    // `launched` is REQUIRED and passed explicitly (#1392) — the omission here is what left the
+    // auto-wipe refusal inert on every real boot.
+    await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, launched: DB_LAUNCHED });
 
     // Resolve the owner id before compose (the owner role-clients bundle resolves against it). A
     // transient sessions service is built only to run the owner seed; compose owns the real one.

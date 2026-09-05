@@ -239,7 +239,7 @@ interface AsyncFnSpec {
  *  `surface`). The full set — chat.read (current/listMessages/getVariables), chat.variables.write,
  *  chat.surfaceQuickReply (chat.quick_reply — host-authority gated), worldInfo.upsertEntry,
  *  imagery.generatePicture, chat.requestTurn (turn.trigger — SPEND, host-authority + cascade-depth+1 gated),
- *  global_vars, storage.get/set/delete/list (storage.kv — plugin-private KV), notifications.post (notify —
+ *  global_vars, storage.get/set/compareAndSet/delete/list (storage.kv — plugin-private KV), notifications.post (notify —
  *  participant-only durable notice), llm.quiet (SPEND — a non-canon generation on the installer's summarize
  *  connection, hourly-floored domain-side), tools.register, transforms.register + events.on (SYNC collect — the
  *  domain wires the band/apply/delivery/unregister), net.fetch (SSRF-guarded, manifest-allowlisted, hourly
@@ -1019,7 +1019,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
   ctx.setProp(surface, "variables", vars);
 }
 
-/** storage.get/set/delete/list — capability storage.kv. The plugin-PRIVATE KV: the bridge op
+/** storage.get/set/compareAndSet/delete/list — capability storage.kv. The plugin-PRIVATE KV: the bridge op
  *  is closed DOMAIN-side over the pluginId + installer (owner), so a guest names only the key/prefix and can
  *  NEVER read another plugin's (or owner's) keys. Not host-authority gated (a plugin's own private store is not
  *  room state) — the grant alone suffices. The value/key-size + 256-key caps are enforced by the domain op. */
@@ -1042,6 +1042,21 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
       requireCapability(runtime, "storage.set");
       await runtime.bridge.storage.set(String(args[0]), String(args[1]));
       return null;
+    },
+  });
+  // The ATOMIC arm (#1442). `expected` is `null` for "the key must not exist", and anything that is not a
+  // STRING dumps to that null — a guest passing `undefined` means "create", which is the only reading of an
+  // absent precondition that is not a silent overwrite. The result is an object, so a lost race arrives as
+  // DATA the guest branches on rather than a throw (three throws auto-disable a plugin, and losing a race is
+  // the ordinary outcome this call reports).
+  attachAsync(ctx, storage, {
+    name: "compareAndSet",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    impl: async (args) => {
+      requireCapability(runtime, "storage.compareAndSet");
+      const expected = typeof args[1] === "string" ? args[1] : null;
+      return await runtime.bridge.storage.compareAndSet(String(args[0]), expected, String(args[2]));
     },
   });
   attachAsync(ctx, storage, {

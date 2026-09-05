@@ -125,6 +125,11 @@ export interface PluginBridge {
     readonly set: (key: string, value: string) => Promise<void>;
     readonly delete: (key: string) => Promise<void>;
     readonly list: (prefix: string | undefined) => Promise<readonly string[]>;
+    /** The ATOMIC write (#1442): apply `next` only while the key still holds `expected` (`null` = absent).
+     *  ONE statement at the persistence layer — the predicate rides the write, so nothing can interleave —
+     *  which is the only thing a guest can build a lost-update-free counter on. `current` is the post-state
+     *  value (advisory on a refusal: the caller's next `expected`). */
+    readonly compareAndSet: (key: string, expected: string | null, next: string) => Promise<{ applied: boolean; current: string | null }>;
   };
   /** Post a durable `automation-notice` to the chat's PARTICIPANTS (`notifications.post`). The membrane passes
    *  the ALREADY-ADMITTED `chatId` + the guest recipient

@@ -77,7 +77,9 @@ export type WorkloadReapReason = (typeof WORKLOAD_REAP_REASONS)[number];
  *  which is what keeps the two sentences from collapsing back into one. */
 export interface ReapWorkloadsArgs {
   readonly db: Db;
-  readonly contributions: WorkloadContributions;
+  // No `contributions` (#1413): the sweep disposes of RAW in-flight rows and resolves no kind against the
+  // registry, so handing it the domain map would be a dep it does not use — and the version that DID narrow
+  // through the registry is precisely what dropped unknown-kind rows on the floor.
   readonly now: number;
   /** Grace window before a lease counts as stale; the boot reclaim passes 0 (every in-flight row is orphaned). */
   readonly staleThresholdMs?: number;

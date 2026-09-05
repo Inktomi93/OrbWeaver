@@ -68,7 +68,7 @@ export function makeWorkerDeps(overrides: Partial<WorkloadsWorkerDeps> = {}): Wo
       Promise.resolve<WorkloadRunnableRow | null>(null),
     ),
     run: vi.fn((_deps: WorkloadRunnerDeps, _row: WorkloadRunnableRow, _signal: AbortSignal) => Promise.resolve()),
-    reap: vi.fn((_args: { db: Db; contributions: WorkloadContributions; now: number; staleThresholdMs?: number }) => Promise.resolve(0)),
+    reap: vi.fn((_args: { db: Db; now: number; staleThresholdMs?: number }) => Promise.resolve(0)),
     load: vi.fn((_db: Db, _contributions: WorkloadContributions, _id: WorkloadId) => Promise.resolve<WorkloadRowAnyKind | null>(null)),
     subscribeWake: vi.fn((_listener: () => void) => () => undefined),
     scheduleInterval: vi.fn((_fn: () => void, _ms: number) => () => undefined),

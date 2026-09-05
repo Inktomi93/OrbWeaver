@@ -335,6 +335,7 @@ export function makeInertOps(): PluginHostOps {
     storage: {
       get: () => Promise.resolve(null),
       set: () => Promise.resolve(),
+      compareAndSet: () => Promise.resolve({ applied: true, current: null }),
       delete: () => Promise.resolve(),
       list: () => Promise.resolve([]),
     },

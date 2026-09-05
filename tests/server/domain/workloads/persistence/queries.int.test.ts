@@ -502,7 +502,7 @@ describe("findStaleInFlight (reaper input)", () => {
       status: "running",
       updatedAt: T0 + 100_000,
     });
-    const stale = await findStaleInFlight(db, CONTRIBUTIONS, T0 + 50_000);
+    const stale = await findStaleInFlight(db, T0 + 50_000);
     expect(stale.map((r) => r.id)).toEqual(["stale"]);
   });
 });

@@ -161,7 +161,13 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
     },
     // #788 F1 — a canned search hit so the gate + forward path is observable.
     search: { documents: () => Promise.resolve([{ documentId: "doc_hit000000000000000000000", documentName: "Notes", content: "match", score: 0.9 }]) },
-    storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
+    storage: {
+      get: () => Promise.resolve(null),
+      set: () => Promise.resolve(),
+      compareAndSet: () => Promise.resolve({ applied: true, current: null }),
+      delete: () => Promise.resolve(),
+      list: () => Promise.resolve([]),
+    },
     notifications: { post: () => Promise.resolve() },
     surfaceQuickReply: () => {
       performed.chips += 1;

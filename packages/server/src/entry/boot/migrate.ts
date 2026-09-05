@@ -9,7 +9,14 @@ import { getLog } from "#foundation/observability";
 // Pre-launch a baseline-hash mismatch auto-resets the dev db (data loss by design); post-launch it becomes
 // boot-FATAL (never auto-wipe a launched db). Flip together with the baseline-single-migration gate.
 // Widened to `boolean` (not the `false` literal) so flipping it doesn't trip a "always falsy" lint.
-const LAUNCHED: boolean = false;
+//
+// EXPORTED, and passed EXPLICITLY by every caller (#1392). It used to be a private fallback behind an
+// optional `deps.launched`, and the production caller (`entry/lifecycle`) simply never passed the key — so
+// the `??` resolved to the permissive arm on every real boot and the refusal below had never once been
+// armed outside a test. Its inertness would have first mattered on the first launched deployment, at the
+// exact moment nothing about the transition would make anyone look. The key is REQUIRED now: a caller that
+// forgets it is a compile error, not a silent auto-wipe.
+export const DB_LAUNCHED: boolean = false;
 
 const HASH_LOG_PREFIX = 12;
 
@@ -25,8 +32,12 @@ export interface MigrateDeps {
   readonly databaseUrl: string;
   /** Override the resolved migrations folder (tests). */
   readonly migrationsFolder?: string;
-  /** Override the post-launch guard (tests assert the FATAL branch). */
-  readonly launched?: boolean;
+  /** The deployment posture, REQUIRED (#1392): `false` is the pre-launch dev db whose regenerated baseline
+   *  auto-resets by design, `true` is a launched db where the same mismatch is boot-FATAL. Callers pass
+   *  {@link DB_LAUNCHED} — the required key is what makes forgetting it a compile error rather than an
+   *  accidental auto-wipe. Absence at RUNTIME (an untyped caller) is fail-CLOSED: only an explicit `false`
+   *  buys the reset. */
+  readonly launched: boolean;
 }
 
 /**
@@ -47,7 +58,10 @@ export async function runBootMigrations(deps: MigrateDeps): Promise<void> {
   const baseline = await checkBaseline(deps.db, folder);
   // The launched-db refusal comes BEFORE the backup: a boot that is going to abort has no db change to
   // protect, and each backup is a full copy.
-  if (baseline.status === "regenerated" && (deps.launched ?? LAUNCHED)) {
+  // `!== false`, not a truthiness read: the destructive arm is bought ONLY by an EXPLICIT `launched: false`.
+  // The key is required, so a typed caller cannot omit it; this is the runtime floor for an untyped one
+  // (#1392 — the omission that made this whole guard inert was exactly that shape).
+  if (baseline.status === "regenerated" && deps.launched !== false) {
     throw new Error(
       `boot/migrate: the shipped 0000_baseline (${baseline.currentHash.slice(0, HASH_LOG_PREFIX)}…) differs from what this LAUNCHED database recorded (${baseline.appliedHash.slice(0, HASH_LOG_PREFIX)}…) — refusing to auto-wipe a launched db. Ship a forward incremental migration instead (a squash-reset would destroy live data).`,
     );

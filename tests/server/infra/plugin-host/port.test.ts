@@ -378,6 +378,16 @@ function fakeBridge(): {
         return Promise.resolve();
       },
       list: (prefix) => Promise.resolve([...store.keys()].filter((k) => prefix === undefined || k.startsWith(prefix)).sort()),
+      // The ATOMIC arm (#1442), modelled honestly over the same Map so a guest driving it through the real
+      // membrane sees real compare-and-set semantics rather than an always-true stub.
+      compareAndSet: (key, expected, next): Promise<{ applied: boolean; current: string | null }> => {
+        const current = store.get(key) ?? null;
+        if (current !== expected) {
+          return Promise.resolve({ applied: false, current });
+        }
+        store.set(key, next);
+        return Promise.resolve({ applied: true, current: next });
+      },
     },
     notifications: {
       post: (_chatId, recipient, message) => {

@@ -56,6 +56,94 @@ test("set → get → list → delete round-trips through the composed op", asyn
   expect(await storage.get(plugin, owner, "cfg:a")).toBeNull();
 });
 
+// ── `compareAndSet` (#1442) — the ATOMIC arm ────────────────────────────────────────────────────────────────
+// HONEST LABEL: these are NEW-API pins, not red-first defect proofs. The op did not exist before this change,
+// so nothing here could be run against the old source; the defect it defends against is proven reachable by
+// CODE rather than by a red — `domain/plugin/verbs/ui-host-call.ts` calls the bridge with no resident and no
+// invoke queue, and `storage.set` is UI-proxyable, so a Tier-C `ui.js` writer (or a second browser tab) is a
+// concurrent writer of these exact rows. A plugin's own SERVER handlers are NOT (`infra/plugin-host/port.ts`
+// serializes every invoke on one resident), which is why the guest-tier concurrency test could not be reddened.
+//
+// The interleaving below is written out by hand rather than raced, deliberately: a real race is
+// nondeterministic and would flake, while "A read, someone else wrote, A's write must refuse" is the exact
+// sequence the predicate exists to reject and it can be stated exactly.
+
+test("compareAndSet REFUSES a write whose basis moved, and hands back the value that beat it", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const plugin = await seedPlugin(db, owner, "plugin_a", "alpha");
+  const storage = buildPluginStorage(db, now);
+
+  await storage.set(plugin, owner, "count", "1");
+  // A reads…
+  const basis = await storage.get(plugin, owner, "count");
+  // …an UNSERIALIZED writer (a Tier-C surface, another tab) lands in between…
+  await storage.set(plugin, owner, "count", "7");
+  // …and A's write is refused rather than silently discarding it.
+  const refused = await storage.compareAndSet(plugin, owner, { key: "count", expected: basis, next: "2" });
+  expect(refused).toEqual({ applied: false, current: "7" });
+  expect(await storage.get(plugin, owner, "count")).toBe("7");
+
+  // `current` is the caller's next `expected`, so the retry costs no extra read — this IS the guest loop.
+  expect(await storage.compareAndSet(plugin, owner, { key: "count", expected: refused.current, next: "8" })).toEqual({
+    applied: true,
+    current: "8",
+  });
+  expect(await storage.get(plugin, owner, "count")).toBe("8");
+});
+
+test("compareAndSet's CREATE arm: `expected: null` mints the key once, and the second claimant is refused", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const plugin = await seedPlugin(db, owner, "plugin_a", "alpha");
+  const storage = buildPluginStorage(db, now);
+
+  expect(await storage.compareAndSet(plugin, owner, { key: "seq", expected: null, next: "1" })).toEqual({ applied: true, current: "1" });
+  // "The key must not exist" is a real precondition, not an upsert: the second create-claim loses.
+  expect(await storage.compareAndSet(plugin, owner, { key: "seq", expected: null, next: "1" })).toEqual({ applied: false, current: "1" });
+  expect(await storage.get(plugin, owner, "seq")).toBe("1");
+});
+
+test("compareAndSet is OWNER- and PLUGIN-scoped — a foreign key is neither read nor moved", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const alpha = await seedPlugin(db, owner, "plugin_a", "alpha");
+  const beta = await seedPlugin(db, owner, "plugin_b", "beta");
+  const storage = buildPluginStorage(db, now);
+
+  await storage.set(alpha, owner, "shared", "alpha-value");
+  // Beta cannot move alpha's row by naming the same key and the same value: the guard filter makes the row
+  // invisible, so beta's compare is against an ABSENT key and its update matches nothing.
+  expect(await storage.compareAndSet(beta, owner, { key: "shared", expected: "alpha-value", next: "stolen" })).toEqual({
+    applied: false,
+    current: null,
+  });
+  expect(await storage.get(alpha, owner, "shared")).toBe("alpha-value");
+  // …and beta's own CREATE claim on the same key name is its own row, leaving alpha's untouched.
+  expect(await storage.compareAndSet(beta, owner, { key: "shared", expected: null, next: "beta-value" })).toEqual({
+    applied: true,
+    current: "beta-value",
+  });
+  expect(await storage.get(alpha, owner, "shared")).toBe("alpha-value");
+  expect(await storage.get(beta, owner, "shared")).toBe("beta-value");
+});
+
+test("compareAndSet's CREATE arm honours the 256-key cap; an EXISTING-key claim never consumes a slot", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const plugin = await seedPlugin(db, owner, "plugin_a", "alpha");
+  const storage = buildPluginStorage(db, now);
+
+  for (let i = 0; i < PLUGIN_KV_MAX_KEYS; i += 1) {
+    await storage.set(plugin, owner, `k${i}`, "v");
+  }
+  // A new key past the ceiling is the CAP REFUSAL — a thrown host error, deliberately NOT `applied: false`.
+  // Losing a race and hitting the ceiling are different outcomes and a guest must be able to tell them apart.
+  await expect(storage.compareAndSet(plugin, owner, { key: "one-too-many", expected: null, next: "v" })).rejects.toThrow(CAP_ERROR_RE);
+  // …while an existing key still moves at the ceiling, exactly as `set` does.
+  expect(await storage.compareAndSet(plugin, owner, { key: "k0", expected: "v", next: "v2" })).toEqual({ applied: true, current: "v2" });
+});
+
 test("the 256-key cap: a NEW key past the ceiling is refused; an EXISTING-key overwrite always proceeds", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
