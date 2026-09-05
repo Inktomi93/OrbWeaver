@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 537,
-    "enforced": 532,
+    "sites": 540,
+    "enforced": 535,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 532,
+      "deliberate-absorb": 535,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 141,
-      "default": 143,
-      "empty": 253
+      "default": 145,
+      "empty": 254
     }
   },
   "rows": [
@@ -2906,7 +2906,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1015,
+      "line": 1016,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -2914,12 +2914,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 1011
+      "markerLine": 1012
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1048,
+      "line": 1049,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2927,12 +2927,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 1037
+      "markerLine": 1038
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1085,
+      "line": 1086,
       "column": 11,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2940,12 +2940,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1077
+      "markerLine": 1078
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 805,
+      "line": 806,
       "column": 9,
       "grammar": "empty",
       "position": "empty:err",
@@ -2953,12 +2953,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — documented below: only a",
-      "markerLine": 800
+      "markerLine": 801
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::promise:runChatTurn::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 724,
+      "line": 725,
       "column": 10,
       "grammar": "promise",
       "position": "promise:runChatTurn",
@@ -2966,7 +2966,7 @@
       "snippet": "void deps",
       "verdict": "deliberate-absorb",
       "reason": "propagated — the rejection reaches",
-      "markerLine": 721
+      "markerLine": 722
     },
     {
       "siteId": "packages/server/src/entry/compose/emit-chat-changed.ts::empty:catch::1",
@@ -6778,6 +6778,45 @@
       "markerLine": 54
     },
     {
+      "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::default:catch::1",
+      "path": "tooling/src/verify/lib/ct-runner-lock.ts",
+      "line": 60,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the FAILURE IS THE VERDICT — an unreadable lockfile is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the lock and PRINTS that it did. Surfacing it any other way wedges the tree on a half-written file. Ends if a caller starts reading `null` as \"someone holds this\".",
+      "markerLine": 47
+    },
+    {
+      "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::default:catch::2",
+      "path": "tooling/src/verify/lib/ct-runner-lock.ts",
+      "line": 77,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "`kill(pid, 0)` ASKS A QUESTION and throws to answer \"no\" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the lock and saying so out loud. Ends if this ever needs to distinguish EPERM (a live foreign pid) from ESRCH, which would make the throw carry two answers.",
+      "markerLine": 73
+    },
+    {
+      "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::empty:catch::1",
+      "path": "tooling/src/verify/lib/ct-runner-lock.ts",
+      "line": 118,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the EEXIST throw IS \"the lock is held\" — this catch is the arm that reads the holder and either REFUSES loudly (`kind: \"busy\"`; the caller prints the refusal and exits 2) or steals a dead holder's lock with a printed note. Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing.",
+      "markerLine": 115
+    },
+    {
       "siteId": "tooling/src/verify/lib/grant-liveness.ts::default:catch::1",
       "path": "tooling/src/verify/lib/grant-liveness.ts",
       "line": 223,
@@ -6845,7 +6884,7 @@
     {
       "siteId": "tooling/src/verify/lib/program-routing.ts::empty:catch::1",
       "path": "tooling/src/verify/lib/program-routing.ts",
-      "line": 299,
+      "line": 303,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6853,7 +6892,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a corrupt/unreadable cache becomes a miss, which the caller recomputes from scratch via ts7 rather than trusting. Ends if the caller stops recomputing on a cache miss.",
-      "markerLine": 296
+      "markerLine": 300
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::1",
