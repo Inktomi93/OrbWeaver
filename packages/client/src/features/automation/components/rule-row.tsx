@@ -46,6 +46,14 @@
 // (Base UI's disabled MenuItem is an `aria-disabled` div, so the reason reaches hover AND the a11y tree).
 // The badge sentence is UNCHANGED and did not need to change: it already says the rule can't run and names
 // the one repair, which is exactly what both doors now say.
+//
+// #1673 IS THAT SAME DEAD END ONE ARM TYPE OVER, which is why the two share one resolver
+// (`runNowRefusal`) rather than two ternaries in the render. A `transform_draft` rule never dispatches —
+// it registers a `PromptTransform` into chat's turn pipeline — so a manual run reaches no terminal and
+// `verbs/run-rule-now.ts` throws `transform_not_runnable`. Pressing Run-now on one could only ever produce
+// an error toast. It is refused in the same grammar, and unlike the unreadable rule it keeps every other
+// affordance: a draft rewriter is a perfectly healthy rule that simply has no out-of-turn meaning, so its
+// enable switch, Test and Delete all stay live.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -67,17 +75,21 @@ import {
   armLabel,
   hasSpendArm,
   lastRunLine,
-  RULE_UNREADABLE_BADGE,
   ruleGloss,
-  ruleUnreadableEnableRefusal,
-  ruleUnreadableLine,
-  ruleUnreadableRunRefusal,
   runOutcomeNotice,
   SUGGEST_ON_REFUSAL_HELP,
   SUGGEST_ON_REFUSAL_LABEL,
   suggestOnRefusalAccessibleName,
 } from "../lib/rule-copy.ts";
 import { useDeleteRule, useRunRuleNow, useSetRuleEnabled, useSetRuleSuggestOnRefusal, useTestRule } from "../lib/rule-mutations.ts";
+import {
+  isTransformOnlyRule,
+  RULE_UNREADABLE_BADGE,
+  ruleTransformOnlyRunRefusal,
+  ruleUnreadableEnableRefusal,
+  ruleUnreadableLine,
+  ruleUnreadableRunRefusal,
+} from "../lib/rule-refusal-copy.ts";
 import { RuleFireLog } from "./rule-fire-log.tsx";
 
 /** One row of the rule list — tRPC-inferred so a wire reshape breaks here at compile time. */
@@ -145,6 +157,25 @@ export interface RuleRowProps {
   readonly rule: Rule;
 }
 
+/** WHY "Run now" cannot succeed on this rule, or `null` when it can — the row's ONE place to ask, so the
+ *  door and its reason can never disagree, and a third refusal lands as one arm rather than a third
+ *  ternary in the render (the same reason `predicateVerdict` above is a function).
+ *
+ *  Both arms are the server's own refusals, in the host's words: an unreadable blob re-parses and
+ *  auto-disables (`engine/dispatch.ts::runRule`), and a draft-rewriting rule never dispatches at all, so
+ *  `verbs/run-rule-now.ts` throws `transform_not_runnable`. ORDER MATTERS: an unreadable rule projects
+ *  `actions: []`, so the corrupt arm is asked FIRST and the transform predicate's own non-empty guard is
+ *  the belt behind it. */
+function runNowRefusal(rule: Rule): string | null {
+  if (rule.actionsCorrupt) {
+    return ruleUnreadableRunRefusal(rule.name);
+  }
+  if (isTransformOnlyRule(rule.actions)) {
+    return ruleTransformOnlyRunRefusal(rule.name);
+  }
+  return null;
+}
+
 /** One rule: its name + what it does + when it last ran, the enable toggle, the free Test action, and the
  *  overflow menu carrying the two actions that are not free (Run now — it spends) and not reversible
  *  (Delete — behind the composite's confirm). Then the last dry-run verdict and the collapsible fire log. */
@@ -161,6 +192,7 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
   const spends = hasSpendArm(rule.actions);
   // `actions` is `[]` for BOTH an unreadable blob and a rule with no arms yet; only this flag separates them.
   const unreadable = rule.actionsCorrupt;
+  const runRefusal = runNowRefusal(rule);
 
   const onEnabledChange = (next: boolean): void => {
     if (enableAdmission.current) {
@@ -251,19 +283,18 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
               onConfirm: (): void => deleteRule.mutate({ ruleId: rule.id, chatId }),
             }}
           >
-            {/* THE TWO DOORS AGREE (#1655). #1558 took the enable switch away from an unreadable rule and
-                left Run-now beside it, so the row refused to switch the rule ON while still offering to
-                RUN it — and that offer cannot succeed: `engine/dispatch.ts::runRule` re-parses the blob,
-                fails, and auto-disables the rule, which is the #924 dead end wearing a spend glyph. Refused
-                in the enable control's own grammar, with the reason on `title`: Base UI renders a disabled
-                MenuItem as `div[role=menuitem][aria-disabled]` (never the native attribute), so the element
-                still takes pointer events and `title` genuinely surfaces on hover AND reaches the a11y tree
-                as the item's description — which a tooltip on a disabled trigger would not. The badge
-                sentence above already says the rule can't run and names the one repair, so nothing there
-                has to change for the two to agree.
+            {/* THE DOORS AGREE (#1655, #1673). #1558 took the enable switch away from an unreadable rule
+                and left Run-now beside it, so the row refused to switch the rule ON while still offering to
+                RUN it; #1673 is the same shape one arm type over. Both offers reach a server that cannot
+                perform them, and the reason rides `title`: Base UI renders a disabled MenuItem as
+                `div[role=menuitem][aria-disabled]` (never the native attribute), so the element still takes
+                pointer events and `title` genuinely surfaces on hover AND reaches the a11y tree as the
+                item's description — which a tooltip on a disabled trigger would not. The unreadable rule's
+                badge sentence already says it can't run and names the one repair, so nothing there has to
+                change for the doors to agree.
                 A TRANSIENT pending disable carries NO reason (there is nothing to explain and it is gone in
-                a moment); only the persistent gate state explains itself. */}
-            <MenuItem disabled={unreadable || runNow.isPending} onClick={onRunNow} title={unreadable ? ruleUnreadableRunRefusal(rule.name) : undefined}>
+                a moment); only the persistent gate states explain themselves. */}
+            <MenuItem disabled={runRefusal !== null || runNow.isPending} onClick={onRunNow} title={runRefusal ?? undefined}>
               <Icon icon={spends ? Coins : Play} size="sm" />
               {spends ? "Run now — spends a model call" : "Run now"}
             </MenuItem>

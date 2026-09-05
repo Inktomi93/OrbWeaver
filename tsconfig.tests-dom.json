@@ -124,6 +124,7 @@
     "tests/support/ct/measure-content-column.ts",
     "tests/support/ct/part-vs-surface.ts",
     "tests/support/ct/pixel-contrast.ts",
+    "tests/support/ct/prose-measure.ts",
     "tests/support/ct/scroll-containing-block.ts",
     "tests/support/ct/settings-geometry.ts",
     "tests/support/ct/tier-liveness.ts",

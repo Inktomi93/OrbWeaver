@@ -1411,3 +1411,62 @@ test("#1655 an unreadable rule refuses Run now too — the two doors agree, and 
   await expect.poll(() => trpc.count("automation.runRuleNow")).toBe(1);
   await expect.poll(() => trpc.lastInput("automation.runRuleNow")).toMatchObject({ ruleId: "automationrule_ct_armless" });
 });
+
+// ── #1673 — the THIRD rule the Run-now door cannot serve: the draft rewriter ────────────────────────────
+// A `transform_draft` rule does not dispatch at all; it registers a `PromptTransform` into chat's turn
+// pipeline (`engine/prompt-transforms.ts`), the engine skips it by name (`engine/dispatch.ts::runRule`),
+// `substrate/run-now.ts::dispatchRuleNow` therefore returns `null`, and `verbs/run-rule-now.ts` turns that
+// into a typed `transform_not_runnable`. The menu offered it anyway, so pressing it could only ever produce
+// an error toast — #1655's dead end wearing a different arm type.
+//
+// AND THIS RULE IS OTHERWISE HEALTHY, which is the contrast that makes the pin a difference rather than a
+// decoration: unlike the unreadable rule it keeps its enable switch, its Test button and its Delete, and
+// only the one door that cannot succeed is refused.
+// RED against the pre-fix source: the item answered `aria-disabled` absent, carried no `title`, and the
+// count reached 2 with the transform rule's id last.
+
+/** A draft-rewriting rule: a single `transform_draft` arm, which is the shape validation guarantees (a rule
+ *  carrying one transform arm carries ONLY transform arms). Enabled and readable — nothing else is wrong. */
+const TRANSFORM_RULE = {
+  ...RULE,
+  id: "automationrule_ct_transform",
+  name: "Polish my draft",
+  description: null,
+  actions: [{ type: "transform_draft" }],
+  actionsCorrupt: false,
+  enabled: true,
+  lastError: null,
+};
+
+const TRANSFORM_REFUSAL = `Can't run "Polish my draft" — it rewrites your draft while a reply is being built, so there's nothing to run out of turn`;
+
+test("#1673 a draft-rewriting rule refuses Run now — and keeps every affordance that DOES work", async ({ mount, page }) => {
+  const trpc = await stub(page, { rules: [TRANSFORM_RULE, ARMLESS_RULE] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  // SETTLED: both rows painted before either menu is judged.
+  await expect(page.getByText("Polish my draft", { exact: true })).toBeVisible();
+  await expect(page.getByText("Empty watcher", { exact: true })).toBeVisible();
+
+  // THE CONTRAST FIRST: this rule is not broken, so the controls that can act are untouched — no `readOnly`
+  // switch, no error badge, a live Test.
+  await expect(page.getByRole("switch", { name: "Enable Polish my draft" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Test Polish my draft" })).toBeEnabled();
+  await expect(page.getByText("Can't run", { exact: true })).toHaveCount(0);
+
+  await openRuleMenu(page, "Polish my draft");
+  const refused = page.getByRole("menuitem", { name: "Run now", exact: true });
+  await expect(refused).toBeVisible();
+  await expect(refused).toHaveAttribute("aria-disabled", "true");
+  await expect(refused).not.toHaveAttribute("disabled", /.*/u);
+  // The reason is the server's own refusal in the host's words, never the wire code.
+  await expect(refused).toHaveAttribute("title", TRANSFORM_REFUSAL);
+  await refused.click({ force: true });
+
+  // THE POSITIVE CONTROL, in the same mount: a dispatchable rule's door still works, so a count of exactly
+  // 1 proves the refused one performed nothing rather than proving the stub was never wired.
+  await page.keyboard.press("Escape");
+  await openRuleMenu(page, "Empty watcher");
+  await page.getByRole("menuitem", { name: "Run now", exact: true }).click();
+  await expect.poll(() => trpc.count("automation.runRuleNow")).toBe(1);
+  await expect.poll(() => trpc.lastInput("automation.runRuleNow")).toMatchObject({ ruleId: "automationrule_ct_armless" });
+});
