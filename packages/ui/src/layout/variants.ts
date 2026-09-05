@@ -231,9 +231,10 @@ export const gridVariants = tv({
       //
       // A SEPARATE ARM, not a retune of `lead`, for `leadEven`'s reason: `lead`'s other consumer WAS the
       // config welcome hearth (retired by #1210), whose own CT declared the `@4xl` width as the one its split had
-      // to engage at (`tests/client/features/config/_ct-stories.tsx`). Moving the shared value would change a surface
-      // nobody measured. Reach for `leadEarly` when the pane holding the split is a docked CONTENT region
-      // rather than a whole page.
+      // to engage at (`6b00c37fd^:tests/client/features/config/_ct-stories.tsx:215` — #1210 deleted that story with
+      // the surface, so the claim is anchored to the SHA that carried it, never to today's file). Moving the
+      // shared value would change a surface nobody measured. Reach for `leadEarly` when the pane holding the
+      // split is a docked CONTENT region rather than a whole page.
       leadEarly: "grid-cols-1 @3xl:grid-cols-[1.55fr_1fr] @min-[100rem]:grid-cols-[1.5fr_1.05fr]",
       // FIXED cells, variable COUNT (added 2026-08-16, program #102). `cell` is auto-FIT + `1fr`, so extra
       // width makes each cell BIGGER; a portrait shelf measured 250px faces at a 2000px viewport and read
