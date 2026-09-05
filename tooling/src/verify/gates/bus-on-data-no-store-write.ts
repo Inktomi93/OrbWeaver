@@ -34,6 +34,7 @@ export const gate = defineGate({
   population: { in: ["@client"], under: ["packages/client/src/data/bus/**"] },
   analysis: "syntax",
   execution: "selected-files",
+  resources: [],
   message: MESSAGE,
   fix: "route events into the pure reducer (data/bus/apply-chat-bus-event.ts), buffer through the chatStream api, or drive the invalidation seam — never a raw .setState.",
   create: (ctx) => ({

@@ -16,6 +16,7 @@ export const gate = defineGate({
   population: ["@client", "@ui"],
   analysis: "syntax",
   execution: "selected-files",
+  resources: [],
   message: MESSAGE,
   fix: "use @container / data-density attribute instead",
   create: (ctx) => ({

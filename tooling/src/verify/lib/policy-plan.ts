@@ -14,13 +14,14 @@ import type {
   PolicySelector,
 } from "../contract/policy-plan.ts";
 import type { PolicyScopeResolution, PolicySemanticPath } from "../contract/policy-scope.ts";
+import type { ResourceHostOptions } from "../contract/resource-host.ts";
 import { parsePolicyCommand } from "./policy-command.ts";
 import { runPolicyPass } from "./policy-pass.ts";
 import { resolvePolicyScope } from "./policy-scope.ts";
+import { isPolicySourceCandidate, policySourceCandidates } from "./policy-source-candidate.ts";
 import { assertGatePolicyDescriptor, normalizePathSet } from "./policy-validation.ts";
 import { populationIncludes, resolvePopulation } from "./population-resolver.ts";
-
-const TYPESCRIPT_SOURCE_RE = /\.(?:[cm]?ts|tsx)$/u;
+import { canonicalResourceDeclarations, resolvePolicyResourcePaths } from "./resource-declaration.ts";
 
 function misuse(message: string): PolicyPlanningResult {
   return { ok: false, exitCode: 3, message };
@@ -40,6 +41,7 @@ function rosterEntry(policy: GatePolicy): PolicyRosterEntry {
     population: structuredClone(policy.population),
     analysis: policy.analysis,
     execution: policy.execution,
+    resources: canonicalResourceDeclarations(policy.resources),
     message: policy.message,
     fix: policy.fix ?? null,
     proofCounts: { mustFlag: policy.mustFlag.length, mustPass: policy.mustPass.length },
@@ -120,22 +122,20 @@ function assertScopeMatches(request: Extract<PolicyCommandRequest, { readonly mo
     throw new Error("policy planner scope carries invalid compiler program membership");
   }
   const compilerFiles = new Set(scope.programs.flatMap(({ files }) => files));
-  const unowned = scope.currentPaths.filter((path) => TYPESCRIPT_SOURCE_RE.test(path) && !compilerFiles.has(path));
+  const unowned = scope.currentPaths.filter((path) => isPolicySourceCandidate(path) && !compilerFiles.has(path));
   if (unowned.length > 0) {
     throw new Error(`selected TypeScript paths have no compiler program membership: ${unowned.toSorted().join(", ")}`);
   }
 }
 
 function resourceManifests(input: PolicyPlannerInput, policies: readonly GatePolicy[]): ReadonlyMap<string, readonly string[]> {
-  const known = new Set(policies.map(({ id }) => id));
-  const manifests = new Map<string, readonly string[]>();
-  for (const [policyId, paths] of input.resourcePathsByPolicy ?? []) {
-    if (!known.has(policyId)) {
-      throw new Error(`resource population names unknown policy ${policyId}`);
-    }
-    manifests.set(policyId, normalizePathSet(paths, `resource path for ${policyId}`));
+  if (!policies.some((policy) => policy.resources.length > 0)) {
+    return new Map();
   }
-  return manifests;
+  if (input.resourceOptions === undefined) {
+    throw new Error("policy resource planning requires ResourceHost options");
+  }
+  return resolvePolicyResourcePaths(policies, input.resourceOptions);
 }
 
 function explicitNone(policy: GatePolicy): boolean {
@@ -158,7 +158,7 @@ function semanticSelectionTouchesPolicy(policy: GatePolicy, semanticPaths: reado
   const resourceSet = new Set(resources);
   return semanticPaths.some((semantic) =>
     [semantic.path, ...(semantic.previousPath === null ? [] : [semantic.previousPath])].some(
-      (path) => resourceSet.has(path) || (TYPESCRIPT_SOURCE_RE.test(path) && populationIncludes(policy.population, path)),
+      (path) => resourceSet.has(path) || (isPolicySourceCandidate(path) && populationIncludes(policy.population, path)),
     ),
   );
 }
@@ -194,11 +194,6 @@ function planOne({ policy, sourceCandidates, requestedPaths, semanticPaths, curr
   }
   if (explicitNone(policy) && declaredSourcePaths.length > 0) {
     throw new Error(`resource-only policy ${policy.id} unexpectedly resolved source files`);
-  }
-  const sourceSet = new Set(declaredSourcePaths);
-  const overlap = resources.find((path) => sourceSet.has(path));
-  if (overlap !== undefined) {
-    throw new Error(`policy ${policy.id} resolves ${overlap} as both source and resource`);
   }
   const effectiveSourcePaths = requestedPaths === null ? declaredSourcePaths : declaredSourcePaths.filter((path) => currentPaths.has(path));
   const effectiveResourcePaths = requestedPaths === null ? resources : resources.filter((path) => currentPaths.has(path));
@@ -245,8 +240,8 @@ function runPlan(
   if (isPlanningFailure(selected)) {
     return selected;
   }
-  const resources = resourceManifests(input, policies);
-  const sourceCandidates = [...new Set(scope.programs.flatMap(({ files }) => files))].toSorted();
+  const resources = resourceManifests(input, selected);
+  const sourceCandidates = policySourceCandidates(scope.programs.flatMap(({ files }) => files));
   const requestedPaths =
     scope.requestedPaths === null
       ? null
@@ -303,7 +298,7 @@ export function planPolicyArgv(
   root: string,
   argv: readonly string[],
   corpus: PolicyPlannerInput["corpus"],
-  resourcePathsByPolicy?: ReadonlyMap<string, readonly string[]>,
+  resourceOptions?: Omit<ResourceHostOptions, "root">,
 ): PolicyPlanningResult {
   const parsed = parsePolicyCommand(argv);
   if (!parsed.ok) {
@@ -315,7 +310,7 @@ export function planPolicyArgv(
       request: parsed.request,
       corpus,
       ...(scope === undefined ? {} : { scope }),
-      ...(resourcePathsByPolicy === undefined ? {} : { resourcePathsByPolicy }),
+      resourceOptions: { root, ...resourceOptions },
     });
   } catch (error) {
     return toolError(error instanceof Error ? error.message : String(error));
@@ -349,7 +344,7 @@ function executionPolicies(input: PolicyPlanExecutionInput): readonly GatePolicy
   });
 }
 
-function executionResourcePaths(plan: PolicyPlanExecutionInput["plan"]): ReadonlyMap<string, readonly string[]> {
+function assertExecutionResourcePaths(plan: PolicyPlanExecutionInput["plan"]): void {
   const selected = new Set(plan.policyIds);
   const unknown = Object.keys(plan.resourcePathsByPolicy)
     .filter((policyId) => !selected.has(policyId))
@@ -357,11 +352,19 @@ function executionResourcePaths(plan: PolicyPlanExecutionInput["plan"]): Readonl
   if (unknown.length > 0) {
     throw new Error(`policy execution resource population names unselected policies: ${unknown.join(", ")}`);
   }
-  return new Map(
+  const expected = Object.fromEntries(
+    plan.policies
+      .filter(({ population }) => population.declaredResourcePaths.length > 0)
+      .map(({ policyId, population }) => [policyId, population.declaredResourcePaths] as const),
+  );
+  const actual = Object.fromEntries(
     Object.entries(plan.resourcePathsByPolicy)
       .map(([policyId, paths]) => [policyId, normalizePathSet(paths, `resource path for ${policyId}`)] as const)
       .toSorted(([left], [right]) => left.localeCompare(right)),
   );
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error("policy execution resource manifest disagrees with planned populations");
+  }
 }
 
 function assertExecutedPopulations(plan: PolicyPlanExecutionInput["plan"], pass: PolicyPassResult): void {
@@ -381,13 +384,13 @@ function assertExecutedPopulations(plan: PolicyPlanExecutionInput["plan"], pass:
 export function executePolicyPlan(input: PolicyPlanExecutionInput): PolicyPlanExecutionResult {
   try {
     const policies = executionPolicies(input);
+    assertExecutionResourcePaths(input.plan);
     const requestedPaths = input.plan.scope.requestedPaths?.map(({ path }) => path);
     const pass = runPolicyPass({
       policies,
       root: input.root,
       project: input.project,
       ...(requestedPaths === undefined ? {} : { requestedPaths }),
-      resourcePathsByPolicy: executionResourcePaths(input.plan),
       ownerPlansByPolicy: new Map(input.plan.policies.map(({ policyId, mode, reason, population }) => [policyId, { mode, reason, population }])),
       reviewedGrants: input.reviewedGrants,
       failOnWarnings: input.plan.failOnWarnings,

@@ -32,6 +32,7 @@ function policy(id: string, overrides: Partial<GatePolicy> = {}): GatePolicy {
     population: "@client",
     analysis,
     execution: "selected-files",
+    resources: analysis === "resource" ? [{ kind: "package-metadata", id: "root" }] : [],
     message: `${id} message`,
     create: () => ({ evaluate: () => undefined }),
     mustFlag: [{ mode, files: { [path]: "export const planted = true;\n" }, why: "founding defect" }],
@@ -116,6 +117,22 @@ test("two policies share one physical descendant walk and receive deterministic 
   expect(result.authority.effectiveFindings.map(({ policyId }) => policyId)).toEqual(["policy-a", "policy-b"]);
 });
 
+test("only .ts and .tsx Project members enter the source candidate walk", () => {
+  const extensions = ["ts", "tsx", "mts", "cts", "mjs", "cjs"] as const;
+  const files = Object.fromEntries(extensions.map((extension) => [`packages/client/src/source.${extension}`, "export const source = true;\n"]));
+  const visited: string[] = [];
+  const gate = policy("source-candidate-extensions", {
+    population: { of: "all", why: "exercise the complete compiler Project" },
+    create: (ctx) => ({ visitFile: (sourceFile) => visited.push(ctx.relativePath(sourceFile)) }),
+  });
+
+  const result = run([gate], projectOf(files));
+
+  expect(result.toolErrors).toEqual([]);
+  expect(visited).toEqual(["packages/client/src/source.ts", "packages/client/src/source.tsx"]);
+  expect(result.policies[0]?.population.declaredSourcePaths).toEqual(visited);
+});
+
 test("visitFile precedes visitor dispatch and evaluate follows the complete walk", () => {
   const project = projectOf({
     "packages/client/src/a.ts": "export const a = 1;\n",
@@ -190,6 +207,10 @@ test("resource identities join requested selection and resource-only findings ar
   const gate = policy("resource-policy", {
     analysis: "resource",
     population: { of: "none", why: "resource-only fixture" },
+    resources: [
+      { kind: "package-metadata", id: "root" },
+      { kind: "package-metadata", id: "ui" },
+    ],
     create: (ctx) => ({
       evaluate: () => {
         seenResources = ctx.resourcePaths;
@@ -203,8 +224,7 @@ test("resource identities join requested selection and resource-only findings ar
 
   const result = run([gate], project, {
     requestedPaths: ["packages/ui/package.json"],
-    resourceOptions: { overlay: { "packages/ui/package.json": '{"name":"@orb/ui"}' } },
-    resourcePathsByPolicy: new Map([[gate.id, ["packages/ui/package.json", "package.json"]]]),
+    resourceOptions: { overlay: { "package.json": '{"name":"orb"}', "packages/ui/package.json": '{"name":"@orb/ui"}' } },
   });
 
   expect(seenResources).toEqual(["packages/ui/package.json"]);
@@ -215,6 +235,69 @@ test("resource identities join requested selection and resource-only findings ar
   });
   expect(result.policies[0]?.receipts).toEqual([{ kind: "resource", source: "package:ui", resources: 1, unresolved: 0 }]);
   expect(result.authority.effectiveFindings).toMatchObject([{ file: "packages/ui/package.json", line: 1, column: 1, policyId: gate.id }]);
+});
+
+test("a hybrid policy consumes one TS identity through both source and resource axes", () => {
+  const path = "packages/client/src/hybrid.ts";
+  const source = "export const hybrid = true;\n";
+  const project = projectOf({ [path]: source });
+  const visited: string[] = [];
+  const gate = policy("hybrid-policy", {
+    analysis: "resource",
+    population: "@client",
+    resources: [{ kind: "authored-tree", id: "client-source" }],
+    create: (ctx) => ({
+      visitFile: (sourceFile) => visited.push(ctx.relativePath(sourceFile)),
+      evaluate: () => {
+        const tree = ctx.resources.authoredTree("client-source");
+        if (tree.status !== "ready") {
+          throw new Error(tree.reason);
+        }
+        ctx.report.file(path);
+      },
+    }),
+  });
+
+  const result = run([gate], project, {
+    resourceOptions: { overlay: { [path]: source } },
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies[0]?.owner).toEqual({ status: "success", population: "complete" });
+  expect(result.policies[0]?.population).toMatchObject({
+    declaredSourcePaths: [path],
+    declaredResourcePaths: [path],
+    effectiveSourcePaths: [path],
+    effectiveResourcePaths: [path],
+  });
+  expect(visited).toEqual([path]);
+  expect(result.authority.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ file: path, policyId: gate.id }]);
+});
+
+test("descriptor resource declarations are the pass resource manifest", () => {
+  const first = "packages/client/src/a.ts";
+  const second = "packages/client/src/b.ts";
+  let seenResources: readonly string[] = [];
+  const gate = policy("resource-manifest-disagreement", {
+    analysis: "resource",
+    population: { of: "none", why: "resource-only authored tree" },
+    resources: [{ kind: "authored-tree", id: "client-source" }],
+    create: (ctx) => ({
+      evaluate: () => {
+        seenResources = ctx.resourcePaths;
+        ctx.resources.authoredTree("client-source");
+      },
+    }),
+  });
+
+  const result = run([gate], projectOf({}), {
+    resourceOptions: { overlay: { [first]: "export const a = 1;\n", [second]: "export const b = 2;\n" } },
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies[0]?.owner.status).toBe("success");
+  expect(seenResources).toEqual([first, second]);
 });
 
 test("the checker is lazy, shared once, and refuses syntax policies", () => {
@@ -506,7 +589,7 @@ test("declared resources without acquisition receipts cannot complete or reconci
     population: { of: "none", why: "resource-only owner" },
   });
   const result = run([gate], projectOf({}), {
-    resourcePathsByPolicy: new Map([[gate.id, ["package.json"]]]),
+    resourceOptions: { overlay: { "package.json": '{"name":"orb"}' } },
     reviewedGrants: [{ id: "unread-grant", policyId: gate.id, subject: "package.json", operation: "read", why: "fixture grant", endsWhen: "fixture ends" }],
   });
   expect(result.policies[0]?.owner.status).toBe("incomplete");
@@ -532,7 +615,6 @@ test("resource contexts share one invocation host with injected overlays and own
   const owners = [resourceOwner("resource-a"), resourceOwner("resource-b")];
   const result = run(owners, projectOf({}), {
     resourceOptions: { overlay },
-    resourcePathsByPolicy: new Map(owners.map(({ id }) => [id, ["package.json"]])),
   });
   expect(result.toolErrors).toEqual([]);
   expect(result.policies.every(({ owner }) => owner.status === "success")).toBe(true);
@@ -562,7 +644,6 @@ test("resource injection cannot substitute a different root with the same relati
   const result = run([gate], projectOf({}), {
     root,
     resourceOptions: { root: otherRoot } as never,
-    resourcePathsByPolicy: new Map([[gate.id, ["package.json"]]]),
   });
   expect(names).toEqual(["root-a"]);
   expect(result.toolErrors).toEqual([]);
