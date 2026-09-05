@@ -20,7 +20,7 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
 
-const MAIN_JS = new URL("../../packages/server/src/entry/boot/seed-assets/plugins/card-atlas/main.js", import.meta.url);
+const MAIN_JS = new URL("../../packages/showcase-plugins/bundles/card-atlas/main.js", import.meta.url);
 const FIXED_EPOCH = 1_700_000_000_000;
 /** Macrotask spins per settle — enough for the guest's floated search/open continuations to land. */
 const SETTLE_TICKS = 24;
