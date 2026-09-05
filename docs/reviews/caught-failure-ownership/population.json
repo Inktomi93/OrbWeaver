@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 541,
-    "enforced": 536,
-    "reported": 0,
+    "sites": 542,
+    "enforced": 537,
+    "reported": 1,
     "byVerdict": {
       "deliberate-absorb": 536,
       "detached-owned": 5,
-      "unproven": 0
+      "unproven": 1
     },
     "byGrammar": {
       "promise": 142,
-      "default": 145,
+      "default": 146,
       "empty": 254
     }
   },
@@ -6325,7 +6325,7 @@
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::default:catch::1",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 143,
+      "line": 165,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6333,12 +6333,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a truncated/garbage legacy marker is treated as \"no legacy stage\", which is the same clean-rebuild path a missing one takes. Ends if a legacy marker ever carries state the table cannot re-derive.",
-      "markerLine": 134
+      "markerLine": 156
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::default:catch::2",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 265,
+      "line": 299,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6346,12 +6346,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — an unreadable holder file means \"I cannot identify the holder\", which the age check below then judges. Ends if a lock ever carries state beyond its holder pid.",
-      "markerLine": 261
+      "markerLine": 295
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 164,
+      "line": 186,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6359,12 +6359,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a truncated/garbage table (a killed mid-write) is treated as \"no stages\", which triggers the same clean-allocate path an ABSENT table takes, legacy migration included; the operator sees the empty census on the next `--stage-status`. Ends if the sweep/status readers stop tolerating an empty table.",
-      "markerLine": 156
+      "markerLine": 178
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::empty:catch::2",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 301,
+      "line": 335,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6372,7 +6372,20 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "EEXIST is the mutex's SUCCESS-of-the-other-caller signal, not a failure — the loop below judges the holder and either waits or breaks it. Ends if mkdir stops being the lock primitive.",
-      "markerLine": 296
+      "markerLine": 330
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-reap-log.ts::default:catch::1",
+      "path": "tooling/src/snap/ops/stage-reap-log.ts",
+      "line": 70,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
     },
     {
       "siteId": "tooling/src/snap/ops/stage-source.ts::empty:catch::1",
@@ -6390,7 +6403,7 @@
     {
       "siteId": "tooling/src/snap/ops/stage-status.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/stage-status.ts",
-      "line": 195,
+      "line": 216,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6398,7 +6411,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort cleanup per the comment above — the row (cleared unconditionally below) is the actual deliverable of this branch, not the dir removal. Ends if the row clear stops happening unconditionally.",
-      "markerLine": 192
+      "markerLine": 213
     },
     {
       "siteId": "tooling/src/snap/ops/watch.ts::promise:screenshot::1",
