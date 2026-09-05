@@ -12,7 +12,7 @@ import { beforeEach, describe } from "vitest";
 import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games.ts";
 import { listActiveJournal } from "../../../../packages/server/src/domain/rpg/persistence/journal.ts";
 import { freshDb } from "../../../support/db.ts";
-import { expect, makeRpgService, principal, seedChat, seedUser, test } from "./_support.ts";
+import { expect, makeRpgService, principal, seedChat, seedUser, test, UNCLAMPED } from "./_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -254,7 +254,7 @@ describe("cross-tenant IDOR — a host may NOT reach another game's by-id rows (
       h.service.editJournalEntry({ principal: principal(castId<Handle>("hostA")), chatId: chatA, entryId: entryB, patch: { content: "hijacked" } }),
     ).rejects.toThrow(DomainNotFoundError);
     // B's entry is UNTOUCHED (content unchanged).
-    expect((await listActiveJournal(db, gameB.id, { limit: 50 })).find((e) => e.id === entryB)?.content).toBe("B-content");
+    expect((await listActiveJournal(db, gameB.id, { limit: 50, historyFloorSeq: UNCLAMPED })).find((e) => e.id === entryB)?.content).toBe("B-content");
   });
 
   test("deleteJournalEntry with a foreign game's entryId → leak-free NOT-FOUND, victim row survives", async () => {
@@ -267,7 +267,7 @@ describe("cross-tenant IDOR — a host may NOT reach another game's by-id rows (
       DomainNotFoundError,
     );
     // B's entry still exists.
-    expect((await listActiveJournal(db, gameB.id, { limit: 50 })).some((e) => e.id === entryB)).toBe(true);
+    expect((await listActiveJournal(db, gameB.id, { limit: 50, historyFloorSeq: UNCLAMPED })).some((e) => e.id === entryB)).toBe(true);
   });
 });
 

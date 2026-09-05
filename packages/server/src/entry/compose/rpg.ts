@@ -84,6 +84,7 @@ import type {
   RpgContext,
   RpgCopyPresetToUser,
   RpgResolvePresetOwned,
+  RpgResolveViewerVisibility,
   RpgRunExtraction,
   RpgRunToolRound,
   RpgService,
@@ -162,6 +163,10 @@ export interface RpgComposeDeps {
   /** chat's rpg-facing ops (getMembership/postNarratorMessage/setRpgPointer/resolveRpgRoster) — off chat's
    *  compose result (chat composes first). rpg closes over these; chat learns nothing rpg-shaped. */
   readonly rpgChatOps: ChatComposeResult["rpgChatOps"];
+  /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`, built once at the services root)
+   *  — the hidden-content posture + the D16 canon floor for one human over one chat. rpg's member-facing reads
+   *  belt on it (#1528) and never re-derive either half. */
+  readonly resolveViewerVisibility: RpgResolveViewerVisibility;
   /** `resolveChat` resolves the ROOM's connection (per-chat routing overlay, `metadata.providerRouting`) for the
    *  READ-side `trackersReadOnly` pill — the SAME verb the character turn resolves through (`compose/chat.ts`),
    *  never the host's global `resolveRole` default (stickler F1). `getOrSkinTierModels` feeds the agent-sdk
@@ -1738,6 +1743,10 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     // host verdict, exactly as chat/automation do. Wired here, never imported by the domain (§2 flow).
     can,
     getMembership: deps.rpgChatOps.getMembership,
+    // #1528 — the DATA-PROJECTION verdict the member-facing reads belt on (hidden-span posture + the D16
+    // floor), off chat's ONE cross-domain op. Distinct from `getMembership`, which answers the ENFORCEMENT
+    // question `guard.ts` gates with.
+    resolveViewerVisibility: deps.resolveViewerVisibility,
     setPointer: deps.rpgChatOps.setRpgPointer,
     resolveRoster: deps.rpgChatOps.resolveRpgRoster,
     // R4 — promotion's durable half (card + roster seat), the ONE rpg write that reaches outside the game.

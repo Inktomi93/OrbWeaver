@@ -14,6 +14,7 @@
 // and WIRED at the composition root (W1b-integration/W1c) — a verb closes over the DECLARED op, never reaches
 // sideways into chat (§2 one-directional flow). The runtime impls are chat/connection's, not this wave's.
 
+import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -268,6 +269,24 @@ interface RpgFlushRegistration {
  *  verb through it — never a chat-table read (§4.4). `null` = not a present member / no such chat (ONE
  *  leak-free answer — the not-a-member and no-game cases are indistinguishable to the caller). */
 export type RpgGetMembership = (chatId: ChatId, userId: UserId) => Promise<{ readonly role: ParticipantRole } | null>;
+
+/** THE viewer-visibility verdict for rpg's MEMBER-FACING READS (#1528), consumed from chat's ONE
+ *  `resolveViewerVisibility` op — never re-derived here. Two halves, both DATA (D106-F1):
+ *
+ *   • `readsHidden` — chat's `viewerReadsHidden` verdict. `false` ⇒ every free-text plane this read serves is
+ *     run through the hidden-span belt (`substrate/hidden-spans.ts`), because a `<lie>`'s truth is the host's
+ *     plane (§3.6) whether it sits in a message body or in a state field an extractor quoted it into.
+ *   • `historyFloorSeq` — D16's per-member floor in `messages.seq` space, minted ONLY by chat's clamp resolver
+ *     (`substrate/auth/clamp.ts` — the one home; rpg must never compute a second one). `listJournal` is the
+ *     rpg plane that keeps PER-TURN rows, so a `from-join` member must not read entries distilled from turns
+ *     below their floor.
+ *
+ *  `null` = not a present member / no such chat — the same leak-free answer {@link RpgGetMembership} gives,
+ *  and the fail-CLOSED sentinel: an absent member must never surface as floor 0, which reads as UNCLAMPED. */
+export type RpgResolveViewerVisibility = (
+  chatId: ChatId,
+  userId: UserId,
+) => Promise<{ readonly role: ParticipantRole; readonly historyFloorSeq: HistoryFloorSeq; readonly readsHidden: boolean } | null>;
 
 /** The opaque pointer write (chat's `setRpgPointer`, §3.1). `createGame` calls it ONCE so the client's takeover
  *  gate is a sync read off `ChatDetail` — rpg never reads it back. `null` DELETES the pointer (the
@@ -613,6 +632,11 @@ export interface RpgContext {
    *  the verb-specific refusal sentence; the kernel owns the comparison. */
   readonly can: Can;
   readonly getMembership: RpgGetMembership;
+  /** #1528 — the member-facing reads' PROJECTION verdict (hidden-span posture + the D16 floor), resolved by
+   *  chat's one cross-domain op. Distinct from `getMembership` on purpose: that answers "may this caller ACT"
+   *  (the ENFORCEMENT class `guard.ts` gates on), this answers "what may this viewer SEE" (the DATA-PROJECTION
+   *  class). Collapsing the two is the defect the spine's three-questions clause names. */
+  readonly resolveViewerVisibility: RpgResolveViewerVisibility;
   readonly setPointer: RpgSetPointer;
   readonly resolveRoster: RpgResolveRoster;
   /** R4 — promotion's DURABLE half (mint the card + seat it on the roster), wired at compose over the

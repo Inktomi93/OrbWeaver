@@ -56,10 +56,11 @@
 //     (`stripHiddenForForker`, #1398): the walk belts every string in a cloned snapshot / journal / checkpoint
 //     / sheet row, so ambient location, an actor's mood/thoughts/status/inventory, quest + plot text, a
 //     journal title/label, a checkpoint label and a sheet's flavor are covered alongside the two fields that
-//     used to be hand-belted. It is defense in depth (§1.6 recommendation A keeps tracker prose surface-only
-//     at the SOURCE, and no rpg member read strips spans, so the same human already read these bytes there —
-//     the source-side gap is filed separately), but the fork must not be where a laundered secret becomes the
-//     founding canon of a room the forker HOSTS. Same `stripHiddenSpans` as `verbs/fork.ts::copyVariantStmt`.
+//     used to be hand-belted. The walk itself is `substrate/hidden-spans.ts` since #1528, because the SOURCE
+//     side now runs the same one: the member-facing reads (`getTrackerView`/`listJournal`/`listCheckpoints`)
+//     strip for a non-host viewer, so this is no longer defense-in-depth over bytes the same human had already
+//     read in the panel — the two sides agree by construction. Same `stripHiddenSpans` as
+//     `verbs/fork.ts::copyVariantStmt`.
 // The remaining host-only config fields are SCALARS and COPY (`extractionContext`/`extractionWindowTokens`/
 // `reconcileEveryBeats`/`deception`/`omniscience`/`hiddenContentReveal`/`recentBeatsKeepLast`/
 // `immersiveHtmlInteractive`/`cardKeepLastX`): no authored prose is representable in an enum or a bounded
@@ -71,17 +72,16 @@
 // WHY THE D16 FLOOR DOES NOT BITE FURTHER HERE: the window strip already fires for every clamped forker
 // (`readsHidden === false` is the superset — a clamped forker is necessarily a non-host, `verbs/fork.ts` F2),
 // and the window IS what the source's own member-gated read served that person, floor or no floor:
-// `getTrackerView` resolves the current snapshot with NO `resolveHistoryFloorSeq` anywhere in its path.
-// Flooring the fork harder would make it carry LESS than the panel showed the same human, and would leave
-// the actual question — whether an unclamped tracker view may quote pre-floor turns at all — open in the
-// SOURCE, where every member still reads it. That is a member-visibility question, not a fork strip.
+// `getTrackerView` resolves the CURRENT snapshot, which is one live state image rather than a per-turn
+// archive, so there is no pre-floor row in it to withhold (#1528 floored the plane that DOES keep per-turn
+// rows — `listJournal` — at the source). Flooring the fork harder would make it carry LESS than the panel
+// showed the same human.
 // A `readsHidden` forker (the source host) copies verbatim — they already read every secret.
 
 import type { RpgGameConfig, RpgGameFeatures } from "@orb/contracts/rpg";
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
-import { stripHiddenSpans } from "@orb/kit/content";
 import type { MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import type { ForkGameArgs, ForkGameResult } from "../../chat/index.ts";
 import type { RpgCheckpointRow, RpgContext, RpgJournalRow, RpgSheetRow, RpgSnapshotRow } from "../contract/service.ts";
@@ -90,6 +90,7 @@ import { findGameByChat } from "../persistence/games.ts";
 import { listAllJournal } from "../persistence/journal.ts";
 import { listSheets } from "../persistence/sheets.ts";
 import { listSnapshots } from "../persistence/snapshots.ts";
+import { stripHiddenForViewer } from "../substrate/hidden-spans.ts";
 import { keepLastBeats } from "./tracker-view.ts";
 
 /** The `rpg_games.config` blob's per-FIELD classification for a non-host forker (identity for a host forker).
@@ -179,44 +180,16 @@ function keepBeatsForForker(beats: readonly string[] | null, keepLast: number, r
   return keepLastBeats(beats, keepLast);
 }
 
-/**
- * THE HIDDEN-SPAN BELT AS A PROPERTY OF THE COPY (#1398) — every string reachable in a cloned row's values,
- * at any depth, with `stripHiddenSpans` applied for a non-host forker.
+/** The hidden-span belt for a cloned row, gated on the forker's read posture — the SHARED walk
+ *  (`substrate/hidden-spans.ts`, hoisted there by #1528 so the member-facing READS that are the SOURCE of
+ *  these bytes run the same one). A HOST forker already reads every hidden span through the reveal plane, so
+ *  their clone is byte-identical.
  *
- * It replaces two hand-placed call sites (`recentEvents`, journal `content`) that were the only fields
- * anybody had remembered: a `<lie …/>` an extractor quoted into ambient `location`, an actor's
- * mood/thoughts/status/inventory prose, a quest name or description, the plot rail, a journal `title`/`label`,
- * a checkpoint label or a sheet's flavor rode into the forker's new room whole. A per-field list is the wrong
- * shape at a trust boundary for the same reason a spread-and-strip copy is (the header's ratchet argument):
- * the NEXT free-text field defaults to carried. This walks the values instead, so a new column or a new field
- * inside an existing JSON plane inherits the belt the day it lands.
- *
- * SCOPE, stated so it can be checked: VALUES ONLY — object KEYS are never rewritten (`fieldLocks` is a
- * path-keyed record whose keys are addresses, and a mangled path would silently unlock a hand-locked field).
- * Non-strings pass through untouched, and `stripHiddenSpans` is identity for a string with no hidden span, so
- * ids, enum tokens and numbers are unchanged by construction (the pins assert the re-keyed ids survive).
- * `rpg_games.config` is deliberately NOT walked: its trust boundary is per-FIELD and already has its own
- * exhaustive-literal ratchet (`stripConfigForForker`, D134), where a blanket byte-strip would hide a field
- * that must be classified.
- */
-function stripHiddenDeep<T>(value: T): T {
-  if (typeof value === "string") {
-    return stripHiddenSpans(value).content as T;
-  }
-  if (Array.isArray(value)) {
-    return value.map((entry: unknown) => stripHiddenDeep(entry)) as T;
-  }
-  if (typeof value === "object" && value !== null) {
-    const entries = Object.entries(value as Record<string, unknown>).map(([key, entry]) => [key, stripHiddenDeep(entry)] as const);
-    return Object.fromEntries(entries) as T;
-  }
-  return value;
-}
-
-/** {@link stripHiddenDeep}, gated on the forker's read posture: a HOST forker already reads every hidden span
- *  through the reveal plane, so their clone is byte-identical (identity, not a walk). */
+ *  `rpg_games.config` is deliberately NOT walked here: its trust boundary is per-FIELD and already has its own
+ *  exhaustive-literal ratchet (`stripConfigForForker`, D134), where a blanket byte-strip would HIDE a field
+ *  that must be classified. */
 function stripHiddenForForker<T>(values: T, readsHidden: boolean): T {
-  return readsHidden ? values : stripHiddenDeep(values);
+  return stripHiddenForViewer(values, readsHidden);
 }
 
 /** The shared re-key inputs every per-plane copy closes over: the fork's new game id, the id maps, the strip

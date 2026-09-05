@@ -23,7 +23,21 @@ import {
 } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/staging.ts";
 import { freshDb } from "../../../support/db.ts";
-import { actorWithWallet, addVariant, emptyState, expect, FROZEN_AT, handTarget, quest, seedChat, seedGame, seedMessage, target, test } from "./_support.ts";
+import {
+  actorWithWallet,
+  addVariant,
+  emptyState,
+  expect,
+  FROZEN_AT,
+  handTarget,
+  quest,
+  seedChat,
+  seedGame,
+  seedMessage,
+  target,
+  test,
+  UNCLAMPED,
+} from "./_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -138,13 +152,13 @@ describe("the ratification pin — journal lineage rides the same swipe", () => 
     });
 
     await selectVariant(messageId, variantA);
-    expect((await listActiveJournal(db, gameId, { limit: 50 })).map((r) => r.title).sort()).toEqual(["beat-A", "room-note"]);
+    expect((await listActiveJournal(db, gameId, { limit: 50, historyFloorSeq: UNCLAMPED })).map((r) => r.title).sort()).toEqual(["beat-A", "room-note"]);
 
     await selectVariant(messageId, variantB);
-    expect((await listActiveJournal(db, gameId, { limit: 50 })).map((r) => r.title).sort()).toEqual(["beat-B", "room-note"]);
+    expect((await listActiveJournal(db, gameId, { limit: 50, historyFloorSeq: UNCLAMPED })).map((r) => r.title).sort()).toEqual(["beat-B", "room-note"]);
 
     await selectVariant(messageId, variantA);
-    expect((await listActiveJournal(db, gameId, { limit: 50 })).map((r) => r.title).sort()).toEqual(["beat-A", "room-note"]);
+    expect((await listActiveJournal(db, gameId, { limit: 50, historyFloorSeq: UNCLAMPED })).map((r) => r.title).sort()).toEqual(["beat-A", "room-note"]);
   });
 });
 

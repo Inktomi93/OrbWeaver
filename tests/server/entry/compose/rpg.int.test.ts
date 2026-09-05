@@ -33,6 +33,7 @@ import type { Db } from "@orb/db";
 import { characters, chatParticipants, messages, messageVariants, presets } from "@orb/db";
 import type { ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { AgentModelHealError, ConnectionRoutingError } from "@orb/server/domain/connection";
 import type { RpgTraceEvent, RpgTraceSink } from "@orb/server/domain/rpg";
 import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
@@ -365,6 +366,8 @@ function buildCannedRpgWithText(args: {
     now: () => FROZEN_AT,
     ...(args.trace === undefined ? {} : { trace: args.trace }),
     rpgChatOps: app.chatRpgOps,
+    // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
+    resolveViewerVisibility: createResolveViewerVisibility({ db }),
     connection: {
       // The READ-side `trackersReadOnly` pill resolves the ROOM connection via `resolveChat` (the F1 seam — the
       // per-chat-routing verb, not the host's global `resolveRole` default). The state ROUNDS re-resolve NOTHING;
@@ -1395,6 +1398,8 @@ function buildRpgWithCapability(app: ServicesResult, db: Db, capability: ModelCa
     db,
     now: () => FROZEN_AT,
     rpgChatOps: app.chatRpgOps,
+    // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
+    resolveViewerVisibility: createResolveViewerVisibility({ db }),
     connection: {
       resolveChat: () => Promise.resolve(makeResolvedConnection({ api: "chat-completions", model: castId<ModelId>("fake-chat-model"), capability })),
       getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
@@ -1454,6 +1459,8 @@ function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unkno
     db,
     now: () => FROZEN_AT,
     rpgChatOps: app.chatRpgOps,
+    // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
+    resolveViewerVisibility: createResolveViewerVisibility({ db }),
     connection: {
       resolveChat: () => Promise.reject(err),
       getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
@@ -2851,6 +2858,8 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
     db,
     now: () => FROZEN_AT,
     rpgChatOps: app.chatRpgOps,
+    // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
+    resolveViewerVisibility: createResolveViewerVisibility({ db }),
     connection: {
       // Tools but NO structured output — the populate round's own capability gate must refuse it.
       resolveChat: () =>

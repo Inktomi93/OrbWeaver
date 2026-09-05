@@ -800,12 +800,23 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // its turns are byte-identical. The explicit `rpgTrace` dep wins over the env so an int test / the drive kit
   // never depends on the ambient environment (the `wireCapture` precedent, and the [[ENV-BLEEDS-INTO-TESTS]]
   // lesson: a test that reads the operator's `.env` is a test that passes on the wrong machine).
+  // THE cross-domain viewer-visibility op (the read-visibility D-entry): membership AND the D16 canon floor as
+  // ONE answer for one human over one chat. Built ONCE here and injected into every non-chat consumer that
+  // decides "may this human see this chat's CONTENT" — imagery's extractQuiet (via the late-bound getter
+  // above), the automation plugin fan-out's delivery gate, the plugin membrane's canon read, and rpg's
+  // member-facing reads (#1528). There is exactly ONE clamp home (chat's `resolveHistoryFloorSeq`, reached
+  // only through this op). Declared BEFORE the rpg compose because rpg consumes it; it needs only `db`.
+  const resolveViewerVisibility = createResolveViewerVisibility({ db });
+
   const rpgTrace = (deps.rpgTrace ?? env.RPG_TRACE === "on") ? createRpgTraceRecorder({ now }) : undefined;
   const rpgCompose = buildRpg({
     db,
     now,
     ...(rpgTrace === undefined ? {} : { trace: rpgTrace.sink }),
     rpgChatOps: chatCompose.rpgChatOps,
+    // #1528 — the member-facing rpg reads' PROJECTION verdict (hidden-span posture + the D16 floor). The SAME
+    // op every other non-chat consumer takes: one clamp home, one hidden-content verdict.
+    resolveViewerVisibility,
     connection,
     executor,
     resolveHostPrincipal,
@@ -826,12 +837,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   rpgOpsHolder = rpgCompose.chatOps;
   const rpg = rpgCompose.service;
-  // THE cross-domain viewer-visibility op (the read-visibility D-entry): membership AND the D16 canon floor as
-  // ONE answer for one human over one chat. Built ONCE here and injected into every non-chat consumer that
-  // decides "may this human see this chat's CONTENT" — imagery's extractQuiet (via the late-bound getter above),
-  // the automation plugin fan-out's delivery gate, and the plugin membrane's canon read. There is exactly ONE
-  // clamp home (chat's `resolveHistoryFloorSeq`, reached only through this op).
-  const resolveViewerVisibility = createResolveViewerVisibility({ db });
   // IMGMAC — the chat's authored user-macro DEFS from BOTH homes, for imagery's mode-template extraction (the
   // late-bound thunk threaded into `buildImagery` above). Pure wiring: it reads the two existing front doors
   // (chat's active-preset macro declaration + rpg's game macros) and hands them over UNMERGED, because the
