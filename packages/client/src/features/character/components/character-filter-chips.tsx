@@ -189,7 +189,7 @@ export function CharacterFilterChips({
           a two-list rail re-orders under the pointer the moment a chip is switched on (the exact reshuffle
           the datum line was moved out of the control line to stop). `aria-expanded` is the load-bearing
           half; APG lists `aria-controls` as optional for a disclosure. */}
-      <VocabularyDisclosure onToggle={onToggleOpen} open={open} />
+      <VocabularyDisclosure hasTags={vocabularyPending || availableTags.length > 0} onToggle={onToggleOpen} open={open} />
       {activeCount > 0 ? <RailAction accessibleName="Clear all filters" label="Clear all" onClick={onClearFilters} /> : null}
       {/* The panel element exists in BOTH states so the collapsed trigger's `aria-controls` resolves to a
           real node; only its contents are conditional. `hidden` (the Tailwind utility, i.e. `display:none`)
@@ -275,20 +275,39 @@ function ScopePill({
  *  control's only remaining job is to say how to put it away. */
 const CLOSED_DISCLOSURE_LABEL = "Favorites, archived & tags";
 
+/** THE SAME PROMISE, MINUS THE TAGS (side-eye 2026-09-02 nit 15, #1139). The label above names three things
+ *  a first-timer cannot otherwise know exist — but on a library whose tag vocabulary is EMPTY the third one
+ *  is not there, so both arms of the control were advertising a payload the disclosure could not deliver
+ *  ("show more filters" opened two switches; "hide the tag vocabulary" hid nothing). An empty state is
+ *  load-bearing: the honest label names what IS behind the door and says the tag vocabulary has not started
+ *  yet, which is a fact a reader can act on (tag something) rather than a promise they will find broken. */
+const CLOSED_DISCLOSURE_LABEL_NO_TAGS = "Favorites & archived";
+
 /** The group's OWN disclosure (#491) — the one control that decides whether the 551-entry tag vocabulary is
  *  on screen at all. Its own component so the group's render stays inside the complexity cap, and so the
  *  two labels can never drift apart. It wears the same grammar as its siblings (`RailAction`'s rule: the
  *  visible label is a SUBSTRING of the accessible name, WCAG 2.5.3) — the qualifier says what the act IS,
  *  so the control names an object when a rotor reads it out of the rail it sits in. */
-function VocabularyDisclosure({ open, onToggle }: { readonly open: boolean; readonly onToggle: () => void }): ReactElement {
-  return (
-    <RailAction
-      accessibleName={open ? "Fewer filters — hide the tag vocabulary" : `${CLOSED_DISCLOSURE_LABEL} — show more filters`}
-      expanded={open}
-      label={open ? "Fewer filters" : CLOSED_DISCLOSURE_LABEL}
-      onClick={onToggle}
-    />
-  );
+function VocabularyDisclosure({
+  open,
+  hasTags,
+  onToggle,
+}: {
+  readonly open: boolean;
+  /** Is there a tag vocabulary behind this door at all? `true` WHENEVER THE ANSWER IS NOT IN HAND, which is
+   *  the honest polarity and also a bounded claim: `tag.listTagFilterVocabulary` is READ ONLY FOR A REASON
+   *  (#502 — the disclosure is open, or a tag filter is persisted), so on a cold first visit the query is
+   *  `enabled: false`, reports `isPending`, and this control genuinely does not know. It says the shorter,
+   *  true-either-way thing only once the read has SETTLED EMPTY — after which the answer is cached and the
+   *  collapsed label stays honest too. An un-computable fact is never badged; #502's gate is not reopened
+   *  to make a label shorter. */
+  readonly hasTags: boolean;
+  readonly onToggle: () => void;
+}): ReactElement {
+  const closedLabel = hasTags ? CLOSED_DISCLOSURE_LABEL : CLOSED_DISCLOSURE_LABEL_NO_TAGS;
+  const openName = hasTags ? "Fewer filters — hide the tag vocabulary" : "Fewer filters — hide the filter options";
+  const closedName = hasTags ? `${closedLabel} — show more filters` : `${closedLabel} — show more filters, no tags yet`;
+  return <RailAction accessibleName={open ? openName : closedName} expanded={open} label={open ? "Fewer filters" : closedLabel} onClick={onToggle} />;
 }
 
 /** The lines the tag vocabulary is ABOUT to occupy, held open while `tag.listTagsWithUsage` is in flight.

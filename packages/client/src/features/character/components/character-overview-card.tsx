@@ -90,8 +90,24 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
 
   return (
     <Stack gap="section" className="relative min-h-0 overflow-y-auto" data-slot="character-overview">
+      {/* THE INSTRUCTION LEADS THE PANE (side-eye 2026-09-02 nit 27, #1139). This line explains what the pane
+          DOES — pick a field over there, read it here — and it sat BELOW Origin, Activity and Tags, i.e.
+          after everything it introduces, where a reader who needed it had already scrolled past the answer.
+          It moves; nothing else about it does. It is still the one place the character's own NAME is spoken
+          in this pane (the rule below survives: a kicker names a SECTION, never a datum, §2.3), which is why
+          it stays a gloss run with the name as inline emphasis rather than becoming a heading. */}
+      <Text voice="gloss">
+        Pick a field on{" "}
+        {/* RATIFIED raw axes (#573): this is INLINE EMPHASIS inside another voice's run, not a voice of its
+            own — every voice re-spells size and color, so one here would break the sentence it sits in. It
+            carries `gloss`'s own micro step plus the weight and foreground ink that make the name stand out. */}
+        <Text as="span" size="micro" weight="semibold">
+          {data.name}
+        </Text>{" "}
+        to inspect it here.
+      </Text>
+
       <Stack gap="row">
-        {/* A kicker names a SECTION, never a datum (§2.3) — the character's own name is the footer's job. */}
         <Kicker>Origin</Kicker>
         <OverviewRow label="Added" value={timeLib.formatRelative(data.createdAt)} mono={false} />
         {/* A URL reads as a measurement (mono); the two phrases read as prose — `OverviewRow`'s own rule. */}
@@ -133,17 +149,6 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
           mono={tagNames.length > 0}
         />
       </Stack>
-
-      <Text voice="gloss">
-        Pick a field on{" "}
-        {/* RATIFIED raw axes (#573): this is INLINE EMPHASIS inside another voice's run, not a voice of its
-            own — every voice re-spells size and color, so one here would break the sentence it sits in. It
-            carries `gloss`'s own micro step plus the weight and foreground ink that make the name stand out. */}
-        <Text as="span" size="micro" weight="semibold">
-          {data.name}
-        </Text>{" "}
-        to inspect it here.
-      </Text>
     </Stack>
   );
 }

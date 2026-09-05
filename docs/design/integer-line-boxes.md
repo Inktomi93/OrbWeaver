@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-01
+updated: 2026-09-05
 ---
 
 # Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)
@@ -96,18 +96,32 @@ scale-invariant), and match the field precedent (GOV.UK/Material author line-hei
 lengths). The GOV.UK multiple-of-5 rhythm was weighed and rejected: {30, 25, 20, 15} boxes would
 move the approved voices by whole pixels; smallest-delta wins (owner hierarchy approvals).
 
-### 3b. The belt: `round(<rem>, 1px)` in the emitted value
+### 3b. The belt: `round(up, <rem>, 1px)` in the emitted value
 
-The generated `theme.css` emits every snapped leading as `round(1.4375rem, 1px)` — identity at
+The generated `theme.css` emits every snapped leading as `round(up, 1.4375rem, 1px)` — identity at
 scale 1 (authored integer), integer at EVERY `--font-scale` (the continuous multiplier from §2.1).
 `round()` is the one usable platform primitive (Chromium 117+/FF 118+/Safari 15.4+;
 `line-height-step` has zero support). The belt lives in the TOKEN VALUE so every consumer — the
 Tailwind `leading-*` utilities, tiers.css's `--orb-tier-*-leading` indirection, `lh`-unit
 arithmetic (`.orb-lines-N`) — inherits it from one home.
 
+**The rounding STRATEGY is `up`, and that is a second invariant, not a detail (#1160, measured
+2026-09-05).** The belt shipped with `round()`'s default `nearest`, which keeps the box integer but
+may shrink it by up to half a pixel while the paired font size scales continuously — so the RESOLVED
+ratio can fall below the ratified leading floor (§6's `LEADING_FLOOR` = `leading.label / text.label`
+= 16/13 ≈ 1.2308) at font scales the authored value cannot see. Measured on `settings:appearance
+--appearance-preset reading` (`--font-scale` 1.25, root 20px): `text.micro` resolved 13.125px while
+`round(0.8125rem, 1px)` resolved **16px** — ratio **1.219**, four live `tight-leading` findings on
+the setting-row gloss. `nearest` broke `leading.label` on `text.label` too, whose authored ratio IS
+the floor exactly, so half a pixel of slack in either direction is below it. `up` never shrinks the
+box, so the resolved ratio is always ≥ the AUTHORED ratio at every stop of the slider; and because
+ARM T already proves every snapped token is authored integer at the 16px root, `up` remains the
+identity at the default scale. The only resolved box that moves at the audited 1.25 arm is
+`leading.micro`, 16px → 17px.
+
 Mechanism: a new `orb.output` role **`snapped`** in the vault contract
 (`packages/ui/token-contract.ts` `outputSchema` + a `snapped ⇒ dimension` diagnostic), rendered by
-`tokens.build.ts` (`renderPortableToken`) as `round(${amount}${unit}, 1px)`. This is the house
+`tokens.build.ts` (`renderPortableToken`) as `round(up, ${amount}${unit}, 1px)`. This is the house
 pattern for serialization directives (the `percentage`/`light-dark` precedent) — the design value
 stays a portable DTCG dimension; only the CSS serialization is vendor-shaped.
 
