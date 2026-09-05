@@ -250,6 +250,7 @@
     "tests/client/features/config/components/config-teacher.ct.tsx",
     "tests/client/features/config/lib/config-palette-source.ct.tsx",
     "tests/client/features/config/lib/config-search.test.ts",
+    "tests/client/features/config/lib/config-section.ct.tsx",
     "tests/client/features/config/surfaces/config-content-surface.ct.tsx",
     "tests/client/features/config/surfaces/config-list-surface.ct.tsx",
     "tests/client/features/credentials/components/add-credential-dialog.ct.tsx",

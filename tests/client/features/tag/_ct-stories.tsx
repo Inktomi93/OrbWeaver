@@ -23,7 +23,9 @@ export function TagMemberStory({ memberId = "tag_adventure", width = 720 }: { re
           they land in, and a mount that grows to fit its content agrees with every overflow. */}
       <div style={{ height: 720, overflow: "auto", width }}>
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
-          <TagMemberSurface memberId={memberId} />
+          {/* `library` is the host's own group label ("Tags", `tags-group.tsx`) — the drill row's exit says
+              `Back to Tags`, exactly as the config host spells it (#1747). */}
+          <TagMemberSurface view={{ library: "Tags", memberId }} />
         </QueryBoundary>
       </div>
     </CtDataProviders>

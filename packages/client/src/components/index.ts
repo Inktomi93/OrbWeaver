@@ -21,6 +21,8 @@ export type { LibraryListLayoutProps, LibrarySurfaceShellProps } from "./library
 export { LibraryListLayout, LibrarySurfaceShell } from "./library-surface.tsx";
 export type { ListPaneHeaderBack, ListPaneHeaderProps } from "./list-pane-header.tsx";
 export { ListPaneHeader } from "./list-pane-header.tsx";
+export type { MemberDrillBack, MemberDrillHeaderProps } from "./member-drill-header.tsx";
+export { MemberDrillHeader } from "./member-drill-header.tsx";
 export {
   CHIP_TOUCH_FLOOR_AT_COARSE,
   CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE,

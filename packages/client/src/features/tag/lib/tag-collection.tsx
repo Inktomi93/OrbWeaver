@@ -33,7 +33,8 @@ export const tagCollection: CollectionContribution = {
   // editor's. The runner opens the rows' own confirm; the host never learns what it does (`actions`).
   actions: [{ label: "Prune unused tags", tone: "danger", useRun: useOpenPruneUnusedTags }],
   list: (view) => <TagCollectionRows view={view} />,
-  detail: (view) => <TagMemberSurface memberId={view.memberId} />,
+  // The WHOLE view: the editor draws the drill row out of `library` too (#1747, §3.4).
+  detail: (view) => <TagMemberSurface view={view} />,
   context: {
     kind: "none",
     title: "Nothing to attach",

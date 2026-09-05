@@ -34,7 +34,8 @@ export const regexCollection: CollectionContribution = {
   importFile: { label: "Import a regex script", accept: "application/json", useRun: useImportRegexMember },
   bulkSelect: { label: "Select scripts", useMode: useRegexBulkMode },
   list: (view) => <RegexCollectionRows view={view} />,
-  detail: (view) => <RegexMemberSurface memberId={view.memberId} />,
+  // The WHOLE view: the editor draws the drill row out of `library` too (#1747, §3.4).
+  detail: (view) => <RegexMemberSurface view={view} />,
   // The band's title names what the pane ANSWERS, not the shell's neutral "Details" — the mock drew it
   // "WHERE IT RUNS".
   //

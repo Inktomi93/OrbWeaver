@@ -87,7 +87,8 @@ export function WorldInfoMemberStory({ memberId = "world_book_reorder001" }: { r
     <CtDataProviders>
       <div style={{ height: 700, overflow: "auto", width: 720 }}>
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
-          <WorldInfoMemberSurface memberId={memberId} />
+          {/* `library` is the host's own group label (`world-info-group.tsx`) — the drill exit (#1747). */}
+          <WorldInfoMemberSurface view={{ library: "World Info", memberId }} />
         </QueryBoundary>
       </div>
     </CtDataProviders>
@@ -194,7 +195,7 @@ export function WorldInfoEditorReorderStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 420, height: 640, padding: 16 }}>
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
-          <WorldInfoMemberSurface memberId="world_book_reorder001" />
+          <WorldInfoMemberSurface view={{ library: "World Info", memberId: "world_book_reorder001" }} />
         </QueryBoundary>
       </div>
     </CtDataProviders>

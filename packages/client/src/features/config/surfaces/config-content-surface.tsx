@@ -25,13 +25,12 @@
 // so it runs the selection's landing — the spy's own initial compute against a still-mounting body used to
 // light the LAST section).
 
-import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-import { ArrowLeft, Icon } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
+import { MemberDrillHeader } from "#components";
 import { QueryBoundary, QueryErrorState, useSettingsViewerView } from "#data";
 import { SaveStatusHostContext } from "#forms";
 import { useFocusOnMount } from "#lib";
@@ -268,12 +267,20 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
     const group = groups.get(selection.kind as ConfigGroupId);
     return (
       <Stack data-slot="config-member-frame" gap="block">
-        {/* THE DRILL HEADER (DESIGN.md §3.4), OUTSIDE THE BOUNDARY ON PURPOSE: Back is the drilled reader's
-            only exit on a desktop, and a header inside the suspense arm would take it away for exactly the
-            beat the reader is most likely to want it. */}
-        <CollectionDrillHeader group={group} />
+        {/* THE DRILL ROW IS THE MEMBER SURFACE'S (#1747, §3.4) — see `CollectionDrillExit` below for why,
+            and for why the host still draws the EXIT while the member's own read is in flight.
+            THE ERROR ARM IS THE BATTERY, UNWRAPPED, and that is gate law rather than a preference:
+            `render-error-via-battery` requires that arrow to be `QueryErrorState`-rooted, so the exit
+            cannot ride along there the way it rides the fallback. It costs nothing the reader needs — the
+            battery's own Retry is the verb for a failed read, the LIST band is still on screen at every
+            desktop width, and the phone's topbar carries its own Back. */}
         <QueryBoundary
-          fallback={<Text voice="gloss">Loading…</Text>}
+          fallback={
+            <Stack gap="block">
+              <CollectionDrillExit group={group} />
+              <Text voice="gloss">Loading…</Text>
+            </Stack>
+          }
           renderError={(_error, retry): ReactElement => <QueryErrorState label={group.label.toLowerCase()} onRetry={retry} />}
         >
           <MemberBody group={group} memberId={selection.memberId} />
@@ -318,52 +325,41 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
 }
 
 /**
- * THE DRILL HEADER — the exit (DESIGN.md §3.4).
+ * THE EXIT ALONE — what the host draws while the member's own drill row cannot exist (DESIGN.md §3.4).
  *
- * It is the HOST's because what it does is the host's: Back pops the ONE kinded selection, and the library
- * it returns to is the group that selection names. The host still learns nothing about what a member IS.
+ * ═══ THE ROW MOVED TO THE MEMBER SURFACE; THE EXIT'S RULING SURVIVED (#1747) ══════════════════════════
+ * The boards draw ONE row — `← Back to <library>` · the member's NAME · the member's own verbs — and this
+ * host used to draw the Back alone, with the name and the verbs one row lower on the surface's own header.
+ * A host `<Heading>` here was tried and printed the name TWICE (two CTs red on a strict-mode
+ * `getByRole("heading", {name})`), because all four surfaces already render the member's name as their own
+ * `h2`. The name has ONE author, so the whole row went to the party that has it: the surface draws
+ * `MemberDrillHeader` out of the `library` this host hands down (`CollectionMemberView`).
  *
- * NO LIFECYCLE CHROME HERE (D121(D), #271). Delete is the ROW's kebab in every collection, and the fork
- * "the kebab is off-screen while drilled" is answered by this Back — which is precisely what world info's
- * entry level already does. A second Delete on this row would re-create the two-homes-for-one-verb defect
- * the #271 convergence closed.
+ * WHAT DID NOT MOVE is the ruling that put the Back OUTSIDE the suspense boundary: a member surface reads
+ * through `useSuspenseQuery`, so a row that only the surface draws is absent for exactly the beat the
+ * drilled reader most wants an exit. That ruling survives with a changed INPUT — this Back-only row is the
+ * boundary's FALLBACK and its error arm, so precisely one of the two rows paints at any moment and the exit
+ * is never missing. It carries the same `data-slot`, because it is the same row in its pending state.
  *
- * ═══ TWO STATED DELTAS AGAINST BOARDS 03/05/06, BOTH THE SAME DEFERRED DECISION ═══════════════════════
- * The boards draw ONE row: `← Back to <library>` · the member's NAME · the member's own verbs. This draws
- * the Back alone, and the row below it — the member surface's own header — carries the name and the verbs,
- * where all four surfaces already draw them (`tag-member-surface.tsx:102`, `regex-member-surface.tsx:82`,
- * `roster-member-surface.tsx:164`, `world-info-member-surface.tsx:109`).
- *
- * THE NAME IS THE LOAD-BEARING HALF, and it is why this header does NOT draw it: a host heading over four
- * surfaces that each already render the member's name as their `h2` prints the name TWICE. Measured — the
- * first spelling of this header did draw it, and `config-content-surface.ct` / `config-list-surface.ct`
- * both went red with a strict-mode violation on `getByRole("heading", { name: <member> })` resolving two
- * nodes. Board fidelity is not worth a doubled name, and the cheap honest fix is not a host `<Heading>` at
- * all: it is the member surface owning the WHOLE drill row through the `detail` it already renders. That
- * merge is the next commit's; until it lands the name is stated exactly once, one row lower than the board
- * puts it, and the verbs sit with it.
+ * NO LIFECYCLE CHROME ON EITHER SPELLING (D121(D), #271). Delete is the ROW's kebab in every collection, and
+ * the fork "the kebab is off-screen while drilled" is answered by this Back — precisely what world info's
+ * entry level already does.
  */
-function CollectionDrillHeader({ group }: { readonly group: ConfigGroupDefinition }): ReactNode {
+function CollectionDrillExit({ group }: { readonly group: ConfigGroupDefinition }): ReactNode {
   if (!isCollectionGroup(group)) {
     return null;
   }
-  return (
-    <Row align="center" data-slot="config-drill-header" gap="field">
-      <Button intent="ghost" onClick={(): void => clearCollectionSelection()} size="sm" type="button">
-        <Icon icon={ArrowLeft} size="sm" />
-        {`Back to ${group.label}`}
-      </Button>
-    </Row>
-  );
+  return <MemberDrillHeader back={{ label: `Back to ${group.label}`, onClick: (): void => clearCollectionSelection() }} />;
 }
 
-/** The open member's editor — the owning collection's `detail`, mounted. A selection can only name a
- *  collection group (its rows are the only writers), so the narrowing is a type fact, not a runtime guess. */
+/** The open member's editor — the owning collection's `detail`, mounted, with the LIBRARY's own label so the
+ *  surface can draw its drill row's exit (#1747). A selection can only name a collection group (its rows are
+ *  the only writers), so the narrowing is a type fact, not a runtime guess. */
 function MemberBody({ group, memberId }: { readonly group: ConfigGroupDefinition; readonly memberId: string }): ReactNode {
   if (!isCollectionGroup(group)) {
     return null;
   }
-  return <>{group.body.collection.detail({ memberId })}</>;
+  return <>{group.body.collection.detail({ memberId, library: group.label })}</>;
 }
 
 /** The active group's body — reads the definition blind over the §3.1 body union (as amended by §6.8): a

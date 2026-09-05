@@ -150,6 +150,26 @@ export interface CollectionDetailView {
   readonly memberId: string;
 }
 
+/** What the host hands the member's EDITOR specifically ({@link CollectionContribution.detail}) — the
+ *  detail view plus the ONE thing the editor needs and cannot know: which library it was drilled into from.
+ *
+ *  ═══ WHY THE EDITOR GETS A FIELD THE CONTEXT ARM DOES NOT (#1747, DESIGN.md §3.4) ═══════════════════
+ *  The boards draw ONE drill row — `← Back to <library>` · the member's NAME · the member's own verbs — and
+ *  the member surface is the only party that can draw it, because the NAME has exactly one author: every
+ *  surface already renders it as its own `h2`, and a host heading over the four printed it twice (measured:
+ *  two CTs red on a strict-mode heading match). So the exit's WORDS travel down to the surface instead of
+ *  the name travelling up to the host. `library` is the group's own `label`, host-formatted nowhere else —
+ *  the contribution never learns the group id and still never learns what a member IS.
+ *
+ *  The CONTEXT arm keeps the bare {@link CollectionDetailView}: it draws no exit (the pane is beside the
+ *  member, not a rung above it), and a field it cannot use would read as one it should. */
+export interface CollectionMemberView extends CollectionDetailView {
+  /** The library this member was drilled into from, in the host's own words (`ConfigGroupDefinition.label`
+   *  — "Tags", "World info"). The drill row spells `Back to ${library}`, which is that button's whole
+   *  accessible name. */
+  readonly library: string;
+}
+
 /** A collection's CONTEXT arm — an explicit DECISION, never an absence (the `SectionDefinition.context`
  *  `{kind:"none"}` discipline one level down). `none` carries the collection's OWN copy because the host
  *  would otherwise say one sentence for a tag and for a world book, and "nothing selected" would be a lie:
@@ -323,8 +343,10 @@ export interface CollectionContribution {
    *  module-level value, so the mutation is only reachable through a hook the host calls unconditionally,
    *  once, per declared action. The array is fixed per contribution, so the call order is fixed too. */
   readonly actions?: readonly { readonly label: string; readonly useRun: () => () => void; readonly tone?: "default" | "danger" }[];
-  /** CONTENT for a selected member of this kind — the full editor, owner-rendered, mounted, no popups. */
-  readonly detail: (view: CollectionDetailView) => ReactNode;
+  /** CONTENT for a selected member of this kind — the full editor, owner-rendered, mounted, no popups, and
+   *  since #1747 the DRILL ROW above it: the surface draws `MemberDrillHeader` with the {@link
+   *  CollectionMemberView#library} it is handed, the member's name, and the member's own verbs (§3.4). */
+  readonly detail: (view: CollectionMemberView) => ReactNode;
   /** CONTEXT for a selected member of this kind (see {@link CollectionContext}). */
   readonly context: CollectionContext;
 }
