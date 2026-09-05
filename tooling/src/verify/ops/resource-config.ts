@@ -12,7 +12,7 @@ import type {
   StaticSourceParser,
 } from "../contract/resource-config.ts";
 import { PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
-import { extractRows } from "../lib/config-static-read.ts";
+import { createRowExtractor } from "../lib/config-static-read.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
@@ -121,8 +121,9 @@ export function loadStaticConfig(reader: ResourceReader, id: StaticConfigResourc
     return refused("unresolved", `static config parser returned a different source identity for ${path}`, loaded.paths, loaded.members);
   }
   const rows: StaticConfigRow[] = [];
+  const extractRows = createRowExtractor(source);
   for (const key of STATIC_KEYS[id]) {
-    const extracted = extractRows({ sf: source, rel: path, text: loaded.value, keys: [key], classify: (value) => value });
+    const extracted = extractRows({ rel: path, text: loaded.value, keys: [key], classify: (value) => value });
     if (extracted.unresolved.length > 0) {
       const first = extracted.unresolved[0];
       return refused("unresolved", `static config row is unreadable at ${path}:${first?.line ?? 0} (${first?.kind ?? "unknown"})`, loaded.paths, rows.length);

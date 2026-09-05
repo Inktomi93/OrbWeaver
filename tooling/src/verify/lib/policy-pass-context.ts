@@ -11,7 +11,9 @@ import type {
   GatePolicyReceipt,
 } from "../contract/policy.ts";
 import type { PolicySemanticReceipt } from "../contract/policy-pass.ts";
+import type { ResourceHost } from "../contract/resource-host.ts";
 import { assertRepoPathIdentity } from "./policy-validation.ts";
+import { bindPolicyResources } from "./resource-policy.ts";
 
 const COMMON_DETAIL_KEYS = ["message", "fix", "subject", "operation"] as const;
 const NODE_DETAIL_KEYS = new Set([...COMMON_DETAIL_KEYS, "token", "offset"]);
@@ -24,6 +26,7 @@ interface ContextInput {
   readonly root: string;
   readonly files: readonly SourceFile[];
   readonly resourcePaths: readonly string[];
+  readonly resources: ResourceHost;
   readonly checker: () => TypeChecker;
   readonly findings: RawGateFinding[];
 }
@@ -31,6 +34,7 @@ interface ContextInput {
 export interface PolicyContextRuntime {
   readonly context: GatePolicyContext;
   readonly finishReceipts: () => readonly PolicySemanticReceipt[];
+  readonly unconsumedResources: () => readonly string[];
 }
 
 function exactKeys(value: object, allowed: ReadonlySet<string>, label: string): void {
@@ -155,6 +159,7 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   const sourceIdentities = new Set(files.map((candidate) => candidate.compilerNode));
   const effectivePaths = new Set([...paths.keys(), ...resourcePaths]);
   const receipts = new Map<string, PolicySemanticReceipt>();
+  const consumedResources = new Set<string>();
 
   const relativePath = (candidate: SourceFile): string => {
     if (!sourceIdentities.has(candidate.compilerNode)) {
@@ -214,9 +219,15 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
     );
   };
   const report = Object.freeze({ node: reportNode, file: reportFile });
+  const receipt = (value: GatePolicyReceipt): void => acceptReceipt(receipts, value);
   const context: GatePolicyContext = Object.freeze({
     files,
     resourcePaths,
+    resources: bindPolicyResources(input.resources, { resourcePaths, receipt }, (acquiredPaths) => {
+      for (const path of acquiredPaths) {
+        consumedResources.add(path);
+      }
+    }),
     relativePath,
     sourceFile: getSourceFile,
     checker: () => {
@@ -226,10 +237,11 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
       return input.checker();
     },
     report,
-    receipt: (receipt: GatePolicyReceipt) => acceptReceipt(receipts, receipt),
+    receipt,
   });
   return {
     context,
+    unconsumedResources: () => resourcePaths.filter((path) => !consumedResources.has(path)),
     finishReceipts: () => [...receipts.values()].toSorted((left, right) => left.kind.localeCompare(right.kind) || left.source.localeCompare(right.source)),
   };
 }

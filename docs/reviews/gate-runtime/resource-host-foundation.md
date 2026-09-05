@@ -37,16 +37,15 @@ CSS facts retain the existing parser's supported grammar. Malformed blocks/comme
 
 ## PolicyContext integration
 
-At invocation composition, construct one host using the same root and overlay input as the source workspace. Bind it once per owner:
+The dispatcher creates one host per invocation and binds it once per owner. Composition may supply `PolicyPassInput.resourceOptions` for overlay/parser injection; the dispatcher always supplies its own root and creates a fresh host, preventing cross-root substitution or reuse of prior caches; resource conformance uses a fresh default host rooted at each materialized example:
 
 ```ts
-const resources = bindPolicyResources(invocation.host, context);
-const fact = resources.packageMetadata("root");
+const fact = context.resources.packageMetadata("root");
 ```
 
-The binding checks every acquired path against `context.resourcePaths` and records each consumed resource once per owner, including shared cache hits. Non-ready facts record unresolved receipts even if the policy ignores their status. Out-of-population requests record an unresolved receipt before throwing, so catching the exception cannot restore a clean owner. The existing dispatcher now also refuses an owner that declares effective resources but produces no resource receipt. Both paths withhold central grant/waiver reconciliation; a no-op owner cannot falsely stale a grant.
+The binding checks every acquired path against `context.resourcePaths` and records each consumed resource once per owner, including shared cache hits. Non-ready facts record unresolved receipts even if the policy ignores their status. Out-of-population requests record an unresolved receipt before throwing, so catching the exception cannot restore a clean owner. The existing dispatcher now also refuses an owner that declares effective resources but produces no resource receipt. Host acquisition also marks consumed paths in a private context set. Every effective resource path must be covered before owner completion; a forged public semantic receipt or a partial resource read cannot satisfy that check. These refusals withhold central grant/waiver reconciliation; a no-op owner cannot falsely stale a grant.
 
-The final descriptor-to-resource population resolver and the `context.resources` field are still integration work. They must derive path membership from closed requests before dispatch, handle source/resource identity overlap for hybrids, preserve entire-population selection, and feed the same overlay to the shared AST workspace. The current runtime rejects an identity supplied as both source and resource; this foundation does not silently change that contract. The binding is a tested seam, not a claim that the production gate fleet uses ResourceHost yet.
+The final descriptor-to-resource population resolver is still integration work. The native `context.resources` field now uses the production binding in both ordinary passes and conformance. They must derive path membership from closed requests before dispatch, handle source/resource identity overlap for hybrids, preserve entire-population selection, and feed the same overlay to the shared AST workspace. The current runtime rejects an identity supplied as both source and resource; this foundation does not silently change that contract. The binding is a tested seam, not a claim that the production gate fleet uses ResourceHost yet.
 
 ## Remaining provider contracts
 
@@ -82,3 +81,11 @@ pnpm check:docs docs/reviews/gate-runtime/resource-host-foundation.md
 ```
 
 The scoped type programs extend `tooling/tsconfig.json` for changed source roots and `tsconfig.json` for the resource test roots, with empty `include`, explicit `files`, and the root `reset.d.ts`/`platform.d.ts` ambient pair. Both use the existing `scripts/ts7.cjs` wrapper and retain the real import closure; neither is a whole-tree verification claim.
+
+## Composed integration repair
+
+The integrated parent at `5de69981984838389cf57c62fb4901a2d9b4fcfa` exposed a resource conformance fixture that read disk directly without consuming a resource receipt. The dispatcher now supplies the bound host on `context.resources`; the proof consumes typed root package metadata while independently observing exact materialized bytes and cleanup. Planted unconsumed, forged-receipt, and partial-consumption twins fail both proof arms, while successful and throwing examples retain deterministic sanitized paths and temp cleanup. A shared-host control verifies one acquisition with independent per-owner consumption receipts.
+
+The shared-load depcruise test timeout also exposed repeated extraction work: escape analysis and property traversal were performed for every key family. A config now binds one local extractor across all key families. Five fresh-Project samples measured medians of 970.9 ms before and 559.3 ms after (cold first samples were noisy); no timeout was increased. The serial provider/config-liveness replay passed 56 tests, with the live depcruise config arm at 834 ms. This is a focused replay and cost reduction, not a universal wall-time guarantee.
+
+Final composed verification passed 88 tests across seven files: policy conformance, policy pass, resource policy, config provider, and the three existing config-liveness suites. The final combined provider depcruise arm took 1,469 ms. A permanent structural control verifies one property traversal across both depcruise key families; no wall-time threshold is used. Independent cold review confirmed all root/provenance/coverage repairs and reran the same 88 controls. Scoped source/test type programs and scoped lint remain the verification boundary; global baselines, catalogue, board, and broad structure were not touched.

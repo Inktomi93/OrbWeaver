@@ -320,19 +320,22 @@ export function readConfigSource(root: string, rel: string): ConfigRead {
   return readStaticSource(root, rel);
 }
 
-/** Walk a parsed config for the given property KEYS, statically evaluate each value, and classify it.
- *  Every unreadable shape is carried out in `unresolved` — the caller MUST fail loud on a non-empty list;
- *  a shape this cannot read is never a clean zero. */
-export function extractRows(request: ExtractRequest): RowExtraction {
-  const { sf, rel, text, keys, classify } = request;
-  const escaped = escapedCollectionSymbols(sf);
+type BoundExtractRequest = Omit<ExtractRequest, "sf">;
+type RowExtractor = (request: BoundExtractRequest) => RowExtraction;
+
+function extractRowsWith(
+  request: BoundExtractRequest,
+  escaped: ReadonlySet<object>,
+  properties: readonly import("ts-morph").PropertyAssignment[],
+): RowExtraction {
+  const { rel, text, keys, classify } = request;
   const lineOf = lineFinder(text);
   const exact: ExactRow[] = [];
   const skippedRows: ExactRow[] = [];
   const unresolved: UnresolvedShape[] = [];
   let candidates = 0;
   let skipped = 0;
-  for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
+  for (const pa of properties) {
     const init = pa.getInitializer();
     if (!keys.includes(pa.getName().replaceAll(/['"]/gu, "")) || init === undefined) {
       continue;
@@ -342,8 +345,6 @@ export function extractRows(request: ExtractRequest): RowExtraction {
     for (const value of read.values) {
       candidates += 1;
       const path = classify(value);
-      // Anchor at the VALUE's own literal line when the raw text carries it (a const-resolved or
-      // template-built value has no literal of its own — those fall back to the property's line).
       const at = lineOf(value);
       const line = at === 0 ? pa.getStartLineNumber() : at;
       if (path === undefined) {
@@ -355,4 +356,19 @@ export function extractRows(request: ExtractRequest): RowExtraction {
     }
   }
   return { candidates, exact, skipped, skippedRows, unresolved };
+}
+
+/** Invocation-local extractor for callers that classify several key families from one parsed source. */
+export function createRowExtractor(sf: import("ts-morph").SourceFile): RowExtractor {
+  const escaped = escapedCollectionSymbols(sf);
+  const properties = sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment);
+  return (request) => extractRowsWith(request, escaped, properties);
+}
+
+/** Walk a parsed config for the given property KEYS, statically evaluate each value, and classify it.
+ *  Every unreadable shape is carried out in `unresolved` — the caller MUST fail loud on a non-empty list;
+ *  a shape this cannot read is never a clean zero. */
+export function extractRows(request: ExtractRequest): RowExtraction {
+  const { sf, ...bound } = request;
+  return createRowExtractor(sf)(bound);
 }
