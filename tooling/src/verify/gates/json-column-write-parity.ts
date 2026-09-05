@@ -84,6 +84,12 @@ const ALLOWLIST: ExemptionTable = {
  *  column may run UNDOMINATED by `requireIntactStoredConfig`. Two-sided: a row whose writer no longer
  *  violates (it grew the guard, or it left the tree) is RED. */
 const GUARD_EXEMPT: ExemptionTable = {
+  "packages/server/src/domain/chat/persistence/participant.ts#setPendingHostStatement": {
+    why: "every REAL writer of chats.pendingHandoffOffer REPLACES the whole offer (nominate sets it, accept/decline clear it); the one key-wise writer on that column is the one-shot boot rename migrateHandoffOfferVocab (#1649), which renames a KEY and never merges a value. Ends when that migration is retired.",
+  },
+  "packages/server/src/domain/chat/persistence/participant.ts#acceptHostHandoffSwapStatements": {
+    why: "same #1649 class, the clearing half: the offer is nulled whole at accept; the only key-wise writer is the one-shot boot rename. Ends when that migration is retired.",
+  },
   "packages/server/src/domain/preset/persistence/queries.ts#replacePresetConfig": {
     why: "ISSUE #1026's RULING, and now the whole class this table holds: a whole-replace whose CONTENT DOES NOT DESCEND FROM A READ of the row it lands on. #1026 split `presets.config`'s single writer in two by provenance — `updatePresetRow` carries the editor's read-derived image and GREW the guard (its degraded GET → whole-blob PUT was the real #471 hop, one hop out over the wire), while this function carries content the caller brought with it: the reset verb's DEFAULT_PROMPT_CONFIG and the import verb's strictly-parsed backup file. Guarding these would refuse the user's own explicit repair — the very affordance the guarded editor path tells them to reach for when a preset cannot be read — while preventing no silent loss. Ends if either caller starts merging onto the stored value, or if a third caller reaches this function with a read-derived image (then it owes the guard and this row must go)",
   },

@@ -224,7 +224,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
       // The REAL upgrade verb, as the row's OWNER. Everything that makes this safe lives in there.
       await deps.upgrade({ caller: principal, pluginId: row.pluginId, bundle });
     } catch (err) {
-      // @orb-gate-ignore caught-failure-ownership(default:catch): reported-and-continue — the user keeps the
+      // Reported-and-continue (the log line below owns the failure): the user keeps the
       // older WORKING version, the provenance record is left un-advanced so the next process retries, and
       // one bundle's failure must not cost the other eight their upgrade. Ends if a failed showcase upgrade
       // becomes a condition the pass must fail on.

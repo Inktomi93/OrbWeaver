@@ -53,15 +53,9 @@ const IDS_MODULE = "packages/kit/src/ids/index.ts";
  *  markers remain the right tool for a foreign position INSIDE a normal file — this table exists for the one
  *  class where the marker answer would be dozens of internal-enforcement comments inside an artifact whose
  *  AUDIENCE is outside the repo. */
-const FILE_CLASS_EXEMPT: ExemptionTable = {
-  "packages/showcase-plugins/bundles/host-v1.d.ts": {
-    why:
-      "the PUBLISHED plugin-SDK mirror (#774): a self-contained, script-kind .d.ts a plugin AUTHOR copies out " +
-      "of the repo — brands are deliberately flattened to documented `string` (a guest never constructs one), " +
-      "and drift is pinned by tests/contracts/plugin/host-v1.test-d.ts. Ends if the mirror is retired or " +
-      "starts being imported by first-party code.",
-  },
-};
+// 2026-09-05 (#1692): the published SDK mirror moved to packages/showcase-plugins/bundles/, outside the scanned
+// corpus, so its row (and the proof that planted it) went — the stale arm rules a never-scanned key RED.
+const FILE_CLASS_EXEMPT: ExemptionTable = {};
 /** The real-tree ANCHOR for the whole-tree arms. Deliberately NOT the ids module: the conformance examples
  *  PLANT that file (they must — it is the derivation source), so anchoring there would fire the stale/blind
  *  arms inside every mini-project and red the gate's own self-proof (GATE-AUTHORING §4.5). */
@@ -419,14 +413,6 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
-    {
-      files: {
-        [IDS_MODULE]: 'export type ChatId = TypeIdOf<"chat">;\n',
-        [REAL_TREE_ANCHOR]: "export const anchor = 1;\n",
-        "packages/showcase-plugins/bundles/host-v1.d.ts": "interface PluginMessageView {\n  readonly chatId: string;\n}\n",
-      },
-      why: "the FILE-CLASS exemption holds: the published SDK mirror spells branded positions as documented `string` BY CONTRACT (its drift pin is the enforcement), and its presence also satisfies the mode-(B) stale arm",
-    },
     {
       files: {
         [IDS_MODULE]: 'export type ChatId = TypeIdOf<"chat">;\n',

@@ -12,7 +12,8 @@ import { hasActiveMarker, sectionTriggers } from "../../../../../packages/server
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function marker(over: Partial<Extract<PromptSection, { type: "marker" }>> = {}): PromptSection {
-  return { type: "marker", id: "m1", name: "m", marker: "guided_instruction", role: "system", enabled: true, ...over } as PromptSection;
+  const base: Extract<PromptSection, { type: "marker" }> = { type: "marker", id: "m1", name: "m", marker: "guided_instruction", role: "system", enabled: true };
+  return { ...base, ...over };
 }
 
 function configOf(sections: PromptSection[]): PromptConfig {
