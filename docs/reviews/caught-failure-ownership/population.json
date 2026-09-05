@@ -6962,7 +6962,7 @@
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::1",
       "path": "tooling/src/verify/ops/boot-chunk-ratchet.ts",
-      "line": 168,
+      "line": 188,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6970,12 +6970,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented on the next line — an unreadable/absent dir is the same UNMEASURABLE class as zero matches, and `entry === undefined` below routes it to the `unmeasurable()` verdict, never a pass. Ends if that unmeasurable() routing is removed.",
-      "markerLine": 163
+      "markerLine": 183
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::2",
       "path": "tooling/src/verify/ops/boot-chunk-ratchet.ts",
-      "line": 183,
+      "line": 203,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6983,12 +6983,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.",
-      "markerLine": 180
+      "markerLine": 200
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::3",
       "path": "tooling/src/verify/ops/boot-chunk-ratchet.ts",
-      "line": 211,
+      "line": 231,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6996,7 +6996,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.",
-      "markerLine": 208
+      "markerLine": 228
     },
     {
       "siteId": "tooling/src/verify/ops/ct-unfed-ratchet.ts::default:catch::1",
