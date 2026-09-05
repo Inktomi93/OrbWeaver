@@ -349,22 +349,31 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
 
 /** The semantic content subset that IDENTIFIES a card. EXCLUDED (deliberate — re-attributing/re-deriving a
  *  card must NOT change its identity): creator, creatorNotes, cardVersion, extensions, refinery,
- *  avatarAssetId, and (D121-E) regexScripts. INCLUDED: the content a reader experiences. */
+ *  avatarAssetId, and (D121-E) regexScripts (scripts are attached LIBRARY ROWS, not card content, so a
+ *  stored projection has none while a freshly-parsed card does — hashing them would make one card hash
+ *  differently before and after import and break the re-import content dedup). INCLUDED: the content a
+ *  reader experiences.
+ *
+ *  IT IS A TUPLE, not an object literal, because the EXCLUSIONS are load-bearing to other code (#1560): a
+ *  caller fencing a write on "the card I read" needs to know which fields this hash cannot witness, and
+ *  deriving that from a list beats every reader re-transcribing the exclusion set (the refinery's
+ *  stale-basis fence does exactly this, under a compile-forced type). Key ORDER is not semantic — the hash
+ *  stable-stringifies. */
+export const CARD_IDENTITY_FIELDS = [
+  "name",
+  "description",
+  "personality",
+  "scenario",
+  "greetings",
+  "exampleMessages",
+  "systemPrompt",
+  "postHistoryInstructions",
+  "depthPrompt",
+] as const;
+export type CardIdentityField = (typeof CARD_IDENTITY_FIELDS)[number];
+
 function semanticFields(card: CharacterCard): Record<string, unknown> {
-  return {
-    name: card.name,
-    description: card.description,
-    personality: card.personality,
-    scenario: card.scenario,
-    greetings: card.greetings,
-    exampleMessages: card.exampleMessages,
-    systemPrompt: card.systemPrompt,
-    postHistoryInstructions: card.postHistoryInstructions,
-    depthPrompt: card.depthPrompt,
-    // NO `regexScripts` (D121-E): scripts are attached LIBRARY ROWS, not card content, so a stored card
-    // projection has none while a freshly-parsed card does — including them would make the same card hash
-    // differently before and after import and break the re-import content dedup.
-  };
+  return Object.fromEntries(CARD_IDENTITY_FIELDS.map((field) => [field, card[field]]));
 }
 
 /** sha-256 hex of the stable-stringified semantic fields — the card's `content_hash` + the re-import

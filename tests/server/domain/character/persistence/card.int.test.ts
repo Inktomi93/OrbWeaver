@@ -60,27 +60,51 @@ describe("persistence/card", () => {
     expect(rows[0]?.name).toBe("Ok");
   });
 
-  test("writeCardInPlace with an expected contentHash refuses TOTALLY when the card moved (#1446)", async () => {
+  test("writeCardInPlace with an expected BASIS refuses TOTALLY when the card moved (#1446, #1560)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const id = castId<CharacterId>("character_1");
     await insertCharacter(db, makeRow(owner, "character_1", castId<CharacterHandle>("a")), bumpStatsCanonVersion);
+    const basis = { contentHash: "hash", creatorNotes: null } as const;
 
     // The declared basis matches ⇒ the ordinary write, and the new hash lands.
-    expect(await writeCardInPlace(db, { characterId: id, ownerId: owner, expectedContentHash: "hash" }, { name: "First", contentHash: "hash-2" })).toBe(
-      "written",
-    );
+    expect(await writeCardInPlace(db, { characterId: id, ownerId: owner, expectedBasis: basis }, { name: "First", contentHash: "hash-2" })).toBe("written");
     // A caller still holding the ORIGINAL basis is writing from a snapshot that no longer exists. It must not
     // win: `"stale"` is a TOTAL refusal, so the first writer's row stands untouched rather than being
     // silently replaced by a patch merged against content nobody can see any more.
-    expect(await writeCardInPlace(db, { characterId: id, ownerId: owner, expectedContentHash: "hash" }, { name: "Second", contentHash: "hash-3" })).toBe(
-      "stale",
-    );
+    expect(await writeCardInPlace(db, { characterId: id, ownerId: owner, expectedBasis: basis }, { name: "Second", contentHash: "hash-3" })).toBe("stale");
     expect((await db.select().from(characters).where(eq(characters.id, id)))[0]?.name).toBe("First");
+    // THE BASIS IS MORE THAN THE HASH (#1560): `creatorNotes` is outside the identity hash on purpose, so a
+    // notes-only edit moves no hash — and a caller whose basis says "no notes" must still lose to it.
+    await writeCardInPlace(db, { characterId: id, ownerId: owner }, { creatorNotes: "the other writer's note" });
+    expect(
+      await writeCardInPlace(db, { characterId: id, ownerId: owner, expectedBasis: { contentHash: "hash-2", creatorNotes: null } }, { name: "Fourth" }),
+    ).toBe("stale");
+    expect((await db.select().from(characters).where(eq(characters.id, id)))[0]?.name).toBe("First");
+    // …and the SAME write with the notes it actually observed goes through (the fence is a comparison, not
+    // a permanent lock: `= NULL` matches nothing in SQL, so the null arm is `IS NULL` or every noted card
+    // would refuse forever).
+    expect(
+      await writeCardInPlace(
+        db,
+        { characterId: id, ownerId: owner, expectedBasis: { contentHash: "hash-2", creatorNotes: "the other writer's note" } },
+        {
+          name: "Fourth",
+        },
+      ),
+    ).toBe("written");
     // The predicate does not become an existence oracle: a foreign owner still collapses to "missing" even
-    // when the hash they name is the live one.
+    // when the basis they name is the live one.
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    expect(await writeCardInPlace(db, { characterId: id, ownerId: other, expectedContentHash: "hash-2" }, { name: "Hax" })).toBe("missing");
+    expect(
+      await writeCardInPlace(
+        db,
+        { characterId: id, ownerId: other, expectedBasis: { contentHash: "hash-2", creatorNotes: "the other writer's note" } },
+        {
+          name: "Hax",
+        },
+      ),
+    ).toBe("missing");
     // …and an omitted basis is the unchanged in-place write (D28's default posture, untouched).
     expect(await writeCardInPlace(db, { characterId: id, ownerId: owner }, { name: "Third" })).toBe("written");
   });

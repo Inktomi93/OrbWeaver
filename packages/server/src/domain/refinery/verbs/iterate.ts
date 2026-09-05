@@ -7,6 +7,22 @@
 // throws after the rewrite landed, the rewrite run EXISTS (the next `runStage("analyze")` or `iterate`
 // picks it up) and the counter is NOT bumped — `iterationCount` counts COMPLETED rounds, the runs' own
 // `iteration` stamps stay 0-based per round.
+//
+// WHAT THE COUNTER IS NOT: AN IN-FLIGHT CLAIM (#1445, the open half — deliberate, not an oversight).
+// Two concurrent rounds on one session now get DISTINCT round numbers and leave a tally equal to the
+// rounds that completed (the SQL-side increment below), but they still both refine off the same latest
+// analysis and both pay for their model calls. SERIALIZING them means claiming the round BEFORE the model
+// work, and every reachable way to do that with what exists here is worse than the gap:
+//   · Pre-bumping THIS counter converts it from completed rounds to STARTED rounds — it would contradict
+//     the paragraph above and its pin (`tests/…/iterate.int.test.ts` "a mid-round analyze failure leaves
+//     the rewrite run and an UNBUMPED counter"), and a failed round would inflate it permanently, since
+//     `db.transaction` is banned in product code and a compensating decrement can itself fail.
+//   · A CAS at COMMIT time refuses the loser only AFTER both rounds have paid the model calls, which buys
+//     a typed refusal for spend nobody saved.
+//   · The honest instrument is an in-flight marker with a LEASE (a crashed process must not wedge the
+//     session forever) — a durable claim + expiry + release, i.e. a small subsystem the refinery does not
+//     have today and one this verb must not improvise.
+// So the counter stays the ledger it says it is, and the serializing claim is its own piece of work.
 
 import { refineryGuidanceSchema } from "@orb/contracts/refinery";
 import { refinerySessions } from "@orb/db";

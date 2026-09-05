@@ -8,7 +8,7 @@
 // is no window for them to lose, and a version column on `characters` would tax every such write to protect
 // nobody. What the ruling never covered is a caller whose BASIS is old — the refinery's apply builds its
 // patch from a card read before two model calls and a snapshot write. Such a caller passes
-// `expectedContentHash`, and only then does the write carry a content predicate (`persistence/card.ts`) and
+// `expectedBasis`, and only then does the write carry the basis predicates (`persistence/card.ts`) and
 // refuse TOTALLY with `CHARACTER_STALE_BASIS` rather than overwrite the edit that landed in between.
 
 import type { Principal } from "@orb/contracts/identity";
@@ -60,10 +60,10 @@ async function applyEdit(
     readonly characterId: CharacterId;
     readonly current: Awaited<ReturnType<typeof loadOwnedCharacterRow>> & object;
     readonly input: UpdateCharacterParams["input"];
-    readonly expectedContentHash: string | undefined;
+    readonly expectedBasis: UpdateCharacterParams["expectedBasis"];
   },
 ): Promise<void> {
-  const { ownerId, characterId, current, input, expectedContentHash } = args;
+  const { ownerId, characterId, current, input, expectedBasis } = args;
   const next = mergeCard(cardOf(current), input);
   const nextHash = cardContentHash(next);
   const handleChanged = input.handle !== undefined && input.handle !== current.handle;
@@ -73,7 +73,7 @@ async function applyEdit(
   const at = ctx.now();
   const written = await writeCardInPlace(
     ctx.db,
-    { characterId, ownerId, ...(expectedContentHash === undefined ? {} : { expectedContentHash }) },
+    { characterId, ownerId, ...(expectedBasis === undefined ? {} : { expectedBasis }) },
     {
       ...next,
       contentHash: nextHash,
@@ -151,7 +151,7 @@ async function resolveBackgroundOverride(
 }
 
 export function createUpdate(ctx: CharacterContext): CharacterService["update"] {
-  return async ({ principal, characterId, input: rawInput, expectedContentHash }: UpdateCharacterParams) => {
+  return async ({ principal, characterId, input: rawInput, expectedBasis }: UpdateCharacterParams) => {
     const ownerId = principal.userId;
     // ORDER IS SECURITY-LOAD-BEARING (#1455): AUTHORIZE THE TARGET, THEN FETCH. `resolveBackgroundOverride`
     // drives an outbound fetch + image processing + a CAS/db write for any `kind:"external"` override, all
@@ -175,7 +175,7 @@ export function createUpdate(ctx: CharacterContext): CharacterService["update"] 
     await ensureBackgroundOverrideOwned(ctx.db, ownerId, input.backgroundOverride);
 
     if (Object.keys(input).length > 0) {
-      await applyEdit(ctx, { ownerId, characterId, current, input, expectedContentHash });
+      await applyEdit(ctx, { ownerId, characterId, current, input, expectedBasis });
     }
 
     const updated = await loadOwnedCharacterWithAvatar(ctx.db, ownerId, characterId);

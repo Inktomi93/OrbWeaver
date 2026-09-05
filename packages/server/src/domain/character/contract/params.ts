@@ -55,15 +55,27 @@ export interface ListCharactersParams extends CharacterActorParams {
   readonly excludeTagIds?: readonly TagId[];
 }
 
+/** What a caller writing from an OLD basis declares it merged against (#1446/#1560) — the card state the
+ *  write is conditional on. `contentHash` covers the card's IDENTITY; every member beside it is a field a
+ *  stale-basis caller may WRITE that the hash deliberately does not witness (`#kit/serde/card`
+ *  `semanticFields` excludes the re-attribution fields on purpose, and `creatorNotes` is both excluded and
+ *  refinable). A field in the second group with no member here is a silent overwrite waiting to happen, so
+ *  the producer builds this object under a compile-forced mapped type. */
+export interface CardWriteBasis {
+  readonly contentHash: string;
+  readonly creatorNotes: string | null;
+}
+
 export interface UpdateCharacterParams extends CharacterActorParams {
   readonly characterId: CharacterId;
   readonly input: UpdateCharacterInput;
-  /** OPT-IN compare-and-swap for a caller writing from a basis it read EARLIER (#1446): the `contentHash`
-   *  the patch was constructed against. Supplied means the write is conditional on the card still carrying
-   *  it, and a card that moved refuses TOTALLY with `CHARACTER_STALE_BASIS` instead of overwriting the edit
-   *  that landed in between. Omitted is the ordinary read-and-write-back edit, unchanged (D28 in-place).
-   *  NOT wire-reachable: the tRPC router builds this params object and never forwards a client value. */
-  readonly expectedContentHash?: string;
+  /** OPT-IN compare-and-swap for a caller writing from a basis it read EARLIER (#1446): the card state the
+   *  patch was constructed against ({@link CardWriteBasis}). Supplied means the write is conditional on the
+   *  card still carrying it, and a card that moved refuses TOTALLY with `CHARACTER_STALE_BASIS` instead of
+   *  overwriting the edit that landed in between. Omitted is the ordinary read-and-write-back edit,
+   *  unchanged (D28 in-place). NOT wire-reachable: the tRPC router builds this params object and never
+   *  forwards a client value. */
+  readonly expectedBasis?: CardWriteBasis;
 }
 
 export interface RemoveCharacterParams extends CharacterActorParams {

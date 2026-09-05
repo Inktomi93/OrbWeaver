@@ -16,6 +16,7 @@ export type {
   BulkArchiveParams,
   BulkRemoveCardTagParams,
   BulkRemoveParams,
+  CardWriteBasis,
   CharacterImportProvenance,
   CharacterListCursor,
   CreateCharacterParams,

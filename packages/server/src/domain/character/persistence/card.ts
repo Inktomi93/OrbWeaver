@@ -22,9 +22,10 @@ import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, eq, exists, inArray, notExists, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, isNull, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { CHARACTER_BACKGROUND_UNAVAILABLE, CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors.ts";
+import type { CardWriteBasis } from "../contract/params.ts";
 
 // The self-join alias the provenance claim's NOT EXISTS reads through — a subquery over the table being
 // written needs its own name (the refinery schema-library precedent).
@@ -71,6 +72,31 @@ function guardedInsertStatements(
   const statements: BatchStmt[] = [db.insert(characters).values({ ...values, id })];
   bumpCanonVersion(statements, db, values.ownerId);
   return statements;
+}
+
+/** The conjuncts an {@link CardWriteBasis} contributes to the update's WHERE. `creatorNotes` is nullable,
+ *  so its absent state is `IS NULL` rather than `= NULL` (which matches nothing in SQL and would turn every
+ *  note-less card's apply into a phantom refusal). */
+function basisPredicates(basis: CardWriteBasis | undefined): SQL[] {
+  if (basis === undefined) {
+    return [];
+  }
+  return [
+    eq(characters.contentHash, basis.contentHash),
+    basis.creatorNotes === null ? isNull(characters.creatorNotes) : eq(characters.creatorNotes, basis.creatorNotes),
+  ];
+}
+
+/** Did the card move off the basis this caller merged against? Read ONLY on the empty-result path, to tell
+ *  a lost race from "gone / not yours" (which stays the leak-free collapse). */
+async function basisMoved(db: Db, characterId: CharacterId, ownerId: UserId, basis: CardWriteBasis): Promise<boolean> {
+  const rows = await db
+    .select({ contentHash: characters.contentHash, creatorNotes: characters.creatorNotes })
+    .from(characters)
+    .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
+    .limit(1);
+  const live = rows[0];
+  return live !== undefined && (live.contentHash !== basis.contentHash || live.creatorNotes !== basis.creatorNotes);
 }
 
 /** Insert a new character row. A per-owner handle collision → `CharacterOperationError("handle_conflict")`. */
@@ -162,49 +188,45 @@ async function provenanceClaimed(db: Db, ownerId: UserId, importedFrom: string):
  *  unique index → the same typed `CharacterOperationError("handle_conflict")` `insertCharacter` raises
  *  (never a raw DB error surfacing).
  *
- *  `expectedContentHash` is the OPT-IN compare-and-swap (#1446), and it does not reopen D28: edit-in-place
- *  is still always safe for a caller that read the card and wrote it back in one breath, which is every
+ *  `expectedBasis` is the OPT-IN compare-and-swap (#1446), and it does not reopen D28: edit-in-place is
+ *  still always safe for a caller that read the card and wrote it back in one breath, which is every
  *  ordinary edit and is why this file's header says "no CAS, no COW". What changed is the INPUT — the
  *  refinery's apply constructs its patch from a card it read BEFORE two model calls and a snapshot write,
  *  so for that caller "the row is still what I merged against" is a real question with a real answer. When
  *  supplied it rides the same WHERE as ownership (one statement, no read-then-write window); a row that
- *  moved answers `"stale"` and NOTHING is written. */
+ *  moved answers `"stale"` and NOTHING is written.
+ *
+ *  THE BASIS IS NOT THE CONTENT HASH ALONE (#1560). `content_hash` is the card's IDENTITY, and identity
+ *  deliberately excludes the re-attribution fields — `creatorNotes` among them (`#kit/serde/card`
+ *  `semanticFields`, pinned in its own suite: re-attributing a card must not change what it IS). But
+ *  `creatorNotes` is also a field the refinery REWRITES, so a hash-only fence passed a creator-notes-only
+ *  edit straight through and overwrote it: the exact defect, for one field in nine. The recorded exclusion
+ *  survives untouched — the FENCE grew instead, comparing every field a stale-basis caller can write that
+ *  the hash cannot witness. The caller builds that set under a compile-forced type
+ *  (`refinery/verbs/apply-fields.ts`), so a tenth refinable field lands red rather than silent. */
 export async function writeCardInPlace(
   db: Db,
-  target: { readonly characterId: CharacterId; readonly ownerId: UserId; readonly expectedContentHash?: string },
+  target: { readonly characterId: CharacterId; readonly ownerId: UserId; readonly expectedBasis?: CardWriteBasis },
   edits: CharacterEdits,
 ): Promise<"written" | "missing" | "background-unavailable" | "stale"> {
-  const { characterId, ownerId, expectedContentHash } = target;
+  const { characterId, ownerId, expectedBasis } = target;
   const assetId = backgroundAssetId(edits.backgroundOverride);
   try {
     const updated = await db
       .update(characters)
       .set(edits)
       .where(
-        and(
-          eq(characters.id, characterId),
-          eq(characters.ownerId, ownerId),
-          ownedBackgroundExists(db, ownerId, assetId),
-          ...(expectedContentHash === undefined ? [] : [eq(characters.contentHash, expectedContentHash)]),
-        ),
+        and(eq(characters.id, characterId), eq(characters.ownerId, ownerId), ownedBackgroundExists(db, ownerId, assetId), ...basisPredicates(expectedBasis)),
       )
       .returning({ id: characters.id });
     if (updated.length > 0) {
       return "written";
     }
-    // Which of the three predicates refused? The owner-scoped re-read separates "gone/not yours" from
-    // "someone else's edit landed first" — only reachable on the empty-result path, so the CAS costs the
-    // happy path nothing.
-    if (expectedContentHash !== undefined) {
-      const live = await db
-        .select({ contentHash: characters.contentHash })
-        .from(characters)
-        .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
-        .limit(1);
-      const liveHash = live[0]?.contentHash;
-      if (liveHash !== undefined && liveHash !== expectedContentHash) {
-        return "stale";
-      }
+    // Which of the predicates refused? The owner-scoped re-read separates "gone/not yours" from "someone
+    // else's edit landed first" — only reachable on the empty-result path, so the CAS costs the happy path
+    // nothing.
+    if (expectedBasis !== undefined && (await basisMoved(db, characterId, ownerId, expectedBasis))) {
+      return "stale";
     }
     if (
       assetId !== undefined &&

@@ -1931,7 +1931,7 @@
     {
       "siteId": "packages/server/src/domain/character/persistence/card.ts::default:err::1",
       "path": "packages/server/src/domain/character/persistence/card.ts",
-      "line": 140,
+      "line": 166,
       "column": 5,
       "grammar": "default",
       "position": "default:err",
@@ -1939,7 +1939,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "the ONE absorbed arm is a LOST RACE, and it is",
-      "markerLine": 130
+      "markerLine": 156
     },
     {
       "siteId": "packages/server/src/domain/character/seeder/seed.ts::empty:err::1",
