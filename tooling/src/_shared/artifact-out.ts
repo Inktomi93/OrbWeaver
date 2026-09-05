@@ -87,14 +87,20 @@ const nullableCountSchema = nonnegativeCountSchema.nullable();
  *  `snap/contract/heap.ts`). `records` stays a COUNT: a record is discrete by construction. */
 const limitQuantitySchema = z.number().nonnegative();
 const nullableLimitQuantitySchema = limitQuantitySchema.nullable();
-const artifactLimitEventSchema = z.object({
+/** THE ONE SCHEMA HOME for `InstrumentArtifactLimitEvent`/`InstrumentArtifactLimitReceipt` (#1652) — the
+ *  ring (`browser-evidence-ring.ts`) and the heap contract (`snap/contract/heap.ts`) import these two
+ *  rather than re-spelling them, so a negative `omitted` or an empty `kind`/`path` refuses at all three
+ *  readers instead of only here. Before #1652 they diverged on sign and emptiness (bare `z.number()`/
+ *  `z.string()` at the other two homes) — a defect the "one home" claim after #1643 (fractional quantities)
+ *  did not actually close, because #1643 fixed only the ONE axis it was about. */
+export const artifactLimitEventSchema = z.object({
   kind: z.string().min(1),
   path: z.string().min(1),
   original: nullableLimitQuantitySchema,
   retained: nullableLimitQuantitySchema,
   omitted: nullableLimitQuantitySchema,
 });
-const artifactLimitReceiptSchema = z.object({
+export const artifactLimitReceiptSchema = z.object({
   source: z.string().min(1),
   complete: z.boolean(),
   policy: z.record(z.string().min(1), limitQuantitySchema).nullable(),

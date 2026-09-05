@@ -5,6 +5,7 @@ import type { Branded } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { InstrumentArtifactLimitReceipt } from "../../_shared/artifact-out.ts";
+import { artifactLimitReceiptSchema } from "../../_shared/artifact-out.ts";
 import type { SnapAnalyzerProblem } from "./analyzer.ts";
 
 export const HEAP_PARSER_PACKAGE = "chrome-devtools-mcp";
@@ -198,19 +199,7 @@ const heapProblemSchema: z.ZodType<SnapAnalyzerProblem> = z.object({
   threshold: z.string(),
   detail: z.string(),
 });
-const limitEventSchema = z.object({
-  kind: z.string(),
-  path: z.string(),
-  original: finite.nullable(),
-  retained: finite.nullable(),
-  omitted: finite.nullable(),
-});
-const limitReceiptSchema: z.ZodType<InstrumentArtifactLimitReceipt> = z.object({
-  source: z.string(),
-  complete: z.boolean(),
-  policy: z.record(z.string(), finite).nullable(),
-  events: z.array(limitEventSchema),
-});
+// #1652: the limit-receipt shape's ONE home is `_shared/artifact-out.ts` — imported, never re-spelled.
 const heapIdentitySchema: z.ZodType<HeapSnapshotIdentity> = z.object({
   label: z.string(),
   rawPath: z.string(),
@@ -297,7 +286,7 @@ export const heapSnapshotReceiptSchema: z.ZodType<HeapSnapshotReceipt> = z.objec
   }),
   parserProblems: z.object({ total: nonnegative, shown: nonnegative, omitted: nonnegative, rows: z.array(z.string()) }),
   problems: z.array(heapProblemSchema),
-  limits: z.array(limitReceiptSchema),
+  limits: z.array(artifactLimitReceiptSchema),
 });
 
 export interface HeapClassDelta {

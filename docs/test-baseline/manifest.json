@@ -2061,6 +2061,7 @@
     "tests/tooling/snap/cascade.suite.int.test.ts",
     "tests/tooling/snap/cli.int.test.ts",
     "tests/tooling/snap/contract/cascade.test.ts",
+    "tests/tooling/snap/contract/heap.test.ts",
     "tests/tooling/snap/contract/map.test.ts",
     "tests/tooling/snap/index.test.ts",
     "tests/tooling/snap/lib/browser-evidence-redaction.test.ts",
