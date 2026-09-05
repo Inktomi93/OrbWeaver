@@ -8,6 +8,7 @@ import { beginInstrumentRun, finishInstrumentRun, registerInstrumentArtifact } f
 import type { BrowserDiagnostic } from "@orb/tooling/_shared/browser-diagnostics";
 import { summarizeOrbConsoleCompleteness } from "@orb/tooling/_shared/browser-diagnostics";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
 import { installOutputSink } from "@orb/tooling/_shared/log";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { vi } from "vitest";
@@ -38,6 +39,10 @@ import { scaledBudget } from "../../_load-budget.ts";
 const CLI_TIMEOUT_MS = scaledBudget(120_000);
 const RUN_LANE_ENV = "ORB_RUN_LANE";
 const RUN_AGENT_ENV = "ORB_RUN_AGENT";
+/** The two planted box readings this file drives the CLI under (#1651) — per-core 0.008 and per-core 4.0,
+ *  either side of `computeLoadFactor`'s own 1.0 boundary. Named, not spelled twice. */
+const QUIET_BOX = "0.2/24";
+const LOADED_BOX = "96/24";
 const PLANTED_STARTED_AT = "2026-09-03T12:00:00.000Z";
 vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 
@@ -133,6 +138,9 @@ interface RunIndex {
     readonly completeness: string;
     readonly conflicts: readonly string[];
     readonly occurrences: number;
+    /** WHETHER THE ROW VOTED (#1385 item 4) — and the field the #1616 load-suspect annotation is read by:
+     *  `counted: false` with `reason: "load-suspect"` is a measured number nothing may promote. */
+    readonly disposition: { readonly counted: boolean; readonly reason: string };
     readonly next: string;
   }[];
 }
@@ -267,9 +275,15 @@ test("a completed run writes a self-consistent index and its receipt READ comman
   const file = join(scratch, "bundle.html");
   await writeFile(file, '<!doctype html><html data-app-ready="settled"><body><main><button id="x">x</button></main></body></html>');
   const argv = ["--file", file, "--aria", "--map", "--json", "--no-deadcss", "--no-failure-evidence"];
+  // A PLANTED QUIET BOX (#1651). Every rate arm is labelled `load-suspect` above per-core loadavg 1.0
+  // (≥ 24 on this 16c/24t box) and the run then carries a run-global `annotation` finding — correct
+  // behaviour, and it made the "no findings" assertion below a reading of the HOST rather than of snap
+  // (green quiet, red at loadavg 34: v-K8's receipt). The instrument under test is a CHILD PROCESS, so the
+  // in-process `BoxLoadReader` seam cannot reach it; `ORB_BOX_LOAD` is the same injection through the env,
+  // and a receipt taken under it stamps `load=…(planted)` so no run can pretend to be quiet silently.
   const run = await runCli("snap", argv, {
     timeoutMs: CLI_TIMEOUT_MS,
-    env: { [RUN_LANE_ENV]: "bundle-lane", [RUN_AGENT_ENV]: "bundle-agent" },
+    env: { [RUN_LANE_ENV]: "bundle-lane", [RUN_AGENT_ENV]: "bundle-agent", [BOX_LOAD_ENV]: QUIET_BOX },
   });
   const path = indexPath(run.stdout);
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
@@ -319,6 +333,10 @@ test("a completed run writes a self-consistent index and its receipt READ comman
     failedRequests: { records: 0, dropped: null, complete: false, basis: "latest-per-url" },
     captures: { records: 1, dropped: 0, complete: true, basis: "all-pages" },
   });
+  // …and the quiet plant is VISIBLE on the receipt, so this green can never be a run that was quiet only
+  // because someone exported the knob.
+  expect(index.resultPairs.find(([key]) => key === "load")?.[1]).toContain("(planted)");
+  expect(index.resultPairs.some(([key]) => key === "load-suspect")).toBe(false);
   expect(index.findings).toEqual([]);
   expect(index.resultPairs.filter(([key]) => key === "motion-evidence" || key === "motion")).toEqual([
     ["motion-evidence", "live"],
@@ -361,6 +379,36 @@ test("a completed run writes a self-consistent index and its receipt READ comman
   expect(listing.stdout).not.toMatch(/\bdirty=|\bdigest=|\bsource=(?:clean|working-tree|unknown)\b/u);
   expect(listing.stdout).not.toContain("RUN INDEX REFUSED");
   expect(listing.stdout).not.toContain("run slot");
+});
+
+test("THE INVERSE: a planted LOADED box annotates the same clean run — one uncounted row, and still exit 0 (#1651)", async ({ runCli, scratch }) => {
+  // The positive control for the arm above. Without it, "no findings" would be satisfied by a build in
+  // which the #1616 annotation stopped being emitted at all — which is the reader half of the ruling, and
+  // exactly what a quiet-box-only pin cannot see. Same argv, same page, ONLY the box reading differs.
+  const file = join(scratch, "loaded.html");
+  await writeFile(file, '<!doctype html><html data-app-ready="settled"><body><main><button id="x">x</button></main></body></html>');
+  const run = await runCli("snap", ["--file", file, "--json", "--no-deadcss", "--no-failure-evidence"], {
+    timeoutMs: CLI_TIMEOUT_MS,
+    env: { [BOX_LOAD_ENV]: LOADED_BOX },
+  });
+  // NOT A RED, NOT AN EXIT-2: a load-suspect number is published and never promoted in either direction.
+  await expect(run).toExitWith(EXIT.clean);
+  const index = JSON.parse(await readFile(indexPath(run.stdout), "utf8")) as RunIndex;
+
+  const annotations = index.findings.filter((finding) => finding.severity === "annotation");
+  expect(annotations).toHaveLength(1);
+  expect(annotations[0]).toMatchObject({
+    arms: ["app-snapshot"],
+    completeness: "incomplete",
+    disposition: { counted: false, reason: "load-suspect" },
+  });
+  expect(annotations[0]?.what).toContain("load-suspect");
+  // …and the run LINE says the same thing, so a reader who never opens run.json still knows.
+  expect(index.resultPairs).toContainEqual(["load-suspect", "app-snapshot"]);
+  expect(index.resultPairs.find(([key]) => key === "load")?.[1]).toBe("96.0/24(planted)");
+  expect(index.resultPairs.find(([key]) => key === "app-snapshot")?.[1]).toBe("load-suspect");
+  // The label is the ONLY difference: nothing failed, nothing refused.
+  expect(index.findings.filter((finding) => finding.severity !== "annotation")).toEqual([]);
 });
 
 test("same-SHA worktrees retain checkout and byte-sensitive dirty identity; exact-id ambiguity and local latest refuse guessing", async ({

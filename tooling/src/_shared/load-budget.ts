@@ -80,8 +80,45 @@ export interface BoxLoad {
 export type BoxLoadReader = () => BoxLoad;
 
 /** The live box — the ONE `os.loadavg()` read in the fleet. */
+/** THE PLANTED-READING ENV SEAM (#1651). Every judging function here takes the reading as a VALUE, which
+ *  serves an in-process control perfectly — and serves a CLI int test not at all, because the instrument
+ *  under test is a CHILD PROCESS. Without this seam those suites assert against whatever the box happened
+ *  to be doing: `run-bundle.suite.int.test.ts`'s "no findings" pin passed on a quiet box and went red at
+ *  loadavg 34 with a perfectly correct `load-suspect` annotation (v-K8's receipt).
+ *
+ *  Spelled `<loadavg1>/<cpuCount>`, e.g. `0.2/24` (quiet) or `96/24` (per-core 4.0). */
+export const BOX_LOAD_ENV = "ORB_BOX_LOAD";
+
+/** A planted reading is ANNOUNCED, never silent: `loadPairs`/`loadResultPairs` stamp `planted` into the
+ *  `load=` value, so a receipt taken under a fake box says so on its own RESULT line. A quiet-looking run
+ *  that was quiet only because someone exported the knob is exactly the lie this module exists to stop. */
+const PLANTED_SUFFIX = "(planted)";
+
+function plantedBoxLoad(): BoxLoad | undefined {
+  // biome-ignore lint/style/noProcessEnv: this IS the tooling env door for a planted control — the rule guards app config reads, and no config is read here.
+  const raw = process.env[BOX_LOAD_ENV];
+  if (raw === undefined || raw.trim() === "") {
+    return;
+  }
+  const [load, cores] = raw.split("/");
+  const loadavg1 = Number(load);
+  const cpuCount = Number(cores);
+  const wellFormed = Number.isFinite(loadavg1) && loadavg1 >= 0 && Number.isInteger(cpuCount) && cpuCount >= 1;
+  if (!wellFormed) {
+    // REFUSE, never fall back. A malformed control that quietly reverted to the live box would report a
+    // reading nobody planted and pass it off as the planted one — a false clean wearing a control's name.
+    throw new Error(`${BOX_LOAD_ENV}="${raw}" is not a planted box reading — spell it "<loadavg1>/<cpuCount>", e.g. "0.2/24"`);
+  }
+  return { loadavg1, cpuCount };
+}
+
+/** Is the CURRENT reading planted? Read by the receipt printers only. */
+function readingIsPlanted(): boolean {
+  return plantedBoxLoad() !== undefined;
+}
+
 export function readBoxLoad(): BoxLoad {
-  return { loadavg1: loadavg()[0] ?? 0, cpuCount: cpus().length };
+  return plantedBoxLoad() ?? { loadavg1: loadavg()[0] ?? 0, cpuCount: cpus().length };
 }
 
 /** PURE: a wall-clock multiplier ≥1 derived from the 1-minute loadavg vs the core count. A quiet box
@@ -122,7 +159,14 @@ export function budget(baseMs: number, read: BoxLoadReader = readBoxLoad, cap = 
  *  reader can tell a stretched run from a quiet one without the argv. */
 export function loadPairs(read: BoxLoadReader = readBoxLoad): readonly string[] {
   const box = read();
-  return [`load=${box.loadavg1.toFixed(1)}/${String(box.cpuCount)}`, `budget-factor=${computeLoadFactor(box.loadavg1, box.cpuCount).toFixed(2)}`];
+  return [`load=${loadValue(box)}`, `budget-factor=${computeLoadFactor(box.loadavg1, box.cpuCount).toFixed(2)}`];
+}
+
+/** The `load=` VALUE both receipt printers share — one home, so the planted stamp cannot land on one line
+ *  and not the other. `(planted)` only when the ambient reading came from {@link BOX_LOAD_ENV}: an
+ *  explicitly-injected reader (an in-process control) is the CALLER's own value and says so at its site. */
+function loadValue(box: BoxLoad): string {
+  return `${box.loadavg1.toFixed(1)}/${String(box.cpuCount)}${readingIsPlanted() ? PLANTED_SUFFIX : ""}`;
 }
 
 /** The same two pairs as one space-joined line — the RESULT-line / diagnostic spelling. */
@@ -138,7 +182,7 @@ export function loadLine(read: BoxLoadReader = readBoxLoad): string {
 export function loadResultPairs(read: BoxLoadReader = readBoxLoad): readonly (readonly [string, string])[] {
   const box = read();
   return [
-    ["load", `${box.loadavg1.toFixed(1)}/${String(box.cpuCount)}`],
+    ["load", loadValue(box)],
     ["budget-factor", computeLoadFactor(box.loadavg1, box.cpuCount).toFixed(2)],
   ];
 }
