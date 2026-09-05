@@ -27,7 +27,8 @@ import { useTRPC } from "./trpc.ts";
 import { useGatedQuery } from "./use-gated-query.ts";
 
 /**
- * The carried-appearance cast for the room a caller is showing.
+ * The carried appearance for the room a caller is showing — the room composition the carried-appearance
+ * rules read (`CarriedAppearance`, vocabulary-map row "the room composition…").
  *
  * @param chatId - the open chat, or `null` for the landing.
  * @returns `undefined` while nothing is resolvable (landing, an unsettled or failed read) — the "viewer's

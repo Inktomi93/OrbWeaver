@@ -212,10 +212,10 @@ export const gridVariants = tv({
       // min-content width — the same trap `lead` needs `min-w-0` children to survive.
       //
       // It is a SEPARATE ARM, not a retune of `lead`, because `lead` has two other consumers
-      // (discovery's corpus home, config's welcome hearth) whose content is not width-driven the way a
-      // face shelf is; changing the value under them would be a shared-value change with no measurement
-      // behind it. Reach for `leadEven` when the RAIL carries reflowing cell grids, `lead` when it
-      // carries prose.
+      // (discovery's corpus home, and — until #1210 retired it — config's welcome hearth) whose content is not
+      // width-driven the way a face shelf is; changing the value under them would be a shared-value change with
+      // no measurement behind it. Reach for `leadEven` when the RAIL carries reflowing cell grids, `lead`
+      // when it carries prose.
       leadEven: "grid-cols-1 @4xl:grid-cols-[1.55fr_1fr] @min-[100rem]:grid-cols-2",
       // `lead`'s EARLIER FIRST BREATH (added 2026-08-18, #244 P1-2). Identical tracks at both steps; it
       // differs only in WHEN the split engages — `@3xl` (48rem/768px) instead of `@4xl` (56rem/896px).
@@ -229,9 +229,9 @@ export const gridVariants = tv({
       // never a per-arm accident. `@3xl` clears the narrowest of those by 42px and still leaves the
       // three-pane state (484px) and the phone column stacked, which is where one column is right.
       //
-      // A SEPARATE ARM, not a retune of `lead`, for `leadEven`'s reason: `lead`'s other consumer is the
-      // config welcome hearth, whose own CT declares the `@4xl` width as the one its split has to engage at
-      // (tests/client/features/config/_ct-stories.tsx). Moving the shared value would change a surface
+      // A SEPARATE ARM, not a retune of `lead`, for `leadEven`'s reason: `lead`'s other consumer WAS the
+      // config welcome hearth (retired by #1210), whose own CT declared the `@4xl` width as the one its split
+      // had to engage at. Moving the shared value would change a surface
       // nobody measured. Reach for `leadEarly` when the pane holding the split is a docked CONTENT region
       // rather than a whole page.
       leadEarly: "grid-cols-1 @3xl:grid-cols-[1.55fr_1fr] @min-[100rem]:grid-cols-[1.5fr_1.05fr]",

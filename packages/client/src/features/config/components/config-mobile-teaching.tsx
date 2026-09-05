@@ -7,10 +7,10 @@
 // invisible to exactly the reader who most needs it: a cold one, on the device where three 40px group rows
 // and a void are the entire first impression.
 //
-// IT IS THE COMPACT ARM, NOT THE WELCOME MOVED. The hearth is a two-column launcher split with a chip
-// census — it needs the pane it was designed for, and re-rendering it above a list would put every
-// collection on the screen twice. What travels is the FRAME: the surface's one opening statement, the
-// sentence under it, and one line per collection. Every string is `config-copy`'s or the contribution's
+// IT IS THE COMPACT ARM, NOT THE WELCOME MOVED. That hearth WAS a two-column launcher split with a chip
+// census (#1210 has since retired it) — it needed the pane it was designed for, and re-rendering it above a
+// list would have put every collection on the screen twice. What travels is the FRAME: the surface's one
+// opening statement, the sentence under it, and one line per collection. Every string is `config-copy`'s
 // own (`label` + `blurb`), so a fourth collection appears here from the same ONE door row that puts it in
 // the welcome and the LIST — this file names no collection (`collection` config groups only).
 //

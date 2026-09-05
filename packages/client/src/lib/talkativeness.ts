@@ -1,16 +1,16 @@
 // The TALKATIVENESS dial — one spelling of one datum, for the two surfaces that render it (tier 4, the
-// `message-role-labels` class of display seam). A saved cast and the room it came from show the SAME seat
+// `message-role-labels` class of display seam). A saved ROSTER and the room it came from show the SAME seat
 // knob, and until this file existed they spelled it two ways: the room's Members tab said "Talks 50" with
-// an accessible name of "talks at level 50 of 100", while the cast editor printed a bare `0.5` with no
+// an accessible name of "talks at level 50 of 100", while the roster editor printed a bare `0.5` with no
 // label at all (side-eye 2026-08-29 P2-5). One concept, two scales, two vocabularies — a user cannot map
 // `0.5` onto "level 50 of 100" without being told, and nothing told them.
 //
 // It lives HERE and not in either feature because a feature may never import another feature
-// (`client-features-no-cross`), and the ROOM is where the value is edited while the CAST only displays it.
+// (`client-features-no-cross`), and the ROOM is where the value is edited while the SAVED ROSTER only displays it.
 //
 // THE NUMBER IS A RELATIVE WEIGHT, AND IT MUST NOT WEAR A PERCENT SIGN (#490). `talkativeness` feeds
 // `selectSpeakers`' weighted sample — a relative weight over the eligible pool, not a probability and not a
-// share of the room. Rendered as "Talks 50%" it read as a share, so a three-character cast showed 50% ·
+// share of the room. Rendered as "Talks 50%" it read as a share, so a three-character room showed 50% ·
 // 50% · 50% and invited arithmetic that sums to 150 and means nothing. The dial keeps its familiar 0–100
 // domain (it IS the slider's own position) and loses the sign.
 

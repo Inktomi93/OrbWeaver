@@ -49,7 +49,7 @@ import { useUnderstandingPass, useUnderstandingPassTail } from "../hooks/use-und
  *  ONE CARRIER, AT FULL STRENGTH (#244 P2-1). This island carried the same accent border-left + 30%-dimmed
  *  ring as the family map, and goes the same way for the same reasons — the stripe is `design-audit`'s
  *  `side-tab` (a §6 absolute ban) plus `border-accent-on-rounded` on a rounded Card, and the dim came from
- *  the config hearth where a hover lifts it back. The two focal islands MUST agree: they are the same slot
+ *  the config welcome hearth (since retired, #1210) where a hover lifted it back. The two focal islands MUST agree: they are the same slot
  *  in two phases of one surface, and a treatment that changed between them would read as a different kind
  *  of thing rather than the same page after a pass ran. */
 const GLOW =

@@ -27,7 +27,7 @@ import { useReattributePersona, useSetChatActivePersona, useSetChatAnchorPersona
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
 
-/** A persona id → its display name. The chat's MEMBER-GATED cast producer (`cast`, D137 /
+/** A persona id → its display name. The chat's MEMBER-GATED identity producer (`identities`, D137 /
  *  Chat-Macro-Resolution §1) is consulted FIRST because it covers every persona the ROOM references —
  *  including another member's, which the viewer's own `persona.list` can never contain. Reading only the
  *  viewer's list rendered a host-pinned member-owned anchor as "Unknown persona" while the correct name was
