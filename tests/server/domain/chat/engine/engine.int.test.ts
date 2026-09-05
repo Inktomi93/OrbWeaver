@@ -1399,6 +1399,28 @@ describe("createTurnEngine — abort signal (FLAG[abort-into-engine] resolved)",
     // Lock released on the return path.
     expect(await lockExpiry(db, chatId)).toBeNull();
   });
+
+  test("a provider fault merely NAMED AbortError, with an UN-aborted signal, stays a FAULT (#1435)", async () => {
+    const chatId = await seedChat(db, "b");
+    // Provider timeouts, SDK-internal cancellations and unrelated libraries all throw under this NAME. Nobody
+    // cancelled this turn — the signal proves it — so classifying it "user" filed a provider fault as a user
+    // action: the caller got a clean aborted outcome and the operator lost the failure entirely.
+    const timeout = new Error("provider stream timed out after 120s");
+    timeout.name = "AbortError";
+    const providerTimeout: ChatContext["runChatTurn"] = () =>
+      (async function* (): AsyncGenerator<TurnStreamChunk> {
+        await Promise.reject(timeout);
+        yield { kind: "text", text: "" }; // unreachable — the reject above throws out of the first next()
+      })();
+    const h = harness(db, { runChatTurn: providerTimeout });
+
+    // A real failure stays a failure: it THROWS out of the engine rather than returning `abortedOutcome`.
+    await expect(h.engine.runTurn(prepOf(chatId))).rejects.toThrow("provider stream timed out after 120s");
+    const aborted = h.events.find((e) => e.type === "turnAborted");
+    expect(aborted?.type === "turnAborted" && aborted.reason).toBe("error");
+    expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
+    expect(await lockExpiry(db, chatId)).toBeNull();
+  });
 });
 
 // ── I-7: the three remaining trace-ring holes are now DETACHED roots of their own ──────────────────────

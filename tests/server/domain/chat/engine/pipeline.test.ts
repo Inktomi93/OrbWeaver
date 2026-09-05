@@ -2264,7 +2264,86 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["tick_clock", "update_scene", "no_changes"]);
     expect(executed).toEqual([["tick_clock"]]);
     expect(result.toolRecords.map((r) => r.name)).toEqual(["tick_clock"]);
-    // The terminal channel reports the LAST depth's calls (the completion that ended the turn).
+    // The terminal channel reports the terminal-partitioned calls across every depth — none were emitted here.
+    expect(result.terminalToolCalls).toEqual([]);
+  });
+
+  // ── #1404: the MIXED case. Both classes ride the one `tools` array on the array wires, so "which executor
+  // owns this call" was answered by "did a registry set resolve", never by the call's own identity. The
+  // partition below is by TOOL NAME (the one mint), computed where the declarations are attached and handed to
+  // BOTH readers — so the registry executor structurally cannot receive a terminal call and the terminal
+  // channel structurally cannot report a registry one.
+
+  test("MIXED attach: a TERMINAL call is never handed to the registry executor (#1404)", async () => {
+    const requests: TurnRequest[] = [];
+    const executed: string[][] = [];
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      tools: fakeToolOps(executed),
+      attachedToolNames: ["tick_clock"],
+      terminalTools: RPG_TERMINAL_TOOLS,
+      // Both classes are attached and the model picks the TERMINAL one.
+      runChatTurn: scriptedDepths([[toolFinal("She draws her blade.", [{ id: "c1", name: "update_scene", args: '{"weather":"rain"}' }])]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    // Nothing executed, nothing recorded, and NO second model call was paid — the terminal contract holds
+    // whether or not registry tools happen to ride the same turn.
+    expect(executed).toEqual([]);
+    expect(result.toolRecords).toEqual([]);
+    expect(requests).toHaveLength(1);
+    // …and the call comes back on the channel that owns it, with the narrative intact.
+    expect(result.terminalToolCalls?.map((c) => c.name)).toEqual(["update_scene"]);
+    expect(result.terminalToolCalls?.[0]?.arguments).toBe('{"weather":"rain"}');
+    expect(result.content).toBe("She draws her blade.");
+  });
+
+  test("MIXED attach: ONE completion carrying BOTH classes splits — the registry half executes, the terminal half reports (#1404)", async () => {
+    const requests: TurnRequest[] = [];
+    const executed: string[][] = [];
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      tools: fakeToolOps(executed),
+      attachedToolNames: ["tick_clock"],
+      terminalTools: RPG_TERMINAL_TOOLS,
+      runChatTurn: scriptedDepths(
+        [
+          [
+            toolFinal("tick... ", [
+              { id: "c1", name: "tick_clock", args: "{}" },
+              { id: "c2", name: "update_scene", args: '{"weather":"rain"}' },
+            ]),
+          ],
+          [doneFinal("done.")],
+        ],
+        requests,
+      ),
+    });
+    const result = await runTurnPipeline(args);
+    // Only the registry half recursed — the terminal passenger never became a second paid call.
+    expect(executed).toEqual([["tick_clock"]]);
+    expect(result.toolRecords.map((r) => r.name)).toEqual(["tick_clock"]);
+    // …and the terminal half survives the recursion: the calls are collected AT THE DEPTH THEY WERE EMITTED,
+    // never re-read off the final aggregate economics (whose `toolCalls` are the LAST depth's alone).
+    expect(result.terminalToolCalls?.map((c) => c.name)).toEqual(["update_scene"]);
+  });
+
+  test("a terminal declaration COLLIDING with a registry tool name never rides — the registry owns the name (#1404)", async () => {
+    const requests: TurnRequest[] = [];
+    const executed: string[][] = [];
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      tools: fakeToolOps(executed),
+      attachedToolNames: ["tick_clock"],
+      // A contributor that re-spells a registry name would otherwise ship the wire TWO declarations of one
+      // name (malformed) and make the partition unanswerable. The passenger yields.
+      terminalTools: [{ name: "tick_clock", description: "the terminal twin", parameters: { type: "object" as const } }, ...RPG_TERMINAL_TOOLS],
+      runChatTurn: scriptedDepths([[toolFinal("tick... ", [{ id: "c1", name: "tick_clock", args: "{}" }])], [doneFinal("done.")]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["tick_clock", "update_scene", "no_changes"]);
+    // The name stays the REGISTRY's: it executes and recurses, and the terminal channel never claims it.
+    expect(executed).toEqual([["tick_clock"]]);
+    expect(result.toolRecords.map((r) => r.name)).toEqual(["tick_clock"]);
     expect(result.terminalToolCalls).toEqual([]);
   });
 });

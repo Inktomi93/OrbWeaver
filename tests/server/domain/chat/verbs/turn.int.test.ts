@@ -432,13 +432,21 @@ describe("commitMessage — post-without-generate (D56)", () => {
 describe("send — a caller-cancelled turn RETURNS aborted (the return-based abort reaches the verb)", () => {
   test("aborted:true + reason reach the send return; the user row still committed, no assistant row", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
-    // The provider honors a cancel: it throws a name-based AbortError instead of yielding a reply.
+    // A REAL caller cancel, through the seam that owns one (#1435): the user presses Stop mid-generation
+    // (`activeTurns.abort`), and the provider then honors the threaded signal by throwing its name-based
+    // AbortError. The cancellation is proven by the ABORTED SIGNAL — an error's name alone is a provider
+    // fault, not a user action, and is deliberately no longer classifiable as one.
+    let cancel: () => void = () => undefined;
     const aborting: ChatContext["runChatTurn"] = () =>
       (async function* (): AsyncGenerator<TurnStreamChunk> {
+        cancel();
         await Promise.reject(Object.assign(new Error("request aborted"), { name: "AbortError" }));
         yield { kind: "text", text: "unreachable" };
       })();
     const h = harness(db, names, { runChatTurn: aborting });
+    cancel = (): void => {
+      h.activeTurns.abort(chatId, host);
+    };
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
 

@@ -354,8 +354,11 @@ export interface TurnPrep {
    *  or the acceptance strands as a stuck Stop button. ABSENT ⇒ nobody opened a slot (the founding `opening`
    *  turn — every other turn-starting verb accepts) ⇒ pre-start refusals stay bus-SILENT exactly as before. */
   readonly slotAccepted?: boolean | undefined;
-  /** The caller's abort signal, threaded engine → pipeline → runChatTurn. The engine maps a resulting
-   *  AbortError to turnAborted(reason:"user") then rethrows. */
+  /** The caller's abort signal, threaded engine → pipeline → runChatTurn (and → the pre-turn compaction, which
+   *  is awaited before dispatch). THIS SIGNAL IS WHAT PROVES A CANCELLATION (#1435): a post-start throw with
+   *  the signal SETTLED is `turnAborted(reason:"user"|"stale")` and returns the aborted outcome; with the
+   *  signal un-settled it is a fault — `turnAborted(reason:"error")` and a rethrow — however the error is
+   *  NAMED. Absent ⇒ nothing can cancel this turn, so every post-start throw is a fault. */
   readonly signal?: AbortSignal | undefined;
 }
 
