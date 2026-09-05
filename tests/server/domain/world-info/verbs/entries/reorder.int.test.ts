@@ -55,6 +55,25 @@ describe("applyEntryOrder", () => {
     expect(res.reordered).toBe(1);
   });
 
+  // A repeated id is ONE position, not two. Counting it twice inflates `total`, so the LATER statement for
+  // the same id overwrites the earlier one with a LOWER priority — the entry lands below rows the caller put
+  // after it, i.e. the duplicate silently corrupts the order it was asked to apply, and `reordered` reports
+  // more entries than the book has.
+  test("a repeated id counts once and keeps its FIRST position", async () => {
+    const db = await freshDb();
+    const svc = createWorldInfoService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const a = await svc.createEntry({ principal: principal(owner), bookId: book.id, input: { title: "A", content: "c", priority: 0 } });
+    const b = await svc.createEntry({ principal: principal(owner), bookId: book.id, input: { title: "B", content: "c", priority: 0 } });
+
+    const res = await svc.applyEntryOrder({ principal: principal(owner), bookId: book.id, orderedEntryIds: [b.id, a.id, b.id] });
+
+    expect(res.reordered).toBe(2);
+    const listed = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    expect(listed.map((e) => e.id)).toEqual([b.id, a.id]);
+  });
+
   test("an empty order list is a 0 no-op", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
