@@ -150,6 +150,12 @@ export const CHAT_OP_CODES = {
    *  defect somewhere else, and this refusal exists so it surfaces loudly instead of spinning or silently
    *  dropping the ops. Internal surface (the callers are automation/plugin ops, not a client verb). */
   variableWriteContended: "variable_write_contended",
+  /** #1634 — a canon APPEND lost the head allocation on every attempt (`persistence/canon-write.ts`
+   *  `commitCanonAppend`). Losing once is ordinary (a sibling writer took `seq`) and the append re-allocates;
+   *  losing the whole bound is not a busy chat but a defect elsewhere — a caller aiming at a fixed seq, or a
+   *  head that advances faster than any writer can land — and this refusal exists so that says so instead of
+   *  spinning. Internal surface (narrator/image posts; the callers were already authorized at their door). */
+  canonAppendContended: "canon_append_contended",
 } as const;
 
 /** The reason-code union (derived from the one tuple of values — never re-spelled). */
