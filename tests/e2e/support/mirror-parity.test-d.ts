@@ -347,7 +347,10 @@ test("ActivePresetConfig mirrors PromptConfig (the FE-layer round-trip read)", (
       | "variables"
     >
   >(keys<ActivePresetConfig, PromptConfig>());
-  pin<Subset<"type" | "name" | "role">>(keys<ActivePresetConfig["sections"][number], PromptConfig["sections"][number]>());
+  // `trigger` joined the omitted list on 2026-09-05 (#1462): the plain markers gained ST's `injection_trigger`
+  // gate, so it is now a key EVERY contract section arm carries — the active-preset view still reads only
+  // `id` + `enabled` (no e2e spec asserts a section's generation gate; the assembly suites own that).
+  pin<Subset<"type" | "name" | "role" | "trigger">>(keys<ActivePresetConfig["sections"][number], PromptConfig["sections"][number]>());
   pin<
     Subset<
       | "advanced"
