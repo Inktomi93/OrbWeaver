@@ -91,7 +91,7 @@ export type {
   ProviderDiagnostics,
   VerifyAuthRequest,
 } from "./diagnostics.ts";
-export type { ProviderErrorInit, ProviderErrorKind } from "./errors.ts";
+export type { ProviderErrorInit, ProviderErrorKind, ProviderScrubSet } from "./errors.ts";
 // ── Infra-internal: errors ───────────────────────────────────────────────────────────────────────
 export { PROVIDER_ERROR_KINDS, ProviderError } from "./errors.ts";
 // ── Infra-internal: per-turn observability vocab ─────────────────────────────────────────────────

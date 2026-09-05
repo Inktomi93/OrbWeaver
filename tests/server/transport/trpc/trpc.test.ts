@@ -7,6 +7,7 @@
 // CRUD trio LEFT that list with #1627) and stays open in multi-user mode; and the errorFormatter's
 // PROD-LEAK belt keeps `stack` off the wire shape in EVERY env.
 
+import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -15,7 +16,7 @@ import type { ChatService } from "@orb/server/domain/chat";
 import type { PersonaService } from "@orb/server/domain/persona";
 import type { SettingsService } from "@orb/server/domain/settings";
 import { logger } from "@orb/server/foundation/observability";
-import { providerErrorFromHttp } from "@orb/server/infra/providers/backends/kit";
+import { providerCredentialSecretValues, providerErrorFromHttp } from "@orb/server/infra/providers/backends/kit";
 import type { Context, PresenceRegistry, Services } from "@orb/server/transport/trpc";
 import { appRouter, classifyDomainError } from "@orb/server/transport/trpc";
 import type { Mock } from "vitest";
@@ -380,10 +381,14 @@ describe("errorFormatter — `stack` never reaches the wire (PROD-LEAK belt)", (
 
   test("a provider-reflected credential is absent from the tRPC/UI wire shape and retained cause graph", () => {
     const secret = "sk-or-reflected-through-trpc-123456";
+    // ResolvedCredential is brand-sealed and so is the scrub set it mints (#1599) — a keyed boundary's set
+    // comes from the credential, never from a hand-built array, in a test exactly as in a runner.
+    // FABRICATION-OK: server-can't-mint — only domain credentials/substrate/mint constructs a credential.
+    const credential = { source: "openrouter", apiKey: secret, credentialId: null } as unknown as ResolvedCredential;
     const providerError = providerErrorFromHttp(
       Object.assign(new Error(`upstream rejected ${secret}`), { statusCode: 401, body: `{"error":"${secret}"}` }),
       "openrouter chat",
-      [secret],
+      providerCredentialSecretValues(credential),
     );
     // The formatter only reads `error` for the optional domain reason; the actual client-visible provider
     // bytes are the `shape` produced by tRPC's getErrorShape immediately before this callback.

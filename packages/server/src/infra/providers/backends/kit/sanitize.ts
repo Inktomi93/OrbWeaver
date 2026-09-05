@@ -6,11 +6,14 @@
 // (contract/errors.ts) — the error CORE never holds plaintext key material, so this is the belt that
 // scrubs an upstream-derived string before it crosses into observability or a `ProviderError.message`.
 //
-// NOTE (orbweaver vs neo): neo branded the result `SanitizedErrorMessage` because its `ChatError.message`
+// NOTE (orbweaver vs neo): neo branded the RESULT `SanitizedErrorMessage` because its `ChatError.message`
 // was typed to that brand. Orbweaver's `ProviderError.message` is a plain `string` (contract/errors.ts),
-// so the brand carried no compile-time obligation here and is dropped — the function returns `string`.
+// so that brand carried no compile-time obligation here and is dropped — `sanitizeApiError` returns `string`.
+// The brand this file DOES carry is on the INPUT side: `ProviderScrubSet` (#1599), which does carry an
+// obligation — a credential-bearing boundary cannot omit or fake its scrub set.
 
 import type { ResolvedCredential } from "@orb/contracts/credentials";
+import type { ProviderScrubSet } from "../../contract/index.ts";
 
 const DEFAULT_SANITIZE_MAX_LEN = 500;
 
@@ -36,9 +39,35 @@ export function sanitizeApiError(raw: string, maxLen: number = DEFAULT_SANITIZE_
   return cleaned;
 }
 
-/** Known plaintext values an upstream can reflect into an error. Every user-authored custom header value
- * is secret at this trust boundary: arbitrary endpoints commonly use auth header names we cannot predict. */
-export function providerCredentialSecretValues(credential: ResolvedCredential): string[] {
+const NO_SECRET_LITERALS: readonly string[] = Object.freeze([]);
+
+/**
+ * The ONE spelling for an HTTP boundary that carries NO credential — today the public OpenRouter `/models`
+ * catalog and the diagnostic peel whose result is regex-tested and discarded.
+ *
+ * It is not "an empty scrub set": it is the claim that there is nothing to scrub, and
+ * `providerErrorFromHttp` reads it as the licence to retain the RAW error as `cause` for diagnosability.
+ * Never reach for it to satisfy `tsc` on a keyed path — that is the exact hole the brand closes.
+ */
+export const NO_PROVIDER_SECRETS: ProviderScrubSet = NO_SECRET_LITERALS as ProviderScrubSet;
+
+/**
+ * Known plaintext values an upstream can reflect into an error. Every user-authored custom header value is
+ * secret at this trust boundary: arbitrary endpoints commonly use auth header names we cannot predict.
+ * The ONE legal mint of a credential-derived {@link ProviderScrubSet} — an encapsulated cast, the same
+ * shape the `ResolvedCredential` brand's own factory home uses.
+ *
+ * A keyless SOURCE (vllm / local-light / max-pro-sub) yields an EMPTY set here, and that is NOT the same
+ * fact as {@link NO_PROVIDER_SECRETS}: a credential was still handled, so the classifier keeps its
+ * reconstructed cause. Never "optimise" an empty result into the keyless constant.
+ */
+export function providerCredentialSecretValues(credential: ResolvedCredential): ProviderScrubSet {
+  return credentialSecretLiterals(credential) as ProviderScrubSet;
+}
+
+/** The unbranded half of {@link providerCredentialSecretValues} — split out only so the mint has exactly
+ *  one `as ProviderScrubSet` cast to audit. */
+function credentialSecretLiterals(credential: ResolvedCredential): readonly string[] {
   if (credential.source === "openrouter") {
     return [credential.apiKey];
   }

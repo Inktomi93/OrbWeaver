@@ -3595,7 +3595,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/custom-byo/runners/chat.ts::promise:readErrorBody::1",
       "path": "packages/server/src/infra/providers/backends/custom-byo/runners/chat.ts",
-      "line": 452,
+      "line": 454,
       "column": 26,
       "grammar": "promise",
       "position": "promise:readErrorBody",
@@ -3603,7 +3603,7 @@
       "snippet": "const text = await readErrorBody(res).catch((): string => \"\");",
       "verdict": "deliberate-absorb",
       "reason": "an error-body read failure falls back to res.statusText and the failure is STILL thrown as a secret-scrubbed ProviderError (providerErrorFromHttp) — propagated, not dropped, and secrets redacted by value. Ends if the throw below is removed.",
-      "markerLine": 451
+      "markerLine": 453
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/kit/error-classify.ts::default:catch::1",
