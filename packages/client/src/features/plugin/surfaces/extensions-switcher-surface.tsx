@@ -27,6 +27,7 @@ import { LibrarySurfaceShell } from "#components";
 import { SkeletonRows } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { openConfigTo, selectPluginPageFromList, usePluginPageKey } from "#state";
+import { ExtensionsAwaitingConsent } from "../components/extensions-awaiting-consent.tsx";
 import { useExtensionsEmpty } from "../hooks/use-extensions-empty.ts";
 import { usePluginPages } from "../hooks/use-plugin-pages.ts";
 import { EXTENSIONS_EMPTY_COPY } from "../lib/extensions-copy.ts";
@@ -40,15 +41,22 @@ function ExtensionsPageList(): ReactElement {
     if (empty.reason === null) {
       return <SkeletonRows count={2} shape="line" />;
     }
+    // THE AWAITING ARM IS NOT EMPTY (#1699): it has N installed plugins in it, and rendering them as one
+    // anonymous CTA was the finding. The block names them; the other three arms are genuinely empty and keep
+    // the teaching `EmptyState` verbatim. Both panes render the SAME block, so the mirror law holds for the
+    // identity half too.
+    if (empty.reason === "awaiting-consent") {
+      return <ExtensionsAwaitingConsent plugins={empty.awaitingPlugins} />;
+    }
     const copy = EXTENSIONS_EMPTY_COPY[empty.reason];
     return (
       <EmptyState
         action={
-          <Button intent="secondary" onClick={(): void => openConfigTo("plugins", copy.sub, copy.setting ?? undefined)} size="sm">
+          <Button intent="secondary" onClick={(): void => openConfigTo("plugins", copy.sub)} size="sm">
             {copy.action}
           </Button>
         }
-        description={copy.description(empty.awaiting)}
+        description={copy.description()}
         icon={<Icon icon={Blocks} size="md" />}
         title={copy.title}
         titleAs="h2"
