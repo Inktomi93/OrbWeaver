@@ -17,7 +17,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { configAnchorId } from "#state";
 import { ADMIN_LINK_SSO_SUBCATEGORY } from "../lib/admin-link-sso-nav.ts";
@@ -26,9 +26,11 @@ import { AdminLinkSsoDialog } from "./admin-link-sso-dialog.tsx";
 /** The Link-SSO section body — mounted at the admin pane's sections anchor. */
 export function AdminLinkSsoSection(): ReactElement {
   return (
+    // RESERVED (#1098) — an admin section that settles into the linkable-account list.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading linkable accounts…</Text>}
+      fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
+      reserveKey="config.admin.linkSso"
     >
       <AdminLinkSsoBody />
     </QueryBoundary>

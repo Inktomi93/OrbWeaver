@@ -10,11 +10,10 @@
 import type { RateLimits, ResolvedRateLimits } from "@orb/contracts/settings";
 import { clampRateLimit, RATE_LIMIT_CAP_MIN } from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -56,9 +55,11 @@ function diffRateLimits(baseline: ResolvedRateLimits, draft: Draft): RateLimits 
  *  boundary in-app, but also stands alone). */
 export function RateLimitsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
+    // RESERVED (#1098) — an admin settings section that settles into one row per limit.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading rate limits…</Text>}
+      fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="rate limits — administrators only" onRetry={retry} />}
+      reserveKey="config.admin.rateLimits"
     >
       <RateLimitsBody sectionId={sectionId} />
     </QueryBoundary>

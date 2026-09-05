@@ -39,6 +39,10 @@ export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsChar
   useFocusOnMount(surfaceRef);
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsCharacterSurface")}>
+      {/* DELIBERATELY UNRESERVED (#1098) — a GEOMETRY refusal. The settled body owns this surface's scroll
+          box (`h-full min-h-0 overflow-y-auto`), and `reserveKey`'s measuring Stack is auto-height, so the
+          `h-full` would resolve to `auto` and the surface would stop scrolling (#1133, paid on
+          `character.editor`). Hoist the scroller above the boundary before keying this. */}
       <QueryBoundary
         fallback={<Text voice="gloss">Loading character stats…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="these stats" onRetry={retry} />}

@@ -12,7 +12,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, QueryErrorState, QueryInlineStates, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, QueryInlineStates, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { configAnchorId } from "#state";
 import { useRestartEngine } from "../hooks/use-admin-mutations.ts";
@@ -92,9 +92,12 @@ export function AdminEnginesSection(): ReactElement {
         {/* The launch editor SUSPENDS on getAppSettings (the retired pane surface's one boundary used to
             cover it, and blocked the whole pane on it). Its own boundary now: the engine STATUS list — the
             live ops read an admin opens this section for — paints without waiting on the config read. */}
+        {/* RESERVED (#1098) — the launch editor settles into a full argv form under the live status list,
+            so its read landing pushed the rest of the admin pane down. */}
         <QueryBoundary
-          fallback={<Text voice="gloss">Loading the launch config…</Text>}
+          fallback={<SkeletonRows count={4} />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="the engine launch config" onRetry={retry} />}
+          reserveKey="config.admin.engineLaunch"
         >
           <EngineLaunchConfig />
         </QueryBoundary>

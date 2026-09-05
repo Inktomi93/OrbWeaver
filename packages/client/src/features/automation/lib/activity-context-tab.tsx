@@ -12,9 +12,8 @@
 // exactly as the Preview tab does.
 
 import { History } from "@orb/ui/icons";
-import { Text } from "@orb/ui/text";
 import type { ReactNode } from "react";
-import { QueryBoundary } from "#data";
+import { QueryBoundary, SkeletonRows } from "#data";
 import type { ChatContextState, ContextTabDef } from "#lib";
 import { RoomActivityLog } from "../components/room-activity-log.tsx";
 
@@ -28,7 +27,9 @@ export const automationActivityTab: ContextTabDef<ChatContextState> = {
   crown: true,
   when: (s): boolean => s.isHost,
   body: (s): ReactNode => (
-    <QueryBoundary fallback={<Text voice="gloss">Loading activity…</Text>}>
+    // RESERVED (#1098) — a context-tab body that settles into a run-activity list; the sentence it replaced
+    // was one line where the log is many, so the tab resized under the reader the moment the read landed.
+    <QueryBoundary fallback={<SkeletonRows count={4} />} reserveKey="automation.activityTab">
       <RoomActivityLog chatId={s.chatId} />
     </QueryBoundary>
   ),

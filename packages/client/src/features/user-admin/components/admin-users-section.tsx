@@ -16,7 +16,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { configAnchorId } from "#state";
 import { useSetEnabled, useSetRole } from "../hooks/use-admin-mutations.ts";
@@ -34,9 +34,11 @@ interface UserTarget {
 /** The Users section body — mounted at the admin pane's sections anchor. */
 export function AdminUsersSection(): ReactElement {
   return (
+    // RESERVED (#1098) — an admin section that settles into the account table — the tallest block on the pane.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading the user table…</Text>}
+      fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
+      reserveKey="config.admin.users"
     >
       <AdminUsersBody />
     </QueryBoundary>

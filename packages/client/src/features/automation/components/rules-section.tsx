@@ -122,9 +122,13 @@ export function RulesSectionBody({ chatId }: RulesSectionBodyProps): ReactElemen
   const trpc = useTRPC();
   const { data } = useQuery(trpc.automation.listRules.queryOptions({ chatId }));
   return (
+    // RESERVED (#1098), fallback UNCHANGED — `RulesSkeleton` is already the shape-and-COUNT match (the
+    // non-suspending `listRules` read above sizes it), so what was missing was only the HEIGHT. The read
+    // lives in THIS component, outside the measured wrapper, so it cannot poison the remembered box.
     <QueryBoundary
       fallback={<RulesSkeleton count={data?.length ?? 1} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's rules" onRetry={retry} />}
+      reserveKey="automation.thisChat.rules"
     >
       <RulesSection chatId={chatId} />
     </QueryBoundary>

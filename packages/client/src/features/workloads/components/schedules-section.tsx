@@ -30,7 +30,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { configAnchorId } from "#state";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
@@ -44,9 +44,11 @@ type ScheduleItem = inferOutput<Trpc["workloads"]["listSchedules"]>[number];
 /** The Schedules section body — mounted at the workloads pane's sections anchor. */
 export function SchedulesSection(): ReactElement {
   return (
+    // RESERVED (#1098) — a config section that settles into one row per schedule.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading your schedules…</Text>}
+      fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your schedules" onRetry={retry} />}
+      reserveKey="config.workloads.schedules"
     >
       <SchedulesBody />
     </QueryBoundary>
