@@ -11,9 +11,10 @@
 import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { measureContentColumn } from "../../../../support/ct/measure-content-column.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { RegexMemberStory } from "../_ct-stories.tsx";
+import { RegexMemberContentColumnStory, RegexMemberStory } from "../_ct-stories.tsx";
 
 const RUN_ON_EDIT = /Run on edit/;
 
@@ -247,4 +248,40 @@ test("the macro-substitution mode is authorable and shows the row's stored mode"
   // before compiling, so the sample's literal name matches.
   await page.getByLabel("Sample text").fill("Aria waves");
   await expect(page.getByLabel("Result")).toHaveValue("THEM waves");
+});
+
+// ── #1664 — THE CONTENT COLUMN TAKES ITS TOKEN'S WHOLE STATED CONSUMPTION ────────────────────────────
+// `--width-content-col`'s `$description` says the column is CENTERED and BREATHES to
+// `--width-content-col-wide` once its container clears `@5xl`; this editor spelled the bare cap, so it
+// hard-clamped at 720px, left-pinned, inside panes measured live on the shell at 869px (list-only),
+// 1176px (focus @1280) and 1816px (focus @1920) — the dead-void defect the breathe step was minted for.
+// Asserted through the TOKENS, resolved by a probe inside the query container, so a token move carries
+// the expectation with it and no px literal is written down. ONE mount, BOTH ends of the range plus the
+// crossover: a point measurement cannot prove a range property.
+
+test("the editor column is CENTERED, capped, and BREATHES past @5xl (#1664)", async ({ mount, page }) => {
+  await stub(page);
+  const editor = await mount(<RegexMemberContentColumnStory />);
+  await expect(editor.getByRole("heading", { name: "strip ooc", exact: true })).toBeVisible();
+
+  const column = page.locator('[data-slot="regex-member-editor"]');
+  const narrow = await measureContentColumn(column);
+  // BELOW `@5xl`: the cap binds, and the leftover is split evenly instead of all landing on the right.
+  expect(narrow.containerWidth).toBeGreaterThan(narrow.capPx);
+  expect(narrow.maxWidthPx).toBeCloseTo(narrow.capPx, 0);
+  expect(narrow.columnWidth).toBeCloseTo(narrow.capPx, 0);
+  expect(Math.abs(narrow.leftGutter - narrow.rightGutter)).toBeLessThanOrEqual(1);
+  expect(narrow.leftGutter).toBeGreaterThan(1);
+
+  await page.getByRole("button", { name: "widen the pane" }).click();
+  // SETTLED, never same-tick: the widen is a React commit and the layout it causes is the thing measured.
+  await expect.poll(async () => (await measureContentColumn(column)).containerWidth, { intervals: [20, 50, 100] }).toBeGreaterThan(narrow.containerWidth);
+
+  const wide = await measureContentColumn(column);
+  // PAST `@5xl`: the breathe engages, and it is a real step (the two tokens differ) — a column that
+  // simply stretched, or one still clamped at the cap, both fail here.
+  expect(wide.widePx).toBeGreaterThan(wide.capPx);
+  expect(wide.maxWidthPx).toBeCloseTo(wide.widePx, 0);
+  expect(wide.columnWidth).toBeCloseTo(wide.widePx, 0);
+  expect(Math.abs(wide.leftGutter - wide.rightGutter)).toBeLessThanOrEqual(1);
 });

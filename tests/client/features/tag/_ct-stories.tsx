@@ -5,9 +5,11 @@
 
 import { QueryBoundary } from "@orb/client/data";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { TagCollectionRows } from "../../../../packages/client/src/features/tag/components/tag-collection-rows.tsx";
 import { TagMemberSurface } from "../../../../packages/client/src/features/tag/surfaces/tag-member-surface.tsx";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/ct/measure-content-column.ts";
 
 /** The tag MEMBER EDITOR (the F-11 split's CONTENT half) in isolation — `tag.listTagsWithUsage` (the read)
  *  plus the tag mutations (`updateTag`/`removeTag`/`mergeTags`) are stubbed per-test via routeTrpc. The
@@ -24,6 +26,23 @@ export function TagMemberStory({ memberId = "tag_adventure", width = 720 }: { re
         </QueryBoundary>
       </div>
     </CtDataProviders>
+  );
+}
+
+/** The tag member editor at the two pane widths its CONTENT COLUMN behaves differently at (#1664): below
+ *  the `@5xl` container step, where the column takes `--width-content-col` and centers, and above it,
+ *  where it breathes to `--width-content-col-wide`. ONE mount, both arms — the widen button is the
+ *  crossover, and a CT cannot resize its own fixed host any other way. The widths bracket the real panes
+ *  measured on the shell (869px list-only · 1176px focus at 1280 · 1816px focus at 1920). */
+export function TagMemberContentColumnStory(): ReactElement {
+  const [width, setWidth] = useState(CONTENT_COLUMN_NARROW_PANE);
+  return (
+    <>
+      <button onClick={(): void => setWidth(CONTENT_COLUMN_WIDE_PANE)} type="button">
+        widen the pane
+      </button>
+      <TagMemberStory width={width} />
+    </>
   );
 }
 
