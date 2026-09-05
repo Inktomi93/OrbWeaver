@@ -29166,7 +29166,7 @@
         "verifiedAt": "2026-09-05",
         "evidence": [
           "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md:1-140 full read by the orchestrator at 20ca3612a (lane cb-client-config-polish, #1169 arm a: measured comparison receipt, three drift candidates proposed, nothing landed)",
-          "the two converged axes verified on tree: config-section.tsx passes ListPaneHeader; config-list-group.tsx renders ListRow"
+          "the two converged axes verified on tree: features/config/lib/config-section.tsx:79 passes ListPaneHeader; features/config/components/config-list-group.tsx:288 renders ListRow"
         ],
         "summary": "Measured comparison of the Config LIST pane against the chats/characters/presets LIST panes; the owner decides which drift candidates (D1 row payload, D2 voice budget, D3 shelf kicker) to take — #1169 in Needs owner.",
         "claims": [
@@ -29175,7 +29175,7 @@
             "evidence": [
               {
                 "kind": "code",
-                "target": "packages/client/src/features/config/components/config-section.tsx:79"
+                "target": "packages/client/src/features/config/lib/config-section.tsx:79"
               },
               {
                 "kind": "code",
