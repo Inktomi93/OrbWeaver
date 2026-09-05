@@ -202,6 +202,15 @@ export function nonRunningStageResult(stage: StageDef, plan: { readonly mode: St
   };
 }
 
+/** The stage door's HANG ceiling (#1508) — deliberately NOT a `budget()` value. `budget()` caps every
+ *  scaled ceiling at ten minutes (load-budget.ts `DEFAULT_BUDGET_CEILING_MS`, owner-ruled), and whole-tree
+ *  stages legitimately run past that (`structure:full` measured 292s on a busy box; the push tier's suites
+ *  are longer still) — scaling this through `budget()` would kill honest work. It is not a performance
+ *  budget; it is the line past which a stage is WEDGED, chosen far above any observed run so the only
+ *  thing it can catch is a hang. Past it the stage's process group dies and its transcript says so, which
+ *  the classifier scores as a tool error rather than leaving `pnpm verify` waiting forever. */
+const STAGE_TIMEOUT_MS = 2_700_000; // 45 minutes
+
 async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selection | undefined, tier: Tier): Promise<StageResult> {
   const { root, slot, verbose } = ctx;
   const plan = planStage(stage, selection, tier, root);
@@ -225,6 +234,7 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
   const result = await spawnNicedTranscript(resolveBin(root, cmd), args, {
     cwd: root,
     env,
+    timeoutMs: STAGE_TIMEOUT_MS,
     ...(verbose ? { onChunk: mirrorChunk } : {}),
   });
   const durationMs = Date.now() - start;

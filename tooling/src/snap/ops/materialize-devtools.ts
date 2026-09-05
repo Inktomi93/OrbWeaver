@@ -44,9 +44,9 @@ const PLANTED_CASES = 9;
 const RESOURCE_FETCH_BATCH = 6;
 const RESOURCE_FETCH_ATTEMPTS = 3;
 const RESOURCE_FETCH_RETRY_MS = 250;
-/** Both DevTools ceilings ride `budget()` (#1266): the asset fetch and the frontend navigation are
- *  ceilings a healthy materialisation never reaches, so stretching them under load costs nothing and
- *  stops a contended box reading as a broken DevTools pin. */
+/** All THREE DevTools ceilings ride `budget()` (#1266, #1508): asset fetch, license-notice fetch and the
+ *  frontend navigation are ceilings a healthy materialisation never reaches, so stretching them under load
+ *  costs nothing, stops a contended box reading as a broken pin, and no fetch here can hang unbounded. */
 const RESOURCE_FETCH_BASE_MS = 30_000;
 const RESOURCE_FETCH_TIMEOUT_MS = budget(RESOURCE_FETCH_BASE_MS);
 const FRONTEND_NAV_BASE_MS = 30_000;
@@ -349,7 +349,7 @@ function familyFor(relativePath: string): string {
   return match?.family ?? "devtools-frontend";
 }
 async function fetchNotice(revision: string, path: string): Promise<Buffer> {
-  const response = await fetch(`${GITILES}/+/${revision}/${path}?format=TEXT`, { redirect: "manual" });
+  const response = await fetch(`${GITILES}/+/${revision}/${path}?format=TEXT`, { redirect: "manual", signal: AbortSignal.timeout(RESOURCE_FETCH_TIMEOUT_MS) });
   if (response.status !== HTTP_OK || response.headers.has("location")) {
     throw new Error(`license fetch failed: ${path} (${response.status})`);
   }
