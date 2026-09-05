@@ -339,6 +339,11 @@ export function spawnNicedChild(cmd: string, args: readonly string[], opts: Nice
 export interface TranscriptOptions {
   readonly cwd: string;
   readonly env: NodeJS.ProcessEnv;
+  /** REQUIRED wall-clock ceiling (#1508). This door had NO timeout at all — the promise settled only on
+   *  `error`/`close`, so one wedged child hung the whole `pnpm verify` run forever with no verdict and no
+   *  artifact. Required rather than defaulted: how long a stage may legitimately take is the CALLER's
+   *  policy, and a default here would silently pick one for a caller that never considered it. */
+  readonly timeoutMs: number;
   /** Called with every stdout/stderr chunk AS IT ARRIVES, tagged by stream, so a caller can mirror the
    *  child live (the verify runner's `--verbose`) without giving up the captured transcript. */
   readonly onChunk?: (chunk: string, stream: "stdout" | "stderr") => void;
@@ -356,7 +361,8 @@ export interface TranscriptResult {
 
 /** Long-running child under `nice -n 19` whose OUTPUT ORDER is load-bearing: stdout and stderr are captured
  *  INTERLEAVED in arrival order, with no maxBuffer ceiling (spawnSync's ~1MiB does not truncate — it KILLS
- *  the child) and no timeout (the caller IS the timeout policy). The verify runner's stage door. */
+ *  the child). The caller names the ceiling; past it the child's whole GROUP dies and the transcript says
+ *  so, so a hang becomes a reported tool error instead of an unbounded wait. The verify runner's stage door. */
 export function spawnNicedTranscript(cmd: string, args: readonly string[], opts: TranscriptOptions): Promise<TranscriptResult> {
   return new Promise<TranscriptResult>((resolvePromise) => {
     const chunks: string[] = [];
@@ -368,7 +374,13 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
       resolvePromise({ code: null, transcript: `\n[proc] spawn failed: ${cmd} does not exist\n` });
       return;
     }
-    const child = spawn("nice", ["-n", "19", cmd, ...args], { cwd: opts.cwd, shell: false, env: opts.env });
+    // `detached` so the child leads its own group: a stage is `pnpm → node → the tool`, and killing only
+    // the direct child leaves the tool running with the pipes open — the promise would never settle.
+    const child = spawn("nice", ["-n", "19", cmd, ...args], { cwd: opts.cwd, shell: false, env: opts.env, detached: true });
+    const timer = setTimeout(() => {
+      chunks.push(`\n[proc] TIMED OUT after ${opts.timeoutMs}ms — killed the process group of pid ${child.pid ?? "?"}\n`);
+      killPidGroup(child.pid, "SIGKILL");
+    }, opts.timeoutMs);
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk: string) => {
@@ -382,11 +394,13 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
     // A spawn failure (ENOENT on the bin) never emits `close` with a status — surface it AS a tool error
     // (status null ⇒ every classifier returns 2) with the reason in the transcript, never a silent 0.
     child.on("error", (err: Error) => {
+      clearTimeout(timer);
       chunks.push(`\n[proc] spawn failed: ${err.message}\n`);
       resolvePromise({ code: null, transcript: chunks.join("") });
     });
     // `close` (not `exit`) — it fires after BOTH pipes are drained, so no tail chunk is lost.
     child.on("close", (code: number | null) => {
+      clearTimeout(timer);
       resolvePromise({ code, transcript: chunks.join("") });
     });
   });
@@ -400,6 +414,8 @@ export function spawnNiced(cmd: string, args: readonly string[], opts: SpawnNice
       cwd: opts.cwd,
       env: inheritedProcessEnv(opts.env),
       stdio: ["ignore", "pipe", "pipe"],
+      // Its own process group, the `spawnNicedChild`/`spawnFullPriorityChild` shape — see the timeout below.
+      detached: true,
     });
     let stdout = "";
     let stderr = "";
@@ -414,7 +430,9 @@ export function spawnNiced(cmd: string, args: readonly string[], opts: SpawnNice
     });
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGKILL");
+      // The GROUP, not the direct child (#1508): a command that forks descendants left them RUNNING after
+      // the caller had already seen `timedOut: true`, and those orphans pollute a later run's measurements.
+      killPidGroup(child.pid, "SIGKILL");
     }, opts.timeoutMs ?? budget(DEFAULT_TIMEOUT_BASE_MS));
     child.on("error", (e) => {
       clearTimeout(timer);

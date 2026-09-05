@@ -811,7 +811,7 @@ test("every manual-tier stage carries a reason", () => {
  *  any caller's environment). */
 const NODE_BIN = process.execPath;
 // biome-ignore lint/style/noProcessEnv: the child needs a resolvable PATH for `nice` and NOTHING else — reading the parent's PATH here IS the point, not app config.
-const CAPTURE_OPTS = { cwd: process.cwd(), env: Object.fromEntries([["PATH", process.env["PATH"] ?? ""]]) } as const;
+const CAPTURE_OPTS = { cwd: process.cwd(), env: Object.fromEntries([["PATH", process.env["PATH"] ?? ""]]), timeoutMs: scaledBudget(120_000) } as const;
 
 /** A child that writes to stderr FIRST and puts its verdict LAST on stdout — the compound-stage shape. */
 const VERDICT_CHILD = "process.stderr.write('warn: noise\\n'); setTimeout(() => { process.stdout.write('THE VERDICT\\n'); process.exit(3); }, 150);";

@@ -6169,7 +6169,7 @@
     {
       "siteId": "tooling/src/snap/ops/session-admin.ts::default:catch::1",
       "path": "tooling/src/snap/ops/session-admin.ts",
-      "line": 48,
+      "line": 62,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6177,12 +6177,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a live pid whose socket does not answer is REPORTED from its row with the \"not answering\" mark the caller prints — the read degrades to the evidence it has, it never hides the session. Ends if a silent daemon must become a hard error.",
-      "markerLine": 41
+      "markerLine": 48
     },
     {
       "siteId": "tooling/src/snap/ops/session-admin.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/session-admin.ts",
-      "line": 129,
+      "line": 145,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6190,7 +6190,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a daemon that does not answer its close is REAPED below (group signal + marker settle) and the reap's receipt is printed — the failure path is the louder one. Ends if the reap stops being unconditional after a refused close.",
-      "markerLine": 125
+      "markerLine": 139
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:promise::1",
@@ -6247,7 +6247,7 @@
     {
       "siteId": "tooling/src/snap/ops/session-client.ts::default:catch::1",
       "path": "tooling/src/snap/ops/session-client.ts",
-      "line": 112,
+      "line": 136,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6255,12 +6255,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a refused or absent socket IS the negative answer of a readiness poll — the caller keeps polling until the daemon answers, exits, or the boot budget names the failure. Ends if the poll stops bounding the wait.",
-      "markerLine": 109
+      "markerLine": 133
     },
     {
       "siteId": "tooling/src/snap/ops/session-client.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/session-client.ts",
-      "line": 131,
+      "line": 155,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6268,12 +6268,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the log does not exist until the daemon's first write — an absent file is \"nothing to relay yet\" (the offset is handed back unchanged) and the poll reads again next tick. Ends if a missing log must be reported instead.",
-      "markerLine": 120
+      "markerLine": 144
     },
     {
       "siteId": "tooling/src/snap/ops/session-client.ts::empty:error::1",
       "path": "tooling/src/snap/ops/session-client.ts",
-      "line": 243,
+      "line": 272,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -6281,7 +6281,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "a daemon that vanished mid-call is reported as SESSION DEAD (or SESSION ERROR with the reason) and the call exits toolError — the failure is the printed verdict. Ends if that exit code stops being surfaced.",
-      "markerLine": 226
+      "markerLine": 250
     },
     {
       "siteId": "tooling/src/snap/ops/session-daemon-request.ts::empty:error::1",
