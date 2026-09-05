@@ -1,78 +1,66 @@
-// Gate: rpg-bus-coverage (ledger D50 twin; client-architecture-lockdown.md §13 law 4) — the RpgBusEvent
-// emit-coverage ratchet. The union is compile-exhaustive on the CONSUMER side (the client `EVENT_INVALIDATIONS`
-// total map), but nothing checks the PRODUCER side — a member can be declared, belt-listed, and never emitted
-// (silently dead wire). Every discriminator in `RPG_BUS_EVENT_TYPES` must have a server-side emit site OR a
-// cited DEFERRED entry. DEFERRED is a ratchet, self-cleaning in both directions (a lost emit site on a live
-// member, or a gained one on a deferred member, is RED). The reconcile is shared with the chat/user twins
-// (tooling/src/verify/lib/bus-coverage.ts) — this file is the rpg SPEC + its self-proof. The belt is the ARRAY
-// shape (`[…] as const satisfies readonly RpgBusEvent["type"][]`). COMMENT POSTURE: comment-SAFE AST calls.
-//
-// W1c-a landed the union + belt + this gate WITH every member DEFERRED; W1c-b wired every emit site (a verb/
-// flush calling the injected `EmitRpgEvent` op), so the DEFERRED map is now EMPTY — all five members are
-// EMITTED. Like the chat/`bus-coverage` twin, an all-emitted gate has NO fixturable arm (STALE needs a deferred
-// member; MISSING needs an un-emitted REAL member, which a throwaway `__g_` file cannot add to the single-home
-// union), so it joins UNFIXTURABLE_GATES in check-gates.int and its `__g_rpgbus` STALE fixture is deleted. The
-// STALE mechanism stays proven by the `user-bus-coverage` twin's still-DEFERRED `connectionsChanged`.
+// RpgBusEvent producer coverage: every declared member has a canonical executable server emitter.
+// The shared bus fact owns union/member/call identity and refuses incomplete derivations.
+import type { RpgBusEvent } from "@orb/contracts/rpg";
+import { busByUnion, recordReadyBusFact } from "../contract/bus-fact.ts";
+import { defineGate } from "../contract/policy.ts";
+import { createBusFactQuery } from "../lib/bus-fact.ts";
 
-import type { GateDescriptor } from "../contract/gate.ts";
-import type { BusCoverageSpec } from "../contract/readers.ts";
-import { reconcileBusCoverage } from "../lib/bus-coverage.ts";
+const UNION = { path: "packages/contracts/src/rpg/bus.ts", exportName: "RpgBusEvent" } as const;
+const MESSAGE =
+  "RpgBusEvent member has NO server emit site — a declared-never-emitted bus member is silently dead wire (D50; Core-Laws-and-Precedents.md §7 D50).";
 
-const MISSING_MESSAGE_PREFIX =
-  "RpgBusEvent member has NO server emit site and no DEFERRED entry — a declared-never-emitted bus member is silently dead wire (D50 — see Core-Laws-and-Precedents.md §7 D50). Wire the emit or add a cited DEFERRED entry: ";
-const STALE_MESSAGE_PREFIX = "DEFERRED rpg-bus member now HAS an emit site — delete its stale allowlist entry in rpg-bus-coverage.ts: ";
-
-/** Declared-not-emitted members, each with its tracked citation. EMPTY as of W1c-b — every member now HAS a
- *  server emit site in `domain/rpg/**`: `gameChanged` (createGame/updateConfig), `snapshotPatched` (the flush +
- *  editSnapshot/quest verbs/restoreCheckpoint), `sheetChanged` (patchSheet), `questChanged` (upsertQuest/
- *  deleteQuest), `journalChanged` (addJournalEntry-family + the staged journal flush). A member re-added here
- *  while its emit still lives is STALE-red; an emit site LOST on a live member is MISSING-red. */
-const SPEC: BusCoverageSpec = {
-  contractsFile: /\/packages\/contracts\/src\/rpg\/bus\.ts$/u,
-  typesConst: "RPG_BUS_EVENT_TYPES",
-  keyShape: "array",
-  reportFile: "packages/contracts/src/rpg/bus.ts",
-  deferred: {},
-  missingPrefix: MISSING_MESSAGE_PREFIX,
-  stalePrefix: STALE_MESSAGE_PREFIX,
-};
-
-export const gate: GateDescriptor = {
-  name: "rpg-bus-coverage",
-  docRow: "ledger D50 twin (Core-Laws-and-Precedents.md §7 D50) · client-architecture-lockdown.md §13 law 4",
-  status: "active",
-  scopeSafety: "whole-project",
-  message: MISSING_MESSAGE_PREFIX,
-  fix: "wire the server emit site (publishRpgEvent via the injected EmitRpgEvent op) for the bus member, or add a cited DEFERRED entry in rpg-bus-coverage.ts.",
-  run: (ctx) => {
-    for (const v of reconcileBusCoverage(ctx.project, SPEC)) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-    }
+export const gate = defineGate({
+  id: "rpg-bus-coverage",
+  family: "bus-fact",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@authored"], ext: ["ts", "tsx"] },
+  analysis: "types",
+  execution: "entire-population",
+  message: MESSAGE,
+  fix: "wire the canonical injected EmitRpgEvent operation for the member.",
+  create: (ctx) => {
+    const query = createBusFactQuery<RpgBusEvent>(ctx);
+    return {
+      visitors: query.visitors,
+      evaluate: () => {
+        const fact = query.finish();
+        recordReadyBusFact(ctx, fact);
+        const bus = busByUnion(fact, UNION);
+        if (bus === undefined) {
+          throw new Error(`expected bus union is missing: ${UNION.path}#${UNION.exportName}`);
+        }
+        const emitted = new Set(bus.emitters.map(({ member }) => member.name));
+        for (const member of bus.declaredMembers) {
+          if (!emitted.has(member.name)) {
+            ctx.report.node(member.anchor.node, { message: `${MESSAGE} Member: ${member.name}` });
+          }
+        }
+      },
+    };
   },
-  // With the DEFERRED map now EMPTY (every member emitted, W1c-b), the STALE (flag) + deferred-covered (pass)
-  // arms are RETIRED — a synthetic member can only exercise the deferred branch if it keys into the REAL map,
-  // and there is no deferred member to key on. Those two branches stay LIVE-RUN-COVERED by the `user-bus-coverage`
-  // twin (its `connectionsChanged` entry — same reconcile, shared lib). Only the pure MISSING (flag) +
-  // EMITTED-covered (pass) arms are ported here (the `bus-coverage` twin's exact posture).
   mustFlag: [
     {
-      // A member with neither an emit literal nor a DEFERRED entry — the pure MISSING arm (the array belt shape).
+      mode: "types",
       files: {
-        "packages/contracts/src/rpg/bus.ts": 'export const RPG_BUS_EVENT_TYPES = ["neverEmitted"] as const satisfies readonly never[];\n',
-        "packages/server/src/domain/rpg/x.ts": 'export const q = "neverEmitted";\n',
+        "packages/contracts/src/rpg/bus.ts":
+          'export type RpgBusEvent = { type: "neverEmitted" };\nexport const RPG_BUS_EVENT_TYPES = ["neverEmitted"] as const satisfies readonly RpgBusEvent["type"][];\n',
+        "packages/server/src/domain/rpg/x.ts": 'export const decoy = "neverEmitted";\n',
       },
-      expect: { messageIncludes: "NO server emit site" },
-      why: "an arbitrary matching literal is not an emitBus call — the RPG member remains dead wire",
+      expect: { count: 1, messageIncludes: "neverEmitted" },
+      why: "an arbitrary matching literal is not the injected RPG emitter",
     },
   ],
   mustPass: [
     {
-      // A member with a real emit literal AND not in the (empty) DEFERRED map — the emitted-covered (pass) arm.
+      mode: "types",
       files: {
-        "packages/contracts/src/rpg/bus.ts": 'export const RPG_BUS_EVENT_TYPES = ["freshEmit"] as const satisfies readonly never[];\n',
-        "packages/server/src/domain/rpg/x.ts": 'ctx.emitBus({ type: "freshEmit" });\n',
+        "packages/contracts/src/rpg/bus.ts":
+          'export type RpgBusEvent = { type: "freshEmit" };\nexport const RPG_BUS_EVENT_TYPES = ["freshEmit"] as const satisfies readonly RpgBusEvent["type"][];\n',
+        "packages/server/src/domain/rpg/x.ts":
+          'import type { RpgBusEvent } from "../../../../contracts/src/rpg/bus.ts";\nexport function create(ctx: { emitBus: (event: RpgBusEvent) => void }): void { ctx.emitBus({ type: "freshEmit" }); }\n',
       },
-      why: "the member's discriminator is carried by the injected emitBus call and is not deferred — covered, passes",
+      why: "the member is carried by the canonical injected RPG emitter",
     },
   ],
-};
+});
