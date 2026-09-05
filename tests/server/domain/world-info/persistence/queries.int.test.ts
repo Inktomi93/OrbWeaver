@@ -18,7 +18,13 @@ import { castId } from "@orb/kit/ids";
 import { buildKeywordHaystack, matchEntryKeys, resolveEntryInjection, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { loadOwnedBook, loadOwnedEntry, toBookView, toEntryView } from "../../../../../packages/server/src/domain/world-info/persistence/queries.ts";
+import {
+  listBookEntries,
+  loadOwnedBook,
+  loadOwnedEntry,
+  toBookView,
+  toEntryView,
+} from "../../../../../packages/server/src/domain/world-info/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
@@ -41,7 +47,11 @@ async function seedBook(db: DbHandle, ownerId: UserId, id: string): Promise<Worl
   return bookId;
 }
 
-async function seedEntry(db: DbHandle, bookId: WorldBookId, overrides: { id: string; keys?: string[] | null; metadata?: unknown }): Promise<WorldEntryId> {
+async function seedEntry(
+  db: DbHandle,
+  bookId: WorldBookId,
+  overrides: { id: string; keys?: string[] | null; metadata?: unknown; priority?: number },
+): Promise<WorldEntryId> {
   const entryId = castId<WorldEntryId>(overrides.id);
   await db.insert(worldEntries).values({
     id: entryId,
@@ -49,6 +59,7 @@ async function seedEntry(db: DbHandle, bookId: WorldBookId, overrides: { id: str
     title: "E",
     content: "c",
     keys: overrides.keys ?? null,
+    priority: overrides.priority ?? 0,
     metadata: overrides.metadata as never,
     createdAt: FROZEN_AT,
   });
@@ -98,6 +109,27 @@ describe("loadOwnedBook / loadOwnedEntry owner-scoping", () => {
     expect(await loadOwnedBook(db, owner, theirBook)).toBeUndefined();
     expect(await loadOwnedEntry(db, owner, theirEntry)).toBeUndefined();
     expect(await loadOwnedEntry(db, other, theirEntry)).toBeDefined();
+  });
+});
+
+describe("total order on the list reads", () => {
+  // `priority` is not unique — every entry a user never reordered sits at the default 0 — so the entry list
+  // has no defined order at all without a tiebreak, and the rows come back in whatever order the scan
+  // produced. The tiebreak is `id ASC` (TypeIDs are uuidv7-backed): inside one priority band the OLDEST
+  // entry is first, so a newly created entry appends to the END of its band instead of jumping the queue.
+  // The rows here are inserted out of id order precisely so scan order cannot be mistaken for a sort.
+  test("entries in one priority band come back oldest-id-first, independent of insert order", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const bookId = await seedBook(db, owner, "world_book_order");
+    await seedEntry(db, bookId, { id: "world_entry_c" });
+    await seedEntry(db, bookId, { id: "world_entry_a" });
+    await seedEntry(db, bookId, { id: "world_entry_top", priority: 5 });
+    await seedEntry(db, bookId, { id: "world_entry_b" });
+
+    const rows = await listBookEntries(db, bookId);
+
+    expect(rows.map((r) => r.id)).toEqual(["world_entry_top", "world_entry_a", "world_entry_b", "world_entry_c"]);
   });
 });
 

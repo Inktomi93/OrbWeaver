@@ -358,7 +358,12 @@ export async function loadRawWorkloadParams(db: Db, id: WorkloadId): Promise<Rec
 }
 
 /** Filtered list (kind/status/owner/since), newest-first, hard-capped 500. Rows of an unknown kind are
- *  filtered out (deploy skew); a params-poison row is INCLUDED as a visibly-broken row. */
+ *  filtered out (deploy skew); a params-poison row is INCLUDED as a visibly-broken row.
+ *
+ *  `createdAt DESC, id DESC` is a TOTAL order. `created_at` is not unique — one fan-out enqueues a whole
+ *  batch inside a millisecond — and this read is LIMITed, so an unstable sort does not merely shuffle the
+ *  page: it decides which rows the operator sees at all, differently on each poll. The id tiebreak is the
+ *  same one the queue scan below already carries (TypeIDs are uuidv7-backed, so it stays newest-first). */
 export async function listWorkloads(db: Db, contributions: WorkloadContributions, params: WorkloadListFilter): Promise<WorkloadRowAnyKind[]> {
   const filters: SQL[] = [];
   if (params.kind !== undefined) {
@@ -381,7 +386,7 @@ export async function listWorkloads(db: Db, contributions: WorkloadContributions
     .select()
     .from(workloads)
     .where(filters.length > 0 ? and(...filters) : undefined)
-    .orderBy(desc(workloads.createdAt))
+    .orderBy(desc(workloads.createdAt), desc(workloads.id))
     .limit(limit);
   return rows.flatMap((row) => {
     const view = toView(contributions, row);

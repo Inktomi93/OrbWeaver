@@ -247,12 +247,14 @@ export function createAttachOwnedBooksByName(ctx: WorldInfoImportContext): Attac
     const primaryFree = role === "primary" && (await findPrimaryBookId(db, characterId)) === null;
 
     // ONE owner-scoped resolve for the whole name list; newest-wins per name (the `findBookByName` rule,
-    // batched). Ordered ASC so the LAST write per name in the fold is the newest row.
+    // batched). Ordered ASC so the LAST write per name in the fold is the newest row — and the `id` tiebreak
+    // makes that TOTAL: `created_at` is not unique, so books minted together (a bundle restore) would
+    // otherwise let the storage scan decide which one a name resolves to.
     const candidates = await db
       .select({ id: worldBooks.id, name: worldBooks.name })
       .from(worldBooks)
       .where(and(eq(worldBooks.ownerId, ownerId), inArray(worldBooks.name, [...names])))
-      .orderBy(asc(worldBooks.createdAt));
+      .orderBy(asc(worldBooks.createdAt), asc(worldBooks.id));
     // @orb-gate-ignore persistence-no-in-memory-state: query-local newest-wins fold for the batch resolve
     const newestByName = new Map<string, WorldBookId>();
     for (const row of candidates) {
@@ -283,12 +285,16 @@ export function createAttachOwnedBooksByName(ctx: WorldInfoImportContext): Attac
 // The standalone (unattached) path — a sibling of createBulkImportLorebook that lands a lone book with no
 // character attach. Dedup key is (ownerId, name); newest wins when names collide.
 
+/** Newest-wins by (ownerId, name). The `id DESC` tiebreak is load-bearing, not cosmetic: this LIMIT 1 picks
+ *  the row a re-import REPLACES (entries deleted + reinserted), so with same-name books tied on `created_at`
+ *  an unstable sort chose a destructive target by scan order. TypeIDs are uuidv7-backed — id order IS mint
+ *  order — so the tiebreak resolves "newest" rather than inventing a rule. */
 async function findBookByName(db: Db, ownerId: UserId, name: string): Promise<WorldBookId | null> {
   const rows = await db
     .select({ id: worldBooks.id })
     .from(worldBooks)
     .where(and(eq(worldBooks.ownerId, ownerId), eq(worldBooks.name, name)))
-    .orderBy(desc(worldBooks.createdAt))
+    .orderBy(desc(worldBooks.createdAt), desc(worldBooks.id))
     .limit(1);
   return rows[0]?.id ?? null;
 }
