@@ -9,27 +9,16 @@
 // in the dispatch file's header (`config-list-group.tsx`), which owns what is true of BOTH arms; this file
 // owns what is true of a collection only. What is true here alone:
 //
-// THE VOICE BUDGET IS THE PANE'S, NOT PER-SPECIES (#1714, 2026-09-05). Its ONE home is
-// `config-list-group.tsx`'s header and it governs this file too: `interactiveKicker` names this band
-// because a band is a control that names a region, `datum` is its mono count, `gloss` is the empty
-// library's sentence — and a STATE mark would be a `Badge`, never a voice. This arm carries no state mark
-// at all, and that is a fact about the DATA rather than a choice: `useConfigModified` resolves a section
-// contribution's `owns` SettingsKeyClaim and a collection declares none, so "differs from its default" is
-// not a question a library can be asked; and `ConfigGroupBody`'s three arms make `collection` and
-// `{ placeholder: true }` mutually exclusive, so it can never be unbuilt either. Both were priced when the
-// owner retired the #925 species fence (`docs/design/config-revamp-design.md` §8.1a).
-//
+// THE VOICE BUDGET IS THE PANE'S, NOT PER-SPECIES (#1714): its ONE home is `config-list-group.tsx`'s header;
+// why this arm carries no state mark (data + type, not taste) is `docs/design/config-revamp-design.md` §8.1a.
 // THE BAND'S CONTROLS ARE SIBLINGS, never nested: the disclosure is a button spanning the identity cluster,
 // and the trailing verbs (the optional BULK toggle, the optional IMPORT trigger, then the create `+`) sit
 // BESIDE it — a button inside the disclosure button would be unclickable-by-spec (nested interactives) and
 // unreadable to a screen reader. IMPORT leads CREATE because create is the primary and a primary sits last,
 // hard against the trailing edge (the world-info list band's landed order, re-homed).
-//
-// AND THE BAND HAS TWO ARMS BY POPULATION, which is the one thing to read before editing either — but as of
-// #925 both arms are DOORS, and population decides only what is behind them: a zero-member band SELECTS into
-// the library's own empty surface (`CollectionEmptyBand`, #1099 F5), and a populated band ENTERS the library
-// on the first click (CONTENT lands on its landing) then TOGGLES its rows on the next
-// (`CollectionMemberBand`). Each component states its own ruling fork in full; read the one you are editing.
+// AND THE BAND HAS TWO ARMS BY POPULATION — both DOORS as of #925; population decides only what is behind
+// them: a zero-member band SELECTS into the library's empty surface (`CollectionEmptyBand`, #1099 F5); a
+// populated band ENTERS on the first click, then TOGGLES its rows (`CollectionMemberBand`); each states its fork.
 
 import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
