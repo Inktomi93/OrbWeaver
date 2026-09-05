@@ -1,0 +1,73 @@
+// Exact population, phase, owner, and authority receipts emitted by the final policy dispatcher.
+import type { Project } from "ts-morph";
+import type {
+  CoordinatedGateFinding,
+  GateAuthorityBatchResult,
+  GateOwnerCompletion,
+  OrdinaryAuthorityAlarm,
+  OrdinaryReconciliationInput,
+  RawGateFinding,
+  ReviewedGateGrant,
+} from "./gate-authority.ts";
+import type { GatePolicy } from "./policy.ts";
+
+export const POLICY_PHASES = ["population", "create", "visitFile", "visit", "evaluate"] as const;
+export type PolicyPhase = (typeof POLICY_PHASES)[number];
+
+export interface PolicyPopulationReceipt {
+  readonly declaredSourcePaths: readonly string[];
+  readonly declaredResourcePaths: readonly string[];
+  /** The caller's exact normalized set, or null when the complete population was requested. */
+  readonly requestedPaths: readonly string[] | null;
+  readonly effectiveSourcePaths: readonly string[];
+  readonly effectiveResourcePaths: readonly string[];
+}
+
+export type PolicySemanticReceipt =
+  | { readonly kind: "population"; readonly source: string; readonly members: number; readonly unresolved: number }
+  | { readonly kind: "resource"; readonly source: string; readonly resources: number; readonly unresolved: number };
+
+export interface PolicyTiming {
+  readonly totalMs: number;
+  readonly phaseMs: Readonly<Record<PolicyPhase, number>>;
+}
+
+export interface PolicyToolError {
+  readonly policyId: string;
+  readonly phase: PolicyPhase;
+  readonly message: string;
+}
+
+export interface PolicyOwnerResult {
+  readonly id: string;
+  readonly owner: GateOwnerCompletion;
+  readonly population: PolicyPopulationReceipt;
+  readonly findings: readonly RawGateFinding[];
+  readonly receipts: readonly PolicySemanticReceipt[];
+  readonly timing: PolicyTiming;
+}
+
+export interface PolicyPassTiming {
+  readonly totalMs: number;
+  readonly policyMs: number;
+}
+
+/** Internal invocation input. Project/root stop here and never enter GatePolicyContext. */
+export interface PolicyPassInput {
+  readonly policies: readonly GatePolicy[];
+  readonly root: string;
+  readonly project: Project;
+  readonly requestedPaths?: readonly string[];
+  readonly resourcePathsByPolicy?: ReadonlyMap<string, readonly string[]>;
+  readonly reviewedGrants: readonly ReviewedGateGrant[];
+  readonly failOnWarnings: boolean;
+  readonly waiverFor?: (finding: CoordinatedGateFinding) => string | null;
+  readonly reconcileOrdinary?: (input: OrdinaryReconciliationInput) => readonly OrdinaryAuthorityAlarm[];
+}
+
+export interface PolicyPassResult {
+  readonly policies: readonly PolicyOwnerResult[];
+  readonly toolErrors: readonly PolicyToolError[];
+  readonly authority: GateAuthorityBatchResult;
+  readonly timing: PolicyPassTiming;
+}
