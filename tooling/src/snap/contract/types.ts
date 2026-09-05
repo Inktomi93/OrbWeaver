@@ -433,20 +433,3 @@ export interface WatchTick {
   shotError: string | null;
   evals: EvalOutcome[];
 }
-
-export interface ScenarioCheckpoint {
-  readonly name: string;
-  readonly args: readonly string[];
-}
-export interface ScenarioSpec {
-  readonly name: string;
-  readonly defaults: readonly string[];
-  readonly checkpoints: readonly ScenarioCheckpoint[];
-}
-
-export interface PreparedScenario {
-  readonly spec: ScenarioSpec;
-  readonly checkpoints: readonly Args[];
-}
-
-export type ScenarioPreparation = { readonly status: "prepared"; readonly value: PreparedScenario } | { readonly status: "failed"; readonly error: string };
