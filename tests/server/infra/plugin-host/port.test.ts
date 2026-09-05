@@ -372,7 +372,7 @@ function fakeBridge(): {
       getVariables: () => Promise.resolve({ tension: "4" }),
       applyVariableOps: () => {
         writes.count += 1;
-        return Promise.resolve();
+        return Promise.resolve({ outcome: "applied" });
       },
       requestTurn: (chatId, automationDepth, p) => {
         turns.count += 1;

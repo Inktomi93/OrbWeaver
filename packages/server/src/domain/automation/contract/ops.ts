@@ -20,7 +20,7 @@ import type {
   SuggestibleAction,
   TriggerFact,
 } from "@orb/contracts/automation";
-import type { PromptTransform, TurnInitiator } from "@orb/contracts/chat";
+import type { PromptTransform, TurnInitiator, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { NotificationEvent, NotificationRecipient } from "@orb/contracts/notifications";
@@ -227,8 +227,13 @@ export interface AutomationOps {
     readonly readChoicePicks: (chatId: ChatId) => Promise<Record<string, string>>;
     /** The standalone (out-of-turn) runtime-variable write a `set_variable` chat-scope arm dispatches
      *  through; wired to chat's `applyStandaloneVariableOps` at compose. Principal-free — the
-     *  author's host authority was re-verified at the dispatch gate. */
-    readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[]) => Promise<void>;
+     *  author's host authority was re-verified at the dispatch gate.
+     *
+     *  `expect` is the OPTIONAL compare-and-set (#1555): with preconditions the write lands only while every
+     *  one still holds against the live fold, and otherwise refuses AS DATA having written nothing. The
+     *  automation arms pass none (a rule's `set_variable` is an unconditional assignment) and read `applied`;
+     *  the plugin membrane aliases this exact op and is the caller that uses it. */
+    readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[], expect?: readonly VariablePrecondition[]) => Promise<VariableWriteResult>;
     /** BG-F — the `set_chat_background` arm's CANDIDATE set: the author's owned background library projected
      *  to `(name, source)` pairs (compose reads the author's `appearance.backgroundLibrary`). Empty ⇒ the
      *  arm no-ops (nothing to pick). Author-scoped; the picked source is the author's own asset, so BG-C's

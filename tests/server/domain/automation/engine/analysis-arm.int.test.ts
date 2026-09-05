@@ -76,7 +76,7 @@ function makeHarness(
       resolveChatProse: () => Promise.resolve({}),
       applyVariableOps: (chatId, varOps) => {
         captured.varOps.push({ chatId, ops: varOps });
-        return opts.throwOnVarOps === true ? Promise.reject(new Error("variable write exploded")) : Promise.resolve();
+        return opts.throwOnVarOps === true ? Promise.reject(new Error("variable write exploded")) : Promise.resolve({ outcome: "applied" });
       },
       listBackgroundChoices: () => Promise.resolve([]),
       setChatBackground: () => Promise.resolve(),

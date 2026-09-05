@@ -16,6 +16,7 @@
 // fetch — the attachment gate, the per-plugin entry cap and `neutralizeMacros` — is pinned by
 // `tests/server/domain/plugin/substrate/bridge.test.ts`.
 
+import type { VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { historyFloor } from "@orb/contracts/chat";
 import type { InvocationChat, PluginCapability, PluginHandlerRef } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
@@ -611,6 +612,22 @@ test("every seeded example packs to a bundle the real install verb accepts", asy
   expect(ids).toHaveLength(EXAMPLE_PLUGIN_SLUGS.length);
 });
 
+/** The live value of one key in a room's variable store — `null` for an unset key, which is the reading a
+ *  `{ expected: null }` belief claims (and is NOT the same as the empty string). */
+function liveVar(vars: Record<string, string>, key: string): string | null {
+  return Object.hasOwn(vars, key) ? (vars[key] ?? null) : null;
+}
+
+/** The `stale` refusal for a belief set that no longer holds, or `null` when every belief still holds — the
+ *  compare-and-set half of the room-variable store (#1555), reproduced faithfully because a guest that retries
+ *  on a refusal is only exercised by a store that can REFUSE. */
+function casRefusal(vars: Record<string, string>, beliefs: readonly VariablePrecondition[]): VariableWriteResult | null {
+  if (beliefs.every((b) => liveVar(vars, b.key) === b.expected)) {
+    return null;
+  }
+  return { outcome: "stale", actual: Object.fromEntries(beliefs.map((b) => [b.key, liveVar(vars, b.key)])) };
+}
+
 test("story clocks: variables are the room-state plane, the tool ticks, and a human fill asks for a turn", async () => {
   const db = await freshDb();
   const { ops: recorded, captured } = recordingOps(db, new Map());
@@ -618,13 +635,32 @@ test("story clocks: variables are the room-state plane, the tool ticks, and a hu
   // a `requestTurn` capture — both riding the exact op signatures compose wires.
   const roomVars = new Map<string, Record<string, string>>();
   const turnRequests: { readonly chatId: ChatId; readonly guided?: string }[] = [];
+  /** A ONE-SHOT racing writer, fired inside the next CONDITIONAL write — the window between the guest's read
+   *  and its write, which is where the lost tick lives (#1555) and which nothing else in this harness can
+   *  reach. Armed by the compare-and-set arm at the bottom of this test. */
+  let interloper: (() => void) | null = null;
+  /** Fire the armed interloper (once) if this write carries beliefs — i.e. only on the CAS path under test. */
+  const raceOnce = (beliefs: readonly VariablePrecondition[] | undefined): void => {
+    if (interloper === null || (beliefs?.length ?? 0) === 0) {
+      return;
+    }
+    const fire = interloper;
+    interloper = null;
+    fire();
+  };
   const ops: PluginHostOps = {
     ...recorded,
     chat: {
       ...recorded.chat,
       getVariables: (chatId): Promise<Record<string, string>> => Promise.resolve({ ...(roomVars.get(chatId) ?? {}) }),
-      applyVariableOps: (chatId, varOps): Promise<void> => {
+      applyVariableOps: (chatId, varOps, beliefs): Promise<VariableWriteResult> => {
+        raceOnce(beliefs);
         const vars = roomVars.get(chatId) ?? {};
+        // A violated belief writes NOTHING and hands back what the keys actually read (see `casRefusal`).
+        const refusal = casRefusal(vars, beliefs ?? []);
+        if (refusal !== null) {
+          return Promise.resolve(refusal);
+        }
         for (const op of varOps) {
           if (op.op === "set") {
             vars[op.key] = op.value;
@@ -633,7 +669,7 @@ test("story clocks: variables are the room-state plane, the tool ticks, and a hu
           }
         }
         roomVars.set(chatId, vars);
-        return Promise.resolve();
+        return Promise.resolve({ outcome: "applied" });
       },
       requestTurn: (req): Promise<void> => {
         turnRequests.push({ chatId: req.chatId, ...(req.guided === undefined ? {} : { guided: req.guided }) });
@@ -713,6 +749,26 @@ test("story clocks: variables are the room-state plane, the tool ticks, and a hu
   const state = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "clock_flank", chatId: CHAT });
   expect(String(state?.["line0"])).toContain("the ritual");
   expect(String(state?.["line0"])).toContain("4/4");
+
+  // THE LOST TICK, CLOSED (#1555). A tick is read-modify-write, and this plugin's two writers do not see each
+  // other: `advance_clock` rides the resident's serialized invoke queue, a panel button arrives on a fresh
+  // bridge that never touches it. `interloper` fires INSIDE the write — the window between the guest's read
+  // and its write, which no ordering of these two doors could otherwise reproduce.
+  const vars = roomVars.get(CHAT) ?? {};
+  vars["clock:the_ritual"] = "1/4";
+  roomVars.set(CHAT, vars);
+  interloper = (): void => {
+    // Somebody else ticked it to 2/4 while the guest was computing 2/4 from 1/4. Unconditionally, this write
+    // would land 2/4 and the interloper's tick would be gone.
+    (roomVars.get(CHAT) ?? {})["clock:the_ritual"] = "2/4";
+  };
+  const raced = await invoke(tool, JSON.stringify({ name: "the ritual" }), chatScope(CHAT, true));
+
+  // The guest's precondition ("I read 1/4") no longer held, the host refused AS DATA, and the guest re-derived
+  // from `actual` — so BOTH ticks are in the number: 1/4 → (interloper) 2/4 → (retry) 3/4.
+  expect(roomVars.get(CHAT)?.["clock:the_ritual"]).toBe("3/4");
+  expect(raced).toContain("3/4");
+  expect(interloper).toBeNull(); // the one-shot really fired — a planted control for the arm itself
 });
 
 test("pocket arcade: a one-capability frame plugin registers its document, and the bytes never reach the wire", async () => {

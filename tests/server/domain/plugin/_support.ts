@@ -325,7 +325,7 @@ export function makeInertOps(): PluginHostOps {
       resolveViewerVisibility: () => Promise.resolve(null),
       getVariables: () => Promise.resolve({}),
       listCharacters: () => Promise.resolve([]),
-      applyVariableOps: () => Promise.resolve(),
+      applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
       requestTurn: () => Promise.resolve(),
     },
     worldInfo: {

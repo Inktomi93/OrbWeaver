@@ -113,7 +113,7 @@ function makeHarness(db: Db, opts: HarnessOptions = {}): { dispatch: ArmDispatch
       resolveChatProse: () => Promise.resolve(bg.prose ?? {}),
       applyVariableOps: (chatId, varOps) => {
         captured.varOps.push({ chatId, ops: varOps });
-        return Promise.resolve();
+        return Promise.resolve({ outcome: "applied" });
       },
       listBackgroundChoices: () => Promise.resolve(bg.choices ?? []),
       setChatBackground: (args) => {
