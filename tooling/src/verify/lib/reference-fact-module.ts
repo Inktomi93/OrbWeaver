@@ -121,6 +121,37 @@ function resolveExportSpecifier(declaration: ExportSpecifier, symbol: MorphSymbo
   return resolved(aliased, target, aliased);
 }
 
+function starExportCandidates(sourceFile: SourceFile, exportName: string): readonly import("ts-morph").ExportDeclaration[] {
+  return sourceFile.getExportDeclarations().filter((declaration) => {
+    if (declaration.hasNamedExports() || declaration.getNamespaceExport() !== undefined) {
+      return false;
+    }
+    const exportedSource = declaration.getModuleSpecifierSourceFile();
+    return exportedSource?.getExportSymbols().some((exportedSymbol) => exportedSymbol.getName() === exportName) ?? false;
+  });
+}
+
+function resolveStarExport(sourceFile: SourceFile, exportName: string, target: ModuleState): ReferenceFact<MorphNode> | undefined {
+  const candidates = starExportCandidates(sourceFile, exportName);
+  if (candidates.length === 0) {
+    return;
+  }
+  if (candidates.length !== 1) {
+    return unresolved("ambiguous", sourceFile, target, `${sourceFile.getFilePath()} has ${candidates.length} export-star origins for ${exportName}`);
+  }
+  const declaration = candidates[0];
+  if (declaration === undefined) {
+    return unresolved("missing", sourceFile, target, `${sourceFile.getFilePath()} has no export-star origin for ${exportName}`);
+  }
+  if (!enterDeclaration(target, declaration)) {
+    return unresolved("cycle", declaration, target, `module export-star cycle resolving ${exportName}`);
+  }
+  const exportedSource = declaration.getModuleSpecifierSourceFile();
+  return exportedSource === undefined
+    ? unresolved("missing", declaration, target, `export star ${declaration.getText()} has no resolvable source`)
+    : resolveExportedDeclaration(exportedSource, exportName, target);
+}
+
 function resolveExportedDeclaration(sourceFile: SourceFile, exportName: string, target: ModuleState): ReferenceFact<MorphNode> {
   const symbols = sourceFile.getExportSymbols().filter((exportedSymbol) => exportedSymbol.getName() === exportName);
   if (symbols.length === 0) {
@@ -133,9 +164,6 @@ function resolveExportedDeclaration(sourceFile: SourceFile, exportName: string, 
   if (symbol === undefined) {
     return unresolved("missing", sourceFile, target, `${sourceFile.getFilePath()} exports no member named ${exportName}`);
   }
-  if (!enterSymbol(target, symbol)) {
-    return unresolved("cycle", sourceFile, target, `module export cycle resolving ${exportName}`);
-  }
   const declarations = symbol.getDeclarations();
   if (declarations.length === 0) {
     return unresolved("missing", sourceFile, target, `export ${exportName} has no declaration`);
@@ -146,6 +174,15 @@ function resolveExportedDeclaration(sourceFile: SourceFile, exportName: string, 
   const declaration = declarations[0];
   if (declaration === undefined) {
     return unresolved("missing", sourceFile, target, `export ${exportName} has no declaration`);
+  }
+  if (declaration.getSourceFile() !== sourceFile) {
+    const star = resolveStarExport(sourceFile, exportName, target);
+    if (star !== undefined) {
+      return star;
+    }
+  }
+  if (!enterSymbol(target, symbol)) {
+    return unresolved("cycle", sourceFile, target, `module export cycle resolving ${exportName}`);
   }
   if (Node.isExportSpecifier(declaration)) {
     return resolveExportSpecifier(declaration, symbol, exportName, target);

@@ -46,6 +46,15 @@ test("stable resolution follows a 13-hop const chain by binding identity with no
   expect(fact.trace.origin.getKind()).toBe(SyntaxKind.StringLiteral);
 });
 
+test.each([1000, 3000])("stable resolution remains stack-safe through %i const aliases", (hops) => {
+  const aliases = Array.from({ length: hops }, (_, index) => (index === hops - 1 ? `const a${index} = "stable";` : `const a${index} = a${index + 1};`)).join(
+    "\n",
+  );
+  const sf = sourceOf(`${aliases}\nexport const value = a0;`);
+
+  expect(readStaticString(initializer(sf, "value"))).toMatchObject({ kind: "resolved", value: "stable" });
+});
+
 test("stable resolution distinguishes const from mutable and written bindings", () => {
   const sf = sourceOf(`
     const stable = "yes";
@@ -101,6 +110,21 @@ test("the numeric reader resolves signed consts through the same binding engine"
   ]);
 });
 
+test("signed numeric self and mutual alias cycles keep one visited-declaration state", () => {
+  const sf = sourceOf(`
+    const self = -self;
+    const left = -right;
+    const right = +left;
+    export const values = [self, left];
+  `);
+  const values = sf.getDescendantsOfKind(SyntaxKind.ArrayLiteralExpression)[0]?.getElements() ?? [];
+
+  expect(values.map((value) => readStaticNumber(value))).toEqual([
+    expect.objectContaining({ kind: "unresolved", reason: "cycle" }),
+    expect.objectContaining({ kind: "unresolved", reason: "cycle" }),
+  ]);
+});
+
 test("missing, ambiguous, dynamic, and unsupported terminals are distinct facts", () => {
   const sf = sourceOf(`
     function overloaded(): string;
@@ -146,6 +170,38 @@ test("a dynamic member key is a loud dynamic fact", () => {
 
   expect(readMemberReference(access)).toMatchObject({ kind: "unresolved", reason: "dynamic" });
   expect(resolveModuleMemberOrigin(access)).toMatchObject({ kind: "unresolved", reason: "dynamic" });
+});
+
+test("member assignment, postfix/prefix update, and delete targets refuse as writes beside positive reads", () => {
+  const sf = sourceOf(`
+    export function mutate(ns: Record<string, number>) {
+      const readAssignment = ns.foo;
+      ns.foo = 1;
+      const readPostfix = ns.bar;
+      ns.bar++;
+      const readPrefix = ns.baz;
+      ++ns.baz;
+      const readDelete = ns.qux;
+      delete ns.qux;
+      const readComputed = ns["computed"];
+      ns["computed"] = 2;
+      return [readAssignment, readPostfix, readPrefix, readDelete, readComputed];
+    }
+  `);
+  const accesses = sf.getDescendants().filter((node) => node.isKind(SyntaxKind.PropertyAccessExpression) || node.isKind(SyntaxKind.ElementAccessExpression));
+
+  expect(accesses.map((access) => readMemberReference(access))).toEqual([
+    expect.objectContaining({ kind: "resolved", value: expect.objectContaining({ name: "foo" }) }),
+    expect.objectContaining({ kind: "unresolved", reason: "write" }),
+    expect.objectContaining({ kind: "resolved", value: expect.objectContaining({ name: "bar" }) }),
+    expect.objectContaining({ kind: "unresolved", reason: "write" }),
+    expect.objectContaining({ kind: "resolved", value: expect.objectContaining({ name: "baz" }) }),
+    expect.objectContaining({ kind: "unresolved", reason: "write" }),
+    expect.objectContaining({ kind: "resolved", value: expect.objectContaining({ name: "qux" }) }),
+    expect.objectContaining({ kind: "unresolved", reason: "write" }),
+    expect.objectContaining({ kind: "resolved", value: expect.objectContaining({ name: "computed" }) }),
+    expect.objectContaining({ kind: "unresolved", reason: "write" }),
+  ]);
 });
 
 test("a parameter shadow stays distinct from a same-spelled namespace import", () => {
@@ -232,6 +288,27 @@ test("one- and two-hop re-exports resolve to the leaf declaration with the expor
   expect(resolvedFacts.map((fact) => fact.value.declaration.getSourceFile().getBaseName())).toEqual(["leaf.ts", "leaf.ts"]);
   expect(resolvedFacts[0]?.trace.declarations.filter((node) => node.isKind(SyntaxKind.ExportSpecifier))).toHaveLength(1);
   expect(resolvedFacts[1]?.trace.declarations.filter((node) => node.isKind(SyntaxKind.ExportSpecifier))).toHaveLength(2);
+});
+
+test("one- and two-hop export-star barrels retain every explicit barrel edge in order", () => {
+  const project = projectOf({
+    "leaf.ts": "export const target = 1;",
+    "barrel-one.ts": 'export * from "./leaf.ts";',
+    "barrel-two.ts": 'export * from "./barrel-one.ts";',
+    "use.ts": `
+      import { target as oneHop } from "./barrel-one.ts";
+      import { target as twoHop } from "./barrel-two.ts";
+      export const values = [oneHop, twoHop];
+    `,
+  });
+  const sf = project.getSourceFileOrThrow("/repo/use.ts");
+  const values = sf.getDescendantsOfKind(SyntaxKind.ArrayLiteralExpression)[0]?.getElements() ?? [];
+  const facts = values.map((value) => expectResolved(resolveModuleMemberOrigin(value)));
+
+  expect(facts.map((fact) => fact.value.declaration.getSourceFile().getBaseName())).toEqual(["leaf.ts", "leaf.ts"]);
+  expect(
+    facts.map((fact) => fact.trace.declarations.filter((node) => node.isKind(SyntaxKind.ExportDeclaration)).map((node) => node.getSourceFile().getBaseName())),
+  ).toEqual([["barrel-one.ts"], ["barrel-two.ts", "barrel-one.ts"]]);
 });
 
 test("destructuring resolves namespace members and paths below named imported objects", () => {
