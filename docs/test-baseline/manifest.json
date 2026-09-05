@@ -1313,6 +1313,7 @@
     "tests/server/domain/plugin/verbs/ui-host-call.int.test.ts",
     "tests/server/domain/plugin/verbs/uninstall-for-all-users.int.test.ts",
     "tests/server/domain/plugin/verbs/uninstall.int.test.ts",
+    "tests/server/domain/plugin/verbs/upgrade-from-showcase.int.test.ts",
     "tests/server/domain/plugin/verbs/upgrade-from-stored-url.int.test.ts",
     "tests/server/domain/plugin/verbs/upgrade-from-url.int.test.ts",
     "tests/server/domain/plugin/verbs/upgrade.int.test.ts",

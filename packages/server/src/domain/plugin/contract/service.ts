@@ -49,6 +49,7 @@ import type {
   UiHostCallParams,
   UninstallForAllUsersParams,
   UninstallPluginParams,
+  UpgradeFromShowcaseParams,
   UpgradeFromStoredUrlParams,
   UpgradeFromUrlParams,
   UpgradePluginParams,
@@ -284,6 +285,22 @@ export interface PluginContext {
    *  the `fetchWebDocument`→`ScrapeFailedError` precedent); the URL verbs collapse every throw to a single
    *  leak-free {@link PluginBundleFetchError}, so no SSRF oracle crosses the boundary. */
   readonly fetchBundle: (url: string) => Promise<Uint8Array>;
+  /** The SHOWCASE bundles this build ships (#1740) — the SECOND byte source an update can come from, beside
+   *  `fetchBundle`'s remembered URL. Injected rather than imported for the same reason every other byte source
+   *  is: `@orb/showcase-plugins` reads its bundles off DISK (`node:fs`), and the domain tier does not touch the
+   *  filesystem (`domain-no-node-fs`; the `domain/import` staging seam is the same call). Wired at compose to
+   *  that package's `packShowcaseBundle`/`readShowcaseManifest` — the SAME reader the boot seeder's
+   *  `packBundle`/`bundledVersion` ops use, so an update offered here and an auto-upgrade at boot can never
+   *  disagree about what ships.
+   *
+   *  `slugs` is the SYNC half, and it has to be: `toPluginView` is a pure projection and decides
+   *  `updateSource: "showcase"` from it on every read. `bundle`/`version` answer `null` for a slug this build
+   *  ships nothing for, which is the same absence the seeder's ops report. */
+  readonly showcase: {
+    readonly slugs: ReadonlySet<string>;
+    readonly bundle: (slug: string) => Promise<Uint8Array | null>;
+    readonly version: (slug: string) => Promise<string | null>;
+  };
   readonly host: PluginHostPort;
   readonly ops: PluginHostOps;
   /** The UI-surface state plane (plugin-ui-plane #679 U1) — the read verb (`getSurfaceState`) reads it and
@@ -388,6 +405,12 @@ export interface PluginService {
    *  foreign pluginId is a leak-free NOT_FOUND checked BEFORE any fetch; a file (`upload`) install has no source
    *  and is a typed `PluginNoSourceUrlError`. */
   readonly upgradeFromStoredUrl: (params: UpgradeFromStoredUrlParams) => Promise<PluginView>;
+  /** THE SEEDED-EXAMPLE TWIN (#1740): the same one-click upgrade, from the bundle this build SHIPS rather than a
+   *  remembered URL — the only path a DIVERGED showcase install has, since the boot auto-upgrade passes those
+   *  over on purpose. Owner-scoped identically (foreign pluginId ⇒ leak-free NOT_FOUND before anything is
+   *  packed); a row this build ships no bundle for is a typed `PluginNotShowcaseError`; #615's wall applies
+   *  because the bytes go through the SAME {@link upgrade}. */
+  readonly upgradeFromShowcase: (params: UpgradeFromShowcaseParams) => Promise<PluginView>;
   /** RE-CONSENT: replace the confirmed capability subset (⊆ the PERSISTED manifest's declared set). The
    *  explicit act that lets an owner allow a newly-declared capability after an upgrade WITHOUT uninstalling.
    *  Never enables a disabled plugin; a resident instance is restarted so the running grants match the row. */

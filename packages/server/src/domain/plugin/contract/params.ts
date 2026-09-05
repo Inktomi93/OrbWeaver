@@ -96,6 +96,23 @@ export interface UpgradeFromStoredUrlParams {
   readonly pluginId: PluginId;
 }
 
+/** `upgradeFromShowcase` — the same one-click upgrade for a SEEDED showcase install (#1740). The byte source is
+ *  the bundle this build SHIPS (`@orb/showcase-plugins`, injected as `ctx.showcase.bundle`) rather than a
+ *  remembered URL, and everything else is the stored-url verb's shape exactly: owner-scoped row load FIRST
+ *  (foreign/missing ⇒ leak-free NOT_FOUND), then delegate to the REAL `upgrade` verb so #615's
+ *  reach-widening→disabled re-consent wall applies unchanged. A row this build ships no bundle for is a typed
+ *  `PluginNotShowcaseError`.
+ *
+ *  WHY IT EXISTS AT ALL, given the boot seeder auto-upgrades: the seeder deliberately passes over an install
+ *  whose version DIVERGED from what it last wrote (the owner took the plugin over —
+ *  `entry/boot/seed-example-plugins.ts`, the same oracle `verbs/uninstall-for-all-users.ts` uses). That refusal
+ *  is right, and it left the owner with no way to take a newer shipped bundle on purpose. This verb is that
+ *  way, and it is an explicit ACT — never automatic. */
+export interface UpgradeFromShowcaseParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+}
+
 /** `setPluginGrant` — the RE-CONSENT act, and the half the upgrade path was missing. `upgrade` intersects the
  *  prior grant with the newly-declared set, so a newly-declared capability lands NOT granted, and `setEnabled`
  *  activates with the STORED grant and never recomputes one — so before this verb the only way to allow a

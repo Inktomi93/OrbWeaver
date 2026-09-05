@@ -248,6 +248,6 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
     if (row === undefined) {
       throw new PluginNotFoundError(pluginId);
     }
-    return toPluginView(row);
+    return toPluginView(row, ctx.showcase.slugs);
   };
 }

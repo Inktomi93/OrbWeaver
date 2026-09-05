@@ -134,6 +134,6 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): Plugin
     if (row === undefined) {
       throw new PluginNotFoundError(pluginId);
     }
-    return toPluginView(row);
+    return toPluginView(row, ctx.showcase.slugs);
   };
 }

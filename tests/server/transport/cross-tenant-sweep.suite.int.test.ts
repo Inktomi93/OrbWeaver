@@ -1344,6 +1344,14 @@ const PROBES: readonly Probe[] = [
   //    the leak-free NOT_FOUND this probe pins. (A's seeded plugin is `upload`-origin, so even past the gate
   //    there is no URL to fetch — the ownership refusal is what this asserts, before origin is ever consulted.) ──
   { path: "plugin.upgradeFromStoredUrl", call: (c, i) => c.plugin.upgradeFromStoredUrl({ pluginId: i.pluginId }) },
+  // ── plugin.upgradeFromShowcase (#1740) — the SEEDED-EXAMPLE twin, owner-scoped the SAME way and PROBED for the
+  //    SAME reason: a stranger holding A's REAL pluginId must NOT_FOUND BEFORE the verb reads A's row at all. It
+  //    triggers no egress (the bytes are the bundle this build ships), so what a dropped pre-check would leak is
+  //    the #615 upgrade path onto A's row plus the fact of whether A's plugin is one of the examples. The tell is
+  //    DISTINGUISHABLE and that is the probe's teeth: A's seeded row is `alpha-plugin`, which this build ships no
+  //    bundle for, so past the ownership gate the verb answers BAD_REQUEST (`plugin_not_showcase`) instead of the
+  //    leak-free NOT_FOUND pinned here. ──
+  { path: "plugin.upgradeFromShowcase", call: (c, i) => c.plugin.upgradeFromShowcase({ pluginId: i.pluginId }) },
   {
     path: "plugin.setGrant",
     call: (c, i) => c.plugin.setGrant({ pluginId: i.pluginId, grant: ["chat.read", "net.fetch"], acknowledgedNetHosts: ["api.vendor.example"] }),
@@ -1826,7 +1834,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "plugin.installFromUrl":
     "self-scoped (U8 seam 15): fetches a CALLER-named URL through the egress guard then DELEGATES to install, which mints the CALLER's own row (ownerId = caller.userId) — no foreign id, exactly the self-authority of plugin.install one byte-source over",
   "plugin.checkForUpdates":
-    "self-scoped (U8 2b): takes NO input; the auto update-check walks listOwned WHERE owner_id = caller.userId and re-fetches only the CALLER's OWN plugins' remembered source URLs — there is no foreign id a stranger could aim, and the egress it triggers only ever hits the caller's own rows' URLs (the plugin.list posture, one egress step over)",
+    "self-scoped (U8 2b, #1740): takes NO input; the auto update-check walks listOwned WHERE owner_id = caller.userId and reads a version for only the CALLER's OWN rows — a re-fetch of their remembered source URL, or the shipped showcase manifest for a seeded row (no egress at all on that arm) — so there is no foreign id a stranger could aim and the egress it triggers only ever hits the caller's own rows' URLs (the plugin.list posture, one egress step over)",
   "plugin.list": "self-scoped: takes NO input at all; listOwned filters WHERE owner_id = caller.userId, so there is no id a stranger could aim",
   "plugin.listSurfaces":
     "self-scoped: takes NO input; listOwned filters WHERE owner_id = caller.userId and only the caller's OWN resident instances are consulted, so a stranger's surfaces are never in the result (plugin-ui-plane #679 U1)",

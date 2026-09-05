@@ -720,22 +720,22 @@
       "markerLine": 240
     },
     {
-      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:applyStoredUpgrade::1",
+      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:applyUpgrade::1",
       "path": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx",
-      "line": 120,
+      "line": 132,
       "column": 18,
       "grammar": "promise",
-      "position": "promise:applyStoredUpgrade",
+      "position": "promise:applyUpgrade",
       "ordinal": 1,
-      "snippet": "void applyStoredUpgrade().catch(() => undefined);",
+      "snippet": "void applyUpgrade().catch(() => undefined);",
       "verdict": "deliberate-absorb",
-      "reason": "applyStoredUpgrade already",
-      "markerLine": 117
+      "reason": "applyUpgrade already",
+      "markerLine": 129
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx",
-      "line": 57,
+      "line": 67,
       "column": 27,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -743,25 +743,25 @@
       "snippet": "const results = await check.mutateAsync(undefined).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "useCheckForUpdates carries",
-      "markerLine": 54
+      "markerLine": 64
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:mutateAsync::2",
       "path": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx",
-      "line": 80,
+      "line": 92,
       "column": 27,
       "grammar": "promise",
       "position": "promise:mutateAsync",
       "ordinal": 2,
-      "snippet": "const updated = await upgradeStored.mutateAsync({ pluginId: plugin.id }).catch(() => undefined);",
+      "snippet": "const updated = await upgrade.mutateAsync({ pluginId: plugin.id }).catch(() => undefined);",
       "verdict": "deliberate-absorb",
-      "reason": "useUpgradePluginFromStoredUrl carries",
-      "markerLine": 77
+      "reason": "both upgrade mutations carry",
+      "markerLine": 89
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:runCheck::1",
       "path": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx",
-      "line": 105,
+      "line": 117,
       "column": 16,
       "grammar": "promise",
       "position": "promise:runCheck",
@@ -769,7 +769,7 @@
       "snippet": "void runCheck().catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "runCheck already catches its own",
-      "markerLine": 102
+      "markerLine": 114
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row.tsx::promise:mutateAsync::1",
@@ -2828,7 +2828,7 @@
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 536,
+      "line": 537,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2836,12 +2836,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a refusal",
-      "markerLine": 530
+      "markerLine": 531
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::2",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 555,
+      "line": 556,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2849,12 +2849,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a",
-      "markerLine": 549
+      "markerLine": 550
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::3",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 575,
+      "line": 576,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2862,12 +2862,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: `[]` if",
-      "markerLine": 564
+      "markerLine": 565
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::4",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 726,
+      "line": 727,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2875,7 +2875,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: any",
-      "markerLine": 715
+      "markerLine": 716
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",

@@ -34,6 +34,7 @@ import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
+import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import type { AdminService } from "#domain/admin";
 import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
@@ -951,6 +952,16 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // byte cap — NEVER a bare fetch). The domain calls it authority-blind and collapses any throw to a
       // leak-free `PluginBundleFetchError`; infra performs the guarded egress, the same division as `net.fetch`.
       fetchBundle: fetchPluginBundle,
+      // #1740 — the SECOND byte source an update can come from: the showcase bundles this build ships. Wired to
+      // the SAME `@orb/showcase-plugins` reader the boot seeder's `packBundle`/`bundledVersion` ops use
+      // (`entry/compose/services.ts`), so "what ships" has one answer for the auto-upgrade at boot and for the
+      // owner's one-click on a diverged install. The domain gets it injected because the package reads bundles
+      // off DISK and the domain tier does not touch `node:fs`.
+      showcase: {
+        slugs: new Set<string>(SHOWCASE_PLUGIN_SLUGS),
+        bundle: packShowcaseBundle,
+        version: async (slug): Promise<string | null> => (await readShowcaseManifest(slug))?.version ?? null,
+      },
       // The UI-surface state plane — the SAME store `ops.ui.setState` writes above (getSurfaceState reads it,
       // deactivate clears it). Shared by construction, so a publish is visible to the very next read.
       surfaceState: pluginSurfaceState,

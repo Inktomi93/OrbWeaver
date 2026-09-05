@@ -51,6 +51,7 @@ export {
   PluginNoSourceUrlError,
   PluginNotDistributedError,
   PluginNotFoundError,
+  PluginNotShowcaseError,
   PluginSnippetBusyError,
 } from "./contract/errors.ts";
 export type {

@@ -28,6 +28,10 @@ import { seedUser } from "../_support.ts";
 
 const AT = 1000;
 
+/** "This build ships no showcase bundles" — the `toPluginView` shipped-slug argument for every read that is not
+ *  about the `updateSource` projection itself (#1740). */
+const NO_SHOWCASE: ReadonlySet<string> = new Set<string>();
+
 function manifest(
   overrides: { readonly id?: string; readonly version?: string; readonly builtAgainst?: { readonly engineVersion: string } } = {},
 ): PluginManifest {
@@ -266,7 +270,12 @@ test("deletePlugin removes the row; toPluginView lifts builtAgainst from the man
   if (row === undefined) {
     throw new Error("seeded plugin row missing");
   }
-  expect(toPluginView(row).builtAgainst).toEqual({ engineVersion: "0.32.0" });
+  expect(toPluginView(row, NO_SHOWCASE).builtAgainst).toEqual({ engineVersion: "0.32.0" });
+  // The `updateSource` projection (#1740) over the SAME row, both ways: an upload-origin row is un-updatable
+  // when the build ships nothing under its slug, and IS a showcase row when it does. Nothing about the row
+  // changes between the two reads — the shipped set is the whole oracle, which is exactly why it is injected.
+  expect(toPluginView(row, NO_SHOWCASE).updateSource).toBeNull();
+  expect(toPluginView(row, new Set(["test-plugin"])).updateSource).toBe("showcase");
 
   await deletePlugin(db, pluginId);
   expect(await getById(db, owner, pluginId)).toBeUndefined();
