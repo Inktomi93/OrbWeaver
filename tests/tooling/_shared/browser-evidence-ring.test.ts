@@ -1,8 +1,19 @@
 // Browser evidence retention truth: replacement is not observation/eviction, while protected overflow
 // is incomplete even though no active request body may be dropped.
 import { exactScope } from "../../../tooling/src/_shared/artifact-scope.ts";
-import { BoundedEvidenceRing, BoundedLatestMap, retentionBatch } from "../../../tooling/src/_shared/browser-evidence-ring.ts";
+import {
+  BoundedEvidenceRing,
+  BoundedLatestMap,
+  browserEvidenceRetentionBatchSchema,
+  retentionBatch,
+} from "../../../tooling/src/_shared/browser-evidence-ring.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
+
+/** A minimal-but-valid batch, for isolating the `limits` axis under test — the rows array itself carries
+ *  no invariant this file needs to hold. */
+function validBatch(limits: unknown): unknown {
+  return { v: 1, rows: [], limits };
+}
 
 test("same-key latest-map replacement updates value and scope without receipt growth", () => {
   const latest = new BoundedLatestMap<string, string>(100);
@@ -96,4 +107,37 @@ test("protected oldest evidence may exceed capacity but receipt and limit stay e
   expect(reconciled.rows[0]).toMatchObject({ capacity: 2, observed: 3, retained: 2, dropped: 1, complete: false });
   expect(reconciled.limits.flatMap((limit) => limit.events).some((event) => event.kind === "protected-overflow")).toBe(false);
   expect(reconciled.limits.flatMap((limit) => limit.events)).toContainEqual(expect.objectContaining({ kind: "eviction", omitted: 1 }));
+});
+
+// #1652: `InstrumentArtifactLimitReceipt` now has ONE schema home (`_shared/artifact-out.ts`) — the ring's
+// `browserEvidenceRetentionBatchSchema` imports it rather than re-spelling a looser copy. Before this fix
+// the ring's own bare `z.number()`/`z.string()` silently ACCEPTED a negative `omitted` and an empty
+// `kind`/`path` that the declaration reader (artifact-out.ts) already refuses.
+test("browserEvidenceRetentionBatchSchema refuses a negative omitted and an empty kind/path (parity with the declaration reader)", () => {
+  const negativeOmitted = validBatch([
+    { source: "network", complete: false, policy: null, events: [{ kind: "eviction", path: "$.rows", original: 3, retained: 2, omitted: -1 }] },
+  ]);
+  expect(browserEvidenceRetentionBatchSchema.safeParse(negativeOmitted).success).toBe(false);
+
+  const emptyKind = validBatch([
+    { source: "network", complete: false, policy: null, events: [{ kind: "", path: "$.rows", original: 3, retained: 2, omitted: 1 }] },
+  ]);
+  expect(browserEvidenceRetentionBatchSchema.safeParse(emptyKind).success).toBe(false);
+
+  const emptyPath = validBatch([
+    { source: "network", complete: false, policy: null, events: [{ kind: "eviction", path: "", original: 3, retained: 2, omitted: 1 }] },
+  ]);
+  expect(browserEvidenceRetentionBatchSchema.safeParse(emptyPath).success).toBe(false);
+});
+
+test("browserEvidenceRetentionBatchSchema accepts a real fractional quantity (a duration-shaped limit, #1643 parity)", () => {
+  const fractional = validBatch([
+    {
+      source: "filmstrip",
+      complete: false,
+      policy: { durationMs: 15_000 },
+      events: [{ kind: "duration-cap", path: "$.durationMs", original: 15_837.811_772, retained: 15_000, omitted: null }],
+    },
+  ]);
+  expect(browserEvidenceRetentionBatchSchema.safeParse(fractional).success).toBe(true);
 });

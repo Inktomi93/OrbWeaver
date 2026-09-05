@@ -1,6 +1,7 @@
 // Bounded browser evidence with monotonic cursors. Retained arrays are views; this owner alone evicts.
 import { z } from "zod";
 import type { InstrumentArtifactLimitReceipt } from "./artifact-out.ts";
+import { artifactLimitReceiptSchema } from "./artifact-out.ts";
 import type { InstrumentCurrentScope } from "./artifact-scope.ts";
 import { aggregateScope, instrumentCurrentScopeSchema } from "./artifact-scope.ts";
 
@@ -58,21 +59,6 @@ export const browserEvidenceRetentionReceiptSchema: z.ZodType<BrowserEvidenceRet
   complete: z.boolean(),
   cursor: cursorRangeSchema,
   scope: instrumentCurrentScopeSchema,
-});
-
-const artifactLimitEventSchema = z.object({
-  kind: z.string(),
-  path: z.string(),
-  original: z.number().nullable(),
-  retained: z.number().nullable(),
-  omitted: z.number().nullable(),
-});
-
-const artifactLimitReceiptSchema: z.ZodType<InstrumentArtifactLimitReceipt> = z.object({
-  source: z.string(),
-  complete: z.boolean(),
-  policy: z.record(z.string(), z.number()).nullable(),
-  events: z.array(artifactLimitEventSchema),
 });
 
 export const browserEvidenceRetentionBatchSchema: z.ZodType<BrowserEvidenceRetentionBatch> = z.object({
