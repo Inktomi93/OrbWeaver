@@ -18,10 +18,14 @@
 // classifies snapshots by prefix + session), and the minted snapshot id rides the RESULT (§16.2's
 // widening) as the immediate rollback-point affordance.
 
+import type { CharacterCard } from "@orb/contracts/character";
 import { updateCharacterSchema } from "@orb/contracts/character";
+import type { RefinableField } from "@orb/contracts/refinery";
 import { refinerySessions } from "@orb/db";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
+import type { CardWriteBasis } from "#domain/character";
+import type { CardIdentityField } from "#kit/serde/card";
 import { cardContentHash } from "#kit/serde/card";
 import type { RefineryContext } from "../context.ts";
 import type { RefineryService } from "../contract/service.ts";
@@ -33,6 +37,29 @@ import { buildPatch, remapSelection, resolveApplyBasis } from "../substrate/acce
 const APPLY_SNAPSHOT_LABEL_PREFIX = "auto: before refinery apply";
 function applySnapshotLabelOf(sessionId: RefinerySessionId): string {
   return `${APPLY_SNAPSHOT_LABEL_PREFIX} · ${sessionId}`;
+}
+
+/** Every refinable field the card's identity hash CANNOT witness. Today: `creatorNotes` alone — it is
+ *  refinable (`REFINABLE_FIELDS`) and deliberately outside `CARD_IDENTITY_FIELDS`, because re-attributing a
+ *  card must not change what it IS. Both rulings stand; this type is where they MEET. */
+type UnwitnessedRefinableField = Exclude<RefinableField, CardIdentityField>;
+
+/** The basis belt 14 fences on: the identity hash PLUS every field this verb can write that the hash does
+ *  not cover (#1560 — a hash-only fence let a creator-notes-only edit through and overwrote it, the same
+ *  defect for one field in nine).
+ *
+ *  THE `satisfies` IS THE ENFORCER, not decoration: a tenth refinable field added outside the identity set
+ *  widens {@link UnwitnessedRefinableField}, and this literal stops compiling until it (and
+ *  `CardWriteBasis`, which the write predicate reads) carries it. That is the only reason the exclusion set
+ *  is a tuple rather than an object literal in `#kit/serde/card`.
+ *
+ *  The hash itself is recomputed from the SAME projection the character row stores, so it equals
+ *  `characters.content_hash` exactly; a flag/handle-only edit does not move it and correctly does not fence
+ *  this write. */
+function basisOf(liveCard: CharacterCard): CardWriteBasis {
+  return { contentHash: cardContentHash(liveCard), creatorNotes: liveCard.creatorNotes } satisfies CardWriteBasis & {
+    [K in UnwitnessedRefinableField]: CharacterCard[K];
+  };
 }
 
 export function createApplyFields(ctx: RefineryContext): RefineryService["applyFields"] {
@@ -60,19 +87,11 @@ export function createApplyFields(ctx: RefineryContext): RefineryService["applyF
     // reached this verb after reading a rendered diff. A plain in-place update would silently overwrite an
     // edit that landed in that window, and the §21 divergence belt cannot see it (that belt compares against
     // the session's `original_card` pin from session start, not against the basis this patch was built on).
-    // So the write is CONDITIONAL on the card still carrying the content the patch was merged against, and a
-    // card that moved refuses TOTALLY (`CHARACTER_STALE_BASIS`) — nothing is half-applied, the other edit
-    // stands, and the user re-runs the apply against a fresh diff. The hash is recomputed from the SAME
-    // projection the character row stores (`cardContentHash` over the card, the `verbs/update` spelling), so
-    // it equals `characters.content_hash` exactly; a flag/handle-only edit does not move it and correctly
-    // does not fence this write.
+    // So the write is CONDITIONAL on the card still carrying what the patch was merged against, and a card
+    // that moved refuses TOTALLY (`CHARACTER_STALE_BASIS`) — nothing is half-applied, the other edit stands,
+    // and the user re-runs the apply against a fresh diff. See {@link basisOf} for WHAT is compared.
     const snapshot = await ctx.snapshotCharacter({ principal, characterId: session.characterId, label: applySnapshotLabelOf(sessionId) });
-    const detail = await ctx.updateCharacter({
-      principal,
-      characterId: session.characterId,
-      input,
-      expectedContentHash: cardContentHash(liveCard),
-    });
+    const detail = await ctx.updateCharacter({ principal, characterId: session.characterId, input, expectedBasis: basisOf(liveCard) });
 
     // An apply completes the session (a later run/iterate flips it back active — a label, not a lock), and
     // a greeting removal REMAPS the selection in the same write: the session speaks in positions, so an

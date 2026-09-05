@@ -571,3 +571,29 @@ test("a card edit landing AFTER the basis read refuses the apply instead of over
   const live = await h.character.getCard({ principal: principal(owner), characterId });
   expect(live?.description).toBe("the user's own edit, mid-apply");
 });
+
+test("a creatorNotes-only edit in the same window ALSO refuses — the fence is not the hash alone (#1560)", async () => {
+  const { db, hold } = await freshHeldDb();
+  const owner = await seedUser(db, { id: "user_af_notes" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "af-card-notes");
+  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  h.queueReply(rewriteReply());
+  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+
+  // `creatorNotes` is REFINABLE (this verb writes it) and deliberately OUTSIDE the card's identity hash
+  // (re-attributing a card must not change what it is — `#kit/serde/card`, pinned in its own suite). So a
+  // creator-notes-only edit moves nothing the hash can see: a hash-only fence waves it through and the
+  // apply overwrites it, which is the #1446 defect surviving for one field in nine.
+  const snapshotting = hold(SNAPSHOT_INSERT, 1);
+  const applying = h.svc.applyFields({ principal: principal(owner), sessionId: session.id, accepts: [{ field: "description" }] });
+  await snapshotting.reached;
+  await h.character.update({ principal: principal(owner), characterId, input: { creatorNotes: "my own note, written mid-apply" } });
+  snapshotting.release();
+
+  await expect(applying).rejects.toThrow(/changed while the edit was being prepared/u);
+  const live = await h.character.getCard({ principal: principal(owner), characterId });
+  expect(live?.creatorNotes).toBe("my own note, written mid-apply");
+  // …and the rewrite did NOT land: the refusal is total, not per-field.
+  expect(live?.description).toBe("A meticulous keeper of records who says {{char}} likes {{user}}.");
+});

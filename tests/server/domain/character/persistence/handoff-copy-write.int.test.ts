@@ -326,3 +326,41 @@ test("two CONCURRENT accepts of one offer mint ONE copy — the loser converges 
   expect(settled.map((result) => result[0]?.characterId)).toEqual([landed, landed]);
   expect(settled.flatMap((result) => result.map((copy) => copy.minted)).filter(Boolean)).toHaveLength(1);
 });
+
+test("a mid-set failure leaves the landed copies claimable — the RETRY converges and mints the rest (#1432)", async () => {
+  const db = await freshDb();
+  const oldHost = await seedUser(db, { handle: castId("partialhost") });
+  const nominee = await seedUser(db, { handle: castId("partialnominee") });
+  const first = await seedCard(db, oldHost.id, "aria", { avatarAssetId: await seedAsset(db, oldHost.id, "aria_face") });
+  const second = await seedCard(db, oldHost.id, "brix");
+  const reowned = await seedAsset(db, nominee.id, "nominee_face");
+
+  // ONE card's mint dies (the re-own op throws — a store hiccup, a gone blob) while its sibling commits.
+  // The batch is per-card by construction, so there is no rollback to want: the accept fails, and what the
+  // crash contract owes is that the RETRY converges rather than minting a second library.
+  // Only the card WITH an avatar reaches the re-own op, so this fails exactly one of the two mints.
+  const failing = copier(db, () => Promise.reject(new Error("the asset store hiccuped")));
+  await expect(failing({ fromOwnerId: oldHost.id, toOwnerId: nominee.id, chatId: CHAT, characterIds: [first, second] })).rejects.toThrow(/hiccuped/u);
+  const landed = await db.select().from(characters).where(eq(characters.ownerId, nominee.id));
+  expect(landed).toHaveLength(1);
+  expect(landed[0]?.importedFrom).toBe(handoffProvenance(CHAT, second));
+
+  const retried = await copier(
+    db,
+    () => Promise.resolve(reowned),
+    "retry_",
+  )({
+    fromOwnerId: oldHost.id,
+    toOwnerId: nominee.id,
+    chatId: CHAT,
+    characterIds: [first, second],
+  });
+
+  // Two entries, one library: the already-landed card is RESOLVED by its provenance key (`minted:false` —
+  // the audit distinction), the failed one is minted now. A duplicate here would re-point the room at a
+  // second copy and orphan the first.
+  const rows = await db.select().from(characters).where(eq(characters.ownerId, nominee.id));
+  expect(rows).toHaveLength(2);
+  expect(retried.filter((copy) => copy.minted)).toHaveLength(1);
+  expect(retried.map((copy) => copy.sourceCharacterId).toSorted()).toEqual([first, second].toSorted());
+});
