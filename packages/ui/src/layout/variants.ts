@@ -230,8 +230,8 @@ export const gridVariants = tv({
       // three-pane state (484px) and the phone column stacked, which is where one column is right.
       //
       // A SEPARATE ARM, not a retune of `lead`, for `leadEven`'s reason: `lead`'s other consumer WAS the
-      // config welcome hearth (retired by #1210), whose own CT declared the `@4xl` width as the one its split
-      // had to engage at. Moving the shared value would change a surface
+      // config welcome hearth (retired by #1210), whose own CT declared the `@4xl` width as the one its split had
+      // to engage at (`tests/client/features/config/_ct-stories.tsx`). Moving the shared value would change a surface
       // nobody measured. Reach for `leadEarly` when the pane holding the split is a docked CONTENT region
       // rather than a whole page.
       leadEarly: "grid-cols-1 @3xl:grid-cols-[1.55fr_1fr] @min-[100rem]:grid-cols-[1.5fr_1.05fr]",

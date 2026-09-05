@@ -387,6 +387,7 @@
     "tests/client/features/settings/components/appearance-looks-section.ct.tsx",
     "tests/client/features/settings/lib/appearance-group.ct.tsx",
     "tests/client/features/settings/lib/chat-behavior-group.ct.tsx",
+    "tests/client/features/settings/lib/seed-theme-identity.test.ts",
     "tests/client/features/settings/lib/theme-editor-model.test.ts",
     "tests/client/features/stats/components/analytics-context-tabs.suite.ct.tsx",
     "tests/client/features/stats/components/analytics-models-tab.ct.tsx",
