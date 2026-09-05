@@ -85,12 +85,17 @@ has a fixed shape; use the shape.
 | lighthouse | `--lighthouse desktop\|mobile` | axe/best-practices/seo audits on THIS run's settled page | `--cascade`; mobile fills the device slot |
 | requests | `--requests [url]` / `--request-body <url>` | which reads the surface issued, and one JSON body | — |
 | filmstrip | `--filmstrip` | a transition as a labelled contact sheet | every profiler/measurement arm |
-| design-audit | `--design-audit` | the deterministic UI defect scanner (60 rules, population verdict, `--fail-on`, `--mobile`) | see the flag index |
+| design-audit | `--design-audit` | the deterministic UI defect scanner (60 rules, population verdict, `--fail-on`, `--mobile`) | see the flag index; positive control = a trailing `--eval` (it runs before the walk, #1659); cold `--dirty` needs `--idle` |
 
 `pnpm snap <route> --design-audit` (the deterministic UI defect scanner: 60 rules, population accounting,
 `--mobile` for tap targets, `--fail-on P0..P3` for the failing severity) is a snap arm since #1315; it shares
 every reach/environment flag above and prints the same kind of end card. The old record, motion-audit and
 perf-meter commands are RETIRED — snap's `--filmstrip`, `--motion` and `--perf` arms are their homes.
+
+POSITIVE CONTROL: `--eval` is the channel. A trailing `--eval` runs on the settled surface BEFORE the design-audit
+walk (#1659), so an expression that appends a defective element is counted by the census in the same invocation —
+no second stage cycle, no source plant. On a COLD `--dirty` stage pass `--idle`: two consecutive audits answered NO
+VERDICT (`data-app-ready DEGRADED`) without it, and "run it twice" is not the remedy.
 
 Preconditions and geography:
 
