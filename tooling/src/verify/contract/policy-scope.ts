@@ -29,6 +29,8 @@ export interface PolicyProgramMembership {
   readonly files: readonly string[];
   /** Direct canonical project-reference configs. */
   readonly references: readonly string[];
+  /** This config plus every transitive authored local `extends` input. */
+  readonly configPaths: readonly string[];
 }
 
 export const POLICY_PATH_OWNERSHIP_REASONS = ["compiler-membership", "outside-compiler-programs", "deleted-conservative-all-programs"] as const;

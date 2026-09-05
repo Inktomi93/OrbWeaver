@@ -48,18 +48,15 @@ function canonicalConfig(inventory: PolicyRepositoryInventory, config: string): 
   if (!existsSync(candidate)) {
     throw new Error(`project config does not exist: ${config}`);
   }
-  const absolute = realpathSync(candidate);
-  const relativePath = containedRelative(inventory.root, absolute, `project config ${config}`);
-  if (relativePath !== config) {
-    throw new Error(`project config resolves to a different repository identity: ${config} -> ${relativePath}`);
-  }
-  if (!statSync(absolute).isFile()) {
+  const target = realpathSync(candidate);
+  containedRelative(inventory.root, target, `project config ${config}`);
+  if (!statSync(target).isFile()) {
     throw new Error(`project config is not a file: ${config}`);
   }
   if (!inventory.paths.includes(config)) {
     throw new Error(`project config is not authored: ${config}`);
   }
-  return { absolute, relative: config };
+  return { absolute: candidate, relative: config };
 }
 
 function diagnosticText(diagnostic: ts.Diagnostic): string {
@@ -93,7 +90,10 @@ function referenceConfigs(inventory: PolicyRepositoryInventory, parsed: ts.Parse
       } catch (error) {
         throw new Error(`project reference config cannot be resolved: ${path}`, { cause: error });
       }
-      return containedRelative(inventory.root, canonical, "project reference config");
+      containedRelative(inventory.root, canonical, "project reference config target");
+      const lexical = relative(inventory.root, resolve(path)).split(sep).join("/");
+      assertPolicyRepoPath(lexical, "project reference config");
+      return lexical;
     })
     .toSorted(compare);
 }
@@ -108,9 +108,11 @@ function authoredCompilerFiles(inventory: PolicyRepositoryInventory, parsed: ts.
     } catch (error) {
       throw new Error(`compiler member from ${config} cannot be resolved: ${file}`, { cause: error });
     }
-    const rel = containedRelative(inventory.root, canonical, `compiler member from ${config}`);
-    if (authored.has(rel)) {
-      files.push(rel);
+    containedRelative(inventory.root, canonical, `compiler member target from ${config}`);
+    const lexical = relative(inventory.root, resolve(file)).split(sep).join("/");
+    assertPolicyRepoPath(lexical, `compiler member from ${config}`);
+    if (authored.has(lexical)) {
+      files.push(lexical);
     }
   }
   return [...new Set(files)].toSorted(compare);
@@ -120,7 +122,8 @@ export function readPolicyProgramMembership(inventory: PolicyRepositoryInventory
   const { canonical, parsed } = parseConfig(inventory, config);
   const files = authoredCompilerFiles(inventory, parsed, config);
   const references = referenceConfigs(inventory, parsed);
-  return { id: canonical.relative, config: canonical.relative, files, references };
+  const configPaths = transitiveConfigPaths(inventory, config);
+  return { id: canonical.relative, config: canonical.relative, files, references, configPaths };
 }
 
 export function readPolicyProgramGraph(inventory: PolicyRepositoryInventory, rootConfigs: readonly string[]): readonly PolicyProgramMembership[] {
@@ -166,10 +169,42 @@ function localExtendsTargets(inventory: PolicyRepositoryInventory, config: Parse
     const candidate = resolve(dirname(config.canonical.absolute), value);
     const target = extname(candidate) === ".json" ? candidate : `${candidate}.json`;
     if (!existsSync(target)) {
-      return [];
+      throw new Error(`local extends config cannot be resolved from ${config.canonical.relative}: ${value}`);
     }
-    return [containedRelative(inventory.root, realpathSync(target), `extends target from ${config.canonical.relative}`)];
+    const lexical = relative(inventory.root, target).split(sep).join("/");
+    canonicalConfig(inventory, lexical);
+    return [lexical];
   });
+}
+
+interface ConfigPathWalk {
+  readonly inventory: PolicyRepositoryInventory;
+  readonly visited: Set<string>;
+  readonly active: Set<string>;
+  readonly paths: Set<string>;
+}
+
+function collectConfigPaths(walk: ConfigPathWalk, config: string): void {
+  if (walk.active.has(config)) {
+    throw new Error(`project config extends cycle reaches ${config}`);
+  }
+  if (walk.visited.has(config)) {
+    return;
+  }
+  walk.active.add(config);
+  const parsed = parseConfig(walk.inventory, config);
+  walk.paths.add(config);
+  for (const target of localExtendsTargets(walk.inventory, parsed)) {
+    collectConfigPaths(walk, target);
+  }
+  walk.active.delete(config);
+  walk.visited.add(config);
+}
+
+function transitiveConfigPaths(inventory: PolicyRepositoryInventory, config: string): readonly string[] {
+  const paths = new Set<string>();
+  collectConfigPaths({ inventory, visited: new Set(), active: new Set(), paths }, config);
+  return [...paths].toSorted(compare);
 }
 
 export function discoverPolicyProgramConfigs(inventory: PolicyRepositoryInventory): readonly string[] {
@@ -210,6 +245,45 @@ export function policyProgramPaths(programs: readonly PolicyProgramMembership[])
   return [...new Set(programs.flatMap((program) => program.files))].toSorted(compare);
 }
 
+function referencedProgramClosure(programs: ReadonlyMap<string, PolicyProgramMembership>, rootId: string): readonly string[] {
+  const pending = [rootId];
+  const seen = new Set<string>();
+  while (pending.length > 0) {
+    const id = pending.shift();
+    if (id === undefined || seen.has(id)) {
+      continue;
+    }
+    const program = programs.get(id);
+    if (program === undefined) {
+      throw new Error(`compiler program reference is absent from graph: ${id}`);
+    }
+    seen.add(id);
+    pending.push(...program.references);
+  }
+  return [...seen].toSorted(compare);
+}
+
+function configProgramIds(programs: readonly PolicyProgramMembership[], path: string): readonly string[] {
+  const direct = programs.filter((program) => program.configPaths.includes(path)).map((program) => program.id);
+  if (direct.length === 0) {
+    return [];
+  }
+  const byId = new Map(programs.map((program) => [program.id, program]));
+  const closures = new Map(programs.map((program) => [program.id, referencedProgramClosure(byId, program.id)]));
+  const affected = new Set(direct);
+  for (const id of direct) {
+    for (const referenced of closures.get(id) ?? []) {
+      affected.add(referenced);
+    }
+  }
+  for (const program of programs) {
+    if ((closures.get(program.id) ?? []).some((id) => direct.includes(id))) {
+      affected.add(program.id);
+    }
+  }
+  return [...affected].toSorted(compare);
+}
+
 export function resolvePolicyPathOwnership(programs: readonly PolicyProgramMembership[], paths: readonly PolicySemanticPath[]): readonly PolicyPathOwnership[] {
   const byFile = new Map<string, string[]>();
   for (const program of programs) {
@@ -224,7 +298,8 @@ export function resolvePolicyPathOwnership(programs: readonly PolicyProgramMembe
     if (path.status === "deleted") {
       return { ...path, programIds: everyProgram, reason: "deleted-conservative-all-programs" };
     }
-    const programIds = [...new Set(byFile.get(path.path) ?? [])].toSorted(compare);
+    const configOwners = configProgramIds(programs, path.path);
+    const programIds = configOwners.length > 0 ? configOwners : [...new Set(byFile.get(path.path) ?? [])].toSorted(compare);
     return programIds.length > 0 ? { ...path, programIds, reason: "compiler-membership" } : { ...path, programIds: [], reason: "outside-compiler-programs" };
   });
 }
