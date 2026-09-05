@@ -90,16 +90,49 @@ describe("persistence/sessions", () => {
     return { id, revoked: await revokeByTokenHash(db, "hash-a", T0 + 1) };
   }
 
-  for (const partial of [
+  // The three partial shapes the table can actually hold, shared by the two loops below (what the call
+  // REPORTS, and what it LEAVES ON THE ROW).
+  const partialSeals = [
     { label: "ciphertext only", cols: { oidcIdTokenCiphertext: "ct", oidcIdTokenIv: null, oidcIdTokenTag: null } },
     { label: "missing the iv", cols: { oidcIdTokenCiphertext: "ct", oidcIdTokenIv: null, oidcIdTokenTag: "tag" } },
     { label: "missing the tag", cols: { oidcIdTokenCiphertext: "ct", oidcIdTokenIv: "iv", oidcIdTokenTag: null } },
-  ]) {
+  ];
+
+  for (const partial of partialSeals) {
     test(`revokeByTokenHash reports NO hint for a half-written seal (${partial.label})`, async () => {
       const { id, revoked } = await revokeCarrying(partial.cols);
       // `null`, not a partial `Sealed` — the caller gets nothing to attempt an open on, so the logout
       // degrades to a bare end-session URL instead of throwing inside a sign-out that must always complete.
       expect(revoked).toStrictEqual({ id, userId: USER_ID, oidcIdToken: null });
+    });
+  }
+
+  // #1578 — REPORTING nothing is not the same as LEAVING nothing. The clear used to be gated on
+  // `sealedIdTokenOf(row) !== null`, which is exactly the predicate a half-written seal fails, so the stray
+  // ciphertext survived on the dead row for the life of the deployment — contradicting this file's own rule
+  // that a revoked session keeps no end-session hint at rest. Inert (a GCM ciphertext without its iv can
+  // never be opened), so this is hygiene, not a live leak: the residue must go the way a whole seal does.
+  // Same shape as `revokeCarrying` and for the same reason (noLoopFunc): the db read stays OUT of the loop
+  // body so no per-iteration closure captures the `db` binding `beforeEach` reassigns.
+  async function rowAfterRevokingCarrier(cols: {
+    oidcIdTokenCiphertext: string | null;
+    oidcIdTokenIv: string | null;
+    oidcIdTokenTag: string | null;
+  }): Promise<{ ciphertext: string | null; iv: string | null; tag: string | null; revokedAt: number | null }> {
+    const { id } = await revokeCarrying(cols);
+    const row = (await db.select().from(sessions).where(eq(sessions.id, id)))[0];
+    return {
+      ciphertext: row?.oidcIdTokenCiphertext ?? null,
+      iv: row?.oidcIdTokenIv ?? null,
+      tag: row?.oidcIdTokenTag ?? null,
+      revokedAt: row?.revokedAt ?? null,
+    };
+  }
+
+  for (const partial of partialSeals) {
+    test(`revokeByTokenHash CLEARS a half-written seal off the dead row (${partial.label})`, async () => {
+      // …and the revocation itself still happened: the clear is a SECOND statement, not a replacement.
+      expect(await rowAfterRevokingCarrier(partial.cols)).toEqual({ ciphertext: null, iv: null, tag: null, revokedAt: T0 + 1 });
     });
   }
 

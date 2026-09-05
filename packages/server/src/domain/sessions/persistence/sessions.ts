@@ -127,9 +127,11 @@ export async function revokeByTokenHash(
     return;
   }
   const oidcIdToken = sealedIdTokenOf(row);
-  if (oidcIdToken !== null) {
-    await db.update(sessions).set(CLEAR_OIDC_ID_TOKEN).where(eq(sessions.id, row.id));
-  }
+  // UNCONDITIONAL (#1578). Gating this on `oidcIdToken !== null` asked the WRONG question: `sealedIdTokenOf`
+  // returns null for a HALF-written seal too, so a row carrying a ciphertext without its iv/tag kept that
+  // stray column forever — against this file's own rule that a revoked session holds no end-session hint at
+  // rest. The clear is idempotent (a non-OIDC row is already all-null), so the honest predicate is none.
+  await db.update(sessions).set(CLEAR_OIDC_ID_TOKEN).where(eq(sessions.id, row.id));
   return { id: row.id, userId: row.userId, oidcIdToken };
 }
 
