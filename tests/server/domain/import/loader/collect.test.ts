@@ -196,8 +196,9 @@ describe("collectBundlesFromDir — the BULK readers fail with the typed infra e
     "root/OpenAI Settings/p.json": ENC.encode(JSON.stringify({ preset: true })),
     "root/themes/t.json": ENC.encode(JSON.stringify({ name: "t" })),
     "root/backgrounds/bg.png": ENC.encode("bg-bytes"),
-    // biome-ignore lint/style/useNamingConvention: ST wire field names (snake_case) are the interchange format and appear verbatim in the fixtures.
-    [chatPath]: ENC.encode(JSON.stringify({ user_name: "u", character_name: "Aria", create_date: "2025-07-18@12h00m00s" })),
+    // Raw ST wire TEXT (snake_case by spec) rather than an object literal — the format IS the fixture, and a
+    // string keeps the wire's own spelling without a naming-convention suppression.
+    [chatPath]: ENC.encode('{"user_name":"u","character_name":"Aria","create_date":"2025-07-18@12h00m00s"}'),
   };
   const bulkArms: { readonly name: string; readonly path: string }[] = [
     { name: "collectCards", path: cardPath },
