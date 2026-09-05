@@ -149,10 +149,13 @@ async function runTurn(spec: TurnSpec): Promise<ChatResult> {
 
 const SYSTEM_STATIC = `You are a precise test instrument. Codeword ${CW.systemStatic}. Follow the user's formatting exactly.`;
 const SYSTEM_DYNAMIC = `Dynamic scene note. Codeword ${CW.systemDynamic}.`;
-const SEED = [
-  { role: "user" as const, content: `Earlier question. Codeword ${CW.seedUser}.` },
-  { role: "assistant" as const, content: `Earlier answer. Codeword ${CW.seedAssistant}.` },
-];
+/** A text-only seed turn — the seed carries content BLOCKS since #1605 (a tool exchange rides as a real
+ *  `tool_use`/`tool_result` pair); every turn this probe seeds is prose. */
+function textTurn(role: "user" | "assistant", text: string): { role: "user" | "assistant"; content: [{ type: "text"; text: string }] } {
+  return { role, content: [{ type: "text", text }] };
+}
+
+const SEED = [textTurn("user", `Earlier question. Codeword ${CW.seedUser}.`), textTurn("assistant", `Earlier answer. Codeword ${CW.seedAssistant}.`)];
 
 const CAPS_LINE_RE = /[A-Z]{4,}/u;
 const CODEWORD_RE = /\b(?<cw>ZULU|YANKEE|XRAY|WHISKEY|VICTOR|UNIFORM)\b/gu;
@@ -384,10 +387,7 @@ async function cont1(): Promise<void> {
  *  this probes whether the CLI path behaves differently.) */
 async function pf1(): Promise<void> {
   const store = new InMemorySessionStore();
-  const canon = [
-    { role: "user" as const, content: "Complete the sentence I start." },
-    { role: "assistant" as const, content: "The three primary colors are red, blue, and" },
-  ];
+  const canon = [textTurn("user", "Complete the sentence I start."), textTurn("assistant", "The three primary colors are red, blue, and")];
   const sessionId = seedSessionId(castId<ChatId>("probe-pf1"), toSeedTurns(canon));
   await store.append({ projectKey: "probe", sessionId }, buildSeedFrames(toSeedTurns(canon), sessionId));
   let threw = "";

@@ -2,13 +2,14 @@
  * node scripts/probes/sdk-tool-seed-probe.ts [--models a,b,c]
  * node scripts/probes/sdk-tool-seed-probe.ts --wire      (ts0 only — FREE, loopback, no quota)
  *
- * THE #1593 ARM DECISION, grounded. `splitAgentHistory` (entry/compose/chat.ts) now seeds `tool` rows as
- * ANNOUNCED user frames because the SDK's own request shape has no tool part: `AgentSeedTurn` is
- * `{role:"user"|"assistant"; content:string}` and `session/frames.ts::buildFrame` synthesizes
- * `message.content: [{type:"text"}]` only. The FULL structural arm — seeding a real Anthropic
- * `tool_use`/`tool_result` PAIR — is admissible ONLY if the runtime accepts such frames on resume, which
- * the SDK types cannot answer (`SessionStoreEntry` is `{type: string; [k:string]: unknown}`,
- * `sdk.d.ts:4843`). This probe asks the runtime instead. HAND-RUN, real Max-sub quota, never CI.
+ * THE #1593 ARM DECISION, grounded — AND ITS ANSWER IS NOW SHIPPED (#1605, 2026-09-05). `splitAgentHistory`
+ * (entry/compose/chat.ts) used to seed `tool` rows as ANNOUNCED user frames because the SDK's own request shape
+ * seemed to have no tool part. The FULL structural arm — seeding a real Anthropic `tool_use`/`tool_result`
+ * PAIR — was admissible only if the runtime accepted such frames on resume, which the SDK types cannot answer
+ * (`SessionStoreEntry` is `{type: string; [k:string]: unknown}`, `sdk.d.ts:4843`). This probe asked the runtime
+ * instead, ts0 said yes, and the seed now carries content BLOCKS (`AgentSeedBlock`). Re-run it after every SDK
+ * bump: it is the ONLY evidence that the shipped seed shape is still admissible. HAND-RUN, real Max-sub quota,
+ * never CI.
  *
  * MEASURED 2026-09-04, all three catalog tiers (`claude-haiku-4-5`, `claude-sonnet-5`, `claude-opus-4-8`):
  * ts0 showed the seeded pair reaching the constructed body as `messages[1] role=assistant

@@ -256,9 +256,16 @@ function buildShaped(canon: readonly WireRow[], tailQuestion: string, injection:
     throw new Error("probe canon must end with a user tail (assistant-final shape is continue-mode)");
   }
   const prompt = tail.map((r) => r.content).join(AGENT_PROMPT_TAIL_JOINER);
-  // This probe never injects system-role rows; drop any (capability-kept splice output is typed wider).
-  const seed = shaped.slice(0, lastAssistant + 1).flatMap((r): SeedTurn[] => (r.role === "system" ? [] : [{ role: r.role, content: r.content }]));
-  return { seed, prompt, injectedInSeed: seed.some((t) => t.content.includes(SIGIL_PREFIX)) };
+  // This probe never injects system-role rows; drop any (capability-kept splice output is typed wider). The
+  // seed carries content BLOCKS since #1605; every row this probe builds is prose.
+  const seed = shaped
+    .slice(0, lastAssistant + 1)
+    .flatMap((r): SeedTurn[] => (r.role === "system" ? [] : [{ role: r.role, content: [{ type: "text", text: r.content }] }]));
+  return {
+    seed,
+    prompt,
+    injectedInSeed: seed.some((t) => t.content.some((b) => b.type === "text" && b.text.includes(SIGIL_PREFIX))),
+  };
 }
 
 /** Layer-(a) prediction, FREE (no spawn): does the turn-2 variant hash to a different session lineage? */
