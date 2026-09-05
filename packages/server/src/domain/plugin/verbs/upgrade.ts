@@ -37,6 +37,8 @@
 
 import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
+import type { AssetId, PluginId } from "@orb/kit/ids";
+import { getLog } from "#foundation/observability";
 import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError } from "../contract/errors.ts";
 import type { UpgradePluginParams } from "../contract/params.ts";
 import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
@@ -80,6 +82,33 @@ function refusalAfterUpgrade(
 ): { readonly pending: boolean; readonly hosts: readonly string[] } {
   const hosts = pendingWidenedNetHosts(declaredHosts, priorHosts, prior.widenedNetHosts);
   return { pending: newCaps.length > 0 || hosts.length > 0, hosts };
+}
+
+/** Put the row back in agreement with reality after the swap failed, and reap what the attempt wrote.
+ *
+ *  EVERY STEP IS BEST-EFFORT, BY CONSTRUCTION: the caller rethrows the ORIGINAL failure, and this function
+ *  must not be able to replace it. The repair runs precisely when the db is in trouble, so its own write is
+ *  one of the likeliest things to fail — and a repair that threw would hand the operator the wrong sentence
+ *  ("the status write failed") while the event they need ("the upgrade could not be applied") disappeared.
+ *  Each half is therefore attempted independently — a failed status write must not cost the reap — and each
+ *  failure is LOGGED with the original beside it, which is where the operator's ownership of it lives. */
+async function repairAfterFailedSwap(ctx: PluginContext, pluginId: PluginId, cause: unknown, attemptAssetIds: readonly AssetId[]): Promise<void> {
+  try {
+    await setStatus(ctx.db, pluginId, { status: "disabled", lastError: `upgrade failed: ${errorMessage(cause)}`, updatedAt: ctx.now() });
+  } catch (repairErr) {
+    getLog().error(
+      { pluginId, upgradeError: errorMessage(cause), repairError: errorMessage(repairErr) },
+      "plugin: upgrade FAILED and the row repair failed too — the row may still read `enabled` with no resident instance (re-enable or retry the upgrade to reconcile)",
+    );
+  }
+  try {
+    await ctx.assets.reapOrphans([...attemptAssetIds]);
+  } catch (reapErr) {
+    getLog().warn(
+      { pluginId, upgradeError: errorMessage(cause), reapError: errorMessage(reapErr) },
+      "plugin: upgrade FAILED and the attempt's assets could not be reaped — the weekly assets-gc sweep collects them",
+    );
+  }
 }
 
 /** The two things a REPLACEMENT bundle must be before anything is written: the same plugin (slug match — a
@@ -186,8 +215,13 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
       // but its instance is gone, and a row left saying `enabled` would be a lie the surface renders as a
       // running plugin. `disabled` + the failure detail is the true sentence, and it is also the actionable
       // one: the owner can re-enable the version they still have, or retry the upgrade.
-      await setStatus(ctx.db, pluginId, { status: "disabled", lastError: `upgrade failed: ${errorMessage(err)}`, updatedAt: ctx.now() });
-      await ctx.assets.reapOrphans([stored.assetId, ...bundleAssets.links.map((link) => link.assetId)]);
+      //
+      // THE REPAIR IS BEST-EFFORT AND `err` IS WHAT LEAVES. Unguarded, these two awaits swallowed the failure
+      // they exist to repair: the case the repair is FOR is a db that is genuinely unavailable, in which the
+      // status write rejects too — and the caller was then told the status write broke while "the upgrade
+      // could not be applied" vanished, with the row still `enabled` and no instance behind it. Both halves
+      // are attempted, both are logged with the original beside them, and neither can replace it.
+      await repairAfterFailedSwap(ctx, pluginId, err, [stored.assetId, ...bundleAssets.links.map((link) => link.assetId)]);
       throw err;
     }
     // The old bundle asset is now unreferenced (the row points at the new asset) — reap it, and with it every
