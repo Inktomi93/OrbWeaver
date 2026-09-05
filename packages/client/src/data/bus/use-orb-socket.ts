@@ -10,7 +10,7 @@
 //     which fans them to that room's subscribers.
 //
 // It never reads a domain event (the byte-blind rule is a client property too — `applyChatBusEvent` and the
-// invalidation maps stay the ONLY translators) and never writes a store (gate `bus-onData-no-store-write`).
+// invalidation maps stay the ONLY translators) and never writes a store (gate `bus-on-data-no-store-write`).
 //
 // The one thing it DOES read off a fault is the tRPC error CODE, and only to answer "is the session dead?"
 // A warm tab under D54's pins issues no reads, so the QueryCache belt has nothing to fire on — this

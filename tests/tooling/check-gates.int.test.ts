@@ -40,9 +40,6 @@ const PER_PASS_BUDGET = scaledBudget(300_000, 4);
 const HOOK_BUDGET = 2 * PER_PASS_BUDGET + scaledBudget(60_000, 4);
 
 const ROOT = join(import.meta.dirname, "..", "..");
-// Gate names are kebab-case; `bus-onData-no-store-write` is the ONE documented camelCase name
-// (UI-Gates-and-Lessons.md §8/§11.1), so the capture class allows uppercase too.
-//
 // Both patterns are ANCHORED to renderPass's EXACT line shapes (`  ✓ <name>` / `  ✗ <name> (<n>)`,
 // tooling/src/verify/lib/render.ts) — two-space indent, whole line. An unanchored `✓\s+(\w+)` scraped ANY ✓ on
 // the child's stdout, and `pnpm exec` interleaves its own: after a deps-state invalidation (a sibling
@@ -61,9 +58,9 @@ const ROOT = join(import.meta.dirname, "..", "..");
 // scrape, a blind gate would silently drop out of `registry` and surface as a baffling
 // "unregistered gate file" red instead of the thing it is.
 const SCAN_SUFFIX = String.raw` {2}·  scanned \d+/\d+ files.*`;
-const OK_RE = new RegExp(`^ {2}✓ (?<gate>[a-zA-Z0-9-]+)(?:${SCAN_SUFFIX})?$`, "gmu");
-const FIRED_RE = new RegExp(String.raw`^ {2}✗ (?<gate>[a-zA-Z0-9-]+) \(\d+\)(?:${SCAN_SUFFIX})?$`, "gmu");
-const BLIND_RE = new RegExp(`^ {2}! (?<gate>[a-zA-Z0-9-]+)(?:${SCAN_SUFFIX})?$`, "gmu");
+const OK_RE = new RegExp(`^ {2}✓ (?<gate>[a-z0-9-]+)(?:${SCAN_SUFFIX})?$`, "gmu");
+const FIRED_RE = new RegExp(String.raw`^ {2}✗ (?<gate>[a-z0-9-]+) \(\d+\)(?:${SCAN_SUFFIX})?$`, "gmu");
+const BLIND_RE = new RegExp(`^ {2}! (?<gate>[a-z0-9-]+)(?:${SCAN_SUFFIX})?$`, "gmu");
 const TS_EXT_RE = /\.ts$/u;
 const GATE_DIR = join(ROOT, "tooling", "src", "verify", "gates");
 // every gate file on disk (basename) — the source of truth for "what gates exist". `__g_*` are THIS suite's
@@ -654,7 +651,7 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_inval/lib/__g_inval.ts",
     "export function gBad(qc: { invalidateQueries: (f: unknown) => void }, filter: unknown): void {\n  qc.invalidateQueries(filter);\n}\n",
   );
-  // bus-onData-no-store-write: a raw .setState() inside a subscription onData body in data/bus/.
+  // bus-on-data-no-store-write: a raw .setState() inside a subscription onData body in data/bus/.
   fx(
     "packages/client/src/data/bus/__g_buswrite.ts",
     "declare const store: { setState: (s: unknown) => void };\nexport const sub = {\n  onData: (): void => {\n    store.setState({ x: 1 });\n  },\n};\n",

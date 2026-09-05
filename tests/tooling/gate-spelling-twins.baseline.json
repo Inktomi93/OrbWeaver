@@ -7,7 +7,7 @@
     "bound-field-via-hook": ["namespace"],
     "bounded-list-limit": ["bracket", "namespace"],
     "bus-channel-primitive": ["namespace"],
-    "bus-onData-no-store-write": ["bracket"],
+    "bus-on-data-no-store-write": ["bracket"],
     "byte-check-cast": ["bracket", "namespace"],
     "chat-viewer-plane-canon-reads": ["namespace"],
     "client-cache-surgery-only-in-data": ["bracket"],

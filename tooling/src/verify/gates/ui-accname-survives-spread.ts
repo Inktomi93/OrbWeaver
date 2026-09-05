@@ -2,10 +2,10 @@
 // caller-props spread clobbers every caller's name silently: JSX later-wins, so `<div {...rest} aria-label=…>`
 // makes the caller's `aria-label` unwinnable (avatar-stack shipped "N people" over both committed "N characters"
 // callers for months; §13.10 asserts names are CORRECT, nothing asserted a caller's name SURVIVES). data-*/role
-// seals stay legal. DECLARED LIMITS (each a mustPass row): member-expression spreads, type-level Omit, wrappers.
+// seals stay legal. Member-expression/aliased/wrapped spreads are invisible; type-level Omit is conservatively flagged.
 import type { JsxAttribute, JsxOpeningElement, JsxSelfClosingElement, Node, ParameterDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
 
 /** The accessible-NAME/description attrs a caller legitimately customizes — the clobber class. `role`,
  *  `aria-live` and `data-*` are deliberately OUT: a primitive's role/liveness IS its semantic seal
@@ -100,80 +100,139 @@ function checkElement(el: JsxSelfClosingElement | JsxOpeningElement, report: (at
   }
 }
 
-export const gate: GateDescriptor = {
-  name: "ui-accname-survives-spread",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "ui-accname-survives-spread",
+  family: "ui-accname-survives-spread",
+  authority: "ordinary",
+  severity: "error",
+  population: "@ui",
+  analysis: "syntax",
+  execution: "selected-files",
   message: MESSAGE,
   fix: FIX,
-  scanRoot: (p) => p.startsWith("packages/ui/src/"),
-  kinds: [SyntaxKind.JsxSelfClosingElement, SyntaxKind.JsxOpeningElement],
-  visit: (node: Node, _sf, ctx) => {
-    if (!(node.isKind(SyntaxKind.JsxSelfClosingElement) || node.isKind(SyntaxKind.JsxOpeningElement))) {
-      return;
-    }
-    checkElement(node, (attr, name) => {
-      ctx.report(attr, { token: name, offset: 0 });
-    });
-  },
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.JsxSelfClosingElement, SyntaxKind.JsxOpeningElement],
+        visit: (node: Node) => {
+          if (node.isKind(SyntaxKind.JsxSelfClosingElement) || node.isKind(SyntaxKind.JsxOpeningElement)) {
+            checkElement(node, (attr, name) => {
+              ctx.report.node(attr, { token: name, offset: 0 });
+            });
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files:
-        "export function AvatarStack({ className, items, ...rest }: { className?: string; items: string[]; 'aria-label'?: string }) {\n" +
-        '  return <div {...rest} aria-label="N people" className={className} data-slot="x" role="group" />;\n' +
-        "}\n",
-      at: "packages/ui/src/primitives/avatar-stack/avatar-stack.tsx",
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/avatar-stack/avatar-stack.tsx":
+          "export function AvatarStack({ className, items, ...rest }: { className?: string; items: string[]; 'aria-label'?: string }) {\n" +
+          '  return <div {...rest} aria-label="N people" className={className} data-slot="x" role="group" />;\n' +
+          "}\n",
+      },
       expect: { count: 1, messageIncludes: "AFTER the caller-props spread" },
       why: "the founding shape — avatar-stack's post-spread aria-label default, unwinnable by both committed callers",
     },
     {
-      files: 'export function Chip(props: { title?: string }) {\n  return <span {...props} title="always this" />;\n}\n',
-      at: "packages/ui/src/primitives/chip/chip.tsx",
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/chip/chip.tsx": 'export function Chip(props: { title?: string }) {\n  return <span {...props} title="always this" />;\n}\n',
+      },
       expect: { count: 1 },
       why: "the WHOLE-props-parameter spelling of the same clobber — no destructuring, the whole caller bag loses",
     },
     {
-      files:
-        "export function Pair({ x, ...rest }: { x?: number }) {\n" +
-        '  return (\n    <div {...rest} aria-label="a" aria-describedby="b">\n      <i />\n    </div>\n  );\n' +
-        "}\n",
-      at: "packages/ui/src/primitives/pair/pair.tsx",
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/pair/pair.tsx":
+          "export function Pair({ x, ...rest }: { x?: number }) {\n" +
+          '  return (\n    <div {...rest} aria-label="a" aria-describedby="b">\n      <i />\n    </div>\n  );\n' +
+          "}\n",
+      },
       expect: { count: 2 },
       why: "a PAIRED (non-self-closing) element with TWO guarded attrs after the spread — one finding each, both token-named",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/omitted/omitted.tsx":
+          'interface P { readonly title?: string }\nexport function Omitted(props: Omit<P, "title">) {\n  return <div {...props} title="fixed" />;\n}\n',
+      },
+      expect: { count: 1 },
+      why: "the syntax policy deliberately does not resolve a type-level Omit; a direct caller-parameter spread remains conservatively governed",
     },
   ],
   mustPass: [
     {
-      files:
-        "export function AvatarStack({ className, items, ...rest }: { className?: string; items: string[] }) {\n" +
-        '  return <div aria-label="N people" {...rest} className={className} data-slot="x" role="group" />;\n' +
-        "}\n",
-      at: "packages/ui/src/primitives/avatar-stack/avatar-stack.tsx",
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/avatar-stack/avatar-stack.tsx":
+          "export function AvatarStack({ className, items, ...rest }: { className?: string; items: string[] }) {\n" +
+          '  return <div aria-label="N people" {...rest} className={className} data-slot="x" role="group" />;\n' +
+          "}\n",
+      },
       why: "the FIX shape — the default BEFORE the spread, so a caller's aria-label wins; data-slot/role seals after the spread stay legal",
     },
     {
-      files:
-        "export function Field({ 'aria-label': ariaLabel, ...rest }: { 'aria-label'?: string }) {\n" +
-        '  return <input {...rest} aria-label={ariaLabel ?? "field"} />;\n' +
-        "}\n",
-      at: "packages/ui/src/primitives/field/field.tsx",
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/field/field.tsx":
+          "export function Field({ 'aria-label': ariaLabel, ...rest }: { 'aria-label'?: string }) {\n" +
+          '  return <input {...rest} aria-label={ariaLabel ?? "field"} />;\n' +
+          "}\n",
+      },
       why: "the prop is DESTRUCTURED out of rest and merged — consumed, not clobbered",
     },
     {
-      files: 'export function Chip({ src }: { src?: string }) {\n  return <img {...(src === undefined ? {} : { src })} aria-label="decorative" />;\n}\n',
-      at: "packages/ui/src/primitives/chip/chip.tsx",
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/chip/chip.tsx":
+          'export function Chip({ src }: { src?: string }) {\n  return <img {...(src === undefined ? {} : { src })} aria-label="decorative" />;\n}\n',
+      },
       why: "a conditional NARROW-object spread is not the caller bag — nothing of the caller's can be in it",
     },
     {
-      files: "export function Box(props: { title?: string }) {\n  const styles = { id: 'x' };\n  return <div {...styles} title={props.title} />;\n}\n",
-      at: "packages/ui/src/primitives/box/box.tsx",
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/box/box.tsx":
+          "export function Box(props: { title?: string }) {\n  const styles = { id: 'x' };\n  return <div {...styles} title={props.title} />;\n}\n",
+      },
       why: "a spread of a LOCAL const (not a parameter/rest binding) is not the caller bag — passes",
     },
     {
-      files: 'interface P { readonly wrap: { rest: object } }\nexport function Deep({ wrap }: P) {\n  return <div {...wrap.rest} aria-label="x" />;\n}\n',
-      at: "packages/ui/src/primitives/deep/deep.tsx",
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/deep/deep.tsx":
+          'interface P { readonly wrap: { rest: object } }\nexport function Deep({ wrap }: P) {\n  return <div {...wrap.rest} aria-label="x" />;\n}\n',
+      },
       why: "DECLARED LIMIT written down: a member-expression spread is invisible to this reader",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/wrapped/wrapped.tsx":
+          'declare function filtered(value: object): object;\nexport function Wrapped(props: { title?: string }) {\n  return <div {...filtered(props)} title="fixed" />;\n}\n',
+      },
+      why: "DECLARED LIMIT: a caller bag behind a wrapper call is not a direct parameter spread",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/alias/alias.tsx":
+          'export function Alias(props: { title?: string }) {\n  const caller = props;\n  return <div {...caller} title="fixed" />;\n}\n',
+      },
+      why: "DECLARED LIMIT: a local alias of the caller bag is not resolved back to the parameter",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/order/order.tsx":
+          'export function Order(props: { title?: string }, callerOverrides: object) {\n  return <div {...props} title="default" {...callerOverrides} />;\n}\n',
+      },
+      why: "a later caller-parameter spread restores caller precedence after the default attribute",
+    },
   ],
-};
+});
