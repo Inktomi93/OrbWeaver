@@ -97,6 +97,10 @@
     // list row INSIDE the page (a `locator.evaluate` callback: `getComputedStyle` + a throwaway probe node
     // for the token), so its body needs lib.dom. Home: tsconfig.tests-dom.json.
     "tests/support/ct/tier-liveness.ts",
+    // Same exception, content-column flavor (#1664): the member-editor measurement oracle resolves both width
+    // tokens with a probe planted INSIDE the nearest container-type ancestor and reads gutters off
+    // `getBoundingClientRect` (a `page.evaluate` callback), so its body needs lib.dom. Home: tsconfig.tests-dom.json.
+    "tests/support/ct/measure-content-column.ts",
     // Same DOM-barrel hazard, ui flavor: the waystone MATRIX test is pure data (`waystone-treatment`), but it
     // reaches it through the `@orb/ui/meter` barrel, which value-exports the `<Waystone>` component — and that
     // component subscribes to `document.visibilitychange` (it pauses its ambient layers in a hidden tab). That
