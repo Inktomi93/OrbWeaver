@@ -1,0 +1,54 @@
+// The closed vocabulary returned by the final spelling-independent binding/reference reader.
+import type { Identifier, Node } from "ts-morph";
+
+const REFERENCE_UNRESOLVED_REASONS = ["unsupported", "dynamic", "write", "cycle", "ambiguous", "missing"] as const;
+
+export type ReferenceUnresolvedReason = (typeof REFERENCE_UNRESOLVED_REASONS)[number];
+
+/** The proof path for a reference fact, ordered from the queried binding toward its terminal origin. */
+interface ReferenceTrace {
+  readonly declarations: readonly Node[];
+  readonly origin: Node;
+}
+
+export interface ResolvedReferenceFact<T> {
+  readonly kind: "resolved";
+  readonly value: T;
+  readonly trace: ReferenceTrace;
+}
+
+export interface UnresolvedReferenceFact {
+  readonly kind: "unresolved";
+  readonly reason: ReferenceUnresolvedReason;
+  readonly detail: string;
+  readonly node: Node;
+  readonly trace: ReferenceTrace;
+}
+
+/** A positive value with its proof, or one precise refusal. Absence is never a reader verdict. */
+export type ReferenceFact<T> = ResolvedReferenceFact<T> | UnresolvedReferenceFact;
+
+/** One property read, normalized across dotted, optional, and computed-literal spellings. */
+export interface MemberReference {
+  readonly name: string;
+  readonly receiver: Node;
+  readonly nameNode: Node;
+  readonly access: Node;
+}
+
+/** The module export a use ultimately enters through, plus any property path below an imported object. */
+export interface ModuleMemberOrigin {
+  readonly moduleSpecifier: string;
+  readonly exportedName: string;
+  readonly memberPath: readonly string[];
+  readonly declaration: Node;
+}
+
+/** The binding primitives injected into module-origin traversal to keep one resolver implementation. */
+export interface ReferenceResolutionServices {
+  readonly unwrapExpression: (node: Node) => Node;
+  readonly declarationOf: (identifier: Identifier) => ReferenceFact<Node>;
+  readonly inspectStableBinding: (declaration: Node) => ReferenceFact<true>;
+  readonly readComputedName: (node: Node) => ReferenceFact<string>;
+  readonly readMemberReference: (node: Node) => ReferenceFact<MemberReference>;
+}
