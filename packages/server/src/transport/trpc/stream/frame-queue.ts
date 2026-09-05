@@ -38,7 +38,7 @@ type OverflowPolicy = "lag" | "collapse";
 export const OVERFLOW_POLICIES: Record<StreamChannel, OverflowPolicy> = {
   /** every member is a coarse invalidation trigger (`data/invalidation.ts` USER map) */
   user: "collapse",
-  /** durable inbox + `collectSince` replay */
+  /** durable inbox + ascending `replaySince` replay (#1459) */
   notifications: "lag",
   /** durable chat log + `replayChatEvents` — carries CONTENT, so never collapse */
   chat: "lag",
