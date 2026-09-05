@@ -2962,6 +2962,166 @@ test("#151 the LIST-track FLIP IS still armed on the same swap when motion is al
   await expect(page.locator(".shell-grid")).toHaveAttribute("data-list-flip", "out");
 });
 
+// ── #1316: the FLIP cancels ONE edge, and `.shell-main` has two ─────────────────────────────────────
+// `.shell-main` does not TRANSLATE across a list toggle, it RESIZES: the start edge travels the whole
+// `--list-track-docked`, the end edge does not move. So the single counter-translate above is only the
+// right distance for START-aligned content, and for a child pinned to the END edge it does not cancel
+// motion — it manufactures it. MEASURED on the isolated stage at 1280x800 (2026-09-05, per-rAF
+// `getBoundingClientRect` across `Hide list panel` on a seeded chat, track 307px): `.shell-main` x held
+// at 363 (the FLIP working) while `.shell-topbar-trail` x ran 1043 → 1350 → 1227 → 1151 → … → 1043, i.e.
+// the ⌘K chip and the toggle cluster left the 1280px viewport for the first painted frame and swept back
+// in over ~150ms to the pixel they started on.
+//
+// THIS IS THE DEFECT PROOF, NOT A FENCE: against the unmodified shell.css the corridor arm below reports
+// strays a full track wide. Its premise arm — the trail's rendered start and end x are the SAME — is what
+// makes the corridor a POINT; without it a trail that legitimately moved would make any excursion legal.
+test("#1316 the END-pinned topbar trail never leaves its corridor while the FLIP pushes .shell-main", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await emulateMediaFeatures(page, [
+    ["prefers-reduced-motion", "no-preference"],
+    ["prefers-reduced-transparency", "no-preference"],
+    ["prefers-contrast", "no-preference"],
+  ]);
+  const shell = await mount(<AppShellStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  const main = page.locator(".shell-main");
+  const trail = page.locator(".shell-topbar-trail");
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+
+  const readX = (locator: Locator): Promise<number> => locator.evaluate((el) => Math.round(el.getBoundingClientRect().x));
+  // BARRIER ON THE SETTLED DOCK, not on the attribute (measured: the mode attribute lands while the mount's
+  // OWN `in` FLIP is still running — the shell resolves `collapsed` before the viewport-regime effect
+  // publishes `wide` — so an immediate read samples that animation and every endpoint below is wrong). Two
+  // conditions, in ONE evaluate so they cannot be read a frame apart: nothing is animating, AND the rendered
+  // fact the corridor needs holds — `.shell-main`'s start edge sits exactly on the docked panel's end edge.
+  // A token-free geometric identity, so no literal track width is baked in here.
+  await page.waitForFunction(() => {
+    const mainEl = document.querySelector(".shell-main");
+    const panelEl = document.querySelector('.shell-panel[data-panel-side="list"]');
+    if (mainEl === null || panelEl === null) {
+      return false;
+    }
+    const running = [...mainEl.getAnimations(), ...panelEl.getAnimations()].some((a) => a.playState === "running");
+    return !running && Math.round(mainEl.getBoundingClientRect().x) === Math.round(panelEl.getBoundingClientRect().right);
+  });
+  const startMainX = await readX(main);
+  const startTrailX = await readX(trail);
+
+  // A bounded per-frame sampler over BOTH boxes — the excursion is ~150ms wide and a poll would sample
+  // past its start. Installed before the click so the very first flipped frame is in the ring.
+  await page.evaluate(() => {
+    // FABRICATION-OK: a browser-context probe slot, written and read in this test alone.
+    const bag = globalThis as unknown as { __flipXs: { main: number; trail: number }[] };
+    bag.__flipXs = [];
+    const mainEl = document.querySelector(".shell-main");
+    const trailEl = document.querySelector(".shell-topbar-trail");
+    const tick = (): void => {
+      if (mainEl === null || trailEl === null || bag.__flipXs.length > 60) {
+        return;
+      }
+      bag.__flipXs.push({
+        main: Math.round(mainEl.getBoundingClientRect().x),
+        trail: Math.round(trailEl.getBoundingClientRect().x),
+      });
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+
+  await shell.getByRole("button", { name: "Hide list panel" }).click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  // BARRIER ON THE SETTLED RENDER (never on the attribute): the mode lands a frame or more before the grid
+  // is re-laid out at the new track, and the animation runs for `--shell-motion` after that.
+  await expect.poll(() => readX(main), { intervals: [50, 100, 200, 300] }).not.toBe(startMainX);
+  // …and past the motion itself, so the "end" positions below are resting positions rather than a sample
+  // taken mid-animation (which would make the corridor's own endpoints wrong).
+  await page.waitForFunction(() => !(document.querySelector(".shell-main")?.getAnimations() ?? []).some((a) => a.playState === "running"));
+  const endMainX = await readX(main);
+  const endTrailX = await readX(trail);
+
+  // Read ONCE — a poll over a shared ring drains the samples it is judging.
+  // FABRICATION-OK: reads back the probe slot installed above.
+  const samples = await page.evaluate(() => (globalThis as unknown as { __flipXs: { main: number; trail: number }[] }).__flipXs);
+  expect(samples.length, "the rAF sampler must have run — an empty ring proves nothing").toBeGreaterThan(2);
+  // The FLIP really happened (a no-op toggle would pass every arm below vacuously). The ring rides the
+  // message because a vacuous pass and a mis-seated story look identical from the endpoints alone.
+  const ring = samples.map((s) => `${s.main}/${s.trail}`).join(" ");
+  expect(Math.abs(endMainX - startMainX), `the track must really change — start ${startMainX}, end ${endMainX}, main/trail ring: ${ring}`).toBeGreaterThan(100);
+  // THE PREMISE: the trail is pinned to `.shell-main`'s END edge, which did not move. Its honest FLIP
+  // distance is therefore ZERO and its corridor is a point.
+  expect(Math.abs(endTrailX - startTrailX), `the trail must be END-pinned — start ${startTrailX}, end ${endTrailX}`).toBeLessThanOrEqual(1);
+  const strays = samples.map((s) => s.trail).filter((x) => Math.abs(x - startTrailX) > 2);
+  expect(strays, `.shell-topbar-trail left its ${startTrailX}±2 corridor: ${strays.join(", ")}`).toEqual([]);
+});
+
+// The CSS-contract twin for the reduced-motion SETTLE (#262), which holds the FLIP's `from` corner for
+// exactly ONE painted frame — including, before #1316, a full track of it on the END-pinned trail, i.e. a
+// one-frame disappearance of the ⌘K chip and the toggle cluster for the users who asked for LESS motion.
+// Asserted by PLANTING the attribute and reading computed style rather than by sampling: a one-frame hold
+// is a frame race, and what is actually load-bearing is that the two declarations are exact inverses.
+test("#1316 the reduced-motion SETTLE holds the trail at the exact inverse of .shell-main's held corner", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellStory />);
+  const grid = page.locator(".shell-grid");
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
+
+  // ONE evaluate for the plant AND both reads. Split across three round trips this flaked 1-in-5: the
+  // #242 squeeze makes `--list-track-docked` depend on the CONTEXT pane's own mode, which settles a beat
+  // after the list's, so the two boxes were sampled against DIFFERENT track widths (measured: main -307px
+  // against trail -233.246px, the squeezed value) and "exact inverses" read false on a correct shell.
+  const heldTranslates = (direction: "in" | "out"): Promise<{ main: string; trail: string }> =>
+    grid.evaluate((el, value) => {
+      el.setAttribute("data-list-settle", value);
+      const read = (selector: string): string => {
+        const target = document.querySelector(selector);
+        return target === null ? "absent" : getComputedStyle(target).translate;
+      };
+      const pair = { main: read(".shell-main"), trail: read(".shell-topbar-trail") };
+      el.removeAttribute("data-list-settle");
+      return pair;
+    }, direction);
+
+  /** `translate: <x>px 0` → the signed pixel number; `none` (no rule matched) → null. */
+  const offset = (value: string): number | null => {
+    const px = /^(-?[\d.]+)px/.exec(value);
+    return px?.[1] === undefined ? null : Number(px[1]);
+  };
+
+  for (const direction of ["in", "out"] as const) {
+    const held = await heldTranslates(direction);
+    const mainOffset = offset(held.main);
+    const trailOffset = offset(held.trail);
+    expect(mainOffset, `the settle must hold .shell-main on the "${direction}" arm, got ${held.main}`).not.toBeNull();
+    expect(trailOffset, `the settle must hold .shell-topbar-trail on the "${direction}" arm, got ${held.trail}`).not.toBeNull();
+    // Exact inverses: composed, the END-pinned trail sits at its own resting position for the held frame.
+    expect(Math.round((mainOffset ?? 0) + (trailOffset ?? 0)), `held corners must cancel — main ${held.main}, trail ${held.trail}`).toBe(0);
+    expect(Math.abs(mainOffset ?? 0), "the held corner must be a real track width, not zero").toBeGreaterThan(100);
+  }
+});
+
+// NO COUNTER ON A PHONE either. The stamping hook is regime-blind, so on the one-column mobile grid — where
+// a docking LIST is `position: fixed` over CONTENT and moves nothing — an un-cancelled counter would be the
+// only thing animating: a full track of manufactured slide on the topbar's icon cluster. The `.shell-main`
+// half of this rule has been in the mobile block since the FLIP landed; this is its twin arriving with #1316.
+//
+// HONEST LABEL: a FENCE, not a defect proof. It PASSES against the unmodified shell.css (measured
+// 2026-09-05 — with no counter rule at all the trail trivially reports `animation-name: none`), so it
+// cannot be the receipt for anything; what it exists for is the regression where the counter above lands
+// and the mobile cancel does not follow it.
+test("#1316 no END-pinned counter on a phone: the trail's flip animation is cancelled with .shell-main's", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE);
+  await mount(<AppShellStory />);
+  // PLANTED, not driven: the mobile block is a CSS cancel, and stamping the attribute is the only way to
+  // ask "would the rule have matched" on a regime where the hook's own stamp moves nothing. The page is
+  // discarded with the test, so the stamp is never un-planted.
+  await page.locator(".shell-grid").evaluate((el) => {
+    el.setAttribute("data-list-flip", "out");
+  });
+  const animationNames = await page.locator(".shell-main, .shell-topbar-trail").evaluateAll((els) => els.map((el) => getComputedStyle(el).animationName));
+  expect(animationNames.length, "both boxes must be present on the mobile shell").toBe(2);
+  expect(animationNames, `mobile must cancel BOTH halves of the FLIP, got ${animationNames.join(" / ")}`).toEqual(["none", "none"]);
+});
+
 // ── #262: skipping the FLIP was right; letting the RAW SHIFT through was the unexamined half ────────
 // The #151 fix above stopped ARMING the FLIP under reduced motion — correct, a FLIP is a motion mechanism
 // — and the track then just resized in one frame. That is a real, recorded layout shift, and it lands on

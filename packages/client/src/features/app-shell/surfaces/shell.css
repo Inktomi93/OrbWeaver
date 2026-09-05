@@ -291,6 +291,47 @@
   animation: shell-list-panel-in var(--shell-motion) var(--shell-ease);
 }
 
+/* ── THE FLIP'S COUNTER: A BOX PINNED TO `.shell-main`'s END EDGE DID NOT MOVE (#1316) ────────────────
+ * The block above cancels the move of `.shell-main`'s START edge, which is the only edge that travels the
+ * whole track. `.shell-main` RESIZES — its start edge moves by `--list-track-docked` and its end edge does
+ * not move at all — so one translate over the whole box cannot be right for every child: a child's honest
+ * FLIP distance is ITS OWN delta, and that delta is the track only for start-aligned content. The topbar
+ * TRAIL (`flex: none`, pushed to the end by the lead's `flex: 1 1 auto`) is pinned to the end edge, so its
+ * delta is ZERO — and riding the full-track counter-translate therefore did not cancel motion, it
+ * MANUFACTURED it.
+ *
+ * MEASURED on the isolated stage at 1280x800 (2026-09-05, per-rAF `getBoundingClientRect` across
+ * `Hide list panel` on a seeded chat, `--list-track-docked` = 307px): `.shell-main` x held at 363 — the
+ * FLIP working — while `.shell-topbar-trail` x went 1043 → 1350 → 1227 → 1151 → 1106 → … → 1043. The
+ * ⌘K chip and the whole toggle cluster left the 1280px viewport entirely for the first painted frame of
+ * every list dock/undock and swept back in from the right edge over the next ~150ms, ending exactly where
+ * they started. (The same run is the receipt for the third alignment class: the transcript's centred
+ * reading column moves by HALF the track, so the FLIP kicks it 154px the wrong way first — that residue
+ * is the "content gutter RE-CENTRING … a width change no transform can cancel" the block above already
+ * records and accepts, and its carrier is `[data-slot=message-row]`'s own auto margins, not shell CSS.)
+ *
+ * WHY A SECOND ANIMATION AND NOT AN EXEMPTION FROM THE FIRST: the counter must be the EXACT inverse, in
+ * lockstep, or the trail shears against the chrome around it. Same `--shell-motion`/`--shell-ease`
+ * co-motion vars, same `--list-track-docked` distance (so the #242 squeeze cancels on both sides), same
+ * `from`-only keyframe stamped in the same style resolution — so the two compose to a constant zero by
+ * construction rather than by two timings agreeing. Net at rest: no transform at all, as before. */
+@keyframes shell-list-push-in-counter {
+  from {
+    translate: var(--list-track-docked) 0;
+  }
+}
+@keyframes shell-list-push-out-counter {
+  from {
+    translate: calc(-1 * var(--list-track-docked)) 0;
+  }
+}
+.shell-grid[data-list-flip="in"] .shell-topbar-trail {
+  animation: shell-list-push-in-counter var(--shell-motion) var(--shell-ease);
+}
+.shell-grid[data-list-flip="out"] .shell-topbar-trail {
+  animation: shell-list-push-out-counter var(--shell-motion) var(--shell-ease);
+}
+
 /* ── THE REDUCED-MOTION SETTLE (#262) — the FLIP's physics without the FLIP ───────────────────────────
  * A FLIP is a MOTION mechanism, so #151 correctly stopped arming it for a user who asked for less motion,
  * and the track just resized in one frame. That frame is a REAL recorded layout shift, and it lands on
@@ -316,6 +357,16 @@
 }
 .shell-grid[data-list-settle="out"] .shell-main {
   translate: var(--list-track-docked) 0;
+}
+/* …and the END-PINNED counter (#1316) rides the settle for the same reason it rides the FLIP: the held
+ * frame is the FLIP's `from` corner, so it holds the trail a full `--list-track-docked` outside the
+ * viewport too — a one-painted-frame disappearance of the ⌘K chip and the toggle cluster, on exactly the
+ * users who asked for less motion. Static, no duration, released by the same attribute drop. */
+.shell-grid[data-list-settle="in"] .shell-topbar-trail {
+  translate: var(--list-track-docked) 0;
+}
+.shell-grid[data-list-settle="out"] .shell-topbar-trail {
+  translate: calc(-1 * var(--list-track-docked)) 0;
 }
 
 /* Rail — ONE component, ONE flat DOM list. This is the desktop icon column; the @media below reflows the
@@ -1028,12 +1079,14 @@
    * not go anywhere. The stamping hook is regime-blind on purpose (it reports the MODE change; what that
    * change costs in layout is a CSS question), so the arm that owns the geometry cancels it here. */
   .shell-grid[data-list-flip] .shell-main,
+  .shell-grid[data-list-flip] .shell-topbar-trail,
   .shell-grid[data-list-flip] .shell-panel[data-panel-side="list"] {
     animation: none;
   }
   /* …and the reduced-motion SETTLE (#262) is cancelled here for the same reason and by the same argument:
    * the hook is regime-blind, so on a phone its one-frame hold would translate a column that never moved. */
-  .shell-grid[data-list-settle] .shell-main {
+  .shell-grid[data-list-settle] .shell-main,
+  .shell-grid[data-list-settle] .shell-topbar-trail {
     translate: none;
   }
   /* The SAME rail DOM reflows into the bottom tab bar: the column becomes a row, the nav-group / footer

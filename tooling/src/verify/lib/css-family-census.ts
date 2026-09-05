@@ -101,9 +101,15 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // stops (`--shell-band-rule` / `--shell-band-ember` + the `box-shadow` that reads them), so the 48px band
   // stops being a 47px CONTENT box that lands every occupant on a half pixel. The ramp / floating-context
   // overrides are one declaration each before and after — they now answer their own stop, not the property.
-  [SHELL]: 337,
+  // +6 (2026-09-05, #1316): the panel FLIP's END-PINNED COUNTER. `.shell-main` RESIZES rather than
+  // translates, so its single counter-translate is the right distance only for START-aligned content; the
+  // topbar TRAIL is pinned to the end edge (delta zero) and the FLIP was throwing it a full track outside
+  // the viewport and sweeping it back. Two `from`-only keyframes (1 declaration each) + the two
+  // `data-list-flip` counter rules + the two `data-list-settle` counter rules. The mobile-block cancels
+  // widen existing selector lists and mint no declaration.
+  [SHELL]: 343,
 };
-export const EXPECTED_DECLARATION_TOTAL = 1003;
+export const EXPECTED_DECLARATION_TOTAL = 1009;
 export const EXPECTED_DIRECT_THEME_DECLARATIONS = 199;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",
