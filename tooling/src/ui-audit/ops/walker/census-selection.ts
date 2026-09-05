@@ -170,11 +170,11 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
       return;
     }
     if (group.selected.length === 0) {
-      withholdRelational(relationalAccounting["selection-idiom"], "unmatchedUnselected");
+      withholdRelational(relationalAccounting["selection-idiom"], "unmatchedUnselected", describe(group.unselected[0]));
       return;
     }
     if (group.unselected.length === 0) {
-      withholdRelational(relationalAccounting["selection-idiom"], "unmatchedSelected");
+      withholdRelational(relationalAccounting["selection-idiom"], "unmatchedSelected", describe(group.selected[0]));
       return;
     }
     relationalAccounting["selection-idiom"].judged += 1;

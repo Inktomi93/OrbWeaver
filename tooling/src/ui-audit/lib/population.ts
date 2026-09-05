@@ -112,7 +112,14 @@ export function settledPopulationAccounting(rule: string, row: RulePopulationAcc
 const WITHHELD_REMEDIES: Readonly<Record<string, string>> = {
   // #1114: a surface whose selection idiom only exists once driven is STRUCTURALLY no-verdict at rest —
   // every rest arm withholds here, and only the driven arm can reach `complete`.
-  unmatchedUnselected: "drive the surface into its selected state so the twin exists — e.g. pnpm snap /chats --open-chat <id-or-title> --design-audit",
+  // THE REMEDY IS CONDITIONAL, AND SAYING SO IS THE HONEST HALF (#1704). This read as an unconditional
+  // instruction with one surface's command baked in, so three Characters passes followed it, watched the
+  // withholding survive, and had no way to tell "wrong command" from "no command can do this" — the
+  // cohorts were never named. They are now (see `withheldSubjects`), and the text no longer asserts that a
+  // drive exists: a cohort whose carriers are ALL unselected at rest may have no reachable selected twin
+  // on this surface at all, and design-audit is read-only (`cli.ts`), so it cannot mint one.
+  unmatchedUnselected:
+    "drive the surface so a SELECTED member of the named cohort is rendered beside its unselected siblings (e.g. pnpm snap /chats --open-chat <id-or-title> --design-audit). If no interaction on this surface can select one, the cohort is structurally unjudgeable here and the withholding is the correct verdict — say so in the review rather than re-running",
   unmatchedSelected: "drive the surface so an UNselected sibling is rendered beside the selected one — a one-row list cannot answer this rule",
 };
 
@@ -122,7 +129,18 @@ export function populationEvidenceGap(accounting: PopulationAccounting): Evidenc
   for (const [rule, row] of Object.entries(accounting)) {
     const reasons = Object.entries(row.withheld).filter(([reason, count]) => !PRESENTATION_WITHHELD.has(reason) && count > 0);
     if (reasons.length > 0) {
-      incomplete.push(`${rule}: ${reasons.map(([reason, count]) => `${reason}=${String(count)}`).join(" ")}`);
+      // NAME THE SUBJECT (#1704). A NO-VERDICT that prints only `unmatchedUnselected=2` is a refusal
+      // nobody can chase: three passes on Characters ended on that exact string a week apart, and the
+      // remedy below could not be tested against cohorts nobody could locate. The subjects are a bounded
+      // representative sample (walker-side cap of 3) and the count beside them stays the complete number.
+      incomplete.push(
+        `${rule}: ${reasons
+          .map(([reason, count]) => {
+            const subjects = row.withheldSubjects?.[reason] ?? [];
+            return `${reason}=${String(count)}${subjects.length === 0 ? "" : ` at ${subjects.join(", ")}`}`;
+          })
+          .join(" ")}`,
+      );
       for (const [reason] of reasons) {
         const remedy = WITHHELD_REMEDIES[reason];
         if (remedy !== undefined) {
