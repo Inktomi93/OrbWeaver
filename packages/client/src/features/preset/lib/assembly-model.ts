@@ -119,10 +119,16 @@ export const ZONE_ITEMS: readonly { readonly value: string; readonly label: stri
   { value: "post", label: "In Chat" },
 ];
 
-/** Can this section be SPLICED into the conversation and TRIGGER-filtered? The schema's own branches are
- *  the authority: `inject` and `trigger` exist on the LITERAL and TEMPLATED-marker arms only — a PLAIN
- *  marker (a pure carrier) declares neither, so offering either field would write a shape the contract
- *  rejects. The absence IS the answer; nothing is disabled. */
+/** Can this section be SPLICED into the conversation (an `inject` depth/order)? The schema's own branch
+ *  is the authority: `inject` exists on the LITERAL and TEMPLATED-marker arms only — a PLAIN marker (a
+ *  pure carrier) declares no such field, so offering it would write a shape the contract rejects. The
+ *  absence IS the answer; nothing is disabled.
+ *
+ *  TRIGGER-FILTERING IS A SEPARATE AXIS (#1462 fold, #1736): `trigger` is declared on ALL THREE branches
+ *  — the three plain markers (`world_info_before`/`world_info_after`/`chat_history`) carry it too (ST
+ *  sets `injection_trigger` on every prompt-manager entry, and the assembler honours it —
+ *  `sectionTriggers`/`hasActiveMarker`/the pivot's own `sendHistory`). A caller deciding the Triggers
+ *  cluster's visibility must NOT use this predicate — it answers the placement question only. */
 export function supportsArrangement(section: PromptSection): boolean {
   return section.type === "literal" || isTemplatedMarker(section.marker);
 }
