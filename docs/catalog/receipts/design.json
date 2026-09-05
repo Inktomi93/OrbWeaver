@@ -2306,9 +2306,10 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "b6f54c8a246d49dc7c807298880882d609995702d4cdb7b70f779bfac9552ff8",
-      "verifiedCommit": "fb912327b0a5522b765493b0e50e3562806cabea",
+      "verifiedCommit": "c6a6ec8cd44f05f44642e6505de200e7250334f5",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested after the dangling-refs fix (the two queries.ts line ranges each carry their path) on top of fb912327b",
         "re-attested after the dangling-refs fix (the two queries.ts line ranges each carry their path) on top of fb912327b",
         "Read in full by the orchestrator at the fold: the systems lens; its tier/dedup model is what resolveRegexTiers implements."
       ],
