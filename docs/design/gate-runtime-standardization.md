@@ -168,6 +168,8 @@ Within the 86 first-wave policies, exactly 14 were immediately mechanical source
 
 `pnpm gate:contract` is the temporary migration census, not a second conformance runtime or a ratchet. On the 2026-09-05 base it reports 1,489 concrete sites across all 255 modules: 255 descriptor wrappers, 688 legacy fields, 345 symbol-proven direct walk/source lookups, two gate-owned Projects, 40 module-scope `let`/`var` statements, 145 proven mutated module bindings, and 14 baseline-path expressions. After the 14 mechanical conversions and final `defineGate` provenance repair, it reports 1,447 findings: 28 legacy-field sites and 14 false wrapper findings are gone. It is deleted after all counts reach zero and `gate-modernization` owns the permanent rules.
 
+The emergency fold at integration commit `8c677f8c5` preserves every active task and subagent checkpoint in this branch. [checkpoint-2026-09-05.md](../reviews/gate-runtime/checkpoint-2026-09-05.md) is the exact resume ledger for resource declarations, waiver migration, schema, bus, registry, and CSS/static-class work. Several folded commits are candid red WIP; the 1,447 figure above is the last verified pre-WIP census and must be re-derived after the resume repairs before claiming further conversion credit.
+
 Work proceeds in dependency order:
 
 1. population algebra plus old/new admitted-set equivalence;
