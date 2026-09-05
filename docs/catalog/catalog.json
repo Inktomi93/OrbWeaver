@@ -29139,6 +29139,59 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 140,
+      "bytes": 9295,
+      "sha256": "5fc08c42f9ece4fd0daa077ca7c19fe66bee35495063d7afd073d104494f7010",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md",
+        "assignedSha256": "5fc08c42f9ece4fd0daa077ca7c19fe66bee35495063d7afd073d104494f7010",
+        "disposition": "needs-owner",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "5fc08c42f9ece4fd0daa077ca7c19fe66bee35495063d7afd073d104494f7010",
+        "verifiedCommit": "20ca3612a278fc20c3014d5ffccf8c72e24d231f",
+        "verifiedAt": "2026-09-05",
+        "evidence": [
+          "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md:1-140 full read by the orchestrator at 20ca3612a (lane cb-client-config-polish, #1169 arm a: measured comparison receipt, three drift candidates proposed, nothing landed)",
+          "the two converged axes verified on tree: config-section.tsx passes ListPaneHeader; config-list-group.tsx renders ListRow"
+        ],
+        "summary": "Measured comparison of the Config LIST pane against the chats/characters/presets LIST panes; the owner decides which drift candidates (D1 row payload, D2 voice budget, D3 shelf kicker) to take — #1169 in Needs owner.",
+        "claims": [
+          {
+            "claim": "Config's chrome band and leaf rows already use the shared primitives; only the group-band layer diverges, and the three drift candidates are proposals tracked on #1169.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/config/components/config-section.tsx:79"
+              },
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/config/components/config-list-group.tsx:288"
+              },
+              {
+                "kind": "issue",
+                "target": "#1169"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/research/2026-08-30-brief-1-primitive-guarantee.md",
       "lane": "reviews",
       "issue": 7,
