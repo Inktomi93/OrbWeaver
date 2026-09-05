@@ -318,7 +318,7 @@ describe("claimChat — the per-character room census (#1147)", () => {
     const rebuilt = await characterCensus();
 
     expect(live).toStrictEqual(rebuilt);
-    // "Seated here, never spoke" is a real library state (a greet-less card, an imported cast member) —
+    // "Seated here, never spoke" is a real library state (a greet-less card, an imported seated character) —
     // the row carries the room and zero economics, it is not an ABSENT character.
     expect(live).toStrictEqual([
       { characterId: String(a), chats: 1, firstChatAt: FROZEN_AT },

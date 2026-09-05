@@ -20,7 +20,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 const ARIA = castId<CharacterId>("character_aria");
 const KAI = castId<CharacterId>("character_kai");
 /** The room's SYNTHETIC group card — a real `characters` row named "Group" that narrator turns are authored
- *  by (`__group__<chatId>`). It resolves through the cast producer like any member, which is exactly why
+ *  by (`__group__<chatId>`). It resolves through the identity producer like any member, which is exactly why
  *  every "is this a narrator row?" inference used to succeed at naming the wrong thing. */
 const GROUP_ID = castId<CharacterId>("character_group");
 const SPEAKERS = { user: "User", assistant: "Aria" };
@@ -865,7 +865,7 @@ describe("toShapeCanon — the null-persona-stamp guard (a row never borrows a s
 
   /** A ctx just rich enough for `toShapeCanon`'s macro render — the host is the live trigger. */
   const ctxFor = (triggerUserId: UserId | null): AssembleContext =>
-    // FABRICATION-OK: slim AssembleContext double — this call path reads only character/cast/characterIds/recentMessages/promptConfig/triggerUserId.
+    // FABRICATION-OK: slim AssembleContext double — this call path reads only character/characters/characterIds/recentMessages/promptConfig/triggerUserId.
     ({
       character: { name: "Aria", description: "" },
       characters: [],
@@ -1022,7 +1022,7 @@ describe("shape — the delivered-row trace", () => {
 // multi-speaker narrator block.
 
 const KIND_CTX: AssembleContext =
-  // FABRICATION-OK: slim AssembleContext double — this path reads only character/cast/characterIds/recentMessages/promptConfig.
+  // FABRICATION-OK: slim AssembleContext double — this path reads only character/characters/characterIds/recentMessages/promptConfig.
   {
     character: { name: "Aria", description: "" },
     characters: [{ name: "Group", description: "" }],
@@ -1110,7 +1110,7 @@ describe("the `<speaker>` strip is GATED ON KIND, not applied blind to every ass
 
 // ── NARRATOR DELIVERY IS ASSISTANT ON EVERY WIRE (the D129(B) delivered-role dispatch, RULED OUT) ─────
 // OWNER RULING 2026-08-18, verbatim: "if you mean group chat narration mode then that is the wrong
-// behavior." Group-chat narration mode is ONE generation voicing the whole cast — it is the assistant's own
+// behavior." Group-chat narration mode is ONE generation voicing every seated character — it is the assistant's own
 // OUTPUT voice, not an operator/system channel, so it delivers as an `assistant` row on every wire including
 // a measured one. The `turns.historySystemRows` MEASUREMENT is honored and stands (the vLLM cell is real and
 // the injection SPLICE still reads it, above); what the owner ruled wrong is the SEMANTICS of routing

@@ -196,7 +196,7 @@ export function renderHistoryMacros(
     characterNamesById: args.producer.characterNamesById,
     personaNamesById: args.producer.personaNamesById,
     speakerCharName: args.speakerCharName ?? charForSpeaker(ctx),
-    // Ruling B: a HUMAN-authored / narrator row's `{{char}}` resolves to the CAST (group in multi, one in
+    // Ruling B: a HUMAN-authored / narrator row's `{{char}}` resolves to the CHARACTERS (group in multi, one in
     // solo), NOT the arbitrary current speaker — so it matches client DISPLAY. All the seated characters in roster order.
     characterNames: (ctx.characters ?? [ctx.character]).map((c) => c.name),
     // Ruling A / the design principle: the null-stamp `{{user}}`/`{{persona}}` fallback is the chat ANCHOR

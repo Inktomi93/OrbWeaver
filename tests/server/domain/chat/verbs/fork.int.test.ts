@@ -53,7 +53,7 @@ function principal(userId: UserId): Principal {
 }
 
 /** An owner-scoped `getCard` fake mirroring the REAL one (D28 — `loadOwnedCharacterRow`): the card resolves
- *  only for its OWNER, `null` for a non-owner. The fork cast-drop resolver (D64 / F4) calls this per seated
+ *  only for its OWNER, `null` for a non-owner. The fork character-drop resolver (D64 / F4) calls this per seated
  *  character to decide which seats the forker doesn't own (→ dropped); the harness default is a bare `null`. */
 function ownedCard(): (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<CharacterCard | null> {
   return async ({ ownerId, characterId }) => {
@@ -255,8 +255,8 @@ describe("forkChat — D27 deep copy", () => {
   test("the host forks a multi-human room: parented, canon copied with fresh ids, the OTHER human is not copied", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));
-    // The HOST forks (fork gate: a multi-human room is host-only). The host OWNS the cast — the F4
-    // cast-ownership guard requires the new host to own every seated card.
+    // The HOST forks (fork gate: a multi-human room is host-only). The host OWNS the characters — the F4
+    // character-ownership guard requires the new host to own every seated card.
     const charA = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "src");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -288,7 +288,7 @@ describe("forkChat — D27 deep copy", () => {
     expect(chat.id).not.toBe(chatId);
     expect(emitted).toEqual([{ type: "chatCreated", chatId: chat.id }]);
 
-    // The forker is HOST of the fork; the cast copied as member; the OTHER human is NOT copied (FLAG[fork-humans]).
+    // The forker is HOST of the fork; the characters copied as members; the OTHER human is NOT copied (FLAG[fork-humans]).
     const host2 = chat.participants.find((p) => p.role === "host");
     expect(host2?.userId).toBe(host);
     expect(chat.participants.some((p) => p.characterId === charA)).toBe(true);
@@ -437,13 +437,13 @@ describe("forkChat — D27 deep copy", () => {
   });
 });
 
-describe("forkChat — D64 cast-drop on a non-owner fork (F4/PD-21 ruling)", () => {
-  test("a non-owner fork SUCCEEDS: it drops the un-owned character seats, keeps the forker's cast + the whole history", async () => {
+describe("forkChat — D64 character-drop on a non-owner fork (F4/PD-21 ruling)", () => {
+  test("a non-owner fork SUCCEEDS: it drops the un-owned character seats, keeps the forker's characters + the whole history", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));
-    // Single-owner cast (D28): aria belongs to another user (the source's departed host), bella to the FORKER.
+    // Single-owner characters (D28): aria belongs to another user (the source's departed host), bella to the FORKER.
     // The forking member is the SOLE present human (fork allowed via the solo arm), and is a non-host, so the
-    // cast-drop ruling applies: they resolve bella but NOT aria → keep bella's seat, drop aria's; canon whole.
+    // character-drop ruling applies: they resolve bella but NOT aria → keep bella's seat, drop aria's; canon whole.
     const aria = await seedCharacter(db, host, "aria");
     const bella = await seedCharacter(db, member, "bella");
     const chatId = await seedChat(db, "src");
@@ -507,7 +507,7 @@ describe("forkChat — D64 cast-drop on a non-owner fork (F4/PD-21 ruling)", () 
   // The anchor arm of the same single-owner rule (stickler 2026-08-03 F2, the fork's latent twin): the fork's
   // host is the FORKER, and the D51 anchor resolves under the host's principal (owner-scoped `persona.get`).
   // Copying a foreign `anchorPersonaId` verbatim mints a room born with a dead POV pin — the knob serves an
-  // unreadable id while `{{user}}` silently falls through to the active persona. Conditional, like the cast
+  // unreadable id while `{{user}}` silently falls through to the active persona. Conditional, like the character
   // drop and the `resolveForkGmPreset` gate: keep what the forker can read, null what they cannot.
   test("a foreign anchor persona is NULLED on the fork; the forker's own anchor is carried", async () => {
     const host = await seedUser(db, castId<Handle>("anchor_host"));

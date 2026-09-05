@@ -275,7 +275,7 @@ describe("buildAssembleContext — BUILD render-once + position routing", () => 
       ...inputOf(chatId, host, [charId]),
       promptConfig: config,
     });
-    // {{char}} resolved to the cast primary; wiFormat wrapped exactly once. Always-scope ⇒ the before-anchor
+    // {{char}} resolved to the primary character; wiFormat wrapped exactly once. Always-scope ⇒ the before-anchor
     // (DEFAULT_PROMPT_CONFIG ships the world_info_before marker — ST parity).
     expect(out.worldInfoBefore).toContain("[Lore: Aria hoards gold]");
   });
@@ -574,7 +574,7 @@ describe("buildAssembleContext — SEND USER_INPUT regex (D53; chat.md §2/§3)"
       ctx,
       inputOf(chatId, host, [charId], {
         pendingUserText: "I greet NAME",
-        // The replace template `{{char}}` resolves to the cast primary (Aria) — macros run on the template.
+        // The replace template `{{char}}` resolves to the primary character (Aria) — macros run on the template.
         hostTierRegexScripts: [regexScript("u", "NAME", "{{char}}", "USER_INPUT")],
       }),
       out,
@@ -676,7 +676,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     const out = await buildAssembleContext(ctx, inputOf(chatId, host, [ariaId, branId]));
     const contents = (out.chatInjections ?? []).map((i) => i.content);
 
-    // Each note's {{char}} resolved to its OWN owner, not the cast primary.
+    // Each note's {{char}} resolved to its OWN owner, not the primary character.
     expect(contents).toContain("Aria guards a secret.");
     expect(contents).toContain("Bran owes a debt.");
     const aria = (out.chatInjections ?? []).find((i) => i.content === "Aria guards a secret.");
@@ -756,8 +756,8 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
   });
 });
 
-// ── the muted-cast subset (`unmutedCharacters` → `{{groupNotMuted}}`, R1/F1): a muted seat (character OR agent)
-//    stays in `cast` for its lore/soul but drops from the non-muted subset, keyed on the same seat `disabled`
+// ── the muted-character subset (`unmutedCharacters` → `{{groupNotMuted}}`, R1/F1): a muted seat (character OR agent)
+//    stays in `characters` for its lore/soul but drops from the non-muted subset, keyed on the same seat `disabled`
 //    axis `loadRoom` derives `mutedSpeakerKeys` from. `{{group}}` renders all; `{{groupNotMuted}}` the survivors.
 describe("buildAssembleContext — unmutedCharacters / {{groupNotMuted}} (R1/F1)", () => {
   test("a muted character drops from unmutedCharacters / {{groupNotMuted}} but stays in characters / {{group}}", async () => {
@@ -793,7 +793,7 @@ describe("buildAssembleContext — unmutedCharacters / {{groupNotMuted}} (R1/F1)
 // ── The RETIRED room author's note (owner ruling 2026-08-01). `roomOverrides.authorsNote` was a SECOND
 //    producer of the same at-depth splice `chat_injections` already owns, so the arm was deleted: the
 //    per-chat note is now just an injection (system @ depth 4 IS the author's note). These pin that the
-//    branch is GONE — a room note can no longer suppress the cast's card notes, and the surviving door
+//    branch is GONE — a room note can no longer suppress the characters' card notes, and the surviving door
 //    lands at the identical position. ───────────────────────────────────────────────────────────────────
 describe("buildAssembleContext — the room author's-note override is GONE (owner ruling 2026-08-01)", () => {
   test("a chat injection at depth 4 / system IS the author's note — same position, budget-exempt", async () => {
@@ -919,7 +919,7 @@ describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tie
       hostTierRegexScripts: [regexScript("w", "Aria hoards GOLD", "Aria guards SILVER", "WORLD_INFO")],
     });
 
-    // macros-then-regex: the macro resolved to the cast primary AND the regex matched the resolved text.
+    // macros-then-regex: the macro resolved to the primary character AND the regex matched the resolved text.
     expect(out.worldInfoBefore).toContain("Aria guards SILVER");
     expect(out.worldInfoBefore).not.toContain("{{char}}");
     expect(out.worldInfoBefore).not.toContain("GOLD");
@@ -984,7 +984,7 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
       promptConfig: config,
       guided: { action: "response", input: "watch the {{tone}} closely" },
     });
-    // Template macros resolve ({{char}} → the cast primary); the user's steering text is spliced in with
+    // Template macros resolve ({{char}} → the primary character); the user's steering text is spliced in with
     // its braces ZWSP-neutralized (a typed {{tone}} can NEVER re-trigger macro evaluation).
     expect(out.guidedInstruction).toBe(`[Steer for Aria: watch the {${ZWSP}{tone}${ZWSP}} closely]`);
     // System placement adds NO injection.
@@ -1231,7 +1231,7 @@ describe("buildAssembleContext — immutable/pure (§5)", () => {
     const a = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
     const b = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
     expect(a.chatInjections).toEqual(b.chatInjections);
-    // The cast resolved via the injected getCard (D28) — the primary is the first card.
+    // The characters resolved via the injected getCard (D28) — the primary is the first card.
     expect(a.character.name).toBe("Aria");
   });
 });

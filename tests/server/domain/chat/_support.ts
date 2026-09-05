@@ -487,7 +487,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
       }
     },
     // Default = everyone ONLINE (loadRoom presence-gates the persona set every turn — PD-70). This keeps the
-    // no-multi-human-presence tests byte-identical (no persona drops); a cast-gating test overrides with a
+    // no-multi-human-presence tests byte-identical (no persona drops); a presence-gating test overrides with a
     // fake that returns `online:false` for the away member.
     readPresence: (userId) => Promise.resolve({ userId, online: true, lastSeenAt: null }),
     // Default = everyone ENABLED (the disabled-account containment gate — `loadRoom` narrows

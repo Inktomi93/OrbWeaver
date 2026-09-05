@@ -1,7 +1,7 @@
 // regex-tier — the EFFECTIVE HOST-TIER regex resolver (D53 as amended by D121-E). Pure union, no I/O.
-// Asserts: the FOUR-scope union (host-global ∪ chat-preset ∪ cast ∪ room), dedup-by-ROW-ID (first/earliest-
+// Asserts: the FOUR-scope union (host-global ∪ chat-preset ∪ character ∪ room), dedup-by-ROW-ID (first/earliest-
 // tier wins — the property the old embed-by-value shape could not have, since three copies of a script were
-// three scripts), the deterministic order (global → preset → cast roster order → room; stored order within
+// three scripts), the deterministic order (global → preset → character roster order → room; stored order within
 // each), the FULL set is returned (no enabled/flag filtering — that is the kit executor's job), and the D19
 // host-tier scoping (a non-host member's scripts have NO entry point on the resolver surface).
 
@@ -99,7 +99,7 @@ describe("resolveHostTierRegexScripts", () => {
 
   test("D19 host-tier scoping: a non-host member's scripts have no entry point and never appear", () => {
     // A member's regex set is NOT a parameter on the resolver — the only inputs are the three HOST tiers
-    // (host-global / chat-preset / host-owned cast). So whatever a member would carry, the effective set is
+    // (host-global / chat-preset / host-owned character). So whatever a member would carry, the effective set is
     // exactly the host union — the member-exclusion is structural (D53: a non-host member contributes no
     // shared-prompt regex).
     // `memberScript` is what a non-host member would carry — it is deliberately NOT passed to the resolver.

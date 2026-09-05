@@ -1,7 +1,7 @@
 // assembly/speaker-card — the per-turn CARD-SECTION shape (chat.md §5/§7, three-axis). Pins: the active
-// speaker's card becomes `ctx.character`/`speaker`; merged ⇒ the OTHER cast are co-speakers, scoped ⇒ none;
-// NARRATOR ⇒ the whole cast is the speaker and every non-primary member is a co-speaker; a member-less ctx is
-// unchanged (byte-identical, D16); an off-cast PER-SPEAKER ref is REFUSED (#1462 — keeping the primary
+// speaker's card becomes `ctx.character`/`speaker`; merged ⇒ the OTHER characters are co-speakers, scoped ⇒ none;
+// NARRATOR ⇒ every seated character is the speaker and every non-primary member is a co-speaker; a member-less ctx is
+// unchanged (byte-identical, D16); an off-roster PER-SPEAKER ref is REFUSED (#1462 — keeping the primary
 // shipped the wrong character's card under the asked-for speaker's name).
 
 import type { AssembleCharacter, AssembleContext, SpeakerRef } from "@orb/contracts/chat";
@@ -17,7 +17,7 @@ const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
 const charRef = (k: string): SpeakerRef => ({ kind: "character", characterId: cid(k) });
 const card = (name: string): AssembleCharacter => ({ name, description: `${name}-desc` });
 
-/** A group ctx: cast [Aria, Bran] as characters, index-aligned speakerRefs. */
+/** A group ctx: characters [Aria, Bran], index-aligned speakerRefs. */
 function ctx(): AssembleContext {
   const characters = [card("Aria"), card("Bran")];
   return {
@@ -76,8 +76,8 @@ describe("shapeContextForSpeaker — per-speaker card selection", () => {
   });
 });
 
-// NARRATOR — one call voices the whole cast. Its ref is the SYNTHETIC group character, which is deliberately
-// NOT in `speakerRefs`: before this arm existed the round fell through the off-cast guard above and assembled
+// NARRATOR — one call voices every seated character. Its ref is the SYNTHETIC group character, which is deliberately
+// NOT in `speakerRefs`: before this arm existed the round fell through the off-roster guard above and assembled
 // as a solo turn for the primary, so the co-speakers' cards never reached the model at all.
 describe("shapeContextForSpeaker — narrator (one turn voices every present character)", () => {
   test("the `multi-voice` speaker arm is produced, with EVERY present member on it", () => {
@@ -92,8 +92,8 @@ describe("shapeContextForSpeaker — narrator (one turn voices every present cha
   });
 
   test("the synthetic group ref is IGNORED — narrator never keys on the speaker's membership", () => {
-    // The whole defect: a narrator ref is by construction off-cast. Any ref (even a real member's) shapes the
-    // same cast turn, because what a narrator round voices is decided by `output`, not by who authors the row.
+    // The whole defect: a narrator ref is by construction off-roster. Any ref (even a real member's) shapes the
+    // same narrator turn, because what a narrator round voices is decided by `output`, not by who authors the row.
     const byGhost = shapeContextForSpeaker(ctx(), { ref: charRef("ghost"), output: "narrator", cardScope: "merged" });
     const byMember = shapeContextForSpeaker(ctx(), { ref: charRef("bran"), output: "narrator", cardScope: "merged" });
     expect(byGhost).toEqual(byMember);
