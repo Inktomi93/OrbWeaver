@@ -21,6 +21,8 @@ This is a rewrite of the live gate runtime, not a second gate system. These exis
 
 `GATE-AUTHORING.md` describes the production runtime until the atomic cutover. Migration lanes read this design as the destination and read every assigned gate in full. At cutover `GATE-AUTHORING.md`, `gate:new`, the descriptor contract, the loader, and `gate-modernization` are rewritten together; no parallel authoring guide or scaffold survives.
 
+The historical `codex/gate-authoring-conformance` and `codex/gate-authoring-mechanical-1584` branches implement ESLint rule ownership and are not inputs to this cutover. The reusable enforcement is already on this branch: the branded final descriptor and fail-closed loader plus the temporary `gate:contract` checks for legacy fields, descriptor indirection, private walks/Projects, mutable module state, and baseline ledgers. The three legacy authoring surfaces remain intentionally unchanged until the corpus converts, then they are rewritten directly against `defineGate` in the same cutover commit.
+
 ## Why this program exists
 
 Current `main` has 255 gates. The shared node dispatcher is real, but most of the fleet can bypass it:
