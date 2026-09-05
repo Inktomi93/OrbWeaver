@@ -31,8 +31,8 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { CorpusListSurfaceNavStory, CorpusSearchToDossierStory } from "../_ct-stories.tsx";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { CorpusFieldsSearchStory, CorpusListSurfaceNavStory, CorpusSearchToDossierStory } from "../_ct-stories.tsx";
 
 /**
  * THE CORPUS SECTION'S AMBIENT READS (#649) — spread FIRST into every `routeTrpc` call in this file.
@@ -578,4 +578,32 @@ test("a memory body reads as prose — flattened markdown, no raw syntax — and
   await expect(component.getByRole("button", { name: "Amethyst Hollow (copy)" })).toHaveCount(0);
   // C1: one line of prose — the emphasis markers, the quote/heading prefixes and the blank lines are gone.
   await expect(bodies).toHaveText("Iris said: the copper tub They settle in, and the steam takes the room.");
+});
+
+// ── #1500 · THE NAME MAP CAN FAIL ON ITS OWN ─────────────────────────────────────────────────────
+// The lexical branch's hits are bare ids; the NAMES come from a second read (`character.list`). When that
+// one failed, `byId` was empty and every row fell through to its `Character abc123` short-ref fallback — a
+// real result set wearing fabricated labels, with nothing on screen saying the names were the broken half.
+// The hits are still the answer, so they stay; what is added is the honest notice and a retry for exactly
+// the read that failed.
+const FIELDS_HIT_ID = "character_0000000000000000001";
+
+test("a FAILED name map says the rows are showing ids, and its Retry re-reads the names (#1500)", async ({ mount, page }) => {
+  let attempts = 0;
+  const trpc = await routeTrpc(page, {
+    "search.fields": () => [{ characterId: FIELDS_HIT_ID, score: 4.2 }],
+    "character.list": () =>
+      attempts++ === 0
+        ? trpcError({ message: "name map read failed" })
+        : { items: [{ id: FIELDS_HIT_ID, name: "The Crimson Court", avatarHash: null }], nextCursor: null, totalCount: 1 },
+  });
+  const results = await mount(<CorpusFieldsSearchStory />);
+
+  await expect(results.getByText("Couldn't load your card names — these rows show ids.")).toBeVisible();
+  await results.getByRole("button", { name: "Retry" }).click();
+
+  await expect.poll(() => trpc.count("character.list"), { intervals: [20, 50, 100] }).toBe(2);
+  // The row is named now, and the notice about the missing half is gone with the cause.
+  await expect(results.getByText("The Crimson Court")).toBeVisible();
+  await expect(results.getByText("Couldn't load your card names — these rows show ids.")).toHaveCount(0);
 });

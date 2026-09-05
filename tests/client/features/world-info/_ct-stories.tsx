@@ -5,11 +5,12 @@
 // routeTrpc-stubbed network).
 
 import { QueryBoundary } from "@orb/client/data";
+import { selectCollectionMember, useCollectionSelection } from "@orb/client/state";
 import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EntryEditor } from "../../../../packages/client/src/features/world-info/components/entry-editor.tsx";
 import { WorldInfoCollectionRows } from "../../../../packages/client/src/features/world-info/components/world-info-collection-rows.tsx";
 import { WorldInfoContextBody } from "../../../../packages/client/src/features/world-info/components/world-info-context-body.tsx";
@@ -33,16 +34,40 @@ export function WorldInfoSettingsSectionStory(): ReactElement {
 /** The world-info collection's ROWS, inside the frame the host gives them (a bounded 330px roster column and
  *  the `filter` the host owns). `selectedId` stays null: what a row click DOES is the host's kinded
  *  selection, covered by the config workspace CT; what the ROW SAYS is this story's subject. */
-export function WorldInfoCollectionRowsStory({ filter = "" }: { readonly filter?: string }): ReactElement {
+export function WorldInfoCollectionRowsStory({
+  filter = "",
+  selectedId = null,
+}: {
+  readonly filter?: string;
+  readonly selectedId?: string | null;
+} = {}): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ height: 700, overflow: "auto", width: 330 }}>
+        {/* The OPEN book, as the shell's selection store holds it. A delete only has a selection to CLEAR
+            when one is open, so whether a rejected delete ejects the reader from a book that still exists
+            is unobservable without one — and `clearCollectionSelection` writes the STORE, so the probe
+            reads the store rather than a rendered echo (this story mounts no CONTENT pane to echo it). */}
+        <CollectionSelectionProbe selectedId={selectedId} />
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
-          <WorldInfoCollectionRows view={{ selectedId: null, onSelect: (): void => undefined, filter }} />
+          <WorldInfoCollectionRows view={{ selectedId, onSelect: (): void => undefined, filter }} />
         </QueryBoundary>
       </div>
     </CtDataProviders>
   );
+}
+
+/** Seeds the collection selection during the FIRST render pass (never in an effect — the rows mount in the
+ *  same pass, and a delete fired before the effect ran would read an empty store), then prints what the
+ *  store holds. `null` selects nothing, which is the default arm every existing pin in this file uses. */
+function CollectionSelectionProbe({ selectedId }: { readonly selectedId: string | null }): ReactElement {
+  useEffect(() => {
+    if (selectedId !== null) {
+      selectCollectionMember("worldInfo", selectedId);
+    }
+  }, [selectedId]);
+  const open = useCollectionSelection();
+  return <output aria-label="Open collection member">{open === null ? "none" : open.memberId}</output>;
 }
 
 /** The world-info MEMBER EDITOR mounted in CONTENT (config-rail C-7) — the book view, its sortable entry
@@ -93,10 +118,14 @@ const STORY_ENTRY: EntryView = {
 
 /** The entry editor over the real data layer (updateEntry/removeEntry stubbed in the `.ct.tsx`). */
 export function EntryEditorStory(): ReactElement {
+  const [deleted, setDeleted] = useState("none");
   return (
     <CtDataProviders>
       <div style={{ width: 560, padding: 16 }}>
-        <EntryEditor entry={STORY_ENTRY} onDeleted={(): void => undefined} />
+        {/* `onDeleted` is the editor's ONE outward consequence of the delete — the host tears the editor
+            down on it — so a story that discards it cannot tell a sent delete from a landed one. */}
+        <output aria-label="Deleted entry">{deleted}</output>
+        <EntryEditor entry={STORY_ENTRY} onDeleted={(id): void => setDeleted(id)} />
       </div>
     </CtDataProviders>
   );

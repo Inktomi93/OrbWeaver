@@ -58,7 +58,8 @@ import type { CompareDecision } from "@orb/ui/compare-blocks";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { Suspense, useState } from "react";
-import { CtAppDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { VersionsTabBody } from "../../../../packages/client/src/features/refinery/components/refinery-context-tabs.tsx";
+import { CtAppDataProviders, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 export interface RefineryDataStoryProps {
@@ -698,5 +699,20 @@ export function ScopeEditorReopenStory({ initialFields, remappedFields }: ScopeE
         selection={{ fields: [...fields] }}
       />
     </CtAppDataProviders>
+  );
+}
+
+/** The LIVE Versions context-tab body, mounted the way the CONTEXT panel mounts it. Its own story because
+ *  the tab's READ ARMS are the subject: `character.listSnapshots` is a plain `useQuery`, so pending and
+ *  failed are states this body renders itself rather than states a boundary above it absorbs. */
+export function VersionsTabBodyStory({ sessionId, characterId }: SetupTabBodyStoryProps): ReactElement {
+  // `CtDataProviders`, NOT the app client its Runs/Setup siblings use: those two exist to observe an
+  // errorToast, and the app QueryClient carries `retry: 2` with backoff — which turns this body's SETTLED
+  // read-failure arm into ~seconds of pending. This pin's subject is that arm, so it takes the client whose
+  // `retry: false` makes "failed" a state the first response reaches.
+  return (
+    <CtDataProviders>
+      <VersionsTabBody state={{ sessionId, characterId }} />
+    </CtDataProviders>
   );
 }

@@ -7,7 +7,14 @@
 import { RegexScriptPicker } from "@orb/client/components";
 import { QueryBoundary, useTRPC } from "@orb/client/data";
 import type { CollectionGroupDefinition } from "@orb/client/state";
-import { __resetConfigGroupOpen, clearCollectionSelection, exitRegexBulkMode, isCollectionGroup } from "@orb/client/state";
+import {
+  __resetConfigGroupOpen,
+  clearCollectionSelection,
+  exitRegexBulkMode,
+  isCollectionGroup,
+  toggleRegexBulkMode,
+  useRegexBulkActive,
+} from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -78,9 +85,19 @@ export function RegexLibraryGroupStory(): ReactElement {
 function RegexBulkBarHarness(): ReactElement {
   const trpc = useTRPC();
   const [selectedIds, setSelectedIds] = useState<readonly string[]>(["regex_script_stripooc00000", "regex_script_narrate000000"]);
+  // TWO observables, because the bar has two ways of standing down and only one of them is `onClear`: the
+  // per-verb CLEAR (the host's prop) and the DELETE arm's `exitRegexBulkMode()`, which writes the shared
+  // bulk store the host never sees. A pin on the count alone is blind to the delete verb entirely.
+  // The store defaults to `active: false` and is fresh per CT page, so one toggle IS "enter bulk mode" —
+  // the same door the config band's toggle uses.
+  useState((): null => {
+    toggleRegexBulkMode();
+    return null;
+  });
   return (
     <>
       <output aria-label="Bulk selection count">{selectedIds.length}</output>
+      <output aria-label="Bulk mode">{useRegexBulkActive() ? "on" : "off"}</output>
       <RegexBulkBar ids={selectedIds} onClear={(): void => setSelectedIds([])} trpc={trpc} />
     </>
   );

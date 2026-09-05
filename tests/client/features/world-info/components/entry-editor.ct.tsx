@@ -9,7 +9,8 @@
 // `page` locators address it by accessible name.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import type { Page } from "@playwright/test";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { EntryEditorStory, EntryEditorSwitchStory } from "../_ct-stories.tsx";
 
 test("renders every field, commits a keyword chip, and autosaves the full input", async ({ mount, page }) => {
@@ -275,4 +276,42 @@ test("SWITCH pin — switching entries autosaves the new entry, never the previo
   await expect
     .poll(async () => (trpc.lastInput("worldInfo.updateEntry") as { entryId: string; input: { title: string; content: string } }).input.content)
     .not.toBe("A-content");
+});
+
+// ── #1501 · THE EDITOR CLOSES WHEN THE ENTRY IS GONE, NOT WHEN THE DELETE IS SENT ────────────────
+// `remove.mutate(...)` and `onDeleted(entry.id)` ran back to back, so a REJECTED delete still tore the
+// editor down: the entry survived, the reader was ejected from it, and the only trace was a toast over a
+// list that still had the row.
+async function confirmDelete(page: Page): Promise<void> {
+  await page
+    .getByRole("button", { name: /^Delete/ })
+    .first()
+    .click();
+  const confirm = page.getByRole("alertdialog");
+  if (await confirm.isVisible()) {
+    await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+  }
+}
+
+test("a REJECTED delete keeps the editor open on the entry that still exists (#1501)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "worldInfo.removeEntry": () => trpcError({ message: "delete failed" }) });
+  const editor = await mount(<EntryEditorStory />);
+  const deleted = editor.getByRole("status", { name: "Deleted entry" });
+  await expect(deleted).toHaveText("none");
+
+  await confirmDelete(page);
+
+  await expect.poll(() => trpc.count("worldInfo.removeEntry"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(deleted).toHaveText("none");
+});
+
+test("a SUCCESSFUL delete DOES close it — the host must not hold a dead editor (#1501, the other direction)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "worldInfo.removeEntry": () => null });
+  const editor = await mount(<EntryEditorStory />);
+  const deleted = editor.getByRole("status", { name: "Deleted entry" });
+
+  await confirmDelete(page);
+
+  await expect.poll(() => trpc.count("worldInfo.removeEntry"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(deleted).not.toHaveText("none");
 });

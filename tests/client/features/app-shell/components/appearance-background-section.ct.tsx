@@ -37,6 +37,11 @@ const UPDATE_PROC = "settings.updateUserSettingsSection";
 // and hands back a ready library entry; nothing external is ever persisted (BG-C).
 const EXTERNAL_PROC = "settings.addExternalBackground";
 // A 1×1 PNG for the own-upload arm (the composer.ct fixture) — real bytes so the picker/FormData path is real.
+/** A CAS hash the CONTRACT accepts — `storedAssetSchema.hash` is a fixed 64-char string
+ *  (`packages/contracts/src/assets/index.ts:78`), so the short readable literal this stub used to return
+ *  made `uploadAsset` THROW and the upload under test never landed at all. */
+const UPLOADED_HASH = "ab".repeat(32);
+
 const PNG_1PX = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
 const MATERIALIZED_ENTRY = {
   entryId: "bg_ct_wallpaper",
@@ -313,7 +318,7 @@ test("an upload appends a library entry with its mime and lands as the SELECTED 
   const trpc = await stub(page);
   // The multipart upload route is raw fetch, not tRPC.
   await page.route("**/api/assets/upload", async (route) => {
-    await route.fulfill({ json: { assetId: MATERIALIZED_ENTRY.assetId, hash: "uploadedhash", size: PNG_1PX.length, created: true } });
+    await route.fulfill({ json: { assetId: MATERIALIZED_ENTRY.assetId, hash: UPLOADED_HASH, size: PNG_1PX.length, created: true } });
   });
   await mount(<AppearanceBackgroundSectionStory />);
   await expect(grid(page)).toBeVisible();
@@ -326,9 +331,9 @@ test("an upload appends a library entry with its mime and lands as the SELECTED 
   await expect
     .poll(() => lastPatch(trpc), { intervals: [20, 50, 100] })
     .toMatchObject({
-      backgroundLibrary: [{ assetId: MATERIALIZED_ENTRY.assetId, assetHash: "uploadedhash", mime: "image/png", name: "dusk-harbour" }],
+      backgroundLibrary: [{ assetId: MATERIALIZED_ENTRY.assetId, assetHash: UPLOADED_HASH, mime: "image/png", name: "dusk-harbour" }],
       backgroundAssetId: MATERIALIZED_ENTRY.assetId,
-      backgroundAssetHash: "uploadedhash",
+      backgroundAssetHash: UPLOADED_HASH,
       backgroundAssetMime: "image/png",
     });
   // The upload twin's own visible half: the file-derived NAME is the tile's accessible name, and the tile is
@@ -402,3 +407,34 @@ for (const deviceScaleFactor of [1, 2] as const) {
     });
   });
 }
+
+// ── #1520 item 4 · THE SUCCESS AFFORDANCE IS PER-ATTEMPT ─────────────────────────────────────────
+// `setSuccess(true)` was never reset at the start of a later attempt, so a failed re-upload after any
+// earlier success painted the dropzone's SUCCESS state and the Field's error at the same time — the one
+// control telling the reader both things at once about one attempt. Driven as two real attempts through the
+// same field, because that is the only shape in which the stale flag is reachable.
+test("a FAILED re-upload after a successful one shows the error WITHOUT the stale success (#1520)", async ({ mount, page }) => {
+  await stub(page);
+  let uploads = 0;
+  await page.route("**/api/assets/upload", async (route) => {
+    uploads += 1;
+    if (uploads === 1) {
+      await route.fulfill({ json: { assetId: MATERIALIZED_ENTRY.assetId, hash: UPLOADED_HASH, size: PNG_1PX.length, created: true } });
+      return;
+    }
+    await route.fulfill({ status: 500, json: { message: "upload failed" } });
+  });
+  await mount(<AppearanceBackgroundSectionStory />);
+  await expect(grid(page)).toBeVisible();
+  await openAddDoor(page);
+
+  const input = page.locator('[data-slot="file-dropzone-input"]');
+  await input.setInputFiles({ name: "dusk-harbour.png", mimeType: "image/png", buffer: PNG_1PX });
+  // Barrier on the SETTLED success of attempt one — the flag this test is about only exists once it is set.
+  await expect(page.locator('[data-slot="file-dropzone"][data-success]')).toBeVisible();
+
+  await input.setInputFiles({ name: "second-try.png", mimeType: "image/png", buffer: PNG_1PX });
+
+  await expect(page.getByText("Upload failed — try again.")).toBeVisible();
+  await expect(page.locator('[data-slot="file-dropzone"][data-success]')).toHaveCount(0);
+});

@@ -16,6 +16,7 @@
 
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { useEffect, useRef } from "react";
 import { useTRPCClient } from "#data";
 import { useWorkloadSubscription } from "../hooks/use-workload-subscription.ts";
 import type { BundleCounts } from "../lib/portability-model.ts";
@@ -45,6 +46,21 @@ const RECONCILE_RETRY_BACKOFF_MS = [RECONCILE_RETRY_FIRST_MS, RECONCILE_RETRY_SE
 export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onFailed }: BundleWorkloadTrackerProps): null {
   const trpcClient = useTRPCClient();
   const id = castId<WorkloadId>(workloadId);
+  // THE LADDER MUST NOT OUTLIVE THE TRACKER (#1570). The retry `setTimeout` had no cancel, so a tracker torn
+  // down mid-ladder — the import section unmounts it the moment the run resolves, and the route can leave
+  // entirely — still fired up to ~1s later and called `onProgress`/`onFailed` on a caller that is gone. A SET
+  // and not one handle: `onSocketLive` can fire again while a ladder is pending, so two can legitimately
+  // overlap and both owe a cancel. Read and written only in callbacks and the cleanup, never during render.
+  const retryTimersRef = useRef<Set<ReturnType<typeof setTimeout>> | null>(null);
+  useEffect(
+    () => (): void => {
+      for (const handle of retryTimersRef.current ?? []) {
+        clearTimeout(handle);
+      }
+      retryTimersRef.current?.clear();
+    },
+    [],
+  );
 
   /**
    * RE-DERIVE THE RUN AFTER A GAP — AND DO NOT GO PERMANENTLY SILENT IF THAT READ FAILS (#1503).
@@ -80,7 +96,13 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
         if (backoff === undefined) {
           return; // out of attempts — the stream is still attached and remains the authority
         }
-        setTimeout((): void => reconcile(attempt + 1), backoff);
+        retryTimersRef.current ??= new Set();
+        const timers = retryTimersRef.current;
+        const handle = setTimeout((): void => {
+          timers.delete(handle);
+          reconcile(attempt + 1);
+        }, backoff);
+        timers.add(handle);
       });
   };
 

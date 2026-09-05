@@ -22,6 +22,7 @@ import { castId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
+import { CorpusSearchResults } from "../../../../packages/client/src/features/discovery/components/corpus-search-results.tsx";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The Corpus LIST navigator (omnibox + browse) over the real data layer. */
@@ -388,6 +389,20 @@ export function CorpusDossierSurfaceStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 640, width: 480 }}>
         <CorpusDossierSurface characterId={DOSSIER_CHARACTER} onBack={(): void => undefined} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The omnibox's LEXICAL branch (`search.fields`), mounted directly on the `fields` target. Direct rather
+ *  than through the omnibox: the branch's own defect is that its rows are NAMED from a SECOND read
+ *  (`character.list`), and driving the target through the surface's chip row would put four unrelated
+ *  ambient reads between the test and that claim. */
+export function CorpusFieldsSearchStory({ query = "crimson" }: { readonly query?: string } = {}): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 600, width: 420 }}>
+        <CorpusSearchResults query={query} targetId="fields" />
       </div>
     </CtDataProviders>
   );
