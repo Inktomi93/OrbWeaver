@@ -28,7 +28,7 @@ import { scaledBudget } from "./_load-budget.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const LEDGER_REL = "tests/tooling/gate-spelling-twins.baseline.json";
-const REGEN = `the ledger is hand-maintained: paste the JSON printed below into ${LEDGER_REL}. Do that ONLY to record a SHRINK — a gate that became blind is a defect to fix in tooling/src/verify/lib/symbol-reference.ts, never a new row.`;
+const REGEN = `the ledger is hand-maintained: paste the JSON printed below into ${LEDGER_REL} and run pnpm exec biome format --write on it (biome collapses the short arrays; this test parses the file, so the format is free). Do that ONLY to record a SHRINK — a gate that became blind is a defect to fix in tooling/src/verify/lib/symbol-reference.ts, never a new row.`;
 
 /** LOAD-HONEST BUDGET, same reasoning as gate-conformance.int: this drives ~470 standalone gate passes
  *  in-process — pure CPU with no child process to hang a legible timeout on. */
