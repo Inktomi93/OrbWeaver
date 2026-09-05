@@ -218,7 +218,17 @@ export async function collectSnapFindings(input: SnapFindingInput): Promise<read
     // in a voting state, and de-duplicated against the arms a PRODUCER already described: an analyzer
     // that wrote its own problem rows (design-audit, motion, heap, interaction-perf) has said everything
     // this row would, so a second one would be noise wearing the same arm's name.
-    const described = new Set(drafts.flatMap((row) => row.arms));
+    //
+    // "DESCRIBED" IS A PROVENANCE QUESTION, NOT A SEVERITY ONE (#1566 review). The first cut built this
+    // set from EVERY draft's arms, which swept in the console-attributed ANNOTATION rows — so a run whose
+    // console merely MENTIONED an arm (`[drop] 70ms rendered frame` is attributed to `motion`) lost that
+    // arm's own problem row, and with no error draft left the fallback fired saying "producer-specific
+    // actionable evidence was absent" beside the very evidence: the exact contradiction #1385 forbade,
+    // reintroduced one layer up. Severity cannot be the discriminator either — `interaction-perf` and
+    // `heap` threshold rows are producer-written problem rows that render as ANNOTATIONS. The honest cut
+    // is WHO WROTE IT: everything except the console-ring drafts is a producer describing its own arm.
+    const observed = new Set<FindingDraft>(diagnostics);
+    const described = new Set(drafts.filter((row) => !observed.has(row)).flatMap((row) => row.arms));
     const arms = armVerdictDrafts(input).filter((row) => !row.arms.some((arm) => described.has(arm)));
     drafts.push(...arms);
     // THE FALLBACK MUST NOT FIRE WHEN A ROW EXISTS (#1385 item 5) — its own text says actionable evidence

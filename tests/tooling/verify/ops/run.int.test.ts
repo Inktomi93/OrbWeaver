@@ -85,45 +85,77 @@ test("noticesIn lifts `[verify-notice]` lines and nothing else", () => {
   expect(noticesIn("nothing to declare here\n  ✓ clean")).toEqual([]);
 });
 
-test("printSummary renders a notice in the TAIL block while the verdict stays PASS", () => {
-  const noticed: StageResult = { ...failedStage("structure:db-baseline", 0), ok: true, notices: ["THE NEXT RESPAWN WILL DROP THE DEV DB"] };
-  const report = { tier: "static", scope: "whole", ok: true, exitCode: 0, failed: 0, stages: [noticed] } as const;
+/** Run `emit` with `process.stdout.write` captured, and return everything it wrote. ONE home (#1566):
+ *  three tests had copy-pasted this block, which meant three copies of the same two ratified `any`
+ *  suppressions in one file — the suppressions ratchet only ever shrinks, so a fourth copy is a gate
+ *  failure and the fix is to stop making copies. */
+function captureStdout(emit: () => void): string {
   const written: string[] = [];
   const original = process.stdout.write.bind(process.stdout);
-  // biome-ignore lint/suspicious/noExplicitAny: a one-call stdout capture — the write overloads are irrelevant to what is asserted.
+  // biome-ignore lint/suspicious/noExplicitAny: a stdout capture — the write overloads are irrelevant to what these tests assert.
   (process.stdout as any).write = (chunk: string): boolean => {
     written.push(chunk);
     return true;
   };
   try {
-    printSummary(report);
+    emit();
   } finally {
     // biome-ignore lint/suspicious/noExplicitAny: restoring the captured write, same reason.
     (process.stdout as any).write = original;
   }
-  const out = written.join("");
+  return written.join("");
+}
+
+test("printSummary renders a notice in the TAIL block while the verdict stays PASS", () => {
+  const noticed: StageResult = { ...failedStage("structure:db-baseline", 0), ok: true, notices: ["THE NEXT RESPAWN WILL DROP THE DEV DB"] };
+  const report = { tier: "static", scope: "whole", ok: true, exitCode: 0, failed: 0, stages: [noticed] } as const;
+  const out = captureStdout(() => {
+    printSummary(report);
+  });
   expect(out).toContain("NOTICES (not failures)");
   expect(out).toContain("THE NEXT RESPAWN WILL DROP THE DEV DB");
   // The load-bearing half: a notice is presentation, never severity.
   expect(out).toContain("VERDICT: PASS");
 });
 
+test("a tier-precondition SKIP carries its reason to the tail and to verify.json (#1566)", () => {
+  // The skip line says THAT the precondition declined; the notice says WHICH one. Both must reach the
+  // console — a reader deciding whether their push was really covered is looking at the tail, not at the
+  // registry — and `notices` is a StageResult field, so the same string is in verify.json by construction.
+  // The reason is READ OFF THE REGISTRY rather than restated, so a reworded precondition cannot leave this
+  // pin asserting a sentence the runner no longer prints.
+  const reason = stagesForTier("push").find((row) => row.name === "tests:tooling")?.tierPrecondition?.reason;
+  expect(reason, "tests:tooling has no push-tier precondition to render").toBeTypeOf("string");
+  const skipped: StageResult = {
+    ...failedStage("tests:tooling", 0),
+    ok: true,
+    mode: "skipped",
+    runsAt: "verify --full",
+    notices: [`tier precondition: ${String(reason)}`],
+  };
+  const report = { tier: "push", scope: "whole", ok: true, exitCode: 0, failed: 0, stages: [skipped] } as const;
+  const out = captureStdout(() => {
+    printSummary(report);
+  });
+
+  // The per-stage line names the tier that DOES run it — never the bare "no files in scope" a scoped skip
+  // prints, which is simply false on a whole-tier run.
+  expect(out).toContain("tests:tooling  skipped — tier precondition not met; runs at verify --full");
+  expect(out).not.toContain("tests:tooling  skipped (no files in scope)");
+  // …and the CONDITION reaches the tail, verbatim from the registry.
+  expect(out).toContain("NOTICES (not failures)");
+  expect(out).toContain(`tests:tooling: tier precondition: ${String(reason)}`);
+  expect(out).toContain("tooling/**");
+  // A skip is not a failure: the verdict is untouched.
+  expect(out).toContain("VERDICT: PASS");
+});
+
 test("printSummary prints NO notices block when no stage declared one", () => {
   const report = { tier: "static", scope: "whole", ok: true, exitCode: 0, failed: 0, stages: [{ ...failedStage("lint:biome", 0), ok: true }] } as const;
-  const written: string[] = [];
-  const original = process.stdout.write.bind(process.stdout);
-  // biome-ignore lint/suspicious/noExplicitAny: a one-call stdout capture — the write overloads are irrelevant to what is asserted.
-  (process.stdout as any).write = (chunk: string): boolean => {
-    written.push(chunk);
-    return true;
-  };
-  try {
+  const out = captureStdout(() => {
     printSummary(report);
-  } finally {
-    // biome-ignore lint/suspicious/noExplicitAny: restoring the captured write, same reason.
-    (process.stdout as any).write = original;
-  }
-  expect(written.join("")).not.toContain("NOTICES");
+  });
+  expect(out).not.toContain("NOTICES");
 });
 
 test("failReason: an eslint exit-2 TOOL error renders as a tool-error (‼ · TOOL-ERROR), never a violation", () => {

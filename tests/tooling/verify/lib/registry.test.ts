@@ -10,9 +10,9 @@
 // rather than a prose table, and the LAST one is the arm that matters most: a precondition that cannot be
 // computed must RUN the stage, never skip it. A gate whose "off" state is indistinguishable from "I could
 // not tell" is the false-clean class this repo mints rows for.
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { StageDef } from "../../../../tooling/src/verify/contract/stage.ts";
 import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
@@ -93,8 +93,57 @@ test("a tier-precondition skip says so and names the tier that DOES run it; a sc
   expect(stageLine({ ...base, name: "lint:eslint", group: "lint", runsAt: null })).toContain("skipped (no files in scope)");
 });
 
-test("a checkout that DID touch an instrument satisfies the precondition — this very worktree", ({ repoRoot }) => {
-  // The positive control for the arm above: this lane's own branch touches tooling/** by construction, so
-  // a `true` here proves the predicate can answer at all rather than only ever returning null.
-  expect(stage("push", "tests:tooling").tierPrecondition?.satisfied(repoRoot)).toBe(true);
+// THE POSITIVE CONTROL BUILDS ITS OWN DIFF (#1566 review). The first draft asked the predicate about THIS
+// worktree, which answers `true` only while `origin/main` lags local `main` — the moment they are equal
+// the merge base is HEAD, the diff is empty, and the arm silently starts asserting `false === true` for a
+// reason that has nothing to do with the predicate. A scratch repo with its own `main` and a real commit
+// on top of it makes the branch diff a FACT THE TEST OWNS.
+function plantBranch(files: readonly string[]): string {
+  const root = mkdtempSync(join(tmpdir(), "orb-precondition-"));
+  const git = (...args: readonly string[]): void => {
+    const res = runNicedSync("git", ["-C", root, ...args]);
+    if (res.status !== 0) {
+      throw new Error(`git ${args.join(" ")} failed: ${res.stderr}`);
+    }
+  };
+  git("init", "-b", "main");
+  git("config", "user.name", "Precondition Test");
+  git("config", "user.email", "precondition@example.invalid");
+  writeFileSync(join(root, "seed.txt"), "base\n");
+  git("add", "seed.txt");
+  git("commit", "-m", "base");
+  // HEAD must be AHEAD of the base ref or the merge base IS HEAD and every diff is empty — the same
+  // degenerate shape (`origin/main` caught up with local `main`) that made the first draft of this test
+  // pass for the wrong reason. `MERGE_BASE_REFS` finds no `origin/main` here and falls back to `main`.
+  git("checkout", "-b", "work");
+  for (const file of files) {
+    const target = join(root, file);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, "changed\n");
+  }
+  git("add", "-A");
+  git("commit", "-m", "branch work");
+  return root;
+}
+
+test("a branch that DID touch an instrument satisfies the precondition; one that did not does NOT", () => {
+  const satisfied = stage("push", "tests:tooling").tierPrecondition?.satisfied;
+  expect(satisfied).toBeTypeOf("function");
+
+  // Both arms run against a repo whose base ref and branch commit this test authored, so the answer turns
+  // on the PATHS in the diff and nothing else.
+  const touched = plantBranch(["tooling/src/snap/cli.ts"]);
+  const testsTouched = plantBranch(["tests/tooling/snap/whatever.test.ts"]);
+  const untouched = plantBranch(["packages/client/src/app.tsx"]);
+  try {
+    expect(satisfied?.(touched), "a tooling/** change is a push-tier concern").toBe(true);
+    expect(satisfied?.(testsTouched), "a tests/tooling/** change is one too").toBe(true);
+    // THE NEGATIVE ARM the old test could never make: a product-only branch cannot regress an instrument
+    // test that was green on its base, so the battery moves to --full.
+    expect(satisfied?.(untouched), "a product-only change is not").toBe(false);
+  } finally {
+    for (const root of [touched, testsTouched, untouched]) {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
 });
