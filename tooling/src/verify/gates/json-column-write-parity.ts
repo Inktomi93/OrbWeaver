@@ -871,8 +871,8 @@ export const gate: GateDescriptor = {
         "packages/db/src/schema/index.ts": 'export * from "./notes.ts";\n',
         "packages/db/src/schema/notes.ts": 'export const notes = sqliteTable("notes", {\n  body: text("body", { mode: "json" }),\n});\n',
       },
-      expect: { count: 5, messageIncludes: "ALLOWLIST entry names" },
-      why: "BOTH STALE SWEEPS, two-sided (§4.4): the anchor is loaded and NOTHING on this tree claims any ALLOWLIST or GUARD_EXEMPT row, so all five rows red as stale. It is also the mode-B proof — a row whose site left the project is examined, because the sweep is keyed on a `seen` set and never on the row's own file existing",
+      expect: { count: 7, messageIncludes: "ALLOWLIST entry names" },
+      why: "BOTH STALE SWEEPS, two-sided (§4.4): the anchor is loaded and NOTHING on this tree claims any ALLOWLIST or GUARD_EXEMPT row, so all seven rows red as stale. It is also the mode-B proof — a row whose site left the project is examined, because the sweep is keyed on a `seen` set and never on the row's own file existing",
     },
   ],
   mustPass: [
