@@ -25,27 +25,30 @@
 //
 // SORT MODE (tag-experience audit 2026-08-03): the list reads in one of three orders — Most used
 // (DEFAULT), A–Z, Manual order — persisted per device in the `tag-library` store. The counts are already in
-// every payload (`listOwnedTagsWithUsage` returns `usage.total`), so this is a client comparator and a
-// Select, with zero server cost.
+// every payload (`listOwnedTagsWithUsage` returns `usage.total`), so this is a client comparator with zero
+// server cost.
+//
+// ═══ THE SELECT LEFT, THE COMPARATOR STAYED (#1725, DESIGN.md §3.2) ═══════════════════════════════════
+// The order CONTROL used to be drawn right here, one line above the rows. Board 02 puts it in the library's
+// control row (`filter · sort · create · overflow`), so it is declared data now — `tagCollection.sort`, drawn
+// by the host, backed by `useTagSortControl`. What could not follow it is the COMPARATOR: sorting runs over
+// members and the host never sees one. Both halves read the SAME store (`useTagSortMode` here,
+// `setTagSortMode` there), so there is still exactly one mode and no prop restating it.
+// The order HINT went with the control, into the Manual option's own `description` (`tagSortItems`) — the
+// 2026-08-03 P1/P2 rulings survive with a changed address, and the reasoning is written where the copy now
+// lives rather than repeated here.
 //
 // DRAG BELONGS TO MANUAL ONLY. `sortOrder` KEEPS its three server-side readers (owner ruling: manual is not
 // retired, the new modes JOIN it) — but a drag handle inside a DERIVED order would write a `sortOrder` the
 // screen never reflects, which is a control that lies. So the ≤30 arm forks again: manual → `SortableList`,
 // the two derived modes → the same rows without handles.
 //
-// …AND THE LIST SAYS ALL OF THAT OUT LOUD NOW (side-eye 2026-08-03 P1/P2). Three silences, one line and
-// one `disabled` between them: above the cap "Manual order" was a fully selectable mode with zero handles
-// whose output is pixel-identical to A–Z (every `sortOrder` is null, so the comparator tiebreaks on name)
-// and it PERSISTS, so a user could sit in it forever; below the cap nothing told anyone that dragging
-// existed at all, because it lives behind a third option in a right-aligned Select that reads as a view
-// preference; and the Select itself sat alone on its line with ~230px of dead space beside it. The hint
-// (`tagOrderHint`) is the list's voice for the first two and the Select's row-mate for the third.
+// THE PRUNE VERB SPLIT THE SAME WAY: its TRIGGER is the host's overflow kebab (`tagCollection.actions`) and
+// its CONFIRM is still here, because the unused COUNT and the cascade copy are this component's knowledge.
 
 import type { TagWithUsage } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
-import { Select } from "@orb/ui/select";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
@@ -54,10 +57,10 @@ import type { ReactElement } from "react";
 import { ConfirmDialog, LibraryRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { CollectionListView } from "#lib";
-import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, sortTagsBy } from "#lib";
-import { clearCollectionSelection, setTagSortMode, useTagSortMode } from "#state";
+import { COLLECTION_LARGE_GROUP, sortTagsBy } from "#lib";
+import { clearCollectionSelection, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
 import { usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "../hooks/use-tag-settings-mutations.ts";
-import { pruneConfirmLabel, tagColorLabel, tagOrderHint, tagSortItems, unusedTagsLabel, usageBreakdown, usageTotalLabel } from "../lib/tags-model.ts";
+import { pruneConfirmLabel, tagColorLabel, unusedTagsLabel, usageBreakdown, usageTotalLabel } from "../lib/tags-model.ts";
 
 /** One compact row's height guess for the windowed arm (swatch + name + usage on one line). */
 const ESTIMATED_ROW_PX = 36;
@@ -70,6 +73,7 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
   const prune = usePruneUnusedTags({ trpc, invalidation });
   const remove = useRemoveTag({ trpc, invalidation });
   const sortMode = useTagSortMode();
+  const pruneOpen = useTagPruneConfirmOpen();
 
   const needle = view.filter.trim().toLowerCase();
   const matched = needle === "" ? tags : tags.filter((tag) => tag.name.toLowerCase().includes(needle));
@@ -93,7 +97,6 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
 
   const windowed = tags.length > COLLECTION_LARGE_GROUP;
   const draggable = !windowed && sortMode === "manual";
-  const orderHint = tagOrderHint(!windowed, sortMode, COLLECTION_LARGE_GROUP);
   const empty = filtered.length === 0;
   // A FILTER MISS AND AN EMPTY LIBRARY ARE DIFFERENT STATES (side-eye 2026-08-03 P1). `filtered.length === 0`
   // printed "No tags match that filter." with no filter set — and stacked it above the host's own zero-member
@@ -102,32 +105,10 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
   // the only voice.
   const filterMiss = empty && needle !== "";
   return (
-    <Stack gap="tight">
-      {/* The order control rides the OWNER's half of the group body (the host's band carries only create),
-          and only where there is an order to change — a one-tag library has none. */}
-      {tags.length > 1 ? (
-        // The Select SHARES this line with the order hint. Alone on it, right-aligned with ~230px of dead
-        // space beside it, it read as a leftover control (side-eye 2026-08-03 P2) — and the list had no
-        // voice at all for the one thing the third mode is FOR.
-        <Row align="center" gap="tight" justify="between">
-          {orderHint === null ? null : (
-            <Text className="min-w-0 flex-1" voice="gloss">
-              {orderHint}
-            </Text>
-          )}
-          <Select
-            aria-label="Sort tags"
-            className="w-auto"
-            items={tagSortItems(!windowed)}
-            onValueChange={(value): void => {
-              if (value !== null) {
-                setTagSortMode(value);
-              }
-            }}
-            value={sortMode}
-          />
-        </Row>
-      ) : null}
+    // THE PANE IS THE WINDOW (#1725) — `min-h-0 flex-1` carries the CONTENT pane's bound down to the
+    // windowed arm below, which is what replaced the 384px `max-h-96` cap. `min-h-0` is the load-bearing
+    // half: a flex child defaults to `min-height: auto` and would grow to its content instead of scrolling.
+    <Stack className="min-h-0 flex-1" gap="tight">
       {/* THE MISS SPEAKS (side-eye 2026-08-19 P3). Focus stays in the host's filter box while the rows below
           it change, so the one state with no rows at all had no feedback a keyboard reader ever received.
           `role="status"` is the polite live region for exactly this. It rides the MESSAGE, not the row
@@ -140,7 +121,14 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
       {empty || !windowed ? null : (
         <VirtualList
           aria-label="Tags"
-          className={COLLECTION_WINDOW_MAX_HEIGHT}
+          // THE PANE IS THE WINDOW (#1725, DESIGN.md §5.4). This was the shared `max-h-96` cap — a flat 384px
+          // that existed to stop one library pushing its sibling BANDS below the fold in the LIST's shared
+          // scroll column. That column is gone, so the bound is the CONTENT pane's own `overflow-y-auto` box,
+          // reached by flex (`character-library-body.tsx`'s chain): the landing is `min-h-0 flex-1` in the
+          // pane and this is `min-h-0 flex-1` in the landing. `min-h-0` is the load-bearing half — a flex
+          // child defaults to `min-height: auto`, which lets the scroller grow to its content and trips the
+          // primitive's own unbounded-window throw.
+          className="min-h-0 flex-1"
           estimateSize={(): number => ESTIMATED_ROW_PX}
           // The bounded window ends mid-row at an arbitrary height, and with overlay scrollbars that
           // half-row is the only hint that there is more (side-eye 2026-08-03 P3). The fade lifts at the
@@ -176,34 +164,32 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
           ))}
         </Stack>
       )}
-      {/* The library-level verb rides the OWNER's half of the group body — the host's band carries only the
-          create verb, and "prune" is a fact about this library nobody else can state.
-          IT CONFIRMS (side-eye 2026-08-03 P2): it was a bare `prune.mutate()` on a ghost button sitting one
-          row under a virtualized list — at the owner's 430-tag library that is a single mis-click from
-          deleting 394 rows with no undo. Every other destructive verb in this workspace already carries a
-          ConfirmDialog; the count goes IN the copy, because "delete unused tags" and "delete 394 tags" are
-          different decisions. */}
-      {hasUnused ? <PruneUnusedControl count={unusedCount} onConfirm={(): void => prune.mutate()} /> : null}
-    </Stack>
-  );
-}
-
-/** "Prune unused" + its confirm — the mass-delete's one door (the ConfirmDialog homing precedent). */
-function PruneUnusedControl({ count, onConfirm }: { readonly count: number; readonly onConfirm: () => void | Promise<void> }): ReactElement {
-  return (
-    <Row justify="end">
+      {/* THE PRUNE CONFIRM, CONTROLLED — the TRIGGER moved to the host's overflow kebab (#1725: it is a
+          `CollectionContribution.actions` entry now, DESIGN.md §3.2 board 02) and the QUESTION stayed here,
+          because the count and the cascade are the ROWS' knowledge and the host draws its menu blind. The
+          `pruneConfirmOpen` store flag is the wire between the two fibers.
+          IT STILL CONFIRMS (side-eye 2026-08-03 P2): it was a bare `prune.mutate()` on a ghost button one
+          row under a virtualized list — at the owner's 430-tag library, one mis-click from deleting 394 rows
+          with no undo. The count goes IN the copy, because "delete unused tags" and "delete 394 tags" are
+          different decisions.
+          AND THE ZERO ARM IS THE HONEST ONE. The button used to be HIDDEN when there was nothing to prune; a
+          menu item built from static `actions` data cannot hide itself, so the truth moved into the dialog:
+          the confirm states there is nothing to delete and its destructive button is DISABLED. That is the
+          same fact the hidden button stated, said by the surface that can still say it. */}
       <ConfirmDialog
-        confirmLabel={pruneConfirmLabel(count)}
-        description={`This deletes ${unusedTagsLabel(count)} — every tag attached to nothing. This can't be undone.`}
-        onConfirm={onConfirm}
-        title={`Delete ${unusedTagsLabel(count)}?`}
-        trigger={
-          <Button intent="ghost" size="sm" type="button">
-            Prune unused
-          </Button>
+        confirmDisabled={!hasUnused}
+        confirmLabel={pruneConfirmLabel(unusedCount)}
+        description={
+          hasUnused
+            ? `This deletes ${unusedTagsLabel(unusedCount)} — every tag attached to nothing. This can't be undone.`
+            : "Every tag in this library is attached to something, so there is nothing to delete."
         }
+        onConfirm={(): void => prune.mutate()}
+        onOpenChange={setTagPruneConfirmOpen}
+        open={pruneOpen}
+        title={hasUnused ? `Delete ${unusedTagsLabel(unusedCount)}?` : "Nothing to prune"}
       />
-    </Row>
+    </Stack>
   );
 }
 

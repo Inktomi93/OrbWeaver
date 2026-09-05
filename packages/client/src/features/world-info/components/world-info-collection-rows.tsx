@@ -37,7 +37,7 @@ import type { ReactElement } from "react";
 import { LibraryRow } from "#components";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
-import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, downloadTextFile, notify } from "#lib";
+import { COLLECTION_LARGE_GROUP, downloadTextFile, notify } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useDuplicateWorldBook, useRemoveWorldBook } from "../hooks/use-world-info-mutations.ts";
 import { bookScent } from "../lib/world-info-model.ts";
@@ -123,7 +123,14 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
       return (
         <VirtualList
           aria-label="World books"
-          className={COLLECTION_WINDOW_MAX_HEIGHT}
+          // THE PANE IS THE WINDOW (#1725, DESIGN.md §5.4). This was the shared `max-h-96` cap — a flat 384px
+          // that existed to stop one library pushing its sibling BANDS below the fold in the LIST's shared
+          // scroll column. That column is gone, so the bound is the CONTENT pane's own `overflow-y-auto` box,
+          // reached by flex (`character-library-body.tsx`'s chain): the landing is `min-h-0 flex-1` in the
+          // pane and this is `min-h-0 flex-1` in the landing. `min-h-0` is the load-bearing half — a flex
+          // child defaults to `min-height: auto`, which lets the scroller grow to its content and trips the
+          // primitive's own unbounded-window throw.
+          className="min-h-0 flex-1"
           estimateSize={(): number => ESTIMATED_ROW_PX}
           // Same reason as the tag/regex arms (side-eye 2026-08-06 P2): a fixed cap over uniform rows ends
           // mid-row, and under overlay scrollbars that sliver is the only "there is more" cue there is.

@@ -43,7 +43,7 @@ export type {
   CollectionInsight,
   CollectionListView,
 } from "./collection-contracts.ts";
-export { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT } from "./collection-contracts.ts";
+export { COLLECTION_LARGE_GROUP } from "./collection-contracts.ts";
 export type { ConfigQueryToken, ParsedConfigQuery } from "./config-search-tokens.ts";
 export { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "./config-search-tokens.ts";
 export type {

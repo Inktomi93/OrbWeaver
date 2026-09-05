@@ -35,11 +35,14 @@
 //    drawn ONCE. They said what the LIST could not; they now say what the ROWS do not, which is the same
 //    sentence about a different neighbour.
 //  · The 30-member filter gate and `COLLECTION_WINDOW_MAX_HEIGHT` are DELETED WITH THEIR PREMISE, not
-//    retuned (DESIGN.md §3.2 · stickler). Both existed because three collapsible bands shared one LIST
+//    retuned (DESIGN.md §3.2/§5.4 · stickler). Both existed because three collapsible bands shared one LIST
 //    scroll column: the box had to be capped so a first library could not push its siblings below the fold,
 //    and the filter was worth its 32px only past a glance. This pane is the library's alone and its scroller
 //    is the pane, so the cap has nothing to protect and the filter is always worth drawing. Virtualisation
-//    above 30 rows stays — that is a rendering budget, not a geometry one.
+//    above 30 rows stays — that is a rendering budget, not a geometry one. The CAP became a RE-BIND rather
+//    than a bare deletion, because `@orb/ui/virtual-list` throws on an unbounded scroll box: the landing is
+//    `min-h-0 flex-1` inside the pane and each windowed arm is `min-h-0 flex-1` inside the landing, so the
+//    window is the pane's height at every width instead of 384px at all of them.
 //
 // THE HOST SENTENCE IS GONE, AND THAT IS A STATED DEVIATION. `CONFIG_COLLECTION_LANDING.hint` read "Pick one
 // from the list to open its editor." The stickler's §5.3 says such copy must be REPLACED rather than
@@ -51,10 +54,11 @@
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { FileTrigger } from "@orb/ui/file-trigger";
-import { Icon, ListChecks, MoreVertical, Search, Upload } from "@orb/ui/icons";
+import { Icon, ListChecks, MoreVertical, Plus, Trash2, Upload } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
+import { Select } from "@orb/ui/select";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -117,7 +121,14 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
     );
   }
   return (
-    <Stack data-collection={group.id} data-slot="config-collection-landing" gap="section">
+    // THE LANDING IS THE PANE'S COLUMN, NOT A BLOCK INSIDE IT (#1725, DESIGN.md §5.4). `min-h-0 flex-1` is
+    // what re-bound the windowed arm's height from a flat 384px (`COLLECTION_WINDOW_MAX_HEIGHT`) to the
+    // CONTENT pane's own `overflow-y-auto` box: this column takes the pane's free space, and each library's
+    // `VirtualList` takes this column's. `min-h-0` is the half that does the work — a flex child defaults to
+    // `min-height: auto`, so without it the scroller grows to its content, virtualization is a no-op, and
+    // the primitive's own unbounded-window guard throws at mount. A SHORT library still overflows this box
+    // into the pane's scroller (overflow is visible), so a non-windowed list is unchanged.
+    <Stack className="min-h-0 flex-1" data-collection={group.id} data-slot="config-collection-landing" gap="section">
       {/* `level={2}`: this glance IS the pane's identity, so its name is the pane's heading. */}
       <ConfigLibraryGlance group={group} level={2} />
       <CollectionControlRow collection={collection} filter={filter} label={group.label} onFilterChange={setFilter} />
@@ -143,23 +154,24 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
 }
 
 /**
- * The library's CONTROL ROW (DESIGN.md §3.2) — filter · bulk · overflow · create.
+ * The library's CONTROL ROW (DESIGN.md §3.2, board 02/04) — filter · sort · bulk · create · overflow, in
+ * that visual order, six controls maximum.
  *
- * Every control here is DECLARED DATA the host draws blind (`create`, `bulkSelect`, `importFile`) plus the
- * host's own filter box. The host never learns what a member is, what a bulk selection MEANS, or what an
- * imported file contains — the `collection-contracts.ts` split is unchanged by the move: host draws the
- * door, owner decides what walks through it.
+ * Every control here is DECLARED DATA the host draws blind (`create`, `sort`, `bulkSelect`, `importFile`,
+ * `actions`) plus the host's own filter box. The host never learns what a member is, what a sort MODE means,
+ * what a bulk selection MEANS, or what an imported file contains — the `collection-contracts.ts` split is
+ * unchanged by the move: host draws the door, owner decides what walks through it.
  *
  * IMPORT SITS IN AN OVERFLOW, NEVER AS A BARE BUTTON (§3.2), and the overflow is drawn ONLY when it has
  * something in it. An empty kebab is the capability lie #925's must-WORK bar names — a control whose one act
- * is to open onto nothing. Tags and rosters declare no import, so they draw no overflow.
+ * is to open onto nothing. Rosters declare neither an import nor an action, so they draw no overflow.
  *
- * NOT DRAWN HERE YET, and both are named rather than silently missing: the library's SORT (board 02's
- * `Most used ▾`) and tags' `Prune unused tags`. Neither is declared by `CollectionContribution` today — the
- * tag sort lives inside `tag-collection-rows.tsx`'s own state and Prune is not a verb any contribution
- * raises — and a mock line is not authorization to mint seam surface. The sort's contract field is
- * owner-ruled (2026-09-05) and lands with the rest of §3.2; Prune is an open question. Until then the tag
- * sort keeps rendering where its contribution already draws it, one row lower than the board puts it.
+ * THE OPTIONAL HOOKS EACH GET THEIR OWN COMPONENT, and that is not style: `sort.useMode`, `bulkSelect.useMode`,
+ * `importFile.useRun` and every `actions[].useRun` are hooks whose EXISTENCE varies by contribution. Calling
+ * them behind an `=== undefined` test in this component would make the hook COUNT conditional inside one
+ * fiber; a child component that renders only when the field is declared makes each call unconditional for
+ * its own fiber, and the #1203 `key={collection.id}` at the mount site keeps that true across a library
+ * switch.
  */
 function CollectionControlRow({
   collection,
@@ -177,19 +189,56 @@ function CollectionControlRow({
   const create = collection.create.useRun();
   return (
     <Row align="center" data-slot="collection-control-row" gap="field">
-      <Row align="center" className="min-w-0 flex-1" gap="tight">
-        <Icon className="text-muted-foreground" icon={Search} size="sm" />
-        {/* A FILTER, never the settings index's jump search (§3.2): it narrows THIS library's rows in place,
-            which is the verb every peer LIST pane's `Input` performs. The settings `combobox` above it jumps
-            instead, and the two must not read as one control. */}
+      {/* A FILTER, never the settings index's jump search (§3.2): it narrows THIS library's rows in place,
+          which is the verb every peer LIST pane's `Input` performs. The settings `combobox` above it jumps
+          instead, and the two must not read as one control.
+          NO LEADING GLYPH, and that is a MEASURED call rather than a taste one (#1725): the row carries five
+          controls and the filter is the only one that flexes, so every fixed pixel beside it comes out of the
+          one box a reader types into. At 430 the glyph + its joint took the filter to ~85px — "Filter tag",
+          clipped mid-word — against ~130px in the approved p2 board, which draws no glyph either. The
+          placeholder already names the verb. */}
+      <Row align="center" className="min-w-0 flex-1">
         <Input aria-label={`Filter ${label.toLowerCase()}`} onValueChange={onFilterChange} placeholder={`Filter ${label.toLowerCase()}…`} value={filter} />
       </Row>
+      <CollectionSort collection={collection} />
       <CollectionBulkToggle collection={collection} />
-      <CollectionOverflow collection={collection} />
+      {/* CREATE IS THE ROW'S ONE PRIMARY (C-2's no-aggregate-primary ruling is about the WELCOME, not here):
+          it is the library's own verb, on the library's own pane. */}
       <Button intent="primary" onClick={create} size="sm" type="button">
+        <Icon icon={Plus} size="sm" />
         {collection.create.label}
       </Button>
+      <CollectionOverflow collection={collection} />
     </Row>
+  );
+}
+
+/** The library's READING ORDER (`sort`) — host chrome, contribution data. Its own component so the optional
+ *  hook runs unconditionally for the one contribution that declares it. */
+function CollectionSort({ collection }: { readonly collection: CollectionContribution }): ReactNode {
+  const sort = collection.sort;
+  if (sort === undefined) {
+    return null;
+  }
+  return <SortSelect sort={sort} />;
+}
+
+function SortSelect({ sort }: { readonly sort: NonNullable<CollectionContribution["sort"]> }): ReactElement {
+  const mode = sort.useMode();
+  return (
+    // `w-auto`: the field control's own `w-full` would claim the row for a three-word label, and the filter
+    // is what should be taking the slack (side-eye 2026-08-03 P2, re-homed with the control).
+    <Select
+      aria-label={sort.label}
+      className="w-auto"
+      items={mode.options}
+      onValueChange={(value): void => {
+        if (value !== null) {
+          mode.setMode(value);
+        }
+      }}
+      value={mode.mode}
+    />
   );
 }
 
@@ -208,22 +257,80 @@ function CollectionBulkToggle({ collection }: { readonly collection: CollectionC
 function BulkToggleButton({ bulk }: { readonly bulk: NonNullable<CollectionContribution["bulkSelect"]> }): ReactElement {
   const mode = bulk.useMode();
   return (
-    <Button aria-label={bulk.label} aria-pressed={mode.active} intent="ghost" onClick={mode.toggle} size="icon-sm" title={bulk.label} type="button">
+    // LABELLED, not icon-only (board 04 draws "✓ Select scripts"): entering a bulk MODE changes what every
+    // row is, and a bare glyph beside four other controls is not a name a reader can act on.
+    <Button aria-pressed={mode.active} intent="ghost" onClick={mode.toggle} size="sm" type="button">
       <Icon icon={ListChecks} size="sm" />
+      {bulk.label}
     </Button>
   );
 }
 
-/** The overflow — drawn only when it has an item. Today that means exactly `importFile`. */
+/** The overflow — the library-level menu, drawn ONLY when it has an item. Its contents are `importFile`
+ *  (D121-D's band Import, re-homed here by DESIGN.md §3.2) and every declared `actions` entry. A
+ *  contribution declaring NEITHER gets no kebab at all: a control whose one act is to open onto nothing is
+ *  the capability lie this seam's must-WORK bar names. */
 function CollectionOverflow({ collection }: { readonly collection: CollectionContribution }): ReactNode {
   const door = collection.importFile;
-  if (door === undefined) {
+  const actions = collection.actions ?? [];
+  if (door === undefined && actions.length === 0) {
     return null;
   }
-  return <ImportOverflow door={door} />;
+  // The two arms are separate COMPONENTS rather than one with a conditional `useRun`, for the optional-hook
+  // reason the control row's header states: `importFile.useRun` exists only where the field does.
+  return door === undefined ? <ActionsOverflow actions={actions} /> : <ImportOverflow actions={actions} door={door} />;
 }
 
-function ImportOverflow({ door }: { readonly door: NonNullable<CollectionContribution["importFile"]> }): ReactElement {
+/** One declared library verb as a menu item. Its own component so `useRun` is unconditional for its own
+ *  fiber, and so the `actions` array's fixed order is the fixed hook order. */
+function ActionItem({ action }: { readonly action: NonNullable<CollectionContribution["actions"]>[number] }): ReactElement {
+  const run = action.useRun();
+  return (
+    // THE HOUSE'S DESTRUCTIVE MENU GRAMMAR, not a new one: `RowActionsMenu` marks its destructive arm with
+    // the `Trash2` glyph behind a separator, and `MenuItem` has no intent prop to reach for. One vocabulary
+    // for "this one deletes", whether the subject is a row or the whole library.
+    <MenuItem onClick={run}>
+      {action.tone === "danger" ? <Icon icon={Trash2} size="sm" /> : null}
+      {action.label}
+    </MenuItem>
+  );
+}
+
+function ActionItems({ actions }: { readonly actions: NonNullable<CollectionContribution["actions"]> }): ReactElement {
+  return (
+    <>
+      {actions.map((action) => (
+        <ActionItem action={action} key={action.label} />
+      ))}
+    </>
+  );
+}
+
+/** The overflow for a library with actions and NO import door — no `FileTrigger` to wrap. */
+function ActionsOverflow({ actions }: { readonly actions: NonNullable<CollectionContribution["actions"]> }): ReactElement {
+  return (
+    <Menu>
+      <MenuTrigger
+        render={
+          <Button aria-label="More library actions" intent="ghost" size="icon-sm">
+            <Icon icon={MoreVertical} size="sm" />
+          </Button>
+        }
+      />
+      <MenuPopup align="end">
+        <ActionItems actions={actions} />
+      </MenuPopup>
+    </Menu>
+  );
+}
+
+function ImportOverflow({
+  door,
+  actions,
+}: {
+  readonly door: NonNullable<CollectionContribution["importFile"]>;
+  readonly actions: NonNullable<CollectionContribution["actions"]>;
+}): ReactElement {
   const run = door.useRun();
   return (
     // The FileTrigger wraps the MENU, never sits inside its popup: its `<input type="file">` is a real
@@ -251,6 +358,8 @@ function ImportOverflow({ door }: { readonly door: NonNullable<CollectionContrib
               <Icon icon={Upload} size="sm" />
               {door.label}
             </MenuItem>
+            {actions.length === 0 ? null : <MenuSeparator />}
+            <ActionItems actions={actions} />
           </MenuPopup>
         </Menu>
       )}

@@ -441,5 +441,5 @@ export { SlashCommandRegistryProvider } from "./slash-command-registry-provider.
 export { announceStatus, useStatusAnnouncement } from "./status-announcement-store.ts";
 export { __readRecentSteersForTest, __resetRecentSteers, pushFiredSteer, STEER_RECOVERY_CAP, useRecentSteers } from "./steer-recovery-store.ts";
 export { __readSurfaceBoxForTest, __resetSurfaceBoxes, rememberSurfaceBox, useSurfaceBox } from "./surface-box-store.ts";
-export { setTagSortMode, useTagSortMode } from "./tag-library-store.ts";
+export { setTagPruneConfirmOpen, setTagSortMode, useTagPruneConfirmOpen, useTagSortMode } from "./tag-library-store.ts";
 export { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId, worldEntrySelectionSeam } from "./world-entry-selection-store.ts";
