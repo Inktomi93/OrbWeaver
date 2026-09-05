@@ -1,9 +1,16 @@
+import type { BatchStmt } from "@orb/db/kit";
 import type { ExternalId, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { getLog, logAudit } from "#foundation/observability";
 import type { Sealed } from "#infra/crypto";
 import type { RevokedSession, RevokedSessionsSummary } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
-import { revokeAllForExternalId, revokeAllForUser as revokeAllForUserQuery, revokeById, revokeByTokenHash } from "../persistence/sessions.ts";
+import {
+  revokeAllForExternalId,
+  revokeAllForUser as revokeAllForUserQuery,
+  revokeAllForUserStatement as revokeAllForUserStatementQuery,
+  revokeById,
+  revokeByTokenHash,
+} from "../persistence/sessions.ts";
 
 // The four revoke paths — by token (logout), by id (admin kick one device), all-for-user (admin disable /
 // kick-all), by-external-subject (OIDC back-channel logout, A5). Each is ONE atomic
@@ -40,7 +47,9 @@ function openIdTokenHint(ctx: SessionsContext, sealed: Sealed | null, sessionId:
   }
 }
 
-export function createRevoke(ctx: SessionsContext): Pick<SessionsService, "revokeByToken" | "revoke" | "revokeAllForUser" | "revokeByExternalId"> {
+export function createRevoke(
+  ctx: SessionsContext,
+): Pick<SessionsService, "revokeByToken" | "revoke" | "revokeAllForUser" | "revokeAllForUserStatement" | "revokeByExternalId"> {
   async function revokeByToken(token: SessionToken): Promise<RevokedSession | null> {
     const now = ctx.now();
     const revoked = await revokeByTokenHash(ctx.db, ctx.hashToken(token), now);
@@ -97,5 +106,10 @@ export function createRevoke(ctx: SessionsContext): Pick<SessionsService, "revok
     return { revoked: revoked.length, userIds: [...new Set(revoked.map((row) => row.userId))] };
   }
 
-  return { revokeByToken, revoke, revokeAllForUser, revokeByExternalId };
+  // The UNEXECUTED kick-all (#1691). No log line here on purpose: nothing has been revoked yet — the count
+  // only exists once the CALLER's batch commits, and its forensic record is the audit row that commits with
+  // it. The executed `revokeAllForUser` above keeps the breadcrumb for the explicit admin kick verb.
+  const revokeAllForUserStatement = (userId: UserId, revokedAt: number): BatchStmt => revokeAllForUserStatementQuery(ctx.db, userId, revokedAt);
+
+  return { revokeByToken, revoke, revokeAllForUser, revokeAllForUserStatement, revokeByExternalId };
 }

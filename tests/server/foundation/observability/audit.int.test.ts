@@ -4,7 +4,18 @@
 
 import type { Db } from "@orb/db";
 import { auditLogs } from "@orb/db";
-import { getAuditFailureSnapshot, logAudit, resetAuditFailureCount } from "@orb/server/foundation/observability";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany, batchStmt } from "@orb/db/kit";
+import type { AuditLogId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import {
+  buildAuditStatement,
+  buildAuditStatementIfPrecedingWrote,
+  getAuditFailureSnapshot,
+  logAudit,
+  resetAuditFailureCount,
+} from "@orb/server/foundation/observability";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -55,5 +66,51 @@ describe("logAudit — failure path (never breaks the primary channel)", () => {
     expect(snap.count).toBe(1);
     expect(snap.firstFailureAt).toBe(FAIL_STAMP);
     expect(snap.lastFailureAt).toBe(FAIL_STAMP);
+  });
+});
+
+// #1691 — the ATOMIC seam. `buildAuditStatementIfPrecedingWrote` projects its columns POSITIONALLY through
+// `insert().select()`, so the row it writes is pinned against the row the ordinary builder writes: a column
+// added to `audit_logs` (or reordered) must not be able to silently mis-bind this one.
+describe("buildAuditStatementIfPrecedingWrote — the batch-riding, changes()-guarded insert", () => {
+  const entry = {
+    actorUserId: null,
+    action: "admin.setRole",
+    entityType: "user",
+    entityId: "user_t",
+    metadata: { role: "admin", nested: { deep: true } },
+  };
+
+  /** A one-row write to stand in for a verb's privileged statement (`changes()` = 1 after it). */
+  const precedingWrite = (db: Db, id: string): BatchStmt =>
+    batchStmt(db.insert(auditLogs).values({ id: castId<AuditLogId>(id), action: "preceding.write", createdAt: STAMP }));
+
+  test("writes the SAME row the unguarded builder writes when the preceding statement changed a row", async () => {
+    const db = await freshDb();
+    await db.batch(batchMany([precedingWrite(db, "audit_p1"), buildAuditStatementIfPrecedingWrote(db, entry, STAMP)]));
+    await db.batch(batchMany([precedingWrite(db, "audit_p2"), buildAuditStatement(db, entry, STAMP)]));
+
+    const rows = await db.select().from(auditLogs).where(eq(auditLogs.action, "admin.setRole"));
+    expect(rows).toHaveLength(2);
+    const [guarded, plain] = rows;
+    // Everything but the minted id must match — the json round-trip of `metadata` included.
+    expect({ ...guarded, id: "" }).toEqual({ ...plain, id: "" });
+    expect(guarded?.metadata).toEqual(entry.metadata);
+  });
+
+  test("writes NOTHING when the preceding statement changed no row", async () => {
+    const db = await freshDb();
+    await db.batch(
+      batchMany([
+        // A conditional write that matches nothing — the shape of a lost owner-immutability race.
+        db
+          .update(auditLogs)
+          .set({ action: "x" })
+          .where(eq(auditLogs.id, castId<AuditLogId>("audit_absent")))
+          .returning({ id: auditLogs.id }),
+        buildAuditStatementIfPrecedingWrote(db, entry, STAMP),
+      ]),
+    );
+    expect(await db.select().from(auditLogs)).toHaveLength(0);
   });
 });

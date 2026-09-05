@@ -70,6 +70,7 @@ function stubSessions(validate: SessionsService["validate"]): SessionsService {
     revokeByToken: unused("revokeByToken"),
     revoke: unused("revoke"),
     revokeAllForUser: unused("revokeAllForUser"),
+    revokeAllForUserStatement: unused("revokeAllForUserStatement"),
     revokeByExternalId: unused("revokeByExternalId"),
     listForUser: unused("listForUser"),
     ensureUser: unused("ensureUser") as SessionsService["ensureUser"],

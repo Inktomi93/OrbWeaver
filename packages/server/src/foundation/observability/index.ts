@@ -6,6 +6,7 @@ export {
   type AuditEntry,
   type AuditFailureSnapshot,
   buildAuditStatement,
+  buildAuditStatementIfPrecedingWrote,
   getAuditFailureSnapshot,
   logAudit,
   resetAuditFailureCount,

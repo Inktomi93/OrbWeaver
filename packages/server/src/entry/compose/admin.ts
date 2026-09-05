@@ -17,6 +17,7 @@ import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseService } from "#domain/tool-use";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
+import { buildAuditStatementIfPrecedingWrote } from "#foundation/observability";
 import type { EngineDeploymentFacts, RoleClientsWithSignal, VllmEngineHandle } from "#infra/providers";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import type { SessionSocketEviction } from "../http/index.ts";
@@ -30,7 +31,7 @@ export interface AdminComposeDeps {
   readonly newUserId: () => UserId;
   readonly hashPassword: (password: string) => Promise<string>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
-  readonly sessions: Pick<SessionsService, "listForUser" | "revoke" | "revokeAllForUser" | "linkExternalId">;
+  readonly sessions: Pick<SessionsService, "listForUser" | "revoke" | "revokeAllForUser" | "revokeAllForUserStatement" | "linkExternalId">;
   /** W7a — the live-socket eviction edge for every admin revoke (see the wrapper below for the granularity
    *  ruling). Transport state, injected as a port: `domain/admin` may not import transport. */
   readonly sockets: SessionSocketEviction;
@@ -67,6 +68,11 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
     newUserId: deps.newUserId,
     hashPassword: deps.hashPassword,
     audit,
+    // #1691 — the ATOMIC audit channel for the privileged writes (create/reset-password/set-role/
+    // set-enabled). `audit` above stays `logAudit` (best-effort, suppress → count → drop) for the advisory
+    // verbs; this seam hands back an UNEXECUTED, `changes()`-guarded insert that rides the privileged write's
+    // own batch, so the write and its forensic row commit together or neither does.
+    auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
     // W7b — the identity freshness plane. The house injected-emit pattern (the domain never reaches at
     // transport, D38); admin is the one producer whose channel is the TARGET user's, never the actor's.
     emitUserEvent: publishUserEvent,
@@ -94,6 +100,14 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
         const revoked = await sessions.revokeAllForUser(userId);
         deps.sockets.evictUser(userId);
         return revoked;
+      },
+      // #1691 — the same kick, SPLIT: the DB half is handed to the caller unexecuted so it can ride the
+      // privileged write's batch (a credential rotation must not survive a failed kick), and the live-socket
+      // half is called by the verb after that batch commits. The executed wrapper above keeps both halves
+      // for `admin.revokeUserSessions`, whose whole action IS the kick.
+      revokeAllForUserStatement: sessions.revokeAllForUserStatement,
+      evictUserSockets: (userId: UserId): void => {
+        deps.sockets.evictUser(userId);
       },
       // B5 — the bind-once linking capability (domain/sessions); admin gates + audits around it.
       linkExternalId: (userId, externalId) => sessions.linkExternalId(userId, externalId),
