@@ -247,8 +247,24 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
 
         <Section kicker="Maintenance">
           <Stack gap="row">
-            <Row align="center" gap="row" justify="between">
-              <Text voice="gloss">Re-chunk and re-embed this document — after a settings change, or to heal a partial index.</Text>
+            {/* THE PARAGRAPH TAKES THE READING MEASURE, THE BLOCK ABOVE KEEPS THE CONTROL ONE (#1653). #1175
+                put `--width-content-col` on the Stack that holds this editor's controls and said in the same
+                breath that "a block holding controls keeps the wider measure while the paragraph inside it
+                takes this one" — this sentence, the longest running copy in the pane, never got the second
+                half. Measured pre-fix in the CT browser with real Geist: 446.0px = 90.0 average glyph
+                advances per line against the design law's 65-75 band, identical at 1280/1440/1920 because
+                the only cap above it was the 720px content column. `--reading-measure-prose` resolves 329px
+                HERE (47ch in this paragraph's own 10.5px gloss font — a `ch` on the wrapper would have
+                resolved at the wrong scale, the #213/#1130 failure the token's contract names) = 66.4 law
+                characters.
+                AND `justify="start"`, NOT `between` — a cap alone would have paid for the measure with a
+                390px hand-span between the sentence and the button that acts on it, which is the SAME
+                defect the 08-03 measure and the 08-19 readout-grid fix were both filed for ("a measure caps
+                the worst case; it does not tie the pair"). The button rides its own sentence. */}
+            <Row align="center" gap="row" justify="start">
+              <Text className="min-w-0 max-w-(--reading-measure-prose)" voice="gloss">
+                Re-chunk and re-embed this document — after a settings change, or to heal a partial index.
+              </Text>
               <Button disabled={reindex.isPending} intent="secondary" onClick={onReindex} size="sm">
                 <Icon icon={RefreshCw} size="sm" />
                 Reindex

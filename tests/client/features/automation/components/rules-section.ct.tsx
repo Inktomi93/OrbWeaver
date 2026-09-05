@@ -1363,3 +1363,51 @@ test("an unreadable rule offers no enable door — the switch refuses and setRul
   await expect.poll(() => trpc.count("automation.setRuleEnabled")).toBe(1);
   await expect.poll(() => trpc.lastInput("automation.setRuleEnabled")).toMatchObject({ ruleId: "automationrule_ct_armless", enabled: true });
 });
+
+// ── #1655 — the OTHER door on the same rule ─────────────────────────────────────────────────────────────
+// #1558 took the enable switch away from an unreadable rule and left Run-now standing in the overflow menu,
+// so the row refused to switch the rule ON while still offering to RUN it. That offer cannot succeed:
+// `engine/dispatch.ts::runRule` re-parses the blob, fails, and calls
+// `disableRule(…, "auto-disabled: corrupt actions blob")` — pressing it turns the rule off behind the host's
+// back — and on an already-disabled one `verbs/run-rule-now.ts` throws `rule_disabled` first. Every branch
+// fails, which is the #924 dead end.
+//
+// ASSERTED THROUGH WHAT A HOST MEETS, never through the flag: the item's `aria-disabled`, the absence of a
+// native `disabled` attribute (Base UI renders a disabled MenuItem as `div[role=menuitem][aria-disabled]`
+// via `focusableWhenDisabled`, which is what lets `title` reach both hover AND the a11y tree — a tooltip on
+// a disabled trigger would reach neither), the refusal SENTENCE, and a request counter with its own POSITIVE
+// CONTROL: the armless rule's Run-now round-trips in the same mount, so a count of exactly 1 proves the
+// corrupt row's door performed nothing rather than proving the stub was never wired.
+// RED against the pre-fix source: the item answered `aria-disabled` absent, carried no `title`, and the
+// count reached 2 with the corrupt rule's id last.
+const RUN_REFUSAL = `Can't run "Broken watcher" — its saved actions can't be read`;
+
+test("#1655 an unreadable rule refuses Run now too — the two doors agree, and runRuleNow never fires", async ({ mount, page }) => {
+  const trpc = await stub(page, { rules: [UNREADABLE_RULE, ARMLESS_RULE] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  // SETTLED: both rows painted before either menu is judged.
+  await expect(page.getByText("Broken watcher", { exact: true })).toBeVisible();
+  await expect(page.getByText("Empty watcher", { exact: true })).toBeVisible();
+
+  await openRuleMenu(page, "Broken watcher");
+  const refused = page.getByRole("menuitem", { name: "Run now", exact: true });
+  await expect(refused).toBeVisible();
+  await expect(refused).toHaveAttribute("aria-disabled", "true");
+  // NOT the native attribute — that arm swallows hover, and with it the reason.
+  await expect(refused).not.toHaveAttribute("disabled", /.*/u);
+  // The reason is the enable control's own refusal in the same grammar, and it reaches the a11y tree as the
+  // item's description rather than living only in a hover affordance.
+  await expect(refused).toHaveAttribute("title", RUN_REFUSAL);
+  // …and it does not offer to SPEND on a rule that cannot act: the spend wording belongs to a readable rule.
+  await expect(page.getByRole("menuitem", { name: /spends a model call/u })).toHaveCount(0);
+  // Base UI blocks activation on an `aria-disabled` item; `force` bypasses Playwright's actionability check
+  // so the press is really attempted rather than skipped.
+  await refused.click({ force: true });
+
+  // THE POSITIVE CONTROL, in the same mount: the intentionally-empty rule's door still works.
+  await page.keyboard.press("Escape");
+  await openRuleMenu(page, "Empty watcher");
+  await page.getByRole("menuitem", { name: "Run now", exact: true }).click();
+  await expect.poll(() => trpc.count("automation.runRuleNow")).toBe(1);
+  await expect.poll(() => trpc.lastInput("automation.runRuleNow")).toMatchObject({ ruleId: "automationrule_ct_armless" });
+});

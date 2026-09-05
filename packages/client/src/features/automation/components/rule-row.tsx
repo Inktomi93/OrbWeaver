@@ -37,6 +37,15 @@
 // left switched on is exactly the thing a host needs to see) and paints the Lock glyph as the non-colour
 // signal, where a vanished control would silently answer a different question. Its accessible name states
 // the refusal, so a screen-reader user meets the reason at the control rather than only above it.
+//
+// #1655 CLOSED THE OTHER DOOR ON THAT SAME STATE. #1558 removed the enable door and left Run-now standing
+// in the overflow menu, so the row refused to switch the rule ON while still offering to RUN it — two
+// answers to one question. And the offer could not succeed: dispatch re-parses the blob, fails, and
+// auto-disables the rule (`engine/dispatch.ts::runRule`), so pressing it turned the rule off behind the
+// host's back. Run-now is now refused in the enable control's own grammar, with the reason on `title`
+// (Base UI's disabled MenuItem is an `aria-disabled` div, so the reason reaches hover AND the a11y tree).
+// The badge sentence is UNCHANGED and did not need to change: it already says the rule can't run and names
+// the one repair, which is exactly what both doors now say.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -62,6 +71,7 @@ import {
   ruleGloss,
   ruleUnreadableEnableRefusal,
   ruleUnreadableLine,
+  ruleUnreadableRunRefusal,
   runOutcomeNotice,
   SUGGEST_ON_REFUSAL_HELP,
   SUGGEST_ON_REFUSAL_LABEL,
@@ -241,7 +251,19 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
               onConfirm: (): void => deleteRule.mutate({ ruleId: rule.id, chatId }),
             }}
           >
-            <MenuItem disabled={runNow.isPending} onClick={onRunNow}>
+            {/* THE TWO DOORS AGREE (#1655). #1558 took the enable switch away from an unreadable rule and
+                left Run-now beside it, so the row refused to switch the rule ON while still offering to
+                RUN it — and that offer cannot succeed: `engine/dispatch.ts::runRule` re-parses the blob,
+                fails, and auto-disables the rule, which is the #924 dead end wearing a spend glyph. Refused
+                in the enable control's own grammar, with the reason on `title`: Base UI renders a disabled
+                MenuItem as `div[role=menuitem][aria-disabled]` (never the native attribute), so the element
+                still takes pointer events and `title` genuinely surfaces on hover AND reaches the a11y tree
+                as the item's description — which a tooltip on a disabled trigger would not. The badge
+                sentence above already says the rule can't run and names the one repair, so nothing there
+                has to change for the two to agree.
+                A TRANSIENT pending disable carries NO reason (there is nothing to explain and it is gone in
+                a moment); only the persistent gate state explains itself. */}
+            <MenuItem disabled={unreadable || runNow.isPending} onClick={onRunNow} title={unreadable ? ruleUnreadableRunRefusal(rule.name) : undefined}>
               <Icon icon={spends ? Coins : Play} size="sm" />
               {spends ? "Run now — spends a model call" : "Run now"}
             </MenuItem>

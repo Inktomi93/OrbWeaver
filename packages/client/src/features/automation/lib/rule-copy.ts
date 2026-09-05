@@ -197,6 +197,19 @@ export function ruleUnreadableEnableRefusal(ruleName: string): string {
   return `Can't enable "${ruleName}" — its saved actions can't be read`;
 }
 
+/** The reason on the Run-now door of an unreadable rule (#1655) — the SAME refusal as the enable control's,
+ *  in the same grammar, because the two doors are answers to one question and a surface that refuses to
+ *  switch a rule on while still offering to run it says two different things about the same rule.
+ *
+ *  IT IS A REFUSAL, NOT A REPAIR PATH. Pressing Run now on a corrupt blob is not a way to re-check the
+ *  actions: `engine/dispatch.ts::runRule` re-parses, fails, and calls
+ *  `disableRule(…, "auto-disabled: corrupt actions blob")` — so the door's only reachable outcome is to turn
+ *  the rule OFF behind the host's back (and on an already-disabled one, `verbs/run-rule-now.ts` throws
+ *  `rule_disabled` before it gets that far). A door whose every branch fails is the #924 dead end. */
+export function ruleUnreadableRunRefusal(ruleName: string): string {
+  return `Can't run "${ruleName}" — its saved actions can't be read`;
+}
+
 /** The rule row's SECOND line: what this rule does, in the words the rule itself carries. A minted rule
  *  stores its catalogue entry's own summary as `description` (`createRuleFromPreset` writes
  *  `description: preset.summary`), so the catalogue's plain-English sentence — the copy the review called
