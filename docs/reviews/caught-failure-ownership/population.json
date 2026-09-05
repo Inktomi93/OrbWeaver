@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 537,
-    "enforced": 532,
+    "sites": 538,
+    "enforced": 533,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 532,
+      "deliberate-absorb": 533,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
-      "promise": 140,
+      "promise": 141,
       "default": 144,
       "empty": 253
     }
@@ -421,6 +421,19 @@
       "markerLine": 221
     },
     {
+      "siteId": "packages/client/src/features/chat/components/chat-documents-section.tsx::promise:promise::1",
+      "path": "packages/client/src/features/chat/components/chat-documents-section.tsx",
+      "line": 165,
+      "column": 34,
+      "grammar": "promise",
+      "position": "promise:promise",
+      "ordinal": 1,
+      "snippet": "visibilityChainRef.current = visibilityChainRef.current",
+      "verdict": "deliberate-absorb",
+      "reason": "the chain's own catch, never the mutation's — `useSetChatDocumentVisibility` still runs its errorToast and its optimistic `onError` rollback untouched. It exists so ONE rejected write cannot wedge the queue for every later toggle. Ends if that mutation stops wiring an errorToast.",
+      "markerLine": 164
+    },
+    {
       "siteId": "packages/client/src/features/chat/components/chat-list-row-menu.tsx::promise:remove::1",
       "path": "packages/client/src/features/chat/components/chat-list-row-menu.tsx",
       "line": 65,
@@ -618,7 +631,7 @@
     {
       "siteId": "packages/client/src/features/notifications/components/notification-bell.tsx::promise:work::1",
       "path": "packages/client/src/features/notifications/components/notification-bell.tsx",
-      "line": 223,
+      "line": 229,
       "column": 10,
       "grammar": "promise",
       "position": "promise:work",
@@ -626,7 +639,7 @@
       "snippet": "void work()",
       "verdict": "deliberate-absorb",
       "reason": "every `work` this wraps (accept/decline/",
-      "markerLine": 220
+      "markerLine": 226
     },
     {
       "siteId": "packages/client/src/features/persona/components/persona-list.tsx::empty:catch::1",
