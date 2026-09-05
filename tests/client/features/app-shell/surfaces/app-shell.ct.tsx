@@ -4625,6 +4625,30 @@ test("a section with NO panes ships NO panel chrome: no list toggle, no detail-p
   await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-available", "false");
 });
 
+// #1223 — THE SAME DOOR, ONE SECTION OVER. Extensions declares `context: {kind:"none"}` (a plugin page owns
+// its whole CONTENT region and has no host-drawn inspector) but declared no `panels`, and the shell derives
+// availability from `panels.context` ALONE — so the topbar shipped a live "Show details" toggle that opened
+// the generic "isn't wired yet" placeholder on the platform's own front page. A section with a LIST and no
+// CONTEXT is the mixed case the home test cannot cover: the list toggle must survive.
+test("a section with a LIST but NO context pane ships the list toggle and NO detail-panel toggle", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
+    "chat.listChats": chatListResponder([]),
+    "character.list": { items: [], nextCursor: null },
+    "plugin.list": () => [],
+    "plugin.listSurfaces": () => [],
+  });
+  const shell = await mount(<AppShellOnSectionStory section="extensions" />);
+
+  await expect(shell.getByRole("button", { name: LIST_TOGGLE_RE })).toBeVisible();
+  await expect(page.getByRole("button", { name: CONTEXT_TOGGLE_RE })).toHaveCount(0);
+  // The #1122 declaration, published per panel: LIST is real here, CONTEXT is not — "false everywhere"
+  // cannot pass this pair, and neither can "true everywhere".
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-available", "true");
+  await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-available", "false");
+  await expect(page.locator('.shell-panel[data-panel-side="context"] .shell-panel-body')).toBeEmpty();
+});
+
 test("a section WITH panes still ships both toggles — the gate is per-section capability, not a global removal", async ({ mount }) => {
   const shell = await mount(<AppShellStory />);
 

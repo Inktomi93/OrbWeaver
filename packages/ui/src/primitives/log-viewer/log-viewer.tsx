@@ -174,8 +174,9 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
         </Button>
       </div>
       {shouldVirtualize ? (
-        // message-list already owns the scroll container + role="log"/aria-live pair, so this is
-        // NOT wrapped in a second role="log" div.
+        // message-list already owns the scroll container + the role="log"/live-region pair (its liveness
+        // is the TAIL ROW — announce.ts), so this is NOT wrapped in a second role="log" div. The plain
+        // arm below keeps its container-level `aria-live`: it is append-only and mounts no history.
         <MessageList
           ref={listHandleRef}
           ariaLabel="Log entries"

@@ -24,7 +24,10 @@ export function useConfigSelectionTitle(groups: ConfigGroupRegistry): string | n
   // no-selection arm still calls the hook (with an id no row can match) rather than skipping it.
   const selected = selection === null ? undefined : groups.get(selection.kind as ConfigGroupRegistryId);
   const collection = selected !== undefined && isCollectionGroup(selected) ? selected : collectionGroups(groups)[0];
-  const memberTitle = collection?.body.collection.useMemberTitle?.(selection?.memberId ?? "");
+  // No `?.` on the hook itself: `useMemberTitle` is REQUIRED on the contract (#1219) precisely so this
+  // call cannot vanish with the contribution. (The `collection?.` guard is the registry's own totality,
+  // not a per-contribution capability — see the note above.)
+  const memberTitle = collection?.body.collection.useMemberTitle(selection?.memberId ?? "");
   if (selection !== null) {
     return memberTitle ?? collection?.label ?? null;
   }

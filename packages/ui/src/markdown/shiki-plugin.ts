@@ -217,13 +217,17 @@ export const MARKDOWN_SHIKI_PLUGIN: CodeHighlighterPlugin = {
   getSupportedLanguages: () => Object.keys(LANGUAGE_LOADERS) as never[],
   supportsLanguage: (language) => language in LANGUAGE_LOADERS,
   highlight(options: HighlightOptions, callback?: (result: ShikiHighlightResult) => void): ShikiHighlightResult | null {
-    // @orb-gate-ignore caught-failure-ownership(promise:highlightAsync): documented below — a grammar
-    // fetch/tokenize failure leaves the block unhighlighted rather than crashing the render; the callback
-    // simply never fires. Ends if the render path stops tolerating an unfired callback.
+    // @orb-gate-ignore caught-failure-ownership(promise:highlightAsync): the unfired callback is the
+    // RESOLVED state, not a dropped one — re-derived against the vendor 2026-09-04 (#1498 item 2). Streamdown's
+    // `HighlightedCodeBlockBody` seeds `useState(raw)` with a synchronous PLAIN-TEXT result (its `CodeBlock`
+    // memoizes `{bg:"transparent", fg:"inherit", tokens: <one span per line>}` and passes it as `raw`, also as
+    // the lazy chunk's Suspense fallback), so a callback that never fires leaves the fence rendered as
+    // unhighlighted code — never blank, never pending. Firing our own plain result would DOUBLE that vendor
+    // fallback with a token shape we do not own. Ends if `raw`/`useState(raw)` leaves that component.
     highlightAsync(options.code, options.language)
       .then((result) => callback?.(result))
       .catch(() => {
-        // Grammar fetch/tokenize failure: leave the block unhighlighted rather than crashing the render.
+        // Grammar fetch/tokenize failure: leave the block on Streamdown's own raw/plain-text result.
       });
     return null;
   },

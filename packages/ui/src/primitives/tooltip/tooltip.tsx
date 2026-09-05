@@ -39,9 +39,17 @@ export function Tooltip<Payload = unknown>(props: BaseRootProps<Payload>): React
 }
 
 /** Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven tooltip. */
-export function TooltipTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {
+export function TooltipTrigger<Payload = unknown>({ "aria-describedby": callerDescribedBy, ...props }: BaseTriggerProps<Payload>): ReactElement {
   const descriptionId = use(TooltipDescriptionContext);
-  return <BaseTooltip.Trigger aria-describedby={descriptionId} {...props} />;
+  // MERGED, never overwritten — and the merge is why this one is DESTRUCTURED out of the spread rather
+  // than ordered around it (`ui-accname-survives-spread`'s second arm). `aria-describedby` is a
+  // SPACE-SEPARATED id list, and this seal's id is the only thing pointing at the popup: with the seal's
+  // attribute before the spread a caller's own description (a field hint, an error line) REPLACED it and
+  // the popup rendered under an id nothing referenced; after it, the caller's would be the one dropped.
+  // Neither is right for a list. The seal's id leads (the tooltip is this component's own contract), the
+  // caller's follows.
+  const describedBy = callerDescribedBy === undefined ? descriptionId : `${descriptionId ?? ""} ${callerDescribedBy}`.trim();
+  return <BaseTooltip.Trigger aria-describedby={describedBy} {...props} />;
 }
 
 export interface TooltipPopupProps extends Omit<BasePopupProps, "className"> {

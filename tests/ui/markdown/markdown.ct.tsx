@@ -11,6 +11,10 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 
 const ERROR_FALLBACK = "Content failed to render.";
+/** Streamdown lazy-imports its highlighted code-block body; blocking that request reproduces the
+ *  stale-deploy-hash chunk failure the seal's error boundary exists for. */
+const LAZY_CODE_CHUNK = /highlighted-body/u;
+const FENCED_TS = "```ts\nconst a = 1;\n```";
 const COPY_CODE_BTN = /copy code/iu;
 const DOWNLOAD_BTN = /download/iu;
 
@@ -809,4 +813,30 @@ test("H19: a thematic break renders a real gap either side, and carries no uncom
   expect(gaps.above).toBeGreaterThan(0);
   // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(gaps.below).toBeGreaterThan(0);
+});
+
+// #1498 — THE ERROR BOUNDARY RETRIES. It wraps ONE message's `<Streamdown>` for that message's whole
+// life, so a latched `failed` turned a single transient throw — the stale-hash lazy-chunk failure the
+// boundary was built for — into a permanently dead message: "Content failed to render." for the rest of
+// the session, over prose that renders fine. Blocking the lazy code-block chunk IS that failure.
+test("a transient render failure does NOT kill the message: the next content retries", async ({ mount, page }) => {
+  // `"aborted"`, never the default `"failed"`: chromium swaps in an error page for a failed request and
+  // every later assertion would pass over a destroyed DOM.
+  await page.route(LAZY_CODE_CHUNK, async (route) => await route.abort("aborted"));
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="streaming">
+      {FENCED_TS}
+    </Markdown>,
+  );
+  await expect(cmp.getByText(ERROR_FALLBACK)).toBeVisible();
+
+  // The stream carries on, and the next delta must RENDER.
+  await page.unroute(LAZY_CODE_CHUNK);
+  await cmp.update(
+    <Markdown trust="untrusted" mode="streaming">
+      the stream carried on
+    </Markdown>,
+  );
+  await expect(cmp.getByText("the stream carried on")).toBeVisible();
+  await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });

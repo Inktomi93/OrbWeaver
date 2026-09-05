@@ -33,6 +33,12 @@ import { useExtensionsSelectionTitle } from "./use-extensions-selection-title.ts
 export const extensionsSection: SectionDefinition = {
   id: "extensions",
   rail: { label: "Extensions", icon: Blocks, group: "authoring", mobile: "sheet" },
+  // The DECLARED SHADOW of `context: {kind:"none"}` below (#1223). The shell derives "has a context pane"
+  // from `panels.context` alone (`use-shell-layout.ts`), never from the context slot, so a section that
+  // declares no context CONTENT but omits this ships a live topbar toggle onto the generic placeholder —
+  // exactly the door H3/arm L-b removed for home. Interim: the design's §3.4b would DERIVE availability
+  // from `kind:"none"`, and until it lands the two statements are spelled separately and must agree.
+  panels: { context: "unavailable" },
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: EXTENSIONS_PLACEHOLDER,
   list: () => <ExtensionsSwitcherSurface />,

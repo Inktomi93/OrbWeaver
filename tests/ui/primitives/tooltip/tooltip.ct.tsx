@@ -2,6 +2,9 @@ import { Tooltip, TooltipArrow, TooltipPopup, TooltipTrigger, TooltipViewport } 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { TooltipHandleHarness } from "./tooltip-handle.fixtures.tsx";
 
+/** The caller's OWN description target — one static node in one mount, so no `useId` collision exists. */
+const CALLER_HINT_ID = "ct-hint";
+
 // The OPTIONAL multi-trigger transition container (Base UI Tooltip.Viewport). It must not break the
 // seal's own name/description wiring — the popup keeps role="tooltip" and the trigger keeps pointing
 // at it, with the label reachable through the extra wrapper.
@@ -109,4 +112,39 @@ test("opens imperatively via a detached handle and routes the trigger payload to
   await page.getByRole("button", { name: "Open remotely" }).click();
   await expect(popup).toBeVisible();
   await expect(popup).toContainText("Reached content");
+});
+
+// #1499 — A CALLER'S OWN DESCRIPTION IS ADDITIVE, NEVER A REPLACEMENT. `aria-describedby` is a
+// space-separated ID LIST, and the seal's id is the only thing pointing at the popup; when the trigger's
+// props spread landed AFTER the seal's attribute, a caller passing its own hint id silently unwired the
+// tooltip — the popup still rendered under the generated id, referenced by nothing.
+test("a caller-supplied aria-describedby is MERGED with the seal's, never replacing it", async ({ mount, page }) => {
+  await mount(
+    <div>
+      <span id={CALLER_HINT_ID}>Also mentioned elsewhere</span>
+      <Tooltip>
+        <TooltipTrigger aria-describedby={CALLER_HINT_ID} delay={0}>
+          Regenerate
+        </TooltipTrigger>
+        <TooltipPopup>Regenerate the last reply</TooltipPopup>
+      </Tooltip>
+    </div>,
+  );
+
+  const trigger = page.getByRole("button", { name: "Regenerate" });
+  await trigger.hover();
+  const popup = page.locator('[data-slot="tooltip-popup"]');
+  await expect(popup).toBeVisible();
+
+  const popupId = await popup.getAttribute("id");
+  const describedBy = (await trigger.getAttribute("aria-describedby")) ?? "";
+  const ids = describedBy.split(/\s+/u).filter((id) => id.length > 0);
+  // ONESHOT-OK: the popup is already asserted VISIBLE above, so the seal's id and the trigger's describedby list are both settled — nothing further mutates either.
+  expect(popupId).not.toBeNull();
+  // BOTH: the tooltip's description survives, and the caller's is honoured beside it.
+  expect(ids).toContain(popupId);
+  expect(ids).toContain(CALLER_HINT_ID);
+  // …and the rendered accessible description is the pair, not one of them.
+  await expect(trigger).toHaveAccessibleDescription(/Regenerate the last reply/u);
+  await expect(trigger).toHaveAccessibleDescription(/Also mentioned elsewhere/u);
 });
