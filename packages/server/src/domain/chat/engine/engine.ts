@@ -926,19 +926,16 @@ function applyCompactionOverlay(ctx: AssembleContext, overlay: CompactionOverlay
   return { ...ctx, compactSummary: overlay.compactSummary, compactedThroughSeq: overlay.compactedThroughSeq };
 }
 
-/** The PRE-TURN managed-compaction orchestration (the wedge-state fix): load canon, and when the cumulative
- *  estimate already crosses the managed pct, compact BEFORE dispatch so a chat whose context already overflows
- *  the window can escape (the post-turn arm never runs on a failing turn). Awaited, single-flight, failure-honest
- *  (a failed pre-turn compaction logs + proceeds with the pre-compaction canon — never blocks the turn). Returns
- *  the (possibly reloaded) canon + maxSeq + a marker overlay (null when nothing compacted). */
-async function runPreTurnCompaction(
+/** The pre-turn arm's ELIGIBILITY read, lifted out of the orchestration below so its failure arm can stay
+ *  inline (where the caught-failure-ownership grammar can see who owns the throw). The EFFECTIVE compaction
+ *  config = preset params folded with the per-send intent, per-send wins — reading `prep.intent` alone missed
+ *  a preset-configured managed mode + cap (the reviewer's no-fire receipt). A `coveragePoint` of `undefined`
+ *  is "not eligible this turn": not managed, not the agent-sdk api, or nothing above the verbatim tail. */
+async function preTurnCompactionPlan(
   ctx: ChatContext,
-  deps: EngineDeps,
   prep: TurnPrep,
-): Promise<{ readonly canonAll: readonly MessageView[]; readonly maxSeq: number; readonly compactionOverlay: CompactionOverlay | null }> {
-  const canonAll = await loadCanonHistory(ctx.db, prep.chatId);
-  // The EFFECTIVE compaction config = preset params folded with the per-send intent (per-send wins). Reading
-  // `prep.intent` alone missed a preset-configured managed mode + cap (the reviewer's no-fire receipt).
+  canonAll: readonly MessageView[],
+): Promise<{ readonly coveragePoint: number | undefined; readonly currentCoverage: number; readonly instructions: string }> {
   const { compaction, maxContextTokens } = resolveEffectiveCompaction(prep);
   const chat = await loadChatRow(ctx.db, prep.chatId);
   const currentCoverage = chat?.compactedAtSeq ?? 0;
@@ -946,12 +943,28 @@ async function runPreTurnCompaction(
     compaction.mode === "managed" && prep.connection.api === "agent-sdk"
       ? preTurnCoveragePoint({ compaction, connection: prep.connection, maxContextTokens, canonAll, currentCoverage })
       : undefined;
+  return { coveragePoint, currentCoverage, instructions: compaction.instructions ?? DEFAULT_COMPACT_INSTRUCTIONS };
+}
+
+/** The PRE-TURN managed-compaction orchestration (the wedge-state fix): load canon, and when the cumulative
+ *  estimate already crosses the managed pct, compact BEFORE dispatch so a chat whose context already overflows
+ *  the window can escape (the post-turn arm never runs on a failing turn). Awaited, single-flight, failure-honest
+ *  (a failed pre-turn compaction logs + proceeds with the pre-compaction canon — never blocks the turn) but
+ *  CANCELLABLE (#1436): the turn's signal rides into the generation, and a cancelled one propagates instead of
+ *  being absorbed as a failure. Returns the (possibly reloaded) canon + maxSeq + a marker overlay (null when
+ *  nothing compacted). */
+async function runPreTurnCompaction(
+  ctx: ChatContext,
+  deps: EngineDeps,
+  prep: TurnPrep,
+): Promise<{ readonly canonAll: readonly MessageView[]; readonly maxSeq: number; readonly compactionOverlay: CompactionOverlay | null }> {
+  const canonAll = await loadCanonHistory(ctx.db, prep.chatId);
+  const { coveragePoint, currentCoverage, instructions } = await preTurnCompactionPlan(ctx, prep, canonAll);
   // No pre-turn compaction: return the loaded canon untouched (still avoids a second DB read for maxSeq).
   if (coveragePoint === undefined || compactionInFlight.has(prep.chatId)) {
     return { canonAll, maxSeq: canonAll.at(-1)?.seq ?? 0, compactionOverlay: null };
   }
   const { chatId } = prep;
-  const instructions = compaction.instructions ?? DEFAULT_COMPACT_INSTRUCTIONS;
   compactionInFlight.add(chatId);
   let overlay: CompactionOverlay | null = null;
   try {
@@ -961,11 +974,26 @@ async function runPreTurnCompaction(
       ownerId: prep.runAsUserId,
       coveragePoint,
       instructions,
+      // CANCELLABLE (#1436). This arm is AWAITED before dispatch, so it is on the caller's Stop path: without
+      // the signal the turn kept paying for — and blocking on — a whole summary generation nobody was waiting
+      // for, and only noticed the cancellation afterwards. The post-turn hook is deliberately NOT threaded
+      // (it is fire-and-forget under its own detached span, outliving the request by design).
+      signal: prep.signal,
     });
     if (res.updated) {
       overlay = { compactSummary: res.summary, compactedThroughSeq: res.compactedAtSeq };
     }
   } catch (compactErr) {
+    // A CANCELLED compaction is not a FAILED one (#1436). The failure-honest arm below exists so a BROKEN
+    // summarizer cannot wedge a turn that could still succeed; a cancelled turn has no such turn to protect,
+    // and absorbing its abort here would log a summariser fault that never happened, strike out the user's
+    // credential for it, and then dispatch the very generation the caller just cancelled. Re-thrown so
+    // `executeTurn`'s catch classifies it exactly like a cancelled generation (user/stale → `abortedOutcome`,
+    // no dispatch). The classification is `abortReasonFor`'s — one home, so this seam can never disagree with
+    // the turn's own about what a cancellation is.
+    if (abortReasonFor(compactErr, prep.signal) !== "error") {
+      throw compactErr;
+    }
     // FAILURE-HONEST: a failed pre-turn compaction NEVER blocks the turn — log + proceed with the current canon.
     getLog().warn({ err: compactErr, chatId }, "chat: pre-turn managed compaction failed (proceeding)");
     // …but a swallowed failure is exactly where a dead key hides: this arm exists to rescue a chat already
@@ -1127,7 +1155,19 @@ class StaleLockAbort extends Error {
  *  `turnAborted` bus event and the wire-fault outcome row then told the operator. `CHAT_OP_CODES.aborted` is
  *  minted at exactly two sites and both are lock-loss, so the code IS the fact: it is "stale" whether the
  *  heartbeat had got there yet or not. Same reason, same `abortedOutcome` return, same loud surfaces — the
- *  fence logs at ERROR and the bus carries `turnAborted{reason:"stale"}`. */
+ *  fence logs at ERROR and the bus carries `turnAborted{reason:"stale"}`.
+ *
+ *  AN ERROR'S NAME IS NEVER PROOF OF A CANCELLATION (#1435). The rule is one sentence: an abort is proven by
+ *  a cancellation this engine OWNS — an aborted signal (whose `reason` then says which arm) or chat's own
+ *  typed `aborted` refusal — and nothing else. The removed belt classified any error merely NAMED
+ *  `AbortError` as `"user"` with the signal NOT aborted; `AbortError` is the name provider timeouts,
+ *  SDK-internal cancellations and unrelated libraries all throw under, so a real provider fault was swallowed
+ *  into `abortedOutcome` and the operator was told a user pressed Stop. The belt cannot be sound in either
+ *  direction: an abort we own always settles the signal SYNCHRONOUSLY at `abort()` — before any provider can
+ *  observe it and throw — so there is no window in which a genuine cancel arrives with an un-aborted signal,
+ *  and a fault mislabelled `"user"` is invisible twice over (it returns clean AND never reaches the fault
+ *  surfaces). A future provider-side cancellation that is NOT ours becomes classifiable by adding a TYPED
+ *  cause (the {@link StaleLockAbort} shape), never by re-reading a name. */
 function abortReasonFor(err: unknown, signal: AbortSignal | undefined): TurnAbortReason {
   if (err instanceof ChatOperationError && err.code === CHAT_OP_CODES.aborted) {
     return "stale";
@@ -1135,8 +1175,7 @@ function abortReasonFor(err: unknown, signal: AbortSignal | undefined): TurnAbor
   if (signal?.aborted === true) {
     return signal.reason instanceof StaleLockAbort ? "stale" : "user";
   }
-  // Defensive belt for a provider that throws a name-based AbortError WITHOUT the signal reflecting it.
-  return err instanceof Error && err.name === "AbortError" ? "user" : "error";
+  return "error";
 }
 
 /**

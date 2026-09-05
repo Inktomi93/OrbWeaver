@@ -16,7 +16,8 @@
 //     carry NO rateLimit/error field — that lives on the provider `ChatResult` BELOW this seam (sealed in
 //     infra/providers, where retry/backoff also lives). So at the `runChatTurn` seam a rate-limit is a
 //     TERMINAL thrown `ProviderError` (retries already exhausted below); the engine maps any post-turnStarted
-//     throw to `turnAborted` (reason `error`; `user` for an AbortError) then rethrows (engine.ts). Assert with
+//     throw to `turnAborted` (reason `error`, and it rethrows — `user`/`stale` only when the turn's SIGNAL is
+//     settled, never because of an error's NAME: engine.ts `abortReasonFor`). Assert with
 //     the `toThrowProviderError(kind)` matcher (support/matchers.ts).
 
 import type { ProviderErrorKind } from "@orb/server/infra/providers";

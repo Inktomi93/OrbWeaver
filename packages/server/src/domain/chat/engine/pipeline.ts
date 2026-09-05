@@ -112,8 +112,9 @@ interface RunTurnPipelineArgs {
   /** TERMINAL wire tools for this turn (the R1 folded-extraction seam) — attached with `tool_choice:"auto"`
    *  and NEVER resolved/executed/recursed on. Their co-emitted calls come back on
    *  {@link TurnPipelineResult.terminalToolCalls}. Absent/empty ⇒ byte-identical to today (every turn but a
-   *  folded-mode game's character turn). Mutually exclusive with `attachedToolNames` by construction: a game
-   *  turn's gather contributes one or the other, never both. */
+   *  folded-mode game's character turn). Today's gather contributes these OR `attachedToolNames`, never both —
+   *  but that is a CALLER's habit, not an invariant, so the two classes are partitioned by tool NAME at
+   *  {@link attachTerminalTools} and every reader downstream is blind to the other class (#1404). */
   readonly terminalTools?: readonly WireTool[] | undefined;
   /** A structured-output request for this turn (D79). Absent on every turn today — the chat loop sets `tools`,
    *  never `responseFormat` (mutually exclusive by construction, 04 §8); a future structured chat consumer
@@ -659,9 +660,12 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // REDUCE + the tool-recurse loop. The two request-builder gates chain (they touch disjoint fields, and by
   // construction a turn sets tools OR responseFormat, never both — 04 §8).
   const attach = await attachTools(args, baseRequest);
-  const terminal = attachTerminalTools(args, attach.request);
+  // The REGISTRY names that actually rode this turn — the left half of the tool-identity partition (#1404).
+  // Empty when no set resolved (unwired ops / no capability), which is exactly when nothing may execute.
+  const registryNames: ReadonlySet<string> = new Set(attach.set === null ? [] : args.attachedToolNames);
+  const terminal = attachTerminalTools(args, attach.request, registryNames);
   const structured = attachResponseFormat(args, terminal.request);
-  const loop = await runRecurseLoop({ args, request: structured.request, set: attach.set });
+  const loop = await runRecurseLoop({ args, request: structured.request, set: attach.set, terminalNames: terminal.names });
   // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
   const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args, ctx);
   return {
@@ -682,7 +686,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     // Array-wire records come from the recurse loop; stateful (agent-sdk) records from the MCP onRecord
     // side-channel — mutually exclusive by construction, concatenated so persistence is arm-agnostic.
     toolRecords: [...loop.records, ...attach.mcpRecords],
-    terminalToolCalls: terminalCallsOf(terminal.attached, loop.economics),
+    terminalToolCalls: terminalCallsOf(terminal.attached, loop.economics, loop.terminalCalls),
     toolsUnsupported: attach.unsupported,
     structuredOutputUnsupported: structured.unsupported,
     worldInfoEntryIds: (ctx.wiTrace?.activated ?? []).map((e) => e.id),
@@ -772,16 +776,41 @@ async function attachTools(
  *  array, so it takes the SAME `WireTool[]` on `agentTerminalTools` and its backend mounts them as a
  *  deny-on-use MCP server (declared to the model, denied at the `PreToolUse` seam, never executed, never a
  *  second call). Same declarations in, same `[]`-vs-`null` channel back — the domain learns no backend
- *  concept from the split, and a wire is never made ineligible for lacking one delivery shape. */
-function attachTerminalTools(args: RunTurnPipelineArgs, baseRequest: TurnRequest): { request: TurnRequest; attached: boolean } {
-  const wanted = args.terminalTools ?? [];
+ *  concept from the split, and a wire is never made ineligible for lacking one delivery shape.
+ *
+ *  THE PARTITION IS THE RETURNED NAME SET (#1404), and it is the only thing that answers "who owns this
+ *  call". On the array wires both classes ride the ONE `tools` field, so a model that picks a terminal tool
+ *  produces a call indistinguishable — by position, by field, by anything but its NAME — from a registry
+ *  one; the loop's gate used to be "did a registry set resolve", which handed that call to the ordinary
+ *  executor and paid a second model call for a passenger that must never be executed. {@link runRecurseLoop}
+ *  and {@link terminalCallsOf} both read THIS set, so neither reader can ever see the other's class.
+ *
+ *  A COLLIDING DECLARATION NEVER RIDES. A tool NAME is minted once, so a terminal declaration re-spelling a
+ *  registry name is a contributor defect — and shipping both would send the wire two declarations of one
+ *  name (malformed) and make the partition unanswerable. The registry keeps the name (it is the class that
+ *  EXECUTES; a dropped passenger degrades one fold, a mis-executed one runs an unowned side effect) and the
+ *  collision is logged, never silent. */
+function attachTerminalTools(
+  args: RunTurnPipelineArgs,
+  baseRequest: TurnRequest,
+  registryNames: ReadonlySet<string>,
+): { request: TurnRequest; attached: boolean; names: ReadonlySet<string> } {
+  const requested = args.terminalTools ?? [];
+  const wanted = requested.filter((tool) => !registryNames.has(tool.name));
+  if (wanted.length < requested.length) {
+    getLog().warn(
+      { chatId: args.chatId, collided: requested.filter((tool) => registryNames.has(tool.name)).map((tool) => tool.name) },
+      "chat: terminal tool declarations collided with registry tool names and were dropped (the registry owns the name)",
+    );
+  }
   if (wanted.length === 0 || !coEmitsProseWithTools(args.connection.capability)) {
-    return { request: baseRequest, attached: false };
+    return { request: baseRequest, attached: false, names: new Set() };
   }
+  const names: ReadonlySet<string> = new Set(wanted.map((tool) => tool.name));
   if (args.connection.api === "agent-sdk") {
-    return { request: { ...baseRequest, agentTerminalTools: wanted }, attached: true };
+    return { request: { ...baseRequest, agentTerminalTools: wanted }, attached: true, names };
   }
-  return { request: { ...baseRequest, tools: [...(baseRequest.tools ?? []), ...wanted], toolChoice: { mode: "auto" } }, attached: true };
+  return { request: { ...baseRequest, tools: [...(baseRequest.tools ?? []), ...wanted], toolChoice: { mode: "auto" } }, attached: true, names };
 }
 
 /** The terminal channel's total read. The two arms carry DIFFERENT instructions to the consumer and the
@@ -793,12 +822,17 @@ function attachTerminalTools(args: RunTurnPipelineArgs, baseRequest: TurnRequest
  *  Collapsing the first case into `[]` is the dangerous read: it would report "the model chose to record
  *  nothing", suppress the fallback, and drop the turn's state with a cheerful log. So a null economics is
  *  reported as a missing channel, never as a quiet one. Extracted so the pipeline body stays under the
- *  cognitive-complexity cap. */
-function terminalCallsOf(attached: boolean, economics: TurnEconomics | null): readonly ToolCallInput[] | null {
+ *  cognitive-complexity cap.
+ *
+ *  The calls are the ones {@link runRecurseLoop} PARTITIONED OFF each depth (#1404) — never a re-read of the
+ *  final aggregate economics. Two things that re-read got wrong: it reported registry calls as terminal ones
+ *  in a mixed turn, and `aggregateEconomics` keeps only the LAST depth's `toolCalls`, so a terminal call
+ *  co-emitted with a registry call at depth 0 was silently dropped by the recursion it triggered. */
+function terminalCallsOf(attached: boolean, economics: TurnEconomics | null, calls: readonly ToolCallInput[]): readonly ToolCallInput[] | null {
   if (!attached || economics === null) {
     return null;
   }
-  return economics.toolCalls ?? [];
+  return calls;
 }
 
 // The structured-output request-builder gate (D79, mirror of attachTools): a requested responseFormat rides
@@ -819,15 +853,23 @@ function attachResponseFormat(args: RunTurnPipelineArgs, baseRequest: TurnReques
 // one variant; usage aggregates into one economics row; at the limit, pending calls are recorded not
 // executed (result:null — side effects the model can't narrate are worse than none). Records accumulate
 // in-loop and persist once at commit, so a crash mid-loop loses the records with the generation.
-async function runRecurseLoop(input: { readonly args: RunTurnPipelineArgs; readonly request: TurnRequest; readonly set: ChatToolSet | null }): Promise<{
+async function runRecurseLoop(input: {
+  readonly args: RunTurnPipelineArgs;
+  readonly request: TurnRequest;
+  readonly set: ChatToolSet | null;
+  /** The TERMINAL half of the tool-identity partition (#1404) — {@link attachTerminalTools}'s name set. Calls
+   *  in it are collected for the terminal channel and are structurally unreachable from the executor below. */
+  readonly terminalNames: ReadonlySet<string>;
+}): Promise<{
   content: string;
   reasoning: string | null;
   economics: TurnEconomics | null;
   records: readonly ToolCallRecord[];
+  terminalCalls: readonly ToolCallInput[];
   warnings: readonly WarningCode[];
   reasoningMs: number | null;
 }> {
-  const { args, set } = input;
+  const { args, set, terminalNames } = input;
   let history = input.request.history;
   let content = "";
   let reasoning: string | null = null;
@@ -836,6 +878,9 @@ async function runRecurseLoop(input: { readonly args: RunTurnPipelineArgs; reado
   // generation, and a turn that reasons at three depths spent all three windows thinking.
   let reasoningMs: number | null = null;
   const records: ToolCallRecord[] = [];
+  // Collected AT THE DEPTH THEY WERE EMITTED: the aggregate keeps only the last depth's `toolCalls`, so a
+  // terminal call co-emitted with a registry call would otherwise be erased by the recursion it triggered.
+  const terminalCalls: ToolCallInput[] = [];
   // Deduped across depths: the same request-level degrade (a customParameters blob, a dropped knob) re-fires at
   // every recursion, but it is ONE degrade and the user gets ONE notice (the `image_dropped` "once" precedent).
   const warnings = new Set<WarningCode>();
@@ -854,7 +899,10 @@ async function runRecurseLoop(input: { readonly args: RunTurnPipelineArgs; reado
       reasoningMs = (reasoningMs ?? 0) + reduced.reasoningMs;
     }
     economics = aggregateEconomics(economics, reduced.economics);
-    const calls = pivotCalls(set, args.tools, reduced.economics);
+    // THE PARTITION (#1404): this depth's calls split by tool identity before either reader sees them.
+    const split = partitionToolCalls(reduced.economics, terminalNames);
+    terminalCalls.push(...split.terminal);
+    const calls = pivotCalls(set, args.tools, reduced.economics, split.registry);
     if (calls === null || args.tools === null) {
       break;
     }
@@ -867,17 +915,35 @@ async function runRecurseLoop(input: { readonly args: RunTurnPipelineArgs; reado
     history = [...history, ...toolExchangeMessages(reduced.content, batch)];
     depth += 1;
   }
-  return { content, reasoning, economics, records, warnings: [...warnings], reasoningMs };
+  return { content, reasoning, economics, records, terminalCalls, warnings: [...warnings], reasoningMs };
 }
 
-/** Recurses only when tools rode this request AND the finish reason says "tool" AND the reducer assembled
- *  ≥1 call; null means the turn is done. */
-function pivotCalls(set: ChatToolSet | null, tools: ChatToolOps | null, economics: TurnEconomics | null): readonly ToolCallInput[] | null {
+/** Splits ONE depth's model-emitted calls into the two tool classes by NAME (#1404) — the ONE place the
+ *  question "who owns this call" is answered, and the reason each reader below is blind to the other's class.
+ *  A name in neither set is impossible on the wire (a model may only call what was declared) but is treated
+ *  as REGISTRY: the registry executor is the arm that already refuses an unknown name, where the terminal
+ *  channel would forward it to a consumer as state. */
+function partitionToolCalls(
+  economics: TurnEconomics | null,
+  terminalNames: ReadonlySet<string>,
+): { readonly registry: readonly ToolCallInput[]; readonly terminal: readonly ToolCallInput[] } {
+  const calls = economics?.toolCalls ?? [];
+  return { registry: calls.filter((call) => !terminalNames.has(call.name)), terminal: calls.filter((call) => terminalNames.has(call.name)) };
+}
+
+/** Recurses only when tools rode this request AND the finish reason says "tool" AND the depth's REGISTRY
+ *  half holds ≥1 call; null means the turn is done. A completion whose only calls were terminal ends the
+ *  loop at that depth — nothing to execute, and no second model call paid for a passenger. */
+function pivotCalls(
+  set: ChatToolSet | null,
+  tools: ChatToolOps | null,
+  economics: TurnEconomics | null,
+  registryCalls: readonly ToolCallInput[],
+): readonly ToolCallInput[] | null {
   if (set === null || tools === null || economics?.finishReason !== "tool") {
     return null;
   }
-  const calls = economics.toolCalls;
-  return calls !== undefined && calls.length > 0 ? calls : null;
+  return registryCalls.length > 0 ? registryCalls : null;
 }
 
 /** A limit-hit pending call → the recorded-but-unexecuted record: full provenance, "requested, not run". */

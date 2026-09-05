@@ -523,4 +523,109 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     expect(userText).toContain("CUSTOM-STEER-XYZ");
     expect(userText).not.toContain(DEFAULT_COMPACT_INSTRUCTIONS);
   });
+
+  // ── #1436: the PRE-TURN arm is AWAITED before dispatch, so it is on the cancellation path. It took no
+  // signal, so a cancelled request kept paying for — and blocking on — a summary nobody was waiting for, and
+  // then dispatched the turn it had already been told to drop.
+
+  test("a CANCELLED turn cancels its pre-turn compaction and never dispatches (#1436)", async () => {
+    const chatId = await seedChatWithHistory(16);
+    const controller = new AbortController();
+    let markerSawSignal = false;
+    let turnCalls = 0;
+    // The summarizer honors the threaded signal exactly as the provider stream does: the caller presses Stop
+    // while the marker is in flight, and the generation throws its name-based AbortError.
+    const cancellableMarker: ChatContext["runChatTurn"] = (req) =>
+      (async function* (): AsyncGenerator<TurnStreamChunk> {
+        markerSawSignal = req.signal !== undefined;
+        controller.abort();
+        if (req.signal?.aborted === true) {
+          const err = new Error("marker generation aborted");
+          err.name = "AbortError";
+          await Promise.reject(err);
+        }
+        yield { kind: "final", economics: { content: "MANAGED MARKER", model: "stub", costUsd: 0.001 } };
+      })();
+    const countedTurn: ChatContext["runChatTurn"] = (req) => {
+      turnCalls += 1;
+      return (async function* (): AsyncGenerator<TurnStreamChunk> {
+        await Promise.resolve();
+        yield { kind: "final", economics: { content: `dispatched (aborted=${String(req.signal?.aborted)})`, model: "test-model" } };
+      })();
+    };
+    const ctx = makeChatContext(db, { runChatTurn: countedTurn });
+    const { runCompaction } = createCompaction(makeChatContext(db, { runChatTurn: cancellableMarker }), {
+      emit: () => Promise.resolve(),
+      quietGenerate: createQuietGenerate({ runChatTurn: cancellableMarker, resolveChatPresetParams: () => Promise.resolve({}) }),
+      resolveConnection: () => Promise.resolve(AGENT_SDK),
+    });
+    const engine = createTurnEngine(ctx, {
+      emit: () => Promise.resolve(),
+      debitBudget: () => Promise.resolve(),
+      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+      holder: "r1",
+      lockTtlMs: 60_000,
+      generateSegments,
+      generateDigests,
+      loadWitnessHorizons,
+      recallMemory,
+      runCompaction,
+    });
+
+    const outcome = await engine.runTurn(
+      prepOf(chatId, AGENT_SDK, { signal: controller.signal, intent: { compaction: { mode: "managed" }, maxContextTokens: SMALL_CAP } }),
+    );
+
+    // The turn's signal REACHED the summarizer — the cancellation is honored where the cost is being paid.
+    expect(markerSawSignal).toBe(true);
+    // A cancelled compaction is NOT a failed one: it does not fall through to "log + proceed", so the turn
+    // never dispatched and the caller's Stop is a clean outcome.
+    expect(turnCalls).toBe(0);
+    expect(outcome.aborted).toBe(true);
+    expect(outcome.abortReason).toBe("user");
+    // Nothing was written — a cancelled marker leaves the existing (absent) one untouched.
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.compactSummary).toBeNull();
+  });
+
+  test("a THROWING summarizer is still a FAILURE, not a cancellation — the turn proceeds (#1436 fence)", async () => {
+    // The other half of the distinction: with the signal un-aborted, a summarizer fault keeps its old
+    // failure-honest contract (log + dispatch anyway). Only cancellation short-circuits the turn.
+    const chatId = await seedChatWithHistory(16);
+    let turnCalls = 0;
+    const throwingMarker: ChatContext["runChatTurn"] = () => {
+      throw new Error("summarizer down");
+    };
+    const countedTurn: ChatContext["runChatTurn"] = () => {
+      turnCalls += 1;
+      return (async function* (): AsyncGenerator<TurnStreamChunk> {
+        await Promise.resolve();
+        yield { kind: "final", economics: { content: "Hi there", model: "test-model" } };
+      })();
+    };
+    const ctx = makeChatContext(db, { runChatTurn: countedTurn });
+    const { runCompaction } = createCompaction(makeChatContext(db, { runChatTurn: throwingMarker }), {
+      emit: () => Promise.resolve(),
+      quietGenerate: createQuietGenerate({ runChatTurn: throwingMarker, resolveChatPresetParams: () => Promise.resolve({}) }),
+      resolveConnection: () => Promise.resolve(AGENT_SDK),
+    });
+    const engine = createTurnEngine(ctx, {
+      emit: () => Promise.resolve(),
+      debitBudget: () => Promise.resolve(),
+      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+      holder: "r1",
+      lockTtlMs: 60_000,
+      generateSegments,
+      generateDigests,
+      loadWitnessHorizons,
+      recallMemory,
+      runCompaction,
+    });
+
+    const outcome = await engine.runTurn(prepOf(chatId, AGENT_SDK, { intent: { compaction: { mode: "managed" }, maxContextTokens: SMALL_CAP } }));
+    expect(outcome.aborted).toBe(false);
+    expect(turnCalls).toBe(1);
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.compactSummary).toBeNull();
+  });
 });
