@@ -53,6 +53,7 @@ import { selectRuleRow } from "../persistence/rules.ts";
 import { runAnalysisConfirm } from "../substrate/analysis-confirm.ts";
 import { holdsChatHostAuthority } from "../substrate/authority.ts";
 import { dispatchRuleNow } from "../substrate/run-now.ts";
+import { automationLaneKey, runInLane } from "../substrate/serial-lanes.ts";
 import { armToExecute } from "../substrate/suggestions.ts";
 
 /** Gate the caller as HOST of the ask's chat. A non-present member collapses onto the ask's own leak-free
@@ -188,8 +189,25 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
   return outcome;
 }
 
-/** Execute the STASHED arm and record the confirmed fire, stamped with who authorized it. */
-async function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<AutomationRunOutcome> {
+/** Execute the STASHED arm and record the confirmed fire, stamped with who authorized it.
+ *
+ *  #1565 — ON THE CHAT'S OWN SERIAL LANE, the same one the bus door and "Run now" take (`automationLaneKey`
+ *  is the one home for the key). A confirmed arm is a real dispatch: it renders against the chat variable
+ *  env, writes through it, and stamps the rule — so a host answering a card while a bus event was mid-arm
+ *  interleaved exactly as two bus events used to. The confirm's OTHER execution branches are deliberately
+ *  NOT here: `dispatchRuleNow` (the invitation) takes the lane itself, one level down, and the two branches
+ *  are mutually exclusive at the `claimed.kind` fork — so the lane is entered exactly once, never nested.
+ *
+ *  A PLUGIN act (`runPluginAct`) stays OFF this lane on purpose. Its three act kinds — `requestTurn`,
+ *  `worldInfoUpsert`, `generatePicture` (`@orb/contracts/plugin/suggestion.ts:44-60`) — touch no automation
+ *  rule state and no chat variable plane, and they run through the PLUGIN's bridge with the plugin's own
+ *  belts. Putting an unrelated executor behind the chat's dispatch lane would buy nothing and would make a
+ *  slow generation delay every rule in the room. */
+function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<AutomationRunOutcome> {
+  return runInLane(automationLaneKey(pending.chatId), () => executeStashedArm(ctx, pending, rule, confirmer));
+}
+
+async function executeStashedArm(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<AutomationRunOutcome> {
   const payload = pending.payload;
   if (payload !== null && payload.via === "analysis") {
     return runAnalysisAct(ctx, pending, rule, confirmer);

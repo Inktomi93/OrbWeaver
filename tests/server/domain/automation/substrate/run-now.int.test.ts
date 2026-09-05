@@ -4,15 +4,19 @@
 // a terminal) resolves to `null` rather than a fabricated fire.
 
 import { automationRules } from "@orb/db";
-import type { AutomationRuleId } from "@orb/kit/ids";
+import type { AutomationRuleId, MessageId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import { createEnabledRuleIndex } from "@orb/server/domain/automation";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import type { RuleRow } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
+import type { AutomationContext } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
 import { listFiresForRule } from "../../../../../packages/server/src/domain/automation/persistence/fires.ts";
 import { insertRule, selectRuleRow, setRuleEnabledRow } from "../../../../../packages/server/src/domain/automation/persistence/rules.ts";
+import { createAutomationService } from "../../../../../packages/server/src/domain/automation/service.ts";
 import { dispatchRuleNow } from "../../../../../packages/server/src/domain/automation/substrate/run-now.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { seedMessage } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, readFailingDb, ruleFixture } from "../_support.ts";
 
 async function seedEnabledRule(
@@ -118,5 +122,105 @@ describe("dispatchRuleNow", () => {
     const fires = await listFiresForRule(fixture.db, ruleId);
     expect(fires).toHaveLength(1);
     expect(fires[0]).toMatchObject({ outcome: "action_error", automationDepth: 0 });
+  });
+});
+
+// -- #1565: a MANUAL run shares the chat's serial lane with the bus door -------------------------------------
+// #1423 serialized the bus door. `dispatchRuleNow` is the OTHER full dispatch over the same chat variable env
+// -- the host's "Run now" and the S4 invitation confirm -- and it ran outside every lane, so a host pressing
+// the button while a bus event was mid-arm read the same snapshot, computed the same increment and wrote the
+// same value. Same defect, different door.
+describe("#1565 Run now and the bus door queue on ONE lane", () => {
+  function deferred(): { readonly promise: Promise<void>; readonly resolve: () => void } {
+    let resolve!: () => void;
+    const promise = new Promise<void>((done) => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  }
+
+  /** The seeded rule, re-read as the row `dispatchRuleNow` takes. */
+  async function ruleRowFor(fixture: Awaited<ReturnType<typeof ruleFixture>>, ruleId: AutomationRuleId): Promise<RuleRow> {
+    const rule = await selectRuleRow(fixture.db, ruleId);
+    if (rule === undefined) {
+      throw new Error("fixture bug: just-inserted rule not found");
+    }
+    return rule;
+  }
+
+  test("a manual run raised while a bus event is mid-arm is QUEUED -- the two never interleave", async () => {
+    const order: string[] = [];
+    const gate = deferred();
+    let n = 0;
+    const base = await ruleFixture();
+    const ctx: AutomationContext = {
+      ...base.ctx,
+      runArm: async (): Promise<{ readonly ok: true }> => {
+        n += 1;
+        const tag = n === 1 ? "bus" : "manual";
+        order.push(`${tag}:enter`);
+        if (n === 1) {
+          await gate.promise;
+        }
+        order.push(`${tag}:exit`);
+        return { ok: true };
+      },
+    };
+    const svc = createAutomationService(ctx);
+    const ruleId = await seedEnabledRule(base, [{ type: "set_variable", scope: "chat", key: "beats", op: "inc" }]);
+    await ctx.enabled.reload();
+    const rule = await ruleRowFor(base, ruleId);
+    const { messageId } = await seedMessage(base.db, base.chatId, 1, { content: "hi" });
+
+    // The bus event enters first and parks inside its arm; the host presses Run now while it is parked.
+    const bus = svc.handleEvent({ type: "messageCommitted", chatId: base.chatId, messageId });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const manual = dispatchRuleNow(ctx, rule, base.chatId, base.host);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    gate.resolve();
+    await Promise.all([bus, manual]);
+
+    // Unlaned this reads ["bus:enter", "manual:enter", "manual:exit", "bus:exit"] -- the interleave, observed.
+    expect(order).toEqual(["bus:enter", "bus:exit", "manual:enter", "manual:exit"]);
+  });
+
+  // THE RE-ENTRANCY PROOF, and it is the one shape that could deadlock a lane: an arm that generates chat
+  // activity (`trigger_turn` -> `requestTurn`) causes new bus events for the SAME chat. Those events reach
+  // `handleEvent` only through `superviseDetached` roots (`watcher/start-automation-watcher.ts:17,22`,
+  // `entry/lifecycle.ts:480`), so the arm never AWAITS them -- the re-entrant event queues behind the job
+  // that raised it and runs after. If anything ever awaits that call from inside a lane, this test hangs.
+  // HONEST LABEL: this is a FENCE, not a defect proof -- it is green before the lane exists (nothing to
+  // deadlock against) and its whole job is to stay green after it.
+  test("an arm that raises a same-chat event from inside the lane completes -- the re-entry queues, it does not deadlock", async () => {
+    const order: string[] = [];
+    const base = await ruleFixture();
+    let svc!: ReturnType<typeof createAutomationService>;
+    const reentry: Promise<void>[] = [];
+    let messageId: MessageId | null = null;
+    const ctx: AutomationContext = {
+      ...base.ctx,
+      runArm: (): Promise<{ readonly ok: true }> => {
+        order.push("arm");
+        if (reentry.length === 0 && messageId !== null) {
+          // Detached exactly as the composed watcher taps are -- raised, never awaited, from INSIDE the lane.
+          reentry.push(svc.handleEvent({ type: "messageCommitted", chatId: base.chatId, messageId }));
+        }
+        return Promise.resolve({ ok: true });
+      },
+    };
+    svc = createAutomationService(ctx);
+    const ruleId = await seedEnabledRule(base, [{ type: "set_variable", scope: "chat", key: "beats", op: "inc" }]);
+    await ctx.enabled.reload();
+    const rule = await ruleRowFor(base, ruleId);
+    messageId = (await seedMessage(base.db, base.chatId, 1, { content: "hi" })).messageId;
+
+    // The outer manual run RESOLVES (it would hang forever if the re-entry were awaited on its own lane), and
+    // the re-entrant event has NOT run its arm yet at that point -- it is queued behind the job that raised it.
+    await expect(dispatchRuleNow(ctx, rule, base.chatId, base.host)).resolves.not.toBeNull();
+    expect(order).toEqual(["arm"]);
+
+    // Draining it runs the queued event, second and separately.
+    await Promise.all(reentry);
+    expect(order).toEqual(["arm", "arm"]);
   });
 });

@@ -24,6 +24,7 @@ import type { ResolvedTrigger, RuleRow } from "../contract/ops.ts";
 import type { AutomationContext } from "../contract/service.ts";
 import { runDispatch } from "../engine/dispatch.ts";
 import { synthFact } from "./dry-run.ts";
+import { automationLaneKey, runInLane } from "./serial-lanes.ts";
 
 /** The depth a host-initiated run starts at: 0, the human plane (a manual run is not a cascade step). */
 const MANUAL_DEPTH = 0;
@@ -31,7 +32,24 @@ const MANUAL_DEPTH = 0;
 /** Run ONE rule now. `null` = the rule reached NO terminal, which for a chat-scoped enabled rule has exactly
  *  one cause: it is a `transform_draft` rule, which registers into the turn pipeline and never dispatches.
  *  The caller turns that into a typed refusal rather than reporting a fire that did not happen. */
-export async function dispatchRuleNow(ctx: AutomationContext, rule: RuleRow, chatId: ChatId | null, manualBy: UserId): Promise<AutomationRunOutcome | null> {
+export function dispatchRuleNow(ctx: AutomationContext, rule: RuleRow, chatId: ChatId | null, manualBy: UserId): Promise<AutomationRunOutcome | null> {
+  // #1565 — A MANUAL RUN TAKES THE SAME LANE THE BUS DOOR TAKES. It is a full `runDispatch` over the chat's
+  // shared variable env, so a host pressing "Run now" while a bus event is mid-dispatch read the same
+  // snapshot, computed the same increment and wrote the same value — the exact interleave #1423 closed one
+  // door over. The key is derived through `automationLaneKey`, never re-spelled: two entries on
+  // lanes that only LOOK alike is the same defect wearing a typo.
+  //
+  // NO RE-ENTRANCY, and it is structural rather than lucky (receipts, 2026-09-05): `dispatchRuleNow` has
+  // exactly two callers — `verbs/run-rule-now.ts:27` (the R7 tRPC verb) and `verbs/confirm-suggestion.ts:282`
+  // (the INVITATION branch) — and neither runs inside a lane. The confirm verb's other execution branch (the
+  // stashed arm) is EXCLUSIVE with the invitation branch and takes this lane itself, so the two can never
+  // nest. Nothing reachable from an arm re-enters here either: the bus door's own entries are all
+  // `superviseDetached` roots (`watcher/start-automation-watcher.ts:17,22`, `entry/lifecycle.ts:480`), so an
+  // arm that generates chat events (`trigger_turn` → `requestTurn`) never AWAITS the resulting `handleEvent`.
+  return runInLane(automationLaneKey(chatId), () => dispatchNow(ctx, rule, chatId, manualBy));
+}
+
+async function dispatchNow(ctx: AutomationContext, rule: RuleRow, chatId: ChatId | null, manualBy: UserId): Promise<AutomationRunOutcome | null> {
   const trigger = { bus: rule.triggerBus, type: rule.triggerType } as AutomationTrigger;
   const resolved: ResolvedTrigger = { fact: synthFact(trigger, chatId), automationDepth: MANUAL_DEPTH };
   const summary = await runDispatch(ctx, [rule], resolved, { manualBy });
