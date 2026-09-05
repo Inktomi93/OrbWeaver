@@ -2197,6 +2197,7 @@
     "tests/tooling/ui-audit/ops/page-validate.test.ts",
     "tests/tooling/ui-audit/ops/report.test.ts",
     "tests/tooling/ui-audit/ops/walker/activity-retention.suite.int.test.ts",
+    "tests/tooling/ui-audit/ops/walker/census-accent.int.test.ts",
     "tests/tooling/ui-audit/ops/walker/census-cohort.int.test.ts",
     "tests/tooling/ui-audit/ops/walker/census-collision.int.test.ts",
     "tests/tooling/ui-audit/ops/walker/census-decor.int.test.ts",

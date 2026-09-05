@@ -216,52 +216,12 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
     /* cross-origin stylesheet — skip */
   }
 
-  // ── accent borders (impeccable side-tab / border-accent-on-rounded) ─────
-  // The 200-row bound is a REPRESENTATIVE bound, and the scan runs past it (#1038): \`capPush\` tallies
-  // what it dropped so the two rules over this census publish a complete \`candidates=\`.
-  var accentBorders = [];
-  var ACCENT_BORDER_CAP = 200;
-  for (var ab = 0; ab < allEls.length; ab += 1) {
-    var abel = allEls[ab];
-    if (!isVisible(abel)) continue;
-    var abTag = abel.tagName.toLowerCase();
-    var abStyle = getComputedStyle(abel);
-    var widths = {
-      top: Number.parseFloat(abStyle.borderTopWidth) || 0,
-      right: Number.parseFloat(abStyle.borderRightWidth) || 0,
-      bottom: Number.parseFloat(abStyle.borderBottomWidth) || 0,
-      left: Number.parseFloat(abStyle.borderLeftWidth) || 0,
-    };
-    var maxW = Math.max(widths.top, widths.right, widths.bottom, widths.left);
-    if (maxW < 2) continue;
-    var ownBg = parseRgb(abStyle.backgroundColor);
-    if (BORDER_SAFE_TAGS[abTag] === 1) continue;
-    if (abTag === "span" && !(ownBg && ownBg.a > 0.5)) continue;
-    capPush("accentBorders", accentBorders, ACCENT_BORDER_CAP, {
-      selector: describe(abel),
-      tag: abTag,
-      widths: widths,
-      colors: {
-        top: parseRgb(abStyle.borderTopColor),
-        right: parseRgb(abStyle.borderRightColor),
-        bottom: parseRgb(abStyle.borderBottomColor),
-        left: parseRgb(abStyle.borderLeftColor),
-      },
-      radius: Number.parseFloat(abStyle.borderTopLeftRadius) || 0,
-      badgeLike: abTag === "span" && !!(ownBg && ownBg.a > 0.5),
-      tabContext: !!(abel.closest("[role='tablist'],[role='tab'],nav") || abel.getAttribute("aria-selected") !== null),
-      statusContext: !!abel.closest("[role='status'],[role='alert'],[aria-live]"),
-      // The ratified ListRow selection accent (issue #485) — matches on the ELEMENT itself, never an
-      // ancestor: a decorative panel nested inside a selected row must keep being judged.
-      listRowSelected: !!(abel.matches && abel.matches(LIST_ROW_SELECTED_SEL)),
-      // The illustrated-picker art aperture (#1642) — ANCESTOR-scoped on purpose, the inverse of the line
-      // above: every box inside the picture is part of the picture, and the tell the diagram draws is the
-      // very thing the cell exists to show. Keyed on the shared @orb/ui PickerCell slot, so all FOUR
-      // illustrated pickers — chat style, density, elevation, theme looks — are one exemption rather
-      // than four selectors.
-      artPane: !!(abel.closest && abel.closest(PICKER_ART_SEL)),
-    });
-  }
+  // ── accent borders MOVED to ops/walker/census-accent.ts (2026-09-05, #1103) ──
+  // The family grew a second collection channel — a \`::before\`/\`::after\` bar pinned to one edge, which
+  // is how this codebase actually paints an accent edge — and the pseudo sweep took this file past the
+  // tooling-size cap, exactly as the glow families did in 2026-09-01. WALKER_CENSUS_ACCENT declares
+  // \`accentBorders\` and runs immediately after this segment (ops/walker.ts), so the composed IIFE's
+  // scope is unchanged and WALKER_RETURNS still reads the one array.
 
   // ── decorative bg patterns: stripes + grid-line fields (impeccable
   //    repeating-stripes-gradient / codex-grid-background) ──────────────────

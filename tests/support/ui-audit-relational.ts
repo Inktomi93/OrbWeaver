@@ -19,6 +19,22 @@ export function auditReport(stdout: string): string {
   return String(line).slice("report".length).trim();
 }
 
+/** Every findings-table selector for one rule. The table is `severity rule selector message (value)` with
+ *  fixed-width columns. Read from the TABLE rather than by substring: the same selectors also appear in
+ *  the withheld/obscured denominators above it, where their presence says nothing about the verdict.
+ *  ONE home (2026-09-05, #1103): census-decor's and census-accent's suites ask the identical question of
+ *  the identical output, and a second copy is the shape RULE-AUTHORING.md row 4 was paid for. */
+export function findingSelectors(stdout: string, rule: string): readonly string[] {
+  const rows: string[] = [];
+  for (const line of stdout.split("\n")) {
+    const fields = line.trim().split(/\s+/u);
+    if (fields[1] === rule && (fields[0] ?? "").startsWith("P") && fields[2] !== undefined) {
+      rows.push(fields[2]);
+    }
+  }
+  return rows;
+}
+
 export function relationalDocument(body: string): string {
   return `<!doctype html>
 <html data-app-ready="settled"><head><meta charset="utf-8"><title>relational population</title></head>
