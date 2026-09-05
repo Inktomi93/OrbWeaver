@@ -4,7 +4,7 @@
 // selection title all read (config-revamp-design.md §3.1 / §6.8).
 
 import type { ConfigGroupDefinition } from "@orb/client/state";
-import { configAnchorId, isCollectionGroup, isPushingGroup } from "@orb/client/state";
+import { configAnchorId, isCollectionGroup, rendersOwnBody } from "@orb/client/state";
 import { Settings } from "@orb/ui/icons";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
@@ -44,13 +44,19 @@ const library: ConfigGroupDefinition = {
 };
 const planned: ConfigGroupDefinition = { id: "automation", shelf: "app", label: "Automation", icon: Settings, description: "d", body: { placeholder: true } };
 
-describe("isCollectionGroup / isPushingGroup", () => {
-  test("a `collection` body is the ONE non-pushing arm; skimmers and placeholders push CONTENT", () => {
+// `isPushingGroup` SPLIT into `rendersOwnBody` at #1725 (owner ruling 2026-09-05 — a collection's members
+// moved into CONTENT). The predicate's SUBJECT is unchanged and so is every value below: it is the CONTENT
+// router's question ("has `GroupBody` anything to draw"), which is the half that did NOT move. The half that
+// did — "does activating this take over a phone" — is no longer a predicate at all, because after the ruling
+// every arm answers yes; `config-section.tsx`'s selection seam asks `getActiveConfigGroup() !== null`
+// instead, and that is asserted where the back-stack is, not here.
+describe("isCollectionGroup / rendersOwnBody", () => {
+  test("a `collection` body is the ONE arm with no body of its own; skimmers and placeholders draw one", () => {
     expect(isCollectionGroup(library)).toBe(true);
-    expect(isPushingGroup(library)).toBe(false);
+    expect(rendersOwnBody(library)).toBe(false);
     expect(isCollectionGroup(skimmer)).toBe(false);
-    expect(isPushingGroup(skimmer)).toBe(true);
+    expect(rendersOwnBody(skimmer)).toBe(true);
     expect(isCollectionGroup(planned)).toBe(false);
-    expect(isPushingGroup(planned)).toBe(true);
+    expect(rendersOwnBody(planned)).toBe(true);
   });
 });

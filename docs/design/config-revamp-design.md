@@ -793,6 +793,31 @@ converged away — which is the outcome the amendment was for: the reasons are n
 inherited. The §8.3 table below is re-read the same way: each row's "Verdict" column is a structural claim
 about members-vs-body, and none of them says "species" as its reason.
 
+### 8.1b The members left the LIST (owner ruling 2026-09-05, #1725) — the ruling survives, its INPUT changed
+
+**Owner word, verbatim (Nate, \~16:40Z):** *"k but tag list under in list is kinda a no go that needs to move
+into content when clicking onto tags, same thing for regex and world info is what im trying to say right now
+its mixed and looks weird"* · seconds later: *"so that means content will need to be redesigned for those
+interfaces to properly be consistent"* · on the approved canvas, \~18:05Z: *"redesign approved it can be built
+to spec but must match the mockups"*.
+
+The spec is [`mocks/config-collections/DESIGN.md`](mocks/config-collections/DESIGN.md) (canvas source +
+22 true-size renders + the two v1–v2 reviews, all beside it). This section is the LANDING contract's home,
+so what the ruling did to §8.1's four rulings is recorded here and nowhere else:
+
+| #925 ruling | verdict under #1725 |
+| - | - |
+| 1 · must-WORK | INTACT. No dead ends, no capability lies — every control that left the band arrived in the library's control row rather than vanishing. |
+| 2 · landing / feature status is the LIST's | INTACT. The greyed unbuilt band still opens a coming-soon CONTENT body. |
+| 3 · classification | INTACT. Built-but-empty is a live row with an honest empty state — now drawn in CONTENT (F5 arm A, board 07). |
+| 4 · arrival default | INTACT, and it now has more to land on. |
+| **ENTER (select-and-disclose)** | **the ruling survives, its INPUT changed.** The owner ruled WHERE the members live. SELECT is untouched — one act, `selectConfigGroup`, never a select-then-toggle pair. DISCLOSE is RETIRED: there is nothing in the LIST to unfold, so the band carries no `aria-expanded` and no second-click fold. |
+
+Two more clauses this section owned are amended by the same ruling, both recorded at their code homes:
+`COLLECTION_LARGE_GROUP`'s FILTER half (the gate is gone — the library's pane makes the box always worth
+drawing) and `CONFIG_COLLECTION_LANDING.hint` (deleted with its reader: it pointed AT the LIST, and the
+members are on the pane the sentence was written on).
+
 ### 8.2 The classification receipt (ruling 3, re-derived against the tree)
 
 `ast-grep -p 'placeholder: true'` over `packages/client/src`, both languages (tsx `scannedFileCount=668`,

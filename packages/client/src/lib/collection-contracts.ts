@@ -42,15 +42,32 @@
 
 import type { ReactNode } from "react";
 
-/** Member count above which a group earns the host's FILTER input and the owner virtualizes its rows.
- *  ONE constant, two readers (the host's group frame, each contribution's row list) — the owner's real
- *  library is ~400 tags, so "the list is a glance" stops being true well before then. */
+/** Member count above which the owner VIRTUALIZES its rows. The owner's real library is ~400 tags, so "the
+ *  list is a glance" stops being true well before then.
+ *
+ *  IT NO LONGER GATES THE FILTER (#1725, owner ruling 2026-09-05). It had two readers and two jobs: this
+ *  threshold, and "a group earns the host's FILTER input". The filter half died with its premise — three
+ *  collapsible bands shared ONE list scroll column, so 32px of chrome per band was worth spending only past
+ *  a glance, and the library has its own pane now (DESIGN.md §3.2). The filter is always drawn; what
+ *  survives here is a RENDERING budget, which never depended on the geometry that changed. */
 export const COLLECTION_LARGE_GROUP = 30;
 
-/** The windowed-arm box's height cap, spelled ONCE for every collection (side-eye 2026-08-03 P3 flagged it
- *  re-spelled in all three row files). It is a CAP, not a height: three collapsible bands share one scroll
- *  column, so an uncapped (or pane-filling) first library would push every sibling band below the fold —
- *  the exact failure collapsed-by-default groups exist to prevent. */
+/** The windowed-arm box's height, spelled ONCE for every collection (side-eye 2026-08-03 P3 flagged it
+ *  re-spelled in all three row files).
+ *
+ *  ═══ ITS PREMISE DIED AND THE CONSTANT DID NOT — THE FORK, STATED (#1725) ══════════════════════════
+ *  It was a CAP: three collapsible bands shared one LIST scroll column, so an uncapped first library would
+ *  push every sibling band below the fold. The owner moved the members into their own pane, so there are no
+ *  siblings to protect and DESIGN.md §3.2 retires the cap by name.
+ *
+ *  It cannot simply be DELETED, and that is a fact about the sealed primitive rather than a preference:
+ *  `@orb/ui/virtual-list`'s contract is "the parent must give the list a bounded height via `className` —
+ *  an unbounded scroll element THROWS AT MOUNT". So the honest move is not a deletion but a RE-BIND — the
+ *  bound becomes the pane instead of 384px — and that changes which box scrolls the library, which is a
+ *  shell-level question (a nested scroller inside the CONTENT pane's own `overflow-y-auto`) that owes a
+ *  rendered receipt at all three matrix widths plus the phone. It is the first item of this design's next
+ *  commit, and it is named here rather than left as a comment that quietly still claims the shelf.
+ *  Until then the value is unchanged and the reason it holds is the primitive's requirement, not the shelf. */
 export const COLLECTION_WINDOW_MAX_HEIGHT = "max-h-96";
 
 /** ONE library-level FACT the landing states — what is TRUE OF THE LIBRARY, in the library's own words,
