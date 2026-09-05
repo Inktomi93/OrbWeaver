@@ -1148,7 +1148,7 @@ const ABSENT_DIR_CODES: ReadonlySet<string> = new Set(["ENOENT", "ENOTDIR"]);
 export function createNodeFsImportPort(): ImportFsPort {
   return {
     readdir: async (dir): Promise<readonly FsEntry[]> => {
-      // @orb-gate-ignore caught-failure-ownership(default:catch): the catch is NARROWED to the two ABSENT
+      // The catch is NARROWED to the two ABSENT
       // codes and RE-THROWS everything else — an infra fault leaves as a rejection, which the collector
       // wraps as `ImportInfraFailureError`. Ends if the port stops distinguishing absent from broken.
       try {

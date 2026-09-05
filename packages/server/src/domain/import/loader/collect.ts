@@ -129,7 +129,7 @@ function group(state: CollectState, handle: CharacterHandle): Group {
 // unreadable ⇒ `ImportInfraFailureError`, never a raw errno escaping the domain).
 async function listDir(fs: ImportFsPort, dir: string, state: CollectState): Promise<{ name: string; kind: string }[]> {
   let entries: readonly { name: string; kind: string }[];
-  // @orb-gate-ignore caught-failure-ownership(rethrow): the catch RE-THROWS — `rethrowInfraFailure` maps an
+  // The catch RE-THROWS — `rethrowInfraFailure` maps an
   // infra fault to the typed error and the trailing `throw` re-raises anything else unchanged (a missing dir
   // is the PORT's `[]`, so nothing is swallowed here).
   try {
@@ -152,7 +152,7 @@ async function listDir(fs: ImportFsPort, dir: string, state: CollectState): Prom
  *  which is precisely the claim {@link ImportInfraFailureError} exists to make. A non-infra error (a
  *  race-deleted `ENOENT`, anything `.code`-less) re-raises UNCHANGED — this wrapper only types the fault. */
 async function readStagedFile(fs: ImportFsPort, path: string): Promise<Uint8Array> {
-  // @orb-gate-ignore caught-failure-ownership(rethrow): the catch RE-THROWS in both arms (typed infra error,
+  // The catch RE-THROWS in both arms (typed infra error,
   // else the original) — nothing is swallowed.
   try {
     return await fs.readFile(path);
@@ -164,7 +164,7 @@ async function readStagedFile(fs: ImportFsPort, path: string): Promise<Uint8Arra
 
 /** {@link readStagedFile}'s `stat` twin — the chat-size gate reads a file's size before deciding to read it. */
 async function statStagedFile(fs: ImportFsPort, path: string): Promise<{ readonly size: number }> {
-  // @orb-gate-ignore caught-failure-ownership(rethrow): the catch RE-THROWS in both arms.
+  // The catch RE-THROWS in both arms.
   try {
     return await fs.stat(path);
   } catch (error) {
