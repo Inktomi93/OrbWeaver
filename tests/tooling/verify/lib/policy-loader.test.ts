@@ -14,6 +14,7 @@ function writeModules(root: string, modules: Readonly<Record<string, string>>): 
 
 interface ModuleOptions {
   readonly analysis?: "syntax" | "types" | "resource";
+  readonly family?: string;
   readonly proofMode?: "source" | "types" | "resource";
   readonly population?: string;
   readonly exportName?: string;
@@ -30,7 +31,7 @@ function moduleSource(repoRoot: string, id: string, options: ModuleOptions = {})
   const proofPath = proofMode === "resource" ? "resources/policy.json" : "tooling/src/proof.ts";
   const descriptor = `defineGate({
     id: ${JSON.stringify(id)},
-    family: ${JSON.stringify(id)},
+    family: ${JSON.stringify(options.family ?? id)},
     authority: "hard",
     severity: "error",
     population: ${population},
@@ -56,6 +57,28 @@ test("loads a valid corpus in deterministic path order", async ({ repoRoot, scra
   expect(corpus.files).toEqual(["tooling/src/verify/gates/a-policy.ts", "tooling/src/verify/gates/z-policy.ts"]);
   expect(corpus.gates.map(({ id }) => id)).toEqual(["a-policy", "z-policy"]);
   expect(corpus.families).toEqual(["a-policy", "z-policy"]);
+});
+
+test("refuses an absent or empty corpus", async ({ scratch }) => {
+  await expect(loadPolicyCorpus(join(scratch, "absent"))).rejects.toThrow(/zero|empty|no gate/i);
+  const empty = join(scratch, "empty");
+  mkdirSync(join(empty, "tooling/src/verify/gates"), { recursive: true });
+  await expect(loadPolicyCorpus(empty)).rejects.toThrow(/zero|empty|no gate/i);
+});
+
+test("singleton families equal their sole id while a shared family requires at least two policies", async ({ repoRoot, scratch }) => {
+  const singleton = join(scratch, "singleton");
+  writeModules(singleton, { "only-policy.ts": moduleSource(repoRoot, "only-policy", { family: "stale-family" }) });
+  await expect(loadPolicyCorpus(singleton)).rejects.toThrow(/singleton.*family|sole.*id/i);
+
+  const shared = join(scratch, "shared");
+  writeModules(shared, {
+    "first-policy.ts": moduleSource(repoRoot, "first-policy", { family: "shared-family" }),
+    "second-policy.ts": moduleSource(repoRoot, "second-policy", { family: "shared-family" }),
+  });
+  const corpus = await loadPolicyCorpus(shared);
+  expect(corpus.families).toEqual(["shared-family"]);
+  expect(corpus.gates.map(({ id }) => id)).toEqual(["first-policy", "second-policy"]);
 });
 
 test("refuses a legacy descriptor and unknown descriptor fields", async ({ repoRoot, scratch }) => {

@@ -67,6 +67,35 @@ function nodeReportingPolicy(id: string, events?: string[]): GatePolicy {
   });
 }
 
+test("the invocation boundary rejects empty, duplicate, unbranded, and invalid policies before hooks", () => {
+  const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
+  let creates = 0;
+  const counted = (id: string): GatePolicy =>
+    policy(id, {
+      create: () => {
+        creates += 1;
+        return { evaluate: () => undefined };
+      },
+    });
+  const valid = counted("valid-policy");
+  const unbranded = { ...valid, id: "unbranded-policy", family: "unbranded-policy" } as GatePolicy;
+  const invalid = defineGate({
+    ...valid,
+    id: "invalid-policy",
+    family: "invalid-policy",
+    analysis: "bogus",
+    execution: "bogus",
+    mustFlag: [],
+    mustPass: [],
+  } as never);
+
+  expect(() => run([], project)).toThrow(/nonempty|policy/i);
+  expect(() => run([counted("duplicate-policy"), counted("duplicate-policy")], project)).toThrow(/duplicate/i);
+  expect(() => run([unbranded], project)).toThrow(/defineGate|brand/i);
+  expect(() => run([invalid], project)).toThrow(/invalid.*policy|analysis|proof/i);
+  expect(creates).toBe(0);
+});
+
 test("two policies share one physical descendant walk and receive deterministic findings", () => {
   const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
   const sf = project.getSourceFileOrThrow(`${ROOT}/packages/client/src/a.ts`);
@@ -214,6 +243,27 @@ test("the checker is lazy, shared once, and refuses syntax policies", () => {
   expect(result.toolErrors).toMatchObject([{ policyId: "syntax-checker", phase: "evaluate", message: expect.stringMatching(/syntax.*checker/i) }]);
 });
 
+test("visitor subscriptions reject impossible kinds and duplicates while real range edges remain valid", () => {
+  const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
+  const withKinds = (id: string, kinds: readonly SyntaxKind[]): GatePolicy => policy(id, { create: () => ({ visitors: [{ kinds, visit: () => undefined }] }) });
+  const invalidKinds = [
+    ["negative-kind", [-1]],
+    ["unknown-kind", [SyntaxKind.Unknown]],
+    ["count-kind", [SyntaxKind.Count]],
+    ["beyond-kind", [SyntaxKind.Count + 10]],
+    ["duplicate-kind", [SyntaxKind.Identifier, SyntaxKind.Identifier]],
+  ] as const;
+
+  for (const [id, kinds] of invalidKinds) {
+    const result = run([withKinds(id, kinds as readonly SyntaxKind[])], project);
+    expect(result.policies[0]?.owner.status).toBe("incomplete");
+    expect(result.toolErrors).toMatchObject([{ policyId: id, phase: "create", message: expect.stringMatching(/SyntaxKind|kinds|unique/i) }]);
+  }
+
+  const valid = run([withKinds("valid-kind-edges", [SyntaxKind.Identifier, (SyntaxKind.Count - 1) as SyntaxKind])], project);
+  expect(valid.policies[0]?.owner).toEqual({ status: "success", population: "complete" });
+});
+
 test("sourceFile cannot escape the effective population", () => {
   const project = projectOf({
     "packages/client/src/a.ts": "export const a = 1;\n",
@@ -227,6 +277,72 @@ test("sourceFile cannot escape the effective population", () => {
 
   expect(result.policies[0]?.owner.status).toBe("incomplete");
   expect(result.toolErrors).toMatchObject([{ policyId: gate.id, phase: "evaluate", message: expect.stringMatching(/effective population/i) }]);
+});
+
+test("semantic and resource receipt failures remain visible and withhold their owner", () => {
+  const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
+  const denominators = policy("bad-denominators", {
+    authority: "ordinary",
+    create: (ctx) => ({
+      evaluate: () => {
+        ctx.receipt({ kind: "population", source: "empty-members", members: 0 });
+        ctx.receipt({ kind: "population", source: "unresolved-members", members: 2, unresolved: 1 });
+        ctx.receipt({ kind: "resource", source: "empty-resources", resources: 0 });
+        ctx.receipt({ kind: "resource", source: "unresolved-resources", resources: 2, unresolved: 1 });
+      },
+    }),
+  });
+  const bogus = policy("bogus-receipt", {
+    authority: "ordinary",
+    create: (ctx) => ({ evaluate: () => ctx.receipt({ kind: "bogus", source: "bogus-kind", resources: 1 } as never) }),
+  });
+
+  let reconciliations = 0;
+  const result = run([bogus, denominators], project, {
+    reconcileOrdinary: () => {
+      reconciliations += 1;
+      return [];
+    },
+  });
+  const denominatorResult = result.policies.find(({ id }) => id === denominators.id);
+
+  expect(denominatorResult?.owner.status).toBe("incomplete");
+  expect(denominatorResult?.receipts).toHaveLength(4);
+  expect(denominatorResult?.receipts).toContainEqual({ kind: "population", source: "empty-members", members: 0, unresolved: 0 });
+  expect(denominatorResult?.receipts).toContainEqual({ kind: "resource", source: "unresolved-resources", resources: 2, unresolved: 1 });
+  expect(result.toolErrors).toMatchObject([
+    { policyId: "bad-denominators", phase: "receipt", message: expect.stringMatching(/zero|unresolved/i) },
+    { policyId: "bogus-receipt", phase: "evaluate", message: expect.stringMatching(/kind|discriminant/i) },
+  ]);
+  expect(result.authority.withheldPolicyIds).toEqual(["bad-denominators", "bogus-receipt"]);
+  expect(reconciliations).toBe(0);
+});
+
+test("node reports require an exact in-range token and offset pair", () => {
+  const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
+  const withDetails = (id: string, details: object): GatePolicy =>
+    policy(id, {
+      create: (ctx) => ({
+        visitors: [{ kinds: [SyntaxKind.VariableDeclaration], visit: (node) => ctx.report.node(node, details as never) }],
+      }),
+    });
+  const invalid = [
+    ["offset-only", { offset: 0 }],
+    ["token-only", { token: "a" }],
+    ["negative-offset", { token: "a", offset: -1 }],
+    ["fractional-offset", { token: "a", offset: 0.5 }],
+    ["range-offset", { token: "a", offset: 100 }],
+    ["mismatch-offset", { token: "missing", offset: 0 }],
+  ] as const;
+  for (const [id, details] of invalid) {
+    const result = run([withDetails(id, details)], project);
+    expect(result.policies[0]?.owner.status).toBe("incomplete");
+    expect(result.toolErrors).toMatchObject([{ policyId: id, phase: "visit", message: expect.stringMatching(/token|offset/i) }]);
+  }
+
+  const valid = run([withDetails("valid-token-offset", { token: "a", offset: 0 })], project);
+  expect(valid.policies[0]?.owner.status).toBe("success");
+  expect(valid.policies[0]?.findings).toMatchObject([{ token: "a" }]);
 });
 
 test("create state is invocation-local across re-entry", () => {
@@ -352,6 +468,7 @@ test("result ordering and timing receipt shape are deterministic", () => {
     visitFile: expect.any(Number),
     visit: expect.any(Number),
     evaluate: expect.any(Number),
+    receipt: expect.any(Number),
   });
   expect(result.timing.totalMs).toBeGreaterThanOrEqual(result.timing.policyMs);
 });
@@ -361,9 +478,14 @@ test("the public context type and runtime surface expose neither Project nor roo
   const noForbiddenKeys: Forbidden extends never ? true : false = true;
   const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
   let keys: readonly string[] = [];
+  let frozen: readonly boolean[] = [];
+  let mutations: readonly boolean[] = [];
   const gate = policy("context-surface", {
     create: (ctx) => {
       keys = Object.keys(ctx).sort();
+      frozen = [Object.isFrozen(ctx), Object.isFrozen(ctx.report), Object.isFrozen(ctx.files), Object.isFrozen(ctx.resourcePaths)];
+      const originalNode = ctx.report.node;
+      mutations = [Reflect.set(ctx as object, "extra", true), Reflect.set(ctx.report as object, "node", () => undefined), ctx.report.node === originalNode];
       return { evaluate: () => undefined } satisfies GatePolicyHooks;
     },
   });
@@ -372,4 +494,6 @@ test("the public context type and runtime surface expose neither Project nor roo
 
   expect(noForbiddenKeys).toBe(true);
   expect(keys).toEqual(["checker", "files", "receipt", "relativePath", "report", "resourcePaths", "sourceFile"]);
+  expect(frozen).toEqual([true, true, true, true]);
+  expect(mutations).toEqual([false, false, true]);
 });
