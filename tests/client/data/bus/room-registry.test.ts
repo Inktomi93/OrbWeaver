@@ -398,11 +398,62 @@ describe("routing and failure", () => {
     });
 
     registry.join(USER_ROOM, { onEvent: () => undefined, sinceSeq: 12 });
+    // The SECOND join LOWERS the room's request, so it re-announces on the spot (#1484) — the merged
+    // request is not something the next reconnect gets around to.
     registry.join(USER_ROOM, { onEvent: () => undefined, sinceSeq: 0 });
     registry.socketLive();
     registry.socketLive(); // reconnect → re-announce with the merged request
 
-    expect(requested).toEqual([12, 0]);
+    expect(requested).toEqual([12, 0, 0]);
+  });
+
+  test("a subscriber joining an ALREADY-LIVE room with a LOWER cursor is re-announced, not silently starved (#1484)", () => {
+    // THE DEFECT THIS PINS: the join-time announce used to be gated on `subscribers.size === 1`, so a
+    // second hook joining a room that was ALREADY attached was added to the Set and nothing told the wire.
+    // The room stayed attached at the FIRST joiner's cursor, and every durable event between the two
+    // cursors was never replayed to the newcomer — a chat that quietly lacks rows it can prove it missed.
+    // The SHAPE matters: the room must go LIVE before the second join, or this exercises the
+    // first-subscriber path twice and passes against the bug.
+    const registry = createRoomRegistry();
+    const requested: (number | null)[] = [];
+    registry.bindTransport({
+      attach: (_ref, sinceSeq): Promise<void> => {
+        requested.push(sinceSeq);
+        return Promise.resolve();
+      },
+      detach: (): Promise<void> => Promise.resolve(),
+    });
+
+    registry.join(RPG_ROOM, { onEvent: () => undefined, sinceSeq: 40 });
+    registry.socketLive(); // attached and LIVE — no reconnect is coming to save the newcomer
+    expect(requested).toEqual([40]);
+
+    registry.join(RPG_ROOM, { onEvent: () => undefined, sinceSeq: 8 });
+
+    // The wire now holds the LOWER mark, so the server restarts this room's pump at 8 and replays 8..40.
+    expect(requested).toEqual([40, 8]);
+  });
+
+  test("a joiner that does NOT lower the room's request costs the wire nothing — N subscribers, ONE attach", () => {
+    // The other half of #1484's fix: re-announcing on every join is safe ONLY because the dedupe drops the
+    // ones that would repeat an identical attach. Without this arm the fix trades a starved subscriber for
+    // a round-trip per mount — exactly the churn this registry's ref-counting exists to prevent.
+    const registry = createRoomRegistry();
+    const requested: (number | null)[] = [];
+    registry.bindTransport({
+      attach: (_ref, sinceSeq): Promise<void> => {
+        requested.push(sinceSeq);
+        return Promise.resolve();
+      },
+      detach: (): Promise<void> => Promise.resolve(),
+    });
+
+    registry.join(RPG_ROOM, { onEvent: () => undefined, sinceSeq: 8 });
+    registry.socketLive();
+    registry.join(RPG_ROOM, { onEvent: () => undefined, sinceSeq: 40 }); // a HIGHER mark — already covered
+    registry.join(RPG_ROOM, { onEvent: () => undefined }); // live-only — wants no replay at all
+
+    expect(requested).toEqual([8]);
   });
 
   test("a THUNK replay request is re-read at every announce — the reconnect heal's whole mechanism", () => {

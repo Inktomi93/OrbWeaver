@@ -262,7 +262,17 @@ function LinkBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement {
   const scrapeWiki = useScrapeWiki({ trpc, invalidation });
 
   const pending = scrapeWeb.isPending || scrapeYoutube.isPending || scrapeWiki.isPending;
-  const failed = scrapeWeb.error !== null || scrapeYoutube.error !== null || scrapeWiki.error !== null;
+  // THE FAILURE BELONGS TO A SOURCE, NOT TO THE DIALOG (#1502). A flat OR over all three runners made one
+  // runner's error the whole form's error: fail a YouTube fetch, switch the Source select to Web, and the
+  // red "Couldn't fetch that link" was still there — pointing at a source that had never been tried, and
+  // naming the caption language, which Web does not have. A `Record` over the scraper axis rather than a
+  // chain of `||`, for the same reason `save` below uses one: a new `ScraperKind` fails tsc here instead of
+  // silently having no error surface.
+  const runnerFailed: Record<ScraperKind, boolean> = {
+    web: scrapeWeb.error !== null,
+    youtube: scrapeYoutube.error !== null,
+    wiki: scrapeWiki.error !== null,
+  };
 
   const save = async (values: ScrapeFormValues): Promise<ScrapeFormValues> => {
     const url = values.url.trim();
@@ -308,11 +318,17 @@ function LinkBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement {
           ) : null
         }
       </form.Subscribe>
-      {failed ? (
-        <Text className="text-destructive" voice="gloss">
-          Couldn't fetch that link. Check the address (and the caption language for YouTube), then try again.
-        </Text>
-      ) : null}
+      <form.Subscribe selector={(state): ScraperKind => state.values.source}>
+        {(source): ReactElement | null =>
+          runnerFailed[source] ? (
+            <Text className="text-destructive" voice="gloss">
+              {source === "youtube"
+                ? "Couldn't fetch that video. Check the address and the caption language, then try again."
+                : "Couldn't fetch that link. Check the address, then try again."}
+            </Text>
+          ) : null
+        }
+      </form.Subscribe>
       <Row className="mt-auto" gap="field" justify="end">
         <DialogClose render={<Button intent="ghost">Cancel</Button>} />
         <form.Subscribe selector={(state): boolean => state.values.url.trim() === ""}>

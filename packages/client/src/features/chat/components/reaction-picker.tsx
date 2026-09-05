@@ -103,7 +103,22 @@ export function ReactionPicker({
       .map((g) => g.emoji),
   );
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
+    <Dialog
+      // THE TARGET IS PER VISIT, AND CLOSING ENDS THE VISIT (#1502). The header above already states the
+      // rule — "whole-message is the DEFAULT target; a segment is an explicit narrowing per visit" — but
+      // the state outlived the dialog: this component stays mounted with `open=false` (the popup content is
+      // what Base UI unmounts), so a line-anchored pick, a dismiss, and a reopen on a DIFFERENT message
+      // came back still aimed at "segment 3" of a message that may not have three lines. Resetting on the
+      // CLOSE edge rather than the open one keeps the default true even for a reopen that never re-renders
+      // this subtree in between.
+      onOpenChange={(next): void => {
+        if (!next) {
+          setTarget(null);
+        }
+        onOpenChange(next);
+      }}
+      open={open}
+    >
       <DialogPopup data-slot="reaction-picker" data-chat-id={chatId} data-variant-id={variantId}>
         <Stack gap="block">
           <DialogTitle>Add a reaction</DialogTitle>
@@ -149,6 +164,9 @@ export function ReactionPicker({
                 key={emoji}
                 onPressedChange={(): void => {
                   onPick(emoji, target);
+                  // A PROGRAMMATIC close never reaches the Dialog's own `onOpenChange`, so the per-visit
+                  // reset has to happen here too — this is the path a successful pick actually takes.
+                  setTarget(null);
                   onOpenChange(false);
                 }}
                 pressed={reactedWith.has(emoji)}

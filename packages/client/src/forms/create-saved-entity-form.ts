@@ -59,6 +59,18 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
     // path (isSubmitSuccessful alone can't carry the saved value).
     const savedRef = useRef<TValues | null>(null);
     const [saveTick, setSaveTick] = useState(0);
+    /**
+     * WHICH SUBMISSION IS ALLOWED TO RE-BASELINE (#1503).
+     *
+     * The re-baseline is `form.reset(savedRef.current)` — it OVERWRITES every field with a server row. A
+     * bare `savedRef` makes that "whichever save resolved last", which is not the same as "the last save
+     * the user made": two submissions in flight (a double-press the disabled state did not catch, a retry
+     * over a slow first attempt) resolve in network order, so an OLDER row could land last and reset the
+     * form back onto values the user had already replaced — silent, and indistinguishable from the save
+     * having worked. The epoch makes the rule explicit: a submission that has been superseded resolves
+     * quietly, writes nothing, and leaves the draft alone for the later one to clear.
+     */
+    const submitEpoch = useRef(0);
 
     const form = useAppForm({
       validationLogic: revalidateLogic(),
@@ -70,7 +82,12 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
         if (save === undefined) {
           throw new Error("createSavedEntityForm: no save function supplied (neither config.save nor a call-time save)");
         }
+        const epoch = submitEpoch.current + 1;
+        submitEpoch.current = epoch;
         const saved = await save(value);
+        if (submitEpoch.current !== epoch) {
+          return; // a later submission owns this form now — see `submitEpoch`
+        }
         savedRef.current = saved;
         setSaveTick((t) => t + 1);
         config.draft?.clearDraft(entityId);

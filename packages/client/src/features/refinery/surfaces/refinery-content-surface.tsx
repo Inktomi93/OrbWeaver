@@ -31,7 +31,7 @@
 // pick resolves.
 
 import type { RefinerySelection, RefineryStage } from "@orb/contracts/refinery";
-import { isAppendedRewrite } from "@orb/contracts/refinery";
+import { isAppendedRewrite, REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
@@ -359,7 +359,18 @@ function rewriteEntriesFor(
   if (rewriteRun === null || rewriteRun.stage !== "rewrite") {
     return [];
   }
-  return reviewEntriesOf((rewriteRun.payload as { fields: never[] }).fields, card, view.originalCard, view.selection);
+  // PARSED, NOT CAST (#1503). `run.payload` is open JSON off the wire, and the cast it used to carry
+  // (`as { fields: never[] }`) asserted a shape nothing had checked: a run whose payload had drifted — a
+  // custom-schema run, a row written by an older build, a partial write — reached `reviewEntriesOf` with
+  // `fields` undefined and threw INSIDE a live render, taking the whole surface down rather than showing an
+  // empty review. `scorePayloadOf` in this same feature already had the right shape (`safeParse`, null on
+  // failure); this is the rewrite half of it, and the empty list is the same honest "nothing reviewable
+  // here" the two guards above already return.
+  const parsed = REFINERY_STAGE_PAYLOADS.rewrite.safeParse(rewriteRun.payload);
+  if (!parsed.success) {
+    return [];
+  }
+  return reviewEntriesOf(parsed.data.fields, card, view.originalCard, view.selection);
 }
 
 /** The preflight slice one lane reads. */

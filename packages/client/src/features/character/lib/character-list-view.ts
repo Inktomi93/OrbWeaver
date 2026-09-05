@@ -109,16 +109,41 @@ export interface ResumableChat {
   readonly updatedAt: number;
 }
 
+/** How recent a chat is FOR RESUME PURPOSES: its last message, or — for a chat that was created and never
+ *  spoken in — when it was last touched. A never-messaged chat is still a resumable place. */
+function recencyOf(chat: ResumableChat): number {
+  return chat.lastMessageAt ?? chat.updatedAt;
+}
+
+/** Is `candidate` the better resume target than the one held? A TOTAL order, in three steps (#1503).
+ *  Recency alone is not one: two chats with the same `lastMessageAt` (a bulk seed, a same-millisecond pair,
+ *  and every never-messaged chat sharing an `updatedAt`) compared EQUAL, and a plain `>` then kept whichever
+ *  the list happened to yield first — so the CTA for one character could resume a different chat depending
+ *  on how `listChats` was sorted, with nothing on screen explaining the change. `updatedAt` breaks the first
+ *  tie (the chat touched more recently is the one you were last in) and the id breaks the last one, so the
+ *  answer is a property of the DATA and not of the iteration order. */
+function isBetterResume(candidate: ResumableChat, held: ResumableChat): boolean {
+  const candidateRecency = recencyOf(candidate);
+  const heldRecency = recencyOf(held);
+  if (candidateRecency !== heldRecency) {
+    return candidateRecency > heldRecency;
+  }
+  if (candidate.updatedAt !== held.updatedAt) {
+    return candidate.updatedAt > held.updatedAt;
+  }
+  return candidate.id > held.id;
+}
+
 /** §4.4/§9c reverse read: characterId → the MOST-RECENT chat that includes them (by `lastMessageAt` desc,
- *  `updatedAt` as the tiebreak for never-messaged chats). The row's dual-purpose CTA resumes `get(id)` when
- *  present, else starts new — a pure render derivation over the already-loaded `listChats`, never an effect. */
+ *  falling back to `updatedAt` for a never-messaged chat, then `updatedAt` and the id as tie-breaks —
+ *  `isBetterResume`). The row's dual-purpose CTA resumes `get(id)` when present, else starts new — a pure
+ *  render derivation over the already-loaded `listChats`, never an effect. */
 export function resumeTargets(chats: readonly ResumableChat[]): ReadonlyMap<CharacterId, ChatId> {
-  const recencyOf = (c: ResumableChat): number => c.lastMessageAt ?? c.updatedAt;
   const best = new Map<CharacterId, ResumableChat>();
   for (const chat of chats) {
     for (const characterId of chat.participantCharacterIds) {
       const current = best.get(characterId);
-      if (current === undefined || recencyOf(chat) > recencyOf(current)) {
+      if (current === undefined || isBetterResume(chat, current)) {
         best.set(characterId, chat);
       }
     }

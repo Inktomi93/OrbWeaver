@@ -22,7 +22,7 @@ import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FormDialog } from "#components";
 
 /** The `.json` extension, stripped off the picked filename to seed the preset name (ST arm only — an
@@ -63,6 +63,8 @@ export interface PresetImportDialogProps {
 export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb, busy }: PresetImportDialogProps): ReactElement {
   const [parsed, setParsed] = useState<ParsedImport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Which file selection owns this dialog — bumped per pick, checked before any write (see `onFile`). */
+  const pickToken = useRef(0);
 
   const reset = (): void => {
     setParsed(null);
@@ -71,12 +73,23 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
 
   const onFile = (file: File): void => {
     reset();
+    // EVERY PICK GETS A TOKEN, AND ONLY THE CURRENT ONE MAY WRITE (#1502). `file.text()` is a promise per
+    // selection with no cancellation: pick a large file, change your mind and pick a small one, and the two
+    // reads race — LAST TO RESOLVE wins, which is not the same thing as LAST PICKED. The dialog would then
+    // summarize (and, on confirm, IMPORT) a file the user had already replaced, with the dropzone showing
+    // the other one. The token is a ref rather than state because the comparison happens inside a resolved
+    // promise, where a state read would be the stale capture that causes this class in the first place.
+    const token = pickToken.current + 1;
+    pickToken.current = token;
     // @orb-gate-ignore caught-failure-ownership(promise:text): the .catch below explicitly sets a detailed
     // error state (the sniffer fall-through comment) — a rendered failure surface. Ends if the error state
     // stops being written.
     void file
       .text()
       .then((text) => {
+        if (pickToken.current !== token) {
+          return; // a later pick already owns this dialog
+        }
         const json: unknown = JSON.parse(text);
         if (isOrbPresetFile(json)) {
           setParsed({ arm: "orb", name: orbFileName(json), fileText: text });
@@ -86,6 +99,9 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
         setParsed({ arm: "st", name: base === "" ? "Imported preset" : base, result: importStChatCompletionPreset(json) });
       })
       .catch((cause: unknown) => {
+        if (pickToken.current !== token) {
+          return; // a superseded pick's failure is not this dialog's story
+        }
         // THE SNIFFER'S FALL-THROUGH IS NOT A VERDICT (side-eye F-10): a malformed ORB file fails
         // `isOrbPresetFile`, lands in the ST arm, and its parser says "Not a SillyTavern preset…" — true,
         // and completely misleading about the file the user actually picked. The door reads TWO formats, so

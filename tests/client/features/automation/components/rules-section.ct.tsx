@@ -560,7 +560,7 @@ test("#621 P1-5: the fire log renders `detail` — the answer the Run-now toast 
   await page.getByRole("button", { name: "Recent activity for Illustrate the scene" }).click();
   await expect(page.getByText("Couldn't generate an image (step 1): no image connection is configured")).toBeVisible();
   // "Rate-capped" without the number is a label, not an answer.
-  await expect(page.getByText("It had already run 30 times this hour — its own cap.")).toBeVisible();
+  await expect(page.getByText("It had already hit its own hourly cap — now 30 per hour.")).toBeVisible();
   // The middle column speaks English, not the wire discriminator.
   await expect(page.getByText("after each reply").first()).toBeVisible();
   await expect(page.getByText("turnCompleted", { exact: false })).toHaveCount(0);
@@ -1236,7 +1236,7 @@ test("#815: a full rules-editing session stays inside this surface's layout-shif
   await firesHold.requested;
   await letInputWindowLapse();
   firesHold.release(fires);
-  await expect(page.getByText("It had already run 30 times this hour — its own cap.").first()).toBeVisible();
+  await expect(page.getByText("It had already hit its own hourly cap — now 30 per hour.").first()).toBeVisible();
   await letInputWindowLapse();
 
   // 3 — a mint, with the list refetch arriving after the host has stopped touching anything.

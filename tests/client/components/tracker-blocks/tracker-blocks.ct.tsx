@@ -17,6 +17,7 @@ import { Text } from "@orb/ui/text";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { ReactElement } from "react";
 import { ctSnapPath } from "../../../support/ct/snap-out.ts";
+import { TrackerValueTwoWriters } from "./_ct-stories.tsx";
 
 /** WCAG 2.2 SC 2.5.8's minimum target size. Named once so the ambient chip pin reads as the criterion it is. */
 const MIN_TARGET_PX = 24;
@@ -109,6 +110,65 @@ test("TrackerValue Escape cancels: the draft is dropped, nothing commits, back t
   expect(committed).toBe(-1); // nothing sent
   await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(0); // back to rest
   await expect(page.getByRole("button", { name: "Vitality value" })).toContainText("24"); // draft dropped
+});
+
+// ── TrackerValue: the TWO-WRITER commit (#1485) ───────────────────────────────────────────────────
+// The value can change underneath an OPEN editor (a model write, another seat). The draft is deliberately
+// not reseeded when that happens — reseeding destroys keystrokes the user can still see — so the commit is
+// judged against the value the editor OPENED with, never the live one. These pin the three cases.
+
+test("TrackerValue: an untouched open editor commits NOTHING over a value that changed underneath (#1485)", async ({ mount, page }) => {
+  // THE DEFECT, exactly: open the field, touch nothing, let a new value arrive, then blur. The old
+  // `draft !== source` guard read "the value moved" as "the user edited" and wrote the OPENED-WITH value
+  // back over the arrived one — the suppress-a-pointless-write comparison performing a destructive one.
+  const component = await mount(<TrackerValueTwoWriters />);
+  await page.getByRole("button", { name: "Vitality value" }).click();
+  await expect(page.getByRole("textbox", { name: "Vitality value" })).toHaveValue("24");
+
+  await component.getByRole("button", { name: "arrive 31" }).click(); // no blur — focus stays in the field
+  await page.getByRole("textbox", { name: "Vitality value" }).blur();
+
+  await expect(component.getByTestId("tracker-value-committed")).toHaveText("none");
+  // …and the arrived value is what stands, at rest.
+  await expect(page.getByRole("button", { name: "Vitality value" })).toContainText("31");
+});
+
+test("TrackerValue: a real edit racing an arrival is held as a CONFLICT, not silently resolved (#1485)", async ({ mount, page }) => {
+  const component = await mount(<TrackerValueTwoWriters />);
+  await page.getByRole("button", { name: "Vitality value" }).click();
+  const field = page.getByRole("textbox", { name: "Vitality value" });
+  await field.fill("99");
+  await component.getByRole("button", { name: "arrive 31" }).click();
+  await field.blur();
+
+  // Nothing sent, the editor is still open holding the user's text, and it SAYS what arrived.
+  await expect(component.getByTestId("tracker-value-committed")).toHaveText("none");
+  await expect(field).toHaveValue("99");
+  await expect(field).toHaveAttribute("data-conflict", "31");
+  await expect(field).toHaveAttribute("title", /Changed to "31" while you were editing/u);
+
+  // Committing again is the deliberate overwrite — the conflict is a speed bump, not a lock. The first
+  // commit already took focus off the field (blur is what ran it), so the second one is re-entered
+  // deliberately: Enter blurs the focused input, which is the keyboard half of the same commit.
+  await field.focus();
+  await field.press("Enter");
+  await expect(component.getByTestId("tracker-value-committed")).toHaveText("99");
+  await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(0);
+});
+
+test("TrackerValue: Escape out of a conflict keeps the value that ARRIVED and sends nothing (#1485)", async ({ mount, page }) => {
+  const component = await mount(<TrackerValueTwoWriters />);
+  await page.getByRole("button", { name: "Vitality value" }).click();
+  const field = page.getByRole("textbox", { name: "Vitality value" });
+  await field.fill("99");
+  await component.getByRole("button", { name: "arrive 31" }).click();
+  await field.blur();
+  await expect(field).toHaveAttribute("data-conflict", "31");
+
+  await field.press("Escape");
+  await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(0);
+  await expect(component.getByTestId("tracker-value-committed")).toHaveText("none");
+  await expect(page.getByRole("button", { name: "Vitality value" })).toContainText("31");
 });
 
 // ── StatCell ──────────────────────────────────────────────────────────────────────────────────────

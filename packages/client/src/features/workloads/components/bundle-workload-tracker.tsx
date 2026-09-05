@@ -34,10 +34,56 @@ export interface BundleWorkloadTrackerProps {
 const UNEXPLAINED_FAILURE = "The import failed. Check the Jobs pane for its status.";
 const CANCELLED_MESSAGE = "The import was cancelled.";
 
+/** The gap-heal re-read's retry schedule — 3 attempts over ~1s, matching the room registry's announce
+ *  ladder: enough to outlive a flap that survives the reconnect by a beat, short enough that nothing waits
+ *  on it. Hygiene numbers, not load-bearing. */
+const RECONCILE_RETRY_FIRST_MS = 250;
+const RECONCILE_RETRY_SECOND_MS = 750;
+const RECONCILE_RETRY_BACKOFF_MS = [RECONCILE_RETRY_FIRST_MS, RECONCILE_RETRY_SECOND_MS] as const;
+
 /** Tail the import workload; forward progress, and resolve on the terminal event. Renders nothing. */
 export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onFailed }: BundleWorkloadTrackerProps): null {
   const trpcClient = useTRPCClient();
   const id = castId<WorkloadId>(workloadId);
+
+  /**
+   * RE-DERIVE THE RUN AFTER A GAP — AND DO NOT GO PERMANENTLY SILENT IF THAT READ FAILS (#1503).
+   *
+   * The #222/#248 ruling stands and is preserved: a failed READ is not a failed IMPORT, so nothing here may
+   * turn a transient read error into a terminal claim about the run. What the ruling did NOT cover is that
+   * this read is the ONLY channel for a terminal event emitted while the socket was down — so an empty
+   * rejection handler meant one unlucky request left the import bar spinning for as long as the pane stayed
+   * open, with the run long since finished. Retrying is the answer that satisfies both: still no terminal
+   * claim, but the gap actually gets closed. The ladder is short and bounded — the next reconnect brings
+   * another `onSocketLive` anyway, so this only has to survive a flap that outlives the reconnect by a beat.
+   */
+  const reconcile = (attempt: number): void => {
+    // @orb-gate-ignore caught-failure-ownership(promise:query): the rejection drives the bounded retry above and
+    // is deliberately never converted into a terminal outcome (#222) — the run's state stays whatever the stream
+    // last said. Ends if a read failure needs to surface a distinct UI state.
+    void trpcClient.workloads.get
+      .query({ id })
+      .then((row): void => {
+        if (row.status === "succeeded") {
+          onSucceeded(asBundleCounts(row.result));
+        } else if (row.status === "failed" || row.status === "worker_died") {
+          onFailed(row.error ?? UNEXPLAINED_FAILURE);
+        } else if (row.status === "cancelled") {
+          onFailed(CANCELLED_MESSAGE);
+        } else if (row.progress !== null) {
+          // Still running: the durable snapshot replaces whatever the bar was showing when the gap opened.
+          onProgress(toProgressView(row.progress));
+        }
+      })
+      .catch((): void => {
+        const backoff = RECONCILE_RETRY_BACKOFF_MS[attempt];
+        if (backoff === undefined) {
+          return; // out of attempts — the stream is still attached and remains the authority
+        }
+        setTimeout((): void => reconcile(attempt + 1), backoff);
+      });
+  };
+
   useWorkloadSubscription({
     workloadId: id,
     onProgress,
@@ -52,30 +98,7 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
       // started/status: no terminal outcome for the import tracker
     },
     onError: () => onFailed("The import stream ended. Check the Jobs pane for its status."),
-    onSocketLive: () => {
-      // A failed READ is not a failed IMPORT: leave the tracker running rather than converting a transient
-      // read error into a terminal claim about the run — the same reasoning #222 applied to socket faults.
-      // @orb-gate-ignore caught-failure-ownership(promise:query): a failed read is intentionally silent (see the
-      // onSocketLive comment above) — a transient read error must not be converted into a terminal claim about
-      // the run; the tracker just keeps running. Ends if a read failure needs to surface a distinct UI state.
-      trpcClient.workloads.get.query({ id }).then(
-        (row) => {
-          if (row.status === "succeeded") {
-            onSucceeded(asBundleCounts(row.result));
-          } else if (row.status === "failed" || row.status === "worker_died") {
-            onFailed(row.error ?? UNEXPLAINED_FAILURE);
-          } else if (row.status === "cancelled") {
-            onFailed(CANCELLED_MESSAGE);
-          } else if (row.progress !== null) {
-            // Still running: the durable snapshot replaces whatever the bar was showing when the gap opened.
-            onProgress(toProgressView(row.progress));
-          }
-        },
-        () => {
-          // Intentionally silent — see above.
-        },
-      );
-    },
+    onSocketLive: (): void => reconcile(0),
   });
   return null;
 }

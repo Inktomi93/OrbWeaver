@@ -228,15 +228,24 @@ function actionErrorLine(detail: Record<string, unknown>): string {
 
 /** The `budget_refused` sentence — which cap turned the rule away, with the number a host can act on.
  *  `caps` is `null` on the room ACTIVITY log (B11): that surface spans every rule, so it holds no single
- *  rule's caps and the cooldown/rule-hourly arms fall to the generic line (the number would be a lie). */
+ *  rule's caps and the cooldown/rule-hourly arms fall to the generic line (the number would be a lie).
+ *
+ *  THE NUMBER IS ATTRIBUTED TO NOW, NEVER TO THEN (#1502). Every row in this log is HISTORICAL, and the
+ *  only caps any caller can supply are the rule's CURRENT ones — the engine records which limit refused
+ *  (`engine/dispatch.ts` writes `{ limit }`) and no threshold, so what was in force at the time is simply
+ *  not on the record. The old wording spent that gap: raise a rule's hourly cap from 3 to 30 and every
+ *  past refusal re-read as "it had already run 30 times this hour", a count that never happened under a
+ *  cap that did not exist yet — the log retroactively rewriting its own history. So the past clause states
+ *  only what the row actually proves (a cap turned it away) and the number is presented as the rule's
+ *  present setting, which is both true and the thing a host is about to act on. */
 function budgetRefusedLine(detail: Record<string, unknown>, caps: RuleFireCaps | null): string {
   // `?? ""` rather than a `case null`: the switch is over a HOST-facing vocabulary, and "absent" and
   // "unrecognized" get the same honest generic line.
   switch (detailString(detail, "limit") ?? "") {
     case "cooldown":
-      return caps === null ? "Its cooldown hadn't elapsed." : `Its cooldown hadn't elapsed — it runs at most once every ${caps.cooldownSeconds}s.`;
+      return caps === null ? "Its cooldown hadn't elapsed." : `Its cooldown hadn't elapsed — it now runs at most once every ${caps.cooldownSeconds}s.`;
     case "rule_hourly":
-      return caps === null ? "It had already hit its own hourly cap." : `It had already run ${caps.maxFiresPerHour} times this hour — its own cap.`;
+      return caps === null ? "It had already hit its own hourly cap." : `It had already hit its own hourly cap — now ${caps.maxFiresPerHour} per hour.`;
     case "chat_hourly":
       return "This chat had already hit its hourly cap across all rules.";
     default:

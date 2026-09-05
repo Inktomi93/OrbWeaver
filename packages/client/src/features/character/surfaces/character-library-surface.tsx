@@ -177,9 +177,13 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
 
   // The rows are the SERVER's answer whole — no client pass. The only thing left to derive is the view fold.
   const items: readonly CharacterCardItem[] = collection.items;
-  // The strip's own read: the caller's starred characters, independent of the pane's current lens (a
-  // shortcut must not vanish because you typed in the search box).
-  const favoritesQuery = useQuery(trpc.character.list.queryOptions({ starred: true, limit: FAVORITES_STRIP_LIMIT }));
+  // The strip's own read: the caller's starred characters, independent of the pane's current FILTER lens (a
+  // shortcut must not vanish because you typed in the search box) — but NOT independent of the archived
+  // axis (#1503). Archiving is not a filter, it is putting a character away, and a strip that kept offering
+  // a one-click shortcut to someone the library below had just hidden made the archive read as a no-op.
+  // The axis is lifted off the one resolved scope, never re-derived from the store.
+  const archivedAxis = scope.args.archived === undefined ? {} : { archived: scope.args.archived };
+  const favoritesQuery = useQuery(trpc.character.list.queryOptions({ starred: true, limit: FAVORITES_STRIP_LIMIT, ...archivedAxis }));
   const favorites = favoritesQuery.data?.items ?? [];
 
   // A pick (a card click / a favorites face) is now JUST the selection write (#501): this surface stays

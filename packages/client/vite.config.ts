@@ -5,8 +5,8 @@ import { join } from "node:path";
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
-import type { Plugin } from "vite";
-import { defineConfig, searchForWorkspaceRoot } from "vite";
+import type { Plugin, ResolvedConfig } from "vite";
+import { defineConfig, isFileLoadingAllowed, resolveConfig, searchForWorkspaceRoot } from "vite";
 import checker from "vite-plugin-checker";
 
 // Dev-server port + API-proxy target are env-overridable so `snap --isolated` can boot a SECOND, fully
@@ -351,6 +351,93 @@ async function withCompilerTransformCache(pluginPromise: ReturnType<typeof babel
 // The real CPU is the React Compiler: measured 2026-08-07, ~72% of a 74.6s profiled build sits in
 // babel-plugin-react-compiler + @babel/{traverse,parser,types,generator}, plus ~12% GC. Rolldown itself
 // is 0.6%. So build time here is the Compiler's price (a D54 decision), not a bundler problem.
+
+/**
+ * The `/@fs/` deny list — what the dev server refuses to read out of the workspace root.
+ *
+ * `server.fs.allow` is the whole workspace root (the monorepo REQUIRES it — client imports @orb/* SOURCE
+ * from sibling packages), so `/@fs/` would otherwise hand out every file under it. Setting `deny` REPLACES
+ * Vite's built-in default, so the first block re-lists that default floor verbatim
+ * (`.env`/keys/certs/.npmrc/.git — Vite 8.1 default) and the rest is orbweaver's own:
+ *   • `.credentials-key` — infra/crypto's auto-generated 32-byte credential-encryption key
+ *     (`<dirname(DATABASE_URL)>/.credentials-key`, mode 0o600). NOT covered by the default `*.{…,key,…}`
+ *     glob — that matches a `.key` EXTENSION; this filename ends in `-key`. Leaking it decrypts every
+ *     stored provider API key, so it is the single highest-value target.
+ *   • `*.db` (+ `-wal`/`-shm`) / `*.sqlite*` — the SQLite database, ANYWHERE under the root (a test
+ *     fixture db, a package-local scratch db), which is why these stay globstar-prefixed.
+ *   • `<root>/data/**` — THE ENTIRE RUNTIME DATA DIR, denied wholesale rather than file-class by
+ *     file-class (#1483). It is the one place on disk that is neither source nor build output: the
+ *     database, the CAS blob store, derived image variants, import reports, and whatever the next feature
+ *     drops there. Enumerating its classes had already fallen behind reality twice over — `data/assets/**`
+ *     was denied but `data/variants/**` (the SAME CAS images, re-encoded) and `data/import-reports/**`
+ *     were not, and the globstar `.db` glob misses the `orbweaver.db.backup-<ts>` copies entirely (the suffix is
+ *     `.backup-…`, not `.db`), so full database copies INCLUDING the encrypted credential blobs were
+ *     `/@fs/`-reachable. Denying the directory means anything added under `data/` later inherits the
+ *     protection instead of being exposed until someone notices.
+ *
+ * THE PATTERN IS ROOT-ANCHORED, never the globstar-prefixed `data` form, and that is load-bearing: Vite
+ * matches any deny pattern containing a `/` against the FULL absolute path with `matchBase: false`, so an
+ * unanchored `data` glob would also deny `packages/client/src/data/**` — the client's own data tier (the
+ * bus room registry, the auth bootstrap) — and the dev server would stop serving its own source.
+ *
+ * THERE IS NO ALLOW-LIST BACK IN, by derivation rather than by omission: nothing under `data/` is a module
+ * or a static asset the dev server serves. Uploaded images reach the app through the owner-gated
+ * `/api/blob` route (which is exactly the ownership check a raw `/@fs/` read would bypass), and the
+ * database is reached through the API server. Should something under `data/` ever genuinely need serving,
+ * it cannot be re-allowed via `fs.allow` — Vite checks `deny` FIRST and returns immediately — so the
+ * carve-out must be a negated glob in this list, with its own reason.
+ *
+ * Named (rather than inlined at the call site) so the ONE list feeds both the dev server below and
+ * `devServerServes` — the pin has no second copy of it to drift against.
+ */
+function devFsDeny(workspaceRoot: string): readonly string[] {
+  return [
+    ".env",
+    ".env.*",
+    "*.{crt,pem,key,p12,pfx,cer,der}",
+    ".npmrc",
+    ".yarnrc.yml",
+    "**/.git/**",
+    "**/.credentials-key",
+    "**/*.db",
+    "**/*.db-wal",
+    "**/*.db-shm",
+    "**/*.sqlite",
+    "**/*.sqlite-*",
+    `${workspaceRoot}/data/**`,
+  ];
+}
+
+let fsFilter: Promise<ResolvedConfig> | null = null;
+
+/**
+ * DOES THE DEV SERVER SERVE THIS ABSOLUTE PATH? — the `/@fs/` filter's own question, answered by VITE'S
+ * resolver (`isFileLoadingAllowed` over a `resolveConfig`'d allow/deny pair — the exact predicate the dev
+ * middleware consults), never by a re-implementation of picomatch.
+ *
+ * It lives here, as an export, because the pin cannot ask vite itself: `vite` is a dependency of
+ * `@orb/client`, not of the workspace root, so a bare `import … from "vite"` inside a root-tier test does
+ * not resolve. Asking through this module is also the stronger arrangement — the predicate is built from
+ * the SAME `devFsDeny` + root-`allow` pair the server config below uses, so there is no second copy of the
+ * list for a pin to agree with while the real server disagrees.
+ *
+ * `tests/tooling/vite-fs-deny.test.ts` is the reader.
+ */
+export async function devServerServes(absolutePath: string): Promise<boolean> {
+  const workspaceRoot = searchForWorkspaceRoot(import.meta.dirname);
+  fsFilter ??= resolveConfig(
+    {
+      configFile: false,
+      root: workspaceRoot,
+      logLevel: "silent",
+      plugins: [],
+      server: { fs: { strict: true, allow: [workspaceRoot], deny: [...devFsDeny(workspaceRoot)] } },
+    },
+    "serve",
+  );
+  return isFileLoadingAllowed(await fsFilter, absolutePath);
+}
+
 export default defineConfig({
   resolve: {
     // pnpm can hoist devtools' peer deps under their own node_modules → TWO React instances →
@@ -501,34 +588,9 @@ export default defineConfig({
     // packages live outside packages/client), so the guard is `deny` below, not a narrower `allow`.
     fs: {
       allow: [searchForWorkspaceRoot(import.meta.dirname)],
-      // The `/@fs/` dev route would otherwise expose EVERY file under the workspace root — including
-      // orbweaver's on-disk secrets/data. Setting `deny` REPLACES Vite's built-in default, so the first
-      // block re-lists that default floor verbatim (`.env`/keys/certs/.npmrc/.git — Vite 8.1 default),
-      // and the second block adds the orbweaver-specific secrets the root `allow` exposes:
-      //   • `.credentials-key` — infra/crypto's auto-generated 32-byte credential-encryption key
-      //     (`<dirname(DATABASE_URL)>/.credentials-key`, mode 0o600). NOT covered by the default
-      //     `*.{…,key,…}` glob — that matches a `.key` EXTENSION; this filename ends in `-key`.
-      //     Leaking it decrypts every stored provider API key, so it is the single highest-value target.
-      //   • `*.db` (+ `-wal`/`-shm`) / `*.sqlite*` — the SQLite database (all user data AND the encrypted
-      //     credential blobs). `DATABASE_URL` defaults to `file:./data/orbweaver.db` (under the gitignored
-      //     `data/` dir at the workspace root, beside the CAS blob store).
-      //   • `data/assets/**` — the CAS blob store (user-uploaded images). Served in-app ONLY via the
-      //     owner-gated `/api/blob` route; raw `/@fs/` access would bypass that ownership check.
-      deny: [
-        ".env",
-        ".env.*",
-        "*.{crt,pem,key,p12,pfx,cer,der}",
-        ".npmrc",
-        ".yarnrc.yml",
-        "**/.git/**",
-        "**/.credentials-key",
-        "**/*.db",
-        "**/*.db-wal",
-        "**/*.db-shm",
-        "**/*.sqlite",
-        "**/*.sqlite-*",
-        "**/data/assets/**",
-      ],
+      // Spread: vite's `deny` is a MUTABLE `string[]`, and `devFsDeny` hands back a readonly view so no
+      // caller can edit the list in place.
+      deny: [...devFsDeny(searchForWorkspaceRoot(import.meta.dirname))],
     },
     // Forward browser console → terminal (dev half of PD-58 client observability).
     forwardConsole: true,
