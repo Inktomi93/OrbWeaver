@@ -165,7 +165,11 @@ it into the linked Project issue — no lane touches `work:item`.
   merge in one command — a conflict mid-chain bakes markers into committed files.
 - **The whole-tree single-pass runs after EVERY merge train, not only at drain.**
 - **A ROUTER-TOUCHING merge's floor includes `tests/server/transport/cross-tenant-sweep.suite.int.test.ts`**
-  — any merge whose diff touches `transport/trpc/routers/**` runs the sweep before the ff.
+  — any merge whose diff touches `transport/trpc/routers/**` runs the sweep before the ff. **The sweep is
+  blind to a ROOM's resume read** (`stream.connect` is EXEMPT — an undrainable subscription), so a merge
+  touching a room's `authorizeAttach` or its replay verb also runs that room's domain-tier recipient-scope
+  pin by name (notifications: `tests/server/domain/notifications/verbs/replay-since.int.test.ts`; proven
+  2026-09-05, #1627: dropping `selectInboxSince`'s predicate left the sweep fully green).
 - **Worktree lifecycle rides the CUSTOM hook pair** (`WorktreeCreate`/`WorktreeRemove`):
   `isolation: "worktree"` dispatches get a WORKING tree for free — never add "run pnpm install" to those
   briefs. A MANUAL `git worktree add` bypasses the hook and MUST run `pnpm worktree:bootstrap` (§L.5) or
