@@ -319,6 +319,10 @@ function createFallbackPrincipalResolver(sessions: Pick<SessionsService, "loadUs
  * `foundation/env::resolveOwnerFallbackCredential`, arriving as `deps.ownerFallbackIsOperatorCredential`.
  * PRODUCTION always resolves `false` — `single-user` and break-glass included — because a same-host proxy
  * makes every external request a loopback peer there, and this door holds more than the app does.
+ * DNS REBINDING on a dev box is an ACCEPTED POSTURE (owner ruling 2026-09-04, #1233): a page open in the
+ * operator's own browser is a loopback peer too, so it can drive the fallback arm (and this third arm)
+ * cross-site. The loopback-only bind is the boundary; no `Host`/`Origin` check is added on the dev path.
+ * PRODUCTION never mints the arm, so the posture is dev-only by construction, not by vigilance.
  *
  * `header` — a verified SSO identity, and ONLY a verified one. It used to be an unconditional `true` that was
  * safe by a CALL-SITE OMISSION (the old `isAdmin(headers)` re-resolved with no `peerIp`, so
