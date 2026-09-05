@@ -1,7 +1,8 @@
 import type { Db } from "@orb/db";
-import { users } from "@orb/db";
+import { sessions, users } from "@orb/db";
 import type { Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
   insertSession,
@@ -71,6 +72,48 @@ describe("persistence/sessions", () => {
     // #141 — the winner also reports the row's sealed OIDC end-session hint (null here: seedSession stores none).
     expect(first).toStrictEqual({ id, userId: USER_ID, oidcIdToken: null });
     expect(await revokeByTokenHash(db, "hash-a", T0 + 2)).toBeUndefined();
+  });
+
+  // #141 — `sealedIdTokenOf`'s ALL-OR-NONE refusal, previously unpinned. Two thirds of an AES-GCM seal is
+  // not a seal: handing a `{ciphertext, iv: "", tag: ""}` shape upward would only produce a decrypt throw one
+  // layer up, inside a logout that must never fail. The three partial shapes are the ones the table can
+  // actually hold — a crash between `revokeByTokenHash`'s two statements, or a hand-patched row.
+  // The ARRANGE+ACT half lives OUTSIDE the loop: a per-iteration closure would capture the file-scope `db`
+  // that `beforeEach` reassigns, which is a real footgun (noLoopFunc) even where this one runs in order.
+  async function revokeCarrying(cols: {
+    oidcIdTokenCiphertext: string | null;
+    oidcIdTokenIv: string | null;
+    oidcIdTokenTag: string | null;
+  }): Promise<{ id: SessionId; revoked: Awaited<ReturnType<typeof revokeByTokenHash>> }> {
+    const id = await seedSession("session_a", "hash-a");
+    await db.update(sessions).set(cols).where(eq(sessions.id, id));
+    return { id, revoked: await revokeByTokenHash(db, "hash-a", T0 + 1) };
+  }
+
+  for (const partial of [
+    { label: "ciphertext only", cols: { oidcIdTokenCiphertext: "ct", oidcIdTokenIv: null, oidcIdTokenTag: null } },
+    { label: "missing the iv", cols: { oidcIdTokenCiphertext: "ct", oidcIdTokenIv: null, oidcIdTokenTag: "tag" } },
+    { label: "missing the tag", cols: { oidcIdTokenCiphertext: "ct", oidcIdTokenIv: "iv", oidcIdTokenTag: null } },
+  ]) {
+    test(`revokeByTokenHash reports NO hint for a half-written seal (${partial.label})`, async () => {
+      const { id, revoked } = await revokeCarrying(partial.cols);
+      // `null`, not a partial `Sealed` — the caller gets nothing to attempt an open on, so the logout
+      // degrades to a bare end-session URL instead of throwing inside a sign-out that must always complete.
+      expect(revoked).toStrictEqual({ id, userId: USER_ID, oidcIdToken: null });
+    });
+  }
+
+  test("revokeByTokenHash DOES report + consume a complete seal (the positive control for the arm above)", async () => {
+    // Without this arm the three tests above would pass just as well against a function that always returns
+    // null — this is what proves they are measuring the partial-ness and not a dead read.
+    const id = await seedSession("session_a", "hash-a");
+    const whole = { oidcIdTokenCiphertext: "ct", oidcIdTokenIv: "iv", oidcIdTokenTag: "tag" };
+    await db.update(sessions).set(whole).where(eq(sessions.id, id));
+
+    expect(await revokeByTokenHash(db, "hash-a", T0 + 1)).toStrictEqual({ id, userId: USER_ID, oidcIdToken: { ciphertext: "ct", iv: "iv", tag: "tag" } });
+    // …and consumed: a dead row keeps no end-session hint at rest.
+    const row = (await db.select().from(sessions).where(eq(sessions.id, id)))[0];
+    expect(row).toMatchObject({ oidcIdTokenCiphertext: null, oidcIdTokenIv: null, oidcIdTokenTag: null });
   });
 
   test("revokeById flips one device", async () => {

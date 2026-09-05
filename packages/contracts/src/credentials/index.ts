@@ -93,6 +93,20 @@ export type CredentialHealth =
   | { status: "throttled"; checkedAt: number }
   | { status: "unchecked"; checkedAt: number; reason: string };
 
+/** WHY a credential is revoked — the ONE home of the vocabulary (`user_credentials.revoked_reason` derives
+ *  its enum from this tuple, and `CredentialView` carries the member to the Connections pane). Read together
+ *  with `revokedAt`: a null reason on a live row is "not revoked", never "revoked for an unknown cause" —
+ *  every writer of `revokedAt` names its reason in the same statement (`setRevokedById` takes it as a
+ *  required argument, so tsc enumerates the writer set).
+ *
+ *  The members are the three DISTINCT facts the user is owed, and they must not be collapsed: an
+ *  `auth_failed` says the provider looked at the key and rejected it; `unreachable` says the endpoint never
+ *  answered (the health probe's strike limit — evidence about a box being off, NOT about the key); `user`
+ *  says the owner revoked it themselves. Telling someone "the provider rejected your key" when nothing ever
+ *  answered is the exact product lie the honest `unchecked` health arm already exists to prevent. */
+export const CRED_REVOKED_REASONS = ["auth_failed", "unreachable", "user"] as const;
+export type CredRevokedReason = (typeof CRED_REVOKED_REASONS)[number];
+
 // Phantom `unique symbol` brand: an arbitrary `{ source, ... }` literal can't satisfy it, so the ONLY
 // way to produce a `ResolvedCredential` is the domain `resolve.ts` factory's encapsulated cast.
 declare const credentialBrand: unique symbol;

@@ -69,7 +69,9 @@ async function applyProbeOutcome(ctx: CredentialContext, args: ProbeContext, res
   }
   if (result.status === "revoked") {
     resetStrikes(credentialId);
-    await setRevokedById(ctx.db, credentialId, now);
+    // The probe reached the provider and the provider rejected the key — the SAME fact the post-generation
+    // strike-out records, so it carries the same persisted reason.
+    await setRevokedById(ctx.db, credentialId, now, "auth_failed");
     return { status: "revoked", checkedAt: now, reason: result.reason };
   }
   if (result.status === "unreachable") {
@@ -80,7 +82,10 @@ async function applyProbeOutcome(ctx: CredentialContext, args: ProbeContext, res
     }
     const { strikes, limitHit } = recordStrike(credentialId);
     if (limitHit) {
-      await setRevokedById(ctx.db, credentialId, now);
+      // `unreachable`, NOT `auth_failed`: nothing ever answered, so nothing has judged the key. The log line
+      // below says exactly that, and the persisted reason must not tell the user a story the probe cannot
+      // support ("the provider rejected your key" when the provider was never reached).
+      await setRevokedById(ctx.db, credentialId, now, "unreachable");
       getLog().warn({ credentialId, strikes }, "credentials: health probe strike-limit hit — marking revoked despite no auth classification");
       return { status: "revoked", checkedAt: now, reason: result.reason };
     }

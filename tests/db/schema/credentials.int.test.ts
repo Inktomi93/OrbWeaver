@@ -3,7 +3,7 @@
 // enum CHECK (+ the test-mirror that the db column derives CRED_PROVIDERS), the one-active-per-
 // (owner,provider) partial unique index, and the ownerId FK.
 
-import { CRED_PROVIDERS, parseProviderMetadata } from "@orb/contracts/credentials";
+import { CRED_PROVIDERS, CRED_REVOKED_REASONS, parseProviderMetadata } from "@orb/contracts/credentials";
 import { userCredentials } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
@@ -38,6 +38,8 @@ test("user_credentials insert→select round-trips (branded id + metadata JSON p
   // Booleans round-trip through the integer column; `active` defaults true.
   expect(row?.active).toBe(true);
   expect(row?.revokedAt).toBeNull();
+  // #1373 — a live row carries no reason. `revoked_at`/`revoked_reason` move together at every writer.
+  expect(row?.revokedReason).toBeNull();
   // The JSON metadata read seam: parse via the canonical contracts parser.
   const meta = parseProviderMetadata(row?.metadata);
   expect(meta).toEqual({ kind: "custom_openai", baseUrl: "http://localhost:1234/v1" });
@@ -61,6 +63,30 @@ test("test-mirror: every CRED_PROVIDERS member is accepted by the provider colum
 
   const rows = await db.select().from(userCredentials);
   expect(rows.map((r) => r.provider).sort()).toEqual(CRED_PROVIDERS.toSorted());
+});
+
+test("test-mirror: every CRED_REVOKED_REASONS member round-trips through the revoked_reason column (#1373)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_cred_owner" });
+
+  // One row per reason. `provider` is fixed and `active:false` keeps the partial unique index out of the
+  // way — this arm is about the reason column, nothing else.
+  await db.insert(userCredentials).values(
+    CRED_REVOKED_REASONS.map((revokedReason, idx) => ({
+      id: castId<UserCredentialId>(`user_credential_reason_${idx}`),
+      ownerId,
+      provider: "openrouter" as const,
+      ciphertext: "ct",
+      iv: "iv",
+      tag: "tag",
+      active: false,
+      revokedAt: 1_750_000_000_000,
+      revokedReason,
+    })),
+  );
+
+  const rows = await db.select().from(userCredentials);
+  expect(rows.map((r) => r.revokedReason).sort()).toEqual(CRED_REVOKED_REASONS.toSorted());
 });
 
 test("the provider CHECK rejects an off-enum value", async () => {

@@ -1,16 +1,52 @@
-// verb: maybeRevokeOnAuthFailed — the post-turn side-effect (chat/compaction inject it). Revokes only on
-// `auth_failed` + a non-null (BYO) credentialId; a no-op otherwise (keyless sources have no row).
+// verb: maybeRevokeOnAuthFailed — the post-generation credential STRIKE-OUT (#1373; the chat engine injects it
+// at its three generation catch seams). This verb is the ONE home of the revoke POLICY, so the exhaustive arm
+// below is the load-bearing test: EVERY `PROVIDER_ERROR_KINDS` member gets a case, exactly one of them
+// revokes, and adding a member to the union without deciding its verdict is a `tsc` error here (the `default`
+// arm narrows to `never`, so an undecided kind cannot compile).
+//
+// Why that matters more than it looks: revoking on the wrong kind is a self-inflicted lockout. A `rate_limit`
+// is a minute's wait; revoking on it would make a 429 permanently disable the user's key, and they would then
+// have to notice a chip in the Connections pane to get it back.
 
 import { userCredentials } from "@orb/db";
 import { createCredentialsService } from "@orb/server/domain/credentials";
+import type { ProviderErrorKind } from "@orb/server/infra/providers";
+import { PROVIDER_ERROR_KINDS } from "@orb/server/infra/providers";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedCredential } from "../_support.ts";
 
+/** The verdict every provider failure kind carries. Exhaustive by construction — a new `PROVIDER_ERROR_KINDS`
+ *  member falls through to `default`, where it is no longer `never` and `tsc` reds. (A mapped `Record` would
+ *  say the same thing but would force a `useNamingConvention` suppression per snake_case key, and a
+ *  suppression added to pass a lint is the banned reflex.) `true` for exactly one member — see the header. */
+function revokes(kind: ProviderErrorKind): boolean {
+  switch (kind) {
+    case "auth_failed":
+      return true;
+    case "aborted":
+    case "billing":
+    case "forbidden":
+    case "invalid":
+    case "max_output":
+    case "model_unavailable":
+    case "moderation":
+    case "rate_limit":
+    case "refused":
+    case "server":
+    case "unknown":
+      return false;
+    default: {
+      const unhandled: never = kind;
+      throw new Error(`undecided provider error kind: ${String(unhandled)}`);
+    }
+  }
+}
+
 describe("maybeRevokeOnAuthFailed", () => {
-  test("auth_failed + a BYO credentialId revokes that credential", async () => {
+  test("auth_failed + a BYO credentialId revokes that credential AND records WHY", async () => {
     const db = await freshDb();
     const { svc, cred } = await seedCredential(db, makeHarness(db));
 
@@ -20,21 +56,27 @@ describe("maybeRevokeOnAuthFailed", () => {
       errorMessage: "401 from upstream",
     });
     const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));
+    // The reason is the half that lets the pane say "the provider rejected it" rather than show a bare Revoked
+    // chip — and it is written in the SAME statement as the stamp, never a second write that can lag.
+    expect(rows[0]).toMatchObject({ revokedReason: "auth_failed" });
     expect(rows[0]?.revokedAt).not.toBeNull();
   });
 
-  test("a non-auth_failed error is a no-op", async () => {
-    const db = await freshDb();
-    const { svc, cred } = await seedCredential(db, makeHarness(db));
+  // EXHAUSTIVE over the provider union, one case per member — the arm that stops a future kind from joining a
+  // policy nobody re-read.
+  for (const kind of PROVIDER_ERROR_KINDS) {
+    test(`\`${kind}\` ${revokes(kind) ? "REVOKES" : "is a no-op"}`, async () => {
+      const db = await freshDb();
+      const { svc, cred } = await seedCredential(db, makeHarness(db));
 
-    await svc.maybeRevokeOnAuthFailed({
-      credentialId: cred.id,
-      errorKind: "rate_limit",
-      errorMessage: "429",
+      await svc.maybeRevokeOnAuthFailed({ credentialId: cred.id, errorKind: kind, errorMessage: `a ${kind} failure` });
+
+      const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));
+      // Both columns move together or neither does: a live credential must never acquire a reason.
+      expect(rows[0]).toMatchObject({ revokedReason: revokes(kind) ? "auth_failed" : null });
+      expect(rows[0]?.revokedAt === null).toBe(!revokes(kind));
     });
-    const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));
-    expect(rows[0]?.revokedAt).toBeNull();
-  });
+  }
 
   test("a null credentialId (keyless source) is a no-op (no row to revoke)", async () => {
     const db = await freshDb();
@@ -47,5 +89,17 @@ describe("maybeRevokeOnAuthFailed", () => {
         errorMessage: "401",
       }),
     ).resolves.toBeUndefined();
+  });
+
+  test("a keyless auth failure cannot reach a LIVE row (the null id is the whole guard)", async () => {
+    // The shape this forecloses: a keyless source (max-pro-sub/vllm) auth-failing while a stored credential
+    // happens to be live. There is no id to strike, so the write is unreachable rather than merely unlikely.
+    const db = await freshDb();
+    const { svc, cred } = await seedCredential(db, makeHarness(db));
+
+    await svc.maybeRevokeOnAuthFailed({ credentialId: null, errorKind: "auth_failed", errorMessage: "401 on the host box credential" });
+
+    const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));
+    expect(rows[0]?.revokedAt).toBeNull();
   });
 });

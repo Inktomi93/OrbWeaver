@@ -2,7 +2,7 @@
 // field (ciphertext/iv/tag) or the plaintext key; toCredentialView in persistence/queries.ts is the only
 // projection that produces it. Domain-internal (client gets it by tRPC inference, not a deep import).
 
-import type { CredentialProvider } from "@orb/contracts/credentials";
+import type { CredentialProvider, CredRevokedReason } from "@orb/contracts/credentials";
 import type { UserCredentialId } from "@orb/kit/ids";
 
 export interface CredentialView {
@@ -13,6 +13,11 @@ export interface CredentialView {
   readonly active: boolean;
   readonly hasMetadata: boolean;
   readonly revokedAt: number | null;
+  /** WHY it was revoked, so the Connections pane can say which of the three things happened instead of a
+   *  bare Revoked chip. Non-null exactly when `revokedAt` is (both are written in one statement and cleared
+   *  together) — a null here on a revoked row means a writer bypassed `setRevokedById`, and the surface
+   *  renders NOTHING rather than guessing a cause. */
+  readonly revokedReason: CredRevokedReason | null;
   readonly createdAt: number;
   readonly updatedAt: number;
 }

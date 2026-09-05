@@ -2,7 +2,7 @@
 // stores/reads the sealed bytes. `toCredentialView` is the only projection to the wire shape — it drops
 // `ciphertext`/`iv`/`tag`.
 
-import type { CredentialProvider, ProviderMetadata } from "@orb/contracts/credentials";
+import type { CredentialProvider, CredRevokedReason, ProviderMetadata } from "@orb/contracts/credentials";
 import type { Db } from "@orb/db";
 import { userCredentials } from "@orb/db";
 import { batchMany, fetchOwned } from "@orb/db/kit";
@@ -14,6 +14,11 @@ import type { CredentialView } from "../contract/views.ts";
 type CredentialRow = typeof userCredentials.$inferSelect;
 
 const LIMIT_ONE = 1;
+
+/** The revocation columns every un-revoke path nulls TOGETHER — a live row carrying a stale reason would tell
+ *  the Connections pane a key was rejected when it currently works. Three writers spread it: the fresh insert,
+ *  `add`'s rotate arm (a new key voids the old rejection) and the explicit clear. */
+const CLEARED_REVOCATION = { revokedAt: null, revokedReason: null } as const;
 
 /** Owner-scoped fetch of one credential by id (active OR inactive) — `undefined` if missing/not-owned. */
 export function fetchOwnedCredential(db: Db, ownerId: UserId, credentialId: UserCredentialId): Promise<CredentialRow | undefined> {
@@ -77,7 +82,7 @@ export function rotateSealed(
       iv: args.sealed.iv,
       tag: args.sealed.tag,
       metadata: args.metadata,
-      revokedAt: null,
+      ...CLEARED_REVOCATION,
       updatedAt: args.now,
     })
     .where(eq(userCredentials.id, args.credentialId));
@@ -107,7 +112,7 @@ export function insertSealed(
     iv: args.sealed.iv,
     tag: args.sealed.tag,
     active: args.active,
-    revokedAt: null,
+    ...CLEARED_REVOCATION,
     metadata: args.metadata,
     createdAt: args.now,
     updatedAt: args.now,
@@ -151,21 +156,26 @@ export function deleteOwnedCredential(db: Db, ownerId: UserId, credentialId: Use
   return db.delete(userCredentials).where(and(eq(userCredentials.id, credentialId), eq(userCredentials.ownerId, ownerId)));
 }
 
-/** Mark a credential revoked by id — the runner path (no owner scope). Sets `revokedAt` only. Idempotent. */
+/** Mark a credential revoked by id — the runner path (no owner scope). Idempotent (a re-revoke re-stamps).
+ *  `reason` is REQUIRED, not optional: `revoked_at` and `revoked_reason` are written in one statement at every
+ *  call site, so "revoked with no reason" is unrepresentable rather than merely discouraged (the writer-set
+ *  discipline a stated column biconditional actually needs — a convention the next `.set()` can forget is
+ *  worth nothing). Its inverse is {@link CLEARED_REVOCATION}. */
 // @owner-scope-write-ok: DELIBERATELY unscoped — the runner-internal revoke (`markRevoked`, NOT exposed on the
-// tRPC router) proved access by HOLDING the credential through a completed turn, and the post-turn
-// `maybeRevokeOnAuthFailed` has only the id the turn ran under. The user-facing twin `markRevokedByUser` DOES
-// prove ownership first (`fetchOwnedCredential` → `requireOwned`) before calling this. Ends the day the runner
-// revoke path threads a userId — the verb header already names that as the merge condition.
-export function setRevokedById(db: Db, credentialId: UserCredentialId, revokedAt: number): Promise<unknown> {
-  return db.update(userCredentials).set({ revokedAt, updatedAt: revokedAt }).where(eq(userCredentials.id, credentialId));
+// tRPC router) proved access by HOLDING the credential through a completed turn, and the post-generation
+// `maybeRevokeOnAuthFailed` has only the id the generation ran under (`ResolvedConnection.credential`, minted
+// for that principal by `resolve`, so a foreign row is not reachable at this call). The user-facing twin
+// `markRevokedByUser` DOES prove ownership first (`fetchOwnedCredential` → `requireOwned`) before calling this.
+// Ends the day the runner revoke path threads a userId — the verb header already names that as the merge condition.
+export function setRevokedById(db: Db, credentialId: UserCredentialId, revokedAt: number, reason: CredRevokedReason): Promise<unknown> {
+  return db.update(userCredentials).set({ revokedAt, revokedReason: reason, updatedAt: revokedAt }).where(eq(userCredentials.id, credentialId));
 }
 
 /** Clear a revocation (owner-scoped) — the user knows the key is good again. */
 export function clearRevokedOwned(db: Db, ownerId: UserId, credentialId: UserCredentialId, now: number): Promise<unknown> {
   return db
     .update(userCredentials)
-    .set({ revokedAt: null, updatedAt: now })
+    .set({ ...CLEARED_REVOCATION, updatedAt: now })
     .where(and(eq(userCredentials.id, credentialId), eq(userCredentials.ownerId, ownerId)));
 }
 
@@ -178,6 +188,7 @@ export function toCredentialView(row: CredentialRow): CredentialView {
     active: row.active,
     hasMetadata: row.metadata !== null,
     revokedAt: row.revokedAt,
+    revokedReason: row.revokedReason,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

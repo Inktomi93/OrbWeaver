@@ -1,6 +1,7 @@
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import {
   CRED_PROVIDERS,
+  CRED_REVOKED_REASONS,
   CRED_SOURCES,
   credentialProviderSchema,
   credentialSourceSchema,
@@ -23,6 +24,22 @@ test("credentialProviderSchema round-trips every storable provider", () => {
     expect(credentialProviderSchema.parse(provider)).toBe(provider);
   }
   expect(CRED_PROVIDERS).toEqual(["openrouter", "anthropic", "openai", "custom_openai"]);
+});
+
+test("CRED_REVOKED_REASONS is the closed why-a-credential-is-dead vocabulary (#1373)", () => {
+  // The literal list is the assertion: each member has a live producer and they are NOT interchangeable —
+  // `auth_failed` (the provider looked at the key and rejected it: the post-generation strike-out and the
+  // health probe's auth-class verdict), `unreachable` (the probe's 3-strike limit — nothing ever answered,
+  // so nothing judged the key), `user` (the owner's own revoke). Collapsing `unreachable` into
+  // `auth_failed` would have the pane tell a user the provider rejected their key over their own box being
+  // off. A new member is a new PRODUCER plus the client's reason copy, never a spelling.
+  expect(CRED_REVOKED_REASONS).toEqual(["auth_failed", "unreachable", "user"]);
+  // A revocation reason is NOT a provider-error kind and must never be fed one — the strike-out maps the
+  // whole `auth_failed` kind onto the reason, and nothing else crosses.
+  for (const reason of CRED_REVOKED_REASONS) {
+    expect(credentialSourceSchema.safeParse(reason).success).toBe(false);
+    expect(credentialProviderSchema.safeParse(reason).success).toBe(false);
+  }
 });
 
 test("the source axis and the storage axis are NOT conflated", () => {

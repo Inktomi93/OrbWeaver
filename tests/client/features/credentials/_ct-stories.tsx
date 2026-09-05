@@ -10,6 +10,7 @@ import { SaveStatusHostContext } from "@orb/client/forms";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
 import { useAggregateSaveStatus } from "@orb/client/state";
+import type { CredRevokedReason } from "@orb/contracts/credentials";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
@@ -40,6 +41,7 @@ function CredentialKeyRowInner(): ReactElement {
         active: false,
         hasMetadata: false,
         revokedAt: null,
+        revokedReason: null,
         createdAt: 0,
         updatedAt: 0,
       }}
@@ -87,6 +89,7 @@ function CustomCredentialKeyRowInner(): ReactElement {
         active: true,
         hasMetadata: true,
         revokedAt: null,
+        revokedReason: null,
         createdAt: 0,
         updatedAt: 0,
       }}
@@ -107,9 +110,11 @@ export function CustomCredentialKeyRowStory(): ReactElement {
 }
 
 /** A REVOKED `<CredentialKeyRow>` (revokedAt set) — the row that carries the "Clear revoked" recover
- *  affordance instead of "Mark revoked"/"Set active". The `credentials.clearRevoked` mutation is stubbed
- *  per-test via routeTrpc. */
-function RevokedCredentialKeyRowInner(): ReactElement {
+ *  affordance instead of "Mark revoked"/"Set active". `reason` is the #1373 half: the row must be able to
+ *  say WHICH of the three causes revoked it, so every member gets a mountable arm rather than one story
+ *  standing in for a whole vocabulary. `credentials.clearRevoked` is stubbed per-test via routeTrpc.
+ *  `reason: null` is the honest unknown (a writer that bypassed `setRevokedById`) — chip, no cause. */
+function RevokedCredentialKeyRowInner({ reason }: { readonly reason: CredRevokedReason | null }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   return (
@@ -121,6 +126,7 @@ function RevokedCredentialKeyRowInner(): ReactElement {
         active: false,
         hasMetadata: false,
         revokedAt: 1,
+        revokedReason: reason,
         createdAt: 0,
         updatedAt: 0,
       }}
@@ -130,11 +136,45 @@ function RevokedCredentialKeyRowInner(): ReactElement {
   );
 }
 
+/** The AUTO-revoked arm — the one the post-generation strike-out produces (#1373). */
 export function RevokedCredentialKeyRowStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 560 }}>
-        <RevokedCredentialKeyRowInner />
+        <RevokedCredentialKeyRowInner reason="auth_failed" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The USER-revoked arm — the row must not claim a provider rejected a key its owner revoked themselves. */
+export function UserRevokedCredentialKeyRowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 560 }}>
+        <RevokedCredentialKeyRowInner reason="user" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The UNREACHABLE arm — the health probe's strike limit, where nothing ever judged the key. */
+export function UnreachableRevokedCredentialKeyRowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 560 }}>
+        <RevokedCredentialKeyRowInner reason="unreachable" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** A revoked row whose reason the server never wrote — the pane shows the chip and NO cause, never a guess. */
+export function ReasonlessRevokedCredentialKeyRowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 560 }}>
+        <RevokedCredentialKeyRowInner reason={null} />
       </div>
     </CtDataProviders>
   );

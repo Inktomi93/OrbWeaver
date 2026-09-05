@@ -52,6 +52,7 @@ import type {
   PersonaId,
   PresetId,
   RpgGameId,
+  UserCredentialId,
   UserId,
 } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
@@ -60,7 +61,7 @@ import type { RegexReplacer } from "@orb/kit/regex";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
-import type { RoleClientsWithSignal, ToolCallInput, WireTool } from "#infra/providers";
+import type { ProviderErrorKind, RoleClientsWithSignal, ToolCallInput, WireTool } from "#infra/providers";
 import type { ActiveTurns } from "./active-turns.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
@@ -144,8 +145,22 @@ type ResolveChatConnectionOp = (params: {
 /** The brand-protected credential for a `{runAsUserId, source}` (the side-LLM/summarizer path). */
 type ResolveCredentialOp = (params: { readonly runAsUserId: UserId; readonly source: CredentialSource }) => Promise<ResolvedCredential>;
 
-/** The post-turn auth_failed side-effect. Best-effort; never throws into the turn path. */
-type MaybeRevokeOnAuthFailedOp = (params: { readonly runAsUserId: UserId; readonly source: CredentialSource; readonly status: number }) => Promise<void>;
+/** The post-generation credential STRIKE-OUT (#1373) — best-effort, never throws into the generation path.
+ *
+ *  It takes the PROVIDER'S OWN normalized classification, not an HTTP status: this op used to carry
+ *  `{runAsUserId, source, status}` and the adapter re-derived `401 → "unauthorized"` / `403 → "forbidden"`,
+ *  words the credentials verb (which gates on `auth_failed`) could never match. The revoke decision belongs
+ *  to the credentials domain; chat's job is to thread the fact without re-deriving it.
+ *
+ *  And it takes the CREDENTIAL ID the generation actually authenticated with — read off
+ *  `ResolvedConnection.credential`, frozen at dispatch — rather than a source to re-resolve afterwards: a
+ *  rotate or set-active between the rejection and this call would otherwise revoke the user's NEW key.
+ *  `null` is the keyless arm (vllm/local-light/max-pro-sub own no row); the verb no-ops on it. */
+type MaybeRevokeOnAuthFailedOp = (params: {
+  readonly credentialId: UserCredentialId | null;
+  readonly errorKind: ProviderErrorKind;
+  readonly errorMessage: string;
+}) => Promise<void>;
 
 /** The live card for a roster member under the host's ownership. Null means gone/mid-delete — the caller
  *  treats null as skip, never an error. */

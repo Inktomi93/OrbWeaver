@@ -29,6 +29,7 @@ function view(provider: CredentialProvider, id: string): CredentialView {
     active: true,
     hasMetadata: false,
     revokedAt: null,
+    revokedReason: null,
     createdAt: 0,
     updatedAt: 0,
   };

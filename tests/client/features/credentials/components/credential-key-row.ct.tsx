@@ -4,7 +4,14 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
-import { CredentialKeyRowStory, CustomCredentialKeyRowStory, RevokedCredentialKeyRowStory } from "../_ct-stories.tsx";
+import {
+  CredentialKeyRowStory,
+  CustomCredentialKeyRowStory,
+  ReasonlessRevokedCredentialKeyRowStory,
+  RevokedCredentialKeyRowStory,
+  UnreachableRevokedCredentialKeyRowStory,
+  UserRevokedCredentialKeyRowStory,
+} from "../_ct-stories.tsx";
 
 test("remove is confirm-gated: cancel fires nothing, confirm fires credentials.remove", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
@@ -81,6 +88,41 @@ test("a rejected health probe keeps an explicit error and retry affordance", asy
   await page.getByRole("button", { name: "Retry" }).click();
   await expect.poll(() => trpc.count("credentials.testHealth"), { intervals: [20, 50, 100] }).toBe(2);
   expect(attempts).toBe(2);
+});
+
+// #1373 — WHY the key is revoked, not just THAT it is. The bare Revoked chip could not tell a key the
+// provider rejected from one the owner revoked, and the two want opposite actions: paste a new key, versus
+// press Clear revoked. The copy is derived from the closed `CRED_REVOKED_REASONS` member — it never echoes
+// anything the provider or the user's own endpoint said, so it cannot become a key-disclosure surface the
+// way a reflected response body can.
+// One arm per test, deliberately: a second `mount()` in the same test APPENDS to the CT root rather than
+// replacing it, so a shared-test version of this would have the previous arm's copy still on the page and
+// every "must not say" assertion would be measuring the wrong row.
+test("the AUTO-revoked row names the provider's rejection (the strike-out's user-visible half)", async ({ mount, page }) => {
+  await mount(<RevokedCredentialKeyRowStory />);
+  await expect(page.getByText("Revoked — the provider rejected this key")).toBeVisible();
+});
+
+test("the USER-revoked row says so, and does NOT blame the provider", async ({ mount, page }) => {
+  // Claiming a rejection here would send someone to rotate a key that is fine.
+  await mount(<UserRevokedCredentialKeyRowStory />);
+  await expect(page.getByText("Revoked by you")).toBeVisible();
+  await expect(page.getByText("the provider rejected this key")).toBeHidden();
+});
+
+test("the UNREACHABLE row says the endpoint went quiet — nothing judged the key", async ({ mount, page }) => {
+  // Saying "rejected" when nothing ever answered is the same lie the honest `unchecked` health status exists
+  // to prevent, and it would cost the user a working key.
+  await mount(<UnreachableRevokedCredentialKeyRowStory />);
+  await expect(page.getByText("Revoked — the endpoint stopped responding")).toBeVisible();
+  await expect(page.getByText("the provider rejected this key")).toBeHidden();
+});
+
+test("a revoked row with NO recorded reason shows the chip and guesses no cause", async ({ mount, page }) => {
+  await mount(<ReasonlessRevokedCredentialKeyRowStory />);
+  await expect(page.getByText("Revoked", { exact: true })).toBeVisible();
+  await expect(page.getByText("Revoked —")).toBeHidden();
+  await expect(page.getByText("Revoked by you")).toBeHidden();
 });
 
 test("a revoked row's clear-revoked fires credentials.clearRevoked directly", async ({ mount, page }) => {

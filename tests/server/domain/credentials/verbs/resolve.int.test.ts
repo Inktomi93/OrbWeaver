@@ -119,6 +119,27 @@ describe("resolve", () => {
     await expect(svc.resolve({ principal: principal(owner), source: "openrouter" })).rejects.toThrow(DomainNoCredentialError);
   });
 
+  test("a revoked active custom_openai credential does NOT resolve either (the openrouter twin's other half)", async () => {
+    // The `|| active.revokedAt !== null` half of `resolveCustomOpenAi` was UNPINNED: deleting it survived the
+    // whole suite, because only the openrouter arm had a revoked-row test. That gap matters more now that a
+    // provider `auth_failed` revokes automatically (#1373) — without this guard a struck BYO endpoint would
+    // keep resolving and keep re-dialling the key the endpoint just rejected, which is the exact loop the
+    // strike-out exists to break.
+    const db = await freshDb();
+    const svc = createCredentialsService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    const added = await svc.add({
+      principal: principal(owner),
+      provider: "custom_openai",
+      key: "sk-custom",
+      metadata: { kind: "custom_openai", baseUrl: "https://llm.local/v1" },
+    });
+    // Revoked by the STRIKE-OUT path (not the user's own revoke), the case the resolver actually meets.
+    await svc.maybeRevokeOnAuthFailed({ credentialId: added.id, errorKind: "auth_failed", errorMessage: "the endpoint rejected the key" });
+
+    await expect(svc.resolve({ principal: principal(owner), source: "custom_openai" })).rejects.toThrow(DomainNoCredentialError);
+  });
+
   test("custom_openai resolves the active endpoint from metadata (baseUrl + key)", async () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
