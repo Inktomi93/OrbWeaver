@@ -14,6 +14,8 @@ const FK_ON = 1;
 const BACKUP_RE = /\.backup-\d+$/;
 const SENTINEL_TABLES = ["users", "characters", "chats", "workloads", "presets"];
 const ALREADY_EXISTS_RE = /already exists/i;
+// `backupBeforeMigrate`'s own refusal, not just "something threw" — the abort must be the BACKUP failing.
+const BACKUP_FAILED_RE = /pre-migrate backup of .* FAILED/;
 const LAUNCHED_FATAL_RE = /launched/i;
 
 test("resolveMigrationsFolder points at @orb/db's generated baseline dir", () => {
@@ -121,28 +123,68 @@ test("the pre-migration backup restores a commit that remains in the live WAL", 
   }
 });
 
+// Seed a file db that is one back-dated migration record away from a DESTRUCTIVE regenerated-baseline
+// boot, with a probe row whose survival proves the reset did not run.
+async function seedResetPendingDb(dir: string): Promise<{ db: Awaited<ReturnType<typeof createDb>>; url: string }> {
+  const url = `file:${join(dir, "orb.db")}`;
+  const db = await createDb(url);
+  await runBootMigrations({ db, databaseUrl: url, launched: false });
+  await db.run(sql`CREATE TABLE backup_failure_probe (value integer not null)`);
+  await db.run(sql`INSERT INTO backup_failure_probe (value) VALUES (1)`);
+  await db.run(sql`PRAGMA wal_checkpoint(TRUNCATE)`);
+  await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
+  return { db, url };
+}
+
+// RE-PINNED for #1374 (#1548). This used to make the backup fail by writing "occupied" at the stamped
+// destination — `VACUUM INTO` refused an existing file. That refusal was the WEDGE (#1374): the failed boot
+// wrote nothing, so the mtimes never moved, so every retry recomputed the same name and failed identically,
+// forever. `backupBeforeMigrate` now reads an occupied destination as either a complete backup of this exact
+// source (reuse) or DEBRIS (delete + retry), so the old setup no longer fails at all — the CONTROL below
+// pins that new arm. The ORDERING invariant this test exists for is unchanged, so it now fails the backup
+// for a reason the idempotent-retry arm cannot absorb and never touches the destination file: SQLite
+// refuses `VACUUM INTO` from inside an open transaction.
 test("backup failure aborts before a regenerated-baseline reset", async () => {
   const dir = mkdtempSync(join(tmpdir(), `orb-bootbackup-fail-${pid}-`));
-  const path = join(dir, "orb.db");
-  const url = `file:${path}`;
   try {
-    const db = await createDb(url);
-    await runBootMigrations({ db, databaseUrl: url, launched: false });
-    await db.run(sql`CREATE TABLE backup_failure_probe (value integer not null)`);
-    await db.run(sql`INSERT INTO backup_failure_probe (value) VALUES (1)`);
-    await db.run(sql`PRAGMA wal_checkpoint(TRUNCATE)`);
-    await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
+    const { db, url } = await seedResetPendingDb(dir);
     expect(await db.all(sql`SELECT value FROM backup_failure_probe`)).toEqual([{ value: 1 }]);
+    // The seeding boot took its own backup; only what the FAILING boot leaves behind is under test.
+    const priorBackups = readdirSync(dir).filter((name) => BACKUP_RE.test(name));
 
-    const mainStamp = Math.round(statSync(path).mtimeMs);
-    const walStamp = Math.round(Math.max(statSync(path).mtimeMs, statSync(`${path}-wal`).mtimeMs));
-    for (const stamp of new Set([mainStamp, walStamp])) {
-      writeFileSync(`${path}.backup-${stamp}`, "occupied");
-    }
+    await db.run(sql`BEGIN`);
+    await expect(runBootMigrations({ db, databaseUrl: url, launched: false })).rejects.toThrow(BACKUP_FAILED_RE);
+    await db.run(sql`ROLLBACK`);
 
-    await expect(runBootMigrations({ db, databaseUrl: url, launched: false })).rejects.toThrow();
+    // The abort came BEFORE the reset: the data is still there and the baseline is still the pending one.
     expect(await db.all(sql`SELECT value FROM backup_failure_probe`)).toEqual([{ value: 1 }]);
     expect((await checkBaseline(db, resolveMigrationsFolder())).status).toBe("regenerated");
+    // …and the failed attempt left NO new file behind, so the next boot retries clean rather than wedging.
+    expect(readdirSync(dir).filter((name) => BACKUP_RE.test(name))).toEqual(priorBackups);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// The CONTROL for the arm above (#1374): debris at the stamped path is NOT a backup failure. It is deleted
+// and re-copied, the boot proceeds, and the destructive reset runs — the boot-wedge this arm removed.
+test("#1374: debris at the stamped backup path is replaced, and the boot proceeds to the reset", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-bootbackup-debris-${pid}-`));
+  try {
+    const { db, url } = await seedResetPendingDb(dir);
+    const path = join(dir, "orb.db");
+    // Debris at EXACTLY the destination this boot will compute (the newer of the db / -wal mtimes).
+    const debrisPath = `${path}.backup-${Math.round(Math.max(statSync(path).mtimeMs, statSync(`${path}-wal`).mtimeMs))}`;
+    writeFileSync(debrisPath, "occupied");
+
+    await expect(runBootMigrations({ db, databaseUrl: url, launched: false })).resolves.toBeUndefined();
+
+    // The reset ran (the probe table is gone) and the baseline is current again.
+    await expect(db.all(sql`SELECT value FROM backup_failure_probe`)).rejects.toThrow();
+    expect((await checkBaseline(db, resolveMigrationsFolder())).status).toBe("current");
+    // The debris was REPLACED by a real snapshot, not reused: it opens and carries the pre-reset probe row.
+    const restored = await createDb(`file:${debrisPath}`);
+    expect(await restored.all(sql`SELECT value FROM backup_failure_probe`)).toEqual([{ value: 1 }]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
