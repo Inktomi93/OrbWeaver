@@ -24,7 +24,16 @@ import type { CharacterId } from "@orb/kit/ids";
 import type { ImportContext } from "../context.ts";
 import type { ImportGroupsResult } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
-import type { CollectedGroup, ImportGroupsInput, ImportSkippedGroup, ImportSkippedGroupMember, ImportUnresolvedPinnedPersona } from "../contract/views.ts";
+import type {
+  CollectedGroup,
+  GroupSeats,
+  ImportAmbiguousSpeakerName,
+  ImportGroupsInput,
+  ImportSeatedDisabledMember,
+  ImportSkippedGroup,
+  ImportSkippedGroupMember,
+  ImportUnresolvedPinnedPersona,
+} from "../contract/views.ts";
 import { requireProfile } from "../guard.ts";
 import { buildGroupChatInput, disambiguateChatTitles, unresolvedPinnedPersonas } from "../substrate/chat-input.ts";
 
@@ -70,6 +79,55 @@ function resolveMembers(
   return { seated, skipped };
 }
 
+/** The roster-scoped display-name fallback map, with the AMBIGUOUS names withheld (#1469 item 5). A bare
+ *  `.set(name, id)` over the cast collapsed two same-named cards onto whichever seat wrote last, so a
+ *  pre-group-era line carrying only a name was attributed to the WRONG character — deterministically, and
+ *  with no record. A name two seats share resolves to NOBODY (the write op's documented "absent ⇒ the run's
+ *  primary") and is reported instead: guessing between two Emilys is exactly the silent misattribution the
+ *  filename-keyed design exists to prevent. A UNIQUE name still resolves — the fallback is narrowed, not
+ *  removed. */
+function speakerNamesOf(
+  group: CollectedGroup,
+  seated: readonly { readonly file: string; readonly characterId: CharacterId }[],
+  input: ImportGroupsInput,
+): { readonly byName: ReadonlyMap<string, CharacterId>; readonly ambiguous: ImportAmbiguousSpeakerName[] } {
+  // Keyed by the LOWERCASED name (the lookup key a transcript line matches against), carrying the card's own
+  // casing for the report — the operator recognizes "Emily", not "emily".
+  const seatsByName = new Map<string, { readonly display: string; readonly seats: Set<CharacterId> }>();
+  for (const s of seated) {
+    const display = input.characterNameByCardFilename.get(s.file)?.trim();
+    if (display === undefined || display.length === 0) {
+      continue;
+    }
+    const key = display.toLowerCase();
+    const entry = seatsByName.get(key) ?? { display, seats: new Set<CharacterId>() };
+    entry.seats.add(s.characterId);
+    seatsByName.set(key, entry);
+  }
+  const byName = new Map<string, CharacterId>();
+  const ambiguous: ImportAmbiguousSpeakerName[] = [];
+  for (const [key, { display, seats }] of seatsByName) {
+    const only = seats.size === 1 ? [...seats][0] : undefined;
+    if (only === undefined) {
+      ambiguous.push({ group: group.parsed.name, name: display, seats: seats.size });
+      continue;
+    }
+    byName.set(key, only);
+  }
+  return { byName, ambiguous };
+}
+
+/** The members ST had DISABLED, recorded as seated-anyway (#1469 item 4). THE SEATING IS THE RECORDED RULING
+ *  (`contract/views.ts` on `ParsedStGroup.disabledMemberFiles`: "still seated — the room's cast is the cast")
+ *  and it stands; the half of that same ruling that never shipped is this record — the field was parsed and
+ *  read by NOBODY, so the promised "the report can say the disabled flag itself did not travel" was a claim
+ *  the report could not make. Orb DOES carry a per-seat `disabled` knob (`chat_participants.disabled` /
+ *  `seatKnobsSchema`), but the bulk-import wire seats a flat `CharacterId[]` with no knob channel — landing
+ *  the mute needs a chat-contract change, which is not this verb's to make. */
+function disabledSeatsOf(group: CollectedGroup): ImportSeatedDisabledMember[] {
+  return group.parsed.disabledMemberFiles.map((member) => ({ group: group.parsed.name, member }));
+}
+
 /** The precondition a group must meet to become a room: at least one seated member AND at least one readable
  *  transcript. Returns the refusal reason, or null when the group is importable. */
 function refusalFor(group: CollectedGroup, seatCount: number): string | null {
@@ -88,10 +146,10 @@ type GroupOutcome =
 export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, "importGroupChats"> {
   async function importOne(
     group: CollectedGroup,
-    input: ImportGroupsInput,
     profile: ReturnType<typeof requireProfile>,
+    seats: GroupSeats,
   ): Promise<{ readonly chatsImported: number; readonly realConversation: boolean; readonly chatsPersonaHealed: number }> {
-    const { seated } = resolveMembers(group, input.characterIdByCardFilename);
+    const { seated, speakerByName } = seats;
     // Proven non-empty by `refusalFor` before this runs; the fallback keeps the read total.
     const primary = seated[0];
     if (primary === undefined) {
@@ -101,14 +159,8 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     const metadata = metadataFor(group);
     // Both maps are SCOPED to this group's own seated cast — a display-name match can only ever land on a
     // character the room already seats, which is what keeps the fallback from reaching a same-named stranger.
+    // (`speakerByName` additionally withholds the AMBIGUOUS names — see `speakerNamesOf`.)
     const speakerByFile = new Map(seated.map((s) => [s.file, s.characterId]));
-    const speakerByName = new Map<string, CharacterId>();
-    for (const s of seated) {
-      const name = input.characterNameByCardFilename.get(s.file)?.trim().toLowerCase();
-      if (name !== undefined && name.length > 0) {
-        speakerByName.set(name, s.characterId);
-      }
-    }
     // Every transcript of ONE group shares the room's name, so same-day leaves collide by construction — the
     // suffix pass runs over the group's whole set, exactly as the solo wave runs it over a character's.
     const chats: BulkImportChatInput[] = disambiguateChatTitles(
@@ -132,18 +184,13 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
 
   /** Import one group, converting BOTH refusal shapes — the precondition miss and a thrown write — into the
    *  same contained outcome, so the wave loop below has no error handling of its own. */
-  async function runGroup(
-    group: CollectedGroup,
-    input: ImportGroupsInput,
-    profile: ReturnType<typeof requireProfile>,
-    seatCount: number,
-  ): Promise<GroupOutcome> {
-    const refusal = refusalFor(group, seatCount);
+  async function runGroup(group: CollectedGroup, profile: ReturnType<typeof requireProfile>, seats: GroupSeats): Promise<GroupOutcome> {
+    const refusal = refusalFor(group, seats.seated.length);
     if (refusal !== null) {
       return { ok: false, reason: refusal };
     }
     try {
-      const result = await importOne(group, input, profile);
+      const result = await importOne(group, profile, seats);
       return { ok: true, ...result };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -162,12 +209,19 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     // §5.7: collected across EVERY group's transcripts, including a group that is later refused — the pick
     // still did not travel, and the report says so.
     const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
+    // Both collected across EVERY group, INCLUDING one later refused: an ambiguous name and a discarded mute
+    // are facts about the ST snapshot, not about whether this room happened to import.
+    const ambiguousSpeakerNames: ImportAmbiguousSpeakerName[] = [];
+    const seatedDisabledMembers: ImportSeatedDisabledMember[] = [];
 
     for (const group of input.groups) {
       const { seated, skipped } = resolveMembers(group, input.characterIdByCardFilename);
       skippedMembers.push(...skipped);
       unresolvedPins.push(...unresolvedPinnedPersonas(group.chats, profile.personaByUserName));
-      const outcome = await runGroup(group, input, profile, seated.length);
+      seatedDisabledMembers.push(...disabledSeatsOf(group));
+      const names = speakerNamesOf(group, seated, input);
+      ambiguousSpeakerNames.push(...names.ambiguous);
+      const outcome = await runGroup(group, profile, { seated, speakerByName: names.byName });
       if (!outcome.ok) {
         skippedGroups.push({ group: group.parsed.name, reason: outcome.reason });
         continue;
@@ -180,7 +234,17 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       chatsPersonaHealed += outcome.chatsPersonaHealed;
     }
 
-    return { groupsImported, groupChatsImported, skippedGroups, skippedMembers, backfillNeeded, unresolvedPinnedPersonas: unresolvedPins, chatsPersonaHealed };
+    return {
+      groupsImported,
+      groupChatsImported,
+      skippedGroups,
+      skippedMembers,
+      backfillNeeded,
+      unresolvedPinnedPersonas: unresolvedPins,
+      chatsPersonaHealed,
+      ambiguousSpeakerNames,
+      seatedDisabledMembers,
+    };
   }
   return { importGroupChats };
 }

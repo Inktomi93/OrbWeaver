@@ -248,4 +248,85 @@ describe("importGroupChats", () => {
     expect(result.skippedGroups).toEqual([{ group: "Group: Aria + Bram", reason: "the group claimed no readable transcript under `group chats/`" }]);
     expect(written.calls).toEqual([]);
   });
+
+  // #1469 item 5 — `speakerByName` was built with a bare `.set(name, id)` over the seated cast, so two
+  // same-named cards COLLAPSED to whichever seat wrote last, and a pre-group-era line carrying only a name
+  // was then attributed to the WRONG character deterministically and silently. An ambiguous name must
+  // resolve to nobody (the write op's documented "absent ⇒ the run's primary") and be REPORTED.
+  test("a display name shared by two seated cards attributes NOBODY and is reported as ambiguous", async () => {
+    const written: Written = { calls: [] };
+    const service = createImportService(ctxWith(written));
+    // The same two-Emily room, but the line carries NO `original_avatar` — the pre-group-era export shape,
+    // the only case the name fallback exists for.
+    const jsonl = [
+      JSON.stringify({ user_name: "Alex", character_name: "unused", create_date: "2025-07-18@12h00m00s" }),
+      JSON.stringify({ name: "Emily", is_user: false, mes: "Which Emily?", send_date: "2025-07-18@12h00m01s" }),
+    ].join("\n");
+    const bytes = ENC.encode(JSON.stringify({ id: "g3", name: "Two Emilys", members: ["Emily.png", "Emily-2.png"], generation_mode: 0, chats: ["emilys"] }));
+    const parsed = parseStGroupFile(bytes, "g3");
+    const chat = parseChatJsonl(jsonl, { fileName: "emilys.jsonl", charDirName: "Two Emilys" });
+    if (parsed === null || chat === null) {
+      throw new Error("fixture did not parse");
+    }
+
+    const result = await service.importGroupChats({
+      groups: [
+        {
+          parsed,
+          sourceFile: "groups/g3.json",
+          chats: [{ parsed: chat, importedFrom: "emilys.jsonl", importHash: importFileHash(ENC.encode(jsonl)) }],
+          missingChatLeaves: [],
+        },
+      ],
+      characterIdByCardFilename: new Map([
+        ["Emily.png", EMILY_A],
+        ["Emily-2.png", EMILY_B],
+      ]),
+      characterNameByCardFilename: new Map([
+        ["Emily.png", "Emily"],
+        ["Emily-2.png", "Emily"],
+      ]),
+    });
+
+    // No characterId is proposed: the slot falls through to the room's primary rather than being assigned to
+    // the LAST same-named seat (which is what the collapsing map did).
+    expect(written.calls[0]?.chats[0]?.messages[0]?.characterId).toBeUndefined();
+    expect(result.ambiguousSpeakerNames).toEqual([{ group: "Two Emilys", name: "Emily", seats: 2 }]);
+  });
+
+  test("a UNIQUE display name still resolves by name — the fallback is narrowed, not removed", async () => {
+    const written: Written = { calls: [] };
+    const service = createImportService(ctxWith(written));
+
+    const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"])]));
+
+    // Bram's line carries no `original_avatar`; his name is unique in this room, so it still seats him.
+    expect(written.calls[0]?.chats[0]?.messages[2]?.characterId).toBe(BRAM);
+    expect(result.ambiguousSpeakerNames).toEqual([]);
+  });
+
+  // #1469 item 4 — `disabledMemberFiles` was parsed onto `ParsedStGroup` and read by NOBODY. The seating
+  // ruling (contract/views.ts: "still seated — the room's cast is the cast") is preserved; the half of that
+  // same ruling that never shipped — "recorded so the report can say the disabled flag itself did not
+  // travel" — is what these pin.
+  test("a member ST had DISABLED is still seated, and the mute that did not travel is reported", async () => {
+    const written: Written = { calls: [] };
+    const service = createImportService(ctxWith(written));
+
+    // biome-ignore lint/style/useNamingConvention: ST group wire field names (snake_case) are the interchange format.
+    const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"], { disabled_members: ["Bram.png"] })]));
+
+    // The cast is unchanged — Bram keeps his seat (the recorded ruling).
+    expect(written.calls[0]?.chats[0]?.roster).toEqual([BRAM]);
+    expect(result.seatedDisabledMembers).toEqual([{ group: "Group: Aria + Bram", member: "Bram.png" }]);
+  });
+
+  test("a group with no disabled members reports an empty list, never a missing one", async () => {
+    const written: Written = { calls: [] };
+    const service = createImportService(ctxWith(written));
+
+    const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"])]));
+
+    expect(result.seatedDisabledMembers).toEqual([]);
+  });
 });

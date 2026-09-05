@@ -208,4 +208,34 @@ describe("importPresets", () => {
     expect(importPresetScripts).not.toHaveBeenCalled();
     expect(result.notes[0]?.fields.map((f) => f.field)).toContain("extensions.someVendorState");
   });
+
+  // #1469 item 7 — the lift op was awaited with NO try/catch inside the wave loop, so ONE throwing lift
+  // rejected `importPresets` whole: every preset already imported in that run lost its count and its note,
+  // and the operator got an exception instead of a partial report. Per-preset isolation is the wave's stated
+  // contract (the header says so) and the lift is the one call that did not honour it.
+  test("a THROWING script lift is one recorded skip — the presets already imported keep their counts", async () => {
+    const importPreset = vi.fn((_args: unknown) => Promise.resolve({ ok: true, created: true, presetId: castId<PresetId>("preset_row_4") }));
+    const importPresetScripts = vi.fn(() => Promise.reject(new Error("regex library write failed\nUNIQUE constraint failed: regex_scripts.name")));
+    const service = createImportService(ctxWith(importPreset, importPresetScripts as unknown as ImportProfileDeps["importPresetScripts"]));
+
+    const result = await service.importPresets({
+      presets: [
+        collected("Plain (OpenAI)", "OpenAI Settings/Plain.json"),
+        // biome-ignore lint/style/useNamingConvention: ST preset wire field names (snake_case) are the interchange format and appear verbatim in the fixtures.
+        collected("Marinara (OpenAI)", "OpenAI Settings/Marinara.json", stPresetJson({ extensions: { regex_scripts: [MARINARA_SCRIPT] } })),
+      ],
+    });
+
+    // BOTH presets are still counted — the accumulated work survived the failing lift.
+    expect(result.presetsImported).toBe(2);
+    expect(result.presetsCreated).toBe(2);
+    expect(result.notes).toHaveLength(2);
+    expect(result.skippedPresets).toEqual([
+      {
+        file: "OpenAI Settings/Marinara.json",
+        reason: "1 preset regex script(s) not lifted (the preset imported; the lift failed): UNIQUE constraint failed: regex_scripts.name",
+      },
+    ]);
+    expect(result.notes[1]).toMatchObject({ scriptsLifted: 0, scriptsReused: 0 });
+  });
 });
