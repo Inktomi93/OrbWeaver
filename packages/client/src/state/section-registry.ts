@@ -144,6 +144,12 @@ interface SectionDefinitionBase {
    *  section's own cache; `null` = nothing open, or the name has not landed yet — the shell then prints the
    *  section label, never a blank bar.
    *
+   *  IT NAMES THE SCREEN, NOT ONLY A MEMBER (#1670). With nothing open, a section MAY answer with its own
+   *  roster's name instead of falling back — which is how a phone gets its LIST census printed at all: the
+   *  ONE-NAME rule sheds the LIST band's title (`features/app-shell/surfaces/shell.css`) and the count
+   *  travels inside it (`components/list-pane-header.tsx`), so the surviving noun has to carry it
+   *  (`Characters · 327`). A section that answers `null` here keeps today's bare section label.
+   *
    *  REQUIRED on EVERY section, including the ones with no list: `{@link NO_SELECTION_TITLE}` is the answer
    *  "I have no member to name", and spelling it is what lets the shell call this hook unconditionally
    *  (an optional field means a conditional hook call — `useHookAtTopLevel`, and it is right). */

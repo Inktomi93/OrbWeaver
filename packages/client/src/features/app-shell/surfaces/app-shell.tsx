@@ -110,11 +110,10 @@ export function AppShell(): ReactElement {
   const commandModalId = useModalRegistry()
     .list()
     .find((m) => m.trigger.placement === "topbar.trail")?.id;
-  const commandTriggerRef = useRef<HTMLButtonElement>(null);
   const primacySentinelRef = useRef<HTMLDivElement>(null);
   useShellContentPrimacyObserver(primacySentinelRef);
   const layout = useShellLayout();
-  useCommandShortcut(commandTriggerRef, commandModalId, layout.openModalId);
+  useCommandShortcut(commandModalId, layout.openModalId);
   const appearance = useAppearance();
   // `dataTheme` comes from the hook, NOT from the row here (#231): while the two chained theme reads are
   // in flight it must answer with this device's remembered palette — the one `main.tsx` already stamped
@@ -334,7 +333,7 @@ export function AppShell(): ReactElement {
                     header={activeDef.header?.()}
                     trail={
                       <>
-                        <CommandChip modalId={commandModalId} show={!layout.mobileViewport} triggerRef={commandTriggerRef} />
+                        <CommandChip modalId={commandModalId} show={!layout.mobileViewport} />
                         <TopbarTrailChrome mobile={layout.mobileViewport} />
                       </>
                     }

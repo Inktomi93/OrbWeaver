@@ -21,6 +21,17 @@ export interface ModalHostProps {
   readonly onClose: () => void;
 }
 
+/**
+ * The RENDERED trigger that opens `modalId`, if the current viewport draws one. Rail buttons and the topbar
+ * command chip stamp `data-modal-trigger` with the id they open; `getClientRects()` is the visibility test
+ * because the phone and the desktop each draw a different subset of them.
+ */
+function visibleModalTrigger(modalId: ModalSlotId): HTMLElement | undefined {
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-modal-trigger]")).find(
+    (element) => element.dataset["modalTrigger"] === modalId && element.getClientRects().length > 0,
+  );
+}
+
 /** The def's body — a real render, or the DECLARED-PLANNED placeholder (mirror the section content-none). */
 function modalBody(def: ModalDefinition): ReactNode {
   return typeof def.body === "function" ? def.body() : <SectionPlaceholder title={def.title} description={def.body.planned} weave={true} />;
@@ -91,6 +102,19 @@ function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): 
  * mounts the Dialog already-open (store-driven, no DialogTrigger), so this child's useState initializer
  * captures the element focused at mount and hands it to `finalFocus` so focus returns there on close. A
  * You-sheet row is transient by design, so its disconnected capture returns to the visible mobile You tab.
+ *
+ * A CAPTURE MUST BE AN AFFORDANCE (#890) — the ruling above survives, its INPUT changed. `activeElement` is
+ * never empty: with no affordance focused it is `document.body`, and the shell's programmatic-only stops
+ * (`<main tabindex="-1">`, the skip target, this Dialog's own body div) hold focus routinely. Every one of
+ * those is CONNECTED, so the capture branch handed Base UI a landmark, Base UI had nothing to restore to,
+ * and the close dumped focus at the top of the document (both measured on the ⌘K path: `BODY` → the "Skip to
+ * content" link, and `MAIN[aria-label="Chats content"]` → a content-control button). That is what made the
+ * palette's focus return FLAKE: `useCommandShortcut` focused the durable trigger one frame ahead purely so
+ * this snapshot would see it, and anything that moved focus in between — Chromium's own restoration after a
+ * Meta accelerator is the documented one — left a landmark in the snapshot instead. So the capture is now
+ * `tabIndex >= 0` only (a real tab stop, i.e. something a user could return to), and the fallback is
+ * DECLARED rather than guessed: every registry-owned trigger carries `data-modal-trigger="<its modal id>"`,
+ * so a modal opened with no affordance focused returns to its own trigger and nobody pre-focuses anything.
  */
 function DialogModal({
   body,
@@ -106,7 +130,8 @@ function DialogModal({
   readonly onOpenChange: (nextOpen: boolean) => void;
 }): ReactElement {
   const [focusReturn] = useState(() => {
-    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focused = document.activeElement;
+    const trigger = focused instanceof HTMLElement && focused.tabIndex >= 0 ? focused : null;
     // `trigger?.closest(…) !== null` was INVERTED: with no capturable trigger the optional chain yields
     // `undefined`, which is `!== null`, so "nobody had focus" classified as "opened from the You sheet"
     // and `resolveFinalFocus` went hunting for a mobile sheet tab to hand focus to. Ask the two questions
@@ -119,13 +144,12 @@ function DialogModal({
     if (focusReturn.trigger?.isConnected === true) {
       return focusReturn.trigger;
     }
-    if (!focusReturn.fromYouSheet || mobileSheetModalId === undefined) {
-      return true;
+    // A transient You-sheet row returns to the sheet's own tab; anything else returns to the modal's own
+    // declared trigger, which is the only durable answer when the open captured nobody.
+    if (focusReturn.fromYouSheet && mobileSheetModalId !== undefined) {
+      return visibleModalTrigger(mobileSheetModalId) ?? true;
     }
-    const mobileSheetTrigger = Array.from(document.querySelectorAll<HTMLElement>("[data-modal-trigger]")).find(
-      (element) => element.dataset["modalTrigger"] === mobileSheetModalId && element.getClientRects().length > 0,
-    );
-    return mobileSheetTrigger ?? true;
+    return visibleModalTrigger(def.id) ?? true;
   };
 
   // Shell modals (full/xl) fill the popup height; content modals size to content but still scroll internally when tall.

@@ -400,3 +400,61 @@ test("a user who owns a persona never sees the gate (the automation-seeded + ret
   await expect(page.locator('[data-home-tile="chat.recents"]')).toBeVisible();
   await expect(page.getByTestId(testId("firstRunPersonaDialog"))).toHaveCount(0);
 });
+
+// ── THE PHONE PRINTS THE LIBRARY'S SIZE (#1670) ────────────────────────────────────────────
+// Driven at the REAL composition root because that is the only mount where the real Characters section's
+// `useSelectionTitle` meets the real shell topbar — `app-shell.ct.tsx` composes a FAKE section registry with
+// stand-in title hooks, so it structurally cannot see this.
+//
+// The defect: the census travels inside the LIST band's title (`list-pane-header.tsx`), the ONE-NAME rule
+// sheds that title when the pane IS the screen (`shell.css`), and #518 had already retired the filter rail's
+// printed copy — so a phone printed the library's size NOWHERE, and 12 characters read the same as an empty
+// shelf. The count now rides the noun that survives, which keeps ONE visible census per regime.
+
+/** A library page whose CENSUS is the subject — `character.list` serves a real `totalCount` beside its page. */
+const TWELVE_CHARACTERS = { items: [ARIA], nextCursor: null, totalCount: 12 };
+
+const CENSUS_ROUTES: Readonly<Record<string, unknown>> = {
+  ...HOME_AMBIENT_ROUTES,
+  "chat.listChats": chatListResponder([]),
+  "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+  "databank.bankHealth": EMPTY_BANK_HEALTH,
+  "character.list": TWELVE_CHARACTERS,
+  "persona.list": PERSONAS,
+};
+
+for (const width of [320, 390] as const) {
+  test.describe(`the phone's Characters screen at ${String(width)}px`, () => {
+    // `hasTouch` because this is the COARSE-POINTER regime the rule belongs to, not merely a narrow window
+    // (`snap --mobile --viewport` silently drops the pointer, #1668 — the CT browser is where it is real).
+    test.use({ hasTouch: true, viewport: { width, height: 844 } });
+
+    test("the topbar's screen name carries the census the shed band title took with it", async ({ mount, page }) => {
+      await routeTrpc(page, CENSUS_ROUTES);
+      const component = await mount(<HomePageStory />);
+      await component.locator(".shell-rail").getByRole("button", { name: "Characters", exact: true }).click();
+
+      // The ONE name on this screen, and it states the size — the same sentence the desktop band prints.
+      const screenName = component.locator(".shell-topbar-title");
+      await expect(screenName).toBeVisible();
+      await expect(screenName).toHaveText("Characters · 12");
+      // …and it is the ONLY census on screen: the band's title, where the other copy lives, is shed by the
+      // ONE-NAME rule in exactly this arm. #518's single-visible-census ruling survives, per regime.
+      await expect(component.locator('[data-slot="list-pane-title"]')).toBeHidden();
+    });
+  });
+}
+
+test("the DESKTOP census is untouched — it stays in the LIST band and the narrow name never paints", async ({ mount, page }) => {
+  await routeTrpc(page, CENSUS_ROUTES);
+  const component = await mount(<HomePageStory />);
+  await component.locator(".shell-rail").getByRole("button", { name: "Characters", exact: true }).click();
+
+  const bandTitle = component.locator('[data-slot="list-pane-title"]');
+  await expect(bandTitle).toBeVisible();
+  await expect(bandTitle).toContainText("Characters");
+  await expect(bandTitle).toContainText("12");
+  // The narrow identity arm is in the DOM in both regimes (`shell-topbar.tsx`) — the container query is what
+  // picks one — so this asserts PAINT, not presence, or it would pass for the wrong reason.
+  await expect(component.locator(".shell-topbar-title")).toBeHidden();
+});

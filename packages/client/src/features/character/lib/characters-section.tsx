@@ -42,6 +42,7 @@ import { useCharacterContextState } from "../hooks/use-character-context-state.t
 import { CharacterLibrarySurface } from "../surfaces/character-library-surface.tsx";
 import { CHARACTER_CHATS_TAB_ID } from "./character-chat-intents.ts";
 import { useCharactersSelectionTitle } from "./character-selection-title.ts";
+import { CHARACTERS_SECTION_LABEL } from "./characters-section-label.ts";
 
 export function makeCharactersSection(
   detailContributors: ContributorRegistry<CharacterDetailContribution>,
@@ -49,10 +50,10 @@ export function makeCharactersSection(
 ): SectionDefinition {
   return {
     id: "characters",
-    rail: { label: "Characters", icon: Users, group: "primary", mobile: "tab" },
+    rail: { label: CHARACTERS_SECTION_LABEL, icon: Users, group: "primary", mobile: "tab" },
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
-      title: "Characters",
+      title: CHARACTERS_SECTION_LABEL,
       description: "Your characters live here — browse the list, then open someone to see their card.",
     },
     // The LIBRARY, whatever is selected (#501) — the picker is the pane's ONE role.
@@ -65,7 +66,7 @@ export function makeCharactersSection(
     listHeader: () => <CharactersListHeader />,
     // How the SHELL reads "is someone open?" — the mobile ONE-SHELL rule's input + its back affordance.
     selection: characterSectionSelection,
-    // …and what it calls the open character in the pushed frame's topbar.
+    // …and what the phone topbar calls this screen: the open character, else `Characters · <census>` (#1670).
     useSelectionTitle: useCharactersSelectionTitle,
     content: () => <CharacterContent detailContributors={detailContributors} />,
     // THE SIX-SLOT META RAIL (#860, owner 2026-08-30): Overview · Chats · Links · Look · History · Trust.

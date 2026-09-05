@@ -1,7 +1,7 @@
-// SectionTopbarTitle — resolves what the MOBILE topbar calls the current screen: the OPEN member's own name
-// where the active section resolves one (`SectionDefinition.useSelectionTitle`), else the section label
-// (side-eye P2: every section but chats named the SECTION over a member, because only chats supplied a
-// topbar `header` node).
+// SectionTopbarTitle — resolves what the MOBILE topbar calls the current screen: whatever the active
+// section's `SectionDefinition.useSelectionTitle` resolves — the OPEN member's own name, or the roster's own
+// name plus its census where the section carries one (#1670) — else the section label (side-eye P2: every
+// section but chats named the SECTION over a member, because only chats supplied a topbar `header` node).
 //
 // A component, not a hook call in `useShellLayout`: `useSelectionTitle` is a PER-SECTION hook, so the caller
 // must be KEYED on the active section — the `SectionContextHost` idiom. The value is handed back through a
