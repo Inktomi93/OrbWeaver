@@ -190,7 +190,7 @@ const nudgeOf = (
 };
 
 /** The roster-derived turn substrate: the host, the AI-driven candidates (character + agent — arbitration),
- *  their display names, the character cast ids (WI/memory), and the present personas. */
+ *  their display names, the seated-character ids (WI/memory), and the present personas. */
 interface Room {
   readonly hostUserId: UserId;
   readonly candidates: readonly ArbiterCandidate[];
@@ -246,7 +246,7 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   });
   const cards = await Promise.all(charRows.map((r) => ctx.getCard({ ownerId: hostUserId, characterId: r.characterId })));
 
-  // An offline human's persona drops from the present-cast set for this round, since presence gates
+  // An offline human's persona drops from the present-seated-characters set for this round, since presence gates
   // which persona-book world-info joins the pool (a server-derived signal, never client-asserted). Derived
   // through the ONE substrate lens (#1401) — the preview's own copy of this rule had drifted unfiltered.
   const personaIds = await onlinePersonaIdsOf(ctx, roster);
@@ -278,15 +278,15 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   };
 }
 
-/** The primary character id (roster's first cast seat), the solo/single-speaker default. Null only for an
- *  empty cast. */
+/** The primary character id (roster's first seated-character seat), the solo/single-speaker default. Null only for an
+ *  empty roster. */
 function primaryCharacterId(room: Room): CharacterId | null {
   const first = room.speakerCandidates[0]?.ref;
   return first !== undefined ? first.characterId : null;
 }
 
 /** The present, NON-MUTED character names a NARRATOR turn actually voices — the narrator nudge's `{{names}}`
- *  and its cast-of-one guard. Muted seats are excluded on the same `disabled` axis arbitration reads: a muted
+ *  and its single-character guard. Muted seats are excluded on the same `disabled` axis arbitration reads: a muted
  *  member's card still informs the merged turn, but the nudge must not name them as a voice. */
 function narratorMemberNamesOf(room: Room): readonly string[] {
   return room.speakerCandidates
@@ -333,7 +333,7 @@ interface BuiltTurnContext {
   readonly assembleContext: AssembleContext;
   readonly memoryConfig: MemoryConfig | null | undefined;
   /** The round-level recall inputs staged for the engine's per-speaker witnessed re-run (D6); `null` when
-   *  there is no character to key on (memory off / empty cast) ⇒ the engine keeps round-level `memory`. */
+   *  there is no character to key on (memory off / an empty roster) ⇒ the engine keeps round-level `memory`. */
   readonly memoryRecall: MemoryRecallInputs | null;
   /** The host's resolved turn-behavior arm (PD-146) — the custom stops the prep threads onto the request
    *  + the auto-continue/auto-swipe knobs the send post-round hook gates on. Defaulted to all-off. */
@@ -513,7 +513,7 @@ async function buildTurnContext(
     readonly model: string;
     readonly kind: TurnKind;
     readonly characterIds: readonly CharacterId[];
-    /** The soul-resolved seated agents (D60) — appended to the assemble cast so an agent speaker rides the
+    /** The soul-resolved seated agents (D60) — appended to the assembled seated characters so an agent speaker rides the
      *  one turn path. Empty ⇒ byte-identical to a character-only room. */
 
     /** The muted-seat `speakerKey`s (character + agent) — threaded to `unmutedCharacters` for `{{groupNotMuted}}`. */
@@ -761,7 +761,7 @@ interface ArbitrationOutcome {
 /** Arbitrates who speaks. An `@mention`/forced target hard-overrides any policy; `smart` (no forced) runs
  *  the side-LLM, and a side-LLM that threw / answered off-roster degrades to the deterministic `natural`
  *  arbitration — VISIBLY (the `smart_arbitration_degraded` warning; D41 bans a silent degrade). Maps
- *  resolved ids back to their cast names.
+ *  resolved ids back to their character names.
  *
  *  `aborted` is the OTHER outcome and never a degrade: the turn's signal fired during the side-LLM call, so
  *  the round is cancelled — no warning (nothing degraded), no speakers, and the caller must stop rather than
@@ -789,7 +789,7 @@ async function arbitrate(
 ): Promise<ArbitrationOutcome> {
   const forced = args.forcedIds ?? [];
   let refs: readonly SpeakerRef[];
-  // NARRATOR SHORT-CIRCUIT: a narrator round voices the whole cast in ONE
+  // NARRATOR SHORT-CIRCUIT: a narrator round voices all the seated characters in ONE
   // generation authored by the synthetic group character and consumes NO arbitrated speaker (`round.ts`
   // ignores `speakers` on that arm), so buying the side-LLM arbiter there costs a real model call for a
   // verdict nothing reads — and its degrade would warn the room about a decision that governs nothing. The
@@ -1655,7 +1655,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       groupCharacterId: null,
       narratorSpeakerName: target.name,
       // A FORCED single speaker rides the `asPerSpeaker`-coerced config — never the narrator arm, so
-      // there is no cast to name.
+      // there are no seated characters to name.
       narratorMemberNames: [],
     });
     return {
@@ -2216,7 +2216,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
           kind: "impersonate",
           intent: intent ?? {},
           // IMP-1 layer 2a — the CHAR-NAME STOP set. An impersonate draft is the USER's line, so a `\nSeren:`
-          // is the model rolling on into the cast's lines; cut it at the wire (ST's `getStoppingStrings`
+          // is the model rolling on into the seated characters' lines; cut it at the wire (ST's `getStoppingStrings`
           // group arm, script.js:3010-3029 — one stop per present member). Measured need: the voice-lock
           // nudge alone leaves 28% character bleed on the local 8B (scripts/probes/impersonate). Rides the
           // host's own custom stops; a stop-less model drops them capability-gated + loud (resolveChat).
@@ -2269,7 +2269,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
   };
 }
 
-/** The `generate` speaker, TRUST-BOUNDARY resolved. An EXPLICIT speaker must be a PRESENT cast member of THIS
+/** The `generate` speaker, TRUST-BOUNDARY resolved. An EXPLICIT speaker must be a PRESENT seated character of THIS
  *  chat — never trust the branded id from the wire to name any character (a bare `speakerShapeFor` silently
  *  returns an undefined shape for an unknown id, so an unvalidated foreign CharacterId would commit an
  *  assistant canon row attributed to it and leak that character's name+portrait through the message-stamped
@@ -2279,7 +2279,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
  *  manual speaker targeting, so a member explicitly generating for a muted seat is legitimate (it does not
  *  inherit any host bypass — the host-only bypass is presence of a LEFT member, which this refuses). A
  *  non-present / unknown / foreign id is a leak-free NOT_FOUND (never reveals whether the character exists
- *  elsewhere), mirroring selectVariant's foreign-variantId refusal. Absent/null ⇒ the primary cast seat. */
+ *  elsewhere), mirroring selectVariant's foreign-variantId refusal. Absent/null ⇒ the primary seated-character seat. */
 function resolveGenerateSpeaker(room: Room, chatId: ChatId, speakerCharacterId: CharacterId | null | undefined): CharacterId | null {
   if (speakerCharacterId === undefined || speakerCharacterId === null) {
     return primaryCharacterId(room);

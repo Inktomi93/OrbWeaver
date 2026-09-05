@@ -76,7 +76,7 @@ export interface BulkImportMessageInput {
    *  transcript declares no purpose, and saying so here is the explicit default D129(G) asks for.
    *
    *  `narrator` ALSO routes attribution: the row is voiced by the room's SYNTHETIC group identity — the
-   *  `output:"narrator"` grammar, where one message voices the whole cast and is authored by the per-room
+   *  `output:"narrator"` grammar, where one message voices all the seated characters and is authored by the per-room
    *  `__group__<chatId>` character rather than any roster card (`domain/chat/verbs/turn.ts` mints it the same
    *  way for a live narrator round). That id cannot be supplied by the caller — it is keyed by a chatId the
    *  write op mints — so the DECLARATION is what rides, and the op resolves the identity through the SAME

@@ -701,5 +701,5 @@ export const DEMO_CHATS: readonly DemoChat[] = [
  *  IT NO LONGER ROUTES ANYTHING (D129). The seeder used to recognise this name to send those slots to a freshly
  *  minted synthetic identity; the pack DECLARES its narrator rows now (`extra.type`), so the name is back to
  *  being what it always was — a display string — and survives only as the pack's own vocabulary, used by the
- *  asset-shape test to tell narrator lines from cast lines in the raw JSONL. */
+ *  asset-shape test to tell narrator lines from seated-character lines in the raw JSONL. */
 export const DEMO_CHAT_NARRATOR_NAME = "Group";

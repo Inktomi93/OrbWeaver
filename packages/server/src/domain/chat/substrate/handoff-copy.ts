@@ -68,7 +68,7 @@ const EMPTY_COPY_PLAN: HandoffCopyPlan = { seats: [], cardCopies: [], bookRepoin
  *  recipient already owning that book name on this chat, the preset by its `forkedFrom` lineage).
  *
  *  Minting AFTER the swap was never an option: a crash there would leave a promoted host holding a room whose
- *  cast had just been dropped, with nothing to show for the offer they accepted. */
+ *  seated characters had just been dropped, with nothing to show for the offer they accepted. */
 async function executeHandoffCopy(
   ctx: ChatContext,
   params: { readonly chatId: ChatId; readonly oldHostUserId: UserId; readonly nomineeUserId: UserId },

@@ -314,16 +314,16 @@ async function reduceStream(
 }
 
 /** Strips a per-speaker canon row down to only its own speaker's content: removes a leaked leading
- *  self-label and truncates any drift into a foreign cast member's line. Applied only on the per-speaker
+ *  self-label and truncates any drift into a foreign seated character's line. Applied only on the per-speaker
  *  output path; merged/narrator output is left alone (its labels are the intended transcript).
  *
  *  IMP-1 layer 2b — WHO IS "SELF" DEPENDS ON THE TURN. An `impersonate` draft is the USER's next line, so
- *  the self is the PERSONA and every cast member is foreign. Running the assistant-turn configuration on it
+ *  the self is the PERSONA and every seated character is foreign. Running the assistant-turn configuration on it
  *  (self = the character, as the `shape`-less fallback did) inverts both halves: it quietly STRIPPED a
  *  leading `Seren:` off a line Seren had written and handed the character's words to the composer as the
  *  user's own — LAUNDERING the bleed rather than catching it (measured: 2/36 local generations,
  *  scripts/probes/impersonate) — while leaving the primary character out of the foreign-drift truncate,
- *  the one name most likely to appear. A leading whole-cast label survives on purpose: it is not
+ *  the one name most likely to appear. A leading all-seated-characters label survives on purpose: it is not
  *  truncatable (no preceding newline) and the composer is a REVIEW surface, so the user sees `Seren: …`
  *  and discards it. That is the deliberate divergence from ST, which DELETES the whole response
  *  (`cleanUpMessage` wrongName, script.js:6472) — ours keeps partial fill for review by design. */
@@ -543,7 +543,7 @@ function shapeTail(args: RunTurnPipelineArgs, prefillHonored: boolean): string |
  *  injected ops; persists nothing. */
 export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
   // Card-section shape: picks this turn's card(s) + co-speakers off the immutable ctx — the named speaker's
-  // under `per-speaker`, the WHOLE cast's under `narrator`. Absent falls back to the single-speaker core,
+  // under `per-speaker`, ALL the seated characters' under `narrator`. Absent falls back to the single-speaker core,
   // byte-identical.
   const ctx =
     args.shape !== undefined

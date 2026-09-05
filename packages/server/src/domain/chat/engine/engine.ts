@@ -116,7 +116,7 @@ interface EngineDeps {
     },
   ) => Promise<MemoryPassCounts>;
   /** Injected witnessing-horizon reader (memory's `chat_participants` presence read) — the engine sources a
-   *  cast character's join/leave horizons to gate its SCOPED digest build. Injected (not imported) because the
+   *  seated character's join/leave horizons to gate its SCOPED digest build. Injected (not imported) because the
    *  engine may not reach `memory/` across the subsystem boundary; the domain root wires the real reader. */
   readonly loadWitnessHorizons: (db: ChatContext["db"], chatId: ChatId, characterId: CharacterId) => Promise<WitnessInterval[]>;
   /** Injected `{{memory}}` recall — the engine re-runs it PER SCOPED SPEAKER (its own bucket + horizons) so a
@@ -693,7 +693,7 @@ function rpgRoundRequestId(turnId: ChatTurnId): string {
 }
 
 /** The post-turn memory-build pass's own trace root (I-7: it ran under NO live span — same outlives-the-request
- *  class as the rpg round). Covers the whole build: segments, the group-as-character digest, and every cast
+ *  class as the rpg round). Covers the whole build: segments, the group-as-character digest, and every seated
  *  character's scoped digest — one trace shows the round's full cost, not just its first hop. */
 const MEMORY_SPAN = "memory.turnCompleted";
 
@@ -1464,7 +1464,7 @@ function turnCascadeDepth(prep: TurnPrep): number {
 /** Per-speaker witnessed recall (D6): re-resolve `{{memory}}` for THIS speaker's own egocentric bucket,
  *  horizon-filtered by its join/leave presence, and return a fresh assembleContext with that `memory`.
  *
- *  GATED to a genuinely SCOPED per-speaker turn voiced by a real cast character:
+ *  GATED to a genuinely SCOPED per-speaker turn voiced by a real seated character:
  *    • `shape.cardScope === "scoped"` — merged/narrator/solo keep the round-level shared recall (the synthetic
  *      group char has no participant seat → no horizons; scoping it would erase the bucket). Narrator resolves
  *      to `cardScope: "merged"` (round.ts maps any non-per-speaker output → "merged"), so it never reaches the
@@ -1806,7 +1806,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
               macroNames,
             });
           }
-          // Each cast character's SCOPED bucket is gated by its own join/leave horizons — a member digests
+          // Each seated character's SCOPED bucket is gated by its own join/leave horizons — a member digests
           // only the blocks it was present for (correct across kick→re-add). The shared group bucket above
           // stays horizon-free (the merged/narrator build; digests.ts §22-23). The synthetic group char has
           // no participant seat, so it would (correctly) never appear in `chars` here.

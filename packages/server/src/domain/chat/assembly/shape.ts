@@ -100,7 +100,7 @@ interface ShapeInput {
    *  IT HAD A SECOND READER UNTIL 2026-08-18 — the D129(B) delivered-role dispatch, which shipped a
    *  `narrator`-kind CANON row as a wire `system` row on a measured model. The OWNER RULED THAT OUT that day,
    *  verbatim: "if you mean group chat narration mode then that is the wrong behavior." Group narration is
-   *  ONE generation voicing the whole cast — the assistant's own output voice, not the operator channel — so
+   *  ONE generation voicing all the seated characters — the assistant's own output voice, not the operator channel — so
    *  narrator rows deliver as `assistant` on EVERY wire, measured or not. The measurement itself is HONORED
    *  and untouched (the vLLM cell stands, and this splice arm is exactly what it was measured for); what was
    *  wrong was routing canon PURPOSE through a wire-PLACEMENT capability. */
@@ -330,7 +330,7 @@ function traceDeliveredRows(args: {
 // to a wire `system` row wherever the model's MEASURED `turns.historySystemRows` said the wire takes mid-array
 // system rows (the vLLM arm, 2026-08-18). The OWNER RULED IT OUT the same day, verbatim: "if you mean group
 // chat narration mode then that is the wrong behavior." Group-chat narration mode is ONE generation voicing
-// the whole cast: it is the assistant's own OUTPUT voice, not an operator/system channel, so it delivers as an
+// all the seated characters: it is the assistant's own OUTPUT voice, not an operator/system channel, so it delivers as an
 // `assistant` row on every wire.
 //
 // The MEASUREMENT is honored and stands — `turns.historySystemRows` is real, and it keeps its ONE remaining

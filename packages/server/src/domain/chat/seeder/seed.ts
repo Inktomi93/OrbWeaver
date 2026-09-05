@@ -58,7 +58,7 @@ interface Seat {
  *
  *  The narrator arm used to match the exported speaker NAME against the synthetic card's name ("Group"). That
  *  was the pack's copy of the inference D129 retires: rename the synthetic card, or ship a pack from an
- *  install where a real cast member is called Group, and the routing silently changes. The pack now DECLARES
+ *  install where a real seated character is called Group, and the routing silently changes. The pack now DECLARES
  *  it (`extra.type: "narrator"`, ST's own marker), which is what our export verb emits today. */
 function toMessageInput(m: ParsedChatMessage, seatsByName: ReadonlyMap<string, CharacterId>, createdAt: number): BulkImportMessageInput {
   const base = {
@@ -142,8 +142,8 @@ export function createDemoChatSeeder(deps: DemoChatSeederDeps): DemoChatSeeder {
   // Two parallel first requests share one in-flight seed run instead of double-writing.
   const inFlight = new Map<UserId, Promise<void>>();
 
-  /** Resolve every manifest handle to a seeded card, PRIMARY FIRST. Null ⇒ this example's cast is not (yet)
-   *  in the library, so it is skipped rather than seeded half-cast. */
+  /** Resolve every manifest handle to a seeded card, PRIMARY FIRST. Null ⇒ this example's characters are not (yet)
+   *  in the library, so it is skipped rather than seeded with a half-built roster. */
   async function resolveSeats(principal: Principal, demo: DemoChat): Promise<Seat[] | null> {
     // `Promise.all` PRESERVES input order, and order is load-bearing: seats[0] is the header character the
     // dedup + branch scoping key off. Independent owner-scoped reads, so they resolve concurrently.
@@ -155,7 +155,7 @@ export function createDemoChatSeeder(deps: DemoChatSeederDeps): DemoChatSeeder {
   }
 
   /** Seed ONE example. Returns whether a chat was written (a dedup skip / a missing transcript / a missing
-   *  cast member all return false). One bulk call per example: each has its OWN primary character. */
+   *  seated character all return false). One bulk call per example: each has its OWN primary character. */
   async function seedOne(principal: Principal, demo: DemoChat, anchorPersonaId: PersonaId | null, now: number): Promise<boolean> {
     const text = await deps.readTranscript(demo.slug);
     if (text === null) {

@@ -33,7 +33,7 @@ import type { ChatDetail, ChatVariables } from "./views.ts";
 
 export type { TurnIntent } from "@orb/contracts/chat";
 
-/** The output axis: per-speaker (one message per speaker) vs narrator (one call voices the cast).
+/** The output axis: per-speaker (one message per speaker) vs narrator (one call voices all the seated characters).
  *
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
@@ -50,7 +50,7 @@ export interface TurnSpeakerShape {
   /** The egocentric scoped target; null for merged/narrator/solo. */
   readonly scopedTargetId: CharacterId | null;
   /** The assistant-speaker label SHAPE name-stamps: the speaking character's name (per-speaker) or the
-   *  joined-cast name (narrator). */
+   *  joined-seated-characters name (narrator). */
   readonly speakerName: string;
   /** The active speaker's identity — the per-speaker card selection keys on this. */
   readonly speakerRef: SpeakerRef;
@@ -291,7 +291,7 @@ export interface TurnPrep {
   readonly memoryConfig?: MemoryConfig | null | undefined;
   /** The ROUND-LEVEL recall inputs (gathered once) the engine re-runs `recallMemory` with PER SCOPED SPEAKER —
    *  each real speaker's OWN bucket + its join/leave `witnessing` horizons (D6). Absent / null ⇒ no per-speaker
-   *  recall (merged/narrator/solo, memory off, or empty cast) ⇒ the round-level `assembleContext.memory` stands
+   *  recall (merged/narrator/solo, memory off, or an empty roster) ⇒ the round-level `assembleContext.memory` stands
    *  byte-identically. Shared across the round's speakers (the recent-window + name-map are speaker-invariant). */
   readonly memoryRecall?: MemoryRecallInputs | null | undefined;
   /** The per-turn user-macro RENDER registry (WAVE MU delivery) — handler CLOSURES capturing this turn's

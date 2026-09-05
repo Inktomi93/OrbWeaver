@@ -221,8 +221,8 @@ export const CHAT_PROSE_SLOTS = {
     id: "chat.group.roundNudge",
     home: "preset",
     version: 2,
-    // The per-speaker fence on a MULTI-speaker round — the one line that stops the model voicing the whole
-    // cast in one reply. Delivered as the round's trailing user row.
+    // The per-speaker fence on a MULTI-speaker round — the one line that stops the model voicing all the seated
+    // characters in one reply. Delivered as the round's trailing user row.
     // v2 spells out the two failure modes the RECEIVE side otherwise has to clean up after
     // (`cleanPerSpeakerReply`): the echoed `Name:` self-label, and drifting on into another character's
     // lines. Saying them here is cheaper than repairing them, and a small local model needs them said.
@@ -240,8 +240,8 @@ export const CHAT_PROSE_SLOTS = {
     id: "chat.group.narratorNudge",
     home: "preset",
     version: 1,
-    // The NARRATOR twin of `roundNudge`. A narrator round is ONE generation voicing the whole cast, so the
-    // per-speaker fence would be exactly wrong here — this line names the cast instead. Delivered as the
+    // The NARRATOR twin of `roundNudge`. A narrator round is ONE generation voicing all the seated characters, so the
+    // per-speaker fence would be exactly wrong here — this line names the seated characters instead. Delivered as the
     // round's trailing user row, joined with the speaker-tag instruction below when both toggles are on.
     text:
       "[Continue the scene, voicing the present characters ({{names}}) as the moment calls for. This is ONE " +
@@ -314,7 +314,7 @@ export const CHAT_PROSE_SLOTS = {
     // The trailing-user CUE for a turn the operator did not type into: a force/auto/empty-opening round whose
     // canon ends on an assistant row. The delivered history must end on a user turn (a trailing assistant row
     // is response prefill), so SHAPE appends this. It is the only sentence in the delivered prompt that no
-    // one — not the cast, not the operator — actually said, which is exactly why its wording is a preset's
+    // one — not the seated characters, not the operator — actually said, which is exactly why its wording is a preset's
     // business: a terse table and a florid one want different words for "your move".
     text: "[Continue the conversation.]",
     macros: "none",

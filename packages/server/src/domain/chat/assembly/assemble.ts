@@ -11,9 +11,9 @@
 // member's fields ({@link cardOwnerCtx}), `renderMemberField`'s per-member sub-ctx for a co-speaker's. Card
 // text is written BY a character's author ABOUT that character, so `{{char}}` in it means "me" regardless of
 // what the turn is voicing. Every `activePersona` render is preset/host/user-authored and keeps the TURN's
-// speaker arm, which is where `{{char}}`-as-joined-cast belongs (the main-prompt framing "You are {{char}}").
+// speaker arm, which is where `{{char}}`-as-all-seated-characters belongs (the main-prompt framing "You are {{char}}").
 // The invariant was violated once, in exactly one direction: co-speakers were rebound and the primary was
-// not, so a narrator round leaked the joined cast into the primary's own description.
+// not, so a narrator round leaked all the seated characters into the primary's own description.
 //
 // The system-block chat injections arrive already macro-resolved + role-framed from context.ts; this walk
 // emits them verbatim. `in_chat` injections are the SHAPE splice's job.
@@ -81,7 +81,7 @@ type TemplatedMarkerSection = Extract<MarkerSection, { marker: keyof typeof DEFA
  * The template for a templated marker — caller override wins, else the shipped default framing.
  *
  * The `main_prompt` DEFAULT is MODE-AWARE, and this is its ONE resolution home. A narrator round is one
- * generation voicing the whole cast, so the per-speaker default — `You are {{char}} … write {{char}}'s perspective only`,
+ * generation voicing all the seated characters, so the per-speaker default — `You are {{char}} … write {{char}}'s perspective only`,
  * with `{{char}}` bound to the JOINED member names on that arm — instructs the model to do something the round
  * cannot do (a live drive once read it back as "write Charlotte, JFC's perspective only"). Keyed on `speaker.kind === "multi-voice"`, the same axis {@link memberHeadingSlot} picks the
  * co-speaker card frame on, and for the same reason: the SHAPE already decided what this turn voices, so
@@ -117,7 +117,7 @@ interface BuildEnv {
    *  `globalMacroRegistry` when the turn authored no user macros (byte-identical). */
   readonly registry: MacroRegistry;
   /** The ctx every CARD-DERIVED render binds against — see {@link cardOwnerCtx}. Identical to `ctx` by
-   *  REFERENCE on every non-narrator turn, so nothing outside a cast round can change bytes. */
+   *  REFERENCE on every non-narrator turn, so nothing outside a narrator round can change bytes. */
   readonly cardCtx: AssembleContext;
   /** The MERGED card section's per-roster-member split, keyed by section id — recorded during the render
    *  (only the render knows which bytes are whose) and read back by the budget walk, so the Preview tab can
@@ -138,7 +138,7 @@ interface BuildEnv {
  * rest of it.
  *
  * PRESET/HOST-authored text is NOT card-derived and keeps the turn's arm — the main-prompt framing
- * (`You are {{char}}`) is precisely where `{{char}}`-as-cast is the point. The split follows the persona axis this file
+ * (`You are {{char}}`) is precisely where `{{char}}`-as-all-seated-characters is the point. The split follows the persona axis this file
  * already routes on: a `pinnedPersona` render is card-derived, an `activePersona` render is user/preset-authored.
  *
  * WHAT THE TWO PERSONAS ARE (owner-stated, and the reason the axis is shaped this way — the WHICH-PERSONA
@@ -152,7 +152,7 @@ interface BuildEnv {
  * below rebinds only `speaker`; it must never touch either persona field, or a card starts addressing the
  * wrong human.
  *
- * Returned BY REFERENCE unless the arm is `cast`, so every solo and per-speaker turn is byte-identical.
+ * Returned BY REFERENCE unless the arm is `multi-voice`, so every solo and per-speaker turn is byte-identical.
  */
 function cardOwnerCtx(ctx: AssembleContext): AssembleContext {
   return ctx.speaker?.kind === "multi-voice" ? { ...ctx, speaker: { kind: "single", character: ctx.character } } : ctx;
@@ -228,7 +228,7 @@ function resolveScopeFallback(field: MemberField, ctx: AssembleContext, activeVa
 /** WHICH frame opens a co-speaker's card block — the ONE thing that differs between the two turns that merge
  *  other members' cards, and it differs because the two say opposite things. A per-speaker merged turn voices
  *  ONE member, so the rest are bystanders ("[Also present — X]"). A NARRATOR turn (`speaker.kind === "multi-voice"`)
- *  is one generation voicing the whole cast, so the same cards are its VOICES — framing them as bystanders
+ *  is one generation voicing all the seated characters, so the same cards are its VOICES — framing them as bystanders
  *  contradicts the round's own nudge. Keyed on the speaker arm, never on a `cardScope`/`isGroup` re-derive:
  *  the arm is what the SHAPE already decided. */
 function memberHeadingSlot(ctx: AssembleContext): ProseSlotId {

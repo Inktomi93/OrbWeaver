@@ -108,20 +108,20 @@ const memberCardVisibilityField = {
   memberCardVisibility: memberCardVisibilitySchema.catch("sheet").default("sheet"),
 } as const;
 
-/** Per-room generation behavior. `output` is the discriminator: a `narrator` turn voices the whole cast in
+/** Per-room generation behavior. `output` is the discriminator: a `narrator` turn voices all the seated characters in
  *  one message and has NO per-speaker card-scope — the `narrator ⇒ merged` constraint is made
  *  unrepresentable by OMITTING `cardScope` from that arm (and `z.strictObject` REJECTS a stray `cardScope`, an
  *  enforcer not prose). `per-speaker` (default) emits one message per speaker and carries `cardScope`. */
 export const groupConfigSchema = z.discriminatedUnion("output", [
   z.strictObject({
     output: z.literal("narrator"),
-    /** PER-SPEAKER-ONLY IN EFFECT, retained deliberately: a narrator round voices the whole cast in ONE
+    /** PER-SPEAKER-ONLY IN EFFECT, retained deliberately: a narrator round voices all the seated characters in ONE
      *  generation authored by the synthetic group character, so it consumes no arbitrated speaker. The field
      *  STAYS on this arm so flipping output narrator→per-speaker→narrator round-trips the host's choice
      *  instead of resetting it to `natural`. What it must NOT do is BUY anything: the turn verb
      *  short-circuits the `smart` side-LLM arbiter here (no model call, no `smart_arbitration_degraded`
      *  warning about a verdict nothing reads). Nor does it gate the ROUND: a narrator room narrates every
-     *  send, `manual` included (the cast turn is the room's output, not a scheduled speaker) — the one thing
+     *  send, `manual` included (the narrator turn is the room's output, not a scheduled speaker) — the one thing
      *  it still governs here is the auto-chain's cheap deterministic continue/stop probe, so `manual` ends a
      *  narrator chain after the first beat. */
     policy: groupPolicySchema,
@@ -189,8 +189,8 @@ export const DEFAULT_GROUP_CONFIG: GroupConfig = {
 };
 
 // ── Opening policy (HOW a new room opens — the start-chat union) ──
-/** Opening policy for a chat's founding cast. `greet-all` = each founding AI greets (the group default);
- *  `generate` = the model writes a cast-aware opening; `none` = seed no greeting; `first-message` = the
+/** Opening policy for a chat's founding characters. `greet-all` = each founding AI greets (the group default);
+ *  `generate` = the model writes a characters-aware opening; `none` = seed no greeting; `first-message` = the
  *  solo degenerate (the primary's greeting at seq 1). No `.catch`/`.default`: optional at every boundary,
  *  the server resolves absent → greet-all-vs-first-message by roster size. */
 export const openingPolicySchema = z.enum(["greet-all", "generate", "none", "first-message"]);

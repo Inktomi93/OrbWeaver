@@ -76,7 +76,7 @@ interface MacroExtras {
  *  `buildTurnMacroContext`. `persona` decides `{{user}}`/`{{persona}}`; `env` is the shared reference. */
 function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null | undefined, extras: MacroExtras = {}): ProcessMacroOptions {
   // {{group}} = every present CHARACTER (muted included, for lore); {{groupNotMuted}} = the pre-filtered
-  // character-only-not-muted field, or the full character cast when unset (a hand-built ctx).
+  // character-only-not-muted field, or the full seated-character set when unset (a hand-built ctx).
   const presentCharacterNames = memberNames(ctx, ctx.characters ?? [ctx.character]);
   const opts: ProcessMacroOptions = {
     char: charForSpeaker(ctx),
@@ -178,7 +178,7 @@ export function freezeVolatileMacros(
  * `@orb/kit/macro`'s `resolveRowMacros` — the shared atom server ASSEMBLE and client DISPLAY both call, so
  * they cannot diverge:
  *   - `{{char}}` on a voiced row resolves to the ROW'S OWN speaker (not the current turn's speaker); a
- *     human/narrator row resolves to the cast (roster order), matching client DISPLAY.
+ *     human/narrator row resolves to the seated characters (roster order), matching client DISPLAY.
  *   - `{{user}}`/`{{persona}}` resolve against the row's own persona stamp; a null stamp falls back to the
  *     chat anchor persona, never a per-viewer active persona, so model and every human see the same value.
  */
@@ -188,7 +188,7 @@ export function renderHistoryMacros(
   ctx: AssembleContext,
   args: {
     readonly producer: HistoryMacroNames;
-    /** The turn's current speaker/cast `{{char}}` default — absent ⇒ `charForSpeaker(ctx)`. */
+    /** The turn's current speaker/characters `{{char}}` default — absent ⇒ `charForSpeaker(ctx)`. */
     readonly speakerCharName?: string | undefined;
   },
 ): string {
@@ -197,7 +197,7 @@ export function renderHistoryMacros(
     personaNamesById: args.producer.personaNamesById,
     speakerCharName: args.speakerCharName ?? charForSpeaker(ctx),
     // Ruling B: a HUMAN-authored / narrator row's `{{char}}` resolves to the CAST (group in multi, one in
-    // solo), NOT the arbitrary current speaker — so it matches client DISPLAY. The full cast in roster order.
+    // solo), NOT the arbitrary current speaker — so it matches client DISPLAY. All the seated characters in roster order.
     characterNames: (ctx.characters ?? [ctx.character]).map((c) => c.name),
     // Ruling A / the design principle: the null-stamp `{{user}}`/`{{persona}}` fallback is the chat ANCHOR
     // (`pinnedPersona` = anchor ?? active), NEVER a per-viewer active persona — a greeting/AI line then

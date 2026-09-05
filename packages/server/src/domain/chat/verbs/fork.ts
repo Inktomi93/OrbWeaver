@@ -315,7 +315,7 @@ function pushForkStatsDeltas(
   ctx.applyStatsDelta(
     stmts,
     ctx.db,
-    // newCharacter false by construction: a fork copies an existing room's cast, so the parent chat
+    // newCharacter false by construction: a fork copies an existing room's seated characters, so the parent chat
     // already seats every character — a fork is never a character's first chat.
     chatCreatedDelta({
       ownerId,
@@ -327,7 +327,7 @@ function pushForkStatsDeltas(
   );
   // The fork is a NEW ROOM FOR EVERY SEAT IT COPIES (#1147) — the rebuild credits the forked chat to each
   // of its character participants, so each kept seat past the first rides its own census bump. Owner-grain
-  // `chats`/`forkedChats` stay on the head delta above: one new room, however wide its cast.
+  // `chats`/`forkedChats` stay on the head delta above: one new room, however wide its roster.
   for (const [idx, characterId] of args.characterIds.entries()) {
     if (idx > 0) {
       ctx.applyStatsDelta(stmts, ctx.db, seatChatDelta({ ownerId, characterId, forked: true, newCharacter: false, now }));
@@ -376,10 +376,10 @@ function pushForkStatsDeltas(
   }
 }
 
-/** The character seats a forker owns — the cast seats a fork carries. A fork moves room authority to the
- *  forker, who becomes the sole `runAsUserId` under which every cast card resolves. Cards are
+/** The character seats a forker owns — the seated characters a fork carries. A fork moves room authority to the
+ *  forker, who becomes the sole `runAsUserId` under which every seated character's card resolves. Cards are
  *  single-owned, so a seat the forker doesn't own would collapse to a blank card — rather than refuse the
- *  fork, we drop those seats. An owner forking their own chat keeps the whole cast unchanged. */
+ *  fork, we drop those seats. An owner forking their own chat keeps the whole roster unchanged. */
 async function resolveOwnedCharacterSeats(
   ctx: ChatContext,
   forkerUserId: UserId,
@@ -457,7 +457,7 @@ function buildForkStandaloneDeltas(args: {
 }
 
 /** `forkChat` — deep copy. Gate the fork (host, OR the sole present human), copy
- *  the chat + cast + canon + injections with fresh ids into a new chat where the forker is host, in one atomic
+ *  the chat + seated characters + canon + injections with fresh ids into a new chat where the forker is host, in one atomic
  *  batch. Emits `chatCreated`.
  *
  *  D16 join-history clamp: a fork COPIES canon into a room the forker HOSTS, so it is a read path with a
@@ -709,7 +709,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     ];
 
     // The rebuild counts the copied canon under the new room, so the live path must too. Owner = the
-    // fork's host. The census counts EVERY kept (forker-owned) cast seat; the first is the primary.
+    // fork's host. The census counts EVERY kept (forker-owned) seated character; the first is the primary.
     pushForkStatsDeltas(ctx, stmts, {
       ownerId: principal.userId,
       characterIds: keptCharacterSeats.map((r) => r.characterId),

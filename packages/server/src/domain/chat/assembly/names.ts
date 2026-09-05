@@ -69,11 +69,11 @@ interface NamedRow {
  * appended user turn, a nudge — never a canon row) and takes the `standard` answer.
  *
  *   • `standard`  — yes: the mode decides (this is every row today's behavior covers).
- *   • `narrator`  — NO. A narrator row is ONE generation voicing the whole cast, and its body already carries
+ *   • `narrator`  — NO. A narrator row is ONE generation voicing all the seated characters, and its body already carries
  *     each speaker's own `NAME:` attribution (converted from the stored `<speaker>` tags at `toShapeCanon`).
  *     A row-level prefix on top of that is a SECOND, WRONG label: it names the whole multi-speaker block after
  *     one identity — the synthetic `__group__` card ("Group"), or, once that card's name does not resolve
- *     through the identity producer, the turn's `speakers.assistant` fallback, i.e. some cast member gets credited
+ *     through the identity producer, the turn's `speakers.assistant` fallback, i.e. some seated character gets credited
  *     with everyone else's lines. That is the assistant-side twin of INJECT-NAMED-AS-PLAYER, and `default`
  *     mode only escaped it by accident (a narrator room's rows all share one characterId, so the
  *     `multiCharacter` gate happened to be false); `content` and `completion` mislabelled every narrator row.

@@ -27,7 +27,7 @@ import { messageRoleSchema } from "./participants.ts";
 // Types only — the producing engine (`assemblePrompt`/`buildAssembleContext`) is `domain/chat`.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** The card's Character's-Note-\@-Depth projected onto the assemble cast — spliced into history at a
+/** The card's Character's-Note-\@-Depth projected onto the assemble characters — spliced into history at a
  *  fixed `depth`/`role`. Re-homed slim HERE (not imported from `contracts/character`) so `chat` avoids a
  *  `chat → character` DAG edge. An empty `prompt` is "no note" at assemble time. */
 export interface AssembleDepthNote {
@@ -158,7 +158,7 @@ export interface MemoryRecallCandidate {
    *  tier-0 blocks). */
   tier: number;
   blockIdx: number;
-  /** WHOSE egocentric bucket the block belongs to — the shared synthetic group character, or a cast member
+  /** WHOSE egocentric bucket the block belongs to — the shared synthetic group character, or a seated character
    *  under scoped recall (the two buckets the mode-switch union reads). */
   scopedCharacterId: CharacterId;
   verdict: MemoryRecallVerdict;
@@ -505,7 +505,7 @@ export interface VariantWireView {
 
 /** The immutable per-turn context (RESOLVE + GATHER produce it; BUILD + SHAPE take it + a speaker). Most
  *  fields are optional so hand-built / preview / solo contexts degrade to byte-identical output (the §10.4
- *  degenerate-case doctrine: solo is the trivial cast, never an `if(isGroup)` branch). */
+ *  degenerate-case doctrine: solo is the trivial roster, never an `if(isGroup)` branch). */
 export interface AssembleContext {
   /** The active/primary character for this turn. */
   character: AssembleCharacter;
@@ -514,20 +514,20 @@ export interface AssembleContext {
   promptConfig: PromptConfig;
   /** All character members (primary first). A roster-of-one solo chat is exactly `[character]`. */
   characters?: AssembleCharacter[];
-  /** Per-cast-member character id, index-aligned with `characters`. Null for a non-character slot — an AGENT seat
-   *  (D60; its cast card is its resolved soul, it has no characterId) or a hand-built/legacy member. */
+  /** Per-seated-character character id, index-aligned with `characters`. Null for a non-character slot — an AGENT seat
+   *  (D60; its own card is its resolved soul, it has no characterId) or a hand-built/legacy member. */
   characterIds?: (CharacterId | null)[];
-  /** Per-cast-member SPEAKER identity, index-aligned with `characters` (D60) — a `character` or an `agent` (whose
+  /** Per-seated-character SPEAKER identity, index-aligned with `characters` (D60) — a `character` or an `agent` (whose
    *  card is its resolved soul). The per-speaker card selection (`shape(ctx, speaker)`) keys on THIS to pick
    *  the active member + the co-speakers; a character-only room's refs are all `{kind:'character'}`. Absent ⇒
    *  a hand-built/legacy ctx (the per-speaker shape falls back to the primary — byte-identical). */
   speakerRefs?: SpeakerRef[];
   /** The non-muted CHARACTER subset of `characters` — drives `{{groupNotMuted}}`. Character-only by owner ruling:
-   *  the `{{group}}`-family macros never list agent seats (an agent voices via the cast, but is not a name in
-   *  these lists). Absent ⇒ falls back to the full CHARACTER cast (the macro layer re-derives it). */
+   *  the `{{group}}`-family macros never list agent seats (an agent voices via the seated characters, but is not a name in
+   *  these lists). Absent ⇒ falls back to the full seated CHARACTER set (the macro layer re-derives it). */
   unmutedCharacters?: AssembleCharacter[];
-  /** Who is generating: `single` (per-speaker, `{{char}}` = that character) vs `cast` (narrator, `{{char}}`
-   *  = the whole cast, joined). Solo is always `single`. PRODUCED by the card shape
+  /** Who is generating: `single` (per-speaker, `{{char}}` = that character) vs `multi-voice` (narrator, `{{char}}`
+   *  = all the seated characters, joined). Solo is always `single`. PRODUCED by the card shape
    *  (`assembly/speaker-card`), which dispatches on the round's `output` axis — a narrator round's authoring
    *  speaker is the SYNTHETIC group character and is deliberately NOT in `speakerRefs`, so this arm can never
    *  be derived from the ref. `active` is the member whose card fills the character section (the primary);

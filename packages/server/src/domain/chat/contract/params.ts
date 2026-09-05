@@ -438,7 +438,7 @@ export interface ToggleReactionParams extends ChatScopedParams {
    *  whole-message, the default at every pointer). The verb re-parses the canon itself and stores ITS OWN
    *  speaker + snippet; the claim is only compared (a mismatch is `invalid_segment`), never persisted —
    *  a member cannot write free text into a column every transcript renders. `segmentSpeaker` is the span
-   *  label the CLIENT parsed at that index (`null` = a narration span), carried so a content/cast race
+   *  label the CLIENT parsed at that index (`null` = a narration span), carried so a content/roster race
    *  refuses instead of landing the click on somebody else's line. */
   readonly segmentIndex?: number | undefined;
   readonly segmentSpeaker?: string | null | undefined;

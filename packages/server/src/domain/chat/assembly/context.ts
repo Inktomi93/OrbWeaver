@@ -1,4 +1,4 @@
-// Assemble context producer: RESOLVE (cast/personas/names) → GATHER (WI pool + keyword match + memory) →
+// Assemble context producer: RESOLVE (characters/personas/names) → GATHER (WI pool + keyword match + memory) →
 // BUILD (render WI once, unify all injections into one budgeted pass) → the immutable AssembleContext SHAPE
 // consumes per speaker. USER_INPUT regex runs here (between RESOLVE and GATHER) so the WI haystack and the
 // persisted user row are the same post-regex text.
@@ -312,7 +312,7 @@ interface BuildAssembleContextInput {
    *  NOT folded into `characterIds` — agents have no character id / world-info / memory bucket. */
 
   /** The `speakerKey`s of the present MUTED seats (character + agent), from `loadRoom`'s candidate `disabled`
-   *  axis — the producer of `unmutedCharacters`. Absent ⇒ nothing muted (or a hand-built ctx) ⇒ full cast. */
+   *  axis — the producer of `unmutedCharacters`. Absent ⇒ nothing muted (or a hand-built ctx) ⇒ the full seated-character set. */
   readonly mutedSpeakerKeys?: ReadonlySet<string> | undefined;
   readonly personaIds: readonly PersonaId[];
   readonly promptConfig: PromptConfig;
@@ -422,7 +422,7 @@ function buildBaseContext(
     characterIds: speakerRefs.map((m) => m.characterId),
     speakerRefs,
     // The non-muted CHARACTER subset — the `{{groupNotMuted}}` feed (owner ruling: the group macros are
-    // character-only; an agent voices via the assemble cast but never appears in a name list). Filtered by the
+    // character-only; an agent voices via the assembled seated characters but never appears in a name list). Filtered by the
     // muted-seat keys `loadRoom` derives from the SAME `disabled` axis arbitration reads. A muted character
     // stays in `characters` (its card + lore still contribute) but drops here.
     unmutedCharacters: characters.filter((_, i) => {
@@ -685,10 +685,10 @@ function resolvePersonaDescriptionCandidates(
   return candidates;
 }
 
-/** The seated cast's Character's-Note-\@-Depth (`card.depthPrompt`) → per-member in_chat injection
+/** The seated characters' Character's-Note-\@-Depth (`card.depthPrompt`) → per-member in_chat injection
  *  candidates. Every present characters member with a non-empty note injects, with `{{char}}` bound to that
  *  member; `{{user}}` routes to the card (anchor/pinned) persona, not the active speaker. Same-depth
- *  notes keep cast order (primary first) deterministically since neither side sets an explicit `order`. */
+ *  notes keep seating order (primary first) deterministically since neither side sets an explicit `order`. */
 function characterDepthNoteCandidates(
   ctx: AssembleContext,
   registry: MacroRegistry,
@@ -732,7 +732,7 @@ function depthNoteSource(contributorNames: readonly string[]): string {
   return contributorNames.length === 1 ? `from ${contributorNames[0]}` : "merged (present characters)";
 }
 
-/** The author's-note depth injections for this turn — the seated cast's card notes, and ONLY those. The
+/** The author's-note depth injections for this turn — the seated characters' card notes, and ONLY those. The
  *  per-chat author's note is NOT a second producer here: a room-level note is a
  *  `chat_injections` row, which reaches this same list through `userInjections` on the identical at-depth
  *  splice. `authorsNoteSource` therefore names card contributors or is absent. */
@@ -841,7 +841,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   const prose = composeProse({ user: await ctx.resolveChatProse(input.chatId), preset: input.promptConfig.prose });
 
   // ── GATHER — the 4-scope WI pool (memory/recall/vars are engine-supplied inputs). ──
-  // The cast ids handed to the pool are the OWNER-VERIFIED ones (#1396) — `present`, not `input.characterIds`.
+  // The character ids handed to the pool are the OWNER-VERIFIED ones (#1396) — `present`, not `input.characterIds`.
   // Every id above was already resolved through the owner-scoped `getCard`, and the ones that came back empty
   // are exactly the cards this turn refuses to speak for; feeding the raw list let a card the ownership read
   // REFUSED still contribute its character-scope lore. The pool's own per-arm owner predicates are the second

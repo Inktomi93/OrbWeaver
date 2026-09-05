@@ -233,7 +233,7 @@ export function setPendingHostStatement(
 
 /** Re-point ONE present character seat at a different card, unexecuted — the handoff COPY's replacement for
  *  the D64 drop. IN PLACE, deliberately: the seat row keeps its `joinSeq` era, its `talkativeness`/`disabled`
- *  knobs and its identity, so the copied cast occupies exactly the history the originals did. Present-only
+ *  knobs and its identity, so the copied seated character occupies exactly the history the original did. Present-only
  *  (`leftSeq IS NULL`) — a seat that left mid-accept is not resurrected. */
 export function repointCharacterSeatStatement(db: Db, participantId: ChatParticipantId, characterId: CharacterId): BatchStmt {
   return db
