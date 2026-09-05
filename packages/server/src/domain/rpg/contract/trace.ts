@@ -35,7 +35,8 @@ import type { ChatId, ChatTurnId } from "@orb/kit/ids";
  *  • `failed` — something threw out of the round, the write boundary, or the tool-call disclosure. The
  *    settle still fires (from the `finally`) BEFORE the throw propagates, because a barrier that only
  *    releases on success hangs to its timeout on exactly the turn a reader most needs to see. */
-export type RpgFlushOutcome = "wrote" | "no-writes" | "dropped" | "cancelled" | "readonly" | "failed";
+const RPG_FLUSH_OUTCOMES = ["wrote", "no-writes", "dropped", "cancelled", "readonly", "failed"] as const;
+export type RpgFlushOutcome = (typeof RPG_FLUSH_OUTCOMES)[number];
 
 /** The per-turn RPG trace event. Discriminated on `phase`; the recorder stamps `seq`/`at` at record time (the
  *  emitter never reads a clock — determinism). */
