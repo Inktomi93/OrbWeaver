@@ -36,3 +36,5 @@ about eight GPU-hours.
   diff-your-delta check, and the two-lane sequencing rule).
 - **NEVER open the LIVE db with bare `sqlite3`** — it takes a WAL lock the running server does not
   expect. Read through the app's own path.
+
+**Owner ruling 2026-09-05 (relayed via claude-b, verbatim-ish: "we don't gaf about the db, it can be nuked"):** the dev database is DISPOSABLE — a baseline squash needs no merge-window sequencing, no backup `.keep` pin and no owner word. The hazard facts below stay true (a reset drops every imported row); the owner has priced them as acceptable for the dev box. Two baseline regens still cannot be unioned — sequence lanes, never the owner.

@@ -168,13 +168,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "e59deac821071ae0daf2ddc9140ef28254cbf8910bdc0937bba26de6af154e67",
+      "assignedSha256": "3bb3b7bdbf6cd5796be69280f82b49cc798f4e38aff4f215d10447df40ac0f06",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "f0c18c0e479c33c52a8b0436ebdb2a09a195e620516b286e741f064e1fb2ef39",
-      "verifiedCommit": "4d45c7a55270f6da119daa1969ffcf81501274e3",
-      "verifiedAt": "2026-09-02",
+      "verifiedSha256": "3bb3b7bdbf6cd5796be69280f82b49cc798f4e38aff4f215d10447df40ac0f06",
+      "verifiedCommit": "2674a94530d58a05e5d339d633aca030ed250729",
+      "verifiedAt": "2026-09-05",
       "evidence": [
         "re-attested at a4467408a (#971, lane p-argv-lock): `tooling-argv-front-door` row — both read spellings, the shape-derived cli.ts home, the two-sided ARGV_ENTRIES stale sweep, the §4.6 blindness tripwire, and the declared limit; registered-gate count 251 → 252 (a live `pnpm check:structure` reports 252/252).",
         "re-attested at f93bc911d (#1094, lane p-knob-arms): knob-wire-coverage row — arm A through the resolved type (inherited fields are subjects), arm B through tuple-read, arms B2/C/E/F through ONE authored-object reader (spreads, .extend/.merge, imported bindings, shorthand, computed string keys; everything else refuses); four declared populations",
@@ -257,7 +257,8 @@
         "re-attested at 7f51cd1b5 — the no-blanket-suppression row's renamed describe-scoped CONSTANT_CASE count corrected 24 → 21 (the diff's `- const` removals under tests/, per the cold verifier); one number, no other text moved.",
         "re-attested at f20da4c30 — fold of #1164 (cb-instrument-slots, claude-b): the rendered instruments (snap/design-audit/record/motion-audit/perf-meter) take per-run artifact slots with atomic per-FILE pointers, reference-aware retention, the tooling-shared-plumbing arm G, and the artifact-out.ts layer split; §3.3b's 'deliberately not slotted' ruling retired with both texts preserved. Delta read once at the fold; no other text moved.",
         "re-attested at 7dcb31b0e — merge of #1157/#1158/#1166/#1167 (p-lint-hygiene, aeece9396): the biome-grant-liveness row gains the rule-liveness arm (one biome invocation on a root-placed probe config with every exact-path rule-off grant stripped; pure-exact rows judged, mixed rows a declared limit; 6.4 s wall stated). Union with the #1164 re-attest read once; no other row moved.",
-        "re-attested at 2d8e7f628 (#1271, substrate phase 2 chunk 2): the `tooling-shared-plumbing` row gains arm I — the PORT half over a numeric literal at a registry port value or PORT-NAMED position, judged across `tooling/src/**`, `tests/e2e/support/**` and the root `playwright*.config.ts` files, RED outside the ONE `_shared/ports.ts` registry, with the string-literal and four-MIRROR-site declared limits (owner ruling 2026-09-02). A whole-tree `pnpm check:structure` post-fold run at merged tip 0e2b6f92d (the arm's own tripwire diagnostic corrected to carry a code-home pointer, doc text unchanged) reports `tooling-shared-plumbing` clean at scanned 1056/6669 — matching the authoring lane's own scoped-door count — and the whole single-pass clean; registered-gate count unchanged (no new gate, an arm on an existing one)."
+        "re-attested at 2d8e7f628 (#1271, substrate phase 2 chunk 2): the `tooling-shared-plumbing` row gains arm I — the PORT half over a numeric literal at a registry port value or PORT-NAMED position, judged across `tooling/src/**`, `tests/e2e/support/**` and the root `playwright*.config.ts` files, RED outside the ONE `_shared/ports.ts` registry, with the string-literal and four-MIRROR-site declared limits (owner ruling 2026-09-02). A whole-tree `pnpm check:structure` post-fold run at merged tip 0e2b6f92d (the arm's own tripwire diagnostic corrected to carry a code-home pointer, doc text unchanged) reports `tooling-shared-plumbing` clean at scanned 1056/6669 — matching the authoring lane's own scoped-door count — and the whole single-pass clean; registered-gate count unchanged (no new gate, an arm on an existing one).",
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md:116 re-attested at 2674a9453 by the orchestrator after reading the #1451 diff (external-id-single-writer: claim arm widened from LINK-only to the two capability verbs; bindOwnerSubject now calls claimExternalIdIfUnbound then an inline updateUser without externalId, so the declared-limit example is updateExisting's changes patch; mustFlag third caller still red; finalize tripwires untouched)."
       ],
       "claims": [
         {
