@@ -99,6 +99,24 @@ test("the editor's Start door reports what it applied and names the room after t
 /** The same cast after a second writer renamed it. */
 const RENAMED_VIEW = { ...CAST_VIEW, name: "The Lantern Crew", updatedAt: 2 };
 
+// A FENCE, not a defect proof, and labelled as one (#1587). The two text cells carried
+// `aria-label="Roster name"` / `"Roster description"` beside a `<Field label="Name">` / `"Description"`, and
+// the Field's `aria-labelledby` OUTRANKS `aria-label` — so those attributes named nothing and the announced
+// names were already the Field's. This assertion therefore passed BEFORE the attributes were removed as well
+// as after; what it buys is that the next author who adds an `aria-label` here to change the announced name
+// discovers immediately that it does not, instead of shipping a name only the source claims.
+test("the text cells announce their FIELD labels — an aria-label beside a Field label names nothing (#1587)", async ({ mount, page }) => {
+  await routeTrpc(page, { "rosterPreset.get": CAST_VIEW, "automation.listRulePresets": [PACING_PRESET] });
+  await mount(<RosterMemberEditorStory />);
+  await expect(page.getByRole("heading", { level: 2, name: "Adventuring Cast" })).toBeVisible();
+
+  await expect(page.getByRole("textbox", { name: "Name", exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Description", exact: true })).toBeVisible();
+  // The names the dead attributes claimed. Nothing answers to them — before or after the removal.
+  await expect(page.getByRole("textbox", { name: "Roster name" })).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "Roster description" })).toHaveCount(0);
+});
+
 test("an UNTOUCHED editor does not become dirty because the row moved underneath it (#1561)", async ({ mount, page }) => {
   // WHAT THE STUB ANSWERS NEXT, as a PUSHED array rather than a boolean flip: biome narrows a
   // `= false` initializer to the literal type and reds the later flip as an always-falsy condition,

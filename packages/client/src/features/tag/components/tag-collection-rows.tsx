@@ -189,7 +189,7 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
 }
 
 /** "Prune unused" + its confirm — the mass-delete's one door (the ConfirmDialog homing precedent). */
-function PruneUnusedControl({ count, onConfirm }: { readonly count: number; readonly onConfirm: () => void }): ReactElement {
+function PruneUnusedControl({ count, onConfirm }: { readonly count: number; readonly onConfirm: () => void | Promise<void> }): ReactElement {
   return (
     <Row justify="end">
       <ConfirmDialog

@@ -254,6 +254,11 @@ export function ParamsDeckCustomParamsResetStory(): ReactElement {
       <button onClick={(): void => setReset(true)} type="button">
         Reset the preset
       </button>
+      {/* The RESET'S OWN LANDING MARKER (#1588). The three reseed fences assert that something did NOT
+          happen, so they need a positive signal that the new `serverValues` actually reached the form —
+          otherwise they are asserting against a reset that had not been delivered yet, which is a sleep
+          wearing a barrier's clothes. This node mounts on the SAME commit that hands the new blob down. */}
+      {reset ? <p data-testid="params-deck-reset-applied">reset applied</p> : null}
       <DeckHarness customParameters={reset ? after : before} effective={GHOST_EFFECTIVE} params={{}} />
     </>
   );

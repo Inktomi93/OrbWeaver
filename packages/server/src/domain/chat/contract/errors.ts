@@ -10,7 +10,7 @@
 // the host) → ChatOperationError("not_host") — the existence is already known to a member, so this is an
 // authority refusal, not a leak. (Authoritative auth surface: core/Spine-Identity-and-Auth.md.)
 
-import { TURN_ABORTED_OP_CODE, TURN_LOCKED_OP_CODE } from "@orb/contracts/chat";
+import { TURN_ABORTED_OP_CODE, TURN_LOCKED_OP_CODE, USER_MACRO_UNKNOWN_PICK_OP_CODE } from "@orb/contracts/chat";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
 
@@ -143,7 +143,7 @@ export const CHAT_OP_CODES = {
    *  say WHICH knob went stale. The caller IS a member and `getUserMacroPicks` already hands them these
    *  options, so a coded refusal leaks nothing. The resolve-side belt (kit `resolveStaticInput`) still
    *  drops an already-STORED pick whose option was renamed away after the write. */
-  unknownMacroPick: "unknown_macro_pick",
+  unknownMacroPick: USER_MACRO_UNKNOWN_PICK_OP_CODE,
 } as const;
 
 /** The reason-code union (derived from the one tuple of values — never re-spelled). */

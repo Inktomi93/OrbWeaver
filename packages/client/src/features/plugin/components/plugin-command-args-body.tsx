@@ -83,7 +83,10 @@ function ArgInput({
   }
   return (
     <Field description={spec.describe} label={argLabel(spec)}>
-      <Input aria-label={spec.name} onValueChange={onChange} value={value} />
+      {/* No `aria-label` (#1587): the Field's label reaches this control through Base UI's `aria-labelledby`,
+          which outranks it, so `spec.name` named nothing — the cell announces `argLabel(spec)`, the visible
+          label including the required marker, which is the richer of the two anyway. */}
+      <Input onValueChange={onChange} value={value} />
     </Field>
   );
 }

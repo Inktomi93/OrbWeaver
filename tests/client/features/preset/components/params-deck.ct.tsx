@@ -1014,6 +1014,77 @@ test("CUSTOM PARAMS — a RESET reseeds the rows; the pre-reset keys do not surv
   await expect(deck.getByRole("textbox", { name: "Parameter 2 name" })).toHaveCount(0);
 });
 
+// ── #1588 · THE RESEED AND THE TWO-WRITER RULING, MEASURED ────────────────────────────────────────
+// #1588 read `custom-parameters-editor.tsx`'s render-time reseed as the OPPOSITE arm of the #1561 ruling —
+// a reseed that discards in-progress typing when a second writer moves the field. MEASURED, it is not: the
+// only writer that can move `customParameters` on a STILL-MOUNTED form is
+// `create-autosave-entity-form.tsx`'s clean server-echo effect, and that effect is gated on
+// `saveState !== "saving" && !hasUnsavedEdits(...)`. Every keystroke in this editor goes through
+// `commit()` → `form.setFieldValue`, so typing makes the form dirty and the echo cannot fire — the value
+// the rows are reseeded FROM only ever moves while there is nothing unsaved to lose. Routing the commit
+// through `lib/edit-session.ts` would put a second, weaker copy of that decision inside the editor, and
+// would have to refuse the #1520 case the pin below requires.
+//
+// THESE THREE ARE FENCES, NOT DEFECT PROOFS — all three pass on the pre-#1588 source, which is the finding.
+// What they buy is that the guard is now asserted where the class is read: if a future writer pushes
+// `serverValues` in without the clean gate, or the editor starts committing somewhere other than the form,
+// these go red instead of the defect shipping.
+
+/** The reset has LANDED and the form has had its chance to react to it: the story's marker mounts on the
+ *  commit that hands the new `serverValues` down, and two animation frames past that is strictly after
+ *  React has flushed that commit's passive effects — which is where
+ *  `create-autosave-entity-form.tsx`'s clean server-echo reseed lives. A `waitForTimeout` here would be a
+ *  guess; this is the event. */
+async function resetLanded(deck: Locator, page: Page): Promise<void> {
+  await expect(deck.getByTestId("params-deck-reset-applied")).toBeVisible();
+  await page.waitForFunction(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))), undefined, {
+    polling: "raf",
+  });
+}
+
+test("RESEED — an edit the form's validity gate is HOLDING survives a reset arriving underneath it (#1588)", async ({ mount, page }) => {
+  const deck = await mount(<ParamsDeckCustomParamsResetStory />);
+  await openAdvanced(deck);
+  await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toHaveValue("dry_multiplier");
+
+  // An UNFINISHED row: `not json` never parses, so the row commits the pending `undefined` marker, the form
+  // is invalid and the save driver holds every write. These keystrokes exist nowhere but the box.
+  await deck.getByRole("textbox", { name: "Parameter 1 value" }).fill("not json");
+  await expect(deck.getByText("Not valid JSON", { exact: false })).toBeVisible();
+
+  await deck.getByRole("button", { name: "Reset the preset" }).click();
+  await resetLanded(deck, page);
+
+  await expect(deck.getByRole("textbox", { name: "Parameter 1 value" })).toHaveValue("not json");
+});
+
+test("RESEED — an edit still inside the autosave debounce survives one too (#1588)", async ({ mount, page }) => {
+  const deck = await mount(<ParamsDeckCustomParamsResetStory />);
+  await openAdvanced(deck);
+  // VALID, so nothing holds it — but not yet saved, which is the narrower window.
+  await deck.getByRole("textbox", { name: "Parameter 1 name" }).fill("dry_range");
+  await deck.getByRole("button", { name: "Reset the preset" }).click();
+  await resetLanded(deck, page);
+
+  // Last-writer-wins is the form's documented posture: the edit is kept and saved, and the reset that
+  // arrived mid-edit is what loses. What must NOT happen is the keystrokes vanishing from the box.
+  await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toHaveValue("dry_range");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('"dry_range"');
+});
+
+test("RESEED — an edit already SAVED is replaced by the reset, which is the #1520 arm (#1588)", async ({ mount, page }) => {
+  const deck = await mount(<ParamsDeckCustomParamsResetStory />);
+  await openAdvanced(deck);
+  await deck.getByRole("textbox", { name: "Parameter 1 value" }).fill("0.9");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('"dry_multiplier":0.9');
+
+  await deck.getByRole("button", { name: "Reset the preset" }).click();
+  await resetLanded(deck, page);
+
+  // Nothing unsaved to lose, so the arrived truth wins — the reseed doing exactly its job.
+  await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toHaveValue("top_a");
+});
+
 // ── #1570 item 3 · THE BOX ALWAYS SHOWS WHAT THE PRESET HOLDS, IN BOTH DIRECTIONS ────────────────
 // The field's own ruling is "a blur re-mounts with the CANONICAL serialization of what was actually stored
 // — the honest answer to 'invalid JSON is ignored'". Keyed on the stored serialization ALONE that was true

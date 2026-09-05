@@ -10,6 +10,7 @@
 // here at compile time, never a re-spelled union at the call site (§5.5).
 
 import type { ChatInjectionInput, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
+import { USER_MACRO_UNKNOWN_PICK_OP_CODE } from "@orb/contracts/chat";
 import type { ChoiceBlockValues, UserMacroValues } from "@orb/contracts/preset";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { ChatId, ChatInjectionId } from "@orb/kit/ids";
@@ -112,6 +113,38 @@ interface SetUserMacroValuesVars {
 
 type UserMacroPicks = inferOutput<Trpc["chat"]["getUserMacroPicks"]>;
 
+/** The refusal reason off a tRPC error's `data.reason` (the transport formatter's honest domain code,
+ *  `transport/trpc/error-mapping.ts`), else `""`. The `use-refinery-mutations` / `turn-abort-notice` reader —
+ *  the client keys on the structured wire field, never on message text. */
+function reasonOf(error: unknown): string {
+  const data = typeof error === "object" && error !== null && "data" in error ? (error as { data: unknown }).data : null;
+  return typeof data === "object" && data !== null && "reason" in data && typeof (data as { reason: unknown }).reason === "string"
+    ? (data as { reason: string }).reason
+    : "";
+}
+
+/**
+ * `true` when a `setUserMacroValues` flush was refused because a `single-select`/`multi-select` pick names a
+ * value the input does not declare (#1356). The refusal is TOTAL — the verb is a whole-column flush, so
+ * nothing was stored — and it is the one failure of this write a person can act on, which is why the picks
+ * pane renders it beside the control that was moved (WCAG 3.3.1) rather than letting it read as a fault.
+ */
+export function isUnknownMacroPick(error: unknown): boolean {
+  return reasonOf(error) === USER_MACRO_UNKNOWN_PICK_OP_CODE;
+}
+
+/**
+ * The field-level copy for that refusal, in the pane's OWN vocabulary. The server's message names the macro,
+ * the input and the option VALUES — internal spellings the pane never shows — so the copy is client-side and
+ * keyed by code (the `character-refusal-notice` precedent), naming the option LABELS the control offers and
+ * the fact that nothing was saved.
+ */
+export function unknownMacroPickCopy(optionLabels: readonly string[]): string {
+  return optionLabels.length === 0
+    ? "This input no longer offers any options, so nothing can be picked here. Nothing was saved."
+    : `That pick is no longer one of this input's options, so nothing was saved. Pick one of: ${optionLabels.join(", ")}.`;
+}
+
 export const useSetUserMacroValues = createEntityMutation<SetUserMacroValuesVars, unknown, UserMacroPicks>({
   options: (trpc) => trpc.chat.setUserMacroValues.mutationOptions(),
   // OPTIMISTIC: the picks pane is a set of DISCRETE-write controls outside an autosave form (no local field
@@ -124,7 +157,11 @@ export const useSetUserMacroValues = createEntityMutation<SetUserMacroValuesVars
   // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ the seam's `getUserMacroPicks` row),
   // delivered by the active subscription — that echo is the reconciliation of the optimistic write above.
   busDriven: true,
-  errorToast: "Couldn't save the macro picks.",
+  // The off-vocabulary refusal is SUPPRESSED here because the pane says it beside the knob that caused it —
+  // a toast on top would be one refusal in two spellings (the `isSilencedTurnAbort` precedent for the
+  // function form). `useSetUserMacroValues` has exactly one consumer, the picks pane, and that pane always
+  // renders the field line for this code, so suppressing it can never leave the refusal unsaid.
+  errorToast: (error: unknown): string | null => (isUnknownMacroPick(error) ? null : "Couldn't save the macro picks."),
 });
 
 /** `chat.setVariables` vars — the WHOLE per-chat ChoiceBlock pick bag (the verb is a column flush, so every

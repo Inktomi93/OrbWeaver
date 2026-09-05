@@ -180,7 +180,13 @@ function StopSequences({ form }: { readonly form: AppForm }): ReactElement {
                   </Button>
                 </Badge>
               ))}
-              <Input aria-label="Add stop sequence" onKeyDown={add} placeholder="add…" />
+              {/* No `aria-label` (#1587): this Input is the Field's control, so the Field's label reaches it
+                  through Base UI's `aria-labelledby` and OUTRANKS an `aria-label` — "Add stop sequence" named
+                  nothing and the box already announced "Stop sequences". Removed rather than kept as a
+                  source-only claim. Giving the add box its own name means giving the GROUP a legend instead of
+                  a Field label (`Fieldset`/`FieldsetLegend`, the macro-picks-pane anatomy), which is a deck
+                  layout change and its own row. */}
+              <Input onKeyDown={add} placeholder="add…" />
             </Row>
           </Field>
         );

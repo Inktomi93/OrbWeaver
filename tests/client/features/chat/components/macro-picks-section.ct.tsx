@@ -7,7 +7,7 @@
 
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { MacroPicksSectionStory } from "../_ct-stories.tsx";
 
 // The wire shape `chat.getUserMacroPicks` returns (the server's least-privilege projection: identity +
@@ -42,6 +42,25 @@ const WEATHER_INPUT = {
 };
 
 const MOOD_MACRO = { name: "mood", description: "The scene's emotional weather.", inputs: [TONE_INPUT, WEATHER_INPUT], source: "preset" };
+
+/** A MULTI-SELECT input — the second vocabulary-bound kind (#1356/#1582). Its store is a string ARRAY the
+ *  turn filters to the declared options and joins; unlike `random-pick`, a selection nothing survives is
+ *  UNPICKED rather than "the whole pool". */
+const TEXTURE_INPUT = {
+  kind: "multi-select",
+  name: "texture",
+  label: "Texture",
+  options: [
+    { label: "Terse", value: "terse" },
+    { label: "Lush", value: "lush" },
+  ],
+  separator: ", ",
+  onValue: "true",
+  offValue: "",
+  defaultValue: "lush",
+};
+
+const PROSE_MACRO = { name: "prose", description: "How the narration reads.", inputs: [TEXTURE_INPUT], source: "preset" };
 
 /** The GAME's own declaration (the second definition home) — same wire shape, `source: "game"`, which the
  *  pane glosses so a picker can tell the knob came with the game (a preset macro stays unmarked). */
@@ -299,4 +318,98 @@ test("Use default UNSETS a stored variable pick; a value the preset no longer of
   await page.getByRole("combobox", { name: "Narration POV" }).click();
   await page.getByRole("option", { name: "Use default (third person)", exact: true }).click();
   await expect.poll(() => trpc.lastInput("chat.setVariables")).toEqual({ chatId: "chat_ct_keystone", values: {} });
+});
+
+// ── #1582 · A STORED PICK OUTLIVES ITS DEFINITION ─────────────────────────────────────────────────────
+// #1356 gave the turn a resolve-side belt (kit `resolveStaticInput`): a select pick naming a value the
+// input no longer declares is NEUTRALISED — a single-select falls to the default ladder, a multi-select
+// keeps only the survivors and reads a wholly-foreign selection as unpicked. The PANE went on rendering the
+// stored value as the chosen one, so the control said one thing and the reply used another; and because
+// `setUserMacroValues` is a whole-column flush, the next unrelated edit carried that dead value back to a
+// server that now REFUSES it (`unknown_macro_pick`). The pane therefore rebuilds its bag against the live
+// declarations before it renders or flushes.
+
+test("a stale stored single-select pick shows the DEFAULT it will resolve to, not the stale value (#1582)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    // `bleak` was an authored option once; the preset's options are now Grim/Warm.
+    "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: { mood: { tone: "bleak" } } }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
+  });
+
+  const component = await mount(<MacroPicksSectionStory />);
+
+  // NOT "bleak", and not a blank trigger: the fallback the turn actually resolves, said as the unset arm.
+  await expect(page.getByRole("combobox", { name: "Tone" })).toHaveText("Use default (warm)");
+  // Unset ⇒ no un-set affordance, exactly as a never-picked input renders.
+  await expect(component.getByRole("button", { name: "Use default" })).toHaveCount(0);
+});
+
+test("…and the next edit's whole-bag flush does not carry the dead value back (#1582)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: { mood: { tone: "bleak" } } }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
+    "chat.setUserMacroValues": () => ({}),
+  });
+
+  const component = await mount(<MacroPicksSectionStory />);
+  await component.getByRole("checkbox", { name: "Storm" }).click();
+
+  await expect.poll(() => trpc.count("chat.setUserMacroValues")).toBe(1);
+  // `tone` is ABSENT — a surviving `tone: "bleak"` is the whole defect: the server refuses the flush the
+  // user's unrelated pool edit just produced, and the pool edit is lost with it.
+  await expect.poll(() => trpc.lastInput("chat.setUserMacroValues")).toEqual({ chatId: "chat_ct_keystone", values: { mood: { weather: ["storm"] } } });
+});
+
+test("a multi-select keeps the SURVIVING picks and drops only the dead ones (#1582)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getUserMacroPicks": () => ({ macros: [PROSE_MACRO], values: { prose: { texture: ["terse", "baroque"] } } }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
+    "chat.setUserMacroValues": () => ({}),
+  });
+
+  const component = await mount(<MacroPicksSectionStory />);
+
+  // Still a real pick — `terse` survives, so this is NOT the unset arm.
+  await expect(component.getByRole("checkbox", { name: "Terse" })).toBeChecked();
+  await expect(component.getByRole("checkbox", { name: "Lush" })).not.toBeChecked();
+  await expect(component.getByText("The checked options, joined.")).toBeVisible();
+
+  await component.getByRole("checkbox", { name: "Lush" }).click();
+  await expect.poll(() => trpc.lastInput("chat.setUserMacroValues")).toEqual({ chatId: "chat_ct_keystone", values: { prose: { texture: ["terse", "lush"] } } });
+});
+
+test("a multi-select nothing survives reads as UNPICKED — the resolver's own ladder (#1582)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getUserMacroPicks": () => ({ macros: [PROSE_MACRO], values: { prose: { texture: ["baroque"] } } }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
+  });
+
+  const component = await mount(<MacroPicksSectionStory />);
+
+  await expect(component.getByRole("checkbox", { name: "Terse" })).not.toBeChecked();
+  await expect(component.getByRole("checkbox", { name: "Lush" })).not.toBeChecked();
+  // The unset consequence, not "the checked options, joined" over an empty set.
+  await expect(component.getByText("Use default (lush)")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Use default" })).toHaveCount(0);
+});
+
+// The OTHER half of #1582: the server's own refusal had no client handler at all, so a member whose knob
+// went stale under them got the generic "Couldn't save the macro picks." — a sentence about the app, not
+// about the one thing they can fix. The refusal now lands beside the control that caused it (WCAG 3.3.1),
+// naming the options the input DOES offer, and the generic toast is suppressed so there is one surface.
+test("an unknown_macro_pick refusal is said BESIDE the knob that caused it, naming the options (#1582)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: {} }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
+    "chat.setUserMacroValues": () =>
+      trpcError({ code: "BAD_REQUEST", message: 'mood.tone: "grim" is not one of the declared options []', reason: "unknown_macro_pick" }),
+  });
+
+  const component = await mount(<MacroPicksSectionStory />);
+  await page.getByRole("combobox", { name: "Tone" }).click();
+  await page.getByRole("option", { name: "Grim", exact: true }).click();
+
+  await expect(component.getByText("That pick is no longer one of this input's options, so nothing was saved. Pick one of: Grim, Warm.")).toBeVisible();
+  // The refused write is rolled back — the trigger must not keep showing a pick the server refused.
+  await expect(page.getByRole("combobox", { name: "Tone" })).toHaveText("Use default (warm)");
 });

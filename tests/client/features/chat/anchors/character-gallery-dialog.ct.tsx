@@ -8,7 +8,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { CharacterGalleryDialogStory } from "../_ct-stories.tsx";
+import { CharacterGalleryDialogStory, CharacterGalleryDialogToastStory } from "../_ct-stories.tsx";
 
 const ITEM = {
   galleryItemId: "galleryitem_ct_1",
@@ -28,6 +28,9 @@ const OWNED = [
 /** The one asset the partial-batch pin scripts a rejection for — named, so the stub reads no indexed
  *  element and the claim "the SECOND one failed" is legible where the assertion is. */
 const FAILING_ASSET = "asset_ct_owned_2";
+
+/** THE app's toast outlet — `CtToastSurface`'s production `AppToaster` renders one root per notice. */
+const TOAST_ROOT = '[data-slot="toast-root"]';
 
 async function openLightbox(page: Page): Promise<void> {
   const cell = page.getByRole("gridcell", { name: "Gallery image" });
@@ -206,6 +209,36 @@ test("a REJECTED remove holds the CONFIRM open as the retry, over a lightbox tha
   // …and the image is still in the grid behind it, which is the half #1501 filed.
   await confirm.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("button", { name: "Remove from gallery" })).toBeVisible();
+});
+
+// ONE FAILURE SURFACE PER PRESS (#1563a). #1563 gave the confirm its own inline failure line — and left
+// `useRemoveFromGallery`'s `errorToast` in place, so a single refused remove said the same thing TWICE: once
+// in the dialog the reader is looking at, once in a global toast over it. A verb whose only caller owns a
+// retry surface does not also owe a toast; the mutation drops the `errorToast` and the confirm is the one
+// place the refusal is said.
+//
+// This test needs the OTHER provider stack: `CtDataProviders`' plain QueryClient has no MutationCache error
+// channel at all, so the toast half is INVISIBLE on it and the count would read 1 before the fix as well.
+test("a refused remove produces exactly ONE failure surface — the confirm's line, no toast over it (#1563)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "assets.listGallery": () => [ITEM],
+    "assets.removeFromGallery": () => trpcError({ message: "remove failed" }),
+  });
+
+  await mount(<CharacterGalleryDialogToastStory />);
+  await openLightbox(page);
+  await page.getByRole("button", { name: "Remove from gallery" }).click();
+  const confirm = page.getByRole("alertdialog");
+  await confirm.getByRole("button", { name: "Remove", exact: true }).click();
+
+  await expect.poll(() => trpc.count("assets.removeFromGallery"), { intervals: [20, 50, 100] }).toBe(1);
+  // The surface that IS owed: the confirm's own line, beside the button that retries it.
+  await expect(confirm.locator('[data-slot="confirm-dialog-failure"]')).toContainText("remove failed");
+  // …and the one that is NOT owed. Observed as the toast ROOT, the house idiom
+  // (`use-tag-suggestion-mutations.ct.tsx`) — a text query would answer 0 for a toast that rendered with
+  // different copy, which is the false clean. Control receipt: with the `errorToast` still on the mutation
+  // this same locator resolved to 1, so the instrument is live and the zero below is a measurement.
+  await expect(page.locator(TOAST_ROOT)).toHaveCount(0);
 });
 
 // …and the other direction, so a fix that simply stops closing cannot pass.

@@ -26,7 +26,7 @@
 import type { ChoiceBlockSpec, ChoiceBlockValues, UserMacroValues } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import type { UserMacroInputDef } from "@orb/kit/macro";
-import { userMacroToggleDefaultsOn } from "@orb/kit/macro";
+import { findOffVocabularyPicks, userMacroToggleDefaultsOn } from "@orb/kit/macro";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
@@ -35,9 +35,10 @@ import { Select } from "@orb/ui/select";
 import { Heading, Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { SettingCheckboxRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { useSetUserMacroValues, useSetVariables } from "../hooks/use-context-panel-mutations.ts";
+import { isUnknownMacroPick, unknownMacroPickCopy, useSetUserMacroValues, useSetVariables } from "../hooks/use-context-panel-mutations.ts";
 
 /** ONE stored pick, DERIVED from the wire bag (never re-spelled): string | boolean | string[]. Kit's
  *  `UserMacroInputValue` is the same union with a READONLY array arm — the bag we send is the mutable
@@ -69,6 +70,73 @@ function pickOf(values: UserMacroValues, macro: string, input: string): PickValu
   return values[macro]?.[input];
 }
 
+/**
+ * ONE macro's stored bag with every select-family pick its DEFINITION no longer declares dropped (#1582).
+ *
+ * A stored pick outlives its definition — an author renaming or deleting an option leaves the persisted bag
+ * naming a value nothing offers — and the TURN already ignores it: kit's `resolveStaticInput` falls to the
+ * default ladder for a single-select, and filters a multi-select's survivors (a selection that survives no
+ * filtering is UNPICKED). Rendering the stored value anyway showed it as CHOSEN while the reply resolved
+ * something else. Two reasons this is a drop and not a "(no longer offered)" item like the ChoiceBlock half's:
+ * the choice resolver PRESERVES an orphan value (so that pane must say it), this one neutralises it; and
+ * `withPick` flushes the WHOLE bag on every edit, so a stale value left in the bag would ride the next
+ * unrelated edit back to a server that refuses it (`unknown_macro_pick`) — which is exactly why the server
+ * grandfathers what is already stored.
+ *
+ * WHICH picks are off-vocabulary is kit's decision, not a client re-spelling: `findOffVocabularyPicks` is the
+ * same engine the write-side belt uses, and it deliberately EXCLUDES `random-pick` (a pool is normalised by
+ * `poolOf`) and `boolean-toggle` (no vocabulary), so neither is touched here either.
+ */
+function withoutStalePicks(inputs: readonly UserMacroInputDef[], bag: UserMacroValues[string]): UserMacroValues[string] {
+  const stale = findOffVocabularyPicks(inputs, bag);
+  if (stale.length === 0) {
+    return bag;
+  }
+  const next: Record<string, PickValue> = { ...bag };
+  for (const pick of stale) {
+    const current = next[pick.input];
+    if (!Array.isArray(current)) {
+      delete next[pick.input]; // single-select: the whole pick is the stale value
+      continue;
+    }
+    const kept = current.filter((value) => value !== pick.value);
+    // Mirrors `resolveMultiSelect`: survivors keep their PICK order, and a selection nothing survives is
+    // unpicked (the key goes), never an explicit `[]` — which is a real "none" the user may have chosen.
+    if (kept.length === 0) {
+      delete next[pick.input];
+    } else {
+      next[pick.input] = kept;
+    }
+  }
+  return next;
+}
+
+/** The whole bag rebuilt against the LIVE declarations — {@link withoutStalePicks} per declared macro. Bag
+ *  entries for macros the preset no longer declares are untouched: this pane never renders them, the turn
+ *  ignores them, and dropping them here would make an unrelated edit delete state the author may be about to
+ *  re-declare (the `withVariablePick` orphan-preserve reasoning, one family over). */
+function livePicks(macros: readonly { readonly name: string; readonly inputs: readonly UserMacroInputDef[] }[], values: UserMacroValues): UserMacroValues {
+  const next: UserMacroValues = { ...values };
+  let changed = false;
+  for (const macro of macros) {
+    const bag = values[macro.name];
+    if (bag === undefined) {
+      continue;
+    }
+    const kept = withoutStalePicks(macro.inputs, bag);
+    if (kept === bag) {
+      continue;
+    }
+    changed = true;
+    if (Object.keys(kept).length === 0) {
+      delete next[macro.name];
+    } else {
+      next[macro.name] = kept;
+    }
+  }
+  return changed ? next : values;
+}
+
 /** Rebuild the whole bag with ONE input set (or, for `next === undefined`, unset). An emptied macro entry is
  *  dropped entirely so "unset everything" round-trips to `{}` — the same shape a never-picked chat has. */
 function withPick(values: UserMacroValues, macro: string, input: string, next: PickValue | undefined): UserMacroValues {
@@ -87,14 +155,17 @@ interface InputControlProps {
   readonly input: UserMacroInputDef;
   readonly value: PickValue | undefined;
   readonly onPick: (next: PickValue | undefined) => void;
+  /** The server's refusal of the pick THIS control just sent, said beside the control (#1582). `undefined`
+   *  on every other control, so one refused knob never marks the whole pane. */
+  readonly error: string | undefined;
 }
 
 /** single-select — the authored options plus the leading "Use default" item (the unset arm). */
-function SingleSelectControl({ input, value, onPick }: InputControlProps): ReactElement {
+function SingleSelectControl({ input, value, onPick, error }: InputControlProps): ReactElement {
   const label = input.label.length > 0 ? input.label : input.name;
   const items = [{ label: unsetSummary(input), value: UNSET }, ...input.options.map((option) => ({ label: option.label, value: option.value }))];
   return (
-    <Field label={label}>
+    <Field label={label} {...(error === undefined ? {} : { error })}>
       <Select
         aria-label={label}
         items={items}
@@ -107,7 +178,7 @@ function SingleSelectControl({ input, value, onPick }: InputControlProps): React
 
 /** boolean-toggle — THREE states, not a switch: a switch cannot express "unpicked, follow the author's
  *  default", and the default's polarity is the author's (`defaultValue` truthiness), not ours. */
-function BooleanToggleControl({ input, value, onPick }: InputControlProps): ReactElement {
+function BooleanToggleControl({ input, value, onPick, error }: InputControlProps): ReactElement {
   const label = input.label.length > 0 ? input.label : input.name;
   const items = [
     { label: unsetSummary(input), value: UNSET },
@@ -119,7 +190,7 @@ function BooleanToggleControl({ input, value, onPick }: InputControlProps): Reac
     current = value ? "on" : "off";
   }
   return (
-    <Field label={label}>
+    <Field label={label} {...(error === undefined ? {} : { error })}>
       <Select
         aria-label={label}
         items={items}
@@ -134,7 +205,7 @@ function BooleanToggleControl({ input, value, onPick }: InputControlProps): Reac
  *  in what the turn does with it: multi-select joins the picks, random-pick draws ONE from them per reply
  *  (unpicked ⇒ the pool is every option). An explicit `[]` is a real multi-select pick ("none"), which is why
  *  unsetting needs its own affordance rather than "uncheck everything". */
-function ArrayPickControl({ input, value, onPick }: InputControlProps): ReactElement {
+function ArrayPickControl({ input, value, onPick, error }: InputControlProps): ReactElement {
   const label = input.label.length > 0 ? input.label : input.name;
   const picked: readonly string[] = Array.isArray(value) ? value : [];
   const isSet = Array.isArray(value);
@@ -167,6 +238,14 @@ function ArrayPickControl({ input, value, onPick }: InputControlProps): ReactEle
             </Button>
           ) : null}
         </Row>
+        {/* A `Fieldset` has no error slot (it names a GROUP, not a control), so the refusal rides the same
+            destructive gloss the custom-parameter rows use. Same sentence as the select family's `Field`
+            error — one refusal, one spelling. */}
+        {error === undefined ? null : (
+          <Text className="text-destructive" voice="gloss">
+            {error}
+          </Text>
+        )}
       </Stack>
     </Fieldset>
   );
@@ -290,6 +369,11 @@ export function MacroPicksSection({ chatId }: MacroPicksSectionProps): ReactElem
   });
   const setValues = useSetUserMacroValues({ trpc, invalidation });
   const setVariables = useSetVariables({ trpc, invalidation });
+  // WHICH knob the last flush was about, so a refusal lands on the control that caused it rather than on the
+  // pane. Written in the pick HANDLER only (never at render), and the mutation clears its own error slot on
+  // the next `mutate`, so a stale target can never outlive the error it is there to place.
+  const [lastEdited, setLastEdited] = useState<{ readonly macro: string; readonly input: string } | null>(null);
+  const refused = isUnknownMacroPick(setValues.error) ? lastEdited : null;
 
   if (data.macros.length === 0 && variableData.variables.length === 0) {
     // NOT rendered as nothing (omit ≠ none-yet): the section says the feature exists and where it comes from,
@@ -302,8 +386,13 @@ export function MacroPicksSection({ chatId }: MacroPicksSectionProps): ReactElem
     );
   }
 
+  // The bag the pane RENDERS and rebuilds from — stale picks dropped, so a knob shows the default the turn
+  // will actually resolve and no unrelated edit flushes a value the server would refuse (#1582).
+  const values = livePicks(data.macros, data.values);
+
   const pick = (macro: string, input: string, next: PickValue | undefined): void => {
-    setValues.mutate({ chatId, values: withPick(data.values, macro, input, next) });
+    setLastEdited({ macro, input });
+    setValues.mutate({ chatId, values: withPick(values, macro, input, next) });
   };
   const pickVariable = (name: string, next: string | undefined): void => {
     setVariables.mutate({ chatId, values: withVariablePick(variableData.values, name, next) });
@@ -333,10 +422,13 @@ export function MacroPicksSection({ chatId }: MacroPicksSectionProps): ReactElem
           {macro.description.length > 0 ? <Text voice="gloss">{macro.description}</Text> : null}
           {macro.inputs.map((input) => (
             <InputControl
+              error={
+                refused?.macro === macro.name && refused.input === input.name ? unknownMacroPickCopy(input.options.map((option) => option.label)) : undefined
+              }
               input={input}
               key={input.name}
               onPick={(next): void => pick(macro.name, input.name, next)}
-              value={pickOf(data.values, macro.name, input.name)}
+              value={pickOf(values, macro.name, input.name)}
             />
           ))}
         </Stack>

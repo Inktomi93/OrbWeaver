@@ -709,7 +709,7 @@
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-install-card.tsx::promise:settled::1",
       "path": "packages/client/src/features/plugin/components/plugin-install-card.tsx",
-      "line": 242,
+      "line": 243,
       "column": 5,
       "grammar": "promise",
       "position": "promise:settled",
@@ -717,7 +717,7 @@
       "snippet": "settled.then(onDone, () => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "both useInstallPlugin and useInstallPluginFromUrl",
-      "markerLine": 239
+      "markerLine": 240
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:applyStoredUpgrade::1",
@@ -956,7 +956,7 @@
     {
       "siteId": "packages/client/src/features/preset/components/params-limits.tsx::default:catch::1",
       "path": "packages/client/src/features/preset/components/params-limits.tsx",
-      "line": 407,
+      "line": 413,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -964,7 +964,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the doc comment above explains — an unparseable",
-      "markerLine": 402
+      "markerLine": 408
     },
     {
       "siteId": "packages/client/src/features/preset/components/preset-import-dialog.tsx::promise:text::1",
@@ -1177,7 +1177,7 @@
     {
       "siteId": "packages/client/src/features/workloads/components/bundle-workload-tracker.tsx::promise:query::1",
       "path": "packages/client/src/features/workloads/components/bundle-workload-tracker.tsx",
-      "line": 114,
+      "line": 118,
       "column": 10,
       "grammar": "promise",
       "position": "promise:query",
@@ -1185,7 +1185,7 @@
       "snippet": "void trpcClient.workloads.get",
       "verdict": "deliberate-absorb",
       "reason": "the rejection drives the bounded retry above and",
-      "markerLine": 111
+      "markerLine": 115
     },
     {
       "siteId": "packages/client/src/features/workloads/hooks/use-library-import.ts::promise:importBundle::1",
