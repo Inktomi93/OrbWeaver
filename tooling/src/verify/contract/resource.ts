@@ -1,7 +1,7 @@
 // Resource acquisition is internal to providers. Policies receive only the closed ResourceHost surface.
 export type ResourceLoad<T> = (
   | { readonly status: "ready"; readonly value: T; readonly paths: readonly string[]; readonly members: number }
-  | { readonly status: "missing" | "empty" | "unresolved"; readonly reason: string; readonly paths: readonly string[]; readonly members: number }
+  | { readonly status: "missing" | "empty" | "unresolved" | "malformed"; readonly reason: string; readonly paths: readonly string[]; readonly members: number }
 ) & { readonly subprocess?: ResourceSubprocessReceipt };
 
 export interface ResourceSubprocessReceipt {

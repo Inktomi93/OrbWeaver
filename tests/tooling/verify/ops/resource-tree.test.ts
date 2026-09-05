@@ -101,6 +101,7 @@ test("authored CSS shares the client/ui trees, reads CSS only, and preserves par
   expect(files[0]).toEqual({
     path: client,
     text: "/* ignored { } */\n.x, :not(.a, .b) {\n  color: red;\n}\n",
+    atRules: [],
     rules: [
       {
         selectorList: ".x, :not(.a, .b)",
@@ -108,7 +109,7 @@ test("authored CSS shares the client/ui trees, reads CSS only, and preserves par
         line: 2,
         preludeStart: 0,
         braceStart: 35,
-        declarations: [{ prop: "color", value: "red", line: 3 }],
+        declarations: [{ prop: "color", value: "red", rawValue: "red", line: 3, column: 3, offset: 39, valueOffset: 46 }],
       },
     ],
   });
@@ -173,7 +174,25 @@ test("CSS acquisition refuses missing, empty, and parser-unsupported files inste
     const loaded = loadProductCss(
       readerWith({ texts: { ...base, [PRODUCT_STYLESHEETS[0]]: { status: "ready", value: malformed, paths: [PRODUCT_STYLESHEETS[0]], members: 1 } } }),
     );
-    expect(loaded.status).toBe("unresolved");
+    expect(loaded.status).toBe("malformed");
     expect(unavailableReason(loaded)).toContain(PRODUCT_STYLESHEETS[0]);
   }
+
+  const quotedDelimiter = loadProductCss(
+    readerWith({
+      texts: {
+        ...base,
+        [PRODUCT_STYLESHEETS[0]]: {
+          status: "ready",
+          value: '.x { content: "a;b"; }\n',
+          paths: [PRODUCT_STYLESHEETS[0]],
+          members: 1,
+        },
+      },
+    }),
+  );
+  expect(quotedDelimiter).toMatchObject({
+    status: "malformed",
+    reason: expect.stringContaining("quoted delimiter or escaped quote"),
+  });
 });

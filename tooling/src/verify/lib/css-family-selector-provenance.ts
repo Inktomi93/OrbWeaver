@@ -6,6 +6,7 @@ import { KEYFRAME_STEP_RE } from "./css-family-census.ts";
 import { splitSelectorList } from "./css-rules.ts";
 
 export interface SelectorAttributeHook {
+  readonly open: number;
   readonly close: number;
   readonly name: string;
   readonly operator: "presence" | "=" | "^=" | "$=" | "*=" | "~=" | "|=";
@@ -24,7 +25,12 @@ function selectorAttributeAt(selector: string, open: number): SelectorAttributeH
     return;
   }
   const operator = (match?.[2] ?? "presence") as SelectorAttributeHook["operator"];
-  return { close, name, operator, value: match?.[3] ?? match?.[4] ?? match?.[5] };
+  return { open, close, name, operator, value: match?.[3] ?? match?.[4] ?? match?.[5] };
+}
+
+export interface SelectorClassHook {
+  readonly name: string;
+  readonly offset: number;
 }
 
 function recordSelectorAttribute(hooks: Set<string>, attribute: SelectorAttributeHook): void {
@@ -55,6 +61,30 @@ export function selectorDataAttributes(selector: string): readonly SelectorAttri
   return hooks;
 }
 
+/** Every class selector identity with its exact dot offset. Attribute bodies remain opaque tokens. */
+export function selectorClassHooks(selector: string): readonly SelectorClassHook[] {
+  const hooks: SelectorClassHook[] = [];
+  for (let index = 0; index < selector.length; index += 1) {
+    if (selector[index] === "[") {
+      const attribute = selectorAttributeAt(selector, index);
+      if (attribute === undefined) {
+        break;
+      }
+      index = attribute.close;
+      continue;
+    }
+    if (selector[index] !== "." || isEscaped(selector, index)) {
+      continue;
+    }
+    const name = classNameAt(selector, index);
+    if (name !== undefined) {
+      hooks.push({ name, offset: index });
+      index += name.length;
+    }
+  }
+  return hooks;
+}
+
 function classNameAt(selector: string, dot: number): string | undefined {
   const first = selector[dot + 1] ?? "";
   if (!/[_a-zA-Z]/u.test(first)) {
@@ -69,6 +99,9 @@ function classNameAt(selector: string, dot: number): string | undefined {
 
 export function selectorHooks(selector: string): readonly string[] {
   const hooks = new Set<string>();
+  for (const classHook of selectorClassHooks(selector)) {
+    hooks.add(`class:${classHook.name}`);
+  }
   for (let index = 0; index < selector.length; index += 1) {
     if (selector[index] === "[") {
       const attribute = selectorAttributeAt(selector, index);
@@ -78,14 +111,6 @@ export function selectorHooks(selector: string): readonly string[] {
       recordSelectorAttribute(hooks, attribute);
       index = attribute.close;
       continue;
-    }
-    if (selector[index] !== "." || isEscaped(selector, index)) {
-      continue;
-    }
-    const name = classNameAt(selector, index);
-    if (name !== undefined) {
-      hooks.add(`class:${name}`);
-      index += name.length;
     }
   }
   return [...hooks];

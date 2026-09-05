@@ -11,7 +11,15 @@ test("the host has closed resource doors and acquires only requested facts", ({ 
   const invocation = createResourceHost({ root: scratch });
   expect(closed).toBe(true);
   expect(invocation.receipts()).toEqual([]);
-  expect(Object.keys(invocation.host).sort()).toEqual(["authoredCss", "authoredTree", "packageMetadata", "productCss", "staticConfig", "trackedFiles"]);
+  expect(Object.keys(invocation.host).sort()).toEqual([
+    "authoredCss",
+    "authoredTree",
+    "cssInventory",
+    "packageMetadata",
+    "productCss",
+    "staticConfig",
+    "trackedFiles",
+  ]);
   const first = invocation.host.packageMetadata("root");
   expect(first.status).toBe("missing");
   expect(invocation.host.packageMetadata("root")).toBe(first);

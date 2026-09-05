@@ -4,11 +4,11 @@ import type { ResourceLoad, ResourceReader, ResourceTreeEntry } from "../contrac
 import type { AuthoredCssFile, AuthoredTreeId } from "../contract/resource-tree.ts";
 import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
 import { blankCssComments, commentSpansInText } from "../lib/comment-spans.ts";
-import { parseCssRules } from "../lib/css-rules.ts";
+import { parseCssStylesheet } from "../lib/css-rules.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
-function unavailable<T>(status: "missing" | "empty" | "unresolved", reason: string, paths: readonly string[], members = 0): ResourceLoad<T> {
+function unavailable<T>(status: "missing" | "empty" | "unresolved" | "malformed", reason: string, paths: readonly string[], members = 0): ResourceLoad<T> {
   return { status, reason, paths, members };
 }
 
@@ -72,9 +72,10 @@ function loadCssFiles(reader: ResourceReader, paths: readonly string[]): Resourc
     }
     const unsupported = unsupportedCss(loaded.value);
     if (unsupported !== undefined) {
-      return unavailable("unresolved", `unsupported or malformed CSS in ${path}: ${unsupported}`, paths, files.length);
+      return unavailable("malformed", `unsupported or malformed CSS in ${path}: ${unsupported}`, paths, files.length);
     }
-    files.push(Object.freeze({ path, text: loaded.value, rules: parseCssRules(loaded.value) }));
+    const parsed = parseCssStylesheet(loaded.value);
+    files.push(Object.freeze({ path, text: loaded.value, rules: parsed.rules, atRules: parsed.atRules }));
   }
   return { status: "ready", value: Object.freeze(files), paths, members: files.length };
 }
