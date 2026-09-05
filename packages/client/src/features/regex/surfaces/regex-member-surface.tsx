@@ -66,7 +66,10 @@ function RegexMemberEditorBody({ row, session }: { readonly row: RegexScriptRow;
 
   return (
     <Container>
-      <Stack className="max-w-prose outline-none" data-slot="regex-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
+      {/* `--width-content-col` — the EDITOR content-column cap, not a reading measure (#1175). See the tag
+          member editor's twin: this block holds controls, so the prose token is forbidden here by its own
+          contract, and `max-w-prose` was a third un-derived width. */}
+      <Stack className="max-w-(--width-content-col) outline-none" data-slot="regex-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
         <Row align="center" gap="field" justify="between">
           <Heading level={2}>{regexScriptTitle(row)}</Heading>
           <AutosaveStatus onRetry={session.retrySave} state={session.saveState} />

@@ -297,7 +297,19 @@ function SaveAsThemeButton({ characterName, override }: { readonly characterName
  *  Looks grammar (#866 S4, owner addendum #3 — a theme is SEEN, so a name-only Select was the
  *  seen-not-read shoehorn): each row is the shared swatch STRIPE + the name, the SAME derivation the
  *  Looks cards paint with. Selecting SEEDS the override form — never applies a theme (line ~262's
- *  "selecting is the picker's one applying act" contract holds exactly: this door applies nothing). */
+ *  "selecting is the picker's one applying act" contract holds exactly: this door applies nothing).
+ *
+ *  THE STRIPE STAYS; `ThemeMiniSurface` IS NOT REUSED HERE, AND THAT IS RULED (#1152, 2026-09-05 —
+ *  #920 asked for the reuse, this is the answer, do not re-open it). The reason is payload honesty, not
+ *  the sideways-import fence that merely made it awkward. `startFromTheme` below delivers
+ *  `cardEmbeddableSubset(theme.override)`, and `ThemeSwatchStrip` paints `theme.override` through the same
+ *  `<ThemeScope>` clamp — the picture IS the payload, `density` aside, which the stripe does not show. The
+ *  Looks thumbnail answers a different question ("what would selecting this theme paint the app"), and for
+ *  the three SEED rows that answer is deliberately NOT the override: `#lib`'s `resolveThemeScopeTokens`
+ *  hands a seed NOTHING and lets its generated `[data-theme]` block paint, because replaying a seed's
+ *  duplicate-to-customize override through the clamp re-derives the palette and shadows the hand-tuned
+ *  block. So the thumbnail on THIS door would disagree with what the pick delivers on exactly
+ *  Hearth/Mocha/Light. Full receipt: `docs/design/config-revamp-design.md` §7.3. */
 function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => void }): ReactElement {
   const trpc = useTRPC();
   const { data: themes } = useQuery(trpc.settings.listThemes.queryOptions());

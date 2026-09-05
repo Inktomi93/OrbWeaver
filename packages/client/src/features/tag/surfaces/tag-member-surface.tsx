@@ -75,7 +75,12 @@ function TagMemberEditor({ tag, others }: { readonly tag: TagWithUsage; readonly
 
   return (
     <Container>
-      <Stack className="max-w-prose outline-none" data-slot="tag-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
+      {/* `--width-content-col` — the ruled cap for an EDITOR's content column, not a reading measure
+          (#1175). This block holds controls, and the prose token's own contract forbids it here: a `ch`
+          resolves in the element's own font, so a measure inherited from a wrapper reads at the wrong scale
+          (the #213/#1130 failure) and "a block holding controls keeps the wider measure while the paragraph
+          inside it takes this one". It used to spell `max-w-prose`, a third un-derived width. */}
+      <Stack className="max-w-(--width-content-col) outline-none" data-slot="tag-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
         <Row align="center" gap="field">
           <Heading level={2}>{tag.name}</Heading>
           <Text as="span" voice="datum">

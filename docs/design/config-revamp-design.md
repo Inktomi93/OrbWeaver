@@ -507,6 +507,23 @@ summary/affects/related without the "default vs current + Reset door" block unti
   Selects are named enums and stay. CT: the atom renders the same stripe for the same theme row in both
   mounts, red-first.
 
+- **RESOLVED (#1152, 2026-09-05): the menu row keeps the STRIP; `ThemeMiniSurface` is NOT re-homed.** #920's
+  cold contract asked for the mini surface to be reused in `StartFromThemeField`, and #1152 carried two arms
+  — re-home the surface to a client shared tier both features may read, or rule the strip sufficient. The
+  strip is sufficient, and the receipt is PAYLOAD HONESTY rather than taste. This door's payload is
+  `cardEmbeddableSubset(theme.override)` (`character-appearance-tab.tsx::startFromTheme`), and the strip
+  paints `theme.override` through the same `<ThemeScope>` clamp — depiction and payload are the same values,
+  `density` aside, which the strip does not show. `ThemeMiniSurface` answers a DIFFERENT question ("what
+  would selecting this theme paint the app"), and for the three SEED rows that answer is deliberately not
+  the override: `resolve-theme-scope-tokens.ts` passes a seed NOTHING and lets its generated `[data-theme]`
+  block paint, because feeding a seed's duplicate-to-customize override back through the clamp re-derives
+  the 34 vars and shadows the hand-tuned block. Mounting it here would make the picture disagree with the
+  payload on exactly Hearth/Mocha/Light. Nothing the row needs is lost either: the mini surface carries no
+  provenance badge and no name (it is decorative — the cell's visible label carries identity), the menu row
+  already renders `theme.name`, and the accent is the strip's third cell. `@orb/ui/theme-swatch`'s own
+  header already records the other half — a menu row's leading slot is a different job from a picker cell —
+  and this line is the durable answer to the reuse question, so a later reader does not re-open it.
+
 ### 7.4 S4 — Personas in full, the rail switcher, the You sheet
 
 - **Roster restructure** (the interior freeze is LIFTED — owner 2026-08-30; the pin/active RESOLUTION

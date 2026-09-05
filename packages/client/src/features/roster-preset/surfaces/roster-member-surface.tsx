@@ -149,7 +149,10 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
 
   return (
     <Container>
-      <Stack className="max-w-prose outline-none" data-slot="roster-member-editor" gap="section" ref={surfaceRef} tabIndex={-1}>
+      {/* `--width-content-col` — the EDITOR content-column cap, not a reading measure (#1175). See the tag
+          member editor's twin: this block holds controls, so the prose token is forbidden here by its own
+          contract, and `max-w-prose` was a third un-derived width. */}
+      <Stack className="max-w-(--width-content-col) outline-none" data-slot="roster-member-editor" gap="section" ref={surfaceRef} tabIndex={-1}>
         <Heading level={2}>{cast.name}</Heading>
         {/* NO `aria-label` on either cell (#1587). A `<Field>`'s label reaches its control through Base UI's
             `aria-labelledby`, which OUTRANKS `aria-label` in the accname algorithm — so "Roster name" /
