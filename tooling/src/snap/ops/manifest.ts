@@ -320,9 +320,11 @@ export function summarizePageErrorRetention(retention: BrowserEvidenceRetentionB
  * compiled red through the real CLI: the observable here (`evidence/core-capture.json`) only differs
  * after `BROWSER_PAGE_ERROR_CAP` (2048) page errors, and snap's CLI never threads `evidenceLimits`
  * (`ProbeLaunchOptions`) through to `buildLaunchOptions` — the harness-only override this would need is a
- * new `process.env` read at that seam, which forces a NEW `noProcessEnv` suppression-baseline door
- * (`tooling/src/verify/gates/suppressions.baseline.json` carries zero entries for `session.ts`/
- * `browser-context.ts` today) — verify-side ratchet territory this lane's owner word bans touching. The
+ * new `process.env` read at that seam, which costs a `noProcessEnv` suppression-baseline edit either way:
+ * a NEW door at the launch seam (`tooling/src/verify/gates/suppressions.baseline.json` carries zero entries
+ * for `snap/ops/session.ts` / `_shared/browser-context.ts` today) or a count bump on the already-ratified
+ * harness-knob row at `snap/lib/budgets.ts` (`ORB_SNAP_SELECTOR_PROOF_CAP`, the same class of knob) —
+ * verify-side ratchet territory this lane's owner word bans touching (v-V4 correction, 2026-09-05). The
  * unit pin already exercises every branch of the summarizer (dropped is positive, complete, multi-ring, empty); a
  * compiled overflow-through-CLI red would prove only that 2048 pushes happened, not a new invariant. */
 export async function writeCoreCaptureEvidence(input: ManifestInput, retention: BrowserEvidenceRetentionBatch): Promise<string> {
