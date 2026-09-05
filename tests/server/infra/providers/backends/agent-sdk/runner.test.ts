@@ -10,7 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import type { AgentSdkChatRequest, ChatRequest, ChatResult } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
-import { consumeTurnStream, createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
+import { consumeTurnStream, createAgentSdkBackend, mergeMountedOptions } from "@orb/server/infra/providers/backends/agent-sdk";
 import { seedSessionId } from "@orb/server/infra/providers/backends/agent-sdk/session";
 import { describe, vi } from "vitest";
 import { makeModelCapability, makeOpenRouterCredential } from "../../../../../support/factories/resolved-connection.ts";
@@ -1342,5 +1342,34 @@ describe("the chat runner's TERMINAL-tool channel (D112 R1 fold)", () => {
     expect(opts?.hooks?.PreToolUse).toHaveLength(1);
     // The registry loop's ceiling wins over the terminal floor (rounds + the final reply).
     expect(opts?.maxTurns).toBe(4);
+  });
+});
+
+// #1612 — THE MOUNT MAP'S `__proto__` ENTRY SURVIVES ONLY BECAUSE THE COPIES ARE SPREADS. #1405 builds
+// external MCP mounts with `Object.fromEntries`, so a caller key `__proto__` becomes an OWN property instead
+// of silently setting the object's prototype (the mount would otherwise vanish with nothing red). Every copy
+// downstream of that decision has to preserve it, and the two copy forms are NOT equivalent: object spread
+// uses CreateDataProperty (own property), where `Object.assign` uses [[Set]] and hands the key to
+// `Object.prototype`'s `__proto__` SETTER — which drops it. Nothing on the chat side is caller-keyed today, so
+// this is the mechanism's pin rather than an exploit's: it makes the constraint stated at the merge checkable
+// instead of hoping the next refactor reads the comment.
+describe("mergeMountedOptions — a `__proto__` mount key survives the merge as an own entry", () => {
+  test("merging preserves an own `__proto__` key and never moves the prototype", () => {
+    const hostile = { ["__proto__"]: { type: "http", url: "https://attacker.example" } } as Record<string, unknown>;
+    const merged = mergeMountedOptions({ mcpServers: Object.fromEntries(Object.entries(hostile)) as never }, { mcpServers: { orbweaver: {} as never } });
+    const servers = merged.mcpServers as Record<string, unknown>;
+    expect(Object.hasOwn(servers, "__proto__")).toBe(true);
+    expect(Object.getPrototypeOf(servers)).toBe(Object.prototype);
+    // …and the host's own mount is still there beside it (never replaced, never shadowed).
+    expect(Object.hasOwn(servers, "orbweaver")).toBe(true);
+  });
+
+  test("the control: `Object.assign` — the form the comment forbids — DROPS it", () => {
+    const own = Object.fromEntries([["__proto__", { url: "x" }]]);
+    expect(Object.hasOwn(own, "__proto__")).toBe(true);
+    // The target is a BINDING, not a literal, on purpose: the lint rule that rewrites `Object.assign({}, x)`
+    // into a spread would rewrite this control into the very thing it exists to tell apart.
+    const target: Record<string, unknown> = {};
+    expect(Object.hasOwn(Object.assign(target, own), "__proto__")).toBe(false);
   });
 });

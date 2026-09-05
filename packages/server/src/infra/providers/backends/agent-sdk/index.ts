@@ -59,7 +59,7 @@ export {
   type ProviderTurnUsage,
 } from "./log.ts";
 export { sanitizeAnthropicOutputSchema } from "./output-schema.ts";
-export { consumeTurnStream } from "./runner.ts";
+export { consumeTurnStream, mergeMountedOptions } from "./runner.ts";
 export type { SessionEntryWriter } from "./session/index.ts";
 export { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
 export { disciplineOptions, dynamicContextOptions, firewallBase, TERMINAL_MCP_NAMESPACE } from "./translate.ts";
