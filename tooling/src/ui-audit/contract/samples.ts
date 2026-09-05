@@ -244,6 +244,15 @@ export interface AccentBorderInput {
    *  accent, keeps being judged. Derived in the walker (ops/walker/census-decor.ts), judged in
    *  lib/checks-decor.ts. */
   readonly listRowSelected: boolean;
+  /** The element sits inside an ILLUSTRATED PICKER's art aperture — `@orb/ui`'s PickerCell
+   *  `[data-slot="picker-cell-art"]` (packages/ui/src/primitives/picker-cell/picker-cell.tsx), the one
+   *  anatomy every single-choice picture picker in this app wears. There the accent stripe is the SUBJECT
+   *  of the picture, not a decoration on a card: the chat-style cell's mini transcript inherits the real
+   *  skin's border declarations on purpose (`stripeOf`, appearance-chat-style-cards.tsx) so the reader can
+   *  see what that skin looks like, and the density/elevation diagram cells do the same for their axes.
+   *  Keyed on the SHARED slot rather than any one feature's selector, so all three pickers ride one row.
+   *  ANCESTOR-scoped (unlike `listRowSelected`): the whole aperture is the picture. */
+  readonly artPane: boolean;
 }
 
 // ── Chromatic glow shadows + radial washes ──────────────────────────────────

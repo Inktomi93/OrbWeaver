@@ -127,22 +127,26 @@ const ACCENT_BASE = {
   tabContext: false,
   statusContext: false,
   listRowSelected: false,
+  artPane: false,
 };
 
-test("both accent-border rules share ONE census and both count the ratified ListRow exemption", () => {
+test("both accent-border rules share ONE census and both COUNT every ratified exemption", () => {
+  // An exemption is counted, never dropped: widening one has to be visible in the denominator instead of
+  // arriving as a quieter clean run. `illustratedPickerArt` (#1642) joins the two #485/#188-era rows.
   const rows = rowsFor({
     accentBorders: [
       ACCENT_BASE,
       { ...ACCENT_BASE, selector: "div.row", listRowSelected: true },
       { ...ACCENT_BASE, selector: "div.alert", statusContext: true },
+      { ...ACCENT_BASE, selector: "div.skin-diagram", artPane: true },
     ],
   });
   for (const rule of ["side-tab", "border-accent-on-rounded"] as const) {
     expect(rows[rule], rule).toMatchObject({
-      candidates: 3,
+      candidates: 4,
       judged: 1,
       affected: 1,
-      excluded: { ratifiedListRowSelection: 1, statusRegionAccent: 1 },
+      excluded: { ratifiedListRowSelection: 1, statusRegionAccent: 1, illustratedPickerArt: 1 },
     });
   }
 });

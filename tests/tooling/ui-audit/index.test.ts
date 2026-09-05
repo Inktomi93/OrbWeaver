@@ -1314,6 +1314,7 @@ const ACCENT_BASE: AccentBorderInput = {
   tabContext: false,
   statusContext: false,
   listRowSelected: false,
+  artPane: false,
 };
 const ACCENT_RED: Rgb = { r: 220, g: 40, b: 40, a: 1 };
 
@@ -1411,6 +1412,37 @@ auditRuleTest(
     }).map((f) => f.rule);
     expect(sameGeometryUnratified, "the exemption is the FLAG, never the shape").toContain("side-tab");
     expect(sameGeometryUnratified).toContain("border-accent-on-rounded");
+  },
+);
+
+auditRuleTest(
+  [
+    { rule: "side-tab", kind: "silent", reason: "inside an illustrated picker's art pane the stripe IS the subject of the picture" },
+    { rule: "border-accent-on-rounded", kind: "silent", reason: "one aperture, one exemption for the whole accent-border family" },
+  ],
+  "an accent stripe inside an illustrated picker's ART PANE is exempt; the identical geometry outside stays judged (#1642)",
+  () => {
+    // The chat-style picker's mini transcript inherits the real skin's 3px accent through `stripeOf`
+    // (appearance-chat-style-cards.tsx) so the reader can SEE the skin — the rule was reporting a tell in
+    // a picture whose subject is that tell. Keyed on the shared `[data-slot=picker-cell-art]` aperture, so
+    // the density and elevation diagram cells ride the same row.
+    const inArt = checkAccentBorder({
+      ...ACCENT_BASE,
+      artPane: true,
+      radius: 8,
+      widths: { top: 1, right: 1, bottom: 1, left: 3 },
+      colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },
+    });
+    expect(inArt, "a diagram of a skin is not a card tell").toEqual([]);
+
+    const outsideArt = checkAccentBorder({
+      ...ACCENT_BASE,
+      radius: 8,
+      widths: { top: 1, right: 1, bottom: 1, left: 3 },
+      colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },
+    }).map((f) => f.rule);
+    expect(outsideArt, "the exemption is the FLAG, never the shape").toContain("side-tab");
+    expect(outsideArt).toContain("border-accent-on-rounded");
   },
 );
 

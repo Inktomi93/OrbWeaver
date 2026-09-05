@@ -4518,7 +4518,7 @@
     {
       "siteId": "tooling/src/_shared/nav.ts::promise:evaluate::1",
       "path": "tooling/src/_shared/nav.ts",
-      "line": 110,
+      "line": 120,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -4526,7 +4526,7 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a best-effort readiness ping before the real bridge call two lines below — any genuine failure (no bridge, mid-navigation) is caught by the surrounding try and returned as ok:false with the message. Ends if this becomes the only readiness signal checked.",
-      "markerLine": 109
+      "markerLine": 119
     },
     {
       "siteId": "tooling/src/_shared/panel-flags.ts::default:catch::1",

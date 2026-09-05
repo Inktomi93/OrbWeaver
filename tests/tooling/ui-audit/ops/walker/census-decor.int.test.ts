@@ -85,3 +85,52 @@ auditRuleTest(
     expect(findingSelectors(res.stdout, "nested-card")).toEqual(["#inner-classword"]);
   },
 );
+
+/** A rounded box wearing a dominant 3px chromatic left edge — the exact geometry of both §6 accent-border
+ *  bans, and the exact geometry the chat-style picker's mini transcript inherits from the real skin. */
+const ACCENT_EDGE = "border:1px solid #555;border-left:3px solid #dc2828;border-radius:8px;background:#1b1b1b;width:200px;height:60px";
+
+auditRuleTest(
+  [
+    {
+      rule: "side-tab",
+      kind: "silent",
+      reason:
+        "inside an illustrated picker's art pane the accent stripe IS the subject of the picture — the cell exists to show the reader what that skin looks like, so judging it reports the diagram instead of the design",
+    },
+    {
+      rule: "side-tab",
+      kind: "fires",
+      reason: "the identical stripe on a real surface outside any art pane is the rule's actual target and must stay judged",
+    },
+    {
+      rule: "border-accent-on-rounded",
+      kind: "silent",
+      reason: "the same picture, the same subject — an art pane is one exemption for the whole accent-border family, not a per-rule patch",
+    },
+    {
+      rule: "border-accent-on-rounded",
+      kind: "fires",
+      reason: "the radius+edge contradiction outside an art pane is unchanged",
+    },
+  ],
+  "an accent stripe inside a picker cell's ART PANE is exempt; the identical stripe outside one stays judged",
+  async ({ runCli, scratch }) => {
+    // `[data-slot=picker-cell-art]` is `@orb/ui`'s PickerCell aperture (packages/ui/src/primitives/
+    // picker-cell/picker-cell.tsx), so the exemption is keyed on the SHARED vocabulary: the chat-style,
+    // density and elevation illustrated pickers all ride this one row rather than one selector each.
+    const body = `<div data-slot="picker-cell">
+  <span data-slot="picker-cell-art"><div id="art-stripe" style="${ACCENT_EDGE}">skin diagram</div></span>
+  <span data-slot="picker-cell-body">Bubble</span>
+</div>
+<div id="real-stripe" style="${ACCENT_EDGE}">a real surface</div>`;
+    await writeFile(join(scratch, "picker-art-exemption.html"), relationalDocument(body));
+    const res = await runCli("snap", ["--file", join(scratch, "picker-art-exemption.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+    for (const rule of ["side-tab", "border-accent-on-rounded"]) {
+      const selectors = findingSelectors(res.stdout, rule);
+      expect(selectors, `${rule}: the rule's real target must stay judged`).toContain("#real-stripe");
+      expect(selectors, `${rule}: the picture of the tell is not the tell`).not.toContain("#art-stripe");
+    }
+  },
+);

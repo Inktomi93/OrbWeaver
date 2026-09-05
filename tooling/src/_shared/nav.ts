@@ -43,7 +43,8 @@ export const NAV_FLAG_METHOD: Record<string, NavMethod> = {
 };
 
 // The 1:1 verb→bridge-method map. `goto` and `panel` are absent by design: `goto`'s target is namespaced
-// (`settings:<group>` / `modal:<slot>` / a bare section id) and picks its method through parseGotoTarget;
+// (`settings:<group>[.<sub>[.<setting>]]` / `modal:<slot>` / a bare section id) and picks its method
+// through parseGotoTarget, which REFUSES an address the grammar cannot spell rather than truncating it;
 // `panel`'s target carries TWO bridge arguments (`<name>=<mode>`), decoded below beside goto's own
 // multi-arg case rather than forced through this 1-target-in-1-arg-out map.
 const NAV_BRIDGE_METHOD: Record<Exclude<NavMethod, "goto" | "panel">, string> = {
@@ -68,8 +69,17 @@ interface NavCall {
 function decodeNavCall(method: NavMethod, target: string): NavCall {
   if (method === "goto") {
     const goto = parseGotoTarget(target);
-    const args = goto.method === "openConfig" && goto.sub !== undefined ? `${JSON.stringify(goto.arg)}, ${JSON.stringify(goto.sub)}` : JSON.stringify(goto.arg);
-    return { bridgeMethod: goto.method, args };
+    // openConfig is the one variadic bridge method: `(group, sub?, setting?)`. The optional legs are
+    // emitted only when the address spelled them — a trailing `undefined` would be a different call than
+    // the two-part form, and parseGotoTarget already refused any shape that cannot fill them in order.
+    const parts = goto.method === "openConfig" ? [goto.arg, goto.sub, goto.setting] : [goto.arg];
+    return {
+      bridgeMethod: goto.method,
+      args: parts
+        .filter((part) => part !== undefined)
+        .map((part) => JSON.stringify(part))
+        .join(", "),
+    };
   }
   if (method === "panel") {
     const { head, tail } = splitLastEq(target);

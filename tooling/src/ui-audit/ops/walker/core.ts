@@ -92,6 +92,14 @@ export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = "a,button,[role=b
   // predicate are load-bearing: the slot identity says it is the primitive, \`[data-selected]\` says it is
   // the selection state. Without the state half an unselected row's hardcoded accent would go unjudged.
   var LIST_ROW_SELECTED_SEL = "[data-slot='list-row-root'][data-selected],[data-slot='list-row-body'][data-selected]";
+  // THE ILLUSTRATED PICKER'S ART APERTURE (#1642). @orb/ui's PickerCell is the ONE anatomy every
+  // single-choice PICTURE picker wears, and its art slot holds a DIAGRAM OF A DESIGN — the chat-style
+  // cell renders mini transcript lines in the real skin's own classes and inherits that skin's accent
+  // stripe on purpose, the density and elevation cells draw their axis the same way. A decor rule that
+  // judges a tell inside this aperture is judging the picture, not the product. Keyed on the SHARED
+  // slot so all three pickers ride one exemption; consumers walk ANCESTORS (the whole aperture is the
+  // picture), which is the deliberate inverse of the element-scoped selection predicate above.
+  var PICKER_ART_SEL = "[data-slot='picker-cell-art']";
   // ── THE CAP LEDGER (#1038) ────────────────────────────────────────────────
   // A census that stops PUSHING at a representative bound must not stop COUNTING: the pre-#1038 loops
   // were guarded \`for (…; i < allEls.length && list.length < 200; …)\`, so the walk abandoned the scan at
