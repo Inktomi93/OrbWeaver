@@ -14,7 +14,7 @@
 // of silently dropping it, while `nextRunnableWorkload` returns only `WorkloadRunnableRow`s.
 
 import type { WorkloadError, WorkloadKind, WorkloadLane, WorkloadMode, WorkloadProgress, WorkloadStatus } from "@orb/contracts/workloads";
-import { WORKLOAD_KINDS, WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
+import { ACTIVE_WORKLOAD_STATUSES, WORKLOAD_KINDS, WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
@@ -175,6 +175,44 @@ export async function insertWorkload(db: Db, row: WorkloadInsert): Promise<void>
     createdAt: row.createdAt,
     updatedAt: row.createdAt,
   });
+}
+
+/** The id of the ACTIVE row that holds a given admission slot, or `undefined` when the slot is free.
+ *
+ *  It exists because `DomainConflictError` says the work is in flight without saying WHICH row is doing it,
+ *  and a caller building a DAG needs the id: it has to chain a dependent on the run that is already going,
+ *  not on one it failed to create. The `adoptActive` arm of `start` is its one caller.
+ *
+ *  THE PREDICATE MIRRORS THE PARTIAL UNIQUE INDEXES EXACTLY (`workloads_mode_active_singular_owned` /
+ *  `_system` / `_bulk`), because "which row holds the slot" is by definition "the row the index would have
+ *  collided with" — a looser predicate here (per-kind, say) would hand back a DIFFERENT unit's run and the
+ *  dependent would wait on the wrong thing. `admission_system` is the discriminator the owned/system pair
+ *  splits on, and it is derived the same way the insert derives it (`ownerId === null`).
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
+export async function findActiveAdmittedWorkloadId(
+  db: Db,
+  slot: { readonly kind: WorkloadKind; readonly mode: WorkloadMode; readonly ownerId: UserId | null; readonly admissionKey: string },
+): Promise<WorkloadId | undefined> {
+  const admissionSystem = slot.ownerId === null;
+  const partition =
+    slot.mode === "bulk"
+      ? eq(workloads.mode, "bulk")
+      : and(
+          eq(workloads.mode, "singular"),
+          eq(workloads.admissionSystem, admissionSystem),
+          // The OWNED arm keys on owner_id; the SYSTEM arm omits it (SQLite unique indexes do not collide
+          // NULLs, so the system index cannot carry it) — mirrored here rather than approximated.
+          admissionSystem ? undefined : eq(workloads.ownerId, slot.ownerId),
+        );
+  const rows = await db
+    .select({ id: workloads.id })
+    .from(workloads)
+    .where(
+      and(eq(workloads.kind, slot.kind), eq(workloads.admissionKey, slot.admissionKey), inArray(workloads.status, [...ACTIVE_WORKLOAD_STATUSES]), partition),
+    )
+    .limit(1);
+  return rows[0]?.id;
 }
 
 /** The idempotent claim: `queued → running`. Returns `false` (0 rows) for the loser of a two-worker race. */

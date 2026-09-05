@@ -45,9 +45,16 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
     // asset under the caller's Principal (the shared `storeBundleAssets` writer, so install and upgrade
     // cannot drift). Ordering is load-bearing in two directions: the CAS writes precede the row so every
     // `plugin_assets` FK has a target, and the links ride the row's OWN batch below so a row can never exist
-    // with half its images resolvable. A throw between the two leaves unreferenced blobs for the scheduled
-    // sweep — the fail-safe direction, never a dangling reference (the `storeFetched` put→link posture, #802).
+    // with half its images resolvable. A FAILURE mid-wave reaps everything this attempt wrote, the bundle zip
+    // included, and rethrows — the same "reap the ids you just orphaned" rule `upgrade`/`uninstall` follow
+    // rather than leaving them to the WEEKLY `assets-gc` sweep. Nothing references them yet (the row is not
+    // written), so the reap can never orphan a live path, and `reapIfOrphan` re-checks each id anyway, so
+    // bytes another plugin's within-owner dedup already shares are left alone.
     const bundleAssets = await storeBundleAssets(ctx.assets.store, caller, uiAssets, now);
+    if (!bundleAssets.ok) {
+      await ctx.assets.reapOrphans([stored.assetId, ...bundleAssets.stored]);
+      throw bundleAssets.error;
+    }
 
     // ONE row object, inserted AND projected. It used to be two hand-written literals — the insert shape and a
     // parallel `PluginView` return — which is two homes for one projection: a field added to `toPluginView` was
@@ -76,7 +83,7 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
       installedAt: now,
       updatedAt: now,
     };
-    await insertPlugin(ctx.db, row, bundleAssets);
+    await insertPlugin(ctx.db, row, bundleAssets.links);
     return toPluginView(row);
   };
 }

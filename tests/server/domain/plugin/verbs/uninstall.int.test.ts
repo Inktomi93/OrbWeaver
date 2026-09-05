@@ -8,7 +8,7 @@ import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginNotFoundError, recordPluginFetchedAsset } from "@orb/server/domain/plugin";
 import { eq } from "drizzle-orm";
-import { upsertKv } from "../../../../../packages/server/src/domain/plugin/persistence/plugin-kv.ts";
+import { upsertKvUnderCap } from "../../../../../packages/server/src/domain/plugin/persistence/plugin-kv.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { magicBytes } from "../../../../support/magic-bytes.ts";
@@ -33,7 +33,7 @@ test("uninstall leaves zero rows, zero KV, zero bundle bytes; disposes a residen
   });
   await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
   // Seed a KV row so the CASCADE is observable.
-  await upsertKv(db, { pluginId: installed.id, ownerId: owner }, { key: "k", value: "v", updatedAt: 1000 });
+  await upsertKvUnderCap(db, { pluginId: installed.id, ownerId: owner }, { key: "k", value: "v", updatedAt: 1000 }, 8);
 
   await h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
 
@@ -152,7 +152,7 @@ test("a stranger cannot uninstall another user's plugin — the row, its KV and 
     bundle: makeBundle({ id: "mood", capabilities: ["storage.kv"] }),
     grant: ["storage.kv"],
   });
-  await upsertKv(db, { pluginId: hers.id, ownerId: alice }, { key: "k", value: "v", updatedAt: 1000 });
+  await upsertKvUnderCap(db, { pluginId: hers.id, ownerId: alice }, { key: "k", value: "v", updatedAt: 1000 }, 8);
 
   await expect(h.service.uninstall({ caller: principalFor(bob), pluginId: hers.id })).rejects.toBeInstanceOf(PluginNotFoundError);
   await expect(h.service.uninstall({ caller: ownerPrincipalFor(boss), pluginId: hers.id })).rejects.toBeInstanceOf(PluginNotFoundError);

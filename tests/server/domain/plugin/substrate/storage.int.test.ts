@@ -161,6 +161,33 @@ test("the 256-key cap: a NEW key past the ceiling is refused; an EXISTING-key ov
   expect(await storage.get(plugin, owner, "k0")).toBe("updated");
 });
 
+// ── THE CAP IS A PREDICATE ON THE WRITE, NOT A READ BEFORE IT ─────────────────────────────────────────────
+// `set` used to ask `getKv` then `countKeys` then `upsertKv` — three statements with two JS `if`-gaps. Two
+// concurrent sets for DISTINCT new keys at the ceiling-1 both read 255, both passed, and both inserted: 257
+// keys behind a 256-key cap. `storage.set` is UI-proxyable (a Tier-C `ui.js` writer, a second tab), so those
+// writers are real and nothing serialises them. The count now rides the INSERT as a subquery predicate —
+// the same "the predicate rides the write" rule `compareAndSet` follows one arm over.
+test("two concurrent NEW-key writes at the ceiling cannot both land — the count rides the write", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const plugin = await seedPlugin(db, owner, "plugin_a", "alpha");
+  const storage = buildPluginStorage(db, now);
+
+  // One slot left.
+  for (let i = 0; i < PLUGIN_KV_MAX_KEYS - 1; i += 1) {
+    await storage.set(plugin, owner, `k${i}`, "v");
+  }
+
+  // A REAL interleaving: two writers, two DISTINCT new keys, one slot. Exactly one may win; the loser is a
+  // cap refusal (contained upstream as guest errors-as-data), never a silent 257th row.
+  const outcomes = await Promise.allSettled([storage.set(plugin, owner, "race-a", "v"), storage.set(plugin, owner, "race-b", "v")]);
+
+  expect(outcomes.filter((o) => o.status === "fulfilled")).toHaveLength(1);
+  const rejected = outcomes.find((o) => o.status === "rejected");
+  expect(String(rejected?.status === "rejected" ? rejected.reason : "")).toMatch(CAP_ERROR_RE);
+  expect(await storage.list(plugin, owner, undefined)).toHaveLength(PLUGIN_KV_MAX_KEYS);
+});
+
 test("cross-plugin isolation through the op: plugin A's key is invisible to plugin B (same owner)", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });

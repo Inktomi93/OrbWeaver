@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 538,
-    "enforced": 533,
+    "sites": 539,
+    "enforced": 534,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 533,
+      "deliberate-absorb": 534,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 141,
       "default": 144,
-      "empty": 253
+      "empty": 254
     }
   },
   "rows": [
@@ -2772,6 +2772,19 @@
       "verdict": "deliberate-absorb",
       "reason": "documented above — a params-schema failure",
       "markerLine": 143
+    },
+    {
+      "siteId": "packages/server/src/domain/workloads/verbs/start.ts::empty:err::1",
+      "path": "packages/server/src/domain/workloads/verbs/start.ts",
+      "line": 70,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:err",
+      "ordinal": 1,
+      "snippet": "} catch (err) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the ONE absorbed failure is the single-active",
+      "markerLine": 62
     },
     {
       "siteId": "packages/server/src/entry/auth/seam.ts::default:catch::1",

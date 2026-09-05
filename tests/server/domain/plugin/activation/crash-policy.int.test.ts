@@ -53,6 +53,46 @@ test("crashes below the threshold record the detail but keep the plugin runnable
   expect(emitted).toEqual([{ type: "plugin-disabled", recipientUserId: owner, pluginId: installed.id }]);
 });
 
+// ── THE AUTO-DISABLE IS A CROSSING, NOT A STATE ────────────────────────────────────────────────────────────
+// `incrementCrashes` is atomic per call, but the threshold test used to be `count >= THRESHOLD` with no
+// was-below/now-at guard — so every crash AT OR ABOVE the threshold re-notified. Two crashes racing across the
+// line land on 3 and 4 and BOTH fired `plugin-disabled`, putting two identical rows in the owner's durable
+// inbox for one disable. Exactly the call that CROSSES may notify.
+test("two crashes racing across the threshold notify the owner ONCE (the crossing call, not every call above it)", async () => {
+  const db = await freshDb();
+  const emitted: NotificationEvent[] = [];
+  const ops = {
+    ...makeInertOps(),
+    notifications: {
+      emit: (event: NotificationEvent): Promise<void> => {
+        emitted.push(event);
+        return Promise.resolve();
+      },
+      post: () => Promise.resolve(),
+    },
+  };
+  const h = makePluginHarness(db, { ops });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
+  const policy = createCrashPolicy(h.ctx, () => undefined);
+
+  // Park the counter one short of the threshold…
+  for (let i = 1; i < PLUGIN_CRASH_DISABLE_THRESHOLD; i += 1) {
+    await policy.recordCrash({ pluginId: installed.id, recipientUserId: owner, error: `crash ${i}` });
+  }
+  expect(emitted).toEqual([]);
+
+  // …then two guest invocations crash CONCURRENTLY (two resident handlers, two tabs' UI actions — the invoke
+  // closure is per-handler, nothing serialises these). A REAL interleaving, not a scripted one.
+  await Promise.all([
+    policy.recordCrash({ pluginId: installed.id, recipientUserId: owner, error: "race a" }),
+    policy.recordCrash({ pluginId: installed.id, recipientUserId: owner, error: "race b" }),
+  ]);
+
+  expect(emitted).toEqual([{ type: "plugin-disabled", recipientUserId: owner, pluginId: installed.id }]);
+  expect((await getById(h.ctx.db, owner, installed.id))?.status).toBe("errored");
+});
+
 test("a clean run resets the crash counter", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);

@@ -1218,6 +1218,7 @@
     "tests/server/domain/notifications/verbs/record.int.test.ts",
     "tests/server/domain/persona/persistence/import-write.int.test.ts",
     "tests/server/domain/persona/persistence/queries.int.test.ts",
+    "tests/server/domain/persona/substrate/dedup-name.test.ts",
     "tests/server/domain/persona/substrate/macro-swap.test.ts",
     "tests/server/domain/persona/substrate/metadata.test.ts",
     "tests/server/domain/persona/verbs/connection/connect.int.test.ts",

@@ -176,6 +176,36 @@ test("a REFUSED bundle asset aborts the whole install — no row, no bytes, noth
   expect(await db.select().from(pluginAssets)).toEqual([]);
 });
 
+// ── A FAILED INSTALL LEAVES NO BLOBS BEHIND ────────────────────────────────────────────────────────────────
+// A throw mid-`storeBundleAssets` used to discard the ids it had already written, so the only thing that could
+// ever reclaim them was the WEEKLY `assets-gc` mark-sweep (past its one-hour put→link grace). That is a
+// fail-safe direction but not this domain's rule: `upgrade` and `uninstall` both reap the ids they just
+// orphaned rather than leaving them to the sweep (`schema/plugin.ts`), and the failure path could not because
+// the ids died with the throw. The writer now reports what it stored, and the verb reaps it on the way out.
+test("a CAS failure mid-image-wave reaps what it already wrote instead of leaving it for the weekly sweep", async () => {
+  const db = await freshDb();
+  // The bundle zip lands (call 1), the FIRST image lands (call 2), the second image fails (call 3).
+  const h = makePluginHarness(db, { failStoreAfter: 2 });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+  await expect(
+    h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "sprites" }, undefined, undefined, {
+        "ui/assets/a.png": magicBytes("png"),
+        "ui/assets/b.webp": magicBytes("webp"),
+      }),
+      grant: [],
+    }),
+  ).rejects.toThrow(/CAS write failed/u);
+
+  // Nothing landed, and nothing was left orphaned: no row, no links, and no unreferenced blobs.
+  expect(await h.service.list({ caller: ownerPrincipalFor(owner) })).toEqual([]);
+  expect(await db.select().from(pluginAssets)).toEqual([]);
+  expect(await db.select().from(assets)).toEqual([]);
+  expect(h.storedBytes.size).toBe(0);
+});
+
 test("two paths carrying IDENTICAL bytes both resolve — the widened PK keeps both names", async () => {
   // The receipt for the widened `plugin_assets` PK. Under the old (plugin_id, asset_id) key a second path
   // pointing at the same content-addressed id would have collided and been lost, and a node naming it would

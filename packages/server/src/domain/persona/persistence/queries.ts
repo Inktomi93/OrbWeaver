@@ -11,6 +11,7 @@ import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { AssetNotFoundError, PersonaCharacterNotFoundError, PersonaNotFoundError } from "../contract/errors.ts";
 import type { ConnectedCharacterView, PersonaDetail, PersonaListView } from "../contract/views.ts";
+import { dedupPersonaName, indexByDedupName } from "../substrate/dedup-name.ts";
 
 const LIMIT_ONE = 1;
 
@@ -77,16 +78,25 @@ export async function listOwnedPersonasWithAvatar(db: Db, ownerId: UserId): Prom
   return rows;
 }
 
-/** The caller's existing owned persona with this exact `name`, or null — the `(ownerId, name)` backup-import
- *  dedup key. Newest wins when names collide. */
+/** Every owned persona id keyed by its DEDUP-FOLDED name ({@link dedupPersonaName}) — the `(ownerId, name)`
+ *  import dedup index, built once per call.
+ *
+ *  It is a map read in JS rather than a `WHERE name = ?`, and that is the point: the BULK import door has
+ *  always folded the name in JS over its own owner-scoped pre-fetch, so a SQL-side fold here would be a
+ *  SECOND normalisation with different Unicode rules (SQLite's `lower()` is ASCII-only) — and two doors
+ *  disagreeing about what "the same persona" means is the defect this replaced. One fold, one language.
+ *
+ *  NEWEST WINS on a collision (`ORDER BY createdAt DESC`, first write into the map): the same rule the
+ *  single-file door has always documented, now the rule for both doors. */
+export async function loadOwnedPersonaIdsByDedupName(db: Db, ownerId: UserId): Promise<Map<string, PersonaId>> {
+  // NEWEST FIRST, and the ordering is the collision rule: `indexByDedupName` keeps the first row it sees.
+  const rows = await db.select({ id: personas.id, name: personas.name }).from(personas).where(eq(personas.ownerId, ownerId)).orderBy(desc(personas.createdAt));
+  return indexByDedupName(rows);
+}
+
+/** The caller's existing owned persona whose name DEDUPS to `name`, or null. Newest wins when names collide. */
 export async function findOwnedPersonaByName(db: Db, ownerId: UserId, name: string): Promise<PersonaId | null> {
-  const rows = await db
-    .select({ id: personas.id })
-    .from(personas)
-    .where(and(eq(personas.ownerId, ownerId), eq(personas.name, name)))
-    .orderBy(desc(personas.createdAt))
-    .limit(LIMIT_ONE);
-  return rows[0]?.id ?? null;
+  return (await loadOwnedPersonaIdsByDedupName(db, ownerId)).get(dedupPersonaName(name)) ?? null;
 }
 
 /** Personas connected to a character (via `character_personas`), owner-scoped, newest first. */

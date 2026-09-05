@@ -12,7 +12,7 @@ import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { StartWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { isActiveKindUniqueViolation, isOwnerForeignKeyViolation } from "../persistence/constraints.ts";
-import { insertWorkload } from "../persistence/queries.ts";
+import { findActiveAdmittedWorkloadId, insertWorkload } from "../persistence/queries.ts";
 import { activeConflictMessage, assertAdmissible, parseWorkloadInput, resolveAdmissionKey } from "../substrate/params.ts";
 
 /**
@@ -44,6 +44,81 @@ function authorizeAndResolveOwner(ctx: WorkloadServiceContext, params: StartWork
   return params.targetOwnerId;
 }
 
+/** The row an admission attempt inserts, minus the id (a retry mints a fresh one). Derived from
+ *  `insertWorkload`'s own parameter rather than re-spelled — one shape, one home. */
+type AdmissionRow = Omit<Parameters<typeof insertWorkload>[1], "id">;
+
+/**
+ * Insert the row — or, when the caller asked to ADOPT and the single-active index refuses, hand back the id
+ * of the run already holding the slot.
+ *
+ * BOUNDED AT TWO ATTEMPTS, and the bound is exact rather than defensive: the only way an attempt can collide
+ * AND then find no active row is that the holder reached a terminal state in between, which FREES the slot —
+ * so a second insert is the correct next move and cannot be refused for the same reason twice without a new
+ * holder existing to be adopted. A conflict with no adoptable row after that is reported as the conflict it
+ * is.
+ */
+async function admit(ctx: WorkloadServiceContext, row: AdmissionRow, adoptActive: boolean): Promise<{ id: WorkloadId }> {
+  // @orb-gate-ignore caught-failure-ownership(empty:err): the ONE absorbed failure is the single-active
+  // collision under an explicit `adoptActive` caller, and it is absorbed by RESOLVING it — the caller gets
+  // the id of the run that already holds the slot, which is the outcome it asked for. Every other arm throws
+  // the domain's own error (`translateInsertFailure`: conflict / leak-free NOT_FOUND / the raw failure), and
+  // the adopt arm that finds no active row retries once and throws that attempt's failure. Ends if any path
+  // out of this catch neither returns an admitted workload id nor throws.
+  try {
+    return await insertOnce(ctx, row);
+  } catch (err) {
+    // EVERY path out of here throws or returns an admitted row — the failure is never merely noted. A
+    // non-adopting caller, and any failure that is not the single-active collision, leaves as the domain's
+    // own error (`translateInsertFailure`).
+    const adoptable = adoptActive && isActiveKindUniqueViolation(err);
+    if (!adoptable) {
+      throw translateInsertFailure(err, row);
+    }
+    const active = await findActiveAdmittedWorkloadId(ctx.db, {
+      kind: row.kind,
+      mode: row.mode,
+      ownerId: row.ownerId,
+      admissionKey: row.admissionKey,
+    });
+    if (active !== undefined) {
+      return { id: active };
+    }
+    // The collision found NO active row, so the holder reached a terminal state between our insert and this
+    // look-up — which FREES the slot. One more attempt, and its own failure leaves as the conflict it is.
+    try {
+      return await insertOnce(ctx, row);
+    } catch (retryErr) {
+      throw translateInsertFailure(retryErr, row);
+    }
+  }
+}
+
+/** One admission attempt: a freshly minted id (a retry must never reuse one) and the insert. */
+async function insertOnce(ctx: WorkloadServiceContext, row: AdmissionRow): Promise<{ id: WorkloadId }> {
+  const id = ctx.newWorkloadId();
+  await insertWorkload(ctx.db, { ...row, id });
+  return { id };
+}
+
+/** An insert failure as the domain's own error — the single-active collision becomes the conflict sentence a
+ *  person can act on, a missing owner becomes the leak-free NOT_FOUND, anything else travels unchanged. */
+function translateInsertFailure(err: unknown, row: AdmissionRow): unknown {
+  if (isOwnerForeignKeyViolation(err)) {
+    const notFound = new DomainNotFoundError("user", String(row.ownerId));
+    notFound.cause = err;
+    return notFound;
+  }
+  return isActiveKindUniqueViolation(err) ? asConflict(err, row.kind) : err;
+}
+
+/** The single-active refusal as the domain's own error, carrying the constraint violation as its cause. */
+function asConflict(cause: unknown, kind: WorkloadKind): DomainConflictError {
+  const conflict = new DomainConflictError(activeConflictMessage(kind));
+  conflict.cause = cause;
+  return conflict;
+}
+
 export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, "start"> {
   async function start(params: StartWorkloadParams): Promise<{ id: WorkloadId }> {
     const contributions = ctx.getContributions();
@@ -53,11 +128,10 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
     // row's enumeration scope) and BEFORE a row exists (#156): work that structurally cannot produce anything
     // is refused at the door, never enqueued to land as a vacuous success.
     await assertAdmissible(contributions, input.kind, input.params, ownerId);
-    const id = ctx.newWorkloadId();
     const now = ctx.now();
-    try {
-      await insertWorkload(ctx.db, {
-        id,
+    return await admit(
+      ctx,
+      {
         kind: input.kind,
         mode: params.mode,
         // The ADMISSION sub-partition — the owning domain's declared concurrency unit (a lane decides WHEN a
@@ -70,21 +144,9 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         dependsOn: params.dependsOn ?? null,
         scheduledAt: params.scheduledAt ?? now,
         createdAt: now,
-      });
-    } catch (err) {
-      if (isActiveKindUniqueViolation(err)) {
-        const conflict = new DomainConflictError(activeConflictMessage(input.kind));
-        conflict.cause = err;
-        throw conflict;
-      }
-      if (isOwnerForeignKeyViolation(err)) {
-        const notFound = new DomainNotFoundError("user", String(ownerId));
-        notFound.cause = err;
-        throw notFound;
-      }
-      throw err;
-    }
-    return { id };
+      },
+      params.adoptActive === true,
+    );
   }
   return { start };
 }

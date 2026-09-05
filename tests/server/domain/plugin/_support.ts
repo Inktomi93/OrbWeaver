@@ -184,6 +184,10 @@ export function makePluginHarness(
     /** The fan-out's recipient list (D147 clause (d)). Default EMPTY — a distribution suite states its own
      *  cast, and every other suite is unaffected by a fan-out it never calls. */
     readonly listRecipients?: PluginDistributionDeps["listRecipients"];
+    /** Make the CAS write FAIL from the (n+1)-th `assets.store` call onward — the partial-write failure path
+     *  install/upgrade must not leave orphaned blobs behind (#820 seam 11). The first `n` calls behave
+     *  normally, so a suite can let the bundle land and redden exactly the image wave after it. */
+    readonly failStoreAfter?: number;
   } = {},
 ): PluginHarness {
   const clock = createFrozenClock(FROZEN_AT_MS);
@@ -196,7 +200,12 @@ export function makePluginHarness(
   // the property the whole upgrade-reap design rests on (an image a new bundle still ships keeps its id, so
   // `reapIfOrphan`'s reference re-check IS the diff, #820). A fake that minted a fresh id per call would let
   // a "kept asset survives the upgrade" test pass or fail for reasons production never has.
+  let storeCalls = 0;
   const store: PluginContext["assets"]["store"] = async (caller, bytes, mime) => {
+    storeCalls += 1;
+    if (overrides.failStoreAfter !== undefined && storeCalls > overrides.failStoreAfter) {
+      throw new Error(`test: the CAS write failed on store call ${storeCalls}`);
+    }
     const hash = createHash("sha256").update(bytes).digest("hex");
     const existing = await db
       .select({ id: assets.id })

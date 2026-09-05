@@ -14,6 +14,7 @@ import type { PersonaBackup } from "@orb/server/kit/serde/persona";
 import { buildPersonaBackup } from "@orb/server/kit/serde/persona";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createBulkImportPersonas } from "../../../../../packages/server/src/domain/persona/persistence/import-write.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
@@ -154,5 +155,45 @@ describe("import", () => {
     const second = await svc.import({ principal: principal(owner), bytes });
     expect(first.ok && first.created).toBe(true);
     expect(second.ok && second.created).toBe(false);
+  });
+
+  // ── THE TWO DOORS AGREE ON WHAT "the same persona" MEANS ────────────────────────────────────────────────
+  // The single-file door and the bulk (profile-import) door BOTH dedup on the owner's persona NAME, and they
+  // used to disagree about it: this verb compared the name BYTE-FOR-BYTE while `createBulkImportPersonas`
+  // compared `name.trim().toLowerCase()`. So "Alice" through one door and " alice " through the other minted
+  // TWO rows for one person — and which door a persona arrived through is an accident of how the user
+  // imported, never a statement about identity. One normalisation, one home, both doors.
+  test("the single-file door dedups on the SAME normalised name the bulk door does (whitespace + case)", async () => {
+    const db = await freshDb();
+    const svc = createPersonaService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+    const first = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: "Alice", description: "a" }) }));
+    // The SAME person, spelled the way an export from another tool (or a hand-edited file) spells it.
+    const second = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: " alice ", description: "b" }) }));
+
+    expect(second.id).toBe(first.id);
+    expect(await db.select().from(personas).where(eq(personas.ownerId, owner))).toHaveLength(1);
+  });
+
+  // GREEN BEFORE the fix (the bulk door already normalised) — an honest FENCE, not a defect proof: it is what
+  // keeps the two doors agreeing now that the single-file door normalises too.
+  test("the BULK door lands on the row the single-file door already minted (one persona, not two)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createPersonaService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+    const single = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: " Alice ", description: "a" }) }));
+    const bulk = createBulkImportPersonas({ db, now: h.ctx.now, newPersonaId: h.ctx.newPersonaId });
+    const result = await bulk({
+      ownerId: owner,
+      personas: [{ name: "ALICE", description: "from a profile", avatarAssetId: null, metadata: null, isDefault: false }],
+    });
+
+    expect(result.personasCreated).toBe(0);
+    expect(result.personasSkipped).toBe(1);
+    expect(result.idByName["alice"]).toBe(single.id);
+    expect(await db.select().from(personas).where(eq(personas.ownerId, owner))).toHaveLength(1);
   });
 });

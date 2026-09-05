@@ -17,6 +17,16 @@ export interface StartWorkloadParams {
   readonly ownerId: UserId | null;
   readonly dependsOn?: readonly WorkloadId[];
   readonly scheduledAt?: number;
+  /** "Start this unit, or hand me the run that already holds its slot." A caller whose next act needs an
+   *  ACTIVE workload of this unit — a DAG builder that must chain a dependent on it — cannot use the bare
+   *  conflict: `DomainConflictError` says the work is in flight but not WHICH row is doing it, so the only
+   *  thing it can do is swallow the refusal and lose the edge. With this set, the single-active collision
+   *  resolves to the ACTIVE row's id instead of throwing, and the caller's `dependsOn` survives whether this
+   *  call created the row or found it. NOT the wire's to send — it is an internal/system-trigger intent, and
+   *  the transport `start` proc does not carry it: a person clicking "Run" is told the run is already going,
+   *  which is the honest answer for a person. `dependsOn`/`scheduledAt` supplied alongside an ADOPTED row are
+   *  necessarily dropped — the adopted row was admitted under its own. Absent ⇒ the conflict throws. */
+  readonly adoptActive?: boolean;
 }
 
 export interface CancelWorkloadParams {

@@ -134,13 +134,15 @@ test("setStatus + setLastError stamp the lifecycle fields", async () => {
   expect(row?.status).toBe("enabled"); // setLastError does not touch status
 });
 
-test("incrementCrashes returns the new count; resetCrashes clears it", async () => {
+test("incrementCrashes returns the count it produced AND the one it moved from; resetCrashes clears it", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const pluginId = await seedPlugin(db, owner, "plugin_a");
 
-  expect(await incrementCrashes(db, pluginId, AT + 1)).toBe(1);
-  expect(await incrementCrashes(db, pluginId, AT + 2)).toBe(2);
+  // The PAIR is what makes a threshold CROSSING observable: with the count alone, two crashes racing over the
+  // auto-disable line look identical and both fire the owner's durable `plugin-disabled` notice.
+  expect(await incrementCrashes(db, pluginId, AT + 1)).toStrictEqual({ previous: 0, count: 1 });
+  expect(await incrementCrashes(db, pluginId, AT + 2)).toStrictEqual({ previous: 1, count: 2 });
   await resetCrashes(db, pluginId, AT + 3);
   expect((await getById(db, owner, pluginId))?.consecutiveCrashes).toBe(0);
 });
