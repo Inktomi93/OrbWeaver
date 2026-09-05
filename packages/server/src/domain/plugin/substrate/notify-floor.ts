@@ -23,9 +23,40 @@ import type { NotifyFloor } from "../contract/ops.ts";
 
 const MS_PER_SECOND = 1000;
 const COOLDOWN_MS = AUTOMATION_NOTICE_COOLDOWN_SECONDS * MS_PER_SECOND;
-/** Sweep threshold — the key set is (plugin × chat) and every entry is dead after the cooldown, so a bounded
- *  lazy sweep keeps a long-lived process from accumulating one entry per room a plugin ever notified. */
-const SWEEP_AT_ENTRIES = 1024;
+/** The HARD ceiling on tracked (plugin × chat) pairs, and therefore the whole memory cost of this belt.
+ *
+ *  It is a cap with eviction and not merely a sweep threshold, because the sweep alone was not a bound: it
+ *  only dropped entries whose cooldown had ELAPSED, so a plugin posting into many distinct rooms INSIDE one
+ *  window swept nothing and the map grew one entry per room, without limit, driven by a guest. The lazy sweep
+ *  is still the first move (a dead entry is free to drop and costs nobody a notice); eviction is what happens
+ *  when the sweep does not get the size back under the cap.
+ *
+ *  THE COST, STATED: past the cap the LEAST-RECENTLY-ADMITTED pair is forgotten, so its next notice admits
+ *  again. A guest can therefore buy itself one extra notice in a room by notifying 1024 other rooms first —
+ *  which is a worse deal for it than simply waiting out the 60s, and the durable half of the posture (WHO may
+ *  be notified at all: the domain-resolved participants-only recipient set) is untouched by any of it. */
+export const PLUGIN_NOTIFY_FLOOR_MAX_ENTRIES = 1024;
+
+/** Bring the map back under {@link PLUGIN_NOTIFY_FLOOR_MAX_ENTRIES}: drop every entry whose cooldown has
+ *  already elapsed (free — those pairs would admit anyway), then, only if that was not enough, EVICT from the
+ *  front until there is room. A `Map` iterates in insertion order and `admit` re-inserts on every admitted
+ *  post, so the front IS the least-recently-admitted pair. */
+function reclaim(lastPostAt: Map<string, number>, at: number): void {
+  if (lastPostAt.size < PLUGIN_NOTIFY_FLOOR_MAX_ENTRIES) {
+    return;
+  }
+  for (const [key, postedAt] of lastPostAt) {
+    if (at - postedAt >= COOLDOWN_MS) {
+      lastPostAt.delete(key);
+    }
+  }
+  for (const key of lastPostAt.keys()) {
+    if (lastPostAt.size < PLUGIN_NOTIFY_FLOOR_MAX_ENTRIES) {
+      break;
+    }
+    lastPostAt.delete(key);
+  }
+}
 
 /** Build the process-wide plugin notice floor over an injected clock (the frozen clock in tests). */
 export function createNotifyFloor(now: () => number): NotifyFloor {
@@ -33,18 +64,15 @@ export function createNotifyFloor(now: () => number): NotifyFloor {
   return {
     admit: (pluginId, chatId): void => {
       const at = now();
-      if (lastPostAt.size >= SWEEP_AT_ENTRIES) {
-        for (const [key, postedAt] of lastPostAt) {
-          if (at - postedAt >= COOLDOWN_MS) {
-            lastPostAt.delete(key);
-          }
-        }
-      }
+      reclaim(lastPostAt, at);
       const key = `${pluginId}:${chatId}`;
       const previous = lastPostAt.get(key);
       if (previous !== undefined && at - previous < COOLDOWN_MS) {
         throw new Error(`plugin host: notifications.post is limited to one notice per ${AUTOMATION_NOTICE_COOLDOWN_SECONDS}s per chat`);
       }
+      // DELETE-then-SET, not a bare set: the map's insertion order is the recency order the eviction above
+      // reads, and a plain overwrite would leave a still-active pair sitting at the front to be evicted first.
+      lastPostAt.delete(key);
       lastPostAt.set(key, at);
     },
   };

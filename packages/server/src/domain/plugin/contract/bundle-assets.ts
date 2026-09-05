@@ -33,3 +33,17 @@ export interface PluginBundleAssetLink {
   readonly bundlePath: string;
   readonly at: number;
 }
+
+/** What the image wave reports back. It is a TOTAL outcome rather than a throw because the failure arm has to
+ *  carry a VALUE the caller needs: the ids it managed to write before it stopped. A bare throw discards them,
+ *  and an id nobody remembers cannot be reaped by the verb that made it.
+ *
+ *  The blobs are not LOST either way — the weekly `assets-gc` mark-sweep (`entry/boot/seed-cas-schedules.ts`)
+ *  reclaims an unreferenced row past its one-hour put→link grace. But this domain's rule is that a verb reaps
+ *  THE IDS IT JUST ORPHANED rather than leaving them to the sweep (`schema/plugin.ts`; `upgrade`/`uninstall`
+ *  both do it), and the failure path had no way to follow it: up to a week of storage for bytes we can name
+ *  right now. The failing verb reaps `stored` and rethrows `error` unchanged, so what a caller sees is still
+ *  the original storage failure. */
+export type PluginBundleAssetStoreOutcome =
+  | { readonly ok: true; readonly links: readonly PluginBundleAssetLink[] }
+  | { readonly ok: false; readonly stored: readonly AssetId[]; readonly error: unknown };

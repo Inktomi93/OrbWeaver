@@ -4,11 +4,15 @@
 // errored). Deactivate unregisters every handle (no ghost tools/transforms/subs). (The per-plugin spend gate +
 // its composed-real serializer proof were stripped 2026-07-24 — enterprise spend enforcement.)
 
+import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PluginHandlerRef, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle } from "@orb/server/domain/plugin";
 import { PluginCrashedError } from "@orb/server/domain/plugin";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
+import { createActivate } from "../../../../../packages/server/src/domain/plugin/activation/activate.ts";
+import { createCrashPolicy } from "../../../../../packages/server/src/domain/plugin/activation/crash-policy.ts";
+import type { PluginRegistry } from "../../../../../packages/server/src/domain/plugin/contract/service.ts";
 import { getById } from "../../../../../packages/server/src/domain/plugin/persistence/plugins.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -18,6 +22,7 @@ import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, seedUse
 const HANDLER = castId<PluginHandlerRef>("handler_1");
 const HANDLER2 = castId<PluginHandlerRef>("handler_2");
 const INVOCATION_ENDED_RE = /invocation ended/u;
+const DB_UNAVAILABLE_RE = /db unavailable/u;
 
 /** A recording registrar over the inert base: counts register/unregister so activation atomicity is observable. */
 function recordingOps(overrides: { readonly failToolAt?: number } = {}): {
@@ -151,6 +156,75 @@ test("a registrar refusal discards the whole activation atomically (rollback + e
   expect(h.port.disposed.length).toBe(1);
   const row = await getById(h.ctx.db, owner, installed.id);
   expect(row?.status).toBe("errored");
+});
+
+// ── THE DURABLE ROW AND THE RESIDENT REGISTRY MUST NEVER DISAGREE ──────────────────────────────────────────
+// Activation used to publish the resident into the in-memory registry FIRST and write `enabled` SECOND, with
+// no rollback on that final write. A rejection there left a LIVE instance — tools registered, handlers
+// callable — behind a row that still said `disabled`, and the surface's own retry (the owner clicks the
+// toggle again) then built a SECOND instance beside the first. The order is now durable-first: the row is
+// what the registry is published against, and a failed status write discards the whole activation exactly
+// like a registrar refusal does.
+
+/** A `Db` whose `update` throws — the ONLY db write `activate` performs is `setStatus`, so this reddens
+ *  exactly the final durable write and nothing else in the path (reads go through `select`). */
+function dbWithFailingUpdate(db: Db): Db {
+  return new Proxy(db, {
+    get: (target, prop, receiver): unknown => {
+      if (prop === "update") {
+        return (): never => {
+          throw new Error("db unavailable: the status write failed");
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  }) as Db;
+}
+
+test("a failed `enabled` write discards the activation — no resident is published, and a retry cannot double-instance", async () => {
+  const db = await freshDb();
+  const rec = recordingOps();
+  const h = makePluginHarness(db, { ops: rec.ops });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "mood", capabilities: ["tools.register"] }),
+    grant: ["tools.register"],
+  });
+  h.port.script({
+    ok: true,
+    instance: {
+      tools: [{ name: "t1", description: "", parameters: {}, handler: HANDLER }],
+      transforms: [],
+      events: [],
+      pubsub: [],
+      surfaces: [],
+      commands: [],
+      displayTransforms: [],
+      macros: [],
+    },
+  });
+
+  // The activation plane, wired over a db whose status write fails — the registry is OURS to inspect.
+  const row = await getById(h.ctx.db, owner, installed.id);
+  if (row === undefined) {
+    throw new Error("the installed row vanished");
+  }
+  const registry: PluginRegistry = new Map();
+  const brokenCtx = { ...h.ctx, db: dbWithFailingUpdate(h.ctx.db) };
+  const activate = createActivate(
+    brokenCtx,
+    registry,
+    createCrashPolicy(brokenCtx, () => undefined),
+  );
+  const input = { caller: ownerPrincipalFor(owner), pluginId: installed.id, bundleAssetId: row.bundleAssetId, grants: [], withheldNetHosts: [] };
+
+  await expect(activate(input)).rejects.toThrow(DB_UNAVAILABLE_RE);
+
+  // NOTHING survives: no resident to invoke, no registration left callable, the instance disposed.
+  expect(registry.size).toBe(0);
+  expect(rec.unregistered).toEqual(["t1"]);
+  expect(h.port.disposed.length).toBe(1);
 });
 
 // The crash policy's ONE trigger is `ctx.host.invoke` REJECTING. A guest handler that simply stops executing

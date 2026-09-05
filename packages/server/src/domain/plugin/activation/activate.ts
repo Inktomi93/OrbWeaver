@@ -5,6 +5,11 @@
 // whole activation — the partial registrations are unregistered, the instance disposed, and the row lands
 // `errored` + `last_error`. NEVER a partial activation. The host process is never fatal on guest
 // behavior — a `main.js` throw is contained data (`ok:false`), not an exception.
+//
+// ORDER AT THE END IS LOAD-BEARING: the `enabled` row is written BEFORE the resident is published into the
+// in-process registry, and a failed write discards the activation. The row is the record and the registry is
+// a view of it; publishing the view first meant a rejected write left a live instance with live registrations
+// behind a row that said `disabled`, and the owner's retry then built a SECOND instance next to it.
 
 import type { PluginInstance } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
@@ -55,6 +60,17 @@ function register(ctx: PluginContext, instance: PluginInstance, invoke: PluginIn
   return handles;
 }
 
+/** Throw away everything one activation attempt built: every registration this run made goes (no ghost tool
+ *  stays callable) and the guest instance is disposed. The ONE spelling of "this activation did not happen",
+ *  shared by the registrar-refusal arm and the failed-status-write arm — two rollbacks written twice is how
+ *  one of them ends up forgetting the handles. */
+function discardActivation(ctx: PluginContext, instance: PluginInstance, handles: readonly PluginRegistrationHandle[]): void {
+  for (const handle of handles) {
+    handle.unregister();
+  }
+  ctx.host.dispose(instance);
+}
+
 /** The egress wall this activation arms: the re-validated manifest's declared allowlist MINUS the
  *  destinations the caller says are still unanswered (`consentedNetHosts`). `undefined` in ⇒ `undefined` out
  *  (the manifest declared no hosts; infra fails closed at `[]`), and the subtraction can only ever NARROW —
@@ -64,33 +80,57 @@ function consentedWall(declared: readonly string[] | undefined, withheld: readon
   return declared === undefined ? undefined : consentedNetHosts(declared, withheld);
 }
 
+/** Everything this activation takes from the RE-VALIDATED manifest — nothing here is ever guest-runtime-
+ *  supplied. Local: only {@link revalidate} produces it and only the activation closure reads it. */
+interface RevalidatedBundle {
+  readonly mainJs: string;
+  /** The registrar's namespace for this plugin's tools (`plugin_<slug'>_<name>`, PL-A). */
+  readonly slug: string;
+  /** The host-facing display name a posture-2 card names. */
+  readonly displayName: string;
+  /** The `net.fetch` SSRF allowlist the infra host-fn pins `safeFetch` to; absent ⇒ fail-closed `[]`
+   *  infra-side. Already MINUS whatever the caller says is unanswered (see {@link consentedWall}). */
+  readonly netHosts: readonly string[] | undefined;
+  /** The cascade opt-in, fail-closed `false` when the manifest declares none. */
+  readonly matchAutomationEvents: boolean;
+}
+
+/** Re-parse and re-validate the stored bundle bytes. A corrupt stored bundle is CONTAINED (never thrown):
+ *  the caller lands the row `errored` with the detail. */
+function revalidate(
+  bytes: Uint8Array,
+  withheldNetHosts: readonly string[],
+): { readonly ok: true; readonly bundle: RevalidatedBundle } | { readonly ok: false; readonly error: string } {
+  try {
+    const parsed = parseBundle(bytes);
+    return {
+      ok: true,
+      bundle: {
+        mainJs: parsed.mainJs,
+        slug: parsed.manifest.id,
+        displayName: parsed.manifest.name,
+        netHosts: consentedWall(parsed.manifest.netHosts, withheldNetHosts),
+        matchAutomationEvents: parsed.manifest.matchAutomationEvents ?? false,
+      },
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 export function createActivate(ctx: PluginContext, registry: PluginRegistry, crashPolicy: CrashPolicy): (input: ActivateInput) => Promise<ActivateOutcome> {
   return async (input: ActivateInput): Promise<ActivateOutcome> => {
     const { bytes } = await ctx.assets.readBytes(input.caller, input.bundleAssetId);
-    let mainJs: string;
-    let slug: string;
-    let displayName: string;
-    let netHosts: readonly string[] | undefined;
-    let matchAutomationEvents = false;
-    try {
-      const bundle = parseBundle(bytes);
-      mainJs = bundle.mainJs;
-      // The slug is DERIVED from the re-validated manifest (never guest-runtime-supplied) — the registrar
-      // namespaces plugin tools `plugin_<slug'>_<name>` with it (PL-A).
-      slug = bundle.manifest.id;
-      // The host-facing display name a posture-2 card names — manifest-DERIVED, like the slug beside it.
-      displayName = bundle.manifest.name;
-      // The `net.fetch` SSRF allowlist — forwarded from the RE-VALIDATED manifest (never guest-runtime-supplied)
-      // so the infra host-fn pins `safeFetch` to it; absent ⇒ fail-closed `[]` (no host reachable) infra-side.
-      // MINUS whatever the caller says is still UNANSWERED (see {@link consentedWall}).
-      netHosts = consentedWall(bundle.manifest.netHosts, input.withheldNetHosts);
-      // The cascade opt-in — DERIVED from the re-validated manifest, fail-closed `false` when absent.
-      matchAutomationEvents = bundle.manifest.matchAutomationEvents ?? false;
-    } catch (err) {
-      const error = err instanceof Error ? err.message : String(err);
-      await setStatus(ctx.db, input.pluginId, { status: "errored", lastError: `bundle re-validation failed: ${error}`, updatedAt: ctx.now() });
-      return { ok: false, error };
+    const revalidated = revalidate(bytes, input.withheldNetHosts);
+    if (!revalidated.ok) {
+      await setStatus(ctx.db, input.pluginId, {
+        status: "errored",
+        lastError: `bundle re-validation failed: ${revalidated.error}`,
+        updatedAt: ctx.now(),
+      });
+      return { ok: false, error: revalidated.error };
     }
+    const { mainJs, slug, displayName, netHosts, matchAutomationEvents } = revalidated.bundle;
 
     // The membrane bridge is built PER INSTALLER (global-vars closes over the installer); an installed plugin's
     // `main.js` runs registration-only, so no chat is admitted for the activation run (chat: null). (The
@@ -143,8 +183,22 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
       return { ok: false, error };
     }
 
+    // DURABLE FIRST, THEN THE REGISTRY — never the other way round. The row is the record; the registry is the
+    // in-process view of it, and the view may only be published once the record says so. Publishing first left
+    // a LIVE instance (tools registered, handlers callable) behind a row that still said `disabled` whenever
+    // this write rejected — and the owner's natural response, toggling again, then built a SECOND instance
+    // beside the first with the first's registrations still standing. A failed write discards the whole
+    // activation exactly like a registrar refusal does, so a retry starts from nothing.
+    try {
+      await setStatus(ctx.db, input.pluginId, { status: "enabled", lastError: null, updatedAt: ctx.now() });
+    } catch (err) {
+      discardActivation(ctx, instance, handles);
+      // RETHROWN, not returned as `{ok:false}`: the contained-failure arm's whole contract is that the row
+      // carries the detail (`errored` + `lastError`), and the row is exactly what could not be written. A
+      // caller told "activation failed" by a value would read a row that says nothing happened.
+      throw err;
+    }
     registry.set(input.pluginId, { instance, handles, invoke });
-    await setStatus(ctx.db, input.pluginId, { status: "enabled", lastError: null, updatedAt: ctx.now() });
     return { ok: true };
   };
 }

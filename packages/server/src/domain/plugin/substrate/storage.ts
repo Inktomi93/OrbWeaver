@@ -9,7 +9,7 @@
 import type { Db } from "@orb/db";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import type { PluginHostOps } from "../contract/ops.ts";
-import { compareAndSetKv, countKeys, deleteKv, getKv, listKv, upsertKv } from "../persistence/plugin-kv.ts";
+import { compareAndSetKv, deleteKv, getKv, listKv, upsertKvUnderCap } from "../persistence/plugin-kv.ts";
 
 /** The per-plugin key ceiling ("≤ 256 keys/plugin"). Enforced HERE (a count the DDL cannot do); the
  *  value/key BYTE caps are DDL CHECKs. ONE home for the count cap. */
@@ -31,30 +31,35 @@ class PluginKvCapError extends Error {
 export function buildPluginStorage(db: Db, nowMs: () => number): PluginHostOps["storage"] {
   return {
     get: (pluginId: PluginId, ownerId: UserId, key: string) => getKv(db, { pluginId, ownerId }, key),
+    // THE CEILING IS A PREDICATE ON THE WRITE, not a read this layer acts on. `storage.set` is UI-proxyable, so
+    // a Tier-C `ui.js` writer and a second browser tab are real concurrent writers of these rows and nothing
+    // serialises them: the old read-count-then-upsert let two sets for DISTINCT new keys both see the last free
+    // slot and both take it. This layer states the LIMIT; persistence carries it into the statement.
     set: async (pluginId: PluginId, ownerId: UserId, key: string, value: string): Promise<void> => {
-      const scope = { pluginId, ownerId };
-      // Only a NEW key consumes a slot — an existing-key overwrite is always allowed. Read the current value to
-      // decide (get is scope-filtered, so this is race-tolerant enough for a single-owner private store).
-      const existing = await getKv(db, scope, key);
-      if (existing === null && (await countKeys(db, scope)) >= PLUGIN_KV_MAX_KEYS) {
+      const admitted = await upsertKvUnderCap(db, { pluginId, ownerId }, { key, value, updatedAt: nowMs() }, PLUGIN_KV_MAX_KEYS);
+      if (!admitted) {
         throw new PluginKvCapError(`at most ${PLUGIN_KV_MAX_KEYS} keys per plugin`);
       }
-      await upsertKv(db, scope, { key, value, updatedAt: nowMs() });
     },
-    // The ATOMIC arm (#1442). The 256-key ceiling is checked on the CREATE precondition only, exactly like
-    // `set`: `expected !== null` names a key that already exists, so it can consume no new slot. A refusal
-    // here is the cap error (a host refusal), NOT `applied: false` — losing a race and hitting the ceiling are
-    // different outcomes and a guest must be able to tell them apart.
+    // The ATOMIC arm (#1442), under the SAME ceiling predicate for the same reason: the create precondition is
+    // the only arm that can consume a slot (`expected !== null` names a key that already exists), and it now
+    // carries the cap inside its own INSERT rather than checking it one statement earlier.
+    //
+    // A cap refusal is the cap ERROR (a host refusal), NOT `applied: false` — losing a race and hitting the
+    // ceiling are different outcomes and a guest must be able to tell them apart. The two are distinguished by
+    // what the row LOOKS like afterwards: a create that did not apply and finds no row was refused by the
+    // ceiling (there is nothing it could have lost a race to); one that finds a row lost the race.
     compareAndSet: async (
       pluginId: PluginId,
       ownerId: UserId,
       entry: { readonly key: string; readonly expected: string | null; readonly next: string },
     ): Promise<{ applied: boolean; current: string | null }> => {
       const scope = { pluginId, ownerId };
-      if (entry.expected === null && (await getKv(db, scope, entry.key)) === null && (await countKeys(db, scope)) >= PLUGIN_KV_MAX_KEYS) {
+      const outcome = await compareAndSetKv(db, scope, { key: entry.key, expected: entry.expected, value: entry.next, updatedAt: nowMs() }, PLUGIN_KV_MAX_KEYS);
+      if (entry.expected === null && !outcome.applied && outcome.current === null) {
         throw new PluginKvCapError(`at most ${PLUGIN_KV_MAX_KEYS} keys per plugin`);
       }
-      return await compareAndSetKv(db, scope, { key: entry.key, expected: entry.expected, value: entry.next, updatedAt: nowMs() });
+      return outcome;
     },
     delete: (pluginId: PluginId, ownerId: UserId, key: string) => deleteKv(db, { pluginId, ownerId }, key),
     list: (pluginId: PluginId, ownerId: UserId, prefix: string | undefined) => listKv(db, { pluginId, ownerId }, prefix),

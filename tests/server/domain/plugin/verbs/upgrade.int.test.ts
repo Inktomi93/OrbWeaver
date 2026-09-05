@@ -2,6 +2,8 @@
 // rule (WIDENED REACH — new caps OR new netHosts ⇒ disabled), the old-bundle reap, and enabled-state
 // preservation when no re-confirmation is needed.
 
+import type { Db } from "@orb/db";
+import { assets } from "@orb/db";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError } from "@orb/server/domain/plugin";
@@ -478,5 +480,82 @@ describe("#820 the bundle-asset set across an upgrade", () => {
     expect((await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id })).map((entry) => entry.path)).toEqual([
       "ui/assets/a.png",
     ]);
+  });
+
+  // ── THE TEARDOWN COMES AFTER THE FALLIBLE WRITES, NOT BEFORE THEM ────────────────────────────────────────
+  // `deps.deactivate` used to run FIRST, ahead of the bundle store, the image wave and the row swap. Any
+  // failure in that span stranded the row saying `enabled` with no resident instance behind it — the plugin's
+  // tools silently gone while every surface reported it running — and the reap only ran after a SUCCESSFUL
+  // `applyUpgrade`, so the bytes the failed attempt wrote were orphaned forever. The stop is now the last
+  // thing before the swap, and the failure path repairs both halves.
+  test("a CAS failure during the swap leaves the RUNNING plugin running, and reaps what the attempt wrote", async () => {
+    const db = await freshDb();
+    // install = bundle (1) + image (2); the upgrade's bundle store is (3) and its image wave is (4).
+    const h = makePluginHarness(db, { failStoreAfter: 3 });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", version: "1.0.0" }, undefined, undefined, { "ui/assets/a.png": magicBytes("png") }),
+      grant: [],
+    });
+    await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+    const assetsBefore = await db.select().from(assets);
+
+    await expect(
+      h.service.upgrade({
+        caller: ownerPrincipalFor(owner),
+        pluginId: installed.id,
+        bundle: makeBundle({ id: "pp", version: "2.0.0" }, undefined, undefined, { "ui/assets/b.webp": magicBytes("webp") }),
+      }),
+    ).rejects.toThrow(/CAS write failed/u);
+
+    // The resident instance was never torn down — the row that still says `enabled` is telling the truth.
+    expect(h.port.disposed).toEqual([]);
+    const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+    expect(row?.status).toBe("enabled");
+    expect(row?.version).toBe("1.0.0");
+    // …and the half-written v2 bundle asset did not survive as an unreferenced blob.
+    expect(await db.select().from(assets)).toHaveLength(assetsBefore.length);
+  });
+
+  test("a failed ROW SWAP repairs the row it stranded — no `enabled` row without a resident instance", async () => {
+    let failBatch = false;
+    // `applyUpgrade` is the ONE batch in the upgrade path; everything before it is a plain select/insert. The
+    // flag is flipped after install so the install's own batch still lands.
+    const brokenDb = new Proxy(await freshDb(), {
+      get: (target, prop, receiver): unknown => {
+        if (prop === "batch" && failBatch) {
+          return (): never => {
+            throw new Error("db unavailable: the row swap failed");
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    }) as Db;
+    const h = makePluginHarness(brokenDb);
+    const owner = await seedUser(brokenDb, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", version: "1.0.0" }, undefined, undefined, { "ui/assets/a.png": magicBytes("png") }),
+      grant: [],
+    });
+    await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+
+    failBatch = true;
+    await expect(
+      h.service.upgrade({
+        caller: ownerPrincipalFor(owner),
+        pluginId: installed.id,
+        bundle: makeBundle({ id: "pp", version: "2.0.0" }, undefined, undefined, { "ui/assets/b.webp": magicBytes("webp") }),
+      }),
+    ).rejects.toThrow(/db unavailable/u);
+    failBatch = false;
+
+    // The instance IS gone (the stop precedes the swap by design) — so the row must not still claim `enabled`.
+    expect(h.port.disposed).toHaveLength(1);
+    const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+    expect(row?.status).toBe("disabled");
+    expect(row?.version).toBe("1.0.0");
+    expect(row?.lastError).toMatch(/db unavailable/u);
   });
 });

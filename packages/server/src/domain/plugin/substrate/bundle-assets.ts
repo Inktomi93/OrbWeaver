@@ -16,7 +16,7 @@
 
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { PluginBundleAssetBytes, PluginBundleAssetLink } from "../contract/bundle-assets.ts";
+import type { PluginBundleAssetBytes, PluginBundleAssetLink, PluginBundleAssetStoreOutcome } from "../contract/bundle-assets.ts";
 
 /** Write every bundle image into `caller`'s CAS and return the link rows, in bundle order.
  *
@@ -25,19 +25,25 @@ import type { PluginBundleAssetBytes, PluginBundleAssetLink } from "../contract/
  *  the count is bounded by `PLUGIN_UI_ASSETS_MAX_COUNT` (64), which is far below any level where fan-out
  *  would buy something worth the added failure modes on an install path.
  *
- *  A throw leaves already-stored blobs UNREFERENCED, which is the fail-safe direction: the scheduled sweep
- *  collects them, and no row ever points at bytes that are not there (the `storeFetched` put→link posture,
- *  #802). */
+ *  A FAILURE MID-WAVE REPORTS WHAT IT ALREADY WROTE ({@link PluginBundleAssetStoreOutcome}) instead of
+ *  throwing it away. The direction was always fail-safe (unreferenced bytes, never a link to bytes that are
+ *  not there — the `storeFetched` put→link posture, #802) and the weekly `assets-gc` sweep does eventually
+ *  reclaim them; what was missing is that the caller could not follow this domain's OWN rule — reap the ids
+ *  you just orphaned instead of leaving them to the sweep — because the ids died with the throw. */
 export async function storeBundleAssets(
   store: (caller: Principal, bytes: Uint8Array, mime: string) => Promise<StoredAsset>,
   caller: Principal,
   assets: readonly PluginBundleAssetBytes[],
   at: number,
-): Promise<PluginBundleAssetLink[]> {
+): Promise<PluginBundleAssetStoreOutcome> {
   const links: PluginBundleAssetLink[] = [];
   for (const asset of assets) {
-    const stored = await store(caller, asset.bytes, asset.mime);
-    links.push({ assetId: stored.assetId, bundlePath: asset.path, at });
+    try {
+      const stored = await store(caller, asset.bytes, asset.mime);
+      links.push({ assetId: stored.assetId, bundlePath: asset.path, at });
+    } catch (error) {
+      return { ok: false, stored: links.map((link) => link.assetId), error };
+    }
   }
-  return links;
+  return { ok: true, links };
 }

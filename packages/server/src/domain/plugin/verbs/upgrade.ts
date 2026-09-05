@@ -5,10 +5,16 @@
 // Flow: load the owned row (leak-free NotFound) → `parseBundle` the new bytes → the new manifest's slug
 // MUST match the installed slug (a bundle for a different plugin is a `ManifestInvalidError`) → REFUSE a version
 // LOWER than installed (`PluginDowngradeRefusedError` — a re-uploaded old bundle must never silently roll back)
-// → recompute the grant (prior grant ∩ newly-declared) → stop the old resident
-// instance → read what the OLD bundle's `ui/assets/` images were → store the new bundle + its images → swap
-// the row AND replace its bundle-asset links in one batch → reap the now-orphaned old bundle asset and any
-// image this version dropped (#820) → land `disabled`.
+// → recompute the grant (prior grant ∩ newly-declared) → read what the OLD bundle's `ui/assets/` images were
+// → store the new bundle + its images → stop the old resident instance → swap the row AND replace its
+// bundle-asset links in one batch → reap the now-orphaned old bundle asset and any image this version
+// dropped (#820) → land `disabled`.
+//
+// THE TEARDOWN IS LATE ON PURPOSE. Every fallible write happens while the OLD version is still running, so a
+// failure anywhere before the swap leaves a plugin that is exactly what its row says it is — still installed,
+// still resident, still enabled — and reaps the bytes the attempt wrote (the same eager reap the success path
+// does, rather than leaving them to the weekly `assets-gc` sweep). The swap itself is the one remaining
+// window, and its catch repairs the row to `disabled` rather than leaving an `enabled` row with no instance.
 //
 // Re-grant on WIDENED REACH: a manifest that declares a capability the prior grant never confirmed — OR a
 // `netHosts` entry the prior manifest never declared — lands the row `disabled`, and the grant carried forward
@@ -29,12 +35,13 @@
 // WITHOUT widened reach, a plugin that was ENABLED is re-activated on the NEW bundle (the enabled state is
 // preserved — only a superset forces re-confirmation).
 
-import type { PluginCapability } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
+import { errorMessage } from "@orb/kit/error-message";
 import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError } from "../contract/errors.ts";
 import type { UpgradePluginParams } from "../contract/params.ts";
 import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
 import { listPluginBundleAssets } from "../persistence/plugin-assets.ts";
-import { applyUpgrade, getById, toPluginView } from "../persistence/plugins.ts";
+import { applyUpgrade, getById, setStatus, toPluginView } from "../persistence/plugins.ts";
 import { storeBundleAssets } from "../substrate/bundle-assets.ts";
 import { newlyDeclaredCapabilities, normalizeGrant, pendingWidenedNetHosts, widenedNetHosts } from "../substrate/grants.ts";
 import { isVersionDowngrade, PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
@@ -75,6 +82,18 @@ function refusalAfterUpgrade(
   return { pending: newCaps.length > 0 || hosts.length > 0, hosts };
 }
 
+/** The two things a REPLACEMENT bundle must be before anything is written: the same plugin (slug match — a
+ *  bundle for a different plugin is not an upgrade of this one) and not older than what is installed (a
+ *  re-uploaded old bundle must never silently roll a plugin back). Both refuse BEFORE the CAS is touched. */
+function assertReplaces(manifest: PluginManifest, existing: { readonly slug: string; readonly version: string }): void {
+  if (manifest.id !== existing.slug) {
+    throw new ManifestInvalidError(`bundle slug "${manifest.id}" does not match the installed plugin "${existing.slug}"`);
+  }
+  if (isVersionDowngrade(manifest.version, existing.version)) {
+    throw new PluginDowngradeRefusedError(manifest.version, existing.version);
+  }
+}
+
 export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginService["upgrade"] {
   return async ({ caller, pluginId, bundle }: UpgradePluginParams) => {
     const existing = await getById(ctx.db, caller.userId, pluginId);
@@ -83,12 +102,7 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
     }
 
     const { manifest, uiAssets } = parseBundle(bundle);
-    if (manifest.id !== existing.slug) {
-      throw new ManifestInvalidError(`bundle slug "${manifest.id}" does not match the installed plugin "${existing.slug}"`);
-    }
-    if (isVersionDowngrade(manifest.version, existing.version)) {
-      throw new PluginDowngradeRefusedError(manifest.version, existing.version);
-    }
+    assertReplaces(manifest, existing);
 
     const newCaps = newlyDeclaredCapabilities(manifest.capabilities, existing.grantedCapabilities);
     // The egress half of the same re-consent rule. Compared against the PRIOR MANIFEST's `netHosts` (the row's
@@ -112,9 +126,6 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
     // chose across a bundle swap that asks for nothing new.
     const reactivate = existing.status === "enabled" && !widened;
 
-    // Stop the old resident instance (running the OLD code) before the swap.
-    deps.deactivate(pluginId);
-
     // #820 — WHAT THE OLD BUNDLE HELD, read BEFORE the swap clears the links (the `uninstall` read-before-
     // delete rule one verb over): after `applyUpgrade` the prior link rows are gone and nothing names those
     // ids. It is the reap candidate set, and it deliberately does NOT need a diff against the new set — the
@@ -123,35 +134,62 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
     // surviving reference and goes; an unchanged one is never touched; one another plugin also holds stays.
     const priorBundleAssetIds = (await listPluginBundleAssets(ctx.db, pluginId)).map((asset) => asset.assetId);
 
+    // EVERY FALLIBLE WRITE RUNS BEFORE THE TEARDOWN. The stop used to come first, ahead of these two CAS
+    // writes and the row swap — so any failure across that span stranded the row saying `enabled` with no
+    // resident instance behind it: the plugin's tools silently gone while every surface reported it running,
+    // and the owner's only repair was a toggle nobody would know to reach for. Neither of these writes can
+    // touch the resident (they are CAS puts under the caller), so nothing is gained by stopping it first.
     const stored = await ctx.assets.store(caller, bundle, PLUGIN_BUNDLE_MIME);
     const now = ctx.now();
     // The NEW bundle's images into the installer's CAS — the SAME writer install uses, so the two trust
     // edges cannot drift (bytes already magic-proven at `parseBundle`, the SNIFFED mime stored, writes
     // before the row so every FK has a target).
     const bundleAssets = await storeBundleAssets(ctx.assets.store, caller, uiAssets, now);
-    await applyUpgrade(
-      ctx.db,
-      pluginId,
-      {
-        name: manifest.name,
-        version: manifest.version,
-        manifest,
-        bundleAssetId: stored.assetId,
-        grantedCapabilities: granted,
-        status: "disabled",
-        // RECORD THE SYSTEM'S OWN REFUSAL, here and nowhere else: this is the one moment the PRIOR manifest —
-        // the only source of the "what widened" fact — still exists before being overwritten. Without the flag
-        // a forced disable renders identically to the owner's own toggle-off, so the surface would present our
-        // refusal as their decision. A non-widening upgrade on a SETTLED row writes `false`, which is equally
-        // honest; one on a row whose refusal still stands does not get to erase it.
-        pendingReconsent: refusal.pending,
-        // …and WHICH HOSTS it is about, the half no read surface can reconstruct once this line overwrites the
-        // manifest it was computed against. Empty in lockstep with the flag.
-        widenedNetHosts: refusal.hosts,
-        updatedAt: now,
-      },
-      bundleAssets,
-    );
+    if (!bundleAssets.ok) {
+      // Reap what THIS attempt wrote (the new zip + the images that landed before the failure) and leave the
+      // installed version exactly as it was, still running. `reapIfOrphan` re-checks references per id, so an
+      // asset the CURRENT version still points at — an unchanged zip dedups to the same id — is never taken.
+      await ctx.assets.reapOrphans([stored.assetId, ...bundleAssets.stored]);
+      throw bundleAssets.error;
+    }
+
+    // Stop the old resident instance (running the OLD code) — the last act before the swap, so the window in
+    // which the row and reality can disagree is exactly the swap itself, and the catch below closes that.
+    deps.deactivate(pluginId);
+
+    try {
+      await applyUpgrade(
+        ctx.db,
+        pluginId,
+        {
+          name: manifest.name,
+          version: manifest.version,
+          manifest,
+          bundleAssetId: stored.assetId,
+          grantedCapabilities: granted,
+          status: "disabled",
+          // RECORD THE SYSTEM'S OWN REFUSAL, here and nowhere else: this is the one moment the PRIOR manifest —
+          // the only source of the "what widened" fact — still exists before being overwritten. Without the flag
+          // a forced disable renders identically to the owner's own toggle-off, so the surface would present our
+          // refusal as their decision. A non-widening upgrade on a SETTLED row writes `false`, which is equally
+          // honest; one on a row whose refusal still stands does not get to erase it.
+          pendingReconsent: refusal.pending,
+          // …and WHICH HOSTS it is about, the half no read surface can reconstruct once this line overwrites the
+          // manifest it was computed against. Empty in lockstep with the flag.
+          widenedNetHosts: refusal.hosts,
+          updatedAt: now,
+        },
+        bundleAssets.links,
+      );
+    } catch (err) {
+      // THE ROW IS REPAIRED TO MATCH REALITY. The swap did not land, so the plugin is still the OLD version —
+      // but its instance is gone, and a row left saying `enabled` would be a lie the surface renders as a
+      // running plugin. `disabled` + the failure detail is the true sentence, and it is also the actionable
+      // one: the owner can re-enable the version they still have, or retry the upgrade.
+      await setStatus(ctx.db, pluginId, { status: "disabled", lastError: `upgrade failed: ${errorMessage(err)}`, updatedAt: ctx.now() });
+      await ctx.assets.reapOrphans([stored.assetId, ...bundleAssets.links.map((link) => link.assetId)]);
+      throw err;
+    }
     // The old bundle asset is now unreferenced (the row points at the new asset) — reap it, and with it every
     // image the OLD bundle held (#820). `reapIfOrphan` re-checks references per id, so a within-user dedup that
     // reused the SAME asset (identical bytes — an unchanged bundle zip, or a sprite this version still ships)

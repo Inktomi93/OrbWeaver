@@ -24,12 +24,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import { DomainConflictError } from "@orb/kit/errors";
+import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { StartWorkloadParams, WorkloadService } from "@orb/server/domain/workloads";
 import { subscribeUserEvents } from "@orb/server/transport/trpc";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import type { PortabilityRunnerComposeDeps } from "../../../../packages/server/src/entry/compose/portability-runner.ts";
-import { buildPortabilityRunner } from "../../../../packages/server/src/entry/compose/portability-runner.ts";
+import { buildPortabilityRunner, createEnqueueImportBackfill } from "../../../../packages/server/src/entry/compose/portability-runner.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -154,6 +156,59 @@ describe("buildPortabilityRunner — the terminal library fan (#23) reaches ONLY
 
     expect(await take(otherStream, 1)).toStrictEqual([marker]);
     abortOther.abort();
+  });
+});
+
+// ── THE POST-IMPORT EMBED DAG SURVIVES AN ADMISSION CONFLICT ──────────────────────────────────────────────
+// The chain is `index` (embed the characters) → `memory-backfill` (embed the chats), and the second must
+// WAIT for the first: they compete for the same embed engine and the memory pass searches what the index
+// pass wrote. The conflict path used to break exactly that edge — `startEmbed` swallowed the single-active
+// `DomainConflictError` and returned `undefined`, the caller spread `dependsOn` only when a WorkloadId came
+// back, so a conflict silently enqueued the memory pass as an INDEPENDENT root that could run first.
+describe("createEnqueueImportBackfill — the dependency edge, including on the conflict path", () => {
+  /** A workloads door that answers like the real one: the single-active unique index refuses a second
+   *  enqueue of the same unit, UNLESS the caller asks to adopt the run already holding the slot. */
+  function fakeWorkloads(activeIndexId: WorkloadId | null): {
+    readonly calls: StartWorkloadParams[];
+    readonly workloads: Pick<WorkloadService, "start">;
+  } {
+    const calls: StartWorkloadParams[] = [];
+    let minted = 0;
+    return {
+      calls,
+      workloads: {
+        start: (params: StartWorkloadParams): Promise<{ id: WorkloadId }> => {
+          calls.push(params);
+          if (params.input.kind === "index" && activeIndexId !== null) {
+            if (params.adoptActive !== true) {
+              return Promise.reject(new DomainConflictError('That "index" run is already in progress'));
+            }
+            return Promise.resolve({ id: activeIndexId });
+          }
+          minted += 1;
+          return Promise.resolve({ id: castId<WorkloadId>(`wl_minted_${String(minted)}`) });
+        },
+      },
+    };
+  }
+
+  test("with no conflict the memory pass depends on the index pass this call created", async () => {
+    const door = fakeWorkloads(null);
+    expect(await createEnqueueImportBackfill(door.workloads)({ ownerId: OWNER })).toBe(true);
+
+    const memory = door.calls.find((c) => c.input.kind === "memory-backfill");
+    expect(memory?.dependsOn).toStrictEqual(["wl_minted_1"]);
+  });
+
+  test("an index-pass CONFLICT still yields a memory pass carrying the ACTIVE run as its dependency", async () => {
+    const active = castId<WorkloadId>("wl_already_running");
+    const door = fakeWorkloads(active);
+
+    expect(await createEnqueueImportBackfill(door.workloads)({ ownerId: OWNER })).toBe(true);
+
+    const memory = door.calls.find((c) => c.input.kind === "memory-backfill");
+    // The edge is the whole point: a memory pass with no dependency races the index pass it must follow.
+    expect(memory?.dependsOn).toStrictEqual([active]);
   });
 });
 

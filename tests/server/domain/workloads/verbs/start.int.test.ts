@@ -271,6 +271,56 @@ describe("workloads.start — the per-(kind, owner, source) singular lock", () =
     expect(bob.id).toBeTruthy();
   });
 
+  // ── `adoptActive`: THE ID OF THE RUN THAT HOLDS THE SLOT ────────────────────────────────────────────────
+  // HONEST LABEL: a NEW-API pin, not a red-first defect proof — the flag did not exist before this change.
+  // The DEFECT it exists for is proven at its caller (`entry/compose/portability-runner`): a caller that only
+  // wants "an active run of this unit" had no way to learn the id of the one already in flight, so it
+  // swallowed the conflict and lost the `dependsOn` edge its DAG was built on. The caller states the intent
+  // ("start it, or give me the one already running"); the queue answers with an id either way.
+  test("adoptActive returns the ACTIVE row's id instead of conflicting — and never mints a second row", async () => {
+    const db = await freshDb();
+    await seedUser(db, "user_alice");
+    const s = makeService(db);
+    const first = await s.start({
+      input: { kind: "index", params: { source: "text" } },
+      caller: principal("user_alice"),
+      mode: "singular",
+      ownerId: principal("user_alice").userId,
+    });
+
+    const adopted = await s.start({
+      input: { kind: "index", params: { source: "text" } },
+      caller: principal("user_alice"),
+      mode: "singular",
+      ownerId: principal("user_alice").userId,
+      adoptActive: true,
+    });
+
+    expect(adopted.id).toBe(first.id);
+    expect(await s.list({ caller: principal("user_alice") })).toHaveLength(1);
+  });
+
+  test("adoptActive is per-UNIT, not per-kind — a different admission key still mints its own row", async () => {
+    const db = await freshDb();
+    await seedUser(db, "user_alice");
+    const s = makeService(db);
+    const text = await s.start({
+      input: { kind: "index", params: { source: "text" } },
+      caller: principal("user_alice"),
+      mode: "singular",
+      ownerId: principal("user_alice").userId,
+      adoptActive: true,
+    });
+    const image = await s.start({
+      input: { kind: "index", params: { source: "image" } },
+      caller: principal("user_alice"),
+      mode: "singular",
+      ownerId: principal("user_alice").userId,
+      adoptActive: true,
+    });
+    expect(image.id).not.toBe(text.id);
+  });
+
   // THE HEAD-BLOCKING DEFECT (DBFIX): a user seeding a bank adds document after document, and each document
   // is its OWN unit of work. Before the ADMISSION KEY existed the singular lock keyed on (kind, owner,
   // source) with every databank row carrying the shared `none` bucket, so the SECOND document was refused

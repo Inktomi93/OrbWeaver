@@ -13,7 +13,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
-import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { PersonaId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
@@ -100,45 +100,43 @@ export interface PortabilityRunnerComposeResult {
   readonly importWorkloads: ImportWorkloadDeps;
 }
 
-export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): PortabilityRunnerComposeResult {
-  const { db, now, workloads } = deps;
-
-  // Enqueue one embed workload, swallowing the benign "already queued/running" admission conflict (that run is
-  // idempotent + hash-gated, so it already covers the freshly imported rows). Returns the new workload id (or
-  // undefined on a swallowed conflict) so the caller can chain a dependent on it.
-  const startEmbed = async (ownerId: UserId, input: StartWorkloadInput, dependsOnId?: WorkloadId): Promise<WorkloadId | undefined> => {
-    try {
-      const { id } = await workloads.start({
-        input,
-        caller: null,
-        mode: "singular",
-        ownerId,
-        ...(dependsOnId !== undefined ? { dependsOn: [dependsOnId] } : {}),
-      });
-      return id;
-    } catch (err) {
-      if (err instanceof DomainConflictError) {
-        return;
-      }
-      throw err;
-    }
+/** The post-import embed DAG, shared by the zip-bundle portability descriptors AND the ST profile-directory
+ *  importer — built ONCE. It runs in order and only AFTER the whole import: embed CHARACTERS (the corpus
+ *  `index` pass) first, then embed CHATS (`memory-backfill`) gated on it via `dependsOn`. Chaining (not two
+ *  independent enqueues) is deliberate — embeddings never run mid-import, and the chat memory pass does not
+ *  compete with the character pass for the embed engine.
+ *
+ *  Returns whether the memory pass actually entered the queue. The workloads door can REFUSE it (#156 —
+ *  this owner has memory off, so the sweep skips every one of their chats and could only land a vacuous
+ *  0/0 success): a refusal is a normal outcome of importing with memory off, never an import failure, so it
+ *  is reported rather than thrown. The character `index` pass is unconditional — it is what memory recall
+ *  would search, and it stands on its own.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
+export function createEnqueueImportBackfill(workloads: Pick<WorkloadService, "start">): (args: { readonly ownerId: UserId }) => Promise<boolean> {
+  // `adoptActive` is what keeps the CHAIN intact across the benign "already queued/running" admission
+  // conflict. That run is idempotent + hash-gated, so it already covers the freshly imported rows — but the
+  // dependent still has to WAIT for it. Swallowing the conflict and returning `undefined` (what this did
+  // before) dropped the `dependsOn` edge on exactly that path, so the memory pass was enqueued as an
+  // INDEPENDENT root and could run before, or alongside, the index pass it was written to follow. Adopting
+  // returns the id of the run that holds the slot, so the edge survives whether this call created the row or
+  // found it — and the enqueue no longer has a "no id" arm at all.
+  const startEmbed = async (ownerId: UserId, input: StartWorkloadInput, dependsOnId?: WorkloadId): Promise<WorkloadId> => {
+    const { id } = await workloads.start({
+      input,
+      caller: null,
+      mode: "singular",
+      ownerId,
+      adoptActive: true,
+      ...(dependsOnId !== undefined ? { dependsOn: [dependsOnId] } : {}),
+    });
+    return id;
   };
-
-  // Shared by the zip-bundle portability descriptors AND the ST profile-directory importer — built ONCE.
-  // Post-import embedding runs as a DAG, in order and only AFTER the whole import: embed CHARACTERS (the
-  // corpus `index` pass) first, then embed CHATS (`memory-backfill`) gated on it via `dependsOn`. Chaining
-  // (not two independent enqueues) is deliberate — embeddings never run mid-import, and the chat memory pass
-  // does not compete with the character pass for the embed engine.
-  type ImportOwnerOp = (args: { readonly ownerId: UserId }) => Promise<void>;
-  // Returns whether the memory pass actually entered the queue. The workloads door can REFUSE it (#156 —
-  // this owner has memory off, so the sweep skips every one of their chats and could only land a vacuous
-  // 0/0 success): a refusal is a normal outcome of importing with memory off, never an import failure, so it
-  // is reported rather than thrown. The character `index` pass is unconditional — it is what memory recall
-  // would search, and it stands on its own.
-  const enqueueImportBackfill = async ({ ownerId }: { readonly ownerId: UserId }): Promise<boolean> => {
+  return async ({ ownerId }: { readonly ownerId: UserId }): Promise<boolean> => {
     const embedChars = await startEmbed(ownerId, { kind: "index", params: { source: "text" } });
     try {
-      return (await startEmbed(ownerId, { kind: "memory-backfill", params: {} }, embedChars)) !== undefined;
+      await startEmbed(ownerId, { kind: "memory-backfill", params: {} }, embedChars);
+      return true;
     } catch (err) {
       if (err instanceof DomainOperationError && err.code === WORKLOAD_NOT_ADMISSIBLE) {
         return false;
@@ -146,6 +144,13 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
       throw err;
     }
   };
+}
+
+export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): PortabilityRunnerComposeResult {
+  const { db, now, workloads } = deps;
+
+  type ImportOwnerOp = (args: { readonly ownerId: UserId }) => Promise<void>;
+  const enqueueImportBackfill = createEnqueueImportBackfill(workloads);
   const reconcileImportStats: ImportOwnerOp = async ({ ownerId }) => {
     await reconcileStats(db, { ownerId, now });
   };

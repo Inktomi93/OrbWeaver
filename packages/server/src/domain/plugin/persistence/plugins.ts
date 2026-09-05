@@ -264,19 +264,28 @@ export async function applyGrant(
     .where(eq(plugins.id, pluginId));
 }
 
-/** Increment the consecutive-crash counter, returning the NEW count so the crash policy can decide the
- *  auto-disable threshold. Stamps `updatedAt`. */
+/** Increment the consecutive-crash counter, returning BOTH the count this call produced and the one it moved
+ *  FROM, so the crash policy can test the threshold CROSSING rather than the state. The pair is what makes a
+ *  concurrent pair of crashes distinguishable: the atomic `+ 1` gives each caller its own `count`, and the
+ *  `previous` beside it says which of them was the one that took the counter over the line. Reading the count
+ *  alone, every crash at or above the threshold looks identical to the one that caused the disable — which is
+ *  how two racing crashes put two `plugin-disabled` rows in one owner's inbox for one disable.
+ *
+ *  `previous` is DERIVED (`count - 1`) rather than read: SQLite's RETURNING is post-update and this statement
+ *  adds exactly one, so a second read would be a slower way to compute the same number — and a racier one.
+ *  Stamps `updatedAt`. */
 // @owner-scope-write-ok: the crash-policy counter, written by the activation plane over the id it was activated with. The `plugins` row's owner is the installing principal;
 // every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped
 // `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a
 // pluginId reaches a plugin write without that load.
-export async function incrementCrashes(db: Db, pluginId: PluginId, updatedAt: number): Promise<number> {
+export async function incrementCrashes(db: Db, pluginId: PluginId, updatedAt: number): Promise<{ readonly previous: number; readonly count: number }> {
   const rows = await db
     .update(plugins)
     .set({ consecutiveCrashes: sql`${plugins.consecutiveCrashes} + 1`, updatedAt })
     .where(eq(plugins.id, pluginId))
     .returning({ consecutiveCrashes: plugins.consecutiveCrashes });
-  return rows[0]?.consecutiveCrashes ?? 0;
+  const count = rows[0]?.consecutiveCrashes ?? 0;
+  return { previous: Math.max(count - 1, 0), count };
 }
 
 /** Reset the consecutive-crash counter to 0 (a clean invocation). */

@@ -191,8 +191,10 @@ export interface PluginHostOps {
    *  owner. DIVERGES from automation (no automation analog): every op is keyed by BOTH `pluginId` AND `ownerId`
    *  (the denormalized guard column), so plugin A can never read plugin B's keys and no cross-owner read is
    *  possible even were a pluginId reused. `capability: storage.kv`. The bridge closes `pluginId`+`ownerId` over
-   *  these; the value/key-size + 256-key caps are enforced HERE (the compose op), off the persistence's
-   *  `countKeys`. Wired at compose to `persistence/plugin-kv`. */
+   *  these. The value/key-size caps are DDL CHECKs; the 256-key ceiling is STATED here (the compose op owns
+   *  the number) and ENFORCED inside the write statement itself — a count subquery on the INSERT, never a
+   *  read this layer acts on, because two UI-proxyable writers raced that gap. Wired at compose to
+   *  `persistence/plugin-kv`. */
   readonly storage: {
     readonly get: (pluginId: PluginId, ownerId: UserId, key: string) => Promise<string | null>;
     readonly set: (pluginId: PluginId, ownerId: UserId, key: string, value: string) => Promise<void>;
