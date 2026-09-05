@@ -68,7 +68,7 @@ defineGate({
 
 The exported `gate` is a direct `defineGate({ ... })` call with an object-literal argument. Descriptor indirection is forbidden because it hides required fields from the authoring checker and scaffold. Each descriptor has one authority and one severity; an old multi-arm module whose arms differ on either axis splits into separate policy ids under the same family.
 
-Each module exports exactly one policy and `id` equals its filename. `family` is a validated kebab value and the live family set is derived from loaded descriptors; there is no family registry. The existing `docRow` and hand-counted enforcement-roster row disappear. `gate:list`/`gate:explain` derive the machine roster from the loader, while the enforcement document keeps only system-level law. A split old module therefore becomes several small policy modules sharing one family instead of one descriptor with per-arm authority switches.
+Each module exports exactly one policy and `id` equals its filename. `family` is a validated kebab value and the live family set is derived from loaded descriptors; there is no family registry. A family means policies reuse the same computation or subject reader, not that their filenames share a prefix or their prose mentions the same topic. A policy with no proven sibling uses its own id as a singleton family. The existing `docRow` and hand-counted enforcement-roster row disappear. `gate:list`/`gate:explain` derive the machine roster from the loader, while the enforcement document keeps only system-level law. A split old module therefore becomes several small policy modules sharing one family instead of one descriptor with per-arm authority switches.
 
 Every self-proof row declares its fixture mode and paths explicitly. Source/type fixtures run in the in-memory workspace; resource fixtures materialize their declared files. No default path inferred from population and no fake real-tree anchor decides which substrate a proof receives.
 
@@ -119,6 +119,23 @@ There is no gate-specific exemption grammar and no count ratchet.
 - unresolved debt is a warning tied to a work item;
 - authoritative runtime data such as `tokens.json` and generated-output parity remain enforced;
 - current-population declaration counts, every-file manifests, and `*.baseline.json` debt retire.
+
+Authority and severity are independent and required on every policy:
+
+- `hard` findings have no suppression door;
+- `ordinary` findings may consume the one central inline marker, bound to the exact policy and position with a mandatory reason; unused, malformed, and multi-occurrence over-broad markers are central reconciliation findings;
+- `reviewed-grant` findings may consume only a typed central grant keyed by policy id, subject, and operation. The row requires `why` and `endsWhen`; a finding without those exact identity fields is a tool error, and a grant consumed zero times after a complete owner run is stale;
+- `error` findings block; `warning` findings remain visible in console/JSON and block only under the explicit warning-promotion option.
+
+Grant and marker reconciliation runs only after every selected policy owner completed its population. A thrown, incomplete, empty, or unresolved owner withholds liveness judgments rather than falsely declaring its grants stale. Gate modules receive neither grant tables nor marker parsers.
+
+## Existing migration machinery
+
+The repository's existing codemod and AST tools are part of the execution plan.
+
+- Add `pnpm codemod migrate-gates` to the existing codemod front door. It performs the all-corpus mechanical descriptor/import/hook rewrite through `runCodemod`: dry-run by default, explicit apply, every touched file declared, undeclared mutations refused, stale-node-safe replacements, idempotence, and a complete preview. Its setup must replace the kit's default globs because those omit `tooling/src`; the operation explicitly loads gates, runtime, helpers, and focused tests. The branch may intentionally skip post-transform diagnostics while unconverted gates keep the atomic train red, but each converted file still receives focused proof.
+- Use `pnpm ast` as the receipted audit/discovery surface. `refs`, `aliases`, `stringy`, `respell`, `chains`, `regkeys`, `subset-callers`, `apisurface`, `literal`, and `rot` expose coupled sites, type/alias smuggling, duplicated subject readers, and likely family boundaries with an auditable scan ledger.
+- Do not import the AST CLI, its module-global ledger, or its per-verb scope system into gate modules. Several lenses are intentionally heuristic/candidate-only and some carry stated limits. A pure collector becomes runtime machinery only after its fact computation is extracted behind the shared query boundary and planted controls establish the semantics a gate needs.
 
 ## Atomic migration
 
