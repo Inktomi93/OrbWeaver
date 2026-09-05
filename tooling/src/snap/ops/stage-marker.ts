@@ -26,7 +26,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../_shared/ports.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import { pidAlive } from "../../_shared/run-retention.ts";
-import type { StageBandsFile, StageDbProvenance, StageRow } from "../contract/stage.ts";
+import type { StageBandsFile, StageDbProvenance, StageKeeper, StageRow } from "../contract/stage.ts";
 import { BANDS_REL, LEGACY_ACTIVE_REL, markerRootFromCommonDir, STAGE_ROOT_REL, stageBandClaim, stageBandRefusal } from "../lib/stage-plan.ts";
 import { repoRoot } from "./stage-git.ts";
 
@@ -52,6 +52,16 @@ function readDeath(value: unknown): Pick<StageRow, "dead"> | Record<never, never
     : {};
 }
 
+/** The armed idle timer, when the row has one (#1163 arm b). Absent stays absent — a keeper is a fact
+ *  about a running process, never something to invent from a partial row. */
+function readKeeper(value: unknown): Pick<StageRow, "keeper"> | Record<never, never> {
+  if (!(isRecord(value) && typeof value["pid"] === "number" && typeof value["armedAt"] === "string")) {
+    return {};
+  }
+  const keeper: StageKeeper = { pid: value["pid"], armedAt: value["armedAt"] };
+  return { keeper };
+}
+
 function readDbProvenance(value: unknown): StageDbProvenance | null {
   if (!isRecord(value)) {
     return null;
@@ -64,7 +74,18 @@ function readDbProvenance(value: unknown): StageDbProvenance | null {
     : null;
 }
 
+/** THE table's env door, read once at module load because every consumer is a FRESH PROCESS (the snap cli,
+ *  the session daemon, the stage keeper, each spawned proof) — the same posture ops/session-registry.ts
+ *  states for `ORB_SNAP_SESSION_HOME`, and it exists for the same reason: a committed proof that wrote the
+ *  box's REAL `bands.json` would evict a live sibling lane's stage. It is also what lets a proof's SPAWNED
+ *  child (a keeper) agree with the parent about which table it is keeping, since the child inherits it. */
+// biome-ignore lint/style/noProcessEnv: the ambient TOOLING knob this file owns — the scratch band-table home the committed proofs plant, twin of ops/session-registry.ts's ORB_SNAP_SESSION_HOME. The env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake and cannot be imported down here.
+const { ORB_SNAP_STAGE_HOME: HOME_OVERRIDE } = process.env;
+
 export function markerRoot(root: string): string {
+  if (HOME_OVERRIDE !== undefined && HOME_OVERRIDE !== "") {
+    return HOME_OVERRIDE;
+  }
   const res = runNicedSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root });
   // No git answer at all ⇒ keep the table local: a per-checkout table is worse than none, but one
   // written to a guessed path would be invisible to every reader including this one.
@@ -108,6 +129,7 @@ function readRow(value: unknown): StageRow | null {
     dbProvenance: readDbProvenance(value["dbProvenance"]),
     rsyncs: typeof value["rsyncs"] === "number" ? value["rsyncs"] : 0,
     ...readDeath(value["dead"]),
+    ...readKeeper(value["keeper"]),
   };
 }
 
@@ -209,6 +231,18 @@ export function touchRow(home: string, band: number, nowIso: string): void {
     const row = readRowFor(home, band);
     if (row !== null) {
       writeRow(home, { ...row, lastUsedAt: nowIso });
+    }
+  });
+}
+
+/** Record the band's armed idle timer (#1163 arm b). Written by `armStageKeeper` alone, and read by the
+ *  keeper itself (to recognise that a rebuild replaced it) and by `--stage-status`. A missing row is a
+ *  no-op: there is no stage to keep. */
+export function setStageKeeper(home: string, band: number, keeper: StageKeeper): void {
+  withBandsLock(home, () => {
+    const row = readRowFor(home, band);
+    if (row !== null) {
+      writeRow(home, { ...row, keeper });
     }
   });
 }

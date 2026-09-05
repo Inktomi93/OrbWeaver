@@ -16,7 +16,13 @@
 //      bytes, so pointing at it read-only is strictly cheaper than a 55 s boot (#108);
 //   3. the lowest FREE band — private by construction, no contention with anyone;
 //   4. the lowest STRANDED row — lazy reap-on-acquire (#1163 arm a): a forgotten stage is reclaimed by the
-//      next lane that needs a band, not by a background reaper nobody runs;
+//      next lane that needs a band. This arm is unchanged, but its ORIGINAL rationale is not: it used to
+//      read "not by a background reaper nobody runs", and 2026-09-05 measured the cost of that being the
+//      ONLY arm — three bands stranded 2h56m / 4h51m / 1h37m with live stacks resident, because no lane
+//      asked for a band all afternoon. #1163 arm (b) now gives each stage its OWN idle timer
+//      (lib/stage-keeper-plan.ts + ops/stage-keeper.ts). This arm remains the BACKSTOP, deliberately: it
+//      reads `lastUsedAt` alone and never asks the timer's questions, so a band whose keeper died is
+//      reclaimed here exactly as it always was;
 //   5. exhaustion — exit 2 NAMING EVERY ROW with its idle age. A refusal that says which lane holds what
 //      is an operator's next action; a bare "no bands free" is a mystery.
 import type {
@@ -217,7 +223,7 @@ function stageCapRefusal(rowCount: number, views: readonly StageBandView[], limi
   return [
     `STAGE REFUSED  ${rowCount} stage(s) are registered and the live cap is ${limits.cap} (ORB_STAGE_CAP) — nothing was measured.`,
     ...views.filter((view) => view.row !== null).map((view) => describeStageBandRow(view, nowMs)),
-    `  The idle TTL is ${Math.round(limits.ttlMs / MS_PER_MINUTE)} min (ORB_STAGE_TTL_MIN); a stage past it is reaped by the next allocation.`,
+    `  The idle TTL is ${Math.round(limits.ttlMs / MS_PER_MINUTE)} min (ORB_STAGE_TTL_MIN); past it a stage is torn down by its OWN idle timer, or by the next allocation if that timer died.`,
     "  Tear down one you own (`pnpm snap --stage-down`), reap the stranded ones (`pnpm snap --stage-sweep`), or wait —",
     "  tooling/src/snap/lib/stage-bands.ts.",
   ].join("\n");

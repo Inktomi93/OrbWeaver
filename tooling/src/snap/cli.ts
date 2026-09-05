@@ -24,6 +24,7 @@ import {
   runSessionAdmin,
   runSessionCall,
   runSessionDaemon,
+  runStageKeeper,
   SNAP_HELP,
   snap,
   snapContexts,
@@ -115,6 +116,11 @@ export async function main(opts: Args, argv: readonly string[]): Promise<number>
   // so it enters before the per-call slot below; the admin modes print and exit without a slot.
   if (opts.sessionDaemon !== null) {
     return await runSessionDaemon(opts, argv);
+  }
+  // The band idle timer (#1163 arm b) — snap's own child, like the daemon above. It opens no run slot: it
+  // publishes no evidence, it polls one row and either releases or tears its stage down.
+  if (opts.stageKeeper !== null) {
+    return await runStageKeeper(opts.stageKeeper);
   }
   const sessionAdminExit = await runSessionAdmin(opts);
   if (sessionAdminExit !== null) {

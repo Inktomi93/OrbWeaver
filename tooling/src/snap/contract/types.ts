@@ -283,6 +283,10 @@ export interface Args {
    *  orphaned stage dirs, then exit — the safe reaper (#324). A live stage, ours or a sibling's, is left
    *  standing; use --stage-down to tear down one you know you are finished with. Ignores the route. */
   stageSweep: boolean;
+  /** `--stage-keeper <band>`: the band idle TIMER'S OWN entry (#1163 arm b) — spawned by `ensureStage`
+   *  through ops/stage-keeper.ts, never typed by an operator. It polls that band's row and tears the stage
+   *  down through the `--stage-down` path once nothing has used it for the TTL. null = not a keeper. */
+  stageKeeper: number | null;
   /** Explicit checkout selector for stage teardown. Cross-checkout teardown is deliberate per band and
    *  therefore requires --force; a bare --force never broadens the default owned-row selection. */
   stageOwner: string | null;
