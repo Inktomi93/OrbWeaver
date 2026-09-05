@@ -1,6 +1,6 @@
 import type { Db } from "@orb/db";
-import { chatInvites, chatParticipants } from "@orb/db";
-import type { ChatId, ChatInviteId, ChatParticipantId, Handle, PendingTurnId, UserId } from "@orb/kit/ids";
+import { chatInvites, chatParticipants, messageReactions } from "@orb/db";
+import type { ChatId, ChatInviteId, ChatParticipantId, Handle, MessageReactionId, PendingTurnId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -179,7 +179,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
     expect(result?.participant.joinSeq).toBe(2);
   });
 
-  test("a previously-LEFT member re-joins through the same claim: joinSeq re-stamped, leftSeq cleared, row id kept", async () => {
+  test("a previously-LEFT member re-joins through the same claim: joinSeq re-stamped, leftSeq cleared, the row id KEPT", async () => {
     const joiner = await seedUser(db, castId<Handle>("returner"));
     const chatId = await seedChat(db, "rejoin");
     await seedMessage(db, chatId, 1);
@@ -198,14 +198,46 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
     // ONE upserted row per human membership (conflict target: chatId+userId): the re-join re-stamps the floor
     // to the canon head and clears the leave, so a returning member is floored at their LATEST join and their
     // previous era is not re-granted — the storage shape `substrate/auth/clamp.ts` reads that rule off.
-    // The claim also re-stamps the row's own `id` to the caller's freshly-minted participantId; asserted
-    // here as the OBSERVED behaviour of the live door, not as a preference.
+    // The seat KEEPS ITS IDENTITY across the re-join (#1542): the caller's freshly-minted participantId is
+    // consumed only by the INSERT arm, so the returning member's row id — what `message_reactions` and every
+    // other seat-keyed child FKs — never moves.
     expect(await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId))).toHaveLength(1);
-    expect(existing).not.toBe(result?.participant.id);
-    expect(result?.participant.id).toBe("chat_participant_ignored");
+    expect(result?.participant.id).toBe(existing);
     expect(result?.participant.joinSeq).toBe(2);
     expect(result?.participant.leftSeq).toBeNull();
     expect(result?.participant.role).toBe("member");
+  });
+
+  // #1542 — the seat id is FK'd by `message_reactions.reactor_participant_id` under SQLite's default NO
+  // ACTION on update, so a DO UPDATE that MOVED `id` made the whole redeem batch fail for any returning
+  // member who had ever reacted: a user-visible "cannot re-join", not id churn. The seat keeps its identity.
+  test("a returning member who ever REACTED re-joins: the seat keeps its id and the reaction survives (#1542)", async () => {
+    const joiner = await seedUser(db, castId<Handle>("reactor"));
+    const chatId = await seedChat(db, "rejoin-reaction");
+    const { variantId } = await seedMessage(db, chatId, 1);
+    const seat = await seedParticipant(db, { chatId, key: "reactor", userId: joiner, role: "member", joinSeq: 0, leftSeq: 1 });
+    await db.insert(messageReactions).values({
+      id: castId<MessageReactionId>("message_reaction_rejoin"),
+      variantId,
+      reactorParticipantId: seat,
+      emoji: "\u{1F44D}",
+      createdAt: FROZEN_AT,
+    });
+    const hash = await seedInvite(db, chatId, "reaction-rejoin", { maxUses: 5 });
+
+    const result = await redeemInviteAtomic(db, {
+      tokenHash: hash,
+      userId: joiner,
+      participantId: castId<ChatParticipantId>("chat_participant_fresh_mint"),
+      activePersonaId: null,
+      now: FROZEN_AT,
+    });
+
+    expect(result?.participant.id).toBe(seat);
+    expect(result?.participant.leftSeq).toBeNull();
+    expect((await findInviteByTokenHash(db, hash))?.uses).toBe(1);
+    // The reaction still points at the same live seat — nothing orphaned, nothing rolled back.
+    expect((await db.select().from(messageReactions)).map((r) => r.reactorParticipantId)).toStrictEqual([seat]);
   });
 
   test("redeem closes the maxUses TOCTOU: the over-cap attempt yields undefined", async () => {
