@@ -18,7 +18,7 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CliResult, RunCliOpts } from "../../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 interface AuditRuleProof {
   readonly rule: string;
@@ -36,20 +36,6 @@ function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (co
     expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
     return fn({ runCli, scratch });
   });
-}
-
-/** Every findings-table selector for one rule. The table is `severity rule selector message (value)`
- *  with fixed-width columns. Read from the TABLE rather than by substring: the same selectors also appear
- *  in the withheld/obscured denominators above it, where their presence says nothing about the verdict. */
-function findingSelectors(stdout: string, rule: string): readonly string[] {
-  const rows: string[] = [];
-  for (const line of stdout.split("\n")) {
-    const fields = line.trim().split(/\s+/u);
-    if (fields[1] === rule && (fields[0] ?? "").startsWith("P") && fields[2] !== undefined) {
-      rows.push(fields[2]);
-    }
-  }
-  return rows;
 }
 
 /** Border + radius + fill on both boxes: `isCardLike` for the inner, `hasEnclosingBox` for the outer. The
