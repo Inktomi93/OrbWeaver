@@ -78,11 +78,10 @@ export interface GatePolicyHooks {
   readonly evaluate?: () => void;
 }
 
-export interface GatePolicy {
+interface GatePolicyBase {
   readonly id: string;
   readonly family: string;
   readonly authority: GateAuthority;
-  readonly severity: GateSeverity;
   readonly population: PopulationExpr;
   readonly analysis: GatePolicyAnalysis;
   readonly execution: GatePolicyExecution;
@@ -92,6 +91,19 @@ export interface GatePolicy {
   readonly mustFlag: readonly GatePolicyProof[];
   readonly mustPass: readonly GatePolicyProof[];
 }
+
+interface ErrorGatePolicy extends GatePolicyBase {
+  readonly severity: Extract<GateSeverity, "error">;
+  readonly workItem?: never;
+}
+
+interface WarningGatePolicy extends GatePolicyBase {
+  readonly severity: Extract<GateSeverity, "warning">;
+  /** Positive GitHub issue number owning the warning debt. */
+  readonly workItem: number;
+}
+
+export type GatePolicy = ErrorGatePolicy | WarningGatePolicy;
 
 const definedPolicies = new WeakSet<object>();
 type ExactPolicy<Policy extends GatePolicy> = Policy & Record<Exclude<keyof Policy, keyof GatePolicy>, never>;

@@ -37,7 +37,7 @@ function policy(id: string, overrides: Partial<GatePolicy> = {}): GatePolicy {
     mustFlag: [{ mode, files: { [path]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode, files: { [path]: "export const clean = true;\n" }, why: "nearest legal shape" }],
     ...overrides,
-  });
+  } as GatePolicy);
 }
 
 function run(policies: readonly GatePolicy[], project: Project, overrides: Partial<PolicyPassInput> = {}): PolicyPassResult {
@@ -419,7 +419,7 @@ test("central authority handles hard, ordinary, reviewed, and warning promotion"
   const anchored = (id: string, file: string, overrides: Partial<GatePolicy> = {}): GatePolicy =>
     policy(id, { create: (ctx) => ({ evaluate: () => ctx.report.file(file, { subject: file, operation: "read" }) }), ...overrides });
   const hard = anchored("hard-policy", "packages/client/src/hard.ts");
-  const ordinary = anchored("ordinary-policy", "packages/client/src/ordinary.ts", { authority: "ordinary", severity: "warning" });
+  const ordinary = anchored("ordinary-policy", "packages/client/src/ordinary.ts", { authority: "ordinary", severity: "warning", workItem: 1584 });
   const reviewed = anchored("reviewed-policy", "packages/client/src/reviewed.ts", { authority: "reviewed-grant" });
   const grants = [
     {

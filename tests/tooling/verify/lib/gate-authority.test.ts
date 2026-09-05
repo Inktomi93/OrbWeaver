@@ -107,6 +107,72 @@ test("reviewed grants match the exact policy, subject, and operation", () => {
   expect(result.reviewedGrantConsumption).toEqual([{ id: "grant:exact", count: 1 }]);
 });
 
+test("a reviewed grant fails closed when one exact identity matches duplicate findings", () => {
+  const duplicate = finding("duplicate.ts", { subject: "src/a.ts", operation: "read" });
+  const result = coordinate({
+    selectedPolicies: [POLICIES[2] as SelectedGatePolicy],
+    ownerResults: [{ ...owner("reviewed-policy", [duplicate, duplicate]), populationFiles: ["duplicate.ts"] }],
+    reviewedGrants: [
+      {
+        id: "grant:duplicate",
+        policyId: "reviewed-policy",
+        subject: "src/a.ts",
+        operation: "read",
+        why: "fixture",
+        endsWhen: "the duplicate disappears",
+      },
+    ],
+  });
+
+  expect(result.grantedFindings).toEqual([]);
+  expect(result.effectiveFindings).toHaveLength(2);
+  expect(result.reviewedGrantConsumption).toEqual([{ id: "grant:duplicate", count: 2 }]);
+  expect(result.authorityAlarms).toMatchObject([
+    { kind: "over-broad-reviewed-grant", policyId: "reviewed-policy", grantId: "grant:duplicate", subject: "src/a.ts", operation: "read", count: 2 },
+  ]);
+  expect(result.verdict).toMatchObject({ errors: 3, blocking: 3 });
+});
+
+test("distinct reviewed identities each consume one exact grant", () => {
+  const result = coordinate({
+    selectedPolicies: [POLICIES[2] as SelectedGatePolicy],
+    ownerResults: [
+      owner("reviewed-policy", [finding("a.ts", { subject: "src/a.ts", operation: "read" }), finding("b.ts", { subject: "src/b.ts", operation: "read" })]),
+    ],
+    reviewedGrants: [
+      { id: "grant:a", policyId: "reviewed-policy", subject: "src/a.ts", operation: "read", why: "fixture a", endsWhen: "a disappears" },
+      { id: "grant:b", policyId: "reviewed-policy", subject: "src/b.ts", operation: "read", why: "fixture b", endsWhen: "b disappears" },
+    ],
+  });
+
+  expect(result.effectiveFindings).toEqual([]);
+  expect(result.grantedFindings.map(({ grantId }) => grantId)).toEqual(["grant:a", "grant:b"]);
+  expect(result.authorityAlarms).toEqual([]);
+  expect(result.reviewedGrantConsumption).toEqual([
+    { id: "grant:a", count: 1 },
+    { id: "grant:b", count: 1 },
+  ]);
+});
+
+test("failed reviewed owners withhold over-broad and stale reconciliation", () => {
+  const result = coordinate({
+    selectedPolicies: [POLICIES[2] as SelectedGatePolicy],
+    ownerResults: [
+      owner("reviewed-policy", [finding("a.ts", { subject: "src/a.ts", operation: "read" }), finding("b.ts", { subject: "src/a.ts", operation: "read" })], {
+        status: "failure",
+        population: "incomplete",
+        reason: "owner threw",
+      }),
+    ],
+    reviewedGrants: [{ id: "grant:held", policyId: "reviewed-policy", subject: "src/a.ts", operation: "read", why: "fixture", endsWhen: "owner completes" }],
+  });
+
+  expect(result.authorityAlarms).toEqual([]);
+  expect(result.grantedFindings).toEqual([]);
+  expect(result.reviewedGrantConsumption).toEqual([{ id: "grant:held", count: 0 }]);
+  expect(result.withheldPolicyIds).toEqual(["reviewed-policy"]);
+});
+
 test("used, stale, unselected, and withheld reviewed grants reconcile independently", () => {
   const grants = [
     { id: "grant:used", policyId: "reviewed-policy", subject: "used", operation: "read", why: "fixture", endsWhen: "used disappears" },

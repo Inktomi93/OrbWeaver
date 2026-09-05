@@ -47,6 +47,7 @@ defineGate({
   family,
   authority: "hard" | "ordinary" | "reviewed-grant",
   severity: "error" | "warning",
+  workItem: 1584, // required positive issue number for warning; forbidden for error
   population,
   analysis: "syntax" | "types" | "resource",
   execution: "selected-files" | "entire-population",
@@ -122,7 +123,7 @@ There is no gate-specific exemption grammar and no count ratchet.
 - hard policy is unsuppressible;
 - ordinary node/file occurrences use one rule-specific marker with reason, position, unused, and over-broad checks;
 - recurring repository permissions use typed exact grants with `why` and `endsWhen` plus post-success liveness;
-- unresolved debt is a warning tied to a work item;
+- unresolved debt is a warning tied to a positive numeric Project issue identity in `workItem`; an error policy cannot carry that warning-debt owner;
 - authoritative runtime data such as `tokens.json` and generated-output parity remain enforced;
 - current-population declaration counts, every-file manifests, and `*.baseline.json` debt retire.
 
@@ -130,7 +131,7 @@ Authority and severity are independent and required on every policy:
 
 - `hard` findings have no suppression door;
 - `ordinary` findings may consume the one central inline marker, bound to the exact policy and position with a mandatory reason; unused, malformed, and multi-occurrence over-broad markers are central reconciliation findings;
-- `reviewed-grant` findings may consume only a typed central grant keyed by policy id, subject, and operation. The row requires `why` and `endsWhen`; a finding without those exact identity fields is a tool error, and a grant consumed zero times after a complete owner run is stale;
+- `reviewed-grant` findings may consume only a typed central grant keyed by policy id, subject, and operation. The row requires `why` and `endsWhen`; a finding without those exact identity fields is a tool error. After a complete owner run, zero consumption is stale and more than one matching finding is over-broad and suppresses none;
 - `error` findings block; `warning` findings remain visible in console/JSON and block only under the explicit warning-promotion option.
 
 Grant and marker reconciliation runs only after every selected policy owner completed its population. A thrown, incomplete, empty, or unresolved owner withholds liveness judgments rather than falsely declaring its grants stale. Gate modules receive neither grant tables nor marker parsers.
