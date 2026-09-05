@@ -28,7 +28,7 @@ import { openModal, setOpenOverlayPanel } from "./shell-store.ts";
 /** The CREATION-ONLY parameters of a new chat — what a launcher pre-arms the picker with, and what the
  *  picker hands `chat.startChat`. All fields optional: an empty intent is a legal narrator-only room. */
 export interface NewChatIntent {
-  /** The founding cast. @defaultValue [] (a narrator-only room). */
+  /** The founding characters. @defaultValue [] (a narrator-only room). */
   readonly characterIds?: readonly CharacterId[] | undefined;
   readonly anchorPersonaId?: PersonaId | null | undefined;
   readonly title?: string | null | undefined;
@@ -43,7 +43,7 @@ interface ActiveChatState {
   readonly handle: ChatHandle;
   /** The intent the new-chat PICKER opens pre-loaded with, so there is ONE creation ceremony: an opener with
    *  a creation-only parameter (the home temp-chat tile) presets it here and opens the same modal every
-   *  other "New chat" affordance opens, instead of forking a second launcher that skips the cast pick. The
+   *  other "New chat" affordance opens, instead of forking a second launcher that skips the character pick. The
    *  modal clears it on a real dismiss, and every opener overwrites it before opening. Component unmount
    *  cleanup is forbidden here because React Strict Mode probes unmount while the modal remains open. */
   readonly newChatIntent: NewChatIntent | undefined;
@@ -122,7 +122,7 @@ function releaseCreatedChat(nextChatId: ChatId | null): ChatId | null {
 
 /** Open the new-chat PICKER, optionally pre-armed with creation-only parameters — the ONE creation
  *  ceremony. An opener whose intent is a creation-only FLAG (the home temp-chat tile) presets it here
- *  rather than bypassing the cast pick. */
+ *  rather than bypassing the character pick. */
 export function openNewChatPicker(intent?: NewChatIntent): void {
   useActiveChatStore.setState({ newChatIntent: intent }, false, "activeChat/openNewChatPicker");
   openModal("newChat");

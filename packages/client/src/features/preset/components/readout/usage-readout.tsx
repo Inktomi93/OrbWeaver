@@ -80,7 +80,7 @@ export function UsageReadout({ presetId }: { readonly presetId: PresetId }): Rea
 }
 
 /** The rooms whose GM voice redirects here, as doors. `rowQualifiers` runs over the WHOLE set (rooms titled
- *  by their cast collide legitimately), which is why the stamps are computed here and not per row. */
+ *  by their participant names collide legitimately), which is why the stamps are computed here and not per row. */
 function GmRooms({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): ReactElement {
   const stamps = rowQualifiers(
     rooms.map((room) => ({ name: deriveChatTitle(room.title, room.participantNames), at: room.at })),

@@ -11,7 +11,7 @@
 // A second copy of a fallback chain is a drift generator, so there is now exactly one. `features/chat`
 // re-exports from here; nothing re-spells it.
 
-/** What a chat with no authored title and no resolvable cast is called. The COMMITTED room's word — a
+/** What a chat with no authored title and no resolvable participant names is called. The COMMITTED room's word — a
  *  pre-send draft has its own ("New chat", `draftChatTitle`). */
 export const UNTITLED_CHAT_TITLE = "Untitled chat";
 

@@ -1,7 +1,7 @@
 // The avatar stack's GEOMETRY — the per-size overlap offset the stack paints with, and the settled inline
 // size a stack of N slots occupies. It lives beside the component rather than inside it because a caller
 // needs the second half: a stack whose roster arrives on a LATER read than the row that hosts it (a chats
-// row's seats, home's hearth cast) must RESERVE its settled width up front, or the text column beside it is
+// row's seats, home's hearth characters) must RESERVE its settled width up front, or the text column beside it is
 // re-laid the moment the faces land (#147 — measured 76px on a one-seat hero, 148px on a three-seat one,
 // 18px per extra seat on a list row; a `[cls] unexpected` on every cold section load).
 //

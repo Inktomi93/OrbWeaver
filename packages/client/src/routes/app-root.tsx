@@ -18,7 +18,7 @@ import { announceStatus, useActiveChatId, useActiveSection, useSelectedCharacter
 import { AppRootSessionBoundary } from "./app-root-session-boundary/index.ts";
 
 export function AppRoot(): ReactElement {
-  // Single-user renders neither remaining multi-human surface: the cast bar's humans row ("People" is the
+  // Single-user renders neither remaining multi-human surface: the character bar's humans row ("People" is the
   // roster's HUMAN SUBSET, not a tab) and the /join landing below. The BELL left this list with #1627 — its
   // inbox has single-human sources — so the capability now gates only those two, and both read it through
   // `useMultiHumanCapable` (#476's ONE hint-backed read, adopted here when the bell stopped being its

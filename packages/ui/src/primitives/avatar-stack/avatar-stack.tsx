@@ -27,7 +27,7 @@ export interface AvatarStackProps extends Omit<ComponentProps<"div">, "children"
    *
    * A stack is CIRCULAR everywhere it means "these people are in this row" — that is chat-list vocabulary
    * and it must not drift. The opt-in exists for the one register where the faces are ART rather than a
-   * roster: home's hearth hero draws its cast at 64px in the mock's rounded-rect PORTRAIT treatment
+   * roster: home's hearth hero draws its characters at 64px in the mock's rounded-rect PORTRAIT treatment
    * (`home-c-hearth.html` `.fire .faces img{border-radius:var(--radius-base)}`, against the base
    * `.faces img{border-radius:full}` every other strip keeps). Ruled 2026-08-16 on the #102 review.
    */

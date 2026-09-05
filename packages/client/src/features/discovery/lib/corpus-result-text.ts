@@ -13,9 +13,9 @@ import { deriveChatTitle } from "#lib";
  *  a word boundary with an ellipsis (see {@link snippetForDisplay}). */
 const SNIPPET_DISPLAY_CHARS = 240;
 
-/** The room's name for a row: the ONE title chain, with the hit's own character as the cast rung. */
-export function chatSubtitle(chatTitle: string | null, castName: string | null): string {
-  return deriveChatTitle(chatTitle, castName === null ? [] : [castName]);
+/** The room's name for a row: the ONE title chain, with the hit's own character as the character rung. */
+export function chatSubtitle(chatTitle: string | null, characterName: string | null): string {
+  return deriveChatTitle(chatTitle, characterName === null ? [] : [characterName]);
 }
 
 /** A verbatim transcript excerpt, made readable (C1). The wire hands back `sourceText.slice(0, 280)`: raw
@@ -70,13 +70,13 @@ interface EvidenceSegment {
  * is what the reader compares), and order is the server's, first-seen-wins, which is descending relevance.
  * Rooms are de-duplicated within a passage: the same chat quoting the same block twice is one door.
  */
-export function groupEvidenceByPassage(segments: readonly EvidenceSegment[], castName: string): readonly EvidencePassage[] {
+export function groupEvidenceByPassage(segments: readonly EvidenceSegment[], characterName: string): readonly EvidencePassage[] {
   const byPassage = new Map<string, { snippet: string; rooms: EvidenceRoom[] }>();
   for (const segment of segments) {
     const snippet = snippetForDisplay(segment.snippet);
     const group = byPassage.get(snippet.trim()) ?? { snippet, rooms: [] };
     if (!group.rooms.some((room) => room.chatId === segment.chatId)) {
-      group.rooms.push({ chatId: segment.chatId, title: chatSubtitle(segment.chatTitle, castName) });
+      group.rooms.push({ chatId: segment.chatId, title: chatSubtitle(segment.chatTitle, characterName) });
     }
     byPassage.set(snippet.trim(), group);
   }
