@@ -20,10 +20,11 @@ import { PresetReadout } from "../components/readout/preset-readout.tsx";
 import { PresetReadoutHeader } from "../components/readout/preset-readout-header.tsx";
 import { PresetLibrarySurface } from "../surfaces/preset-library-surface.tsx";
 import { usePresetSelectionTitle } from "./preset-selection-title.ts";
+import { PRESETS_SECTION_LABEL } from "./presets-section-label.ts";
 
 export const presetsSection: SectionDefinition = {
   id: "presets",
-  rail: { label: "Presets", icon: SlidersHorizontal, group: "authoring", mobile: "sheet" },
+  rail: { label: PRESETS_SECTION_LABEL, icon: SlidersHorizontal, group: "authoring", mobile: "sheet" },
   // BOTH docked at boot (crunch-list O-19★, owner ruling): the library IS how you pick what you are
   // editing, and the readout IS the product — a Presets section that opens with neither pane looks
   // unbuilt. The persisted per-panel override still wins thereafter.

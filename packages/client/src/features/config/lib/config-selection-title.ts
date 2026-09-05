@@ -12,6 +12,15 @@
 // runs changes a query KEY, never the hook set. (Calling all of them in a loop instead would be a hook call
 // inside a callback — `useHookAtTopLevel` refuses it, and rightly.)
 //
+// NO CENSUS RIDES THIS ROW, and that is a decision, not an omission (#1676 — the sweep that gave every other
+// list-bearing section's phone topbar its library size). The rule it applies is "the phone gets the census the
+// shed band title took with it", and this section's band never had one: `config-section.tsx` renders
+// `<ListPaneHeader title={CONFIG_SECTION_LABEL} />` with no `count` prop at all. The reason is not an
+// oversight either — the Configuration LIST is a nav of settings GROUPS, so a number beside it would count
+// doors, not a library, and "Settings · 9" is a fact about the app's own chrome rather than about anything
+// the reader owns. If the LIST ever becomes a collection of the reader's things, the band earns the census
+// first and this row follows it — never the other way round.
+//
 // WHY THE `?.` ON `collection` SURVIVES, stated so the next reader does not re-open it as an oversight
 // (#1622, investigated 2026-09-05 and REFUSED with this receipt). The fallback `collectionGroups(groups)[0]`
 // is what keeps the call unconditional when nothing is selected, and it types as possibly-undefined for a

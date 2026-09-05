@@ -5,7 +5,14 @@
 // through the section definition's `listHeader` slot (`analytics-section.tsx`), the same definition-owned
 // seam the topbar `header` rides — the domain-agnostic shell never names a feature.
 //
-// The cluster itself is the shared `ListPaneHeader` composite (§11.2); this file owns only the count read.
+// The cluster itself is the shared `ListPaneHeader` composite (§11.2); the count READ moved out to
+// `hooks/use-analytics-census.ts` with #1676, because the phone topbar reads it too — the two rulings below
+// are that read's, and they moved with it.
+//
+// ONE VISIBLE CENSUS *PER REGIME* (#1676, the #1670 class). On a phone the ONE-NAME rule (shell.css) sheds
+// this band's title and the census travels INSIDE it (`list-pane-header.tsx`: "THE COUNT TRAVELS WITH THE
+// TITLE"), so the leaderboard's size was printed NOWHERE there. It now also rides the topbar's screen title
+// (`lib/analytics-selection-title.ts`), the noun that survives.
 // It is a non-suspending `useQuery` sharing the `leaderboard` cache with the list surface below (the
 // DEFAULT_SORT key), so no extra fetch: the title renders immediately and the count settles in place
 // instead of the whole band suspending.
@@ -22,19 +29,12 @@
 // / "50 of 120 matches" rather than "50 of 328" beside three rows. The key mirrors the surface's DEFAULT_SORT
 // read exactly (search omitted when empty), so on the rest state the two still share one cached page.
 
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ListPaneHeader } from "#components";
-import { useTRPC } from "#data";
-import { useAnalyticsSearchQuery } from "#state";
-import { ANALYTICS_DEFAULT_SORT } from "../lib/analytics-view-model.ts";
+import { useAnalyticsCensus } from "../hooks/use-analytics-census.ts";
+import { ANALYTICS_SECTION_LABEL } from "../lib/analytics-section-label.ts";
 
 export function AnalyticsListHeader(): ReactElement {
-  const trpc = useTRPC();
-  const trimmed = useAnalyticsSearchQuery().trim();
-  const { data: page } = useQuery(trpc.stats.leaderboard.queryOptions({ sort: ANALYTICS_DEFAULT_SORT, ...(trimmed === "" ? {} : { search: trimmed }) }));
-  const shown = page?.rows.length ?? 0;
-  const total = page?.total ?? 0;
-
-  return <ListPaneHeader count={total > shown ? `${shown} of ${total}` : shown} title="Analytics" />;
+  const count = useAnalyticsCensus();
+  return <ListPaneHeader count={count ?? 0} title={ANALYTICS_SECTION_LABEL} />;
 }

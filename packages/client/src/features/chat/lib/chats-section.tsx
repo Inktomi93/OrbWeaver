@@ -35,6 +35,7 @@ import { CommittedMembersTab } from "../components/committed-members-tab.tsx";
 import { CommittedSettingsTab } from "../components/settings-context-tab.tsx";
 import { useChatContextState } from "../hooks/use-chat-context-state.ts";
 import { ChatListSurface } from "../surfaces/chat-list-surface.tsx";
+import { CHATS_SECTION_LABEL } from "./chats-section-label.ts";
 import { useChatsSelectionTitle } from "./chats-selection-title.ts";
 import { membersTabJustified, resolveIsGroupChat } from "./roster.ts";
 
@@ -129,7 +130,7 @@ interface ChatsSectionContributors {
 export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRenderers, settingsSections }: ChatsSectionContributors): SectionDefinition {
   return {
     id: "chats",
-    rail: { label: "Chats", icon: MessagesSquare, group: "primary", mobile: "tab" },
+    rail: { label: CHATS_SECTION_LABEL, icon: MessagesSquare, group: "primary", mobile: "tab" },
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: "Chats",

@@ -43,6 +43,21 @@ export function useRefinerySessions(): UseQueryResult<SessionList, TrpcReadError
   return useQuery(trpc.refinery.listSessions.queryOptions());
 }
 
+/**
+ * THE SESSIONS CENSUS — ONE spelling, TWO readers (#1676): the LIST chrome band
+ * (`surfaces/refinery-list-surface.tsx`) and the phone topbar's screen title (`lib/refinery-section.tsx`),
+ * which is where the count lives once the ONE-NAME rule (shell.css) sheds the band's title.
+ *
+ * NON-SUSPENDING, and that is why it is not `useSuspenseQuery`: the topbar is shell chrome above every
+ * section boundary, so a suspending read there blanks the whole bar. It shares the ONE `listSessions` key the
+ * roster surface already fetches — pinned by `tests/client/features/refinery/surfaces/refinery-list-surface.ct.tsx`
+ * ("header, surface and selection-title share one `listSessions` key", `trpc.count(...) === 1`) — so the
+ * second reader costs no request. `undefined` until it lands: an unread roster is not an empty one.
+ */
+export function useRefineryCensus(): number | undefined {
+  return useRefinerySessions().data?.length;
+}
+
 /** The R2 read tier — ONE session's full view (the anti-drift `originalCard` anchor, selection, stageConfig,
  *  guidance, iterationCount). `null` selects nothing and asks nothing. Consumed by the R3 surface. */
 export function useRefinerySession(sessionId: RefinerySessionId | null): UseQueryResult<SessionView, TrpcReadError> {

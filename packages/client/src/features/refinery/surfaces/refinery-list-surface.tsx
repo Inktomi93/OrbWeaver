@@ -46,6 +46,7 @@ import { useOpenRefinery, useTRPC } from "#data";
 import { timeLib, useFocusOnMount } from "#lib";
 import { requestRefineryLandingFocus, selectRefinerySessionFromList, useMobileViewport, useSelectedRefinerySessionId } from "#state";
 import { RefineryChip } from "../components/refinery-chip.tsx";
+import { useRefineryCensus } from "../hooks/use-refinery-sessions.ts";
 
 const VERDICT_TONE: Record<string, RenderHintTone> = {
   ACCEPT: "good",
@@ -304,8 +305,11 @@ export function RefineryListSurface(): ReactElement {
  * the phone startable only from the empty state. Not `disabled`: that is the #157 defect itself.
  */
 export function RefineryListHeader(): ReactElement {
-  const trpc = useTRPC();
-  const sessions = useSuspenseQuery(trpc.refinery.listSessions.queryOptions());
+  // ONE census spelling, shared with the phone topbar's screen title (#1676) — and non-suspending, like every
+  // other section's band ("the title renders immediately and the count settles in place"). It is the SAME
+  // `listSessions` key the roster surface below suspends on, so the band still costs no extra request and the
+  // settled render is unchanged.
+  const census = useRefineryCensus();
   const selectedId = useSelectedRefinerySessionId();
   const isMobile = useMobileViewport();
   const contentShowsPicker = selectedId === null && !isMobile;
@@ -322,7 +326,7 @@ export function RefineryListHeader(): ReactElement {
           />
         )
       }
-      count={sessions.data.length}
+      count={census ?? 0}
       title="Sessions"
     />
   );

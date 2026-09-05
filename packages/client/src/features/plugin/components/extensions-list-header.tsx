@@ -8,6 +8,11 @@
 // its siblings all open identified. This closes that gap, and ONLY that gap — the pane's list/empty/content
 // behaviour is untouched (`extensions-switcher-surface.tsx` still owns the rows and the teaching empty).
 //
+// ONE VISIBLE CENSUS *PER REGIME* (#1676, the #1670 class). On a phone the ONE-NAME rule (shell.css) sheds
+// this band's title and the census travels INSIDE it (`list-pane-header.tsx`: "THE COUNT TRAVELS WITH THE
+// TITLE"), so the page roster's size was printed NOWHERE there. It now also rides the topbar's screen title
+// (`lib/use-extensions-selection-title.ts`), the noun that survives; both call `useExtensionsCensus`.
+//
 // NO ACTION, browse-shaped like Corpus (§2 action-ownership): a page is registered by a PLUGIN, not created
 // from this band, so there is no create verb to carry. The count is bare — `usePluginPages()` already reads
 // the CALLER's full, unfiltered roster (no search/facet narrows this switcher), so there is no "N of TOTAL"
@@ -16,9 +21,10 @@
 
 import type { ReactElement } from "react";
 import { ListPaneHeader } from "#components";
-import { usePluginPages } from "../hooks/use-plugin-pages.ts";
+import { useExtensionsCensus } from "../hooks/use-extensions-census.ts";
+import { EXTENSIONS_SECTION_LABEL } from "../lib/extensions-section-label.ts";
 
 export function ExtensionsListHeader(): ReactElement {
-  const pages = usePluginPages();
-  return <ListPaneHeader count={pages.length} title="Extensions" />;
+  const count = useExtensionsCensus();
+  return <ListPaneHeader count={count} title={EXTENSIONS_SECTION_LABEL} />;
 }

@@ -15,17 +15,21 @@
 // available to a user is that the app disagrees with itself about how many characters they own. `N of TOTAL`
 // is the band's own existing idiom for a count that is a subset (`chat-list-header.tsx`,
 // `characters-list-header.tsx`, `analytics-list-header.tsx` all print it), and `distilledCensus` is the one
-// home the CONTEXT band shares so the two cannot drift.
+// home the CONTEXT band shares so the two cannot drift. The read itself moved to `hooks/use-corpus-census.ts`
+// with #1676 — see below.
+//
+// ONE VISIBLE CENSUS *PER REGIME* (#1676, the #1670 class). On a phone the ONE-NAME rule (shell.css) sheds
+// this band's title and the census travels INSIDE it (`list-pane-header.tsx`: "THE COUNT TRAVELS WITH THE
+// TITLE"), so the catalog's size was printed NOWHERE there. It now also rides the topbar's screen title
+// (`lib/corpus-selection-title.ts`), the noun that survives — still exactly one visible census on screen,
+// per regime, and both readers call the one `useCorpusCensus` so `distilledCensus` is not re-spelled.
 
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ListPaneHeader } from "#components";
-import { useTRPC } from "#data";
-import { distilledCensus } from "../lib/corpus-vocabulary.ts";
+import { useCorpusCensus } from "../hooks/use-corpus-census.ts";
+import { CORPUS_SECTION_LABEL } from "../lib/corpus-section-label.ts";
 
 export function CorpusListHeader(): ReactElement {
-  const trpc = useTRPC();
-  const { data: catalog } = useQuery(trpc.discovery.catalog.queryOptions());
-
-  return <ListPaneHeader count={distilledCensus(catalog?.totalDistilled ?? 0, catalog?.totalCharacters ?? 0)} title="Corpus" />;
+  const count = useCorpusCensus();
+  return <ListPaneHeader count={count ?? 0} title={CORPUS_SECTION_LABEL} />;
 }
