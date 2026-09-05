@@ -1066,6 +1066,9 @@ test("#1580 a RECOGNISED-but-refused SillyTavern preset is named as recognised, 
   // that is NOT what happened here.
   await expect(page.getByText(/Recognised as a SillyTavern preset, refused:/u)).toBeVisible();
   await expect(page.getByText(/This SillyTavern preset mapped to a config orb cannot store/u)).toBeVisible();
+  // #1592 — the generic `(schema-rejected)` word alone left the owner of a too-long prompt with no way to
+  // tell which one to shrink; the reason now names the offending ST prompt + field.
+  await expect(page.getByText(/the ST prompt "lore-dump" `content`/u)).toBeVisible();
   // The recognised arm never borrows the unrecognised arm's sentence…
   await expect(page.getByText(/the SillyTavern reader stopped/u)).toHaveCount(0);
   // …and the #1390 self-contradiction stays gone: no denial of a format the quoted reason names.

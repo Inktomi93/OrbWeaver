@@ -70,7 +70,14 @@ test("parseOutcome reports the value's provenance and names the failure", () => 
 
   expect(config.parseOutcome(null)).toEqual({ intact: false, value: DEFAULT, failure: "not-an-object" });
   expect(config.parseOutcome(undefined)).toEqual({ intact: false, value: DEFAULT, failure: "not-an-object" });
-  expect(config.parseOutcome({ schemaVersion: 3, count: "not a number" })).toEqual({ intact: false, value: DEFAULT, failure: "schema-rejected" });
+  // #1592 — a `schema-rejected` outcome carries the FIRST offending zod issue (dot-path + message), so a
+  // caller can name which field blew the schema rather than the bare word.
+  expect(config.parseOutcome({ schemaVersion: 3, count: "not a number" })).toEqual({
+    intact: false,
+    value: DEFAULT,
+    failure: "schema-rejected",
+    issue: { path: "count", message: "Invalid input: expected number, received string" },
+  });
 
   const broken = defineVersionedConfig<Cfg>({
     schema,
