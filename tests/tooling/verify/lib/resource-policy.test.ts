@@ -54,6 +54,7 @@ test("ignored missing, empty, and unresolved resources withhold owner grant reco
       mustPass: [{ mode: "resource", files: { "package.json": "{}" }, why: "resource-only fixture mode" }],
     });
     const result = runPolicyPass({
+      knownPolicies: [gate],
       policies: [gate],
       root: scratch,
       project: new Project({ useInMemoryFileSystem: true }),

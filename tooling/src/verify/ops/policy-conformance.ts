@@ -43,6 +43,7 @@ function removeSources(project: Project): void {
 
 function runPass(policy: GatePolicy, root: string, project: Project, resourceOptions?: Omit<ResourceHostOptions, "root">): PolicyPassResult {
   return runPolicyPass({
+    knownPolicies: [policy],
     policies: [policy],
     root,
     project,

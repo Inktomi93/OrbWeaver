@@ -15,14 +15,8 @@ import type {
   WaivedGateFinding,
 } from "../contract/gate-authority.ts";
 import type { ValidatedReviewedGrants } from "./gate-authority-validation.ts";
-import {
-  isGateAuthority,
-  isGateAuthorityIdentity,
-  isGateSeverity,
-  reviewedGrantIdentity,
-  validateOrdinaryAuthorityAlarms,
-  validateReviewedGrants,
-} from "./gate-authority-validation.ts";
+import { isGateAuthority, isGateAuthorityIdentity, isGateSeverity, reviewedGrantIdentity, validateReviewedGrants } from "./gate-authority-validation.ts";
+import { createOrdinaryWaiverEngine } from "./ordinary-waiver.ts";
 
 function findingOrder(left: CoordinatedGateFinding, right: CoordinatedGateFinding): number {
   return (
@@ -50,8 +44,8 @@ function toolErrorOrder(left: GateAuthorityToolError, right: GateAuthorityToolEr
 function toConsumption(counts: ReadonlyMap<string, number>): readonly AuthorityConsumption[] {
   return [...counts].map(([id, count]) => ({ id, count })).toSorted((left, right) => left.id.localeCompare(right.id));
 }
-function policyTable(selectedPolicies: readonly SelectedGatePolicy[], errors: GateAuthorityToolError[]): ReadonlyMap<string, SelectedGatePolicy> {
-  const counts = Map.groupBy(selectedPolicies, ({ id }) => id);
+function policyTable(policies: readonly SelectedGatePolicy[], errors: GateAuthorityToolError[]): Map<string, SelectedGatePolicy> {
+  const counts = Map.groupBy(policies, ({ id }) => id);
   const table = new Map<string, SelectedGatePolicy>();
   for (const [id, candidates] of [...counts].toSorted(([left], [right]) => left.localeCompare(right))) {
     if (!isGateAuthorityIdentity(id) || candidates.some(({ authority, severity }) => !(isGateAuthority(authority) && isGateSeverity(severity)))) {
@@ -68,6 +62,22 @@ function policyTable(selectedPolicies: readonly SelectedGatePolicy[], errors: Ga
     }
   }
   return table;
+}
+
+function selectedPolicyTable(
+  selectedPolicies: readonly SelectedGatePolicy[],
+  knownPolicies: ReadonlyMap<string, SelectedGatePolicy>,
+  errors: GateAuthorityToolError[],
+): ReadonlyMap<string, SelectedGatePolicy> {
+  const selected = policyTable(selectedPolicies, errors);
+  for (const [id, policy] of selected) {
+    const known = knownPolicies.get(id);
+    if (known === undefined || known.authority !== policy.authority || known.severity !== policy.severity) {
+      errors.push({ kind: "invalid-policy", policyId: id, message: `selected policy disagrees with the known policy roster: ${id}` });
+      selected.delete(id);
+    }
+  }
+  return selected;
 }
 interface RuntimeOwnerCompletion {
   readonly status?: unknown;
@@ -214,41 +224,15 @@ function selectedResults(
   }
   return selected;
 }
-function processOrdinary(policy: SelectedGatePolicy, findings: readonly CoordinatedGateFinding[], state: CoordinationState): boolean {
-  const localEffective: CoordinatedGateFinding[] = [];
-  const localWaived: WaivedGateFinding[] = [];
-  const localCounts = new Map<string, number>();
-  let valid = true;
-  for (const finding of findings) {
-    const waiverId = state.input.waiverFor?.(finding) ?? null;
-    if (waiverId === null) {
-      localEffective.push(finding);
-    } else if (!isGateAuthorityIdentity(waiverId)) {
-      state.toolErrors.push({ kind: "invalid-waiver-id", policyId: policy.id, message: `ordinary waiver id must be nonempty for ${policy.id}` });
-      valid = false;
-    } else {
-      localCounts.set(waiverId, (localCounts.get(waiverId) ?? 0) + 1);
-      localWaived.push({ finding, waiverId });
-    }
-  }
-  if (!valid) {
-    state.effectiveFindings.push(...findings);
-    return false;
-  }
-  state.effectiveFindings.push(...localEffective);
-  state.waivedFindings.push(...localWaived);
-  for (const [id, count] of localCounts) {
-    state.ordinaryCounts.set(id, (state.ordinaryCounts.get(id) ?? 0) + count);
-  }
-  return true;
-}
 interface CoordinationState {
   readonly input: GateAuthorityBatchInput;
+  readonly knownPolicies: ReadonlyMap<string, SelectedGatePolicy>;
   readonly results: ReadonlyMap<string, GateOwnerResult>;
   readonly grants: ValidatedReviewedGrants;
   readonly effectiveFindings: CoordinatedGateFinding[];
   readonly waivedFindings: WaivedGateFinding[];
   readonly grantedFindings: GrantedGateFinding[];
+  readonly ordinaryFindings: CoordinatedGateFinding[];
   readonly ordinaryCounts: Map<string, number>;
   readonly grantCounts: Map<string, number>;
   readonly completedOrdinary: Set<string>;
@@ -300,8 +284,8 @@ function processPolicy(policy: SelectedGatePolicy, state: CoordinationState): vo
     return;
   }
   if (policy.authority === "ordinary") {
-    const completed = processOrdinary(policy, findings, state);
-    if (completed && !wrongGrantAuthority) {
+    state.ordinaryFindings.push(...findings);
+    if (!wrongGrantAuthority) {
       state.completedOrdinary.add(policy.id);
     } else {
       state.withheld.add(policy.id);
@@ -311,18 +295,27 @@ function processPolicy(policy: SelectedGatePolicy, state: CoordinationState): vo
 
   processReviewed(policy, findings, state);
 }
-function reconcileAuthority(state: CoordinationState): readonly GateAuthorityAlarm[] {
-  const alarms: GateAuthorityAlarm[] = [];
-  if (state.input.reconcileOrdinary !== undefined && state.completedOrdinary.size > 0) {
-    const completedPolicyIds = [...state.completedOrdinary].toSorted();
-    const returned: unknown = state.input.reconcileOrdinary({ completedPolicyIds, consumption: new Map(state.ordinaryCounts) });
-    const validated = validateOrdinaryAuthorityAlarms(returned, completedPolicyIds);
-    state.toolErrors.push(...validated.errors);
-    for (const policyId of validated.withheldPolicyIds) {
-      state.withheld.add(policyId);
+function processOrdinary(state: CoordinationState): ReturnType<ReturnType<typeof createOrdinaryWaiverEngine>["reconcile"]> {
+  const engine = createOrdinaryWaiverEngine({ sourceFiles: state.input.ordinaryWaiverSourceFiles, knownPolicies: [...state.knownPolicies.values()] });
+  const findings = state.ordinaryFindings.toSorted(findingOrder);
+  const matched = engine.match(findings);
+  for (const [index, finding] of findings.entries()) {
+    const waiverId = matched.waiverIds[index] ?? null;
+    if (waiverId === null) {
+      state.effectiveFindings.push(finding);
+    } else {
+      state.waivedFindings.push({ finding, waiverId });
     }
-    alarms.push(...validated.alarms);
   }
+  for (const [id, count] of matched.consumption) {
+    state.ordinaryCounts.set(id, count);
+  }
+  return engine.reconcile({ completedPolicyIds: [...state.completedOrdinary].toSorted(), match: matched });
+}
+
+function reconcileAuthority(state: CoordinationState, ordinaryAlarms: readonly GateAuthorityAlarm[]): readonly GateAuthorityAlarm[] {
+  const alarms: GateAuthorityAlarm[] = [];
+  alarms.push(...ordinaryAlarms);
   for (const grant of state.grants.grants) {
     const count = state.grantCounts.get(grant.id) ?? 0;
     if (state.completedReviewed.has(grant.policyId) && count === 0) {
@@ -352,29 +345,33 @@ function reconcileAuthority(state: CoordinationState): readonly GateAuthorityAla
 export function coordinateGateAuthority(input: GateAuthorityBatchInput): GateAuthorityBatchResult {
   const toolErrors: GateAuthorityToolError[] = [];
   const withheld = new Set<string>();
-  const policies = policyTable(input.selectedPolicies, toolErrors);
+  const knownPolicies = policyTable(input.knownPolicies, toolErrors);
+  const policies = selectedPolicyTable(input.selectedPolicies, knownPolicies, toolErrors);
   for (const { id } of input.selectedPolicies) {
     if (!policies.has(id)) {
       withheld.add(id);
     }
   }
-  const grants = validateReviewedGrants(input.reviewedGrants, policies);
+  const grants = validateReviewedGrants(input.reviewedGrants, knownPolicies);
   toolErrors.push(...grants.errors);
   const results = selectedResults(policies, input.ownerResults, toolErrors, withheld);
   const effectiveFindings: CoordinatedGateFinding[] = [];
   const waivedFindings: WaivedGateFinding[] = [];
   const grantedFindings: GrantedGateFinding[] = [];
+  const ordinaryFindings: CoordinatedGateFinding[] = [];
   const ordinaryCounts = new Map<string, number>();
   const grantCounts = new Map(grants.grants.map(({ id }) => [id, 0]));
   const completedOrdinary = new Set<string>();
   const completedReviewed = new Set<string>();
   const state: CoordinationState = {
     input,
+    knownPolicies,
     results,
     grants,
     effectiveFindings,
     waivedFindings,
     grantedFindings,
+    ordinaryFindings,
     ordinaryCounts,
     grantCounts,
     completedOrdinary,
@@ -385,11 +382,12 @@ export function coordinateGateAuthority(input: GateAuthorityBatchInput): GateAut
   for (const [, policy] of [...policies].toSorted(([left], [right]) => left.localeCompare(right))) {
     processPolicy(policy, state);
   }
+  const ordinaryAlarms = processOrdinary(state);
 
   const sortedEffective = effectiveFindings.toSorted(findingOrder);
   const errors = sortedEffective.filter(({ severity }) => severity === "error").length;
   const warnings = sortedEffective.length - errors;
-  const authorityAlarms = reconcileAuthority(state);
+  const authorityAlarms = reconcileAuthority(state, ordinaryAlarms);
   const alarmErrors = authorityAlarms.length;
   return {
     effectiveFindings: sortedEffective,

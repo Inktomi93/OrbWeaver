@@ -43,6 +43,7 @@ function policy(id: string, overrides: Partial<GatePolicy> = {}): GatePolicy {
 
 function run(policies: readonly GatePolicy[], project: Project, overrides: Partial<PolicyPassInput> = {}): PolicyPassResult {
   return runPolicyPass({
+    knownPolicies: policies,
     policies,
     root: ROOT,
     project,
@@ -95,6 +96,36 @@ test("the invocation boundary rejects empty, duplicate, unbranded, and invalid p
   expect(() => run([unbranded], project)).toThrow(/defineGate|brand/i);
   expect(() => run([invalid], project)).toThrow(/invalid.*policy|analysis|proof/i);
   expect(creates).toBe(0);
+});
+
+test("selected policies must be exact loaded descriptor identities before any hook runs", () => {
+  const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
+  const events: string[] = [];
+  const tracked = (id: string, overrides: Partial<GatePolicy> = {}): GatePolicy =>
+    policy(id, {
+      create: () => {
+        events.push("create");
+        return {
+          visitFile: () => events.push("visitFile"),
+          visitors: [{ kinds: [SyntaxKind.VariableDeclaration], visit: () => events.push("visit") }],
+          evaluate: () => events.push("evaluate"),
+        };
+      },
+      ...overrides,
+    });
+  const absent = tracked("absent-selected");
+  expect(() => run([absent], project, { knownPolicies: [policy("different-known")] })).toThrow(/absent.*known roster/i);
+  expect(events).toEqual([]);
+
+  const loaded = tracked("substituted-policy");
+  const substitute = tracked("substituted-policy", { authority: "ordinary" });
+  expect(() => run([substitute], project, { knownPolicies: [loaded] })).toThrow(/loaded descriptor identity/i);
+  expect(events).toEqual([]);
+
+  const sameMetadataLoaded = tracked("same-metadata-policy");
+  const sameMetadataSubstitute = tracked("same-metadata-policy");
+  expect(() => run([sameMetadataSubstitute], project, { knownPolicies: [sameMetadataLoaded] })).toThrow(/loaded descriptor identity/i);
+  expect(events).toEqual([]);
 });
 
 test("two policies share one physical descendant walk and receive deterministic findings", () => {
@@ -381,13 +412,7 @@ test("semantic and resource receipt failures remain visible and withhold their o
     create: (ctx) => ({ evaluate: () => ctx.receipt({ kind: "bogus", source: "bogus-kind", resources: 1 } as never) }),
   });
 
-  let reconciliations = 0;
-  const result = run([bogus, denominators], project, {
-    reconcileOrdinary: () => {
-      reconciliations += 1;
-      return [];
-    },
-  });
+  const result = run([bogus, denominators], project);
   const denominatorResult = result.policies.find(({ id }) => id === denominators.id);
 
   expect(denominatorResult?.owner.status).toBe("incomplete");
@@ -399,7 +424,6 @@ test("semantic and resource receipt failures remain visible and withhold their o
     { policyId: "bogus-receipt", phase: "evaluate", message: expect.stringMatching(/kind|discriminant/i) },
   ]);
   expect(result.authority.withheldPolicyIds).toEqual(["bad-denominators", "bogus-receipt"]);
-  expect(reconciliations).toBe(0);
 });
 
 test("node reports require an exact in-range token and offset pair", () => {
@@ -496,13 +520,20 @@ test("every hook throw withholds only its owner and siblings survive", () => {
 test("central authority handles hard, ordinary, reviewed, and warning promotion", () => {
   const project = projectOf({
     "packages/client/src/hard.ts": "export const hard = 1;\n",
-    "packages/client/src/ordinary.ts": "export const ordinary = 1;\n",
+    "packages/client/src/ordinary.ts": "// @orb-waive ordinary-policy(ordinary): fixture\nexport const ordinary = 1;\n",
     "packages/client/src/reviewed.ts": "export const reviewed = 1;\n",
   });
   const anchored = (id: string, file: string, overrides: Partial<GatePolicy> = {}): GatePolicy =>
     policy(id, { create: (ctx) => ({ evaluate: () => ctx.report.file(file, { subject: file, operation: "read" }) }), ...overrides });
   const hard = anchored("hard-policy", "packages/client/src/hard.ts");
-  const ordinary = anchored("ordinary-policy", "packages/client/src/ordinary.ts", { authority: "ordinary", severity: "warning", workItem: 1584 });
+  const ordinary = anchored("ordinary-policy", "packages/client/src/ordinary.ts", {
+    authority: "ordinary",
+    severity: "warning",
+    workItem: 1584,
+    create: (ctx) => ({
+      evaluate: () => ctx.report.file("packages/client/src/ordinary.ts", { line: 2, column: 14, token: "ordinary" }),
+    }),
+  });
   const reviewed = anchored("reviewed-policy", "packages/client/src/reviewed.ts", { authority: "reviewed-grant" });
   const grants = [
     {
@@ -518,18 +549,140 @@ test("central authority handles hard, ordinary, reviewed, and warning promotion"
   const result = run([reviewed, ordinary, hard], project, {
     reviewedGrants: grants,
     failOnWarnings: true,
-    waiverFor: (finding) => (finding.policyId === ordinary.id ? "waiver-ordinary" : null),
-    reconcileOrdinary: () => [],
   });
 
   expect(result.authority.effectiveFindings).toMatchObject([{ policyId: hard.id, severity: "error" }]);
-  expect(result.authority.waivedFindings).toMatchObject([{ waiverId: "waiver-ordinary", finding: { policyId: ordinary.id, severity: "warning" } }]);
+  expect(result.authority.waivedFindings).toMatchObject([
+    { waiverId: "packages/client/src/ordinary.ts:1:1", finding: { policyId: ordinary.id, severity: "warning" } },
+  ]);
   expect(result.authority.grantedFindings).toMatchObject([{ grantId: "grant-reviewed", finding: { policyId: reviewed.id } }]);
   expect(result.authority.verdict).toEqual({ errors: 1, warnings: 0, blocking: 1, failOnWarnings: true });
 
-  const promoted = run([ordinary], project, { failOnWarnings: true, reconcileOrdinary: () => [] });
+  const promotedProject = projectOf({ "packages/client/src/ordinary.ts": "// deliberately unwaived\nexport const ordinary = 1;\n" });
+  const promoted = run([ordinary], promotedProject, { failOnWarnings: true });
   expect(promoted.authority.effectiveFindings).toMatchObject([{ policyId: ordinary.id, severity: "warning" }]);
   expect(promoted.authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 1, failOnWarnings: true });
+});
+
+test("final policy execution and waiver acquisition admit only authored .ts/.tsx sources", () => {
+  const source = "// @orb-waive source-universe(forbidden): authored source only\nexport const forbidden = 1;\n";
+  let creates = 0;
+  const seen: string[] = [];
+  const gate = policy("source-universe", {
+    authority: "ordinary",
+    population: "@tooling",
+    create: (ctx) => {
+      creates += 1;
+      return {
+        visitFile: (sourceFile) => {
+          const path = ctx.relativePath(sourceFile);
+          seen.push(path);
+          ctx.report.file(path, { line: 2, column: 14, token: "forbidden" });
+        },
+      };
+    },
+  });
+
+  const mtsOnly = run([gate], projectOf({ "tooling/src/only.mts": source }));
+  expect(creates).toBe(0);
+  expect(mtsOnly.policies[0]).toMatchObject({ owner: { status: "incomplete" }, population: { declaredSourcePaths: [] } });
+  expect(mtsOnly.authority.authorityAlarms).toEqual([]);
+  expect(mtsOnly.authority.ordinaryConsumption).toEqual([]);
+
+  const mixed = run(
+    [gate],
+    projectOf({
+      "tooling/src/live.ts": source,
+      "tooling/src/ignored.mts": source,
+      "tooling/src/ignored.cts": source,
+      "tooling/src/ignored.mjs": source,
+      "tooling/src/ignored.cjs": source,
+      "tooling/src/ignored.js": source,
+      "tooling/src/ignored.jsx": source,
+    }),
+  );
+  expect(creates).toBe(1);
+  expect(seen).toEqual(["tooling/src/live.ts"]);
+  expect(mixed.policies[0]?.population).toMatchObject({
+    declaredSourcePaths: ["tooling/src/live.ts"],
+    effectiveSourcePaths: ["tooling/src/live.ts"],
+  });
+  expect(mixed.authority.waivedFindings).toMatchObject([{ waiverId: "tooling/src/live.ts:1:1" }]);
+  expect(mixed.authority.ordinaryConsumption).toEqual([{ id: "tooling/src/live.ts:1:1", count: 1 }]);
+  expect(mixed.authority.authorityAlarms).toEqual([]);
+});
+
+test("ordinary waiver acquisition alarms stay blocking while unselected liveness is withheld", () => {
+  const selected = policy("ordinary-selected", { authority: "ordinary" });
+  const unselected = policy("ordinary-unselected", { authority: "ordinary" });
+  const hard = policy("hard-known");
+  const project = projectOf({
+    "packages/client/src/waivers.ts": [
+      "// @orb-waive",
+      "// @orb-waive missing-policy(value): unknown owner",
+      "// @orb-waive hard-known(value): wrong authority",
+      "// @orb-waive ordinary-unselected(value): liveness withheld",
+      "export const value = 1;",
+    ].join("\n"),
+  });
+
+  const result = run([selected], project, { knownPolicies: [selected, unselected, hard] });
+
+  expect(result.authority.authorityAlarms).toHaveLength(3);
+  expect(result.authority.authorityAlarms.map(({ message }) => message)).toEqual([
+    expect.stringMatching(/non-ordinary|wrong.*authority/i),
+    expect.stringMatching(/unknown policy/i),
+    expect.stringMatching(/malformed/i),
+  ]);
+  expect(result.authority.verdict).toMatchObject({ errors: 3, blocking: 3 });
+  expect(result.authority.authorityAlarms.some(({ policyId }) => policyId === unselected.id)).toBe(false);
+});
+
+test("reviewed grants validate against the full known roster without judging unselected liveness", () => {
+  const selected = policy("selected-hard");
+  const unselectedReviewed = policy("unselected-reviewed", { authority: "reviewed-grant" });
+  const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
+  const knownPolicies = [selected, unselectedReviewed];
+  const grant = {
+    id: "grant",
+    policyId: unselectedReviewed.id,
+    subject: "subject",
+    operation: "read",
+    why: "fixture",
+    endsWhen: "the unselected owner runs",
+  };
+
+  const unknown = run([selected], project, { knownPolicies, reviewedGrants: [{ ...grant, policyId: "missing-policy" }] });
+  expect(unknown.authority.toolErrors).toMatchObject([{ kind: "invalid-grant", policyId: "missing-policy" }]);
+
+  const wrongAuthority = run([selected], project, { knownPolicies, reviewedGrants: [{ ...grant, policyId: selected.id }] });
+  expect(wrongAuthority.authority.toolErrors).toMatchObject([{ kind: "invalid-grant-authority", policyId: selected.id }]);
+
+  const unselected = run([selected], project, { knownPolicies, reviewedGrants: [grant] });
+  expect(unselected.authority.toolErrors).toEqual([]);
+  expect(unselected.authority.authorityAlarms).toEqual([]);
+  expect(unselected.authority.reviewedGrantConsumption).toEqual([{ id: grant.id, count: 0 }]);
+});
+
+test("an incomplete ordinary owner withholds stale liveness but not malformed acquisition", () => {
+  const incomplete = policy("ordinary-incomplete", {
+    authority: "ordinary",
+    create: () => {
+      throw new Error("owner failed before reporting");
+    },
+  });
+  const project = projectOf({
+    "packages/client/src/incomplete.ts": ["// @orb-waive ordinary-incomplete(value): stale while incomplete", "// @orb-waive", "export const value = 1;"].join(
+      "\n",
+    ),
+  });
+
+  const result = run([incomplete], project);
+
+  expect(result.policies[0]?.owner.status).toBe("incomplete");
+  expect(result.authority.withheldPolicyIds).toEqual([incomplete.id]);
+  expect(result.authority.authorityAlarms).toMatchObject([{ policyId: "ordinary-waiver", message: expect.stringMatching(/malformed/i) }]);
+  expect(result.authority.authorityAlarms).toHaveLength(1);
 });
 
 test("result ordering and timing receipt shape are deterministic", () => {

@@ -1,6 +1,8 @@
 /** Closed authority/severity and owner-completion contract for central gate post-processing.
  * Policy metadata is added by the coordinator; detector findings cannot author it. */
 
+import type { SourceFile } from "ts-morph";
+
 export const GATE_AUTHORITIES = ["hard", "ordinary", "reviewed-grant"] as const;
 export type GateAuthority = (typeof GATE_AUTHORITIES)[number];
 
@@ -113,12 +115,10 @@ export const GATE_AUTHORITY_TOOL_ERROR_KINDS = [
   "owner-failure",
   "owner-incomplete",
   "invalid-reviewed-grant-identity",
-  "invalid-waiver-id",
   "invalid-grant",
   "duplicate-grant-id",
   "duplicate-grant-identity",
   "invalid-grant-authority",
-  "invalid-authority-alarm",
 ] as const;
 export type GateAuthorityToolErrorKind = (typeof GATE_AUTHORITY_TOOL_ERROR_KINDS)[number];
 
@@ -137,18 +137,13 @@ export interface GateAuthorityVerdict {
   readonly failOnWarnings: boolean;
 }
 
-export interface OrdinaryReconciliationInput {
-  readonly completedPolicyIds: readonly string[];
-  readonly consumption: ReadonlyMap<string, number>;
-}
-
 export interface GateAuthorityBatchInput {
+  readonly knownPolicies: readonly SelectedGatePolicy[];
   readonly selectedPolicies: readonly SelectedGatePolicy[];
+  readonly ordinaryWaiverSourceFiles: ReadonlyMap<string, SourceFile>;
   readonly ownerResults: readonly GateOwnerResult[];
   readonly reviewedGrants: readonly ReviewedGateGrant[];
   readonly failOnWarnings: boolean;
-  readonly waiverFor?: (finding: CoordinatedGateFinding) => string | null;
-  readonly reconcileOrdinary?: (input: OrdinaryReconciliationInput) => readonly OrdinaryAuthorityAlarm[];
 }
 
 export interface GateAuthorityBatchResult {

@@ -1,14 +1,6 @@
 // Exact population, phase, owner, and authority receipts emitted by the final policy dispatcher.
 import type { Project } from "ts-morph";
-import type {
-  CoordinatedGateFinding,
-  GateAuthorityBatchResult,
-  GateOwnerCompletion,
-  OrdinaryAuthorityAlarm,
-  OrdinaryReconciliationInput,
-  RawGateFinding,
-  ReviewedGateGrant,
-} from "./gate-authority.ts";
+import type { GateAuthorityBatchResult, GateOwnerCompletion, RawGateFinding, ReviewedGateGrant } from "./gate-authority.ts";
 import type { GatePolicy } from "./policy.ts";
 import type { ResourceHostOptions } from "./resource-host.ts";
 
@@ -64,6 +56,8 @@ export interface PolicyPassTiming {
 
 /** Internal invocation input. Project/root stop here and never enter GatePolicyContext. */
 export interface PolicyPassInput {
+  /** Full loaded policy roster. Authority reconciliation needs unselected policy metadata. */
+  readonly knownPolicies: readonly GatePolicy[];
   readonly policies: readonly GatePolicy[];
   readonly root: string;
   readonly project: Project;
@@ -74,8 +68,6 @@ export interface PolicyPassInput {
   readonly resourceOptions?: Omit<ResourceHostOptions, "root">;
   readonly reviewedGrants: readonly ReviewedGateGrant[];
   readonly failOnWarnings: boolean;
-  readonly waiverFor?: (finding: CoordinatedGateFinding) => string | null;
-  readonly reconcileOrdinary?: (input: OrdinaryReconciliationInput) => readonly OrdinaryAuthorityAlarm[];
 }
 
 export interface PolicyPassResult {

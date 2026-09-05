@@ -399,6 +399,73 @@ test.describe("final policy planner", () => {
     ).toMatchObject({ ok: true, plan: { policies: [{ policyId: "whole-policy", mode: "skipped" }] } });
   });
 
+  test("planner touch and population membership exclude module-script extensions", () => {
+    const sourceFiles = [
+      "tooling/src/live.ts",
+      "tooling/src/ignored.mts",
+      "tooling/src/ignored.cts",
+      "tooling/src/ignored.mjs",
+      "tooling/src/ignored.cjs",
+      "tooling/src/ignored.js",
+      "tooling/src/ignored.jsx",
+    ];
+    const program = { ...PROGRAM, files: sourceFiles };
+    const gate = policy("source-universe", { execution: "entire-population" });
+    const corpus = { gates: [gate], families: [gate.family] };
+    const plannedScope = (currentPaths: readonly string[]): PolicyScopeResolution => ({
+      ...scope(currentPaths, "file"),
+      request: { kind: "changed" },
+      kind: "changed",
+      programs: [program],
+      requestedPaths: currentPaths.map((path) => ({ path, status: "modified" as const, previousPath: null })),
+      semanticPaths: currentPaths.map((path) => ({ path, status: "modified" as const, previousPath: null })),
+      ownership: currentPaths.map((path) => ({
+        path,
+        status: "modified" as const,
+        previousPath: null,
+        programIds: [program.id],
+        reason: "compiler-membership" as const,
+      })),
+    });
+
+    const mtsOnly = planPolicyCommand({
+      request: runRequest({ scope: { kind: "changed" }, strictScope: true }),
+      corpus,
+      scope: plannedScope(["tooling/src/ignored.mts"]),
+    });
+    expect(mtsOnly).toMatchObject({
+      ok: true,
+      plan: {
+        policies: [
+          {
+            mode: "skipped",
+            population: { declaredSourcePaths: ["tooling/src/live.ts"], effectiveSourcePaths: [] },
+          },
+        ],
+      },
+    });
+
+    const mixed = planPolicyCommand({
+      request: runRequest({ scope: { kind: "changed" } }),
+      corpus,
+      scope: plannedScope(sourceFiles),
+    });
+    expect(mixed).toMatchObject({
+      ok: true,
+      plan: {
+        policies: [
+          {
+            mode: "run",
+            population: {
+              declaredSourcePaths: ["tooling/src/live.ts"],
+              effectiveSourcePaths: ["tooling/src/live.ts"],
+            },
+          },
+        ],
+      },
+    });
+  });
+
   test("replacement and rename semantics stay lossless while pass-facing requested paths are a set", () => {
     const semantic = [
       { path: "tooling/src/a.ts", status: "deleted" as const, previousPath: null },
@@ -567,6 +634,66 @@ test.describe("final policy planner", () => {
       ok: false,
       exitCode: 2,
       message: expect.stringMatching(/population.*plan/i),
+    });
+  });
+
+  test("execution carries the full known roster into ordinary-waiver adjudication", () => {
+    const selected = policy("selected-hard");
+    const unselected = defineGate({ ...policy("known-ordinary"), authority: "ordinary" });
+    const reviewed = defineGate({ ...policy("known-reviewed"), authority: "reviewed-grant" });
+    const corpus = { gates: [selected, unselected, reviewed], families: [selected.family, unselected.family, reviewed.family] };
+    const planned = planPolicyCommand({
+      request: runRequest({ selector: { kind: "check", names: [selected.id] } }),
+      corpus,
+      scope: scope(["tooling/src/a.ts"], "file"),
+    });
+    if (!planned.ok || planned.plan.mode !== "run") {
+      throw new Error("full-roster fixture plan did not resolve");
+    }
+    const project = new Project({ useInMemoryFileSystem: true });
+    project.createSourceFile(
+      "/repo/tooling/src/a.ts",
+      [
+        "// @orb-waive missing-policy(value): unknown policy must stay loud",
+        "// @orb-waive known-ordinary(value): unselected liveness is withheld",
+        "export const value = 1;",
+      ].join("\n"),
+    );
+    project.createSourceFile("/repo/tooling/src/b.ts", "export const b = 2;\n");
+
+    const result = executePolicyPlan({ root: "/repo", project, corpus, plan: planned.plan, reviewedGrants: [] });
+
+    expect(result).toMatchObject({
+      ok: true,
+      exitCode: 1,
+      pass: { authority: { authorityAlarms: [{ policyId: "missing-policy", message: expect.stringMatching(/unknown policy/i) }] } },
+    });
+    if (!result.ok) {
+      throw new Error(result.message);
+    }
+    expect(result.pass.authority.authorityAlarms).toHaveLength(1);
+
+    const cleanProject = new Project({ useInMemoryFileSystem: true });
+    cleanProject.createSourceFile("/repo/tooling/src/a.ts", "export const a = 1;\n");
+    cleanProject.createSourceFile("/repo/tooling/src/b.ts", "export const b = 2;\n");
+    const grant = { id: "grant", policyId: reviewed.id, subject: "subject", operation: "read", why: "fixture", endsWhen: "the owner runs" };
+    const executeGrants = (reviewedGrants: readonly (typeof grant)[]): ReturnType<typeof executePolicyPlan> =>
+      executePolicyPlan({ root: "/repo", project: cleanProject, corpus, plan: planned.plan, reviewedGrants });
+
+    expect(executeGrants([{ ...grant, policyId: "missing-policy" }])).toMatchObject({
+      ok: true,
+      exitCode: 2,
+      pass: { authority: { toolErrors: [{ kind: "invalid-grant", policyId: "missing-policy" }] } },
+    });
+    expect(executeGrants([{ ...grant, policyId: selected.id }])).toMatchObject({
+      ok: true,
+      exitCode: 2,
+      pass: { authority: { toolErrors: [{ kind: "invalid-grant-authority", policyId: selected.id }] } },
+    });
+    expect(executeGrants([grant])).toMatchObject({
+      ok: true,
+      exitCode: 0,
+      pass: { authority: { authorityAlarms: [], reviewedGrantConsumption: [{ id: grant.id, count: 0 }] } },
     });
   });
 
