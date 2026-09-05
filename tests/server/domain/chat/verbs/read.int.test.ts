@@ -6,12 +6,15 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatListCursor, MemberCardVisibility } from "@orb/contracts/chat";
+import { characterRegexTierKey } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, TEMPLATE_DEFS } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
+import type { RegexScriptRow } from "@orb/contracts/regex";
+import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import {
   characterBooks,
@@ -113,6 +116,78 @@ async function seedRoom(key: string, host: UserId): Promise<ChatId> {
   await seedParticipant(db, { chatId, key: `${key}_c`, characterId: charA });
   return chatId;
 }
+
+// ── #1742 — `listEffectiveRegex`, the room's Regex section's body ───────────────────────────────────────
+describe("read — listEffectiveRegex (host-only, #1742)", () => {
+  /** A room whose four tiers each hold one script. The rows come through the INJECTED scope resolver (the
+   *  same op a turn uses), so this exercises the read's own job — gate, tier assembly, run order — without
+   *  re-testing the junction queries `resolve-sources.int.test.ts` owns. */
+  function regexSources(characterId: CharacterId): ChatContext["resolveRegexSources"] {
+    const row = (name: string): RegexScriptRow =>
+      regexScriptSchema.parse({
+        id: mintTypeId(ID_PREFIX.regexScript),
+        name,
+        updatedAt: 1_700_000_000_000,
+        findRegex: name,
+        replaceString: `<${name}>`,
+        placement: ["USER_INPUT"],
+      });
+    return () =>
+      Promise.resolve({
+        hostGlobal: [row("g1")],
+        preset: [row("p1")],
+        character: [{ characterId, scripts: [row("c1")] }],
+        chat: [row("r1")],
+      });
+  }
+
+  test("the HOST reads every tier in run order, with the ranks the turn will apply", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-read-host"));
+    const chatId = await seedChat(db, "rx-read");
+    const character = await seedCharacter(db, host, "rx-read-char");
+    await seedParticipant(db, { chatId, key: "rxr_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxr_c", characterId: character });
+    const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
+
+    const view = await createRead(ctx, makeDeps()).listEffectiveRegex({ principal: principal(host), chatId });
+
+    expect(view.enabled).toBe(true);
+    expect(view.tiers.map((t) => t.scope)).toEqual(["global", "preset", characterRegexTierKey(character), "chat"]);
+    expect(view.tiers.flatMap((t) => t.rows.map((r) => r.script.name))).toEqual(["g1", "p1", "c1", "r1"]);
+    expect(view.effective.map((e) => e.runsAt)).toEqual([1, 2, 3, 4]);
+  });
+
+  test("a MEMBER is refused — three of the four tiers are the host's own library (D19)", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-read-host2"));
+    const member = await seedUser(db, castId<Handle>("rx-read-member"));
+    const chatId = await seedChat(db, "rx-read2");
+    const character = await seedCharacter(db, host, "rx-read-char2");
+    await seedParticipant(db, { chatId, key: "rxr2_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxr2_m", userId: member, role: "member" });
+    await seedParticipant(db, { chatId, key: "rxr2_c", characterId: character });
+    const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
+
+    await expect(createRead(ctx, makeDeps()).listEffectiveRegex({ principal: principal(member), chatId })).rejects.toThrow();
+  });
+
+  test("the room's levers are HONOURED by the read, not just by the turn", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-read-host3"));
+    const chatId = await seedChat(db, "rx-read3");
+    const character = await seedCharacter(db, host, "rx-read-char3");
+    await seedParticipant(db, { chatId, key: "rxr3_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxr3_c", characterId: character });
+    const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
+    const roster = createRoster(ctx, { emit: (): Promise<void> => Promise.resolve(), claimChat: (): Promise<void> => Promise.resolve() });
+    await roster.setRegexAllow({ principal: principal(host), chatId, lever: { kind: "tier", tier: "preset", enabled: false } });
+
+    const view = await createRead(ctx, makeDeps()).listEffectiveRegex({ principal: principal(host), chatId });
+
+    // The switched-off tier is LISTED (the host has to be able to switch it back on) and contributes no rank.
+    expect(view.tiers.find((t) => t.scope === "preset")?.allowed).toBe(false);
+    expect(view.tiers.find((t) => t.scope === "preset")?.rows.map((r) => r.runsAt)).toEqual([null]);
+    expect(view.effective).toHaveLength(3);
+  });
+});
 
 describe("read — listings (membership-scoped, D18)", () => {
   test("listChats returns ONLY the caller's chats, with canon stats + participant names", async () => {

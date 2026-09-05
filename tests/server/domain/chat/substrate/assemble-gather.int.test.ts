@@ -518,7 +518,9 @@ describe("gatherAssembleContext — the host-tier regex union (D53 as amended by
         return Promise.resolve({
           hostGlobal: [regexScript("global", "x", "y", "WORLD_INFO")],
           preset: [regexScript("preset", "p", "q", "WORLD_INFO")],
-          character: [regexScript("cast", "a", "b", "WORLD_INFO")],
+          // PER SEAT (#1742/F3) — one slice per seated character, so the gather can key a per-character
+          // allow off it. Concatenating the slices reproduces the flat list this used to be.
+          character: [{ characterId: aria, scripts: [regexScript("cast", "a", "b", "WORLD_INFO")] }],
           chat: [regexScript("room", "r", "s", "WORLD_INFO")],
         });
       },

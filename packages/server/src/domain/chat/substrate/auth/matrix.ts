@@ -149,6 +149,8 @@ export const CHAT_VERB_AUTHORITY = {
   setCharactersCanReact: "host", // B7 — the setOfferChoices twin: it reaches the PROMPT (attaches the `react` tool for everyone's turns), so host is the floor; opt-in at both tiers (the per-user default also ships OFF)
   setReactionsEnabled: "host", // B7 — the reaction-plane master switch is room-wide behavior (it gates every member's toggleReaction + the pills), the setRoomOverrides class; enforcement lives in the reaction verbs' resolved-posture gate
   setChatBackground: "host", // BG-C — the host sets the per-chat carried background (room-wide chrome is the host's authority, the setRoomOverrides twin); asset-ownership additionally gated inside the verb
+  setRegexAllow: "host", // #1742 — the room's regex levers reach the PROMPT (they decide which scripts the shared assembly runs for everyone), so host is the floor, exactly like setOfferChoices and not like the render-only display-scripts option above
+  listEffectiveRegex: "host", // #1742 — HOST, not member: three of the four tiers ARE the host's library (global / their preset / the seated cards they own), so a member reading this would learn what the host owns; a member's read of the room's OWN tier is regex.listForChat (member-gated, room-public)
   setToolRecurseLimit: "host", // the host sets the per-chat tool-call recursion cap (room-wide turn behavior is the host's authority, the setRoomOverrides twin)
 
   getGroupConfigForChat: "member", // read the effective room config (it affects the member)

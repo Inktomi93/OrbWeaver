@@ -76,7 +76,15 @@ function principal(userId: UserId): Principal {
   return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
-const METADATA_WRITERS = ["group", "room overrides", "databank visibility", "host display scripts", "offer choices", "tool recurse limit"] as const;
+const METADATA_WRITERS = [
+  "group",
+  "room overrides",
+  "databank visibility",
+  "host display scripts",
+  "offer choices",
+  "tool recurse limit",
+  "regex allow",
+] as const;
 type MetadataWriter = (typeof METADATA_WRITERS)[number];
 
 function runMetadataWriter(kind: MetadataWriter, roster: ReturnType<typeof createRoster>, host: UserId, chatId: ChatId): Promise<unknown> {
@@ -93,6 +101,8 @@ function runMetadataWriter(kind: MetadataWriter, roster: ReturnType<typeof creat
       return roster.setOfferChoices({ principal: principal(host), chatId, enabled: true });
     case "tool recurse limit":
       return roster.setToolRecurseLimit({ principal: principal(host), chatId, limit: 6 });
+    case "regex allow":
+      return roster.setRegexAllow({ principal: principal(host), chatId, lever: { kind: "tier", tier: "preset", enabled: false } });
   }
 }
 
@@ -168,6 +178,62 @@ describe("chatMetadata writers — concurrent knobs do not erase each other (#14
     const metadata = await metadataOf(chatId);
     expect(metadata.hostDisplayScripts).toBe(true);
     expect(metadata.charactersCanReact).toBe(true);
+  });
+});
+
+// ── #1742 — the room's regex levers ──────────────────────────────────────────────────────────────────
+describe("setRegexAllow — the room's regex levers (host-only)", () => {
+  /** The room's metadata as STORED (the typed column — never a fabricated shape). */
+  async function metadataOf(chatId: ChatId): Promise<ChatMetadata> {
+    const [row] = await db.select({ metadata: chats.metadata }).from(chats).where(eq(chats.id, chatId));
+    return row?.metadata ?? {};
+  }
+
+  test("the MASTER and a TIER are different keys, and writing one leaves the other alone", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-host"));
+    const chatId = await seedChat(db, "rx-a");
+    await seedParticipant(db, { chatId, key: "rxa", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+
+    expect(await roster.setRegexAllow({ principal: principal(host), chatId, lever: { kind: "master", enabled: false } })).toEqual({
+      enabled: false,
+      tiers: undefined,
+    });
+    expect(await roster.setRegexAllow({ principal: principal(host), chatId, lever: { kind: "tier", tier: "preset", enabled: false } })).toEqual({
+      enabled: false,
+      tiers: { preset: false },
+    });
+
+    const metadata = await metadataOf(chatId);
+    expect(metadata.regexEnabled).toBe(false);
+    expect(metadata.regexTiers).toEqual({ preset: false });
+  });
+
+  test("a second tier MERGES into the stored map — one lever per call never clears its neighbours", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-host2"));
+    const chatId = await seedChat(db, "rx-b");
+    await seedParticipant(db, { chatId, key: "rxb", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+
+    await roster.setRegexAllow({ principal: principal(host), chatId, lever: { kind: "tier", tier: "global", enabled: false } });
+    await roster.setRegexAllow({ principal: principal(host), chatId, lever: { kind: "tier", tier: "chat", enabled: false } });
+    // …and switching one back ON is an explicit `true`, not a deletion: absent and true both mean "runs",
+    // so the host never has to care which spelling their room ended up with.
+    await roster.setRegexAllow({ principal: principal(host), chatId, lever: { kind: "tier", tier: "global", enabled: true } });
+
+    expect((await metadataOf(chatId)).regexTiers).toEqual({ global: true, chat: false });
+  });
+
+  test("a non-host is refused and nothing is written", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-host3"));
+    const member = await seedUser(db, castId<Handle>("rx-member"));
+    const chatId = await seedChat(db, "rx-c");
+    await seedParticipant(db, { chatId, key: "rxc-h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxc-m", userId: member, role: "member" });
+    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+
+    await expect(roster.setRegexAllow({ principal: principal(member), chatId, lever: { kind: "master", enabled: false } })).rejects.toThrow();
+    expect((await metadataOf(chatId)).regexEnabled).toBeUndefined();
   });
 });
 

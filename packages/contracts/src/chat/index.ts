@@ -17,6 +17,8 @@
 //   • reactions.ts      — the B6 reaction emoji vocabulary + the grouped read projection (MA-2)
 //   • visible-rooms.ts  — the leak-safe reverse-room read every usage roster shares (`VisibleRoomRef` +
 //                         `ResolveVisibleRoomsOp`, D18)
+//   • regex-tiers.ts    — the room's REGEX TIER vocabulary (#1742): the tier key, the per-chat allow blob,
+//                         the per-seat character slice, and the `chat.listEffectiveRegex` view
 //
 // LAWS honored across these modules:
 //   • Turn identity (D19): a wire shape that carries turn attribution uses `triggeredBy`/`runAsUserId`,
@@ -252,6 +254,24 @@ export {
   REACTION_SPEAKER_NAME_MAX,
   reactionEmojiSchema,
 } from "./reactions.ts";
+export type {
+  CharacterRegexSlice,
+  EffectiveRegexEntry,
+  EffectiveRegexView,
+  RegexTierAllow,
+  RegexTierGroupView,
+  RegexTierKey,
+  RegexTierRowView,
+} from "./regex-tiers.ts";
+export {
+  characterRegexTierKey,
+  FIXED_REGEX_TIER_KEYS,
+  isRegexEnabledInChat,
+  isRegexTierAllowed,
+  parseCharacterRegexTierKey,
+  regexTierAllowSchema,
+  regexTierKeySchema,
+} from "./regex-tiers.ts";
 export type {
   AcceptInviteInput,
   CarriedAppearance,

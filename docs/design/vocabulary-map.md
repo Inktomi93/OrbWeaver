@@ -104,6 +104,35 @@ crossed word for another. The slot's `version` stays 2: the TEXT did not change,
 under. The 2026-08-30 ruling recorded in the slot's own header survives with its INPUT changed — it warned
 against a SILENT id edit stranding every host's stamp, and this edit is neither silent nor stamp-stranding.
 
+## The regex register (#1742 — the room's Regex section)
+
+The words the room's **Regex** section speaks. Minted 2026-09-05 with the owner-approved design
+(`docs/design/mocks/regex-section/DESIGN.md` §4, "regex approved" on v2), and recorded here BEFORE the
+strings exist because that is this file's own instruction — *"when a word changes, it changes HERE
+first"*. **The section's server half landed with the mint; its client half is the #1742 build.** A row
+whose carrier column says *unbuilt* is a word this map has already DECIDED, not a word still open: the
+build writes that string, it does not re-choose it.
+
+The half of the vocabulary that is **REUSED, never re-minted** — each already shipping in the same pane,
+which is exactly why it is reused (a room-scoped rack that says `Everywhere` two sections apart and
+`Global` here would be two words for one scope):
+
+| Reused word | Its shipped carrier |
+| - | - |
+| **Everywhere** · **This chat** | the Documents rack's own scope chips in the SAME tab (`features/chat/lib/chat-documents-model.ts` — `SOURCE_LABELS.global` / `.chat`) |
+| **Attach a script** | the lorebook grammar it is modelled on: `Attach a lorebook` (`features/chat/components/chat-books-section.tsx:91`, dialog title `add-chat-book-dialog.tsx:86`) |
+| **Detach from this chat** | shipped verbatim in both racks (`chat-books-section.tsx:122`, `chat-documents-section.tsx:287`) |
+| **Show my display scripts to everyone** | shipped — the D121-E host broadcast switch, MOVED into this section from `Host controls › Appearance` |
+| **Open your script library** | shipped — the neighbouring hand-off (`components/regex-script-picker.tsx:225`, `features/character/components/character-facet-inspector.tsx:175`); `Open in library` below is its per-ROW sibling, not a second spelling of it |
+
+| Concept | The user-facing word | Code spelling (when different) | Status |
+| - | - | - | - |
+| The room's regex disclosure section — one place to see and switch what runs here | **Regex** (section) | `sectionId: "regex"` in the This-chat tab | minted #1742; section **unbuilt** (the server read + the levers landed) |
+| The room's MASTER switch — the debugger's A/B lever | **Run regex in this chat** | `ChatMetadata.regexEnabled` · the `{kind:"master"}` arm of `chat.setRegexAllow` | minted #1742; the metadata key + verb **landed**, the switch unbuilt |
+| The tier a script runs at, as a provenance kicker | **From the preset · \<name>** / **From \<character>** | `RegexTierKey` — `"preset"` / `character:<id>` (`contracts/src/chat/regex-tiers.ts`) | minted #1742; the key **landed**, the kickers unbuilt. The other two tiers reuse **Everywhere** (`"global"`) and **This chat** (`"chat"`) above — the key is the CODE spelling, the chip is the word |
+| The per-ROW hand-off to the script's editing home in Config | **Open in library** | — | minted #1742; unbuilt. Distinct from **Open your script library** (the whole-library door) by design: this one names ONE row's destination |
+| A chat-tier script the CURRENT host does not own (#1739 — attached by a previous host) | **previous host** (a mark, never a button) | — | minted #1742; unbuilt. The mark exists because `detachFromChat` gates on SCRIPT ownership while the room gates on HOST, so the new host can neither switch it nor detach it — the word states that rather than drawing a control that would fail |
+
 ## The rpg register (D151 · `AGENTS.md` §3)
 
 Game-register words — `party`, `npcs`, `quest`, `encounter`, `journal`-as-game-log — live inside the

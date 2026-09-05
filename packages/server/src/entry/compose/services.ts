@@ -614,7 +614,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // ── the regex script LIBRARY (D121-E). Built before admin/chat: admin's export service needs its card
   // RE-EMBED op and chat's context needs its four-scope RESOLVE op.
-  const regexCompose = buildRegex({ db, now, audit });
+  const regexCompose = buildRegex({ db, now, audit, emitChatEventLive });
 
   // ── admin + the ONE tool-use registry + the export service (the admin seam).
   const { admin, toolUse, exportService } = buildAdmin({
