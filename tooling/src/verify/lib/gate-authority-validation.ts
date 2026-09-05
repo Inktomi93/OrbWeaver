@@ -10,7 +10,15 @@ import type {
 } from "../contract/gate-authority.ts";
 
 export function isGateAuthorityIdentity(value: unknown): value is string {
-  return typeof value === "string" && value.trim() !== "" && !value.includes("\u0000") && !value.includes("\u007f");
+  if (typeof value !== "string" || value.trim() === "") {
+    return false;
+  }
+  const c0End = 0x1f;
+  const deleteControl = 0x7f;
+  return [...value].every((character) => {
+    const codePoint = character.codePointAt(0);
+    return codePoint !== undefined && codePoint > c0End && codePoint !== deleteControl;
+  });
 }
 
 export function isGateAuthority(value: unknown): value is GateAuthority {
@@ -198,6 +206,10 @@ export interface ValidatedOrdinaryAlarms {
   readonly withheldPolicyIds: readonly string[];
 }
 
+function ordinaryAlarmIdentity(alarm: OrdinaryAuthorityAlarm): string {
+  return JSON.stringify([alarm.policyId, alarm.waiverId ?? null, alarm.message]);
+}
+
 export function validateOrdinaryAuthorityAlarms(returned: unknown, completedPolicyIds: readonly string[]): ValidatedOrdinaryAlarms {
   if (!Array.isArray(returned)) {
     return {
@@ -210,9 +222,29 @@ export function validateOrdinaryAuthorityAlarms(returned: unknown, completedPoli
   const rows = returned.map((raw) => normalizeOrdinaryAlarmRow(runtimeOrdinaryAlarm(raw), completed));
   const withheldPolicyIds = rows.flatMap(({ invalidCompletedPolicyId }) => (invalidCompletedPolicyId === null ? [] : [invalidCompletedPolicyId]));
   const withheld = new Set(withheldPolicyIds);
+  if (rows.some(({ error, invalidCompletedPolicyId }) => error !== null && invalidCompletedPolicyId === null)) {
+    for (const policyId of completed) {
+      withheld.add(policyId);
+    }
+  }
+  const alarms = rows.flatMap(({ alarm }) => (alarm === null ? [] : [alarm]));
+  const duplicateErrors: GateAuthorityToolError[] = [];
+  for (const [, candidates] of Map.groupBy(alarms, ordinaryAlarmIdentity)) {
+    if (candidates.length > 1) {
+      const duplicate = candidates[0];
+      if (duplicate !== undefined) {
+        withheld.add(duplicate.policyId);
+        duplicateErrors.push({
+          kind: "invalid-authority-alarm",
+          policyId: duplicate.policyId,
+          message: `ordinary reconciliation returned a duplicate alarm for ${duplicate.policyId}`,
+        });
+      }
+    }
+  }
   return {
-    alarms: rows.flatMap(({ alarm }) => (alarm === null || withheld.has(alarm.policyId) ? [] : [alarm])),
-    errors: rows.flatMap(({ error }) => (error === null ? [] : [error])),
+    alarms: alarms.filter(({ policyId }) => !withheld.has(policyId)),
+    errors: [...rows.flatMap(({ error }) => (error === null ? [] : [error])), ...duplicateErrors],
     withheldPolicyIds: [...withheld].toSorted(),
   };
 }
