@@ -2,14 +2,21 @@
 // owner-scoped in the WHERE. Ownership derives through the book: world_entries has no ownerId, so an
 // entry is owned iff its worldBookId is one of the caller's books (never a bare eq(id) — cross-tenant hole).
 // toEntryView parses the stored metadata blob at the read seam; a corrupt row degrades to null.
+//
+// EVERY LIST READ CARRIES A TOTAL ORDER. `createdAt` and `priority` are both non-unique — a bundle restore
+// mints a whole library in one millisecond and an un-reordered entry sits at the default priority 0 — so a
+// sort on them alone leaves the tie to the storage engine and the same data renders differently run to run.
+// The `id` is the tiebreak (TypeIDs are uuidv7-backed, so it is also a recency order): it continues the
+// primary key's own intent — `DESC` under a newest-first `createdAt`, and `ASC` inside a `priority` band so
+// a newly created entry appends to the END of its band instead of jumping the queue.
 
 import type { LoreConstantCanonRow } from "@orb/contracts/world-info";
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
-import { characterBooks, chatBooks, globalBooks, personaBooks, worldBooks, worldEntries } from "@orb/db";
+import { characterBooks, characters, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { resolveEntryScope } from "@orb/kit/world-info";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { BookAttachmentTargets, BookAttachmentView, BookUsage, BookView, BookWithUsage, EntryView, WorldBookRole } from "../contract/views.ts";
 
@@ -66,7 +73,7 @@ export async function loadOwnedEntry(db: Db, ownerId: UserId, entryId: WorldEntr
 }
 
 export async function listOwnedBooks(db: Db, ownerId: UserId): Promise<BookRow[]> {
-  const rows = await db.select().from(worldBooks).where(eq(worldBooks.ownerId, ownerId)).orderBy(desc(worldBooks.createdAt));
+  const rows = await db.select().from(worldBooks).where(eq(worldBooks.ownerId, ownerId)).orderBy(desc(worldBooks.createdAt), desc(worldBooks.id));
   return rows;
 }
 
@@ -96,7 +103,9 @@ export async function listOwnedBooksWithUsage(db: Db, ownerId: UserId): Promise<
     return [];
   }
   const ids = owned.map((b) => b.id);
-  const [entries, characters, personas, chats, globals] = await Promise.all([
+  // Named `*Counts` because the table symbols `characters`/`personas` are imported into this module (the
+  // attachment-target join below) — a bare `characters` here would shadow one of them.
+  const [entries, characterCounts, personaCounts, chats, globals] = await Promise.all([
     countByBook(db, worldEntries, worldEntries.worldBookId, ids),
     countByBook(db, characterBooks, characterBooks.worldBookId, ids),
     countByBook(db, personaBooks, personaBooks.worldBookId, ids),
@@ -106,8 +115,8 @@ export async function listOwnedBooksWithUsage(db: Db, ownerId: UserId): Promise<
   return owned.map((row) => {
     const global = (globals[row.id] ?? 0) > 0;
     const usage: BookUsage = {
-      characters: characters[row.id] ?? 0,
-      personas: personas[row.id] ?? 0,
+      characters: characterCounts[row.id] ?? 0,
+      personas: personaCounts[row.id] ?? 0,
       chats: chats[row.id] ?? 0,
       global,
       total: 0,
@@ -122,7 +131,7 @@ export async function listOwnedBooksWithUsage(db: Db, ownerId: UserId): Promise<
 
 // The caller guards book ownership first (so this can't probe a foreign book's entry set).
 export async function listBookEntries(db: Db, bookId: WorldBookId): Promise<EntryRow[]> {
-  const rows = await db.select().from(worldEntries).where(eq(worldEntries.worldBookId, bookId)).orderBy(desc(worldEntries.priority));
+  const rows = await db.select().from(worldEntries).where(eq(worldEntries.worldBookId, bookId)).orderBy(desc(worldEntries.priority), asc(worldEntries.id));
   return rows;
 }
 
@@ -132,18 +141,35 @@ export async function listCharacterBooks(db: Db, ownerId: UserId, characterId: C
     .from(characterBooks)
     .innerJoin(worldBooks, eq(characterBooks.worldBookId, worldBooks.id))
     .where(and(eq(characterBooks.characterId, characterId), eq(worldBooks.ownerId, ownerId)))
-    .orderBy(desc(characterBooks.role), desc(worldBooks.createdAt));
+    .orderBy(desc(characterBooks.role), desc(worldBooks.createdAt), desc(worldBooks.id));
   return rows.map((r) => toAttachmentView(r.book, r.role));
 }
 
 /** The two owner-scoped target junctions for one already-owner-gated book. Chat attachments are excluded:
- *  their membership-scoped names and controls live in the room, never the owner's library. */
-export async function listAttachmentTargetsForBook(db: Db, bookId: WorldBookId): Promise<BookAttachmentTargets> {
-  const [characters, personas] = await Promise.all([
-    db.select({ characterId: characterBooks.characterId, role: characterBooks.role }).from(characterBooks).where(eq(characterBooks.worldBookId, bookId)),
-    db.select({ personaId: personaBooks.personaId }).from(personaBooks).where(eq(personaBooks.worldBookId, bookId)),
+ *  their membership-scoped names and controls live in the room, never the owner's library.
+ *
+ *  BOTH ENDS are scoped, not just the book. The caller proves the BOOK is theirs (`loadOwnedBook`), but a
+ *  junction row may name a character or persona owned by SOMEONE ELSE — `handoff-copy-write`'s header states
+ *  such cross-owner junctions exist in practice, and the `duplicate-carry` #1516 fix is the same gate on the
+ *  mirror-image pair. Ownership is INHERITED through the FK chain (D18), so the target join carries the
+ *  caller's `ownerId` too: an INNER JOIN, never a post-filter (a second source of truth for one predicate).
+ *  A foreign target is dropped silently — this read is a roster, and its answer is the caller's own set. */
+export async function listAttachmentTargetsForBook(db: Db, ownerId: UserId, bookId: WorldBookId): Promise<BookAttachmentTargets> {
+  const [characterRows, personaRows] = await Promise.all([
+    db
+      .select({ characterId: characterBooks.characterId, role: characterBooks.role })
+      .from(characterBooks)
+      .innerJoin(characters, eq(characters.id, characterBooks.characterId))
+      .where(and(eq(characterBooks.worldBookId, bookId), eq(characters.ownerId, ownerId)))
+      .orderBy(asc(characters.id)),
+    db
+      .select({ personaId: personaBooks.personaId })
+      .from(personaBooks)
+      .innerJoin(personas, eq(personas.id, personaBooks.personaId))
+      .where(and(eq(personaBooks.worldBookId, bookId), eq(personas.ownerId, ownerId)))
+      .orderBy(asc(personas.id)),
   ]);
-  return { characters, personaIds: personas.map((row) => row.personaId) };
+  return { characters: characterRows, personaIds: personaRows.map((row) => row.personaId) };
 }
 
 export async function listGlobalBooks(db: Db, ownerId: UserId): Promise<BookAttachmentView[]> {
@@ -152,7 +178,7 @@ export async function listGlobalBooks(db: Db, ownerId: UserId): Promise<BookAtta
     .from(globalBooks)
     .innerJoin(worldBooks, eq(globalBooks.worldBookId, worldBooks.id))
     .where(eq(worldBooks.ownerId, ownerId))
-    .orderBy(desc(worldBooks.createdAt));
+    .orderBy(desc(worldBooks.createdAt), desc(worldBooks.id));
   return rows.map((r) => toAttachmentView(r.book, null));
 }
 
@@ -163,7 +189,7 @@ export async function listChatBooks(db: Db, chatId: ChatId): Promise<BookAttachm
     .from(chatBooks)
     .innerJoin(worldBooks, eq(chatBooks.worldBookId, worldBooks.id))
     .where(eq(chatBooks.chatId, chatId))
-    .orderBy(desc(worldBooks.createdAt));
+    .orderBy(desc(worldBooks.createdAt), desc(worldBooks.id));
   return rows.map((r) => toAttachmentView(r.book, null));
 }
 
@@ -184,7 +210,7 @@ export async function listChatConstantCanon(db: Db, chatId: ChatId): Promise<Lor
     .from(chatBooks)
     .innerJoin(worldEntries, eq(worldEntries.worldBookId, chatBooks.worldBookId))
     .where(eq(chatBooks.chatId, chatId))
-    .orderBy(desc(worldEntries.priority));
+    .orderBy(desc(worldEntries.priority), asc(worldEntries.id));
   return rows
     .filter((r) => r.enabled && resolveEntryScope(r.metadata, (r.keys ?? []).length > 0) === "always")
     .map((r) => ({ title: r.title, content: r.content }));
@@ -202,6 +228,6 @@ export async function listPersonaBooks(db: Db, ownerId: UserId, personaId: Perso
     .from(personaBooks)
     .innerJoin(worldBooks, eq(personaBooks.worldBookId, worldBooks.id))
     .where(and(eq(personaBooks.personaId, personaId), eq(worldBooks.ownerId, ownerId)))
-    .orderBy(desc(worldBooks.createdAt));
+    .orderBy(desc(worldBooks.createdAt), desc(worldBooks.id));
   return rows.map((r) => toAttachmentView(r.book, null));
 }

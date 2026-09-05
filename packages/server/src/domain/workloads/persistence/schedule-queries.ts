@@ -92,7 +92,9 @@ export async function loadSchedule(db: Db, id: WorkloadScheduleId): Promise<Work
   return row === undefined ? null : toScheduleView(row);
 }
 
-/** Filtered list (owner/kind), newest-first. */
+/** Filtered list (owner/kind), newest-first. `createdAt` is not unique (schedules seeded together tie), so
+ *  the `id DESC` tiebreak makes the order TOTAL — otherwise an unchanged cadence list re-shuffles between
+ *  reads. TypeIDs are uuidv7-backed, so the tiebreak stays newest-first rather than inventing a second axis. */
 export async function listSchedulesQuery(db: Db, filter: ScheduleListFilter): Promise<WorkloadScheduleRow[]> {
   const predicates: SQL[] = [];
   if (filter.ownerId !== undefined) {
@@ -105,7 +107,7 @@ export async function listSchedulesQuery(db: Db, filter: ScheduleListFilter): Pr
     .select()
     .from(workloadSchedules)
     .where(predicates.length > 0 ? and(...predicates) : undefined)
-    .orderBy(desc(workloadSchedules.createdAt));
+    .orderBy(desc(workloadSchedules.createdAt), desc(workloadSchedules.id));
   return rows.map(toScheduleView);
 }
 

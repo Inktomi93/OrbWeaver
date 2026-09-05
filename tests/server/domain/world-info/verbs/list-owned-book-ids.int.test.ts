@@ -32,6 +32,18 @@ describe("createListOwnedBookIds", () => {
     expect(ids.toSorted()).toEqual(["world_book_mine_a", "world_book_mine_b"]);
   });
 
+  // The bundle descriptor STREAMS this enumeration, so its order is the export's order: an unordered read
+  // makes two exports of an unchanged library differ. `id ASC` is a total order by construction (the PK).
+  test("enumerates in a stable total order (id ASC), not storage-scan order", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    await seedBook(db, owner.id, "world_book_c", "C");
+    await seedBook(db, owner.id, "world_book_a", "A");
+    await seedBook(db, owner.id, "world_book_b", "B");
+
+    expect(await createListOwnedBookIds({ db })({ ownerId: owner.id })).toEqual(["world_book_a", "world_book_b", "world_book_c"]);
+  });
+
   test("an owner with no books enumerates empty (never every book on the box)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});

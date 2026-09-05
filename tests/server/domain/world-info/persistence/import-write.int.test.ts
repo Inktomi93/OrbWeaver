@@ -192,6 +192,25 @@ describe("createImportStandaloneLorebook", () => {
 
     expect((await db.select().from(worldEntries)).map((entry) => entry.content)).toEqual(["A realm of eternal dusk."]);
   });
+
+  // The (ownerId, name) dedup key resolves NEWEST-WINS through a `createdAt DESC LIMIT 1` — and `createdAt`
+  // is not unique, so two same-name books minted in one instant (a bundle restore) leave the storage engine
+  // to pick which one this import REPLACES. That is a destructive read: the loser keeps stale entries and
+  // the winner changes between runs. `id DESC` makes "newest" total.
+  test("same-name books tied on createdAt resolve to ONE deterministic target (newest id wins)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const older = castId<WorldBookId>("world_book_aaa");
+    const newer = castId<WorldBookId>("world_book_zzz");
+    // Inserted lowest-id-FIRST so storage-scan order is the opposite of the expected winner.
+    await db.insert(worldBooks).values({ id: older, ownerId: owner.id, name: "Aria's World", description: null, createdAt: NOW });
+    await db.insert(worldBooks).values({ id: newer, ownerId: owner.id, name: "Aria's World", description: null, createdAt: NOW });
+
+    const result = await createImportStandaloneLorebook(importCtx(db))({ ownerId: owner.id, book: book() });
+
+    expect(result).toEqual({ worldBookId: newer, entryCount: 1, replaced: true });
+    expect((await db.select().from(worldEntries)).map((entry) => entry.worldBookId)).toEqual([newer]);
+  });
 });
 
 // ── CENTRAL DEDUP (#303, owner ruling 2026-08-19: "one source of books") ─────────────────────────────────

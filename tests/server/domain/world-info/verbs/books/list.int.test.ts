@@ -26,6 +26,24 @@ describe("listBooks", () => {
     expect(books.map((b) => b.id)).toEqual([second.id, first.id]);
   });
 
+  // TOTAL ORDER (test-determinism): `createdAt` is not unique — several books minted in the same
+  // millisecond (an import run, a bundle restore) tie, and a tie-free-of-tiebreak leaves the order to
+  // whatever the storage engine scans, so the same library renders differently run to run. The id is the
+  // tiebreak: TypeIDs are uuidv7-backed, so `id DESC` continues "newest first" rather than inventing a
+  // second axis.
+  test("books minted in the SAME instant list in a stable total order (newest id first)", async () => {
+    const db = await freshDb();
+    const svc = createWorldInfoService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+    const a = await svc.createBook({ principal: principal(owner), input: { name: "A" } });
+    const b = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const c = await svc.createBook({ principal: principal(owner), input: { name: "C" } });
+
+    const books = await svc.listBooks({ principal: principal(owner) });
+    expect(books.map((x) => x.id)).toEqual([c.id, b.id, a.id]);
+  });
+
   test("empty array when the caller has none", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
