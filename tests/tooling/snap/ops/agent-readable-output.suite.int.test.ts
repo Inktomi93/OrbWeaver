@@ -128,6 +128,30 @@ test("the console channel the digest line advertises is the one the reader accep
   expect(reader.stdout).toContain("ordinary chatter nobody asked for");
 });
 
+test("#1666/#1659 — a NON-console annotation is named by its disposition, never by the first word of its prose", async ({ runCli, scratch }) => {
+  // THE ARM THE QUIET PLANT ABOVE STRUCTURALLY CANNOT REACH (v-V4). The collapse line derives each tag
+  // from `what.split(" ")[0]`, which is a tag only for the attributed CONSOLE rows (`<tag> <metric> …`);
+  // #1616's run-global row reads "the app-snapshot arm MEASURED on a loaded box …", so a contended box
+  // printed `annotations  the=1 perf=1` — a key named "the" in the one line whose job is naming what the
+  // annotations ARE. Every other arm in this file plants a QUIET box, which means that row never exists
+  // there: this one plants a LOADED box on purpose, and it is the only place the non-console branch runs.
+  vi.stubEnv(BOX_LOAD_ENV, "96/24");
+  const file = join(scratch, "agent-readable-loaded.html");
+  await writeFile(file, FIXTURE);
+
+  const loaded = await runCli("snap", ["--file", file, "--eval", "1", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  await expect(loaded).toExitWith(EXIT.clean);
+  // The load-suspect row EXISTS on this run (the plant is what makes the branch reachable at all)…
+  expect(loaded.stdout, "the planted loaded box must produce a load-suspect arm").toContain("app-snapshot=load-suspect");
+  const collapse = loaded.stdout.split("\n").find((line) => line.startsWith("annotations  "));
+  expect(collapse, `no collapse line in:\n${loaded.stdout}`).toBeTypeOf("string");
+  // …and it is named by its DISPOSITION, beside the console row that keeps its own tag.
+  expect(String(collapse)).toContain("load-suspect=1");
+  expect(String(collapse)).toContain("perf=1");
+  // THE REGRESSION ITSELF: never a key taken from English prose.
+  expect(String(collapse), "a tag derived from the first word of a sentence").not.toMatch(/\bthe=\d/u);
+});
+
 test("console annotations yield to the arm the argv asked for, and stay one call away", async ({ runCli, scratch }) => {
   const file = join(scratch, "agent-readable-annotations.html");
   await writeFile(file, FIXTURE);
