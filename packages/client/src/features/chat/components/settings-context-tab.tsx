@@ -55,11 +55,11 @@ import { ChatBooksSection } from "./chat-books-section.tsx";
 import { DisclosureSection } from "./chat-context-disclosure-section.tsx";
 import { ChatDocumentsSection } from "./chat-documents-section.tsx";
 import { CommittedGroupConfigTab } from "./group-config-form.tsx";
-import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
 import { InjectionsManager, InjectionsSkeleton } from "./injections-manager.tsx";
 import { MacroPicksSection } from "./macro-picks-section.tsx";
 import { OfferChoicesControl } from "./offer-choices-control.tsx";
 import { CharactersCanReactControl, ReactionsEnabledControl } from "./reaction-toggles.tsx";
+import { RegexHeading, RegexSection } from "./regex-section.tsx";
 import { ChatBackgroundSection, RoomOverridesTab } from "./room-overrides-tab.tsx";
 import { ToolRecurseControl } from "./tool-recurse-control.tsx";
 
@@ -251,6 +251,28 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           <ChatBooksSection chatId={chatId} isHost={isHost} />
         </QueryBoundary>
       </DisclosureSection>
+      {/* REGEX (#1742) — "what regex runs in this room, in run order, and every lever that changes it", the
+          sibling of Injections and Lorebooks it was designed as (`docs/design/mocks/regex-section/DESIGN.md`,
+          owner-approved 2026-09-05). It sits with the member-readable racks and NOT in the host band for the
+          Documents/Lorebooks reason: the room's own tier is member-READABLE (`regex.listForChat` is
+          `requireChatMember` — the attached scripts are room-public prompt content), so a member sees the
+          rows and simply gets no switches, no attach and no detach (the §8.1 permission-OMIT at row level).
+          The host's HALF is host-gated in the verb, not here: `chat.listEffectiveRegex` refuses a member,
+          which is why the body reads two different procs by role.
+
+          IT ABSORBED `Host controls › Appearance` (§2). That disclosure held exactly one control — the
+          display-script broadcast switch — i.e. a regex control under an appearance name, three doors deep in
+          the host band. It now closes the section's `On screen` group, where the display leg's own roster is,
+          and the section count of this tab is unchanged. */}
+      <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<RegexHeading chatId={chatId} isHost={isHost} />} sectionId="regex">
+        <QueryBoundary
+          fallback={<SkeletonRows count={3} shape="line" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's regex" onRetry={retry} />}
+          reserveKey="chat.context.regex"
+        >
+          <RegexSection chatId={chatId} isHost={isHost} />
+        </QueryBoundary>
+      </DisclosureSection>
       {/* Macro picks (#24) — the per-chat user-macro INPUT picks. NOT host-gated: the picks are room play
           state any member may set (`setUserMacroValues` is member-gated, the `setVariables` sibling), so it
           sits with Field overrides/Injections rather than in the host-only band below. */}
@@ -318,17 +340,12 @@ function HostControls({
             </QueryBoundary>
           </DisclosureSection>
         ) : null}
-        {/* Appearance — the room's display-tier broadcast switch (D121-E). Reads the same getChat this tab
-            already loaded, so the QueryBoundary matches the tool-round control's exactly. */}
-        <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Appearance" sectionId="appearance">
-          <QueryBoundary
-            fallback={<SkeletonRows count={1} shape="line" />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="the display-script setting" onRetry={retry} />}
-            reserveKey="chat.context.appearance"
-          >
-            <HostDisplayScriptsControl chatId={chatId} />
-          </QueryBoundary>
-        </DisclosureSection>
+        {/* `Appearance` IS GONE (#1742). It held one control — the display-tier broadcast switch (D121-E) —
+            which is a REGEX control, and it now sits at the foot of the Regex section's `On screen` group
+            beside the display scripts it governs. Its posture key and `reserveKey` retired with it: an
+            unknown persisted section id is dropped on the store's next write
+            (`chat-context-section-open-store.ts`), and the reservation gate's arm B forbids reusing the
+            literal. Do NOT re-add a display-script control here without re-opening §2 of the design. */}
         {/* Storytelling (B1) — the room's standing offer-choices posture. Sits in the host band and NOT with
             Field overrides/Injections above it because, unlike those, it is not something a member may set:
             it changes what the model is told for everyone in the room. Reads the same getChat this tab

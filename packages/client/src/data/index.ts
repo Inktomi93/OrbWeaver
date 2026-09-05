@@ -75,7 +75,7 @@ export type { CardFrameRequest } from "./use-card-frame.ts";
 export { cardFrameMintBody, mintCardFrame, useCardFrameSrc } from "./use-card-frame.ts";
 export { useCarriedAppearance } from "./use-carried-appearance.ts";
 export { useColorQuotedSpeech } from "./use-color-quoted-speech.ts";
-export { useDisplayScripts, usePrefetchDisplayScripts } from "./use-display-scripts.ts";
+export { DISPLAY_PLACEMENT, useDisplayScripts, usePrefetchDisplayScripts } from "./use-display-scripts.ts";
 export { useGatedQuery } from "./use-gated-query.ts";
 export { useHuskReaper } from "./use-husk-reaper.ts";
 export { useInvalidation } from "./use-invalidation.ts";
