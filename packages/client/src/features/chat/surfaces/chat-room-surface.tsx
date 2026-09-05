@@ -8,7 +8,7 @@
 // COMMITTED-ONLY (chat-creation-draft-mode-replacement.md §4.1, R1). This pane used to hold a `ChatHandle`
 // in local state so it could flip draft→committed mid-first-turn without remounting, and every child took a
 // phase branch. A chat row exists from the creation click, so the handle is a prop, the id is stable for the
-// pane's life, and the twin surfaces (`DraftCastBar`, `DraftChatHeader`, `DraftGreetingThread`, the draft
+// pane's life, and the twin surfaces (`DraftChatHeader`, `DraftGreetingThread`, the draft
 // context tabs) are gone — the committed arms they shadowed now serve the room from frame one.
 
 import type { ChatId } from "@orb/kit/ids";
