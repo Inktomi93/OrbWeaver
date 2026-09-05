@@ -160,7 +160,7 @@ export const gate: GateDescriptor = {
       why: "moving one declaration preserves the total but makes both source and destination home ratchets stale",
     },
     {
-      files: censusControlFiles({ themeDirect: 198, themeRules: 107, ui: 189, tiers: 47, client: 125, shell: 343 }),
+      files: censusControlFiles({ themeDirect: 199, themeRules: 107, ui: 189, tiers: 47, client: 125, shell: 343 }),
       expect: { count: 1, token: "census:theme-direct" },
       why: "moving one generated declaration out of direct @theme keeps every home total stable but trips the generated-output ratchet",
     },
