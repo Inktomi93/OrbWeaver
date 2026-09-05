@@ -13,7 +13,7 @@ test("PLUGIN_ORIGINS is [upload, url] — the file arm + the URL-install arm (U8
   expect(PLUGIN_ORIGINS).toEqual(["upload", "url"]);
 });
 
-test("HOST_FUNCTION_CAPABILITY maps 40 gated functions, every value a real capability, every capability covered", () => {
+test("HOST_FUNCTION_CAPABILITY maps 43 gated functions, every value a real capability, every capability covered", () => {
   const entries = Object.entries(HOST_FUNCTION_CAPABILITY);
   // 23 → 25 at U6: `transforms.registerDisplay` + `macros.register`, both riding the EXISTING `chat.transform`
   // capability (plugin-ui-plane §5.5/§5.15) — a widened surface with no new consent line. 25 → 28 at U5:
@@ -42,7 +42,9 @@ test("HOST_FUNCTION_CAPABILITY maps 40 gated functions, every value a real capab
   // egress reach to `net.fetch` plus a CAS write — its own consent line), and `character.ingestAsset` rides the
   // EXISTING `character.ingest` grant (identical reach — a character import into the installer's own library —
   // only the input form differs: a PNG asset vs. a JSON card). One new capability, two new gated functions.
-  expect(entries).toHaveLength(42);
+  // 42 → 43 at #1442: `storage.compareAndSet` rides the EXISTING `storage.kv` grant (the atomic arm of `storage.set`,
+  // identical reach — no new capability, one new gated function). The sibling census in `ui.contract.test.ts` moved with it.
+  expect(entries).toHaveLength(43);
 
   const values = new Set(Object.values(HOST_FUNCTION_CAPABILITY));
   // Every mapped capability is a member of the axis.
