@@ -238,3 +238,54 @@ describe("discover", () => {
     await expect(svc.discover({ ownerId: owner, queryText: "anything", topN: 5 })).rejects.toBeInstanceOf(SearchError);
   });
 });
+
+// #1467 item 5: `collapseSegmentChunks` is FIRST-WINS, so whatever order it is handed CHOOSES each block's
+// representative. Collapsing a raw-distance order threw away the chunk this verb actually ranks by.
+describe("chunk collapse follows the CSLS ranking, not raw distance", () => {
+  test("keeps the chunk with the better HUB-ADJUSTED score, not the merely closer one", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const nyx = await seedCharacter(db, { id: "character_nyx", ownerId: owner, name: "Nyx" });
+    const chat = await seedChat(db, "chat_hub");
+    await seedChatDigest(db, { chatId: chat, scopedCharacterId: nyx, blockIdx: 0, embedding: vec(0, 1) });
+    // ONE block, two chunks. `csls = max(0, distance − 1 + hubScore)`, lower is better:
+    //   closer chunk  — distance ≈ 0.293 (vec(1,1) against the vec(1) query), hub 0.95 ⇒ ≈ 0.243
+    //   hub-free one  — distance 1.0 (orthogonal), hub 0.0                    ⇒ 0.0  (the CSLS winner)
+    await seedChatSegment(db, {
+      chatId: chat,
+      blockIdx: 0,
+      chunkIdx: 0,
+      text: "the CLOSER chunk, in a crowded neighbourhood",
+      embedding: vec(1, 1),
+      hubScore: 0.95,
+    });
+    await seedChatSegment(db, {
+      chatId: chat,
+      blockIdx: 0,
+      chunkIdx: 1,
+      text: "the DISTINCTIVE chunk, in an empty one",
+      embedding: vec(0, 1),
+      hubScore: 0,
+    });
+
+    const svc = makeSearch(db, { embedVector: () => vec(1) });
+    const result = await svc.discover({ ownerId: owner, queryText: "a duel at night", topN: 5 });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.segments).toHaveLength(1);
+    expect(result[0]?.segments[0]?.snippet).toContain("DISTINCTIVE");
+  });
+});
+
+// #1467 item 6: `poolK` is `topN × FACTOR` handed straight to a DB limit, and SQLite reads a NEGATIVE limit
+// as NO limit — a nonsense ask became a full scan of the owner's verbatim corpus.
+describe("discover guards topN before it becomes a scan budget", () => {
+  test.each([0, -1, 2.5])("refuses topN %s with SEARCH_INVALID_TOP_N", async (topN) => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+    const svc = makeSearch(db, { embedVector: () => vec(1) });
+
+    await expect(svc.discover({ ownerId: owner, queryText: "anything", topN })).rejects.toMatchObject({ code: "invalid_top_n" });
+  });
+});

@@ -1,6 +1,6 @@
 // domain/discovery/cooccurrence/generate — the keyword×keyword cooccurrence pass (the `compute-cooccurrence`
-// workload). Co-occurrence is keyword×keyword within a tier-0 digest's `keywords[]` (content-hash collapsed,
-// hub-token filtered). Writes `keyword_cooccurrence` (owner × keyword-pair) + `character_keyword_profiles`
+// workload). Co-occurrence is keyword×keyword within a SOLO tier-0 digest's `keywords[]` (content-hash
+// collapsed, hub-token filtered; group-room digests are dropped — see `computeCooccurrence`). Writes `keyword_cooccurrence` (owner × keyword-pair) + `character_keyword_profiles`
 // (per witnessing character). Atomic per-owner replace — a crash mid-rebuild never leaves an empty table.
 
 import type { Db } from "@orb/db";
@@ -36,6 +36,14 @@ interface NormalizedDigest {
 interface OwnerTally {
   readonly pairs: { keywordA: string; keywordB: string; count: number }[];
   readonly charKeywords: { characterId: CharacterId; keyword: string; count: number }[];
+}
+
+/** Lexicographic and locale-independent — a tie-break key must not move with the box's collation. */
+function compareStrings(a: string, b: string): number {
+  if (a === b) {
+    return 0;
+  }
+  return a < b ? -1 : 1;
 }
 
 function bump(m: Map<string, number>, key: string): void {
@@ -158,7 +166,13 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
   signal?.throwIfAborted();
   const now = deps.now();
   const all = await readOwnedDigestKeywords(db, opts.ownerId);
-  const byOwner = groupByOwner(all);
+  // GROUP-ROOM DIGESTS ARE NOT ONE CHARACTER'S KEYWORDS (#1467). A group digest is scoped to the synthetic
+  // per-room group bucket, so every keyword of a whole room's scene landed in ONE synthetic character's
+  // `character_keyword_profiles` row, and the pair tally counted a room's vocabulary as a character's. The
+  // theme pass already drops these rows before clustering (`themes/generate.ts`); this is the same drop, at
+  // the same point, in the sibling pass.
+  const solo = all.filter((r) => !r.isGroup);
+  const byOwner = groupByOwner(solo);
 
   let pairsWritten = 0;
   let charKeywordsWritten = 0;
@@ -172,7 +186,12 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
     );
     const { normalized, hubDropped } = normalizeOwner(reps, hubFraction);
     const tally = tallyCooccurrence(normalized);
-    const pairs = tally.pairs.sort((a, b) => b.count - a.count).slice(0, maxPairs);
+    // TOTAL ORDER, not just "by count": the tally is built from an unordered SELECT through two Maps, so a
+    // count-only comparator left every tie to insertion order and two runs over an UNCHANGED corpus could
+    // write different `maxPairs` heads. The keyword pair is unique per owner, so (count desc, A, B) is total.
+    const pairs = tally.pairs
+      .sort((a, b) => b.count - a.count || compareStrings(a.keywordA, b.keywordA) || compareStrings(a.keywordB, b.keywordB))
+      .slice(0, maxPairs);
 
     const coocRows: CoocInsert[] = pairs.map((p) => ({
       id: deps.newKeywordCooccurrenceId(),
@@ -198,8 +217,11 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
     ownersProcessed: byOwner.size,
     // The INPUT-PLANE census, reported even though every other counter is a write count: with no tier-0
     // digests all four are legitimately zero, and the caller cannot otherwise tell "the memory backfill has
-    // not run" from "the tally changed nothing" (issue #558).
+    // not run" from "the tally changed nothing" (issue #558). The SOLO count is the second discriminator: a
+    // group-rooms-only corpus reads digests and still writes nothing, and its fix is not "run the backfill
+    // again" (#1467).
     digestsRead: all.length,
+    soloDigestsRead: solo.length,
     pairsWritten,
     charKeywordsWritten,
     hubTokensDropped,

@@ -23,10 +23,15 @@ test("an empty-input refusal reads as its stated reason, never as a 0-written ru
     "No memory digests to read — run the memory backfill first",
   );
   expect(workloadResultSummary("compute-themes", { scanned: 0, written: 0, emptyReason: "no-solo-digests" })).toBe(
-    "Only group-room digests to read — story themes come from solo chats",
+    "Only group-room digests to read — themes and keyword profiles come from solo chats",
   );
   expect(workloadResultSummary("compute-cooccurrence", { scanned: 0, written: 0, emptyReason: "no-digests" })).toBe(
     "No memory digests to read — run the memory backfill first",
+  );
+  // #1467: `compute-cooccurrence` credits keywords to the digest's witnessing character, so it drops group
+  // rooms exactly as the theme pass does — the reason is SHARED, so the sentence names both passes.
+  expect(workloadResultSummary("compute-cooccurrence", { scanned: 0, written: 0, emptyReason: "no-solo-digests" })).toBe(
+    "Only group-room digests to read — themes and keyword profiles come from solo chats",
   );
   // #561: the similarity passes read the EMBEDDINGS plane, so their sentence names the index pass — sending
   // this user to the memory backfill would be advice that cannot help.

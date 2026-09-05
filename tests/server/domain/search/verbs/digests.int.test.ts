@@ -261,3 +261,28 @@ describe("digests", () => {
     expect(unavailable).toBe(0);
   });
 });
+
+// #1467 item 6: `WORD_SPLIT` was `[^a-z0-9]+`, so every Cyrillic / Greek / CJK / accented character counted as
+// a SEPARATOR and a query in one of those scripts tokenized to nothing — the documented keyword fallback
+// could never fire for a whole population of corpora.
+describe("the keywordMatch fallback tokenizes every script", () => {
+  test("a Cyrillic keyword match rescues a digest that missed the vector floor", async () => {
+    const db = await freshDb();
+    const { chat, char } = await seedOwnerChatChar(db);
+    // Orthogonal to the query vector — distance 1, so `1 − distance = 0` is below the floor. Only the keyword
+    // arm can keep this row, and only if the query tokenizes at all.
+    await seedChatDigest(db, {
+      chatId: chat,
+      scopedCharacterId: char,
+      blockIdx: 0,
+      embedding: vec(0, 1),
+      keywords: ["дракон"],
+    });
+
+    const svc = makeSearch(db, { embedVector: () => vec(1) });
+    const hits = await svc.digests(opts(chat, char, { queryText: "дракон в горах", keywordMatch: true, minScore: 0.5 }));
+
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.blockKey.blockIdx).toBe(0);
+  });
+});

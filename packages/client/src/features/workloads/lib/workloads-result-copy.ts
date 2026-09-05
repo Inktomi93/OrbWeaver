@@ -80,7 +80,7 @@ const ANALYTICS_EMPTY_COPY: Record<AnalyticsEmptyReason, string> = {
   "no-digests": "No memory digests to read — run the memory backfill first",
   // A SEPARATE sentence, not a variant of the one above: the backfill has already run here, so repeating its
   // instruction would send the user to a job that changes nothing (issue #558).
-  "no-solo-digests": "Only group-room digests to read — story themes come from solo chats",
+  "no-solo-digests": "Only group-room digests to read — themes and keyword profiles come from solo chats",
   // A THIRD job, not a third phrasing of the backfill: the similarity passes read the embeddings the INDEX
   // pass writes, so pointing at memory here would send the user somewhere that cannot help (issue #561).
   "no-embeddings": "Nothing embedded to compare — run the embeddings index first",

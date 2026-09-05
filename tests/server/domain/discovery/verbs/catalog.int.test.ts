@@ -22,12 +22,15 @@ async function seedCard(
     tone?: string;
     tags?: string[];
     pitch?: string;
+    /** The per-room group bucket — a `characters` row that is not a library card (#1467). */
+    synthetic?: boolean;
   },
 ): Promise<CharacterId> {
   const id = await seedCharacter(db, {
     id: args.id,
     ownerId: args.ownerId,
     name: args.name ?? args.id,
+    synthetic: args.synthetic ?? false,
   });
   await db.insert(characterSummaries).values({
     characterId: id,
@@ -138,5 +141,30 @@ describe("compareCharacters", () => {
     expect(await svc.compareCharacters(owner, a, a)).toBeNull(); // self
     expect(await svc.compareCharacters(owner, a, foreign)).toBeNull(); // foreign belt
     expect(await svc.compareCharacters(owner, a, castId<CharacterId>("character_missing"))).toBeNull();
+  });
+});
+
+// #1467 item 1: the per-room synthetic group bucket is a `characters` row that is not a card. It was counted
+// in `totalCharacters` (the "313 of 327" denominator) and, once distilled, in every facet/tag tally.
+describe("catalog excludes the synthetic per-room group buckets", () => {
+  test("a synthetic character inflates neither the denominator nor the facet/tag tallies", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await seedCard(db, { id: "character_real", ownerId: owner, genre: "fantasy", tone: "warm", tags: ["adventure", "magic"] });
+    await seedCard(db, { id: "character_group", ownerId: owner, synthetic: true, genre: "fantasy", tone: "warm", tags: ["adventure", "magic"] });
+
+    const stats = await svcFor(db).catalog(owner);
+
+    expect(stats.totalCharacters).toBe(1);
+    expect(stats.totalDistilled).toBe(1);
+    expect(stats.genres).toEqual([{ value: "fantasy", count: 1 }]);
+    expect(stats.tones).toEqual([{ value: "warm", count: 1 }]);
+    // Equal counts, so the tie-break is what fixes the order (`ORDER BY count DESC, tag`).
+    expect(stats.topTags).toEqual([
+      { tag: "adventure", count: 1 },
+      { tag: "magic", count: 1 },
+    ]);
+    // The co-tag pair needs TWO real cards carrying it; one real card + one bucket must not reach the floor.
+    expect(stats.tagPairs).toEqual([]);
   });
 });

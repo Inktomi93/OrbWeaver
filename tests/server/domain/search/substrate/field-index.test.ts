@@ -46,6 +46,45 @@ describe("getOrBuildFieldIndex", () => {
 
     expect(load).toHaveBeenCalledTimes(2);
   });
+
+  // #1467 item 7: the omnibox fires `fields` and `suggest` on the same keystroke, so the misses arrive
+  // TOGETHER — each awaiting its own load and its own full MiniSearch inversion before racing to publish.
+  test("CONCURRENT misses for one owner share ONE build", async () => {
+    const owner = castId<UserId>("user_field_index_concurrent");
+    // The load parks here until every caller has arrived, which is what makes the misses genuinely concurrent.
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const load = vi.fn(async () => {
+      await gate;
+      return [card("character_aria", "Aria")];
+    });
+
+    const all = Promise.all([getOrBuildFieldIndex(owner, 0, load), getOrBuildFieldIndex(owner, 0, load), getOrBuildFieldIndex(owner, 0, load)]);
+    release();
+    const [a, b, c] = await all;
+
+    expect(load).toHaveBeenCalledTimes(1);
+    // The joiners get the SAME index instance, not a second one built from the same rows.
+    expect(b).toBe(a);
+    expect(c).toBe(a);
+  });
+
+  // A FENCE on the single-flight edit above (it passes pre-fix too): the shared promise must not turn a
+  // transient load failure into a poisoned owner slot.
+  test("a FAILED build is not cached — the next caller retries", async () => {
+    const owner = castId<UserId>("user_field_index_failed");
+    const load = vi
+      .fn<() => Promise<CardDoc[]>>()
+      .mockRejectedValueOnce(new Error("db down"))
+      .mockResolvedValue([card("character_aria", "Aria")]);
+
+    await expect(getOrBuildFieldIndex(owner, 0, load)).rejects.toThrow("db down");
+    await expect(getOrBuildFieldIndex(owner, 0, load)).resolves.toBeDefined();
+
+    expect(load).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("queryFields / suggestFields", () => {

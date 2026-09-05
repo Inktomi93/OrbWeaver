@@ -113,3 +113,34 @@ describe("knn", () => {
     await expect(svc.knn({ ownerId: owner, query: "   ", topN: 5 })).rejects.toBeInstanceOf(SearchError);
   });
 });
+
+// #1467 item 6: every sibling retrieval verb refuses a blank query (`digests`, `corpus`, `discover`); knn —
+// the verb `findCharacters` delegates its whole retrieval to — embedded the blank and ranked the corpus by
+// whatever came back.
+describe("knn boundary refusals", () => {
+  test.each(["", "   ", "\n\t"])("refuses a blank query (%j) with SEARCH_EMPTY_QUERY", async (query) => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    let embedCalls = 0;
+
+    const svc = makeSearch(db, {
+      embedVector: (): Float32Array<ArrayBuffer> => {
+        embedCalls += 1;
+        return vec(1);
+      },
+    });
+
+    await expect(svc.knn({ ownerId: owner, query, topN: 5 })).rejects.toMatchObject({ code: "empty_query" });
+    // Refused BEFORE the embed — a blank query must not spend a provider call.
+    expect(embedCalls).toBe(0);
+  });
+
+  test("refuses a non-positive topN with SEARCH_INVALID_TOP_N", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+    const svc = makeSearch(db, { embedVector: () => vec(1) });
+
+    await expect(svc.knn({ ownerId: owner, query: "a knight", topN: 0 })).rejects.toMatchObject({ code: "invalid_top_n" });
+  });
+});

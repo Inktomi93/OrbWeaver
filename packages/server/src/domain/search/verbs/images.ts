@@ -20,10 +20,12 @@ import { nearestImages } from "../persistence/image-nearest.ts";
 import { OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";
 import { relevanceOf, rerankPoolByScores } from "../substrate/csls.ts";
 import { applyRerank } from "../substrate/rerank.ts";
+import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 export function createImages(ctx: SearchContext): SearchService["images"] {
   return async (params: ImagesParams): Promise<ImageSearchHit[]> => {
     const { ownerId, query, topN, lens } = params;
+    requirePositiveTopN(topN, "images");
     if (query.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "images requires a query text to embed + scan");
     }

@@ -12,10 +12,18 @@ import { nearestCharacters } from "../persistence/nearest.ts";
 import { OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf, rerankPoolByScores } from "../substrate/csls.ts";
 import { applyRerank } from "../substrate/rerank.ts";
+import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 export function createKnn(ctx: SearchContext): SearchService["knn"] {
   return async (params: KnnParams): Promise<SearchHit[]> => {
     const { ownerId, query, topN } = params;
+    // The same two refusals `discover`/`digests` make, in the verb `findCharacters` delegates its whole
+    // retrieval to. A blank query is not a scan with no results — the embedder is asked for a vector for
+    // nothing, and whatever it returns ranks the corpus by noise.
+    if (query.trim().length === 0) {
+      throw new SearchError(SEARCH_EMPTY_QUERY, "knn requires a query to embed + scan");
+    }
+    requirePositiveTopN(topN, "knn");
 
     const embedded = await ctx.roleClients.embed(query, { inputType: "query" });
     const queryVector = embedded.vectors[0];

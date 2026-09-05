@@ -2,6 +2,10 @@
 // derivation (characters.ownerId / digest→chat→host) + the OWNER-SCOPED hub reads (csls analyzes YOUR OWN
 // library only — never cross-tenant; the bulk fan-out iterates `distinct*HubOwners`).
 
+import type { Db } from "@orb/db";
+import { digestThemeAssignments, themeClusters } from "@orb/db";
+import type { ChatDigestId, ThemeClusterId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
   distinctCharacterHubOwners,
@@ -12,13 +16,16 @@ import {
   readDigestHubVectors,
   readImageHubVectors,
   readOwnedCharacterVectors,
+  readOwnedDigestKeywords,
   readOwnedDigestVectors,
   readSegmentHubVectors,
+  readTier0DigestSpans,
 } from "../../../../../packages/server/src/domain/discovery/persistence/embed-store-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
   EMBED_MODEL,
+  FROZEN_AT,
   seedAsset,
   seedCharacter,
   seedCharacterEmbedding,
@@ -30,6 +37,25 @@ import {
   seedUser,
   vec,
 } from "../_support.ts";
+
+// A theme cluster + one assignment row — `readTier0DigestSpans` reads only digests that were ASSIGNED.
+async function seedThemeAssignment(db: Db, ownerId: UserId, digestId: string): Promise<void> {
+  const clusterId = castId<ThemeClusterId>(`theme_cluster_${digestId}`);
+  await db.insert(themeClusters).values({
+    id: clusterId,
+    ownerId,
+    level: "scene",
+    clusterIdx: 0,
+    name: "Adventures",
+    centroid: vec(1),
+    size: 1,
+    model: EMBED_MODEL,
+    computedAt: FROZEN_AT,
+  });
+  await db
+    .insert(digestThemeAssignments)
+    .values({ digestId: castId<ChatDigestId>(digestId), themeClusterId: clusterId, msgMidAt: null, computedAt: FROZEN_AT });
+}
 
 describe("readOwnedCharacterVectors", () => {
   test("returns card vectors tagged with owner, EXCLUDING synthetic characters (esoteric #12)", async () => {
@@ -135,5 +161,70 @@ describe("hub reads are OWNER-SCOPED (csls analyzes YOUR OWN library only — ne
     expect((await distinctDigestHubOwners(db)).toSorted()).toEqual([a, b].sort());
     expect((await distinctSegmentHubOwners(db)).toSorted()).toEqual([a, b].sort());
     expect((await distinctImageHubOwners(db)).toSorted()).toEqual([a, b].sort());
+  });
+});
+
+// #1467 item 1: the hub reads score ONE owner's library against itself, so the population they read must be
+// the population every sibling analytics read scans — a per-room synthetic bucket is not a library card.
+describe("hub reads exclude the synthetic per-room group buckets", () => {
+  test("readCharacterHubVectors skips a synthetic character's embedding", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const real = await seedCharacter(db, { id: "character_real", ownerId: owner });
+    const synth = await seedCharacter(db, { id: "character_group", ownerId: owner, synthetic: true });
+    await seedCharacterEmbedding(db, { characterId: real, embedding: vec(1, 0) });
+    await seedCharacterEmbedding(db, { characterId: synth, embedding: vec(0, 1) });
+
+    const rows = await readCharacterHubVectors(db, owner);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.contentHash).toBe(`hash_${real}`);
+  });
+
+  test("distinctCharacterHubOwners skips an owner whose only embedded card is synthetic", async () => {
+    const db = await freshDb();
+    const real = await seedUser(db, "user_real");
+    const groupsOnly = await seedUser(db, "user_groups_only");
+    const card = await seedCharacter(db, { id: "character_real", ownerId: real });
+    const bucket = await seedCharacter(db, { id: "character_group", ownerId: groupsOnly, synthetic: true });
+    await seedCharacterEmbedding(db, { characterId: card, embedding: vec(1) });
+    await seedCharacterEmbedding(db, { characterId: bucket, embedding: vec(1) });
+
+    expect(await distinctCharacterHubOwners(db)).toEqual([real]);
+  });
+});
+
+// #1467 item 2: the cooccurrence pass credits keywords to the digest's witnessing character, and a GROUP
+// digest's witness is the synthetic room bucket — so the row has to say which kind it is.
+describe("readOwnedDigestKeywords", () => {
+  test("carries isGroup so the tally can drop group-room digests", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const chat = await seedHostedChat(db, "chat_1", owner);
+    await seedChatDigest(db, { id: "chat_digest_solo", chatId: chat, embedding: vec(1), keywords: ["solo"], isGroup: false });
+    await seedChatDigest(db, { id: "chat_digest_group", chatId: chat, embedding: vec(1), keywords: ["party"], isGroup: true, blockIdx: 1 });
+
+    const rows = await readOwnedDigestKeywords(db, owner);
+
+    expect(new Set(rows.map((r) => `${r.keywords[0] ?? ""}:${String(r.isGroup)}`))).toEqual(new Set(["solo:false", "party:true"]));
+  });
+});
+
+// #1467 item 3: a block too big for the embed window is CHUNKED into N `chat_segments` rows (#172). The
+// backfill UPDATEs one row per digest, so N partial spans meant the last row written won.
+describe("readTier0DigestSpans", () => {
+  test("folds a CHUNKED block to the whole block's [min(seqStart), max(seqEnd)]", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const chat = await seedHostedChat(db, "chat_1", owner);
+    await seedChatDigest(db, { id: "chat_digest_1", chatId: chat, embedding: vec(1), tier: 0, blockIdx: 0 });
+    await seedThemeAssignment(db, owner, "chat_digest_1");
+    await seedChatSegment(db, { id: "chat_segment_c0", chatId: chat, embedding: vec(1), blockIdx: 0, chunkIdx: 0, seqStart: 10, seqEnd: 13 });
+    await seedChatSegment(db, { id: "chat_segment_c1", chatId: chat, embedding: vec(1), blockIdx: 0, chunkIdx: 1, seqStart: 14, seqEnd: 17 });
+    await seedChatSegment(db, { id: "chat_segment_c2", chatId: chat, embedding: vec(1), blockIdx: 0, chunkIdx: 2, seqStart: 18, seqEnd: 21 });
+
+    const spans = await readTier0DigestSpans(db, owner);
+
+    expect(spans).toEqual([{ digestId: castId<ChatDigestId>("chat_digest_1"), chatId: chat, seqStart: 10, seqEnd: 21 }]);
   });
 });

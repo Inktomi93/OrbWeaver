@@ -219,10 +219,15 @@ export interface KeywordCount {
 /** The `computeCooccurrence` recompute summary. */
 export interface CooccurrenceStats {
   readonly ownersProcessed: number;
-  /** Tier-0 memory digests the pass READ — its input plane, and the same one `compute-themes` reads. `0` is
-   *  the refusal signal the caller turns into a stated "no digests" result instead of a 0-written success
-   *  (issue #558; the honest-accounting family of #166). */
+  /** Tier-0 memory digests the pass READ, group rooms included — its input plane, and the same one
+   *  `compute-themes` reads. `0` is the refusal signal the caller turns into a stated "no digests" result
+   *  instead of a 0-written success (issue #558; the honest-accounting family of #166). */
   readonly digestsRead: number;
+  /** Of those, the SOLO digests — the pass's ACTUAL input plane. A group-room digest is scoped to the
+   *  synthetic group bucket, so crediting its keywords would attribute a whole room's vocabulary to a
+   *  character who is not a character; it is dropped before the tally, exactly as `compute-themes` drops it
+   *  before k-means. `0` with `digestsRead > 0` is its own refusal — the backfill HAS run (#1467). */
+  readonly soloDigestsRead: number;
   readonly pairsWritten: number;
   readonly charKeywordsWritten: number;
   readonly hubTokensDropped: number;

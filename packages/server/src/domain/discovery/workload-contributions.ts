@@ -162,6 +162,14 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
             report({ message: "no memory digests to tally — run the memory backfill first" });
             return { scanned: 0, written: 0, emptyReason: "no-digests" };
           }
+          // AND THE SAME SECOND REFUSAL compute-themes carries: the tally credits keywords to the digest's
+          // witnessing character, and a group-room digest is scoped to the synthetic group bucket, so it is
+          // dropped. A group-rooms-only corpus therefore reads digests and writes nothing — a different
+          // failure with a different fix (the backfill already ran), so it says so instead of going green.
+          if (stats.soloDigestsRead === 0) {
+            report({ message: "only group-room digests to tally — keyword profiles come from solo chats" });
+            return { scanned: 0, written: 0, emptyReason: "no-solo-digests" };
+          }
           return { scanned: stats.charKeywordsWritten, written: stats.pairsWritten };
         } finally {
           await announceCorpus(deps, ctx);

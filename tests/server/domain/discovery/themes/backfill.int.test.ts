@@ -301,3 +301,32 @@ describe("backfillMsgMidAt", () => {
     expect(await msgMidAtOf(db, "d_b")).toBeNull(); // other owner untouched
   });
 });
+
+// #1467 item 3: an over-window block is CHUNKED into N `chat_segments` rows (#172). The tier-0 arm read one
+// span PER CHUNK and issued one UPDATE per span keyed on digestId, so the stamp was the last chunk's median —
+// a scene's story-time position landed inside whichever fragment the planner happened to emit last.
+describe("a CHUNKED tier-0 block", () => {
+  test("stamps the median of the WHOLE block, not of one chunk", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const chat = await seedHostedChat(db, "chat_chunked", owner);
+    await seedChatDigest(db, { id: "digest_1", chatId: chat, embedding: vec(1), tier: 0, blockIdx: 0, contentHash: "h_1" });
+    // Three chunks of ONE block covering seq 0..8 — three partial spans for one digest.
+    await seedChatSegment(db, { id: "segment_c0", chatId: chat, embedding: vec(1), blockIdx: 0, chunkIdx: 0, seqStart: 0, seqEnd: 2, contentHash: "s0" });
+    await seedChatSegment(db, { id: "segment_c1", chatId: chat, embedding: vec(1), blockIdx: 0, chunkIdx: 1, seqStart: 3, seqEnd: 5, contentHash: "s1" });
+    await seedChatSegment(db, { id: "segment_c2", chatId: chat, embedding: vec(1), blockIdx: 0, chunkIdx: 2, seqStart: 6, seqEnd: 8, contentHash: "s2" });
+    // Nine messages, one per seq, each an hour apart from a known base.
+    const base = 1_700_000_000_000;
+    for (let seq = 0; seq <= 8; seq += 1) {
+      await seedMessage(db, { id: `message_${String(seq)}`, chatId: chat, seq, createdAt: base + seq * 3_600_000 });
+    }
+    await seedAssignedCluster(db, { clusterId: "theme_cluster_1", ownerId: owner, digestId: "digest_1" });
+
+    const { stamped } = await backfillMsgMidAt(db, tier0RangeOf, owner);
+
+    expect(stamped).toBe(1);
+    // The whole block is seq 0..8 — nine messages, lower median at index 4 (seq 4). A per-chunk span would
+    // have stamped seq 1, 4 or 7 depending on which chunk row was written last.
+    expect(await msgMidAtOf(db, "digest_1")).toBe(base + 4 * 3_600_000);
+  });
+});
