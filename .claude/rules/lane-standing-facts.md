@@ -179,3 +179,10 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 - **Code-PRESENCE claims use `pnpm ast`/ast-grep — grep corroborates, never decides.** A negative claim
   owes a non-zero scanned-file count plus a second method; `ts` and `tsx` are different languages, run
   both.
+- **A worktree typecheck cannot prove an `@orb/*` exports-subpath REMOVAL, and cannot refute an import of a file
+  that exists only on main** (#1623, proven 2026-09-05 with `ts.resolveModuleName` + `tsc --traceResolution`):
+  a worktree lives at `<repo>/.claude/worktrees/<id>/`, TypeScript treats an exports-map MISS as non-terminal, and
+  the ancestor walk reaches MAIN's `node_modules/@orb/*` two levels up — nothing placed in between stops it (an
+  empty dir, `exports: {}`, an explicit `null` subpath and a wildcard-to-missing-target were all tried). The proof
+  of a subpath removal is the merge train's whole-tree check on main; a lane deleting an exports key says so in its
+  report instead of claiming a green typecheck as the receipt.
