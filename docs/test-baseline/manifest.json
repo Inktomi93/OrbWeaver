@@ -2173,6 +2173,7 @@
     "tests/tooling/stack/index.int.test.ts",
     "tests/tooling/stack/index.test.ts",
     "tests/tooling/stack/lib/engine-adoption.test.ts",
+    "tests/tooling/stack/lib/engine-launch.int.test.ts",
     "tests/tooling/stack/lib/engine-launch.test.ts",
     "tests/tooling/stack/lib/port-health.test.ts",
     "tests/tooling/stack/lib/source-scan.test.ts",
