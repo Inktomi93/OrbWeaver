@@ -16,7 +16,6 @@ import {
   effectiveTagFilter,
   knownTagIds,
   loadedProgressLabel,
-  partialGroupingLabel,
   resultCountLabel,
   tagIdsInState,
   tagVocabulary,
@@ -62,14 +61,12 @@ test("loadedProgressLabel: reports the loaded fraction only while there IS one",
   expect(loadedProgressLabel(30, null)).toBeNull();
 });
 
-// GROUP-BY-TAG'S BUCKETS DESCRIBE THE LOADED PAGE (#493 P2-2). `ADVENTURE 1 · … · UNCATEGORIZED 27` summed
-// to the 30 rows paged in and read as library facts over a 327-character, 551-tag library — and re-counted
-// under the reader as scrolling paged more in. The mode states its scope wherever the set is partial.
-test("partialGroupingLabel: names the scope while partial, and says nothing when the buckets are complete", () => {
-  expect(partialGroupingLabel(30, 327)).toContain("Grouping the 30 of 327 characters loaded so far");
-  expect(partialGroupingLabel(30, 30)).toBeNull();
-  expect(partialGroupingLabel(30, null)).toBeNull();
-});
+// `partialGroupingLabel`'s TEST WENT WITH THE FUNCTION (#1696). #493 P2-2 measured the defect it described —
+// `ADVENTURE 1 · … · UNCATEGORIZED 27`, four counts summing to the 30 rows paged in, read as library facts
+// over a 327-character library — and the blanket caveat was the honest thing to say WHILE the counts were
+// the page's. They are `character.listTagGroups`' census now, so the sentence would be false; the property
+// that replaced it is per-bucket and lives where the buckets are made
+// (`tests/client/features/character/lib/character-list-view.test.ts`).
 
 test("resultCountLabel: before the census lands, the loaded count is the only honest thing to say", () => {
   expect(resultCountLabel(2, null)).toBe("2 characters");

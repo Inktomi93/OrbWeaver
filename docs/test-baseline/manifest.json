@@ -898,6 +898,7 @@
     "tests/server/domain/character/verbs/get.int.test.ts",
     "tests/server/domain/character/verbs/list-embeddable-character-ids.int.test.ts",
     "tests/server/domain/character/verbs/list-snapshots.int.test.ts",
+    "tests/server/domain/character/verbs/list-tag-groups.int.test.ts",
     "tests/server/domain/character/verbs/list.int.test.ts",
     "tests/server/domain/character/verbs/load-card-text.int.test.ts",
     "tests/server/domain/character/verbs/mint-synthetic-group-character.int.test.ts",

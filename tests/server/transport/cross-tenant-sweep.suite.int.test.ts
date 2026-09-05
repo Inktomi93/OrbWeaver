@@ -389,6 +389,12 @@ const PROBES: readonly Probe[] = [
   },
   // ── character (owner-scoped) ──
   { path: "character.get", call: (c, i) => c.character.get({ characterId: i.characterId }) },
+  // #1696 — the GROUP-BY-TAG census. PROBED rather than exempted alongside its `character.list` sibling,
+  // because unlike `list` it echoes TAG NAMES: its result rows are `{id, name, folderType, characters}`
+  // read through a `character_tags → tags` join, so a dropped `characters.owner_id` predicate would hand a
+  // stranger a bucket literally named `alphasecrettag` (`MARK.tag`). Driven with A's tag as the include
+  // filter, which is the shape a leak would travel on — the marker detector has real teeth here.
+  { path: "character.listTagGroups", call: (c, i) => c.character.listTagGroups({ includeTagIds: [i.tagId] }) },
   {
     path: "character.update",
     call: (c, i) => c.character.update({ characterId: i.characterId, input: { name: "hacked" } }),

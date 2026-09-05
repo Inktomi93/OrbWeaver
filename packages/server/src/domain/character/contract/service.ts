@@ -28,6 +28,7 @@ import type {
   GetCharacterParams,
   GetSnapshotParams,
   ListCharactersParams,
+  ListCharacterTagGroupsParams,
   ListSnapshotsParams,
   MintGroupCharParams,
   RemoveCharacterParams,
@@ -36,7 +37,16 @@ import type {
   SnapshotParams,
   UpdateCharacterParams,
 } from "./params.ts";
-import type { CharacterRef, GeneratedGreeting, ImportedFromMatch, ListCharactersResult, SnapshotRef, SnapshotSummary, SnapshotView } from "./results.ts";
+import type {
+  CharacterRef,
+  GeneratedGreeting,
+  ImportedFromMatch,
+  ListCharactersResult,
+  ListCharacterTagGroupsResult,
+  SnapshotRef,
+  SnapshotSummary,
+  SnapshotView,
+} from "./results.ts";
 import type { CharacterDetail } from "./views.ts";
 
 /** Best-effort reap of avatar assets a deleted character may have orphaned (FK is onDelete: set null). */
@@ -122,6 +132,8 @@ export interface CharacterService {
   readonly create: (params: CreateCharacterParams) => Promise<CharacterDetail>;
   readonly get: (params: GetCharacterParams) => Promise<CharacterDetail>;
   readonly list: (params: ListCharactersParams) => Promise<ListCharactersResult>;
+  /** The GROUP-BY-TAG census over the SAME lens `list` pages (#1696) — see `verbs/list-tag-groups.ts`. */
+  readonly listTagGroups: (params: ListCharacterTagGroupsParams) => Promise<ListCharacterTagGroupsResult>;
   /** Edits the live card in place (no CAS/COW); recomputes contentHash. */
   readonly update: (params: UpdateCharacterParams) => Promise<CharacterDetail>;
   /** Cascades snapshots/personas; best-effort reaps the avatar asset. */
