@@ -592,34 +592,63 @@ test("a zero-member band renders its count", async ({ mount, page }) => {
   await expect(band.getByText("0", { exact: true })).toBeVisible();
 });
 
-// …AND IT IS A CARD, NOT A ROW (side-eye 2026-08-08). The copy and the (then-present) create verb sat
-// side-by-side on one line inside the dashed box, which at the list's real width read as a broken table row
-// rather than as the house empty-state grammar. RETARGETED 2026-08-08 P2: the verb left the slot entirely
-// (one action, one home — see the count assertion above), so the two sibling boxes it used to measure no
-// longer exist. What survives is the same CLAIM about the slot — a centered CARD, not a row — pinned on the
-// copy's box against its dashed frame: centered inside it, and given its own block band rather than sharing a
-// line. Both are rendered facts; a class list is not.
+// …AND IT IS ONE LINE, NOT A CARD AND NOT A ROW.
 //
-// This is deliberately NOT a deletion. The old assertion's subject was the affordance; the finding removed the
-// affordance, and a removed affordance whose geometry pin is simply deleted leaves the slot with NO shape
-// guard at all — which is how the "broken table row" shipped the first time.
-test("the zero-member slot is a centered CARD — its copy sits on its own centered band inside the frame", async ({ mount, page }) => {
+// ═══ THE RULING FORK, STATED (#1211 · side-eye 2026-08-08 P2, and its own no-deletion clause) ═══
+//
+// THE RECORDED RULING here was "a centered CARD, not a row", pinned as the copy centered inside its dashed
+// frame with the frame taller than the copy. #1211 measured the SHELF instead of the slot and found the card
+// itself was the defect: on the live desktop surface at this lane's base commit the one POPULATED library
+// was a 32px band while each of the three EMPTY groups totalled 75px, of which a 39px dashed box — the
+// loudest, tallest and only bordered thing on the Collections shelf was the part with nothing in it. So the
+// card is gone and `collection-group-empty` is now the copy's own line (13px; the group totals 49px).
+//
+// THIS FILE'S OWN NO-DELETION CLAUSE IS OBEYED, NOT OVERRULED. Its words: "a removed affordance whose
+// geometry pin is simply deleted leaves the slot with NO shape guard at all — which is how the 'broken table
+// row' shipped the first time." That is exactly why this is a RETARGET and not a deletion, for the second
+// time. The guard's MECHANISM is unchanged — a rendered-geometry claim about the slot's shape, never a class
+// list — and only its CONDITION moved: the slot must now be exactly its copy (no frame box to be padded
+// inside), a SINGLE line that never outweighs the band that names it, and aligned on the band's own content
+// edge rather than centered in a box. A future card cannot come back under it: a frame would make the slot
+// taller than its copy, and a shared line with a verb would move the copy off that edge.
+test("the zero-member slot is ONE LINE on the band's edge — no frame around it, and it never outweighs the band", async ({ mount, page }) => {
   await stub(page, []);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   const group = workspace.locator(LIST_PANE).locator('[data-collection="tags"]');
+  const slot = group.locator('[data-slot="collection-group-empty"]');
   const copy = group.getByText("No tags yet.");
   await expect(copy).toBeVisible();
-  const frame = group.locator('[data-slot="collection-group-empty"]');
-  const [copyBox, frameBox] = await Promise.all([copy.boundingBox(), frame.boundingBox()]);
-  if (copyBox === null || frameBox === null) {
-    throw new Error("the empty slot's copy or its frame did not render a box");
-  }
-  expect(Math.abs(copyBox.x + copyBox.width / 2 - (frameBox.x + frameBox.width / 2)), "the copy is centered in its frame").toBeLessThanOrEqual(1);
-  // Its own band: the copy does not share a line with anything — nothing else in the frame overlaps its rows.
-  expect(copyBox.height, "the copy has a real line box").toBeGreaterThan(0);
-  expect(frameBox.height, "the frame is taller than its copy (the card's own padding)").toBeGreaterThan(copyBox.height);
+  await expect(slot).toBeVisible();
+
+  const band = group.locator('[data-slot="collection-band"] [data-slot="config-band"]');
+  // The disclosure gutter's glyph — the band's own content edge, which is the column the line claims. On a
+  // zero-member band it is the RESERVED spacer, so it is `visibility: hidden` by design (the two tests above
+  // own that ruling): it is asserted attached, never visible, and it still has the box this measures.
+  const gutter = band.locator("svg").first();
+  await expect(gutter).toBeAttached();
+
+  // Measured as three named deltas rather than one object so a failure says WHICH half of the claim broke.
+  const geometry = async (): Promise<{ framePadding: number; edgeDrift: number; bandRatio: number }> => {
+    const [slotBox, copyBox, bandBox, gutterBox] = await Promise.all([slot.boundingBox(), copy.boundingBox(), band.boundingBox(), gutter.boundingBox()]);
+    if (slotBox === null || copyBox === null || bandBox === null || gutterBox === null) {
+      return { framePadding: Number.POSITIVE_INFINITY, edgeDrift: Number.POSITIVE_INFINITY, bandRatio: Number.POSITIVE_INFINITY };
+    }
+    // The column claim is about the TEXT's start, not the slot's border box — the slot carries the same
+    // horizontal padding the band button does, which is exactly how the two columns come to agree.
+    const inset = await slot.evaluate((el: Element): number => Number.parseFloat(getComputedStyle(el).paddingLeft));
+    return { framePadding: slotBox.height - copyBox.height, edgeDrift: Math.abs(slotBox.x + inset - gutterBox.x), bandRatio: slotBox.height / bandBox.height };
+  };
+
+  // NO FRAME: the slot IS the copy — nothing wraps it with padding of its own. A returning card fails here.
+  await expect.poll(async (): Promise<number> => (await geometry()).framePadding).toBeLessThanOrEqual(0.5);
+  // ON THE BAND'S EDGE: the line starts in the disclosure gutter's column, not centred and not on the pane
+  // edge. A verb sharing the line, or a re-centred box, moves the copy off it.
+  await expect.poll(async (): Promise<number> => (await geometry()).edgeDrift).toBeLessThanOrEqual(1);
+  // AND QUIETER THAN ITS BAND. At the defect the slot was 39px against a 32px band (1.22); one line is well
+  // under 1, and the assertion is the INEQUALITY, not a remembered px.
+  await expect.poll(async (): Promise<number> => (await geometry()).bandRatio).toBeLessThan(1);
 });
 
 // The band's KICKER at the pane it actually lives in (side-eye 2026-08-06 P3). "REGEX SCRIPTS" is the

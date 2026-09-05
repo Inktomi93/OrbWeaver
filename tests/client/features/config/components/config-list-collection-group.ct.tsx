@@ -110,3 +110,45 @@ test("an empty library's band is the same SPECIES of control as a populated grou
   await expect(component.locator(`${BAND}[data-config-group="rosterPreset"]`)).toHaveRole("button");
   await expect(component.locator(`${BAND}[data-config-group="tags"]`)).toHaveRole("button");
 });
+
+// ── #1211: the shelf must not SHOUT ABOUT ABSENCE ────────────────────────────────────────────────────
+// Measured on the live surface: the ONE populated library rendered as a bare 32px band while each EMPTY
+// collection got a 75px dashed box under its own band (44 vs 87 at a coarse pointer) — so the loudest,
+// tallest, most-bordered thing on the Collections shelf was the part with nothing in it, and the reader's
+// eye was pulled to three absences and away from the one library that exists. Attention inverted.
+//
+// The empty state itself is LOAD-BEARING and stays (a shelf that says nothing about an empty library reads
+// as an unbuilt feature, not a shipped one — `empty-states-are-load-bearing`): what goes is the BOX. The
+// band's own count is the honest zero, and the teaching line rides quietly under it as one line of gloss.
+test("#1211: an empty library teaches in ONE quiet line — no dashed box, and it never outweighs its band", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+
+  const group = component.locator('[data-slot="config-group"][data-collection="regex"]');
+  const band = component.locator(EMPTY_COLLECTION_BAND);
+  const empty = group.locator('[data-slot="collection-group-empty"]');
+
+  // The teaching survives — the reader is still told what this library is for.
+  await expect(empty).toBeVisible();
+  await expect(empty).not.toBeEmpty();
+
+  // …and it is a LINE, not a box. No dashed rule anywhere in the group frame.
+  await expect
+    .poll(
+      async (): Promise<number> =>
+        await group.evaluate(
+          (el: Element): number => [...el.querySelectorAll("*"), el].filter((node) => getComputedStyle(node).borderTopStyle === "dashed").length,
+        ),
+    )
+    .toBe(0);
+
+  // The absence must not outweigh the band that names it: the teaching line spends less vertical room than
+  // the band itself. At the defect it spent more than twice the band (75px against 32px).
+  await expect
+    .poll(async (): Promise<number> => {
+      const bandBox = await band.boundingBox();
+      const emptyBox = await empty.boundingBox();
+      return bandBox === null || emptyBox === null ? Number.POSITIVE_INFINITY : emptyBox.height / bandBox.height;
+    })
+    .toBeLessThanOrEqual(1);
+});
