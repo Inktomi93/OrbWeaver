@@ -210,6 +210,41 @@ describe("createEnqueueImportBackfill — the dependency edge, including on the 
     // The edge is the whole point: a memory pass with no dependency races the index pass it must follow.
     expect(memory?.dependsOn).toStrictEqual([active]);
   });
+
+  // ── THE TWO PASSES ASK DIFFERENT QUESTIONS, SO ONLY ONE OF THEM ADOPTS ────────────────────────────────
+  // The INDEX pass is a DEPENDENCY TARGET: any active run of the same admission unit is exactly the thing
+  // to wait on, so adopting it is the right answer and the edge survives. The MEMORY pass is a COVERAGE
+  // CLAIM — this function's boolean is what the import report renders as "the memory pass entered the
+  // queue for this import" — and an ADOPTED memory run was admitted under someone else's `dependsOn`
+  // (`workloads/contract/params.ts`: an adopted row necessarily drops the caller's). It carries no edge to
+  // this import's index pass and may already be past the rows we just wrote, so reporting `true` for it
+  // would make the report claim a coverage it cannot have. It reports `false`, exactly as the pre-adopt
+  // code did — the same arm the #156 memory-off refusal already lands on.
+  test("a MEMORY-pass conflict reports false — an adopted memory run is not coverage for THIS import", async () => {
+    const activeMemory = castId<WorkloadId>("wl_someone_elses_memory_run");
+    const calls: StartWorkloadParams[] = [];
+    // FAITHFUL to the real door on BOTH arms: a caller that asks to adopt GETS the active run's id (which is
+    // precisely how reporting `true` for it became possible), and one that does not gets the conflict.
+    const door: Pick<WorkloadService, "start"> = {
+      start: (params: StartWorkloadParams): Promise<{ id: WorkloadId }> => {
+        calls.push(params);
+        if (params.input.kind !== "memory-backfill") {
+          return Promise.resolve({ id: castId<WorkloadId>("wl_index") });
+        }
+        if (params.adoptActive === true) {
+          return Promise.resolve({ id: activeMemory });
+        }
+        return Promise.reject(new DomainConflictError('That "memory-backfill" run is already in progress'));
+      },
+    };
+
+    expect(await createEnqueueImportBackfill(door)({ ownerId: OWNER })).toBe(false);
+
+    // …and it never asked to adopt one: the request that would have produced an edgeless memory row was
+    // never made, so there is no `dependsOn`-less memory workload anywhere for a reader to trust.
+    const memory = calls.find((c) => c.input.kind === "memory-backfill");
+    expect(memory?.adoptActive).toBeUndefined();
+  });
 });
 
 describe("buildPortabilityRunner — the registry and the workload bundle are both produced", () => {

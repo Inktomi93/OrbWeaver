@@ -13,7 +13,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
-import { DomainOperationError } from "@orb/kit/errors";
+import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import type { PersonaId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
@@ -106,38 +106,52 @@ export interface PortabilityRunnerComposeResult {
  *  independent enqueues) is deliberate — embeddings never run mid-import, and the chat memory pass does not
  *  compete with the character pass for the embed engine.
  *
- *  Returns whether the memory pass actually entered the queue. The workloads door can REFUSE it (#156 —
- *  this owner has memory off, so the sweep skips every one of their chats and could only land a vacuous
- *  0/0 success): a refusal is a normal outcome of importing with memory off, never an import failure, so it
- *  is reported rather than thrown. The character `index` pass is unconditional — it is what memory recall
- *  would search, and it stands on its own.
+ *  RETURNS A COVERAGE CLAIM, not a queue count: `true` means a memory pass that WILL cover this import
+ *  entered the queue behind this import's index pass. Two outcomes report `false` rather than throwing,
+ *  because neither is an import failure — the workloads door REFUSING the pass (#156: this owner has memory
+ *  off, so the sweep skips every one of their chats and could only land a vacuous 0/0 success), and a memory
+ *  pass already being in flight for this owner (that run holds no edge to the index pass above and may
+ *  already be past the rows just written, so it is not coverage for THIS import). The character `index` pass
+ *  is unconditional — it is what memory recall would search, and it stands on its own.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function createEnqueueImportBackfill(workloads: Pick<WorkloadService, "start">): (args: { readonly ownerId: UserId }) => Promise<boolean> {
-  // `adoptActive` is what keeps the CHAIN intact across the benign "already queued/running" admission
-  // conflict. That run is idempotent + hash-gated, so it already covers the freshly imported rows — but the
-  // dependent still has to WAIT for it. Swallowing the conflict and returning `undefined` (what this did
-  // before) dropped the `dependsOn` edge on exactly that path, so the memory pass was enqueued as an
-  // INDEPENDENT root and could run before, or alongside, the index pass it was written to follow. Adopting
-  // returns the id of the run that holds the slot, so the edge survives whether this call created the row or
-  // found it — and the enqueue no longer has a "no id" arm at all.
-  const startEmbed = async (ownerId: UserId, input: StartWorkloadInput, dependsOnId?: WorkloadId): Promise<WorkloadId> => {
+  const startEmbed = async (
+    ownerId: UserId,
+    input: StartWorkloadInput,
+    options: { readonly adoptActive?: true; readonly dependsOnId?: WorkloadId } = {},
+  ): Promise<WorkloadId> => {
     const { id } = await workloads.start({
       input,
       caller: null,
       mode: "singular",
       ownerId,
-      adoptActive: true,
-      ...(dependsOnId !== undefined ? { dependsOn: [dependsOnId] } : {}),
+      ...(options.adoptActive === true ? { adoptActive: true } : {}),
+      ...(options.dependsOnId !== undefined ? { dependsOn: [options.dependsOnId] } : {}),
     });
     return id;
   };
   return async ({ ownerId }: { readonly ownerId: UserId }): Promise<boolean> => {
-    const embedChars = await startEmbed(ownerId, { kind: "index", params: { source: "text" } });
+    // THE INDEX PASS ADOPTS. It is a DEPENDENCY TARGET, and any active run of the same admission unit is
+    // exactly the thing to wait on — that run is idempotent + hash-gated, so it already covers the freshly
+    // imported rows, but the dependent still has to WAIT for it. Swallowing the conflict and losing the id
+    // (what this did before `adoptActive`) dropped the `dependsOn` edge on precisely that path, so the memory
+    // pass was enqueued as an INDEPENDENT root that could run before the index pass it must follow.
+    const embedChars = await startEmbed(ownerId, { kind: "index", params: { source: "text" } }, { adoptActive: true });
     try {
-      await startEmbed(ownerId, { kind: "memory-backfill", params: {} }, embedChars);
+      // THE MEMORY PASS DOES NOT ADOPT, and the asymmetry is the point. This function's boolean is a COVERAGE
+      // CLAIM — the import report renders it as "the memory pass entered the queue for this import" — while
+      // an ADOPTED memory run was admitted under someone else's `dependsOn` (`workloads/contract/params.ts`:
+      // an adopted row necessarily drops the caller's). It carries no edge to the index pass above and may
+      // already be past the rows this import just wrote, so reporting `true` for it would make the report
+      // claim a coverage it cannot have. A conflict is reported as `false` — the same honest arm the #156
+      // memory-off refusal lands on, and the same answer this returned before adoption existed.
+      await startEmbed(ownerId, { kind: "memory-backfill", params: {} }, { dependsOnId: embedChars });
       return true;
     } catch (err) {
+      if (err instanceof DomainConflictError) {
+        return false;
+      }
       if (err instanceof DomainOperationError && err.code === WORKLOAD_NOT_ADMISSIBLE) {
         return false;
       }

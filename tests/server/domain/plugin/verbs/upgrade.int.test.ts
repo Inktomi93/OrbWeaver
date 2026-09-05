@@ -558,4 +558,62 @@ describe("#820 the bundle-asset set across an upgrade", () => {
     expect(row?.version).toBe("1.0.0");
     expect(row?.lastError).toMatch(/db unavailable/u);
   });
+
+  // THE REPAIR MUST NOT EAT THE FAILURE IT IS REPAIRING. The pin above only reddens the swap, so the repair's
+  // own write still worked — and that hid the case the repair EXISTS for. When the db is genuinely
+  // unavailable, the swap fails AND the repair fails, and an unguarded `await setStatus` in the catch replaces
+  // the caller's error with the repair's: the operator is told the status write broke while the actual event —
+  // "the upgrade could not be applied" — is gone, and the row is still `enabled` with no instance behind it.
+  // The repair is BEST-EFFORT and the original failure is what leaves.
+  test("a repair that ALSO fails still reports the ORIGINAL swap failure, never its own", async () => {
+    // An annotated PROPERTY, not a `let`: biome's type service narrows a `let x = false` from both sides and
+    // then calls every read of it unreachable.
+    const control: { armed: boolean; swapFailed: boolean } = { armed: false, swapFailed: false };
+    // A db that is DOWN, staged in the order the verb touches it — and the staging is load-bearing, not
+    // ceremony: `applyUpgrade` builds its statements through `db.update(plugins)` BEFORE it calls `db.batch`,
+    // so a proxy that failed `update` from the start would break the SWAP's own builder and never reach the
+    // repair at all (the failure would carry the repair's sentence for the wrong reason — which is exactly
+    // what a first version of this pin measured). `update` is therefore armed only ONCE the swap has failed,
+    // at which point the sole remaining `update` in the flow is the repair's.
+    const brokenDb = new Proxy(await freshDb(), {
+      get: (target, prop, receiver): unknown => {
+        if (control.armed && prop === "batch") {
+          return (): never => {
+            control.swapFailed = true;
+            throw new Error("db unavailable: the row swap failed");
+          };
+        }
+        if (control.swapFailed && prop === "update") {
+          return (): never => {
+            throw new Error("db unavailable: the repair write failed");
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    }) as Db;
+    const h = makePluginHarness(brokenDb);
+    const owner = await seedUser(brokenDb, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", version: "1.0.0" }, undefined, undefined, { "ui/assets/a.png": magicBytes("png") }),
+      grant: [],
+    });
+    await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+
+    control.armed = true;
+    const rejection = h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "2.0.0" }, undefined, undefined, { "ui/assets/b.webp": magicBytes("webp") }),
+    });
+    // The caller learns THE UPGRADE FAILED — not that a status write it never asked for failed.
+    await expect(rejection).rejects.toThrow(/the row swap failed/u);
+    await expect(rejection).rejects.not.toThrow(/the repair write failed/u);
+    control.armed = false;
+    control.swapFailed = false;
+
+    // …and the version is untouched: nothing half-applied behind the swallowed error.
+    const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+    expect(row?.version).toBe("1.0.0");
+  });
 });
