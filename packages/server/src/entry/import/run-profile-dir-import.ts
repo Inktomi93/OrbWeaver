@@ -102,6 +102,8 @@ export interface ProfileDirImportDeps {
   readonly storeAvatar: ImportAssetPort["store"];
   readonly attachCardTag: ImportTagPort["attachCardTagByName"];
   readonly importLorebook?: ImportWorldInfoPort["importLorebook"];
+  /** Travels with `importLorebook` (#1598 — the edited-primary guard). */
+  readonly hasPrimaryBook?: ImportWorldInfoPort["hasPrimaryBook"];
   readonly linkCarriedBooks?: ImportWorldInfoPort["linkCarriedBooks"];
   /** D121-E: the regex card LIFT. The composition ALWAYS supplied this (`portability-runner.ts`'s shared
    *  `profileImport` slice) but the field was never declared here, so the driver silently dropped it and
@@ -948,6 +950,7 @@ function contextFor(deps: ProfileDirImportDeps, store: ImportAssetPort["store"])
     storeAvatar: store,
     attachCardTag: deps.attachCardTag,
     ...(deps.importLorebook !== undefined ? { importLorebook: deps.importLorebook } : {}),
+    ...(deps.hasPrimaryBook !== undefined ? { hasPrimaryBook: deps.hasPrimaryBook } : {}),
     ...(deps.linkCarriedBooks !== undefined ? { linkCarriedBooks: deps.linkCarriedBooks } : {}),
     ...(deps.importCardScripts !== undefined ? { importCardScripts: deps.importCardScripts } : {}),
     profile: {

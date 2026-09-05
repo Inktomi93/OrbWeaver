@@ -32,6 +32,10 @@ const V3_CARD = {
   },
 };
 const V3_JSON = JSON.stringify(V3_CARD);
+// Raw ST wire TEXT (snake_case by spec) — the format IS the fixture, and a string carries the wire's own
+// spelling without a naming-convention suppression.
+const CARD_WITH_BOOK_JSON =
+  '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Aria","description":"a bard","character_book":{"name":"Aria\'s World","entries":[{"keys":["kingdom"],"content":"A realm of dusk.","comment":"The Kingdom","insertion_order":10}]}}}';
 const encoder = new TextEncoder();
 const SHA256_HEX = /^[0-9a-f]{64}$/u;
 
@@ -142,6 +146,23 @@ describe("importCharacter", () => {
     await svc.importCharacter({ card: { bytes: encoder.encode(V3_JSON), filename: "aria.json" } });
 
     expect(h.lorebooks).toHaveLength(0);
+  });
+
+  test("a TAKEN primary seat skips the embedded-book plane and names the kept book (#1598)", async () => {
+    // The owner already holds a primary world book for this character — one they may have edited since the
+    // card first landed. world-info's write REPLACES an existing primary's entries, so re-asserting the card's
+    // book here would revert those edits (owner ruling 2026-09-05: it must not). The db-side proof is the int
+    // mirror; this pins that the verb ASKS the oracle and reports the skip rather than writing.
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    h.setPrimaryBookTaken(true);
+
+    const result = await svc.importCharacter({ card: { bytes: encoder.encode(CARD_WITH_BOOK_JSON), filename: "aria.json" } });
+
+    expect(h.lorebooks).toHaveLength(0);
+    expect(result.skippedOverlays).toHaveLength(1);
+    expect(result.skippedOverlays[0]).toContain("was NOT re-asserted");
+    expect(result.skippedOverlays[0]).toContain("restore door");
   });
 
   // ── PD-144 — carried attached-book references ───────────────────────────────────────────────────────

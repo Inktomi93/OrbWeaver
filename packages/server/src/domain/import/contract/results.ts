@@ -1,6 +1,6 @@
 // domain/import/contract/results — the verb result shapes.
 
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids";
 import type {
   ImportAmbiguousSpeakerName,
   ImportPresetNote,
@@ -46,7 +46,21 @@ export interface ImportCharacterResult {
    *  against the library and so reads as `reused` once the scripts have landed. */
   readonly regexScriptsLifted: number;
   readonly regexScriptsReused: number;
+  /** The card planes this import deliberately did NOT assert, each as one operator-facing line (the
+   *  {@link ImportChatFileOutcome} `skippedOverlays` model, #1598). Present even when EMPTY: "the card landed
+   *  whole" has to be legible apart from "nobody looked". Today's one member is the embedded lorebook a
+   *  re-upload KEEPS instead of replacing, because the character already holds a primary book the owner may
+   *  have edited since (the restore verb is how they ask for the card's version back). */
+  readonly skippedOverlays: readonly string[];
 }
+
+/** The RESTORE door's outcome (#1598). Never throws for a bad/unmatched card — the refusal is a value the
+ *  calling door renders, exactly like {@link ImportChatFileOutcome}. `replaced:false` means the character
+ *  held no primary book at all and the card's book was landed fresh (a restore onto a character whose book
+ *  was deleted is still a restore). */
+export type RestoreCharacterBookResult =
+  | { readonly ok: true; readonly characterId: CharacterId; readonly worldBookId: WorldBookId; readonly entryCount: number; readonly replaced: boolean }
+  | { readonly ok: false; readonly error: string };
 
 /** backfillEnqueued: whether the run enqueued a memory-backfill (only when ≥1 real_conversation chat was written).
  *  `unresolvedPinnedPersonas` is the honest half of §5.7: the chats whose ST chat-bound persona pick named

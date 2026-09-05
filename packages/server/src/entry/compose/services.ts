@@ -885,6 +885,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       storeAvatar: assets.store,
       attachCardTag: tag.attachCardTagByName,
       importLorebook: importWorldInfo.importLorebook,
+      hasPrimaryBook: importWorldInfo.hasPrimaryBook,
       linkCarriedBooks: importWorldInfo.linkCarriedBooks,
       importCardScripts: regexCompose.importCardScripts,
     });

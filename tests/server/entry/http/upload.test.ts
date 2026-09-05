@@ -2,7 +2,8 @@
 // [authCsrfGuard, bodyCap, handler]; the guard 401s the anonymous caller + 403s a cookie mutation missing
 // the CSRF header (BEFORE the body is read); the asset route validates file + kind (400) and calls store
 // with enforceMagic:true + a maxBytes cap; the import route delegates to run-profile-import (400 with no
-// files; otherwise the per-card outcome). Hono isn't test-resolvable, so the registrars run over a captured
+// files; otherwise the per-card outcome); and the #1598 card-lorebook RESTORE door refuses — as a 400 body,
+// never a throw — a card no character of this owner was imported from. Hono isn't test-resolvable, so the registrars run over a captured
 // mock app + context: the belt CHAIN is captured per route, business tests drive the final handler directly,
 // and the guard is exercised on its own (its 401/403/next behavior is the CSRF pin).
 
@@ -27,6 +28,11 @@ const OWNER: Principal = {
 const ASSET_ROUTE = "POST /api/assets/upload";
 const IMPORT_ROUTE = "POST /api/import";
 const CARD_JSON = '{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":"Tester","description":"A test character."}}';
+const LOREBOOK_RESTORE_ROUTE = "POST /api/import/restore-card-lorebook";
+// The #1598 restore door reads a card's EMBEDDED book, so its fixture must carry one (raw ST wire TEXT —
+// snake_case by spec — so the fixture states the interchange spelling without a naming suppression).
+const CARD_JSON_WITH_BOOK =
+  '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Tester","description":"A test character.","character_book":{"name":"Test World","entries":[{"keys":["k"],"content":"c","comment":"C","insertion_order":1}]}}}';
 
 interface MockCtx {
   readonly get: (key: string) => Principal | null;
@@ -140,6 +146,9 @@ const noopTag: ImportTagPort = {
 // A no-op embedded-lorebook port (the W1 write is proven in the world-info + run-profile-import suites).
 const noopWorldInfo: ImportWorldInfoPort = {
   importLorebook: () => Promise.resolve({ worldBookId: castId<WorldBookId>("wbk_0"), entryCount: 0, replaced: false }),
+  // #1598: no character in this suite already holds a primary book, so the seat always reads FREE and the
+  // import route's embedded-book plane behaves exactly as it did before the guard existed.
+  hasPrimaryBook: () => Promise.resolve(false),
   linkCarriedBooks: () => Promise.resolve({ linked: 0, skipped: 0 }),
 };
 // The databank doc-ingest route is exercised in the databank domain suite; this suite only needs the port to
@@ -294,14 +303,51 @@ describe("registerUpload — import delegate", () => {
   });
 });
 
+describe("registerUpload — the #1598 card-lorebook RESTORE door", () => {
+  test("anonymous → 401", async () => {
+    const res = await handlerFor(okDeps, LOREBOOK_RESTORE_ROUTE)(makeCtx(null, new FormData()));
+    expect(res.status).toBe(401);
+  });
+
+  test("no card file → 400", async () => {
+    const res = await handlerFor(okDeps, LOREBOOK_RESTORE_ROUTE)(makeCtx(OWNER, new FormData()));
+    expect(res.status).toBe(400);
+  });
+
+  test("a card this owner never imported → 400 carrying the verb's own refusal (never a throw)", async () => {
+    // `creatingCharacter.findByImportHash` always misses, which IS the refusal arm: a restore may only land
+    // on the character those exact bytes imported as.
+    const form = new FormData();
+    form.append("file", new File([new TextEncoder().encode(CARD_JSON_WITH_BOOK)], "Aria.json", { type: "application/json" }));
+    const res = await handlerFor(okDeps, LOREBOOK_RESTORE_ROUTE)(makeCtx(OWNER, form));
+    expect(res.status).toBe(400);
+    expect((await res.json()) as { ok: boolean; error: string }).toStrictEqual({
+      ok: false,
+      error: expect.stringContaining("No character of yours was imported from this exact card file"),
+    });
+  });
+
+  test("a card that DID import → 200 with the world-info write's own result", async () => {
+    const importedDeps: UploadDeps = {
+      ...okDeps,
+      character: { ...creatingCharacter, findByImportHash: () => Promise.resolve({ characterId: castId<CharacterId>("chr_1") }) },
+    };
+    const form = new FormData();
+    form.append("file", new File([new TextEncoder().encode(CARD_JSON_WITH_BOOK)], "Aria.json", { type: "application/json" }));
+    const res = await handlerFor(importedDeps, LOREBOOK_RESTORE_ROUTE)(makeCtx(OWNER, form));
+    expect(res.status).toBe(200);
+    expect((await res.json()) as { ok: boolean; characterId: CharacterId }).toMatchObject({ ok: true, characterId: "chr_1" });
+  });
+});
+
 describe("registerUpload — auth+CSRF guard (belt order, before the body is read)", () => {
-  test("both routes mount [authCsrfGuard, bodyCap, handler] — auth runs BEFORE the body cap", () => {
-    for (const key of [ASSET_ROUTE, IMPORT_ROUTE]) {
+  test("every mutating route mounts [authCsrfGuard, bodyCap, handler] — auth runs BEFORE the body cap", () => {
+    for (const key of [ASSET_ROUTE, IMPORT_ROUTE, LOREBOOK_RESTORE_ROUTE]) {
       expect(chainFor(okDeps, key)).toHaveLength(3);
     }
   });
 
-  for (const key of [ASSET_ROUTE, IMPORT_ROUTE]) {
+  for (const key of [ASSET_ROUTE, IMPORT_ROUTE, LOREBOOK_RESTORE_ROUTE]) {
     test(`${key}: anonymous → 401, never reaches next (no body buffered)`, async () => {
       const { status, nexted } = await runGuard(okDeps, key, guardCtx(null));
       expect(status).toBe(401);

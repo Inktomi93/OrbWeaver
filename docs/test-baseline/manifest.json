@@ -1224,6 +1224,7 @@
     "tests/server/domain/import/verbs/import-personas.test.ts",
     "tests/server/domain/import/verbs/import-presets.test.ts",
     "tests/server/domain/import/verbs/import-themes.test.ts",
+    "tests/server/domain/import/verbs/restore-character-book.int.test.ts",
     "tests/server/domain/import/workload-contributions.test.ts",
     "tests/server/domain/notifications/persistence/queries.int.test.ts",
     "tests/server/domain/notifications/verbs/list.int.test.ts",

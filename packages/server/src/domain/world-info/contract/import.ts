@@ -14,12 +14,25 @@ export interface WorldInfoImportContext {
   readonly newEntryId: () => WorldEntryId;
 }
 
-/** Throws DomainNotFoundError when the target character isn't the caller's. */
+/** Throws DomainNotFoundError when the target character isn't the caller's.
+ *
+ *  DESTRUCTIVE ON AN EXISTING PRIMARY (owner ruling 2026-09-05, #1598): the existing primary book is
+ *  REPLACED in place (header update + full entry delete/reinsert), so this op is the RESTORE door's
+ *  semantic — "the card file is the source of truth, put its book back" — never the plain re-upload's. A
+ *  caller that may be re-uploading a card the owner already imported asks {@link HasPrimaryBook} first and
+ *  skips this op when the seat is taken; the owner's edits win. */
 export type BulkImportLorebook = (args: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly book: BulkImportLorebookInput;
 }) => Promise<BulkImportLorebookResult>;
+
+/** Does this character already hold a PRIMARY book? The non-destructiveness oracle for a card re-upload
+ *  (#1598): {@link BulkImportLorebook} REPLACES an existing primary's entries, which reverts the owner's
+ *  edits to a book they have since curated, so the card-import verb consults this and skips the embedded-book
+ *  plane when the seat is taken. Owner-scoped through the character (a character that is not the caller's
+ *  answers `false` — it holds no primary the caller can see, and every write path gates ownership again). */
+export type HasPrimaryBook = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<boolean>;
 
 // ── the STANDALONE (unattached) path — the worlds/*.json portability lane ──────────
 

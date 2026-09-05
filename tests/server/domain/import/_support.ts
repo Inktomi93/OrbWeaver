@@ -87,6 +87,11 @@ export interface ImportHarness {
   /** Set what the fake `linkCarriedBooks` returns for the NEXT calls (default: links every carried ref). The
    *  verb skips the embedded-clone fallback when `linked > 0`, so this drives the same-vs-foreign-install split. */
   readonly setLinkOutcome: (outcome: (refs: readonly AttachedBookRef[]) => { linked: number; skipped: number }) => void;
+  /** Seed the #1598 primary-book seat oracle: `true` makes the fake `hasPrimaryBook` answer TAKEN, which is
+   *  what makes the card-import verb SKIP the embedded-book plane (and say so in `skippedOverlays`). Wired
+   *  here, not only in the int mirror, because the op travels with `importLorebook` on world-info's one
+   *  import port — a harness carrying one without the other is not a composition that can exist. */
+  readonly setPrimaryBookTaken: (taken: boolean) => void;
   /** Seed the byte-identical dedup oracle: a re-import with this `importHash` resolves to `characterId`. */
   readonly setExisting: (importHash: string, characterId: CharacterId) => void;
   /** Seed the PD-108 (ownerId, handle) match oracle: a re-import deriving this `handle` resolves to
@@ -106,6 +111,7 @@ export function makeHarness(): ImportHarness {
   const lorebooks: LorebookCall[] = [];
   const linkBooks: LinkBooksCall[] = [];
   let linkOutcome: (refs: readonly AttachedBookRef[]) => { linked: number; skipped: number } = (refs) => ({ linked: refs.length, skipped: 0 });
+  let primaryBookTaken = false;
   const existingByHash = new Map<string, CharacterId>();
   const existingByHandle = new Map<string, CharacterId>();
   let created = 0;
@@ -150,6 +156,7 @@ export function makeHarness(): ImportHarness {
         replaced: false,
       });
     },
+    hasPrimaryBook: (): Promise<boolean> => Promise.resolve(primaryBookTaken),
     linkCarriedBooks: (args) => {
       linkBooks.push(args);
       return Promise.resolve(linkOutcome(args.refs));
@@ -170,6 +177,9 @@ export function makeHarness(): ImportHarness {
     linkBooks,
     setLinkOutcome: (outcome): void => {
       linkOutcome = outcome;
+    },
+    setPrimaryBookTaken: (taken): void => {
+      primaryBookTaken = taken;
     },
     setExisting: (importHash, characterId): void => {
       existingByHash.set(importHash, characterId);

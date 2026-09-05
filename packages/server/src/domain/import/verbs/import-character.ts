@@ -3,8 +3,8 @@
 // per-owner handle (a name-slug collision suffixes the HANDLE only, never the display name — two distinct
 // "Emily" cards are two characters) → create fresh with provenance + CAS-store avatar → attach tags → re-link
 // carried attached-book references (PD-144), else carry the embedded lorebook clone (the fallback when no
-// reference resolves on this install). All cross-feature ops are injected via context.ts — import never reads
-// a db table directly.
+// reference resolves on this install, and only into a FREE primary seat — #1598). All cross-feature ops are
+// injected via context.ts — import never reads a db table directly.
 //
 // THE DEDUP HIT FINISHES THE IMPORT; IT DOES NOT SKIP IT (#1470). A card lands as a character row PLUS three
 // overlay planes (tags · books · scripts), each its own awaited op, so a throw after the create commits a
@@ -88,14 +88,37 @@ interface CarriedContent {
   readonly attachedRegexScripts: readonly RegexScriptId[];
 }
 
+/** The operator-facing line a KEPT book puts on the outcome. One spelling, so the report, the bundle notes
+ *  and the tests all say the same thing. */
+const BOOK_KEPT_NOTE =
+  "the card's embedded lorebook was NOT re-asserted — this character already holds a primary world book, and your edits to it win (use the card lorebook restore door to put the card's version back)";
+
+/** #1598: is the character's PRIMARY book seat already taken? A re-upload of the same card file re-runs every
+ *  overlay plane (#1470), and the embedded-book plane is the one that is not idempotent — world-info's write
+ *  REPLACES an existing primary's entries, reverting whatever the owner has since edited into that book. So
+ *  the plane is skipped when the seat is taken and the outcome SAYS so; the explicit restore verb is the
+ *  opt-in path back to the card's own version (owner ruling 2026-09-05).
+ *
+ *  An UNWIRED oracle answers "free": it travels with `importLorebook` on world-info's one import port, so a
+ *  composition that can write the book can always ask — the only ctx without it is one whose `importLorebook`
+ *  is itself a stand-in. */
+function primaryBookTaken(ctx: ImportContext, characterId: CharacterId): Promise<boolean> {
+  if (ctx.hasPrimaryBook === undefined) {
+    return Promise.resolve(false);
+  }
+  return ctx.hasPrimaryBook({ ownerId: ctx.ownerId, characterId });
+}
+
 /**
  * Attach everything the card carried, after the character row exists. Extracted from the verb so the verb
  * reads as its own story (parse → dedupe → write → attach) and the two channels' DIFFERENT rules sit
  * together where they can be compared:
  *
- *  • LOREBOOK is either/or. A resolved reference IS the book on this install, so when ANY reference links
- *    we SKIP the embedded clone — cloning it would duplicate the book (double primary). The clone is the
- *    fallback for a foreign install (no reference resolved) and for cards carrying no references at all.
+ *  • LOREBOOK is either/or, and never destructive. A resolved reference IS the book on this install, so when
+ *    ANY reference links we SKIP the embedded clone — cloning it would duplicate the book (double primary).
+ *    The clone is the fallback for a foreign install (no reference resolved) and for cards carrying no
+ *    references at all, and it lands ONLY into a FREE primary seat (#1598): a taken seat holds a book the
+ *    owner may have edited, and world-info's write would replace its entries wholesale.
  *  • REGEX takes BOTH channels at once and resolves them INTERNALLY (`planCardLift`): a carried reference
  *    this owner holds attaches the existing row, and a by-value script content-dedups against the library,
  *    minting only when genuinely new. So a same-install re-import produces zero duplicate rows and a
@@ -110,11 +133,17 @@ async function attachCarriedContent(
   readonly attachedBooksSkipped: number;
   readonly regexScriptsLifted: number;
   readonly regexScriptsReused: number;
+  readonly skippedOverlays: readonly string[];
 }> {
   const { linked: attachedBooksLinked, skipped: attachedBooksSkipped } = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
+  const skippedOverlays: string[] = [];
 
   if (ctx.importLorebook !== undefined && carried.book !== null && attachedBooksLinked === 0) {
-    await ctx.importLorebook({ ownerId: ctx.ownerId, characterId, book: carried.book });
+    if (await primaryBookTaken(ctx, characterId)) {
+      skippedOverlays.push(BOOK_KEPT_NOTE);
+    } else {
+      await ctx.importLorebook({ ownerId: ctx.ownerId, characterId, book: carried.book });
+    }
   }
 
   let regexScriptsLifted = 0;
@@ -130,7 +159,7 @@ async function attachCarriedContent(
     regexScriptsReused = lift.reused;
   }
 
-  return { attachedBooksLinked, attachedBooksSkipped, regexScriptsLifted, regexScriptsReused };
+  return { attachedBooksLinked, attachedBooksSkipped, regexScriptsLifted, regexScriptsReused, skippedOverlays };
 }
 
 /** EVERY plane a card lands beyond the character row, in one place — because BOTH arms of the verb run it
@@ -146,6 +175,7 @@ async function attachAllPlanes(
   readonly attachedBooksSkipped: number;
   readonly regexScriptsLifted: number;
   readonly regexScriptsReused: number;
+  readonly skippedOverlays: readonly string[];
 }> {
   await attachCardTags(ctx, characterId, tags);
   return await attachCarriedContent(ctx, characterId, carried);
@@ -187,10 +217,10 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
       // recorded the character as unfinished. So a re-import re-runs the overlays and reports what actually
       // landed. It is safe to re-run because every plane is idempotent for the same (character, card) pair —
       // the tag attach is race-safe and by name, the carried re-link is `onConflictDoNothing` on its junction
-      // PK, the script lift content-dedups against the library, and the embedded-book clone takes world-info's
-      // documented SAME-CHARACTER RE-IMPORT path (an in-place edit of this character's primary book, never a
-      // second book). What it is NOT is a no-op: a re-uploaded card re-asserts its own content, which is the
-      // semantic the owning domains already define for a re-import.
+      // PK, and the script lift content-dedups against the library. The embedded-book plane was the ONE that
+      // is not idempotent (world-info REPLACES an existing primary's entries), so it is now SKIPPED when the
+      // character already holds a primary — the owner's edits win, the outcome names the kept book, and the
+      // restore verb is the opt-in way back to the card's version (#1598, owner ruling 2026-09-05).
       const reconciled = await attachAllPlanes(ctx, existing, tags, carried);
       return { characterId: existing, created: false, importHash, ...reconciled };
     }

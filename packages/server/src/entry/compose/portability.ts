@@ -50,6 +50,8 @@ export interface PortabilityDeps {
   readonly storeAvatar: ImportAssetPort["store"];
   readonly attachCardTag: ImportTagPort["attachCardTagByName"];
   readonly importLorebook: ImportWorldInfoPort["importLorebook"];
+  /** #1598 — the seat oracle that keeps a re-uploaded card from replacing an edited primary book. */
+  readonly hasPrimaryBook: ImportWorldInfoPort["hasPrimaryBook"];
   /** D121-E: the card LIFT — threaded into every per-owner `ImportContext` so a bundled character card's
    *  scripts land as library rows + a junction attachment (never a by-value copy on the character row). */
   readonly importCardScripts: ImportCardScripts;
@@ -77,6 +79,7 @@ async function buildOwnerImport(deps: PortabilityDeps, ownerId: UserId): Promise
     storeAvatar: deps.storeAvatar,
     attachCardTag: deps.attachCardTag,
     importLorebook: deps.importLorebook,
+    hasPrimaryBook: deps.hasPrimaryBook,
     linkCarriedBooks: deps.linkCarriedBooks,
     importCardScripts: deps.importCardScripts,
     profile: {

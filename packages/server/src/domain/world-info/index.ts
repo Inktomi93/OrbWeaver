@@ -11,6 +11,7 @@ export type {
   AttachOwnedBooksByName,
   BulkImportLorebook,
   CopyCharacterBooks,
+  HasPrimaryBook,
   ImportStandaloneLorebook,
   ImportWorldBook,
   ImportWorldBookContext,
@@ -33,6 +34,7 @@ export { createCopyHandoffBooks } from "./persistence/handoff-copy-write.ts";
 export {
   createAttachOwnedBooksByName,
   createBulkImportLorebook,
+  createHasPrimaryBook,
   createImportStandaloneLorebook,
 } from "./persistence/import-write.ts";
 export { createLinkCarriedBooks } from "./persistence/link-carried-books.ts";

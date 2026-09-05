@@ -2,8 +2,13 @@
 // exception to "persistence is queries only": commits an imported card's embedded character_book as
 // world_books + world_entries + the primary character_books attach.
 //
-// Same-character re-import: an existing primary book is edited in place (header update + full entry
-// delete+reinsert), keeping the same worldBookId + attach.
+// AN EXISTING PRIMARY IS REPLACED IN PLACE (header update + full entry delete+reinsert), keeping the same
+// worldBookId + attach. THAT IS THE RESTORE DOOR'S SEMANTIC, NOT THE RE-UPLOAD'S (owner ruling 2026-09-05,
+// #1598): re-uploading a card file the owner already imported must NOT revert their edits to the book it
+// carried, so the card-import verb asks `createHasPrimaryBook` first and skips this op when the seat is
+// taken. The one caller that WANTS the replace is the explicit restore verb
+// (`domain/import/verbs/restore-character-book.ts`), where "the card file is the source of truth" is the
+// thing the owner asked for. `replaced: true` reports it either way.
 //
 // CENTRAL DEDUP (owner ruling 2026-08-19, issue #303 — "one source of books"): when the character has no
 // primary yet, the embedded book is CONTENT-matched against the owner's existing library BEFORE minting
@@ -23,7 +28,7 @@ import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "../contract/book-dedup.ts";
-import type { AttachOwnedBooksByName, BulkImportLorebook, ImportStandaloneLorebook, WorldInfoImportContext } from "../contract/import.ts";
+import type { AttachOwnedBooksByName, BulkImportLorebook, HasPrimaryBook, ImportStandaloneLorebook, WorldInfoImportContext } from "../contract/import.ts";
 import { findDuplicateBook } from "../substrate/book-dedup.ts";
 
 /** The FK would fail-closed anyway, but the explicit check gives a typed DomainNotFoundError. */
@@ -45,6 +50,25 @@ async function findPrimaryBookId(db: Db, characterId: CharacterId): Promise<Worl
     .where(and(eq(characterBooks.characterId, characterId), eq(characterBooks.role, "primary")))
     .limit(1);
   return rows[0]?.worldBookId ?? null;
+}
+
+/**
+ * The #1598 non-destructiveness oracle: does this character already hold a PRIMARY book? Owner-scoped by
+ * JOINING the character (a character that is not the caller's answers `false` rather than leaking that some
+ * OTHER account's character holds a book). A READ in the import-write file on purpose: it reads exactly the
+ * row {@link createBulkImportLorebook} would replace, off the same `findPrimaryBookId` seam, so the oracle
+ * and the write it guards cannot drift apart.
+ */
+export function createHasPrimaryBook(ctx: Pick<WorldInfoImportContext, "db">): HasPrimaryBook {
+  return async ({ ownerId, characterId }): Promise<boolean> => {
+    const rows = await ctx.db
+      .select({ worldBookId: characterBooks.worldBookId })
+      .from(characterBooks)
+      .innerJoin(characters, eq(characters.id, characterBooks.characterId))
+      .where(and(eq(characterBooks.characterId, characterId), eq(characterBooks.role, "primary"), eq(characters.ownerId, ownerId)))
+      .limit(1);
+    return rows[0] !== undefined;
+  };
 }
 
 function entryStmts(ctx: WorldInfoImportContext, worldBookId: WorldBookId, book: Parameters<BulkImportLorebook>[0]["book"], at: number): BatchStmt[] {

@@ -60,6 +60,10 @@ export interface ImportWorldInfoPort {
     readonly characterId: CharacterId;
     readonly book: BulkImportLorebookInput;
   }) => Promise<BulkImportLorebookResult>;
+  /** The #1598 non-destructiveness oracle, REQUIRED on this port precisely because `importLorebook` REPLACES
+   *  an existing primary book's entries: any composition that can write the embedded book must also be able
+   *  to ask whether doing so would overwrite a book the owner has edited. Same object, one wiring. */
+  readonly hasPrimaryBook: (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<boolean>;
   readonly linkCarriedBooks: (params: {
     readonly ownerId: UserId;
     readonly characterId: CharacterId;
@@ -75,6 +79,8 @@ export interface ImportContextWiring {
   readonly storeAvatar: ImportAssetPort["store"];
   readonly attachCardTag: ImportTagPort["attachCardTagByName"];
   readonly importLorebook?: ImportWorldInfoPort["importLorebook"];
+  /** Travels with `importLorebook` (both come off the one {@link ImportWorldInfoPort}) — #1598. */
+  readonly hasPrimaryBook?: ImportWorldInfoPort["hasPrimaryBook"];
   readonly linkCarriedBooks?: ImportWorldInfoPort["linkCarriedBooks"];
   /** D121-E: the regex card LIFT (the `importLorebook` twin). Optional for the same reason: the card-only
    *  slice may omit it; the delivery composition always supplies it. */
@@ -87,7 +93,7 @@ export interface ImportContextWiring {
  * optional `importLorebook`/`profile` are spread only when defined, never assigned `undefined`.
  */
 export function buildImportContext(wiring: ImportContextWiring): ImportContext {
-  const { principal, character, storeAvatar, attachCardTag, importLorebook, linkCarriedBooks, importCardScripts, profile } = wiring;
+  const { principal, character, storeAvatar, attachCardTag, importLorebook, hasPrimaryBook, linkCarriedBooks, importCardScripts, profile } = wiring;
   const ownerId = principal.userId;
   const ctx: ImportContext = {
     ownerId,
@@ -123,6 +129,7 @@ export function buildImportContext(wiring: ImportContextWiring): ImportContext {
     // Author-shipped card tags land as card/pending suggestions (the user's "Accept" flips them later).
     attachCardTag: ({ characterId, tagName }) => attachCardTag({ ownerId, characterId, tagName, source: "card", status: "pending" }),
     ...(importLorebook !== undefined ? { importLorebook } : {}),
+    ...(hasPrimaryBook !== undefined ? { hasPrimaryBook } : {}),
     ...(linkCarriedBooks !== undefined ? { linkCarriedBooks } : {}),
     ...(importCardScripts !== undefined ? { importCardScripts } : {}),
     ...(profile !== undefined ? { profile } : {}),

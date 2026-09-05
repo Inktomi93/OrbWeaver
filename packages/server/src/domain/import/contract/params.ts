@@ -29,6 +29,14 @@ export interface ImportCharacterInput {
   readonly card: ImportCardInput;
 }
 
+/** `restoreCharacterBook` input (#1598) — the SAME card bytes the owner imported from, re-uploaded on
+ *  purpose. The card identifies its own character (the `(ownerId, importHash)` dedup oracle), so there is no
+ *  caller-supplied character id to mis-aim: a restore can only ever land on the character those exact bytes
+ *  imported as. */
+export interface RestoreCharacterBookInput {
+  readonly card: ImportCardInput;
+}
+
 /** `importOrphanCharacter` input — an ORPHAN chats/ directory (transcripts whose card PNG is absent from
  *  the profile) gets a MINIMAL placeholder character minted from the directory's own evidence, so its
  *  chats can import instead of being skipped (7 real dirs on the 2026-08-15 corpus run). `headerNames` are
