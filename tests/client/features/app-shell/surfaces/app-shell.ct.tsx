@@ -66,6 +66,17 @@ const SHELL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   "databank.bankHealth": EMPTY_BANK_HEALTH,
   // `RefinerySessionSummary[]` — the refinery door's roster read off the You sheet.
   "refinery.listSessions": [],
+  // THE TOPBAR-TRAIL INBOX BELL (#1627, #1663). The bell used to be gated on `multiHumanCapable`, which is
+  // FALSE for every mount in this file that does not stub `/api/auth/config` — so the widget did not mount
+  // and its read never fired, and only the three `seatNotificationBell` topbar-identity tests had to feed it.
+  // #1627 retired the gate (`notifications-chrome.tsx` says so in its header: "IT HAS NO VISIBILITY GATE"),
+  // so EVERY mount in this file now runs the bell's `useInbox` for real and an unfed read leaves that
+  // pipeline INERT across the whole file — which is exactly what the ratchet named.
+  //
+  // An EMPTY inbox is the honest ambient default: no mount here has the inbox as its subject, and a badged
+  // bell would only add noise to the topbar-width and trail-order assertions. Same shape and same reasoning
+  // as `tests/client/routes/app-root.ct.tsx:102`, which fed it ambiently for the same reason.
+  "notifications.list": { items: [], nextCursor: null },
   // The home temp-chat tile's fire-and-forget janitor mutation. A CASCADE row: it is not in the #649 ledger
   // for this file because the tile could not mount at all while `databank.list`/`bankHealth` answered null —
   // the ratchet named it on the very next run once they were fed. `{reaped: 0}` is the honest "nothing
@@ -2040,12 +2051,8 @@ async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" 
 }
 
 test("#846: at 1280 with BOTH panes docked the topbar yields the room's name + chips to the context band — the avatars stay", async ({ mount, page }) => {
-  // The bell brings its own inbox read into the tree — FED, not declared.
-  await routeTrpc(page, {
-    ...SHELL_AMBIENT_ROUTES,
-    "chat.getChat": () => TOPBAR_IDENTITY_ROOM,
-    "notifications.list": () => ({ items: [], nextCursor: null }),
-  });
+  // The bell brings its own inbox read into the tree — FED ambiently by `SHELL_AMBIENT_ROUTES`, not declared.
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
   await seatNotificationBell(page);
   await page.setViewportSize({ width: 1280, height: 800 });
   // WITH THE BAND: the shed's condition is that the band NAMES the room (`shell.css` keys on it with
@@ -2064,11 +2071,7 @@ test("#846: with the context pane COLLAPSED the topbar names the room WHOLE, chi
   mount,
   page,
 }) => {
-  await routeTrpc(page, {
-    ...SHELL_AMBIENT_ROUTES,
-    "chat.getChat": () => TOPBAR_IDENTITY_ROOM,
-    "notifications.list": () => ({ items: [], nextCursor: null }),
-  });
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
   await seatNotificationBell(page);
   await page.setViewportSize({ width: 1280, height: 800 });
   const shell = await mount(<AppShellChatTopbarIdentityStory />);
@@ -2123,11 +2126,7 @@ for (const arm of TOPBAR_YIELD_ARMS) {
     mount,
     page,
   }) => {
-    await routeTrpc(page, {
-      ...SHELL_AMBIENT_ROUTES,
-      "chat.getChat": () => TOPBAR_IDENTITY_ROOM,
-      "notifications.list": () => ({ items: [], nextCursor: null }),
-    });
+    await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.getChat": () => TOPBAR_IDENTITY_ROOM });
     await seatNotificationBell(page);
     await page.setViewportSize({ width: arm.width, height: arm.height });
     const shell = await mount(<AppShellChatTopbarIdentityStory withBand={true} />);

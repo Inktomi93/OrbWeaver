@@ -175,7 +175,14 @@ test("the rail is navigable by name", async ({ mount, page }) => {
 });
 
 test("the app shell is navigable by name", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW, ...VIEWER_IDENTITY_ROUTES });
+  // The topbar-trail inbox bell (#1627 retired its `multiHumanCapable` gate, so it mounts for every authed
+  // principal now) brings its own `useInbox` read into the shell tree — FED empty rather than left on
+  // routeTrpc's null fulfil, so the bell this suite must name renders its real empty-inbox lens (#1663).
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    ...VIEWER_IDENTITY_ROUTES,
+    "notifications.list": { items: [], nextCursor: null },
+  });
   const shell = await mount(<AppShellStory />);
   await expect(shell.getByRole("main")).toBeVisible();
   await expectEveryNameNavigable(page, "app shell");
