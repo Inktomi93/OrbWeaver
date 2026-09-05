@@ -3,10 +3,20 @@
 // scripts/), it drives the supervisor against a FAKE vitest via ORB_VITEST_BIN and asserts:
 //   1. a clean child (exit 0) is mirrored;
 //   2. a failing child (exit 1) is mirrored;
-//   3. a WEDGED child that wrote a COMPLETE-pass report is killed and reported exit 0 (the self-heal);
-//   4. a WEDGED child that wrote a crashed-worker report (success:true but a VANISHED test) is reported
-//      exit 1 — the #345 non-negotiable that the supervisor NEVER returns a false green — and its whole
+//   3. a WEDGED child that wrote a COMPLETE-pass report is killed and reported exit 2 — a TOOL ERROR;
+//   4. a WEDGED child that wrote a crashed-worker report (success:true but a VANISHED test) is also exit 2
+//      — the #345 non-negotiable that the supervisor NEVER returns a false green — and its whole
 //      process group is dead afterwards (nothing survives the kill);
+//
+//   RULING FORK, STATED (#1490, 2026-09-04). Item 3 used to read "…and reported exit 0 (the self-heal)",
+//   and that arm passed for as long as it existed. The new finding is that the exit code was the lie: the
+//   watchdog SIGKILLed a vitest that never finalized, the supervisor read a 0 off the report the corpse
+//   left, and `pnpm verify --push` — which keys on the exit code — read a killed run as green. The
+//   SELF-HEAL MECHANISM survives untouched: such a shard is still not re-run (re-running buys another
+//   wedge lottery ticket), its report is still the shard's verdict, and the containment log still fires.
+//   Only the process exit changed, to the repo's tool-error code. The arm below is the same fixture with
+//   the honest number; a shard that wedges and then RE-RUNS to a natural exit is still 0 (the retry arm at
+//   the bottom of this file is that positive control, unchanged).
 //   5. #1012 SHARDING: two `--project` flags run TWO child processes, each with its OWN shard report, and
 //      the merged `--outputFile.json` sums them and names the shards;
 //   6. #1012 CONTAINMENT: one shard wedging does NOT cost the other shard's verdict, and a wedged shard is
@@ -184,9 +194,12 @@ test("mirrors a failing child's exit 1", { timeout: scaledBudget(15_000) }, asyn
   expect(res.code).toBe(1);
 });
 
-test("kills a wedged child that wrote a COMPLETE pass and reports exit 0", { timeout: scaledBudget(15_000) }, async () => {
+test("kills a wedged child that wrote a COMPLETE pass and reports exit 2 — TOOL ERROR, never 0 (#1490)", { timeout: scaledBudget(15_000) }, async () => {
+  // THE #1490 DEFECT, exactly: the child wrote a clean report and THEN wedged, so `verdictFromReport` said
+  // 0, the re-run (which only fires on a non-zero code) never ran, and the supervisor exited 0 about a run
+  // it had to SIGKILL. The pre-push bar keys on this number.
   const res = await runSupervisor({ mode: "hang-pass", reportFile: join(dir, "rpass.json") });
-  expect(res.code).toBe(0);
+  expect(res.code).toBe(2);
 });
 
 test("resolves and runs the REAL default vitest entry (not the .bin sh shim) — a light project exits 0", { timeout: scaledBudget(60_000) }, async () => {
@@ -202,14 +215,16 @@ test("resolves and runs the REAL default vitest entry (not the .bin sh shim) —
   expect(res.code).toBe(0);
 });
 
-test("a wedged child whose report hides a crashed worker is reported exit 1, and its group is dead", { timeout: scaledBudget(15_000) }, async () => {
+test("a wedged child whose report hides a crashed worker is NOT green, and its group is dead", { timeout: scaledBudget(15_000) }, async () => {
   const report = join(dir, "rcrash.json");
   const pidFile = join(dir, "crash.pid");
   const res = await runSupervisor({ mode: "hang-crash", reportFile: report, pidFile });
   // The report literally says success:true — the supervisor MUST NOT trust it (a test vanished).
   const written = readJson<{ success: boolean }>(report);
   expect(written.success).toBe(true);
-  expect(res.code).toBe(1);
+  // Both attempts wedge, so the FINAL attempt never finalized: 2 (tool error) since #1490, where this used
+  // to be 1. The #345 non-negotiable is unchanged — the number that must never appear here is 0.
+  expect(res.code).toBe(2);
   // Group kill: the fake's own pid must be gone (nothing survives the SIGKILL). `pidFile` holds the LAST
   // attempt's pid — the #1012 retry re-runs a wedged shard once, and both attempts must be dead.
   const fakePid = Number(readFileSync(pidFile, "utf-8"));
@@ -249,7 +264,8 @@ test("the ORB_TEST_HANG_MAX_MS ceiling KILLS a busy-but-silent runaway that outl
   const report = join(cwd, "reports", "test-report.json");
   // Spins 20s; the ceiling is 3s. The child never prints again, so the ceiling clock keeps running.
   const res = await runSupervisor({ mode: "busy", reportFile: report, cwd, busyMs: "20000", hangMaxMs: "3000" });
-  expect(res.code).toBe(1);
+  expect(res.code).toBe(2); // killed by the ceiling on both attempts ⇒ tool error (#1490), never a verdict
+
   const dumps = wedgeDumps(cwd);
   expect(dumps.length).toBeGreaterThan(0);
   expect(readFileSync(dumps[0] ?? "", "utf-8")).toContain("hard ceiling");
@@ -269,7 +285,7 @@ test("still kills a child that is silent AND idle, and says so in the dump", { t
   const cwd = caseDir("idle");
   const report = join(cwd, "reports", "test-report.json");
   const res = await runSupervisor({ mode: "hang-crash", reportFile: report, cwd });
-  expect(res.code).toBe(1);
+  expect(res.code).toBe(2); // a kill is a tool error, not a verdict (#1490)
   const dumps = wedgeDumps(cwd);
   expect(dumps.length).toBeGreaterThan(0);
   expect(readFileSync(dumps[0] ?? "", "utf-8")).toContain("zero CPU across the whole process tree");
@@ -345,4 +361,20 @@ test("a shard that wedges is re-run ONCE and its wedge is recorded, while the ot
   const dump = readFileSync(dumps[0] ?? "", "utf-8");
   expect(dump).toContain("PARENT pid=");
   expect(dump).toContain("tests/unit/b.test.ts");
+});
+
+test("a SHARDED run whose shards end wedged exits 2 and its merged report is not a success (#1490)", {
+  timeout: scaledBudget(40_000),
+}, async () => {
+  const cwd = caseDir("shard-wedged");
+  const report = join(cwd, "reports", "test-report.json");
+  // Every shard writes a COMPLETE-pass report and then hangs — the shape that used to fold into a merged
+  // `success:true` and a process exit 0. The merged file is read by `pnpm check`'s consumers, so the exit
+  // code alone would not have been the whole lie.
+  const res = await runSupervisor({ mode: "hang-pass", reportFile: report, projects: ["unit", "contract"], cwd });
+  expect(res.code).toBe(2);
+  const merged = readJson<MergedReport>(report);
+  expect(merged.success, "a run whose final attempt was KILLED is not a pass, whatever the corpse's report says").toBe(false);
+  // The per-shard provenance still carries the counts — containment is recorded, not hidden.
+  expect(merged.orbShards?.every((s) => s.wedges > 0)).toBe(true);
 });

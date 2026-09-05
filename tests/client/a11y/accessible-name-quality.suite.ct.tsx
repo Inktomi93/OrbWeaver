@@ -134,6 +134,38 @@ test("the Label-in-Name predicate PASSES a label that CONTAINS the visible text,
   expect(await labelInNameFindings(page)).toEqual([]);
 });
 
+test("the Label-in-Name predicate compares WORDS, not substrings — 'art' is not in 'cart' (#1492)", async ({ mount, page }) => {
+  // THE DEFECT: `lowered.includes(word)` accepted any accessible name that merely CONTAINED the visible
+  // word's letters, so a control reading "art" under the name "Cart" passed — a real WCAG 2.5.3 violation
+  // reported as clean. The whole predicate is a lens; a lens that cannot fail on its own worked example is
+  // decoration. Both sides are tokenized with the same word regex now.
+  await mount(
+    <div>
+      <button aria-label="Cart" type="button">
+        art
+      </button>
+    </div>,
+  );
+  const findings = await labelInNameFindings(page);
+  expect(findings).toHaveLength(1);
+  expect(findings[0]?.detail).toContain('"art"');
+});
+
+test("…and the tokenizer does not over-fire: a real multi-word label still passes (#1492 positive control)", async ({ mount, page }) => {
+  await mount(
+    <div>
+      {/* The word IS in the name, as a word — and case is not a difference. */}
+      <button aria-label="Add to cart" type="button">
+        cart
+      </button>
+      <button aria-label="Add to cart" type="button">
+        Add to cart
+      </button>
+    </div>,
+  );
+  expect(await labelInNameFindings(page)).toEqual([]);
+});
+
 // ── The surfaces ────────────────────────────────────────────────────────────────────────────────────
 
 test("the rail is navigable by name", async ({ mount, page }) => {

@@ -413,13 +413,16 @@ function assertStartProbeSeam(): void {
 /** ASYNC, never spawnSync: the fake /health doors live in THIS process, and a synchronous spawn blocks
  *  the event loop that would answer them — every engine then reads as down and the arms prove nothing.
  *  (Measured while writing this pin: all three arms produced `status=boot-timeout … came-up=…never`.) */
-async function enginesStart(ports: Record<string, number>, bootTimeout: string): ReturnType<typeof spawnNiced> {
+async function enginesStart(ports: Record<string, number>, bootTimeout: string, posture = "adopt-or-start"): ReturnType<typeof spawnNiced> {
   assertStartProbeSeam();
   return await spawnNiced("bash", [ENGINES_SH, "start"], {
     env: {
       // Cleared deliberately: the suite sets it, and the boot-verdict seam lives past that early exit.
       // Empty is not one of the truthy spellings engines.sh accepts, so it falls through.
       VLLM_DISABLED: "",
+      // EXPLICIT since #1567 — spawnNiced inherits process.env, and engines.sh now gates its spawn on this
+      // value, so an ambient posture on the runner's box would decide these arms instead of the fixture.
+      ENGINES_POSTURE: posture,
       ENGINES_START_PROBE: "1",
       ENGINES_BOOT_TIMEOUT: bootTimeout,
       VLLM_EMBED_PORT: String(ports["embed"]),
@@ -479,5 +482,137 @@ test("a fleet with ONE engine still down times out, exit 1, NAMING it (#1165 pla
     await expect(res).toExitWith(1);
   } finally {
     await fleet.close();
+  }
+});
+
+// ── #1567: ENGINES_POSTURE is the SPAWN AUTHORITY, and engines.sh never read it ──────────────────────
+//
+// Owner-witnessed 2026-09-04: `.env` pins ENGINES_POSTURE=adopt-only (stack.sh's own header calls that
+// posture "ADOPTS a running fleet — never spawns one", owner ruling 2026-08-01), no fleet was running,
+// and `pnpm stack restart` put 38 GB of vLLM on the GPUs. Mechanism on the tree at the time: dev.sh
+// called `engines.sh start` unconditionally and engines.sh contained ZERO reads of ENGINES_POSTURE, so
+// its adopt-OR-start body ran under every posture. The refusal below is the missing branch.
+//
+// STILL NO HARDWARE: every arm keeps ENGINES_START_PROBE=1, so even a REGRESSED script cannot spawn —
+// and the adopt-only arm asserts the START PROBE banner is ABSENT, which is what proves the refusal
+// happens BEFORE the spawn seam rather than merely instead of it.
+test("adopt-only with nothing to adopt REFUSES to spawn, exit 0 (#1567 red-first)", { timeout: ENGINES_PROBE_TIMEOUT_MS }, async ({ skip }) => {
+  const fleet = await fakeHealthFleet({ absent: ["embed", "rerank", "gen"] });
+  try {
+    const res = await enginesStart(fleet.ports, "0", "adopt-only");
+    requireGpuHost(res.stdout, skip);
+    expect(res.stdout).toContain("adopt-only — no fleet to adopt; NOT spawning");
+    // The escape hatch must be NAMED — a refusal the operator cannot act on just gets worked around.
+    expect(res.stdout).toContain("ENGINES_POSTURE=adopt-or-start");
+    expect(res.stdout).toContain("status=adopt-only-no-fleet");
+    // The refusal precedes the spawn seam: the probe banner (printed where a real run spawns) never ran.
+    expect(res.stdout, "adopt-only must return BEFORE the spawn seam, not inside it").not.toContain("START PROBE");
+    await expect(res).toExitWith(0);
+  } finally {
+    await fleet.close();
+  }
+});
+
+test("adopt-only WITH a healthy fleet still adopts (#1567 positive control)", { timeout: ENGINES_PROBE_TIMEOUT_MS }, async ({ skip }) => {
+  const fleet = await fakeHealthFleet();
+  try {
+    const res = await enginesStart(fleet.ports, "0", "adopt-only");
+    requireGpuHost(res.stdout, skip);
+    // The whole point of adopt-only: a running fleet is USED. The refusal must not swallow that arm.
+    expect(res.stdout).toContain("status=already-up");
+    expect(res.stdout).not.toContain("no fleet to adopt");
+    await expect(res).toExitWith(0);
+  } finally {
+    await fleet.close();
+  }
+});
+
+test("posture off is a no-op start (#1567)", { timeout: ENGINES_PROBE_TIMEOUT_MS }, async ({ skip }) => {
+  const fleet = await fakeHealthFleet({ absent: ["embed", "rerank", "gen"] });
+  try {
+    const res = await enginesStart(fleet.ports, "0", "off");
+    requireGpuHost(res.stdout, skip);
+    expect(res.stdout).toContain("status=posture-off");
+    expect(res.stdout).not.toContain("START PROBE");
+    await expect(res).toExitWith(0);
+  } finally {
+    await fleet.close();
+  }
+});
+
+test("an unrecognised posture REFUSES loudly (exit 3, misuse) instead of spawning (#1567)", { timeout: ENGINES_PROBE_TIMEOUT_MS }, async () => {
+  const fleet = await fakeHealthFleet({ absent: ["embed", "rerank", "gen"] });
+  try {
+    // A typo must never fall through to "manage the fleet". This arm needs no GPU: the validation runs at
+    // the top of the script, before skip_if_disabled.
+    const res = await enginesStart(fleet.ports, "0", "adopt_only");
+    expect(res.stderr).toContain("off|adopt-only|adopt-or-start");
+    expect(res.stdout).toContain("status=bad-posture");
+    await expect(res).toExitWith(3);
+  } finally {
+    await fleet.close();
+  }
+});
+
+// ── #1567: a TERM during the engine wait must END dev.sh, never leak an orphan ───────────────────────
+//
+// The second half of the same incident. `run_leader` TERMs dev.sh when the healthz gate times out and
+// then returns, taking the process group with it. dev.sh was blocked inside `engines.sh start` (bounded
+// by ENGINES_BOOT_TIMEOUT — 900s, five times the leader's gate), bash QUEUES a trap behind a foreground
+// child, and the old handler cleaned up without exiting — so the queued signal was serviced minutes later
+// and the script CONTINUED into `node --watch`. Owner-witnessed: a dead pidfile group with an orphan
+// dev.sh reparented to `systemd --user`, holding :8788 (the earlier EADDRINUSE race, same shape).
+//
+// The fixture is a whole fake repo root: dev.sh derives $REPO from its own location, so a copy under
+// <tmp>/tooling/src/stack/ finds OUR engines.sh (a sleeper — no vLLM, no ports, no GPU) and OUR entry
+// (which touches `booted` and never exits). The proof is the marker: if it exists, the signalled script
+// went on to boot a server.
+const DEV_SH = fileURLToPath(new URL("../../../tooling/src/stack/dev.sh", import.meta.url));
+const DEV_SIGNAL_ARM_TIMEOUT_MS = scaledBudget(60_000);
+/** Generous vs the ~instant exit a fixed dev.sh makes, and far under the 30s sleeper the broken one waits
+ *  out — so neither a loaded box nor a fast one changes the verdict. */
+const DEV_SIGNAL_EXIT_GRACE_MS = scaledBudget(12_000);
+
+function fakeDevTree(): { readonly root: string; readonly marker: string } {
+  const root = mkdtempSync(path.join(tmpdir(), "orb-dev-signal-"));
+  mkdirSync(path.join(root, "tooling", "src", "stack"), { recursive: true });
+  mkdirSync(path.join(root, "packages", "server", "src", "entry"), { recursive: true });
+  mkdirSync(path.join(root, "node_modules", ".bin"), { recursive: true });
+  writeFileSync(path.join(root, "tooling", "src", "stack", "dev.sh"), readFileSync(DEV_SH, "utf8"));
+  // Stands in for a COLD engine boot: engines.sh's own wait is bounded at 900s by default, so the only
+  // thing that matters here is that dev.sh is inside a long-running foreground child when the TERM lands.
+  writeFileSync(path.join(root, "tooling", "src", "stack", "engines.sh"), "#!/usr/bin/env bash\nsleep 30\n");
+  const marker = path.join(root, "booted");
+  writeFileSync(
+    path.join(root, "packages", "server", "src", "entry", "index.ts"),
+    `import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(marker)}, "1");\nsetInterval(() => undefined, 60_000);\n`,
+  );
+  writeFileSync(path.join(root, "node_modules", ".bin", "pino-pretty"), "#!/usr/bin/env bash\ncat\n", { mode: 0o755 });
+  return { root, marker };
+}
+
+test("a TERM while dev.sh waits on engines EXITS it — no orphan server boot (#1567 red-first)", { timeout: DEV_SIGNAL_ARM_TIMEOUT_MS }, async () => {
+  const { root, marker } = fakeDevTree();
+  const child = spawn("bash", [path.join(root, "tooling", "src", "stack", "dev.sh")], { cwd: root, detached: true, stdio: "ignore" });
+  await once(child, "spawn");
+  const pid = child.pid;
+  if (pid === undefined || pid <= 1) {
+    throw new Error("#1567 fixture: the disposable dev.sh did not receive a safe pid");
+  }
+  try {
+    // Land the signal while the script is INSIDE the engines wait — the exact window the orphan came from.
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(existsSync(marker), "the fixture must signal BEFORE any server boot, or it proves nothing").toBe(false);
+    process.kill(pid, "SIGTERM");
+    const exited = await Promise.race([
+      once(child, "exit").then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), DEV_SIGNAL_EXIT_GRACE_MS)),
+    ]);
+    expect(exited, "dev.sh must act on TERM immediately, not queue it behind the engines wait").toBe(true);
+    // The orphan's signature: the signalled script went on to bind the server anyway.
+    expect(existsSync(marker), "a signalled dev.sh must NEVER go on to boot the watched server").toBe(false);
+  } finally {
+    killGroup(pid);
+    rmSync(root, { recursive: true, force: true });
   }
 });

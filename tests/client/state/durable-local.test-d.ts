@@ -21,16 +21,21 @@ import type { UserId, VerifiedUserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";
 
-test("bindDurableLocalToUser REFUSES a bare UserId and accepts only the session-verified brand", () => {
+// `async` + `await`, not `void`: `bindDurableLocalToUser` returns a Promise, and this repo's
+// no-floating-promises runs with `ignoreVoid: false` — `void <promise>` is exactly the discard it refuses.
+// (These two calls are the SUBJECT of the type assertions; the file is typecheck-only, so awaiting them
+// changes nothing but the honesty of the discard. Found when #1574 gave `tests/client/**/*.ts` an eslint
+// config block at all — the tree matched none before.)
+test("bindDurableLocalToUser REFUSES a bare UserId and accepts only the session-verified brand", async () => {
   const clientDerived = castId<UserId>("usr_from_a_route_param");
   const verified = castId<VerifiedUserId>("usr_from_sessions_me");
 
   // @ts-expect-error — a plain `UserId` (a route param, a cached blob, the browser-writable boot hint)
   // cannot reach the namespace gate. THIS is the #854 defect, now unbuildable.
-  void bindDurableLocalToUser(clientDerived);
+  await bindDurableLocalToUser(clientDerived);
 
   // The session-recovery seam's mint is the one thing that type-checks here.
-  void bindDurableLocalToUser(verified);
+  await bindDurableLocalToUser(verified);
 
   expectTypeOf(bindDurableLocalToUser).parameter(0).toEqualTypeOf<VerifiedUserId>();
   // ...and the brand is not silently widened back to UserId by the export boundary.

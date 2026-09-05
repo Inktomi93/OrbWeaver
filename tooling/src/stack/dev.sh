@@ -31,20 +31,43 @@ REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 BIN="$REPO/node_modules/.bin"
 
 SERVER_PID=""
+ENGINES_PID=""
 cleanup() {
-  # Kill only the watched SERVER — the detached fleet is nobody's child and SURVIVES
-  # (warm for the next orb). No engine teardown here (the ownership-inversion fix for
-  # the bit-us-twice class); `pnpm engines:stop` is the only kill.
+  # Kill only the watched SERVER (and the engines WAITER below if we are still inside it) — the detached
+  # fleet is nobody's child and SURVIVES (warm for the next orb). No engine teardown here (the
+  # ownership-inversion fix for the bit-us-twice class); `pnpm engines:stop` is the only kill.
+  [ -n "$ENGINES_PID" ] && kill -TERM "$ENGINES_PID" 2>/dev/null
   [ -n "$SERVER_PID" ] && kill -TERM "$SERVER_PID" 2>/dev/null
   wait 2>/dev/null
 }
-trap cleanup INT TERM HUP EXIT
+# A SIGNAL MUST END THIS SCRIPT, not merely run cleanup (#1567). bash defers a trap until the current
+# FOREGROUND child returns, and a plain `trap cleanup TERM` does not exit — so the leader's boot-timeout
+# TERM (stack.sh run_leader) landed on a dev.sh that was blocked inside `engines.sh start`, was queued for
+# the length of that wait, and then let the script CONTINUE into `node --watch`. Result, owner-witnessed
+# 2026-09-04: a dead pidfile group with an orphan dev.sh (reparented to `systemd --user`) holding :8788 —
+# the same shape as the earlier EADDRINUSE race. Signals get a handler that cleans up and EXITS; EXIT
+# keeps the plain cleanup so a normal end still reaps the server.
+on_signal() {
+  cleanup
+  exit 143 # 128 + SIGTERM, the shell's own convention for signal-terminated
+}
+trap on_signal INT TERM HUP
+trap cleanup EXIT
 
 # Ensure the fleet is up, DETACHED (idempotent — a healthy fleet is a no-op). The
 # engines are a box-level singleton owned by nobody; the in-server supervisor adopts
 # them. Runs to completion (does NOT block — the fleet is detached), then the watched
-# server boots and adopts. ENGINES_POSTURE defaults to adopt-or-start (the manager).
-bash "$REPO/tooling/src/stack/engines.sh" start || echo "dev: engines:start reported a problem (continuing — server will fail-fast if a role needs vllm)"
+# server boots and adopts. ENGINES_POSTURE decides whether a spawn is even permitted
+# (#1567 — engines.sh is the one home of that branch): `adopt-only` adopts a healthy
+# fleet and otherwise refuses to spawn; unset defaults to adopt-or-start (the manager).
+#
+# BACKGROUNDED + `wait`, never a foreground call: `wait` is interruptible, so a TERM arriving during a
+# cold boot reaches on_signal IMMEDIATELY instead of being queued behind engines.sh's own bounded wait
+# (ENGINES_BOOT_TIMEOUT, default 900s — five times the leader's healthz gate).
+bash "$REPO/tooling/src/stack/engines.sh" start &
+ENGINES_PID=$!
+wait "$ENGINES_PID" || echo "dev: engines:start reported a problem (continuing — server will fail-fast if a role needs vllm)"
+ENGINES_PID=""
 
 # The watched server. Restarts re-adopt the warm engines. Process-sub for the
 # pretty pipe so SERVER_PID is NODE ITSELF (killable in cleanup), not pino-pretty;

@@ -2,6 +2,7 @@
 // navigation; lifecycle callbacks mark the exact shared action index instead of replaying a second tape.
 import { writeFile } from "node:fs/promises";
 import { splitLastEq } from "../../../_shared/argv.ts";
+import type { InstrumentArtifactCompleteness } from "../../../_shared/artifact-out.ts";
 import { artifactFile } from "../../../_shared/artifact-out.ts";
 import { aggregateScope, exactScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
@@ -117,6 +118,31 @@ function label(action: SnapAction): string | null {
   return `${step.kind} ${step.selector ?? "(entry window)"}`;
 }
 
+/** The perf artifact's completeness stamp, DERIVED from the gaps the collector just recorded (#1507).
+ *
+ *  It used to be the literal `completeness: "complete"`, six lines below the loop that pushes a gap for a
+ *  page whose `__perfMeter` was absent or malformed — so a run that captured NO timing data at all filed
+ *  exactly the stamp a clean run files, and every downstream reader (the run index, `--problems`, a review
+ *  lane grepping for bounded evidence) took it at face value.
+ *
+ *  `unknown`, not `bounded`: a missing or garbled in-page meter cannot say how much it lost, so there is
+ *  nothing to express as a limit policy. That is the same call the heap arm makes for a snapshot whose
+ *  population it cannot count (ops/arms/heap.ts). */
+export function interactionPerfCompleteness(gaps: readonly EvidenceGap[]): {
+  readonly completeness: InstrumentArtifactCompleteness;
+  readonly completenessDetail: string;
+} {
+  if (gaps.length === 0) {
+    return { completeness: "complete", completenessDetail: "complete observer records for the finite shared action tape" };
+  }
+  return {
+    completeness: "unknown",
+    completenessDetail: `${String(gaps.length)} evidence gap(s) — the observer records are INCOMPLETE by an unmeasurable amount: ${gaps
+      .map((gap) => gap.evidence)
+      .join("; ")}`,
+  };
+}
+
 async function collectPerfEvidence(
   ctx: ArmRunContext,
   data: MeterData[],
@@ -152,8 +178,7 @@ async function collectPerfEvidence(
     mediaType: "application/json",
     schema: "snap-interaction-perf-v1",
     role: "primary",
-    completeness: "complete",
-    completenessDetail: "complete observer records for the finite shared action tape",
+    ...interactionPerfCompleteness(gaps),
     scope: aggregateScope(),
     records: reports.length,
     limits: [],

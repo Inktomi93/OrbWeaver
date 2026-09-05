@@ -371,6 +371,62 @@ test(
   SPAWN_TIMEOUT_MS,
 );
 
+// ── #1507: a value flag may not EAT the next flag ───────────────────────────────────────────────────
+// Same family as #452 above, one layer in: `--in`/`--max` took `rest[i + 1]` unconditionally, so
+// `--in --json` filtered the results against the literal path fragment "--json" — zero hits, no warning,
+// and the `--json` the caller asked for silently un-set. A filter that matches nothing prints exactly
+// like a clean answer.
+test(
+  "a value flag followed by ANOTHER FLAG refuses instead of filtering against '--json' (#1507 red-first)",
+  () => {
+    const run = runAst(["jsx", "Skeleton", "--in", "--json"]);
+    expect(run.status).toBe(3);
+    expect(run.stderr).toContain("ARG ERROR");
+    expect(run.stderr).toContain("--in");
+    expect(run.stderr).toContain("--json");
+    // It never pretends to have answered — the whole point is that the zero was indistinguishable.
+    expect(run.stdout).not.toContain("RESULT ast jsx");
+  },
+  SPAWN_TIMEOUT_MS,
+);
+
+test(
+  "a value flag as the LAST argument refuses rather than defaulting silently (#1507)",
+  () => {
+    const run = runAst(["jsx", "Skeleton", "--in"]);
+    expect(run.status).toBe(3);
+    expect(run.stderr).toContain("--in needs a value");
+  },
+  SPAWN_TIMEOUT_MS,
+);
+
+test(
+  "--max with a non-number refuses instead of quietly using the default cap (#1507)",
+  () => {
+    // `Number("abc") || DEFAULT_MAX` reported a run truncated at 60 as though the caller had asked for it.
+    const run = runAst(["jsx", "Skeleton", "--max", "abc"]);
+    expect(run.status).toBe(3);
+    expect(run.stderr).toContain("--max needs a positive number");
+  },
+  SPAWN_TIMEOUT_MS,
+);
+
+test(
+  "a depcruise pass-through that BROKE exits 2 (tool error), not 1 (#1507)",
+  () => {
+    // `(` makes dependency-cruiser refuse the pattern outright ("will probably run very slowly — cowardly
+    // refusing to run") — a fast, deterministic broken walk with no graph behind it. Two things were
+    // wrong: the op only noticed a nonzero exit when stdout was EMPTY (a half-written graph plus an error
+    // printed as the answer, exit 0), and the code it set was 1 — a VERDICT — for a run that never
+    // completed. With `--output-type text` depcruise's own reporter hardcodes exit 0, so a nonzero here
+    // can only ever be a break: exit-2 class.
+    const run = runAst(["flow", "("]);
+    expect(run.status).toBe(2);
+    expect(run.stderr).toContain("did NOT complete");
+  },
+  SPAWN_TIMEOUT_MS,
+);
+
 test(
   "regkeys MOTION_BUDGETS no longer flags the same-file dot-access rows",
   () => {

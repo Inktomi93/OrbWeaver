@@ -157,14 +157,22 @@ async function fireRequests(baseUrl: string, requests: readonly FireRequest[]): 
   return { requestIds, fired, failures, missingRid };
 }
 
-async function renderTraces(baseUrl: string, requestIds: readonly string[], debugToken: string): Promise<number> {
+/** #1507: the misses are COUNTED and handed back, not just written to stderr. A run that rendered one of
+ *  three traces used to print `traces=1` and exit clean — the two silent misses were the interesting half. */
+async function renderTraces(
+  baseUrl: string,
+  requestIds: readonly string[],
+  debugToken: string,
+): Promise<{ readonly rendered: number; readonly detailFailed: number }> {
   let rendered = 0;
+  let detailFailed = 0;
   for (const rid of requestIds) {
     const detailRes = await fetch(`${baseUrl}/api/_debug/traces/${rid}`, {
       headers: { "x-debug-token": debugToken },
     });
     if (!detailRes.ok) {
       process.stderr.write(`trace:fire — no trace recorded for rid=${rid} (HTTP ${detailRes.status})\n`);
+      detailFailed += 1;
       continue;
     }
     const trace = (await detailRes.json()) as RequestTrace;
@@ -172,7 +180,7 @@ async function renderTraces(baseUrl: string, requestIds: readonly string[], debu
     print("");
     rendered += 1;
   }
-  return rendered;
+  return { rendered, detailFailed };
 }
 
 export async function fireOp(argv: readonly string[]): Promise<number> {
@@ -217,14 +225,14 @@ export async function fireOp(argv: readonly string[]): Promise<number> {
     // The processor seals a trace when the ROOT span ends (after the response is written) —
     // a brief settle guarantees it's in the ring before we pull it.
     await sleep(SETTLE_MS);
-    const rendered = await renderTraces(baseUrl, batch.requestIds, debugToken);
+    const { rendered, detailFailed } = await renderTraces(baseUrl, batch.requestIds, debugToken);
     // The unwired-tracing tell: requests landed but NONE carried an X-Request-Id → the observability
     // middleware is not mounted. `initTracing()` is wired (entry/lifecycle.ts:169), so this arm firing
     // today means a LIVE REGRESSION at entry — reported loudly, and (#409) EXIT.toolError: the prior
     // ruling here was "still exit 0, a missing capability is a skip". That ruling survives; its INPUT
     // changed — the same comment records the middleware as WIRED, which makes this a tripwire, and a
     // tripwire that exits 0 is not a tripwire. lib/evidence.ts carries the fork in full.
-    const gap = fireEvidenceGap({ fired: batch.fired, missingRid: batch.missingRid, rendered });
+    const gap = fireEvidenceGap({ fired: batch.fired, missingRid: batch.missingRid, rendered, detailFailed });
     const unwired = batch.fired > 0 && batch.missingRid === batch.fired;
     if (unwired) {
       process.stderr.write(
@@ -242,6 +250,9 @@ export async function fireOp(argv: readonly string[]): Promise<number> {
         ["requests", batch.fired],
         ["failures", batch.failures],
         ["traces", unwired ? "UNWIRED" : rendered],
+        // The misses ride the RESULT line beside the hits (#1507): a partial recording is only readable
+        // if the denominator is printed too.
+        ["trace-misses", detailFailed],
       ],
     });
     if (gap !== null) {

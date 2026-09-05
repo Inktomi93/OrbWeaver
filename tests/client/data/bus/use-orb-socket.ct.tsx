@@ -17,6 +17,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { routeImpersonateStream } from "../../../support/ct/route-impersonate-stream.ts";
 import type { SubscriptionErrorPayload } from "../../../support/ct/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../support/ct/route-trpc.ts";
@@ -208,6 +209,24 @@ test("ONE socket fault raises ONE alert, and it is the socket's own copy — not
   await expect(toasts.locator('[data-slot="toast-title"]')).toHaveText("Lost the live connection");
   await expect(toasts).toContainText("socket over: INTERNAL_SERVER_ERROR");
   await expect(toasts.locator('[data-slot="toast-action"]')).toHaveText("Try again");
+});
+
+test("a SIBLING stream stub does not eat the socket — both route on the PROCEDURE (#1491)", async ({ mount, page }) => {
+  // THE DEFECT: both stubs registered `**/api/trpc/**` and branched on the ACCEPT HEADER alone, so whichever
+  // was installed LAST answered every tRPC subscription in the test — playwright runs route handlers in
+  // reverse registration order. A story that opens the socket while the impersonation stub is installed
+  // therefore got impersonation deltas on its socket, and any CT that "passed" that way was measuring the
+  // stub's reach, not the app. Registering the impersonate stub SECOND is the exact collision; the socket
+  // must still connect, and the impersonate recorder must never see a request.
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
+  const socket = await routeOrbSocket(page, { frames: [USER_FRAME], awaitAttaches: 1 });
+  const impersonation = await routeImpersonateStream(page, ["never served"]);
+
+  await mount(<UserBusStory />);
+
+  await expect(page.getByTestId("user-events")).toHaveText("tagsChanged");
+  await expect.poll(() => socket.connects()).toBe(1);
+  expect(impersonation.count(), "the impersonate stub answered a stream that is not chat.impersonateStream").toBe(0);
 });
 
 test("a frame for a room nobody joined is dropped, not fanned out", async ({ mount, page }) => {

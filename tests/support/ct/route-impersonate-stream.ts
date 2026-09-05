@@ -81,7 +81,11 @@ export async function routeImpersonateStream(page: Page, deltas: readonly string
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     const accept = req.headers()["accept"] ?? "";
-    if (!accept.includes("text/event-stream")) {
+    // BOTH halves (#1491): the right CONTENT TYPE and the right PROCEDURE. Matching on `accept` alone made
+    // this stub answer EVERY tRPC subscription in the CT — a story that also opens `stream.connect` got
+    // impersonation deltas on its socket, and a CT could pass because of the over-broad match rather than
+    // because of the app.
+    if (!(accept.includes("text/event-stream") && isImpersonateStreamRequest(req))) {
       await route.fallback();
       return;
     }
@@ -175,7 +179,8 @@ export async function routeImpersonateStreamOnce(page: Page, script: OneShotScri
   ].join("");
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
-    if (!(req.headers()["accept"] ?? "").includes("text/event-stream")) {
+    // Procedure-matched, exactly like the staged stub above (#1491).
+    if (!((req.headers()["accept"] ?? "").includes("text/event-stream") && isImpersonateStreamRequest(req))) {
       await route.fallback();
       return;
     }

@@ -25,8 +25,15 @@ export interface ProbeResult {
 export interface Probe {
   readonly name: string;
   readonly body: () => Record<string, unknown>;
-  /** Returns a defect description, or null when the response satisfies the probe. */
-  readonly verify?: (r: ChatResponse) => string | null;
+  /** Returns a defect description, or null when the response satisfies the probe.
+   *
+   *  REQUIRED since #1507. It used to be optional, and `runProbe` read it as
+   *  `probe.verify ? probe.verify(json) : null` over a body it had already defaulted to `{}` on a parse
+   *  failure — so a verifier-less probe reported `ok: true` for ANY 200, including one whose body was not
+   *  a chat completion at all. Making it mandatory puts the question in front of every probe author at
+   *  compile time; `verifyChatCompletion` (lib/verify.ts) is the minimum floor for a probe whose only
+   *  claim is "the model answered". */
+  readonly verify: (r: ChatResponse) => string | null;
 }
 
 // The OpenAI-compatible response shape, spelled in its OWN wire vocabulary (snake_case) — the same way

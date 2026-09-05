@@ -290,10 +290,16 @@ export async function labelInNameFindings(root: Locator | Page): Promise<readonl
           continue;
         }
         const visible = visibleLabelOf(node);
-        const lowered = label.toLowerCase();
+        // TOKENS, NOT SUBSTRINGS (#1492). `lowered.includes(word)` passed the visible word "art" against
+        // the accessible name "cart" — WCAG 2.5.3 is about the WORD appearing in the name, and a check
+        // that accepts any name merely CONTAINING the letters reports a clean row for a real violation.
+        // Both sides are tokenized with the SAME regex, so "Add to cart" still matches "add to cart" and
+        // "Cart (3)" still contains "cart".
+        const wordsOf = (text: string): string[] => text.toLowerCase().match(/[a-z][a-z']+/g) ?? [];
         // ≥2 letters, which is why a bare "⌘K" glyph never trips this and a live "50%" is exempt by construction.
-        const words = visible.toLowerCase().match(/[a-z][a-z']+/g) ?? [];
-        const missing = words.filter((word) => !lowered.includes(word));
+        const labelWords = new Set(wordsOf(label));
+        const words = wordsOf(visible);
+        const missing = words.filter((word) => !labelWords.has(word));
         if (missing.length > 0) {
           out.push({ label, visible, missing: [...new Set(missing)] });
         }

@@ -135,15 +135,32 @@ test("non-TTY output carries no ANSI escape codes (identity path)", () => {
 test("a fire run whose requests carried NO request id is an evidence gap, not a clean skip", () => {
   // The recorded ruling this changes ("still exit 0 — a missing capability is a skip") survives; its
   // input changed: the middleware IS wired, so this arm is a live-regression tripwire.
-  const gap = fireEvidenceGap({ fired: 2, missingRid: 2, rendered: 0 });
+  const gap = fireEvidenceGap({ fired: 2, missingRid: 2, rendered: 0, detailFailed: 0 });
   expect(gap?.evidence).toBe("the observability middleware");
 });
 
 test("requests that carried ids but produced NO trace are an evidence gap of their own", () => {
-  expect(fireEvidenceGap({ fired: 2, missingRid: 0, rendered: 0 })?.evidence).toBe("the trace ring");
+  expect(fireEvidenceGap({ fired: 2, missingRid: 0, rendered: 0, detailFailed: 2 })?.evidence).toBe("the trace ring");
 });
 
 test("a run that rendered at least one trace has its evidence, and a run that fired nothing is not judged", () => {
-  expect(fireEvidenceGap({ fired: 2, missingRid: 1, rendered: 1 })).toBeNull();
-  expect(fireEvidenceGap({ fired: 0, missingRid: 0, rendered: 0 })).toBeNull();
+  expect(fireEvidenceGap({ fired: 2, missingRid: 1, rendered: 1, detailFailed: 0 })).toBeNull();
+  expect(fireEvidenceGap({ fired: 0, missingRid: 0, rendered: 0, detailFailed: 0 })).toBeNull();
+});
+
+test("a PARTIAL recording is a gap, not a clean run (#1507 red-first)", () => {
+  // The defect: the op asked only "did ANY trace render?", so 1 of 3 rendered printed `traces=1` and
+  // exited clean while two recordings were missing — visible only in a stderr line nobody parses.
+  const gap = fireEvidenceGap({ fired: 3, missingRid: 0, rendered: 1, detailFailed: 2 });
+  expect(gap?.evidence).toBe("the trace ring");
+  // The numbers a reader needs to act: how many are missing, out of how many were traceable.
+  expect(gap?.detail).toContain("2 of 3");
+  expect(gap?.detail).toContain("rendered 1");
+});
+
+test("a COMPLETE recording stays clean — every traced request rendered (#1507 positive control)", () => {
+  expect(fireEvidenceGap({ fired: 3, missingRid: 0, rendered: 3, detailFailed: 0 })).toBeNull();
+  // A request that never got an id is a DIFFERENT population: it was never traceable, so it cannot be a
+  // missing trace. Two fired, one traceable, that one rendered ⇒ nothing is missing.
+  expect(fireEvidenceGap({ fired: 2, missingRid: 1, rendered: 1, detailFailed: 0 })).toBeNull();
 });

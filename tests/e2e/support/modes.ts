@@ -158,6 +158,11 @@ export const SINGLE_USER: ModeProject = {
     CREDENTIALS_KEY,
     LOCAL_INITIAL_PASSWORD: "orbweaver-dev-password",
     WIRE_CAPTURE: "on",
+    // The rpg flight recorder (#1493): `rpg-lite-loop.spec.ts`'s live-loop poll needs ONE observable that
+    // becomes true only after the state round SETTLED, and the `flush` trace event is it — the arm it used
+    // before (an empty debug-error ring) is true on tick one, so the barrier never barriered. Cheap: an
+    // in-memory ring plus the host-only /api/_debug/rpg/traces route, both no-ops when this key is absent.
+    RPG_TRACE: "on",
     DEBUG_TOKEN: E2E_DEBUG_TOKEN,
     E2E_HARNESS: "on",
     // The dev-target escape hatch boots/reuses the dev stack VERBATIM (its own .env-driven DB) — pinning

@@ -196,8 +196,10 @@ export function finishRun(): void {
     warn(emptyScopeDiagnosis(ledger));
   }
   // Never DOWNGRADE an exit code a lens already set: the two-sided STALE-marker arms (swallowed /
-  // typeonly-alive / columns) and the depcruise pass-through own exit 1, and that verdict outranks the
-  // generic tool-error code here.
+  // typeonly-alive / columns) own exit 1, and that verdict outranks the generic tool-error code here.
+  // (The depcruise pass-through used to be listed here too. It is not a verdict-setter any more: with
+  // `--output-type text` depcruise cannot report violations at all, so its nonzero exits are tool breaks
+  // and go through `exitToolError` — ops/depcruise.ts carries the receipt. #1507.)
   if (process.exitCode === undefined || process.exitCode === 0) {
     process.exitCode = TOOL_ERROR_EXIT;
   }

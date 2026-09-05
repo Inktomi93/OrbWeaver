@@ -34,7 +34,10 @@ export async function runProbe(baseUrl: string, model: string, probe: Probe): Pr
     const msg = json.choices?.[0]?.message ?? {};
     const reasoning = msg.reasoning_content ?? msg.reasoning ?? "";
     const content = msg.content ?? "";
-    const defect = probe.verify ? probe.verify(json) : null;
+    // `verify` is REQUIRED (contract/types.ts, #1507). The old `probe.verify ? … : null` combined with the
+    // `{}` json fallback above to make any 200 an `ok:true` for a verifier-less probe — a green about a
+    // body nobody read. Every probe now answers for its own response.
+    const defect = probe.verify(json);
     return {
       probe: probe.name,
       ok: defect === null,
