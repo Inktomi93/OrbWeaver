@@ -96,7 +96,16 @@ fi
 SID=$(printf '%s' "$HOOK_IN" | jq -r '.session_id // empty' 2>/dev/null)
 SCRATCH_MAP="/tmp/claude-$(id -u)/$(pwd | tr '/' '-')/${SID:-none}/scratchpad/dispatch-map.md"
 if [ -n "$SID" ] && [ -f "$SCRATCH_MAP" ]; then
-  echo "--- scratch dispatch map SURVIVED: ${SCRATCH_MAP} — line 1: $(head -1 "$SCRATCH_MAP" | cut -c1-200)"
+  # Two map conventions exist (claude-b, note 295): a `# >>> RESUME HERE` line rewritten in place at the
+  # top, or append-only UPDATE lines at the bottom. `head -1` served only the first and printed a stale
+  # blank for the second. Print the LAST resume line if any, else the last 2 non-empty lines.
+  RESUME_LINE=$(/usr/bin/grep '^# >>> RESUME' "$SCRATCH_MAP" | tail -1 | cut -c1-200)
+  if [ -n "$RESUME_LINE" ]; then
+    echo "--- scratch dispatch map SURVIVED: ${SCRATCH_MAP} — resume line: ${RESUME_LINE}"
+  else
+    echo "--- scratch dispatch map SURVIVED: ${SCRATCH_MAP} — last 2 lines:"
+    /usr/bin/grep -v '^[[:space:]]*$' "$SCRATCH_MAP" | tail -2 | cut -c1-200
+  fi
 else
   echo "--- scratch dispatch map: none for this session (fresh session, or purged) — the bridge note below is the digest"
 fi
