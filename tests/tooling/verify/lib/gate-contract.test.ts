@@ -73,6 +73,20 @@ test("follows a re-export of the final defineGate", () => {
   expect(report.findings.filter((finding) => finding.code === "descriptor-wrapper")).toHaveLength(0);
 });
 
+test("follows visible aliases through an unambiguous re-export chain", () => {
+  const report = inspect(
+    `
+      import { defineGate } from "./policy-door.ts";
+      export const gate = defineGate({ create() { return { visitors: {} }; } });
+    `,
+    {
+      "tooling/src/verify/gates/policy-door.ts": 'export { gateFactory as defineGate } from "./inner-door.ts";\n',
+      "tooling/src/verify/gates/inner-door.ts": 'export { defineGate as gateFactory } from "../contract/policy.ts";\n',
+    },
+  );
+  expect(report.findings.filter((finding) => finding.code === "descriptor-wrapper")).toHaveLength(0);
+});
+
 test("refuses ambiguous explicit, star-mixed, and multi-hop re-export origins", () => {
   const consumer = `
     import { defineGate } from "./policy-door.ts";
