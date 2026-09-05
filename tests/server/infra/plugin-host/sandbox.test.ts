@@ -12,6 +12,7 @@
 import process from "node:process";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { boundHostFn, getPluginQuickJS, PLUGIN_INVOCATION_ENDED, Sandbox } from "@orb/server/infra/plugin-host";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import type { QuickJSContext, QuickJSHandle, VmCallResult } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
 import { describe, vi } from "vitest";
@@ -20,6 +21,12 @@ import { expect, test } from "../../../support/fixtures.ts";
 const FIXED_EPOCH = 1_700_000_000_000;
 const MS_PER_SEC = 1000;
 const NS_PER_MS = 1_000_000;
+/** The bomb's own `cpuDeadlineMs: 2000` plus a fresh sandbox boot + eval measured at ~500 ms combined on a
+ *  quiet box — the unit project's shared `budget(BASE_TEST_TIMEOUT_MS)` (5 s, vitest.config.ts) leaves this
+ *  ONE test almost no headroom once the bomb's interrupt has to fire under contention. `budget()` (not a
+ *  bare number) so it still stretches with the same per-core reading every other wall clock in the repo
+ *  uses. */
+const ALLOCATION_BOMB_TIMEOUT_MS = budget(10_000);
 /** #781's runaway: guest iterations costing SECONDS of unbounded main-thread CPU (~2.3 s per 1e8 on this
  *  runtime/box). FINITE so a regressed run REPORTS instead of hanging the suite forever. */
 const RUNAWAY_ITERATIONS = "2e8";
@@ -192,7 +199,7 @@ describe("Sandbox — DoS containment (the runtime pin)", () => {
   // makes the bomb a clean error, but the shared WASM linear memory grows to a MONOTONIC per-process
   // high-water mark that dispose() does NOT return to the OS — so "process RSS stable" (03 §4) is an
   // over-claim. Asserting a tight RSS delta is therefore deliberately omitted (it is unbounded here).
-  test("an allocation bomb dies contained; a fresh sandbox still works", async () => {
+  test("an allocation bomb dies contained; a fresh sandbox still works", { timeout: ALLOCATION_BOMB_TIMEOUT_MS }, async () => {
     const sandbox = await Sandbox.create(makeSeams(), { limits: { memoryLimitBytes: 4_194_304, cpuDeadlineMs: 2000 } });
     let bombOk = true;
     try {

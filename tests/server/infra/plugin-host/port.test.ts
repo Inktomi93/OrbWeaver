@@ -139,6 +139,51 @@ async function waitForGate(fake: RacingBridge): Promise<void> {
   }
 }
 
+/** Poll to settled instead of a fixed tick: bounded so a genuine defect (fewer than `count` ever arrive)
+ *  still times out into a failing assertion rather than hanging. */
+async function waitForReleases(releases: readonly unknown[], count: number): Promise<void> {
+  for (let spins = 0; spins < 200 && releases.length < count; spins++) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
+/** The over-cap arm of the resident-admission test, split out to keep the caller's cyclomatic complexity
+ *  under the gate ceiling: one MORE activation over an already-full pool settles immediately (refused,
+ *  never queued) rather than joining the held set. */
+async function assertOverflowRefused(
+  host: ReturnType<typeof createPluginHost>,
+  input: Parameters<ReturnType<typeof createPluginHost>["createInstance"]>[0],
+): Promise<void> {
+  let overflowSettled = false;
+  const overflowPromise = host.createInstance(input).then((outcome) => {
+    overflowSettled = true;
+    return outcome;
+  });
+  await settleTicks();
+
+  expect(overflowSettled).toBe(true);
+  const overflow = await overflowPromise;
+  expect(overflow.ok).toBe(false);
+  if (overflow.ok) {
+    throw new Error("test: over-cap activation unexpectedly succeeded");
+  }
+  expect(overflow.error).toMatch(RESIDENT_CAPACITY_RE);
+  expect(overflow.log).toEqual([]);
+}
+
+/** Release every held gate (idempotent) then drain the `held` activations into the admitted instances —
+ *  split out alongside `assertOverflowRefused` for the same complexity-budget reason. */
+async function releaseAndDrain(
+  releases: readonly (() => void)[],
+  held: readonly Promise<Awaited<ReturnType<ReturnType<typeof createPluginHost>["createInstance"]>>>[],
+): Promise<PluginInstance[]> {
+  for (const release of releases) {
+    release();
+  }
+  const admitted = await Promise.all(held);
+  return admitted.flatMap((outcome) => (outcome.ok ? [outcome.instance] : []));
+}
+
 /** Deterministic seams (a fixed clock, a seeded LCG, a counter id) — shared by `makeHost` + the direct-Sandbox
  *  repro-guard test (which drives the pre-fix unserialized path over an exported `Sandbox`). */
 function makeSeams(): HostSeams {
@@ -189,37 +234,31 @@ describe("port.createInstance — process-wide resident admission", () => {
     };
 
     const held = Array.from({ length: PLUGIN_RESIDENT_RUNTIME_MAX }, (_, index) => (index % 2 === 0 ? hostA : hostB).createInstance(input));
-    await settleTicks();
-    expect(releases).toHaveLength(PLUGIN_RESIDENT_RUNTIME_MAX);
-
-    let overflowSettled = false;
-    const overflowPromise = hostB.createInstance(input).then((outcome) => {
-      overflowSettled = true;
-      return outcome;
-    });
-    await settleTicks();
+    // Admitted instances land here (in `finally`, UNCONDITIONALLY) so they always get disposed — even
+    // when an assertion throws before this point. Disposal is the only thing that frees a resident slot;
+    // releasing the bridge gate alone unblocks the guest but leaves its admission held, so a throw
+    // between "gate released" and "instance disposed" used to strand up to 16 leases for the rest of the
+    // file. Assertions that DEPEND on `instances` therefore run AFTER the try/finally, not inside it.
+    let instances: PluginInstance[] = [];
 
     try {
-      expect(overflowSettled).toBe(true);
-      const overflow = await overflowPromise;
-      expect(overflow.ok).toBe(false);
-      if (overflow.ok) {
-        throw new Error("test: over-cap activation unexpectedly succeeded");
-      }
-      expect(overflow.error).toMatch(RESIDENT_CAPACITY_RE);
-      expect(overflow.log).toEqual([]);
-    } finally {
-      for (const release of releases) {
-        release();
-      }
-    }
+      // Poll to settled instead of a fixed tick: under load the 16 WASM sandbox creations do not all
+      // reach the bridge inside one macrotask spin, and a fixed wait here stranded the admitted leases
+      // outside any `finally`, cascading a single flaky assertion into every later test in this file.
+      await waitForReleases(releases, PLUGIN_RESIDENT_RUNTIME_MAX);
+      expect(releases).toHaveLength(PLUGIN_RESIDENT_RUNTIME_MAX);
 
-    const admitted = await Promise.all(held);
-    const instances = admitted.flatMap((outcome) => (outcome.ok ? [outcome.instance] : []));
-    expect(instances).toHaveLength(PLUGIN_RESIDENT_RUNTIME_MAX);
-    for (const [index, instance] of instances.entries()) {
-      (index % 2 === 0 ? hostA : hostB).dispose(instance);
+      await assertOverflowRefused(hostB, input);
+    } finally {
+      // Release every gate (idempotent — resolving an already-settled promise is a no-op) so `held`
+      // always drains, then dispose every admitted instance so admission is freed either way — this is
+      // the ONE place that runs no matter which assertion above threw.
+      instances = await releaseAndDrain(releases, held);
+      for (const [index, instance] of instances.entries()) {
+        (index % 2 === 0 ? hostA : hostB).dispose(instance);
+      }
     }
+    expect(instances).toHaveLength(PLUGIN_RESIDENT_RUNTIME_MAX);
 
     const retry = await hostA.createInstance({ ...input, mainJs: "'ok'" });
     expect(retry.ok).toBe(true);
