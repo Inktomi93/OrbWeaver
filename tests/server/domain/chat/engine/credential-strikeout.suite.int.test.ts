@@ -23,13 +23,14 @@ import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import type { ChatId, Handle, ModelId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, ModelId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { ProviderError } from "@orb/server/infra/providers";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
+import { createMemoryRecallWarningEpisode } from "../../../../../packages/server/src/domain/chat/memory/recall/rerank-warning.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeRecallResult, makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
@@ -103,9 +104,35 @@ let strikes: StrikeCall[];
 /** The op the engine calls; overridable per-test to prove the strike is a passenger. */
 let strikeImpl: (params: StrikeCall) => Promise<void>;
 
+/** The `prep` overrides that make `resolveSpeakerMemory` actually CALL `deps.recallMemory`: a scoped-shape
+ *  group turn voiced by a real cast character, with the round's recall inputs staged. Any gate off and the
+ *  round-level memory passes through untouched — i.e. the side-role call never happens and the arm below
+ *  would prove nothing. */
+function scopedRecallPrep(): Partial<TurnPrep> {
+  const speaker = castId<CharacterId>("character_speaker");
+  return {
+    speakerCharacterId: speaker,
+    shape: {
+      output: "per-speaker",
+      cardScope: "scoped",
+      scopedTargetId: speaker,
+      speakerName: "Aria",
+      speakerRef: { kind: "character", characterId: speaker },
+    },
+    memoryRecall: {
+      groupCharacterId: castId<CharacterId>("character_group"),
+      recent: [],
+      names: new Map<CharacterId, string>(),
+      config: null,
+      warningEpisode: createMemoryRecallWarningEpisode(),
+    },
+  };
+}
+
 function engineOver(
   runChatTurn: ChatContext["runChatTurn"],
   runCompaction: Parameters<typeof createTurnEngine>[1]["runCompaction"] = stubRunCompaction,
+  depsOver: Partial<Parameters<typeof createTurnEngine>[1]> = {},
 ): ReturnType<typeof createTurnEngine> {
   const ctx = makeChatContext(db, {
     runChatTurn,
@@ -125,6 +152,7 @@ function engineOver(
     loadWitnessHorizons: () => Promise.resolve([]),
     recallMemory: () => Promise.resolve(fakeRecallResult("")),
     runCompaction,
+    ...depsOver,
   });
 }
 
@@ -240,6 +268,38 @@ describe("the main turn's fault path strikes out the credential it ran under", (
 
     expect(strikes.at(0)?.ownerId).toBe(otherHost);
     expect(strikes.at(0)?.ownerId).not.toBe(HOST);
+  });
+
+  test("A SIDE-ROLE's auth failure inside the turn body strikes NOTHING — it is not this credential's rejection", async () => {
+    // THE HOLE (#1373 chunk J). `strikeOutOnTurnFault` fires from `executeTurn`'s WHOLE-BODY catch, and the
+    // body also runs the per-speaker memory recall — `resolveSpeakerMemory` → `deps.recallMemory` →
+    // `ctx.searchDigests` → `ctx.roleClients.embed` (`search/verbs/digests.ts:84`, awaited with no catch).
+    // Role clients resolve their OWN credential per call, so an embed role pinned to a DIFFERENT provider can
+    // 401 on ITS key and escape into this catch — where the strike revoked the CHAT's credential, a key the
+    // provider never saw, and stamped `revoked_reason: auth_failed` so the pane said it had been rejected.
+    // Self-inflicted lockout plus a false product statement, and it contradicted this seam's own header.
+    const chatId = await seedChat(db, "strike-side-role");
+    const engine = engineOver(succeedingTurn, stubRunCompaction, {
+      // The embed role's key is dead; the CHAT's key is fine.
+      recallMemory: () => Promise.reject(authFailed("the EMBED role's key was rejected (401)")),
+    });
+
+    await expect(engine.runTurn(prepOf(chatId, scopedRecallPrep()))).rejects.toThrow("EMBED role's key");
+
+    // The turn still fails loudly (the throw is the caller's), but no credential is touched: this failure did
+    // not come from the generation, so it says nothing about the key the generation ran under.
+    expect(strikes).toEqual([]);
+  });
+
+  test("…and the GENERATION's own auth failure on the same shaped turn still strikes (the positive control)", async () => {
+    // Without this arm the test above would pass just as well against a strike-out that never fires at all.
+    // Same prep, same recall wiring — only the origin of the throw moves.
+    const chatId = await seedChat(db, "strike-side-role-control");
+    const engine = engineOver(throwingTurn(authFailed()), stubRunCompaction, { recallMemory: () => Promise.resolve(fakeRecallResult("remembered")) });
+
+    await expect(engine.runTurn(prepOf(chatId, scopedRecallPrep()))).rejects.toThrow("rejected the key");
+
+    expect(strikes.at(0)).toMatchObject({ ownerId: HOST, credentialId: BYO_CREDENTIAL, errorKind: "auth_failed" });
   });
 
   test("THE STRIKE IS A PASSENGER: a throwing revoke never replaces the failure the caller sees", async () => {
