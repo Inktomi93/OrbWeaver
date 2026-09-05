@@ -51,6 +51,11 @@ export interface PersonaPanelSurfaceProps {
 /** The Identity widget's render, keyed to the lens `personaChrome.body(presentation)` asks for. */
 export function PersonaPanelSurface({ presentation }: PersonaPanelSurfaceProps): ReactElement {
   return (
+    // DELIBERATELY UNRESERVED (#1098). Both lenses are FLOATING bodies — a rail popover and a mobile
+    // sheet — so nothing in page flow sits below this to shift, which is the whole point of a reserved
+    // box. Reserving would instead inflate the popover to a remembered height before its content exists
+    // and hand the positioner a phantom box to place against. The quiet fixed Avatar shared by the
+    // pending AND error arms is the considered wait here, and it already never resizes.
     <QueryBoundary
       fallback={
         <Avatar fallbackDelay={0} size="md">

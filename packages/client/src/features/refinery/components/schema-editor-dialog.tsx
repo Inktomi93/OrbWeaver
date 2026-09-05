@@ -216,9 +216,15 @@ function GenerateRow({
           value={arm}
         />
       </Field>
+      {/* SECONDARY, like its twin `Refine` one row down (#1242). Both rows are draft-AUTHORING verbs that
+          feed the editor below; the dialog's one call to action is the footer's Save. It read as bare
+          (= the recipe's `primary` default) while the ring keyed off the raw prop, so it painted primary
+          and wore no ring — the moment the ring derives from the RESOLVED arm, leaving it bare would put a
+          second CTA ring in this dialog. */}
       <Button
         aria-busy={busy}
         disabled={busy || description.trim().length === 0}
+        intent="secondary"
         onClick={(): void => {
           generate.mutate({ description, stage, arm }, { onSuccess: onLand });
         }}

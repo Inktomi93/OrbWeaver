@@ -43,11 +43,10 @@ import type { PresetId } from "@orb/kit/ids";
 // `Container` is lane B's shared content-column ruling — the panel column measures the PANE through it.
 import { Container, Stack } from "@orb/ui/layout";
 import { Tabs, TabsPanel } from "@orb/ui/tabs";
-import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AppFormInstance, AutosaveSession } from "#forms";
 import { createAutosaveEntityForm } from "#forms";
 import { useFocusOnMount } from "#lib";
@@ -106,9 +105,15 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
       tabIndex={-1}
       className="relative h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none"
     >
+      {/* RESERVED (#1098). The editor IS the CONTENT pane, so the read landing used to collapse the pane to
+          a one-line sentence and pop it back to a full form — taking the scrollbar and the reader's scroll
+          position with it. The remembered box holds the pane across a preset switch; the authored count is
+          only the first-boot guess (the reserved box re-fills it). The scroll box is the Stack ABOVE this
+          boundary, so the measuring wrapper sits INSIDE the scroller and cannot flatten it (#1133). */}
       <QueryBoundary
-        fallback={<Text voice="gloss">Loading the preset…</Text>}
+        fallback={<SkeletonRows count={6} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the preset" onRetry={retry} />}
+        reserveKey="preset.editor"
       >
         <PresetEditor presetId={presetId} onRevealSection={onRevealSection} />
       </QueryBoundary>
