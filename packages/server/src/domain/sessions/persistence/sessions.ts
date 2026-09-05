@@ -2,6 +2,7 @@ import type { UserRole } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import { sessions, users } from "@orb/db";
+import type { AwaitableBatchStmt } from "@orb/db/kit";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { Sealed } from "#infra/crypto";
@@ -146,12 +147,20 @@ export async function revokeById(db: Db, sessionId: SessionId, revokedAt: number
   return revoked.at(0)?.userId;
 }
 
-export async function revokeAllForUser(db: Db, userId: UserId, revokedAt: number): Promise<SessionId[]> {
-  const revoked = await db
+/** The UNEXECUTED kick-all — the same single atomic UPDATE {@link revokeAllForUser} runs, handed back so a
+ *  caller whose OWN privileged write must not outlive the kick can commit both in one `db.batch` (#1691:
+ *  a password reset whose revoke failed left the new credential live beside the old sessions). Awaitable on
+ *  its own, so the executor below is the same statement, not a second spelling of it. */
+export function revokeAllForUserStatement(db: Db, userId: UserId, revokedAt: number): AwaitableBatchStmt<{ id: SessionId }[]> {
+  return db
     .update(sessions)
     .set({ revokedAt, ...CLEAR_OIDC_ID_TOKEN })
     .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)))
     .returning({ id: sessions.id });
+}
+
+export async function revokeAllForUser(db: Db, userId: UserId, revokedAt: number): Promise<SessionId[]> {
+  const revoked = await revokeAllForUserStatement(db, userId, revokedAt);
   return revoked.map((r) => r.id);
 }
 

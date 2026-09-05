@@ -764,6 +764,7 @@
     "tests/server/db/db-batch-atomicity.suite.int.test.ts",
     "tests/server/domain/admin/guard.test.ts",
     "tests/server/domain/admin/persistence/queries.int.test.ts",
+    "tests/server/domain/admin/substrate/audited-write.int.test.ts",
     "tests/server/domain/admin/verbs/create-user.int.test.ts",
     "tests/server/domain/admin/verbs/embed.int.test.ts",
     "tests/server/domain/admin/verbs/link-sso-identity.int.test.ts",

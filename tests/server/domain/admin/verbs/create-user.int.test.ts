@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, principal, seedAdminCaller, seedUser } from "../_support.ts";
+import { auditActions, makeHarness, principal, seedAdminCaller, seedUser, withBrokenAudit } from "../_support.ts";
 
 const GOOD_PASSWORD = "correct-horse";
 
@@ -33,7 +33,7 @@ describe("createUser", () => {
 
     const rows = await db.select().from(users).where(eq(users.id, view.id));
     expect(rows[0]?.passwordHash).toBe(`scrypt$test$${GOOD_PASSWORD}`);
-    expect(h.audits.map((a) => a.entry.action)).toContain("admin.createUser");
+    expect(await auditActions(db)).toEqual(["admin.createUser"]);
   });
 
   test("an empty handle is rejected (invalid_handle)", async () => {
@@ -119,7 +119,7 @@ describe("createUser", () => {
       role: "admin",
     });
     expect(view.role).toBe("admin");
-    expect(h.audits.map((a) => a.entry.action)).toContain("admin.createUser");
+    expect(await auditActions(db)).toEqual(["admin.createUser"]);
     // The row landed as a real admin human.
     const rows = await db.select().from(users).where(eq(users.id, view.id));
     expect(rows[0]?.role).toBe("admin");
@@ -146,5 +146,24 @@ describe("createUser", () => {
     await expect(svc.createUser({ principal: principal(u, "user"), handle: castId<Handle>("x"), password: GOOD_PASSWORD })).rejects.toThrow(
       DomainForbiddenError,
     );
+  });
+  // #1691 RED-FIRST — the mint used to run first and audit afterwards, so a rejecting audit left a LOGINABLE
+  // account behind while the endpoint reported failure (and `logAudit`'s swallow made the same state report
+  // SUCCESS in production). Nothing is minted now.
+  test("a failing audit write mints NO account", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createAdminService(withBrokenAudit(h.ctx, db));
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
+
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("newbie"), password: GOOD_PASSWORD })).rejects.toThrow();
+
+    expect(
+      await db
+        .select()
+        .from(users)
+        .where(eq(users.handle, castId<Handle>("newbie"))),
+    ).toHaveLength(0);
+    expect(await auditActions(db)).toHaveLength(0);
   });
 });

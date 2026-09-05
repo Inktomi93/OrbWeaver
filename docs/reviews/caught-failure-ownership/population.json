@@ -2594,7 +2594,7 @@
     {
       "siteId": "packages/server/src/domain/sessions/verbs/revoke.ts::default:catch::1",
       "path": "packages/server/src/domain/sessions/verbs/revoke.ts",
-      "line": 37,
+      "line": 44,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2602,7 +2602,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the DOCUMENTED degrade above — the session is already revoked when this runs, so a failed open costs only the end-session redirect (the URL goes out bare, as it did before #141) and never the logout itself. The one reachable cause is a rotated SESSION_SECRET. Ends if the end-session hint becomes required for a correct logout.",
-      "markerLine": 34
+      "markerLine": 41
     },
     {
       "siteId": "packages/server/src/domain/settings/context.ts::promise:next::1",

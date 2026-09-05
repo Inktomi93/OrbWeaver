@@ -1,5 +1,6 @@
 import type { Db } from "@orb/db";
 import { auditLogs, sessions, users } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -82,6 +83,31 @@ describe("sessions.revokeAllForUser (kick-all)", () => {
 
   test("returns 0 when the user has no live sessions", async () => {
     expect(await svc.revokeAllForUser(USER_ID)).toBe(0);
+  });
+});
+
+// #1691 — the UNEXECUTED twin. It exists so a CALLER whose own privileged write must not outlive the kick
+// (`admin.resetPassword`) can commit both in ONE batch; the property that matters here is that it is the
+// SAME atomic UPDATE, so its `revokedAt IS NULL` guard and its clearing of the sealed id_token columns hold
+// exactly as the executed verb's do.
+describe("sessions.revokeAllForUserStatement (the batch-riding kick)", () => {
+  test("run inside a caller's batch it revokes every live session, and re-running it flips nothing", async () => {
+    const a = await svc.create({ userId: USER_ID });
+    const b = await svc.create({ userId: USER_ID });
+
+    const revoked = await db.batch(batchMany([svc.revokeAllForUserStatement(USER_ID, FROZEN_AT_MS)]));
+    expect((revoked[0] as { id: SessionId }[]).map((r) => r.id).sort()).toEqual([a.sessionId, b.sessionId].sort());
+    expect(await svc.validate(a.token)).toBeNull();
+    expect(await svc.validate(b.token)).toBeNull();
+
+    const again = await db.batch(batchMany([svc.revokeAllForUserStatement(USER_ID, FROZEN_AT_MS)]));
+    expect(again[0]).toHaveLength(0);
+  });
+
+  test("it is UNEXECUTED until the caller runs it — building the statement revokes nothing", async () => {
+    const live = await svc.create({ userId: USER_ID });
+    svc.revokeAllForUserStatement(USER_ID, FROZEN_AT_MS);
+    expect(await svc.validate(live.token)).not.toBeNull();
   });
 });
 

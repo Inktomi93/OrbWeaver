@@ -5,6 +5,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { CharacterId, ExternalId, SessionId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
@@ -40,6 +41,17 @@ interface SessionAdminPort {
   readonly listForUser: (userId: UserId) => Promise<readonly SessionAdminView[]>;
   readonly revoke: (sessionId: SessionId) => Promise<void>;
   readonly revokeAllForUser: (userId: UserId) => Promise<number>;
+  /** #1691 — the UNEXECUTED kick-all, so a credential/authority write can commit its own session kick in ONE
+   *  batch instead of awaiting it afterwards (a failed tail used to leave the NEW password live beside the
+   *  OLD sessions). Canonical home `domain/sessions`; admin only orders the statements. */
+  readonly revokeAllForUserStatement: (userId: UserId, revokedAt: number) => BatchStmt;
+  /** #1691 — W7a's live-socket half, split out of the executed `revokeAllForUser` wrapper because the DB
+   *  revoke now rides the caller's batch while the eviction can only happen AFTER it commits. The one tail
+   *  that is NOT a DB write: a synchronous in-process registry walk
+   *  (`transport/trpc/stream/socket-registry.ts` `evictUser`), injected as a port because a domain may not
+   *  import transport. Total by construction and idempotent — nothing durable depends on it, because the
+   *  committed revoke is what `sessions.validate` refuses on the socket's next request. */
+  readonly evictUserSockets: (userId: UserId) => void;
   /** B5 — the injected bind-once linking capability (canonical home domain/sessions `linkExternalId`). admin
    *  gates + audits around it; the identity invariant (bind-once, U1 one-linking-site) is the verb's. */
   readonly linkExternalId: (userId: UserId, externalId: ExternalId) => Promise<LinkExternalIdOutcome>;
@@ -65,7 +77,25 @@ export interface AdminContext {
   readonly now: () => number;
   readonly newUserId: () => UserId;
   readonly hashPassword: (plain: string) => Promise<string>;
+  /** The BEST-EFFORT audit channel (`logAudit`: suppress → count → drop) — correct for the read-ish and
+   *  advisory verbs (`listSessions`/`revokeSession`/`linkSsoIdentity`/`vllm`/`embed`), where a degraded audit
+   *  channel must not break the action. NOT for a privileged durable write: those take
+   *  {@link AdminContext.auditStatementAfterWrite} (#1691). */
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  /**
+   * #1691 — the ATOMIC audit channel for a privileged write (create/reset-password/set-role/set-enabled):
+   * an UNEXECUTED insert that rides the write's own `db.batch`, guarded so the row lands IF AND ONLY IF the
+   * statement immediately before it changed a row.
+   *
+   * The bargain is deliberately the INVERSE of `audit`'s: here an audit failure ROLLS BACK the privileged
+   * write. Before this, both directions were broken — in production `audit` is `logAudit`, which swallows,
+   * so a failed audit returned 200 for an unaudited account mint / role grant; and a tail that DID reject
+   * (the session revoke) rejected the endpoint with the privileged write already committed.
+   *
+   * ORDER IS THE CONTRACT (`changes()` is connection-local): never hand-assemble the batch — build it with
+   * `substrate/audited-write.ts::commitAuditedWrite`, which is the only site that orders the pair.
+   */
+  readonly auditStatementAfterWrite: (entry: AuditEntry, at: number) => BatchStmt;
   /**
    * The per-user freshness plane (`identityChanged`) — injected, never a sideways reach at the bus (D38).
    *

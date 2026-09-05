@@ -4,6 +4,7 @@
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import type { Sealed } from "#infra/crypto";
 import type { CreateSessionParams, ProvisionIdentityOptions } from "./params.ts";
@@ -65,6 +66,12 @@ export interface SessionsService {
   revoke: (sessionId: SessionId) => Promise<UserId | null>;
   /** Revoke all of a user's live sessions → count revoked. @internal */
   revokeAllForUser: (userId: UserId) => Promise<number>;
+  /** The UNEXECUTED form of {@link SessionsService.revokeAllForUser} — the same atomic UPDATE, handed to a
+   *  caller that must commit the kick INSIDE its own privileged write's `db.batch` rather than after it
+   *  (#1691: `admin.resetPassword`'s revoke used to be a separate await, so a failed kick left the NEW
+   *  password live with the OLD sessions). The revoke instant is the caller's, so one clock stamps the whole
+   *  batch. It does NOT evict live sockets — that is the entry-tier port (W7a), after the commit. @internal */
+  revokeAllForUserStatement: (userId: UserId, revokedAt: number) => BatchStmt;
   /** A5 — revoke every live session for the user(s) bound to a stable external subject (`sub`), for OIDC
    *  back-channel logout → the count revoked + WHOSE (the entry tier evicts those users' live sockets).
    *  Idempotent (re-delivered logout tokens re-revoke nothing, and name no users). @internal */

@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, principal, seedAdminCaller, seedUser } from "../_support.ts";
+import { auditActions, makeHarness, principal, seedAdminCaller, seedUser, withBrokenAudit } from "../_support.ts";
 
 describe("setRole", () => {
   test("the owner promotes a user to admin (audited)", async () => {
@@ -28,7 +28,7 @@ describe("setRole", () => {
       role: "admin",
     });
     expect(updated.role).toBe("admin");
-    expect(h.audits.map((a) => a.entry.action)).toContain("admin.setRole");
+    expect(await auditActions(db)).toEqual(["admin.setRole"]);
     // W7b — the grant is announced on the GRANTEE's channel, never the granting owner's. That direction is
     // the whole point: `sessions.me` projects `globalRole` and the QueryClient runs `staleTime: Infinity`, so
     // before this the promoted user's live tab rendered the pre-grant role until a full reload, while the
@@ -68,7 +68,7 @@ describe("setRole", () => {
     });
     expect(result.role).toBe("owner");
     // No write, no audit — the owner row is unchanged.
-    expect(h.audits).toHaveLength(0);
+    expect(await auditActions(db)).toHaveLength(0);
     // …and no fan either: the emit sits AFTER the write on the success path, so the early-return no-op arm
     // cannot announce a change that did not happen (the emit-after-commit rule, read from the other side).
     expect(h.userEvents).toHaveLength(0);
@@ -109,5 +109,23 @@ describe("setRole", () => {
         role: "admin",
       }),
     ).rejects.toThrow(DomainNotFoundError);
+  });
+  // #1691 RED-FIRST — an authority move whose record can be lost is not audited. The injected `audit` is
+  // `logAudit` in production and SWALLOWS, so a dead audit channel used to promote a user to `admin` and
+  // return the new view with no forensic row. The grant and its row are one batch now.
+  test("a failing audit write leaves the OLD role", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createAdminService(withBrokenAudit(h.ctx, db));
+    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
+    const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
+
+    await expect(svc.setRole({ principal: principal(owner, "owner"), userId: target, role: "admin" })).rejects.toThrow();
+
+    const row = (await db.select().from(users).where(eq(users.id, target)))[0];
+    expect(row?.role).toBe("user");
+    expect(await auditActions(db)).toHaveLength(0);
+    // …and the grantee is told nothing: the fan sits after the batch, so a rolled-back grant announces nothing.
+    expect(h.userEvents).toHaveLength(0);
   });
 });

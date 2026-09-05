@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, principal, seedAdminCaller, seedUser } from "../_support.ts";
+import { auditActions, liveSessionIds, makeHarness, principal, seedAdminCaller, seedLiveSession, seedUser, withBrokenAudit } from "../_support.ts";
 
 describe("setEnabled", () => {
   test("an admin disables a user and the kick-tail revokes their sessions (audited)", async () => {
@@ -20,6 +20,7 @@ describe("setEnabled", () => {
     const svc = createAdminService(h.ctx);
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
+    await seedLiveSession(db, target);
 
     const updated = await svc.setEnabled({
       principal: principal(admin, "admin"),
@@ -27,8 +28,10 @@ describe("setEnabled", () => {
       enabled: false,
     });
     expect(updated.enabled).toBe(false);
-    expect(h.revokedAll).toContain(target);
-    expect(h.audits.map((a) => a.entry.action)).toContain("admin.setEnabled");
+    // The kick is a DB write inside the same batch — assert the ROWS, not a recorded port call.
+    expect(await liveSessionIds(db, target)).toHaveLength(0);
+    expect(h.evictedSockets).toContain(target);
+    expect(await auditActions(db)).toEqual(["admin.setEnabled"]);
     // W7b — NO `identityChanged` fan here, and this pin is the receipt for the omission the verb's header
     // argues (the staleness design §4.4.3 names this verb as a producer, so the next reader will want to
     // "fix" it). Two reasons: a disabled row is gated to null on every request, so the target holds no live
@@ -45,7 +48,7 @@ describe("setEnabled", () => {
     await expect(svc.setEnabled({ principal: principal(admin, "admin"), userId: admin, enabled: false })).rejects.toMatchObject({
       code: "cannot_disable_self",
     });
-    expect(h.revokedAll).toHaveLength(0);
+    expect(h.evictedSockets).toHaveLength(0);
     const rows = await db.select().from(users).where(eq(users.id, admin));
     expect(rows[0]?.enabled).toBe(true);
   });
@@ -71,7 +74,7 @@ describe("setEnabled", () => {
         enabled: false,
       }),
     ).rejects.toThrow(DomainNotFoundError);
-    expect(h.audits).toHaveLength(0);
+    expect(await auditActions(db)).toHaveLength(0);
   });
 
   test("a plain user is denied", async () => {
@@ -80,5 +83,39 @@ describe("setEnabled", () => {
     const u = await seedUser(db, { id: "user_u", role: "user", handle: castId<Handle>("u") });
     const t = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     await expect(svc.setEnabled({ principal: principal(u, "user"), userId: t, enabled: false })).rejects.toThrow(DomainForbiddenError);
+  });
+  // #1691 RED-FIRST — a containment action that returns success with no forensic row is the same defect as an
+  // unaudited grant, and `logAudit` swallows in production. The flip, its audit row and the kick are one batch.
+  test("a failing audit write leaves the account ENABLED and its sessions live", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createAdminService(withBrokenAudit(h.ctx, db));
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
+    const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
+    const live = await seedLiveSession(db, target);
+
+    await expect(svc.setEnabled({ principal: principal(admin, "admin"), userId: target, enabled: false })).rejects.toThrow();
+
+    const row = (await db.select().from(users).where(eq(users.id, target)))[0];
+    expect(row?.enabled).toBe(true);
+    expect(await liveSessionIds(db, target)).toEqual([live]);
+    expect(await auditActions(db)).toHaveLength(0);
+    expect(h.evictedSockets).toHaveLength(0);
+  });
+
+  // #1691 ORDERING PIN — the audit insert reads SQLite `changes()` from the statement immediately before it,
+  // and the kick (a legitimate 0-row write for a signed-out target) is a TAIL after it. Moving the kick
+  // between the flip and the audit would silently drop this row.
+  test("disabling a target with NO live sessions still writes its audit row", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createAdminService(h.ctx);
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
+    const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
+
+    const updated = await svc.setEnabled({ principal: principal(admin, "admin"), userId: target, enabled: false });
+
+    expect(updated.enabled).toBe(false);
+    expect(await auditActions(db)).toEqual(["admin.setEnabled"]);
   });
 });

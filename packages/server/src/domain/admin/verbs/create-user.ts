@@ -2,13 +2,19 @@
 // minting an `admin` is owner-only — the same gate `setRole` uses, closing the create/set-role privilege
 // asymmetry. Mints humans only. Guards: invalid_handle (empty), cannot_grant_owner (never minted here),
 // weak_password, user_exists (both the pre-SELECT and the TOCTOU insert-conflict race translate to the same code).
+//
+// The account and its audit row are ONE batch (#1691, `substrate/audited-write.ts`). Before that the audit
+// was a separate await after the INSERT, which failed both ways: in production the injected `audit` is
+// `logAudit`, which SWALLOWS its failure, so a dead audit channel minted a loginable account and returned
+// 200 with no forensic record at all; and any tail that did reject rejected the endpoint with the account
+// already created. A privileged mint that cannot be recorded must not happen.
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
 
 import { users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { Handle } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { MIN_PASSWORD_LENGTH } from "#infra/auth";
@@ -19,6 +25,7 @@ import type { AdminService } from "../contract/service.ts";
 import type { AdminUserView } from "../contract/views.ts";
 import { requireAdmin, requireOwner } from "../guard.ts";
 import { userCols } from "../persistence/queries.ts";
+import { commitAuditedWrite } from "../substrate/audited-write.ts";
 
 const OWNER_ROLE = "owner";
 const DEFAULT_ROLE = "user";
@@ -65,24 +72,39 @@ interface LocalUserInsert {
   readonly at: number;
 }
 
-async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert): Promise<AdminUserView> {
+async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert, actorUserId: UserId): Promise<AdminUserView> {
+  // The id is minted BEFORE the batch so the audit row can name the account it records without reading the
+  // INSERT's own RETURNING back (the two statements commit together — there is no "after" to read in).
+  const id = ctx.newUserId();
   // `.returning(userCols)` omits the joined `ownerHandle` — a fresh human's owner is null, added at return.
   let inserted: Omit<AdminUserView, "ownerHandle">[];
   try {
-    inserted = await ctx.db
-      .insert(users)
-      .values({
-        id: ctx.newUserId(),
-        handle: castId<Handle>(row.handle),
-        role: row.role,
-        // `createUser` mints humans only — agent rows come exclusively from provisionAgentPrincipal.
-        // Hardcoded (not the schema default) so a future default change can't leak agents here.
-        kind: "human",
-        passwordHash: row.passwordHash,
-        createdAt: row.at,
-        updatedAt: row.at,
-      })
-      .returning(userCols);
+    // ONE batch: the account and its audit row exist together or neither does (#1691). A rejecting audit
+    // insert now un-mints the account instead of leaving a loginable row with no forensic record.
+    inserted = await commitAuditedWrite(ctx, {
+      write: ctx.db
+        .insert(users)
+        .values({
+          id,
+          handle: castId<Handle>(row.handle),
+          role: row.role,
+          // `createUser` mints humans only — agent rows come exclusively from provisionAgentPrincipal.
+          // Hardcoded (not the schema default) so a future default change can't leak agents here.
+          kind: "human",
+          passwordHash: row.passwordHash,
+          createdAt: row.at,
+          updatedAt: row.at,
+        })
+        .returning(userCols),
+      entry: {
+        actorUserId,
+        action: "admin.createUser",
+        entityType: "user",
+        entityId: id,
+        metadata: { handle: row.handle, role: row.role },
+      },
+      at: row.at,
+    });
   } catch (err) {
     if (isConstraintViolation(err)?.kind === "unique") {
       const dup = handleTaken(row.handle);
@@ -115,18 +137,6 @@ export function createCreateUser(ctx: AdminContext): AdminService["createUser"] 
 
     const passwordHash = await ctx.hashPassword(params.password);
     const at = ctx.now();
-    const row = await insertLocalUser(ctx, { handle, role, passwordHash, at });
-
-    await ctx.audit(
-      {
-        actorUserId: params.principal.userId,
-        action: "admin.createUser",
-        entityType: "user",
-        entityId: row.id,
-        metadata: { handle, role },
-      },
-      at,
-    );
-    return row;
+    return await insertLocalUser(ctx, { handle, role, passwordHash, at }, params.principal.userId);
   };
 }
