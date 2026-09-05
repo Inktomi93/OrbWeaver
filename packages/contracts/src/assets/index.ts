@@ -65,7 +65,9 @@ export interface StoredAsset {
   assetId: AssetId;
   hash: string;
   size: number;
-  /** `false` if the blob already existed (within-user content-addressed dedup, D21). */
+  /** `false` if an index ROW for these bytes already existed (within-user content-addressed dedup, D21).
+   *  The row, not the blob: a store that finds the blob already on disk but writes the missing row (crash
+   *  recovery) is a creation — that is the flag the `asset.created` emit rides on. */
   created: boolean;
 }
 
