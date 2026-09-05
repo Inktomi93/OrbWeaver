@@ -32,7 +32,7 @@ import { principal, seedScript, seedUser } from "../../domain/regex/_support.ts"
 const NOW = 1_700_000_000_000;
 
 function build(db: Awaited<ReturnType<typeof freshDb>>): ReturnType<typeof buildRegex> {
-  return buildRegex({ db, now: (): number => NOW, audit: (): Promise<void> => Promise.resolve() });
+  return buildRegex({ db, now: (): number => NOW, audit: (): Promise<void> => Promise.resolve(), emitChatEventLive: (): void => undefined });
 }
 
 describe("compose/regex — resolveVisibleRooms (the reverse roster's room filter)", () => {

@@ -23,6 +23,9 @@ export function createDetachFromChat(ctx: RegexContext): RegexService["detachFro
     if (detached) {
       await ctx.audit({ actorUserId: ownerId, action: "regex.detachFromChat", entityType: "regex_script", entityId: scriptId, metadata: { chatId } }, at);
       ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
+      // #1733 — the room plane (see attach-to-chat). Inside the `detached` guard: a no-op detach moved
+      // nothing, so it announces nothing.
+      ctx.emitRoomRegexChanged(chatId);
     }
     return { detached };
   };

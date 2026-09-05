@@ -24,6 +24,7 @@ import type {
   AssemblePersona,
   ChatInjection,
   ContextFitPreview,
+  EffectiveRegexView,
   GroupConfig,
   JoinHistoryVisibility,
   MemberCardView,
@@ -70,6 +71,7 @@ import type {
   GetVariantWireParams,
   GuidedSteer,
   ListChatsParams,
+  ListEffectiveRegexParams,
   ListForksParams,
   ListMessagesParams,
   ListMessageVariantsParams,
@@ -145,9 +147,9 @@ import {
   toShapeCanon,
 } from "../substrate/assembly-access.ts";
 import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
-
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
@@ -189,6 +191,7 @@ type ReadVerbs = Pick<
   | "getShapeTrace"
   | "getVariantWire"
   | "previewContextFit"
+  | "listEffectiveRegex"
   | "listMessages"
   | "listMessageVariants"
   | "listParticipants"
@@ -976,6 +979,38 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
  *  `getShapeTrace` and `previewContextFit` share (no user input, no group nudge, primary speaker / merged):
  *  the same `toShapeCanon` → `shapeTurn` the pipeline runs, minus the per-speaker round machinery. Returns
  *  the loaded canon beside the shaped result (the fit's boundary resolution needs both). */
+/** `listEffectiveRegex` — WHAT REGEX RUNS IN THIS ROOM, in run order, by tier (#1742,
+ *  `docs/design/mocks/regex-section/DESIGN.md` §6). The room's Regex section is its only consumer.
+ *
+ *  HOST-ONLY under D19, and the gate is the shape of the answer, not a policy bolted onto it: the union
+ *  resolves under the host's frozen `runAsUserId`, so three of its four tiers ARE the host's library
+ *  (global / their preset / the seated cards they own). A member has no parameter on any of them and must
+ *  not learn what the host owns — they read the room's own tier through `regex.listForChat` (member-gated,
+ *  room-public) instead.
+ *
+ *  IT RESOLVES THROUGH `resolvePreviewInputs`, deliberately: the section is an HONESTY INSTRUMENT in exactly
+ *  the sense the previews are. The tier list must name the preset the TURN would assemble (including the rpg
+ *  GM redirect) and the characters the TURN would seat, or a host bisecting a weird room would be switching
+ *  levers on a set the next reply does not use. Sharing the preamble is what makes that structural.
+ *
+ *  The pure resolver answers both halves at once (`substrate/regex-tier::resolveRegexTiers`) — the same
+ *  function the turn's union comes out of — so the section and the wire can never disagree about run order. */
+function createListEffectiveRegex(ctx: ChatContext, deps: ReadDeps): ChatService["listEffectiveRegex"] {
+  return async ({ principal, chatId }: ListEffectiveRegexParams): Promise<EffectiveRegexView> => {
+    const { chat } = await requireHost(ctx, principal, chatId);
+    const inputs = await resolvePreviewInputs(ctx, deps, chatId, { anchorPersonaId: chat.anchorPersonaId });
+    return resolveRegexTiers({
+      ...(await ctx.resolveRegexSources({
+        ownerId: inputs.hostUserId,
+        presetId: inputs.foreign.presetId ?? null,
+        characterIds: inputs.characterIds,
+        chatId,
+      })),
+      allow: regexAllowOf(inputs.metadata),
+    });
+  };
+}
+
 /** The EPHEMERAL `PROMPT_HISTORY` leg's env for a PREVIEW build — the same seams a real turn supplies
  *  (`engine/pipeline::promptHistoryEnv`), so what the host reads in `previewAssembly`/`getShapeTrace`/
  *  `previewContextFit` is what the wire would carry. A preview that skipped the leg would show the host a
@@ -1505,6 +1540,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     getShapeTrace: createGetShapeTrace(ctx, deps),
     getVariantWire: createGetVariantWire(ctx),
     previewContextFit: createPreviewContextFit(ctx, deps),
+    listEffectiveRegex: createListEffectiveRegex(ctx, deps),
     listMessages: createListMessages(ctx, deps),
     listMessageVariants: createListMessageVariants(ctx),
     listParticipants: createListParticipants(ctx, deps),

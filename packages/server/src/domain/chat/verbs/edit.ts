@@ -62,6 +62,7 @@ import type {
   SetMessageHiddenParams,
   SetSeededGreetingParams,
 } from "../contract/params.ts";
+import type { HostTierRegexAllow } from "../contract/regex.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireAuthorOrHost, requireHost, requireParticipant } from "../guard.ts";
 import {
@@ -98,7 +99,7 @@ import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assembly-access.ts";
 import { assertAuthorOrHost } from "../substrate/auth/index.ts";
 import { projectViewReturnForViewer } from "../substrate/member-visibility.ts";
-import { resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
+import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
@@ -213,6 +214,9 @@ async function applyRunOnEditRegex(
     readonly editorUserId: UserId;
     readonly editorPersonaId: PersonaId | null;
     readonly content: string;
+    /** #1742 — the room's regex levers, off the chat row the caller already holds. A runOnEdit re-apply must
+     *  run the SAME set a live turn would, so a tier this room switched off is switched off here too. */
+    readonly regexAllow: HostTierRegexAllow;
   },
 ): Promise<string> {
   const placement = editPlacementFor(args.slot.role);
@@ -244,9 +248,10 @@ async function applyRunOnEditRegex(
     // because the list was built from this one persona.
     trigger: { kind: "human", userId: args.editorUserId, personaId: args.editorPersonaId },
   });
-  const scripts = resolveHostTierRegexScripts(
-    await ctx.resolveRegexSources({ ownerId: hostUserId, presetId: foreign.presetId ?? null, characterIds, chatId }),
-  ).filter((script) => script.runOnEdit === true);
+  const scripts = resolveHostTierRegexScripts({
+    ...(await ctx.resolveRegexSources({ ownerId: hostUserId, presetId: foreign.presetId ?? null, characterIds, chatId })),
+    allow: args.regexAllow,
+  }).filter((script) => script.runOnEdit === true);
   if (scripts.length === 0) {
     return args.content;
   }
@@ -532,6 +537,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
       editorUserId: principal.userId,
       editorPersonaId: membership.activePersonaId,
       content: purified,
+      regexAllow: regexAllowOf(membership.chat.metadata),
     });
     const now = ctx.now();
     const statements = editMessageContentStatements(ctx.db, {

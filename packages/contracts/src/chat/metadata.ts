@@ -12,6 +12,7 @@ import { GUIDED_IMPERSONATE_PERSONS, guidedActionKindSchema, REWRITE_TOGGLE_IDS 
 import type { ChatRpgPointer } from "#rpg";
 import type { ThemeBackground } from "#theme";
 import { messageRoleSchema } from "./participants.ts";
+import type { RegexTierAllow } from "./regex-tiers.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // MISFILED-FROM-SETTINGS CHAT SHAPES (shared-dissolution §7 #4) — chatMetadata sub-blobs / start-chat
@@ -298,6 +299,21 @@ export interface ChatMetadata {
    *  `{enabled:false, groups:[]}` and `toggleReaction`/the react tool refuse — hidden is not the
    *  mechanism, refused is. */
   reactionsEnabled?: boolean;
+  /** #1742 — the room's regex MASTER — the section's "Run regex in this chat" switch
+   *  (`docs/design/mocks/regex-section/DESIGN.md` §3). Absent ⇒ ON, and that default is why it is not tri-state like its `offerChoices` neighbours:
+   *  there is no per-user "do I run regex" default to inherit — the library IS the host's default, and this
+   *  key exists only so the debugger can bisect ONE room without disturbing it. `false` drops the whole
+   *  host-tier union for this chat (`substrate/regex-tier.ts`); the display leg is untouched by it, because
+   *  the display leg is viewer-library-wide and attachment-blind (the 2026-08-02 O-4 ruling). Host-set
+   *  (`chat.setRegexAllow`); room-public on the read. */
+  regexEnabled?: boolean;
+  /** #1742 — the room's per-TIER allows, a SPARSE override map keyed by {@link RegexTierKey} (`global` ·
+   *  `preset` · `character:<id>` per seat · `chat`). Absent, or a key absent, ⇒ that tier runs, so an
+   *  existing room is byte-identical. Written by the same host-gated `chat.setRegexAllow` verb; READ by the
+   *  host-tier resolver, which drops a disallowed tier's rows BEFORE the dedup (see the schema's header —
+   *  dropping after would let a switched-off tier swallow a script that another tier still runs). Schema is
+   *  `regexTierAllowSchema` — the `databankVisibility` id-keyed sub-blob precedent. */
+  regexTiers?: RegexTierAllow;
 }
 
 /** THE PRECEDENCE, one home: **the room's explicit choice wins; an absent room value inherits the host's

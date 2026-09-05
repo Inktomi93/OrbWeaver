@@ -24,6 +24,15 @@
 //
 // It lives in `#data` rather than `features/regex` because its consumer is the CHAT message list, and
 // features cannot import each other (the `#lib` vocabulary-map precedent).
+//
+// ── ITS SURFACE (#1742) ─────────────────────────────────────────────────────────────────────────────────
+// This hook's output IS the room's `On screen` roster — the last group of the This-chat tab's **Regex**
+// section (`docs/design/mocks/regex-section/DESIGN.md` §3), where each display script in force for THIS
+// viewer is listed with its provenance (`yours` / `the host's`) and, for the viewer's own, its library
+// switch. That roster is SEPARATE from the section's tier groups above it, and the O-4 ruling is exactly
+// why: the display leg is ATTACHMENT-BLIND (it is the viewer's whole library ∩ DISPLAY, plus the host's
+// broadcast), so a per-chat tier lever and the room's regex master cannot reach it and must not appear to.
+// The host broadcast switch (`chat.setHostDisplayScripts`) is drawn at the foot of that roster.
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";

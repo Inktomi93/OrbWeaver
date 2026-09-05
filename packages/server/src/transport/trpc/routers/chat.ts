@@ -22,6 +22,7 @@ import {
   REACTION_SPEAKER_NAME_MAX,
   reactionEmojiSchema,
   reattributeScopeSchema,
+  regexTierKeySchema,
   roomOverridesSchema,
   seatKnobsSchema,
 } from "@orb/contracts/chat";
@@ -585,6 +586,28 @@ export const chatRouter = t.router({
   setHostDisplayScripts: authedProcedure
     .input(z.object({ chatId: brandedId<ChatId>(), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.chat.setHostDisplayScripts({ principal: ctx.auth, ...input })),
+
+  // #1742 — the room's regex levers (the Regex section's master + one switch per tier). Host-gated in the
+  // verb like every other `chatMetadata` write here; ONE lever per call because the write is one JSON path
+  // (#1450). The tier key is validated by the contracts schema, so a lever naming a tier this build cannot
+  // address is refused at the door rather than stored as a flag nothing draws.
+  setRegexAllow: authedProcedure
+    .input(
+      z.object({
+        chatId: brandedId<ChatId>(),
+        lever: z.discriminatedUnion("kind", [
+          z.object({ kind: z.literal("master"), enabled: z.boolean() }),
+          z.object({ kind: z.literal("tier"), tier: regexTierKeySchema, enabled: z.boolean() }),
+        ]),
+      }),
+    )
+    .mutation(({ ctx, input }) => ctx.services.chat.setRegexAllow({ principal: ctx.auth, ...input })),
+
+  // #1742 — the Regex section's body: what runs in this room, in run order, by tier. HOST-only in the verb
+  // (three of the four tiers are the host's own library, D19); a member's rack is `regex.listForChat`.
+  listEffectiveRegex: authedProcedure
+    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .query(({ ctx, input }) => ctx.services.chat.listEffectiveRegex({ principal: ctx.auth, chatId: input.chatId })),
 
   // B1 — the per-room offer-choices posture. Host-gated in the verb (a member's call is a refusal, not a
   // no-op), like every other `chatMetadata` write on this router.

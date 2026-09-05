@@ -39,6 +39,9 @@ export interface RegexHarness {
   readonly audits: AuditCall[];
   /** The recorded user-bus emits — assert `regexChanged` fires after a durable write, and NOT on a no-op. */
   readonly userEvents: UserEventCall[];
+  /** The recorded ROOM-plane fans (#1733) — assert a chat-arm write announced its room and a library-row
+   *  write announced the row, and that a no-op detach announced nothing. */
+  readonly roomFans: RoomFanCall[];
   /** Advance the injected frozen clock (ms) — to break createdAt ties for newest-first ordering tests. */
   readonly advance: (ms: number) => void;
 }
@@ -51,11 +54,20 @@ interface HarnessOverrides {
   readonly resolveVisibleRooms?: RegexContext["resolveVisibleRooms"];
 }
 
+/** ONE room-plane fan the harness recorded (#1733) — `{kind}` says which of the two ops raised it, so a test
+ *  can assert that a chat-arm write announced ITS room and a library-row write announced every room that
+ *  attaches the row. */
+interface RoomFanCall {
+  readonly kind: "room" | "script";
+  readonly id: string;
+}
+
 export function makeHarness(db: Db, overrides: HarnessOverrides = {}): RegexHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
   const userEvents: UserEventCall[] = [];
+  const roomFans: RoomFanCall[] = [];
   const notStubbed = (): never => {
     throw new Error("RegexContext chat op not stubbed in this test");
   };
@@ -71,11 +83,18 @@ export function makeHarness(db: Db, overrides: HarnessOverrides = {}): RegexHarn
     requireChatMember: overrides.requireChatMember ?? notStubbed,
     resolveRoomDisplayPolicy: overrides.resolveRoomDisplayPolicy ?? notStubbed,
     resolveVisibleRooms: overrides.resolveVisibleRooms ?? notStubbed,
+    emitRoomRegexChanged: (chatId: ChatId): void => {
+      roomFans.push({ kind: "room", id: chatId });
+    },
+    fanRegexScriptRooms: (scriptId: RegexScriptId): Promise<void> => {
+      roomFans.push({ kind: "script", id: scriptId });
+      return Promise.resolve();
+    },
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });
     },
   };
-  return { ctx, audits, userEvents, advance: (ms: number): void => clock.advance(ms) };
+  return { ctx, audits, userEvents, roomFans, advance: (ms: number): void => clock.advance(ms) };
 }
 
 interface SeedUserOverrides {

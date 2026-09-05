@@ -926,6 +926,21 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.setHostDisplayScripts({ chatId: i.chatId, enabled: true }),
   },
   {
+    // #1742 — the room's regex levers. Same `requireHost` → `requireParticipant` shape, and it carries the
+    // same PROMPT stakes as `setOfferChoices` below: a stranger who could write these would be deciding
+    // which text transforms run on someone else's room's prompt. Leak-free NOT_FOUND before any metadata
+    // write.
+    path: "chat.setRegexAllow",
+    call: (c, i) => c.chat.setRegexAllow({ chatId: i.chatId, lever: { kind: "master", enabled: false } }),
+  },
+  {
+    // #1742 — the host's effective-regex read. HOST-gated (three of its four tiers are the host's own
+    // LIBRARY), so a stranger's call must not answer, and must not distinguish "not yours" from "no such
+    // room": `requireHost` → `requireParticipant` miss is the leak-free NOT_FOUND before any library read.
+    path: "chat.listEffectiveRegex",
+    call: (c, i) => c.chat.listEffectiveRegex({ chatId: i.chatId }),
+  },
+  {
     // B1 — the per-room offer-choices posture. Same `requireHost` → `requireParticipant` shape as its
     // neighbour above, and it matters MORE here: this key reaches the PROMPT, so a stranger who could write
     // it would be steering someone else's room's model. Leak-free NOT_FOUND before any metadata write.

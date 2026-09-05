@@ -9,6 +9,7 @@
 // watchdog (`@orb/server/kit/regex`) is injected onto ChatContext as `applyRegexReplace`. This seam wires
 // only the DATA the engine runs on (AGENTS §1 "engine vs data").
 
+import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
@@ -41,6 +42,7 @@ import type { AuditEntry } from "#foundation/observability";
 import { requireHost, requireParticipant } from "../../domain/chat/index.ts";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import { minter } from "./minter.ts";
+import { createEmitRoomRegexChanged, createFanRegexScriptRooms } from "./room-reach.ts";
 import { createResolveVisibleRooms } from "./visible-rooms.ts";
 
 const LIMIT_ONE = 1;
@@ -78,6 +80,10 @@ export interface RegexComposeDeps {
   readonly db: Db;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  /** chat's DURABLE-APPEND-FREE live fan — the entity→room bridge's emit surface (the world-info precedent).
+   *  Threaded here for #1733: regex's chat-arm writes and its library-row switch both have a member-visible
+   *  projection in rooms, and `regexChanged` is a per-USER channel that never reaches them. */
+  readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
 }
 
 /** The regex compose product: the service + the four portability ops + the chat-turn resolve op. */
@@ -114,6 +120,10 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     // when databank and preset became its second and third consumers (#276/#279).
     resolveVisibleRooms: createResolveVisibleRooms(db),
     emitUserEvent: publishUserEvent,
+    // #1733 — the ROOM plane. Both arms live at the composition root for the same reason the guards do: the
+    // fan is chat's bus and the reach is SQL over chat's junction, and regex may import neither.
+    emitRoomRegexChanged: createEmitRoomRegexChanged(deps.emitChatEventLive),
+    fanRegexScriptRooms: createFanRegexScriptRooms(db, deps.emitChatEventLive),
   });
 
   const portabilityCtx = { db, now, newScriptId };

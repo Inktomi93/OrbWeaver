@@ -57,10 +57,12 @@ import type {
   SetMemberHistoryVisibilityParams,
   SetOfferChoicesParams,
   SetReactionsEnabledParams,
+  SetRegexAllowParams,
   SetRoomOverridesParams,
   SetSeatKnobsParams,
   SetToolRecurseLimitParams,
 } from "../contract/params.ts";
+import type { HostTierRegexAllow } from "../contract/regex.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
 import { carriedBackgroundAvailable, ownedBackgroundAvailable } from "../persistence/background-write.ts";
@@ -83,6 +85,7 @@ import { characterEverSeatedInChat, characterSeatedInAnotherChat, loadRoster } f
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
 import { resolveHandoffCopyPlan } from "../substrate/handoff-copy.ts";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
+import { regexAllowOf } from "../substrate/regex-tier.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { canonMessageDelta, seatChatDelta } from "../substrate/stats-delta.ts";
 
@@ -113,6 +116,7 @@ type RosterVerbs = Pick<
   | "setChatDocumentVisibility"
   | "setChatBackground"
   | "setHostDisplayScripts"
+  | "setRegexAllow"
   | "setOfferChoices"
   | "setCharactersCanReact"
   | "setReactionsEnabled"
@@ -171,6 +175,7 @@ export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
     setChatDocumentVisibility: createSetChatDocumentVisibility(ctx, emit, claimChat),
     setChatBackground: createSetChatBackground(ctx, emit, claimChat),
     setHostDisplayScripts: createSetHostDisplayScripts(ctx, emit, claimChat),
+    setRegexAllow: createSetRegexAllow(ctx, emit, claimChat),
     setOfferChoices: createSetOfferChoices(ctx, emit, claimChat),
     setCharactersCanReact: createSetCharactersCanReact(ctx, emit, claimChat),
     setReactionsEnabled: createSetReactionsEnabled(ctx, emit, claimChat),
@@ -366,6 +371,61 @@ function createSetHostDisplayScripts(ctx: ChatContext, emit: EmitChatEvent, clai
       ctx.now(),
     );
     return enabled;
+  };
+}
+
+/** `setRegexAllow` — host-only (#1742). Writes ONE of the room's regex levers: the master
+ *  (`chatMetadata.regexEnabled`) or one entry of the per-tier allow map (`chatMetadata.regexTiers`).
+ *
+ *  ONE KEY PER CALL (#1450). The two levers are two different metadata keys, so the union in the params is
+ *  not a convenience — it is what keeps this on the single-JSON-path write that cannot lose an update to a
+ *  concurrent host knob. The TIER arm still read-modify-writes its own map (the `databankVisibility`
+ *  set-semantics precedent), which is why the merge is server-side: the client flips one lever and never has
+ *  to send back a map it might have raced against its own second device.
+ *
+ *  WRITING `true` IS NOT THE SAME AS NEVER HAVING WRITTEN, and here that distinction costs nothing: absent
+ *  and `true` both mean "runs" (`isRegexTierAllowed`), so switching a tier back on is idempotent rather than
+ *  a state the reader has to disambiguate.
+ *
+ *  HOST AUTHORITY for the `setOfferChoices` reason, not the display-scripts one: these levers decide which
+ *  scripts the SHARED assembly runs, so they are prompt content for everyone in the room. `chatUpdated`
+ *  carries it to every member's device (the room's own tier is member-readable), and the host's other
+ *  devices repaint the section off the same event. */
+function createSetRegexAllow(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setRegexAllow"] {
+  return async ({ principal, chatId, lever }: SetRegexAllowParams): Promise<HostTierRegexAllow> => {
+    const { chat } = await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
+    const stored = regexAllowOf(chat.metadata);
+    const next: HostTierRegexAllow =
+      lever.kind === "master"
+        ? { enabled: lever.enabled, tiers: stored.tiers }
+        : { enabled: stored.enabled, tiers: { ...stored.tiers, [lever.tier]: lever.enabled } };
+    // The POST-WRITE metadata, for the background-availability guard only (#1450: the write itself touches
+    // this one JSON path and never re-asserts the siblings).
+    // `exactOptionalPropertyTypes`: an ABSENT lever must stay absent, never an explicit `undefined` (the two
+    // read the same through `isRegexTierAllowed`, but the blob would grow a key that means nothing).
+    const effective: ChatMetadata = {
+      ...chat.metadata,
+      ...(next.enabled === undefined ? {} : { regexEnabled: next.enabled }),
+      ...(next.tiers === undefined ? {} : { regexTiers: next.tiers }),
+    };
+    if (lever.kind === "master") {
+      await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "regexEnabled", value: lever.enabled, effective, authority: "carried" });
+    } else {
+      await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "regexTiers", value: next.tiers ?? {}, effective, authority: "carried" });
+    }
+    await emit({ type: "chatUpdated", chatId });
+    await ctx.audit(
+      {
+        actorUserId: principal.userId,
+        action: "chat.setRegexAllow",
+        entityType: "chat",
+        entityId: chatId,
+        metadata: { lever: lever.kind, tier: lever.kind === "tier" ? lever.tier : null, enabled: lever.enabled },
+      },
+      ctx.now(),
+    );
+    return next;
   };
 }
 

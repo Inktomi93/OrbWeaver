@@ -111,4 +111,24 @@ describe("bulkSetScriptsEnabled", () => {
 
     expect((await db.select().from(regexScripts).where(eq(regexScripts.id, a)))[0]?.behavior).toEqual(before);
   });
+
+  // #1733's LIBRARY half. The row switch is OFF-EVERYWHERE by design (#1742 §3), and a member of a room that
+  // attaches the row reads its `enabled` through the room-public `regex.listForChat` — so every written row
+  // announces itself on the room plane, which resolves the rooms this verb's arguments cannot name. One fan
+  // per WRITTEN row (a foreign/absent id writes nothing and announces nothing), matching the audit's count.
+  test("announces each WRITTEN row on the room plane; a foreign id announces nothing", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createRegexService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+    const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
+    const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
+    const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
+
+    await svc.bulkSetScriptsEnabled({ principal: principal(owner), scriptIds: [a, b, theirs], enabled: false });
+
+    expect(h.roomFans.map((f) => f.kind)).toEqual(["script", "script"]);
+    expect([...h.roomFans].map((f) => f.id).toSorted((x, y) => x.localeCompare(y))).toEqual([a, b].toSorted((x, y) => x.localeCompare(y)));
+  });
 });

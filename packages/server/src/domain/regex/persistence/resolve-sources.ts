@@ -8,6 +8,7 @@
 // here — a per-character read loop was N round-trips for the same answer, and a bare `inArray` WITHOUT the
 // regroup would silently hand the executor table order instead of the roster's.
 
+import type { CharacterRegexSlice } from "@orb/contracts/chat";
 import { characterRegexScripts, regexScripts } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -15,8 +16,8 @@ import type { RegexResolveContext, ResolvedRegexSources, ResolveRegexSources } f
 import type { ScriptRecord } from "../contract/rows.ts";
 import { listChatScripts, listGlobalScripts, listPresetScripts, toRow } from "./queries.ts";
 
-/** Every seated character's attached rows, concatenated in ROSTER order (see the header). */
-async function characterSlice(ctx: RegexResolveContext, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<ScriptRecord[]> {
+/** Every seated character's attached rows, PER SEAT, in ROSTER order (see the header). */
+async function characterSlices(ctx: RegexResolveContext, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<CharacterRegexSlice[]> {
   if (characterIds.length === 0) {
     return [];
   }
@@ -28,7 +29,12 @@ async function characterSlice(ctx: RegexResolveContext, ownerId: UserId, charact
     .orderBy(asc(characterRegexScripts.position), asc(regexScripts.createdAt));
 
   // Regroup by the ROSTER's order, not the query's. WITHIN a character the query's ORDER BY already holds.
-  return characterIds.flatMap((characterId) => rows.filter((row) => row.characterId === characterId).map((row) => row.script));
+  // The grouping is KEPT (#1742/F3): each seat is its own tier downstream — its own allow flag and its own
+  // group in the room's Regex section — and the `flatMap` this used to end with threw exactly that away.
+  return characterIds.map((characterId) => ({
+    characterId,
+    scripts: rows.filter((row) => row.characterId === characterId).map((row) => toRow(row.script)),
+  }));
 }
 
 export function createResolveRegexSources(ctx: RegexResolveContext): ResolveRegexSources {
@@ -36,13 +42,13 @@ export function createResolveRegexSources(ctx: RegexResolveContext): ResolveRege
     const [hostGlobal, preset, character, chat] = await Promise.all([
       listGlobalScripts(ctx.db, ownerId),
       presetId === null ? Promise.resolve<ScriptRecord[]>([]) : listPresetScripts(ctx.db, ownerId, presetId),
-      characterSlice(ctx, ownerId, characterIds),
+      characterSlices(ctx, ownerId, characterIds),
       listChatScripts(ctx.db, chatId),
     ]);
     return {
       hostGlobal: hostGlobal.map(toRow),
       preset: preset.map(toRow),
-      character: character.map(toRow),
+      character,
       chat: chat.map(toRow),
     };
   };

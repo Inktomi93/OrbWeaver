@@ -44,6 +44,10 @@ export function createUpdate(ctx: RegexContext): RegexService["updateScript"] {
     await ctx.audit({ actorUserId: ownerId, action: "regex.updateScript", entityType: "regex_script", entityId: scriptId, metadata: { name } }, at);
 
     ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
+    // #1733's library half: a row's `name`/`enabled` is member-visible in every room whose own tier attaches
+    // it (`regex.listForChat` is room-public), and the #1742 section's row switch IS this verb. Awaited so a
+    // caller's own read-after-write cannot race the fan; error-isolated inside the op, never rejects.
+    await ctx.fanRegexScriptRooms(scriptId);
     return { id: scriptId, name, enabled, updatedAt: at, ...behavior };
   };
 }

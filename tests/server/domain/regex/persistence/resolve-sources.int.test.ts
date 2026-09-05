@@ -40,7 +40,9 @@ describe("resolveRegexSources", () => {
 
     expect(sources.hostGlobal.map((s) => s.name)).toEqual(["global"]);
     expect(sources.preset.map((s) => s.name)).toEqual(["preset"]);
-    expect(sources.character.map((s) => s.name)).toEqual(["cast"]);
+    // PER SEAT (#1742/F3): one slice per seated character, each carrying that seat's rows.
+    expect(sources.character.map((slice) => slice.characterId)).toEqual([characterId]);
+    expect(sources.character.flatMap((slice) => slice.scripts.map((s) => s.name))).toEqual(["cast"]);
     expect(sources.chat.map((s) => s.name)).toEqual(["room"]);
   });
 
@@ -63,8 +65,11 @@ describe("resolveRegexSources", () => {
     const ariaFirst = await resolve({ ownerId: owner, presetId: null, characterIds: [aria, brin], chatId });
     const brinFirst = await resolve({ ownerId: owner, presetId: null, characterIds: [brin, aria], chatId });
 
-    expect(ariaFirst.character.map((s) => s.name)).toEqual(["aria-script", "brin-script"]);
-    expect(brinFirst.character.map((s) => s.name)).toEqual(["brin-script", "aria-script"]);
+    // The SLICE array's order is the roster's, and each slice names its own seat — so "whose rows are
+    // these" survives the read (the flat list this used to be could not answer it).
+    expect(ariaFirst.character.map((slice) => slice.characterId)).toEqual([aria, brin]);
+    expect(ariaFirst.character.flatMap((slice) => slice.scripts.map((s) => s.name))).toEqual(["aria-script", "brin-script"]);
+    expect(brinFirst.character.flatMap((slice) => slice.scripts.map((s) => s.name))).toEqual(["brin-script", "aria-script"]);
   });
 
   test("a null presetId resolves an EMPTY preset slice without a read", async () => {
