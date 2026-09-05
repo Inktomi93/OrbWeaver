@@ -6,9 +6,15 @@
 // Output parity with mammoth's `extractRawText`: each `<w:p>` becomes one line, runs (`<w:t>`) concatenated,
 // `<w:tab>`/`<w:br>` → whitespace, paragraphs joined `\n\n` (the chunker's boundary; normalize.ts collapses runs).
 //
-// UNTRUSTED bytes (an upload boundary), so a decompression-bomb guard caps the declared entry size BEFORE fflate
-// allocates (the plugin-host `unzipHardened` precedent). A corrupt zip / missing document part throws — the
-// dispatch wraps it as `ExtractionFailedError('docx')`. Empty text is truthful (a doc with no runs).
+// UNTRUSTED bytes (an upload boundary), so TWO guards run off the zip headers BEFORE fflate allocates (the
+// plugin-host `unzipHardened` precedent): the declared per-part size cap, and a DUPLICATE-NAME refusal. The
+// second exists because a zip is a LIST, not a map — a crafted archive can carry N entries all named
+// `word/document.xml`, and a name-only filter admitted every one of them, inflating N parts (each legal on
+// its own) while the Record-keyed result kept only the last. A legitimate OOXML package has exactly one
+// document part, so the second copy is a loud named refusal rather than a silent last-one-wins. The guard is
+// a per-call CLOSURE (the `epub.ts` aggregate-budget precedent) — module state would refuse the second
+// document the PROCESS ever loads. A corrupt zip / missing document part throws — the dispatch wraps it as
+// `ExtractionFailedError('docx')`. Empty text is truthful (a doc with no runs).
 
 import type { UnzipFileInfo } from "fflate";
 import { strFromU8, unzipSync } from "fflate";
@@ -49,23 +55,31 @@ function paragraphText(inner: string): string {
   return parts.join("");
 }
 
-/** Refuse an over-cap entry from the zip header BEFORE fflate allocates its output (the bomb guard) — only the
- *  one part we read is decompressed at all. */
-function documentFilter(file: UnzipFileInfo): boolean {
-  if (file.name !== DOCUMENT_PART) {
-    return false;
-  }
-  if (file.originalSize > MAX_PART_BYTES) {
-    throw new Error(`docx ${DOCUMENT_PART} exceeds the ${MAX_PART_BYTES}-byte cap`);
-  }
-  return true;
+/** Build the per-call entry guard: admit ONLY the one part we read, refuse it over the per-part cap, and
+ *  refuse a SECOND copy of it — all from the zip header, before fflate allocates any output. Fresh state per
+ *  `unzipSync` call: a module-level "seen" flag would refuse the second document this process ever loads. */
+function createDocumentFilter(): (file: UnzipFileInfo) => boolean {
+  let seen = false;
+  return (file): boolean => {
+    if (file.name !== DOCUMENT_PART) {
+      return false;
+    }
+    if (seen) {
+      throw new Error(`docx carries more than one ${DOCUMENT_PART} — a package has exactly one document part`);
+    }
+    if (file.originalSize > MAX_PART_BYTES) {
+      throw new Error(`docx ${DOCUMENT_PART} exceeds the ${MAX_PART_BYTES}-byte cap`);
+    }
+    seen = true;
+    return true;
+  };
 }
 
 // A sync body wrapped in `Promise.resolve` (the html/textlike loader shape) — a synchronous fflate throw (invalid
 // zip) or a missing-part throw propagates as a normal throw the dispatch's `await LOADERS[format](bytes)` catches
 // and wraps as `ExtractionFailedError('docx')`.
 export function loadDocx(bytes: Uint8Array): Promise<RawExtraction> {
-  const files = unzipSync(bytes, { filter: documentFilter });
+  const files = unzipSync(bytes, { filter: createDocumentFilter() });
   const part = files[DOCUMENT_PART];
   if (part === undefined) {
     throw new Error(`docx is missing ${DOCUMENT_PART}`);

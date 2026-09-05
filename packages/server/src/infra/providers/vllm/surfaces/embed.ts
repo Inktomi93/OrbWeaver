@@ -8,7 +8,7 @@ import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/to
 import { getLog } from "#foundation/observability";
 import type { EmbedRequest, EmbedResult } from "../../contract/index.ts";
 import type { VllmEngineClient } from "../engine/index.ts";
-import { DOC_INSTRUCTION, normalizeVector, QUERY_INSTRUCTION, toEmbedPrompt, truncateToDim } from "../engine/index.ts";
+import { DOC_INSTRUCTION, fitToDim, normalizeVector, QUERY_INSTRUCTION, toEmbedPrompt } from "../engine/index.ts";
 
 const DIMENSIONS_REJECTED_RE = /dimensions/i;
 
@@ -180,16 +180,21 @@ function selectInputs(inputs: readonly string[], instruction: string, maxInputTo
   return kept;
 }
 
-function scatter(
-  response: OpenAiEmbeddingsResponse,
-  chunk: readonly KeptInput[],
-  dim: number,
-  vectors: (Float32Array<ArrayBuffer> | null)[],
-): { prompt: number; total: number } | null {
+function scatter(args: {
+  readonly response: OpenAiEmbeddingsResponse;
+  readonly chunk: readonly KeptInput[];
+  readonly dim: number;
+  readonly vectors: (Float32Array<ArrayBuffer> | null)[];
+  /** Operator-facing coordinates for a width refusal — the surface + model that produced the payload. */
+  readonly prefix: string;
+}): { prompt: number; total: number } | null {
+  const { response, chunk, dim, vectors, prefix } = args;
   for (const item of response.data) {
     const slot = chunk[item.index];
     if (slot !== undefined) {
-      vectors[slot.index] = normalizeVector(truncateToDim(item.embedding, dim));
+      // `fitToDim` truncates a LONGER vector (MRL) and REFUSES a shorter one — see its contract; a vector
+      // narrower than the request asked for is a malformed response, not a width to accept into the store.
+      vectors[slot.index] = normalizeVector(fitToDim(item.embedding, dim, prefix));
     }
   }
   return response.usage === undefined ? null : { prompt: response.usage.prompt_tokens ?? 0, total: response.usage.total_tokens ?? 0 };
@@ -231,7 +236,7 @@ export function createVllmEmbed(deps: VllmEmbedDeps): (req: EmbedRequest) => Pro
             deps.requestTimeoutMs,
           ),
         });
-        usages[i] = scatter(response, chunk, dim, vectors);
+        usages[i] = scatter({ response, chunk, dim, vectors, prefix: `vllm embed (${req.model})` });
       }
     };
     const workerCount = Math.min(deps.concurrency, chunks.length);

@@ -7,7 +7,7 @@
 import type { ImageEmbedInput, ImageEmbedPair, ImageInput } from "@orb/contracts/role-clients";
 import type { ImageEmbedRequest, ImageEmbedResult } from "../../contract/index.ts";
 import type { VllmEngineClient } from "../engine/index.ts";
-import { DOC_INSTRUCTION, normalizeVector, QUERY_INSTRUCTION, toDataUri, truncateToDim } from "../engine/index.ts";
+import { DOC_INSTRUCTION, fitToDim, normalizeVector, QUERY_INSTRUCTION, toDataUri } from "../engine/index.ts";
 
 // A "server rejected the `dimensions` param" message — the trigger for the full-dim fallback.
 const DIMENSIONS_REJECTED_RE = /dimensions/i;
@@ -110,7 +110,8 @@ export function createVllmImageEmbed(deps: VllmImageEmbedDeps): (req: ImageEmbed
         });
         const item = response.data[0];
         if (item !== undefined) {
-          vectors[i] = normalizeVector(truncateToDim(item.embedding, dim));
+          // Same ONE RULE as the text surface: MRL truncation down, a REFUSAL for a narrower vector.
+          vectors[i] = normalizeVector(fitToDim(item.embedding, dim, `vllm imageEmbed (${req.model})`));
         }
       }
     };

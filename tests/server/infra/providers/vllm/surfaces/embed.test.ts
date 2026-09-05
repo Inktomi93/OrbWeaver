@@ -7,6 +7,7 @@
 import type { ModelId } from "@orb/kit/ids";
 import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import { cosineSim } from "@orb/kit/vector-math";
+import { ProviderError } from "@orb/server/infra/providers";
 import { createVllmEmbed } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
@@ -28,9 +29,9 @@ const TEST_WINDOW_TOKENS = 200;
 const TEST_MAX_BATCH_TOKENS = 1_000_000;
 
 // A recording fake: returns a fixed 4-dim raw vector per input; optionally rejects the FIRST `dimensions`
-// request (to exercise the MRL fallback). `engineStream` is unused by embed (asserts surface isolation).
+// request (to exercise the MRL fallback) or answers 2-dim (a SHORT vector — the #1635 malformed response). `engineStream` is unused by embed (asserts surface isolation).
 // `timeouts` records the per-POST bound the surface derived (#187).
-function fakeClient(opts: { failDimOnce?: boolean } = {}): {
+function fakeClient(opts: { failDimOnce?: boolean; shortVector?: boolean } = {}): {
   client: VllmEngineClient;
   calls: PostCall[];
   timeouts: (number | undefined)[];
@@ -47,7 +48,7 @@ function fakeClient(opts: { failDimOnce?: boolean } = {}): {
         failed = true;
         return Promise.reject(new Error("unknown field: dimensions"));
       }
-      const data = b.input.map((_, i) => ({ index: i, embedding: [1, 2, 3, 4] }));
+      const data = b.input.map((_, i) => ({ index: i, embedding: opts.shortVector === true ? [1, 2] : [1, 2, 3, 4] }));
       // FABRICATION-OK: T is enginePost's unbound generic, resolved only by the caller — no fixed shape to satisfy.
       return Promise.resolve({
         data,
@@ -385,5 +386,31 @@ describe("createVllmEmbed", () => {
     await embed({ credential: CRED, model: MODEL, input: "word ".repeat(2000) });
 
     expect(estimateTokens(need(need(calls[0]).body.input[0]))).toBeLessThanOrEqual(safeTokenWindow(1000));
+  });
+
+  // #1635 — the asymmetry that made the ONE RULE necessary. OpenRouter refuses a width that contradicts
+  // `dimensions`; this surface silently accepted anything at-or-under it, so a SHORT vector from a
+  // misconfigured or partially-loaded engine landed in the store in a different space than the one the
+  // caller asked for. Nothing downstream can detect that: a stored vector carries no evidence of the width
+  // it was supposed to be, and it just becomes a permanently wrong neighbour set.
+  test("refuses a SHORT vector from the engine rather than storing a wrong-width vector (#1635)", async () => {
+    const { client } = fakeClient({ shortVector: true });
+    const embed = createVllmEmbed({
+      client,
+      embedDim: 4,
+      chunkSize: 128,
+      concurrency: 1,
+      requestTimeoutMs: 120_000,
+      maxInputTokens: TEST_WINDOW_TOKENS,
+      maxBatchTokens: TEST_MAX_BATCH_TOKENS,
+    });
+    // Asking for 4 while the engine answers 2 — the exact shape MRL truncation cannot legitimately produce.
+    const err = await embed({ credential: CRED, model: MODEL, input: "x", dimensions: 4 }).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ProviderError);
+    expect(err).toMatchObject({ kind: "invalid", retryable: false });
+    expect((err as ProviderError).message).toMatch(/expected 4.*got 2/su);
   });
 });
