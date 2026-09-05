@@ -75,6 +75,38 @@ describe("the envelope", () => {
   });
 });
 
+// ── #1460: byte fidelity, checked BEFORE JSON syntax ─────────────────────────────────────────────────────
+// The default `TextDecoder()` is `fatal: false` — malformed UTF-8 becomes U+FFFD and the resulting string can
+// still parse as JSON, so a corrupted artifact "imported successfully" with altered text. `decodeObject` now
+// decodes with `fatal: true` and refuses BYTE corruption as its own typed reason, distinct from `not-json`.
+describe("byte fidelity (#1460)", () => {
+  test("a lone invalid UTF-8 byte is `invalid-encoding`, not `not-json`", () => {
+    // 0xff is never a valid UTF-8 lead byte — the whole file is one invalid byte.
+    expect(refusalOf(dropping.parse(new Uint8Array([0xff])))).toBe("invalid-encoding");
+  });
+
+  test("RED-FIRST: an invalid byte sequence embedded INSIDE an otherwise-well-formed JSON string is refused, never silently swapped for U+FFFD and parsed", () => {
+    // A real file: valid envelope + rows, except the `name` value carries a truncated multi-byte sequence
+    // (0xc3 is a valid 2-byte lead but is never followed by a continuation byte here) — the exact corruption
+    // class a bit-flip or a truncated write produces. Under the OLD non-fatal decoder this parsed CLEANLY
+    // with `name` silently altered to contain U+FFFD; it must now be REFUSED, not imported with altered text.
+    const prefix = ENC.encode(`{"schemaKind":"${KIND}","schemaVersion":2,"rows":[{"name":"a`);
+    const invalidContinuation = new Uint8Array([0xc3]);
+    const suffix = ENC.encode(`b"}]}`);
+    const bytes = new Uint8Array(prefix.length + invalidContinuation.length + suffix.length);
+    bytes.set(prefix, 0);
+    bytes.set(invalidContinuation, prefix.length);
+    bytes.set(suffix, prefix.length + invalidContinuation.length);
+    expect(refusalOf(dropping.parse(bytes))).toBe("invalid-encoding");
+  });
+
+  test("a VALID multi-byte string round-trips (byte fidelity is not a ban on non-ASCII)", () => {
+    const outcome = dropping.parse(file({ schemaKind: KIND, schemaVersion: 2, rows: [{ name: "Sœur 李明 🐉" }] }));
+    expect(outcome.ok).toBe(true);
+    expect(outcome.ok ? outcome.value.rows.map((r) => r.name) : []).toEqual(["Sœur 李明 🐉"]);
+  });
+});
+
 describe("the version gate", () => {
   test("an OLDER file parses (accept-old-forever — portable files are external artifacts)", () => {
     const outcome = dropping.parse(file({ schemaKind: KIND, schemaVersion: 1, rows: [{ name: "old" }] }));
@@ -164,6 +196,7 @@ describe("portableParseError", () => {
     expect(portableParseError(KIND, "newer-version")).toContain("newer version of orbweaver");
     expect(portableParseError(KIND, "foreign-kind")).toContain(KIND);
     expect(portableParseError(KIND, "not-json")).toContain("not JSON");
+    expect(portableParseError(KIND, "invalid-encoding")).toContain("UTF-8");
     expect(portableParseError(KIND, "malformed")).toContain(KIND);
   });
 });

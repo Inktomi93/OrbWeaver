@@ -74,8 +74,14 @@ export interface PortableEnvelope {
 }
 
 /** Why a portable file did not parse. One axis for every orb-native family, so the per-file import outcome
- *  can say "written by a newer orbweaver" instead of the old uniform "not a valid X file". */
-export const PORTABLE_PARSE_FAILURES = ["not-json", "foreign-kind", "newer-version", "malformed"] as const;
+ *  can say "written by a newer orbweaver" instead of the old uniform "not a valid X file".
+ *
+ *  `invalid-encoding` (#1460) is DISTINCT from `not-json`: the shared decode boundary
+ *  (`@orb/server/kit/serde/lib`'s `decodeObject`) used a non-fatal `TextDecoder`, so malformed UTF-8 bytes
+ *  silently became U+FFFD and the corrupted string still passed `JSON.parse` — a corrupted artifact "imported
+ *  successfully" with altered text. Byte fidelity is checked BEFORE `JSON.parse` even runs, so a file that
+ *  fails it never reaches the JSON-syntax check at all; the two reasons are never both true of one file. */
+export const PORTABLE_PARSE_FAILURES = ["not-json", "invalid-encoding", "foreign-kind", "newer-version", "malformed"] as const;
 
 export type PortableParseFailure = (typeof PORTABLE_PARSE_FAILURES)[number];
 

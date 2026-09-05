@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 540,
-    "enforced": 535,
+    "sites": 541,
+    "enforced": 536,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 535,
+      "deliberate-absorb": 536,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
       "default": 144,
-      "empty": 254
+      "empty": 255
     }
   },
   "rows": [
@@ -3985,7 +3985,7 @@
     {
       "siteId": "packages/server/src/kit/serde/lib/index.ts::empty:catch::1",
       "path": "packages/server/src/kit/serde/lib/index.ts",
-      "line": 115,
+      "line": 125,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3993,7 +3993,20 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "typed refusal — returns a PortableParse",
-      "markerLine": 110
+      "markerLine": 120
+    },
+    {
+      "siteId": "packages/server/src/kit/serde/lib/index.ts::empty:catch::2",
+      "path": "packages/server/src/kit/serde/lib/index.ts",
+      "line": 134,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "typed refusal — returns a PortableParse",
+      "markerLine": 129
     },
     {
       "siteId": "packages/server/src/kit/structured-turn/index.ts::default:catch::1",
