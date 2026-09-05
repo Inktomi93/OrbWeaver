@@ -292,8 +292,14 @@ test("#1556/#1675 — the 4 KB budget measures the agent-readable body; the raci
     await expect(run).toExitWith(EXIT.clean);
     // The plant fired: this run really did see a racing sibling, so the two provenance lines really are
     // carrying a census here.
-    expect(run.stdout, "the planted racing slot did not reach the run's census").toContain(`CONCURRENT   other live snap run(s) on this checkout: ${racingId}`);
-    expect(run.stdout).toMatch(/^PROVENANCE .*concurrency=\S*planted-racer/mu);
+    // The planted racer must be IN the census — never that it is the only one or the first: this file runs
+    // beside its own siblings, each of which is a real live snap run, and pinning position made this arm
+    // fail under exactly the co-scheduling #1675 is about.
+    const concurrent = run.stdout.split("\n").find((line) => line.startsWith("CONCURRENT"));
+    expect(concurrent, `the planted racing slot did not reach the run's census:\n${run.stdout}`).toContain(racingId);
+    const provenance = run.stdout.split("\n").find((line) => line.startsWith("PROVENANCE"));
+    expect(provenance, "the census rides the PROVENANCE line too — that is why it is excluded twice").toContain("concurrency=");
+    expect(provenance).toContain(racingId);
 
     // THE RULING: the body stays inside the budget while the census is live…
     const body = agentReadableBody(run.stdout);
