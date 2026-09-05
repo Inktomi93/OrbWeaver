@@ -106,8 +106,12 @@ export interface ParsedStGroup {
   /** The group's display name (ST's `name`), or the file stem when it carries none. */
   readonly name: string;
   readonly memberFiles: readonly string[];
-  /** Members the author DISABLED in ST — still seated (the room's cast is the cast) but recorded so the report
-   *  can say the disabled flag itself did not travel (orb has no per-member mute). */
+  /** Members the author DISABLED in ST. Still SEATED — the room's cast is the cast — and now seated MUTED:
+   *  the flag TRAVELS onto orb's own per-seat mute (`chat_participants.disabled`, `seatKnobsSchema`) through
+   *  the bulk-import wire's `seatKnobs` channel (#1687). The ruling survives with its input changed: the old
+   *  parenthetical "orb has no per-member mute" was false — orb had the knob, the WIRE had no channel for it,
+   *  and the report could only say the flag was lost. Reported either way, so the operator knows which seats
+   *  arrived quiet. */
   readonly disabledMemberFiles: readonly string[];
   readonly chatLeaves: readonly string[];
   /** ST `generation_mode: 1` (append) ⇒ the whole cast speaks in ONE message ⇒ orb's `narrator` output. */
@@ -133,6 +137,9 @@ export interface GroupChatInputDeps {
   readonly primaryCharacterId: CharacterId;
   /** The ADDITIONAL seats (the cast minus the primary), in ST's own member order. */
   readonly roster: readonly CharacterId[];
+  /** The seats ST had DISABLED, which the room seats MUTED (#1687) — a subset of the primary + `roster`, so
+   *  the write op's seat gate can never refuse one. Empty ⇒ every seat arrives at the column defaults. */
+  readonly mutedSeats: readonly CharacterId[];
   /** Card FILENAME → seat: the identity match, keyed exactly as ST's `original_avatar` writes it. */
   readonly speakerByFile: ReadonlyMap<string, CharacterId>;
   /** LOWERCASED card display name → seat: the fallback for a pre-group-era line with no `original_avatar`. */
@@ -353,6 +360,9 @@ export interface ImportUnresolvedPinnedPersona {
 export interface GroupSeats {
   readonly seated: readonly { readonly file: string; readonly characterId: CharacterId }[];
   readonly speakerByName: ReadonlyMap<string, CharacterId>;
+  /** The seats ST had DISABLED (#1687) — carried alongside the cast so the room is seated MUTED in the same
+   *  pass that seats it. A subset of `seated`, by construction. */
+  readonly mutedSeats: readonly CharacterId[];
 }
 
 /** A display NAME two or more of a room's seated cards share, so a transcript line that names only that name
@@ -365,9 +375,11 @@ export interface ImportAmbiguousSpeakerName {
   readonly seats: number;
 }
 
-/** One member ST had DISABLED in its group file. The member IS seated (the room's cast is the cast); this
- *  record is the report's way of saying the disabled FLAG itself did not travel — orb's per-seat mute is not
- *  reachable through the bulk-import wire, which seats a flat character list with no knob channel. */
+/** One member ST had DISABLED in its group file, and which the imported room SEATS MUTED (#1687). The member
+ *  is seated (the room's cast is the cast) with orb's own per-seat mute set, so this record is no longer a
+ *  loss report — it is the accounting of which seats arrived quiet, which an operator staring at a silent
+ *  character otherwise has to guess at. Only RESOLVED members appear: a disabled member whose card never
+ *  resolved is already reported as a skipped member, and claiming it was seated would be a lie. */
 export interface ImportSeatedDisabledMember {
   readonly group: string;
   /** The CARD FILENAME ST listed, the same key `memberFiles` uses. */
@@ -435,7 +447,7 @@ export interface ImportReport {
   /** Room display names two seated cards share — the name-only speaker fallback is withheld there, so those
    *  lines fall to the room's primary instead of being assigned to whichever seat happened to be last. */
   readonly ambiguousSpeakerNames: readonly ImportAmbiguousSpeakerName[];
-  /** Members ST had DISABLED that the imported room seats active — the flag itself has no travel path. */
+  /** Members ST had DISABLED that the imported room seats MUTED — the flag travelled (#1687). */
   readonly seatedDisabledMembers: readonly ImportSeatedDisabledMember[];
   /** A transcript leaf a group's own `chats[]` claimed with no readable file under `group chats/`. */
   readonly missingGroupChats: readonly string[];

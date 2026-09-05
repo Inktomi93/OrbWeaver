@@ -12,6 +12,7 @@ import type { CHAT_INJECTION_POSITIONS } from "./assemble.ts";
 import type { TokenProvenance } from "./messages.ts";
 import type { ChatMetadata } from "./metadata.ts";
 import type { MessageKind } from "./participants.ts";
+import type { SeatKnobs } from "./roster.ts";
 
 /** One resolved variant (swipe) row for a bulk-imported message (D26 — the SELECTED variant carries the
  *  rendered content). `idx` is 0-based within the slot's pool; the economics subset is what an ST import
@@ -86,6 +87,17 @@ export interface BulkImportMessageInput {
   readonly kind?: MessageKind;
 }
 
+/** One seat's KNOBS for a bulk-imported room, keyed by the seat it configures (#1687). Derived from
+ *  {@link SeatKnobs} — the ONE home for what an AI seat's knobs ARE (D80) — rather than re-spelling
+ *  `disabled`, so a knob added there travels here without a second vocabulary.
+ *
+ *  WHY A PARALLEL LIST rather than a richer `roster`: every existing caller states its cast as a flat
+ *  `CharacterId[]` and a room's cast is not the same question as a seat's dial. `characterId` may name the
+ *  run's PRIMARY as well as an extra roster seat — ST disables members by position, and position 0 is
+ *  disable-able like any other. The write op REFUSES a knob naming a character the chat does not seat (the
+ *  `assertSeatedSpeakers` posture: an unseatable id is a caller defect, never a silent drop). */
+export type BulkImportSeatKnobs = SeatKnobs & { readonly characterId: CharacterId };
+
 /** One resolved chat to bulk-import into an existing character. The SUPERSET shape — every field
  *  `export/verbs/export-chat.ts` round-trips out of the db, so an orbweaver export re-imports losslessly
  *  (plain ST is the lossy subset: orb-only fields arrive empty). `importHash` is the per-chat dedup oracle
@@ -109,6 +121,12 @@ export interface BulkImportChatInput {
    *  roster is host + the one primary character, byte-identically today's ST import. Every id is
    *  ownership-gated exactly like the primary before any row is written. */
   readonly roster?: readonly CharacterId[];
+  /** Per-seat knobs the founding roster rows are born with (#1687) — absent/empty ⇒ every seat takes the
+   *  column defaults, byte-identically the pre-#1687 import. The live producer is the ST GROUP wave: ST's
+   *  `disabled_members` is a per-member MUTE and orb has one too (`chat_participants.disabled`), so the flag
+   *  now TRAVELS instead of being reported as lost. A knob for a character the room does not seat is refused
+   *  by the write op. */
+  readonly seatKnobs?: readonly BulkImportSeatKnobs[];
   /** The room-behavior blob (`chats.metadata`) this chat is born with — the group config / opening policy a
    *  multi-character room needs to render and generate correctly. Absent ⇒ `metadata` stays NULL, which is
    *  exactly what an ST import writes today. Callers pass an ALREADY-PARSED {@link ChatMetadata}; the column's

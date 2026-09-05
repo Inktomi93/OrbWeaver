@@ -279,7 +279,7 @@ describe("writeImportReport — the #1469 silent planes now have lines", () => {
 
     expect(md).toContain("`Aria.png` → `bard` — UNIQUE constraint failed");
     expect(md).toContain("`Two Emilys` — 2 seated cards are called `Emily`");
-    expect(md).toContain("`The Party` → `Bram.png` — seated in the room; mute it there if you want it quiet");
+    expect(md).toContain("`The Party` → `Bram.png` — seated in the room with its mute ON, exactly as ST had it");
   });
 
   test("a DRY RUN says so at the top and lists what a real run would attempt, per wave", async () => {
