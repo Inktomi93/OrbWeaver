@@ -83,8 +83,28 @@ import { secureHeaders } from "hono/secure-headers";
 const CARD_FRAME_DOC_PREFIX = `${CARD_FRAME_ROUTE}/`;
 const OWN_POLICY_DOC_PREFIXES = [CARD_FRAME_DOC_PREFIX, PLUGIN_FRAME_DOC_PREFIX] as const;
 
+/**
+ * THE EXEMPTION IS A ROUTE-PATTERN MATCH, NEVER A PREFIX TEST (#1409). Both frame documents are registered
+ * as `<prefix>:id`, and hono's path parameter matches exactly ONE segment (`LABEL_REG_EXP_STR = "[^/]+"`,
+ * `node_modules/hono/dist/router/reg-exp-router/node.js`; the trie router splits on `/` for the same effect).
+ * So `<prefix>a/b` matches NO handler — but a `startsWith` test still exempted it, and the framework's own
+ * 404 then went out with NO security headers at all: no CSP, no `X-Frame-Options`, no `nosniff`, on a path
+ * of the app's own origin. Stepping aside only for what a registered frame handler can actually serve keeps
+ * the carve-out exactly as wide as the mechanism that needs it (see the exemption note above).
+ *
+ * The remaining segment is NOT shape-checked against the 32-hex handle grammar on purpose: a malformed id is
+ * SERVED by the frame route (its 404 arm returns `MISS_DOC` under that file's own frame headers), so it is a
+ * response that carries its own policy and must stay exempt. "One more segment" is the honest predicate —
+ * it is what the router itself will route.
+ */
 function servesOwnPolicy(path: string): boolean {
-  return OWN_POLICY_DOC_PREFIXES.some((prefix) => path.startsWith(prefix));
+  return OWN_POLICY_DOC_PREFIXES.some((prefix) => {
+    if (!path.startsWith(prefix)) {
+      return false;
+    }
+    const id = path.slice(prefix.length);
+    return id.length > 0 && !id.includes("/");
+  });
 }
 
 const SELF = "'self'";

@@ -274,6 +274,101 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     expect(await rowCount()).toBe(1);
   });
 
+  // #1451 — THE OWNER BIND IS A CLAIM, NOT AN UPDATE. `tryAdoptUnboundOwner` decides adoptability by READING
+  // the owner row (`externalId === null`), and a read cannot hold a row unbound. Two concurrent owner-by-policy
+  // logins carrying DIFFERENT stable subjects both passed that read; the bind was a plain `updateUser`, so the
+  // second write silently overwrote `external_id` and BOTH callers were told they were the owner — the loser of
+  // that write then had no way back into a box it had just been provisioned into, and the winner's ownership
+  // depended on statement order. The bind now goes through `claimExternalIdIfUnbound`
+  // (`UPDATE … WHERE external_id IS NULL`), the same primitive the admin link capability (B5) claims through,
+  // so the DATABASE arbitrates and the loser gets the `account-exists` refusal rather than an adoption.
+  describe("the owner-bind CLAIM race (#1451)", () => {
+    /** Seed the single-user/local owner (unbound, handle = the OWNER_HANDLES key) on an explicit db. */
+    async function seedUnboundOwner(service: SessionsService): Promise<string> {
+      vi.stubEnv("OWNER_HANDLES", "owner");
+      const seeded = asProvisioned(await service.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+      expect(seeded.role).toBe("owner");
+      return seeded.userId;
+    }
+
+    const nate = identity({ externalId: castId<ExternalId>("authentik|nate"), handle: castId<Handle>("nate"), groups: ["owners"] });
+    const bob = identity({ externalId: castId<ExternalId>("authentik|bob"), handle: castId<Handle>("bob"), groups: ["owners"] });
+
+    test("two owner-policy logins with DIFFERENT subjects: exactly ONE binds, the loser is DENIED account-exists", async () => {
+      const held = await freshHeldDb();
+      const service = makeService(held.db).svc;
+      const ownerId = await seedUnboundOwner(service);
+      vi.stubEnv("OWNER_GROUP", "owners");
+      const warn = vi.spyOn(logger, "warn");
+
+      // Both logins park at their claim statement, so both have already read the row as UNBOUND — the exact
+      // interleaving the read-then-write bind lost. Releasing lets SQLite serialize the two claims.
+      const parked = held.hold(/update "users"/i, 2);
+      const both = Promise.all([service.provisionIdentity(nate), service.provisionIdentity(bob)]);
+      await parked.reached;
+      parked.release();
+      const results = await both;
+
+      const outcomes = results.map((r) => r.outcome).sort();
+      expect(outcomes).toEqual(["denied", "provisioned"]);
+      expect(results.find((r) => r.outcome === "denied")).toEqual({ outcome: "denied", reason: "account-exists" });
+
+      // The row is bound to the WINNER and to nobody else; the loser minted no second row and stole none.
+      const rows = await held.db.select().from(users);
+      expect(rows).toHaveLength(1);
+      const bound = rows[0]?.externalId;
+      expect(["authentik|nate", "authentik|bob"]).toContain(bound);
+      expect(rows[0]?.id).toBe(ownerId);
+      expect(rows[0]?.role).toBe("owner");
+      // The winner's own result names the row it actually holds.
+      const winner = results.find((r) => r.outcome === "provisioned");
+      expect(winner).toMatchObject({ userId: ownerId, role: "owner" });
+
+      // The refusal rides the security trail naming WHICH subject lost and which one holds the row.
+      const line = warn.mock.calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["event"] === "sso_owner_bind_lost_race");
+      expect(line?.["security"]).toBe(true);
+      expect(line?.["boundTo"]).toBe(bound);
+      expect(line?.["externalId"]).not.toBe(bound);
+    });
+
+    // The idempotent arm: the claim loser whose SETTLED row already carries ITS OWN subject is the owner's
+    // second concurrent login (or a retry), not a takeover — it must resolve onto the row, never be denied.
+    test("two concurrent logins of the SAME owner subject both succeed onto the one row — no spurious deny", async () => {
+      const held = await freshHeldDb();
+      const service = makeService(held.db).svc;
+      const ownerId = await seedUnboundOwner(service);
+      vi.stubEnv("OWNER_GROUP", "owners");
+
+      const parked = held.hold(/update "users"/i, 2);
+      const both = Promise.all([service.provisionIdentity(nate), service.provisionIdentity(nate)]);
+      await parked.reached;
+      parked.release();
+      const results = await both;
+
+      expect(results.map((r) => r.outcome)).toEqual(["provisioned", "provisioned"]);
+      for (const result of results) {
+        expect(asProvisioned(result)).toMatchObject({ userId: ownerId, role: "owner" });
+      }
+      expect(await rowCountOn(held.db)).toBe(1);
+    });
+
+    // The UNCONTENDED arm (the good input, unchanged): the claim still binds, and the email refresh that now
+    // rides a SECOND statement after the won claim still lands. Splitting the write is where that could have
+    // been dropped silently.
+    test("the uncontended adoption still binds AND still refreshes the email claim", async () => {
+      vi.stubEnv("OWNER_HANDLES", "owner");
+      const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+      vi.stubEnv("OWNER_GROUP", "owners");
+      const adopted = asProvisioned(await svc.provisionIdentity({ ...nate, email: "nate@example.test" }));
+      expect(adopted.userId).toBe(seeded.userId);
+      expect(adopted.role).toBe("owner");
+      const row = (await db.select().from(users).where(eq(users.id, seeded.userId)))[0];
+      expect(row?.externalId).toBe("authentik|nate");
+      expect(row?.email).toBe("nate@example.test");
+      expect(await rowCount()).toBe(1);
+    });
+  });
+
   test("once the owner is BOUND, another OWNER_GROUP member does NOT adopt it — downgraded to `user` (singleton holds)", async () => {
     vi.stubEnv("OWNER_HANDLES", "owner");
     const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner") })));
