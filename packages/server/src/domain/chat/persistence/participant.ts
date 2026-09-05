@@ -8,6 +8,14 @@
 // server-forced `member`; the host role is only ever minted at chat creation / handoff. `joinSeq`/`leftSeq`
 // are stamped against messages.seq (the join/leave horizon), not the stream cursor, and `joinSeq` resolves
 // IN-BATCH (#1403).
+//
+// THE SEAT ID IS STABLE ACROSS A RE-JOIN (#1542, owner-ruled 2026-09-05, arm A). The DO UPDATE `set` does
+// NOT carry `id`: a human's membership is ONE row per (chatId,userId) that outlives every leave, so the PK
+// child rows point at (`message_reactions.reactor_participant_id` today) never moves under them. The
+// alternative — `ON UPDATE CASCADE` on that FK — was REJECTED: it would make the id churn survivable rather
+// than removing it, and every future seat-keyed child would owe the same clause. The caller's freshly-minted
+// `participantId` is therefore consumed by the INSERT arm only; a re-join discards it, and both invite doors
+// re-read the roster afterwards rather than trusting the id they minted.
 
 import type { HandoffOffer, ParticipantKind } from "@orb/contracts/chat";
 import { isUserBacked } from "@orb/contracts/chat";
@@ -171,7 +179,12 @@ export function insertMemberAfterInviteClaimStatement(
     .onConflictDoUpdate({
       target: [chatParticipants.chatId, chatParticipants.userId],
       set: {
-        id: params.participantId,
+        // NO `id` HERE (#1542). The seat KEEPS ITS IDENTITY across a re-join: `params.participantId` is a
+        // freshly-minted id the INSERT arm consumes, and re-stamping it on the UPDATE arm moved a PK that
+        // `message_reactions.reactor_participant_id` FKs under SQLite's default NO ACTION on update — so the
+        // whole redeem batch failed ("cannot re-join") for any returning member who had ever reacted. Keeping
+        // the id is also what the deleted `upsertMemberOnJoin` did, and it is the semantics every seat-keyed
+        // child row already assumes: a membership is ONE row per (chatId,userId) across all its eras.
         activePersonaId: params.activePersonaId,
         joinedAt: params.now,
         // The re-add arm stamps the SAME in-batch head (`chatParticipants.chatId` is the conflicting row's
