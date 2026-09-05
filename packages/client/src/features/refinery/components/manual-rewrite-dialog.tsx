@@ -12,7 +12,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FormDialog } from "#components";
 
 export interface ManualTarget {
@@ -42,6 +42,23 @@ function keyOf(target: { field: string; greetingIndex?: number | undefined }): s
 
 export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSubmit }: ManualRewriteDialogProps): ReactElement {
   const [drafts, setDrafts] = useState<Readonly<Record<string, DraftState>>>({});
+
+  // THE DRAFTS ARE PER VISIT (#1502). This component stays mounted while closed (Base UI unmounts the popup
+  // CONTENT, not its owner), and the draft map is keyed by FIELD NAME — `description`, `greetings[0]` —
+  // which is exactly the key a DIFFERENT card reuses. So a cancelled hand-edit came back attached to the
+  // next card the user scoped, already `touched`, therefore already counted in "1 field changed" and
+  // already inside the round the Save button would submit: text from one character silently landing in
+  // another's rewrite.
+  //
+  // AN EFFECT ON THE CLOSED STATE, NOT THE `onOpenChange` WRAPPER the sibling dialogs use, and the
+  // difference is load-bearing: the SUCCESS path here closes programmatically
+  // (`refinery-content-surface.tsx` → `onSuccess: setManualOpen(false)`), which never reaches a controlled
+  // popup's `onOpenChange`. Keying off the closed state itself catches every way this dialog can shut.
+  useEffect((): void => {
+    if (!open) {
+      setDrafts({});
+    }
+  }, [open]);
 
   function draftOf(target: ManualTarget): DraftState {
     return drafts[keyOf(target)] ?? { text: target.text, cleared: false, touched: false };

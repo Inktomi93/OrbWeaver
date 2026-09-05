@@ -119,6 +119,24 @@ function BeatBodyEditor({
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(content);
+  /**
+   * WHAT THE EDITOR OPENED WITH, and whether this close is a CANCELLATION (#1502). Both exist because the
+   * commit runs on BLUR, and closing the panel is what produces that blur — so the two things Escape must
+   * do (drop the draft, collapse) reach `onBlur` as one already-decided fact it cannot infer:
+   *   • `cancelled` — `setDraft(content)` does not take effect before the unmount-driven blur runs, and the
+   *     blur handler is closed over the PREVIOUS render's `draft`, so Escape used to commit the very text it
+   *     had just been asked to throw away. A ref, not state, precisely because it must be readable inside
+   *     that already-scheduled handler.
+   *   • `openedFrom` — the draft is deliberately seeded ONCE (a passive re-render must not clobber what the
+   *     host is typing), which means `draft !== content` is TRUE when the BODY changed underneath an
+   *     untouched editor, and the commit then writes the opened-with text back over what arrived. Judging
+   *     against the value at open time is the same fix TrackerValue carries (#1485): nothing typed, nothing
+   *     sent. What this row does NOT yet do is SURFACE that collision when the host has also typed — it
+   *     takes the host's text, where the tracker holds and asks. If a second writer becomes routine here,
+   *     `tracker-value.tsx` has the shape.
+   */
+  const cancelled = useRef(false);
+  const openedFrom = useRef(content);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   // The editor exists only after an explicit click on the beat's body (the click-to-edit gesture) —
   // and the panel is unmounted while closed, so mounting IS opening. Taking focus is that gesture's
@@ -137,6 +155,8 @@ function BeatBodyEditor({
       onOpenChange={(next): void => {
         if (next) {
           setDraft(content);
+          openedFrom.current = content;
+          cancelled.current = false;
         }
         setOpen(next);
       }}
@@ -176,14 +196,20 @@ function BeatBodyEditor({
           placeholder="write the beat…"
           onChange={(e): void => setDraft(e.target.value)}
           onBlur={(): void => {
-            if (draft !== content) {
+            const abandoned = cancelled.current;
+            cancelled.current = false;
+            // Nothing sent when the host abandoned the edit, and nothing sent when the host typed nothing —
+            // see the `cancelled` / `openedFrom` note above for why neither is inferable here.
+            if (!abandoned && draft !== openedFrom.current) {
               onCommit(draft);
             }
             setOpen(false);
           }}
           onKeyDown={(e): void => {
             if (e.key === "Escape") {
-              // Abandon: drop the draft, collapse, nothing sent (the TrackerValue cancel grammar).
+              // Abandon: mark the cancellation FIRST (the collapse below produces the blur that would
+              // otherwise commit), drop the draft, collapse, nothing sent (the TrackerValue cancel grammar).
+              cancelled.current = true;
               setDraft(content);
               setOpen(false);
             }

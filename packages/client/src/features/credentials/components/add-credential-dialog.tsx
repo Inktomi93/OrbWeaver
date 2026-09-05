@@ -239,6 +239,18 @@ function AddCredentialFormBody({
   );
 }
 
+/** One reachability answer, and the draft it is an answer ABOUT. */
+interface CheckVerdict {
+  readonly forDraft: string;
+  readonly count: number;
+}
+
+/** The identity of the thing a check is a verdict on. Serialized as a PAIR rather than concatenated, so no
+ *  two field combinations can collide into one key by moving a character across the boundary. */
+function draftKeyOf(baseUrl: string, keyValue: string): string {
+  return JSON.stringify([baseUrl.trim(), keyValue.trim()]);
+}
+
 /** The pre-save custom-endpoint reachability check — advisory only, never blocks submit. Session-ephemeral local state. */
 function DraftFetchModelsCheck({
   trpc,
@@ -252,40 +264,48 @@ function DraftFetchModelsCheck({
   readonly keyValue: string;
 }): ReactElement {
   const fetchModels = useFetchModels({ trpc, invalidation });
-  const [count, setCount] = useState<number | null>(null);
-  const [checked, setChecked] = useState(false);
+  // THE VERDICT CARRIES THE INPUTS IT WAS TAKEN FOR (#1502). A bare `count`/`checked` pair outlives the
+  // endpoint it describes: check `https://a/v1`, read "reachable — 42 models", then edit the URL to a typo
+  // and the green line is still sitting there vouching for an address nobody has ever contacted. Keying the
+  // verdict on the exact draft it was run against makes the staleness UNREPRESENTABLE rather than merely
+  // unlikely — the render below compares, so an input edit retires the verdict in the same commit that
+  // changes the field. It also settles the out-of-order case for free: a slow answer for an older draft no
+  // longer matches the current one, so a stale response cannot overwrite a newer verdict.
+  const [verdict, setVerdict] = useState<CheckVerdict | null>(null);
+  const currentDraftKey = draftKeyOf(baseUrl, keyValue);
 
   const runCheck = (): void => {
     const draftBaseUrl = baseUrl.trim();
     if (draftBaseUrl === "") {
       return;
     }
+    const forDraft = currentDraftKey;
     const draft = keyValue.trim() === "" ? { baseUrl: draftBaseUrl } : { baseUrl: draftBaseUrl, key: keyValue.trim() };
     // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): an advisory-only reachability check —
-    // the .catch below sets count to 0 and checked to true, which IS the rendered "0 models" failure state.
+    // the .catch below records a count of 0 for the same draft, which IS the rendered "unreachable" state.
     // Ends if the failure branch stops writing a distinguishable UI state.
     void fetchModels
       .mutateAsync({ draft })
       .then((models): void => {
-        setCount(models.length);
-        setChecked(true);
+        setVerdict({ forDraft, count: models.length });
       })
       .catch((): void => {
-        setCount(0);
-        setChecked(true);
+        setVerdict({ forDraft, count: 0 });
       });
   };
 
+  const shown = verdict !== null && verdict.forDraft === currentDraftKey ? verdict : null;
+  const reachable = shown !== null && shown.count > 0;
   return (
     <Row gap="field" align="center">
       <Button intent="secondary" size="sm" disabled={baseUrl.trim() === "" || fetchModels.isPending} onClick={runCheck}>
         Fetch models
       </Button>
-      {checked ? (
-        <Text voice="gloss" className={count !== null && count > 0 ? "text-success" : "text-warning"}>
-          {count !== null && count > 0 ? `reachable — ${count} model${count === 1 ? "" : "s"}` : "unreachable or no /models"}
+      {shown === null ? null : (
+        <Text voice="gloss" className={reachable ? "text-success" : "text-warning"} data-slot="credential-check-verdict">
+          {reachable ? `reachable — ${shown.count} model${shown.count === 1 ? "" : "s"}` : "unreachable or no /models"}
         </Text>
-      ) : null}
+      )}
     </Row>
   );
 }

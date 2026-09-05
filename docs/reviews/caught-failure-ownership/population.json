@@ -410,7 +410,7 @@
     {
       "siteId": "packages/client/src/features/character/surfaces/character-library-surface.tsx::promise:startChat::1",
       "path": "packages/client/src/features/character/surfaces/character-library-surface.tsx",
-      "line": 219,
+      "line": 223,
       "column": 7,
       "grammar": "promise",
       "position": "promise:startChat",
@@ -418,7 +418,7 @@
       "snippet": "startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.",
       "verdict": "deliberate-absorb",
       "reason": "useStartChat's mutation carries",
-      "markerLine": 217
+      "markerLine": 221
     },
     {
       "siteId": "packages/client/src/features/chat/components/chat-list-row-menu.tsx::promise:remove::1",
@@ -527,7 +527,7 @@
     {
       "siteId": "packages/client/src/features/credentials/components/add-credential-dialog.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/credentials/components/add-credential-dialog.tsx",
-      "line": 267,
+      "line": 287,
       "column": 10,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -535,7 +535,7 @@
       "snippet": "void fetchModels",
       "verdict": "deliberate-absorb",
       "reason": "an advisory-only reachability check —",
-      "markerLine": 264
+      "markerLine": 284
     },
     {
       "siteId": "packages/client/src/features/credentials/components/endpoint-inspector-dialog.tsx::promise:mutateAsync::1",
@@ -943,7 +943,7 @@
     {
       "siteId": "packages/client/src/features/preset/components/params-limits.tsx::default:catch::1",
       "path": "packages/client/src/features/preset/components/params-limits.tsx",
-      "line": 358,
+      "line": 377,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -951,12 +951,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the doc comment above explains — an unparseable",
-      "markerLine": 353
+      "markerLine": 372
     },
     {
       "siteId": "packages/client/src/features/preset/components/preset-import-dialog.tsx::promise:text::1",
       "path": "packages/client/src/features/preset/components/preset-import-dialog.tsx",
-      "line": 77,
+      "line": 87,
       "column": 10,
       "grammar": "promise",
       "position": "promise:text",
@@ -964,7 +964,7 @@
       "snippet": "void file",
       "verdict": "deliberate-absorb",
       "reason": "the .catch below explicitly sets a detailed",
-      "markerLine": 74
+      "markerLine": 84
     },
     {
       "siteId": "packages/client/src/features/preset/hooks/use-preset-autosave.ts::promise:run::1",
@@ -1164,15 +1164,15 @@
     {
       "siteId": "packages/client/src/features/workloads/components/bundle-workload-tracker.tsx::promise:query::1",
       "path": "packages/client/src/features/workloads/components/bundle-workload-tracker.tsx",
-      "line": 61,
-      "column": 7,
+      "line": 64,
+      "column": 10,
       "grammar": "promise",
       "position": "promise:query",
       "ordinal": 1,
-      "snippet": "trpcClient.workloads.get.query({ id }).then(",
+      "snippet": "void trpcClient.workloads.get",
       "verdict": "deliberate-absorb",
-      "reason": "a failed read is intentionally silent (see the",
-      "markerLine": 58
+      "reason": "the rejection drives the bounded retry above and",
+      "markerLine": 61
     },
     {
       "siteId": "packages/client/src/features/workloads/hooks/use-library-import.ts::promise:importBundle::1",

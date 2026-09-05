@@ -293,12 +293,25 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
       </CollapsibleTrigger>
       <CollapsiblePanel>
         <Stack gap="field">
-          <form.Subscribe selector={(state): Record<string, number> | undefined => state.values.params.logitBias}>
-            {(logitBias): ReactElement => (
+          {/* THE ONLY UNCONTROLLED FIELD ON THE DECK, AND THEREFORE THE ONLY ONE THAT NEEDED A KEY (#1502).
+              It is uncontrolled because the value is a JSON MAP the user edits as TEXT — a controlled
+              `value` would have to round-trip through `parseLogitBias` on every keystroke and eat any
+              half-typed brace. But React applies `defaultValue` at MOUNT and never again, so switching
+              presets left the previous preset's JSON sitting in the box, and — the half that made it a
+              two-writer bug rather than a display glitch — the next `onBlur` wrote that stale text back
+              over the newly-loaded preset's own bias map. The subscribed serialization is the field's
+              IDENTITY: a preset switch changes it, so React remounts the textarea around the new text,
+              while typing changes nothing (the form value only moves on blur) so an open edit is never
+              disturbed. A blur that stores a map re-mounts with the CANONICAL serialization of what was
+              actually stored, which is also the honest answer to "invalid JSON is ignored" — the box now
+              shows what the preset holds instead of text that looks saved and is not. */}
+          <form.Subscribe selector={(state): string => serializeLogitBias(state.values.params.logitBias)}>
+            {(serialized): ReactElement => (
               <Field hint="A JSON map of token id → bias (-100…100). Nudges or blocks specific tokens. Invalid JSON is ignored." label="Logit bias">
                 <Textarea
                   aria-label="Logit bias"
-                  defaultValue={logitBias === undefined ? "" : JSON.stringify(logitBias)}
+                  defaultValue={serialized}
+                  key={serialized}
                   onBlur={(e): void => form.setFieldValue("params.logitBias", parseLogitBias(e.target.value))}
                   rows={3}
                 />
@@ -340,6 +353,12 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
       </CollapsiblePanel>
     </Collapsible>
   );
+}
+
+/** The stored bias map as the textarea's text — and, because it is the field's `key`, its IDENTITY.
+ *  `""` for an unset map, so "no bias" and "a bias this build stored" are different fields. */
+function serializeLogitBias(logitBias: Record<string, number> | undefined): string {
+  return logitBias === undefined ? "" : JSON.stringify(logitBias);
 }
 
 /** Parse the logit-bias JSON textarea → a `Record<string, number>` (or `undefined` on empty/invalid — the

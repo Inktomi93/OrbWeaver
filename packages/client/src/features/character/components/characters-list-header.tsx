@@ -45,7 +45,8 @@ const COUNT_ONLY_PAGE = 1;
  * `archived` is tri-state on the wire exactly as the pane spells it: the toggle's ON state is the WIDER
  * library (archived rows shown beside the rest), so it sends nothing at all — and it is therefore not one
  * of the axes that makes the pane "narrowed" here, for the same reason the rail's `N active` datum does not
- * count it.
+ * count it. It IS on BOTH counts, though (#1503): "not narrowed" says nothing is filtering the library, not
+ * that hidden rows should be counted — see `archivedAxis` below.
  */
 function useCharacterCensus(): number | string | undefined {
   const trpc = useTRPC();
@@ -54,7 +55,16 @@ function useCharacterCensus(): number | string | undefined {
   // and the rows disagree" is the defect this whole change exists to close.
   const scope = useLibraryScope();
 
-  const { data: all } = useQuery(trpc.character.list.queryOptions({ limit: COUNT_ONLY_PAGE }));
+  // THE BASELINE CARRIES THE ARCHIVED AXIS TOO (#1503). "Not narrowed" is a claim about the FILTER lens —
+  // search, favourites, tags — and archived is not one of those: it decides which rows EXIST for this pane
+  // at all. Leaving it off the baseline made the bare census count rows the list refuses to show (the
+  // default is `archived: false`, so a library with 40 characters and 8 archived printed 40 over 32 rows,
+  // with nothing on screen accounting for the eight), and it made the sentence below — "the scoped query IS
+  // the unscoped one" — untrue for every unnarrowed pane, because the two queries differed by exactly this
+  // key. Lifted off `scope.args` rather than re-read from the store, so there is still ONE spelling of the
+  // rule and the baseline cannot drift from the rows.
+  const archivedAxis = scope.args.archived === undefined ? {} : { archived: scope.args.archived };
+  const { data: all } = useQuery(trpc.character.list.queryOptions({ limit: COUNT_ONLY_PAGE, ...archivedAxis }));
   const { data: scoped } = useQuery({
     ...trpc.character.list.queryOptions({ limit: COUNT_ONLY_PAGE, ...scope.args }),
     // An unnarrowed pane asks nothing extra: the scoped query IS the unscoped one, already in cache above.

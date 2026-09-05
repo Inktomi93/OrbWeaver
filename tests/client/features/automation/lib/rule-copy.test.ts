@@ -135,10 +135,16 @@ describe("fireDetailLine", () => {
     expect(fireDetailLine("action_error", { error: "boom" }, CAPS)).toBe("An action failed: boom");
   });
 
-  test("a rate cap answers WHICH cap, with its number", () => {
-    expect(fireDetailLine("budget_refused", { limit: "rule_hourly" }, CAPS)).toBe("It had already run 30 times this hour — its own cap.");
-    expect(fireDetailLine("budget_refused", { limit: "cooldown" }, CAPS)).toBe("Its cooldown hadn't elapsed — it runs at most once every 45s.");
+  test("a rate cap answers WHICH cap, and dates its number to NOW rather than to the row (#1502)", () => {
+    // The row records which limit refused and NOTHING about the threshold then in force, so the number can
+    // only ever describe the rule's CURRENT setting. Phrasing it as the historical count made every past
+    // refusal re-read itself whenever a host changed the cap.
+    expect(fireDetailLine("budget_refused", { limit: "rule_hourly" }, CAPS)).toBe("It had already hit its own hourly cap — now 30 per hour.");
+    expect(fireDetailLine("budget_refused", { limit: "cooldown" }, CAPS)).toBe("Its cooldown hadn't elapsed — it now runs at most once every 45s.");
     expect(fireDetailLine("budget_refused", { limit: "chat_hourly" }, CAPS)).toBe("This chat had already hit its hourly cap across all rules.");
+    // The past clause must survive on its own: with no caps to quote (the room-wide activity log) the
+    // sentence still says what happened, and it is the SAME claim the numbered arm now makes.
+    expect(fireDetailLine("budget_refused", { limit: "rule_hourly" }, null)).toBe("It had already hit its own hourly cap.");
   });
 
   test("a condition error carries the CEL reason", () => {

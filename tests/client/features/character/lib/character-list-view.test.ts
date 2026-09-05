@@ -81,3 +81,28 @@ test("resumeTargets: characterId → the most-recent chat (lastMessageAt desc, u
   const map2 = resumeTargets([chat("chat_msg", 50, 1), chat("chat_fresh", null, 999)]);
   expect(map2.get(cid)).toBe("chat_fresh");
 });
+
+test("resumeTargets: an equal-recency pair resolves by DATA, never by iteration order (#1503)", () => {
+  // The fold used to compare one scalar with `>`, so a tie kept whichever chat the list yielded first —
+  // and `listChats` is a sorted server read whose order can change under the same underlying rows. The CTA
+  // for a character would then resume a different chat with nothing on screen to explain it. Both
+  // orderings of the SAME pair must therefore agree.
+  const cid = castId<CharacterId>("char_a");
+  const chat = (id: string, lastMessageAt: number | null, updatedAt: number): ResumableChat => ({
+    id: castId<ChatId>(id),
+    participantCharacterIds: [cid],
+    lastMessageAt,
+    updatedAt,
+  });
+
+  // Same lastMessageAt → the chat touched more recently wins, from either direction.
+  const older = chat("chat_1", 500, 10);
+  const touched = chat("chat_2", 500, 40);
+  expect(resumeTargets([older, touched]).get(cid)).toBe("chat_2");
+  expect(resumeTargets([touched, older]).get(cid)).toBe("chat_2");
+
+  // Fully identical timestamps (a bulk seed) → the id is the last resort, and it is still order-independent.
+  const twinA = chat("chat_aaa", 500, 40);
+  const twinB = chat("chat_bbb", 500, 40);
+  expect(resumeTargets([twinA, twinB]).get(cid)).toBe(resumeTargets([twinB, twinA]).get(cid));
+});

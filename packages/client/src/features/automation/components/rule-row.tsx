@@ -152,7 +152,15 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
   };
 
   const onTest = (): void => {
-    testRule.mutateAsync({ ruleId: rule.id, chatId }).then(setTestResult, () => undefined);
+    // A FAILED RETEST CLEARS THE VERDICT — it does not leave the last one standing (#1502). The rejection
+    // handler used to be `() => undefined`, so a dry run that errored (or was refused) left the PREVIOUS
+    // run's "would have matched" on screen, attached to a button the user had just pressed: the surface
+    // said the rule was tested and passed when the test never produced an answer at all. `null` is the
+    // honest state here — the same one the row starts in — and the mutation's own error surface owns the
+    // reason. Clearing FIRST also removes the window where a slow retest shows the old verdict as if it
+    // were the new one.
+    setTestResult(null);
+    testRule.mutateAsync({ ruleId: rule.id, chatId }).then(setTestResult, (): void => setTestResult(null));
   };
   const onRunNow = (): void => {
     runNow.mutateAsync({ ruleId: rule.id, chatId }).then(

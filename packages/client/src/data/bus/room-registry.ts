@@ -324,13 +324,23 @@ export function createRoomRegistry(): RoomRegistry {
       clearTimeout(entry.retire);
       entry.retire = undefined;
     }
-    if (entry.subscribers.size === 1 && !reclaimed) {
-      announce(entry);
-      if (socketIsLive) {
-        // Joining an ALREADY-live socket: this room is live now, so its own live edge is here, not at the
-        // next `socketLive()` (which may never come). A RE-join after a detach heals; a first join does not.
-        roomWentLive(key, entry);
-      }
+    const firstSubscriber = entry.subscribers.size === 1 && !reclaimed;
+    // EVERY JOIN ANNOUNCES; THE DEDUPE DECIDES WHETHER IT REACHES THE WIRE. Gating this on "first
+    // subscriber" was the durable-replay hole (#1484): a second hook joining an ALREADY-ATTACHED room with
+    // a LOWER `sinceSeq` — a chat surface resuming from its stored high-water mark beside a live-only
+    // sibling that got there first — was added to the Set and nothing re-announced it, so the room stayed
+    // attached at the HIGHER cursor and every event between the two cursors was never replayed to it. The
+    // room is silent about rows it can prove it is missing, with no error anywhere.
+    // Correct BECAUSE of the dedupe rather than in spite of it: `announce` compares `entry.announced`
+    // against `lowestSinceSeq(entry)`, so a joiner that does not lower the room's replay request costs
+    // nothing (N subscribers still = ONE attach, the ref-count property this file exists for), and a
+    // RECLAIM inside the retire grace stays the invisible remount it was — unless the reclaiming
+    // subscriber wants an earlier cursor, which is exactly when it must not be invisible.
+    announce(entry);
+    if (firstSubscriber && socketIsLive) {
+      // Joining an ALREADY-live socket: this room is live now, so its own live edge is here, not at the
+      // next `socketLive()` (which may never come). A RE-join after a detach heals; a first join does not.
+      roomWentLive(key, entry);
     }
     return (): void => {
       entry.subscribers.delete(subscriber);
