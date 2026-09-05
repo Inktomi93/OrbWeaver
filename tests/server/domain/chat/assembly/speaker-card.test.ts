@@ -1,7 +1,8 @@
 // assembly/speaker-card — the per-turn CARD-SECTION shape (chat.md §5/§7, three-axis). Pins: the active
 // speaker's card becomes `ctx.character`/`speaker`; merged ⇒ the OTHER cast are co-speakers, scoped ⇒ none;
 // NARRATOR ⇒ the whole cast is the speaker and every non-primary member is a co-speaker; a member-less ctx is
-// unchanged (byte-identical, D16); an off-cast PER-SPEAKER ref keeps the primary (never crashes).
+// unchanged (byte-identical, D16); an off-cast PER-SPEAKER ref is REFUSED (#1462 — keeping the primary
+// shipped the wrong character's card under the asked-for speaker's name).
 
 import type { AssembleCharacter, AssembleContext, SpeakerRef } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -9,6 +10,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { shapeContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
+import { CHAT_OP_CODES } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
@@ -51,10 +53,26 @@ describe("shapeContextForSpeaker — per-speaker card selection", () => {
     expect(out).toBe(solo); // same reference — no shaping happened
   });
 
-  test("an off-roster PER-SPEAKER speaker keeps the primary (never crashes)", () => {
+  // #1462 — this used to return the ctx UNCHANGED ("keep the primary, never crash"). That is not a degrade:
+  // the round still runs, the model is handed the PRIMARY's card and the primary's `{{char}}`, and the reply
+  // is attributed to the speaker that was asked for — one character's prose under another character's name.
+  // A seat whose card read came back empty is dropped from `speakerRefs` by `assembly/context`, so the path
+  // is reachable, not theoretical. It refuses now (D41 no-silent-degrade).
+  test("an off-roster PER-SPEAKER speaker is REFUSED, never absorbed into the primary", () => {
     const base = ctx();
-    const out = shapeContextForSpeaker(base, { ref: charRef("ghost"), output: "per-speaker", cardScope: "merged" });
-    expect(out).toBe(base); // unchanged
+    expect(() => shapeContextForSpeaker(base, { ref: charRef("ghost"), output: "per-speaker", cardScope: "merged" })).toThrow(
+      /not among this turn's resolved speakers/,
+    );
+  });
+
+  test("the refusal is the coded chat operation error, so a caller can tell it from a crash", () => {
+    let code: unknown;
+    try {
+      shapeContextForSpeaker(ctx(), { ref: charRef("ghost"), output: "per-speaker", cardScope: "merged" });
+    } catch (err) {
+      code = (err as { code?: unknown }).code;
+    }
+    expect(code).toBe(CHAT_OP_CODES.speakerOffRoster);
   });
 });
 

@@ -377,6 +377,165 @@ describe("buildAssembleContext — the ONE injection list + ONE budget pass (§4
   });
 });
 
+// #1462 — TRIGGER-GATED MARKERS AND THE FALLBACKS THAT READ THEM. Every fallback decision here asks "will
+// this marker actually render on THIS turn?" and used to be answered by a predicate that checked only the
+// section's type + `enabled`. A section whose `trigger` array excludes the turn's generation type is dropped
+// by the BUILD walk, so the fallback stood down for a marker that then delivered nothing — and the content it
+// was protecting reached the model NOWHERE. `assembly/sections::hasActiveMarker` is now the one predicate on
+// both sides of every one of these decisions.
+describe("buildAssembleContext — a trigger-gated marker never suppresses its own fallback", () => {
+  /** DEFAULT_PROMPT_CONFIG with `marker`'s section gated to a generation type this turn is not. */
+  function gated(marker: string): PromptConfig {
+    return promptConfigSchema.parse({
+      ...DEFAULT_PROMPT_CONFIG,
+      sections: DEFAULT_PROMPT_CONFIG.sections.map((section) =>
+        section.type === "marker" && section.marker === marker ? { ...section, trigger: ["swipe"] } : section,
+      ),
+    });
+  }
+
+  test("guided: a trigger-mismatched guided_instruction marker falls back to the depth-0 injection", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId], { promptConfig: gated("guided_instruction") }),
+      generationType: "normal",
+      guided: { action: "response", input: "be brief" },
+    });
+
+    // The marker channel is refused (the section will not render), so the steer takes the injection channel
+    // and flips the LOUD `guided_placed_as_injection` warning flag — never silently vanishes.
+    expect(out.guidedInstruction).toBeUndefined();
+    expect(out.guidedPlacedAsInjection).toBe(true);
+    expect(out.chatInjections?.find((i) => i.content.includes("be brief"))).toMatchObject({
+      position: "in_chat",
+      depth: 0,
+      role: "system",
+      origin: "guided",
+    });
+  });
+
+  test("guided: a trigger-MATCHED marker still takes the steer — the marker path is unchanged", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId], { promptConfig: gated("guided_instruction") }),
+      generationType: "swipe",
+      guided: { action: "response", input: "be brief" },
+    });
+
+    expect(out.guidedInstruction).toContain("be brief");
+    expect(out.guidedPlacedAsInjection).toBeUndefined();
+    expect(out.chatInjections?.some((i) => i.content.includes("be brief"))).toBe(false);
+  });
+
+  // THE WORLD-INFO ANCHOR HALF had a second defect UNDER the one the row named: `plainMarkerSection` carried
+  // no `trigger` field at all, so a WI anchor could not be gated even though ST sets `injection_trigger` on
+  // every prompt-manager entry (owner ruling — the neo-parity oracle is a FLOOR, and the missing field was a
+  // parity GAP, not a design boundary). The field is now on the plain markers, the importer carries it, and
+  // the anchor routing reads it through the same `hasActiveMarker` every other fallback asks.
+  test("a TRIGGER-GATED world_info_before anchor keeps the always-scope entry in the injection list", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "always", { content: "ALWAYS LORE" });
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId], { promptConfig: gated("world_info_before") }),
+      generationType: "normal",
+    });
+
+    // The anchor is dropped by the walk this turn, so the entry must keep its default in_static placement.
+    // Routing it into a bucket nothing prints deleted the lore for the turn.
+    expect(out.worldInfoBefore).toBe("");
+    expect((out.chatInjections ?? []).some((i) => i.content.includes("ALWAYS LORE"))).toBe(true);
+  });
+
+  test("a trigger-MATCHED anchor still routes the entry into its bucket", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "always", { content: "ALWAYS LORE" });
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId], { promptConfig: gated("world_info_before") }),
+      generationType: "swipe",
+    });
+
+    expect(out.worldInfoBefore).toContain("ALWAYS LORE");
+    expect((out.chatInjections ?? []).some((i) => i.content.includes("ALWAYS LORE"))).toBe(false);
+  });
+
+  // FENCE, NOT A DEFECT PROOF: the disabled arm passes against the pre-fix source too (`hasMarker` already
+  // read `enabled`). It stays because it is the other half of "this anchor will not render".
+  test("a DISABLED world_info_before anchor keeps the always-scope entry in the injection list", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "always", { content: "ALWAYS LORE" });
+    const promptConfig = promptConfigSchema.parse({
+      ...DEFAULT_PROMPT_CONFIG,
+      sections: DEFAULT_PROMPT_CONFIG.sections.map((section) =>
+        section.type === "marker" && section.marker === "world_info_before" ? { ...section, enabled: false } : section,
+      ),
+    });
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, { ...inputOf(chatId, host, [charId], { promptConfig }), generationType: "normal" });
+
+    // The anchor renders nothing, so the entry keeps its default in_static placement and still reaches the
+    // model. Routing it into a bucket nothing prints would delete the lore for the turn.
+    expect(out.worldInfoBefore).toBe("");
+    expect((out.chatInjections ?? []).some((i) => i.content.includes("ALWAYS LORE"))).toBe(true);
+  });
+
+  test("an ENABLED anchor still routes the entry into its bucket — the anchor path is unchanged", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "always", { content: "ALWAYS LORE" });
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, { ...inputOf(chatId, host, [charId]), generationType: "normal" });
+
+    expect(out.worldInfoBefore).toContain("ALWAYS LORE");
+    expect((out.chatInjections ?? []).some((i) => i.content.includes("ALWAYS LORE"))).toBe(false);
+  });
+});
+
+// #1462 — `wiTrace.included` summed the WHOLE kept injection list, which carries six candidate families. Any
+// turn with an operator injection reported world-info activity on a chat with no books attached at all.
+describe("buildAssembleContext — wiTrace.included counts WORLD-INFO, not injections", () => {
+  test("an operator injection on a book-less chat reports ZERO world info", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const userInjections: ChatInjection[] = [{ position: "in_static", depth: 0, role: "system", content: "OPERATOR" }];
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { userInjections }));
+
+    expect((out.chatInjections ?? []).map((i) => i.content)).toContain("OPERATOR");
+    expect(out.wiTrace?.included).toBe(0);
+    expect(out.wiTrace?.activated).toEqual([]);
+  });
+
+  test("with lore firing it equals the activated set — both anchor-bucketed and listed entries count once", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "always", { content: "ALWAYS LORE" });
+    await attachChatEntry(host, chatId, "deep", { content: "DEEP LORE", inject: { depth: 1 } });
+    const userInjections: ChatInjection[] = [{ position: "in_static", depth: 0, role: "system", content: "OPERATOR" }];
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { userInjections }));
+
+    expect(out.wiTrace?.activated).toHaveLength(2);
+    expect(out.wiTrace?.included).toBe(2);
+  });
+});
+
 describe("buildAssembleContext — SEND USER_INPUT regex (D53; chat.md §2/§3)", () => {
   test("the WI haystack + the out-param BOTH see the POST-regex text (no divergence)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));

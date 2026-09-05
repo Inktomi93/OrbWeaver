@@ -10,6 +10,7 @@ import type {
   MessageKind,
   MessageKindPolicy,
   MessageView,
+  ShapeBreakpointDecision,
   ShapeRowSource,
   ShapeTraceRow,
 } from "@orb/contracts/chat";
@@ -122,6 +123,11 @@ interface ShapeOutput {
   history: WireRow[];
   /** Offset-from-end of the last stable message for the runner to pin `cache_control` on, or undefined. */
   cacheBreakpointFromEnd: number | undefined;
+  /** WHY that offset is present or absent — decided HERE, by the code that made the call, and carried out
+   *  verbatim for `assembly/trace` to project. It used to be RE-DERIVED from stage row counts, which cannot
+   *  see a depth ≥ 2 injection abort (that arm ADDS a row, so the counts look like an appended tail) and so
+   *  reported "second-volatile-tail" for a deep injection — the one abort cause a host can actually fix. */
+  breakpointDecision: ShapeBreakpointDecision;
   /** Per-stage snapshots — the host/admin trace + differential-oracle diff surface. */
   stages: {
     multiCharacter: boolean;
@@ -172,6 +178,21 @@ function scopeHistoryToTarget(canon: readonly CanonRow[], targetId: CharacterId)
 // Offset-from-end of the last stable history message for the runner to pin `cache_control` on (the runner
 // places a rolling pair from it). Must count from the SQUASHED prefix length, not raw stableCount — group
 // canon can merge adjacent same-role rows inside the prefix, shrinking it.
+/** The breakpoint call: the offset (absent ⇒ no breakpoint) PLUS the reason, which is the whole point of
+ *  returning a record rather than a bare number — only the code that aborts knows WHY it aborted. */
+interface BreakpointOutcome {
+  readonly offsetFromEnd: number | undefined;
+  readonly decision: ShapeBreakpointDecision;
+}
+
+const NO_STABLE_PREFIX: BreakpointOutcome = { offsetFromEnd: undefined, decision: "no-stable-prefix" };
+/** Every abort whose cause is something INSIDE the cached prefix — a depth ≥ 2 splice, a boundary-folding
+ *  merge, or a squash that collapsed the prefix. One label, because they are one fix for a host: something is
+ *  rewriting bytes the cache would have pinned. */
+const PREFIX_DISRUPTED: BreakpointOutcome = { offsetFromEnd: undefined, decision: "in-prefix-injection-or-squash" };
+/** A nudge/continuation appended a SECOND volatile tail, so the round has no stable last message. */
+const SECOND_VOLATILE_TAIL: BreakpointOutcome = { offsetFromEnd: undefined, decision: "second-volatile-tail" };
+
 /** @internal — exported for the off-by-one unit test. `scopedFold`: an egocentric scoped round's merged
  *  rows are derived per-turn (target can change mid-round) so a collapsed scoped prefix has no stable
  *  breakpoint; group-canon merges are committed messages, so they do. */
@@ -185,22 +206,22 @@ export function computeHistoryBreakpoint(
     /** Whether the effective strategy merges adjacent same-role rows (`false` ⇒ pass-through). */
     readonly merges?: boolean;
   },
-): number | undefined {
+): BreakpointOutcome {
   const { injections, scopedFold = false, merges = true } = opts;
   const stableCount = withTail.length - 1;
   if (stableCount < 1) {
-    return;
+    return NO_STABLE_PREFIX;
   }
   // A depth ≥ 2 in_chat injection splices INSIDE the stable prefix, mutating cached bytes → abort.
   if ((injections ?? []).some((i) => i.position === "in_chat" && i.depth >= 2)) {
-    return;
+    return PREFIX_DISRUPTED;
   }
   // If the last stable message shares a role with the one right after it, a merge would fold the
   // boundary and change its bytes → abort (moot under `none`, which never merges).
   const boundary = injected[stableCount - 1];
   const next = injected[stableCount];
   if (merges && boundary !== undefined && next !== undefined && boundary.role === next.role) {
-    return;
+    return PREFIX_DISRUPTED;
   }
   // The last stable message is the tail of the SQUASHED stable prefix — group canon can merge adjacent
   // same-role rounds inside it, so count from the squashed length, not raw stableCount.
@@ -210,13 +231,13 @@ export function computeHistoryBreakpoint(
   // An egocentric scoped fold derives its merged rows per-turn (target can change mid-round), so a
   // collapsed scoped prefix has no stable breakpoint; group-canon merges are committed, so they do.
   if (scopedFold && squashedPrefixLen < stableCount) {
-    return;
+    return PREFIX_DISRUPTED;
   }
   const offsetFromEnd = finalHistory.length - squashedPrefixLen;
   if (offsetFromEnd < 1) {
-    return;
+    return PREFIX_DISRUPTED;
   }
-  return offsetFromEnd;
+  return { offsetFromEnd, decision: "placed" };
 }
 
 /** What ONE pre-squash row contributes to the delivered-row trace: where its bytes came from, and whose voice
@@ -403,9 +424,9 @@ export function shape(input: ShapeInput): ShapeOutput {
   const history = tailUser !== null ? runSquash([...named, { role: "user", content: tailUser }]) : named;
 
   // Computed on the nudge-free stages (an appended tail is a second volatile tail → abort).
-  const cacheBreakpointFromEnd =
+  const breakpoint =
     tailUser !== null
-      ? undefined
+      ? SECOND_VOLATILE_TAIL
       : computeHistoryBreakpoint(withTail, injected, named, {
           injections: input.injections,
           scopedFold: input.output === "per-speaker" && input.cardScope === "scoped" && input.scopedTargetId !== null,
@@ -417,7 +438,8 @@ export function shape(input: ShapeInput): ShapeOutput {
 
   return {
     history,
-    cacheBreakpointFromEnd,
+    cacheBreakpointFromEnd: breakpoint.offsetFromEnd,
+    breakpointDecision: breakpoint.decision,
     stages: { multiCharacter, withTail, injected, squashed, named, delivered },
   };
 }

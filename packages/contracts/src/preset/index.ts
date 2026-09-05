@@ -785,6 +785,17 @@ const plainMarkerSection = z.object({
   marker: z.enum(PLAIN_MARKERS),
   role: z.enum(MESSAGE_ROLES).default("system"),
   enabled: z.boolean().default(true),
+  /** The firing gate, on the plain markers too (#1462, owner ruling: ST sets `injection_trigger` on EVERY
+   *  prompt-manager entry including the World Info and Chat History rows, and the neo-parity oracle is a
+   *  FLOOR). Its absence here was a PARITY GAP, not a design boundary: `sectionFromPrompt` silently dropped
+   *  an imported `injection_trigger` for these three, and the assembler's world-info anchor routing had no
+   *  gate to read. Every reader is the shared one — `assembly/sections::sectionTriggers` for the walk and
+   *  `hasActiveMarker` for the anchor-fallback routing, plus the `chat_history` pivot's own `sendHistory`.
+   *
+   *  `inject` is deliberately NOT added alongside it: `assembly/assemble::injectionDepthFor` returns `null`
+   *  unconditionally for all three plain markers (they are placement ANCHORS, not injectable content), so an
+   *  `inject` here would be a stored field no reader could ever honour. */
+  trigger: triggerSchema.optional(),
 });
 
 const templatedMarkerSection = z.object({
@@ -2877,7 +2888,9 @@ function sectionFromPrompt(prompt: StPrompt, enabled: boolean, dropped: StDroppe
 
   if (marker !== undefined) {
     if (PLAIN_MARKER_SET.has(marker)) {
-      return { type: "marker", id, name, marker, role, enabled };
+      // `trigger` only: a plain marker is a placement ANCHOR, and `injectionDepthFor` refuses to give one a
+      // depth, so ST's `injection_position`/`injection_depth` have no orb reader here and stay dropped.
+      return { type: "marker", id, name, marker, role, enabled, ...(trigger === undefined ? {} : { trigger }) };
     }
     return {
       type: "marker",
