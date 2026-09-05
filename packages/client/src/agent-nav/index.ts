@@ -150,7 +150,7 @@ async function resolveListedChat(idOrTitle: string, trpc: Trpc, queryClient: Que
   }
   // Fall back to an EXACT display-title match (the same derivation the list rows render), so a caller
   // can name a chat by what they see, not just its opaque id. Titles are NOT unique (the dev DB holds
-  // two "Group UX review — 3 cast" chats) — REFUSE loudly on a multi-match rather than silently picking
+  // two "Group UX review — 3 characters" chats) — REFUSE loudly on a multi-match rather than silently picking
   // one, so the caller disambiguates with the id (its unknown-target sibling's contract).
   const byTitle = chats.filter((c) => deriveChatTitle(c.title, c.participantNames) === idOrTitle);
   if (byTitle.length > 1) {

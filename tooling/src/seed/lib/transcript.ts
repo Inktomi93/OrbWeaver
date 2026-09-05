@@ -81,21 +81,21 @@ function sendDate(seq: number): string {
 }
 
 /** Build a deterministic ST `.jsonl` transcript: header line + N alternating user/assistant messages, each
- *  numbered so a reviewer can assert ordering. Assistant lines round-robin the cast NAMES (group flavour). */
-export function buildTranscript(args: { readonly title: string; readonly messageCount: number; readonly castNames: readonly string[] }): string {
-  const { title, messageCount, castNames } = args;
+ *  numbered so a reviewer can assert ordering. Assistant lines round-robin the character NAMES (group flavour). */
+export function buildTranscript(args: { readonly title: string; readonly messageCount: number; readonly characterNames: readonly string[] }): string {
+  const { title, messageCount, characterNames } = args;
   // The ST keys are a FOREIGN wire vocabulary (snake_case), spelled as array-literal pairs so the shape
   // stays verbatim without a naming-convention suppression.
   const header = Object.fromEntries([
     ["user_name", "You"],
-    ["character_name", castNames[0] ?? "Cast 1"],
+    ["character_name", characterNames[0] ?? "Character 1"],
     ["create_date", sendDate(0)],
     ["chat_metadata", { seedTitle: title }],
   ]);
   const lines: string[] = [JSON.stringify(header)];
   for (let seq = 0; seq < messageCount; seq += 1) {
     const isUser = seq % ROLE_STRIDE === 0;
-    const speaker = isUser ? "You" : (castNames[Math.floor(seq / ROLE_STRIDE) % Math.max(castNames.length, 1)] ?? "Cast 1");
+    const speaker = isUser ? "You" : (characterNames[Math.floor(seq / ROLE_STRIDE) % Math.max(characterNames.length, 1)] ?? "Character 1");
     const label = `[#${String(seq).padStart(SEQ_PAD, "0")}]`;
     const mes = isUser ? `${label} user line ${seq} — asking about item ${seq}.` : `${label} ${speaker} replies to line ${seq}.`;
     lines.push(
