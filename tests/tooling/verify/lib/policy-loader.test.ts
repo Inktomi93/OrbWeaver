@@ -133,6 +133,10 @@ test("proofs require explicit matching modes, nonempty path maps, and rationales
     ),
     "empty-files.ts": moduleSource(repoRoot, "empty-files").replace('{ "tooling/src/proof.ts": "export const planted = true;\\n" }', "{}"),
     "missing-why.ts": moduleSource(repoRoot, "missing-why").replace('why: "founding defect"', 'why: " "'),
+    "must-pass-expect.ts": moduleSource(repoRoot, "must-pass-expect").replace(
+      'mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\\n" }, why: "nearest legal shape" }]',
+      'mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\\n" }, expect: { count: 1 }, why: "nearest legal shape" }]',
+    ),
     "resource-without-resource.ts": moduleSource(repoRoot, "resource-without-resource", { analysis: "resource", proofMode: "resource" }).replace(
       /resources\/policy\.json/gu,
       "tooling/src/proof.ts",

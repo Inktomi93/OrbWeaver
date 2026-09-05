@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { Project } from "ts-morph";
 import type { CoordinatedGateFinding } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyProof, GatePolicyProofExpectation } from "../contract/policy.ts";
+import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type { PolicyConformanceFailure, PolicyProofArm } from "../contract/policy-conformance.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
@@ -13,11 +14,11 @@ import { assertGatePolicyDescriptor } from "../lib/policy-validation.ts";
 const TS_SOURCE_RE = /\.tsx?$/u;
 const VIRTUAL_ROOT = "/orb-policy-conformance";
 const TEMP_PREFIX = "orb-policy-conformance-";
-let exampleSequence = 0;
 
 interface ExampleRun {
   readonly result?: PolicyPassResult;
   readonly thrown?: string;
+  readonly root: string;
 }
 
 interface ProofRunInput {
@@ -25,6 +26,7 @@ interface ProofRunInput {
   readonly arm: PolicyProofArm;
   readonly proof: GatePolicyProof;
   readonly exampleIndex: number;
+  readonly sequence: number;
   readonly shared: Project;
 }
 
@@ -49,17 +51,16 @@ function runPass(policy: GatePolicy, root: string, project: Project, resourcePat
   });
 }
 
-function runVirtualExample(policy: GatePolicy, proof: GatePolicyProof, shared: Project): ExampleRun {
+function runVirtualExample(policy: GatePolicy, proof: GatePolicyProof, shared: Project, sequence: number): ExampleRun {
   removeSources(shared);
-  exampleSequence += 1;
-  const root = `${VIRTUAL_ROOT}-${exampleSequence}`;
+  const root = `${VIRTUAL_ROOT}-${sequence}`;
   try {
     for (const [path, content] of Object.entries(proof.files).toSorted(([left], [right]) => left.localeCompare(right))) {
       shared.createSourceFile(`${root}/${path}`, content);
     }
-    return { result: runPass(policy, root, shared, []) };
+    return { result: runPass(policy, root, shared, []), root };
   } catch (error) {
-    return { thrown: messageOf(error) };
+    return { thrown: messageOf(error), root };
   } finally {
     removeSources(shared);
   }
@@ -80,20 +81,24 @@ function runResourceExample(policy: GatePolicy, proof: GatePolicyProof): Example
         resources.push(path);
       }
     }
-    return { result: runPass(policy, root, project, resources) };
+    return { result: runPass(policy, root, project, resources), root };
   } catch (error) {
-    return { thrown: messageOf(error) };
+    return { thrown: messageOf(error), root };
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 }
 
-function runExample(policy: GatePolicy, proof: GatePolicyProof, shared: Project): ExampleRun {
-  return proof.mode === "resource" ? runResourceExample(policy, proof) : runVirtualExample(policy, proof, shared);
+function runExample(policy: GatePolicy, proof: GatePolicyProof, shared: Project, sequence: number): ExampleRun {
+  return proof.mode === "resource" ? runResourceExample(policy, proof) : runVirtualExample(policy, proof, shared, sequence);
 }
 
 function formatFindingMessages(findings: readonly CoordinatedGateFinding[], policyMessage: string): string {
   return findings.map((finding) => finding.message ?? policyMessage).join("; ");
+}
+
+function sanitizeProofRoot(detail: string, root: string): string {
+  return detail.split(`${root}/`).join("").split(root).join("<proof-root>");
 }
 
 function toolFailure(result: PolicyPassResult, policy: GatePolicy, examplePaths: ReadonlySet<string>): string | null {
@@ -138,27 +143,28 @@ function expectationFailure(
   if (expectation.count !== undefined && findings.length !== expectation.count) {
     return `expected effective finding count=${expectation.count} but got ${findings.length}`;
   }
-  if (expectation.line !== undefined && !findings.some(({ line }) => line === expectation.line)) {
-    return `expected an effective finding at line=${expectation.line} but got lines ${findings.map(({ line }) => line).join(", ")}`;
-  }
-  if (expectation.token !== undefined && !findings.some(({ token }) => token === expectation.token)) {
-    return `expected an effective finding with token=${JSON.stringify(expectation.token)} but got tokens ${findings
-      .map(({ token }) => JSON.stringify(token ?? ""))
-      .join(", ")}`;
-  }
+  const { line, token, messageIncludes } = expectation;
+  const identity = [
+    ...(line === undefined ? [] : [`line=${line}`]),
+    ...(token === undefined ? [] : [`token=${JSON.stringify(token)}`]),
+    ...(messageIncludes === undefined ? [] : [`messageIncludes=${JSON.stringify(messageIncludes)}`]),
+  ];
   if (
-    expectation.messageIncludes !== undefined &&
-    !findings.some((finding) => (finding.message ?? policyMessage).includes(expectation.messageIncludes as string))
+    identity.length > 0 &&
+    !findings.some(
+      (finding) =>
+        (line === undefined || finding.line === line) &&
+        (token === undefined || finding.token === token) &&
+        (messageIncludes === undefined || (finding.message ?? policyMessage).includes(messageIncludes)),
+    )
   ) {
-    return `expected an effective finding whose message includes ${JSON.stringify(expectation.messageIncludes)} but got ${JSON.stringify(
-      formatFindingMessages(findings, policyMessage),
-    )}`;
+    return `expected one effective finding matching ${identity.join(", ")} but no single finding matched`;
   }
   return null;
 }
 
-function proofFailure({ policy, arm, proof, exampleIndex, shared }: ProofRunInput): PolicyConformanceFailure | null {
-  const run = runExample(policy, proof, shared);
+function proofFailure({ policy, arm, proof, exampleIndex, sequence, shared }: ProofRunInput): PolicyConformanceFailure | null {
+  const run = runExample(policy, proof, shared, sequence);
   let detail: string | null;
   if (run.thrown !== undefined) {
     detail = `PASS THREW ${run.thrown}`;
@@ -175,18 +181,41 @@ function proofFailure({ policy, arm, proof, exampleIndex, shared }: ProofRunInpu
       }
     }
   }
-  return detail === null ? null : { policyId: policy.id, arm, exampleIndex, why: proof.why, detail };
+  return detail === null ? null : { policyId: policy.id, arm, exampleIndex, why: proof.why, detail: sanitizeProofRoot(detail, run.root) };
+}
+
+function invocationPolicies(policies: readonly GatePolicy[]): readonly GatePolicy[] {
+  const candidates: unknown = policies;
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    throw new Error("verifyPolicyProofs requires a nonempty policy array");
+  }
+  const ids = new Set<string>();
+  const validated: GatePolicy[] = [];
+  for (const candidate of candidates) {
+    if (!isDefinedGatePolicy(candidate)) {
+      throw new Error("verifyPolicyProofs accepts only policies branded by defineGate");
+    }
+    assertGatePolicyDescriptor(candidate);
+    if (ids.has(candidate.id)) {
+      throw new Error(`verifyPolicyProofs received duplicate policy id ${candidate.id}`);
+    }
+    ids.add(candidate.id);
+    validated.push(candidate);
+  }
+  return validated.toSorted((left, right) => left.id.localeCompare(right.id));
 }
 
 /** Verify every policy proof in stable policy/arm/example order. Empty result means every proof holds. */
 export function verifyPolicyProofs(policies: readonly GatePolicy[]): readonly PolicyConformanceFailure[] {
+  const ordered = invocationPolicies(policies);
   const failures: PolicyConformanceFailure[] = [];
   const shared = new Project({ useInMemoryFileSystem: true });
-  for (const policy of [...policies].toSorted((left, right) => left.id.localeCompare(right.id))) {
-    assertGatePolicyDescriptor(policy);
+  let sequence = 0;
+  for (const policy of ordered) {
     for (const arm of ["mustFlag", "mustPass"] as const) {
       for (const [exampleIndex, proof] of policy[arm].entries()) {
-        const failure = proofFailure({ policy, arm, proof, exampleIndex, shared });
+        sequence += 1;
+        const failure = proofFailure({ policy, arm, proof, exampleIndex, sequence, shared });
         if (failure !== null) {
           failures.push(failure);
         }

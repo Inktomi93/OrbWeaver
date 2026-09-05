@@ -155,6 +155,64 @@ test("mustFlag precision uses effective warnings and finding or descriptor messa
   ]);
 });
 
+test("mustFlag identity predicates must match the same effective finding", () => {
+  const unrelated = sourcePolicy("unrelated-findings", {
+    create: (ctx) => ({
+      visitors: [
+        {
+          kinds: [SyntaxKind.VariableDeclaration],
+          visit: (node) => {
+            const first = node.getText().startsWith("first");
+            const needle = node.getText().startsWith("needle");
+            if (first) {
+              ctx.report.node(node, { token: "first", offset: 0, message: "wrong message" });
+            } else if (needle) {
+              ctx.report.node(node, { token: "needle", offset: 0, message: "target message" });
+            }
+          },
+        },
+      ],
+    }),
+    mustFlag: [
+      {
+        mode: "source",
+        files: { "packages/client/src/proof.ts": "const first = 1;\nconst needle = 2;\n" },
+        expect: { line: 1, token: "needle", messageIncludes: "target" },
+        why: "unrelated findings cannot jointly satisfy one expected identity",
+      },
+    ],
+  });
+
+  expect(verifyPolicyProofs([unrelated])).toEqual([
+    {
+      policyId: "unrelated-findings",
+      arm: "mustFlag",
+      exampleIndex: 0,
+      why: "unrelated findings cannot jointly satisfy one expected identity",
+      detail: 'expected one effective finding matching line=1, token="needle", messageIncludes="target" but no single finding matched',
+    },
+  ]);
+});
+
+test("the invocation boundary refuses invalid policy sets before any example runs", () => {
+  let creates = 0;
+  const counted = sourcePolicy("a-counted", {
+    create: (ctx) => {
+      creates += 1;
+      return { evaluate: () => ctx.report.file("packages/client/src/proof.ts") };
+    },
+  });
+  const duplicate = sourcePolicy("a-counted");
+  const unbranded = { ...counted, id: "z-unbranded", family: "z-unbranded" } as GatePolicy;
+  const invalid = defineGate({ ...counted, id: "z-invalid", family: "z-invalid", mustFlag: [] } as never);
+
+  expect(() => verifyPolicyProofs([])).toThrow(/nonempty|policy/i);
+  expect(() => verifyPolicyProofs([counted, duplicate])).toThrow(/duplicate.*a-counted/i);
+  expect(() => verifyPolicyProofs([counted, unbranded])).toThrow(/defineGate|brand/i);
+  expect(() => verifyPolicyProofs([counted, invalid])).toThrow(/invalid.*policy|mustFlag/i);
+  expect(creates).toBe(0);
+});
+
 test("tool failures, authority failures, bad receipts, and population mismatch fail distinctly", () => {
   const thrown = sourcePolicy("hook-throw", {
     create: () => ({
@@ -276,10 +334,12 @@ test("resource proofs materialize exact content and clean temp roots after succe
 
 test("reused projects isolate every example and repeated invocations are deterministic", () => {
   const populations: string[][] = [];
+  const absolutePaths: string[] = [];
   const isolating = sourcePolicy("isolation-proof", {
     create: (ctx) => ({
       evaluate: () => {
         populations.push(ctx.files.map(ctx.relativePath));
+        absolutePaths.push(ctx.files[0]?.getFilePath() ?? "");
         if (ctx.files.some((file) => file.getFullText().includes("planted"))) {
           ctx.report.file(ctx.relativePath(ctx.files[0] as NonNullable<(typeof ctx.files)[number]>));
         }
@@ -293,6 +353,54 @@ test("reused projects isolate every example and repeated invocations are determi
   expect(verifyPolicyProofs([isolating])).toEqual([]);
   expect(populations).toEqual([["packages/client/src/proof.ts"], ["packages/client/src/second.ts"], ["packages/client/src/final.ts"]]);
   expect(verifyPolicyProofs([failing])).toEqual(verifyPolicyProofs([failing]));
+  expect(verifyPolicyProofs([isolating])).toEqual([]);
+  expect(absolutePaths.slice(0, 3)).toEqual(absolutePaths.slice(3));
+});
+
+test("thrown path details are stable and retain only repo-relative proof identities", () => {
+  const sourceThrow = sourcePolicy("source-path-throw", {
+    create: (ctx) => ({
+      evaluate: () => {
+        throw new Error(`failed at ${ctx.files[0]?.getFilePath() ?? "missing"}`);
+      },
+    }),
+  });
+  const resourceThrow = defineGate({
+    id: "resource-path-throw",
+    family: "resource-path-throw",
+    authority: "hard",
+    severity: "error",
+    population: "@client",
+    analysis: "resource",
+    execution: "selected-files",
+    message: "resource path throw",
+    create: (ctx) => ({
+      evaluate: () => {
+        throw new Error(`failed at ${ctx.files[0]?.getFilePath() ?? "missing"}`);
+      },
+    }),
+    mustFlag: [
+      {
+        mode: "resource",
+        files: { "packages/client/src/provider.ts": "export const provider = true;\n", "resources/config.json": "{}\n" },
+        why: "resource path failure",
+      },
+    ],
+    mustPass: [
+      {
+        mode: "resource",
+        files: { "packages/client/src/provider.ts": "export const provider = false;\n", "resources/config.json": "{}\n" },
+        why: "resource path failure",
+      },
+    ],
+  });
+
+  const first = verifyPolicyProofs([sourceThrow, resourceThrow]);
+  const second = verifyPolicyProofs([sourceThrow, resourceThrow]);
+
+  expect(second).toEqual(first);
+  expect(first.map(({ detail }) => detail).join("\n")).toContain("packages/client/src/");
+  expect(first.map(({ detail }) => detail).join("\n")).not.toMatch(/\/orb-policy-conformance-|\/tmp\/orb-policy-conformance-/u);
 });
 
 test("failure order is policy, arm, then example index", () => {

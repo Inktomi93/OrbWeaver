@@ -105,7 +105,7 @@ function assertExpectation(value: unknown, label: string): void {
   }
 }
 
-function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string): asserts value is GatePolicyProof {
+function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string, allowExpectation: boolean): asserts value is GatePolicyProof {
   const proof = record(value, label);
   exactKeys(proof, PROOF_KEYS, label);
   if (!(GATE_POLICY_PROOF_MODES as readonly unknown[]).includes(proof["mode"])) {
@@ -134,6 +134,9 @@ function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string
     invalid(`${label}.files may contain only .ts/.tsx source paths in ${String(proof["mode"])} mode`);
   }
   if (proof["expect"] !== undefined) {
+    if (!allowExpectation) {
+      invalid(`${label}.expect is valid only for mustFlag proofs`);
+    }
     assertExpectation(proof["expect"], `${label}.expect`);
   }
 }
@@ -143,7 +146,7 @@ function assertProofArm(value: unknown, analysis: GatePolicyAnalysis, label: "mu
     invalid(`${label} must contain at least one explicit proof example`);
   }
   for (const [index, proof] of value.entries()) {
-    assertProof(proof, analysis, `${label}[${index}]`);
+    assertProof(proof, analysis, `${label}[${index}]`, label === "mustFlag");
   }
 }
 
