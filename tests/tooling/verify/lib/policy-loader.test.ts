@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { loadPolicyCorpus } from "../../../../tooling/src/verify/lib/policy-loader.ts";
+import { assertGatePolicyDescriptor } from "../../../../tooling/src/verify/lib/policy-validation.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function writeModules(root: string, modules: Readonly<Record<string, string>>): void {
@@ -19,6 +20,7 @@ interface ModuleOptions {
   readonly population?: string;
   readonly exportName?: string;
   readonly extra?: string;
+  readonly prototype?: string;
   readonly severity?: "error" | "warning";
   readonly secondDescriptor?: boolean;
 }
@@ -30,7 +32,7 @@ function moduleSource(repoRoot: string, id: string, options: ModuleOptions = {})
   const population = options.population ?? '"@tooling"';
   const exportName = options.exportName ?? "gate";
   const proofPath = proofMode === "resource" ? "resources/policy.json" : "tooling/src/proof.ts";
-  const descriptor = `defineGate({
+  const fields = `{
     id: ${JSON.stringify(id)},
     family: ${JSON.stringify(options.family ?? id)},
     authority: "hard",
@@ -43,7 +45,9 @@ function moduleSource(repoRoot: string, id: string, options: ModuleOptions = {})
     mustFlag: [{ mode: ${JSON.stringify(proofMode)}, files: { ${JSON.stringify(proofPath)}: "export const planted = true;\\n" }, why: "founding defect" }],
     mustPass: [{ mode: ${JSON.stringify(proofMode)}, files: { ${JSON.stringify(proofPath)}: "export const clean = true;\\n" }, why: "nearest legal shape" }],
     ${options.extra ?? ""}
-  } as never)`;
+  }`;
+  const descriptorValue = options.prototype === undefined ? fields : `Object.assign(Object.create(${options.prototype}), ${fields})`;
+  const descriptor = `defineGate(${descriptorValue} as never)`;
   return `import { defineGate } from ${JSON.stringify(contract)};\nexport const ${exportName} = ${descriptor};\n${
     options.secondDescriptor === true ? `export const second = ${descriptor};\n` : ""
   }`;
@@ -154,6 +158,55 @@ test("warning debt requires one positive work-item issue and error policies cann
     writeModules(root, { [name]: source });
     await expect(loadPolicyCorpus(root)).rejects.toThrow(message);
   }
+});
+
+test("the loader refuses prototype-supplied warning ownership", async ({ repoRoot, scratch }) => {
+  writeModules(scratch, {
+    "prototype-warning.ts": moduleSource(repoRoot, "prototype-warning", {
+      severity: "warning",
+      prototype: "{ workItem: 1584 }",
+    }),
+  });
+
+  await expect(loadPolicyCorpus(scratch)).rejects.toThrow(/descriptor.*direct plain object|prototype/i);
+});
+
+test("direct descriptor validation requires own enumerable contract fields", () => {
+  const warning = {
+    id: "direct-warning",
+    family: "direct-warning",
+    authority: "hard",
+    severity: "warning",
+    workItem: 1584,
+    population: "@tooling",
+    analysis: "syntax",
+    execution: "selected-files",
+    message: "fixture policy",
+    create: () => ({ evaluate: () => undefined }),
+    mustFlag: [{ mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, why: "founding defect" }],
+    mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\n" }, why: "nearest legal shape" }],
+  };
+  expect(() => assertGatePolicyDescriptor(warning)).not.toThrow();
+
+  const prototypeWarning = Object.assign(Object.create({ workItem: 1584 }), { ...warning, workItem: undefined });
+  Reflect.deleteProperty(prototypeWarning, "workItem");
+  expect(() => assertGatePolicyDescriptor(prototypeWarning)).toThrow(/descriptor.*direct plain object|prototype/i);
+
+  const hiddenWorkItem = { ...warning };
+  Object.defineProperty(hiddenWorkItem, "workItem", { value: 1584, enumerable: false });
+  expect(() => assertGatePolicyDescriptor(hiddenWorkItem)).toThrow(/workItem.*own enumerable/i);
+
+  const hiddenMessage = { ...warning };
+  Object.defineProperty(hiddenMessage, "message", { value: "fixture policy", enumerable: false });
+  expect(() => assertGatePolicyDescriptor(hiddenMessage)).toThrow(/message.*own enumerable/i);
+
+  expect(() => assertGatePolicyDescriptor({ ...warning, workItem: undefined })).toThrow(/workItem.*positive.*safe integer/i);
+  expect(() => assertGatePolicyDescriptor({ ...warning, workItem: -1 })).toThrow(/workItem.*positive.*safe integer/i);
+  expect(() => assertGatePolicyDescriptor({ ...warning, severity: "error", workItem: 1584 })).toThrow(/workItem.*forbidden.*error/i);
+
+  const inheritedError = Object.assign(Object.create({ workItem: 1584 }), { ...warning, severity: "error" });
+  Reflect.deleteProperty(inheritedError, "workItem");
+  expect(() => assertGatePolicyDescriptor(inheritedError)).toThrow(/descriptor.*direct plain object|prototype/i);
 });
 
 test("proofs require explicit matching modes, nonempty path maps, and rationales", async ({ repoRoot, scratch }) => {

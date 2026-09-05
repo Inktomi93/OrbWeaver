@@ -22,6 +22,19 @@ const POLICY_KEYS = new Set([
   "mustFlag",
   "mustPass",
 ]);
+const REQUIRED_POLICY_KEYS = [
+  "id",
+  "family",
+  "authority",
+  "severity",
+  "population",
+  "analysis",
+  "execution",
+  "message",
+  "create",
+  "mustFlag",
+  "mustPass",
+] as const;
 const PROOF_KEYS = new Set(["mode", "files", "expect", "why"]);
 const EXPECT_KEYS = new Set(["count", "line", "token", "messageIncludes"]);
 const HOOK_KEYS = new Set(["visitors", "visitFile", "evaluate"]);
@@ -155,8 +168,30 @@ function isExplicitNone(population: PopulationExpr): boolean {
   return typeof population === "object" && !Array.isArray(population) && "of" in population && population.of === "none";
 }
 
+function assertDirectDescriptor(policy: Readonly<Record<string, unknown>>): void {
+  if (Object.getPrototypeOf(policy) !== Object.prototype) {
+    invalid("descriptor must be a direct plain object with no custom prototype");
+  }
+  for (const key of Reflect.ownKeys(policy)) {
+    if (typeof key !== "string") {
+      invalid("descriptor may contain only string contract properties");
+    }
+    if (!Object.prototype.propertyIsEnumerable.call(policy, key)) {
+      invalid(`descriptor.${key} must be an own enumerable property`);
+    }
+  }
+  for (const key of REQUIRED_POLICY_KEYS) {
+    if (!Object.prototype.propertyIsEnumerable.call(policy, key)) {
+      invalid(`descriptor.${key} must be an own enumerable property`);
+    }
+  }
+}
+
 function assertSeverityWorkItem(policy: Readonly<Record<string, unknown>>): void {
   if (policy["severity"] === "warning") {
+    if (!Object.prototype.propertyIsEnumerable.call(policy, "workItem")) {
+      invalid("descriptor.workItem must be an own enumerable property when severity is warning");
+    }
     if (!(Number.isSafeInteger(policy["workItem"]) && (policy["workItem"] as number) > 0)) {
       invalid("descriptor.workItem must be a positive safe integer when severity is warning");
     }
@@ -167,6 +202,7 @@ function assertSeverityWorkItem(policy: Readonly<Record<string, unknown>>): void
 
 export function assertGatePolicyDescriptor(value: unknown): asserts value is GatePolicy {
   const policy = record(value, "descriptor");
+  assertDirectDescriptor(policy);
   exactKeys(policy, POLICY_KEYS, "descriptor");
   for (const key of ["id", "family"] as const) {
     nonBlank(policy[key], `descriptor.${key}`);
