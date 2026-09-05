@@ -213,13 +213,31 @@ export function extractTrailingSystemRows(history: readonly TurnMessage[]): { ro
   return { rows, systemText: text.length > 0 ? text : null };
 }
 
-/** The legacy flatten (no-seed fallback): the whole history as one role-labeled blob. Exported for bridge
- *  tests only — not a composition surface. */
+/**
+ * The legacy flatten (no-seed fallback): the whole history as one role-labeled blob. Exported for bridge
+ * tests only — not a composition surface.
+ *
+ * THE LABEL MAP IS TOTAL OVER `HistoryRole`, and that is the security property, not a tidiness one (#1457).
+ * It used to be a `Partial<Record<…>>` with a `?? "User"` default, and this is the ONE arm a history
+ * containing `tool` rows reaches — {@link splitAgentHistory} returns null on exactly that shape — so every
+ * tool RESULT was rendered into the prompt as `User: <tool output>`. That promotes tool output from DATA the
+ * model may reason about to an INSTRUCTION apparently authored by the human, which is the confusion role
+ * separation exists to prevent: a tool that returns attacker-influenced bytes (a fetched page, a databank
+ * row, a search hit) got to speak in the user's voice. `tool` now labels as a tool result and can never be
+ * mistaken for a turn.
+ *
+ * REFUSING the agent-sdk path for tool-bearing histories was the other fail-closed candidate and was
+ * rejected: the backend can run those turns, so refusal buys no confidentiality and costs the user their
+ * chat. Labelling honestly is the narrowing that actually addresses the confusion.
+ *
+ * TOTAL, not defaulted, so the recurrence is a COMPILE error: a new `HISTORY_ROLES` member with no label
+ * here fails `tsc` instead of silently inheriting the user's voice — the §5.5 mapped-Record dispatch shape.
+ */
 export function flattenAgentHistory(history: readonly TurnMessage[]): string {
-  const labels: Partial<Record<TurnMessage["role"], string>> = { assistant: "Assistant", system: "System" };
+  const labels: Record<TurnMessage["role"], string> = { user: "User", assistant: "Assistant", system: "System", tool: "Tool result" };
   return history
     .map((m) => {
-      const prefix = labels[m.role] ?? "User";
+      const prefix = labels[m.role];
       const name = m.name !== undefined && m.name.length > 0 ? ` (${m.name})` : "";
       const text = m.content.map((c) => (c.type === "text" ? c.text : "[Image]")).join("");
       return `${prefix}${name}: ${text}`;

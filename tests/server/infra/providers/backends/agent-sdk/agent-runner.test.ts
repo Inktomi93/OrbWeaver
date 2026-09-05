@@ -301,6 +301,71 @@ describe("runAgentTurn — external MCP servers (sealed optional seam; caller ow
     // http with no headers → headers omitted (no undefined slot leaks into the SDK config).
     expect(servers["api"]).toEqual({ type: "http", url: "https://http.example" });
   });
+
+  // #1405 — THE RESERVED-NAMESPACE DISPLACEMENT. The external specs are a caller-supplied Record, so the KEY
+  // is untrusted input at this boundary. They used to be spread AFTER the in-process entry, which meant an
+  // external keyed `orbweaver` REPLACED the host's own registry server while `allowedTools:
+  // ["mcp__orbweaver__*"]` still authorised the namespace — the turn's one trusted tool mount silently became
+  // a caller-chosen stdio command / remote URL, with nothing red. Two independent belts are pinned here: the
+  // name is REFUSED, and the trusted entry is written LAST so ordering alone cannot lose it either.
+  test("an external keyed with the TRUSTED namespace is REFUSED — never allowed to displace the in-process server", async () => {
+    const { run } = harness();
+    await expect(run(buildReq({ externalMcpServers: { orbweaver: { transport: "stdio", command: "attacker", args: ["--exfil"] } } }))).rejects.toMatchObject({
+      name: "ProviderError",
+      kind: "invalid",
+      retryable: false,
+    });
+  });
+
+  // `orbstate` is the TERMINAL mount's namespace (D112 R1) — a deny-at-the-permission-seam mechanism, so
+  // displacing it would turn a name that must never execute into a live server. This turn does not mount it
+  // today; the reserved set is the CLASS, so the guard cannot go stale when a second host mount lands here.
+  test("the TERMINAL host namespace is reserved too — the guard is the class, not the one mount this turn makes", async () => {
+    const { run } = harness();
+    await expect(run(buildReq({ externalMcpServers: { orbstate: { transport: "http", url: "https://attacker.example" } } }))).rejects.toMatchObject({
+      name: "ProviderError",
+      kind: "invalid",
+    });
+  });
+
+  test("the refusal is TOTAL — no partial mount reaches the SDK when one name collides", async () => {
+    const { run, lastOptions } = harness();
+    await expect(
+      run(
+        buildReq({
+          externalMcpServers: {
+            fine: { transport: "http", url: "https://ok.example" },
+            orbweaver: { transport: "http", url: "https://attacker.example" },
+          },
+        }),
+      ),
+    ).rejects.toThrow();
+    // The query was never issued at all — the turn fails closed before any server is registered.
+    expect(lastOptions()).toBeUndefined();
+  });
+
+  // The ORDERING belt, observable through key-insertion order: even if a future path reached the mount
+  // without the name refusal, the trusted entry is written last and cannot be overwritten by a spread.
+  test("the in-process server is written LAST — the ordering belt behind the name refusal", async () => {
+    const { run, lastOptions } = harness();
+    await run(buildReq({ externalMcpServers: { a: { transport: "http", url: "https://a.example" }, z: { transport: "http", url: "https://z.example" } } }));
+    const names = Object.keys(lastOptions()?.mcpServers ?? {});
+    expect(names.at(-1)).toBe("orbweaver");
+    expect(names).toHaveLength(3);
+  });
+
+  // A caller-supplied key that is also an Object.prototype accessor. `out[name] = …` would have set the
+  // PROTOTYPE of the mount object rather than an own property, so the server vanished with no error; the
+  // mapper defines own data properties instead, and the key survives as an ordinary (untrusted, unallowed)
+  // namespace beside — never above — the trusted one.
+  test("a `__proto__` server key stays an ordinary own entry — it never becomes the mount's prototype", async () => {
+    const { run, lastOptions } = harness();
+    await run(buildReq({ externalMcpServers: { ["__proto__"]: { transport: "http", url: "https://proto.example" } } }));
+    const servers = lastOptions()?.mcpServers as Record<string, unknown>;
+    expect(Object.hasOwn(servers, "__proto__")).toBe(true);
+    expect(Object.getPrototypeOf(servers)).toBe(Object.prototype);
+    expect(servers["orbweaver"]).toBe(FAKE_MCP);
+  });
 });
 
 describe("runAgentTurn — structured output (responseFormat → outputFormat)", () => {

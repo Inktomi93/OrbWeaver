@@ -1,8 +1,9 @@
 // Gate: external-id-single-writer (Spine-Identity-and-Auth.md — the U1 bind-once identity invariant) —
 // `users.externalId` / `external_id` is the STABLE SSO subject bound ONCE to a row; it may be WRITTEN only
 // by the two sanctioned sessions capabilities (provision-identity.ts — the SSO-seam upsert;
-// link-external-id.ts — the admin B5 link capability). The link capability's one physical writer lives in
-// sessions/persistence/users.ts. A THIRD writer or caller is exactly the fragmented N-provisioning-paths hole
+// link-external-id.ts — the admin B5 link capability). BOTH capabilities bind through the ONE atomic writer
+// (`claimExternalIdIfUnbound`) in sessions/persistence/users.ts — the claim arm admits exactly those two
+// callers. A THIRD writer or caller is exactly the fragmented N-provisioning-paths hole
 // OpenWebUI's W1 takeover rides — a future auth method that adds its own externalId linking site REDS here.
 // A "write" = a BIND of a NON-NULL subject: an `externalId`/`external_id` object-KEY whose nearest enclosing
 // call is a users write verb (insertUser/updateUser/set/values/onConflictDoUpdate), or an `<x>.externalId = …`
@@ -37,7 +38,15 @@ const GATE_SELF = "tooling/src/verify/gates/external-id-single-writer.ts";
 const ANCHOR = "packages/db/src/schema/users.ts";
 const SESSIONS = "packages/server/src/domain/sessions/";
 const LINK_CAPABILITY = `${SESSIONS}verbs/link-external-id.ts`;
+const PROVISION_CAPABILITY = `${SESSIONS}verbs/provision-identity.ts`;
 const CLAIM_WRITER = "claimExternalIdIfUnbound";
+/** WHO MAY CALL THE ATOMIC CLAIM: the TWO sanctioned capability VERBS this gate's own message names, and
+ *  nobody else. It was LINK-only until 2026-09-05 (#1451), which forbade the consolidation U1 asks for:
+ *  provision-identity could bind the column by hand (`changes.externalId = …`, its carve-out below) but not
+ *  through the ONE atomic writer — so the owner-flip bind stayed a read-then-plain-UPDATE and two concurrent
+ *  owner logins with different subjects both won it. Widening this set REDUCES the bind mechanisms from two
+ *  to one; a THIRD caller is still the fragmentation hole (the `second-link.ts` mustFlag row). */
+const CLAIM_CALLERS: ReadonlySet<string> = new Set([LINK_CAPABILITY, PROVISION_CAPABILITY]);
 /** The TWO physical externalId writers serving the sanctioned capabilities (Spine-Identity-and-Auth.md U1).
  *  Named individually so the stale arm can name the dead one. */
 const SANCTIONED_FILES = [`${SESSIONS}verbs/provision-identity.ts`, `${SESSIONS}persistence/users.ts`] as const;
@@ -131,7 +140,7 @@ export const gate: GateDescriptor = {
   kinds: [SyntaxKind.PropertyAssignment, SyntaxKind.ShorthandPropertyAssignment, SyntaxKind.BinaryExpression, SyntaxKind.CallExpression],
   visit: (node, sf, ctx) => {
     if (isClaimWriterCall(node)) {
-      if (repoRel(sf.getFilePath()) !== LINK_CAPABILITY) {
+      if (!CLAIM_CALLERS.has(repoRel(sf.getFilePath()))) {
         ctx.report(node, { token: CLAIM_WRITER, offset: 0 });
       }
       return;
@@ -213,7 +222,16 @@ export const gate: GateDescriptor = {
         "  await claimExternalIdIfUnbound(db, userId, externalId, 0);\n" +
         "}\n",
       at: LINK_CAPABILITY,
-      why: "the one sanctioned admin capability calling its exact persistence writer, passes",
+      why: "the sanctioned admin capability calling its exact persistence writer, passes",
+    },
+    {
+      files:
+        'import { claimExternalIdIfUnbound } from "../persistence/users.ts";\n' +
+        "export async function bindOwnerSubject(db: D, ownerId: U, externalId: E): Promise<boolean> {\n" +
+        "  return await claimExternalIdIfUnbound(db, ownerId, externalId, 0);\n" +
+        "}\n",
+      at: PROVISION_CAPABILITY,
+      why: "the SSO-seam upsert binding the owner-flip subject through the SAME atomic writer (#1451) — the second sanctioned capability, not a third mechanism: it REPLACED a read-then-plain-UPDATE, so the bind count went 2 → 1, passes",
     },
     {
       files:

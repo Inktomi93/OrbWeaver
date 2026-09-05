@@ -10,7 +10,7 @@
 // 2026-08-01): a per-character opt-in may not widen either layer.
 
 import type { DeploymentRenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
-import { resolveRenderPolicy } from "@orb/contracts/chat";
+import { CARD_FRAME_ROUTE, resolveRenderPolicy } from "@orb/contracts/chat";
 import { PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
 import { securityHeaders } from "@orb/server/entry/http";
 import { Hono } from "hono";
@@ -248,6 +248,54 @@ describe("securityHeaders", () => {
       // `PLUGIN_FRAME_ROUTE` and ends in a slash, so a differently-named sibling route keeps the app policy.
       const h = await servedFor("/api/plugin-frames/x");
       expect(h.get("content-security-policy")).toContain("default-src 'self'");
+    });
+
+    // #1409 — THE DESCENDANT PATH. The exemption used to be a bare `path.startsWith(prefix)`, but both frame
+    // documents are registered as `<prefix>:id` and hono's path parameter matches ONE segment
+    // (`LABEL_REG_EXP_STR = "[^/]+"`). So `<prefix>a/b` matched the EXEMPTION and matched no HANDLER: the
+    // framework's own 404 went out with no CSP, no `X-Frame-Options` and no `nosniff` — an unpoliced response
+    // on the app's own origin, reachable by anyone who can type a URL. These drive the routes as
+    // `entry/http/{card,plugin}-frame.ts` register them, so the arms are the router's real ones.
+    async function servedByRealFrameRoutes(requestPath: string): Promise<Response> {
+      const app = new Hono();
+      app.use("*", securityHeaders({ dev: false, allowExternalMedia: () => false }));
+      const doc = "sandbox; default-src 'none'";
+      app.get(`${CARD_FRAME_ROUTE}/:id`, (c) => c.body("<p>card</p>", 200, { "Content-Security-Policy": doc }));
+      app.get(`${PLUGIN_FRAME_ROUTE}/:id`, (c) => c.body("<p>plugin</p>", 200, { "Content-Security-Policy": doc }));
+      return await app.request(requestPath, { method: "GET" });
+    }
+
+    const handle = "0123456789abcdef0123456789abcdef";
+
+    test("a DESCENDANT of a frame prefix routes to NOTHING and gets the full app header set, never nothing", async () => {
+      for (const path of [`${CARD_FRAME_ROUTE}/x/y`, `${CARD_FRAME_ROUTE}/${handle}/nested`, `${PLUGIN_FRAME_ROUTE}/x/y`]) {
+        const res = await servedByRealFrameRoutes(path);
+        // The premise, asserted rather than assumed: hono's `:id` does not span `/`, so nothing serves this.
+        expect(res.status, path).toBe(404);
+        // …and an unrouted app-origin path is POLICED like every other one. The defect was NOT a weaker
+        // policy — it was NO policy: every one of these came back `null` under the prefix test.
+        expect(res.headers.get("content-security-policy"), path).not.toBeNull();
+        expect(res.headers.get("content-security-policy"), path).toContain("default-src 'self'");
+        expect(res.headers.get("x-frame-options"), path).toBe("DENY");
+        expect(res.headers.get("x-content-type-options"), path).toBe("nosniff");
+      }
+    });
+
+    test("the bare prefix with a trailing slash is not a document either — it keeps the app policy", async () => {
+      const res = await servedByRealFrameRoutes(`${CARD_FRAME_ROUTE}/`);
+      expect(res.headers.get("content-security-policy")).toContain("default-src 'self'");
+    });
+
+    // THE POSITIVE CONTROL for the narrowing: the real, registered document route is still exempt, and its
+    // own policy still survives the round trip. A tightened predicate that killed the exemption would be a
+    // regression of exactly the class this file's exemption note describes.
+    test("the REGISTERED frame document is still exempt — both members, own policy intact", async () => {
+      for (const path of [`${CARD_FRAME_ROUTE}/${handle}`, `${PLUGIN_FRAME_ROUTE}/${handle}`]) {
+        const res = await servedByRealFrameRoutes(path);
+        expect(res.status, path).toBe(200);
+        expect(res.headers.get("content-security-policy"), path).toBe("sandbox; default-src 'none'");
+        expect(res.headers.get("x-frame-options"), path).toBeNull();
+      }
     });
   });
 

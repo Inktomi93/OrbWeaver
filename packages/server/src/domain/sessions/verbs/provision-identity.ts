@@ -6,6 +6,7 @@ import type { ProvisionIdentityOptions } from "../contract/params.ts";
 import type { ProvisionResult } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import {
+  claimExternalIdIfUnbound,
   insertUser,
   selectForProvisionByExternalId,
   selectForProvisionByHandle,
@@ -241,17 +242,56 @@ async function tryAdoptUnboundOwner(
   return await bindOwnerSubject(ctx, owner, identity, identity.externalId);
 }
 
+/**
+ * THE OWNER BIND LOST THE CLAIM — the adoption's read said UNBOUND, and by the time our statement acquired
+ * the write lock another login had bound the row. Classified against the SETTLED row, never against our own
+ * stale read:
+ *   • the row now carries OUR subject ⇒ the SAME-SUBJECT race (the owner's own second login, or a retry),
+ *     which is idempotent: report the settled row exactly as the winner did. This is the shape the
+ *     race-tolerant insert absorbs one function up, applied to the bind.
+ *   • the row carries a DIFFERENT subject ⇒ two owner-by-policy logins with different subjects raced for the
+ *     one unbound owner row. Exactly one may hold it (`external_id` is UNIQUE and the owner is a singleton),
+ *     and the loser gets the same operator-actionable `account-exists` deny the sequential collision returns
+ *     — NEVER an adoption of the winner's row, which would be the auto-link takeover {@link denyOnCollision}
+ *     hard-denies arriving through the race window instead of the front door.
+ * The security line names both subjects, because "which login lost the owner row" is the whole diagnosis.
+ */
+async function refuseLostOwnerBind(ctx: SessionsContext, owner: ExistingUser, identity: ResolvedIdentity, externalId: ExternalId): Promise<ProvisionResult> {
+  const settled = await selectForProvisionById(ctx.db, owner.id);
+  if (settled !== undefined && settled.externalId === externalId) {
+    return { outcome: "provisioned", userId: settled.id, enabled: settled.enabled, role: settled.role, identityChanged: false };
+  }
+  securityEvent(
+    "sso_owner_bind_lost_race",
+    { handle: identity.handle, externalId, ownerId: owner.id, boundTo: settled?.externalId ?? null },
+    "security: two owner-by-policy logins raced to bind the UNBOUND owner row and this one lost the claim — refusing the login rather than rebinding the row onto this subject; an admin links it via admin.linkSsoIdentity",
+  );
+  return { outcome: "denied", reason: "account-exists" };
+}
+
 /** Bind an OIDC subject onto the existing UNBOUND owner row (owner-flip reconciliation, #8/D17/D135). Links
  *  the stable `externalId` (+ refreshes email) and keeps `role=owner`; the owner's HANDLE is deliberately
  *  left as seeded — it is the `OWNER_HANDLES` key the boot owner-seed and the owner-fallback both resolve on,
  *  so keeping it makes `externalId` the durable OIDC key while re-seed / mode-flip stay idempotent (no
- *  duplicate owner row, no db surgery). The caller has already guaranteed `externalId !== null`. */
+ *  duplicate owner row, no db surgery). The caller has already guaranteed `externalId !== null`.
+ *
+ *  THE BIND IS A COMPARE-AND-SWAP, not a plain UPDATE (#1451). The adoptability read in
+ *  {@link tryAdoptUnboundOwner} (`owner.externalId !== null` ⇒ bail) is a READ, and a read cannot hold a row
+ *  unbound: two concurrent owner-policy logins carrying DIFFERENT subjects both passed it, and a bare
+ *  `updateUser` let the second one overwrite `external_id` — the owner row silently changed hands, both
+ *  callers were provisioned as owner, and the loser of that write was locked out of a box it had just been
+ *  told it owned. `claimExternalIdIfUnbound` moves the unbound test INTO the statement
+ *  (`UPDATE … WHERE external_id IS NULL`) so the database arbitrates; it is the same primitive the admin
+ *  link capability (B5 `linkExternalId`) claims through, which is the point — ONE bind-once mechanism.
+ *  The email refresh is a SEPARATE, non-security write that follows a WON claim: it must never be the thing
+ *  that carries the binding, and a claim that lost writes nothing at all. */
 async function bindOwnerSubject(ctx: SessionsContext, owner: ExistingUser, identity: ResolvedIdentity, externalId: ExternalId): Promise<ProvisionResult> {
-  const patch: { externalId: ExternalId; email?: string; updatedAt: number } = { externalId, updatedAt: ctx.now() };
-  if (identity.email !== null && owner.email !== identity.email) {
-    patch.email = identity.email;
+  if (!(await claimExternalIdIfUnbound(ctx.db, owner.id, externalId, ctx.now()))) {
+    return await refuseLostOwnerBind(ctx, owner, identity, externalId);
   }
-  await updateUser(ctx.db, owner.id, patch);
+  if (identity.email !== null && owner.email !== identity.email) {
+    await updateUser(ctx.db, owner.id, { email: identity.email, updatedAt: ctx.now() });
+  }
   getLog().info(
     { handle: identity.handle, externalId, ...groupsLogFields(identity.groups), ownerId: owner.id },
     "user: bound OIDC subject to the existing owner row (owner-flip reconciliation, D17)",

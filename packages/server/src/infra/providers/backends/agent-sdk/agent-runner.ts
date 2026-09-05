@@ -20,7 +20,7 @@ import { refreshHostSubTokenIfMode1 } from "./host-token.ts";
 import { logProviderDialog, logProviderMcp } from "./log.ts";
 import { toSdkOutputFormat } from "./output-schema.ts";
 import { consumeTurnStream } from "./runner.ts";
-import { disciplineOptions, MCP_NAMESPACE, observabilityOptions } from "./translate.ts";
+import { disciplineOptions, MCP_NAMESPACE, observabilityOptions, TERMINAL_MCP_NAMESPACE } from "./translate.ts";
 import type { AgentSdkDeps } from "./types.ts";
 
 const DEFAULT_AGENT_MAX_TURNS = 8;
@@ -68,15 +68,45 @@ function toSdkExternalServer(spec: AgentMcpServerSpec): McpServerConfig {
   }
 }
 
-function toSdkExternalServers(specs: Readonly<Record<string, AgentMcpServerSpec>> | undefined): Record<string, McpServerConfig> {
-  const out: Record<string, McpServerConfig> = {};
+/**
+ * The HOST-OWNED MCP namespaces an external server may never claim. `orbweaver` is the in-process registry
+ * mount, and it is ALLOW-LISTED by name (`allowedTools: ["mcp__orbweaver__*"]` below) — so a caller-keyed
+ * external server named `orbweaver` would put a foreign stdio/sse/http process behind the one namespace this
+ * turn already trusts to execute. `orbstate` is the terminal mount's namespace (D112 R1), whose whole
+ * mechanism is a DENY at the permission seam; displacing it would turn a deny-by-name tool into a live one.
+ * Both are reserved here even though this turn mounts only the first: the reserved set is the class, and a
+ * guard that lists one of two host namespaces is a guard nobody re-derives when the second one lands.
+ */
+const RESERVED_MCP_NAMESPACES: ReadonlySet<string> = new Set([MCP_NAMESPACE, TERMINAL_MCP_NAMESPACE]);
+
+/**
+ * Map the caller's external server specs. TYPED REFUSAL on a reserved namespace (#1405): the caller supplies
+ * these keys, so the name is untrusted input at this boundary and a collision is a configuration error the
+ * turn must not paper over — a silently-dropped or silently-overriding entry is how a trusted mount gets
+ * replaced with nothing red. Fail-closed to `invalid`/non-retryable, the same shape the structured-output
+ * capability refusal uses.
+ *
+ * `Object.fromEntries` rather than `out[name] = …`: a plain assignment with the caller-supplied key
+ * `__proto__` sets the object's PROTOTYPE instead of an own property, so that server would vanish from the
+ * mount with no error. `fromEntries` defines own data properties for every key.
+ */
+function toSdkExternalServers(specs: Readonly<Record<string, AgentMcpServerSpec>> | undefined, model: string): Record<string, McpServerConfig> {
   if (specs === undefined) {
-    return out;
+    return {};
   }
-  for (const [name, spec] of Object.entries(specs)) {
-    out[name] = toSdkExternalServer(spec);
-  }
-  return out;
+  return Object.fromEntries(
+    Object.entries(specs).map(([name, spec]): readonly [string, McpServerConfig] => {
+      if (RESERVED_MCP_NAMESPACES.has(name)) {
+        throw new ProviderError({
+          kind: "invalid",
+          retryable: false,
+          message: `agent-sdk: external MCP server name "${name}" is a reserved host namespace and may not be registered.`,
+          model,
+        });
+      }
+      return [name, toSdkExternalServer(spec)];
+    }),
+  );
 }
 
 function toServerHealth(status: McpServerStatus): AgentMcpServerHealth {
@@ -141,9 +171,14 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps): P
       req.signal.addEventListener("abort", () => abortController.abort(), { once: true });
     }
   }
+  // THE TRUSTED MOUNT IS WRITTEN LAST, and the order is the second belt (#1405). The externals used to be
+  // spread AFTER the in-process entry, so a caller-keyed `orbweaver` REPLACED the host's own registry server
+  // with `allowedTools` still authorising the namespace — a foreign server behind the one name this turn
+  // trusts to execute. `toSdkExternalServers` refuses that key outright, and this ordering means even a
+  // future path that reaches the mount without the refusal cannot displace the trusted server.
   const mcpServers: Record<string, McpServerConfig> = {
+    ...toSdkExternalServers(req.externalMcpServers, req.model),
     [MCP_NAMESPACE]: req.mcpServer as McpSdkServerConfigWithInstance,
-    ...toSdkExternalServers(req.externalMcpServers),
   };
   const taskBudget: Pick<Options, "taskBudget"> = req.taskBudget !== undefined ? { taskBudget: { total: req.taskBudget } } : {};
   const outputFormat: Pick<Options, "outputFormat"> =
