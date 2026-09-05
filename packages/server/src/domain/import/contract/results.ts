@@ -2,7 +2,9 @@
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type {
+  ImportAmbiguousSpeakerName,
   ImportPresetNote,
+  ImportSeatedDisabledMember,
   ImportSkippedCard,
   ImportSkippedGroup,
   ImportSkippedGroupMember,
@@ -104,6 +106,12 @@ export interface ImportGroupsResult {
   /** The group wave's half of the dedup-skip HEAL count (`ImportChatsResult.chatsPersonaHealed`'s twin — an
    *  already-imported group room gains its persona attribution the same way a solo one does). */
   readonly chatsPersonaHealed: number;
+  /** Display names two seated cards share: the name-only attribution fallback is withheld for them and the
+   *  slots fall to the room's primary, reported rather than guessed (#1469 item 5). */
+  readonly ambiguousSpeakerNames: readonly ImportAmbiguousSpeakerName[];
+  /** Members ST had disabled that the room seats ACTIVE — the flag did not travel, and now says so
+   *  (#1469 item 4). */
+  readonly seatedDisabledMembers: readonly ImportSeatedDisabledMember[];
 }
 
 export interface ImportPersonasResult {
@@ -113,5 +121,14 @@ export interface ImportPersonasResult {
 }
 
 /** `importChatFile` — never throws for a malformed/unmatched file; the refusal carries the operator-facing
- *  reason the calling door renders. `created:false` ⇒ the transcript deduped against an existing chat. */
-export type ImportChatFileOutcome = { readonly ok: true; readonly created: boolean } | { readonly ok: false; readonly error: string };
+ *  reason the calling door renders. `created:false` ⇒ the transcript deduped against an existing chat.
+ *
+ *  `skippedOverlays` is the SUCCESS arm's honest half (#1469 item 6): an orb-native bundle carries planes the
+ *  room's canon write does not own — the tag overlay and the rpg campaign — and each rides an OPTIONAL
+ *  injected op. A composition without that op used to drop the plane with no record at all, so a discarded
+ *  campaign answered a bare `{ok:true, created:true}`. Each dropped plane is now one operator-facing line
+ *  here. Present even when EMPTY (the {@link ImportPresetNote} rule): "restored whole" must be legible apart
+ *  from "never looked at". The chat itself always still imports — an overlay never un-writes canon. */
+export type ImportChatFileOutcome =
+  | { readonly ok: true; readonly created: boolean; readonly skippedOverlays: readonly string[] }
+  | { readonly ok: false; readonly error: string };

@@ -50,7 +50,7 @@ describe("importChatFile", () => {
 
     const outcome = await h.verb({ filename: "aria/chat_2025.jsonl", bytes: transcript() });
 
-    expect(outcome).toEqual({ ok: true, created: true });
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
     // The transcript landed against the handle's character — the directory IS the re-link key.
     expect(h.chatCalls).toHaveLength(1);
     expect(h.chatCalls[0]?.characterId).toBe(ARIA);

@@ -14,6 +14,7 @@
 // mapping + the refusal, which a fresh-box round trip cannot isolate.
 
 import type { BulkImportChatInput } from "@orb/contracts/chat";
+import { rpgGameConfigSchema } from "@orb/contracts/rpg";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImportService } from "@orb/server/domain/import";
@@ -128,7 +129,7 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
 
     const outcome = await h.verb({ filename: "aria/chat_x.orb.json", bytes: bundle() });
 
-    expect(outcome).toEqual({ ok: true, created: true });
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
     const input = onlyChatInput(h);
     expect(input.injections).toEqual([{ position: "in_chat", depth: 4, role: "system", content: "Stay wry.", order: 1, createdAt: 1_699_999_000_000 }]);
     expect(input.metadata).toEqual({ roomOverrides: { scenario: "the frontier" } });
@@ -167,7 +168,7 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
 
     const outcome = await h.verb({ filename: "aria/chat_x.orb.json", bytes: bundle({ characterHandles: [] }) });
 
-    expect(outcome).toEqual({ ok: true, created: true });
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
     expect(h.chatCalls[0]?.characterId).toBe(ARIA);
   });
 
@@ -217,7 +218,7 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
     await expect(verb({ filename: "aria/chat_recovery.orb.json", bytes })).rejects.toThrow("injected overlay interruption");
     expect(attached).toEqual(new Set(["first"]));
 
-    await expect(verb({ filename: "aria/chat_recovery.orb.json", bytes })).resolves.toEqual({ ok: true, created: false });
+    await expect(verb({ filename: "aria/chat_recovery.orb.json", bytes })).resolves.toEqual({ ok: true, created: false, skippedOverlays: [] });
     expect(attached).toEqual(new Set(["first", "second"]));
     expect(imports).toBe(2);
   });
@@ -242,10 +243,104 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
 
     const outcome = await h.verb({ filename: "aria/chat_2025.jsonl", bytes: jsonl });
 
-    expect(outcome).toEqual({ ok: true, created: true });
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
     // The interchange arm's shape: the single migrated note field exists, the orb-only list does not.
     const input = onlyChatInput(h);
     expect(input.injections).toBeUndefined();
     expect(input.starred).toBeUndefined();
+  });
+
+  // #1469 item 3 — the routing test was case-SENSITIVE (`filename.endsWith(".jsonl")`), while the profile
+  // collector has always matched `/\.jsonl$/i`. An ST box that wrote `chat.JSONL` (or any user who renamed
+  // one) therefore fed a valid transcript to the ORB-NATIVE parser, which refuses it by envelope — a
+  // readable chat reported as a foreign file.
+  test("an UPPERCASE `.JSONL` still routes to the ST interchange arm, never to the orb-native parser", async () => {
+    const h = harness();
+    const jsonl = new TextEncoder().encode('{"user_name":"Nate","character_name":"Aria"}\n{"mes":"hi","is_user":true}\n');
+
+    const outcome = await h.verb({ filename: "aria/CHAT_2025.JSONL", bytes: jsonl });
+
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
+    expect(onlyChatInput(h).importedFrom).toBe("aria/CHAT_2025.JSONL");
+  });
+});
+
+// #1469 item 6 — `restoreOverlays` applied `tagNames` only when `attachChatTagByName` was wired and
+// `bundle.rpg` only when `importRpgGame` was, with NO else arm and no field on the outcome to carry the
+// loss. A composition missing either op therefore answered `{ok:true, created:true}` having discarded the
+// room's labels or an entire rpg campaign. The overlays STILL never un-write the room (the header's ruling
+// survives) — they are now NAMED in the outcome the calling door renders.
+describe("importChatBundle — a dropped overlay is REPORTED, never silent (#1469 item 6)", () => {
+  /** A campaign that carries no rows — the PLANE's presence is what this pins, not its remap (the remap has
+   *  its own db-side proof in `bundle-round-trip.suite.int.test.ts`). */
+  const campaign = {
+    mode: "lite",
+    status: "active",
+    sessionNumber: 3,
+    config: rpgGameConfigSchema.parse({}),
+    createdAt: 1_699_999_000_000,
+    sheets: [],
+    snapshots: [],
+    journal: [],
+    turnToolCalls: [],
+    checkpoints: [],
+  } as const satisfies PortableChat["rpg"];
+
+  /** The harness with the two OPTIONAL overlay ops wired exactly as asked — the base profile harness wires
+   *  NEITHER, which is itself the unwired-composition arm. */
+  function harnessWith(wired: { readonly tags?: true; readonly rpg?: true }): ProfileHarness & { readonly verb: ImportService["importChatFile"] } {
+    const h = harness();
+    const profile = {
+      ...h.profile,
+      ...(wired.tags === true ? { attachChatTagByName: (): Promise<boolean> => Promise.resolve(true) } : {}),
+      ...(wired.rpg === true ? { importRpgGame: (): Promise<void> => Promise.resolve() } : {}),
+    };
+    return {
+      ...h,
+      verb: createImportService({
+        ...h.ctx,
+        profile,
+        findByHandle: ({ handle }: { readonly handle: CharacterHandle }): Promise<CharacterId | null> => Promise.resolve(handle === "aria" ? ARIA : null),
+      }).importChatFile,
+    };
+  }
+
+  test("carried tag names with NO tag op wired: the chat imports and the outcome names the dropped labels", async () => {
+    const h = harnessWith({ rpg: true });
+
+    const outcome = await h.verb({ filename: "aria/chat_x.orb.json", bytes: bundle({ tagNames: ["road", "grim"] }) });
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.ok ? outcome.skippedOverlays : []).toEqual([
+      "2 chat tag(s) not restored (road, grim) — the chat-tag attach is not wired into this composition",
+    ]);
+    // The room itself still landed: an overlay is never allowed to un-write restored canon.
+    expect(h.chatCalls).toHaveLength(1);
+  });
+
+  test("a carried RPG campaign with NO rpg op wired: the chat imports and the outcome names the dropped campaign", async () => {
+    const h = harnessWith({ tags: true });
+
+    const outcome = await h.verb({ filename: "aria/chat_x.orb.json", bytes: bundle({ rpg: campaign }) });
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.ok ? outcome.skippedOverlays : []).toEqual(["the carried RPG campaign was not restored — rpg import is not wired into this composition"]);
+    expect(h.chatCalls).toHaveLength(1);
+  });
+
+  test("a fully-wired composition reports an EMPTY list — `landed whole` is distinguishable from `never looked at`", async () => {
+    const h = harnessWith({ tags: true, rpg: true });
+
+    const outcome = await h.verb({ filename: "aria/chat_x.orb.json", bytes: bundle({ tagNames: ["road"], rpg: campaign }) });
+
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
+  });
+
+  test("a tag-LESS, campaign-less bundle skips nothing even with both ops unwired — only a CARRIED plane can be lost", async () => {
+    const h = harness();
+
+    const outcome = await h.verb({ filename: "aria/chat_x.orb.json", bytes: bundle() });
+
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
   });
 });

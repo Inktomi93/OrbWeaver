@@ -246,16 +246,28 @@ function remapRpg(game: PortableRpgGame, identity: ImportedChatIdentity, charact
 }
 
 /** The re-links that ride AFTER the canon write, each isolated: a failing overlay must not un-write a room
- *  that already restored. */
+ *  that already restored.
+ *
+ *  Returns the planes this composition could NOT restore, one operator-facing line each (#1469 item 6). Both
+ *  ops are OPTIONAL on the ST-only precedent, and an unwired one used to drop its whole plane with no `else`
+ *  and nowhere to say so — a bundle carrying an entire rpg campaign answered `{ok:true, created:true}` having
+ *  discarded it. The room still imports either way; the loss is now NAMED. */
 async function restoreOverlays(args: {
   readonly profile: ImportProfileDeps;
   readonly ownerId: ImportContext["ownerId"];
   readonly bundle: PortableChat;
   readonly identity: ImportedChatIdentity;
   readonly characterIds: ResolvedCharacterIds;
-}): Promise<void> {
+}): Promise<readonly string[]> {
   const { profile, ownerId, bundle, identity, characterIds } = args;
   const { attachChatTagByName, importRpgGame } = profile;
+  const skipped: string[] = [];
+  if (attachChatTagByName === undefined && bundle.tagNames.length > 0) {
+    skipped.push(`${bundle.tagNames.length} chat tag(s) not restored (${bundle.tagNames.join(", ")}) — the chat-tag attach is not wired into this composition`);
+  }
+  if (bundle.rpg !== null && importRpgGame === undefined) {
+    skipped.push("the carried RPG campaign was not restored — rpg import is not wired into this composition");
+  }
   if (attachChatTagByName !== undefined) {
     // SEQUENTIAL by construction — a promise CHAIN, not an await-in-loop (the `POST /api/import/chat`
     // precedent): resolve-or-create is a read-then-write per label, and two labels folding to the same tag
@@ -268,6 +280,7 @@ async function restoreOverlays(args: {
   if (bundle.rpg !== null && importRpgGame !== undefined) {
     await importRpgGame({ chatId: identity.chatId, hostUserId: ownerId, game: remapRpg(bundle.rpg, identity, characterIds) });
   }
+  return skipped;
 }
 
 export function createImportChatBundle(ctx: ImportContext): ImportService["importChatBundle"] {
@@ -318,6 +331,6 @@ async function writeBundle(args: {
     // silently declaring success while leaving every carried overlay dark.
     return { ok: false, error: "chat import resolved no canonical identity for the bundle" };
   }
-  await restoreOverlays({ profile, ownerId: ctx.ownerId, bundle, identity, characterIds });
-  return { ok: true, created: result.chatsImported > 0 };
+  const skippedOverlays = await restoreOverlays({ profile, ownerId: ctx.ownerId, bundle, identity, characterIds });
+  return { ok: true, created: result.chatsImported > 0, skippedOverlays };
 }

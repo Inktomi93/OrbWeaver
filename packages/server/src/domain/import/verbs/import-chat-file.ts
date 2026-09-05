@@ -27,7 +27,11 @@ import type { ImportService } from "../contract/service.ts";
 import type { ImportChatFileInput } from "../contract/views.ts";
 
 const DEC = new TextDecoder();
-const ST_TRANSCRIPT_EXT = ".jsonl";
+/** CASE-INSENSITIVE, exactly like the profile collector's own `JSONL_EXT` (`loader/collect.ts`): the two
+ *  doors must agree on what an ST transcript is. A case-SENSITIVE `endsWith(".jsonl")` sent a perfectly
+ *  readable `chat.JSONL` to the orb-native parser, which refused it by envelope ("the file is not JSON") —
+ *  a valid transcript reported as a foreign file (#1469 item 3). */
+const ST_TRANSCRIPT_EXT = /\.jsonl$/i;
 
 /** Both sibling verbs are INJECTED, not imported: `domain-no-cross-verb` bans a verb→verb edge, so the
  *  domain's own composition root (`service.ts`) is where they are wired together. */
@@ -37,7 +41,7 @@ export function createImportChatFile(
   importChatBundle: ImportService["importChatBundle"],
 ): ImportService["importChatFile"] {
   return async ({ filename, bytes }: ImportChatFileInput): Promise<ImportChatFileOutcome> => {
-    if (!filename.endsWith(ST_TRANSCRIPT_EXT)) {
+    if (!ST_TRANSCRIPT_EXT.test(filename)) {
       // Everything that is not an ST transcript is offered to the orb-native parser, which refuses by NAME
       // (`foreign-kind` / `newer-version`) rather than guessing. The check is deliberately the jsonl
       // NEGATIVE, not a positive `.orb.json` test, so a hand-renamed bundle still gets its real diagnosis
@@ -67,6 +71,9 @@ export function createImportChatFile(
       characterId,
       chats: [{ parsed, importedFrom: filename, importHash: sha256Hex(bytes) }],
     });
-    return { ok: true, created: result.chatsImported > 0 };
+    // The ST interchange carries no overlay planes at all (no tags, no campaign — that is the whole reason
+    // the orb-native bundle exists), so this arm can never skip one. The EMPTY list still rides: an absent
+    // field would read as "not looked at" at the door that renders it.
+    return { ok: true, created: result.chatsImported > 0, skippedOverlays: [] };
   };
 }
