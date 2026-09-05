@@ -19,9 +19,13 @@
 //   • OFF ROWS KEEP FULL CONTRAST (§3 (c)) — the state is a MARK (`OFF`), never a dim. Stacking opacity on a
 //     row whose tier may also be off produced two indistinguishable greys for two different facts.
 //   • A ROW THE HOST DOES NOT OWN (#1739 — a previous host's chat-tier attachment) draws the mark, no
-//     switch, and a menu that says so. The client learns it by SUBTRACTION: `regex.listScripts` is the
-//     viewer's whole library, so a chat-tier row that is not in it belongs to someone else. `detachFromChat`
-//     still gates on script ownership, so offering the detach would be an affordance lie.
+//     switch, and a menu that offers exactly ONE action: `Detach from this chat`. The client learns the
+//     row is foreign by SUBTRACTION: `regex.listScripts` is the viewer's whole library, so a chat-tier row
+//     that is not in it belongs to someone else. The SPLIT is the point — `detachFromChat` gates on the
+//     ROOM (D18) and never re-checks the script's owner, so the sitting host can always evict it; `enabled`
+//     is the LIBRARY row's and stays owner-gated, so the switch would be an affordance lie and is omitted.
+//     (The verb dropped its ownership re-check with the handoff fix; a menu that still refused the detach
+//     would be stating a rule the server no longer has.)
 
 import type { RegexTierKey, RegexTierRowView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
@@ -194,9 +198,22 @@ function RowActions({
   readonly scriptId: RegexTierRowView["script"]["id"];
 }): ReactElement {
   if (notYours) {
+    // DETACH IS OFFERED HERE, and only detach (#1739): `detachFromChat` gates on the ROOM, never on the
+    // script's owner, so the sitting host can always take a departed host's row out of their room. The
+    // SWITCH stays absent because `enabled` is the LIBRARY's and remains owner-gated — that is the one
+    // thing this row genuinely cannot do, and the menu says which. `Open in library` is absent too: the
+    // row is not in this viewer's library, so the drill-in would land on nothing.
     return (
-      <RowActionsMenu label={`More for ${name}: not yours — a previous host attached it`}>
-        <MenuItem disabled={true}>A previous host attached this. Only its owner can switch or detach it.</MenuItem>
+      <RowActionsMenu label={`More for ${name}: not yours — a previous host attached it, Detach from this chat`}>
+        <MenuItem disabled={true}>A previous host attached this. Only its owner can switch it off.</MenuItem>
+        <MenuItem
+          onClick={(): void => {
+            detach.mutate({ chatId, scriptId });
+          }}
+        >
+          <Icon icon={Unlink} size="sm" />
+          Detach from this chat
+        </MenuItem>
       </RowActionsMenu>
     );
   }

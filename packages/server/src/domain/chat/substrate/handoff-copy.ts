@@ -16,7 +16,8 @@
 // of what you own is a duplicate, not a transfer). The roster's `characterId` grants no read.
 //
 // The mints go through INJECTED ops, never a table: `characters` is the character domain's, the books are
-// world-info's. Chat composes the plan and owns only the room-side statements.
+// world-info's, the room's regex scripts are the regex domain's. Chat composes the plan and owns only the
+// room-side statements.
 
 import type { HandoffOffer } from "@orb/contracts/chat";
 import type { chatParticipants } from "@orb/db";
@@ -54,7 +55,7 @@ async function resolveOfferedSeats(
 }
 
 /** The no-copy plan — what every offer-less accept resolves to, spelled once so no arm can drift. */
-const EMPTY_COPY_PLAN: HandoffCopyPlan = { seats: [], cardCopies: [], bookRepoint: [] };
+const EMPTY_COPY_PLAN: HandoffCopyPlan = { seats: [], cardCopies: [], bookRepoint: [], regexRepoint: [] };
 
 /** EXECUTE the accepted offer's LIBRARY half — everything that can land BEFORE the room changes hands.
  *
@@ -74,10 +75,16 @@ async function executeHandoffCopy(
   params: { readonly chatId: ChatId; readonly oldHostUserId: UserId; readonly nomineeUserId: UserId },
   seats: readonly OfferedSeat[],
 ): Promise<HandoffCopyPlan> {
-  if (seats.length === 0) {
-    return EMPTY_COPY_PLAN;
-  }
   const { chatId, oldHostUserId, nomineeUserId } = params;
+  // THE REGEX ARM RUNS BEFORE (AND INDEPENDENTLY OF) THE SEAT CHECK — #1739. A room's chat-tier scripts are
+  // room state: they are attached to the ROOM, not carried by a card, so a room with no giftable seat can
+  // still be running the departing host's find/replace. Gating them on `seats.length` would leave exactly the
+  // hole this arm exists to close. Same shape as the books' room half otherwise: mints land now, the
+  // `chat_regex_scripts` move comes back UNEXECUTED for the swap batch.
+  const regexRepoint = await ctx.copyHandoffRegexScripts({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId });
+  if (seats.length === 0) {
+    return { ...EMPTY_COPY_PLAN, regexRepoint };
+  }
   const cardCopies = await ctx.copyHandoffCards({
     fromOwnerId: oldHostUserId,
     toOwnerId: nomineeUserId,
@@ -95,6 +102,7 @@ async function executeHandoffCopy(
     }),
     cardCopies,
     bookRepoint,
+    regexRepoint,
   };
 }
 

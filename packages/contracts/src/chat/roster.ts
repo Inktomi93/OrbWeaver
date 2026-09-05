@@ -470,9 +470,12 @@ export interface MemberCardView {
 export const handoffOfferSchema = z.object({
   /** Copy the OLD HOST's seated characters into the nominee's library and re-point this room's seats at the
    *  copies: their present character seats, each card's attached character-scoped world books AS COPIES
-   *  (a reference-carry would silently lose the lore — the character-book pool is owner-filtered), and the
-   *  host-owned chat-attached books. `false` ⇒ the D64 drop (the seats the nominee cannot resolve are
-   *  leftSeq-stamped, exactly as today). */
+   *  (a reference-carry would silently lose the lore — the character-book pool is owner-filtered), the
+   *  host-owned chat-attached books, and the host-owned chat-attached REGEX SCRIPTS (#1739 — the executable
+   *  member of the same set: left behind, they keep transforming the new host's turns under an owner who has
+   *  left). `false` ⇒ the D64 drop (the seats the nominee cannot resolve are leftSeq-stamped, exactly as
+   *  today) and nothing is copied — the incoming host's remedy for a left-behind script is `detachFromChat`,
+   *  which gates on the ROOM. */
   copyCharacters: z.boolean(),
   /** Copy the game's GM-voice preset into the nominee's library and re-point `rpg_games.gmPresetId` at the
    *  copy. `false` (or a non-game room / an unset knob) ⇒ the built conditional heal stands: a preset the

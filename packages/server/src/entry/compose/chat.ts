@@ -82,6 +82,7 @@ import { PersonaNotFoundError } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import { PresetNotFoundError } from "#domain/preset";
 import type { ResolveRegexSources } from "#domain/regex";
+import { createCopyHandoffRegexScripts } from "#domain/regex";
 import type { SearchService } from "#domain/search";
 import { createTokenHasher } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
@@ -1132,10 +1133,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // was handed. A shape drift on either side is now a `tsc` error rather than a silent no-op.
     maybeRevokeOnAuthFailed: input.credentials.maybeRevokeOnAuthFailed,
     getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
-    // ── HOST-HANDOFF COPY (stickler 2026-08-03 §5) — the three OWNING-domain write factories the accepted
-    // property offer executes. Each lives in the domain that owns its tables and is injected here, so chat
-    // never writes a `characters`, `world_books` or `chat_digests` row (`own-tables-only`). All three are
-    // unreachable without a stored offer, so an offer-less handoff never calls any of them.
+    // ── HOST-HANDOFF COPY (stickler 2026-08-03 §5; the regex arm is #1739) — the four OWNING-domain write
+    // factories the accepted property offer executes. Each lives in the domain that owns its tables and is
+    // injected here, so chat never writes a `characters`, `world_books`, `regex_scripts` or `chat_digests`
+    // row (`own-tables-only`). All four are unreachable without a stored offer, so an offer-less handoff
+    // never calls any of them.
     copyHandoffCards: createCopyHandoffCards({
       db: input.db,
       bumpStatsCanonVersion,
@@ -1171,6 +1173,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       now: input.now,
       newBookId: minter(ID_PREFIX.worldBook),
       newEntryId: minter(ID_PREFIX.worldEntry),
+    }),
+    copyHandoffRegexScripts: createCopyHandoffRegexScripts({
+      db: input.db,
+      now: input.now,
+      newScriptId: minter(ID_PREFIX.regexScript),
     }),
     restampHandoffDigests: createHandoffRestampStatements({ db: input.db }),
     // D22 member card — the character's ACCEPTED tag NAMES under the host's ownership (chip display). Resolved
