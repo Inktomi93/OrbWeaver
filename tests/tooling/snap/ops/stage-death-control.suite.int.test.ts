@@ -148,8 +148,17 @@ test("T4 — killing one half of a real daemon-bound stage makes death sticky, s
     expect(status.stdout).toContain(`band ${ownedBand}`);
     expect(status.stdout).toContain(`DEAD since ${deadSession.stage?.detectedAt} during \`${op.join(" ")}\``);
 
-    const siblingsBeforeSweep = readBands(stageHome)
-      .filter((row) => row.band !== ownedBand)
+    // WHAT THE SWEEP MAY NOT TOUCH IS A **LIVE** SIBLING (#1744). The band table is SHARED by every
+    // worktree of the repo, and `--stage-sweep` is a global verb whose whole job is reaping stranded rows
+    // and reconciling dangling ones — so "every row that existed before still exists after" asserts
+    // against the product's own contract the moment a concurrent lane's stage is stranded. Measured
+    // 2026-09-05: a sibling row for checkout `…/agent-a8db677b611562972` was gone after the sweep and the
+    // arm read RED with nothing wrong here. The property that survives is the one this test can ATTRIBUTE:
+    // a sibling whose BOTH ports are bound is `live`, is not sweepable, and must therefore be neither
+    // named by the sweep's own record nor altered in the table.
+    const boundPorts = listeningPids();
+    const liveSiblings = readBands(stageHome)
+      .filter((row) => row.band !== ownedBand && boundPorts.has(row.serverPort) && boundPorts.has(row.vitePort))
       .map(stageIdentity);
     expect(pidAlive(deadSession.daemonPid), "the browser daemon remains live while its stage is dead").toBe(true);
     const swept = await snap(["--stage-sweep"]);
@@ -159,10 +168,18 @@ test("T4 — killing one half of a real daemon-bound stage makes death sticky, s
     expect(readBands(stageHome).some((row) => row.band === ownedBand)).toBe(false);
     expect(pidAlive(deadSession.daemonPid), "sweeping the dead stage must not close the otherwise-live session").toBe(true);
 
-    const rowsAfterSweep = readBands(stageHome);
-    for (const sibling of siblingsBeforeSweep) {
-      expect(rowsAfterSweep.find((row) => row.band === sibling.band)).toMatchObject(sibling);
-    }
+    // The sweep's own record is what makes the claim ATTRIBUTABLE: it prints one `band N: …` line per
+    // band it acted on, so a live sibling appearing there is this sweep reaching outside its dead band —
+    // the defect — while a row that vanished without being named belongs to whoever else was running.
+    const sweptBands = new Set([...swept.stdout.matchAll(/\bband (\d+):/gu)].map((match) => Number(match[1])));
+    expect(sweptBands.has(ownedBand)).toBe(true);
+    expect(liveSiblings.filter((sibling) => sweptBands.has(sibling.band))).toEqual([]);
+    // …and a live sibling row this sweep left in place must be the row it found. An ABSENT one is its own
+    // owner's teardown landing inside our window (the table is shared and no row here obeys our
+    // lifecycle) — unattributable, so it substitutes itself rather than reading as a red.
+    const afterByBand = new Map(readBands(stageHome).map((row) => [row.band, stageIdentity(row)]));
+    const untouched = liveSiblings.filter((sibling) => !sweptBands.has(sibling.band));
+    expect(untouched.map((sibling) => afterByBand.get(sibling.band) ?? sibling)).toEqual(untouched);
 
     // Sticky means the stage-table row can be gone and the session still refuses with the FIRST detection.
     const stillDead = await snap(["--session", name, "--eval", "6 * 7", ...QUIET]);
