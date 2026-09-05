@@ -265,3 +265,24 @@ export interface EngineLaunchDecision {
   /** The operator line the launcher prints for this decision — one per engine, always. */
   readonly message: string;
 }
+
+/** How the launcher's health wait ENDED, which the fleet verdict reads (#1494). `exited` and `timeout`
+ *  are opposite facts that the old `void` return collapsed: a child that DIED is a boot failure, while a
+ *  child still coming up past the poll ceiling is the ruled `booted-late` case (#1165) and stays clean. */
+export const ENGINE_HEALTH_WAITS = ["healthy", "exited", "timeout"] as const;
+export type EngineHealthWait = (typeof ENGINE_HEALTH_WAITS)[number];
+
+/** One engine's contribution to the FLEET verdict.
+ *    `booted`   — this engine is up (or legitimately still coming up) and owns a verified identity.
+ *    `no-spawn` — nothing was launched and that is CLEAN (adopted in place, or a deliberate headroom skip).
+ *    `failed`   — the fleet is short this engine; `reason` is the operator line, and the launcher exits
+ *                 toolError AND tears the fleet it spawned back down. */
+export type EngineBootOutcome = { readonly kind: "booted" } | { readonly kind: "no-spawn" } | { readonly kind: "failed"; readonly reason: string };
+
+/** What the launcher observed after spawning ONE engine — `null` when it never spawned (adopt/refuse/skip). */
+export interface EngineSpawnObservation {
+  readonly wait: EngineHealthWait;
+  /** Did the spawned pid resolve to a safe setsid launch identity? An engine we cannot identify can never
+   *  be recorded or signalled, so it is not a member of the fleet even when its process is alive. */
+  readonly identityCaptured: boolean;
+}
