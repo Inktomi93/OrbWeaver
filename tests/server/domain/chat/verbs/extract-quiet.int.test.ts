@@ -245,4 +245,61 @@ describe("createExtractQuiet", () => {
     // build took the null fast path — no per-call registry allocated for a chat that declared nothing.
     expect(calls[0]?.inputs[0]?.systemPrompt).toBe("Describe Aria, {{house_style}}.");
   });
+
+  // ── The PROMPT-ELIGIBILITY plane (#1463 items 3+4) ────────────────────────────────────────────────────
+  // The extractor's scene is a PROMPT boundary handed to a side model, so it obeys the same two planes the
+  // compaction marker does: the host's per-row `excludedFromPrompt` hide AND the row's declared PURPOSE
+  // (`MESSAGE_KIND_POLICY[kind].prompt === "never"` — an OOC `comment` is not prompt material). And the
+  // eligibility verdict is resolved BEFORE the window slice, so ten hidden rows in the tail cannot starve
+  // the window of the ten real rows it is meant to carry.
+  test("a comment-kind row (prompt:never) never reaches the side model", async () => {
+    const db = await freshDb();
+    const chatId = await seedRoom(db);
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "IN-CHARACTER line." });
+    await seedMessage(db, chatId, 2, { role: "user", kind: "comment", content: "OOC ASIDE about the plot." });
+
+    const calls: SummarizeCall[] = [];
+    const extractQuiet = createExtractQuiet({
+      db,
+      summarize: fakeSummarize(calls),
+      getCard: fakeGetCard("Aria"),
+      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUserMacroDefs: NO_USER_MACROS,
+    });
+
+    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(0) });
+
+    const userPrompt = calls[0]?.inputs[0]?.userPrompt ?? "";
+    expect(userPrompt).toContain("IN-CHARACTER line.");
+    expect(userPrompt).not.toContain("OOC ASIDE about the plot.");
+  });
+
+  test("ineligible tail rows do NOT consume the window — ten hidden rows still leave the real ones in scene", async () => {
+    const db = await freshDb();
+    const chatId = await seedRoom(db);
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "REAL-one." });
+    await seedMessage(db, chatId, 2, { role: "user", content: "REAL-two." });
+    // Ten prompt-hidden rows in the tail — exactly the RECENT_WINDOW size, so a slice-before-filter reads a
+    // window with nothing eligible left in it and hands the side model an empty scene.
+    for (const seq of [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
+      await seedMessage(db, chatId, seq, { role: "assistant", content: `HIDDEN-${seq}.`, excludedFromPrompt: true });
+    }
+
+    const calls: SummarizeCall[] = [];
+    const extractQuiet = createExtractQuiet({
+      db,
+      summarize: fakeSummarize(calls),
+      getCard: fakeGetCard("Aria"),
+      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUserMacroDefs: NO_USER_MACROS,
+    });
+
+    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(0) });
+
+    const userPrompt = calls[0]?.inputs[0]?.userPrompt ?? "";
+    expect(userPrompt).toContain("REAL-one.");
+    expect(userPrompt).toContain("REAL-two.");
+    expect(userPrompt).not.toContain("HIDDEN-12.");
+    expect(userPrompt).not.toContain("just starting");
+  });
 });

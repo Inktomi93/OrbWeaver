@@ -300,6 +300,34 @@ function canonRowOf(slot: MessageView, variant: VariantRow, variantCount: number
   };
 }
 
+/** The variant row an APPEND-from-content-alone actually writes, as the stats builders read it. A rewrite's
+ *  new variant is inserted from `{ content }` (`appendVariantStatements` → `variantEconomics`), so every
+ *  economics column on it is NULL and its token provenance is `unrecorded` — it is a repair of settled prose,
+ *  not a generation. Spelling that here rather than spreading the AUDITED variant is what keeps the live
+ *  delta describing THE ROW WRITTEN: carrying the audited economics forward would credit its cost, tokens,
+ *  cache and reasoning to a row that has none, and the rebuild — which reads the written row — would disagree
+ *  by exactly that generation (#1463 item 2; the drift gate is the pin). */
+function appendedVariantOf(audited: VariantRow, content: string, idx: number): VariantRow {
+  return {
+    ...audited,
+    content,
+    idx,
+    reasoning: null,
+    model: null,
+    provider: null,
+    tokensIn: null,
+    tokensOut: null,
+    tokenProvenance: "unrecorded",
+    cacheReadTokens: null,
+    cacheWriteTokens: null,
+    costUsd: null,
+    contextWindow: null,
+    genStartedAt: null,
+    genFinishedAt: null,
+    metadata: null,
+  };
+}
+
 /** Maps a slot + one of its variants to the swipeVariantDelta swipe-stream row (no cost/cache/context — a
  *  swipe credits the re-roll counters + scalar tokens only). */
 function swipeRowOf(slot: MessageView, variant: VariantRow): Parameters<typeof swipeVariantDelta>[0]["row"] {
@@ -653,7 +681,7 @@ function createApplyProseRewrite(ctx: ChatContext, emit: EmitChatEvent): ChatSer
     const swap: StatsDelta[] = [
       canonMessageDelta({ ownerId, sign: -1, now, row: canonRowOf(slot, audited, variants.length) }),
       swipeVariantDelta({ ownerId, sign: 1, now, row: swipeRowOf(slot, audited) }),
-      canonMessageDelta({ ownerId, sign: 1, now, row: canonRowOf(slot, { ...audited, content, idx: variants.length }, variants.length + 1) }),
+      canonMessageDelta({ ownerId, sign: 1, now, row: canonRowOf(slot, appendedVariantOf(audited, content, variants.length), variants.length + 1) }),
     ];
     for (const delta of swap) {
       ctx.applyStatsDelta(statements, ctx.db, delta);

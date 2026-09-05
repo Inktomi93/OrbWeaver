@@ -182,4 +182,78 @@ describe("generateImage", () => {
     await expect(generateImage({ principal: principal(outsider), chatId, mode: "free", prompt: "x" })).rejects.toThrow();
     expect(called).toBe(false);
   });
+
+  // ── The husk belt (#1463 item 6) ──────────────────────────────────────────────────────────────────────
+  // Claiming publishes the room into every member's library and replays the creation economics — a one-way
+  // transition a FAILED generation must not spend. The picture must exist before the room is claimed; the
+  // claim still precedes the canon write (the `verbs/claim-chat.ts` ordering invariant).
+  test("a failed picture generation never claims the husk", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "husk", { startedAt: null });
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    const claims: string[] = [];
+    const ctx = makeChatContext(db, { generatePicture: () => Promise.reject(new Error("the image backend refused")) });
+    const { generateImage } = createGenerateImage(ctx, {
+      emit,
+      claimChat: (id) => {
+        claims.push(id);
+        return Promise.resolve();
+      },
+    });
+
+    await expect(generateImage({ principal: principal(host), chatId, mode: "free", prompt: "x" })).rejects.toThrow("refused");
+    expect(claims).toEqual([]);
+    expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toEqual([]);
+  });
+
+  test("a successful generation claims the room (before the canon write)", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "claimed", { startedAt: null });
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    const claims: string[] = [];
+    // The canon rows present AT CLAIM — the ordering invariant's own subject: the claim replays the deltas
+    // over the canon that exists when it runs, so this post's row must NOT be among them.
+    let canonAtClaim = -1;
+    const ctx = makeChatContext(db, {
+      generatePicture: () => Promise.resolve({ images: [{ assetId: castId<AssetId>("asset_ok") }], warnings: [] }),
+    });
+    const { generateImage } = createGenerateImage(ctx, {
+      emit,
+      claimChat: async (id) => {
+        claims.push(id);
+        canonAtClaim = (await db.select().from(messages).where(eq(messages.chatId, chatId))).length;
+      },
+    });
+
+    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "x" });
+    expect(claims).toEqual([chatId]);
+    expect(canonAtClaim).toBe(0);
+    expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(1);
+  });
+
+  test("a hostless chat is refused before the claim AND before the picture is paid for", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "orphan", { startedAt: null });
+    // A present MEMBER with no host seat — the room has nobody to own the committed economics.
+    await seedParticipant(db, { chatId, key: "m", userId: host, role: "member" });
+    const claims: string[] = [];
+    let pictures = 0;
+    const ctx = makeChatContext(db, {
+      generatePicture: () => {
+        pictures += 1;
+        return Promise.resolve({ images: [], warnings: [] });
+      },
+    });
+    const { generateImage } = createGenerateImage(ctx, {
+      emit,
+      claimChat: (id) => {
+        claims.push(id);
+        return Promise.resolve();
+      },
+    });
+
+    await expect(generateImage({ principal: principal(host), chatId, mode: "free", prompt: "x" })).rejects.toThrow("no host");
+    expect(claims).toEqual([]);
+    expect(pictures).toBe(0);
+  });
 });

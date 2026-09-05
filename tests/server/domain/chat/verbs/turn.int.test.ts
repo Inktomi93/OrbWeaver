@@ -2258,6 +2258,56 @@ describe("impersonateStream — a NON-PERSISTING, STREAMING user-line generation
     // Nothing persisted — the canon is still empty (no user slot flashed into the conversation).
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
   });
+
+  // ── #1464: the draft is a TURN, and every turn is abortable ────────────────────────────────────────────
+  // `abort` works by signalling the chat's registered in-flight turns; a generation that never registers is
+  // unreachable from the Stop control no matter what the transport does. And an async generator whose
+  // consumer walks away is finalized — the run it started must be cancelled there, or the draft keeps
+  // generating (and billing) for a composer nobody is watching.
+  /** A provider stream that yields one delta and then parks until the threaded signal aborts. Records the
+   *  signal it was handed so the early-return pin can read the cancellation the verb owes it. */
+  function parkingStream(seen: { signal: AbortSignal | undefined }): ChatContext["runChatTurn"] {
+    return (request) =>
+      (async function* (): AsyncGenerator<TurnStreamChunk> {
+        seen.signal = request.signal;
+        yield { kind: "text", text: "drafted line" };
+        await new Promise<void>((resolve) => {
+          request.signal?.addEventListener("abort", () => resolve(), { once: true });
+        });
+      })();
+  }
+
+  test("the stream REGISTERS with activeTurns, so abort() reaches it and ends the draft", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const seen: { signal: AbortSignal | undefined } = { signal: undefined };
+    const h = harness(db, names, { runChatTurn: parkingStream(seen) });
+
+    const iter = h.turn.impersonateStream({ principal: principal(host), chatId })[Symbol.asyncIterator]();
+    expect((await iter.next()).value?.delta).toContain("drafted");
+
+    // The in-flight draft is visible to the room's turn registry — which is the ONLY thing `abort` can see.
+    expect(h.activeTurns.countActive(chatId)).toBe(1);
+    expect(h.activeTurns.abort(chatId, host)).toMatchObject({ aborted: 1 });
+    // The cancelled generation ends the stream instead of stranding the consumer.
+    expect((await iter.next()).done).toBe(true);
+    expect(h.activeTurns.countActive(chatId)).toBe(0);
+  });
+
+  test("a consumer that walks away CANCELS the run (generator finalization, not a zombie generation)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const seen: { signal: AbortSignal | undefined } = { signal: undefined };
+    const h = harness(db, names, { runChatTurn: parkingStream(seen) });
+
+    const iter = h.turn.impersonateStream({ principal: principal(host), chatId })[Symbol.asyncIterator]();
+    await iter.next();
+    expect(seen.signal?.aborted).toBe(false);
+
+    // The composer closed / the subscription ended: the consumer stops iterating.
+    await iter.return?.(undefined);
+
+    expect(seen.signal?.aborted).toBe(true);
+    expect(h.activeTurns.countActive(chatId)).toBe(0);
+  });
 });
 
 describe("generate — LOCK-FREE (runs concurrent with a held send lock)", () => {

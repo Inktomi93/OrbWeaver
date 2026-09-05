@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 540,
-    "enforced": 535,
+    "sites": 541,
+    "enforced": 536,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 535,
+      "deliberate-absorb": 536,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
-      "promise": 141,
+      "promise": 142,
       "default": 145,
       "empty": 254
     }
@@ -2139,7 +2139,7 @@
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::empty:err::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2445,
+      "line": 2510,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -2147,7 +2147,20 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "fully classified below — a permanent verdict",
-      "markerLine": 2439
+      "markerLine": 2504
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/verbs/turn.ts::promise:run::1",
+      "path": "packages/server/src/domain/chat/verbs/turn.ts",
+      "line": 2262,
+      "column": 14,
+      "grammar": "promise",
+      "position": "promise:run",
+      "ordinal": 1,
+      "snippet": "void run.catch((err: unknown) => {",
+      "verdict": "deliberate-absorb",
+      "reason": "the fault has NOWHERE to go — this generator",
+      "markerLine": 2258
     },
     {
       "siteId": "packages/server/src/domain/connection/verbs/get-models-for-source.ts::empty:err::1",

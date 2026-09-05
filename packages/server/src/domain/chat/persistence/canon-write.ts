@@ -26,11 +26,12 @@ import type { UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messageAssets, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import { batchStmt } from "@orb/db/kit";
+import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { loadMaxMessageSeq } from "./queries.ts";
 
 /** The generation record for one `message_variants` row: all content + economics + the per-swipe snapshot.
  *  Every field but `content` is optional — an unreported economics field stays absent. */
@@ -345,6 +346,42 @@ export function appendVariantStatements(
     stmts.push(selectActiveVariantStatement(db, params.messageId, params.variantId));
   }
   return stmts;
+}
+
+/**
+ * Commit an APPEND at the canon head, re-allocating the seq if another writer took it first — the ONE home
+ * for the head-allocation retry (#1463 item 7).
+ *
+ * WHY IT EXISTS: `messages.seq` is allocated by reading the current head and adding one, and `(chat_id, seq)`
+ * is UNIQUE. Two appends that read the same head therefore both aim at the same slot and one of them trips
+ * the constraint — a real interleaving, since the narrator post and the image post are both driven by
+ * fire-and-forget callers (automation dispatch, the plugin bridge, rpg's turn ops and checkpoint restore).
+ * The image path carried this retry and the narrator path did not, so the same race lost a whole message on
+ * one side and was invisible on the other; one home is what keeps them from disagreeing again.
+ *
+ * `build` is called ONCE PER ATTEMPT with the allocated seq and mints the attempt's own ids: a retry must
+ * discard the whole attempted allocation (ids included) rather than re-aim the same row, and it must never
+ * re-run whatever produced the CONTENT — by here that work is done and, for a generated image, already paid
+ * for. The retry is narrow on purpose: a UNIQUE violation is only treated as a lost race when the head has
+ * actually reached the seq this attempt aimed at, so an unrelated unique failure (a duplicate message id)
+ * stays loud instead of spinning.
+ */
+export async function commitCanonAppend<T>(
+  db: Db,
+  chatId: ChatId,
+  build: (seq: number) => { readonly statements: readonly BatchStmt[]; readonly result: T },
+): Promise<T> {
+  const seq = (await loadMaxMessageSeq(db, chatId)) + 1;
+  const { statements, result } = build(seq);
+  try {
+    await db.batch(batchMany(statements));
+    return result;
+  } catch (err) {
+    if (isConstraintViolation(err)?.kind === "unique" && (await loadMaxMessageSeq(db, chatId)) >= seq) {
+      return await commitCanonAppend(db, chatId, build);
+    }
+    throw err;
+  }
 }
 
 /**

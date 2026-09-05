@@ -984,6 +984,7 @@
     "tests/server/domain/chat/substrate/group-bucket.int.test.ts",
     "tests/server/domain/chat/substrate/handoff-copy.int.test.ts",
     "tests/server/domain/chat/substrate/member-visibility.test.ts",
+    "tests/server/domain/chat/substrate/prompt-eligibility.test.ts",
     "tests/server/domain/chat/substrate/prompt-transforms.test.ts",
     "tests/server/domain/chat/substrate/regex-tier.test.ts",
     "tests/server/domain/chat/substrate/roster-host.test.ts",

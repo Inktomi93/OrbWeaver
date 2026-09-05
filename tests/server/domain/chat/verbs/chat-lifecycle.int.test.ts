@@ -9,7 +9,7 @@ import type { ChoiceBlockSpec, UserMacroSpec } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chatEvents, chatInjections, chats, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { ChatInjectionId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
@@ -697,6 +697,26 @@ describe("injections — CRUD (write host, list member)", () => {
 
     await life.deleteChatInjection({ principal: principal(host), chatId, injectionId: created.id });
     expect(await life.listChatInjections({ principal: principal(member), chatId })).toHaveLength(0);
+  });
+
+  // #1463 item 9. `chatUpdated` is what makes every present client re-read the room, so it is a claim that
+  // something CHANGED. A delete whose id matched no row changed nothing — announcing it lies to every
+  // member's cache (and to any automation watching the room). The verb stays IDEMPOTENT (its own contract:
+  // a repeated delete is not an error) — it just goes quiet when it moved no row.
+  test("deleting a nonexistent injection is a silent no-op — no chatUpdated for a mutation that did not happen", async () => {
+    const { host, chatId } = await seedRoom();
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
+    const created = await life.setChatInjection({ principal: principal(host), chatId, position: "in_prompt", depth: 0, role: "system", content: "be brief" });
+    await life.deleteChatInjection({ principal: principal(host), chatId, injectionId: created.id });
+    const beforeRepeat = emitted.length;
+
+    // The SAME id again (a stale client, a double-click, a retried automation) — and a never-existing one.
+    await life.deleteChatInjection({ principal: principal(host), chatId, injectionId: created.id });
+    await life.deleteChatInjection({ principal: principal(host), chatId, injectionId: castId<ChatInjectionId>("chat_injection_ghost") });
+
+    expect(emitted.slice(beforeRepeat)).toEqual([]);
+    // …while the delete that DID move a row announced itself.
+    expect(emitted.at(beforeRepeat - 1)).toEqual({ type: "chatUpdated", chatId });
   });
 
   test("a member cannot write an injection (host-only)", async () => {

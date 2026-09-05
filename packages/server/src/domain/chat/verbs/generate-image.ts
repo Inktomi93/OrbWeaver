@@ -7,14 +7,12 @@
 // `turn.ts` `persistUserMessage` (the D26 canon-write dance + the durable-first bus emit).
 
 import type { ChatWarningCode, DurableChatBusEvent, MessageView } from "@orb/contracts/chat";
-import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
 import type { GenerateImageParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
-import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write.ts";
-import { loadMaxMessageSeq } from "../persistence/queries.ts";
+import { buildCommittedMessageView, commitCanonAppend, insertCanonMessageStatements } from "../persistence/canon-write.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
@@ -44,7 +42,6 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
   return {
     generateImage: async ({ principal, chatId, mode, prompt, n, size }: GenerateImageParams): Promise<MessageView> => {
       await requireParticipant(ctx, principal, chatId);
-      await deps.claimChat(chatId);
       const hostUserId = hostUserIdOf(await loadRoster(ctx.db, chatId));
       if (hostUserId === null) {
         throw new Error(`generateImage: chat ${chatId} has no host to own the committed message economics`);
@@ -63,37 +60,32 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
       const trimmed = prompt?.trim() ?? "";
       const body = trimmed.length > 0 ? `${trimmed}\n\n${refs}` : refs;
 
+      // THE CLAIM GOES HERE (#1463 item 6): claiming is the one-way husk→real transition — it publishes the
+      // room into every member's library and replays the creation-time economics — so it must not be spent on
+      // a generation that never produced anything. By this line the picture exists and is durable, so the only
+      // way the post fails is a DB fault. The ordering invariant is preserved on the other side: the claim
+      // still precedes the canon WRITE (a claim after the write double-counts this row in the replay).
+      await deps.claimChat(chatId);
+
       // The provider result is already paid-for and durable by here. A concurrent canon writer may have read
-      // the same head; on that one expected collision, discard only this attempted allocation, re-read the
-      // head, and mint fresh ids. Never call `generatePicture` again.
-      const append = async (): Promise<MessageView> => {
-        const seq = await loadMaxMessageSeq(ctx.db, chatId);
+      // the same head; on that one expected collision the SHARED retry (`commitCanonAppend`) discards only the
+      // attempted allocation, re-reads the head, and mints fresh ids. `generatePicture` is never called again.
+      const view = await commitCanonAppend(ctx.db, chatId, (seq) => {
         const params = {
           messageId: ctx.newMessageId(),
           variantId: ctx.newMessageVariantId(),
           chatId,
-          seq: seq + 1,
+          seq,
           role: "user" as const,
           authorUserId: principal.userId,
           personaId: null,
           now: ctx.now(),
           variant: { content: body },
         };
-        try {
-          const statements = insertCanonMessageStatements(ctx.db, params);
-          ctx.applyStatsDelta(statements, ctx.db, userMessageDelta({ ownerId: hostUserId, characterId: null, content: body, now: params.now }));
-          await ctx.db.batch(batchMany(statements));
-          return buildCommittedMessageView(params);
-        } catch (err) {
-          // A broad UNIQUE classification also covers bad message/variant ids. Retry only when the canon head
-          // actually reached this attempted seq, which proves another append won the allocation race.
-          if (isConstraintViolation(err)?.kind === "unique" && (await loadMaxMessageSeq(ctx.db, chatId)) >= params.seq) {
-            return append();
-          }
-          throw err;
-        }
-      };
-      const view = await append();
+        const statements = insertCanonMessageStatements(ctx.db, params);
+        ctx.applyStatsDelta(statements, ctx.db, userMessageDelta({ ownerId: hostUserId, characterId: null, content: body, now: params.now }));
+        return { statements, result: buildCommittedMessageView(params) };
+      });
       await deps.emit({ type: "messageCommitted", chatId, messageId: view.id, view });
       // Surface any imagery warning (e.g. an avatar reference / edit dropped for a non-edit model — doc 03 §2)
       // onto the one chat `warning` bus so the client can render a notice; the message itself still committed.

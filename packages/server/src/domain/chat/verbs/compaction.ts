@@ -20,7 +20,6 @@
 // not the resolved speaker name — richer per-speaker labeling is a later refinement.
 
 import type { DurableChatBusEvent } from "@orb/contracts/chat";
-import { MESSAGE_KIND_POLICY } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
@@ -30,7 +29,7 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { projectBodyForSummary } from "@orb/kit/content";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
 import type { QuietGenerate } from "../contract/context.ts";
 import { ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
@@ -39,6 +38,7 @@ import type { CompactResult } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost } from "../guard.ts";
 import { loadCanonHistoryAfter, loadChatRow } from "../persistence/queries.ts";
+import { isPromptEligible } from "../substrate/prompt-eligibility.ts";
 import { compactionCostDelta } from "../substrate/stats-delta.ts";
 
 /** `coveragePoint` = the seq through which the new marker covers (the fit/marker boundary the caller resolved).
@@ -101,7 +101,8 @@ async function buildMarker(
     readonly transcript: string;
     readonly instructions: string | undefined;
     readonly coveredThroughSeq: number;
-    readonly fromSeq: number;
+    /** The coverage stamp this pass READ, verbatim (null = never compacted) — the CAS predicate below. */
+    readonly priorCoverage: number | null;
     readonly signal: AbortSignal | undefined;
   },
 ): Promise<CompactResult> {
@@ -123,8 +124,21 @@ async function buildMarker(
     // (never a blank marker), so a retry next turn is honest.
     throw new ChatOperationError("compaction_empty", `compaction produced an empty marker for chat ${env.chatId}`);
   }
+  // THE WRITE IS CONDITIONAL, AND THE CORE STAYS LOCK-FREE (#1463 item 5). Two passes can run at once (the
+  // engine's managed hook beside the host's manual lever), both read the same `compactedAtSeq` and both pay
+  // for a generation — that duplicate SPEND is the accepted cost of lock-freedom and is unchanged. What must
+  // not follow is the losing pass stamping its narrower marker OVER the winner's advanced one: the coverage
+  // point would regress and the span between them would be re-summarized (and re-billed) on every later pass.
+  // So the marker write carries the coverage stamp this pass READ as its predicate (the house CAS idiom — the
+  // predicate is the VALUE, `plugin-kv::compareAndSetKv`; `is` rather than `=` because the column is nullable
+  // and NULL is the never-compacted state). `RETURNING` is post-update, so a non-empty result means THIS
+  // statement moved the row; zero rows means a sibling advanced the marker and this one's is discarded.
   const stmts: BatchStmt[] = [
-    ctx.db.update(chats).set({ compactSummary: summary, compactedAtSeq: env.coveredThroughSeq, updatedAt: ctx.now() }).where(eq(chats.id, env.chatId)),
+    ctx.db
+      .update(chats)
+      .set({ compactSummary: summary, compactedAtSeq: env.coveredThroughSeq, updatedAt: ctx.now() })
+      .where(and(eq(chats.id, env.chatId), sql`${chats.compactedAtSeq} is ${env.priorCoverage}`))
+      .returning({ id: chats.id }),
   ];
   // COST VISIBILITY: the quiet marker generation's spend lands on the owner's + daily stats (the cost-visibility
   // rule). A null/0 cost (a local vLLM turn, or a backend that reports none) is a benign no-op delta.
@@ -133,8 +147,55 @@ async function buildMarker(
   } else {
     ctx.bumpStatsCanonVersion(stmts, ctx.db, env.ownerId);
   }
-  await ctx.db.batch(batchMany(stmts));
+  const results = await ctx.db.batch(batchMany(stmts));
+  // `batchMany` erases the tuple type (the ONE sanctioned cast); statement 0 is the guarded UPDATE's
+  // RETURNING rows — the claim-chat precedent for reading a conditional write's outcome out of a batch.
+  const stamped = results[0] as readonly { readonly id: ChatId }[];
+  if (stamped.length === 0) {
+    // A sibling pass advanced the marker while this one was generating. THIS marker is discarded (never
+    // written over the newer one) and the settled state is reported, so the caller's `updated:false` says
+    // honestly that this pass changed nothing. The generation's cost delta above still applies — the spend
+    // happened whether or not its product landed, and hiding it would understate real money.
+    return await settledMarker(ctx, env.chatId, env.priorCoverage ?? 0);
+  }
   return { summary, compactedAtSeq: env.coveredThroughSeq, updated: true };
+}
+
+/** The settled marker, re-read after a CAS lost — what the losing pass reports instead of its own discarded
+ *  product. `fallbackSeq` covers the (unreachable-in-practice) racing-delete read. */
+async function settledMarker(ctx: ChatContext, chatId: ChatId, fallbackSeq: number): Promise<CompactResult> {
+  const settled = await loadChatRow(ctx.db, chatId);
+  return { summary: settled?.compactSummary ?? "", compactedAtSeq: settled?.compactedAtSeq ?? fallbackSeq, updated: false };
+}
+
+/** The stamp-only advance: the whole new span is prompt-INELIGIBLE, so there is nothing summarizable, but the
+ *  coverage stamp still moves so that span is not reconsidered forever (and no generation is paid for over an
+ *  empty transcript). CONDITIONAL for the same reason the marker write is ({@link buildMarker}) — a stamp-only
+ *  advance must not walk a concurrent pass's coverage point backwards either. */
+async function advanceCoverageOnly(
+  ctx: ChatContext,
+  env: {
+    readonly chatId: ChatId;
+    readonly ownerId: UserId;
+    readonly priorSummary: string | null;
+    readonly priorCoverage: number | null;
+    readonly coveredThroughSeq: number;
+  },
+): Promise<CompactResult> {
+  const stmts: BatchStmt[] = [
+    ctx.db
+      .update(chats)
+      .set({ compactedAtSeq: env.coveredThroughSeq, updatedAt: ctx.now() })
+      .where(and(eq(chats.id, env.chatId), sql`${chats.compactedAtSeq} is ${env.priorCoverage}`))
+      .returning({ id: chats.id }),
+  ];
+  ctx.bumpStatsCanonVersion(stmts, ctx.db, env.ownerId);
+  const results = await ctx.db.batch(batchMany(stmts));
+  const stamped = results[0] as readonly { readonly id: ChatId }[];
+  if (stamped.length === 0) {
+    return await settledMarker(ctx, env.chatId, env.priorCoverage ?? 0);
+  }
+  return { summary: env.priorSummary ?? "", compactedAtSeq: env.coveredThroughSeq, updated: false };
 }
 
 /** The lock-free compaction core. Rebuilds ONE marker over [prior marker + prompt-eligible turns since it,
@@ -156,21 +217,23 @@ function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): (arg
     // The marker stands in for PROMPT-ELIGIBLE history, so the same two planes the shape dispatch reads gate it:
     // the host's `excludedFromPrompt` hide AND the row's declared PURPOSE (D129 — `prompt:"never"`, i.e. an OOC
     // `comment`, is not prompt material, so folding one into a durable member-peekable marker would smuggle a
-    // row into the very prompt its policy holds it out of). Read from `MESSAGE_KIND_POLICY` rather than a
-    // hardcoded kind list: one home, and a fourth kind is a policy-row decision, not a sweep of this file.
+    // row into the very prompt its policy holds it out of). The verdict is `substrate/prompt-eligibility`'s —
+    // ONE predicate shared with the quiet extractor's scene, so the two prompt boundaries cannot drift (they
+    // did: #1463 item 3), and a fourth kind stays a policy-row decision rather than a sweep of this file.
     const coveredThroughSeq = capped.at(-1)?.seq;
-    const window = capped.filter((m) => !m.excludedFromPrompt && MESSAGE_KIND_POLICY[m.kind].prompt !== "never");
+    const window = capped.filter((m) => isPromptEligible(m));
     if (coveredThroughSeq === undefined) {
       // Nothing new to compact — the marker is already current (idempotent no-op; the coverage point unchanged).
       return { summary: chat.compactSummary ?? "", compactedAtSeq: fromSeq, updated: false };
     }
     if (window.length === 0) {
-      // The whole new span is prompt-hidden — nothing summarizable, but the coverage stamp still advances so the
-      // hidden span isn't reconsidered forever (no generation spend on an empty transcript).
-      const stmts: BatchStmt[] = [ctx.db.update(chats).set({ compactedAtSeq: coveredThroughSeq, updatedAt: ctx.now() }).where(eq(chats.id, chatId))];
-      ctx.bumpStatsCanonVersion(stmts, ctx.db, ownerId);
-      await ctx.db.batch(batchMany(stmts));
-      return { summary: chat.compactSummary ?? "", compactedAtSeq: coveredThroughSeq, updated: false };
+      return await advanceCoverageOnly(ctx, {
+        chatId,
+        ownerId,
+        priorSummary: chat.compactSummary,
+        priorCoverage: chat.compactedAtSeq,
+        coveredThroughSeq,
+      });
     }
     // §3.5 summary-plane projection: cards collapse to the stub (the summarizer never eats the blob) and
     // HIDDEN-class spans are STRIPPED — the marker is durable + member-peekable, so a folded-in lie truth
@@ -184,7 +247,7 @@ function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): (arg
       transcript,
       instructions,
       coveredThroughSeq,
-      fromSeq,
+      priorCoverage: chat.compactedAtSeq,
       signal,
     });
   };
