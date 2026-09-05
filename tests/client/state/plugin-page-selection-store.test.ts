@@ -7,7 +7,7 @@
 // symptom is a blank CONTENT pane with no error anywhere. Round-tripping the real (minted) id shape is what
 // makes that unrepresentable.
 
-import { parsePluginPageKey, pluginPageKey } from "@orb/client/state/pure";
+import { parsePluginPageKey, pluginPageKey } from "@orb/client/state";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";

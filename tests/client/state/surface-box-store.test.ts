@@ -5,7 +5,7 @@
 // because the value is written straight into a `min-block-size` — a garbage measurement (0, NaN, a
 // detached-node height) would reserve a garbage box on every subsequent boot.
 
-import { __readSurfaceBoxForTest, __resetSurfaceBoxes, rememberSurfaceBox } from "@orb/client/state/pure";
+import { __readSurfaceBoxForTest, __resetSurfaceBoxes, rememberSurfaceBox } from "@orb/client/state";
 import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

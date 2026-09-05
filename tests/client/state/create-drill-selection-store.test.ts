@@ -5,7 +5,7 @@
 // the primary-only vs secondary-drill surface, callable actions, and the createGatedStore duplicate-name
 // guard propagating through the mint (two stores can never share a devtools connection label).
 
-import { createDrillSelectionStore } from "@orb/client/state/pure";
+import { createDrillSelectionStore } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";

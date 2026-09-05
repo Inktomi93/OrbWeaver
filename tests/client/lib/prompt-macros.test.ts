@@ -6,7 +6,7 @@
 //   · the curation's list delta — block forms are OFFERED now (with the pair they insert), aliases and
 //     whitespace literals still are not.
 
-import { withUserMacros } from "@orb/client/lib/pure";
+import { withUserMacros } from "@orb/client/lib";
 import type { UserMacroDef } from "@orb/kit/macro";
 import { expect, test } from "../../support/fixtures.ts";
 

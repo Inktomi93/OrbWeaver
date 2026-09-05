@@ -159,6 +159,9 @@
     // fresh, still-growing layer of independent reachers into the SAME impure client chains
     // (`#lib`/`#state`/`#data` package-internal aliases, which always resolve to the impure `index.ts`,
     // never a `pure.ts` subpath) — the signature of a wrong unit of work, not a shrinking ledger. The
+    // `pure.ts` mirrors this paragraph names are GONE as of 2026-09-05 (#1339, type-worlds phase 2):
+    // the barrels are the only client front door now, so the alias claim above is unconditional and
+    // there is no curated subpath left to look for.
     // wholesale fix: `tests/client/**` (non-`.tsx`; `.tsx` is already excluded above and owned by
     // packages/client/tsconfig.json's reach-back) is NOT node-context by nature — any test that imports
     // or deep-imports client SOURCE is a browser-subject test, so its honest home is the DOM-libbed

@@ -3,7 +3,7 @@
 // (User · App · Collections · Extensions — never "You": that word is the mobile sheet's, owner correction
 // 2026-08-30). Pins the membership the door's total `Record` and every deep link are typed against.
 
-import { CONFIG_GROUP_IDS, CONFIG_SHELVES, isConfigGroupId, isConfigShelf } from "@orb/client/state/pure";
+import { CONFIG_GROUP_IDS, CONFIG_SHELVES, isConfigGroupId, isConfigShelf } from "@orb/client/state";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("the tuple is the nine settings groups + the four collections, each exactly once", () => {

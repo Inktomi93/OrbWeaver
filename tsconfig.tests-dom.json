@@ -28,7 +28,9 @@
   // pattern above) went through FIVE rounds of "trace an offender, home its test, re-measure" — each
   // round found a fresh, independent internal reacher into the SAME impure client package-internal
   // aliases (`#lib`/`#state`/`#data`, which always resolve to `index.ts`, never a curated `pure.ts`
-  // subpath: see packages/client/src/{data,lib,state}/pure.ts) — a signature of a wrong unit of work,
+  // subpath — the three hand-maintained `packages/client/src/{data,lib,state}/pure.ts` mirrors this
+  // note originally pointed at were DELETED 2026-09-05 (#1339, type-worlds phase 2), so the barrels
+  // are now the only client front door) — a signature of a wrong unit of work,
   // not a shrinking ledger. `tests/client/**` is NOT node-context by nature: any test that imports or
   // deep-imports client SOURCE is a browser-subject test, so its honest home is here, matching the
   // `tests/e2e/**` precedent (a directory glob by ruling, not a per-file ledger) rather than the

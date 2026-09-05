@@ -7,7 +7,7 @@
 // TypeError). Uses real `Response` (a web global under Node/es2025) — never a hand-mock, which would erase the
 // exact `.text()`/status/statusText wiring this seam is here to get right.
 
-import { throwHttpError } from "@orb/client/data/pure";
+import { throwHttpError } from "@orb/client/data";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

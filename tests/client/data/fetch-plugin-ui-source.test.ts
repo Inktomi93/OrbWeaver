@@ -12,7 +12,7 @@
 // The `response.ok ? text : null` shape this replaced had exactly that bug: it folded every failure into the
 // silent arm.
 
-import { fetchPluginUiSource } from "@orb/client/data/pure";
+import { fetchPluginUiSource } from "@orb/client/data";
 import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { afterEach, vi } from "vitest";

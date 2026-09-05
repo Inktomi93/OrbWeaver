@@ -15,7 +15,7 @@
 //
 // Each of those was proven to BITE against the pre-fix behaviour, so the pins are defect proofs, not fences.
 
-import { closePresetSectionDrill, drillPresetSection, retargetPresetSectionDrill } from "@orb/client/state/pure";
+import { closePresetSectionDrill, drillPresetSection, retargetPresetSectionDrill } from "@orb/client/state";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";

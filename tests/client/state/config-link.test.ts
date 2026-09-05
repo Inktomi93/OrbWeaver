@@ -3,7 +3,7 @@
 // neither side can drift into a second spelling. Refusals are LOUD-null (the alias degrades to the bare
 // Config section), never a crash or a half-parsed target.
 
-import { formatConfigLink, parseConfigLink } from "@orb/client/state/pure";
+import { formatConfigLink, parseConfigLink } from "@orb/client/state";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

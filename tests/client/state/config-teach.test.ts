@@ -4,7 +4,7 @@
 // The DERIVED-POPULATION arm — the sweep over the REAL door's leaves, never a hand list — rides the
 // live-door mirror in `config-section-partition.test.ts` (one mirror list serves both door asserts).
 
-import { createContributorRegistry } from "@orb/client/lib/pure";
+import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution, ConfigSettingRef, SettingTeachDecl } from "@orb/client/state";
 import { assertTeachHonesty, isTeachNone } from "@orb/client/state";
 import { describe } from "vitest";

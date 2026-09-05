@@ -4,8 +4,8 @@
 // storage-key uniqueness throw. Persistence mechanics use an injected in-memory storage (no
 // localStorage in node).
 
-import type { PersistedStoreOptions } from "@orb/client/state/pure";
-import { createPersistedStore } from "@orb/client/state/pure";
+import type { PersistedStoreOptions } from "@orb/client/state";
+import { createPersistedStore } from "@orb/client/state";
 import { describe } from "vitest";
 import type { StateStorage } from "zustand/middleware";
 import { expect, test } from "../../support/fixtures.ts";

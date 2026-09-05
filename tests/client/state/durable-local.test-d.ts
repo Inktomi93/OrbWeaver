@@ -16,7 +16,7 @@
 // TS2322 by `pnpm typecheck:tests-dom`. Do not read a `pnpm test:types` pass as this file passing.
 // The partition is pinned by tests/tooling/testd-lane-program-coverage.int.test.ts (#1270).
 
-import { bindDurableLocalToUser } from "@orb/client/state/pure";
+import { bindDurableLocalToUser } from "@orb/client/state";
 import type { UserId, VerifiedUserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";

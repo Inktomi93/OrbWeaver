@@ -5,7 +5,7 @@
 import type { Mutate, StoreApi } from "zustand";
 import { create } from "zustand";
 import { devtools, subscribeWithSelector } from "zustand/middleware";
-import { IS_DEV } from "#lib/pure";
+import { IS_DEV } from "../lib/dev-flag.ts";
 
 /**
  * Devtools bridge gate: DEV builds only, and only when the Redux DevTools extension is actually
