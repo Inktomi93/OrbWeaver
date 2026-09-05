@@ -126,6 +126,33 @@ test("typing an ALREADY-ATTACHED tag's name says so — it never offers to creat
   await expect(dialog.getByTestId("submitted")).toHaveText("");
 });
 
+/** An attached tag whose name is a PREFIX of another library tag — the case the "already attached" arm
+ *  must not swallow. */
+const NEIGHBOURED = [tag("tag_fantasy", "fantasy", 12), tag("tag_fantasy_noir", "fantasy-noir", 4)];
+
+test("an already-attached EXACT match still suggests the other tags the text matches", async ({ mount, page }) => {
+  await stub(page, NEIGHBOURED);
+  const dialog = await mount(<TagPickerDialogHarness attachedNames={["fantasy"]} />);
+  await expect(page.getByText("Start typing to search your 1 tag.")).toBeVisible();
+
+  const field = page.getByRole("combobox", { name: "Tag name" });
+  await field.fill("fantasy");
+
+  // The helper still states the attached fact — that arm is not what is being relaxed…
+  await expect(page.getByText('"fantasy" is already attached.')).toBeVisible();
+  await expect(page.getByRole("button", { name: "Apply", exact: true })).toBeDisabled();
+  // …but the search is NOT over: an exact match the user cannot act on is not a decision, and closing the
+  // list here left them looking at nothing while a matching tag they CAN attach sat one keystroke away.
+  await expect(page.getByRole("option", { name: "fantasy-noir" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "fantasy", exact: true })).toHaveCount(0);
+
+  // And it still leads somewhere: picking the neighbour is a real attach.
+  await page.getByRole("option", { name: "fantasy-noir" }).click();
+  await expect(page.getByText('Attaches the existing tag "fantasy-noir".')).toBeVisible();
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  await expect(dialog.getByTestId("submitted")).toHaveText("fantasy-noir");
+});
+
 test("a case-only difference ATTACHES the existing tag, and submits the library's spelling", async ({ mount, page }) => {
   await stub(page, LIBRARY);
   const dialog = await mount(<TagPickerDialogHarness />);

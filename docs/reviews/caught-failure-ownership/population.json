@@ -969,15 +969,15 @@
     {
       "siteId": "packages/client/src/features/preset/components/preset-import-dialog.tsx::promise:text::1",
       "path": "packages/client/src/features/preset/components/preset-import-dialog.tsx",
-      "line": 87,
+      "line": 92,
       "column": 10,
       "grammar": "promise",
       "position": "promise:text",
       "ordinal": 1,
       "snippet": "void file",
       "verdict": "deliberate-absorb",
-      "reason": "the .catch below explicitly sets a detailed",
-      "markerLine": 84
+      "reason": "every failure arm here — the read, the JSON",
+      "markerLine": 89
     },
     {
       "siteId": "packages/client/src/features/preset/hooks/use-preset-autosave.ts::promise:run::1",
