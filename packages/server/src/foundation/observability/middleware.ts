@@ -1,16 +1,29 @@
 // The per-request Hono middleware. Assigns/echoes X-Request-Id, opens the request-root tracing span (the
 // parent for every downstream span), binds the request-scoped logger, and logs one structured `request`
 // line + records the request ring. Skips /api/_debug/* so introspection traffic doesn't evict real traces.
+//
+// ASSUMES(single-replica): `OBSERVED` holds THIS process's live Hono contexts, and a context never leaves
+// the process that built it — there is no cross-replica question to answer and therefore no DB-backed
+// replacement seam to name (unlike the rings it feeds, whose replica scope `logger.ts` declares). The
+// entries are request-lifetime and collected with the context.
 
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type { Principal } from "@orb/contracts/identity";
-import type { ErrorHandler, MiddlewareHandler } from "hono";
+import type { Context, ErrorHandler, MiddlewareHandler } from "hono";
 import { bindRequestUser, getLog, getRequestUserId, recordRequest, runInRequest } from "./logger.ts";
 import { recordThrownRequest, withRequestSpan } from "./tracing.ts";
 
 const DEBUG_PREFIX = "/api/_debug";
 const INTERNAL_ERROR_STATUS = 500;
+const INTERNAL_ERROR_TEXT = "Internal Server Error";
+
+// The Hono contexts whose request scope THIS middleware opened. A WeakSet keyed on the context object needs
+// no `Env` typing (foundation cannot import the app's) and cannot leak — the entry dies with the context.
+// It is the discriminator `observabilityErrorHandler` needs: a throw from a middleware mounted ABOVE this
+// one never reaches the scope, the span or the ring, and "no active span" alone cannot say so (the
+// /api/_debug/* skip below also has none, deliberately).
+const OBSERVED = new WeakSet<object>();
 
 // Caps reuse-from-header to 128 chars + a conservative charset so a client can't inject log-line content
 // or terminal escapes via a malicious X-Request-Id. Mismatch → a fresh UUID is generated.
@@ -42,6 +55,13 @@ function stampRequestId(c: { readonly res: Response }, requestId: string): void 
   c.res.headers.set(REQUEST_ID_HEADER, requestId);
 }
 
+/** THE request-id rule, in one home: if a trusted upstream already minted a correlation id, propagate it;
+ *  else a fresh UUID. The charset guard prevents log-injection from a client setting their own header. */
+function resolveRequestId(c: Context): string {
+  const incoming = c.req.header("x-request-id");
+  return incoming !== undefined && SAFE_REQUEST_ID.test(incoming) ? incoming : randomUUID();
+}
+
 /**
  * Per-request observability: assigns a request id, stamps it on the response as `X-Request-Id` (so a caller
  * can grab it and query /api/_debug/logs?requestId=… or /traces/:requestId — see `stampRequestId` for WHERE
@@ -49,11 +69,9 @@ function stampRequestId(c: { readonly res: Response }, requestId: string): void 
  * structured line per request. The stamped id is the SAME id every sink below records — never a second mint.
  */
 export const observability: MiddlewareHandler = (c, next) => {
-  // If a trusted upstream already minted a correlation id, propagate it; else a fresh UUID. The charset
-  // guard prevents log-injection from a client setting their own header.
-  const incoming = c.req.header("x-request-id");
-  const requestId = incoming !== undefined && SAFE_REQUEST_ID.test(incoming) ? incoming : randomUUID();
+  const requestId = resolveRequestId(c);
   const start = performance.now();
+  OBSERVED.add(c);
 
   return runInRequest(requestId, async () => {
     const rawPath = c.req.path;
@@ -102,13 +120,62 @@ export const observability: MiddlewareHandler = (c, next) => {
 };
 
 /**
+ * A throw from a middleware mounted ABOVE {@link observability} — today the principal-resolution middleware
+ * (`entry/app.ts`), i.e. an AUTH-INFRASTRUCTURE fault, the class most worth seeing. Hono's `compose()`
+ * catches a handler throw at ITS OWN dispatch frame, so an outer middleware's `next()` resolves normally and
+ * cannot observe it: `app.onError` is the only place that can (#1479).
+ *
+ * THE MOUNT ORDER IS NOT THE BUG AND IS NOT TOUCHED. `observability` is mounted AFTER auth deliberately —
+ * it reads the already-resolved Principal to bind the request user, and moving it first would widen the
+ * request span to include auth's own latency (`entry/app.ts`'s note). This branch adds nothing to the
+ * success path: it runs only when the scope was never opened.
+ *
+ * What it records is a REQUEST INDEX ENTRY, never the error text: the id, the method, the REDACTED path
+ * (`/join/<token>` carries a bearer capability — the ring must never hold the raw one) and the 500. The
+ * error itself rides the one pino `request.thrown` line, inside a scope bound to the SAME request id, so
+ * /api/_debug/logs?requestId=… and /api/_debug/requests agree. `durationMs` is 0 because nothing measured
+ * this request — the fault preceded the measurement.
+ */
+function observeThrowAboveScope(err: unknown, c: Context): Promise<Response> {
+  const requestId = resolveRequestId(c);
+  const method = c.req.method;
+  const path = redactSensitivePath(c.req.path);
+  c.header(REQUEST_ID_HEADER, requestId);
+  return runInRequest(requestId, async (): Promise<Response> => {
+    getLog().error({ err }, "request.thrown");
+    // The root span exists only to carry the failure; `recordThrownRequest` marks the span ACTIVE INSIDE
+    // this callback as error + adds the `exception` event, and `withRequestSpan`'s OK-set is guarded on
+    // exactly that, so the sealed bucket reads status:"error" without this having to throw.
+    await withRequestSpan(requestId, `http ${method} ${path}`, { "http.method": method, "http.path": path }, () => {
+      recordThrownRequest(err);
+    });
+    recordRequest({
+      id: requestId,
+      method,
+      path,
+      status: INTERNAL_ERROR_STATUS,
+      durationMs: 0,
+      at: Math.round(performance.timeOrigin + performance.now()),
+    });
+    return c.text(INTERNAL_ERROR_TEXT, INTERNAL_ERROR_STATUS);
+  });
+}
+
+/**
  * The Hono `app.onError` counterpart of `observability` — the thrown (non-Response) request path. Records
  * the throw on the root span (so /api/_debug/traces shows status:"error"), logs one pino `request.thrown`
  * error line, and returns the same 500 text Hono's default onError returns — an observability fix, not an
  * error-contract change. tRPC throws never reach here (the fetch adapter converts them to a Response first).
+ *
+ * TWO ARMS, split on whether this request ever entered the observability scope: the OBSERVED one (a throw at
+ * or below the middleware) corrects the already-open root span; the un-observed one is
+ * {@link observeThrowAboveScope}. Both return the identical 500.
  */
 export const observabilityErrorHandler: ErrorHandler = (err, c) => {
+  if (!OBSERVED.has(c)) {
+    return observeThrowAboveScope(err, c);
+  }
   recordThrownRequest(err);
   getLog().error({ err }, "request.thrown");
-  return c.text("Internal Server Error", INTERNAL_ERROR_STATUS);
+  return c.text(INTERNAL_ERROR_TEXT, INTERNAL_ERROR_STATUS);
 };

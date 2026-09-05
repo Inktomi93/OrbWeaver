@@ -138,6 +138,31 @@ async function updateExisting(
   };
 }
 
+/**
+ * THE INSERT LOST A RACE and no row carries this identity — REACHABLE, and the comment that used to sit
+ * here calling it "Unreachable" was the defect (#1478): it threw a raw Error, i.e. a 500 on the login path.
+ * `insertUser` is a bare `onConflictDoNothing()`, so a concurrent writer that took this HANDLE
+ * (`users_handle_unique`) — or the owner singleton (`users_single_owner_unique`) — silently no-ops our
+ * insert, and the re-read keys on the column WE own (`externalId`), which that winner does not carry. Only
+ * the SAME-SUBJECT race (the shape the race-tolerant insert exists to absorb) re-reads successfully.
+ *
+ * REFUSED, never resolved by ADOPTION. Returning the winner's row would be exactly the auto-link-by-handle
+ * account takeover {@link denyOnCollision} hard-denies on the sequential path (MS-W1) — this is the same
+ * collision arriving through the race window, so it gets the same operator-actionable `account-exists`
+ * deny: an admin links the row to this stable subject via `admin.linkSsoIdentity` (B5). No row is created
+ * or updated. The extra read is diagnosis only (`handleTaken` separates a handle collision from the owner
+ * singleton for the operator); it decides nothing.
+ */
+async function refuseLostInsertRace(ctx: SessionsContext, identity: ResolvedIdentity): Promise<ProvisionResult> {
+  const handleTaken = (await selectForProvisionByHandle(ctx.db, identity.handle)) !== undefined;
+  securityEvent(
+    "sso_insert_lost_race",
+    { handle: identity.handle, externalId: identity.externalId, handleTaken },
+    "security: SSO first-login INSERT was absorbed by a concurrent writer that does NOT carry this stable subject (handle collision, or the owner singleton) — refusing the login rather than adopting the winning row; an admin links it via admin.linkSsoIdentity",
+  );
+  return { outcome: "denied", reason: "account-exists" };
+}
+
 /** First-login INSERT (race-tolerant) + re-read by the keyed column to return the canonical row.
  *  `requireApproval` is the caller-resolved A2 flag (undefined ⇒ off). */
 async function insertNew(
@@ -167,8 +192,7 @@ async function insertNew(
       ? await selectForProvisionByExternalId(ctx.db, identity.externalId)
       : await selectForProvisionByHandle(ctx.db, identity.handle);
   if (settled === undefined) {
-    // Unreachable: either our insert succeeded or a concurrent one did.
-    throw new Error(`provisionIdentity: row missing after insert (handle=${identity.handle}, externalId=${identity.externalId ?? "null"})`);
+    return await refuseLostInsertRace(ctx, identity);
   }
   getLog().info(
     { handle: identity.handle, externalId: identity.externalId, ...groupsLogFields(identity.groups), role: settled.role, enabled: settled.enabled },

@@ -13,7 +13,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { assets, userSettings } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { UserId } from "@orb/kit/ids";
+import type { AssetId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -175,5 +175,94 @@ describe("global KV + app-override row", () => {
     await upsertGlobalSetting(db, APP_SETTINGS_KEY, "not-an-object", AT);
     await expect(writeAppOverride(db, { logLevel: "debug", schemaVersion: 2 }, AT + 5)).rejects.toBeInstanceOf(DomainOperationError);
     expect(await readAppOverrideRaw(db)).toBe("not-an-object");
+  });
+});
+
+// #1478 items 1 + 2 — the background predicate asks TWO questions (is it yours? is it a background?) and it
+// is answered BEFORE the row is seeded. Both halves are fail-closed: a refused write persists nothing.
+describe("writeUserConfig — the background predicate (#1478)", () => {
+  const pinnedHash = "bgpin";
+
+  /** A config that pins `assetId` as the current background. */
+  function pinning(config: UserSettings, assetId: AssetId): UserSettings {
+    return {
+      ...config,
+      appearance: { ...config.appearance, backgroundImageKind: "asset", backgroundAssetId: assetId, backgroundAssetHash: pinnedHash },
+    };
+  }
+
+  test("an asset the user OWNS but whose kind is not `background` is refused", async () => {
+    const db = await freshDb();
+    const u = await seedUser(db, { id: "user_kind" });
+    const cardId = mintTypeId(ID_PREFIX.asset);
+    // The user's OWN card asset: the ownership half passes, the kind half must not.
+    await db.insert(assets).values({ id: cardId, ownerId: u, kind: "card", mime: "image/png", size: 1, hash: pinnedHash, uploadedAt: AT });
+    const before = await readUserSettings(db, u);
+
+    const err = await writeUserConfig(db, u, pinning(before.config, cardId), AT + 5).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(DomainOperationError);
+    expect((err as DomainOperationError).code).toBe("background_unavailable");
+    expect((await readUserSettings(db, u)).config.appearance.backgroundAssetId).toBe("");
+  });
+
+  test("the SAME id stored as kind `background` writes normally (the predicate is narrow, not a ban)", async () => {
+    const db = await freshDb();
+    const u = await seedUser(db, { id: "user_kind_ok" });
+    const bgId = mintTypeId(ID_PREFIX.asset);
+    await db.insert(assets).values({ id: bgId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: pinnedHash, uploadedAt: AT });
+    const before = await readUserSettings(db, u);
+
+    await writeUserConfig(db, u, pinning(before.config, bgId), AT + 5);
+
+    expect((await readUserSettings(db, u)).config.appearance.backgroundAssetId).toBe(bgId);
+  });
+
+  test("a library entry naming a non-background asset is refused too (the whole pinned set is asked)", async () => {
+    const db = await freshDb();
+    const u = await seedUser(db, { id: "user_lib_kind" });
+    const bgId = mintTypeId(ID_PREFIX.asset);
+    const avatarId = mintTypeId(ID_PREFIX.asset);
+    await db.insert(assets).values([
+      { id: bgId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: "bg", uploadedAt: AT },
+      { id: avatarId, ownerId: u, kind: "avatar", mime: "image/png", size: 1, hash: "avatar", uploadedAt: AT },
+    ]);
+    const before = await readUserSettings(db, u);
+    const config: UserSettings = {
+      ...pinning(before.config, bgId),
+      appearance: {
+        ...pinning(before.config, bgId).appearance,
+        backgroundLibrary: [{ entryId: "row", assetId: avatarId, assetHash: "avatar", mime: "image/png", name: "Not a background" }],
+      },
+    };
+
+    await expect(writeUserConfig(db, u, config, AT + 5)).rejects.toBeInstanceOf(DomainOperationError);
+  });
+
+  test("a refused FIRST write leaves NO user_settings row (the predicate precedes the seed)", async () => {
+    const db = await freshDb();
+    const u = await seedUser(db, { id: "user_noseed" });
+    const before = await readUserSettings(db, u);
+    // Nothing owns this id — the write must be refused, and refusing must not materialize a defaults row.
+    const missing = mintTypeId(ID_PREFIX.asset);
+
+    await expect(writeUserConfig(db, u, pinning(before.config, missing), AT + 5)).rejects.toBeInstanceOf(DomainOperationError);
+
+    expect(await db.select().from(userSettings).where(eq(userSettings.userId, u))).toHaveLength(0);
+    expect((await readUserSettings(db, u)).updatedAt).toBe(0);
+  });
+
+  test("ANOTHER user's background asset is refused, and leaves the asker no row", async () => {
+    const db = await freshDb();
+    const mine = await seedUser(db, { id: "user_asker" });
+    const theirs = await seedUser(db, { id: "user_other" });
+    const theirBg = mintTypeId(ID_PREFIX.asset);
+    await db.insert(assets).values({ id: theirBg, ownerId: theirs, kind: "background", mime: "image/png", size: 1, hash: pinnedHash, uploadedAt: AT });
+    const before = await readUserSettings(db, mine);
+
+    // Receipt taken AS `user_asker` (the pinned id belongs to `user_other`).
+    await expect(writeUserConfig(db, mine, pinning(before.config, theirBg), AT + 5)).rejects.toBeInstanceOf(DomainOperationError);
+
+    expect(await db.select().from(userSettings).where(eq(userSettings.userId, mine))).toHaveLength(0);
   });
 });

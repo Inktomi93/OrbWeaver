@@ -47,6 +47,33 @@ describe("determineRole — owner", () => {
     vi.stubEnv(OWNER_HANDLES, "alice");
     vi.stubEnv(OWNER_GROUP, "");
     expect(determineRole(castId<Handle>("dave"), [""])).toBe("user");
+    // A whitespace-only value is the same non-configuration as an empty one — and before #1478 item 3 it
+    // was compared RAW, so a `"   "` group claim matched it and granted OWNER.
+    vi.stubEnv(OWNER_GROUP, "   ");
+    expect(determineRole(castId<Handle>("dave"), ["   "])).toBe("user");
+  });
+
+  // #1478 item 3 — `csv()` TRIMS every configured group name (OWNER_HANDLES / OIDC_ADMIN_GROUPS /
+  // OIDC_ALLOWED_GROUPS) and `normalizeGroups` trims every claimed one, so OWNER_GROUP — the one value
+  // compared raw — silently never matched a padded configuration and the owner was never granted.
+  test("a PADDED OWNER_GROUP still matches the group claim (the same trim as every sibling var)", () => {
+    vi.stubEnv(OWNER_HANDLES, "alice");
+    vi.stubEnv(OWNER_GROUP, " owners ");
+    expect(determineRole(castId<Handle>("carol"), ["owners"])).toBe("owner");
+  });
+
+  test("…and the match stays EXACT after the trim — no prefix, suffix or case widening", () => {
+    vi.stubEnv(OWNER_HANDLES, "alice");
+    vi.stubEnv(OWNER_GROUP, " owner ");
+    // A near-miss on either side is a different group, not a sloppy spelling of the same one.
+    expect(determineRole(castId<Handle>("carol"), ["owners"])).toBe("user");
+    vi.stubEnv(OWNER_GROUP, "owners");
+    expect(determineRole(castId<Handle>("carol"), ["owner"])).toBe("user");
+    expect(determineRole(castId<Handle>("carol"), ["OWNERS"])).toBe("user");
+    // The INNER space of a real authentik group name survives (OWNER_GROUP="Neo Owners" is live config).
+    vi.stubEnv(OWNER_GROUP, "  Neo Owners  ");
+    expect(determineRole(castId<Handle>("carol"), ["Neo Owners"])).toBe("owner");
+    expect(determineRole(castId<Handle>("carol"), ["NeoOwners"])).toBe("user");
   });
 });
 

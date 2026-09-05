@@ -89,7 +89,11 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
     // would have created. Since `934fae273` the settings write is FK-guarded against `assets` and refuses
     // (`background_unavailable`) rather than storing a dangling reference — a fake that mints an id without
     // the row is asking the server to persist a pointer to nothing.
-    await seedAsset(db, { id: castId<AssetId>(stored.assetId), ownerId: p.userId, hash: stored.assetHash, mime: stored.mime });
+    // `kind: "background"` is what the REAL op stores (`entry/compose/assets-character.ts` binds
+    // `materializeBackground` to `assets.store({kind:"background"})`), and since #1478 the settings write
+    // asks the KIND as well as the owner — the factory's `card` default would be a fake that no production
+    // path can produce.
+    await seedAsset(db, { id: castId<AssetId>(stored.assetId), ownerId: p.userId, kind: "background", hash: stored.assetHash, mime: stored.mime });
 
     // 1. Materialize a pasted URL into a ready library entry (the discrete verb — writes no settings).
     const entry = await h.svc.addExternalBackground({ principal: p, url: "https://cdn.example/wallpaper.png" });
