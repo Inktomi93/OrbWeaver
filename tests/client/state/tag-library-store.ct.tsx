@@ -8,7 +8,8 @@ import { TagLibraryProbe } from "./_ct-stories.tsx";
 
 test("the roster defaults to MOST-USED and each mode is reachable", async ({ mount }) => {
   const probe = await mount(<TagLibraryProbe />);
-  const state = probe.locator("output");
+  // Two `<output>`s since #1725 (sort, then the prune flag) — the first is the sort state.
+  const state = probe.locator("output").first();
   await expect(state).toHaveText("sort=used");
 
   await probe.getByRole("button", { name: "sort alpha" }).click();
