@@ -114,6 +114,33 @@ describe("runBundleImport", () => {
     expect(boom?.error).toContain("descriptor blew up");
   });
 
+  test("a file that imported but DROPPED a plane is NAMED in the bundle outcome (#1688)", async () => {
+    // The loss this pins is real and reachable: a character card whose owner already edited its primary
+    // lorebook imports WITHOUT re-asserting the card's book (#1598), and an orb-native chat bundle restored by
+    // a composition with no rpg op keeps the room and drops the campaign. Both are `ok:true` at the bundle
+    // level; before `notes` existed the operator's only signal was silence.
+    const calls: RecordedCall[] = [];
+    const note = "the carried RPG campaign was not restored — rpg import is not wired into this composition";
+    const registry: PortabilityRegistry = [
+      fakeEntity("chat", "chats/", calls, () => ({ ok: true, created: true, notes: [note] })),
+      fakeEntity("persona", "personas/", calls, () => ({ ok: true, created: true })),
+    ];
+    const archive = await packBundle([
+      { path: "chats/aria/x.orb.json", bytes: enc.encode("{}") },
+      { path: "personas/Me.json", bytes: enc.encode("{}") },
+    ]);
+
+    const report = await runBundleImport({ registry, ownerId: OWNER, archive });
+
+    const chat = report.outcomes.find((o) => o.kind === "chat");
+    expect(chat?.ok).toBe(true);
+    expect(chat?.notes).toEqual([note]);
+    // A note is NOT a failure — the file imported, so the tallies are unchanged…
+    expect(report).toMatchObject({ imported: 2, skipped: 0, failed: 0 });
+    // …and a descriptor that said nothing carries no empty list to read past.
+    expect(report.outcomes.find((o) => o.kind === "persona")).not.toHaveProperty("notes");
+  });
+
   test("records an unknown-dir file as a skip, never fatal", async () => {
     const calls: RecordedCall[] = [];
     const registry: PortabilityRegistry = [fakeEntity("character", "characters/", calls, () => ({ ok: true, created: true }))];

@@ -98,6 +98,12 @@ export interface PortableImportOutcome {
   readonly created?: boolean;
   /** Set when ok is false: the operator-facing reason the file was skipped. */
   readonly error?: string;
+  /** What a SUCCESSFUL import deliberately did not assert, one operator-facing line each (#1688). A restore
+   *  can land its entity and still drop a plane — an overlay whose op is unwired, a card's embedded lorebook
+   *  kept because the character already holds an edited primary (#1598) — and until this existed the domain
+   *  verb's own record of that stopped at the descriptor seam: the bundle answered a bare `{ok:true}` and the
+   *  loss was invisible to anyone reading the restore. Absent ⇒ nothing was skipped. */
+  readonly notes?: readonly string[];
 }
 
 // A server-side descriptor, composed from each domain's export + import verbs and its serde. The

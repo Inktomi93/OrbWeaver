@@ -37,6 +37,11 @@ const CHARACTER = castId<CharacterId>("chr_1");
 const CHAT = castId<ChatId>("chat_1");
 const PERSONA = castId<PersonaId>("per_1");
 
+// Raw ST wire TEXT (snake_case by spec) — the format IS the fixture, and a string carries the wire's own
+// spelling without a naming-convention suppression.
+const CARD_WITH_BOOK =
+  '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Aria","description":"a bard","character_book":{"name":"Aria\'s World","entries":[{"keys":["k"],"content":"c","comment":"C","insertion_order":1}]}}}';
+
 // FABRICATION-OK: never dereferenced — the ctx-built descriptors are pinned at layout only.
 const NO_DB = {} as unknown as Db;
 
@@ -67,6 +72,12 @@ interface Injected {
   readonly exportCharacter: ReturnType<typeof vi.fn>;
   readonly listHostChats: ReturnType<typeof vi.fn>;
   readonly exportChatBundle: ReturnType<typeof vi.fn>;
+  // The card-IMPORT half of the character descriptor (#1688/#1598 — the notes forward). Scripted rather than
+  // bare `vi.fn()` because the descriptor drives the REAL import verb, which mints a character and consults
+  // the primary-book seat oracle.
+  readonly characterCreate: ReturnType<typeof vi.fn>;
+  readonly findCharacterByImportHash: ReturnType<typeof vi.fn>;
+  readonly hasPrimaryBook: ReturnType<typeof vi.fn>;
 }
 
 function injected(): Injected {
@@ -81,6 +92,9 @@ function injected(): Injected {
     exportCharacter: vi.fn(() => Promise.resolve({ filename: "Aria.png", bytes: new Uint8Array([3]) })),
     listHostChats: vi.fn(() => Promise.resolve([{ chatId: CHAT, handle: "aria" }])),
     exportChatBundle: vi.fn(() => Promise.resolve({ bytes: new Uint8Array([4]) })),
+    characterCreate: vi.fn(() => Promise.resolve({ id: CHARACTER })),
+    findCharacterByImportHash: vi.fn(() => Promise.resolve(null)),
+    hasPrimaryBook: vi.fn(() => Promise.resolve(false)),
   };
 }
 
@@ -99,11 +113,12 @@ function registry(i: Injected): readonly PortableEntity[] {
     databankCtx: {},
     persona: { list: i.personaList, export: i.personaExport, import: i.personaImport },
     exportService: { exportCharacter: i.exportCharacter, exportChatBundle: i.exportChatBundle, listHostChats: i.listHostChats },
-    character: { create: vi.fn(), update: vi.fn(), findByImportHash: vi.fn(), findByHandle: vi.fn() },
+    character: { create: i.characterCreate, update: vi.fn(), findByImportHash: i.findCharacterByImportHash, findByHandle: vi.fn(() => Promise.resolve(null)) },
     listOwnedCharacterIds: i.listOwnedCharacterIds,
     storeAvatar: vi.fn(),
     attachCardTag: vi.fn(),
     importLorebook: vi.fn(),
+    hasPrimaryBook: i.hasPrimaryBook,
     importCardScripts: vi.fn(),
     exportRegexScripts: i.exportRegexScripts,
     importRegexScript: i.importRegexScript,
@@ -253,6 +268,33 @@ describe("buildPortabilityRegistry — a bad file degrades to {ok:false}, it nev
       ok: false,
       error: "owner row vanished",
     });
+  });
+});
+
+describe("buildPortabilityRegistry — a plane a restore DROPPED rides back as notes (#1688)", () => {
+  test("a card whose character already holds a primary book imports, and the outcome NAMES the kept book", async () => {
+    const i = injected();
+    // #1598: the owner has edited that book since, so the re-upload must not re-assert the card's version.
+    i.hasPrimaryBook.mockResolvedValue(true);
+
+    const outcome = await descriptor(i, "character").importFile(OWNER, {
+      filename: "Aria.png",
+      bytes: new TextEncoder().encode(CARD_WITH_BOOK),
+    });
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.notes?.[0]).toContain("was NOT re-asserted");
+  });
+
+  test("a card that landed WHOLE carries no notes key at all (silence means nothing was dropped)", async () => {
+    const i = injected();
+
+    const outcome = await descriptor(i, "character").importFile(OWNER, {
+      filename: "Aria.png",
+      bytes: new TextEncoder().encode(CARD_WITH_BOOK),
+    });
+
+    expect(outcome).toStrictEqual({ ok: true, created: true });
   });
 });
 
