@@ -70,7 +70,7 @@ export const TALKATIVENESS_DEFAULT = 0.5;
  *  this shape; the per-kind knob-verb forking is retired (it guaranteed skipped arms — the mute +
  *  talkativeness gaps proved the class). Roster presets are BUILT (#26, D61 B6 — `domain/roster-preset`):
  *  the `roster_preset_members` junction's talkativeness/disabled columns and `applyToChat`'s `setSeatKnobs`
- *  patch project exactly this shape. Founding casts stay unbuilt (they graft onto the same shape if they
+ *  patch project exactly this shape. Founding character sets stay unbuilt (they graft onto the same shape if they
  *  return). `talkativeness` absent = inherit the chat default ({@link TALKATIVENESS_DEFAULT}). */
 export const seatKnobsSchema = z.object({
   talkativeness: z.number().min(TALKATIVENESS_MIN).max(TALKATIVENESS_MAX).optional(),
@@ -91,7 +91,7 @@ export const characterMemberSpecSchema = z.object({
 
 /** A seat the caller WANTS to exist — the ONE template/creation-time member vocabulary (D16/D61/D60). Every
  *  membership-template lifetime PROJECTS through it; nothing mints a flat characterId array beside it.
- *  Roster presets are BUILT (#26) and project through the `character` arm; founding casts and
+ *  Roster presets are BUILT (#26) and project through the `character` arm; founding character sets and
  *  saved-rosters v2 remain unbuilt (they graft onto this shape). Kind-discriminated like
  *  {@link SpeakerRef}. `human` is UNREPRESENTABLE by design (invites are the only human join path — a
  *  template cannot carry an invite's runtime preconditions); `observer` and `agent` were purged 2026-07-25
@@ -473,7 +473,7 @@ export const handoffOfferSchema = z.object({
    *  (a reference-carry would silently lose the lore — the character-book pool is owner-filtered), and the
    *  host-owned chat-attached books. `false` ⇒ the D64 drop (the seats the nominee cannot resolve are
    *  leftSeq-stamped, exactly as today). */
-  copyCast: z.boolean(),
+  copyCharacters: z.boolean(),
   /** Copy the game's GM-voice preset into the nominee's library and re-point `rpg_games.gmPresetId` at the
    *  copy. `false` (or a non-game room / an unset knob) ⇒ the built conditional heal stands: a preset the
    *  nominee cannot read is NULLED rather than left lying about the room's voice. */
@@ -484,8 +484,8 @@ export const handoffOfferSchema = z.object({
 export type HandoffOffer = z.infer<typeof handoffOfferSchema>;
 
 /** The no-offer offer — the shape a `null` column means, spelled once so no consumer re-spells
- *  `{ copyCast: false, copyGmPreset: false }` and no arm can drift from the byte-identical default. */
-export const NO_HANDOFF_OFFER: HandoffOffer = { copyCast: false, copyGmPreset: false };
+ *  `{ copyCharacters: false, copyGmPreset: false }` and no arm can drift from the byte-identical default. */
+export const NO_HANDOFF_OFFER: HandoffOffer = { copyCharacters: false, copyGmPreset: false };
 
 // ── Invites & the membership chokepoint (Part III §2; D16) ──
 const INVITE_MAX_USES_MIN = 1;

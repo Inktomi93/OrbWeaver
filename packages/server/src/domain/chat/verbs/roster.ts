@@ -972,7 +972,7 @@ function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatS
         action: "chat.nominateHostHandoff",
         entityType: "chat",
         entityId: chatId,
-        metadata: { nomineeUserId: userId, offerCast: parsedOffer.copyCast, offerGmPreset: parsedOffer.copyGmPreset },
+        metadata: { nomineeUserId: userId, offerCharacters: parsedOffer.copyCharacters, offerGmPreset: parsedOffer.copyGmPreset },
       },
       ctx.now(),
     );

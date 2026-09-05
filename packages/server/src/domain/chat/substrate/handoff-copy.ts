@@ -116,7 +116,7 @@ export async function resolveHandoffCopyPlan(
   },
 ): Promise<HandoffCopyPlan> {
   const { chatId, oldHostUserId, nomineeUserId, offer, roster } = params;
-  if (!offer.copyCast || oldHostUserId === null || oldHostUserId === nomineeUserId) {
+  if (!offer.copyCharacters || oldHostUserId === null || oldHostUserId === nomineeUserId) {
     return EMPTY_COPY_PLAN;
   }
   const seats = await resolveOfferedSeats(ctx, oldHostUserId, nomineeUserId, roster);

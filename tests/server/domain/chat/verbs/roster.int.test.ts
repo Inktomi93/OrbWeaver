@@ -1562,7 +1562,7 @@ describe("audit wiring — the membership/config mutations write best-effort aud
     expect(rows.map((r) => r.entry.action)).toEqual(["chat.nominateHostHandoff"]);
     // The OFFER flags ride the nominate row: a no-offer nomination records give-nothing, in the log, at the
     // moment consent was (not) given — the one place a later dispute can read it.
-    expect(rows.at(0)?.entry.metadata).toEqual({ nomineeUserId: member, offerCast: false, offerGmPreset: false });
+    expect(rows.at(0)?.entry.metadata).toEqual({ nomineeUserId: member, offerCharacters: false, offerGmPreset: false });
     // The heal + copy FLAGS/COUNTS ride the accept row (F1/F2 + the copy) — an un-anchored, non-game room with
     // no offer heals nothing and copies nothing.
     const accepted = (await db.select().from(auditLogs).where(eq(auditLogs.action, "chat.acceptHostHandoff")))[0];

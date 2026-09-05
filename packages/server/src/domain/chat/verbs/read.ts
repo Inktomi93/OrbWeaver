@@ -249,7 +249,8 @@ interface ChatSummaryInputs {
 }
 
 /**
- * The list row's seated characters — the present roster MINUS the viewer's own seat (side-eye NR4).
+ * The list row's participant display names — every present seat (humans AND characters) MINUS the viewer's
+ * own seat (side-eye NR4).
  *
  * The names are what an untitled row shows as its title ("Alex, Niko"), and the viewer is in every chat they
  * can list, so their own name is a constant prefix carrying zero information while eating the width the row
@@ -257,7 +258,7 @@ interface ChatSummaryInputs {
  * conversation. FLOOR: only when at least one OTHER seat remains, so a solo / self chat keeps its name
  * instead of collapsing to "Untitled chat".
  */
-function summaryCast(participants: readonly ParticipantView[], viewerUserId: UserId): readonly string[] {
+function summaryParticipantNames(participants: readonly ParticipantView[], viewerUserId: UserId): readonly string[] {
   const others = participants.filter((p) => p.userId !== viewerUserId);
   return (others.length > 0 ? others : participants).map((p) => p.displayName);
 }
@@ -272,8 +273,8 @@ function summaryCast(participants: readonly ParticipantView[], viewerUserId: Use
  * already reads exactly these cards (it is what `participantNames` comes from), so the join belongs here.
  *
  * A human/agent/observer seat carries no character (`characterId === null`) and is not a face this slot
- * paints — the leading slot is the room's CAST, and the viewer's own avatar on their own row would be the
- * same constant-prefix noise `summaryCast` suppresses from the title.
+ * paints — the leading slot is the room's characters, and the viewer's own avatar on their own row would be the
+ * same constant-prefix noise `summaryParticipantNames` suppresses from the title.
  */
 function seatPortraits(participants: readonly ParticipantView[]): ChatSeatPortrait[] {
   const portraits: ChatSeatPortrait[] = [];
@@ -303,7 +304,7 @@ function toChatSummary({ row, stat, participants, participantCharacterIds, viewe
     // a game exists here and is switched off. The list row shows it quietly so a host can find a sleeping
     // game; every gate that asks "is this a live game" still reads `isGame` alone.
     gamePaused: row.metadata.rpg !== undefined && !isRpgEngaged(row.metadata.rpg),
-    participantNames: summaryCast(participants, viewerUserId),
+    participantNames: summaryParticipantNames(participants, viewerUserId),
     participantCharacterIds,
     participantPortraits: seatPortraits(participants),
     // Derive the caller's role from the present roster already loaded for this row — no extra read. The

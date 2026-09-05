@@ -90,6 +90,9 @@ export { resolveTier0Range } from "./memory/recall/bridge.ts";
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
 export { createBulkImportChats } from "./persistence/import-write.ts";
 export { reclaimChatLocksOnBoot } from "./persistence/lock.ts";
+// The #1649 handoff-offer vocabulary data migration — a boot step (`entry/boot/migrate-handoff-offer-vocab`)
+// runs it; the SQL lives beside the offer's other writes.
+export { migrateHandoffOfferVocab } from "./persistence/participant.ts";
 // The expressions post-turn prose read (E3 — expressions-design/02 §3.1): the injected `readTurn` op is wired
 // over this at the composition root. A pure `(db, …)` read (needs no ChatContext) so it breaks no cycle.
 export { loadSeededChatDressing, loadTurnForClassify, loadTurnOrigin } from "./persistence/queries.ts";

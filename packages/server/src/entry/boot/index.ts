@@ -4,6 +4,8 @@ export type { DistributedPluginApplier, DistributedPluginApplierDeps } from "./a
 export { createDistributedPluginApplier } from "./apply-distributed-plugins.ts";
 export type { MigrateDeps } from "./migrate.ts";
 export { DB_LAUNCHED, resolveMigrationsFolder, runBootMigrations } from "./migrate.ts";
+export type { MigrateHandoffOfferVocabDeps } from "./migrate-handoff-offer-vocab.ts";
+export { migrateHandoffOfferVocabOnBoot } from "./migrate-handoff-offer-vocab.ts";
 export type { ReclaimLocksDeps } from "./reclaim-locks.ts";
 export { reclaimLocksOnBoot } from "./reclaim-locks.ts";
 export { readSeedAvatar } from "./seed-assets/index.ts";

@@ -2422,7 +2422,7 @@ export function MembersPanelStory({
                 // The recorded action carries the OFFER, because the offer IS the decision this affordance
                 // exists to make: a CT that only proved "nominate fired" could not tell a gift from a drop.
                 onNominateHost: (userId: UserId, offer: HandoffOffer): void =>
-                  setLastAction(`nominate:${userId}:cast=${String(offer.copyCast)}:preset=${String(offer.copyGmPreset)}`),
+                  setLastAction(`nominate:${userId}:characters=${String(offer.copyCharacters)}:preset=${String(offer.copyGmPreset)}`),
                 onSetHistoryVisibility: (userId: UserId, visibility: JoinHistoryVisibility): void => setLastAction(`history:${userId}:${visibility}`),
                 onLeave: (): void => setLastAction("leave"),
                 leaveArchivesRoom: true,
