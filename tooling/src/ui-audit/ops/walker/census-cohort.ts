@@ -105,7 +105,21 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
       var childRect = cel.children[cc].getBoundingClientRect();
       if (childRect.height > tallestChild) tallestChild = childRect.height;
     }
-    members.push({ el: cel, height: Math.round(crect.height), content: Math.round(tallestChild), animating: canim });
+    // AN INLINE TEXT RUN HAS NO BOX OF ITS OWN (#1703). \`getBoundingClientRect\` on a \`display: inline\`
+    // element returns the UNION of its line boxes, so its "height" is a LINE-WRAP COUNT — a function of the
+    // viewport, not of anything the author sized. Measured live: one \`span[data-slot=dialogue]\` cohort (the
+    // quoted-speech runs @orb/ui's markdown emits, packages/ui/src/markdown/dialogue-paragraph.tsx:54,71)
+    // reported three DIFFERENT majority/minority splits for the same markup across three arms — 69/45px
+    // desktop, 45/21px Light, 21/45px mobile-coarse. The rule's own premise ("the markup claims they are
+    // the same kind of row and the pixels disagree") does not hold for prose: the pixels are the prose
+    // reflowing, and the finding inverts between arms.
+    //
+    // Read the computed display rather than \`getClientRects().length > 1\`: a SINGLE-line inline run is
+    // equally unmeasurable (its height is the line box's), and the wrap count is exactly the thing that
+    // must not decide whether the rule can see a cohort. \`inline-block\`/\`inline-flex\` DO own a box and stay
+    // judged — this is a mechanism fence on "has no box", not on the word "inline".
+    var cdisplay = getComputedStyle(cel).display;
+    members.push({ el: cel, height: Math.round(crect.height), content: Math.round(tallestChild), animating: canim, inlineRun: cdisplay === "inline" });
   }
 
   cohortsByParent.forEach(function (byKey, parentEl) {
@@ -113,10 +127,21 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
       if (members.length < COHORT_MIN_MEMBERS) return;
       relationalAccounting["cohort-anatomy"].candidates += 1;
       var animating = false;
+      var allInline = true;
       var heights = [];
       for (var mi = 0; mi < members.length; mi += 1) {
         if (members[mi].animating) animating = true;
+        if (!members[mi].inlineRun) allInline = false;
         heights.push(members[mi].height);
+      }
+      // EXCLUDED, not dropped (#1703): the cohort is still a candidate and still prints, so widening this
+      // fence is visible in the denominator instead of arriving as a quieter clean run. A cohort whose
+      // members are ALL boxless prose runs has no comparable anatomy at all; a MIXED cohort keeps being
+      // judged, because one member of a component rendering inline while its siblings render as boxes is a
+      // real divergence and is exactly what this rule exists to say.
+      if (allInline) {
+        excludeRelational(relationalAccounting["cohort-anatomy"], "inlineTextRun");
+        return;
       }
       if (animating) {
         withholdRelational(relationalAccounting["cohort-anatomy"], "animating");
