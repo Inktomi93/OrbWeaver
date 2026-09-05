@@ -9,7 +9,7 @@ import type { RpgActorIdentity, RpgActorRef, RpgActorVolatile } from "./actor.ts
 import type { RpgClockTime, RpgWeather } from "./ambient.ts";
 import type { RpgDeliveryPath, RpgFoldFallbackReason, RpgGameConfig } from "./config.ts";
 import type { RpgGameMode, RpgGameStatus } from "./enums.ts";
-import type { RpgRecordedToolCall } from "./extraction.ts";
+import type { RpgToolCallVerdict } from "./extraction.ts";
 import type { RpgPlot } from "./snapshot.ts";
 import type { RpgTrackerDef, RpgTrackerValue } from "./tracker.ts";
 
@@ -200,10 +200,42 @@ export interface RpgJournalEntryView {
  *  SWIPE-CORRECT BY CONSTRUCTION: the client indexes by `variantId`, so a row shows the calls of the swipe it
  *  is CURRENTLY showing — the same keying `rpg_snapshots`/`rpg_journal` use for the same reason. `messageId`
  *  is the slot, for a client that wants to group without walking its own variant map. */
+/** WHY a call's args are not the model's verbatim bytes for this viewer (#1690). Declared as a tuple and
+ *  DERIVED (§5.5): a second reason is a member here and a `tsc` failure at every reader, never a free string.
+ *  One member today — the args did not parse as JSON, so the hidden-span belt cannot be applied to them and
+ *  the fail-closed answer is to serve none of them. */
+export const RPG_TOOL_CALL_WITHHOLD_REASONS = ["unparseable"] as const;
+export type RpgToolCallWithholdReason = (typeof RPG_TOOL_CALL_WITHHOLD_REASONS)[number];
+
+/**
+ * ONE recorded tool call AS A VIEWER MAY READ IT — the member-facing projection of the stored
+ * `RpgRecordedToolCall` (#1690). A separate shape from the record on purpose: the RECORD is verbatim (it is
+ * the durable row, the flight-recorder ring and the export bundle, all host/operator planes), while THIS is
+ * per-viewer and may withhold.
+ *
+ * WHAT THE PROJECTION DOES for a viewer who does not read hidden (`viewerReadsHidden` — every present role
+ * but the host): `args` is PARSED and every leaf string has its hidden spans stripped, and each `issues` line
+ * keeps its `<path>: <message>` half while its model-SENT value is re-rendered through the same belt. The
+ * host reads both verbatim. The record's own header calls the args "never prose", which was false — the state
+ * tools write ambient `location`, actor mood, item and quest text, so an extractor that quoted a `<lie …/>`
+ * into a scene field put a GM secret in this payload.
+ */
+export interface RpgToolCallDisclosure {
+  readonly name: string;
+  /** The args as this viewer may read them — verbatim for a hidden-reading viewer, span-stripped otherwise,
+   *  and EMPTY when `withheld` names a reason. */
+  readonly args: string;
+  readonly verdict: RpgToolCallVerdict;
+  readonly issues: readonly string[];
+  /** `null` when `args` is this viewer's honest reading of what the model sent. Otherwise the reason it is
+   *  not — the panel says so rather than rendering an empty payload as "the model sent nothing". */
+  readonly withheld: RpgToolCallWithholdReason | null;
+}
+
 export interface RpgTurnToolCallsView {
   readonly variantId: MessageVariantId;
   readonly messageId: MessageId;
-  readonly calls: readonly RpgRecordedToolCall[];
+  readonly calls: readonly RpgToolCallDisclosure[];
   readonly createdAt: number;
 }
 

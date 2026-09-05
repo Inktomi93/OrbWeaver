@@ -155,6 +155,8 @@ export {
   malformedToolCallDetails,
   malformedToolCalls,
   markLockSuppressions,
+  parseToolCallArgs,
+  projectIssueSentValue,
   RPG_NO_CHANGES_TOOL,
   RPG_TOOL_CALL_VERDICTS,
   RPG_TOOL_ROUND_TOOL_NAMES,
@@ -321,8 +323,11 @@ export type {
   RpgRevealedSpan,
   RpgRevealView,
   RpgStandingLie,
+  RpgToolCallDisclosure,
+  RpgToolCallWithholdReason,
   RpgTrackerEntry,
   RpgTrackerOrb,
   RpgTrackerView,
   RpgTurnToolCallsView,
 } from "./views.ts";
+export { RPG_TOOL_CALL_WITHHOLD_REASONS } from "./views.ts";

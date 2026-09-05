@@ -1431,6 +1431,7 @@
     "tests/server/domain/rpg/substrate/readonly-axis.test.ts",
     "tests/server/domain/rpg/substrate/reminder.test.ts",
     "tests/server/domain/rpg/substrate/reveal.test.ts",
+    "tests/server/domain/rpg/substrate/tool-call-visibility.test.ts",
     "tests/server/domain/rpg/swipe-consistency.suite.int.test.ts",
     "tests/server/domain/rpg/tools/apply.test.ts",
     "tests/server/domain/rpg/tools/dice.test.ts",

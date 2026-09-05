@@ -1528,7 +1528,7 @@
     {
       "siteId": "packages/contracts/src/rpg/extraction.ts::default:catch::1",
       "path": "packages/contracts/src/rpg/extraction.ts",
-      "line": 431,
+      "line": 439,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1536,7 +1536,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — a malformed tool call is",
-      "markerLine": 426
+      "markerLine": 433
     },
     {
       "siteId": "packages/db/src/client/index.ts::default:catch::1",

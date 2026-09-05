@@ -44,24 +44,33 @@ const RECORDED_TURN = [
     messageId: "msg_ct_folded",
     createdAt: 1_700_000_000_000,
     calls: [
-      { name: "update_party", args: '{"members":[{"targetRef":"Nate","trackerDeltas":{"hp":-3}}]}', verdict: "applied" as const, issues: [] },
+      {
+        name: "update_party",
+        args: '{"members":[{"targetRef":"Nate","trackerDeltas":{"hp":-3}}]}',
+        verdict: "applied" as const,
+        issues: [],
+        withheld: null,
+      },
       {
         name: "update_scene",
         args: '{"location":"Throne Room","weather":{"type":"indoors"}}',
         verdict: "salvaged" as const,
         issues: ["update_scene.weather"],
+        withheld: null,
       },
       {
         name: "upsert_quest",
         args: '{"name":42}',
         verdict: "dropped" as const,
         issues: ['name: Invalid input: expected string — sent "42"'],
+        withheld: null,
       },
       {
         name: "update_inventory",
         args: '{"targetRef":"Nate","items":[{"name":"Coil of rope","location":"belt"}]}',
         verdict: "overridden" as const,
         issues: ["locked actorState.user:u_nate.volatile.inventory — your manual edit holds this value"],
+        withheld: null,
       },
     ],
   },
@@ -118,6 +127,46 @@ test("an OVERRIDDEN call reads as the reader's own edit holding, and NAMES the l
 
   await expect(component.getByText("your edit kept")).toBeVisible();
   await expect(component.getByText(RE_LOCKED_PATH)).toBeVisible();
+});
+
+// #1690 — THE WITHHELD ARM. The server belts a member's copy of the args, and args that did not PARSE cannot
+// be belted at all, so it serves none of them plus a typed reason. A reader told nothing about that reads the
+// absence as "the model sent nothing"; the line has to be on screen, in the same visible-text posture as the
+// verdict reasons above.
+const WITHHELD_TURN = [
+  {
+    variantId: "mv_ct_folded",
+    messageId: "msg_ct_folded",
+    createdAt: 1_700_000_000_000,
+    calls: [{ name: "update_scene", args: "", verdict: "dropped" as const, issues: ["arguments: not valid JSON"], withheld: "unparseable" as const }],
+  },
+];
+
+const RE_NOT_VALID_JSON = /arguments: not valid JSON/;
+const RE_ARGS_WITHHELD = /Arguments not shown/;
+
+test("a call whose args were WITHHELD says so as visible text, beside what still landed", async ({ mount, page }) => {
+  await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => WITHHELD_TURN });
+
+  const component = await mount(<TurnToolCallsDisclosureStory />);
+  await component.getByRole("button", { name: RE_TRIGGER }).click();
+
+  await expect(component.locator("[data-slot=turn-tool-call-withheld]")).toBeVisible();
+  await expect(component.getByText(RE_ARGS_WITHHELD)).toBeVisible();
+  // The reader keeps everything they can act on: the call's name, its verdict and its reason.
+  await expect(component.getByText("update_scene")).toBeVisible();
+  await expect(component.getByText("not recorded")).toBeVisible();
+  await expect(component.getByText(RE_NOT_VALID_JSON)).toBeVisible();
+});
+
+test("a call with nothing withheld renders NO withheld line (the field is not a permanent ornament)", async ({ mount, page }) => {
+  await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => RECORDED_TURN });
+
+  const component = await mount(<TurnToolCallsDisclosureStory />);
+  await component.getByRole("button", { name: RE_TRIGGER }).click();
+
+  await expect(component.locator("[data-slot=turn-tool-call]")).toHaveCount(4);
+  await expect(component.locator("[data-slot=turn-tool-call-withheld]")).toHaveCount(0);
 });
 
 test("APPLICABILITY is per-VARIANT: the same slot swiped to an unrecorded variant renders nothing", async ({ mount, page }) => {
