@@ -1423,6 +1423,7 @@
     "tests/server/domain/rpg/substrate/actor-rekey.test.ts",
     "tests/server/domain/rpg/substrate/default-state.test.ts",
     "tests/server/domain/rpg/substrate/delta.test.ts",
+    "tests/server/domain/rpg/substrate/hidden-spans.test.ts",
     "tests/server/domain/rpg/substrate/merge.test.ts",
     "tests/server/domain/rpg/substrate/readonly-axis.test.ts",
     "tests/server/domain/rpg/substrate/reminder.test.ts",

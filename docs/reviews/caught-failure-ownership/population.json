@@ -2997,7 +2997,7 @@
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 1027,
+      "line": 1032,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3005,12 +3005,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "client-input — the docstring states the",
-      "markerLine": 1022
+      "markerLine": 1027
     },
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::1",
       "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 786,
+      "line": 791,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3018,12 +3018,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — documented above: a failed",
-      "markerLine": 781
+      "markerLine": 786
     },
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::2",
       "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 1255,
+      "line": 1260,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3031,7 +3031,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — the structured arm's twin: a",
-      "markerLine": 1239
+      "markerLine": 1244
     },
     {
       "siteId": "packages/server/src/entry/compose/services.ts::default:catch::1",

@@ -3,6 +3,7 @@
 // assistant variants (the swipe plane). Everything is stamped from the FROZEN clock (determinism); ids are
 // `castId`-minted with stable keys so timestamp/id assertions pin.
 
+import { historyFloor } from "@orb/contracts/chat";
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -198,6 +199,10 @@ export function turnConnection(over: Partial<RpgTurnContext> = {}): RpgTurnConte
   };
 }
 
+/** The "no clamp in force" floor (chat NO_HISTORY_FLOOR) - what a direct `listActiveJournal` call passes when
+ *  the pin is about the LINEAGE projection rather than D16. The floor own arms live at the verb. */
+export const UNCLAMPED = 0;
+
 /** A test Principal for a user key (the id mirrors `seedUser`'s `user_<handle>`). */
 export function principal(handle: Handle): Principal {
   return { userId: castId<UserId>(`user_${handle}`), role: "user", handle: castId<Handle>(handle), externalId: null, via: "cookie" };
@@ -208,6 +213,9 @@ export function principal(handle: Handle): Principal {
  *  `toolRoundDelta` is the post-commit state round fake's return (default: an empty delta = no-op). */
 export interface RpgFakes {
   membership: Map<string, ParticipantRole>;
+  /** #1528 - the per-user D16 canon floor chat resolveViewerVisibility would return (absent = UNCLAMPED, the
+   *  `full` default). Set it to drive a from-join member: `fakes.historyFloor.set("user_member", seq)`. */
+  historyFloor: Map<string, number>;
   roster: RpgRosterActor[];
   trackersReadOnly: boolean;
   /** The D112 FOLD GUARD verdict `resolveStateDelivery` returns beside `trackersReadOnly`: this wire silences
@@ -364,6 +372,7 @@ export function makeRpgService(
 ): RpgHarness {
   const fakes: RpgFakes = {
     membership: new Map(),
+    historyFloor: new Map(),
     roster: over.roster ?? [],
     trackersReadOnly: over.trackersReadOnly ?? false,
     foldGuarded: over.foldGuarded ?? false,
@@ -487,6 +496,17 @@ export function makeRpgService(
     getMembership: (_chatId, userId) => {
       const role = fakes.membership.get(userId);
       return Promise.resolve(role === undefined ? null : { role });
+    },
+    // #1528 - chat resolveViewerVisibility, faithfully: `null` for a non-member (the leak-free sentinel),
+    // `readsHidden` DERIVED from the role exactly as chat viewerReadsHidden derives it (host reads hidden, every
+    // other present role does not), and the D16 floor off the programmable map (absent = unclamped).
+    resolveViewerVisibility: (_chatId, userId) => {
+      const role = fakes.membership.get(userId);
+      if (role === undefined) {
+        return Promise.resolve(null);
+      }
+      const floor = fakes.historyFloor.get(userId) ?? UNCLAMPED;
+      return Promise.resolve({ role, historyFloorSeq: historyFloor(floor), readsHidden: role === "host" });
     },
     setPointer: (chatId, pointer) => {
       // A `null` pointer is the §3.3 DETACH heal (the widened op drops the sub-blob); everything else is a write.

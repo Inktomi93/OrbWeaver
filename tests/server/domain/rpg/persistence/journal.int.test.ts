@@ -16,7 +16,7 @@ import {
   listJournalByVariant,
 } from "../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { addVariant, expect, FROZEN_AT, seedChat, seedGame, seedMessage, test } from "../_support.ts";
+import { addVariant, expect, FROZEN_AT, seedChat, seedGame, seedMessage, test, UNCLAMPED } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -59,17 +59,17 @@ describe("the lineage projection", () => {
     await addEntry({ gameId, key: "onB", variantId: variantB, title: "beat-on-B" });
 
     // A selected ⇒ only A's entry renders.
-    let visible = (await listActiveJournal(db, gameId, { limit: 50 })).map((r) => r.title);
+    let visible = (await listActiveJournal(db, gameId, { limit: 50, historyFloorSeq: UNCLAMPED })).map((r) => r.title);
     expect(visible).toEqual(["beat-on-A"]);
 
     // Swipe to B ⇒ A's entry disappears, B's appears (ZERO journal writes).
     await selectVariant(messageId, variantB);
-    visible = (await listActiveJournal(db, gameId, { limit: 50 })).map((r) => r.title);
+    visible = (await listActiveJournal(db, gameId, { limit: 50, historyFloorSeq: UNCLAMPED })).map((r) => r.title);
     expect(visible).toEqual(["beat-on-B"]);
 
     // Swipe back to A ⇒ A's entry reappears.
     await selectVariant(messageId, variantA);
-    visible = (await listActiveJournal(db, gameId, { limit: 50 })).map((r) => r.title);
+    visible = (await listActiveJournal(db, gameId, { limit: 50, historyFloorSeq: UNCLAMPED })).map((r) => r.title);
     expect(visible).toEqual(["beat-on-A"]);
   });
 
@@ -82,10 +82,10 @@ describe("the lineage projection", () => {
     await addEntry({ gameId, key: "onA", variantId: variantA, title: "beat-on-A" });
 
     // A selected ⇒ hand note + A's entry.
-    expect((await listActiveJournal(db, gameId, { limit: 50 })).map((r) => r.title).sort()).toEqual(["beat-on-A", "room-note"]);
+    expect((await listActiveJournal(db, gameId, { limit: 50, historyFloorSeq: UNCLAMPED })).map((r) => r.title).sort()).toEqual(["beat-on-A", "room-note"]);
     // Swipe to B ⇒ the hand note STAYS; A's entry drops.
     await selectVariant(messageId, variantB);
-    expect((await listActiveJournal(db, gameId, { limit: 50 })).map((r) => r.title)).toEqual(["room-note"]);
+    expect((await listActiveJournal(db, gameId, { limit: 50, historyFloorSeq: UNCLAMPED })).map((r) => r.title)).toEqual(["room-note"]);
   });
 });
 
@@ -115,6 +115,6 @@ describe("hand edit / delete reaches model entries (the recovery path)", () => {
     const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
     await addEntry({ gameId, key: "onA", variantId, title: "beat" });
     await deleteJournalEntry(db, gameId, castId<RpgJournalId>("rpg_journal_onA"));
-    expect(await listActiveJournal(db, gameId, { limit: 50 })).toHaveLength(0);
+    expect(await listActiveJournal(db, gameId, { limit: 50, historyFloorSeq: UNCLAMPED })).toHaveLength(0);
   });
 });

@@ -7,7 +7,7 @@ import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { listActiveJournal } from "../../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
 import { freshDb } from "../../../../../support/db.ts";
-import { expect, principal, seedLiteGame, test } from "../../_support.ts";
+import { expect, principal, seedLiteGame, test, UNCLAMPED } from "../../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -26,7 +26,7 @@ describe("editJournalEntry", () => {
     });
 
     await h.service.editJournalEntry({ principal: principal(castId<Handle>("host")), chatId, entryId, patch: { content: "We truly began." } });
-    const rows = await listActiveJournal(db, gameId, { limit: 50 });
+    const rows = await listActiveJournal(db, gameId, { limit: 50, historyFloorSeq: UNCLAMPED });
     expect(rows[0]?.content).toBe("We truly began.");
   });
 });

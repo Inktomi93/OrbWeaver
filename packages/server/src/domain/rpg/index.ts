@@ -37,6 +37,7 @@ export type {
   RpgResolvePresetOwned,
   RpgResolveRoster,
   RpgResolveStateDelivery,
+  RpgResolveViewerVisibility,
   RpgRosterActor,
   RpgRunExtraction,
   RpgRunToolRound,

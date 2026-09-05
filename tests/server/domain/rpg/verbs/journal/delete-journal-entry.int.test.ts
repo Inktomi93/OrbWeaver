@@ -7,7 +7,7 @@ import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { listActiveJournal } from "../../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
 import { freshDb } from "../../../../../support/db.ts";
-import { expect, principal, seedLiteGame, test } from "../../_support.ts";
+import { expect, principal, seedLiteGame, test, UNCLAMPED } from "../../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -26,6 +26,6 @@ describe("deleteJournalEntry", () => {
     });
 
     await h.service.deleteJournalEntry({ principal: principal(castId<Handle>("host")), chatId, entryId });
-    expect(await listActiveJournal(db, gameId, { limit: 50 })).toHaveLength(0);
+    expect(await listActiveJournal(db, gameId, { limit: 50, historyFloorSeq: UNCLAMPED })).toHaveLength(0);
   });
 });

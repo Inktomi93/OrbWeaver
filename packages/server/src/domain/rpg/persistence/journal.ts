@@ -10,7 +10,7 @@
 import type { Db } from "@orb/db";
 import { messages, messageVariants, rpgJournal } from "@orb/db";
 import type { MessageVariantId, RpgGameId, RpgJournalId } from "@orb/kit/ids";
-import { and, desc, eq, exists, isNull, or } from "drizzle-orm";
+import { and, desc, eq, exists, isNull, lt, notExists, or } from "drizzle-orm";
 import type { NewRpgJournal, RpgJournalRow } from "../contract/service.ts";
 
 /** Insert a journal entry (hand entry: `variantId` NULL; model entry: the committed variant). `id`/`now`
@@ -24,14 +24,22 @@ export async function insertJournalEntry(db: Db, values: NewRpgJournal): Promise
   return row;
 }
 
+/** `messages.seq` is 1-based, so a floor at or below this admits every row — the "no clamp in force" sentinel
+ *  (chat's `NO_HISTORY_FLOOR`, restated as a bound rather than imported: this is a raw comparison operand). */
+const NO_FLOOR = 0;
+
 /** The active-lineage projection (rpg-design/05 §2.5): entries visible under the current swipe selection —
  *  `variantId IS NULL` (hand/room, every lineage) OR the entry's variant is the SELECTED variant of its
  *  message. Newest-first, paged (limit/offset). The join to `messages` via `message_variants.messageId`
- *  keys the selected-variant check off the live pointer, so a swipe re-projects with no journal writes. */
+ *  keys the selected-variant check off the live pointer, so a swipe re-projects with no journal writes.
+ *
+ *  `historyFloorSeq` is the caller's D16 floor, MINTED by chat's clamp resolver and threaded in as data
+ *  (#1528) — REQUIRED, so a new caller must decide whose floor it reads at rather than inheriting "unclamped"
+ *  from a default. See the floor paragraph in the WHERE below. */
 export async function listActiveJournal(
   db: Db,
   gameId: RpgGameId,
-  opts: { readonly limit: number; readonly offset?: number } = { limit: 50 },
+  opts: { readonly limit: number; readonly offset?: number; readonly historyFloorSeq: number },
 ): Promise<readonly RpgJournalRow[]> {
   // The entry's variant is the selected variant of ITS message: EXISTS a variant row whose id = the entry's
   // variantId AND whose message points its `selectedVariantId` back at that same variant.
@@ -40,10 +48,25 @@ export async function listActiveJournal(
     .from(messageVariants)
     .innerJoin(messages, eq(messages.id, messageVariants.messageId))
     .where(and(eq(messageVariants.id, rpgJournal.variantId), eq(messages.selectedVariantId, rpgJournal.variantId)));
+  // THE D16 FLOOR, IN THE QUERY (#1528): a model entry is DISTILLED FROM the slot it stamps, so an entry whose
+  // source message sits below the caller's floor is pre-join canon one derivation removed. Expressed as NOT
+  // EXISTS over the anchor rather than a join, so a HAND entry (`sourceMessageId IS NULL` — no canon anchor,
+  // the chat event clamp's own rule for an anchorless payload) rides through, and so the LIMIT counts only
+  // rows the caller may actually read (post-filtering a page would silently short-page a clamped member).
+  const anchoredBelowFloor = db
+    .select({ one: messages.id })
+    .from(messages)
+    .where(and(eq(messages.id, rpgJournal.sourceMessageId), lt(messages.seq, opts.historyFloorSeq)));
   const rows = await db
     .select()
     .from(rpgJournal)
-    .where(and(eq(rpgJournal.gameId, gameId), or(isNull(rpgJournal.variantId), exists(selectedForVariant))))
+    .where(
+      and(
+        eq(rpgJournal.gameId, gameId),
+        or(isNull(rpgJournal.variantId), exists(selectedForVariant)),
+        ...(opts.historyFloorSeq > NO_FLOOR ? [notExists(anchoredBelowFloor)] : []),
+      ),
+    )
     .orderBy(desc(rpgJournal.createdAt), desc(rpgJournal.id))
     .limit(opts.limit)
     .offset(opts.offset ?? 0);
