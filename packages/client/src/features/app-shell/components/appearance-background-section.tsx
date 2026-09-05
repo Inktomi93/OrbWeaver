@@ -182,8 +182,15 @@ function BackgroundBody({ sectionId, session }: { readonly sectionId: string; re
           {/* ADD — one door at the grid's end; both ways in funnel through the SAME append+select path
               (BG-D), so `/setbackground <name>` and the carried-background picker see every background. */}
           <Collapsible>
+            {/* `interactiveKicker`, NOT `kicker` (#1216). This label IS the visible name of a control, and
+                `kicker` rides `--text-micro` (10.5px) — design-audit measured it there, under the 11px
+                functional floor for interactive copy. The voice beside it exists for exactly this case and
+                keeps the tracked instrument register while taking the readable 13px label step, so the door
+                stays typographically part of the band it ends without being a footnote you have to lean in
+                to read. Not a bare size class: the register is a voice decision, and voices are the closed
+                axis a feature may speak. */}
             <CollapsibleTrigger size="control">
-              <Text as="span" voice="kicker">
+              <Text as="span" voice="interactiveKicker">
                 Add background
               </Text>
             </CollapsibleTrigger>

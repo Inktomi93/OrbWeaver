@@ -231,3 +231,57 @@ test("nothing modified ⇒ no marks anywhere, and @modified is an honest empty",
   await component.getByRole("combobox", { name: "Search settings" }).fill("@modified ");
   await expect(component.getByRole("listbox").getByRole("option")).toHaveCount(0);
 });
+
+// ── #1215: the search box is a TAP TARGET on a phone — A FENCE, NOT A DEFECT PROOF ──────────────────
+// SAY WHAT THIS IS. #1215 reported `[data-slot=command-root]` at a 40px short side under design-audit
+// `--mobile`. It does not reproduce, and this arm was written red-first and PASSED against the unmodified
+// source — so it fences a floor that already holds; it never caught the reported defect and must not be
+// read as having done so. The two receipts behind that refusal (2026-09-05):
+//   · this arm itself, at the audit's own device slot (touch, coarse, 430×932) and again squeezed, green
+//     before any change;
+//   · `pnpm snap /config --mobile --design-audit --dirty` came back nav=OK / p1=0 with `command-root`
+//     absent from the whole census — on a phone the stage landed on CONTENT, so the LIST and its search
+//     were not in the audited DOM at all. The one 40px tap-target population in that run is three
+//     `[aria-label="Actions for …"]` theme-row menus, which is a different element and its own row.
+// The `@orb/ui` Command primitive has carried `pointer-coarse:h-touch-target` on its input wrapper since
+// 275c0e40d and pins it in `tests/ui/primitives/command/command.ct.tsx`. What is NOT pinned anywhere else,
+// and is why this arm is worth keeping: that the floor SURVIVES THIS CONSUMER'S MOUNT. The search block is
+// a plain flex child of the LIST's `h-full min-h-0 overflow-y-auto` column with no `shrink-0`, and the
+// Command root carries `overflow-hidden` — the pair that disables a flex item's automatic content-based
+// minimum. Nothing structural stops this box from being squashed; only the measurement says it is not.
+test.describe("coarse pointer", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 932 } });
+
+  test("#1215: the settings search meets the coarse touch floor — the root box AND the input inside it", async ({ mount, page }) => {
+    await stub(page);
+    const component = await mount(<ConfigHostStory />);
+
+    const root = component.locator('[data-slot="command-root"]');
+    const input = component.getByRole("combobox", { name: "Search settings" });
+    await expect(root).toBeVisible();
+    await expect(input).toBeVisible();
+
+    // The floor is read from the resolved token, never a hardcoded px — `--spacing-touch-target` is
+    // pointer-conditional (44px coarse / 28px fine), so this also proves the emulation actually took.
+    const readFloor = async (): Promise<number> =>
+      await page.evaluate((): number => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--spacing-touch-target")) * 16);
+    await expect.poll(readFloor).toBeGreaterThanOrEqual(44);
+    const floor = await readFloor();
+
+    // THE ROOT, not the input, at rest: the input's floor at rest is the PRIMITIVE'S claim and is already
+    // pinned at `tests/ui/primitives/command/command.ct.tsx:142` — restating it here would be a second pin
+    // of one fact with no way to keep the two in step. What is only true HERE is the box AROUND it, which
+    // is the flex child that could be squashed.
+    await expect.poll(async (): Promise<number> => (await root.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(floor);
+
+    // …AND UNDER SQUEEZE, which is the only shape in which this consumer could lose the primitive's floor.
+    // The search rides the top of a `h-full min-h-0 overflow-y-auto` column as a plain flex child with no
+    // `shrink-0`, and the Command root carries `overflow-hidden` — which is exactly the pair that disables
+    // a flex item's automatic content-based minimum. A phone short enough to overflow the LIST hard is
+    // therefore the arm that would squash the box, and a receipt taken only at a tall viewport would not
+    // have asked the question.
+    await page.setViewportSize({ width: 390, height: 420 });
+    await expect.poll(async (): Promise<number> => (await root.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(floor);
+    await expect.poll(async (): Promise<number> => (await input.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(floor);
+  });
+});

@@ -438,3 +438,23 @@ test("a FAILED re-upload after a successful one shows the error WITHOUT the stal
   await expect(page.getByText("Upload failed — try again.")).toBeVisible();
   await expect(page.locator('[data-slot="file-dropzone"][data-success]')).toHaveCount(0);
 });
+
+// ── #1216: the "Add background" door is INTERACTIVE COPY, so it takes the readable step ──────────────
+// design-audit measured this section's collapsible-trigger label at 10.5px — `voice="kicker"` rides
+// `--text-micro` (0.65625rem), which is the FOOTNOTE step. `interactiveKicker` exists for exactly this case
+// and states so in its own note in `packages/ui/src/primitives/text/variants.ts`: "a kicker that is itself
+// the visible label of a control … interactive copy needs the readable label step (13px) while retaining
+// the compact, tracked instrument register of the band it belongs to". The floor is read from the resolved
+// `--text-label` token rather than a hardcoded 13, and the assertion is the 11px functional floor, so the
+// pin fails on the defect and survives a future retune of the step.
+test("#1216: the Add-background trigger's label clears the 11px interactive floor", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<AppearanceBackgroundSectionStory />);
+  await expect(grid(page)).toBeVisible();
+
+  const label = page.getByRole("button", { name: "Add background" }).locator('[data-slot="text"]');
+  await expect(label).toBeVisible();
+  await expect
+    .poll(async (): Promise<number> => await label.evaluate((el: Element): number => Number.parseFloat(getComputedStyle(el).fontSize)))
+    .toBeGreaterThanOrEqual(11);
+});

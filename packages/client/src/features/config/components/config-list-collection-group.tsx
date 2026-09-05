@@ -420,15 +420,31 @@ function CollectionGroupBody({ collection, kind, label, count, filter, onFilterC
   );
 }
 
-/** The zero-member slot — the group keeps its band and says so (empty states are load-bearing). A CARD,
- *  not a row (side-eye 2026-08-08), and it no longer carries the verb (P2: the band's `+` and the launcher
- *  card's verb live; this box lost its button and keeps its copy). Pinned by geometry in the list CT. */
+/**
+ * The zero-member slot — the group keeps its band and says so (empty states are load-bearing).
+ *
+ * ═══ THE RULING FORK, STATED (#1211 · side-eye 2026-08-08 "A CARD, not a row", preserved as far as it goes) ═══
+ *
+ * THE RECORDED RULING was that this slot is a CARD rather than a row, and that it keeps its copy after
+ * losing its verb. The COPY half survives untouched and is not up for debate: a library that says nothing
+ * about being empty reads as a feature that was never built. Its INPUT changed — the measurement is now of
+ * a whole SHELF rather than one slot. Measured on the live desktop surface at the lane's base commit: the
+ * ONE populated library was a 32px band while each of the three EMPTY groups totalled 75px, of which a
+ * 39px dashed box — so the loudest, tallest and only bordered thing on the shelf was the part with nothing
+ * in it. A card is a container for CONTENTS, and the state this one announces is that there are none.
+ *
+ * SO THE BOX GOES AND THE SENTENCE STAYS (13px line; the group totals 49px). The band's own count is
+ * already the honest zero (the #1099 F5 datum, unchanged), which leaves this slot one job — teaching what
+ * the library is for — and one line is the right amount of surface for one job. It stays a NAMED slot so
+ * the pane can still be swept for it, and keeps the band's text indent so it reads as the band's line.
+ */
 function CollectionGroupEmpty({ collection }: CollectionTriggerProps): ReactElement {
   return (
-    <Stack align="center" className="rounded-control border border-input border-dashed px-field py-block" data-slot="collection-group-empty" gap="tight">
-      <Text className="text-center" voice="gloss">
-        {collection.emptyText}
-      </Text>
-    </Stack>
+    // `px-tight` matches the band Button's own horizontal padding, so the sentence starts on the band's
+    // CONTENT edge — the same column as the disclosure gutter's glyph, not the pane's edge. That shared
+    // edge is what makes it read as this group's line rather than as something floating between groups.
+    <Text className="px-tight" data-slot="collection-group-empty" voice="gloss">
+      {collection.emptyText}
+    </Text>
   );
 }
