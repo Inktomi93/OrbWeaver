@@ -101,6 +101,11 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   nice-19 priority that protects the co-hosted homelab): node suites =
   `pnpm test:scoped <paths> --maxWorkers=4` · CT = `pnpm ct:scoped <paths> --workers=2`. Run from your
   worktree via `env -C`, never `cd`.
+- **Load proof for a flake is `--repeat-each N` for CT ONLY; node suites take SEQUENTIAL passes** (2026-09-05):
+  `pnpm test:scoped … --repeat-each=3` exits 2 — the preflight's `vitest list` dies on `--repeatEach`. And never
+  start a SECOND `ct:scoped` in the SAME worktree for load (#1581): both share `.cache/`, the second's
+  cache-clear + vite rebuild lands under the first and untouched tests read red. A different worktree, or
+  repeat-each, or sequential runs — never a sibling runner in your own tree.
 - **The `--maxWorkers=4` / `--workers=2` cap applies whenever any sibling lane is live.** The box is not
   ours alone: one lane's default 14 forks drove a 24-core box to load-avg 103 and starved the co-hosted
   homelab, and at load-avg 170 the CT default times out every test at `mount()` on pure contention (zero
