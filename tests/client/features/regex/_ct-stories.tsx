@@ -27,6 +27,7 @@ import { regexGroup } from "../../../../packages/client/src/features/regex/lib/r
 
 import { RegexMemberSurface } from "../../../../packages/client/src/features/regex/surfaces/regex-member-surface.tsx";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/ct/measure-content-column.ts";
 
 /** The regex group NARROWED to its collection arm — the def is typed as the whole union (the gate's
  *  co-location arm keys on that annotation), and the band component takes the narrowed shape. */
@@ -40,15 +41,37 @@ const REGEX_COLLECTION_GROUP: CollectionGroupDefinition = isCollectionGroup(rege
  *  minus the Dialog) — `regex.listScripts` (the read) and `regex.updateScript`/`removeScript` (the writes)
  *  are stubbed per-test via routeTrpc. The QueryBoundary is production's (the config host wraps
  *  `detail(view)` in one): the surface reads through `useSuspenseQuery`. */
-export function RegexMemberStory({ memberId = "regex_script_stripooc" }: { readonly memberId?: string }): ReactElement {
+export function RegexMemberStory({
+  memberId = "regex_script_stripooc",
+  width = 720,
+}: {
+  readonly memberId?: string;
+  /** The host pane's width — the CONTENT COLUMN's behaviour is a function of it (#1664). */
+  readonly width?: number;
+}): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 700, overflow: "auto", width: 720 }}>
+      <div style={{ height: 700, overflow: "auto", width }}>
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
           <RegexMemberSurface memberId={memberId} />
         </QueryBoundary>
       </div>
     </CtDataProviders>
+  );
+}
+
+/** The regex member editor at the two pane widths its CONTENT COLUMN behaves differently at (#1664) —
+ *  the tag editor's twin story carries the argument. ONE mount, both arms: the widen button is the
+ *  `@5xl` crossover a CT cannot otherwise reach on a fixed host. */
+export function RegexMemberContentColumnStory(): ReactElement {
+  const [width, setWidth] = useState(CONTENT_COLUMN_NARROW_PANE);
+  return (
+    <>
+      <button onClick={(): void => setWidth(CONTENT_COLUMN_WIDE_PANE)} type="button">
+        widen the pane
+      </button>
+      <RegexMemberStory width={width} />
+    </>
   );
 }
 

@@ -68,8 +68,16 @@ function RegexMemberEditorBody({ row, session }: { readonly row: RegexScriptRow;
     <Container>
       {/* `--width-content-col` — the EDITOR content-column cap, not a reading measure (#1175). See the tag
           member editor's twin: this block holds controls, so the prose token is forbidden here by its own
-          contract, and `max-w-prose` was a third un-derived width. */}
-      <Stack className="max-w-(--width-content-col) outline-none" data-slot="regex-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
+          contract, and `max-w-prose` was a third un-derived width. The token's stated consumption is
+          THREE classes (#1664 — centered, capped, breathing to `--width-content-col-wide` past `@5xl`);
+          the tag editor's twin carries the argument and the measured pane widths. */}
+      <Stack
+        className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) outline-none"
+        data-slot="regex-member-editor"
+        gap="block"
+        ref={surfaceRef}
+        tabIndex={-1}
+      >
         <Row align="center" gap="field" justify="between">
           <Heading level={2}>{regexScriptTitle(row)}</Heading>
           <AutosaveStatus onRetry={session.retrySave} state={session.saveState} />

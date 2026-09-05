@@ -189,8 +189,21 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
           IT IS `--width-content-col`, NOT `max-w-prose` (#1175). The ruling survives; its SPELLING changed.
           This block holds controls, and the prose measure's own contract forbids a reading `ch` cap on one
           (it resolves in the wrapper's font, not the paragraph's — the #213/#1130 failure). The editor
-          content-column token is the one that names this job; `max-w-prose` was a third un-derived width. */}
-      <Stack className="max-w-(--width-content-col)" gap="section" padding="section">
+          content-column token is the one that names this job; `max-w-prose` was a third un-derived width.
+
+          AND THE TOKEN'S CONSUMPTION IS THREE CLASSES, NOT ONE (#1664): its `$description` says the column
+          is CENTERED and BREATHES to `--width-content-col-wide` once its container clears `@5xl`, so the
+          bare cap left-pinned 720px inside a pane measured (snap --isolated, 2026-09-05) at 968px with both
+          panels docked and 1864px in focus mode at 1920 — 1096px of dead void beside a 720px column, which
+          is the defect the breathe step exists for. The query container here is the SHELL'S `content`
+          region (`RegionAnchor`), not a box this surface owns: `<Surface>` is `display: contents`, so it
+          adds none. `w-full` rides with `mx-auto` because that region is a flex column. */}
+      <Stack
+        className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide)"
+        data-slot="databank-detail-editor"
+        gap="section"
+        padding="section"
+      >
         <Row align="start" gap="field" justify="between">
           <Stack className="min-w-0" gap="tight">
             <Heading level={2}>{doc.name}</Heading>

@@ -7,7 +7,9 @@
 // This module exports COMPONENTS ONLY — playwright-ct rewrites named imports of a story module into
 // generated component consts, so a mixed export (component + constant) fails to parse.
 
+import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { ModalHost } from "../../../../packages/client/src/features/app-shell/components/modal-host.tsx";
 import { DatabankContextBody } from "../../../../packages/client/src/features/databank/components/databank-context-body.tsx";
 import { DatabankListHeader } from "../../../../packages/client/src/features/databank/components/databank-list-header.tsx";
@@ -29,6 +31,7 @@ import {
   useSelectedDocumentId,
 } from "../../../../packages/client/src/state/index.ts";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/ct/measure-content-column.ts";
 
 /** The LIST pane at its REAL production width — the 320px panel floor the §6.1 width math is stated at, so
  *  a clipped title or a cluster that does not fit is visible here rather than hidden by a roomy story box. */
@@ -133,6 +136,40 @@ export function DatabankDetailWideStory(): ReactElement {
           <div style={{ flex: 1, minWidth: 0 }}>
             <DatabankDetailSurface />
           </div>
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The document detail at the two pane widths its CONTENT COLUMN behaves differently at (#1664): below the
+ *  `@5xl` container step, where it takes `--width-content-col` and centers, and above it, where it breathes
+ *  to `--width-content-col-wide`. ONE mount, both arms — the widen button is the crossover a CT cannot
+ *  otherwise reach on a fixed host.
+ *
+ *  THE `<Container>` IS PRODUCTION, NOT SCAFFOLDING. This surface's `<Surface tier="form">` is
+ *  `display: contents`, so it declares no query container of its own: in the shell the `@5xl` resolves
+ *  against the CONTENT REGION, which `RegionAnchor` wraps in exactly this named `@orb/ui` container. A
+ *  story without it has no `container-type` ancestor at all, the breathe arm can never match, and the pin
+ *  would certify a production it does not have (the oracle refuses loudly rather than reading that as a
+ *  pass). Measured on the real shell: 968px both-docked, 1864px in focus mode at 1920. */
+export function DatabankDetailContentColumnStory(): ReactElement {
+  const [width, setWidth] = useState(CONTENT_COLUMN_NARROW_PANE);
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <button onClick={(): void => setWidth(CONTENT_COLUMN_WIDE_PANE)} type="button">
+          widen the pane
+        </button>
+        {/* The WIDTH rides the row, not the region: `.shell-region-fill` is `flex: 1 1 auto`, so a width on
+            the region itself is grown away — it fills its cell in the shell too, which is the point. */}
+        <div style={{ display: "flex", height: 700, width: width + 320 }}>
+          <div style={{ flex: "none", overflow: "hidden", width: 320 }}>
+            <DatabankLibrarySurface />
+          </div>
+          <Container className="shell-region-fill" name="content">
+            <DatabankDetailSurface />
+          </Container>
         </div>
       </CtRealSectionRegistry>
     </CtDataProviders>

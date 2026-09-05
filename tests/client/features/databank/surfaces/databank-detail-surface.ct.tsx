@@ -9,8 +9,15 @@
 //     never a `Textarea` (legacy's form control announced the canon as an editable textbox).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { measureContentColumn } from "../../../../support/ct/measure-content-column.ts";
 import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
-import { DatabankDetailListModeStory, DatabankDetailStory, DatabankDetailWideStory, DatabankWorkspaceStory } from "../_ct-stories.tsx";
+import {
+  DatabankDetailContentColumnStory,
+  DatabankDetailListModeStory,
+  DatabankDetailStory,
+  DatabankDetailWideStory,
+  DatabankWorkspaceStory,
+} from "../_ct-stories.tsx";
 import { INDEXING_DOC, READY_DOC, SOURCE_TEXT, stubDatabank } from "../fixtures.ts";
 
 /** The row bodies open a document — matched loosely because the row's accessible name carries its scent
@@ -571,4 +578,41 @@ test("#1653 the Maintenance gloss reads inside the prose measure at every deskto
   }
   // The rows ride every assertion message above, so a RED prints the measurement that earned it.
   expect(rows).toHaveLength(PROSE_WIDTHS.length);
+});
+
+// ── #1664 — THE CONTENT COLUMN TAKES ITS TOKEN'S WHOLE STATED CONSUMPTION ────────────────────────────
+// `--width-content-col`'s `$description` says the column is CENTERED and BREATHES to
+// `--width-content-col-wide` once its container clears `@5xl`; this editor spelled the bare cap, so it
+// hard-clamped at 720px, left-pinned, inside panes measured live on the shell at 869px (list-only),
+// 1176px (focus @1280) and 1816px (focus @1920) — the dead-void defect the breathe step was minted for.
+// Asserted through the TOKENS, resolved by a probe inside the query container, so a token move carries
+// the expectation with it and no px literal is written down. ONE mount, BOTH ends of the range plus the
+// crossover: a point measurement cannot prove a range property.
+
+test("the detail column is CENTERED, capped, and BREATHES past @5xl (#1664)", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const workspace = await mount(<DatabankDetailContentColumnStory />);
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  await expect(workspace.getByRole("heading", { name: "The Crimson Court" })).toBeVisible();
+
+  const column = page.locator('[data-slot="databank-detail-editor"]');
+  const narrow = await measureContentColumn(column);
+  // BELOW `@5xl`: the cap binds, and the leftover is split evenly instead of all landing on the right.
+  expect(narrow.containerWidth).toBeGreaterThan(narrow.capPx);
+  expect(narrow.maxWidthPx).toBeCloseTo(narrow.capPx, 0);
+  expect(narrow.columnWidth).toBeCloseTo(narrow.capPx, 0);
+  expect(Math.abs(narrow.leftGutter - narrow.rightGutter)).toBeLessThanOrEqual(1);
+  expect(narrow.leftGutter).toBeGreaterThan(1);
+
+  await page.getByRole("button", { name: "widen the pane" }).click();
+  // SETTLED, never same-tick: the widen is a React commit and the layout it causes is the thing measured.
+  await expect.poll(async () => (await measureContentColumn(column)).containerWidth, { intervals: [20, 50, 100] }).toBeGreaterThan(narrow.containerWidth);
+
+  const wide = await measureContentColumn(column);
+  // PAST `@5xl`: the breathe engages, and it is a real step (the two tokens differ) — a column that
+  // simply stretched, or one still clamped at the cap, both fail here.
+  expect(wide.widePx).toBeGreaterThan(wide.capPx);
+  expect(wide.maxWidthPx).toBeCloseTo(wide.widePx, 0);
+  expect(wide.columnWidth).toBeCloseTo(wide.widePx, 0);
+  expect(Math.abs(wide.leftGutter - wide.rightGutter)).toBeLessThanOrEqual(1);
 });

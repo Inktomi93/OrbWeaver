@@ -14,7 +14,11 @@ import {
   fireDetailLine,
   hasSpendArm,
   lastRunLine,
+  RULE_UNREADABLE_BADGE,
   ruleGloss,
+  ruleUnreadableEnableRefusal,
+  ruleUnreadableLine,
+  ruleUnreadableRunRefusal,
   runOutcomeNotice,
   triggerLabel,
 } from "../../../../../packages/client/src/features/automation/lib/rule-copy.ts";
@@ -24,6 +28,9 @@ const CAPS = { cooldownSeconds: 45, maxFiresPerHour: 30 } as const;
 /** A FIXED past epoch (test-determinism) — the phrase's unit ladder is kit/time's test, not this one. */
 const A_PAST_INSTANT = 1_700_000_000_000;
 const ELAPSED_PHRASE = /^Last ran .+\.$/u;
+/** The unreadable rule's sentence with NO engine reason appended — the arm a corrupt rule renders until
+ *  something dispatches it. Spelled once here so every arm below asserts the same words. */
+const UNREADABLE_BASE = "This rule can't run — what it was told to do can no longer be read. Remove it and add the rule again.";
 
 describe("triggerLabel", () => {
   test("renders a chat trigger as a phrase, never the wire discriminator", () => {
@@ -179,5 +186,48 @@ describe("armLabel", () => {
     // The open-world arm is labelled by its ACT, not its payload: WHICH tool lives in the arm's `name` field,
     // and a label that leaked `run_tool` would put the wire discriminator on the one surface built to hide it.
     expect(armLabel("run_tool")).toBe("run a tool");
+  });
+});
+
+// ── #1558 / #1655 — the UNREADABLE rule's copy (#1665) ──────────────────────────────────────────────
+// This family shipped with a CT that only ever fed it a non-empty `lastError`, so `ruleUnreadableLine`'s
+// BASE arm — the one a corrupt rule that never dispatched actually renders, because `lastError` is `null`
+// until an event fires — was reachable in production and exercised by nothing, and the badge + the two
+// refusals had no pin at all. `test-presence` was green the whole time: this file EXISTED. What the copy
+// SAYS is the product here (a host is told what is true of their rule and the one move that fixes it), so
+// each arm is asserted verbatim rather than by a phrase match.
+
+describe("the unreadable-rule copy", () => {
+  test("ruleUnreadableLine states the fault and the remedy with NO engine reason when the rule never dispatched", () => {
+    // `lastError: null` is the production state of a corrupt rule no event has reached yet — the server's
+    // auto-disable writes that field, and it only runs on a dispatch.
+    expect(ruleUnreadableLine(null)).toBe(UNREADABLE_BASE);
+  });
+
+  test("an empty or whitespace-only lastError is the SAME as none — never a dangling 'reported:' clause", () => {
+    expect(ruleUnreadableLine("")).toBe(UNREADABLE_BASE);
+    expect(ruleUnreadableLine("   ")).toBe(UNREADABLE_BASE);
+    expect(ruleUnreadableLine("\n\t ")).toBe(UNREADABLE_BASE);
+  });
+
+  test("a real lastError is APPENDED verbatim — it is the one concrete detail a host can quote for help", () => {
+    expect(ruleUnreadableLine("auto-disabled: corrupt actions blob")).toBe(`${UNREADABLE_BASE} Its last run reported: auto-disabled: corrupt actions blob`);
+    // Untrimmed on purpose: what the engine wrote is what the host is shown.
+    expect(ruleUnreadableLine(" spaced ")).toBe(`${UNREADABLE_BASE} Its last run reported:  spaced `);
+  });
+
+  test("the badge is a WORD, not intent colour alone", () => {
+    expect(RULE_UNREADABLE_BADGE).toBe("Can't run");
+  });
+
+  test("both refusals name the rule and state the REFUSAL, not the action", () => {
+    expect(ruleUnreadableEnableRefusal("Illustrate the scene")).toBe(`Can't enable "Illustrate the scene" — its saved actions can't be read`);
+    expect(ruleUnreadableRunRefusal("Illustrate the scene")).toBe(`Can't run "Illustrate the scene" — its saved actions can't be read`);
+    // The two doors are answers to ONE question (#1655): same grammar, same reason, differing only in the
+    // verb. A surface that refused to switch a rule on while offering to run it said two things about one
+    // rule — so the shared tail is asserted as shared, not twice by coincidence.
+    const tail = " — its saved actions can't be read";
+    expect(ruleUnreadableEnableRefusal("Nudge").endsWith(tail)).toBe(true);
+    expect(ruleUnreadableRunRefusal("Nudge").endsWith(tail)).toBe(true);
   });
 });
