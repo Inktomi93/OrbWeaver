@@ -42,7 +42,11 @@ import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
 
 const NO_SCRIPTS: never[] = [];
-const DISPLAY_PLACEMENT = "DISPLAY";
+/** The one leg this hook is about. EXPORTED because the room's `On screen` roster
+ *  (`features/chat/components/regex-on-screen-group.tsx`) must ask the same question of the viewer's
+ *  DISABLED rows — the ones this hook filters out by definition — and a second spelling of the literal is a
+ *  second definition of "a display script". */
+export const DISPLAY_PLACEMENT = "DISPLAY";
 
 /** The two reads this hook composes, in ONE spelling — so the prefetch below and the render read below can
  *  never drift into two different cache keys (which would make the warm-up warm the wrong entry silently).

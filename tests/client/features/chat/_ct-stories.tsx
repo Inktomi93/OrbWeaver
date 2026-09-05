@@ -160,6 +160,7 @@ import { MessageSelectionBar } from "../../../../packages/client/src/features/ch
 import { MessageToolCalls } from "../../../../packages/client/src/features/chat/components/message-tool-calls.tsx";
 import { ProseSettingsSection } from "../../../../packages/client/src/features/chat/components/prose-settings-section.tsx";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block.tsx";
+import { RegexSection } from "../../../../packages/client/src/features/chat/components/regex-section.tsx";
 import { RewriteDialog } from "../../../../packages/client/src/features/chat/components/rewrite-dialog.tsx";
 import { RoomOverridesForm } from "../../../../packages/client/src/features/chat/components/room-overrides-form.tsx";
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
@@ -2135,6 +2136,30 @@ export function CommittedSettingsTabStory({ isHost = true, showGroup = false, ro
       <div style={{ width: 380 }}>
         <CommittedSettingsTab chatId={CHAT_ID} roomOverrides={roomOverrides} isHost={isHost} background={null} showGroup={showGroup} />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The room's REGEX section (#1742) at the REAL context-panel width, behind the SAME `QueryBoundary` the tab
+ *  mounts it in — the section suspends on `chat.listEffectiveRegex` (host) or `regex.listForChat` (member),
+ *  and a bare mount would send that suspension to the CT root.
+ *
+ *  `CtToastSurface` is the production toast outlet: the row switch's "off everywhere" notice + its Undo are
+ *  BEHAVIOR of this section (§3, the row), so the toast pixels are part of what this story exists to render.
+ *  Its manager is the one module-global `bindNotify` (see that component's header). */
+export function RegexSectionStory({ isHost = true }: { readonly isHost?: boolean }): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <div style={{ width: 380 }}>
+          <QueryBoundary
+            fallback={<Text tone="muted">Loading this chat's regex…</Text>}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's regex" onRetry={retry} />}
+          >
+            <RegexSection chatId={CHAT_ID} isHost={isHost} />
+          </QueryBoundary>
+        </div>
+      </CtToastSurface>
     </CtDataProviders>
   );
 }

@@ -189,7 +189,7 @@
     {
       "siteId": "packages/client/src/data/invalidation.ts::promise:invalidateQueries::1",
       "path": "packages/client/src/data/invalidation.ts",
-      "line": 408,
+      "line": 356,
       "column": 7,
       "grammar": "promise",
       "position": "promise:invalidateQueries",
@@ -197,7 +197,7 @@
       "snippet": "deps.queryClient.invalidateQueries(filter).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "refetch failures surface on the queries' own error state; consume the aggregate Promise here.",
-      "markerLine": 407
+      "markerLine": 355
     },
     {
       "siteId": "packages/client/src/data/session-freshness.ts::promise:probe::1",
