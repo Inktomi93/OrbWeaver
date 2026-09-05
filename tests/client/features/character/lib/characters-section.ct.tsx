@@ -12,6 +12,7 @@
 //   · the hero's "N chats ›" LANDS there (the re-pointed intent, asserted through the rendered tab state,
 //     not through the store write).
 
+import { AUTHORED_CARD_CREATOR } from "@orb/contracts/character";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -33,8 +34,11 @@ const CHARACTER_PAGE = {
 
 const SETTINGS = { userId: "user_ct_pane", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 
-/** The band + the context tabs + the editor all read this key; the editor seeds every field off it. */
-const AZARAEL_DETAIL = makeCharacterDetail({ id: AZARAEL, handle: castId<CharacterHandle>("azarael"), name: "Azarael" });
+/** The band + the context tabs + the editor all read this key; the editor seeds every field off it. The
+ *  RAW inputs are named separately because a derived field is re-derived from THEM, never from a finished
+ *  row — see the shipped arm at the `#843` test below. */
+const AZARAEL_INPUT = { id: AZARAEL, handle: castId<CharacterHandle>("azarael"), name: "Azarael" };
+const AZARAEL_DETAIL = makeCharacterDetail(AZARAEL_INPUT);
 
 const HER_CHAT = makeChatSummary({
   id: "chat_ct_newest",
@@ -192,7 +196,14 @@ test("#841 Trust is its own door too — a security concern reads as one", async
 test("#843 the Origin card tells a shipped example card apart from one you made", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.list": () => CHARACTER_PAGE,
-    "character.get": () => ({ ...AZARAEL_DETAIL, creator: "orbweaver", provenance: "shipped" }),
+    // #900 — the shipped arm is DERIVED, not declared twice. This used to spread a hand-set
+    // `creator: "orbweaver"` AND a hand-set `provenance: "shipped"` past the factory; now only the RAW
+    // column is stated (the shared marker the seeder stamps, not a re-typed literal) and
+    // `characterProvenanceOf` answers the verdict, so it cannot drift from the columns that produce it.
+    // BUILT FROM `AZARAEL_INPUT`, NOT FROM `AZARAEL_DETAIL`: a derived field on the OVERRIDES is an
+    // explicit pin (`overrides.provenance ?? …`), so re-running the factory over a finished row carries
+    // the OLD verdict forward — measured, this file's #843 pin went red rendering `Made here`.
+    "character.get": () => makeCharacterDetail({ ...AZARAEL_INPUT, creator: AUTHORED_CARD_CREATOR }),
     "character.update": () => AZARAEL_DETAIL,
     "chat.listChats": chatListResponder([]),
     "settings.getUserSettings": () => SETTINGS,

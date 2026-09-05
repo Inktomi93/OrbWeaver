@@ -154,7 +154,13 @@ export interface CharacterDetailFixture {
  *  which `characterProvenanceOf` cannot mint (`imported` wins outright on a non-null `importedFrom`).
  *  It rendered `Made here` and left the Overview pin red on main. Running the ONE derivation over the
  *  finished row keeps every fixture a shape the server can produce; a story that wants an arm the raw
- *  columns do not imply still states `provenance` and wins. */
+ *  columns do not imply still states `provenance` and wins.
+ *
+ *  THE COROLLARY, AND IT BITES (#900): because a stated `provenance` PINS, re-running this factory over a
+ *  row it already produced carries that row's OLD verdict forward — the finished row's derived field is,
+ *  on the second pass, an explicit override. Re-derive from the RAW OVERRIDES
+ *  (`makeCharacterDetail({ ...INPUT, creator })`), never from a finished detail. Measured: spreading a
+ *  finished `authored` row and adding `creator: AUTHORED_CARD_CREATOR` still renders `Made here`. */
 export function makeCharacterDetail(overrides: Partial<CharacterDetailFixture> = {}): CharacterDetailFixture {
   const row = {
     id: "char_ct_1",
