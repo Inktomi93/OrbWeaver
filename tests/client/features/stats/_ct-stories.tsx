@@ -49,6 +49,21 @@ export function AnalyticsOverviewSurfaceStory(): ReactElement {
   );
 }
 
+/** The OVERVIEW dashboard in a pane SHORTER than its content — the #1727 fold. A reachability pin needs a
+ *  guaranteed fold, and the 640px story's overflow depends on whatever the stub data happens to render;
+ *  240px makes the fold a property of the story rather than of the fixture. */
+export function AnalyticsOverviewSurfaceShortStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ height: 240, width: 720 }}>
+          <AnalyticsOverviewSurface />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 /** The same OVERVIEW dashboard with the LIST panel driver exposed (#451) — the top-character subtitle's two
  *  arms: named-affordance while collapsed, plain while the list is docked. `setActiveSection` first, because
  *  `setPanelMode` writes the CURRENT active section's override. */

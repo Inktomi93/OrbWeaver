@@ -54,6 +54,12 @@ export interface BackgroundSourceFieldProps {
   readonly onChange: (value: ThemeBackground) => void;
   /** Non-host / read-only viewers get the picker rendered inert (chat Control A's member branch). */
   readonly readOnly?: boolean;
+  /**
+   * The OWNER's surface-box id (#885/#1748). A shared composite can never mint its own — one literal here is
+   * one remembered box for both owners, the duplicate-key defect by a route the gate's literal census cannot
+   * see. Each owner mints its own; omitted, the boundary reserves nothing, as before.
+   */
+  readonly reserveKey?: string | undefined;
 }
 
 /** The tile the CURRENT value lights — the kind is storage detail; the grid speaks in tiles. */
@@ -70,7 +76,7 @@ function currentTileId(current: ThemeBackground): string | null {
   return null; // external — materializing server-side; no tile until the server rewrites it to `asset`.
 }
 
-export function BackgroundSourceField({ value, onChange, readOnly = false }: BackgroundSourceFieldProps): ReactElement {
+export function BackgroundSourceField({ value, onChange, readOnly = false, reserveKey }: BackgroundSourceFieldProps): ReactElement {
   const current = value ?? EMPTY_BACKGROUND;
   const commit = (patch: Partial<ThemeBackground>): void => onChange({ ...EMPTY_BACKGROUND, ...patch });
 
@@ -90,14 +96,14 @@ export function BackgroundSourceField({ value, onChange, readOnly = false }: Bac
 
   return (
     <Stack gap="field">
-      {/* DELIBERATELY UNRESERVED (#1098) — a SHARED composite with two owners in two features (the
-          character Look tab and the chat room-overrides tab). One literal key here would hand both
-          surfaces the same remembered box, which is the copy-paste failure the reservation gate's
-          duplicate arm exists to red; the honest fix is a caller-supplied `reserveKey` pass-through so
-          each owner mints its own — the same shape design §1.4 already prescribes for CharacterPicker. */}
+      {/* THE KEY IS THE CALLER'S (#1748). The ruling that this SHARED composite may not mint one SURVIVES —
+          one literal here would hand both owners (the character Look tab and the chat room-overrides tab)
+          the same remembered box, the copy-paste failure the reservation gate's duplicate arm exists to red.
+          What changed is that both owners now supply their own, the shape design §1.4 prescribed. */}
       <QueryBoundary
         fallback={<Text tone="muted">Loading your background library…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your background library" onRetry={retry} />}
+        {...(reserveKey === undefined ? {} : { reserveKey })}
       >
         <BackgroundTileGrid current={current} onPick={readOnly ? null : commit} />
       </QueryBoundary>

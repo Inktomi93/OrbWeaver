@@ -132,6 +132,7 @@ export function TeachingState({ onStart, starting }: TeachingStateProps): ReactE
               }
             }}
             placeholder="Search characters…"
+            reserveKey="refinery.landingPicker"
             skeletonCount={skeletonRowCountFor(PICKER_LIST_HEIGHT_PX, DEFAULT_PICKER_SKELETON_ROWS)}
           />
         </Stack>

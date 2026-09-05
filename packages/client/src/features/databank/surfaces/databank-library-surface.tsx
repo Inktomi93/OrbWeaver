@@ -128,6 +128,15 @@ export function DatabankLibrarySurface(): ReactElement {
 
   return (
     <Stack ref={surfaceRef} className="h-full outline-none" gap="block" tabIndex={-1}>
+      {/* DELIBERATELY UNRESERVED, AND FOR A DIFFERENT REASON THAN #1748 RECORDED (re-derived on this tree).
+          The sibling library pane (presets) was blocked by a scroll box under the boundary and is hoisted;
+          this pane's body is a self-scrolling `<VirtualList className="h-full">`, which is not a box that can
+          be hoisted — it IS the data-dependent list. `reserveKey`'s measuring Stack is auto-height, so it
+          severs the virtual scroller's height chain and the list stops virtualizing; the only way through is
+          `fill`, and `fill` reserves the PANE box, which this pane already owns from its parent and which
+          never changes. There is nothing to remember, so it stays on the unsplit `LibraryListLayout` (whose
+          rows container is that definite box) rather than gaining a reservation that could only be a
+          tautology. The rows themselves do not suspend at all — see `DatabankList`'s own note. */}
       <LibrarySurfaceShell errorLabel="your documents" loadingLabel="Loading your documents…">
         <DatabankList />
       </LibrarySurfaceShell>

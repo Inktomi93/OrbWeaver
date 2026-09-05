@@ -126,6 +126,7 @@ export function ChatListFacesStrip({ characterFilter }: { readonly characterFilt
               close();
             }}
             placeholder="Search characters…"
+            reserveKey="chat.listCharacterFilterPicker"
           />
         ),
       }}

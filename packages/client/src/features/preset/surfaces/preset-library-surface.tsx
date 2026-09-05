@@ -26,7 +26,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useRef } from "react";
-import { LibraryListLayout, LibrarySurfaceShell } from "#components";
+import { LibraryListFrame, LibraryListRows, LibrarySurfaceShell } from "#components";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { downloadJson, notify, rowQualifiers, slugifyFilename, timeLib, useFocusOnMount } from "#lib";
 import { selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPresetId } from "#state";
@@ -46,6 +46,11 @@ export interface PresetLibrarySurfaceProps {
 export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
+  // The search box is pane CHROME and now renders above the boundary (#1748), so its value is read here.
+  // It was already SECTION state rather than the list's own (`preset-search-store.ts`) — the chrome band's
+  // census answers off the same lens — so nothing about ownership changes, only which side of the read it
+  // is read on. The list below still reads it (deferred) for the filter.
+  const query = usePresetSearchQuery();
 
   return (
     // THE FOCUS TARGET IS NAMED (side-eye 2026-08-19 ARIA). `useFocusOnMount` parks focus on this container
@@ -53,9 +58,15 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
     // nothing at all, so entering the section told the user where they were only if they then Tab'd. It is a
     // region-shaped landmark for exactly this reason; the name is the pane's own noun.
     <Stack aria-label="Presets list" ref={surfaceRef} className="h-full outline-none" gap="block" role="region" tabIndex={-1}>
-      <LibrarySurfaceShell errorLabel="your presets" loadingLabel="Loading your presets…">
-        <PresetList onSelectPreset={onSelectPreset ?? selectPreset} />
-      </LibrarySurfaceShell>
+      {/* THE PANE CHROME AND ITS SCROLL BOX SIT ABOVE THE BOUNDARY (#1748): the reservation's measuring Stack
+          is auto-height, so a scroller under the boundary stops scrolling and strands the rows past the fold.
+          The search input rides up with the frame, so it is also on screen while the read is in flight. The
+          key is minted HERE, not in the shared shell — one literal there would be one box for every library. */}
+      <LibraryListFrame onSearchChange={setPresetSearchQuery} scroll={true} searchLabel="Search presets" searchPlaceholder="Search presets" searchValue={query}>
+        <LibrarySurfaceShell errorLabel="your presets" loadingLabel="Loading your presets…" reserveKey="preset.library">
+          <PresetList onSelectPreset={onSelectPreset ?? selectPreset} />
+        </LibrarySurfaceShell>
+      </LibraryListFrame>
     </Stack>
   );
 }
@@ -146,7 +157,7 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
   );
 
   return (
-    <LibraryListLayout
+    <LibraryListRows
       empty={
         <EmptyState
           action={
@@ -175,12 +186,10 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
         />
       }
       isEmpty={filtered.length === 0}
-      onSearchChange={setPresetSearchQuery}
       // The rows' activate toggles are `role="radio"` (side-eye F-19) — this is the group that owns them.
       rowsRadiogroupLabel="Active preset for generation"
-      searchLabel="Search presets"
-      searchPlaceholder="Search presets"
-      searchValue={query}
+      // The FRAME owns this pane's scroll box, because the boundary sits between it and these rows (#1748).
+      scroll={false}
     >
       {filtered.map((preset, index) => (
         <PresetLibraryRow
@@ -205,6 +214,6 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
           selected={preset.id === selectedId}
         />
       ))}
-    </LibraryListLayout>
+    </LibraryListRows>
   );
 }

@@ -128,6 +128,7 @@ function BackgroundControl({ characterId, serverValue }: BackgroundControlProps)
         onChange={(next): void => {
           update.mutate({ characterId, input: { backgroundOverride: next } });
         }}
+        reserveKey="character.appearance.background"
         value={serverValue}
       />
       <Text voice="gloss">Applies instantly — no save needed. Takes over the app background in a true-solo chat, below any chat-set background.</Text>

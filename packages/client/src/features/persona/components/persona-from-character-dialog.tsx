@@ -66,6 +66,7 @@ export function PersonaFromCharacterDialog({ open, onOpenChange, onCreated }: Pe
             onEscape={(): void => onOpenChange(false)}
             onSelect={onPick}
             placeholder="Search characters…"
+            reserveKey="persona.fromCharacterPicker"
           />
         </Stack>
       </DialogPopup>
