@@ -3166,7 +3166,7 @@
     {
       "siteId": "packages/server/src/entry/import/run-bundle-import.ts::empty:err::1",
       "path": "packages/server/src/entry/import/run-bundle-import.ts",
-      "line": 130,
+      "line": 138,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3174,12 +3174,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded as an",
-      "markerLine": 117
+      "markerLine": 122
     },
     {
       "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::empty:err::1",
       "path": "packages/server/src/entry/import/run-profile-dir-import.ts",
-      "line": 473,
+      "line": 475,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3187,12 +3187,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded into",
-      "markerLine": 460
+      "markerLine": 462
     },
     {
       "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::empty:err::2",
       "path": "packages/server/src/entry/import/run-profile-dir-import.ts",
-      "line": 790,
+      "line": 792,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3200,12 +3200,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded into",
-      "markerLine": 766
+      "markerLine": 768
     },
     {
       "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::empty:err::3",
       "path": "packages/server/src/entry/import/run-profile-dir-import.ts",
-      "line": 918,
+      "line": 920,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3213,12 +3213,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded into",
-      "markerLine": 902
+      "markerLine": 904
     },
     {
       "siteId": "packages/server/src/entry/import/run-profile-import.ts::empty:err::1",
       "path": "packages/server/src/entry/import/run-profile-import.ts",
-      "line": 94,
+      "line": 131,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3226,7 +3226,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded into",
-      "markerLine": 78
+      "markerLine": 114
     },
     {
       "siteId": "packages/server/src/foundation/env/index.ts::default:catch::1",
