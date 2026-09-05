@@ -334,6 +334,20 @@ own_pgid() {
 }
 dev_identity() { node "$REPO/tooling/src/stack/ops/dev-identity-entry.ts" "$@"; }
 group_alive() { dev_identity probe >/dev/null 2>&1; }
+# THE LAUNCH MARKER (#1013). Exported before the setsid leader is spawned, so EVERY member of the resulting
+# process group inherits it in its environment; `dev-identity-entry.ts capture` records the leader's copy
+# into the pidfile. It is what makes a leaderless SURVIVOR identifiable — a live pid in the recorded group
+# carrying this exact token was started by THIS launch and by nothing else — which is what let stop/status/
+# start stop refusing over their own tree (four receipts in one session, 2026-09-01). A kernel uuid: 122
+# bits, unguessable, and never reused across boots. `date`+`$$` is the fallback for a kernel without the
+# uuid node; it is weaker but still per-launch, and the reader validates the shape either way.
+mint_launch_id() {
+  if [ -r /proc/sys/kernel/random/uuid ]; then
+    cat /proc/sys/kernel/random/uuid
+    return 0
+  fi
+  echo "orb-$(date +%s%N)-$$"
+}
 healthz_ok() { curl -sf -m 2 "$HEALTHZ" >/dev/null 2>&1; }
 # `localhost`, NOT 127.0.0.1 — vite v8 binds [::1] only; the IPv4 loopback never answers.
 vite_ok() { curl -sf -m 2 "http://localhost:$VITE_PORT/" >/dev/null 2>&1; }
@@ -448,6 +462,18 @@ run_leader() {
   return 1
 }
 
+# Poll until the recorded group has no members left — the honest end of a teardown. Returns 0 the moment
+# the group is empty, 1 if it still holds a member after the grace (which is when the survivors alarm is
+# TRUE). `clear-absent` is the only thing that can answer "is the group empty" without asserting ownership.
+GROUP_SETTLE_TICKS=20
+wait_group_gone() {
+  for _ in $(seq 1 "$GROUP_SETTLE_TICKS"); do
+    dev_identity clear-absent >/dev/null 2>&1 && return 0
+    sleep 0.5
+  done
+  return 1
+}
+
 do_stop() {
   local pgid
   pgid="$(own_pgid)"
@@ -462,8 +488,14 @@ do_stop() {
     return 0
   fi
   if ! dev_identity signal SIGTERM; then
-    echo "stack: refusing to stop unverified group $pgid — manual cleanup required"
-    return 1
+    # A DEPARTED leader is no longer the end of the road (#1013 receipt 2/4): if every live member of the
+    # recorded group carries this launch's marker, the group is provably ours and gets the same TERM.
+    # `adopt-signal` refuses anything it cannot prove, so an unmarked or foreign group still stops here.
+    if ! dev_identity adopt-signal SIGTERM; then
+      echo "stack: refusing to stop unverified group $pgid — manual cleanup required"
+      return 1
+    fi
+    echo "stack: adopted the leaderless group $pgid by its launch marker (the recorded leader is gone)"
   fi
   for _ in $(seq 1 30); do
     group_alive "$pgid" || break
@@ -471,11 +503,19 @@ do_stop() {
   done
   if group_alive "$pgid"; then
     echo "stack: group $pgid ignored TERM, escalating to KILL"
-    if ! dev_identity signal SIGKILL; then
+    if ! dev_identity signal SIGKILL && ! dev_identity adopt-signal SIGKILL; then
       echo "stack: refusing KILL after identity changed — manual cleanup required"
       return 1
     fi
-    sleep 1
+  fi
+  # RE-READ AFTER THE KILL SETTLES (#1013 receipt 3). A single `sleep 1` then one verdict is what printed
+  # "still has verified survivors after KILL" over a group whose members were already gone by the time the
+  # line reached the terminal. Poll instead: the alarm below now describes the tree at the moment it fires.
+  if ! wait_group_gone >/dev/null; then
+    # An ADOPTED group needs its own escalation: `group_alive` above can only ask about a LIVE leader, so a
+    # leaderless-but-adopted group skips the KILL branch entirely and would otherwise be reported as
+    # uncleanable after a TERM it merely ignored. Refusals here stay silent — the verdict below prints them.
+    dev_identity adopt-signal SIGKILL >/dev/null 2>&1 && wait_group_gone >/dev/null
   fi
   # #1162: this line used to CLAIM verified survivors on the strength of a verdict that only ever said
   # "the leader is gone". clear-absent now asks the group itself (kill -0 on the pgid, the pgrep -g
@@ -612,6 +652,9 @@ do_status() {
   vpid="$(port_pid "$VITE_PORT")"
   health="$(healthz_ok && echo ok || echo unreachable)"
   echo "pidfile group : ${pgid:-—} $(group_alive "${pgid:-x}" && echo '(alive)' || echo '(dead)')"
+  # WHAT WAS VERIFIED, AND HOW (#1013 receipt 1): the pidfile NUMBER told the operator nothing — a group id
+  # from a different era read exactly like the live one. This line names the evidence behind the verdict.
+  echo "ownership     : $(dev_identity describe 2>/dev/null | sed -n 's/^DESCRIBE dev-stack //p' || echo 'basis=unreadable')"
   echo "server :$BACKEND_PORT  : pid ${bpid:-not bound} · healthz $health"
   echo "vite   :$VITE_PORT  : pid ${vpid:-not bound}"
   local served="unverifiable" served_file="none" served_reason="vite is not bound — freshness NOT measured"
@@ -680,6 +723,10 @@ do_start() {
   # setsid: new session ⇒ new process group whose PGID == the leader's PID.
   # The leader (this script, `_leader` verb — env pins ride the export) owns
   # dev.sh + vite; one number kills the whole tree.
+  # …and the launch marker rides the same export, so every process in that tree carries proof of WHICH
+  # launch started it — the evidence the pgid alone could never give (#1013).
+  ORB_STACK_LAUNCH_ID="$(mint_launch_id)"
+  export ORB_STACK_LAUNCH_ID
   (cd "$REPO" && exec setsid bash "$SELF" _leader) >>"$LOG" 2>&1 &
   local leader=$!
   if ! dev_identity capture "$leader"; then
@@ -702,6 +749,19 @@ do_start() {
       return 0
     fi
     if ! group_alive "$leader"; then
+      # #1013 receipt 4: the leader died mid-boot while the DETACHED tree carried on healthy, and this
+      # branch printed "refusing cleanup; manual inspection required" over a stack that was still running
+      # — the worst state, since nothing could ever own it again. The marked group is OURS, so adopt it
+      # and stop it; only a group we cannot prove is ours still refuses.
+      if ! dev_identity adopt-signal SIGTERM >/dev/null 2>&1; then
+        echo "stack: leader died during boot and its group is NOT provably ours — refusing cleanup; manual inspection required"
+        dev_identity describe || true
+        return 1
+      fi
+      if ! wait_group_gone; then
+        echo "stack: adopted the boot-dead leader's group but it did not exit — manual cleanup required"
+        return 1
+      fi
       if ! dev_identity clear-absent >/dev/null; then
         echo "stack: launch identity became ambiguous during boot — refusing cleanup; manual inspection required"
         return 1
