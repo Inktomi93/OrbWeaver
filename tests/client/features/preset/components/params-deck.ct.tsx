@@ -30,6 +30,7 @@ import {
   ParamsDeckCustomParamsStory,
   ParamsDeckExplicitStory,
   ParamsDeckGhostStory,
+  ParamsDeckLogitBiasSwitchStory,
   ParamsDeckNoCustomParamsStory,
   ParamsDeckPendingCapabilityStory,
   ParamsDeckStaleStory,
@@ -1045,4 +1046,22 @@ test("LOGIT BIAS — a VALID map survives its own blur (#1570, the other directi
 
   // Canonical serialization of what was STORED — not the raw text, and not an empty box.
   await expect(box).toHaveValue('{"7":50}');
+});
+
+// #1502's ORIGINAL invariant, pinned here because the #1570 epoch change touched this field's key and the
+// property it was protecting had no test of its own: the box is UNCONTROLLED, so React applies its
+// `defaultValue` at mount and never again — without the stored serialization in the key, switching presets
+// left the previous preset's JSON in the box AND the next blur wrote that stale text over the new preset's
+// map (a two-writer bug, not a display glitch). A green-before FENCE, stated as one: it passes with or
+// without the epoch, and exists so a later "simplify the key" cannot pass.
+test("LOGIT BIAS — switching presets REPLACES the box, it never leaves the previous preset's map (#1502)", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckLogitBiasSwitchStory />);
+  await openAdvanced(deck);
+
+  const box = deck.getByRole("textbox", { name: "Logit bias" });
+  await expect(box).toHaveValue('{"7":50}');
+
+  await deck.getByRole("button", { name: "Switch the preset" }).click();
+
+  await expect(box).toHaveValue('{"9":-10}');
 });
