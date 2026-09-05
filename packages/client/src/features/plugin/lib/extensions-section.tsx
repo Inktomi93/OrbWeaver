@@ -28,11 +28,12 @@ import { ExtensionsListHeader } from "../components/extensions-list-header.tsx";
 import { ExtensionsPageSurface } from "../surfaces/extensions-page-surface.tsx";
 import { ExtensionsSwitcherSurface } from "../surfaces/extensions-switcher-surface.tsx";
 import { EXTENSIONS_PLACEHOLDER } from "./extensions-copy.ts";
+import { EXTENSIONS_SECTION_LABEL } from "./extensions-section-label.ts";
 import { useExtensionsSelectionTitle } from "./use-extensions-selection-title.ts";
 
 export const extensionsSection: SectionDefinition = {
   id: "extensions",
-  rail: { label: "Extensions", icon: Blocks, group: "authoring", mobile: "sheet" },
+  rail: { label: EXTENSIONS_SECTION_LABEL, icon: Blocks, group: "authoring", mobile: "sheet" },
   // The DECLARED SHADOW of `context: {kind:"none"}` below (#1223). The shell derives "has a context pane"
   // from `panels.context` alone (`use-shell-layout.ts`), never from the context slot, so a section that
   // declares no context CONTENT but omits this ships a live topbar toggle onto the generic placeholder —

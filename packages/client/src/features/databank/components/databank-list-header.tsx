@@ -15,6 +15,12 @@
 // (every document, junction and chunk survives — the canon is re-derived from bytes we still hold), and a
 // red confirm on a maintenance sweep teaches the wrong thing about the one control here that IS destructive.
 //
+// ONE VISIBLE CENSUS *PER REGIME* (#1676, the #1670 class). On a phone the ONE-NAME rule (shell.css) sheds
+// this band's title and the census travels INSIDE it (`list-pane-header.tsx`: "THE COUNT TRAVELS WITH THE
+// TITLE"), so the bank's size was printed NOWHERE there. It now also rides the topbar's screen title
+// (`lib/databank-selection-title.ts`), the noun that survives — and the read below moved to
+// `hooks/use-databank-census.ts` so both readers share one query and one spelling of the number.
+//
 // THE COUNT IS THE SERVER'S CENSUS (`databank.bankHealth.total`, 2026-08-14) — a non-suspending `useQuery`,
 // so the title + actions render immediately and stay put while it settles. A COUNT read for a count: it
 // fetches no rows at all, where the band used to ask for a hundred documents to measure the length of the
@@ -30,19 +36,22 @@ import { Icon, Plus, RefreshCw } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuGroup, MenuGroupLabel, MenuItem } from "@orb/ui/menu";
 import { useToastManager } from "@orb/ui/toast";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, ListPaneHeader, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { openModal } from "#state";
+import { useDatabankBankHealth, useDatabankCensus } from "../hooks/use-databank-census.ts";
 import { useReindexDocuments } from "../hooks/use-databank-mutations.ts";
+import { DATABANK_SECTION_LABEL } from "../lib/databank-section-label.ts";
 
 export function DatabankListHeader(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const toast = useToastManager();
-  const census = useQuery(trpc.databank.bankHealth.queryOptions());
+  const health = useDatabankBankHealth();
+  // ONE spelling of the number, shared with the phone topbar's screen title (#1676) — see the hook.
+  const census = useDatabankCensus();
   const reindex = useReindexDocuments({ trpc, invalidation });
   const [reExtractOpen, setReExtractOpen] = useState(false);
   const [reindexOpen, setReindexOpen] = useState(false);
@@ -59,13 +68,13 @@ export function DatabankListHeader(): ReactElement {
   // "add a document first", on the one control whose predicate is how many they have. The closed door is
   // unchanged in all three; what the door SAYS is now derived from which of them it is, and the failed arm
   // carries the re-read rather than a reload.
-  const bankIsEmpty = census.data !== undefined && census.data.total === 0;
-  const countUnknown = census.data === undefined;
+  const bankIsEmpty = census === 0;
+  const countUnknown = census === undefined;
   // The band prints NO number when the count is unknown — same rendered result the old `?? 0` produced (the
   // header renders nothing at 0), but stated as the absence it is. A SPREAD rather than `count={…?.total}`:
   // under `exactOptionalPropertyTypes`, "absent" and "present and undefined" are different types, and absent
   // is what an unread census is.
-  const countProp = census.data === undefined ? {} : { count: census.data.total };
+  const countProp = census === undefined ? {} : { count: census };
 
   const sweep = (mode: "chunk-embed" | "re-extract"): void => {
     reindex.mutate(
@@ -92,12 +101,12 @@ export function DatabankListHeader(): ReactElement {
                   needs it can never reach. The group's label is announced with the items it labels. */}
               <MenuGroup>
                 {bankIsEmpty ? <MenuGroupLabel>Add a document first — these sweeps run over your whole bank.</MenuGroupLabel> : null}
-                {census.isError ? <MenuGroupLabel>Couldn't check your bank, so these sweeps stay closed.</MenuGroupLabel> : null}
+                {health.isError ? <MenuGroupLabel>Couldn't check your bank, so these sweeps stay closed.</MenuGroupLabel> : null}
                 {/* The failed arm's way out. A group label cannot be actioned and a disabled item cannot be
                     hovered, so the re-read is its own item — the same "a read failure is never a dead end"
                     rule `QueryErrorState` carries, spelled in the one grammar a menu has. */}
-                {census.isError ? (
-                  <MenuItem onClick={(): void => void census.refetch()}>
+                {health.isError ? (
+                  <MenuItem onClick={(): void => void health.refetch()}>
                     <Icon icon={RefreshCw} size="sm" />
                     Check the bank again
                   </MenuItem>
@@ -119,7 +128,7 @@ export function DatabankListHeader(): ReactElement {
           </Row>
         }
         {...countProp}
-        title="Databank"
+        title={DATABANK_SECTION_LABEL}
       />
       {/* REINDEX CONFIRMS TOO (side-eye 2026-08-19 P3). It used to fire BARE from the menu while its
           slower sibling sat behind a dialog — so the one owner-wide sweep a mis-aimed click could start was

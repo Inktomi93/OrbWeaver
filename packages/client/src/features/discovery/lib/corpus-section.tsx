@@ -19,6 +19,7 @@ import { CorpusMapTab } from "../components/corpus-map-tab.tsx";
 import { CorpusSimilarityTab } from "../components/corpus-similarity-tab.tsx";
 import { CorpusVisualsTab } from "../components/corpus-visuals-tab.tsx";
 import { CorpusListSurface } from "../surfaces/corpus-list-surface.tsx";
+import { CORPUS_SECTION_LABEL } from "./corpus-section-label.ts";
 import { useCorpusSelectionTitle } from "./corpus-selection-title.ts";
 
 export const corpusSection: SectionDefinition = {
@@ -26,7 +27,7 @@ export const corpusSection: SectionDefinition = {
   // Corpus folds into the You sheet on mobile (owner decision H2): the bottom bar is a thumb-reach budget
   // of four, and home took a tab. Corpus is a deliberate search entry — reachable from the You sheet and
   // ⌘K — not something you tap by accident on the way somewhere else.
-  rail: { label: "Corpus", icon: Library, group: "primary", mobile: "sheet" },
+  rail: { label: CORPUS_SECTION_LABEL, icon: Library, group: "primary", mobile: "sheet" },
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: {
     title: "Corpus",

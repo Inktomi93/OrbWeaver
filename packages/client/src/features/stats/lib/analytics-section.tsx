@@ -20,6 +20,7 @@ import { AnalyticsModelsTab } from "../components/analytics-models-tab.tsx";
 import { AnalyticsPersonasTab } from "../components/analytics-personas-tab.tsx";
 import { AnalyticsTimeTab } from "../components/analytics-time-tab.tsx";
 import { AnalyticsListSurface } from "../surfaces/analytics-list-surface.tsx";
+import { ANALYTICS_SECTION_LABEL } from "./analytics-section-label.ts";
 import { useAnalyticsSelectionTitle } from "./analytics-selection-title.ts";
 
 /** The Analytics context-state projection: the leaderboard-drilled character (`null` = the overview
@@ -31,7 +32,7 @@ function useAnalyticsContextState(): AnalyticsContextState {
 
 export const analyticsSection: SectionDefinition = {
   id: "analytics",
-  rail: { label: "Analytics", icon: ChartColumn, group: "insight", mobile: "sheet" },
+  rail: { label: ANALYTICS_SECTION_LABEL, icon: ChartColumn, group: "insight", mobile: "sheet" },
   panelDefaults: { list: "collapsed", context: "collapsed" },
   placeholder: {
     title: "Analytics",

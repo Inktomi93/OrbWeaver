@@ -37,11 +37,12 @@ import { DatabankListHeader } from "../components/databank-list-header.tsx";
 import { DatabankDetailSurface } from "../surfaces/databank-detail-surface.tsx";
 import { DatabankLibrarySurface } from "../surfaces/databank-library-surface.tsx";
 import { DATABANK_CONTEXT_EMPTY } from "./databank-copy.ts";
+import { DATABANK_SECTION_LABEL } from "./databank-section-label.ts";
 import { useDatabankSelectionTitle } from "./databank-selection-title.ts";
 
 export const databankSection: SectionDefinition = {
   id: "databank",
-  rail: { label: "Databank", icon: Database, group: "authoring", mobile: "sheet" },
+  rail: { label: DATABANK_SECTION_LABEL, icon: Database, group: "authoring", mobile: "sheet" },
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: {
     title: "Databank",

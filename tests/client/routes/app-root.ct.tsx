@@ -17,11 +17,12 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../packages/client/src/lib/test-ids.ts";
 import { routeTrpc } from "../../support/ct/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
 import { makeCharacterSummary } from "../features/character/fixtures.ts";
-import { CHAT_AMBIENT_ROUTES, chatListResponder } from "../features/chat/fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, chatListResponder, makeChatSummary } from "../features/chat/fixtures.ts";
 import { HomePageStory } from "./_ct-stories.tsx";
 
 const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade" });
@@ -454,6 +455,258 @@ test("the DESKTOP census is untouched — it stays in the LIST band and the narr
   await expect(bandTitle).toBeVisible();
   await expect(bandTitle).toContainText("Characters");
   await expect(bandTitle).toContainText("12");
+  // The narrow identity arm is in the DOM in both regimes (`shell-topbar.tsx`) — the container query is what
+  // picks one — so this asserts PAINT, not presence, or it would pass for the wrong reason.
+  await expect(component.locator(".shell-topbar-title")).toBeHidden();
+});
+
+// ── THE PHONE PRINTS EVERY LIST-BEARING SECTION'S SIZE (#1676 — the #1670 class, one section wider) ──
+// Driven at the REAL composition root because that is the only mount where a section's real
+// `useSelectionTitle` meets the real shell topbar: `app-shell.ct.tsx` composes `CtFakeSectionRegistry`,
+// whose story-injected sections can supply a stand-in title hook (#1677), so it cannot pin this.
+//
+// The defect, per section: the census travels inside the LIST band's title (`list-pane-header.tsx`), the
+// ONE-NAME rule sheds that title when the pane IS the screen (`shell.css`), so a phone printed the library's
+// size NOWHERE — a 328-row leaderboard and an empty one read identically. The count now rides the noun that
+// survives, which keeps exactly ONE visible census per regime. Config is deliberately absent from this table:
+// its band carries no count at all (`config-section.tsx` renders `<ListPaneHeader title={…} />` bare), because
+// its LIST is a nav of settings groups — a number there would count doors, not a library.
+
+/** A leaderboard PAGE — `rows` is the capped page, `total` the population it was cut from. */
+const ANALYTICS_ROW = {
+  characterId: "char_aria",
+  name: "Aria Nightshade",
+  chats: 4,
+  userTurns: 40,
+  assistantTurns: 42,
+  swipes: 3,
+  tokensOut: 12_000,
+  totalGenTimeMs: 90_000,
+  reasoningRate: 0,
+  firstChatAt: 1000,
+  lastActivityAt: 5000,
+};
+const ANALYTICS_PAGE = { rows: [ANALYTICS_ROW, { ...ANALYTICS_ROW, characterId: "char_bolt", name: "Bolt", assistantTurns: 9 }], total: 328 };
+/** Four presets, none filtered (this route never types in the search) — the unnarrowed census is the length. */
+const PRESET_ROWS = [1, 2, 3, 4].map((n) => ({
+  id: `preset_census_${String(n)}`,
+  name: `Preset ${String(n)}`,
+  kind: "generation",
+  isSystemDefault: false,
+  forkedFrom: null,
+  createdAt: 0,
+  updatedAt: 0,
+}));
+/** Two documents and a bank health that AGREES with them — an incoherent pair would prove nothing. */
+const CENSUS_DOCS = [
+  {
+    id: "document_census_1",
+    name: "The Crimson Court",
+    mime: "application/pdf",
+    origin: "upload",
+    sourceUrl: null,
+    byteSize: 25_088,
+    charCount: 4200,
+    chunkCount: 12,
+    embeddedCount: 12,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: "document_census_2",
+    name: "Duskwater Barony",
+    mime: "application/pdf",
+    origin: "wiki",
+    sourceUrl: null,
+    byteSize: 93_901,
+    charCount: 9000,
+    chunkCount: 39,
+    embeddedCount: 39,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+];
+const CENSUS_BANK_HEALTH = { ...EMPTY_BANK_HEALTH, ready: 2, chunks: 51, passages: 51, total: CENSUS_DOCS.length };
+/** Two registered extension pages, joined to their plugin's display name by `usePluginPages`. */
+const CENSUS_PLUGIN = { id: "plugin_census", name: "Census Kit" };
+const CENSUS_SURFACES = [
+  { pluginId: CENSUS_PLUGIN.id, id: "board_page", anchor: "page", title: "The Board", tier: "frame" },
+  { pluginId: CENSUS_PLUGIN.id, id: "ledger_page", anchor: "page", title: "The Ledger", tier: "frame" },
+];
+const CENSUS_SESSIONS = [
+  {
+    id: "refinery_census_1",
+    characterId: "char_aria",
+    characterName: "Aria Nightshade",
+    characterAvatarHash: null,
+    name: null,
+    status: "active",
+    iterationCount: 1,
+    latestVerdict: null,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: "refinery_census_2",
+    characterId: "char_bolt",
+    characterName: "Bolt",
+    characterAvatarHash: null,
+    name: null,
+    status: "active",
+    iterationCount: 2,
+    latestVerdict: "ACCEPT",
+    createdAt: 0,
+    updatedAt: 0,
+  },
+];
+const CENSUS_CHATS = [1, 2, 3].map((n) => makeChatSummary({ id: `chat_census_${String(n)}`, title: `Chat ${String(n)}` }));
+
+/**
+ * EVERY read the seven screens need, fed at once — this route's subject is the TOPBAR, so no section's data
+ * is any one test's variable, and one map keeps every arm's fixture visible beside the number it must print.
+ * The unfed-read ratchet is the reason this is exhaustive rather than per-test: each section's census read now
+ * runs under the shell whenever that section is active.
+ */
+const SECTION_CENSUS_ROUTES: Readonly<Record<string, unknown>> = {
+  ...HOME_AMBIENT_ROUTES,
+  "chat.listChats": chatListResponder(CENSUS_CHATS),
+  "character.list": NO_CHARACTERS,
+  "persona.list": PERSONAS,
+  "databank.list": { items: CENSUS_DOCS, nextCursor: null, totalCount: CENSUS_DOCS.length },
+  "databank.bankHealth": CENSUS_BANK_HEALTH,
+  "discovery.catalog": { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 12, totalCharacters: 19 },
+  "discovery.browseCharacters": { items: [], nextCursor: null },
+  "discovery.characterFacets": { genres: [], tones: [] },
+  "stats.leaderboard": ANALYTICS_PAGE,
+  "preset.list": PRESET_ROWS,
+  "plugin.list": [CENSUS_PLUGIN],
+  "plugin.listSurfaces": CENSUS_SURFACES,
+  "refinery.listSessions": CENSUS_SESSIONS,
+  // ── AND THE CONTENT PANES BEHIND THE BANDS ─────────────────────────────────────────────────────────
+  // The DESKTOP arm renders each section's CONTENT beside its list, so visiting seven sections mounts seven
+  // dashboards. None of them is this route's subject — the subject is the topbar — but the unfed-read ratchet
+  // is right that a `null` fulfil is not a view, so each is fed its own EMPTY-but-real shape, taken from that
+  // surface's own CT. An empty dashboard is the honest companion to the small fixtures above.
+  "chat.getChat": createdChat(false),
+  "databank.listGlobal": [],
+  "discovery.home": {
+    coverage: { characters: 0, digests: 0, segments: 0 },
+    sceneThemes: [],
+    arcThemes: [],
+    duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
+  },
+  "discovery.visualArchetypes": [],
+  "discovery.forgottenGems": [],
+  "stats.freshness": { computedAt: 0, stale: false, hasData: false },
+  "stats.overview": {
+    tokensIn: 0,
+    tokensOut: 0,
+    swipeWords: 0,
+    avgGenMs: 0,
+    p50GenMs: 0,
+    p90GenMs: 0,
+    avgTtftMs: 0,
+    throughputTps: 0,
+    cacheHitRate: 0,
+    reasoningRate: 0,
+    reasoningMs: 0,
+  },
+  "stats.wrapped": {
+    characters: 0,
+    chats: 0,
+    words: 0,
+    replies: 0,
+    swipes: 0,
+    forkedChats: 0,
+    costUsd: 0,
+    genTimeMs: 0,
+    topCharacter: null,
+    temporal: { activeDays: 0, longestStreakDays: 0, busiestDay: null, dayOfWeek: [0, 0, 0, 0, 0, 0, 0] },
+  },
+  "stats.momentum": { latestMonth: null, prevMonth: null, rising: [], falling: [] },
+  // The corpus dashboard's remaining rails (a CASCADE: they could not be requested until the reads above
+  // stopped answering null), plus the jobs read its run-a-pass door resolves against. Empty, as above.
+  "discovery.unusedCharacters": [],
+  "discovery.modelRouting": [],
+  "discovery.topKeywords": [],
+  "workloads.list": [],
+};
+
+interface CensusCase {
+  /** The rail/sheet affordance's accessible name, which is also the section label the topbar prints. */
+  readonly label: string;
+  /** `tab` sections sit on the phone's bottom bar; the rest are reached through the You sheet (§E-5). */
+  readonly onPhoneBar: boolean;
+  /** The whole screen name, census included — the ONE thing a phone reader is told about this library. */
+  readonly phoneTitle: string;
+  /** What the DESKTOP band prints beside its title (the control: the desktop is untouched by this change). */
+  readonly bandCount: string;
+  /** `panelDefaults.list === "collapsed"` (analytics, refinery): the desktop band needs the pane opened. */
+  readonly listStartsCollapsed?: boolean;
+}
+
+const CENSUS_CASES: readonly CensusCase[] = [
+  { label: "Chats", onPhoneBar: true, phoneTitle: "Chats · 3", bandCount: "3" },
+  { label: "Corpus", onPhoneBar: false, phoneTitle: "Corpus · 12 of 19", bandCount: "12 of 19" },
+  { label: "Analytics", onPhoneBar: false, phoneTitle: "Analytics · 2 of 328", bandCount: "2 of 328", listStartsCollapsed: true },
+  { label: "Presets", onPhoneBar: false, phoneTitle: "Presets · 4", bandCount: "4" },
+  { label: "Databank", onPhoneBar: false, phoneTitle: "Databank · 2", bandCount: "2" },
+  { label: "Extensions", onPhoneBar: false, phoneTitle: "Extensions · 2", bandCount: "2" },
+  { label: "Refinery", onPhoneBar: false, phoneTitle: "Refinery · 2", bandCount: "2" },
+];
+
+/** The phone's two doors: the bottom-bar tab for a curated section, the You sheet for every overflow one. */
+async function reachOnPhone(component: Locator, page: Page, kase: CensusCase): Promise<void> {
+  if (kase.onPhoneBar) {
+    await component.locator(".shell-rail").getByRole("button", { name: kase.label, exact: true }).click();
+    return;
+  }
+  await component.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: kase.label, exact: true }).click();
+  // The sheet is a real dialog that aria-hides the frame behind it — read the topbar only once it is GONE.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+}
+
+for (const width of [320, 390] as const) {
+  test.describe(`the phone's screen names at ${String(width)}px`, () => {
+    // `hasTouch` because this is the COARSE-POINTER regime the rule belongs to, not merely a narrow window
+    // (`snap --mobile --viewport` silently drops the pointer, #1668 — the CT browser is where it is real).
+    test.use({ hasTouch: true, viewport: { width, height: 844 } });
+
+    for (const kase of CENSUS_CASES) {
+      test(`${kase.label}: the topbar's screen name carries the census the shed band title took with it`, async ({ mount, page }) => {
+        await routeTrpc(page, SECTION_CENSUS_ROUTES);
+        const component = await mount(<HomePageStory />);
+        await reachOnPhone(component, page, kase);
+
+        // The ONE name on this screen, and it states the size — the same sentence the desktop band prints.
+        // `toHaveText` is the settle barrier too: before the census lands the bar reads the bare label, which
+        // is exactly the defect state, so this cannot pass on an in-flight frame.
+        const screenName = component.locator(".shell-topbar-title");
+        await expect(screenName).toHaveText(kase.phoneTitle);
+        // …and it is the ONLY census on screen: the band's title, where the other copy lives, is shed by the
+        // ONE-NAME rule in exactly this arm. The single-visible-census ruling survives, per regime.
+        await expect(component.locator('[data-slot="list-pane-title"]')).toBeHidden();
+      });
+    }
+  });
+}
+
+test("the DESKTOP census is untouched — it stays in every LIST band and the narrow name never paints", async ({ mount, page }) => {
+  await routeTrpc(page, SECTION_CENSUS_ROUTES);
+  const component = await mount(<HomePageStory />);
+
+  for (const kase of CENSUS_CASES) {
+    await component.locator(".shell-rail").getByRole("button", { name: kase.label, exact: true }).click();
+    if (kase.listStartsCollapsed === true) {
+      // A content-first hub boots with its LIST collapsed (D62), so the band it prints into is not on screen
+      // until the pane is — the toggle is the desktop's own door to it.
+      await component.getByRole("button", { name: "Show list panel" }).click();
+    }
+    const bandTitle = component.locator('[data-slot="list-pane-title"]');
+    await expect(bandTitle).toContainText(kase.label === "Refinery" ? "Sessions" : kase.label);
+    await expect(bandTitle).toContainText(kase.bandCount);
+  }
   // The narrow identity arm is in the DOM in both regimes (`shell-topbar.tsx`) — the container query is what
   // picks one — so this asserts PAINT, not presence, or it would pass for the wrong reason.
   await expect(component.locator(".shell-topbar-title")).toBeHidden();

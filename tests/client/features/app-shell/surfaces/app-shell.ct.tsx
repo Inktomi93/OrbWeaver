@@ -116,6 +116,26 @@ const SHELL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // — `{items, nextCursor, totalCount}`), so the census hook's own zero-suppression runs for real: an empty
   // library prints the bare section name, which is what every mount in this file expects to see.
   "character.list": { items: [], nextCursor: null, totalCount: 0 },
+  // ── THE SECTION CENSUS READS (#1676) — appended, not woven into the rows above ──────────────────────
+  // Every list-bearing section's `useSelectionTitle` now composes its own census, because on a phone the
+  // ONE-NAME rule sheds the LIST band's title and the count travels inside it. `CtFakeSectionRegistry`
+  // supplies the REAL title hook for any section a story does not override, and the shell calls the ACTIVE
+  // section's hook unconditionally — so landing this file's stories on a section runs that section's census
+  // read for real, and an unfed one leaves the pipeline INERT (which is exactly what the ratchet names).
+  //
+  // Fed EMPTY, at each section's own CT shape: no mount here has a library's size as its subject, and a
+  // section's `?? 0` census renders nothing at zero, so the topbar keeps printing the bare section label and
+  // every existing width/name assertion in this file is untouched. A test whose subject IS one of these
+  // lists the key AFTER the spread and wins, exactly as the rows above intend.
+  //
+  // `chat.listChats` is here because CHATS IS THE BORN-ACTIVE SECTION: its title hook runs on EVERY mount in
+  // this file, not only the ones that navigate. The dozen tests that already spell it per-test still win.
+  "chat.listChats": chatListResponder([]),
+  "discovery.catalog": { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 0, totalCharacters: 0 },
+  "stats.leaderboard": { rows: [], total: 0 },
+  "preset.list": [],
+  "plugin.list": [],
+  "plugin.listSurfaces": [],
 };
 
 /** The thumb-reach budget (L6/J12): rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must
