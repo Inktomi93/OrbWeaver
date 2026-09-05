@@ -45,8 +45,12 @@ export async function insertPreset(db: Db, row: PresetInsert): Promise<void> {
   await db.insert(presets).values(row);
 }
 
-/** Admit the first converged fork for an owner/source pair. The pair stays non-unique in the schema because
- *  explicit new forks are legal; this statement narrows uniqueness to the converge verb's admission path. */
+/** Admit the first converged fork for an owner/source pair, or refuse (undefined) because one already exists.
+ *  The uniqueness claim is the INSERT's own guard subquery — never a preceding read — so concurrent callers
+ *  cannot both pass it. The pair stays non-unique in the SCHEMA because explicit new forks are legal
+ *  (`clonePackaged` per call, the update verb's `{mode:"new"}`); this statement narrows uniqueness to the two
+ *  CONVERGING admission paths: the COW converge arm (`verbs/update.ts`) and the host-handoff copy
+ *  (`handoff-copy-write.ts`, #1572). A refused caller reads the winner back with `findOwnedForkOf`. */
 export async function insertConvergedPresetForkIfAbsent(db: Db, row: ConvergedPresetInsert): Promise<PresetRow | undefined> {
   const inserted = await db
     .insert(presets)

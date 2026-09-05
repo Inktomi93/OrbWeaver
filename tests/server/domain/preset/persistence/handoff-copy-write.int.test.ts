@@ -10,11 +10,13 @@ import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { createCopyPresetToUser, SYSTEM_DEFAULT_PRESET_ID } from "../../../../../packages/server/src/domain/preset/index.ts";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
+/** The write the concurrency pins park: the copy's own INSERT (guarded admission since #1572). */
+const PRESET_INSERT = /insert into "presets"/iu;
 
 async function seedPreset(db: Db, id: string, ownerId: UserId | null, name = id): Promise<PresetId> {
   const presetId = castId<PresetId>(id);
@@ -90,4 +92,71 @@ test("a RETRIED accept converges on the existing copy (the crash arm mints no se
 
   expect(second).toBe(first);
   expect(await db.select().from(presets).where(eq(presets.ownerId, nominee.id))).toHaveLength(1);
+});
+
+// #1572 — the accept used to be `findOwnedForkOf` THEN `insertPreset`: a find-before-mint whose window two
+// concurrent accepts of one offer both pass, minting the recipient two copies of one gift. The uniqueness
+// claim now rides the write itself (`insertConvergedPresetForkIfAbsent`), so the loser writes nothing and
+// converges on the winner. The `(owner_id, forked_from)` pair stays NON-unique in the schema on purpose —
+// `clonePackaged` and the update verb's `{mode:"new"}` both mint legal siblings of one source — which is
+// why the admission is verb-scoped rather than a constraint.
+
+test("two CONCURRENT accepts of one gift converge on ONE copy (the claim rides the write, not a prior read)", async () => {
+  const { db, hold } = await freshHeldDb();
+  const oldHost = await seedUser(db, { handle: castId("oldhost") });
+  const nominee = await seedUser(db, { handle: castId("nominee") });
+  const source = await seedPreset(db, "preset_gm", oldHost.id, "Grim GM");
+  const copy = copier(db);
+  // Both accepts park at their INSERT, so each has finished every read it makes before either row lands.
+  const inserts = hold(PRESET_INSERT, 2);
+
+  const accepts = [
+    copy({ fromOwnerId: oldHost.id, toUserId: nominee.id, presetId: source }),
+    copy({ fromOwnerId: oldHost.id, toUserId: nominee.id, presetId: source }),
+  ] as const;
+  await inserts.reached;
+  inserts.release();
+  const [first, second] = await Promise.all(accepts);
+
+  // The loser CLAIMS the winner rather than failing: an accept never surfaces a race to the recipient.
+  expect(second).toBe(first);
+  const owned = await db.select().from(presets).where(eq(presets.ownerId, nominee.id));
+  expect(owned.map((row) => row.id)).toEqual([first]);
+});
+
+test("an accept retried AFTER a lost race still returns the winning copy (no second library, no throw)", async () => {
+  const { db, hold } = await freshHeldDb();
+  const oldHost = await seedUser(db, { handle: castId("oldhost") });
+  const nominee = await seedUser(db, { handle: castId("nominee") });
+  const source = await seedPreset(db, "preset_gm", oldHost.id);
+  const copy = copier(db);
+  const inserts = hold(PRESET_INSERT, 2);
+
+  const raced = [
+    copy({ fromOwnerId: oldHost.id, toUserId: nominee.id, presetId: source }),
+    copy({ fromOwnerId: oldHost.id, toUserId: nominee.id, presetId: source }),
+  ] as const;
+  await inserts.reached;
+  inserts.release();
+  const [winner] = await Promise.all(raced);
+
+  expect(await copy({ fromOwnerId: oldHost.id, toUserId: nominee.id, presetId: source })).toBe(winner);
+  expect(await db.select().from(presets).where(eq(presets.ownerId, nominee.id))).toHaveLength(1);
+});
+
+test("a retry after the SOURCE was deleted yields null and mints nothing (the lineage was SET NULL with it)", async () => {
+  // The convergence read moved AFTER the write in #1572, so this is the one arm the reorder could have
+  // changed — and it cannot: `forked_from` is SET NULL on the source's delete, so the copy stops being a
+  // fork OF it either way, and the owner-scoped source read is what refuses. The caller heals conditionally.
+  const db = await freshDb();
+  const oldHost = await seedUser(db, { handle: castId("oldhost") });
+  const nominee = await seedUser(db, { handle: castId("nominee") });
+  const source = await seedPreset(db, "preset_gm", oldHost.id);
+  const copy = copier(db);
+  const first = await copy({ fromOwnerId: oldHost.id, toUserId: nominee.id, presetId: source });
+  await db.delete(presets).where(eq(presets.id, source));
+
+  expect(await copy({ fromOwnerId: oldHost.id, toUserId: nominee.id, presetId: source })).toBeNull();
+  const owned = await db.select().from(presets).where(eq(presets.ownerId, nominee.id));
+  expect(owned.map((row) => [row.id, row.forkedFrom])).toEqual([[first, null]]);
 });
