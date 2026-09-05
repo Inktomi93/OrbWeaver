@@ -9,9 +9,16 @@
 // The OPF is found via `META-INF/container.xml` (`<rootfile full-path=…>`). Spine `<itemref idref>` → manifest
 // `<item id href>` → the chapter path (resolved relative to the OPF's own directory). A malformed container/OPF
 // or a chapter that fails to decode throws — the dispatch wraps it as `ExtractionFailedError('epub')`. UNTRUSTED
-// bytes (an upload boundary): a per-entry bomb guard caps a declared entry size before fflate allocates (the
-// plugin-host `unzipHardened` precedent). Empty text is truthful (a spine of empty chapters).
+// bytes (an upload boundary): TWO decompression guards, both read off the zip headers BEFORE fflate allocates
+// any output buffer (the plugin-host `unzipHardened` precedent) — a PER-ENTRY cap, and the AGGREGATE budget
+// that the per-entry cap alone could not express. The per-entry cap refuses one bomb; it sums nothing, so an
+// archive of individually legal entries expanded without bound, and the upload route caps only the COMPRESSED
+// body (`@orb/contracts/uploads` DATABANK_UPLOAD_MAX_BYTES) — the amplification between the two is exactly the
+// gap the aggregate budget closes. The running total is a CLOSURE per `unzipSync` call, never module state: a
+// module-level counter would carry one document's bytes into the next and refuse an innocent upload.
+// Empty text is truthful (a spine of empty chapters).
 
+import { DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES } from "@orb/contracts/uploads";
 import { strFromU8, unzipSync } from "fflate";
 import type { RawExtraction } from "../loader.ts";
 import { loadHtml } from "./html.ts";
@@ -41,12 +48,25 @@ function decodeXml(raw: string): string {
   return raw.replace(XML_ENTITY, (m) => XML_ENTITIES[m] ?? m);
 }
 
-/** Refuse an over-cap entry from its zip header BEFORE fflate allocates its output buffer (the bomb guard). */
-function entryCapFilter(file: { readonly originalSize: number; readonly name: string }): boolean {
-  if (file.originalSize > MAX_ENTRY_BYTES) {
-    throw new Error(`epub entry ${file.name} exceeds the ${MAX_ENTRY_BYTES}-byte cap`);
-  }
-  return true;
+/** Build the per-call bomb guard: refuse an over-cap ENTRY, and refuse the whole archive once the accepted
+ *  entries' declared sizes SUM past the aggregate budget — both from the zip headers, before fflate allocates
+ *  the output buffer, which is the allocation the guard exists to prevent. The declared size is what bounds
+ *  that allocation (fflate inflates into a buffer sized from the header and errors if the data overruns), so
+ *  a header that lies small cannot buy more memory than it declared.
+ *
+ *  A FRESH closure per `unzipSync` call — the running total is this document's, never the process's. */
+function createEntryCapFilter(): (file: { readonly originalSize: number; readonly name: string }) => boolean {
+  let totalBytes = 0;
+  return (file): boolean => {
+    if (file.originalSize > MAX_ENTRY_BYTES) {
+      throw new Error(`epub entry ${file.name} exceeds the ${MAX_ENTRY_BYTES}-byte cap`);
+    }
+    totalBytes += file.originalSize;
+    if (totalBytes > DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES) {
+      throw new Error(`epub exceeds the ${DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES}-byte aggregate decompressed budget at entry ${file.name}`);
+    }
+    return true;
+  };
 }
 
 /** The directory prefix of a zip path (`OEBPS/content.opf` → `OEBPS/`), for resolving chapter hrefs relative to
@@ -94,7 +114,7 @@ function titleOf(opf: string): string | undefined {
 }
 
 export async function loadEpub(bytes: Uint8Array): Promise<RawExtraction> {
-  const files = unzipSync(bytes, { filter: entryCapFilter });
+  const files = unzipSync(bytes, { filter: createEntryCapFilter() });
 
   const container = files[CONTAINER_PATH];
   if (container === undefined) {

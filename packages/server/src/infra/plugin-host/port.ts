@@ -27,6 +27,7 @@
 
 import { randomUUID } from "node:crypto";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginInvokeArgs, PluginLogLevel } from "@orb/contracts/plugin";
+import { DomainConflictError } from "@orb/kit/errors";
 import { getLog, superviseDetached } from "#foundation/observability";
 import {
   EVENT_QUEUE_DEPTH,
@@ -34,6 +35,7 @@ import {
   PLUGIN_LOG_RING_LINES,
   PLUGIN_MEMORY_LIMIT_BYTES,
   PLUGIN_RESIDENT_RUNTIME_MAX,
+  PLUGIN_SNIPPET_RUNTIME_MAX,
   SNIPPET_WALL_MS,
 } from "./budgets.ts";
 import { getPluginQuickJS } from "./module.ts";
@@ -151,24 +153,37 @@ interface Resident {
   disposing: boolean;
 }
 
-/** Process-wide admission, shared even if a test or future composition accidentally constructs more than one
- *  host facade. The reservation is taken BEFORE the first await in createInstance, so simultaneous activations
- *  cannot all observe spare capacity and oversubscribe before entering their facade-local runtime maps. */
-let processResidentRuntimes = 0;
-function acquireResidentAdmission(): (() => void) | null {
-  if (processResidentRuntimes >= PLUGIN_RESIDENT_RUNTIME_MAX) {
-    return null;
-  }
-  processResidentRuntimes += 1;
-  let released = false;
-  return (): void => {
-    if (released) {
-      return;
+/** A process-wide context-admission counter, shared even if a test or future composition accidentally
+ *  constructs more than one host facade. The reservation is taken BEFORE the first await of the path that
+ *  mints the context, so simultaneous callers cannot all observe spare capacity and oversubscribe. Returns
+ *  the RELEASE (idempotent — a double release must not hand a neighbour a free slot), or `null` when the
+ *  pool is exhausted. */
+function createAdmission(max: number): () => (() => void) | null {
+  let inUse = 0;
+  return (): (() => void) | null => {
+    if (inUse >= max) {
+      return null;
     }
-    released = true;
-    processResidentRuntimes -= 1;
+    inUse += 1;
+    let released = false;
+    return (): void => {
+      if (released) {
+        return;
+      }
+      released = true;
+      inUse -= 1;
+    };
   };
 }
+
+/** The RESIDENT pool — held for an instance's whole enabled lifetime, released on activation failure or
+ *  teardown. Reserved before the first await in `createInstance` (see above). */
+const acquireResidentAdmission = createAdmission(PLUGIN_RESIDENT_RUNTIME_MAX);
+
+/** The TRANSIENT snippet pool — one lease per `runSnippet` call, released after that call's sandbox is torn
+ *  down. SEPARATE from the resident pool by design: the two lease lifetimes are incomparable, and sharing a
+ *  counter would let long-lived residents starve the console permanently (`PLUGIN_SNIPPET_RUNTIME_MAX`). */
+const acquireSnippetAdmission = createAdmission(PLUGIN_SNIPPET_RUNTIME_MAX);
 
 /** Retire a sandbox that failed after it began activation. Guest failure ends the eval, not necessarily the
  *  host work it started: a fire-and-forget transactional write may ignore cancellation and remain in progress.
@@ -366,30 +381,50 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
       // A transient one-shot: fresh instance, the 5 s snippet wall, run once as the caller, dispose —
       // NEVER resident (no registry entry, no `invoke` reachable after). `events`/`tools`/`transforms`
       // registration is refused by the SAME capability gate (the snippet profile omits those grants).
-      await getPluginQuickJS();
-      // SCOPE-OWNED (`using`): a snippet sandbox is never resident, so its teardown IS "end of this call" — the
-      // Sandbox's `[Symbol.dispose]` is the `finally` that used to be here. It also now covers the previously
-      // UNCOVERED window between create and the `try` (`setInvocationChat` throwing leaked the whole context).
-      using sandbox = await Sandbox.create(hostSeams, {
-        // A snippet has no manifest → no declared net hosts (its profile also omits net.fetch); `[]` fail-closes.
-        membrane: { grants: new Set(input.grants), bridge: input.bridge, netHosts: [] },
-        limits: { cpuDeadlineMs: SNIPPET_WALL_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES },
-      });
-      sandbox.setInvocationChat(input.chat);
-      const outcome = await sandbox.evalGuest(input.code);
-      if (outcome.ok) {
-        return { logLines: outcome.logs };
+      // PROCESS ADMISSION FIRST — before the WASM module load and before any context is minted. A snippet
+      // mints the same 32 MiB context an activation does, and the domain's `SnippetGate` bounds one USER's
+      // concurrency, not the process's: without this lease, N members multiplied straight through the
+      // ceiling `createInstance` holds. Its own pool, never the residents' — see `PLUGIN_SNIPPET_RUNTIME_MAX`.
+      const releaseAdmission = acquireSnippetAdmission();
+      if (releaseAdmission === null) {
+        // A THROW, not a `SnippetRunOut`: the run never started, and every field of that shape (`logLines`,
+        // `errorKind: parse|runtime`) is a statement about a run that DID. `DomainConflictError` maps to
+        // CONFLICT at the transport ladder — the same retryable-the-moment-a-slot-frees class the domain's
+        // per-user `PluginSnippetBusyError` already uses, so the console surfaces it through the path it
+        // already has. `@orb/kit` is DOWN the cake; infra names no domain here.
+        throw new DomainConflictError(`the plugin host is running its maximum of ${PLUGIN_SNIPPET_RUNTIME_MAX} snippets — wait a moment and run it again`);
       }
-      // A "parse" outcome means the guest source never started executing — a QuickJS `SyntaxError` caught
-      // synchronously before the first job pump (`Sandbox.runToSettlement`'s `result.error` branch). Anything
-      // else threw or hit the wall MID-run, which is a genuinely different fact for the console to report.
-      const errorKind: "parse" | "runtime" = outcome.error?.name === "SyntaxError" ? "parse" : "runtime";
-      return {
-        logLines: outcome.logs,
-        error: outcome.error?.message ?? "snippet failed",
-        errorKind,
-        ...(outcome.error?.line === undefined ? {} : { errorLine: outcome.error.line }),
-      };
+      try {
+        await getPluginQuickJS();
+        // SCOPE-OWNED (`using`): a snippet sandbox is never resident, so its teardown IS "end of this block" —
+        // the Sandbox's `[Symbol.dispose]` is the `finally` that used to be here. It also now covers the
+        // previously UNCOVERED window between create and the `try` (`setInvocationChat` throwing leaked the
+        // whole context). The admission release sits in the `finally` of the ENCLOSING try on purpose: a
+        // `using` disposes at the end of ITS block, which is this `try`, so the lease is returned strictly
+        // AFTER the context it accounts for is gone — never while a torn-down-but-not-yet-freed one lingers.
+        using sandbox = await Sandbox.create(hostSeams, {
+          // A snippet has no manifest → no declared net hosts (its profile also omits net.fetch); `[]` fail-closes.
+          membrane: { grants: new Set(input.grants), bridge: input.bridge, netHosts: [] },
+          limits: { cpuDeadlineMs: SNIPPET_WALL_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES },
+        });
+        sandbox.setInvocationChat(input.chat);
+        const outcome = await sandbox.evalGuest(input.code);
+        if (outcome.ok) {
+          return { logLines: outcome.logs };
+        }
+        // A "parse" outcome means the guest source never started executing — a QuickJS `SyntaxError` caught
+        // synchronously before the first job pump (`Sandbox.runToSettlement`'s `result.error` branch). Anything
+        // else threw or hit the wall MID-run, which is a genuinely different fact for the console to report.
+        const errorKind: "parse" | "runtime" = outcome.error?.name === "SyntaxError" ? "parse" : "runtime";
+        return {
+          logLines: outcome.logs,
+          error: outcome.error?.message ?? "snippet failed",
+          errorKind,
+          ...(outcome.error?.line === undefined ? {} : { errorLine: outcome.error.line }),
+        };
+      } finally {
+        releaseAdmission();
+      }
     },
 
     // A COPY, not the live ring: the ring is mutated by every later invoke, and a caller holding the array

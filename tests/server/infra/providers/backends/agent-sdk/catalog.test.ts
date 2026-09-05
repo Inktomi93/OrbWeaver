@@ -136,6 +136,47 @@ describe("agent-sdk fetchModels (supportedModels discovery)", () => {
     }
   });
 
+  // #1474 item 2: the discovery deadline was NOT a deadline. `withTimeout` bounded supportedModels(), but
+  // the `finally` then awaited `interrupt()` unbounded — so a daemon wedged on BOTH control calls kept the
+  // caller pending forever despite the advertised 15s bound. The teardown is best-effort billing cleanup;
+  // it may never be the thing that outlives the call it is cleaning up after.
+  test("a wedged interrupt() cannot hold the caller — the teardown is bounded too, and the models still return", async () => {
+    vi.useFakeTimers();
+    try {
+      const query = vi.fn(
+        (): FakeQuery => ({
+          supportedModels: (): Promise<readonly unknown[]> => Promise.resolve(SDK_MODELS),
+          // Never settles — the wedged-teardown half the discovery bound did not cover.
+          interrupt: (): Promise<undefined> => new Promise<undefined>(() => undefined),
+        }),
+      );
+      const backend = createAgentSdkBackend({
+        now: () => 0,
+        query: query as never,
+        refreshHostSubToken: () => Promise.resolve(false),
+      });
+
+      const pending = (backend.fetchModels as FetchModelsFn)({});
+      let settled = false;
+      void pending.then(
+        () => {
+          settled = true;
+        },
+        () => {
+          settled = true;
+        },
+      );
+      // Well past the interrupt bound (and under the 15s discovery bound, so a green here is the TEARDOWN
+      // deadline firing, never the discovery one).
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(settled).toBe(true);
+      // A timed-out teardown is logged, never thrown: the caller still gets the models it asked for.
+      await expect(pending).resolves.toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("a discovery failure becomes a typed ProviderError (and still interrupts)", async () => {
     const interruptSpy = vi.fn();
     const query = vi.fn(

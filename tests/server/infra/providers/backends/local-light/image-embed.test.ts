@@ -153,6 +153,28 @@ describe("createLocalLightImageEmbed", () => {
     expect(res.model).toBe(DEFAULT_IMAGE_EMBED_MODEL);
   });
 
+  // #1474: the image side returned `raw.map(...)` with no count assertion, so a library anomaly that
+  // dropped or added a vector MISALIGNED every vector against its image — silently, all the way into
+  // the store. The count is the only thing that makes the positional alignment a fact rather than a hope.
+  test("refuses when the model cache returns a vector count that does not match the image count", async () => {
+    const shortCache: LocalLightModelCache = {
+      ...fakeCache({}),
+      // Two images in, ONE vector out — the misalignment this assertion exists to catch.
+      embedImages: (): Promise<Float32Array[]> => Promise.resolve([Float32Array.from([3, 4, 0])]),
+    };
+    const err = await imageEmbedOf(shortCache)({
+      credential: CRED,
+      model: MODEL,
+      input: { kind: "image", input: [new Uint8Array([1]), new Uint8Array([2])] },
+    }).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ProviderError);
+    expect(err).toMatchObject({ kind: "invalid", retryable: false });
+    expect((err as ProviderError).message).toMatch(/expected 2.*got 1/su);
+  });
+
   test("throws a typed aborted error when the signal is already aborted", async () => {
     const controller = new AbortController();
     controller.abort();

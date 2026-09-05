@@ -10,6 +10,15 @@ import { buildEpub } from "../_fixtures.ts";
 const enc = new TextEncoder();
 const MISSING_CONTAINER = /META-INF\/container\.xml/;
 const MISSING_OPF = /OPF package document not found/;
+const AGGREGATE_CAP = /aggregate decompressed budget/;
+/** One padding entry: comfortably under the 64 MiB per-entry cap, so only the SUM can trip the guard. */
+const BIG_ENTRY_BYTES = 60 * 1024 * 1024;
+/** Enough padding entries that their sum clears any plausible aggregate budget (4 × 60 MiB = 240 MiB, over
+ *  the 200 MiB `DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES` the loader derives from the 20 MiB upload cap). The
+ *  count is spelled here rather than derived from the constant: the point of the pin is that a SUM is
+ *  enforced at all, and a test that recomputes the number only couples itself to it. */
+const PADDING_ENTRIES = 4;
+const MINIMAL_CONTAINER = `<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf"/></rootfiles></container>`;
 
 test("extracts chapter text in spine order, joined with a blank line, and the OPF title", async () => {
   const out = await loadEpub(buildEpub({ title: "A Guide", chapters: ["Intro chapter.", "Second chapter."] }));
@@ -50,4 +59,25 @@ test("throws when META-INF/container.xml is absent", async () => {
 test("throws when the OPF the container points at is absent", async () => {
   const container = `<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf"/></rootfiles></container>`;
   await expect(loadEpub(zipSync({ "META-INF/container.xml": enc.encode(container) }))).rejects.toThrow(MISSING_OPF);
+});
+
+// ── The AGGREGATE decompression budget (#1474 item 5) ────────────────────────────────────────────────
+// The per-entry cap refuses ONE bomb; nothing summed across the archive, so an archive of individually
+// legal entries could still expand far past what the 20 MiB compressed upload cap implies. The entries
+// below are zero-filled (deflate crushes them to nothing on the wire) and each sits UNDER the 64 MiB
+// per-entry cap — only their SUM crosses the budget, so a green here cannot be the per-entry guard.
+test("refuses an archive whose entries individually pass the per-entry cap but SUM over the aggregate budget", { timeout: 60_000 }, async () => {
+  // The generous timeout is the FIXTURE's cost, not the loader's: deflating a quarter-gigabyte of padding
+  // takes seconds, while the refusal itself happens off the zip headers before a byte is inflated.
+  const chunk = new Uint8Array(BIG_ENTRY_BYTES);
+  const files: Record<string, Uint8Array> = { "META-INF/container.xml": enc.encode(MINIMAL_CONTAINER) };
+  for (let i = 0; i < PADDING_ENTRIES; i += 1) {
+    files[`OEBPS/pad${i}.bin`] = chunk;
+  }
+  await expect(loadEpub(zipSync(files, { level: 1 }))).rejects.toThrow(AGGREGATE_CAP);
+});
+
+test("admits an archive whose entries sum UNDER the aggregate budget (the guard is not a blanket refusal)", async () => {
+  const out = await loadEpub(buildEpub({ title: "Small", chapters: ["Tiny chapter."] }));
+  expect(out.text).toBe("Tiny chapter.");
 });

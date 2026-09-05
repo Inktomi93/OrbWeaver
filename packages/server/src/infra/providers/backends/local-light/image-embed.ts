@@ -32,7 +32,12 @@ function assertNeverKind(value: never): never {
 }
 
 /** Embed images → one normalized vector each (no filtering — every image is attempted). A lone
- *  `Uint8Array`/string image is NOT a JS Array, so `Array.isArray` correctly wraps it. */
+ *  `Uint8Array`/string image is NOT a JS Array, so `Array.isArray` correctly wraps it.
+ *
+ *  THE COUNT IS ASSERTED, not assumed: the result is positional (vector N belongs to image N) and nothing
+ *  downstream can re-derive that pairing, so a cache/library anomaly returning a short or long list would
+ *  misalign every vector after the gap — silently, all the way into the store. Same failure class, and the
+ *  same `invalid` classification, as the hosted decoder's width/count checks. */
 async function embedImageSide(
   cache: LocalLightModelCache,
   // @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
@@ -43,6 +48,13 @@ async function embedImageSide(
   // image wraps cleanly instead of being treated as an array of items.
   const images: readonly ImageInput[] = typeof input === "string" || input instanceof Uint8Array ? [input] : input;
   const raw = await cache.embedImages(modelId, images);
+  if (raw.length !== images.length) {
+    throw new ProviderError({
+      kind: "invalid",
+      retryable: false,
+      message: `local-light imageEmbed: the model returned a vector count that does not match the images — expected ${images.length}, got ${raw.length}`,
+    });
+  }
   return raw.map((vec) => normalizeVector(vec));
 }
 

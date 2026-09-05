@@ -33,6 +33,25 @@ export const PLUGIN_MEMORY_LIMIT_BYTES = 33_554_432;
  *  activation failure or teardown. Explicit refusal is safer than evicting a live plugin behind its registrars. */
 export const PLUGIN_RESIDENT_RUNTIME_MAX = 16;
 
+/** Process-wide CONCURRENT snippet contexts — the transient half of the same ceiling, and a SEPARATE pool
+ *  from {@link PLUGIN_RESIDENT_RUNTIME_MAX} on purpose. A snippet mints exactly the same 32 MiB
+ *  `QuickJSContext` an activation does, so leaving `runSnippet` unadmitted made the process ceiling a
+ *  fiction: `SNIPPET_CONCURRENCY_PER_USER` is a PER-USER cap, so N distinct members multiplied straight
+ *  through it.
+ *
+ *  WHY NOT ONE SHARED POOL. The two leases have incomparable lifetimes: a resident's is held for the whole
+ *  time its plugin is enabled, a snippet's for one ≤5 s call. Sharing a counter lets the long-lived side
+ *  monotonically eat it — 16 installed plugins would kill the snippet console PERMANENTLY, which is a
+ *  starvation, not a refusal. Two pools mean a snippet storm cannot refuse an activation and a full
+ *  install roster cannot refuse a REPL; each side's ceiling is the honest number for its own class.
+ *
+ *  THE PROCESS CEILING IS THEREFORE (16 + 8) × 32 MiB = 768 MiB of guest heap, worst case, and that sum is
+ *  the number to review against soak data — never one constant alone. 8 is a LEAN with its resolution
+ *  criterion: it is two members at their full per-user allowance of 4 at the same instant, which is the
+ *  concurrency a personal REPL actually produces; raise it when real multi-member load refuses an honest
+ *  snippet, lower it if measured abuse arrives first. */
+export const PLUGIN_SNIPPET_RUNTIME_MAX = 8;
+
 /** Explicit guest stack ceiling (bytes) — MANDATORY, not cosmetic. FINDING: QuickJS-ng's DEFAULT
  *  stack-overflow detection does NOT reliably catch deep recursion — a recursive guest blows the real
  *  WASM/native stack, which surfaces as a HOST-side `RangeError` (escaping the sandbox) AND leaves the

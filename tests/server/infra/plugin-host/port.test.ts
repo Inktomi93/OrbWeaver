@@ -42,6 +42,9 @@ const RESIDENT_CAPACITY_RE = /resident runtime capacity/u;
 const HOST_FN_EXCEEDED_RE = /exceeded/u;
 const HOST_OPERATION_ABORTED_RE = /abort/u;
 const UNKNOWN_OR_DISPOSED_RE = /unknown\/disposed/u;
+const SNIPPET_CAPACITY_RE = /maximum of \d+ snippets/u;
+/** A race sentinel: distinguishes "settled already" from "still held" without a timer. */
+const PENDING = Symbol("pending");
 
 /** The concurrency-belt witness guest (a resident tool): (1) await a HUNG getVariables — returns control to the
  *  event loop mid-invocation, opening the race window; (2) requestTurn — forwards ITS invocation's
@@ -1076,6 +1079,120 @@ describe("runSnippet — transient one-shot (P5)", () => {
     const out = await host.runSnippet({ code, grants: ["chat.read", "global_vars"], bridge, chat: { chatId: CHAT, canWrite: false, automationDepth: 0 } });
     expect(out.logLines.some((l) => l.includes("tools.register"))).toBe(true);
     expect(out.logLines).not.toContain("[info] registered");
+  });
+});
+
+// #1474 item 1: a snippet mints the SAME 32 MiB QuickJSContext an activation does, but `runSnippet` took no
+// process admission at all — the only bound was `SNIPPET_CONCURRENCY_PER_USER`, a PER-USER cap, so N distinct
+// members collectively blew straight past the process ceiling `createInstance` is careful to hold.
+//
+// The number is deliberately NOT imported here: what is load-bearing is that a bound EXISTS, is process-wide,
+// is released, and does NOT share the residents' pool. The value + its rationale live in `budgets.ts`, and a
+// test re-spelling it would only couple the two.
+describe("runSnippet — process-wide snippet admission", () => {
+  /** Hold a snippet in flight: it awaits a `getVariables` the test resolves later. */
+  const heldSnippetCode = "const h = orb.host(1); h.chat.getVariables(h.chat.current()).then(() => h.log.info('released'));";
+  /** Attempts, comfortably above any sane process snippet ceiling — the loop finds the bound, never asserts it. */
+  const attemptCount = 12;
+
+  function heldSnippetBridge(releases: (() => void)[]): PluginBridge {
+    const base = fakeBridge().bridge;
+    return {
+      ...base,
+      chat: {
+        ...base.chat,
+        getVariables: () =>
+          new Promise<Record<string, string>>((resolve) => {
+            releases.push(() => resolve({ held: "released" }));
+          }),
+      },
+    };
+  }
+
+  test("concurrent snippets are bounded process-wide, refused with a typed capacity error, and the lease is released", { timeout: LONG }, async () => {
+    // TWO host facades on purpose: the admission is a PROCESS ceiling, not a per-facade one.
+    const hostA = makeHost();
+    const hostB = makeHost();
+    const releases: (() => void)[] = [];
+    const bridge = heldSnippetBridge(releases);
+    const run = (index: number): Promise<unknown> =>
+      (index % 2 === 0 ? hostA : hostB)
+        .runSnippet({ code: heldSnippetCode, grants: ["chat.read"], bridge, chat: { chatId: CHAT, canWrite: false, automationDepth: 0 } })
+        .then(
+          () => "ran",
+          (err: unknown) => err,
+        );
+
+    const attempts = Array.from({ length: attemptCount }, (_, index) => run(index));
+    try {
+      await settleTicks();
+      const refusals: unknown[] = [];
+      // Refusals settle immediately (nothing is minted); the admitted ones are still held on the bridge gate.
+      for (const attempt of attempts) {
+        const settledEarly = await Promise.race([attempt, Promise.resolve(PENDING)]);
+        if (settledEarly !== PENDING) {
+          refusals.push(settledEarly);
+        }
+      }
+      expect(refusals.length).toBeGreaterThan(0);
+      for (const refusal of refusals) {
+        expect(refusal).toBeInstanceOf(Error);
+        expect((refusal as Error).message).toMatch(SNIPPET_CAPACITY_RE);
+      }
+      // The admitted set is what actually held contexts — strictly fewer than the attempts: the bound.
+      expect(refusals.length).toBeLessThan(attemptCount);
+    } finally {
+      // Release in a `finally`: a failed assertion above must not strand the admitted leases and turn one
+      // red into a cascade of capacity refusals across every later test in this file.
+      for (const release of releases) {
+        release();
+      }
+      await Promise.all(attempts);
+    }
+
+    // THE LEASE IS RELEASED after the run (the `using` teardown, not before it) — a fresh snippet is admitted
+    // once the held ones are done. Without a release, this is the arm that turns a bound into a one-way latch.
+    const after = await hostA.runSnippet({
+      code: "orb.host(1).log.info('after');",
+      grants: [],
+      bridge,
+      chat: { chatId: CHAT, canWrite: false, automationDepth: 0 },
+    });
+    expect(after.error).toBeUndefined();
+    expect(after.logLines).toContain("[info] after");
+  });
+
+  // GREEN BEFORE THE FIX, and labelled as such: this is a REGRESSION FENCE on the pool-separation decision,
+  // not a defect proof. It passed when `runSnippet` took no admission at all (vacuously), and it must keep
+  // passing now that it takes one — which is exactly what would break if the two pools were ever merged.
+  test("FENCE: a full RESIDENT pool cannot starve snippets (the two pools are separate by design)", { timeout: LONG }, async () => {
+    // A resident lease is held for the plugin's whole enabled lifetime; a snippet's is one call. Sharing one
+    // counter would let PLUGIN_RESIDENT_RUNTIME_MAX installed plugins kill the console permanently.
+    const host = makeHost();
+    const { bridge } = fakeBridge();
+    const residents: PluginInstance[] = [];
+    try {
+      for (let index = 0; index < PLUGIN_RESIDENT_RUNTIME_MAX; index += 1) {
+        const outcome = await host.createInstance({ mainJs: "'ok'", grants: [], bridge, chat: noChat });
+        expect(outcome.ok).toBe(true);
+        if (outcome.ok) {
+          residents.push(outcome.instance);
+        }
+      }
+      // The resident pool is now exhausted — an activation would be refused here.
+      const out = await host.runSnippet({
+        code: "orb.host(1).log.info('snippet ran');",
+        grants: [],
+        bridge,
+        chat: { chatId: CHAT, canWrite: false, automationDepth: 0 },
+      });
+      expect(out.error).toBeUndefined();
+      expect(out.logLines).toContain("[info] snippet ran");
+    } finally {
+      for (const instance of residents) {
+        host.dispose(instance);
+      }
+    }
   });
 });
 

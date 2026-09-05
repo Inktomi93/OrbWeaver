@@ -23,7 +23,7 @@ import type {
 } from "../../../../contract/index.ts";
 import { ProviderError } from "../../../../contract/index.ts";
 import type { NormalizeImageBytes } from "../../../kit/index.ts";
-import { providerCredentialSecretValues, providerErrorFromHttp } from "../../../kit/index.ts";
+import { decodeEmbeddingVector, providerCredentialSecretValues, providerErrorFromHttp } from "../../../kit/index.ts";
 
 const BASE64 = "base64";
 const DATA_URL_PREFIX = "data:";
@@ -122,20 +122,12 @@ export async function runImageEmbed(client: OrImageEmbedClient, req: ImageEmbedR
     });
   }
   const ordered = response.data.toSorted((a, b) => (a.index ?? 0) - (b.index ?? 0));
-  const vectors = ordered.map((entry) => toFloat32(entry.embedding));
+  // ONE decoder home with the embed runner (`backends/kit/embedding-decode`) — this file carried a verbatim
+  // copy, and so carried the identical missing alignment check. No `dimensions` on an imageEmbed request, so
+  // only the alignment half applies; the count is not asserted here because a multimodal input collapses N
+  // wire items into one embedding (the request's input length is not the expected vector count).
+  const vectors = ordered.map((entry) => decodeEmbeddingVector(entry.embedding, embedErrorPrefix(req.model)));
   return { vectors, model: response.model };
-}
-
-function toFloat32(embedding: number[] | string): Float32Array<ArrayBuffer> {
-  if (typeof embedding === "string") {
-    const bytes = Buffer.from(embedding, BASE64);
-    // Copy into a fresh, exactly-sized ArrayBuffer (4-byte aligned by construction): `Buffer` is a view
-    // into a pooled, arbitrarily-offset ArrayBuffer, and a direct float32 view would RangeError.
-    const copy = new ArrayBuffer(bytes.byteLength);
-    new Uint8Array(copy).set(bytes);
-    return new Float32Array(copy);
-  }
-  return new Float32Array(embedding);
 }
 
 // Parse one returned image URL → the cross-family `GeneratedImage`: a `data:` URL is split into mediaType +

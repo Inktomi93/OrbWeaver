@@ -301,8 +301,9 @@ async function buildOrBatchRequest(deps: OrBatchDeps, req: OrBatchReq, input: Su
 }
 
 // One failed batch item → the thrown, cause-chained ProviderError, with OpenRouter's OWN status + body
-// surfaced. A refusal (already a typed ProviderError) is reframed with the item's coordinates, its kind
-// preserved. A raw OpenRouter/SDK HTTP failure is classified through the shared HTTP table
+// surfaced. A refusal (already a typed ProviderError) is reframed with the item's coordinates through
+// `rewrap`, so EVERY carried field survives — not just kind/retryable, but the `resetsAt` a backoff honors,
+// the upstream status, the model and the request id (the hand-rolled re-mint this replaced dropped them all). A raw OpenRouter/SDK HTTP failure is classified through the shared HTTP table
 // (`providerErrorFromHttp` — a 404 is `model_unavailable` + non-retryable, NOT the retryable `server` a bare
 // re-throw used to guess) AND carries OR's raw response body: the Speakeasy client throws a
 // `ResponseValidationError` whose `.message` is the generic "Response validation failed" and SWALLOWS OR's
@@ -314,20 +315,18 @@ async function buildOrBatchRequest(deps: OrBatchDeps, req: OrBatchReq, input: Su
 function orBatchProviderError(role: "summarize" | "structured", index: number, err: unknown, secrets: readonly string[]): ProviderError {
   const prefix = `openrouter ${role} item ${index} failed`;
   if (err instanceof ProviderError) {
-    return new ProviderError({ kind: err.kind, retryable: err.retryable, message: `${prefix}: ${err.message}`, cause: err });
+    // `rewrap`, never a hand-rolled re-mint: the item coordinates are a message prefix, and a prefix is not a
+    // reason to drop `resetsAt`/`apiErrorStatus`/`model`/`requestId` (the batch caller's backoff reads them).
+    return err.rewrap(`${prefix}: ${err.message}`);
   }
   const classified = providerErrorFromHttp(err, prefix, secrets);
   const body = extractHttpErrorDiagnostic(err, secrets).body;
   if (body === undefined) {
     return classified;
   }
-  return new ProviderError({
-    kind: classified.kind,
-    retryable: classified.retryable,
-    message: `${classified.message} — upstream body: ${body}`,
-    ...(classified.apiErrorStatus !== undefined ? { apiErrorStatus: classified.apiErrorStatus } : {}),
-    cause: classified,
-  });
+  // Same rule on the classified arm: appending OR's raw body is a message edit, so every field the HTTP
+  // classifier established rides through (this used to hand-carry `apiErrorStatus` alone).
+  return classified.rewrap(`${classified.message} — upstream body: ${body}`);
 }
 
 // The failed-item log + the re-thrown ProviderError (batch rejects exactly as before). The logged

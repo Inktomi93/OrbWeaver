@@ -26,8 +26,13 @@ export const PROVIDER_ERROR_KINDS = [
   "refused",
   // The credential firewall denied this (source/role/consent policy) — fail-closed, not retryable.
   "forbidden",
-  // A structurally-invalid request: a wrong source for a role, an unwired backend, an unsupported
-  // (api, source) pairing, or a backend that doesn't implement the requested role.
+  // A structurally-invalid REQUEST — a wrong source for a role, an unwired backend, an unsupported
+  // (api, source) pairing, a backend that doesn't implement the requested role — OR a structurally-invalid
+  // RESPONSE the backend cannot decode: a misaligned embedding payload, a vector width that contradicts the
+  // `dimensions` the request asked for, a vector count that does not match the inputs. Both halves are
+  // NON-RETRYABLE for the same reason: the shape disagreement is deterministic, so a retry re-buys the same
+  // refusal (on an embed, with the caller's money). Distinct from `server` (an upstream that FAILED, which a
+  // retry can plausibly get past).
   "invalid",
   "model_unavailable",
   "server",
@@ -120,5 +125,32 @@ export class ProviderError extends Error {
       ...(this.sessionId !== undefined ? { sessionId: this.sessionId } : {}),
       ...(this.requestId !== undefined ? { requestId: this.requestId } : {}),
     };
+  }
+
+  /**
+   * Re-frame this failure under a NEW message, carrying EVERY classification and provenance field forward
+   * and chaining the original as `cause`. THE ONE re-mint helper, because the hand-rolled version was
+   * lossy by construction: a call site that re-spells `new ProviderError({ kind, retryable, message })` to
+   * add coordinates ("item 3 failed: …") silently DESTROYS `resetsAt` (the rate-limit reset a backoff
+   * honors), `apiErrorStatus`, `model`, `requestId` and the rest — and a dropped field looks exactly like a
+   * provider that never sent one. Adding context to a message is not a reason to lose the provenance.
+   *
+   * A field added to {@link ProviderErrorInit} MUST be mirrored here, exactly as it must in `toLog()`; the
+   * errors test asserts both by comparing a fully-populated error's `toLog()` across the re-frame.
+   */
+  rewrap(message: string): ProviderError {
+    return new ProviderError({
+      kind: this.kind,
+      retryable: this.retryable,
+      message,
+      ...(this.resetsAt !== undefined ? { resetsAt: this.resetsAt } : {}),
+      ...(this.apiErrorStatus !== undefined ? { apiErrorStatus: this.apiErrorStatus } : {}),
+      ...(this.model !== undefined ? { model: this.model } : {}),
+      ...(this.terminalReason !== undefined ? { terminalReason: this.terminalReason } : {}),
+      ...(this.detail !== undefined ? { detail: this.detail } : {}),
+      ...(this.sessionId !== undefined ? { sessionId: this.sessionId } : {}),
+      ...(this.requestId !== undefined ? { requestId: this.requestId } : {}),
+      cause: this,
+    });
   }
 }

@@ -128,7 +128,13 @@ export interface PluginHostPort {
   readonly invoke: (instance: PluginInstance, handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat: InvocationChat | null) => Promise<string>;
   /** Run an inline snippet: a FRESH transient instance, run once as the caller under the 5 s wall, then
    *  disposed — no residency. The fixed capability profile + the admitted chat scope are the domain's; the port
-   *  returns the drained log + a contained `error` (a snippet crash is data, never a resident-crash counter). */
+   *  returns the drained log + a contained `error` (a snippet crash is data, never a resident-crash counter).
+   *
+   *  A RUN THAT NEVER STARTED IS A THROW, not a result: the port holds its own PROCESS-wide concurrent-snippet
+   *  admission (a snippet mints the same 32 MiB guest context an activation does, and {@link SnippetGate} bounds
+   *  one USER, not the process), and refuses over it with a CONFLICT-class error — retryable the moment a slot
+   *  frees, exactly like the per-user ceiling. Every field of `SnippetResult` describes a run that DID happen,
+   *  so a refusal has no honest spelling in it. */
   readonly runSnippet: (input: {
     readonly code: string;
     readonly grants: readonly PluginCapability[];
