@@ -100,6 +100,7 @@ export type {
   TurnIntent,
   TurnLockedOpCode,
   TurnOrigin,
+  UserMacroUnknownPickOpCode,
 } from "./bus.ts";
 export {
   AUTOMATION_DEPTH_HARD_CAP,
@@ -116,6 +117,7 @@ export {
   TURN_INITIATORS,
   TURN_INTENTS,
   TURN_LOCKED_OP_CODE,
+  USER_MACRO_UNKNOWN_PICK_OP_CODE,
 } from "./bus.ts";
 export type { CardFrameMintRequest, CardFrameMintResponse } from "./card-frame.ts";
 export { CARD_FRAME_MINT_BODY_MAX_BYTES, CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema, cardFrameUrl } from "./card-frame.ts";

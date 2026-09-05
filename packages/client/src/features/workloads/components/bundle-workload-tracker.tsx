@@ -57,11 +57,15 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
   // cleanup so there is one teardown to reason about. Read and written only in callbacks and that cleanup,
   // never during render.
   //
-  // NOT CT-PINNED, and the reason is a tooling gap rather than a judgment: reaching `reconcile` at all needs
-  // a socket DROP AND RE-ATTACH (`onSocketLive` is deliberately not fired on a room's first live edge —
-  // `use-workload-subscription.ts` / BOOT-4X), and `routeOrbSocket`'s `dropFirstConnection` — the affordance
-  // built for exactly that — has NO existing consumer in `tests/**` and did not deliver the reconnect in two
-  // attempts here. Proving or repairing it is its own row; until then this guard is carried by review.
+  // NOT CT-PINNED, and the honest reason is that NOTHING MOUNTS THIS TRACKER IN ANY TEST — there is no story
+  // for it, so there is no place to drive an unmount-mid-request from. (An earlier note here claimed
+  // `routeOrbSocket`'s `dropFirstConnection` had "no existing consumer in tests/**"; that was simply wrong —
+  // it has three: `tests/client/features/chat/surfaces/message-list-surface.ct.tsx:427`,
+  // `tests/client/data/bus/use-chat-bus.ct.tsx:34`, `tests/client/data/bus/use-user-bus.ct.tsx:83`. The
+  // affordance works; the gap is the missing mount.) Reaching `reconcile` needs a socket DROP AND RE-ATTACH
+  // (`onSocketLive` is deliberately not fired on a room's first live edge — `use-workload-subscription.ts` /
+  // BOOT-4X). The story + the unmount-mid-request pin are #1601; until that lands this guard is carried by
+  // review.
   const retryTimersRef = useRef<Set<ReturnType<typeof setTimeout>> | null>(null);
   const aliveRef = useRef(true);
   useEffect(() => {

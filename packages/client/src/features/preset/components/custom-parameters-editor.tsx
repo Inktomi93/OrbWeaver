@@ -53,6 +53,15 @@ export interface CustomParametersEditorProps {
  *
  * The subscription is what makes the change VISIBLE to this subtree at all (nothing here re-rendered on a
  * `setFieldValue` before), and the body reseeds on it.
+ *
+ * AND IT IS NOT THE #1561 TWO-WRITER ARM, which #1588 read it as (measured 2026-09-05, three fences in
+ * `params-deck.ct.tsx`). A reseed cannot discard visible keystrokes here because the ONE writer that moves
+ * this field on a still-mounted form — `create-autosave-entity-form.tsx`'s clean server-echo effect — is
+ * gated on `saveState !== "saving" && !hasUnsavedEdits(...)`, and every keystroke in this editor goes
+ * through `commit()` → `form.setFieldValue`, so typing is exactly what closes that gate. The value the rows
+ * are reseeded FROM therefore only moves while there is nothing unsaved to lose. Routing this through
+ * `lib/edit-session.ts`'s `resolveCommit` (the tracker / beat-row / roster shape) would be a SECOND, weaker
+ * copy of a decision the form already owns, and it would have to refuse the reset case above.
  */
 export function CustomParametersEditor({ form }: CustomParametersEditorProps): ReactElement {
   return (

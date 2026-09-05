@@ -136,9 +136,10 @@ function UrlInstallArm({
       </Text>
       <Row align="end" gap="field">
         <Stack className="flex-1">
+          {/* No `aria-label` (#1587): a `<Field>` label outranks one, so this duplicate spelling of the same
+              string was inert — and a second home for the name is a rename waiting to diverge. */}
           <Field label="Plugin URL">
             <Input
-              aria-label="Plugin URL"
               disabled={busy}
               onValueChange={(next): void => {
                 setUrl(next);

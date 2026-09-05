@@ -33,8 +33,12 @@ export interface RowDestructiveAction {
   readonly description: ReactNode;
   /** The confirm button's label. @defaultValue the item `label` (or "Delete"). */
   readonly confirmLabel?: string;
-  /** Fires on confirm. */
-  readonly onConfirm: () => void;
+  /** Fires on confirm — and may return a PROMISE (#1563b). This value is forwarded to
+   *  `ConfirmDialog.onConfirm`, which awaits it: the dialog holds open while the work runs, closes itself on
+   *  success, and stays open with the reason on rejection. Declaring `() => void` still ACCEPTED an async
+   *  handler (a `Promise` return is assignable to `void`), so the hold-and-retry was reached by accident
+   *  rather than by contract, and this type told a reader the opposite of what happens. */
+  readonly onConfirm: () => void | Promise<void>;
   /** Render a MenuSeparator before the destructive item. @defaultValue true */
   readonly separator?: boolean;
 }

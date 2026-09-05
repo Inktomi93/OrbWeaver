@@ -21,9 +21,19 @@ export const useAddToGallery = createEntityMutation<inferInput<Trpc["assets"]["a
   errorToast: "Couldn't add that image to the gallery.",
 });
 
-/** Remove a curated item from the gallery (the underlying asset is untouched). Refetches the gallery. */
+/**
+ * Remove a curated item from the gallery (the underlying asset is untouched). Refetches the gallery.
+ *
+ * NO `errorToast`, deliberately (#1563a). Its ONE caller is the gallery lightbox's destructive confirm, and
+ * #1563 gave `ConfirmDialog` an inline failure line that holds the dialog open with its own button as the
+ * retry — so a toast on top made one refused press say the same thing twice, once in the dialog the reader
+ * is looking at and once in a global notice over it. The sibling `useAddToGallery` KEEPS its toast: its
+ * caller is a fire-and-forget batch add with no per-press surface of its own.
+ *
+ * ENDS WHEN a second call site appears that does not own a failure surface — then this owes the function
+ * form, not a bare string, so the confirm's press stays silent while the new caller toasts.
+ */
 export const useRemoveFromGallery = createEntityMutation<inferInput<Trpc["assets"]["removeFromGallery"]>, unknown>({
   options: (trpc) => trpc.assets.removeFromGallery.mutationOptions(),
   invalidates: (trpc) => [trpc.assets.listGallery.pathFilter()],
-  errorToast: "Couldn't remove that image from the gallery.",
 });

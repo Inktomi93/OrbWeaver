@@ -865,6 +865,13 @@ const PNG_1PX = Buffer.from(PNG_1PX_BASE64, "base64");
 // validates the prefix + base32 suffix — a bogus string would throw at the boundary).
 
 const STUB_ASSET_ID = "asset_01h455vb4pex5vsknk084sn02q";
+// …and a 64-char hex CAS hash, because `storedAssetSchema.hash` is `z.string().length(CAS_HASH_HEX_LENGTH)`
+// (`contracts/assets/index.ts:78,89`, landed in b588b9d0a with the #1359-#1380 validation floors) and
+// `data/upload-asset.ts:31` PARSES the upload response against it. The stubs here used to answer a 6-char
+// `"cthash"`, so the parse threw at the boundary, the attachment never resolved and `chat.send` never fired
+// — three composer tests red on main with an error that named none of that (#1589). The contract moved
+// under the fixture; the composer itself never regressed.
+const STUB_ASSET_HASH = "9f2c4b1e".repeat(8);
 
 test("sending with an attachment uploads it to CAS and includes the asset id on chat.send", async ({ mount, page }) => {
   // Stub the raw multipart upload route (not tRPC) → returns a StoredAsset.
@@ -872,7 +879,7 @@ test("sending with an attachment uploads it to CAS and includes the asset id on 
   await page.route("**/api/assets/upload", async (route) => {
     uploadCalled += 1;
     await route.fulfill({
-      json: { assetId: STUB_ASSET_ID, hash: "cthash", size: PNG_1PX.length, created: true },
+      json: { assetId: STUB_ASSET_ID, hash: STUB_ASSET_HASH, size: PNG_1PX.length, created: true },
     });
   });
   // Hold chat.send so we can read its captured body (registered BEFORE routeTrpc — LIFO).
@@ -909,7 +916,7 @@ test("attaching a video shows the video preview arm and rides the send as an att
   await page.route("**/api/assets/upload", async (route) => {
     uploadCalled += 1;
     await route.fulfill({
-      json: { assetId: STUB_ASSET_ID, hash: "cthash", size: 4, created: true },
+      json: { assetId: STUB_ASSET_ID, hash: STUB_ASSET_HASH, size: 4, created: true },
     });
   });
   let sendBody: string | null = null;
@@ -1138,7 +1145,7 @@ test("#376 drop: dropping an image attaches it and it rides the send as an attac
   let uploadCalled = 0;
   await page.route("**/api/assets/upload", async (route) => {
     uploadCalled += 1;
-    await route.fulfill({ json: { assetId: STUB_ASSET_ID, hash: "cthash", size: PNG_1PX.length, created: true } });
+    await route.fulfill({ json: { assetId: STUB_ASSET_ID, hash: STUB_ASSET_HASH, size: PNG_1PX.length, created: true } });
   });
   let sendBody: string | null = null;
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });

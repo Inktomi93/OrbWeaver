@@ -12,7 +12,7 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { readEscapedAbsolutes } from "../../../../support/ct/settings-geometry.ts";
@@ -159,6 +159,69 @@ async function stub(page: Page, extra: Readonly<Record<string, unknown>> = {}): 
   await routeTrpc(page, { ...HOST_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW, "settings.listThemes": () => LOOKS_THEMES, ...extra });
 }
 
+/**
+ * THE SETTLED LANDING — the barrier every deep-link test in this file owes BEFORE it clicks or measures
+ * (#1586, the #1575 template).
+ *
+ * A `<ConfigHostStory target=…>` mount does not finish when its content paints: `openConfigTo` runs a
+ * programmatic jump, and `config-jump.ts`'s `beginProgrammaticScroll` holds the scroll-spy suppressed until
+ * either a `scrollend` that follows a real scroll or a 700ms fallback that is REFRESHED by every scroll
+ * event. A test that acts inside that window has a landing timer still armed behind it: the spy re-arms
+ * mid-motion, marks whatever section is under the line, and the assertion sees an `aria-current` row nobody
+ * clicked. Waiting on a heading is a MOUNT barrier, not a settled one — which is why the family passed
+ * alone and failed under contention, where the window is wide enough to catch.
+ *
+ * So this waits for the three things that actually have to be true, and measures the last one the way the
+ * production code decides it: no scroll event on the container for longer than that fallback.
+ */
+async function settledOnLanding(page: Page, component: Locator, firstSection: string): Promise<void> {
+  // 1. FONTS. The section boxes move when the real face swaps in, and which section crosses the spy line is
+  //    a function of those boxes.
+  await page.evaluate(async (): Promise<boolean> => {
+    await document.fonts.ready;
+    return true;
+  });
+  // 2. THE LANDING'S OWN MARK. Until this row is current, any `aria-current` in the list is a leftover.
+  await expect(component.getByRole("button", { name: firstSection, exact: true })).toHaveAttribute("aria-current", "true");
+  // 3. THE SPY IS RE-ARMED — the container has gone quiet for longer than the suppression fallback, so no
+  //    timer from the landing can still fire behind whatever the test does next.
+  //
+  //    Counted in ANIMATION FRAMES rather than milliseconds, and not for style: an ambient clock in a test
+  //    is a `test-determinism` violation (Spine-Testing §3), and frames are also the SAFER unit here. The
+  //    fallback is a 700ms wall-clock timer refreshed by every scroll event; 60 consecutive scroll-free
+  //    frames is ~1s on the 60Hz compositor and only ever LONGER under contention, which is the direction
+  //    that keeps the barrier honest.
+  await page.evaluate(() => {
+    // FABRICATION-OK: in-page globalThis scaffolding (a scroll-event tally, not a domain value).
+    const w = globalThis as unknown as { __scrolls: number; __quiet: number; __seenScrolls: number };
+    w.__scrolls = 0;
+    w.__quiet = 0;
+    w.__seenScrolls = -1;
+    document.querySelector('[data-slot="config-content"]')?.addEventListener(
+      "scroll",
+      () => {
+        w.__scrolls += 1;
+      },
+      { passive: true },
+    );
+  });
+  await page.waitForFunction(
+    () => {
+      // FABRICATION-OK: in-page globalThis scaffolding (see the scroll tally installed above).
+      const w = globalThis as unknown as { __scrolls: number; __quiet: number; __seenScrolls: number };
+      if (w.__scrolls === w.__seenScrolls) {
+        w.__quiet += 1;
+      } else {
+        w.__quiet = 0;
+        w.__seenScrolls = w.__scrolls;
+      }
+      return w.__quiet >= 60;
+    },
+    undefined,
+    { polling: "raf" },
+  );
+}
+
 test("renders the four shelves as NAMED groups, labelled by their own kicker, with the group bands inside them", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostStory />);
@@ -242,23 +305,32 @@ test("a sectioned group is a disclosure group whose FIRST section is the one ari
 test("the active group expands into its section rows; an untouched sibling's rows are not painted; an opened one is remembered", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostStory target="appearance" />);
+  // The deep link's own jump must be OVER before this test clicks a band, or the landing's spy re-arm fires
+  // behind the switch and marks an Appearance row current after Connections took over (#1586).
+  await settledOnLanding(page, component, "Looks");
 
-  await expect(component.getByRole("button", { name: "Avatars" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Reading typography" })).toBeVisible();
+  // `exact` on EVERY Avatars locator (#1586). The Avatars SECTION carries an S3 teach row whose hint trigger
+  // is named "More info about Show avatars in chat", which a loose name also matches — so the loose locator
+  // is a strict-mode violation the moment that section's body has painted. It passed only by measuring
+  // BEFORE the content settled, which is the whole shape this barrier removes; the sibling test at
+  // "clicking a section row" already spelled `exact` for exactly this reason.
+  await expect(component.getByRole("button", { name: "Avatars", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Reading typography", exact: true })).toBeVisible();
   // Connections was never opened → none of its rows are painted.
-  await expect(component.getByRole("button", { name: "Model roles" })).toHaveCount(0);
-  await component.getByRole("button", { name: "Connections" }).click();
-  await expect(component.getByRole("button", { name: "Model roles" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Connections" })).toHaveAttribute("aria-expanded", "true");
+  await expect(component.getByRole("button", { name: "Model roles", exact: true })).toHaveCount(0);
+  await component.getByRole("button", { name: "Connections", exact: true }).click();
+  await expect(component.getByRole("button", { name: "Model roles", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Connections", exact: true })).toHaveAttribute("aria-expanded", "true");
   // …and Appearance, opened by the deep link, is REMEMBERED open beside it (C-12), no longer active.
-  await expect(component.getByRole("button", { name: "Avatars" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Appearance" })).toHaveAttribute("aria-expanded", "true");
-  await expect(component.getByRole("button", { name: "Avatars" })).not.toHaveAttribute("aria-current", "true");
+  await expect(component.getByRole("button", { name: "Avatars", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Appearance", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await expect(component.getByRole("button", { name: "Avatars", exact: true })).not.toHaveAttribute("aria-current", "true");
 });
 
 test("clicking a section row marks it aria-current", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostStory target="appearance" />);
+  await settledOnLanding(page, component, "Looks");
 
   // exact: the S3 teach rows add 'More info about Show avatars in chat' buttons a loose name would also match.
   await component.getByRole("button", { name: "Avatars", exact: true }).click();
@@ -488,6 +560,7 @@ test("no absolutely-positioned box escapes the CONTENT scroller (the containing-
   await stub(page);
   const component = await mount(<ConfigHostStory target="appearance" />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
+  await settledOnLanding(page, component, "Looks");
 
   expect(await readEscapedAbsolutes(page, '[role="region"][aria-label="Appearance settings"]')).toEqual([]);
   expect(await readEscapedAbsolutes(page, `[role="region"][aria-label="${LIST_REGION}"]`)).toEqual([]);
@@ -496,6 +569,9 @@ test("no absolutely-positioned box escapes the CONTENT scroller (the containing-
 test("a positioned scrolling host around the pane gains NO phantom scroll (the owner's blank space)", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostInScrollingHostStory />);
+  // NO `settledOnLanding` here, deliberately: this story mounts the CONTENT surface alone (no LIST), so
+  // there is no section row to settle on — and the assertion is about the OUTER host's scroll extent, which
+  // the landing jump cannot move.
   await component.getByRole("heading", { name: "Message style" }).waitFor();
   await expect
     .poll(
@@ -519,6 +595,7 @@ test("scrolling to the bottom activates the last section (scroll-spy)", async ({
   await stub(page);
   const component = await mount(<ConfigHostStory target="appearance" />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
+  await settledOnLanding(page, component, "Looks");
   await expect(component.getByRole("button", { name: "Library" })).not.toHaveAttribute("aria-current", "true");
 
   // The deep-link landing SUPPRESSES the spy until the jump settles (`scrollContentToTop` → `scrollend`, or
@@ -549,6 +626,7 @@ test("a distant section-row click lands on the target, never an intermediate (sp
   await stub(page);
   const component = await mount(<ConfigHostStory target="appearance" />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
+  await settledOnLanding(page, component, "Looks");
 
   await page.evaluate(() => {
     // FABRICATION-OK: in-page globalThis scaffolding (a MutationObserver sample, not a domain value).
@@ -598,6 +676,7 @@ test("the jump flash hugs the section box and stays within the scroll container"
   await stub(page);
   const component = await mount(<ConfigHostStory target="appearance" />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
+  await settledOnLanding(page, component, "Looks");
 
   await component.getByRole("button", { name: "Avatars", exact: true }).click();
 
@@ -633,6 +712,7 @@ test("a group that fits (no scroll) resolves the FIRST section, never the last",
   await stub(page);
   const component = await mount(<ConfigHostStory target="appearance" height={4000} width={1160} />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
+  await settledOnLanding(page, component, "Looks");
 
   await expect
     .poll(
@@ -655,6 +735,7 @@ test("a navLabel section shows the SHORT name in the LIST, the FULL one in its h
   await stub(page);
   const component = await mount(<ConfigHostStory target="appearance" />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
+  await settledOnLanding(page, component, "Looks");
 
   const row = component.getByRole("region", { name: LIST_REGION }).locator('[data-slot="list-row-title"]', { hasText: "Message details" });
   await expect(row).toHaveText("Message details");

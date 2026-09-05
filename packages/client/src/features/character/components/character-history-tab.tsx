@@ -85,7 +85,7 @@ export function CharacterHistoryTab({ characterId }: CharacterHistoryTabProps): 
 
 /** The per-row Restore button + its confirm interrupt (§13.8 R4 — a legal AlertDialog, never a plain
  *  Dialog). Uncontrolled trigger: no per-row open state to manage. */
-function RestoreConfirm({ onConfirm }: { readonly onConfirm: () => void }): ReactElement {
+function RestoreConfirm({ onConfirm }: { readonly onConfirm: () => void | Promise<void> }): ReactElement {
   return (
     <ConfirmDialog
       confirmIntent="primary"

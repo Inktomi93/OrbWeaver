@@ -164,6 +164,16 @@ export const TURN_LOCKED_OP_CODE = "locked" as const;
 /** @public twin: TURN_LOCKED_OP_CODE — type twin of the live constant (cross-package PUBLIC). */
 export type TurnLockedOpCode = typeof TURN_LOCKED_OP_CODE;
 
+/** The `DomainOperationError.code` `chat.setUserMacroValues` refuses an off-vocabulary select pick with
+ *  (#1356) — the same wire-vocabulary home as the two twins above, for the same reason: the picks pane keys
+ *  on `data.reason` rather than on message text, and the server's `CHAT_OP_CODES.unknownMacroPick` derives
+ *  this literal. The refusal is total (the flush is a whole-column write, so nothing was stored) and it is
+ *  ACTIONABLE — the knob the user just moved names a value its preset no longer declares — so the pane
+ *  renders it beside that control instead of letting it read as a server fault. */
+export const USER_MACRO_UNKNOWN_PICK_OP_CODE = "unknown_macro_pick" as const;
+/** @public twin: USER_MACRO_UNKNOWN_PICK_OP_CODE — type twin of the live constant (cross-package PUBLIC). */
+export type UserMacroUnknownPickOpCode = typeof USER_MACRO_UNKNOWN_PICK_OP_CODE;
+
 // ── Turn origin — who/what started a turn + its cascade depth ──
 // TURN-PATH STATE, never a bus-event field: the D19/D50 allowlist forbids attribution on the public bus, so
 // this rides the committed reply SLOT (`messages.initiator`/`.automationDepth`) and is read back by the ONE

@@ -151,11 +151,17 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
     <Container>
       <Stack className="max-w-prose outline-none" data-slot="roster-member-editor" gap="section" ref={surfaceRef} tabIndex={-1}>
         <Heading level={2}>{cast.name}</Heading>
+        {/* NO `aria-label` on either cell (#1587). A `<Field>`'s label reaches its control through Base UI's
+            `aria-labelledby`, which OUTRANKS `aria-label` in the accname algorithm — so "Roster name" /
+            "Roster description" named nothing and the cells already announced "Name" / "Description"
+            (measured). A dead attribute is worse than none: it reads as the announced name to the next
+            author. If these ever need the qualifier, it goes on the Field's own label, where it is both
+            visible and announced. */}
         <Field label="Name">
-          <Input aria-label="Roster name" onChange={(e): void => setName(e.target.value)} value={name} />
+          <Input onChange={(e): void => setName(e.target.value)} value={name} />
         </Field>
         <Field label="Description">
-          <Input aria-label="Roster description" onChange={(e): void => setDescription(e.target.value)} value={description} />
+          <Input onChange={(e): void => setDescription(e.target.value)} value={description} />
         </Field>
         <Row align="center" gap="field">
           <Button disabled={busy || !dirty || name.trim().length === 0} intent="primary" size="sm" onClick={onSave}>

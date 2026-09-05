@@ -173,7 +173,8 @@ import { useChatsSelectionTitle } from "../../../../packages/client/src/features
 import type { MemberCharacterRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows.ts";
 import { __enableAppearanceMessageRegistryForTest } from "../../../../packages/client/src/lib/appearance-message-registry.ts";
 import type { SlashArgOffer } from "../../../../packages/client/src/lib/contribution-contracts.ts";
-import { CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CtAppDataProviders, CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures.ts";
 
 // The door's empty chat-surface registry (§6c/M8) — stories that don't test the seam itself pass this,
@@ -2776,6 +2777,22 @@ export function CharacterGalleryDialogStory({ characterName = "Aria" }: { readon
         <CharacterGalleryDialog open={open} onOpenChange={setOpen} characterId={castId<CharacterId>("character_ct_gallery")} characterName={characterName} />
       </div>
     </CtDataProviders>
+  );
+}
+
+/** The SAME gallery modal on the REAL app QueryClient + the production Toaster (#1563a). `CtDataProviders`'
+ *  plain client has NO MutationCache error channel, so a CT asking "how many failure surfaces does one
+ *  refused remove produce?" cannot see the toast half at all on that stack and would answer 1 either way. */
+export function CharacterGalleryDialogToastStory(): ReactElement {
+  const [open, setOpen] = useState(true);
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <div>
+          <CharacterGalleryDialog open={open} onOpenChange={setOpen} characterId={castId<CharacterId>("character_ct_gallery")} characterName="Aria" />
+        </div>
+      </CtToastSurface>
+    </CtAppDataProviders>
   );
 }
 
