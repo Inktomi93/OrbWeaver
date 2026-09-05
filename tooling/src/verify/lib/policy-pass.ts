@@ -149,6 +149,19 @@ function assertInvocationPolicies(policies: readonly GatePolicy[]): void {
   }
 }
 
+function assertSelectedPoliciesAreLoaded(knownPolicies: readonly GatePolicy[], selectedPolicies: readonly GatePolicy[]): void {
+  const knownById = new Map(knownPolicies.map((policy) => [policy.id, policy]));
+  for (const policy of selectedPolicies) {
+    const known = knownById.get(policy.id);
+    if (known === undefined) {
+      throw new Error(`runPolicyPass selected policy is absent from the known roster: ${policy.id}`);
+    }
+    if (known !== policy) {
+      throw new Error(`runPolicyPass selected policy is not the loaded descriptor identity: ${policy.id}`);
+    }
+  }
+}
+
 function newRun(policy: GatePolicy): PolicyRun {
   return {
     policy,
@@ -421,9 +434,24 @@ function ownerResult(run: PolicyRun): PolicyOwnerResult {
   };
 }
 
+function ordinaryWaiverSourceFiles(policies: readonly PolicyOwnerResult[], sourceFiles: ReadonlyMap<string, SourceFile>): ReadonlyMap<string, SourceFile> {
+  const paths = new Set(policies.flatMap(({ population }) => population.effectiveSourcePaths));
+  return new Map(
+    [...paths].toSorted().map((path) => {
+      const sourceFile = sourceFiles.get(path);
+      if (sourceFile === undefined) {
+        throw new Error(`ordinary waiver source population has no SourceFile: ${path}`);
+      }
+      return [path, sourceFile] as const;
+    }),
+  );
+}
+
 /** Run every selected policy with invocation-local state, then coordinate all authority centrally. */
 export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
+  assertInvocationPolicies(input.knownPolicies);
   assertInvocationPolicies(input.policies);
+  assertSelectedPoliciesAreLoaded(input.knownPolicies, input.policies);
   assertOwnerPlans(input);
   const started = performance.now();
   const toolErrors: PolicyToolError[] = [];
@@ -439,7 +467,9 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   evaluateRuns(runs, toolErrors);
   const policies = runs.map(ownerResult).toSorted((left, right) => left.id.localeCompare(right.id));
   const authority = coordinateGateAuthority({
+    knownPolicies: input.knownPolicies.map(({ id, authority: policyAuthority, severity }) => ({ id, authority: policyAuthority, severity })),
     selectedPolicies: input.policies.map(({ id, authority: policyAuthority, severity }) => ({ id, authority: policyAuthority, severity })),
+    ordinaryWaiverSourceFiles: ordinaryWaiverSourceFiles(policies, sourceFiles),
     ownerResults: policies.map(({ id, population, owner, findings }) => ({
       policyId: id,
       populationFiles: [...new Set([...population.effectiveSourcePaths, ...population.effectiveResourcePaths])].toSorted(),
@@ -448,8 +478,6 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
     })),
     reviewedGrants: input.reviewedGrants,
     failOnWarnings: input.failOnWarnings,
-    ...(input.waiverFor === undefined ? {} : { waiverFor: input.waiverFor }),
-    ...(input.reconcileOrdinary === undefined ? {} : { reconcileOrdinary: input.reconcileOrdinary }),
   });
   const sortedErrors = toolErrors.toSorted(
     (left, right) =>

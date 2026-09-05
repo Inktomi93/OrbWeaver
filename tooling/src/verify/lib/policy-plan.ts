@@ -387,6 +387,7 @@ export function executePolicyPlan(input: PolicyPlanExecutionInput): PolicyPlanEx
     assertExecutionResourcePaths(input.plan);
     const requestedPaths = input.plan.scope.requestedPaths?.map(({ path }) => path);
     const pass = runPolicyPass({
+      knownPolicies: input.corpus.gates,
       policies,
       root: input.root,
       project: input.project,
@@ -395,8 +396,6 @@ export function executePolicyPlan(input: PolicyPlanExecutionInput): PolicyPlanEx
       reviewedGrants: input.reviewedGrants,
       failOnWarnings: input.plan.failOnWarnings,
       ...(input.resourceOptions === undefined ? {} : { resourceOptions: input.resourceOptions }),
-      ...(input.waiverFor === undefined ? {} : { waiverFor: input.waiverFor }),
-      ...(input.reconcileOrdinary === undefined ? {} : { reconcileOrdinary: input.reconcileOrdinary }),
     });
     assertExecutedPopulations(input.plan, pass);
     return { ok: true, exitCode: policyPassExitCode(pass), plan: input.plan, pass };

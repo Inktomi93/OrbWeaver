@@ -90,7 +90,7 @@ test("canonical origin and authored value facts reach central grant consumption 
   const project = new Project({ useInMemoryFileSystem: true });
   populate(project, filesFor("{ enabled: false, tuple: [1, 2] } as const"));
   const policy = makePolicy();
-  const result = runPolicyPass({ policies: [policy], root: ROOT, project, reviewedGrants: [GRANT], failOnWarnings: false });
+  const result = runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: [GRANT], failOnWarnings: false });
 
   expect(result.toolErrors).toEqual([]);
   expect(result.policies[0]?.owner).toEqual({ status: "success", population: "complete" });
@@ -106,7 +106,7 @@ test("unreadable authored values withhold grant liveness and a reused Project ca
   const project = new Project({ useInMemoryFileSystem: true });
   populate(project, filesFor("{ enabled: loadFlag() }"));
   const policy = makePolicy();
-  const refused = runPolicyPass({ policies: [policy], root: ROOT, project, reviewedGrants: [GRANT], failOnWarnings: false });
+  const refused = runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: [GRANT], failOnWarnings: false });
 
   expect(refused.policies[0]?.receipts).toContainEqual({ kind: "population", source: "authored-options", members: 1, unresolved: 1 });
   expect(refused.policies[0]?.owner.status).toBe("incomplete");
@@ -119,7 +119,14 @@ test("unreadable authored values withhold grant liveness and a reused Project ca
   }
   const recoveredRoot = "/reader-policy-recovered";
   populate(project, filesFor("{ enabled: true } as const"), recoveredRoot);
-  const recovered = runPolicyPass({ policies: [policy], root: recoveredRoot, project, reviewedGrants: [GRANT], failOnWarnings: false });
+  const recovered = runPolicyPass({
+    knownPolicies: [policy],
+    policies: [policy],
+    root: recoveredRoot,
+    project,
+    reviewedGrants: [GRANT],
+    failOnWarnings: false,
+  });
 
   expect(recovered.toolErrors).toEqual([]);
   expect(recovered.policies[0]?.owner.status).toBe("success");

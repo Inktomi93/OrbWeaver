@@ -1,13 +1,6 @@
-/** Runtime validation for the authority coordinator's policy, grant, and reconciliation boundaries. */
+/** Runtime validation for the authority coordinator's policy and reviewed-grant boundaries. */
 
-import type {
-  GateAuthority,
-  GateAuthorityToolError,
-  GateSeverity,
-  OrdinaryAuthorityAlarm,
-  ReviewedGateGrant,
-  SelectedGatePolicy,
-} from "../contract/gate-authority.ts";
+import type { GateAuthority, GateAuthorityToolError, GateSeverity, ReviewedGateGrant, SelectedGatePolicy } from "../contract/gate-authority.ts";
 
 export function isGateAuthorityIdentity(value: unknown): value is string {
   if (typeof value !== "string" || value.trim() === "") {
@@ -59,9 +52,19 @@ function validateGrantRows(reviewedGrants: readonly ReviewedGateGrant[], policie
       });
       continue;
     }
-    valid.push(grant);
     const policy = policies.get(grant.policyId);
-    if (policy !== undefined && policy.authority !== "reviewed-grant") {
+    if (policy === undefined) {
+      invalidIds.add(grant.id);
+      errors.push({
+        kind: "invalid-grant",
+        grantId: grant.id,
+        policyId: grant.policyId,
+        message: `reviewed grant targets an unknown policy: ${grant.policyId}`,
+      });
+      continue;
+    }
+    valid.push(grant);
+    if (policy.authority !== "reviewed-grant") {
       invalidIds.add(grant.id);
       wrongAuthorityPolicyIds.add(grant.policyId);
       errors.push({
@@ -141,110 +144,5 @@ export function validateReviewedGrants(
     invalidPolicyIds: ids.invalidPolicyIds.union(identities.invalidPolicyIds),
     wrongAuthorityPolicyIds: rows.wrongAuthorityPolicyIds,
     errors: [...rows.errors, ...ids.errors, ...identities.errors],
-  };
-}
-
-interface RuntimeOrdinaryAlarm {
-  readonly kind?: unknown;
-  readonly policyId?: unknown;
-  readonly message?: unknown;
-  readonly waiverId?: unknown;
-}
-
-interface OrdinaryAlarmRowResult {
-  readonly alarm: OrdinaryAuthorityAlarm | null;
-  readonly error: GateAuthorityToolError | null;
-  readonly invalidCompletedPolicyId: string | null;
-}
-
-function runtimeOrdinaryAlarm(raw: unknown): RuntimeOrdinaryAlarm {
-  if (typeof raw !== "object" || raw === null) {
-    return {};
-  }
-  return {
-    kind: Reflect.get(raw, "kind"),
-    policyId: Reflect.get(raw, "policyId"),
-    message: Reflect.get(raw, "message"),
-    waiverId: Reflect.get(raw, "waiverId"),
-  };
-}
-
-function normalizeOrdinaryAlarmRow(raw: RuntimeOrdinaryAlarm, completed: ReadonlySet<string>): OrdinaryAlarmRowResult {
-  const policyId = isGateAuthorityIdentity(raw.policyId) ? raw.policyId : undefined;
-  const valid =
-    raw.kind === "ordinary-waiver" &&
-    policyId !== undefined &&
-    completed.has(policyId) &&
-    isGateAuthorityIdentity(raw.message) &&
-    (raw.waiverId === undefined || isGateAuthorityIdentity(raw.waiverId));
-  if (!valid) {
-    return {
-      alarm: null,
-      error: {
-        kind: "invalid-authority-alarm",
-        ...(policyId === undefined ? {} : { policyId }),
-        message: `ordinary reconciliation returned a malformed alarm${policyId === undefined ? "" : ` for ${policyId}`}`,
-      },
-      invalidCompletedPolicyId: policyId !== undefined && completed.has(policyId) ? policyId : null,
-    };
-  }
-  return {
-    alarm: {
-      kind: "ordinary-waiver",
-      policyId,
-      message: raw.message,
-      ...(raw.waiverId === undefined ? {} : { waiverId: raw.waiverId }),
-    },
-    error: null,
-    invalidCompletedPolicyId: null,
-  };
-}
-
-export interface ValidatedOrdinaryAlarms {
-  readonly alarms: readonly OrdinaryAuthorityAlarm[];
-  readonly errors: readonly GateAuthorityToolError[];
-  readonly withheldPolicyIds: readonly string[];
-}
-
-function ordinaryAlarmIdentity(alarm: OrdinaryAuthorityAlarm): string {
-  return JSON.stringify([alarm.policyId, alarm.waiverId ?? null, alarm.message]);
-}
-
-export function validateOrdinaryAuthorityAlarms(returned: unknown, completedPolicyIds: readonly string[]): ValidatedOrdinaryAlarms {
-  if (!Array.isArray(returned)) {
-    return {
-      alarms: [],
-      errors: [{ kind: "invalid-authority-alarm", message: "ordinary reconciliation callback did not return an alarm array" }],
-      withheldPolicyIds: completedPolicyIds,
-    };
-  }
-  const completed = new Set(completedPolicyIds);
-  const rows = returned.map((raw) => normalizeOrdinaryAlarmRow(runtimeOrdinaryAlarm(raw), completed));
-  const withheldPolicyIds = rows.flatMap(({ invalidCompletedPolicyId }) => (invalidCompletedPolicyId === null ? [] : [invalidCompletedPolicyId]));
-  const withheld = new Set(withheldPolicyIds);
-  if (rows.some(({ error, invalidCompletedPolicyId }) => error !== null && invalidCompletedPolicyId === null)) {
-    for (const policyId of completed) {
-      withheld.add(policyId);
-    }
-  }
-  const alarms = rows.flatMap(({ alarm }) => (alarm === null ? [] : [alarm]));
-  const duplicateErrors: GateAuthorityToolError[] = [];
-  for (const [, candidates] of Map.groupBy(alarms, ordinaryAlarmIdentity)) {
-    if (candidates.length > 1) {
-      const duplicate = candidates[0];
-      if (duplicate !== undefined) {
-        withheld.add(duplicate.policyId);
-        duplicateErrors.push({
-          kind: "invalid-authority-alarm",
-          policyId: duplicate.policyId,
-          message: `ordinary reconciliation returned a duplicate alarm for ${duplicate.policyId}`,
-        });
-      }
-    }
-  }
-  return {
-    alarms: alarms.filter(({ policyId }) => !withheld.has(policyId)),
-    errors: [...rows.flatMap(({ error }) => (error === null ? [] : [error])), ...duplicateErrors],
-    withheldPolicyIds: [...withheld].toSorted(),
   };
 }

@@ -46,7 +46,6 @@ const EXPECT_KEYS = new Set(["count", "line", "token", "messageIncludes"]);
 const HOOK_KEYS = new Set(["visitors", "visitFile", "evaluate"]);
 const VISITOR_KEYS = new Set(["kinds", "visit"]);
 const KEBAB_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
-const TS_SOURCE_RE = /\.tsx?$/u;
 const ASCII_C0_MAX = 0x1f;
 const ASCII_DELETE = 0x7f;
 const RESOURCE_KEYS = new Set(["kind", "id"]);

@@ -103,7 +103,7 @@ export interface PolicyPlannerInput {
   readonly resourceOptions?: ResourceHostOptions;
 }
 
-export interface PolicyPlanExecutionInput extends Pick<PolicyPassInput, "reviewedGrants" | "resourceOptions" | "waiverFor" | "reconcileOrdinary"> {
+export interface PolicyPlanExecutionInput extends Pick<PolicyPassInput, "reviewedGrants" | "resourceOptions"> {
   readonly root: string;
   readonly project: Project;
   readonly corpus: PolicyPlannerCorpus;
