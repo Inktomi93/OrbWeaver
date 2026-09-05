@@ -177,12 +177,12 @@ export function isCanonicalDefineGate(node: MorphNode): boolean {
   if (canonicalDeclarations.size !== 1) {
     return false;
   }
-  const reExportSources = new Set(
-    declarations
-      .filter((declaration) => Node.isExportSpecifier(declaration) || Node.isExportDeclaration(declaration))
-      .map((declaration) => declaration.getSourceFile()),
-  );
-  return [...reExportSources].every((sourceFile) => reExportOriginCount(sourceFile, "defineGate") === 1);
+  return declarations
+    .filter((declaration) => Node.isExportSpecifier(declaration) || Node.isExportDeclaration(declaration))
+    .every(
+      (declaration) =>
+        reExportOriginCount(declaration.getSourceFile(), Node.isExportSpecifier(declaration) ? visibleExportName(declaration) : "defineGate") === 1,
+    );
 }
 
 function isTopLevel(declaration: VariableDeclaration): boolean {
