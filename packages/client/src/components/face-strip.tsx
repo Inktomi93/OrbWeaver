@@ -22,7 +22,7 @@
 //
 // ONE PITCH (#153, owner-observed live 2026-08-18: "weird fucking spacing between portraits that is
 // determined by the characters names"). A CAPTIONED face's cell is a fixed `w-avatar-hero` — the same 64px
-// ceiling the caption already truncated at — so the portraits keep one rhythm no matter what the cast is
+// ceiling the caption already truncated at — so the portraits keep one rhythm no matter what the faces are
 // called. The name still drove the CELL until now: the button was content-sized over a `min-w-control-md`
 // floor, so a face called "Bo" measured the floor and one called "Aria Nightshade" measured its caption, and
 // the gap between portraits wobbled per name across a 327-character library.

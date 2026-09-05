@@ -30,6 +30,44 @@ test("inside a <Field>, the label associates with the real file input (Field.Con
   await expect(control).toHaveAttribute("aria-describedby", NON_EMPTY);
 });
 
+// ── THE ACCESSIBLE NAME (#1660) ─────────────────────────────────
+// The real control is an `opacity-0 inset-0 size-full` file input: the PIXELS are this primitive's copy
+// while the NAME was the UA's own "Choose File" wherever nothing else named it — the character / chat /
+// preset import dialogs, i.e. every door a screen-reader user reaches for to get content in. The fix is a
+// FALLBACK, and the ordering is the whole design, so all three arms are pinned: the caller's own name and
+// a wrapping `<Field>`'s label both outrank the primitive's, because an unconditional self-name would
+// SHADOW them (accname ranks `aria-labelledby` over `aria-label`, and Base UI's `Field.Control` writes the
+// Field label through that same attribute).
+//
+// The fallback points at the instruction NODE rather than copying the string into an `aria-label`, so
+// WCAG 2.5.3 (the visible label is contained in the name) holds by construction instead of by discipline.
+
+test("with nothing else labelling it, the input announces its own instruction line, not the UA default", async ({ mount, page }) => {
+  await mount(<FileDropzone instructions="Drop a preset .json, or click to browse" />);
+  await expect(page.getByLabel("Drop a preset .json, or click to browse", { exact: true })).toHaveAttribute("data-slot", "file-dropzone-input");
+});
+
+test("a caller's own aria-label outranks the instruction fallback (the plugin/backup zones keep their names)", async ({ mount, page }) => {
+  await mount(<FileDropzone aria-label="Choose a plugin bundle" instructions="Drop a plugin bundle" />);
+  await expect(page.getByLabel("Choose a plugin bundle", { exact: true })).toHaveAttribute("data-slot", "file-dropzone-input");
+  await expect(page.getByLabel("Drop a plugin bundle", { exact: true })).toHaveCount(0);
+});
+
+test("inside a Field the Field's label still wins — the instruction fallback never shadows it", async ({ mount, page }) => {
+  await mount(
+    <Field label="Avatar">
+      <FileDropzone instructions="Drag and drop, or click to browse" />
+    </Field>,
+  );
+  await expect(page.getByLabel("Avatar", { exact: true })).toHaveAttribute("data-slot", "file-dropzone-input");
+  await expect(page.getByLabel("Drag and drop, or click to browse", { exact: true })).toHaveCount(0);
+});
+
+test("an EMPTY instructions line mints no name of its own (an empty labelledby target is worse than the UA default)", async ({ mount, page }) => {
+  await mount(<FileDropzone instructions="" />);
+  await expect(page.locator('[data-slot="file-dropzone-input"]')).not.toHaveAttribute("aria-labelledby", /.+/u);
+});
+
 test("clicking the dropzone opens the native file picker and a selected file reaches onFilesSelected", async ({ mount, page }) => {
   await mount(<FileDropzoneHarness />);
   const fileChooserPromise = page.waitForEvent("filechooser");

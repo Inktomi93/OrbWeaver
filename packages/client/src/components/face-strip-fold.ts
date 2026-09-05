@@ -4,7 +4,7 @@
 //
 // Widths are MEASURED, never derived from a count: a captioned face takes its name's natural width (up to
 // `max-w-avatar-hero`), so "how many fit" is a per-item question and a hardcoded N is always wrong at some
-// pane width. The strip therefore never scrolls — the pane's own width decides the cast.
+// pane width. The strip therefore never scrolls — the pane's own width decides how many faces fit.
 //
 // TWO PINNED RULES:
 //  · **The tile never hides exactly one face.** "+1 more" is a button occupying precisely the slot of the
@@ -54,8 +54,8 @@ export function sameFold(previous: FoldState | null, next: FoldState): boolean {
 }
 
 /** THE CELL (#153): a captioned face, the overflow tile and the pending placeholder all take one fixed
- *  width, so the portrait pitch is a property of the strip and never of the cast's names — and so the
- *  widths this module folds are the strip's own rhythm rather than the cast's names. Uncaptioned cells were
+ *  width, so the portrait pitch is a property of the strip and never of the faces' names — and so the
+ *  widths this module folds are the strip's own rhythm rather than the faces' names. Uncaptioned cells were
  *  already uniform (portrait inside the control floor) and stay content-sized. Returned with its leading
  *  space so every call site is a plain template append. */
 export function cellWidthClass(caption: boolean): string {

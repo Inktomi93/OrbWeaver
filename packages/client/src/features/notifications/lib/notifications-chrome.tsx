@@ -8,12 +8,12 @@
 // auto-disabled itself) write durable rows on a single-user box, and the plugin CONSENT prompt (#924/#1041)
 // rides this bell too — so the trio widened to `authedProcedure` and the inbox room's attach belt came off.
 // PD-106's ruling survives where it still applies: `notifications.presence` and the invites router are still
-// belted, which is why the cast bar's People section and the /join landing still consult the capability.
+// belted, which is why the character bar's People section and the /join landing still consult the capability.
 //
 // The #476 no-flash machinery went with the gate. An unconditional widget cannot flash-then-yank and cannot
 // shift the trail in from nothing, so this entry no longer reads the capability at all; the hint itself
 // (`#state` deployment-boot-hint → `useMultiHumanCapable`, `#data`) moved to the two surfaces that are still
-// gated — `routes/app-root.tsx`'s /join dialog and the cast bar's People section — which read it RAW before
+// gated — `routes/app-root.tsx`'s /join dialog and the character bar's People section — which read it RAW before
 // and carried the first-paint defect #476 measured here. Nothing about the inbox's authorization moved:
 // every read and verb behind this bell still answers to the server's gates.
 

@@ -264,7 +264,7 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
     e.chatId === undefined
       ? [trpc.chat.listChats.pathFilter(), trpc.character.list.pathFilter(), trpc.stats.pathFilter()]
       : [trpc.chat.listChats.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId }), trpc.character.list.pathFilter(), trpc.stats.pathFilter()],
-  // The saved-cast library (#26 — D61 B6): ONE coarse row for the whole router root (the picker's list +
+  // The saved-roster library (#26 — D61 B6): ONE coarse row for the whole router root (the picker's list +
   // any future detail read). An APPLY never rides here — it mutates the CHAT, whose freshness is the chat
   // bus's `chatUpdated`; this member fires only on library CRUD (create/update/remove).
   rosterPresetsChanged: (_e, trpc) => [trpc.rosterPreset.pathFilter()],

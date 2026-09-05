@@ -9,8 +9,8 @@
 // subtitle was that id's last six characters. The retrieval underneath it is the best thing on this surface
 // (five for five on checkable queries), and the row threw away every way to act on it. It now OPENS the
 // room — `setActiveSection("chats")` + `selectChat`, the same two lines the notification bell uses — and
-// names it through the ONE title chain (`deriveChatTitle`: authored title → cast → "Untitled chat"), with
-// the digest's own scoped character as the cast rung.
+// names it through the ONE title chain (`deriveChatTitle`: authored title → participant names → "Untitled
+// chat"), with the digest's own scoped character as the character rung.
 //
 // LANDING ON THE MESSAGE is deliberately NOT here. `MessageListHandle` exposes no scroll-to-index outside
 // pin-prompt mode, and a digest's `blockIdx` is an index into fixed-width BLOCKS of a chat's whole history,

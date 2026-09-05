@@ -4,6 +4,9 @@ import type { ReactElement, ReactNode } from "react";
 import { createContext, use } from "react";
 import { cn } from "#lib";
 import { HintTrigger } from "#primitives/hint-trigger";
+// `<Field>` is this context's ONE provider — the consumer half (`useFieldLabelled`) and the reason it has
+// to exist at all are in that module's header.
+import { FieldLabelledContext } from "./field-labelled.ts";
 import { fieldVariants } from "./variants.ts";
 
 export type FieldOrientation = "vertical" | "horizontal";
@@ -175,25 +178,27 @@ export function Field({
       name={name}
       {...rest}
     >
-      {resolved === "horizontal" ? (
-        <>
-          <div className={slots.labelBlock()} data-slot="field-label-block">
+      <FieldLabelledContext value={true}>
+        {resolved === "horizontal" ? (
+          <>
+            <div className={slots.labelBlock()} data-slot="field-label-block">
+              {labelNode}
+              {descriptionNode}
+            </div>
+            <div className={slots.controlCol()} data-slot="field-control-col">
+              {children}
+              {errorNode}
+            </div>
+          </>
+        ) : (
+          <>
             {labelNode}
-            {descriptionNode}
-          </div>
-          <div className={slots.controlCol()} data-slot="field-control-col">
             {children}
+            {descriptionNode}
             {errorNode}
-          </div>
-        </>
-      ) : (
-        <>
-          {labelNode}
-          {children}
-          {descriptionNode}
-          {errorNode}
-        </>
-      )}
+          </>
+        )}
+      </FieldLabelledContext>
     </BaseField.Root>
   );
 }

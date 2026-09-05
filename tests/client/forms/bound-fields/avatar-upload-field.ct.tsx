@@ -25,6 +25,16 @@ async function paintedBarrier(page: import("@playwright/test").Page): Promise<vo
   );
 }
 
+// The REAL bound-Field mount of the #1660 naming seam (the primitive's own three arms are pinned in
+// `tests/ui/primitives/file-dropzone/file-dropzone.ct.tsx`). This site is the one that regresses if the
+// dropzone ever self-names UNCONDITIONALLY: the field's whole job is to put the form's label on the
+// control, and a `<Field>`-supplied name arrives through the SAME `aria-labelledby` the fallback uses.
+test("the bound field's label is what the file input announces, not the dropzone's instruction line", async ({ mount }) => {
+  const story = await mount(<AvatarUploadEpochStory />);
+  await expect(story.getByLabel("Portrait", { exact: true })).toHaveAttribute("data-slot", "file-dropzone-input");
+  await expect(story.getByLabel("Drag and drop, or click to browse", { exact: true })).toHaveCount(0);
+});
+
 test("an older upload completion cannot overwrite the newer avatar identity or preview", async ({ mount, page }) => {
   await page.route("**/api/blob/**", (route) => route.fulfill({ contentType: "image/png", body: ONE_PIXEL_PNG }));
   const story = await mount(<AvatarUploadEpochStory />);

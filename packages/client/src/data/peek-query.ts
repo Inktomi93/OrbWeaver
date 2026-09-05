@@ -18,7 +18,7 @@ export function peekQueryData<T>(queryClient: QueryClient, queryKey: QueryKey): 
 }
 
 // THE PREFIX FORM (`peekMatchingQueryData`) WAS DELETED 2026-08-14 with its one consumer. It folded every
-// warm `character.list` page so a pre-send room could name its founding cast before `character.get` landed
-// (`useDraftCastCards`) — a first-frame problem that no longer exists: a chat row exists from the creation
+// warm `character.list` page so a pre-send room could name its founding characters before `character.get`
+// landed (`useDraftCastCards`) — a first-frame problem that no longer exists: a chat row exists from the creation
 // click and `useStartChat` seeds `chat.getChat` from `startChat`'s own response, so the room's first frame is
 // already warm off the read it actually uses. Git history holds it if a genuine second prefix reader appears.

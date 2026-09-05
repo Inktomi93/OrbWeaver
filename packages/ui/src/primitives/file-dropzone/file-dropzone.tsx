@@ -3,7 +3,8 @@ import { Field as BaseField } from "@base-ui/react/field";
 // the per-chat rack made it a third consumer.
 import { formatBytes } from "@orb/kit/strings";
 import type { ChangeEvent, ComponentPropsWithRef, DragEvent, ReactElement } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
+import { useFieldLabelled } from "#primitives/field";
 import { AlertTriangle, Check, Icon, Upload } from "#primitives/icons";
 import { WebSpinner } from "#primitives/spinner";
 import { matchesAccept } from "./accept.ts";
@@ -80,6 +81,55 @@ function rejectionMessage(rejected: FileDropzoneRejection[], maxSizeBytes: numbe
   return parts.length === 0 ? undefined : parts.join(" · ");
 }
 
+/** The three sources that can name the real file input, most specific first — see {@link nameAttributes}. */
+interface FileDropzoneNameSources {
+  readonly ariaLabel: string | undefined;
+  readonly ariaLabelledBy: string | undefined;
+  /** An ancestor `<Field>` has already wired `aria-labelledby` to its label (`useFieldLabelled`). */
+  readonly fieldLabelled: boolean;
+  readonly instructions: string;
+  readonly instructionsId: string;
+}
+
+/**
+ * THE INPUT NAMES ITSELF ONLY WHEN NOBODY ELSE DOES (#1660).
+ *
+ * The real `<input type="file">` is `opacity-0` over the whole box, so the pixels said this primitive's
+ * instruction line while the ACCESSIBLE NAME was the UA's own "Choose File" — a screen-reader user met a
+ * browser default on every import dialog, in a house that writes all of its own copy.
+ *
+ * The fallback is `aria-labelledby` at the instruction NODE, never `aria-label={instructions}`: a second
+ * copy of a string already in the DOM is a drift generator, and WCAG 2.5.3 holds by construction when the
+ * name IS the visible line rather than a twin of it.
+ *
+ * It is a FALLBACK, and the precedence is the point:
+ *   1. the caller's own `aria-labelledby` / `aria-label` (the two plugin cards, the backup importer);
+ *   2. an ancestor `<Field>`, whose label Base UI has already wired through that SAME attribute — the
+ *      bound avatar / background / databank fields, whose label an unconditional self-name would shadow;
+ *   3. this primitive's own instruction line.
+ * `FileTrigger`'s answer (input `aria-hidden`, the caller owns a labelled trigger) cannot transfer here:
+ * in a dropzone the input IS the only operable control, so it can never leave the accessibility tree.
+ *
+ * An EMPTY `instructions` gets no fallback — there is no text to point at, and an `aria-labelledby`
+ * resolving to an empty node computes an EMPTY name, which is worse than the UA default. The one live
+ * caller doing that (`composer-utility-menu`'s off-screen picker) is `aria-hidden` anyway.
+ *
+ * RETURNS A CONDITIONAL OBJECT, never `aria-labelledby={maybeUndefined}`. Base UI merges the render
+ * element's props over its own with a `for…in` assignment (`merge-props/mergeProps.js` `mutablyMergeInto`)
+ * and JSX materializes `attr={undefined}` as a PRESENT key — so writing the attribute unconditionally
+ * would overwrite `Field.Control`'s own `labelId` with `undefined` and delete the label case 2 protects.
+ */
+function nameAttributes(sources: FileDropzoneNameSources): { "aria-label"?: string; "aria-labelledby"?: string } {
+  const { ariaLabel, ariaLabelledBy, fieldLabelled, instructions, instructionsId } = sources;
+  if (ariaLabelledBy !== undefined) {
+    return { "aria-labelledby": ariaLabelledBy };
+  }
+  if (ariaLabel !== undefined) {
+    return { "aria-label": ariaLabel };
+  }
+  return fieldLabelled || instructions === "" ? {} : { "aria-labelledby": instructionsId };
+}
+
 interface FileDropzoneGlyphProps {
   readonly loading: boolean;
   readonly success: boolean;
@@ -123,11 +173,20 @@ export function FileDropzone({
   instructions = "Drag and drop, or click to browse",
   hint,
   className,
+  // BOTH name attributes are destructured OUT of `rest` ON PURPOSE — `nameAttributes` composes them
+  // explicitly instead of letting them ride the spread. Left in `rest` they would be uncombinable: JSX
+  // later-wins, so a caller's `aria-label` would sit AFTER the fallback `aria-labelledby` and lose to it
+  // under the accname spec, silently renaming three live plugin/backup dropzones. This is the
+  // `ui-accname-survives-spread` gate's second sanctioned shape.
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledBy,
   ...rest
 }: FileDropzoneProps): ReactElement {
   const [dragOver, setDragOver] = useState(false);
   const [rejected, setRejected] = useState<FileDropzoneRejection[]>([]);
   const slots = fileDropzoneVariants();
+  const instructionsId = useId();
+  const fieldLabelled = useFieldLabelled();
   // biome-ignore lint/nursery/useNullishCoalescing: a real boolean OR — `disabled`/`loading` are both plain `boolean` (defaulted above), so `??` (which only falls through on null/undefined) would silently ignore an explicit `false` and isn't equivalent here.
   const inert = disabled || loading;
 
@@ -189,6 +248,8 @@ export function FileDropzone({
 
   const resolvedHint = hint ?? (maxSizeBytes === undefined ? undefined : `Up to ${formatBytes(maxSizeBytes)} per file`);
 
+  const nameProps = nameAttributes({ ariaLabel, ariaLabelledBy, fieldLabelled, instructions, instructionsId });
+
   const errorMessage = rejectionMessage(rejected, maxSizeBytes);
 
   // This div is decorative drag-highlight chrome, not the interactive control — the real control
@@ -212,6 +273,7 @@ export function FileDropzone({
         render={
           <input
             accept={accept}
+            {...nameProps}
             className={slots.input()}
             data-slot="file-dropzone-input"
             disabled={inert}
@@ -224,7 +286,9 @@ export function FileDropzone({
       />
       <div className={slots.content()} data-slot="file-dropzone-content">
         <FileDropzoneGlyph loading={loading} slots={slots} success={success} />
-        <p className={slots.instructions()}>{instructions}</p>
+        <p className={slots.instructions()} id={instructionsId}>
+          {instructions}
+        </p>
         {resolvedHint === undefined ? null : <p className={slots.hint()}>{resolvedHint}</p>}
       </div>
       {errorMessage === undefined ? null : (
