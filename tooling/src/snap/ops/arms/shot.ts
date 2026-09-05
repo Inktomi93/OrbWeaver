@@ -5,6 +5,7 @@ import { registerInstrumentArtifact } from "../../../_shared/artifact-out.ts";
 import type { InstrumentCurrentScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { budget } from "../../../_shared/load-budget.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds } from "../../contract/arms.ts";
 import type { Args, ReportCtx } from "../../contract/types.ts";
 import { captureScope } from "../../lib/capture-scope.ts";
@@ -30,10 +31,31 @@ export const SHOT_BASE = { animations: "disabled", caret: "hide", scale: "css" }
  *  swap, a virtualized list that re-measures after its first read. The artifact then shows a layout the
  *  run's own text evidence already disagrees with.
  *
+ *  THE IMAGE-DECODE HOLE (#1517, re-derived on the tree 2026-09-05). The geometry loop below observes the
+ *  virtualized re-measure — that one moves the document's dimensions. It is STRUCTURALLY BLIND to an image
+ *  landing in RESERVED layout space (explicit width/height, or an aspect-ratio box — the normal case here):
+ *  blank and painted measure identically, so two frames match immediately and the shutter fires on the
+ *  blank frame. `animations:"disabled"` (SHOT_BASE) does not close it either; it rewinds CSS animations,
+ *  and a decode is not one. So the settle asks the resource questions FIRST, from the platform's own
+ *  completion signals, and only then runs the geometry loop — which is also the right order, because a
+ *  decode or a swap can itself reflow and the loop is what catches that.
+ *
+ *  THE WEBFONT HALF IS PLAYWRIGHT'S, NOT OURS. #1517 also named a pre-swap webfont; `page.screenshot()`
+ *  already awaits `document.fonts.ready` itself (its call log says "waiting for fonts to load..."), and
+ *  Chromium settles that promise only after the document's load event — which also covers an image that is
+ *  late in the INITIAL load. The `document.fonts.ready` await kept here is therefore NOT the shutter guard
+ *  (Playwright's is): it is what makes the geometry loop below judge POST-swap layout instead of comparing
+ *  two pre-swap frames. The live exposure this function closes is the image that starts loading AFTER the
+ *  app settled — a lazy image, or content a query brings in once `data-app-ready` is up, which is what
+ *  this app's surfaces are made of — and its decode window. The pin is
+ *  `tests/tooling/snap/ops/arms/shot.int.test.ts`, whose plant is anchored to the run's own evidence pass
+ *  because three wall-clock plants could not fail against the old code.
+ *
  *  Hold until two CONSECUTIVE animation frames report the same document geometry, then shoot. Bounded
- *  twice over — a frame budget and a per-frame timeout — because a surface that never goes quiet (a
- *  streaming turn, a looping animation) must never block the shot: on a live surface this simply spends
- *  its budget and captures, which is the pre-#123 behaviour. */
+ *  three times over — the resource deadline below, a frame budget, and a per-frame timeout — because a
+ *  surface that never goes quiet (a streaming turn, a looping animation, an image that never arrives) must
+ *  never block the shot: on a live surface this simply spends its budget and captures, which is the
+ *  pre-#123 behaviour. */
 const PAINT_SETTLE_MAX_FRAMES = 24;
 /** THE ONE SNAP WALL CLOCK THAT IS DELIBERATELY NOT `budget()`-SCALED (owner ruling, #1266). It is a
  *  PER-FRAME SETTLE BOUND, not a tolerance: it says "one animation frame has had long enough to paint",
@@ -47,8 +69,19 @@ const PAINT_SETTLE_MAX_FRAMES = 24;
  *  row is deleted with the other three: the row's stated end condition (snap's budgets are scaled) is met,
  *  and an exemption row whose reason has expired is worse than the exception written here in the code. */
 const PAINT_SETTLE_FRAME_MS = 50;
+/** THE RESOURCE HALF's ceiling, shared by the font wait and the image-decode wait (they run against ONE
+ *  deadline, not one each, so the worst case is a single named number). Unlike PAINT_SETTLE_FRAME_MS this
+ *  one IS `budget()`-scaled: it is a CEILING on how long a still-arriving byte stream may hold the
+ *  shutter, not a statement about what "settled" MEANS, and a contended box legitimately takes longer to
+ *  fetch and decode the same bytes. A warm surface answers both questions in microseconds and pays none of
+ *  it; an image that never arrives spends the deadline and the shot happens anyway (proved by the 404 arm
+ *  of the pin). */
+const PAINT_SETTLE_RESOURCE_BASE_MS = 5000;
+const PAINT_SETTLE_RESOURCE_MS = budget(PAINT_SETTLE_RESOURCE_BASE_MS);
 
-async function waitForPaintSettle(page: Page): Promise<void> {
+/** `everyImage`: `--full` shoots the whole scrollable page, so every image is IN the artifact and owes its
+ *  decode; a viewport shot waits only for the images it will actually show. */
+async function waitForPaintSettle(page: Page, everyImage: boolean): Promise<void> {
   // @orb-gate-ignore caught-failure-ownership(empty:catch): documented best-effort optimisation — a torn context makes the shot one frame stale, never absent, per the trailing comment. Ends if the shot stops happening regardless of this failure.
   try {
     // RAW STRING, not a function — the tooling program is DOM-less (document/requestAnimationFrame are
@@ -57,6 +90,35 @@ async function waitForPaintSettle(page: Page): Promise<void> {
     await page.evaluate(`(async () => {
       const maxFrames = ${PAINT_SETTLE_MAX_FRAMES};
       const frameTimeoutMs = ${PAINT_SETTLE_FRAME_MS};
+      const resourceMs = ${PAINT_SETTLE_RESOURCE_MS};
+      const everyImage = ${String(everyImage)};
+      // ONE deadline for both resource questions, so the two waits cannot compound into an unnamed total.
+      const resourceDeadline = performance.now() + resourceMs;
+      const bounded = (work) =>
+        Promise.race([
+          Promise.resolve(work).then(() => undefined, () => undefined),
+          new Promise((done) => setTimeout(done, Math.max(0, resourceDeadline - performance.now()))),
+        ]);
+      // A webfont that is still loading paints as fallback glyphs (font-display: swap) or as NOTHING
+      // (the FOIT of font-display: block) — neither moves the geometry the loop below reads.
+      await bounded(document.fonts.ready);
+      // An image with reserved layout space paints blank-then-content at IDENTICAL dimensions. decode()
+      // is the only signal that the bitmap the shutter will capture actually exists; it rejects for a
+      // broken or never-arriving source, which the bound above turns back into "shoot anyway".
+      const pending = Array.from(document.images).filter((image) => {
+        // \`src\`, never \`currentSrc\`: Chromium only publishes currentSrc once the resource is SELECTED,
+        // so an image still in flight — the whole case this wait exists for — reads as empty there and
+        // would be skipped. An \`<img>\` with no src at all promised nothing and is not waited on.
+        if (image.src === "") {
+          return false;
+        }
+        if (everyImage) {
+          return true;
+        }
+        const box = image.getBoundingClientRect();
+        return box.width > 0 && box.height > 0 && box.bottom > 0 && box.right > 0 && box.top < innerHeight && box.left < innerWidth;
+      });
+      await bounded(Promise.all(pending.map((image) => image.decode())));
       const geometry = () => {
         const root = document.documentElement;
         const body = document.body;
@@ -90,7 +152,7 @@ async function waitForPaintSettle(page: Page): Promise<void> {
 }
 
 async function captureShot(page: Page, opts: Args, out: string, mask: Locator[]): Promise<void> {
-  await waitForPaintSettle(page);
+  await waitForPaintSettle(page, opts.fullPage);
   // `--scale` reaches the pixels HERE, at SHOT_BASE's CONSUMER — the shared const is never mutated
   // (#915), so an invocation that does not ask for a scale is byte-identical to every pre-#915 run.
   const base = { ...SHOT_BASE, scale: opts.scale.mode };
