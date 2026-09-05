@@ -8,7 +8,7 @@
 // `importedFrom === null` / `provenance === "authored"`.
 
 import { characterProvenanceOf, pluginImportedFrom } from "@orb/contracts/character";
-import type { Handle } from "@orb/kit/ids";
+import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
 import { createImportService } from "@orb/server/domain/import";
@@ -25,7 +25,7 @@ const CARD_JSON = JSON.stringify({
   spec_version: "3.0",
   data: { name: "Seraphina", description: "A hub-ingested bard.", first_mes: "Hello!" },
 });
-const CARD_ATLAS = "card-atlas";
+const CARD_ATLAS = castId<PluginId>("plugin_01k4cardat0a50000000000000");
 
 describe("importCharacter — plugin-funnel provenance (#1702)", () => {
   test("a card ingested with pluginId (no filename) stamps a plugin importedFrom; provenance is NOT authored", async () => {

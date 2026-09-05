@@ -6,7 +6,7 @@
 // (`history/export-import-portability.md` §5, PD-77) are the chats/personas waves — they need the chat-writer + the persona normalizer,
 // which are not built here.
 
-import type { CharacterHandle } from "@orb/kit/ids";
+import type { CharacterHandle, PluginId } from "@orb/kit/ids";
 
 /** One card to import: the raw bytes (a PNG with an embedded ccv3/chara chunk, or a bare V2/V3 JSON card)
  *  plus an optional source label. `filename` feeds both the fallback character name (when the card JSON
@@ -20,7 +20,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 export interface ImportCardInput {
   readonly bytes: Uint8Array;
   readonly filename?: string;
-  readonly pluginId?: string;
+  readonly pluginId?: PluginId;
 }
 
 /** `importCharacter` input — one ST card → one canonical character (this slice). The embedded chats/
