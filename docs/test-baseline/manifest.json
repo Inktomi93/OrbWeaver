@@ -917,6 +917,7 @@
     "tests/server/domain/chat/assembly/macros.test.ts",
     "tests/server/domain/chat/assembly/names.test.ts",
     "tests/server/domain/chat/assembly/role-squash.test.ts",
+    "tests/server/domain/chat/assembly/sections.test.ts",
     "tests/server/domain/chat/assembly/shape.test.ts",
     "tests/server/domain/chat/assembly/speaker-card.test.ts",
     "tests/server/domain/chat/assembly/speaker-stamp.test.ts",

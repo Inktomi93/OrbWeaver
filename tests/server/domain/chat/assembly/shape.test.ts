@@ -76,6 +76,18 @@ describe("shape — the breakpoint", () => {
     expect(shape(soloInput({ injections: [inChat({ depth: 2, content: "deep" })] })).cacheBreakpointFromEnd).toBeUndefined();
   });
 
+  // #1462 — the trace's decision label used to be RE-DERIVED downstream from stage row counts, and a deep
+  // injection ADDS a row, so `named.length < withTail.length` read false and this abort was reported as
+  // "second-volatile-tail": the host was pointed at a nudge that does not exist and away from the injection
+  // that actually cost them the cache. Each abort now carries the reason its own branch decided.
+  test("the deep-injection abort reports its OWN cause, not a phantom second tail", () => {
+    expect(shape(soloInput({ injections: [inChat({ depth: 2, content: "deep" })] })).breakpointDecision).toBe("in-prefix-injection-or-squash");
+  });
+
+  test("a placed breakpoint reports `placed`", () => {
+    expect(shape(soloInput()).breakpointDecision).toBe("placed");
+  });
+
   // D66-C (W6) — the prefix-stable fix supersedes the old ABORT #2 for this case. A depth-1 assistant
   // injection landing same-role against the last stable canon row is RE-FRAMED at the splice to a user
   // operator note (`[Note from user: …]`), so it NEVER folds into the cached prefix. The stable prefix is
@@ -94,11 +106,15 @@ describe("shape — the breakpoint", () => {
   });
 
   test("ABORT #3: a group nudge appends a second volatile tail → undefined", () => {
-    expect(shape(soloInput({ groupNudge: "[Write the next reply only as Aria.]" })).cacheBreakpointFromEnd).toBeUndefined();
+    const out = shape(soloInput({ groupNudge: "[Write the next reply only as Aria.]" }));
+    expect(out.cacheBreakpointFromEnd).toBeUndefined();
+    expect(out.breakpointDecision).toBe("second-volatile-tail");
   });
 
   test("first turn (no stable prefix) → undefined", () => {
-    expect(shape(soloInput({ canon: [], appendUserTurn: "first" })).cacheBreakpointFromEnd).toBeUndefined();
+    const out = shape(soloInput({ canon: [], appendUserTurn: "first" }));
+    expect(out.cacheBreakpointFromEnd).toBeUndefined();
+    expect(out.breakpointDecision).toBe("no-stable-prefix");
   });
 
   test("narrator force round (ends on assistant → CONTINUATION_NUDGE) → undefined + a user tail", () => {
@@ -273,12 +289,12 @@ describe("computeHistoryBreakpoint — direct math", () => {
 
   test("clean 4-row final, stableCount 3 → offset 1", () => {
     const withTail = [a("g"), u("u1"), a("tip"), u("vol")];
-    expect(computeHistoryBreakpoint(withTail, withTail, withTail, { injections: [] })).toBe(1);
+    expect(computeHistoryBreakpoint(withTail, withTail, withTail, { injections: [] })).toEqual({ offsetFromEnd: 1, decision: "placed" });
   });
 
   test("stableCount < 1 (only the volatile tail) → undefined", () => {
     const withTail = [u("only")];
-    expect(computeHistoryBreakpoint(withTail, withTail, withTail, { injections: [] })).toBeUndefined();
+    expect(computeHistoryBreakpoint(withTail, withTail, withTail, { injections: [] })).toEqual({ offsetFromEnd: undefined, decision: "no-stable-prefix" });
   });
 
   test("scoped-fold collapse (finalLen < stableCount) → undefined (the quirk guard)", () => {
@@ -289,7 +305,7 @@ describe("computeHistoryBreakpoint — direct math", () => {
         injections: [],
         scopedFold: true,
       }),
-    ).toBeUndefined();
+    ).toEqual({ offsetFromEnd: undefined, decision: "in-prefix-injection-or-squash" });
   });
 
   // F5: GROUP canon — two back-to-back single-speaker rounds (…a1, a2…) are adjacent same-role rows that
@@ -302,7 +318,7 @@ describe("computeHistoryBreakpoint — direct math", () => {
     const withTail = [a("a0"), u("u1"), a("a1"), a("a2"), u("u2"), u("regen")];
     const injected = [a("a0"), u("u1"), a("a1"), a("a2"), u("u2"), a("note"), u("regen")];
     const final = [a("a0"), u("u1"), a("a1\n\na2"), u("u2"), a("note"), u("regen")];
-    const offset = computeHistoryBreakpoint(withTail, injected, final, {
+    const { offsetFromEnd: offset } = computeHistoryBreakpoint(withTail, injected, final, {
       injections: [{ position: "in_chat", depth: 0 }],
     });
     expect(offset).toBe(2);

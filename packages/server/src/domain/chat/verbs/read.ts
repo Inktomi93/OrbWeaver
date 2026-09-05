@@ -1176,7 +1176,7 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
     // SHAPE the next-turn peek — the trace describes how the CURRENT canon shapes for the next turn.
     const { shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
-    return buildShapeTrace(shaped.stages, shaped.cacheBreakpointFromEnd);
+    return buildShapeTrace(shaped.stages, shaped.cacheBreakpointFromEnd, shaped.breakpointDecision);
   };
 }
 
