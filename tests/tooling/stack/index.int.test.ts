@@ -18,7 +18,7 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -694,4 +694,116 @@ test("the resolution order is host > VLLM_DISABLED > .env pin > default, and the
   const unset = postureProbe({ VLLM_DISABLED: undefined });
   const falsy = postureProbe({ VLLM_DISABLED: "false" });
   expect(unset.replace(/vllm-disabled=\S+/u, "")).toBe(falsy.replace(/vllm-disabled=\S+/u, ""));
+});
+
+// ── #1495: the GPU idle probe must not report idle for a probe that never ran ────────────────────────
+//
+// `force_teardown` printed "teardown complete — ports free, GPU idle" on the strength of `gpu_idle`,
+// whose whole body was a `while read` fed by `nvidia-smi … 2>/dev/null` in a process substitution: a
+// MISSING or ERRORING probe produced zero rows, the loop never ran, and control fell to an unconditional
+// `return 0`. The probe's failure was byte-identical to its success — VRAM reported idle without ever
+// being measured. RED-FIRST RECEIPT (2026-09-05, the original body replanted under the seam below): the
+// four failure arms and the absent-binary arm ALL answered `GPU code=0 text=GPU idle`.
+//
+// The one caller is force_teardown, which SIGKILLs the live dev stack and the whole vLLM fleet before it
+// ever asks — so it can never be driven here (`.claude/rules/lane-standing-facts.md`: the engines and the
+// live stack are off limits to a lane). `STACK_GPU_PROBE=1` is the seam, the `STACK_DISPATCH_PROBE`
+// convention: print the verdict, exit, spawn nothing, touch no port.
+const GPU_PROBE_LINE_RE = /^GPU code=(\d) text=(.*)$/mu;
+
+interface GpuProbe {
+  readonly code: string;
+  readonly text: string;
+}
+
+/** Drive stack.sh's GPU probe seam with `nvidia-smi` PLANTED as `body` (a bash script first on PATH).
+ *  `binDir` overrides PATH wholesale — the absent-binary arm hands in a symlink farm with no nvidia-smi. */
+function gpuProbe(opts: { readonly body?: string; readonly pathOverride?: string; readonly env?: Record<string, string> }): GpuProbe {
+  const home = mkdtempSync(path.join(tmpdir(), "orb-gpu-probe-"));
+  try {
+    const bin = path.join(home, "bin");
+    mkdirSync(bin, { recursive: true });
+    if (opts.body !== undefined) {
+      const fake = path.join(bin, "nvidia-smi");
+      writeFileSync(fake, `#!/usr/bin/env bash\n${opts.body}\n`, { mode: 0o755 });
+    }
+    const res: SpawnSyncReturns<string | null> = spawnSync("bash", [STACK_SH, "status"], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        ...opts.env,
+        STACK_GPU_PROBE: "1",
+        STACK_RUN_DIR: path.join(home, "run"),
+        PATH: opts.pathOverride ?? `${bin}:${process.env["PATH"] ?? ""}`,
+      },
+    });
+    const match = GPU_PROBE_LINE_RE.exec(res.stdout ?? "");
+    if (match === null) {
+      throw new Error(`the GPU probe seam printed no verdict line — stdout=${res.stdout ?? ""} stderr=${res.stderr ?? ""}`);
+    }
+    return { code: match[1] ?? "", text: match[2] ?? "" };
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+}
+
+test("a GPU probe that could not run is UNKNOWN, never idle (#1495)", () => {
+  // The four shapes of "the probe did not measure anything", each of which used to read as idle.
+  expect(gpuProbe({ body: "exit 1" }).code, "a probe that exits non-zero measured nothing").toBe("2");
+  expect(gpuProbe({ body: 'echo "Unable to determine the device handle" >&2; exit 9' }).code, "a driver error measured nothing").toBe("2");
+  expect(gpuProbe({ body: "exit 0" }).code, "a probe that succeeded but printed NO rows measured no GPU").toBe("2");
+  expect(gpuProbe({ body: 'echo "[N/A]"' }).code, "a non-numeric row is not a VRAM reading").toBe("2");
+  // …and the UNKNOWN verdict says so out loud, with the operator's way forward.
+  expect(gpuProbe({ body: "exit 1" }).text).toContain("GPU UNKNOWN");
+  expect(gpuProbe({ body: "exit 1" }).text).toContain("STACK_GPU_CHECK=skip");
+});
+
+test("the GPU probe still answers idle/busy when it DOES measure (#1495 planted control)", () => {
+  // The other direction: the refusal must not swallow a real reading, or force-restart never completes.
+  expect(gpuProbe({ body: "echo 0\necho 0" }).code, "two GPUs under the floor is idle").toBe("0");
+  expect(gpuProbe({ body: "echo 40000" }).code, "40GiB held is busy").toBe("1");
+  expect(gpuProbe({ body: "echo 0\necho 40000" }).code, "ONE busy GPU makes the fleet busy").toBe("1");
+  expect(gpuProbe({ body: "echo 1025" }).code, "one MiB over the 1024MiB floor is busy").toBe("1");
+  expect(gpuProbe({ body: "echo 1024" }).code, "exactly at the floor is still idle").toBe("0");
+});
+
+test("a host with no nvidia-smi is NOT-MEASURED (3), which is not the same fact as UNKNOWN (#1495)", () => {
+  // A GPU-less dev box holds no fleet VRAM and must still be able to force-restart; "there is no driver"
+  // is a different fact from "the driver is here and would not answer", and only the latter refuses.
+  // PATH is replaced by a symlink farm of every real PATH entry MINUS nvidia-smi, so `command -v` really
+  // misses while bash/node/sed/curl stay reachable.
+  const farmHome = mkdtempSync(path.join(tmpdir(), "orb-gpu-farm-"));
+  try {
+    const farm = path.join(farmHome, "farm");
+    mkdirSync(farm, { recursive: true });
+    let linked = 0;
+    for (const dir of (process.env["PATH"] ?? "").split(":").filter((entry) => entry !== "")) {
+      if (!existsSync(dir)) {
+        continue;
+      }
+      for (const entry of readdirSync(dir)) {
+        if (entry === "nvidia-smi" || existsSync(path.join(farm, entry))) {
+          continue;
+        }
+        symlinkSync(path.join(dir, entry), path.join(farm, entry));
+        linked += 1;
+      }
+    }
+    // A farm that linked nothing would "prove" absence by breaking the shell instead — the zero-is-not-a-
+    // measurement floor.
+    expect(linked, "the PATH farm must actually contain the host's binaries").toBeGreaterThan(10);
+    expect(existsSync(path.join(farm, "bash")), "bash must survive the farm or the probe cannot run").toBe(true);
+    expect(existsSync(path.join(farm, "nvidia-smi")), "the farm's whole point is that nvidia-smi is missing").toBe(false);
+    expect(gpuProbe({ pathOverride: farm }).code).toBe("3");
+  } finally {
+    rmSync(farmHome, { recursive: true, force: true });
+  }
+});
+
+test("STACK_GPU_CHECK=skip opts out LOUDLY and never claims idle (#1495)", () => {
+  // The escape hatch the UNKNOWN refusal owes an operator whose driver is wedged. It reports 3
+  // (not measured) — never 0 — even while a planted probe would have said busy.
+  const skipped = gpuProbe({ body: "echo 40000", env: { STACK_GPU_CHECK: "skip" } });
+  expect(skipped.code).toBe("3");
+  expect(skipped.text).toContain("not measured");
 });
