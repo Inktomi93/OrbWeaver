@@ -6,7 +6,7 @@ import { join } from "node:path";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
 
-const PKGS = new Set(["kit", "contracts", "db", "server", "client", "ui"]);
+const PKGS = new Set(["kit", "contracts", "db", "server", "client", "ui", "showcase-plugins"]);
 // Most-specific suffixes first (so `.int.test.ts` isn't mis-stripped as `.test.ts`).
 const KINDS = [
   ".suite.int.test.ts",

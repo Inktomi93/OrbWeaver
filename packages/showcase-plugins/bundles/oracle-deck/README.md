@@ -10,7 +10,7 @@ before the first card was dealt.
 ## Copy me
 
 ```bash
-cp -r packages/server/src/entry/boot/seed-assets/plugins/oracle-deck /tmp/my-plugin
+cp -r packages/showcase-plugins/bundles/oracle-deck /tmp/my-plugin
 # change `id` and `name` in manifest.json, edit main.js, then pack and install:
 pnpm plugin:pack oracle-deck ./out    # → ./out/oracle-deck-1.0.0.zip
 ```

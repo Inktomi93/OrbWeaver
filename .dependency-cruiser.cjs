@@ -48,6 +48,7 @@ const DB = "^packages/db/src/";
 const CLIENT = "^packages/client/src/";
 const UI = "^packages/ui/src/";
 const SRV = "^packages/server/src/";
+const SHOWCASE = "^packages/showcase-plugins/";
 const TEST_FILES = "\\.(test|int\\.test|contract\\.test|parity\\.test|spec|test-d|ct)\\.[jt]sx?$";
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
 const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
@@ -106,6 +107,22 @@ module.exports = {
       severity: "error",
       from: { path: DB },
       to: { path: ["^packages/server/", CLIENT] },
+    },
+    {
+      name: "showcase-plugins-cake",
+      comment:
+        "@orb/showcase-plugins is CONTENT plus its packer (#1692, the #1238 §2 house shape). It sits BELOW `server` in the cake because the server's seeder consumes it AT RUNTIME, so it may reach only @orb/kit + @orb/contracts (the bundle-entry vocabulary + the manifest schema the install funnel judges by) — never @orb/db, @orb/server, @orb/client or @orb/ui. The package.json dependency list is the resolve-time physics; this is the tier-3 backstop that names the direction.",
+      severity: "error",
+      from: { path: SHOWCASE },
+      to: { path: [DB, "^packages/server/", CLIENT, UI] },
+    },
+    {
+      name: "browser-no-showcase-plugins",
+      comment:
+        "The browser packages must never import @orb/showcase-plugins: it is a NODE reader (it reads bundle directories off disk with node:fs) and its content is GUEST code for the QuickJS sandbox, delivered to the client only as installed-plugin bytes through the plugin verbs. (#1692.)",
+      severity: "error",
+      from: { path: [CLIENT, UI] },
+      to: { path: SHOWCASE },
     },
     {
       name: "server-no-client",
@@ -724,7 +741,7 @@ module.exports = {
       // is the cheap in-graph tripwire for NEW orphans.
       name: "no-orphans",
       comment:
-        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority. instruments.ts is carved: the tooling-instrument-proof gate reads it STRUCTURALLY (an AST read, no import edge exists by design — Core-Tooling-Law.md §4.5); knip covers it via the tooling workspace entry. The seeded EXAMPLE-PLUGIN bundles are carved for a stronger reason: `seed-assets/plugins/<slug>/{main,ui}.js` is GUEST source, not host source — it is read as BYTES by `packSeedPluginBundle`, zipped, and executed inside a QuickJS sandbox against a global that does not exist in this graph (`orb.host(1)` on the server, `orb.ui(1)` in the browser worker — plugin-ui-plane #679 U4). An import edge is not merely absent, it is impossible: neither guest realm has a module loader. They ride `packages/server/src` because that is the only tree the image copies, and their liveness is proven behaviourally by `tests/server/entry/boot/seed-example-plugins.int.test.ts`, which installs each one and round-trips the scripted example's `ui.js` back out through `getUiBundle`.",
+        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority. instruments.ts is carved: the tooling-instrument-proof gate reads it STRUCTURALLY (an AST read, no import edge exists by design — Core-Tooling-Law.md §4.5); knip covers it via the tooling workspace entry. The seeded EXAMPLE-PLUGIN bundles are carved for a stronger reason: `seed-assets/plugins/<slug>/{main,ui}.js` is GUEST source, not host source — it is read as BYTES by `packSeedPluginBundle`, zipped, and executed inside a QuickJS sandbox against a global that does not exist in this graph (`orb.host(1)` on the server, `orb.ui(1)` in the browser worker — plugin-ui-plane #679 U4). An import edge is not merely absent, it is impossible: neither guest realm has a module loader. They live in the `@orb/showcase-plugins` workspace package the server declares as a dependency (#1692 — they used to ride `packages/server/src` because that was the only tree the image copies, which is exactly the image-copy dependence the #1238 ruling refused), and their liveness is proven behaviourally by `tests/server/entry/boot/seed-example-plugins.int.test.ts`, which installs each one and round-trips the scripted example's `ui.js` back out through `getUiBundle`.",
       severity: "warn",
       from: {
         orphan: true,
@@ -735,7 +752,7 @@ module.exports = {
           // `main.js` (the SERVER guest) and `ui.js` (the Tier-C CLIENT guest, plugin-ui-plane #679 U4) — the
           // SAME carve for the same reason, widened to the second entry name rather than loosened to a
           // directory glob, so a stray `helper.js` beside them is still a real orphan.
-          "^packages/server/src/entry/boot/seed-assets/plugins/[^/]+/(main|ui)\\.js$",
+          "^packages/showcase-plugins/bundles/[^/]+/(main|ui)\\.js$",
         ],
       },
       to: {},

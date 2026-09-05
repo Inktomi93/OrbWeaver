@@ -211,7 +211,7 @@ const TOOLING_TESTS = "tests/tooling/**/*.ts";
 // tests/server/{transport/trpc/stream/socket.test.ts,domain/chat/macro-identity.suite.int.test.ts}, and the
 // root program EXCLUDES both. That is why these dirs ride the escapee parser below rather than
 // projectService (#1231) — an upward search lands on the root tsconfig and finds them excluded.
-const NODE_TEST_DIRS = ["tests/server/**/*.ts", "tests/kit/**/*.ts", "tests/db/**/*.ts", "tests/contracts/**/*.ts"];
+const NODE_TEST_DIRS = ["tests/server/**/*.ts", "tests/kit/**/*.ts", "tests/db/**/*.ts", "tests/contracts/**/*.ts", "tests/showcase-plugins/**/*.ts"];
 // The trees the root program does NOT own — see the parser note above; every one of them is rooted by
 // `tsconfig.tests-dom.json`, which is why they share the escapee parser.
 //

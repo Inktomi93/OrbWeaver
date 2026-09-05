@@ -1,5 +1,5 @@
 // The SHOWCASE PLUGIN examples, proven end to end on their REAL packed bytes — no hand-built bundle double.
-// `packSeedPluginBundle` zips the two source files exactly as the per-user seeder does, the real `install`
+// `packShowcaseBundle` zips the two source files exactly as the per-user seeder does, the real `install`
 // verb parses and stores them, the real `setGrant` records consent, the real `setEnabled` activates them in
 // the REAL `infra/plugin-host` sandbox, and the collected registrations are driven through the SAME
 // `invoke(handler, argsJson, chatScope)` closure the compose fan-out and the tool registrar call.
@@ -29,8 +29,8 @@ import { createNotificationsService } from "@orb/server/domain/notifications";
 import type { PluginActivationScope, PluginHostOps, PluginHostPort, PluginInvokeHandler, PluginRegistrationHandle } from "@orb/server/domain/plugin";
 import { buildPluginStorage, createSurfaceStatePublisher } from "@orb/server/domain/plugin";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
-import { packSeedPluginBundle } from "../../../../packages/server/src/entry/boot/seed-assets/index.ts";
-import { createExamplePluginSeeder, EXAMPLE_PLUGIN_SLUGS } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
+import { createExamplePluginSeeder } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
+import { packShowcaseBundle, SHOWCASE_PLUGIN_SLUGS } from "../../../../packages/showcase-plugins/src/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -188,7 +188,7 @@ async function installGrantEnable(args: {
   readonly netHosts?: readonly string[];
 }): Promise<PluginId> {
   const { h, caller, slug, grant } = args;
-  const bundle = await packSeedPluginBundle(slug);
+  const bundle = await packShowcaseBundle(slug);
   expect(bundle, `${slug} has no packable source directory`).not.toBeNull();
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
   expect(installed.status).toBe("disabled");
@@ -240,7 +240,7 @@ test("research familiar: the real bundle installs consent-first, and its message
 
   // THE SEEDED SEQUENCE, verbatim: install with an EMPTY grant, then the empty RE-GRANT that raises the
   // standing consent ask. The row can do nothing at all until a human answers it.
-  const bundle = await packSeedPluginBundle("research-familiar");
+  const bundle = await packShowcaseBundle("research-familiar");
   expect(bundle).not.toBeNull();
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
   expect(installed.status).toBe("disabled");
@@ -296,7 +296,7 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   const h = makePluginHarness(db, { port: realHost(), ops });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
 
-  const bundle = await packSeedPluginBundle("oracle-deck");
+  const bundle = await packShowcaseBundle("oracle-deck");
   expect(bundle).not.toBeNull();
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
   const grant: readonly PluginCapability[] = ["storage.kv", "tools.register", "ui.surface", "chat.transform", "plugin_events"];
@@ -518,7 +518,7 @@ test("the per-user seeder lands every example installed, disabled and UNGRANTED 
   let latched = false;
 
   const seeder = createExamplePluginSeeder({
-    packBundle: packSeedPluginBundle,
+    packBundle: packShowcaseBundle,
     install: async ({ caller: principal, bundle }) => await h.service.install({ caller: principal, bundle, grant: [] }),
     requestConsent: async ({ caller: principal, pluginId }) => {
       await h.service.setGrant({ caller: principal, pluginId, grant: [], acknowledgedNetHosts: [] });
@@ -533,7 +533,7 @@ test("the per-user seeder lands every example installed, disabled and UNGRANTED 
 
   await seeder.ensureSeeded(caller);
   const rows = await h.service.list({ caller });
-  expect(rows.map((r) => r.slug).sort()).toEqual([...EXAMPLE_PLUGIN_SLUGS].sort());
+  expect(rows.map((r) => r.slug).sort()).toEqual([...SHOWCASE_PLUGIN_SLUGS].sort());
   // THE CONSENT POSTURE, asserted on every row: present, off, allowed nothing, and standing an ask.
   for (const row of rows) {
     expect(row.status, row.slug).toBe("disabled");
@@ -546,7 +546,7 @@ test("the per-user seeder lands every example installed, disabled and UNGRANTED 
   // The in-process memo makes a second call free; clearing it and re-running must still mint nothing (the
   // persisted latch is the DELETION-RESPECT guard — an example the user removed must not come back).
   await seeder.ensureSeeded(caller);
-  expect(await h.service.list({ caller })).toHaveLength(EXAMPLE_PLUGIN_SLUGS.length);
+  expect(await h.service.list({ caller })).toHaveLength(SHOWCASE_PLUGIN_SLUGS.length);
 });
 
 // #1411 — the LATCH IS A COMPLETENESS CLAIM, not a "the pass ran" claim. `seedOne` returning false for a
@@ -567,7 +567,7 @@ test("a MISSING bundle does not latch — the incomplete pass retries and comple
   const missingSlug = "oracle-deck";
 
   const seeder = createExamplePluginSeeder({
-    packBundle: async (slug) => (pack.absent && slug === missingSlug ? null : await packSeedPluginBundle(slug)),
+    packBundle: async (slug) => (pack.absent && slug === missingSlug ? null : await packShowcaseBundle(slug)),
     install: async ({ caller: principal, bundle }) => await h.service.install({ caller: principal, bundle, grant: [] }),
     requestConsent: async ({ caller: principal, pluginId }) => {
       await h.service.setGrant({ caller: principal, pluginId, grant: [], acknowledgedNetHosts: [] });
@@ -582,13 +582,13 @@ test("a MISSING bundle does not latch — the incomplete pass retries and comple
 
   await seeder.ensureSeeded(caller);
   // The pass did NOT fail: every other example is installed (the header's per-slug tolerance, preserved).
-  expect((await h.service.list({ caller })).map((r) => r.slug).sort()).toEqual([...EXAMPLE_PLUGIN_SLUGS].filter((s) => s !== missingSlug).sort());
+  expect((await h.service.list({ caller })).map((r) => r.slug).sort()).toEqual([...SHOWCASE_PLUGIN_SLUGS].filter((s) => s !== missingSlug).sort());
   // …but it was INCOMPLETE, so it must stay retryable — both the persisted latch and the in-process memo.
   expect(latched).toBe(false);
 
   pack.absent = false;
   await seeder.ensureSeeded(caller);
-  expect((await h.service.list({ caller })).map((r) => r.slug).sort()).toEqual([...EXAMPLE_PLUGIN_SLUGS].sort());
+  expect((await h.service.list({ caller })).map((r) => r.slug).sort()).toEqual([...SHOWCASE_PLUGIN_SLUGS].sort());
   expect(latched).toBe(true);
 });
 
@@ -602,14 +602,14 @@ test("every seeded example packs to a bundle the real install verb accepts", asy
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
   const ids: PluginId[] = [];
-  for (const slug of EXAMPLE_PLUGIN_SLUGS) {
-    const bundle = await packSeedPluginBundle(slug);
+  for (const slug of SHOWCASE_PLUGIN_SLUGS) {
+    const bundle = await packShowcaseBundle(slug);
     expect(bundle, `${slug} has no packable source directory`).not.toBeNull();
     const row = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
     expect(row.slug).toBe(slug);
     ids.push(row.id);
   }
-  expect(ids).toHaveLength(EXAMPLE_PLUGIN_SLUGS.length);
+  expect(ids).toHaveLength(SHOWCASE_PLUGIN_SLUGS.length);
 });
 
 /** The live value of one key in a room's variable store — `null` for an unset key, which is the reading a
@@ -1028,7 +1028,7 @@ test("the seeded scripted example round-trips its ui.js through install → CAS 
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
 
-  const scripted = await packSeedPluginBundle("affinity-tracker");
+  const scripted = await packShowcaseBundle("affinity-tracker");
   const installed = await h.service.install({ caller, bundle: scripted as Uint8Array, grant: [] });
   const source = await h.service.getUiBundle({ caller, pluginId: installed.id });
   expect(source, "affinity-tracker ships a ui.js and it must survive the round trip").not.toBeNull();
@@ -1037,7 +1037,7 @@ test("the seeded scripted example round-trips its ui.js through install → CAS 
   expect(source).toContain("orb.ui(1)");
 
   // A Tier-S example answers `null` — an absence, not a failure.
-  const staticOnly = await packSeedPluginBundle("oracle-deck");
+  const staticOnly = await packShowcaseBundle("oracle-deck");
   const staticRow = await h.service.install({ caller, bundle: staticOnly as Uint8Array, grant: [] });
   expect(await h.service.getUiBundle({ caller, pluginId: staticRow.id })).toBeNull();
 });
@@ -1081,7 +1081,7 @@ test("the seeder leaves the owner ONE durable ask that counts every waiting plug
   let latched = false;
 
   const seeder = createExamplePluginSeeder({
-    packBundle: packSeedPluginBundle,
+    packBundle: packShowcaseBundle,
     install: async ({ caller: principal, bundle }) => await h.service.install({ caller: principal, bundle, grant: [] }),
     requestConsent: async ({ caller: principal, pluginId }) => {
       await h.service.setGrant({ caller: principal, pluginId, grant: [], acknowledgedNetHosts: [] });
@@ -1101,7 +1101,7 @@ test("the seeder leaves the owner ONE durable ask that counts every waiting plug
   expect(inbox.items[0]?.payload).toEqual({
     type: "plugins-awaiting-consent",
     recipientUserId: caller.userId,
-    pendingCount: EXAMPLE_PLUGIN_SLUGS.length,
+    pendingCount: SHOWCASE_PLUGIN_SLUGS.length,
   });
   // Unread: the whole point is that it reaches the bell as something new.
   expect(inbox.items[0]?.readAt).toBeNull();
@@ -1120,6 +1120,6 @@ test("the seeder leaves the owner ONE durable ask that counts every waiting plug
   expect(after.items[0]?.payload).toEqual({
     type: "plugins-awaiting-consent",
     recipientUserId: caller.userId,
-    pendingCount: EXAMPLE_PLUGIN_SLUGS.length - 1,
+    pendingCount: SHOWCASE_PLUGIN_SLUGS.length - 1,
   });
 });

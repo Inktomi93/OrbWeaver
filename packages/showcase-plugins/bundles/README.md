@@ -28,7 +28,7 @@ card-atlas/            hub browser        the flagship: search two community hub
 ## The whole loop, in five lines
 
 ```bash
-cp -r packages/server/src/entry/boot/seed-assets/plugins/oracle-deck /tmp/my-plugin
+cp -r packages/showcase-plugins/bundles/oracle-deck /tmp/my-plugin
 # edit /tmp/my-plugin/manifest.json  (give it your own `id` and `name`)
 # edit /tmp/my-plugin/main.js        (and ui.js, if you ship a scripted surface)
 pnpm plugin:pack oracle-deck ./out       # packs a SEEDED example, for reference

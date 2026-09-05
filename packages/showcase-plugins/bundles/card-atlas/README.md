@@ -13,7 +13,7 @@ grid → sort/filter → page → preview → import, dedupe-aware and provenanc
 ## Copy me
 
 ```bash
-cp -r packages/server/src/entry/boot/seed-assets/plugins/card-atlas /tmp/my-plugin
+cp -r packages/showcase-plugins/bundles/card-atlas /tmp/my-plugin
 # change `id` and `name` in manifest.json, edit main.js, then pack and install:
 pnpm plugin:pack card-atlas ./out
 ```
