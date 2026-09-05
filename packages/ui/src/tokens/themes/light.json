@@ -105,6 +105,12 @@
         "alpha": 0.16
       }
     },
+    "input-border": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [0.51, 0.008, 70]
+      }
+    },
     "selection-quiet": {
       "$value": {
         "colorSpace": "oklch",

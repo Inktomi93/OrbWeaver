@@ -18,7 +18,7 @@ import type { Locator, Page } from "@playwright/test";
 import { ariaTreeFindings } from "../../../../support/ct/accessible-names.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { ctSnapPath } from "../../../../support/ct/snap-out.ts";
-import { hitBoxes, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { hitBoxes, resolveSpacingPx, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import { RpgTakeoverDockedStory, RpgTakeoverFloorStory, RpgTakeoverNotifyStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories.tsx";
 
 const GAME_ID = "rpg_game_ct_keystone";
@@ -2841,7 +2841,7 @@ test("#102 variant A: the game kicker binds DOWNWARD — 4px above its own cells
     component.locator('[data-slot="rpg-hud-band"]').boundingBox(),
     gameKicker.boundingBox(),
     component.getByRole("toolbar", { name: "Game state" }).boundingBox(),
-    page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--spacing-tight")) * 16),
+    resolveSpacingPx(page, "--spacing-tight"),
   ]);
   if (satBox === null || bandBox === null || kickerBox === null || cellsBox === null) {
     throw new Error("expected the band, its satellites and the game rail's kicker + cells to be laid out");
@@ -2940,7 +2940,7 @@ test("#102: the HUD's NON-VIEWPORT SPEND is pinned — measured as the pane minu
     component.locator("[data-context-bracket]").evaluate((el) => el.getBoundingClientRect().height),
     component.locator('[data-slot="tabs-panel"]:visible').boundingBox(),
     component.locator('[data-slot="context-bracket-ground"]').boundingBox(),
-    page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--spacing-row")) * 16),
+    resolveSpacingPx(page, "--spacing-row"),
   ]);
   if (panelBox === null || groundBox === null) {
     throw new Error("expected the active viewport panel and the ground to be laid out");
@@ -3110,7 +3110,7 @@ test("#102: the kicker's hairline IS the rail's edge — the rule bleeds to the 
     kicker.boundingBox(),
     gameRail.boundingBox(),
     kicker.locator('[data-slot="text"]').first().boundingBox(),
-    page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--spacing-block")) * 16),
+    resolveSpacingPx(page, "--spacing-block"),
     kicker.evaluate((el) => getComputedStyle(el).borderBottomWidth),
   ]);
   if (ruleBox === null || railBox === null || wordBox === null) {

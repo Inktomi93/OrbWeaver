@@ -647,12 +647,23 @@ test("issue 490: inline code renders at the CODE token size with the tight verti
     .evaluate((el) => {
       const own = getComputedStyle(el);
       const root = getComputedStyle(document.documentElement);
+      // Resolve a belted token by making the BROWSER do the arithmetic: `--spacing-*` carries the
+      // `round(up, …, 1px)` device-pixel belt (#1640) and `getPropertyValue` hands back that authored
+      // token stream, which `parseFloat` reads as NaN. A throwaway probe resolves it to real px.
+      const probePx = (doc: Document, name: string): number => {
+        const probe = doc.createElement("div");
+        probe.style.paddingTop = `var(${name})`;
+        doc.body.append(probe);
+        const value = Number.parseFloat(getComputedStyle(probe).paddingTop);
+        probe.remove();
+        return value;
+      };
       return {
         fontSize: own.fontSize,
         codeToken: root.getPropertyValue("--text-code").trim(),
         paddingTop: own.paddingTop,
         paddingBottom: own.paddingBottom,
-        tightToken: root.getPropertyValue("--spacing-tight").trim(),
+        tightPx: probePx(el.ownerDocument, "--spacing-tight"),
         // The rem base, read rather than assumed — `fontScale` moves it, and a hardcoded 16 would make
         // every equality below a lie the moment a reader scales their type.
         remPx: Number.parseFloat(root.fontSize),
@@ -664,14 +675,14 @@ test("issue 490: inline code renders at the CODE token size with the tight verti
   // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(measured.codeToken).not.toBe("");
   // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
-  expect(measured.tightToken).not.toBe("");
+  expect(measured.tightPx).toBeGreaterThan(0);
   const px = (rem: string): number => Number.parseFloat(rem) * measured.remPx;
   // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(measured.fontSize)).toBeCloseTo(px(measured.codeToken), 1);
   // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
-  expect(Number.parseFloat(measured.paddingTop)).toBeCloseTo(px(measured.tightToken), 1);
+  expect(Number.parseFloat(measured.paddingTop)).toBeCloseTo(measured.tightPx, 1);
   // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
-  expect(Number.parseFloat(measured.paddingBottom)).toBeCloseTo(px(measured.tightToken), 1);
+  expect(Number.parseFloat(measured.paddingBottom)).toBeCloseTo(measured.tightPx, 1);
   // …and it is still SMALLER than the prose it sits in — the reader-visible half of the finding.
   // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(measured.fontSize)).toBeLessThan(measured.proseFontSize);
@@ -704,9 +715,17 @@ test("issue 1085: an unordered list renders a marker, a hanging indent and inter
   const box = await list.evaluate((el) => {
     const own = getComputedStyle(el);
     const item = el.querySelector("li");
-    const root = getComputedStyle(document.documentElement);
-    const remPx = Number.parseFloat(root.fontSize);
-    const token = (name: string): number => Number.parseFloat(root.getPropertyValue(name).trim()) * remPx;
+    // A PROBE, never `getPropertyValue` — the `--spacing-*` family is belted (`round(up, …, 1px)`, #1640)
+    // and a custom property resolves to that authored token stream rather than to a length, so the
+    // browser is asked to resolve it instead of the test parsing it.
+    const token = (name: string): number => {
+      const probe = el.ownerDocument.createElement("div");
+      probe.style.paddingTop = `var(${name})`;
+      el.ownerDocument.body.append(probe);
+      const value = Number.parseFloat(getComputedStyle(probe).paddingTop);
+      probe.remove();
+      return value;
+    };
     return {
       marker: own.listStyleType,
       markerPosition: own.listStylePosition,

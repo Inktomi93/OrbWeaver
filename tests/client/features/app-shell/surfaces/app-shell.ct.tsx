@@ -27,7 +27,7 @@ import type { BlurSurface } from "@orb/contracts/settings";
 import { appearanceSettingsSchema, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import { TOKENS } from "@orb/ui/tokens";
+import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/modal-slot-ids.ts";
@@ -183,8 +183,7 @@ const MOBILE = { width: 390, height: 844 };
 /** The You sheet's row floor in px, DERIVED from the token a `ListRow` body rides (`min-h-control-md`,
  *  list-row/variants.ts) at its coarse value — never a hardcoded literal (§13.7 contract; the
  *  tests/ui/tokens/index.ct.tsx precedent). 3rem → 48px under `pointer: coarse`. */
-const REM_PX = 16;
-const SHEET_ROW_FLOOR_PX = Number.parseFloat(TOKENS["spacing.control-md"].value) * REM_PX;
+const SHEET_ROW_FLOOR_PX = SNAPPED_LENGTH_BASE_PX["spacing.control-md"];
 
 /** The one persona the You-sheet lens projects — it must exist for the roster to have a CURRENT row, which
  *  is where "Playing as" lives (side-eye 2026-08-03 P2). Shaped as `persona.list` returns it. */

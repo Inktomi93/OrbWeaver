@@ -72,7 +72,12 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // (2 direct @theme, tokens.json) and `--orb-grid-cell-fixed` with its comfortable/compact density aliases
   // (3 rules), so Grid `cellFixed` reads one density-selected track instead of a raw minmax literal
   // (tests/ui/tokens/index.test.ts pins the pair; `cellShelf` keeps its independent 8.5rem track).
-  [THEME]: 305,
+  // +1 (2026-09-05, D159): `--color-input-border` — the opaque FORM-CONTROL edge. `--color-border` is an
+  // 8%-alpha decorative hairline measuring 1.19-1.32:1 around every input, select trigger and textarea, and
+  // WCAG 1.4.11's 3:1 governs a control's boundary while saying nothing about a divider; raising the shared
+  // token would have moved 72 consumers to satisfy a floor binding on a dozen. One `light-dark()` token, both
+  // arms measured floor-and-ceiling per seed (tokens.json color.input-border).
+  [THEME]: 306,
   // +2 (2026-09-02, #1128): `--scroll-fade-depth` / `--scroll-fade-floor` on `.scroll-fade-y`. The block
   // -axis fade ramped to ZERO alpha over 10% of the pane and measured two live buttons at 1.75:1 at the
   // shipped 1280x800 default; a bounded band plus an alpha floor needs two locals, and they deliberately
@@ -109,8 +114,8 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // widen existing selector lists and mint no declaration.
   [SHELL]: 343,
 };
-export const EXPECTED_DECLARATION_TOTAL = 1009;
-export const EXPECTED_DIRECT_THEME_DECLARATIONS = 199;
+export const EXPECTED_DECLARATION_TOTAL = 1010;
+export const EXPECTED_DIRECT_THEME_DECLARATIONS = 200;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",
   [UI_GLOBALS]: "census:ui-globals",

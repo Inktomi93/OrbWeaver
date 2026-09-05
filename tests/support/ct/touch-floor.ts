@@ -27,17 +27,51 @@ export interface HitBox {
   readonly y: number;
 }
 
+/**
+ * One `--spacing-*` custom property resolved to REAL px by the browser, at the document root.
+ *
+ * NEVER `parseFloat(getComputedStyle(x).getPropertyValue("--spacing-…")) * 16`. That spelling was wrong on
+ * two independent counts and both bit: a custom property's computed value is its authored TOKEN STREAM, so
+ * (a) since #1640 the `--spacing-*` family is belted and the stream reads `round(up, 2.75rem, 1px)` — NaN
+ * to `parseFloat`, and every downstream comparison silently vacuous — and (b) the `* 16` was already a lie
+ * for any reader with `--font-scale` off 1. A throwaway probe makes the ENGINE do the arithmetic, so it is
+ * correct under the belt, the font scale, the pointer arm and the density scope alike.
+ */
+export function resolveSpacingPx(page: Page, cssVar: string): Promise<number> {
+  return page.evaluate((name: string) => {
+    const probe = document.createElement("div");
+    // PADDING, not width, and out of flow: a probe appended inside a flex container is a FLEX ITEM whose
+    // `width` is only a base size the layout may shrink (measured: a 34px token read back 19.05px inside a
+    // Button). Padding is never flex-adjusted, and `position: absolute` keeps the probe from moving the
+    // very geometry the caller is about to assert.
+    probe.style.position = "absolute";
+    probe.style.paddingTop = `var(${name})`;
+    document.body.append(probe);
+    const px = Number.parseFloat(getComputedStyle(probe).paddingTop);
+    probe.remove();
+    return px;
+  }, cssVar);
+}
+
+/** {@link resolveSpacingPx} inside a LOCATOR's inherited scope — `--spacing-field/row/block/section` are
+ *  rebound per density tier (`packages/ui/src/styles/tiers.css`), so a root-scoped read answers for the
+ *  wrong tier inside a `data-density` subtree. */
+export function resolveSpacingPxIn(scope: Locator, cssVar: string): Promise<number> {
+  return scope.evaluate((node: Element, name: string) => {
+    const probe = node.ownerDocument.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.paddingTop = `var(${name})`;
+    node.append(probe);
+    const px = Number.parseFloat(getComputedStyle(probe).paddingTop);
+    probe.remove();
+    return px;
+  }, cssVar);
+}
+
 /** The live `--spacing-touch-target`, in px. Pointer-CONDITIONAL (44 coarse / 28 fine) — read it only after
  *  asserting the coarse emulation landed, or it answers for the wrong pointer class. */
 export function touchFloorPx(page: Page): Promise<number> {
-  return page.evaluate(() => {
-    const probe = document.createElement("div");
-    probe.style.width = "var(--spacing-touch-target)";
-    document.body.append(probe);
-    const px = probe.getBoundingClientRect().width;
-    probe.remove();
-    return px;
-  });
+  return resolveSpacingPx(page, "--spacing-touch-target");
 }
 
 /** A control's reachable extent on one axis — walked out from its centre with `elementFromPoint` until the

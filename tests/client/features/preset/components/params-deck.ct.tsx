@@ -21,6 +21,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { compactionModeLabel } from "../../../../../packages/client/src/features/preset/lib/preset-nav.ts";
 import { clearNumber, setNumber } from "../../../../support/ct/set-number.ts";
+import { resolveSpacingPxIn } from "../../../../support/ct/touch-floor.ts";
 import { CompactionTabDefaultsStory, CompactionTabSetStory } from "./_add-flow-stories.tsx";
 import {
   ParamsDeckCapabilityErrorStory,
@@ -165,7 +166,7 @@ test("P3 the hint column is a COLUMN — every explainer at one x, at the touch-
   // boundary, not the nine-across-eleven-rows rag P3 measured. Asserted as "at most one x per knob grid".
   expect(new Set(placed).size, `at most one x per knob grid (got ${placed.join(",")})`).toBeLessThanOrEqual(perGrid.length);
   // …and it is still the control-md box R-8 measured, not the primitive's inline default.
-  const expected = await triggers.first().evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
+  const expected = await resolveSpacingPxIn(triggers.first(), "--spacing-control-md");
   await expect.poll(async () => (await triggers.first().boundingBox())?.width).toBe(expected);
 });
 

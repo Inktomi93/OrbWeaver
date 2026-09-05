@@ -14,6 +14,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { resolveSpacingPx } from "../../../../support/ct/touch-floor.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 const USER_SETTINGS_VIEW = { userId: "user_ct_search", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
@@ -263,8 +264,7 @@ test.describe("coarse pointer", () => {
 
     // The floor is read from the resolved token, never a hardcoded px — `--spacing-touch-target` is
     // pointer-conditional (44px coarse / 28px fine), so this also proves the emulation actually took.
-    const readFloor = async (): Promise<number> =>
-      await page.evaluate((): number => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--spacing-touch-target")) * 16);
+    const readFloor = async (): Promise<number> => await resolveSpacingPx(page, "--spacing-touch-target");
     await expect.poll(readFloor).toBeGreaterThanOrEqual(44);
     const floor = await readFloor();
 

@@ -7,7 +7,7 @@ import { ACCENT_HOVER, FOCUS_RING_BARE, FOCUS_RING_WITHIN, ITEM_ROW, OVERLAY_ARR
 export const autocompleteVariants = tv({
   slots: {
     inputGroup: [
-      "relative flex h-control-sm w-full min-w-0 items-center rounded-control border border-border bg-input",
+      "relative flex h-control-sm w-full min-w-0 items-center rounded-control border border-input-border bg-input",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       FOCUS_RING_WITHIN,
       "has-data-disabled:pointer-events-none has-data-disabled:opacity-50",

@@ -261,6 +261,77 @@ test.each(
   expect(contrastRatio(fill, card), `color.selection-quiet must undercut color.primary on color.card @ ${palette.name}`).toBeLessThan(accent);
 });
 
+// ── D159 / #1641 / #1361-1: THE FORM-CONTROL BORDER — bounded from BOTH sides, in every seed ────────
+// `--color-input-border` is the OPAQUE edge that identifies an input, select trigger, textarea, combobox,
+// number-field group, checkbox, radio, switch track, colour swatch or file dropzone as something a user
+// OPERATES. It exists because the shared `--color-border` is an 8%-alpha decorative hairline measuring
+// 1.190-1.318:1 on every ground a control sits on, and WCAG 1.4.11's 3:1 governs the boundary of a
+// user-interface component while saying nothing about a divider — so the fix was a second token, not a
+// retune of a 72-consumer one (the ruling and its receipts are D159).
+//
+// THE FILL IS TRANSLUCENT, so the ground is COMPOSITED, never the panel alone (`alpha-token-needs-
+// composited-contrast-probe`): `--color-input` is 0.12-0.16 alpha, so a control's real interior pixel is
+// the fill over whatever panel is behind it, and the edge meets BOTH — the composited interior on one
+// side and the bare panel on the other. Both are asserted, on the WORSE of the float and 8-bit-quantized
+// ratio, because the pixel a reader sees is the rounded one.
+//
+// THE PANEL LIST IS THE ELEVATION SURFACE SET. `appearance.elevation` (flat|ramp|glow) and the glass and
+// `prefers-contrast: more` arms reach PANEL chrome only — none of them writes a form-control edge — and
+// what `ramp` changes is WHICH of these tokens a panel paints (it lifts fills to `--color-surface-raised`
+// / `--color-card`). Sweeping the whole set is therefore the sweep over every appearance arm, which is
+// why this pin needs no arm axis of its own.
+//
+// CEILING, and it is half the design: the resting edge must stay QUIETER on `--color-card` than the FOCUS
+// RING, or the one state that must read as focused is outshouted by every control at rest. A one-sided
+// pin would pass on an edge tuned to the loudness of body text.
+const CONTROL_GROUNDS: ReadonlyArray<keyof typeof TOKENS> = [
+  "color.background",
+  "color.card",
+  "color.popover",
+  "color.surface-raised",
+  "color.sidebar",
+  "color.muted",
+  "color.secondary",
+  "color.accent",
+];
+
+test.each(
+  PALETTES.map((palette) => [palette.name, palette] as const),
+)("D159 %s: the form-control border clears 1.4.11 on every ground AND stays under the focus ring", (_name, palette) => {
+  const edge = resolveTokenRgb("color.input-border", palette);
+  const fill = resolveTokenOklch("color.input", palette);
+
+  // FLOOR — 3:1 against each panel and against the field fill composited over that panel.
+  for (const ground of CONTROL_GROUNDS) {
+    const panel = resolveTokenRgb(ground, palette);
+    expect(worstContrast(edge, panel), `color.input-border on ${ground} @ ${palette.name}`).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+    expect(worstContrast(edge, compositeOver(fill, panel)), `color.input-border on the bg-input fill over ${ground} @ ${palette.name}`).toBeGreaterThanOrEqual(
+      UI_COMPONENT_MIN_RATIO,
+    );
+  }
+
+  // CEILING — quieter than the focus ring on the surface both are judged against.
+  const card = resolveTokenRgb("color.card", palette);
+  const ring = worstContrast(resolveTokenRgb("color.ring", palette), card);
+  expect(ring, `color.ring on color.card @ ${palette.name} must be a real painted ring, or the ceiling is vacuous`).toBeGreaterThan(UI_COMPONENT_MIN_RATIO);
+  expect(worstContrast(edge, card), `color.input-border must stay under color.ring on color.card @ ${palette.name}`).toBeLessThan(ring);
+});
+
+test.each(
+  PALETTES.map((palette) => [palette.name, palette] as const),
+)("D159 %s: --color-border is NOT the form-control edge — the split is why the token exists", (_name, palette) => {
+  // The control arm of the OLD spelling, kept as the receipt that decided D159: raising the shared
+  // divider to 3:1 was rejected, so it must still be measurably below the floor here. If a later change
+  // ever brings `--color-border` to 3:1 on its own, this row is the one that says so out loud rather
+  // than leaving two tokens quietly doing one job.
+  const divider = resolveTokenOklch("color.border", palette);
+  const card = resolveTokenRgb("color.card", palette);
+  expect(
+    worstContrast(compositeOver(divider, card), card),
+    `color.border on color.card @ ${palette.name} — a decorative hairline, deliberately under 1.4.11 (D159)`,
+  ).toBeLessThan(UI_COMPONENT_MIN_RATIO);
+});
+
 // ── #697: THE TRACK RAMP FILL — a non-text UI component (WCAG 1.4.11), floored at 3:1 on the LIGHT panel ──
 // The 6-step categorical ramp (--color-track-N) fills pool/meter/clock gauges (TrackBar/SegmentBar/RingGauge/
 // CoinFigure). The FILL is itself a graphical UI component conveying the reading, so 1.4.11's 3:1 applies even

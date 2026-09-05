@@ -2,11 +2,8 @@
 // (ui-primitive-carve-out-work-order item 9). Group aria-label carries the full count; each
 // avatar keeps its own name as its accessible name.
 import { AvatarStack } from "@orb/ui/avatar-stack";
-import { TOKENS } from "@orb/ui/tokens";
+import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-
-// avatar tokens are authored in rem; the rendered box resolves to px (root = 16px).
-const ROOT_PX = 16;
 
 const MEMBERS = [{ name: "Nate Ward" }, { name: "Robin Song" }, { name: "Ash Vale" }, { name: "Quinn Rye" }, { name: "Devon Lark" }, { name: "Sam Post" }];
 
@@ -122,6 +119,6 @@ test("size passes through to every avatar, matching avatar's own size scale", as
   const item = component.locator('[data-slot="avatar-stack-item"]').first();
   // lg = --spacing-avatar-lg (2.5rem = 40px), the same DISPLAY-avatar token avatar's own size="lg"
   // resolves to (D62: avatar sizes decoupled from the control-height scale).
-  const avatarLgPx = `${Number.parseFloat(TOKENS["spacing.avatar-lg"].value) * ROOT_PX}px`;
+  const avatarLgPx = `${SNAPPED_LENGTH_BASE_PX["spacing.avatar-lg"]}px`;
   await expect(item).toHaveCSS("width", avatarLgPx);
 });

@@ -7,8 +7,10 @@ import { Input } from "@orb/ui/input";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import type { ReactElement } from "react";
 import type { OutputInfo } from "sharp";
 import sharp from "sharp";
+import { pixelExtremaContrast } from "../../../support/ct/pixel-contrast.ts";
 
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;
@@ -252,4 +254,83 @@ test("inside a <Field>, the label associates and aria-describedby wires the desc
   const control = page.getByLabel("Display name");
   await expect(control).toBeVisible();
   await expect(control).toHaveAttribute("aria-describedby", NON_EMPTY);
+});
+
+// ── D159 / #1641 / #1361-1: THE FORM-CONTROL EDGE, FROM THE FRAMEBUFFER ────────────────────────────
+//
+// `--color-input-border` is the token this control's edge wears since the shared `--color-border`
+// hairline measured 1.190-1.318:1 around every form control in the app. The vault side of the claim is
+// pinned arithmetically in tests/ui/content/theme-scope/palette-contrast.suite.test.ts; this is the other
+// half — the QUANTIZED COMPOSITED PIXEL, which is the only thing that can answer for an edge whose
+// interior neighbour (`bg-input`) is a 12-16% alpha fill over whatever panel is behind it
+// (`alpha-token-needs-composited-contrast-probe`; `contrast-searches-judge-the-quantized-pixel`).
+//
+// `pixelExtremaContrast` IS THE RIGHT INSTRUMENT FOR A 1px EDGE. An EMPTY input paints only its border,
+// its composited fill and — through the `rounded-control` corners — a little of the pane behind it, so the
+// box's brightest and darkest pixels are the edge against the FURTHEST of the surfaces it actually abuts.
+// Every one of those pairs is a ground the palette-contrast suite floors separately at 3:1, so the extrema
+// are the right upper bound on the same claim. A region sample of a 1px strip would be reading
+// anti-aliasing; the extrema are not fooled by it, and because this is an UPPER bound a RED is unarguable.
+//
+// THE POSITIVE CONTROL IS MANDATORY AND IS IN THE SAME MOUNT: a borderless box wearing the same
+// `bg-input` fill must come back ~1:1. Without it, "the extrema are 3.3 apart" is arithmetic about a
+// screenshot, not evidence that the EDGE is what supplied one of them.
+//
+// THE ARM MATRIX IS THE ELEVATION ARM MATRIX. `appearance.elevation` (flat|ramp|glow), the frosted glass
+// and the `prefers-contrast: more` block all reach PANEL chrome and never write a control edge; what
+// `ramp` actually changes is WHICH panel token a surface paints, lifting fills to `--color-surface-raised`
+// / `--color-card`. Mounting the control on all three panel fills is therefore the sweep over every
+// appearance arm, taken where it can be measured rather than where it is configured.
+const D159_SEEDS = ["hearth", "light", "mocha"] as const;
+const D159_PANELS = ["bg-background", "bg-card", "bg-surface-raised"] as const;
+/** WCAG 1.4.11 for a user-interface component boundary. */
+const UI_COMPONENT_FLOOR = 3;
+/** Two samples of ONE flat surface differ only by dithering; the borderless control must land near here. */
+const FLAT_SURFACE_MAX = 1.15;
+
+/** Nine panes in ONE mount and inside ONE viewport: playwright-ct refuses a second `mount()`, and a
+ *  stacked column ran the last panes off-screen, where `pixelExtremaContrast` correctly REFUSES rather
+ *  than reporting a number (its #211 posture — the refusal is what caught the layout). */
+const d160Panes = (): ReactElement => (
+  <>
+    {D159_SEEDS.map((theme) => (
+      <div className="flex gap-row" key={theme} {...(theme === "hearth" ? {} : { "data-theme": theme })}>
+        {D159_PANELS.map((panel) => (
+          <div className={`${panel} flex flex-1 flex-col gap-tight p-row`} key={panel}>
+            <Input aria-label={`edge ${theme} ${panel}`} />
+            {/* The positive control: the control's own fill with NO edge, same box, same pane — and
+                SQUARE. A `rounded-control` control was not flat (1.35-1.47:1): its corners let the pane
+                through, and the extrema found it. That is the instrument working, and it is the reason
+                the assertion below reads "the surfaces inside the box" rather than "the fill". */}
+            <div className="h-control-sm w-full bg-input" data-testid={`flat-${theme}-${panel}`} />
+          </div>
+        ))}
+      </div>
+    ))}
+  </>
+);
+
+test("D159: the form-control EDGE clears 1.4.11's 3:1 against its own composited fill, on every seed and every elevation panel", async ({ mount, page }) => {
+  await mount(d160Panes());
+  const rows: string[] = [];
+  const failures: string[] = [];
+  for (const theme of D159_SEEDS) {
+    for (const panel of D159_PANELS) {
+      const edge = await pixelExtremaContrast(page, page.getByLabel(`edge ${theme} ${panel}`));
+      // The control is sampled on its INTERIOR. A whole-box clip rounds outward (`ceil` of a fractional
+      // box) and picks up a row of the pane behind it, which reads as 1.35-1.43:1 — the probe finding a
+      // real second surface, not a flat box. Inset, and the borderless box is exactly 1.000:1.
+      const flat = await pixelExtremaContrast(page, page.getByTestId(`flat-${theme}-${panel}`), {
+        region: { x0: 0.1, x1: 0.9, y0: 0.25, y1: 0.75 },
+      });
+      rows.push(`${theme}/${panel}: edge ${edge.ratio.toFixed(3)}:1 (${edge.describe}) · flat control ${flat.ratio.toFixed(3)}:1`);
+      if (edge.ratio < UI_COMPONENT_FLOOR) {
+        failures.push(`${theme}/${panel} edge ${edge.ratio.toFixed(3)}:1`);
+      }
+      if (flat.ratio > FLAT_SURFACE_MAX) {
+        failures.push(`${theme}/${panel} POSITIVE CONTROL is not flat (${flat.ratio.toFixed(3)}:1) — the probe is reading something else`);
+      }
+    }
+  }
+  expect(failures, `D159 framebuffer matrix:\n  ${rows.join("\n  ")}`).toEqual([]);
 });

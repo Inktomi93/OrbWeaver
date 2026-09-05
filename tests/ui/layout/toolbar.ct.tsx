@@ -1,12 +1,10 @@
 // <Toolbar> CT — Base UI Toolbar behind the layout skin: role=toolbar, the h-control-md Row dress,
 // and the roving tabindex (arrow keys move focus between items — the reason Base UI is under here).
 import { Toolbar, ToolbarButton, ToolbarGroup, ToolbarInput, ToolbarLink, ToolbarSeparator } from "@orb/ui/layout";
-import { TOKENS } from "@orb/ui/tokens";
+import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
-// control-md is authored in rem; the rendered box resolves to px (root = 16px).
-const ROOT_PX = 16;
-const controlMdPx = `${Number.parseFloat(TOKENS["spacing.control-md"].value) * ROOT_PX}px`;
+const controlMdPx = `${SNAPPED_LENGTH_BASE_PX["spacing.control-md"]}px`;
 
 // The control-md skin height is pointer-CONDITIONAL (D62 P1): 48px at coarse, 34px at fine. This is a
 // skin test (asserts the control-md dress), so it emulates a coarse pointer (hasTouch → pointer:coarse,

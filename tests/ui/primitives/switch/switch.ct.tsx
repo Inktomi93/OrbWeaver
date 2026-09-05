@@ -195,6 +195,86 @@ test("the thumb is a PROPORTIONAL knob, inset equally on all four sides, at both
   expect(travelled.left - parked.left, "travel = trackWidth − trackHeight").toBe(parked.rootWidth - parked.rootHeight);
 });
 
+// ── #1143 / #1640: THE THUMB LANDS ON THE DEVICE-PIXEL GRID AT A FRACTIONAL ROOT.
+//
+// The founding measurement: at `--font-scale 0.875` the root is 14px, so the fine `--spacing-switch-thumb`
+// (1.125rem) resolved 15.75px inside a 28px track, and `items-center` HALVED the leftover into a 5.125px
+// block offset — a fraction the browser resamples at every DPR. Since #1640 the whole `--spacing-*` family
+// carries `orb.output: snapped`, so both the base arm AND the `@media (pointer: fine)` override (the arm
+// this control actually renders under, and the one the belt originally missed) emit `round(up, …, 1px)`.
+//
+// STATED AS INTEGERS, NOT AS TOKEN LITERALS: an integer CSS px is on the device grid at EVERY integer DPR,
+// which is the whole claim — this file cannot set `deviceScaleFactor` (a browser-context option), and an
+// integer landing makes the DPR arm unnecessary rather than unmeasured.
+//
+// THE DECLARED RESIDUAL (docs/design/integer-line-boxes.md §2): the belt makes each LENGTH integer, never
+// the DIFFERENCE between two of them even. When (content height − thumb) is ODD, `items-center` still
+// centres on a half pixel — crisp at DPR 2, resampled at DPR 1 and 3. `1.25` is such a cell and is
+// asserted as the half-pixel it is, not tuned away.
+// blockOffset is measured from the root's BORDER-BOX top, so it is the 1px `--border-width-control`
+// plus the centred gap inside the content box: scale 1 → 1 + (30−18)/2 = 7 · 0.875 → 1 + (26−16)/2 = 6 ·
+// 1.15 → 1 + (35−21)/2 = 8. Every one a whole pixel BECAUSE both lengths were belted first.
+const FRACTIONAL_ROOT_SCALES = [
+  { scale: 1, blockOffsetPx: 7 },
+  { scale: 0.875, blockOffsetPx: 6 },
+  { scale: 1.15, blockOffsetPx: 8 },
+] as const;
+/** The `--font-scale` whose (content − thumb) difference is ODD: the §2 residual, half a pixel by arithmetic. */
+const HALF_PIXEL_RESIDUAL_SCALE = 1.25;
+
+async function switchBoxes(control: Locator): Promise<{ readonly track: number; readonly thumb: number; readonly blockOffset: number }> {
+  return await control.evaluate((el) => {
+    const knob = el.querySelector('[data-slot="switch-thumb"]');
+    if (knob === null) {
+      throw new Error("no switch-thumb inside the switch root");
+    }
+    const root = el.getBoundingClientRect();
+    const rect = knob.getBoundingClientRect();
+    // UNROUNDED on purpose — the defect IS the fraction, so rounding here would assert the bug away.
+    return { track: root.height, thumb: rect.height, blockOffset: rect.top - root.top };
+  });
+}
+
+/** Drive the real mechanism (`globals.css :root { font-size: calc(100% * var(--font-scale)) }`) and prove
+ *  it took, so a harness that stopped loading client globals fails LOUD instead of measuring scale 1. */
+async function applyFontScale(page: Page, scale: number): Promise<void> {
+  await page.evaluate((value) => {
+    document.documentElement.style.setProperty("--font-scale", String(value));
+  }, scale);
+  await expect.poll(async () => await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeCloseTo(16 * scale, 3);
+}
+
+for (const { scale, blockOffsetPx } of FRACTIONAL_ROOT_SCALES) {
+  test(`--font-scale ${scale}: the thumb, the track and the centred gap are all whole device pixels (#1143 / #1640)`, async ({ mount, page }) => {
+    const control = page.getByRole("switch");
+    await mount(<Switch aria-label="Streaming" />);
+    await applyFontScale(page, scale);
+    await expect(control).toBeVisible();
+
+    const boxes = await switchBoxes(control);
+    expect(Number.isInteger(boxes.thumb), `thumb resolved ${boxes.thumb}px — the belt must land it on a whole pixel`).toBe(true);
+    expect(Number.isInteger(boxes.track), `track resolved ${boxes.track}px — the belt must land it on a whole pixel`).toBe(true);
+    expect(boxes.blockOffset, "the centred block gap — a fraction here is resampled at every DPR").toBe(blockOffsetPx);
+  });
+}
+
+test(`--font-scale ${HALF_PIXEL_RESIDUAL_SCALE}: the DECLARED residual — belted lengths, a half-pixel centred gap (§2, crisp at DPR 2 only)`, async ({
+  mount,
+  page,
+}) => {
+  const control = page.getByRole("switch");
+  await mount(<Switch aria-label="Streaming" />);
+  await applyFontScale(page, HALF_PIXEL_RESIDUAL_SCALE);
+  await expect(control).toBeVisible();
+
+  const boxes = await switchBoxes(control);
+  // The belt still does its half: both LENGTHS are whole pixels…
+  expect(Number.isInteger(boxes.thumb), `thumb resolved ${boxes.thumb}px`).toBe(true);
+  expect(Number.isInteger(boxes.track), `track resolved ${boxes.track}px`).toBe(true);
+  // …and the residual is EXACTLY half a pixel, which is the honest limit, not a wobble to be widened.
+  expect(boxes.blockOffset % 1, "the centred gap is the odd-difference half pixel §2 declares").toBe(0.5);
+});
+
 // ── THE COARSE-POINTER SHAPE PIN (side-eye #420, 2026-08-22). The two pins that existed before this
 // block — the aspect pin above (fine context) and the height floor in touch-target-floor.suite.ct.tsx:119
 // — were JOINTLY SATISFIABLE BY THE DEFECT: a 48x44 root with a 32px thumb inset 6/6 clears the 44px

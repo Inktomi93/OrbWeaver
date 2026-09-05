@@ -5,7 +5,8 @@
 // fails `pnpm test`.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { SEED_THEME_VALUE_SETS, TOKEN_POLARITY_ARMS, TOKENS } from "@orb/ui/tokens";
+import type { SnappedTokenPath } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, SNAPPED_LENGTH_BASE_PX, TOKEN_POLARITY_ARMS, TOKENS } from "@orb/ui/tokens";
 import { gridVariants } from "../../../packages/ui/src/layout/variants.ts";
 import { AVATAR_HUE_STEPS } from "../../../packages/ui/src/primitives/avatar/hue.ts";
 import { generateArtifacts, renderGeneratedCss } from "../../../packages/ui/tokens.build.ts";
@@ -91,25 +92,29 @@ test("Grid cellFixed consumes the density-selected track while cellShelf keeps i
 test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine override is 32/34/40 (D62 P1, gate touch-target-floor; control-sm raised to the 32px tap-target floor Task #76)", async () => {
   const { themeCss, tokensTs } = await generateArtifacts();
 
-  // COARSE — the @theme values (the TS map's static `value` = the coarse literal): the ≥44px floor.
-  const coarseRem = (name: string): number => {
-    const match = tokensTs.match(new RegExp(`"spacing\\.${name}".*value: "([\\d.]+)rem"`, "u"));
-    expect(match, `spacing.${name} must exist as a rem dimension`).not.toBeNull();
-    return Number(match?.[1]);
-  };
-  const coarseFloor = coarseRem("touch-target");
-  expect(coarseFloor).toBeGreaterThanOrEqual(2.75); // 44px @ 16px root
+  // COARSE — read from the generated NUMERIC companion, never by parsing the `round(up, …, 1px)` CSS
+  // string the spacing family carries since #1640 (the `SNAPPED_LENGTH_BASE_PX` contract: consumers do
+  // not parse the serialization). The TS map still has to CARRY the belted string, asserted below.
+  const coarsePx = (name: string): number => SNAPPED_LENGTH_BASE_PX[`spacing.${name}` as SnappedTokenPath];
+  const coarseFloor = coarsePx("touch-target");
+  expect(coarseFloor).toBeGreaterThanOrEqual(44);
   for (const control of ["control-sm", "control-md", "control-lg"]) {
-    expect(coarseRem(control), `coarse spacing.${control} may not undercut the ≥44px touch floor`).toBeGreaterThanOrEqual(coarseFloor);
+    expect(coarsePx(control), `coarse spacing.${control} may not undercut the ≥44px touch floor`).toBeGreaterThanOrEqual(coarseFloor);
   }
+  expect(tokensTs, "the coarse arm is emitted belted").toContain(
+    '"spacing.touch-target": { cssVar: "--spacing-touch-target", value: "round(up, 2.75rem, 1px)" }',
+  );
 
   // FINE — the emitted @media(pointer:fine) :root override: the desktop density scale.
   const fineBlock = themeCss.match(FINE_BLOCK_RE);
   expect(fineBlock, "an @media(pointer:fine) :root override block must be emitted for the desktop density scale").not.toBeNull();
   const fineBody = fineBlock?.[1] ?? "";
   const fineRem = (name: string): number => {
-    const m = fineBody.match(new RegExp(`--spacing-${name}:\\s*([\\d.]+)rem`, "u"));
-    expect(m, `--spacing-${name} must be present in the fine override block`).not.toBeNull();
+    // BELTED (#1640): a fine override REPLACES the @theme value, so a snapped token's fine arm must carry
+    // the same round(up, …, 1px) belt — an unbelted fine arm is the pointer most sessions actually use
+    // running off the device-pixel grid (that is where #1143's switch thumb lived).
+    const m = fineBody.match(new RegExp(`--spacing-${name}:\\s*round\\(up, ([\\d.]+)rem, 1px\\)`, "u"));
+    expect(m, `--spacing-${name} must be present in the fine override block AND belted`).not.toBeNull();
     return Number(m?.[1]);
   };
   expect(fineRem("touch-target"), "fine touch-target = 28px").toBe(1.75);
@@ -119,6 +124,29 @@ test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine overr
   const fineFloor = fineRem("touch-target");
   for (const control of ["control-sm", "control-md", "control-lg"]) {
     expect(fineRem(control), `fine spacing.${control} may not undercut the fine touch floor`).toBeGreaterThanOrEqual(fineFloor);
+  }
+});
+
+test("EVERY snapped spacing token is belted on BOTH arms and is an integer px at the 16px root — the #1640 device-pixel belt", async () => {
+  const { themeCss } = await generateArtifacts();
+  const themeBlock = themeCss.slice(0, themeCss.indexOf("\n}\n"));
+  const spacingPaths = Object.keys(SNAPPED_LENGTH_BASE_PX).filter((path) => path.startsWith("spacing."));
+  expect(spacingPaths.length, "the spacing family must be in the snapped set at all (blindness tripwire)").toBeGreaterThan(20);
+
+  for (const path of spacingPaths) {
+    const px = SNAPPED_LENGTH_BASE_PX[path as SnappedTokenPath];
+    // IDENTITY AT THE DEFAULT SCALE: round(up) only stays a no-op at --font-scale 1 because the authored
+    // value is an integer px at the 16px root. A fractional author would silently GROW the box today.
+    expect(Number.isInteger(px), `${path} resolves ${px}px at the 16px root — a snapped token must be authored integer there`).toBe(true);
+    expect(themeBlock, `${path}'s @theme arm must be belted`).toMatch(new RegExp(`--${path.replace(".", "-")}: round\\(up, [\\d.]+rem, 1px\\);`, "u"));
+  }
+
+  // The fine overrides are a SUBSET (only pointer-conditional tokens have one) and every member is belted.
+  const fineBody = themeCss.match(FINE_BLOCK_RE)?.[1] ?? "";
+  const fineLines = fineBody.split("\n").filter((line) => line.includes("--spacing-"));
+  expect(fineLines.length, "the pointer-fine block must still carry the spacing overrides").toBeGreaterThan(0);
+  for (const line of fineLines) {
+    expect(line, `${line.trim()} is a fine override of a snapped token and must carry the same belt`).toMatch(/round\(up, [\d.]+rem, 1px\)/u);
   }
 });
 

@@ -8,10 +8,9 @@
 // a tablet, which is the whole reason this is arithmetic over resolved tokens rather than a literal.
 
 import { skeletonRowCountFor } from "@orb/client/data";
-import { TOKENS } from "@orb/ui/tokens";
+import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "../../support/fixtures.ts";
 
-const PX_PER_REM = 16;
 const FALLBACK = 3;
 /** The two boxes the defect was MEASURED on, verbatim from the re-check's `orb:surface-box` read. */
 const RECENTS_BOX_PX = 349;
@@ -20,9 +19,9 @@ const TEMP_CHAT_BOX_PX = 110.890_625;
 /** The coarse-pointer geometry the static `TOKENS` literals describe: a row, the gap between rows, and the
  *  block padding above and below the run. Read from the tokens, never written as numbers — if a token moves,
  *  the expectations below move with it instead of going quietly stale. */
-const ROW_PX = Number.parseFloat(TOKENS["spacing.control-lg"].value) * PX_PER_REM;
-const GAP_PX = Number.parseFloat(TOKENS["spacing.row"].value) * PX_PER_REM;
-const PAD_PX = Number.parseFloat(TOKENS["spacing.block"].value) * PX_PER_REM;
+const ROW_PX = SNAPPED_LENGTH_BASE_PX["spacing.control-lg"];
+const GAP_PX = SNAPPED_LENGTH_BASE_PX["spacing.row"];
+const PAD_PX = SNAPPED_LENGTH_BASE_PX["spacing.block"];
 
 /** The height N rows actually occupy — the layout `SkeletonRows` renders, spelled forward. */
 function naturalHeight(rows: number): number {

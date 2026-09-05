@@ -63,10 +63,40 @@ Every multiplier that touches a line box, re-derived from the tree:
    out of this lane's fence.
 5. rem=16 root — verified live earlier in the program; browser zoom/DPR is Law 4.
 
-**Residual, stated honestly:** at `--font-scale` values with a non-integer root, `--spacing-*`
-offsets (0.125rem/0.375rem steps) are fractional regardless of line boxes — full-grid alignment at
-those scales is Law 2/3/4 territory. What Law 1 guarantees: every line BOX is integer at every
-font-scale (the belt), and at the default scale 1 the entire type scale is integer by authorship.
+**Residual, stated honestly — AMENDED 2026-09-05 (#1640, owner ruling: extend the belt to `--spacing-*`
+and restate what remains, with numbers).** The sentence this replaces said `--spacing-*` offsets are
+fractional at a non-integer root "regardless of line boxes". They no longer are: all 27 `--spacing-*`
+tokens carry `orb.output: snapped`, so each emits `round(up, <rem>, 1px)` and every step RESOLVES to a
+whole CSS pixel at every stop of the slider. Every one is authored integer at the 16px root (2 · 4 · 6 ·
+8 · 12 · 16 · 24 · 32 · 44 · 44 · 48 · 56 · 24 · 32 · 40 · 64 · 64 · 44 · 24 · 9 · 18 · 24 · 12 · 16 ·
+20 · 24 · 32 px, plus the eight `orb.pointerFine` arms 28 · 32 · 34 · 40 · 48 · 32 · 18 · 6), so `up` is
+the identity at scale 1 and the belt moves no shipped pixel. **The fine arm is belted too** — a
+`@media (pointer: fine)` override REPLACES the `@theme` value, so belting only the base arm would have
+left the belt off on the pointer most sessions use, which is exactly where #1143's off-grid switch thumb
+lived (`--spacing-switch-thumb` 1.125rem × 0.875 = 15.75px).
+
+**What remains, and it is arithmetic, not tuning: the belt makes each LENGTH whole, never the DIFFERENCE
+between two of them EVEN.** Any centred child — `items-center`, `justify-center`, an equal inset — halves
+`(container − content)`, so when that difference is ODD the offset lands on a half pixel: crisp at DPR 2
+(a whole device pixel), resampled at DPR 1 and DPR 3. Measured on the switch, the #1143 control, at a
+fine pointer with `--border-width-control` 1px:
+
+| `--font-scale` | root | thumb | track | content box | centred offset | lands |
+| - | - | - | - | - | - | - |
+| 1 | 16px | 18 | 32 | 30 | 1 + (30−18)/2 = **7** | whole px at every DPR |
+| 0.875 | 14px | ceil(15.75) = 16 | 28 | 26 | 1 + (26−16)/2 = **6** | whole px at every DPR (was 6.125 — #1143) |
+| 1.15 | 18.4px | ceil(20.7) = 21 | ceil(36.8) = 37 | 35 | 1 + (35−21)/2 = **8** | whole px at every DPR (was 8.06) |
+| 1.25 | 20px | ceil(22.5) = 23 | 40 | 38 | 1 + (38−23)/2 = **8.5** | **RESIDUAL** — DPR 2 only |
+
+So Law 1's guarantee now reads: every line BOX and every `--spacing-*` LENGTH is a whole CSS pixel at
+every font-scale, and at scale 1 both are integers by authorship. The declared residual is the odd
+difference — one half pixel on a centred child, at the font scales where the difference is odd. Removing
+it would mean belting the DIFFERENCE, i.e. quantizing a container against its own content at layout time,
+which no authored value and no `round()` on a token can reach; it is Law 2/3/4 territory (the runtime
+`off-grid-transform` / `promoted-layer-offset` backstops), not a token the vault can retune. The pins are
+`tests/ui/tokens/index.test.ts` (every snapped spacing token belted on BOTH arms and integer at the 16px
+root) and `tests/ui/primitives/switch/switch.ct.tsx` (the four rows above, measured from the rendered
+boxes — the 1.25 row asserts the half pixel as a half pixel rather than tuning it away).
 
 ## 3. The chosen architecture
 
