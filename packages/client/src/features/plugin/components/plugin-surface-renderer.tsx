@@ -27,7 +27,7 @@
 // until an action submits the whole `values` bag.
 
 import { blobUrl } from "@orb/contracts/assets";
-import type { PluginButtonNode, PluginPrimaryArbitration, PluginSurfaceAnchor, PluginSurfaceNode } from "@orb/contracts/plugin";
+import type { PluginButtonNode, PluginSurfaceAnchor, PluginSurfaceNode } from "@orb/contracts/plugin";
 import { PLUGIN_ANCHOR_PRIMARY_ALLOWED, PLUGIN_SPEC_MAX_DEPTH, pluginSurfaceSpecSchema, resolvePluginPrimaryButton } from "@orb/contracts/plugin";
 import type { AssetId, ChatId, PluginId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
@@ -92,10 +92,6 @@ function warnPrimaryRefused(message: string): void {
   }
 }
 
-/** The arbitration an UNPARSEABLE spec gets — no grant, nothing to report. A named constant rather than a
- *  second branch in the renderer: the caps fallback is the outcome there, not a primary decision. */
-const NO_PRIMARY: PluginPrimaryArbitration = { granted: null, refused: [] };
-
 /** The TIER-C SINK — where a scripted surface's interactions go instead of the server (plugin-ui-plane #679 U4).
  *  Absent (the Tier-S default) the renderer owns everything: it reads `getSurfaceState` for the `$state`
  *  bindings and submits actions through `invokeUiAction`. Present, the OWNER owns both: the tree came from a
@@ -117,17 +113,41 @@ export interface PluginSurfaceSink {
   readonly state: Record<string, unknown>;
 }
 
-/** The renderer entry: validate the spec (caps), resolve owner-scoped image urls + surface state, hold the form
- *  draft, render the root node. */
-export function PluginSurfaceRenderer({
-  pluginId,
-  surfaceId,
-  spec,
-  anchor,
-  chatId,
-  sink,
-  state: boundState,
-}: {
+/**
+ * THE DRAFT'S IDENTITY: which FIELDS this spec has, in order — never what they currently hold (#1502).
+ *
+ * `values` is a name-keyed draft seeded ONCE at mount, and this component is not remounted when the spec
+ * under a given `surfaceId` is replaced. So a surface that swapped its form kept the previous form's draft:
+ * entries under names the new spec does not have (submitted back to the plugin as if the user had typed
+ * them) and no entry at all for the new spec's fields, whose declared defaults never landed. Making that
+ * string the mount KEY is the fix — the draft is thrown away exactly when it stops being about this form.
+ *
+ * VALUES ARE DELIBERATELY EXCLUDED from the identity, and that exclusion is load-bearing. A Tier-C guest
+ * republishes its WHOLE tree on every keystroke with its values inlined (`sink.onFieldChange` → the guest's
+ * next tree), so a value-sensitive key would remount the very input being typed into and drop the caret on
+ * each character. The field NAMES are the form's identity; the values are its contents.
+ */
+function draftIdentityOf(spec: PluginSurfaceNode): string {
+  const fields: Record<string, string> = {};
+  collectDefaults(spec, fields);
+  return JSON.stringify(Object.keys(fields));
+}
+
+/** The renderer entry: validate the spec (caps), then mount the form KEYED BY the spec's field set so a
+ *  replaced spec cannot inherit the previous one's draft ({@link draftIdentityOf}). */
+export function PluginSurfaceRenderer(props: PluginSurfaceRendererProps): ReactElement {
+  const parsed = pluginSurfaceSpecSchema.safeParse(props.spec);
+  if (!parsed.success) {
+    return (
+      <Text prose={true} role="alert" voice="gloss">
+        This plugin's panel couldn't be displayed — its layout didn't pass validation.
+      </Text>
+    );
+  }
+  return <PluginSurfaceForm {...props} key={draftIdentityOf(parsed.data)} spec={parsed.data} />;
+}
+
+interface PluginSurfaceRendererProps {
   readonly pluginId: PluginId;
   readonly surfaceId: string;
   readonly spec: PluginSurfaceNode;
@@ -145,13 +165,16 @@ export function PluginSurfaceRenderer({
    *  being rendered (`PluginToolCardState`). Omitted ⇒ the published `getSurfaceState` plane, which is the
    *  right root for every anchor whose surface is per-(plugin, surface) rather than per-CALL. */
   readonly state?: Record<string, unknown> | undefined;
-}): ReactElement {
+}
+
+/** The form half: owner-scoped image urls + surface state, the draft, the root node. Its `spec` is ALREADY
+ *  VALIDATED (the entry above parses, and is also what keys this component's mount). */
+function PluginSurfaceForm({ pluginId, surfaceId, spec, anchor, chatId, sink, state: boundState }: PluginSurfaceRendererProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const invoke = useInvokeUiAction({ trpc, invalidation });
-  // No manual memoization — the React Compiler memoizes compiled files. `safeParse`/the walk/the Map are pure
-  // functions of their inputs, so the Compiler caches them across renders on its own.
-  const parsed = pluginSurfaceSpecSchema.safeParse(spec);
+  // No manual memoization — the React Compiler memoizes compiled files. The walk/the Map are pure functions
+  // of their inputs, so the Compiler caches them across renders on its own.
   // The published-plane state read. It fires ONLY for a surface that has NEITHER its own binding root (a
   // tool-card, U3 — `boundState`) NOR a client-side guest (Tier C, U4 — `sink`): a scripted surface's state lives
   // in its guest and a card's lives in its call record, so for both the server read must not fire at all — not
@@ -170,13 +193,11 @@ export function PluginSurfaceRenderer({
   // #820 — the plugin's own INSTALL-TIME `ui/assets/` map, read only when the spec actually names a bundle
   // path (a surface that ships no bundle art pays for no query). It is a NAME lookup and nothing more: the
   // ids it returns still ride the owner-scoped `resolveBlobRefs` below, so this adds no reach.
-  const wantsBundleAssets = parsed.success && specNamesBundleAsset(parsed.data);
+  const wantsBundleAssets = specNamesBundleAsset(spec);
   const { data: bundleAssetRows } = useQuery({ ...trpc.plugin.listBundleAssets.queryOptions({ pluginId }), enabled: wantsBundleAssets });
   const bundleAssets = new Map((bundleAssetRows ?? []).map((row) => [row.path, row.assetId] as const));
   const imageIds: AssetId[] = [];
-  if (parsed.success) {
-    collectImageAssetIds(parsed.data, effectiveState, bundleAssets, imageIds);
-  }
+  collectImageAssetIds(spec, effectiveState, bundleAssets, imageIds);
   const { data: refs } = useQuery({ ...trpc.assets.resolveBlobRefs.queryOptions({ assetIds: imageIds }), enabled: imageIds.length > 0 });
   // Keyed by BOTH spellings a node can name (#820): the resolved `asset_…` id, and — for every bundle path
   // that mapped to a resolved id — the path itself. The leaves look their cover up by whichever key their
@@ -194,28 +215,20 @@ export function PluginSurfaceRenderer({
   // #818 — the per-anchor PRIMARY arbitration, decided ONCE over the validated tree and threaded down by node
   // IDENTITY. It runs here, not in the button leaf, because the law is about the WHOLE surface at THIS anchor:
   // a leaf can only see itself, and "the first one wins" is not a fact a leaf holds.
-  const arbitration = parsed.success ? resolvePluginPrimaryButton(parsed.data, anchor) : NO_PRIMARY;
+  const arbitration = resolvePluginPrimaryButton(spec, anchor);
   const refusalMessage = primaryRefusalMessage(pluginId, surfaceId, anchor, arbitration.refused);
   // The refusal reaches the plugin's AUTHOR in an effect (never in the render body): a console write during
   // render fires on every repaint of a perfectly static defect. The message string is the whole dependency.
   useEffect(() => {
     warnPrimaryRefused(refusalMessage);
   }, [refusalMessage]);
+  // Seeded ONCE — and the mount is KEYED by this spec's field set (`draftIdentityOf`), so "once" now
+  // means once per FORM rather than once per surface id.
   const [values, setValues] = useState<Record<string, string>>(() => {
     const out: Record<string, string> = {};
-    if (parsed.success) {
-      collectDefaults(parsed.data, out);
-    }
+    collectDefaults(spec, out);
     return out;
   });
-
-  if (!parsed.success) {
-    return (
-      <Text prose={true} role="alert" voice="gloss">
-        This plugin's panel couldn't be displayed — its layout didn't pass validation.
-      </Text>
-    );
-  }
 
   const ctx: RenderCtx = {
     // Tier C binds against the GUEST's state (the server read did not even fire); Tier S binds against the
@@ -255,7 +268,7 @@ export function PluginSurfaceRenderer({
     imageUrls,
     primaryButton: arbitration.granted,
   };
-  return <SurfaceNode ctx={ctx} depth={1} node={parsed.data} />;
+  return <SurfaceNode ctx={ctx} depth={1} node={spec} />;
 }
 
 /** Map a node's children to SurfaceNode. */
