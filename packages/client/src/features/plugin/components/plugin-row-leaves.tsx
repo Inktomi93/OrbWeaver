@@ -197,13 +197,16 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
     // paints no ground behind the pills at all. The ruling survives ("state it apart with a warning edge,
     // never a fill"); its INPUT changed from a full box to a leading rule.
     <Stack aria-label={`What ${plugin.name} asks for beyond what you've allowed`} className="border-l-2 border-l-warning ps-block" gap="block" role="alert">
-      <Text className="max-w-prose" voice="promoted">
+      <Text className="max-w-(--reading-measure-prose)" voice="promoted">
         {reConsentLine(ungranted, plugin.widenedNetHosts)}
       </Text>
-      {/* `max-w-prose` caps the body + headline to the house 65-75ch reading measure (side-eye 2026-08-29
-          residual P2): at pane width the consent copy ran edge-to-edge near ~90ch, past the comfortable line
-          length. The per-capability consequence lines are capped at their own home (plugin-grant-list.tsx). */}
-      <Text className="max-w-prose" prose={true} voice="gloss">
+      {/* The measure caps the body + headline (side-eye 2026-08-29 residual P2): at pane width the consent
+          copy ran edge-to-edge near ~90ch, past the comfortable line length. THE TOKEN, NOT `max-w-prose`
+          (#1175) — 65 CSS `ch` is 93-101 typographic characters in Geist, so the utility never met the 65-75
+          band; `--reading-measure-prose` (47ch) is the derived one (#1145) and rides the PARAGRAPH, since a
+          `ch` resolves in the element's own font. The per-capability consequence lines are capped at their
+          own home (plugin-grant-list.tsx). */}
+      <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
         Orbweaver did not grant the extra permissions, so {plugin.name} stayed off. Tick what you're willing to allow and confirm below — turning it back on is
         still a separate step, above — or remove it.
       </Text>

@@ -165,18 +165,59 @@ export function suggestOnRefusalAccessibleName(ruleName: string): string {
   return `${SUGGEST_ON_REFUSAL_LABEL} — ${ruleName}`;
 }
 
+// ── #1558, the FOURTH row state: the rule whose saved actions cannot be read ────────────────────────
+// `RuleView.actionsCorrupt` (#1422) has been on the wire since the read seam got its fault isolation, and
+// had NO client reader: `actions` projects to `[]` whether the author never added an arm or the stored blob
+// is unparseable, so a rule that can never do anything rendered as a benign empty one — with its enable
+// switch still live — until an event happened to dispatch it (which is where the server's auto-disable is).
+// The three empty-state tiers (omitted / empty-with-teaching / populated) do not cover this: it is an ERROR
+// state and it is styled as one, with its own badge, its own sentence, and no door to turn it on.
+//
+// THE WORDS ARE THE HOST'S, NOT THE WIRE'S. "Corrupt" is the server's noun for an unparseable blob; a host
+// is told what is true of their rule — it cannot run, because what it was told to do can no longer be read
+// — and what to do about it, which is remove it and add it again (there is no in-app repair for a blob the
+// schema rejects, and pretending otherwise would be the lie this state exists to remove).
+
+/** The badge on a rule whose stored actions did not parse. A WORD, never intent colour alone — the same bar
+ *  every other verdict badge on this surface meets. */
+export const RULE_UNREADABLE_BADGE = "Can't run";
+
+/** The unreadable rule's own sentence: what is wrong, what it means, and the one move that fixes it. The
+ *  rule's `lastError` is appended when it has one — a corrupt rule that already dispatched carries the
+ *  engine's reason there, and it is the only concrete detail a host can quote for help. */
+export function ruleUnreadableLine(lastError: string | null): string {
+  const base = "This rule can't run — what it was told to do can no longer be read. Remove it and add the rule again.";
+  return lastError === null || lastError.trim() === "" ? base : `${base} Its last run reported: ${lastError}`;
+}
+
+/** The accessible name of the enable control on an unreadable rule. It states the REFUSAL rather than the
+ *  action, because the control is NOT offered: a switch announced "Enable X" that cannot be operated is the
+ *  dead affordance this state exists to remove. */
+export function ruleUnreadableEnableRefusal(ruleName: string): string {
+  return `Can't enable "${ruleName}" — its saved actions can't be read`;
+}
+
 /** The rule row's SECOND line: what this rule does, in the words the rule itself carries. A minted rule
  *  stores its catalogue entry's own summary as `description` (`createRuleFromPreset` writes
  *  `description: preset.summary`), so the catalogue's plain-English sentence — the copy the review called
  *  the only place a user learns what a rule does — follows the rule onto the row. A hand-authored rule with
- *  no description falls back to WHEN it looks + WHAT it does, never a discriminator and an arm count. */
+ *  no description falls back to WHEN it looks + WHAT it does, never a discriminator and an arm count.
+ *
+ *  THE FALLBACK MAY NOT SAY "does nothing" WHEN IT MEANS "cannot be read" (#1558). `actions` is `[]` in both
+ *  cases and only `actionsCorrupt` separates them, so the empty-arm phrasing — a statement about what the
+ *  AUTHOR configured — is simply false of an unreadable blob. The unreadable arm names the trigger it still
+ *  honestly knows and stops there; the row's error notice carries the rest. */
 export function ruleGloss(rule: {
   readonly description: string | null;
   readonly trigger: { readonly type: string };
   readonly actions: readonly { readonly type: AutomationActionType }[];
+  readonly actionsCorrupt?: boolean;
 }): string {
   if (rule.description !== null && rule.description.trim() !== "") {
     return rule.description;
+  }
+  if (rule.actionsCorrupt === true) {
+    return `Runs ${triggerLabel(rule.trigger.type)} — but what it does can't be read.`;
   }
   const first = rule.actions[0];
   const does = first === undefined ? "does nothing" : armLabel(first.type);

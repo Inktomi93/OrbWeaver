@@ -308,6 +308,10 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   },
   document: {
     outer: () => cx(CHAT_TRACK, "items-center"),
+    // `max-w-prose` is DELIBERATE RESIDUE here (#1175, refused with a receipt): this is transcript geometry,
+    // and #1145's owner ruling is "SPLIT the token, do not narrow the transcript". The reasoning, and why
+    // `--reading-measure-min` cannot be spelled as a ceiling either, is in `lib/message-bubble-class.ts`'s
+    // header — the twin site, and the one home for this refusal.
     inner: () => cx("w-full max-w-prose px-block py-row text-prose-body", BG_PHOTO_READING_PLATE),
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",

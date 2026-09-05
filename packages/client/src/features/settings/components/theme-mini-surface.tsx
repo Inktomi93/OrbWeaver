@@ -33,6 +33,17 @@
 //     so the §7a ink clamp judges against the surface the thumbnail actually lands on.
 // CUSTOM CSS IS NEVER INJECTED HERE. A theme's `css` stays global owner CSS; the thumbnail shows the
 // GOVERNED, clamped palette — which is also the only thing that can be shown honestly at 100px.
+//
+// IT STAYS IN `features/settings`, AND THAT IS A RULING, NOT AN ACCIDENT (#1152, 2026-09-05). #920's cold
+// contract asked for it to be reused in the character tab's `StartFromThemeField` menu, which
+// `client-features-no-cross` forbids as a sideways import; the arms were "re-home it to a shared client
+// tier" or "rule the strip sufficient". The STRIP won, so there is no second reader and no re-home: that
+// door's payload is `cardEmbeddableSubset(theme.override)` and `ThemeSwatchStrip` paints `theme.override`,
+// so depiction equals payload — whereas THIS surface deliberately does NOT paint a seed's override (see the
+// provenance paragraph above), and mounting it on that door would make the picture disagree with what the
+// pick delivers on exactly Hearth/Mocha/Light. Full receipt: `docs/design/config-revamp-design.md` §7.3,
+// the "ONE theme-swatch atom" addendum. If a SECOND settings-side reader ever appears, this file moves
+// nowhere; only a CHARACTER-side one would re-open the tier question.
 
 import type { Theme } from "@orb/contracts/theme";
 import { Row, Stack } from "@orb/ui/layout";

@@ -190,10 +190,13 @@ function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): Reac
           </Badge>
         ) : null}
       </Row>
-      {/* `max-w-prose` caps the consequence to the house 65-75ch reading measure (side-eye 2026-08-29
-          residual P2): inside the re-consent callout these ran edge-to-edge near ~90ch. It is a length
-          statement, harmless on the wider install/distribute surfaces where the line rarely reaches the cap. */}
-      <Text className="max-w-prose" id={consequenceId} prose={true} voice="gloss">
+      {/* The measure caps the consequence line (side-eye 2026-08-29 residual P2): inside the re-consent
+          callout these ran edge-to-edge near ~90ch. THE TOKEN, NOT `max-w-prose` (#1175): Tailwind's utility
+          is 65 CSS `ch`, and a CSS `ch` is the ZERO-GLYPH advance — 1.43-1.56 typographic characters in Geist
+          — so 65ch reads 93-101 law characters and never satisfied the 65-75 band this comment used to claim
+          it did. `--reading-measure-prose` (47ch) is the derived teaching/body measure (#1145), and it rides
+          the PARAGRAPH because a `ch` resolves in the element's own font. */}
+      <Text className="max-w-(--reading-measure-prose)" id={consequenceId} prose={true} voice="gloss">
         {copy.consequence}
       </Text>
     </Stack>

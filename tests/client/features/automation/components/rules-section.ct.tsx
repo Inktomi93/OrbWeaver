@@ -1277,3 +1277,89 @@ test("#815: a full rules-editing session stays inside this surface's layout-shif
   const movers = paid.map((shift) => `${shift.value.toFixed(5)} ${shift.movers.join(" + ")}`).join("\n");
   expect(total, `paid CLS ${total.toFixed(5)} over budget. Movers:\n${movers}`).toBeLessThanOrEqual(PAID_CLS_BUDGET);
 });
+// ── #1558 — the FOURTH row state: a rule whose stored actions cannot be READ ────────────────────────────
+// `RuleView.actionsCorrupt` (#1422) had no client reader: the read seam projects `actions: []` for an
+// unparseable blob AND for a rule nobody has added an arm to yet, so the two rendered identically with a
+// live enable switch on top, and a rule that can never do anything read as benign until an event happened
+// to dispatch it. These two pins assert through what a HOST meets — the badge word, the sentence, the
+// engine's own `lastError`, and whether the enable control performs — never through the new flag's name.
+// RED against the pre-fix source (measured 2026-09-05, cb-client-seams): the badge/sentence queries found
+// nothing and the switch answered "Enable …" and fired `setRuleEnabled`.
+
+/** The unreadable rule: `actionsCorrupt` TRUE, arms empty because they could not be parsed, still switched
+ *  ON (the server's auto-disable is dispatch-time, so this is the state a host actually finds), and carrying
+ *  the engine's reason from the last time it did dispatch. */
+const UNREADABLE_RULE = {
+  ...RULE,
+  id: "automationrule_ct_corrupt",
+  name: "Broken watcher",
+  description: null,
+  actions: [],
+  actionsCorrupt: true,
+  enabled: true,
+  lastError: "actions: invalid discriminator value",
+};
+
+/** THE CONTRAST that makes the pin a difference rather than a decoration: same empty arm list, but empty
+ *  BY CONFIGURATION. It must not wear the error anatomy, and it must keep its working enable door. */
+const ARMLESS_RULE = {
+  ...RULE,
+  id: "automationrule_ct_armless",
+  name: "Empty watcher",
+  description: null,
+  actions: [],
+  actionsCorrupt: false,
+  enabled: false,
+  lastError: null,
+};
+
+const UNREADABLE_SENTENCE = "This rule can't run — what it was told to do can no longer be read. Remove it and add the rule again.";
+
+test("an unreadable rule states its failure, quotes the engine's reason, and reads apart from an empty one", async ({ mount, page }) => {
+  await stub(page, { rules: [UNREADABLE_RULE, ARMLESS_RULE] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+
+  // Barrier on the SETTLED list — both rows rendered — before judging either one.
+  await expect(page.getByText("Broken watcher", { exact: true })).toBeVisible();
+  await expect(page.getByText("Empty watcher", { exact: true })).toBeVisible();
+
+  // The verdict is a WORD, not intent colour alone, and the sentence names the one move that fixes it.
+  await expect(page.getByText("Can't run", { exact: true })).toBeVisible();
+  const notice = page.locator('[data-slot="rule-actions-unreadable"]');
+  await expect(notice).toHaveCount(1);
+  await expect(notice).toContainText(UNREADABLE_SENTENCE);
+  // The engine's own reason rides the sentence — the only concrete detail a host can quote for help.
+  await expect(notice).toContainText("actions: invalid discriminator value");
+
+  // AND THE GLOSS STOPS LYING. With no description the fallback used to read "does nothing", which is a
+  // claim about what the AUTHOR configured and is simply false of a blob that would not parse.
+  await expect(page.getByText(/Broken watcher/u)).toBeVisible();
+  await expect(page.getByText("Runs after each reply — but what it does can't be read.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Runs after each reply — does nothing.", { exact: true })).toBeVisible();
+
+  // THE CONTRAST: exactly one row wears the error anatomy, and it is not the intentionally-empty one.
+  await expect(page.getByText("Can't run", { exact: true })).toHaveCount(1);
+});
+
+test("an unreadable rule offers no enable door — the switch refuses and setRuleEnabled never fires", async ({ mount, page }) => {
+  const trpc = await stub(page, { rules: [UNREADABLE_RULE, ARMLESS_RULE] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  await expect(page.getByText("Broken watcher", { exact: true })).toBeVisible();
+
+  // The control announces the REFUSAL, not an action the surface will not perform — so "Enable Broken
+  // watcher" must not be reachable by that name at all.
+  await expect(page.getByRole("switch", { name: "Enable Broken watcher" })).toHaveCount(0);
+  const refused = page.getByRole("switch", { name: `Can't enable "Broken watcher" — its saved actions can't be read` });
+  await expect(refused).toBeVisible();
+  // `readOnly`, not removed: the rule's REAL value stays legible, and a broken rule left switched ON is
+  // precisely the state a host needs to see.
+  await expect(refused).toHaveAttribute("aria-checked", "true");
+
+  // PRESSING IT PERFORMS NOTHING. The settle is RENDERED (the sibling's own toggle round-trips), never the
+  // request count alone — a count read before any request could have landed is not a settle.
+  await refused.click();
+  const working = page.getByRole("switch", { name: "Enable Empty watcher" });
+  await working.click();
+  await expect.poll(() => trpc.count("automation.setRuleEnabled")).toBe(1);
+  await expect.poll(() => trpc.lastInput("automation.setRuleEnabled")).toMatchObject({ ruleId: "automationrule_ct_armless", enabled: true });
+});

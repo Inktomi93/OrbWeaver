@@ -27,14 +27,19 @@ export function CompactSummaryPeek({ summary }: { readonly summary: string }): R
           </Button>
         }
       />
-      <PopoverPopup side="top" align="center" className="max-w-prose">
+      {/* THE MEASURE RIDES THE PARAGRAPH, NOT THE POPUP (#1175). The box used to carry `max-w-prose`, which
+          is wrong twice: 65 CSS `ch` is 93-101 typographic characters in Geist (never the 65-75 band), and a
+          `ch` on a WRAPPER resolves in the wrapper's font rather than the copy's — the #213/#1130 failure the
+          prose token's contract names. The summary Text below takes `--reading-measure-prose` and the popup
+          shrink-wraps to it. */}
+      <PopoverPopup side="top" align="center">
         <Stack gap="field" className="relative max-h-96 overflow-y-auto">
           <Text as="span" voice="kicker">
             Compaction summary
           </Text>
           {/* The summary is CONTENT — the prose default (§2.3 keeps `body` for content copy), spelled by
               omission rather than by an internal `size` axis. */}
-          <Text className="whitespace-pre-wrap" data-slot="compact-summary-text">
+          <Text className="max-w-(--reading-measure-prose) whitespace-pre-wrap" data-slot="compact-summary-text">
             {summary}
           </Text>
         </Stack>

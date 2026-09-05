@@ -26,6 +26,17 @@
 // rule list a settle repaints (`lib/rule-mutations.ts`). Nothing a host SEES differs between the two
 // surfaces, which is the point: a rule is a rule, and where it watches is what the enclosing list already
 // says.
+//
+// #1558 GAVE THE ROW ITS FOURTH STATE — the rule whose stored actions cannot be READ. `actionsCorrupt` has
+// ridden `RuleView` since #1422 and had no reader anywhere on the client, so an unreadable rule and a rule
+// nobody has added an arm to yet projected identically (`actions: []` for both) and rendered identically,
+// with a live enable switch on top. The three empty-state tiers do not describe it: it is an ERROR, and it
+// gets error anatomy — a `danger` badge carrying the verdict as a WORD, its own sentence with the engine's
+// `lastError` when there is one, and NO enable door. The switch is `readOnly` rather than removed: the
+// primitive's own "you cannot touch this" arm keeps the rule's REAL on/off value visible (an unreadable rule
+// left switched on is exactly the thing a host needs to see) and paints the Lock glyph as the non-colour
+// signal, where a vanished control would silently answer a different question. Its accessible name states
+// the refusal, so a screen-reader user meets the reason at the control rather than only above it.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -47,7 +58,10 @@ import {
   armLabel,
   hasSpendArm,
   lastRunLine,
+  RULE_UNREADABLE_BADGE,
   ruleGloss,
+  ruleUnreadableEnableRefusal,
+  ruleUnreadableLine,
   runOutcomeNotice,
   SUGGEST_ON_REFUSAL_HELP,
   SUGGEST_ON_REFUSAL_LABEL,
@@ -135,6 +149,8 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
   const [testResult, setTestResult] = useState<TestRunResult | null>(null);
   const enableAdmission = useRef(false);
   const spends = hasSpendArm(rule.actions);
+  // `actions` is `[]` for BOTH an unreadable blob and a rule with no arms yet; only this flag separates them.
+  const unreadable = rule.actionsCorrupt;
 
   const onEnabledChange = (next: boolean): void => {
     if (enableAdmission.current) {
@@ -180,13 +196,37 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
         <Stack className="min-w-0 flex-1" gap="tight">
           <Text voice="promoted">{rule.name}</Text>
           <Text voice="gloss">{ruleGloss(rule)}</Text>
+          {/* THE ERROR STATE, ANNOUNCED AS ONE (#1558) — badge + sentence, the same anatomy the dry-run
+              verdict above uses, so the two verdicts on this row read as one vocabulary. `align="start"` +
+              `min-w-0` because this sentence is the longest copy on the row and its real mount is the 384px
+              context pane. Not a live region: the row renders this state on arrival rather than in response
+              to a press, and N broken rules would announce N times on mount. */}
+          {unreadable ? (
+            <Row align="start" className="min-w-0 flex-wrap" gap="block">
+              <Badge intent="danger" size="sm" tone="soft">
+                {RULE_UNREADABLE_BADGE}
+              </Badge>
+              <Text className="min-w-0 flex-1" data-slot="rule-actions-unreadable" voice="gloss">
+                {ruleUnreadableLine(rule.lastError)}
+              </Text>
+            </Row>
+          ) : null}
           <Text voice="gloss">
             {lastRunLine(rule.lastFiredAt)}
             {rule.lastError === null ? "" : " Its last run errored."}
           </Text>
         </Stack>
         <Row className="shrink-0" gap="field" align="center">
-          <Switch aria-label={`Enable ${rule.name}`} checked={rule.enabled} disabled={setEnabled.isPending} onCheckedChange={onEnabledChange} />
+          {/* `readOnly`, never `disabled`: the value stays legible (a broken rule left ON is the state a host
+              most needs to see), the Lock glyph carries the refusal without colour, and the accessible name
+              says WHY instead of offering an action the surface will not perform (#1558). */}
+          <Switch
+            aria-label={unreadable ? ruleUnreadableEnableRefusal(rule.name) : `Enable ${rule.name}`}
+            checked={rule.enabled}
+            disabled={setEnabled.isPending}
+            onCheckedChange={onEnabledChange}
+            readOnly={unreadable}
+          />
           {/* The ONE in-cluster action, and the only free one: a dry run executes nothing. `secondary` (an
               edge + foreground ink) is what separates it from the ghost overflow trigger beside it. */}
           <Button intent="secondary" size="sm" aria-label={`Test ${rule.name}`} loading={testRule.isPending} onClick={onTest}>
