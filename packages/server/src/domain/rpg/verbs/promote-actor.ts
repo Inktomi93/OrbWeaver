@@ -29,19 +29,19 @@
 // `rpgPromotedCardDescription` home) and `mood`/`relationship` are dropped. The panel's promotion affordance
 // names that drop out loud; a host who learns it afterwards learns it as a bug.
 
-import { actorRefKey, rpgPromotedCardDescription } from "@orb/contracts/rpg";
+import { actorRefKey, clampActorCardName, rpgPromotedCardDescription } from "@orb/contracts/rpg";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import type { PromoteActorParams } from "../contract/params.ts";
-import type { HandDoorResult } from "../contract/results.ts";
+import type { PromoteActorResult } from "../contract/results.ts";
 import type { RpgContext, RpgService } from "../contract/service.ts";
 import { assertHostRole, resolveMember } from "../guard.ts";
 import { currentSnapshotState, writeHandState } from "../snapshot-edit.ts";
 import { rekeyActor } from "../substrate/actor-rekey.ts";
 
 export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteActor"> {
-  async function promoteActor(params: PromoteActorParams): Promise<HandDoorResult> {
+  async function promoteActor(params: PromoteActorParams): Promise<PromoteActorResult> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
     assertHostRole(ctx.can, params.principal, role, "host authority required to promote an actor to the roster");
     const from = params.targetRef;
@@ -59,7 +59,13 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
       // parsed blob: an identity-less cast row would otherwise mint a nameless card.
       return { ok: false, reason: `"${fromKey}" carries no identity of its own — there is nothing to mint a card from` };
     }
-    const name = identity.name.trim();
+    const rawName = identity.name.trim();
+    // THE CARD-NAME BOUND (#1449) — clamped here, on the RECEIVING side's own terms, exactly like the handle
+    // above (#1386): `rawName` is model-authored at the extraction boundary with no max, and
+    // `cardFaceFields.name` caps at `CARD_FACE_LIMITS.nameMax`. A refusal here would drop a model-authored
+    // actor from canon over a name, so the mint CLAMPS instead (`clampActorCardName`, `contracts/rpg/actor.ts`)
+    // and reports the cut back as data (`issues`) rather than it vanishing silently into a shortened card.
+    const { value: name, truncated: nameTruncated } = clampActorCardName(rawName);
     const roster = await ctx.resolveRoster(game.chatId);
 
     const minted = await ctx.promoteToRoster({
@@ -79,8 +85,10 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
       // the actor engine let a model-authored NPC name — `rpgActorIdentitySchema.name` carries NO max —
       // produce a handle the character namespace's own create schema refuses, i.e. a row no import could
       // ever re-create. The two engines deliberately stay separate (`rpgCastSlug`'s header states why);
-      // what crosses here is the VALUE, minted on the receiving side's terms.
-      handle: castId<CharacterHandle>(slugifyHandle(name)),
+      // what crosses here is the VALUE, minted on the receiving side's terms. Minted from `rawName`, never the
+      // display-clamped `name`: `slugifyHandle` folds + bounds independently (its own `MAX_FOLDED_POINTS`), so
+      // truncating twice would only shorten the handle's disambiguator for no reason.
+      handle: castId<CharacterHandle>(slugifyHandle(rawName)),
       description: rpgPromotedCardDescription(identity),
     });
     if (!minted.ok) {
@@ -98,7 +106,12 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
     // The whole panel re-resolves: she leaves the Scene tab's cast and appears on the Status roster, under the
     // card's name, carrying the state she arrived with (§4.9).
     ctx.emitBus({ type: "snapshotPatched", chatId: params.chatId, snapshotId: written.snapshotId });
-    return { ok: true };
+    return {
+      ok: true,
+      issues: nameTruncated
+        ? [`"${rawName}" was shortened to "${name}" to fit the card name limit — the model wrote a longer name than the card wire allows`]
+        : [],
+    };
   }
   return { promoteActor };
 }
