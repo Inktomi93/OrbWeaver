@@ -420,14 +420,14 @@ async function resolvePreviewInputs(
   // so the SHAPE peek renders the shape the next turn will send, not a pinned `per-speaker` guess.
   const chatRow = await loadChatRow(ctx.db, chatId);
   const group = chatRow?.metadata.group ?? DEFAULT_GROUP_CONFIG;
-  const castIds = roster.flatMap((r) => {
+  const rosterCharacterIds = roster.flatMap((r) => {
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
   const characterIds =
-    speakerCharacterId !== null && speakerCharacterId !== undefined && castIds.includes(speakerCharacterId)
-      ? [speakerCharacterId, ...castIds.filter((id) => id !== speakerCharacterId)]
-      : castIds;
+    speakerCharacterId !== null && speakerCharacterId !== undefined && rosterCharacterIds.includes(speakerCharacterId)
+      ? [speakerCharacterId, ...rosterCharacterIds.filter((id) => id !== speakerCharacterId)]
+      : rosterCharacterIds;
   // #1401 — the SAME derivation the live turn runs (`verbs/turn.ts::loadRoom`), through the one substrate
   // lens. This used to take every present human's active persona with no filter at all, so a preview
   // assembled the persona-scope world-info of members who were not in the room — an honesty instrument

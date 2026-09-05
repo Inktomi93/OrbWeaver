@@ -114,7 +114,7 @@ function dedupeByEntryId(sources: readonly AssembleWorldEntry[][]): AssembleWorl
 /** Fetch the merged, deduped per-turn World-Info pool — four parallel SQL reads, one Map-based dedup. There
  *  is no master toggle; an empty result (no books attached) is the "no lore" path. */
 export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Promise<AssembleWorldEntry[]> {
-  const castIds = [...target.characterIds];
+  const characterIds = [...target.characterIds];
   const personaIds = [...target.personaIds];
 
   const [chatRows, characterRows, globalRows, personaRows] = await Promise.all([
@@ -125,14 +125,14 @@ export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Pr
       .where(and(eq(chatBooks.chatId, target.chatId), eq(worldEntries.enabled, true))),
     // character → scoped to the HOST owner, the same `world_books.ownerId` join `loadCharacterCardLore`
     // below already applies to this very junction (see FLAG[attachment-scope]).
-    castIds.length === 0
+    characterIds.length === 0
       ? Promise.resolve([])
       : db
           .select(entryColumns)
           .from(characterBooks)
           .innerJoin(worldEntries, eq(characterBooks.worldBookId, worldEntries.worldBookId))
           .innerJoin(worldBooks, eq(worldBooks.id, characterBooks.worldBookId))
-          .where(and(inArray(characterBooks.characterId, castIds), eq(worldBooks.ownerId, target.ownerId), eq(worldEntries.enabled, true))),
+          .where(and(inArray(characterBooks.characterId, characterIds), eq(worldBooks.ownerId, target.ownerId), eq(worldEntries.enabled, true))),
     // global → scoped to the HOST owner via the world_books.ownerId join (see FLAG[global-scope]).
     db
       .select(entryColumns)
