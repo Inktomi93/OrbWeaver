@@ -4,14 +4,16 @@
 // system-default seed/reseed key-on-sentinel queries.
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { PresetId } from "@orb/kit/ids";
+import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { describe } from "vitest";
 import {
   deletePreset,
   findOwnedForkOf,
+  insertConvergedPresetForkIfAbsent,
   insertPreset,
+  listOwned,
   listReadable,
   readablePreset,
   reseedSystemDefault,
@@ -193,5 +195,52 @@ describe("system-default seed/reseed queries", () => {
       updatedAt: FROZEN_AT,
     });
     expect((await readablePreset(db, owner, id))?.name).toBe("Fresh");
+  });
+});
+
+// The one home of the fork-uniqueness claim, shared by the COW converge arm and the host-handoff copy
+// (#1572). The claim is the INSERT's own guard — the `(owner_id, forked_from)` index is deliberately NOT
+// unique, so nothing but this statement narrows it, and the narrowing is per-PAIR, never per-owner.
+describe("insertConvergedPresetForkIfAbsent (the guarded admission)", () => {
+  const forkRow = (id: string, ownerId: UserId, forkedFrom: PresetId): Parameters<typeof insertConvergedPresetForkIfAbsent>[1] => ({
+    id: castId<PresetId>(id),
+    ownerId,
+    name: id,
+    kind: "roleplay",
+    config: DEFAULT_PROMPT_CONFIG,
+    schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+    forkedFrom,
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+  });
+
+  test("admits the FIRST fork of a pair and refuses the second (undefined), leaving one row", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const source = await seedPreset(db, { id: SYSTEM_DEFAULT_PRESET_ID, ownerId: null, name: "Default" });
+
+    const first = await insertConvergedPresetForkIfAbsent(db, forkRow("preset_first", owner, source));
+    const second = await insertConvergedPresetForkIfAbsent(db, forkRow("preset_second", owner, source));
+
+    expect(first?.id).toBe(castId<PresetId>("preset_first"));
+    expect(first?.forkedFrom).toBe(source);
+    expect(second).toBeUndefined();
+    // The refused row was never written — a loser converges by reading, not by leaving debris.
+    expect((await listOwned(db, owner)).map((row) => row.id)).toEqual([castId<PresetId>("preset_first")]);
+  });
+
+  test("the guard is on the PAIR: another SOURCE and another OWNER are both still admitted", async () => {
+    const db = await freshDb();
+    const a = await seedUser(db, "a");
+    const b = await seedUser(db, "b");
+    const defaultSource = await seedPreset(db, { id: SYSTEM_DEFAULT_PRESET_ID, ownerId: null, name: "Default" });
+    const packaged = await seedPreset(db, { id: castId<PresetId>("preset_000000000000000000000rpggm"), ownerId: null, name: "RPG GM" });
+    await insertConvergedPresetForkIfAbsent(db, forkRow("preset_a_default", a, defaultSource));
+
+    // Same owner, DIFFERENT source — a distinct pair, so it admits.
+    expect((await insertConvergedPresetForkIfAbsent(db, forkRow("preset_a_packaged", a, packaged)))?.id).toBe(castId<PresetId>("preset_a_packaged"));
+    // Different owner, SAME source — convergence is per-owner, so it admits.
+    expect((await insertConvergedPresetForkIfAbsent(db, forkRow("preset_b_default", b, defaultSource)))?.id).toBe(castId<PresetId>("preset_b_default"));
+    expect((await listOwned(db, a)).length).toBe(2);
   });
 });

@@ -12,9 +12,10 @@
 // ownership axis in the source read's WHERE, so a preset that is not the departing host's cannot be gifted by
 // naming its id, and `toUserId` is the nominee — never re-derived here.
 //
-// IDEMPOTENT VIA LINEAGE, NOT A SECOND KEY: the copy stamps `forkedFrom = <source>`, and a retried accept
-// resolves the existing fork (`findOwnedForkOf`) instead of minting a second. That is the same lineage column
-// the copy-on-write update path already converges on.
+// IDEMPOTENT VIA LINEAGE, NOT A SECOND KEY: the copy stamps `forkedFrom = <source>`, and a retried — or
+// CONCURRENT (#1572) — accept converges on the existing fork instead of minting a second. That is the same
+// lineage column the copy-on-write update path already converges on, and the claim rides the INSERT's own
+// guard rather than a preceding read, so there is no window between "no fork yet" and the write.
 
 import type { Db } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
