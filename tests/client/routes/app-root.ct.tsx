@@ -11,6 +11,14 @@
 // `character.get` (a seeded draft
 // previews each founding character's greeting as an editable row, J2/J3 — it reads the founding CARD, but
 // never CANON `chat.listMessages`, since every chat reached here is a DRAFT with no server row).
+//
+// THIS FILE IS THE REAL-REGISTRY OBSERVER (#1677). It mounts the PRODUCTION section registry, so it — not
+// the shell CT — is where SECTION-TITLE COMPOSITION is provable: the narrow topbar's screen name, the
+// phone's library census, and any per-section `useSelectionTitle` composed from real list data.
+// `tests/client/features/app-shell/surfaces/app-shell.ct.tsx` mounts through `CtFakeSectionRegistry`, whose
+// story-injected `list`/`content`/`header` bodies and stand-in mobile titles make that class of defect
+// structurally invisible there (its header states the same split). Shell CHROME — regions, panel clamp,
+// focus modes, rail, modal host, tab bar — stays that file's floor and is not re-pinned here.
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";

@@ -5,7 +5,7 @@
 // readout. The popup renders through a Base UI Portal, so it's read via the PAGE locator.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import { proseRow, readProseMeasure } from "../../../../support/ct/prose-measure.ts";
 import { CompactSummaryPeekStory } from "../_ct-stories.tsx";
 
 const SUMMARY = "Aria and the traveller struck a bargain at the crossroads.\nThe map changed hands.";
@@ -35,8 +35,9 @@ test("clicking View reveals the compaction summary readout", async ({ mount, pag
 // #1130 failure the prose token's own contract names, which is why it must ride the PARAGRAPH.
 //
 // THE ASSERTION IS IN THE LAW'S UNIT, NOT THE TOKEN'S. A `ch` comparison would only restate the token; this
-// measures the AVERAGE GLYPH ADVANCE the way `home-surface.ct.tsx` measures it (canvas `measureText` over
-// the paragraph's own resolved font) and judges against the design law's 75. And it walks three viewports,
+// measures the AVERAGE GLYPH ADVANCE through the shared reading-measure reader
+// (`tests/support/ct/prose-measure.ts` — canvas `measureText` over the paragraph's own resolved font, and
+// the prose token resolved INSIDE that paragraph) and judges against the design law's 75. And it walks three viewports,
 // because "the line is short enough" is a RANGE property: a ch cap is viewport-independent only while the
 // available width exceeds it.
 //
@@ -58,40 +59,19 @@ const LONG_SUMMARY =
   "Aria and the traveller struck a bargain at the crossroads under a sky the colour of wet slate, and neither of them " +
   "said aloud what the map was worth, because saying it would have made the bargain a different kind of thing entirely.";
 
-interface ProseReading {
-  readonly widthPx: number;
-  readonly advanceCh: number;
-  readonly proseTokenPx: number;
-}
-
-/** The paragraph measured in its OWN resolved font, against the prose token resolved in that same font.
- *  The probe is absolutely positioned and removed before layout can see it. */
-function measureSummary(page: Page): Promise<ProseReading> {
-  return page.evaluate(() => {
-    const paragraph = document.querySelector('[data-slot="compact-summary-text"]');
-    if (!(paragraph instanceof HTMLElement)) {
-      throw new Error("#1175: no compaction-summary paragraph to measure");
-    }
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
-    if (context === null) {
-      throw new Error("#1175: no 2d context to measure glyph advance through");
-    }
-    const style = getComputedStyle(paragraph);
-    context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    const text = (paragraph.textContent ?? "").replace(/\s+/gu, " ").trim();
-    const advance = context.measureText(text).width / text.length;
-    const probe = document.createElement("div");
-    probe.style.position = "absolute";
-    probe.style.visibility = "hidden";
-    probe.style.width = "var(--reading-measure-prose)";
-    paragraph.append(probe);
-    const proseTokenPx = probe.getBoundingClientRect().width;
-    probe.remove();
-    const widthPx = paragraph.getBoundingClientRect().width;
-    return { widthPx, advanceCh: widthPx / advance, proseTokenPx };
-  });
-}
+/** The paragraph addressed by its own rendered COPY, for the shared reading-measure reader (#1683): the
+ *  measurement this test grew for itself now has ONE home (`tests/support/ct/prose-measure.ts`), so the six
+ *  copies of it cannot drift apart. A `data-slot` hook would be a hook the fix could satisfy while the
+ *  paragraph moved off the measure — the reader's contract is deliberately text-keyed.
+ *
+ *  THE PER-VIEWPORT VALUE BELOW IS NOT SETTLED, AND WAS NOT BEFORE THE CONVERGENCE (#1693). The barrier is
+ *  `widthPx > 0`, which the PREVIOUS viewport's box already satisfies, so each reading lands somewhere
+ *  along the popover's resize reflow: measured over three repetitions of the UNMODIFIED source the rows
+ *  came back 356.8/358.0/358.0, 356.8/358.0/358.0 and 350.6/356.8/357.9 px. `widthPx / proseTokenPx` is
+ *  0.7617 at every sample in both versions, i.e. the same paragraph in the same font — the drift is settle
+ *  time, not the measurement. #1693 owns tightening the barrier; the fence reads ~50 law characters against
+ *  a ceiling of 75, so it cannot red at any of those values today. */
+const SUMMARY_OPENING = "Aria and the traveller struck a bargain";
 
 test("#1175 FENCE — the compaction summary stays inside the prose measure at every desktop width", async ({ mount, page }) => {
   await mount(<CompactSummaryPeekStory summary={LONG_SUMMARY} />);
@@ -103,12 +83,12 @@ test("#1175 FENCE — the compaction summary stays inside the prose measure at e
     await page.setViewportSize({ width, height: 900 });
     // Barrier on the SETTLED reflow: the popover repositions on resize, so the box read on the same tick
     // as the viewport change is the pre-reflow one.
-    await expect.poll(async () => Math.round((await measureSummary(page)).widthPx)).toBeGreaterThan(0);
-    const reading = await measureSummary(page);
-    rows.push(`${String(width)}\t${reading.widthPx.toFixed(1)}px\tlaw ${reading.advanceCh.toFixed(1)}\ttoken ${reading.proseTokenPx.toFixed(1)}px`);
+    await expect.poll(async () => Math.round((await readProseMeasure(page, SUMMARY_OPENING)).widthPx)).toBeGreaterThan(0);
+    const reading = await readProseMeasure(page, SUMMARY_OPENING);
+    rows.push(proseRow(width, reading));
     // ON the token, not merely under some width: the paragraph must resolve THIS measure in its own font.
     expect(reading.widthPx, `#1175 at ${String(width)}: ${rows.join(" | ")}`).toBeLessThanOrEqual(reading.proseTokenPx + 0.5);
-    expect(reading.advanceCh, `#1175 at ${String(width)}: ${rows.join(" | ")}`).toBeLessThanOrEqual(LAW_CHARACTERS_PER_LINE);
+    expect(reading.lawCharacters, `#1175 at ${String(width)}: ${rows.join(" | ")}`).toBeLessThanOrEqual(LAW_CHARACTERS_PER_LINE);
   }
   // The rows are carried in every assertion message above, so a RED prints the measurement that earned it.
   expect(rows).toHaveLength(PROSE_WIDTHS.length);

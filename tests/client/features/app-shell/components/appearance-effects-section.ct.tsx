@@ -6,6 +6,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { readProseMeasure } from "../../../../support/ct/prose-measure.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { AppearanceEffectsSectionStory } from "../_ct-stories.tsx";
@@ -14,6 +15,8 @@ const SETTINGS_VIEW = { userId: "user_ct_effects", schemaVersion: 1, config: DEF
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 const OWNED_KEYS = ["blurStrength", "blurSurfaces", "enableThemeColorization", "shadowEffects", "surfaceTexture"];
 const FROSTED_GLASS_GLOSS_RE = /Backdrop blur plus a translucent fill/;
+/** The same gloss addressed as an OPENING — what the shared prose reader matches on. */
+const FROSTED_GLASS_GLOSS_OPENING = "Backdrop blur plus a translucent fill";
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => ({}) });
@@ -61,27 +64,13 @@ test("the Frosted glass explanation holds a deliberate prose measure on a wide s
   const gloss = page.getByText(FROSTED_GLASS_GLOSS_RE);
   await expect(gloss).toBeVisible();
 
-  const readMeasure = async (): Promise<{ readonly averageGlyphs: number; readonly onGovernedMeasure: boolean }> =>
-    await gloss.evaluate((element) => {
-      const style = getComputedStyle(element);
-      const probe = document.createElement("div");
-      probe.style.position = "absolute";
-      probe.style.visibility = "hidden";
-      probe.style.width = "var(--reading-measure-prose)";
-      element.append(probe);
-      const governedWidth = probe.getBoundingClientRect().width;
-      probe.remove();
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      if (context === null) {
-        throw new Error("no 2d context for the prose-measure assertion");
-      }
-      context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-      const text = (element.textContent ?? "").replace(/\s+/gu, " ").trim();
-      const averageAdvance = context.measureText(text).width / text.length;
-      const width = element.getBoundingClientRect().width;
-      return { averageGlyphs: width / averageAdvance, onGovernedMeasure: Math.abs(width - governedWidth) <= 0.5 };
-    });
+  // The measurement is the SHARED reading-measure reader's (#1683) — one home for "how many typographic
+  // characters does this paragraph render", so this pin and its five siblings cannot drift apart. The
+  // paragraph is addressed by its own rendered COPY, never a test-only hook, which is the reader's contract.
+  const readMeasure = async (): Promise<{ readonly averageGlyphs: number; readonly onGovernedMeasure: boolean }> => {
+    const reading = await readProseMeasure(page, FROSTED_GLASS_GLOSS_OPENING);
+    return { averageGlyphs: reading.lawCharacters, onGovernedMeasure: Math.abs(reading.widthPx - reading.proseTokenPx) <= 0.5 };
+  };
 
   await expect.poll(async () => (await readMeasure()).onGovernedMeasure).toBe(true);
   await expect.poll(async () => (await readMeasure()).averageGlyphs).toBeGreaterThanOrEqual(65);

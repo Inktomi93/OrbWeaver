@@ -5,6 +5,23 @@
 // registry) opens its real body. The MOBILE block (L6/J12 · D62 P3) covers the bottom-tab-bar reflow at a mobile
 // viewport: the curated four tabs, land-on-CONTENT, and the "You" bottom sheet + its overflow/handoff.
 // Each test gets a fresh page (isolated localStorage) so the store starts default.
+//
+// WHAT THIS FILE CAN AND CANNOT OBSERVE (#1677 — say it here, because a cold reader otherwise reads a
+// green shell CT as covering the whole composition). Every mount here goes through
+// `CtFakeSectionRegistry` (`tests/support/ct/ct-data-providers.tsx`), which is REAL for the shell's own
+// anatomy — rail, `panels`, `panelDefaults`, `placeholder`, the modal/chrome/config registries, and each
+// section's real `selection` store whenever a story injects a `list` — and STORY-INJECTED for everything a
+// section RENDERS: `list`, `content`, `context`, `header` and `listHeader` bodies. So this file is the
+// floor for shell CHROME: region layout, panel clamp/overlay, focus modes, the rail, the modal host, the
+// mobile tab bar and the one-shell rule.
+//
+// It is NOT the observer of SECTION-TITLE COMPOSITION. `useSelectionTitle` falls back to the section's real
+// hook only where no story overrides it, and `AppShellMobileRuleStory` — the story that drives the mobile
+// title assertions — supplies a stand-in title for chats/characters/corpus/config/databank on purpose, so a
+// real title composed from real list data cannot appear here at all. The narrow topbar's screen name, the
+// phone's library census and per-section selection titles are observed over the REAL registry in
+// `tests/client/routes/app-root.ct.tsx`; a defect in title composition must be pinned THERE. Do not restate
+// that file's pins here — a duplicate over a fake registry proves the fake, not the product.
 
 import type { BlurSurface } from "@orb/contracts/settings";
 import { appearanceSettingsSchema, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
