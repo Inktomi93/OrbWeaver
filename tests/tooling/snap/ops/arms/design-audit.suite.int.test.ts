@@ -412,10 +412,15 @@ test("#1659 — an --eval-planted defect ENTERS the design-audit census, and the
   await expect(bare).toExitWith(EXIT.clean);
 });
 
-test("#1659 — a trailing --eval still observes the SETTLED surface, and runs exactly ONCE", async ({ runCli, scratch }) => {
-  // The ordering fix must not cost the flag its own guarantee (the eval reads the page AFTER settle), and
-  // must not double-execute: the values are handed to the page-arm pass on the outcome, not re-evaluated.
-  // A counter expression proves both — a second execution would print 2.
+test("#1659 FENCE (green before the fix too) — a trailing --eval still settles, and still runs exactly ONCE", async ({ runCli, scratch }) => {
+  // THIS ARM IS A REGRESSION FENCE, NOT A DEFECT PROOF, and says so because the distinction was worth a
+  // verifier's time (v-V4): it passed against the PRE-fix `capture.ts` as well, since the old ordering
+  // also ran a trailing `--eval` once and after settle. What it fences is the ordering change that landed
+  // beside it: moving the evals ahead of the run-arm settle hook must not (a) cost the flag its own
+  // guarantee — the expression still reads a SETTLED page, `data-app-ready` included — nor (b) double-run
+  // them, which is exactly what handing the same list to the page-arm pass again would do. A second
+  // execution prints `"runs": 2`; a pre-settle read prints a `ready` that is not `settled`.
+  // The DEFECT proof for #1659 is the arm above (a planted element entering the census).
   const file = await plant(scratch, "eval-once.html", page('<main><p style="font-size:16px">settled</p></main>'));
   const run = await runCli("snap", ["--file", file, "--design-audit", "--eval", EVAL_ONCE, ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
 

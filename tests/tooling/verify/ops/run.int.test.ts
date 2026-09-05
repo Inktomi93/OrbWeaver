@@ -6,7 +6,6 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import process from "node:process";
-import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import type { StageDef, StageResult } from "../../../../tooling/src/verify/index.ts";
 import {
@@ -24,6 +23,7 @@ import {
 } from "../../../../tooling/src/verify/index.ts";
 import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify/ops/run.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 /** A parse result that IS a misuse error (what main() maps to exit 3). */
 function isMisuse(argv: readonly string[]): boolean {
@@ -347,8 +347,10 @@ test(
   },
   // resolveSelection --file resolves through deriveViews → graphMembership() → graphMembershipKey(), which
   // SHELLS OUT to `git rev-parse HEAD` (program-routing.ts). Vitest's bare 5s default flaked at 5.7-9.8s
-  // under lane load (#1610) — the arm needs the repo's load-scaled budget, not a bare literal.
-  budget(5000),
+  // under lane load (#1610) — the arm needs the repo's load-scaled budget, not a bare literal. Spelled
+  // `scaledBudget` from the vitest seam like the other ~70 suites: identical arithmetic over the same
+  // policy, and the seam is also the door that refuses a mis-spelled `ORB_BOX_LOAD` in a worker (#1666).
+  scaledBudget(5000),
 );
 
 test("docs:catalog changed scope covers all Markdown and its own control files", () => {
