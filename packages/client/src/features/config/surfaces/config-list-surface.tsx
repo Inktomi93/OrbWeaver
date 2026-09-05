@@ -44,6 +44,10 @@ import { orderConfigGroups } from "../lib/order-groups.ts";
 // `meta` slot (inside the row's aria-describedby), never a bare icon a screen reader can't read.
 const SAVE_FAILED_MARKER = "Save failed";
 
+/** The "nothing in this group differs" answer, minted once — `useConfigModified` reports only the groups
+ *  that HAVE a modified section, so most groups resolve to this on every render. */
+const NO_MODIFIED_SUBS: ReadonlySet<string> = new Set<string>();
+
 export interface ConfigListSurfaceProps {
   readonly groups: ConfigGroupRegistry;
 }
@@ -148,6 +152,11 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
                   erroredSubIds={erroredSubIds}
                   group={group}
                   key={group.id}
+                  // THE SECTION GRAIN, DOWN TO THE ROW (#1169): `useConfigModified` derives BOTH grains in one
+                  // pass and the LIST spent only the group one, so the mark propagated up to the shelf and
+                  // stopped one level above the row that names the location. Same map, same verdict, one more
+                  // reader — nothing is re-derived.
+                  modifiedSubIds={modified.subs.get(group.id) ?? NO_MODIFIED_SUBS}
                   onSelectGroup={onSelectGroup}
                   onSelectSub={onSelectSub}
                   saveFailedMarker={SAVE_FAILED_MARKER}

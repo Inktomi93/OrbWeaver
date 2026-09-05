@@ -23,7 +23,34 @@
 // THE BAND'S CONTROLS ARE SIBLINGS, never nested — a button inside the disclosure button would be
 // unclickable-by-spec and unreadable to a screen reader. It bites hardest on the collection band, which is
 // the one with trailing verbs, so the rule and its ordering live at that band (`config-list-collection-group.tsx`).
+//
+// ── THE LIST PANE'S VOICE BUDGET (#1169, owner ruling 2026-09-05 "receipt + full convergence") ──────────
+// This is the ONE home for it, for every element the Settings LIST draws. Measured across the four LIST
+// panes on 2026-09-05 (docs/reviews/misc/2026-09-05-config-list-pane-divergence.md §7): config's pane spoke
+// FOUR `data-voice` registers where chats speaks two, characters one and presets none. The set is not the
+// defect — this pane genuinely has four kinds of thing to say — but nobody had ever judged WHICH job each
+// voice holds, and two of them were doing a job that is not a voice at all. The budget, one job each:
+//   · `kicker`            — the NAME of a region that is not a control (the shelf label, the advanced-fold
+//                           label). Both are the `aria-labelledby` target of the group they name, so the
+//                           visible word and the announced one cannot drift.
+//   · `interactiveKicker` — the NAME of a region that IS a control (both band arms).
+//   · `datum`             — a mono COUNT (the collection band's census).
+//   · `gloss`             — prose (an empty library's one sentence).
+//   · STATE IS A `Badge`, NEVER A VOICE. A state mark drawn in the same register as a NAME is read as a
+//     second name of equal rank; #1214-2 measured it on the shelf ("USER MODIFIED", same step, same
+//     tracking, same 8.45:1 ink) and moved that mark to a Badge. The band's two marks were the same shape,
+//     one level down, and are Badges now for the same reason.
+//
+// ── THE RULING FORK, STATED (#1099 Errand A's own clause in this file, preserved) ───────────────────────
+// The modified mark's note here read "`kicker` is a text voice, not a box: the band's height is untouched",
+// and that MECHANISM is the thing the clause was protecting — a band that grows when a setting changes
+// would make the LIST's rhythm depend on the reader's data. It survives INTACT and is now provable rather
+// than argued: the band is `size="sm"`, i.e. `h-control-sm`, a FIXED height (32px fine / 44px coarse,
+// measured 2026-09-05 across all fourteen bands), so a ~30px Badge inside it cannot move it. What changed is
+// the clause's INPUT — the reason to prefer text over a box was never "text", it was "no growth", and the
+// box does not grow it. The band-height CT pins the number at both pointer classes.
 
+import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
@@ -50,6 +77,12 @@ export interface ConfigListGroupProps {
   /** Subcategory ids whose section failed to save — the row wears the marker (SET-SEAMS §3). */
   readonly erroredSubIds: ReadonlySet<string>;
   readonly saveFailedMarker: string;
+  /** Subcategory ids inside THIS group whose section differs from its default — the `useConfigModified`
+   *  SECTION grain, which the surface already derives for `@modified` and for the two marks above this row
+   *  (#1099 Errand A). The row is the level that NAMES the location, and it was the one level that stayed
+   *  silent: the shelf said a group inside it changed, the band said which group, and then the reader
+   *  opened nine section rows that all looked identical. Empty for a group with nothing modified. */
+  readonly modifiedSubIds: ReadonlySet<string>;
   /** Present when ANY section inside this group differs from its default — the band says so (#1099 Errand
    *  A). The host passes the WORD, exactly like `saveFailedMarker`, so the band owns no copy. */
   readonly modifiedMarker?: string;
@@ -78,6 +111,7 @@ function SectionsListGroup({
   activeSub,
   erroredSubIds,
   saveFailedMarker,
+  modifiedSubIds,
   modifiedMarker,
   onSelectGroup,
   onSelectSub,
@@ -124,6 +158,8 @@ function SectionsListGroup({
                 activeSub={activeSub}
                 erroredSubIds={erroredSubIds}
                 groupId={group.id}
+                modifiedMarker={modifiedMarker}
+                modifiedSubIds={modifiedSubIds}
                 onSelectSub={onSelectSub}
                 saveFailedMarker={saveFailedMarker}
                 sub={sub}
@@ -145,6 +181,8 @@ function SectionsListGroup({
                   activeSub={activeSub}
                   erroredSubIds={erroredSubIds}
                   groupId={group.id}
+                  modifiedMarker={modifiedMarker}
+                  modifiedSubIds={modifiedSubIds}
                   onSelectSub={onSelectSub}
                   saveFailedMarker={saveFailedMarker}
                   sub={sub}
@@ -165,6 +203,8 @@ function SectionsListGroup({
                       activeSub={activeSub}
                       erroredSubIds={erroredSubIds}
                       groupId={group.id}
+                      modifiedMarker={modifiedMarker}
+                      modifiedSubIds={modifiedSubIds}
                       onSelectSub={onSelectSub}
                       saveFailedMarker={saveFailedMarker}
                       sub={sub}
@@ -201,6 +241,14 @@ interface SectionsBandProps {
  *  two bands are each one for the same reason), and so this file stays under the `component-size` cap the
  *  collection split was about. */
 function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, bandId, bodyId, onSelectGroup, bandRef }: SectionsBandProps): ReactElement {
+  // THE UNBUILT ARM NEEDS NO STATED NAME — MEASURED, NOT ASSUMED (#1169). The obvious reading of #1214-1
+  // is that the unbuilt marker is the same welding defect as the modified one and owes the same
+  // `aria-label`. It is not: run red-first against the unmodified source, a deferred band already
+  // announced "Connections Not built yet" as two words. The modified arm needed the stated name because
+  // its marker was a `Text as="span"` — a genuinely INLINE box, which the accessible-name computation
+  // concatenates with nothing between; a `Badge` is `inline-flex`, so the computation inserts the space
+  // itself. Nothing is stated here, and the placeholder CT pins the two-word name so the next edit to this
+  // marker's box cannot silently weld it.
   return (
     // A group WITH rows is a disclosure GROUP, not a nav leaf: it expands (`aria-expanded`) and its children
     // carry the one "you are here" marker. A group with no rows IS the leaf, so it keeps `aria-current`
@@ -216,7 +264,8 @@ function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, b
       // between, so a modified Appearance group announced as "AppearanceModified", one token. The separator
       // is a SPACE, never a comma or a dash: the band VISIBLY reads "Appearance Modified" and a name must
       // CONTAIN what it shows (WCAG 2.5.3 Label in Name). Stated only when there IS a mark, so an unmodified
-      // band keeps its content-derived name and nothing here can drift from the visible label.
+      // band keeps its content-derived name and nothing here can drift from the visible label. The UNBUILT
+      // marker needs no such statement — see the measured note above the return.
       {...(modifiedMarker === undefined ? {} : { "aria-label": `${group.label} ${modifiedMarker}` })}
       // `w-full`, NOT `flex-1` (#978 F1). This band's parent is a VERTICAL `Stack`, so `flex: 1 1 0%` put a
       // flex-BASIS of 0 on the BLOCK axis and defeated the size variant's sealed `h-control-sm`: the button
@@ -253,17 +302,16 @@ function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, b
           home for the phrase (#1043): CONTENT's status band is gone, and a library the reader has not filled
           says its own `emptyText` instead. */}
       {unbuilt ? (
-        <Text as="span" data-slot="config-group-unbuilt" voice="kicker">
+        <Badge data-slot="config-group-unbuilt" intent="neutral" size="sm" tone="soft">
           {CONFIG_UNBUILT_MARKER}
-        </Text>
+        </Badge>
       ) : null}
       {/* THE GROUP SAYS WHEN SOMETHING INSIDE IT CHANGED (#1099 Errand A). It rides INSIDE the band button,
-          so it is part of the band's accessible name. `kicker` is a text voice, not a box: the band's height
-          is untouched. */}
+          so it is part of the band's accessible name. */}
       {modifiedMarker === undefined ? null : (
-        <Text as="span" data-slot="config-group-modified" voice="kicker">
+        <Badge data-slot="config-group-modified" intent="neutral" size="sm" tone="soft">
           {modifiedMarker}
-        </Text>
+        </Badge>
       )}
     </Button>
   );
@@ -276,18 +324,52 @@ interface SubcategoryRowProps {
   readonly activeSub: string | null;
   readonly erroredSubIds: ReadonlySet<string>;
   readonly saveFailedMarker: string;
+  readonly modifiedSubIds: ReadonlySet<string>;
+  /** The host's ONE word for "differs from its default", present exactly while this GROUP is modified —
+   *  which is exactly when one of these rows is. `string | undefined` rather than an optional prop: the
+   *  caller has a `string | undefined` in hand and an internal row is not worth a conditional spread. */
+  readonly modifiedMarker: string | undefined;
   readonly onSelectSub: (groupId: ConfigGroupId, subId: string) => void;
 }
 
 /** ONE section row. The row renders `navLabel` when the section declares one — a name too long for the LIST
  *  column is ABBREVIATED here, never renamed at its heading. The full `label` rides `fullTitle` so hovering
  *  recovers it. Extracted so the plain cohort and the fold's cohort are provably the SAME row (they are
- *  drawn in two places now; a copy would let the fold's rows drift into a second grammar). */
-function SubcategoryRow({ sub, groupId, active, activeSub, erroredSubIds, saveFailedMarker, onSelectSub }: SubcategoryRowProps): ReactElement {
+ *  drawn in two places now; a copy would let the fold's rows drift into a second grammar).
+ *
+ *  ── THE ROW SAYS WHAT IS TRUE OF ITS SECTION (#1169) ──
+ *  ONE state slot, `meta`, with a stated precedence — a failed save outranks a modified value, because it
+ *  is the fact the reader can act on and it already implies the section differs from what is stored. The
+ *  row therefore grows ONE grammar, not two: `meta` is the primitive's trailing title-line datum, already
+ *  the `Save failed` marker's home and already part of the row's `aria-describedby`, so the new mark is
+ *  announced without touching the row's NAME.
+ *
+ *  A `Badge` IN `markers` WAS MEASURED AND REFUSED — with a PLANTED CONTROL, not an argument. `markers` is
+ *  the peers' rest-visible-state slot (the chats row's `Archived` badge), and adopting it is what
+ *  "converge on the shared grammar" would mean read literally. Built that way and run against the row-pitch
+ *  pin, the Appearance group measured `Set { 35, 42 }`: the one modified row grew to 42px while its eight
+ *  siblings stayed at 35, i.e. the LIST's row pitch became a function of the reader's settings. The cause
+ *  is the box, not the slot — a `sm` Badge is `text-label`/`leading-label` over `py-field` twice, ~30px,
+ *  against this row's 16px title line — and a chats row absorbs the same badge only because it is already
+ *  44px with a portrait and a subtitle. The slot is the peers'; the box is not, and the reason is the
+ *  PAYLOAD, not the pane. That control is what makes the row-pitch pin a defect proof rather than a fence. */
+function SubcategoryRow({
+  sub,
+  groupId,
+  active,
+  activeSub,
+  erroredSubIds,
+  saveFailedMarker,
+  modifiedSubIds,
+  modifiedMarker,
+  onSelectSub,
+}: SubcategoryRowProps): ReactElement {
+  const modified = modifiedSubIds.has(sub.id) ? modifiedMarker : undefined;
+  const state = erroredSubIds.has(sub.id) ? saveFailedMarker : modified;
   return (
     <ListRow
       clickable={true}
-      {...(erroredSubIds.has(sub.id) ? { meta: saveFailedMarker } : {})}
+      {...(state === undefined ? {} : { meta: state })}
       fullTitle={sub.label}
       onClick={(): void => onSelectSub(groupId, sub.id)}
       selected={active && activeSub === sub.id}

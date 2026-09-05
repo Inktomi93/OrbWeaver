@@ -73,6 +73,14 @@ test("the LIST says a group is unbuilt — in WORDS, on a row that still works a
   // CONTENT-side band that used the same phrase for a library the user simply had not FILLED is gone).
   await expect(band).toHaveAccessibleName(/Not built yet/);
   await expect(band.getByText("Not built yet")).toBeVisible();
+  // …AS TWO WORDS, NOT ONE TOKEN. HONESTLY LABELLED: this is a FENCE, not a defect proof — it was GREEN
+  // before #1169 touched anything (run red-first against the unmodified source), because the marker's box
+  // has always been non-inline enough for the accessible-name computation to insert the separator itself.
+  // #1214-1's welding defect was real on the MODIFIED marker and is fixed there by a stated `aria-label`;
+  // the assumption that this arm shared it was measured and refused. What this pins is the REGRESSION
+  // SURFACE the #1169 voice budget opened: the marker's box changed (kicker text → `Badge`), and a box
+  // change is exactly what can weld a name. The regex above cannot tell the two spellings apart; this can.
+  await expect(band).toHaveAccessibleName("Connections Not built yet");
   // NEVER COLOUR ALONE, but colour too: the row is quieter than a live sibling, and the pin is the DELTA
   // between two real bands rather than a remembered token value.
   const [deferred, live] = await Promise.all([
