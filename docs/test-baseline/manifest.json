@@ -2107,6 +2107,7 @@
     "tests/tooling/snap/ops/agent-readable-output.suite.int.test.ts",
     "tests/tooling/snap/ops/appearance-invariant-checks.test.ts",
     "tests/tooling/snap/ops/appearance-invariant-dom.int.test.ts",
+    "tests/tooling/snap/ops/appearance-invariant-runtime.int.test.ts",
     "tests/tooling/snap/ops/appearance-invariants.test.ts",
     "tests/tooling/snap/ops/appearance-prepaint.test.ts",
     "tests/tooling/snap/ops/arms/assert.int.test.ts",
