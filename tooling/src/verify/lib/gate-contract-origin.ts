@@ -96,20 +96,34 @@ function comesFromTsMorph(node: MorphNode): boolean {
   return moduleSpecifier(node) === TS_MORPH_MODULE || node.getSourceFile().getFilePath().replaceAll("\\", "/").includes("/node_modules/ts-morph/");
 }
 
-function receiverTypeName(node: MorphNode): string | undefined {
-  return node.getType().getSymbol()?.getName() ?? node.getType().getAliasSymbol()?.getName();
+function declarationOwnerName(node: MorphNode): string | undefined {
+  const owner = node.getFirstAncestor((ancestor) => Node.isInterfaceDeclaration(ancestor) || Node.isClassDeclaration(ancestor));
+  return owner !== undefined && (Node.isInterfaceDeclaration(owner) || Node.isClassDeclaration(owner)) ? owner.getName() : undefined;
+}
+
+function callableDeclarations(member: CallableMember): readonly MorphNode[] {
+  const memberSymbols = [member.nameNode.getSymbol(), member.receiver.getType().getProperty(member.name)].filter(
+    (symbol): symbol is import("ts-morph").Symbol => symbol !== undefined,
+  );
+  const declarations = memberSymbols.flatMap((symbol) => symbol.getDeclarations());
+  const signatures = memberSymbols.flatMap((symbol) =>
+    symbol
+      .getTypeAtLocation(member.receiver)
+      .getCallSignatures()
+      .map((signature) => signature.getDeclaration()),
+  );
+  return [...declarations, ...signatures];
 }
 
 /** True only when the member declaration and receiver type prove a ts-morph Project/Node walk. */
 export function isTsMorphWalk(member: CallableMember): boolean {
-  const declarations = [
-    ...(member.nameNode.getSymbol()?.getDeclarations() ?? []),
-    ...(member.receiver.getType().getProperty(member.name)?.getDeclarations() ?? []),
-  ];
+  const declarations = callableDeclarations(member);
   if (declarations.length === 0 || !declarations.some(comesFromTsMorph)) {
     return false;
   }
-  return member.name.startsWith("getSourceFile") ? receiverTypeName(member.receiver) === "Project" : true;
+  return member.name.startsWith("getSourceFile")
+    ? declarations.some((declaration) => comesFromTsMorph(declaration) && declarationOwnerName(declaration) === "Project")
+    : true;
 }
 
 /** True when ReferenceFact reaches the ts-morph Project export, including re-export trace doors. */
@@ -178,13 +192,9 @@ const BUILTIN_MUTATOR_OWNERS = new Set(["Array", "Map", "Set", "WeakMap", "WeakS
 
 /** Built-in collection/array mutation requires a lib declaration; same-named local methods stay silent. */
 export function isBuiltinMutator(member: CallableMember): boolean {
-  const declarations = [
-    ...(member.nameNode.getSymbol()?.getDeclarations() ?? []),
-    ...(member.receiver.getType().getProperty(member.name)?.getDeclarations() ?? []),
-  ];
+  const declarations = callableDeclarations(member);
   return declarations.some((declaration) => {
-    const owner = declaration.getFirstAncestor((ancestor) => Node.isInterfaceDeclaration(ancestor) || Node.isClassDeclaration(ancestor));
-    const name = owner !== undefined && (Node.isInterfaceDeclaration(owner) || Node.isClassDeclaration(owner)) ? owner.getName() : undefined;
+    const name = declarationOwnerName(declaration);
     return name !== undefined && BUILTIN_MUTATOR_OWNERS.has(name) && declaration.getSourceFile().isDeclarationFile();
   });
 }

@@ -14,12 +14,15 @@ function inspect(source: string, extraFiles: Readonly<Record<string, string>> = 
 
 const TS_MORPH_TYPES = `
   declare module "ts-morph" {
+    export interface Node {
+      getSourceFile(): SourceFile;
+    }
     export class Project {
       getSourceFile(path: string): SourceFile | undefined;
       getSourceFileOrThrow(path: string): SourceFile;
       getSourceFiles(): SourceFile[];
     }
-    export interface SourceFile {
+    export interface SourceFile extends Node {
       getDescendants(): unknown[];
       getDescendantsOfKind(kind: number): unknown[];
       getFirstDescendant(): unknown;
@@ -164,6 +167,33 @@ test("follows ts-morph walk aliases and wrappers without accusing unrelated same
     { "types/ts-morph.d.ts": TS_MORPH_TYPES },
   );
   expect(report.findings.filter((finding) => finding.code === "direct-walk")).toHaveLength(8);
+});
+
+test("proves Project source look walks through mapped and indexed-access views", () => {
+  const report = inspect(
+    `
+      import type { Node, Project } from "ts-morph";
+      import { defineGate } from "../contract/gate.ts";
+      declare const picked: Pick<Project, "getSourceFile" | "getSourceFiles">;
+      declare const structural: {
+        getSourceFile: Project["getSourceFile"];
+        getSourceFiles: Project["getSourceFiles"];
+      };
+      declare const node: Node;
+      export const gate = defineGate({
+        create() {
+          picked.getSourceFile("one.ts");
+          picked.getSourceFiles();
+          structural.getSourceFile("two.ts");
+          structural.getSourceFiles();
+          node.getSourceFile();
+          return { visitors: {} };
+        },
+      });
+    `,
+    { "types/ts-morph.d.ts": TS_MORPH_TYPES },
+  );
+  expect(report.findings.filter((finding) => finding.code === "direct-walk")).toHaveLength(4);
 });
 
 test("follows the ts-morph Project constructor while respecting a shadowed constructor parameter", () => {
