@@ -928,14 +928,15 @@
     },
     {
       "path": "docs/design/integer-line-boxes.md",
-      "assignedSha256": "daf687deab3973e974628dba540ccb07344e491123985c2e2d425f69b2321d81",
+      "assignedSha256": "e00ff4575a859d1a4b3708849046ed9f7ec4b8d2e601e757f1ec5dae2783177f",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "daf687deab3973e974628dba540ccb07344e491123985c2e2d425f69b2321d81",
-      "verifiedCommit": "a6db3e258a5bf5de3d280dc796b5c509d97cc81e",
-      "verifiedAt": "2026-09-01",
+      "verifiedSha256": "e00ff4575a859d1a4b3708849046ed9f7ec4b8d2e601e757f1ec5dae2783177f",
+      "verifiedCommit": "d17bebced4dac4153e48e2efc034b689dd721c5d",
+      "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at d17bebced by the orchestrator after reading the #1160 diff in full (cb-rendered-polish): §3b retitled and records the snapped belt’s ROUND-UP strategy as a second invariant (round(up, <rem>, 1px) in tokens.build.ts; nearest-rounding shrank a leading box by up to half a pixel while the font scaled continuously, dropping the ratio below LEADING_FLOOR at scales no authored value can see); identity at scale 1 for all seven snapped tokens; frontmatter dated 2026-09-05.",
         "docs/design/integer-line-boxes.md:1 (full read; measured defect, multiplier cross, snapped-dimension architecture, re-pairing sweep, four-arm gate, ramp coherence, declared residuals)",
         "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #997 Law-1 design and implementation bytes)",
         "re-attested at a6db3e258 — #1002 lands Laws 2-4: intro/title truth-repaired (Laws 2-4 no longer 'out of scope'), §9-§12 appended (rest-transform-grid gate; off-grid-transform / promoted-layer-offset / off-grid-text runtime rules; DPR 1/1.25/2 corpus table; reading-surface exemption mirrored). Delta read against the lane report; status stays active until the program closes"
@@ -1835,14 +1836,15 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "cbfa4223b99f4eb9c57ce7de40cd33f003cbd2d7458412e4e7e9d5b157a03be8",
+      "assignedSha256": "58de3d9de4690412d9b8dd89bba2a2c0e60bfc499657a9a84db3fa7b751e52aa",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "cbfa4223b99f4eb9c57ce7de40cd33f003cbd2d7458412e4e7e9d5b157a03be8",
-      "verifiedCommit": "8ef974d079034857e09434f1994c32d3de95ad9b",
+      "verifiedSha256": "58de3d9de4690412d9b8dd89bba2a2c0e60bfc499657a9a84db3fa7b751e52aa",
+      "verifiedCommit": "7bba38d6d3d224cb6cc1190656698b50a9ff4e5c",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at 7bba38d6d by the orchestrator after reading the #1220 repair diff in full (cb-vocab-hygiene warm leg, K9 refutation): the hearth PALETTE row’s carrier cell rewritten to the three that hold (resolver.json, token-contract.ts’s id union, THEME_HEARTH_NAME) and the paragraph under the table that repeated the wrong list fixed; five ‘config welcome hearth’ mentions elsewhere moved to past tense naming #1210; frontmatter dated 2026-09-05.",
         "re-attested at 8ef974d07 by the orchestrator after reading the #1220/#1045 diff in full (cb-vocab-hygiene): two `hearth` rows added with the disjoint-carrier reasoning (a row states the CARRIER, not just the word; `null` is the palette’s in-code spelling where a theme row is optional), zero code crossings receipted; the seated-characters word (row 4) now drives RESPONSE_SPEAKER_CUE / multiCharacter / characterCredit / NO_CHARACTER_NAMES / ChatOptionsCharacter; frontmatter dated 2026-09-05.",
         "re-attested at 8ebb7c436 (#1057): new §The connection register — D109's 6-mode canon + the fail-closed confusion-killers, re-derived against infra/providers/roles/dispatch.ts deriveRunner (six pairings, five refusals match)",
         "docs/design/vocabulary-map.md:1-72 read IN FULL by the orchestrator (claude-b) before the receipt; minted by lane cb-vocab-reconcile at the #914 merge as the ONE living home for the concept→word table, per the owner's ruling that the design doc is the source of truth and everything references it",
