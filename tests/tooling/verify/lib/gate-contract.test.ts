@@ -5,6 +5,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 
 function inspect(source: string, extraFiles: Readonly<Record<string, string>> = {}): ReturnType<typeof inspectGateContract> {
   const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile("/repo/tooling/src/verify/contract/policy.ts", "export function defineGate<T>(policy: T): T { return policy; }\n");
   for (const [path, text] of Object.entries(extraFiles)) {
     project.createSourceFile(`/repo/${path}`, text);
   }
@@ -32,9 +33,9 @@ const TS_MORPH_TYPES = `
   }
 `;
 
-test("accepts the direct defineGate shape and invocation-local state", () => {
+test("accepts a direct defineGate import from the final policy contract", () => {
   const report = inspect(`
-    import { defineGate } from "../contract/gate.ts";
+    import { defineGate } from "../contract/policy.ts";
     const VOCABULARY = new Set(["one"]);
     export const gate = defineGate({
       id: "example",
@@ -51,6 +52,62 @@ test("accepts the direct defineGate shape and invocation-local state", () => {
     });
   `);
   expect(report).toEqual({ files: 1, findings: [] });
+});
+
+test("accepts an aliased defineGate import from the final policy contract", () => {
+  const report = inspect(`
+    import { defineGate as declareGate } from "../contract/policy.ts";
+    export const gate = declareGate({ create() { return { visitors: {} }; } });
+  `);
+  expect(report.findings.filter((finding) => finding.code === "descriptor-wrapper")).toHaveLength(0);
+});
+
+test("follows a re-export of the final defineGate", () => {
+  const report = inspect(
+    `
+      import { defineGate as declareGate } from "./policy-door.ts";
+      export const gate = declareGate({ create() { return { visitors: {} }; } });
+    `,
+    { "tooling/src/verify/gates/policy-door.ts": 'export { defineGate } from "../contract/policy.ts";\n' },
+  );
+  expect(report.findings.filter((finding) => finding.code === "descriptor-wrapper")).toHaveLength(0);
+});
+
+test("refuses local, legacy, and wrong-module defineGate lookalikes", () => {
+  const local = inspect(`
+    function defineGate<T>(policy: T): T { return policy; }
+    export const gate = defineGate({ create() { return { visitors: {} }; } });
+  `);
+  const legacy = inspect(
+    `
+      import { defineGate } from "../contract/gate.ts";
+      export const gate = defineGate({ create() { return { visitors: {} }; } });
+    `,
+    { "tooling/src/verify/contract/gate.ts": "export function defineGate<T>(policy: T): T { return policy; }\n" },
+  );
+  const wrong = inspect(
+    `
+      import { defineGate } from "./lookalike.ts";
+      export const gate = defineGate({ create() { return { visitors: {} }; } });
+    `,
+    { "tooling/src/verify/gates/lookalike.ts": "export function defineGate<T>(policy: T): T { return policy; }\n" },
+  );
+  for (const report of [local, legacy, wrong]) {
+    expect(report.findings.filter((finding) => finding.code === "descriptor-wrapper")).toHaveLength(1);
+  }
+});
+
+test("accepts the final defineGate when the same module also imports the legacy helper", () => {
+  const report = inspect(
+    `
+      import { defineGate as finalDefineGate } from "../contract/policy.ts";
+      import { defineGate as legacyDefineGate } from "../contract/gate.ts";
+      void legacyDefineGate;
+      export const gate = finalDefineGate({ create() { return { visitors: {} }; } });
+    `,
+    { "tooling/src/verify/contract/gate.ts": "export function defineGate<T>(policy: T): T { return policy; }\n" },
+  );
+  expect(report.findings.filter((finding) => finding.code === "descriptor-wrapper")).toHaveLength(0);
 });
 
 test("reports the legacy descriptor lifecycle and an indirect descriptor", () => {
@@ -71,7 +128,7 @@ test("reports the legacy descriptor lifecycle and an indirect descriptor", () =>
 
 test("refuses descriptor spreads and computed keys, including statically resolved legacy names", () => {
   const report = inspect(`
-    import { defineGate } from "../contract/gate.ts";
+    import { defineGate } from "../contract/policy.ts";
     const RUN = "run";
     const legacy = { scanRoot: () => true };
     export const gate = defineGate({
@@ -88,7 +145,7 @@ test("refuses descriptor spreads and computed keys, including statically resolve
 
 test("a dynamic computed descriptor key refuses instead of disappearing", () => {
   const report = inspect(`
-    import { defineGate } from "../contract/gate.ts";
+    import { defineGate } from "../contract/policy.ts";
     export const gate = defineGate({
       [getFieldName()]() {},
       create() { return { visitors: {} }; },
@@ -103,7 +160,7 @@ test("reports direct repository walks through property, optional, and computed a
   const report = inspect(
     `
     import type { Project, SourceFile } from "ts-morph";
-    import { defineGate } from "../contract/gate.ts";
+    import { defineGate } from "../contract/policy.ts";
     declare const ctx: { project: Project; file: SourceFile; node: SourceFile };
     export const gate = defineGate({
       create() {
@@ -127,7 +184,7 @@ test("resolves named and namespace Project constructor aliases", () => {
   const report = inspect(`
     import { Project as Workspace } from "ts-morph";
     import * as Morph from "ts-morph";
-    import { defineGate } from "../contract/gate.ts";
+    import { defineGate } from "../contract/policy.ts";
     new Workspace();
     new Morph["Project"]();
     export const gate = defineGate({ create() { return { visitors: {} }; } });
@@ -139,7 +196,7 @@ test("follows ts-morph walk aliases and wrappers without accusing unrelated same
   const report = inspect(
     `
       import type { Project, SourceFile } from "ts-morph";
-      import { defineGate } from "../contract/gate.ts";
+      import { defineGate } from "../contract/policy.ts";
       declare const sf: SourceFile;
       declare const ctx: { readonly project: Project };
       const FIRST = "getFirstDescendantByKind";
@@ -173,7 +230,7 @@ test("proves Project source look walks through mapped and indexed-access views",
   const report = inspect(
     `
       import type { Node, Project } from "ts-morph";
-      import { defineGate } from "../contract/gate.ts";
+      import { defineGate } from "../contract/policy.ts";
       declare const picked: Pick<Project, "getSourceFile" | "getSourceFiles">;
       declare const structural: {
         getSourceFile: Project["getSourceFile"];
@@ -200,7 +257,7 @@ test("follows the ts-morph Project constructor while respecting a shadowed const
   const report = inspect(
     `
       import { Project as TsProject } from "ts-morph";
-      import { defineGate } from "../contract/gate.ts";
+      import { defineGate } from "../contract/policy.ts";
       const Workspace = TsProject;
       function local(Project: new () => unknown) { return new Project(); }
       export const gate = defineGate({
@@ -217,7 +274,7 @@ test("resolves destructured, wrapped, and re-exported ts-morph Project construct
     `
       import * as Morph from "ts-morph";
       import { Project as Reexported } from "./project-door.ts";
-      import { defineGate } from "../contract/gate.ts";
+      import { defineGate } from "../contract/policy.ts";
       const { Project: Destructured } = Morph;
       export const gate = defineGate({
         create() {
@@ -237,7 +294,7 @@ test("resolves destructured, wrapped, and re-exported ts-morph Project construct
 
 test("reports provable module state while leaving immutable vocabulary and local state alone", () => {
   const report = inspect(`
-    import { defineGate } from "../contract/gate.ts";
+    import { defineGate } from "../contract/policy.ts";
     let current = 0;
     const HITS = new Map<string, number>();
     const VOCABULARY = new Set(["one"]);
@@ -254,7 +311,7 @@ test("reports provable module state while leaving immutable vocabulary and local
 
 test("follows mutation aliases and write forms without classifying a pure same-named method", () => {
   const report = inspect(`
-    import { defineGate } from "../contract/gate.ts";
+    import { defineGate } from "../contract/policy.ts";
     const ADD = "add";
     const STATE = { nested: new Set<string>(), count: 0 };
     const IMMUTABLE = { add(value: string) { return { value }; } };
@@ -276,7 +333,7 @@ test("follows mutation aliases and write forms without classifying a pure same-n
 
 test("proves each supported module mutation shape by declaration origin", () => {
   const report = inspect(`
-    import { defineGate } from "../contract/gate.ts";
+    import { defineGate } from "../contract/policy.ts";
     const PUSH = "push";
     const VIA_ALIAS = new Set<string>();
     const VIA_COMPUTED: string[] = [];
@@ -302,7 +359,7 @@ test("proves each supported module mutation shape by declaration origin", () => 
 
 test("creating an unused bound mutator is not itself a mutation", () => {
   const report = inspect(`
-    import { defineGate } from "../contract/gate.ts";
+    import { defineGate } from "../contract/policy.ts";
     const VOCABULARY = new Set<string>();
     const addLater = VOCABULARY.add.bind(VOCABULARY);
     export const gate = defineGate({ create() { return { visitors: {} }; } });
@@ -312,7 +369,7 @@ test("creating an unused bound mutator is not itself a mutation", () => {
 
 test("reports baseline ledger paths", () => {
   const report = inspect(`
-    import { defineGate } from "../contract/gate.ts";
+    import { defineGate } from "../contract/policy.ts";
     const BASELINE = "tooling/src/verify/gates/example.baseline.json";
     export const gate = defineGate({ create() { return { visitors: {} }; } });
   `);
@@ -321,7 +378,7 @@ test("reports baseline ledger paths", () => {
 
 test("reports statically concatenated and templated baseline paths once each", () => {
   const report = inspect(`
-    import { defineGate } from "../contract/gate.ts";
+    import { defineGate } from "../contract/policy.ts";
     const SUFFIX = ".json";
     const CONCAT = "tooling/src/verify/gates/one.baseline" + SUFFIX;
     const TEMPLATE = \`tooling/src/verify/gates/two.baseline\${SUFFIX}\`;
