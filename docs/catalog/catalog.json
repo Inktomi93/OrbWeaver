@@ -11253,16 +11253,16 @@
       "path": "docs/design/1238-plugin-distribution.md",
       "lane": "design",
       "issue": 5,
-      "lines": 108,
-      "bytes": 26666,
-      "sha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
+      "lines": 115,
+      "bytes": 27341,
+      "sha256": "a9ad2fe8799e0c3dc7025afb252d425ea2f32da78ee421d40d18f6712a5a9418",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-09-02"
+          "updated": "2026-09-05"
         },
         "errors": []
       },
@@ -11289,7 +11289,7 @@
               },
               {
                 "kind": "code",
-                "target": "packages/server/src/entry/boot/seed-assets/index.ts:82"
+                "target": "packages/server/src/entry/boot/seed-assets/index.ts:1"
               },
               {
                 "kind": "test",
@@ -11355,7 +11355,7 @@
           "owner rulings 2026-09-02 quoted verbatim in the doc's commission block (new package; no forced zips; app-does-the-clone; disclaimer text without a separate click; no container-build asset moving)"
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/1308-browser-evidence-retention.md",
@@ -13468,16 +13468,16 @@
       "path": "docs/design/plugin-showcase-set.md",
       "lane": "design",
       "issue": 5,
-      "lines": 224,
-      "bytes": 20834,
-      "sha256": "c5d99e0217681ba0e26d7ab91dac02524ff3ffe587084fbd107e8bccb3697ec9",
+      "lines": 225,
+      "bytes": 20903,
+      "sha256": "ad5703c68f7ce56526117aadaee24d13561b4b2b82565488c60bfb6eba92b2b1",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-08-28"
+          "updated": "2026-09-05"
         },
         "errors": []
       },
@@ -13516,13 +13516,13 @@
             "evidence": [
               {
                 "kind": "code",
-                "target": "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts:716"
+                "target": "packages/showcase-plugins/bundles/host-v1.d.ts:716"
               }
             ]
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/plugin-ui-plane.md",

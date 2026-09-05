@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-09-02
+updated: 2026-09-05
 ---
 
 # Plugin distribution (#1238) — the teaching-plugins package + three install doors
@@ -17,7 +17,7 @@ This document is the build authority for #1238. Zero production code lands with 
 - **The teaching plugins live inside the server package's entry tier**: `packages/server/src/entry/boot/seed-assets/plugins/<slug>/{manifest.json,main.js,ui.js?,ui/assets/*,README.md}` — nine of them (`EXAMPLE_PLUGIN_SLUGS`, `packages/server/src/entry/boot/seed-example-plugins.ts:42-52`), plus the published SDK mirror `host-v1.d.ts`. The authoring README's own copy loop is `cp -r packages/server/src/entry/boot/seed-assets/plugins/oracle-deck …` (`seed-assets/plugins/README.md`) — five directories deep in a tier no plugin author has business reading. That is the "not easy to reach" half of the ruling.
 - **The rot mechanism is structural, not neglect**: the guest sources are `.js`, and `allowJs` is `false` repo-wide (`tsconfig.base.json:72`), so **no type program in the repo checks a single line of the nine `main.js`/`ui.js` files**. The only pinned artifact is the SDK mirror, held assignable against `@orb/contracts/plugin` by `tests/contracts/plugin/host-v1.test-d.ts` — the mirror is checked; the plugins that use it are not. An API change that breaks every seeded plugin is invisible until someone enables one.
 - **Seeding packs at runtime**: `packSeedPluginBundle` (`packages/server/src/entry/boot/seed-assets/index.ts:94-120`) zips the admitted entries (fixed mtime `:62` for byte-determinism) and the per-user seeder drives the REAL `install` + `setGrant` verbs — installed, disabled, zero grants, standing re-consent ask (`seed-example-plugins.ts:10-17`, same posture as admin distribution, `domain/plugin/substrate/distribution.ts:5-16`). `scripts/pack-plugin.ts` emits distributable zips through the same packer.
-- **Before-state finding (per ruling 6):** today's flow depends on image-build asset copying — the sources sit in server src explicitly *"so they ride the same `packages/server/src` COPY the image already makes — a repo-root `examples/` directory would not exist at runtime"* (`seed-assets/index.ts:82-83`; the copy is `Dockerfile` app-files stage). The demo-chat and avatar seed assets share this pattern. This design removes that dependence for plugins (§2); the sibling asset families are out of scope and named here as the same class.
+- **Before-state finding (per ruling 6):** today's flow depends on image-build asset copying — the sources sat in server src explicitly *"so they ride the same `packages/server/src` COPY the image already makes — a repo-root `examples/` directory would not exist at runtime"* (`packages/server/src/entry/boot/seed-assets/index.ts:1`, whose header now records the move; the copy is `Dockerfile` app-files stage). The demo-chat and avatar seed assets share this pattern. This design removes that dependence for plugins (§2); the sibling asset families are out of scope and named here as the same class.
 - **Two install doors exist today**, both landing in the ONE source-agnostic funnel: a zip dropzone (client preview `features/plugin/lib/plugin-bundle.ts:1-25` — explicitly a display read, not a trust boundary) and a URL fetch through the egress guard (`domain/plugin/verbs/install-from-url.ts:23-28`, preview via `preview-from-url.ts:18-24`). The funnel is `domain/plugin/substrate/manifest.ts` (`parseBundle`, unzip hardening + bomb caps + schema, header `:1-40`), and the law is written on it twice: *"a new origin is just another byte source, never a re-shape or a second install path"* (`@orb/contracts/plugin/lifecycle.ts:6-8`; `substrate/manifest.ts:2-4`).
 - **Update machinery exists for the url origin**: `checkForUpdates` (re-fetch manifest, leak-free `unreachable` collapse, `verbs/check-for-updates.ts:1-16`), `upgradeFromStoredUrl` (owner-load before any fetch; re-consent wall on widened reach rides `upgrade` unchanged, `verbs/upgrade-from-stored-url.ts:1-17`).
 - **Folder upload precedent**: `@orb/ui`'s `FolderPicker` (`packages/ui/src/primitives/file-dropzone/folder-picker.tsx:18-23`, `webkitdirectory`, files carry `webkitRelativePath`), consumed today by the Backup & Restore import pane (`features/workloads/components/import-library-section.tsx:1-17`) — the owner's "like we already have with our import shit".
@@ -27,6 +27,13 @@ This document is the build authority for #1238. Zero production code lands with 
 Priors consulted (shared memory, by filename): `plugin-node-kind-coupled-sites`, `plugin-tool-wire-name-is-one-mint`, `guest-vocabulary-subset-is-a-type`, `plugin-consent-is-reach`, `enable-is-the-escalation-not-the-read`, `plugin-fetched-cas-write-is-a-referencing-row`, `tooling-one-home-no-shortcuts`, `fflate-zip-mtime-timezone-fragile`, `kit-decompressionstream-gotchas`, `new-doc-catalog-two-commit-stack`, `axis-home-follows-reachability`, `workspace-package-sideeffects-field`, `new-router-needs-sweep-classification`.
 
 ## 2. Decision 1 — `@orb/showcase-plugins`, a runtime workspace package under `packages/`
+
+> **LANDED 2026-09-05 (#1692), with one deliberate carry-forward.** The package exists at
+> `packages/showcase-plugins/` and owns the nine bundles, the authoring guide and the published `host-v1.d.ts`;
+> `@orb/server` declares it and the seeder resolves `packShowcaseBundle` by node resolution. The `checkJs`
+> program over the guest sources — the ROT half of this section — did NOT land with the move and is its own
+> row: turning nine never-compiled `.js` files into a type program is a behaviour change, and the move is
+> byte-identical on purpose (pack-hash pin, `tests/showcase-plugins/index.test.ts`).
 
 **The teaching set becomes a real workspace package that `@orb/server` depends on, and the seeder reaches it by node resolution — no copy step, no generated mirror, no container involvement.**
 

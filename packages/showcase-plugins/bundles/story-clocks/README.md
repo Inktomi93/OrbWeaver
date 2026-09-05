@@ -10,7 +10,7 @@ plugin asks the narrator to take a turn and make it matter.
 ## Copy me
 
 ```bash
-cp -r packages/server/src/entry/boot/seed-assets/plugins/story-clocks /tmp/my-plugin
+cp -r packages/showcase-plugins/bundles/story-clocks /tmp/my-plugin
 # change `id` and `name` in manifest.json, edit main.js, then pack and install:
 pnpm plugin:pack story-clocks ./out
 ```

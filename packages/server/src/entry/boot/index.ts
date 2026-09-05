@@ -24,7 +24,7 @@ export { seedDefaultPreset } from "./seed-default-preset.ts";
 export type { SeedDemoChatsDeps } from "./seed-demo-chats.ts";
 export { seedDemoChats } from "./seed-demo-chats.ts";
 export type { ExamplePluginSeeder, ExamplePluginSeederDeps } from "./seed-example-plugins.ts";
-export { createExamplePluginSeeder, EXAMPLE_PLUGIN_SLUGS } from "./seed-example-plugins.ts";
+export { createExamplePluginSeeder } from "./seed-example-plugins.ts";
 export type { SeedExamplePluginsDeps } from "./seed-example-plugins-step.ts";
 export { seedExamplePlugins } from "./seed-example-plugins-step.ts";
 export type { SeedOwnerDeps } from "./seed-owner.ts";

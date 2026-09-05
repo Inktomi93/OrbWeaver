@@ -16,6 +16,11 @@
 // is furniture. Neither verb is re-implemented here — the seeder drives the SAME trust edge a hand install
 // drives, so the bundle meets the same unzip hardening, the same manifest validation and the same CAS store.
 //
+// WHICH BUNDLES, AND WHERE THEY LIVE (#1692): the set is `SHOWCASE_PLUGIN_SLUGS`, owned by the
+// `@orb/showcase-plugins` workspace package the server DECLARES as a dependency — the bytes arrive by NODE
+// RESOLUTION, never a path literal into this tier. This module knows the slug tuple and nothing else about
+// the content; the bytes themselves come in as the injected `packBundle` op.
+//
 // IDEMPOTENCY HAS TWO LAYERS (the persona/character seeder shape — one layer is not enough, #461):
 //   1. the persisted latch `UserSettings.onboarding.examplePluginsSeeded` — once true it never re-runs, which
 //      is also the DELETION-RESPECT guard (a user who removed an example must not have it resurrected);
@@ -31,27 +36,8 @@
 import type { Principal } from "@orb/contracts/identity";
 import { errorMessage } from "@orb/kit/error-message";
 import type { PluginId, UserId } from "@orb/kit/ids";
+import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { getLog } from "#foundation/observability";
-
-/** The seeded examples, by bundle slug — the directory names under `boot/seed-assets/plugins/`. ONE per
- *  ARCHETYPE, which is what makes the set a menu rather than a demo: event reactor (research-familiar), tool
- *  provider + the whole UI plane (oracle-deck), quiet thinker + Tier-C (affinity-tracker), text pipeline
- *  (draft-polish), room surface + composition subscriber (scene-chips), room mechanics over chat variables
- *  (story-clocks), the ui.frame escape hatch (pocket-arcade), spend pipeline — quiet LLM + imagery
- *  (keepsake-camera), and the hub browser flagship (card-atlas). Adding a tenth is this tuple plus its
- *  source directory; nothing else here is per-plugin. The set's design + coverage matrix:
- *  `docs/design/plugin-showcase-set.md` (#774). */
-export const EXAMPLE_PLUGIN_SLUGS = [
-  "research-familiar",
-  "oracle-deck",
-  "affinity-tracker",
-  "draft-polish",
-  "scene-chips",
-  "story-clocks",
-  "pocket-arcade",
-  "keepsake-camera",
-  "card-atlas",
-] as const;
 
 /** What ONE slug's pass can produce, homed as a tuple and DERIVED from (never re-spelled — the axis rule).
  *  `installed`/`present` both mean "accounted for"; `unavailable` means the pack shipped no such bundle, which
@@ -113,7 +99,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
     // Concurrent across SLUGS, and that is safe rather than merely convenient: each example is an independent
     // `(owner, slug)` row with its own CAS asset, so two passes share no row and cannot race each other. A
     // throw in any one of them rejects the whole pass — which is the intent: a partial seed must not latch.
-    const outcomes = await Promise.all(EXAMPLE_PLUGIN_SLUGS.map(async (slug) => ({ slug, outcome: await seedOne(principal, slug) })));
+    const outcomes = await Promise.all(SHOWCASE_PLUGIN_SLUGS.map(async (slug) => ({ slug, outcome: await seedOne(principal, slug) })));
     const minted = outcomes.filter((row) => row.outcome === "installed").length;
     const unavailable = outcomes.filter((row) => row.outcome === "unavailable").map((row) => row.slug);
     // THE LATCH IS A COMPLETENESS CLAIM (#1411). `examplePluginsSeeded` is read by `isSeeded` BEFORE any slug

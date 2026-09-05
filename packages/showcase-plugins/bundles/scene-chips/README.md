@@ -9,7 +9,7 @@ drops its text into your composer, where you edit it and send it as your own lin
 ## Copy me
 
 ```bash
-cp -r packages/server/src/entry/boot/seed-assets/plugins/scene-chips /tmp/my-plugin
+cp -r packages/showcase-plugins/bundles/scene-chips /tmp/my-plugin
 # change `id` and `name` in manifest.json, edit main.js, then pack and install:
 pnpm plugin:pack scene-chips ./out    # → ./out/scene-chips-1.0.0.zip
 ```

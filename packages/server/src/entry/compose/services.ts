@@ -45,6 +45,7 @@ import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, PersonaId, PluginId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
+import { packShowcaseBundle } from "@orb/showcase-plugins";
 import { and, eq, isNull } from "drizzle-orm";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
@@ -107,7 +108,7 @@ import { createSocketRegistry } from "../../transport/trpc/stream/socket-registr
 import { createHostPrincipalResolver } from "../auth/index.ts";
 import type { DefaultPersonaSeeder, DistributedPluginApplier, ExamplePluginSeeder } from "../boot/index.ts";
 import { createDistributedPluginApplier, createExamplePluginSeeder } from "../boot/index.ts";
-import { packSeedPluginBundle, readSeedDemoChat } from "../boot/seed-assets/index.ts";
+import { readSeedDemoChat } from "../boot/seed-assets/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import { buildImportContext } from "../import/index.ts";
 import { buildAdmin } from "./admin.ts";
@@ -1126,7 +1127,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // path: the bundle meets the same unzip hardening, manifest validation and CAS store a hand upload meets,
   // and `install`'s own `(owner, slug)` collision refusal is the seeder's layer-2 idempotency.
   const examplePluginSeeder = createExamplePluginSeeder({
-    packBundle: packSeedPluginBundle,
+    packBundle: packShowcaseBundle,
     // An EMPTY grant, deliberately (the seeder's header): the row lands able to do nothing at all.
     install: async ({ caller, bundle }) => await services.plugin.install({ caller, bundle, grant: [] }),
     // …and the empty RE-GRANT right after it, which is what raises `pending_reconsent` — the standing "this

@@ -10,7 +10,7 @@ catches also lands in its album page under the Extensions rail.
 ## Copy me
 
 ```bash
-cp -r packages/server/src/entry/boot/seed-assets/plugins/keepsake-camera /tmp/my-plugin
+cp -r packages/showcase-plugins/bundles/keepsake-camera /tmp/my-plugin
 # change `id` and `name` in manifest.json, edit main.js, then pack and install:
 pnpm plugin:pack keepsake-camera ./out
 ```

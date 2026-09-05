@@ -54,7 +54,7 @@ const IDS_MODULE = "packages/kit/src/ids/index.ts";
  *  class where the marker answer would be dozens of internal-enforcement comments inside an artifact whose
  *  AUDIENCE is outside the repo. */
 const FILE_CLASS_EXEMPT: ExemptionTable = {
-  "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts": {
+  "packages/showcase-plugins/bundles/host-v1.d.ts": {
     why:
       "the PUBLISHED plugin-SDK mirror (#774): a self-contained, script-kind .d.ts a plugin AUTHOR copies out " +
       "of the repo — brands are deliberately flattened to documented `string` (a guest never constructs one), " +
@@ -423,7 +423,7 @@ export const gate: GateDescriptor = {
       files: {
         [IDS_MODULE]: 'export type ChatId = TypeIdOf<"chat">;\n',
         [REAL_TREE_ANCHOR]: "export const anchor = 1;\n",
-        "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts": "interface PluginMessageView {\n  readonly chatId: string;\n}\n",
+        "packages/showcase-plugins/bundles/host-v1.d.ts": "interface PluginMessageView {\n  readonly chatId: string;\n}\n",
       },
       why: "the FILE-CLASS exemption holds: the published SDK mirror spells branded positions as documented `string` BY CONTRACT (its drift pin is the enforcement), and its presence also satisfies the mode-(B) stale arm",
     },

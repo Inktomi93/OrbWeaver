@@ -1973,6 +1973,7 @@
     "tests/server/transport/trpc/subscriptions.test.ts",
     "tests/server/transport/trpc/trpc.test.ts",
     "tests/server/transport/trpc/user-events-bus.test.ts",
+    "tests/showcase-plugins/index.test.ts",
     "tests/support/chat/scenario.int.test.ts",
     "tests/support/ct/story-shot.test.ts",
     "tests/support/ct/touch-floor.ct.tsx",

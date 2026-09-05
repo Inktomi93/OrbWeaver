@@ -24,7 +24,7 @@ import { fileLoaded } from "../lib/pass.ts";
  *  CONTRACT is to re-spell homed axes. Two-sided via the finalize mode-(B) stale arm (a key the walk never
  *  sees is RED), anchored on a real-tree file no example plants. */
 const FILE_CLASS_EXEMPT: ExemptionTable = {
-  "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts": {
+  "packages/showcase-plugins/bundles/host-v1.d.ts": {
     why:
       "the PUBLISHED plugin-SDK mirror (#774): a self-contained, script-kind .d.ts a plugin AUTHOR copies out " +
       "of the repo — it cannot import the canonical tuples, so its unions re-spell them BY CONTRACT, and " +
@@ -417,7 +417,7 @@ export const gate: GateDescriptor = {
       files: {
         [REAL_TREE_ANCHOR_UNION]: "export const anchor = 1;\n",
         "packages/contracts/src/some-home.ts": "export const AXIS = ['a', 'b', 'c'] as const;\n",
-        "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts": "type Axis = 'a' | 'b' | 'c';\n",
+        "packages/showcase-plugins/bundles/host-v1.d.ts": "type Axis = 'a' | 'b' | 'c';\n",
       },
       why: "the FILE-CLASS exemption holds: the published SDK mirror re-spells homed axes BY CONTRACT (it cannot import them; its drift pin is the enforcement), and its presence also satisfies the mode-(B) stale arm",
     },

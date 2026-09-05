@@ -11,7 +11,7 @@ exactly what was typed; one seam changes what the model reads, the other what yo
 ## Copy me
 
 ```bash
-cp -r packages/server/src/entry/boot/seed-assets/plugins/draft-polish /tmp/my-plugin
+cp -r packages/showcase-plugins/bundles/draft-polish /tmp/my-plugin
 # change `id` and `name` in manifest.json, edit main.js, then pack and install:
 pnpm plugin:pack draft-polish ./out    # → ./out/draft-polish-1.0.0.zip
 ```

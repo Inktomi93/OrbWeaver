@@ -9,7 +9,7 @@ keys or the on-screen pad; the board inherits whatever theme the app is wearing.
 ## Copy me
 
 ```bash
-cp -r packages/server/src/entry/boot/seed-assets/plugins/pocket-arcade /tmp/my-plugin
+cp -r packages/showcase-plugins/bundles/pocket-arcade /tmp/my-plugin
 # change `id` and `name` in manifest.json, edit main.js, then pack and install:
 pnpm plugin:pack pocket-arcade ./out
 ```

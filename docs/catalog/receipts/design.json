@@ -135,7 +135,7 @@
             },
             {
               "kind": "code",
-              "target": "packages/server/src/entry/boot/seed-assets/index.ts:82"
+              "target": "packages/server/src/entry/boot/seed-assets/index.ts:1"
             },
             {
               "kind": "test",
@@ -1524,7 +1524,7 @@
           "evidence": [
             {
               "kind": "code",
-              "target": "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts:716"
+              "target": "packages/showcase-plugins/bundles/host-v1.d.ts:716"
             }
           ]
         }

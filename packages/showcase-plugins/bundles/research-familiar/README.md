@@ -10,7 +10,7 @@ encyclopedia, not an LLM.
 ## Copy me
 
 ```bash
-cp -r packages/server/src/entry/boot/seed-assets/plugins/research-familiar /tmp/my-plugin
+cp -r packages/showcase-plugins/bundles/research-familiar /tmp/my-plugin
 # change `id` and `name` in manifest.json, edit main.js, then pack and install:
 pnpm plugin:pack research-familiar ./out    # → ./out/research-familiar-1.0.0.zip
 ```
