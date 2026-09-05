@@ -71,6 +71,14 @@ export const refinerySessions = sqliteTable(
     // splicing, the `{{input}}` guided precedent. SQLite has no length domain; the belt is the verb.
     guidance: text("guidance"),
     iterationCount: integer("iteration_count").notNull().default(0),
+    // THE ROUND CLAIM (#1568) — a LEASE DEADLINE in epoch ms, not a boolean flag, and that is the whole
+    // design: a flag set by a process that then crashes wedges the session forever, whereas a deadline in
+    // the past IS a free session with no reaper, no heartbeat and no boot sweep to own. NULL = no round in
+    // flight. `iterate` takes it with a conditional UPDATE (`inflight_until IS NULL OR inflight_until < now`)
+    // BEFORE it pays for any model call and clears it on both the commit and the failure arm; the TTL is
+    // only the crash backstop (`domain/refinery/substrate/round-claim.ts` owns the number + its reason).
+    // NOT indexed: every read of it is by the sessions PK.
+    inflightUntil: integer("inflight_until"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

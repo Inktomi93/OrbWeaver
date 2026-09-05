@@ -1333,6 +1333,7 @@
     "tests/server/domain/refinery/substrate/accept-belts.test.ts",
     "tests/server/domain/refinery/substrate/output-budget.test.ts",
     "tests/server/domain/refinery/substrate/refine-prompt.test.ts",
+    "tests/server/domain/refinery/substrate/round-claim.int.test.ts",
     "tests/server/domain/refinery/substrate/schema-forge.test.ts",
     "tests/server/domain/refinery/substrate/schema-library.test.ts",
     "tests/server/domain/refinery/substrate/stage-parse.test.ts",
