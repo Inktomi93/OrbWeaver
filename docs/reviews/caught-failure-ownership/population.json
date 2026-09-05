@@ -3465,7 +3465,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/agent-runner.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/backends/agent-sdk/agent-runner.ts",
-      "line": 133,
+      "line": 139,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3473,7 +3473,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an MCP status-probe failure is a diagnostic miss that collapses to undefined (no health reported); it gates no auth/credential/turn decision. Ends if MCP health ever gates a turn.",
-      "markerLine": 130
+      "markerLine": 136
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/env.ts::empty:catch::1",
@@ -3517,7 +3517,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/runner.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/backends/agent-sdk/runner.ts",
-      "line": 368,
+      "line": 376,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3525,7 +3525,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a bounded context-fill probe collapses any throw/timeout to undefined (usage absent); purely diagnostic, gates no turn/auth decision. Ends if context usage ever gates a turn.",
-      "markerLine": 364
+      "markerLine": 372
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/terminal-tools.ts::empty:err::1",

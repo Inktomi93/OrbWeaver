@@ -102,8 +102,16 @@ type MountedOptions = Pick<Options, "mcpServers" | "hooks" | "allowedTools">;
 
 /** UNION the channel fragments instead of spreading them: a plain spread lets the later fragment DELETE the
  *  earlier one's whole `mcpServers`/`hooks` map — which would silently drop the mid-conversation system channel
- *  (or a whole tool mount) on any turn that carries both. Per-event hook matcher lists concatenate. */
-function mergeMountedOptions(...fragments: readonly Partial<MountedOptions>[]): MountedOptions {
+ *  (or a whole tool mount) on any turn that carries both. Per-event hook matcher lists concatenate.
+ *
+ *  THE PER-KEY MERGE STAYS A SPREAD, NEVER `Object.assign` (#1612 — the constraint's home is
+ *  `agent-runner.ts::toSdkExternalServers`): a mount name is caller-supplied on the agent path, so the record
+ *  can hold `__proto__` as an OWN property, and only a spread copies it — `Object.assign` routes it through the
+ *  prototype setter and the entry vanishes with nothing red. No chat-side fragment is caller-keyed TODAY, which
+ *  is why this is a mechanism pin rather than a live hole; a future caller-keyed fragment inherits the rule.
+ *
+ *  Exported for that unit pin only — not a composition surface. */
+export function mergeMountedOptions(...fragments: readonly Partial<MountedOptions>[]): MountedOptions {
   const merged: MountedOptions = {};
   for (const { hooks, mcpServers, allowedTools } of fragments) {
     if (mcpServers !== undefined) {

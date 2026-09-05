@@ -89,6 +89,12 @@ const RESERVED_MCP_NAMESPACES: ReadonlySet<string> = new Set([MCP_NAMESPACE, TER
  * `Object.fromEntries` rather than `out[name] = …`: a plain assignment with the caller-supplied key
  * `__proto__` sets the object's PROTOTYPE instead of an own property, so that server would vanish from the
  * mount with no error. `fromEntries` defines own data properties for every key.
+ *
+ * EVERY COPY OF THIS RECORD MUST BE A SPREAD, NEVER `Object.assign` (#1612): a `__proto__` key here is an OWN
+ * property, and spread copies it with CreateDataProperty where `Object.assign` uses [[Set]] and hands it to
+ * `Object.prototype`'s `__proto__` setter — which drops the entry silently. The mount build below and the chat
+ * side's `mergeMountedOptions` are both spreads today, and both are pinned; the vendored SDK's own handling of
+ * `options.mcpServers` is outside our control, so this is a constraint on OUR copies only.
  */
 function toSdkExternalServers(specs: Readonly<Record<string, AgentMcpServerSpec>> | undefined, model: string): Record<string, McpServerConfig> {
   if (specs === undefined) {
