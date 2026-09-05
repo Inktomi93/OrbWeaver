@@ -81,6 +81,27 @@ export interface OrSkinTierModels {
  *  comparator merges consecutive user rows with this SAME joiner, so a stored session frame still matches next turn's seed. */
 export const AGENT_PROMPT_TAIL_JOINER = "\n\n";
 
+/**
+ * THE CONTINUATION STUB — the one `prompt` an agent-sdk turn sends when the transcript has no trailing USER row
+ * (a continue turn, or the `[…, assistant, tool]` tail a tool exchange leaves). The SDK cannot be queried
+ * without a user message, and the alternative was flattening the WHOLE transcript into that string, where a
+ * turn boundary is TEXT — a blank line plus a label — and hostile content carrying `\n\nUser: …` forged a turn
+ * the host never wrote (#1593). Seeding every row as its own FRAME and asking this stub removes the string, and
+ * with it the whole forge surface: content inside a JSON frame cannot create another frame (owner ruling
+ * 2026-09-05, #1607).
+ *
+ * HOST-AUTHORED AND SESSION-ONLY — the `GREETING_USER_STUB` precedent (`backends/agent-sdk/session/frames.ts`),
+ * which solves the mirror problem (a session must start user-first). It is never persisted to canon and never
+ * shown to a human, so the NEXT turn's canon-derived seed cannot contain it: the stored session holds one extra
+ * user run and the comparator reseeds a deterministic lineage instead of resuming. That costs nothing on the
+ * wire (SDK prompt caching is CONTENT-keyed, so the rebuilt prefix still cache-reads) and it is strictly better
+ * than the arm it replaces, which ran every continue turn on a throwaway session with no seed at all.
+ *
+ * Carries NO role label, deliberately: the query is not a transcript, so there is no host spelling in it for
+ * content to imitate. The prose is the in-fiction register the greeting stub already set.
+ */
+export const AGENT_CONTINUATION_PROMPT_STUB = "*The scene continues.*";
+
 /** Fields every chat call carries regardless of which sealed backend runs it. */
 interface ChatRequestCommon {
   readonly credential: ResolvedCredential;

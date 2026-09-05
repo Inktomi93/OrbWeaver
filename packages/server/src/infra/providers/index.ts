@@ -241,6 +241,7 @@ export type {
   WireTool,
 } from "./contract/index.ts";
 export {
+  AGENT_CONTINUATION_PROMPT_STUB,
   AGENT_DIALOG_KINDS,
   AGENT_PROMPT_TAIL_JOINER,
   BACKEND_KEYS,
