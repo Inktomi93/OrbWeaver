@@ -41,6 +41,11 @@ function isOrbPresetFile(parsed: unknown): boolean {
   return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) && (parsed as Record<string, unknown>)["schemaKind"] === PRESET_SCHEMA_KIND;
 }
 
+/** A thrown value's own sentence — the detail every failure arm below quotes rather than paraphrases. */
+function reasonOf(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
+}
+
 /** The name an `orb.preset` file declares — the merge key the dialog names in its summary. Falls back to
  *  the verb's own default for a nameless file, so the copy can't promise a name the server won't use. */
 function orbFileName(parsed: unknown): string {
@@ -81,35 +86,55 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
     // promise, where a state read would be the stale capture that causes this class in the first place.
     const token = pickToken.current + 1;
     pickToken.current = token;
-    // @orb-gate-ignore caught-failure-ownership(promise:text): the .catch below explicitly sets a detailed
-    // error state (the sniffer fall-through comment) — a rendered failure surface. Ends if the error state
-    // stops being written.
+    // @orb-gate-ignore caught-failure-ownership(promise:text): every failure arm here — the read, the JSON
+    // parse and the ST reader's refusal — explicitly sets a detailed error state, a rendered failure
+    // surface. Ends if any of those arms stops writing the error state.
     void file
       .text()
       .then((text) => {
         if (pickToken.current !== token) {
           return; // a later pick already owns this dialog
         }
-        const json: unknown = JSON.parse(text);
+        let json: unknown;
+        // NOT-JSON IS THE ONLY TRUE "NEITHER" (#1390). Nothing was read, so nothing matched, and the
+        // sniffer's fall-through problem F-10 named does not arise: there is no parser voice to mistake for
+        // the door's verdict yet.
+        try {
+          json = JSON.parse(text);
+        } catch (cause: unknown) {
+          setError(
+            `That file isn't valid JSON, so neither an orbweaver preset export nor a SillyTavern Chat Completion preset could be read from it. (${reasonOf(cause)})`,
+          );
+          return;
+        }
         if (isOrbPresetFile(json)) {
           setParsed({ arm: "orb", name: orbFileName(json), fileText: text });
           return;
         }
+        let result: StImportResult;
+        // THE ST READER'S REFUSAL IS ATTRIBUTED, NOT RESTATED AS A VERDICT (#1390, keeping F-10's repair).
+        // Since #1363 this mapper REFUSES a recognised SillyTavern preset that maps to a config orb cannot
+        // store — and its message says so in the first person ("This SillyTavern preset mapped to…"). The
+        // old single catch wrapped that in "it matched neither … nor a SillyTavern Chat Completion preset",
+        // which contradicts the sentence inside its own parentheses. F-10's actual requirement is that the
+        // ST parser must not speak for the WHOLE door (a malformed orb file lands here too), and that is met
+        // by stating the orb arm was ruled out and then quoting the ST reader as the ST reader.
+        try {
+          result = importStChatCompletionPreset(json);
+        } catch (cause: unknown) {
+          setError(`orbweaver couldn't import this file. It isn't an orbweaver preset export, and the SillyTavern reader stopped: ${reasonOf(cause)}`);
+          return;
+        }
         const base = file.name.replace(JSON_EXT, "");
-        setParsed({ arm: "st", name: base === "" ? "Imported preset" : base, result: importStChatCompletionPreset(json) });
+        setParsed({ arm: "st", name: base === "" ? "Imported preset" : base, result });
       })
       .catch((cause: unknown) => {
         if (pickToken.current !== token) {
           return; // a superseded pick's failure is not this dialog's story
         }
-        // THE SNIFFER'S FALL-THROUGH IS NOT A VERDICT (side-eye F-10): a malformed ORB file fails
-        // `isOrbPresetFile`, lands in the ST arm, and its parser says "Not a SillyTavern preset…" — true,
-        // and completely misleading about the file the user actually picked. The door reads TWO formats, so
-        // a rejection says it matched NEITHER, and keeps the parser's own reason as the detail.
-        const detail = cause instanceof Error ? cause.message : String(cause);
-        setError(
-          `That file isn't a preset this can read — it matched neither an orbweaver preset export nor a SillyTavern Chat Completion preset. (${detail})`,
-        );
+        // The only thing left that can reject here is the READ itself — the two parse verdicts above own
+        // their own arms, so this one no longer has to speak for them.
+        setError(`That file couldn't be read. (${reasonOf(cause)})`);
       });
   };
 

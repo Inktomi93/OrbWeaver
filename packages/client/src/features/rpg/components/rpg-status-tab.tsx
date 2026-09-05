@@ -30,7 +30,7 @@ import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useEditSnapshot, usePatchActor } from "../hooks/use-rpg-mutations.ts";
-import { actorKey } from "../lib/actor-key.ts";
+import { actorKey, actorSubjects } from "../lib/actor-key.ts";
 import type { ActorEdit } from "./rpg-actor-trackers.tsx";
 import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers.tsx";
 import { RpgCharacterDetail } from "./rpg-character-detail.tsx";
@@ -58,6 +58,11 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   // (on stage) and in its Known-characters disclosure (offstage); duplicating them here would give one person
   // two edit homes, which is the dual-homing rule this IA exists to obey.
   const characters = tracker.actors.filter((a) => a.actorRef.kind !== "cast");
+  // The a11y subject per character — the display name, qualified by roster position ONLY where two entries
+  // carry the same name (#1531). Derived over the FILTERED list, because the collision that matters is the
+  // one a reader actually hears in this tab: a cast actor with the same name lives on Scene and is never in
+  // this tree, so qualifying against it would rename a character for a rival nobody here can reach.
+  const subjects = actorSubjects(characters);
 
   if (characters.length === 0) {
     return <Text>No characters yet — add them in Members.</Text>;
@@ -143,7 +148,15 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
       ) : null}
       {characters.map((actor) => {
         const edit = editFor(actor);
-        return <RpgStatusCard key={actorKey(actor)} actor={actor} onOpen={(): void => setOpenKey(actorKey(actor))} {...(edit === undefined ? {} : { edit })} />;
+        return (
+          <RpgStatusCard
+            key={actorKey(actor)}
+            actor={actor}
+            subject={subjects.get(actorKey(actor)) ?? actor.name}
+            onOpen={(): void => setOpenKey(actorKey(actor))}
+            {...(edit === undefined ? {} : { edit })}
+          />
+        );
       })}
       {/* The host-only Veiled ledger — LIVE off `rpg.revealHidden` (its own boundary; empty/error ⇒
           null). PERMISSION-omit: a member never mounts it, so member DOM carries zero veiled content. */}
@@ -154,6 +167,9 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
 
 interface RpgStatusCardProps {
   readonly actor: RpgActorView;
+  /** How this character is NAMED to a reader — `actor.name`, qualified by roster position when a same-named
+   *  entry shares the tab (`actorSubjects`, #1531). Every accessible name on the card is built from it. */
+  readonly subject: string;
   readonly edit?: ActorEdit;
   /** Open this character's takeover (the card's name is the door). */
   readonly onOpen: () => void;
@@ -171,22 +187,28 @@ interface RpgStatusCardProps {
  *  through the tracker kit's `subject` grammar (the disambiguation). Either alone still collides — a group
  *  boundary does not rename the controls, and unique names alone leave no structure to navigate by.
  *
+ *  …AND THE SUBJECT IS NOT THE RAW NAME (#1531). Both halves above are built on the display name, so two
+ *  roster entries carrying the SAME name (legal — #1366 keys distinct spellings distinctly, identical ones
+ *  stay allowed) put the region straight back where it started: two groups sharing one label, and every
+ *  control name duplicated across them. The card is handed a `subject` that `actorSubjects` has already
+ *  qualified where — and only where — it collides.
+ *
  *  There is no relationship badge here (R2). It joined a seated character to a scene-cast row by
  *  `presentCharacters[].characterId` — a field NO writer in the tree ever set, so the badge rendered for
  *  nobody. A stance is a CAST actor's datum (it lives on `identity`, and the Scene card is its home); a seated
  *  member's relationship to the player is the story's, not a tracked plane's. */
-function RpgStatusCard({ actor, edit, onOpen }: RpgStatusCardProps): ReactElement {
+function RpgStatusCard({ actor, subject, edit, onOpen }: RpgStatusCardProps): ReactElement {
   const volatile = actor.volatile;
   return (
-    <Stack gap="field" data-slot="rpg-status-card" role="group" aria-label={actor.name} className="rounded-base border border-border bg-card px-block py-row">
+    <Stack gap="field" data-slot="rpg-status-card" role="group" aria-label={subject} className="rounded-base border border-border bg-card px-block py-row">
       <Row gap="block" align="center" justify="between">
         <Row gap="field" align="center" className="min-w-0">
           <Button
             intent="ghost"
             size="inline"
             onClick={onOpen}
-            aria-label={`Open ${actor.name}`}
-            title={`Open ${actor.name}'s sheet`}
+            aria-label={`Open ${subject}`}
+            title={`Open ${subject}'s sheet`}
             className="min-w-0 px-field font-medium"
           >
             <Avatar size="md" shape="rounded" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
@@ -204,14 +226,14 @@ function RpgStatusCard({ actor, edit, onOpen }: RpgStatusCardProps): ReactElemen
           </Text>
         )}
       </Row>
-      <StatusLine status={volatile?.status ?? ""} subject={actor.name} {...(edit === undefined ? {} : { edit })} />
+      <StatusLine status={volatile?.status ?? ""} subject={subject} {...(edit === undefined ? {} : { edit })} />
 
-      <ActorMeters actor={actor} subject={actor.name} {...(edit === undefined ? {} : { edit })} />
-      <ActorTrackerRows actor={actor} subject={actor.name} {...(edit === undefined ? {} : { edit })} />
+      <ActorMeters actor={actor} subject={subject} {...(edit === undefined ? {} : { edit })} />
+      <ActorTrackerRows actor={actor} subject={subject} {...(edit === undefined ? {} : { edit })} />
 
       <ConditionChips
         conditions={volatile?.conditions ?? []}
-        subject={actor.name}
+        subject={subject}
         {...(edit === undefined ? {} : { onAdd: edit.onAddCondition, onRemove: edit.onRemoveCondition, edit })}
       />
     </Stack>

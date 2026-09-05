@@ -644,6 +644,60 @@ test("#1383 Status: every character block is a NAMED GROUP and no control name c
   expect(findings, "the Status region must carry no nameless or ambiguous control").toEqual([]);
 });
 
+/** Two characters carrying the SAME display name. Legal by construction — #1366 keys distinct SPELLINGS
+ *  distinctly, so identical spellings remain a thing a roster can hold — and the shape #1531 measured: the
+ *  whole #1383 repair is built on `actor.name`, so an identical name collapses BOTH halves at once. */
+function sameNameTrackerView(): unknown {
+  const base = trackerView(false) as Record<string, unknown>;
+  const actors = base["actors"] as Record<string, unknown>[];
+  const mara = actors.find((a) => a["name"] === "Mara") as Record<string, unknown>;
+  const twin = { ...mara, actorRef: { kind: "character", characterId: "character_ct_mara_twin" } };
+  return { ...base, actors: [...actors, twin] };
+}
+
+// #1531 — the #1383 repair's own blind spot. Two entries named "Mara" published two groups with ONE
+// accessible name and a byte-identical control set under each, which is exactly the state #1383 exists to
+// prevent, reached by a legal roster instead of by a missing feature. The qualifier is roster POSITION
+// because it is the one disambiguator a reader can hear (an actor key read aloud is not) and it tells them
+// there is more than one. The UNCONTENDED case is fenced by the #1383 test above, which asserts the bare
+// `group "Mara"` for a distinct-name roster — qualifying unconditionally reds it.
+test("#1531 Status: two SAME-NAMED characters still resolve to distinct group and control names", async ({ mount, page }) => {
+  await stubTakeover(page, { tracker: sameNameTrackerView() });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
+
+  const tab = component.locator('[data-slot="rpg-status-tab"]');
+  // SETTLED barrier: both cards have painted their control sets before any name is read or counted.
+  await expect(tab.locator('[data-slot="rpg-status-card"]')).toHaveCount(2);
+
+  // HALF 1 — two boundaries, two names. Before the fix both were "Mara".
+  await expect(component.getByRole("group", { name: "Mara (1 of 2)", exact: true })).toBeVisible();
+  await expect(component.getByRole("group", { name: "Mara (2 of 2)", exact: true })).toBeVisible();
+  await expect(component.getByRole("group", { name: "Mara", exact: true }), "the colliding bare name must be gone").toHaveCount(0);
+
+  // HALF 2 — every control, including the card's own door, resolves to exactly one node by name.
+  for (const name of [
+    "Open Mara (1 of 2)",
+    "Open Mara (2 of 2)",
+    "Mara (1 of 2) Vitality value",
+    "Mara (2 of 2) Vitality value",
+    "Mara (1 of 2) Status line",
+    "Mara (2 of 2) Status line",
+    "Add condition to Mara (1 of 2)",
+    "Add condition to Mara (2 of 2)",
+  ]) {
+    await expect(tab.getByRole("button", { name, exact: true }), `"${name}" must name exactly one control`).toHaveCount(1);
+  }
+  // …and the names that named TWO controls each now name none.
+  for (const collided of ["Open Mara", "Mara Vitality value", "Mara Status line", "Add condition to Mara"]) {
+    await expect(tab.getByRole("button", { name: collided, exact: true }), `the colliding "${collided}" must be gone`).toHaveCount(0);
+  }
+
+  // THE FLOOR — the house tree probe over Playwright's own accessible-name computation.
+  const findings = ariaTreeFindings(await tab.ariaSnapshot());
+  expect(findings, "a same-named roster must still carry no nameless or ambiguous control").toEqual([]);
+});
+
 test("#1383 Status: a meter's fields carry the label, so the loose `HP` / `/` text nodes leave the a11y tree", async ({ mount, page }) => {
   await stubTakeover(page, { tracker: twoCharacterTrackerView() });
   const component = await mount(<RpgTakeoverStory />);
@@ -3890,13 +3944,35 @@ test.describe("coarse HUD budget", () => {
             gameCells: gameCells?.getBoundingClientRect().height ?? 0,
           };
         });
-      const measured = await measureBand();
+      // EVERY RATIO IS POLLED, AND THE FIRST SAMPLE IS GATED (#1575). This pin used to take ONE
+      // `measureBand()` the instant the band became visible and assert two ratios against it
+      // SYNCHRONOUSLY, so it was reading a layout that had not finished settling: under a sibling CT batch
+      // (load-avg ~24) the @320 arm and the @375 arm went red on alternate runs and both passed alone. A
+      // one-shot readiness sample cannot certify a surface that settles later — the band being visible says
+      // nothing about the panel it shares the pane with, or about the metrics the rail is still measured
+      // in. So: wait for the ACTIVE tab panel (the thing the first ratio is about) and for webfont
+      // swap-in, then poll each ratio to its settled value. The thresholds below are UNCHANGED — the fix
+      // is when the numbers are read, never how much slack they are given.
+      await expect(component.locator('[data-slot="tabs-panel"]:not([hidden])')).toBeVisible();
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+      });
 
       // MEASURED before: 18/464 ≈ 0.04. The floor is a FRACTION of the pane, set below the value the
       // composition affords rather than at it — this fences the collapse, it does not pin the pixel.
-      expect(measured.panel / measured.pane).toBeGreaterThan(0.3);
+      await expect
+        .poll(async () => {
+          const m = await measureBand();
+          return m.panel / m.pane;
+        })
+        .toBeGreaterThan(0.3);
       // …and the band is no longer the majority shareholder of a phone pane (227/464 ≈ 0.49 before).
-      expect(measured.band / measured.pane).toBeLessThan(0.35);
+      await expect
+        .poll(async () => {
+          const m = await measureBand();
+          return m.band / m.pane;
+        })
+        .toBeLessThan(0.35);
       // The game rail is ONE row of cells, not two: 105px of two-row wrap became ~50px of scrollable row.
       // The fence is on the CELLS, which is the thing the wrap doubled — the rail BLOCK now also carries
       // the kicker row the owner pick keeps at coarse (#102 variant A), and folding a deliberate 20px of
@@ -3904,7 +3980,15 @@ test.describe("coarse HUD budget", () => {
       // inside the allowance. Both are pinned: the cells stay one row, and the block's non-cell chrome
       // stays under a cell row (measured 70.25 total against 50.25 of cells).
       await expect.poll(async () => (await measureBand()).gameCells).toBeLessThan(70);
-      expect(measured.gameRail - measured.gameCells).toBeLessThan(measured.gameCells);
+      // The same fence as before — the block's non-cell chrome stays under a cell row — expressed as the
+      // RATIO so both terms come from ONE settled sample instead of one polled term compared against a
+      // stale one-shot's denominator.
+      await expect
+        .poll(async () => {
+          const m = await measureBand();
+          return (m.gameRail - m.gameCells) / m.gameCells;
+        })
+        .toBeLessThan(1);
     });
 
     test(`@${pane.width}: every game tab is still REACHABLE — the single row scrolls, it does not clip`, async ({ mount, page }) => {

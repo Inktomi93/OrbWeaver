@@ -1034,6 +1034,51 @@ test("G6 the SAME door takes a SillyTavern preset — sniffed to the ST arm, cre
   expect(trpc.count("preset.importFile")).toBe(0);
 });
 
+/** A RECOGNISED SillyTavern preset that orb REFUSES. It has `prompts` + `prompt_order`, so the mapper's own
+ *  recognition check admits it — and then #1363's intact-parse belt rejects it, because the literal section
+ *  it builds carries content past the schema's 100k bound. That refusal is the state #1390 measured: a file
+ *  the ST reader itself calls "This SillyTavern preset…" being told it matched no SillyTavern preset. */
+const REFUSED_ST_FILE = JSON.stringify({
+  temperature: 0.9,
+  prompts: [{ identifier: "lore-dump", name: "Lore dump", content: "x".repeat(100_001) }],
+  // COMPUTED KEYS, not literals: these are ST's own snake_case WIRE names and must match the foreign JSON
+  // verbatim, which `useNamingConvention` reads as a violation on a literal property. The bracket form is
+  // the suppression-free spelling the house already uses for foreign vocabularies.
+  ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "lore-dump", enabled: true }] }],
+});
+
+test("#1390 a RECOGNISED-but-refused SillyTavern preset is not told it matched neither format", async ({ mount, page }) => {
+  await routeImportLibrary(page, { ok: true, created: true });
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Import a preset", exact: true }).click();
+  await page.locator(DROPZONE_INPUT).setInputFiles({ name: "huge-st.json", mimeType: "application/json", buffer: Buffer.from(REFUSED_ST_FILE) });
+
+  // The ST reader's OWN sentence reaches the owner, attributed to the ST reader — and the door still says
+  // the orb arm was ruled out, which is F-10's requirement (a malformed orb file lands in this same arm).
+  await expect(page.getByText(/the SillyTavern reader stopped/u)).toBeVisible();
+  await expect(page.getByText(/This SillyTavern preset mapped to a config orb cannot store/u)).toBeVisible();
+  // …and the self-contradiction is gone: the old copy denied the format in the same breath as quoting a
+  // reason that names it.
+  await expect(page.getByText(/matched neither/u)).toHaveCount(0);
+  // A refused file is not a parsed import — nothing is offered for commit.
+  await expect(page.getByText(ST_SUMMARY)).toHaveCount(0);
+});
+
+test("#1390 a file that is not JSON at all IS the true `neither format` case", async ({ mount, page }) => {
+  await routeImportLibrary(page, { ok: true, created: true });
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Import a preset", exact: true }).click();
+  await page.locator(DROPZONE_INPUT).setInputFiles({ name: "notes.json", mimeType: "application/json", buffer: Buffer.from("not json at all") });
+
+  // The positive control for the arm above: when nothing could be READ, "neither format" is the honest
+  // sentence and must survive — the fix narrows that claim, it does not delete it.
+  await expect(page.getByText(/isn't valid JSON, so neither an orbweaver preset export nor a SillyTavern/u)).toBeVisible();
+});
+
 test("G6 a REJECTED orb file keeps the dialog open with the SERVER's reason", async ({ mount, page }) => {
   await routeImportLibrary(page, { ok: false, error: "The file's \"config\" isn't a valid prompt config: schema mismatch" });
   const component = await mount(<PresetLibrarySurfaceStory />);

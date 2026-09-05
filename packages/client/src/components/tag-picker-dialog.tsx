@@ -125,7 +125,11 @@ export function TagPickerDialog({
   // KEEPS the highlight after a pick, so a still-open list swallows every subsequent Enter into re-picking
   // the same row instead of letting it reach the form (measured, this lane).
   const needle = trimmed.toLowerCase();
-  const suggesting = trimmed !== "" && existing === undefined;
+  // …EXCEPT WHERE THERE IS NO DECISION TO HAVE MADE. An exact match on an ALREADY-ATTACHED tag ends nothing:
+  // its confirm is refused, so the user is mid-search, not finished — and closing the list there hid every
+  // OTHER candidate the text still matches (attached "fantasy" beside a library "fantasy-noir" offered
+  // nothing at all until the next keystroke). The ruling above survives; its input changed.
+  const suggesting = trimmed !== "" && (existing === undefined || alreadyAttached);
   const matches = suggesting ? candidates.filter((tag) => tag.name.toLowerCase().includes(needle)).map((tag) => tag.name) : [];
 
   const close = (): void => {
