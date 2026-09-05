@@ -30,6 +30,10 @@ export interface BundleImportFileOutcome {
   readonly created?: boolean;
   /** Set when ok is false: the skip/failure reason (unknown dir, a per-file importFile error, or a throw). */
   readonly error?: string;
+  /** Set when the driver never even TRIED this file — the run was aborted before reaching it. It is a SKIP,
+   *  not a failure: nothing was attempted, so nothing failed. Before this the unreached files vanished from
+   *  the report entirely and a cancelled half-import read as a complete one. */
+  readonly notAttempted?: true;
 }
 
 /** The per-bundle report the route returns (or the workload records). */
@@ -38,6 +42,9 @@ export interface BundleImportReport {
   readonly imported: number;
   readonly skipped: number;
   readonly failed: number;
+  /** True when the signal fired mid-run: the counts describe a PARTIAL import, and every file the driver did
+   *  not reach is present in `outcomes` with `notAttempted`. */
+  readonly aborted: boolean;
 }
 
 export interface BundleImportDeps {
@@ -80,6 +87,17 @@ function groupByDir(staged: StagedArchive): {
   return { byDir, unrouted };
 }
 
+/** The unreached files of one entity, as `notAttempted` outcomes — the abort's honest tail. */
+function notAttemptedFrom(entity: PortableEntity, files: readonly StagedFile[]): BundleImportFileOutcome[] {
+  return files.map((staged) => ({
+    kind: entity.kind,
+    path: `${entity.dir}${staged.filename}`,
+    ok: false,
+    error: "not imported — the bundle import was aborted before this file",
+    notAttempted: true as const,
+  }));
+}
+
 /** Import every file routed to one entity, isolating per-file failures into outcomes. */
 async function importEntity(
   entity: PortableEntity,
@@ -88,8 +106,11 @@ async function importEntity(
   signal: AbortSignal | undefined,
 ): Promise<BundleImportFileOutcome[]> {
   const outcomes: BundleImportFileOutcome[] = [];
-  for (const staged of files) {
+  for (const [i, staged] of files.entries()) {
     if (signal?.aborted === true) {
+      // Everything from HERE on is unreached, not skipped-by-routing and not failed. Naming it is what keeps
+      // a cancelled bundle from reporting the same shape as a complete one.
+      outcomes.push(...notAttemptedFrom(entity, files.slice(i)));
       break;
     }
     const path = `${entity.dir}${staged.filename}`;
@@ -132,12 +153,14 @@ async function importInDepOrder(
   }
   const outcomes: BundleImportFileOutcome[] = [];
   for (const kind of PORTABLE_IMPORT_ORDER) {
-    if (signal?.aborted === true) {
-      break;
-    }
     const entity = byKind.get(kind);
     const files = entity === undefined ? undefined : byDir.get(entity.dir);
     if (entity === undefined || files === undefined || files.length === 0) {
+      continue;
+    }
+    if (signal?.aborted === true) {
+      // A WHOLE wave the abort landed before: every one of its files is named, not dropped.
+      outcomes.push(...notAttemptedFrom(entity, files));
       continue;
     }
     outcomes.push(...(await importEntity(entity, files, ownerId, signal)));
@@ -183,7 +206,9 @@ function tally(outcomes: readonly BundleImportFileOutcome[]): {
   for (const outcome of outcomes) {
     if (outcome.ok) {
       imported++;
-    } else if (outcome.kind === null) {
+      // A file nobody routed, and a file the abort never reached, are both SKIPS — neither was attempted, so
+      // neither is a failure the operator should chase.
+    } else if (outcome.kind === null || outcome.notAttempted === true) {
       skipped++;
     } else {
       failed++;
@@ -211,7 +236,7 @@ export async function importStagedArchive(deps: StagedBundleImportDeps): Promise
   try {
     const { byDir, unrouted } = groupByDir(staged);
     const outcomes = [...(await importInDepOrder(registry, byDir, ownerId, signal)), ...collectSkips(registry, byDir, unrouted)];
-    return { outcomes, ...tally(outcomes) };
+    return { outcomes, ...tally(outcomes), aborted: signal?.aborted === true };
   } finally {
     await staged.dispose();
   }
