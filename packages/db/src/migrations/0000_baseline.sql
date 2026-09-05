@@ -776,7 +776,7 @@ CREATE TABLE `notifications` (
 	`dismissed_at` integer,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`recipient_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "notifications_type_check" CHECK(type in ('invite', 'kicked', 'handoff-nominated', 'handoff-accepted', 'deferred-turn-dropped', 'automation-notice', 'plugin-disabled'))
+	CONSTRAINT "notifications_type_check" CHECK(type in ('invite', 'kicked', 'handoff-nominated', 'handoff-accepted', 'deferred-turn-dropped', 'automation-notice', 'plugin-disabled', 'plugins-awaiting-consent'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `notifications_recipient_seq_unique` ON `notifications` (`recipient_user_id`,`seq`);--> statement-breakpoint

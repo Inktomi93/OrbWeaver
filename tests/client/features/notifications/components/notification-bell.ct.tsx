@@ -21,7 +21,7 @@ import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trp
 // it and it was riding `routeTrpc`'s lenient null in every mount here. Imported from the bus's own fixture
 // module rather than re-spelled, so the two directions of this feed cannot drift apart.
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
-import { NotificationBellSheetStory, NotificationBellStory, NotificationBellToastStory } from "../_ct-stories.tsx";
+import { NotificationBellDestinationStory, NotificationBellSheetStory, NotificationBellStory, NotificationBellToastStory } from "../_ct-stories.tsx";
 
 /** One inbox row in the wire shape (`InboxView` — domain/notifications/contract/views.ts). */
 function inviteRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -35,6 +35,21 @@ function inviteRow(overrides: Record<string, unknown> = {}): Record<string, unkn
       inviteId: "chatinvite_ct_1",
       invitedByHandle: "nate",
     },
+    seq: 1,
+    readAt: null,
+    dismissedAt: null,
+    createdAt: 1_750_000_000_000,
+    ...overrides,
+  };
+}
+
+/** The aggregate pending-consent row (#1041 / #924 item 2) — the fresh-boot ask, whose whole payload is a
+ *  count. Same raw-wire posture as `inviteRow` above. */
+function consentRow(pendingCount: number, overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "ntf_ct_consent",
+    type: "plugins-awaiting-consent",
+    payload: { type: "plugins-awaiting-consent", recipientUserId: "user_ct_invitee", pendingCount },
     seq: 1,
     readAt: null,
     dismissedAt: null,
@@ -449,4 +464,65 @@ test("after the join lands, the row stops offering Accept and offers the failed 
   await expect(sheet.getByRole("button", { name: "Accept invitation from nate" })).toHaveCount(0);
   await expect(sheet.getByRole("button", { name: "Decline invitation from nate" })).toHaveCount(0);
   await expect(sheet.getByRole("button", { name: "Dismiss" })).toBeVisible();
+});
+
+// ── the pending-consent ask (#1041 / #924 item 2) ────────────────────────────────────────────────────────
+// THE DEFECT: nine example plugins ship installed, disabled and ungranted on a fresh boot, and nothing ever
+// asked. RED-FIRST RECEIPT (2026-09-05, against `git show HEAD:` of `notification-bell.tsx` with the rest
+// of the branch in place): `CT SUMMARY — FAILED · 0 passed · 3 failed`. The old bell's `ROW_COPY` has no
+// `plugins-awaiting-consent` entry, so the aggregate ask had no rendering at all.
+
+test("the pending-consent ask states how many plugins are waiting and offers a way to answer", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    "notifications.list": () => ({ items: [consentRow(9)], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
+  });
+  await routeInboxStream(page, []);
+
+  await mount(<NotificationBellStory />);
+  await page.getByRole("button", { name: "Notifications (1 unread)" }).click();
+
+  await expect(page.getByText("9 plugins are installed but not allowed to do anything yet")).toBeVisible();
+  // The answer is given on the consent screen, so the row's own affordance is the DOOR to it…
+  await expect(page.getByRole("button", { name: "Review what your plugins ask for" })).toBeVisible();
+  // …and dismissing stays available: denying is real and recoverable (the plugins stay installed and
+  // ungranted, and Settings → Plugins is still one click away).
+  await expect(page.getByRole("button", { name: "Dismiss" })).toBeVisible();
+});
+
+test("ONE waiting plugin reads as one plugin, not '1 plugins'", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    "notifications.list": () => ({ items: [consentRow(1)], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
+  });
+  await routeInboxStream(page, []);
+
+  await mount(<NotificationBellStory />);
+  await page.getByRole("button", { name: "Notifications (1 unread)" }).click();
+
+  await expect(page.getByText("One plugin is installed but not allowed to do anything yet")).toBeVisible();
+});
+
+test("Review sends the shell to the Plugins group and closes the inbox", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    "notifications.list": () => ({ items: [consentRow(9)], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
+  });
+  await routeInboxStream(page, []);
+
+  await mount(<NotificationBellDestinationStory />);
+  const destination = page.getByTestId("ct-shell-destination");
+  await expect(destination).not.toHaveText("config/plugins");
+
+  await page.getByRole("button", { name: "Notifications (1 unread)" }).click();
+  await page.getByRole("button", { name: "Review what your plugins ask for" }).click();
+
+  // THE PATH TO THE ANSWER, asserted where it actually lands: the config section, on the Plugins group —
+  // whose Installed list sorts the pending rows first, which is what makes the group-level door enough.
+  await expect(destination).toHaveText("config/plugins");
+  // …and the popover is gone, the same close-then-navigate the invite/handoff arms perform.
+  await expect(page.getByText("9 plugins are installed but not allowed to do anything yet")).toBeHidden();
 });

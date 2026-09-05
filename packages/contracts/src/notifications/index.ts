@@ -1,7 +1,11 @@
 // The notifications cross-boundary wire surface — the CLOSED `NotificationEvent` discriminated union and
 // the read-only `PresenceView`. Invite/kick/host-handoff/automation-notice/plugin-disabled ride a per-user
 // durable inbox (a non-member can't subscribe to a chat's bus), so this node is the wire shape that domain
-// persists. (agent-seat-request/crew-proposal were purged-domain members; the agents feature grafts here if
+// persists. Not every member is about a second human, though the transport belt still assumes so: the
+// owner-addressed `plugin-disabled` (`domain/plugin/activation/crash-policy.ts`), the owner-GLOBAL
+// `automation-notice` (`domain/automation/engine/dispatch.ts`, `chatId: null`) and now
+// `plugins-awaiting-consent` (#1041) are all deliverable on a single-user box and all swallowed there by the
+// PD-106 multi-human refusal on the router + the socket room. That is a stated gap (#1627), not a fit. (agent-seat-request/crew-proposal were purged-domain members; the agents feature grafts here if
 // it returns.)
 // `recipientUserId` is mandatory on every variant. Credentials/secrets/baseUrls are TYPE-LEVEL
 // unrepresentable: every `z.object` member strips unknown keys — no `.loose()`, no `z.unknown()`.
@@ -143,6 +147,28 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
     recipientUserId: recipientUserIdSchema,
     pluginId: pluginIdSchema,
   }),
+  // THE STANDING CONSENT ASK, AGGREGATED (#1041/#924). Installed plugins the recipient has not answered
+  // yet — a fresh boot lands NINE of them (installed, disabled, empty grant, `pending_reconsent` raised:
+  // `entry/boot/seed-example-plugins.ts`) and, before this member existed, nothing ever asked. It is ONE
+  // row per recipient, never one per plugin (owner ruling on #924): nine inbox rows for one decision is
+  // the spam that trains dismissal, and the per-plugin approve/deny surface already exists (Settings →
+  // Plugins, which sorts the pending rows first).
+  //
+  // COUNT-ONLY IS THE WHOLE PAYLOAD, and deliberately so: it is a POINTER to the consent surface, not a
+  // copy of it. What each plugin asks for, and why, is rendered THERE from the persisted manifest — a
+  // second rendering in the inbox would be a second home for consent copy that could disagree with the
+  // screen the answer is actually given on. Ids-only, like `plugin-disabled` (no free strings on the wire).
+  //
+  // `.min(1)` IS THE ZERO RULE AT THE TYPE: an aggregate that says "0 waiting" is unrepresentable, which is
+  // how "when the last ask is answered the row is RETRACTED, never rewritten to zero" stops being prose
+  // (the producer's `retract` path — `domain/notifications/verbs/retract.ts`).
+  z.object({
+    type: z.literal("plugins-awaiting-consent"),
+    recipientUserId: recipientUserIdSchema,
+    /** How many of the recipient's installed plugins are standing on their answer, at emission. The
+     *  consent surface is the live truth; this is what the row says while it waits. */
+    pendingCount: z.number().int().min(1),
+  }),
 ]);
 
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
@@ -173,6 +199,7 @@ export const NOTIFICATION_TYPES = [
   "deferred-turn-dropped",
   "automation-notice",
   "plugin-disabled",
+  "plugins-awaiting-consent",
 ] as const satisfies readonly NotificationType[];
 
 /** One stored notification as its recipient reads it — the closed `NotificationEvent` wire union paired with

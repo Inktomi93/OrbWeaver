@@ -57,17 +57,77 @@ function buildInsertNotification(db: Db, row: NotificationInsert): AwaitableBatc
     .returning(ROW_COLS);
 }
 
-/** Durable-first INSERT (db-driven monotonic `seq`); returns the stored row. */
-export async function insertNotification(db: Db, row: NotificationInsert): Promise<NotificationRow> {
-  const inserted = await buildInsertNotification(db, row);
-  return inserted[0] as NotificationRow;
+/** UNEXECUTED "dismiss every active row of one type for one recipient" (#1041) — the supersede half of a
+ *  singleton delivery and the whole of a retract. Idempotent by the same `COALESCE` the per-row dismiss
+ *  uses, so a row already dismissed keeps its original instant. Returned unexecuted because the supersede
+ *  MUST ride the insert's own batch. */
+function buildDismissActiveOfType(
+  db: Db,
+  recipientUserId: NotificationEvent["recipientUserId"],
+  type: NotificationType,
+  now: number,
+): AwaitableBatchStmt<NotificationRow[]> {
+  return db
+    .update(notifications)
+    .set({ dismissedAt: sql`coalesce(${notifications.dismissedAt}, ${now})` })
+    .where(and(eq(notifications.recipientUserId, recipientUserId), eq(notifications.type, type), isNull(notifications.dismissedAt)))
+    .returning(ROW_COLS);
 }
 
-/** Tx-atomic insert: run the producer's membership-transition statements + the notification INSERT in one
- *  `db.batch`, so a crash can never leave the transition committed with no durable notification. The
- *  after-commit fan-out is the caller's. */
-export async function insertNotificationWith(db: Db, row: NotificationInsert, coStatements: readonly BatchStmt[]): Promise<NotificationRow> {
-  const results = await db.batch(batchMany([...coStatements, buildInsertNotification(db, row)]));
+/** UPDATE the payload of the recipient's ACTIVE row of one type, in place (#1041) — `seq`, `readAt` and
+ *  `createdAt` are untouched, so a QUIET correction of a standing ask's own number never re-badges an inbox
+ *  the reader already looked at. Returns the rows it changed: EMPTY means the reader has no active row of
+ *  that type, which is a legitimate settled state (they dismissed it) and never a reason to insert one —
+ *  resurrecting a dismissed ask is the re-prompt loop the aggregate exists to avoid.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
+export async function updateActivePayloadOfType(
+  db: Db,
+  recipientUserId: NotificationEvent["recipientUserId"],
+  payload: NotificationEvent,
+): Promise<NotificationRow[]> {
+  return await db
+    .update(notifications)
+    .set({ payload })
+    .where(and(eq(notifications.recipientUserId, recipientUserId), eq(notifications.type, payload.type), isNull(notifications.dismissedAt)))
+    .returning(ROW_COLS);
+}
+
+/** Retract a standing ask: dismiss every active row of `type` for `recipientUserId`; returns the rows that
+ *  were actually flipped (the caller publishes them, so a live reader re-reads an inbox that no longer
+ *  carries the ask). Empty when nothing stood. */
+export async function dismissActiveOfType(
+  db: Db,
+  recipientUserId: NotificationEvent["recipientUserId"],
+  type: NotificationType,
+  now: number,
+): Promise<NotificationRow[]> {
+  return await buildDismissActiveOfType(db, recipientUserId, type, now);
+}
+
+/** What rides the INSERT's own batch. `coStatements` is the PD-24 producer seam (membership transitions);
+ *  `supersedeActiveOfSameType` is the #1041 singleton seam. Both are statements the INSERT must commit
+ *  WITH, never before or after — which is why they are options here rather than two calls at the verb. */
+interface InsertNotificationExtras {
+  readonly coStatements?: readonly BatchStmt[];
+  readonly supersedeActiveOfSameType?: boolean;
+}
+
+/** Durable-first INSERT (db-driven monotonic `seq`); returns the stored row.
+ *
+ *  With extras it becomes ONE `db.batch`: a crash can never leave a producer's membership transition
+ *  committed with no durable notification, nor a superseded row dismissed with no replacement (or two
+ *  live rows of a type that is supposed to have one). The after-commit bus fan-out is the caller's. */
+export async function insertNotification(db: Db, row: NotificationInsert, extras: InsertNotificationExtras = {}): Promise<NotificationRow> {
+  const preceding: BatchStmt[] = [...(extras.coStatements ?? [])];
+  if (extras.supersedeActiveOfSameType === true) {
+    preceding.push(buildDismissActiveOfType(db, row.recipientUserId, row.type, row.createdAt));
+  }
+  if (preceding.length === 0) {
+    const inserted = await buildInsertNotification(db, row);
+    return inserted[0] as NotificationRow;
+  }
+  const results = await db.batch(batchMany([...preceding, buildInsertNotification(db, row)]));
   // The INSERT is the last statement; it always yields exactly one RETURNING row.
   const inserted = results.at(-1) as NotificationRow[];
   return inserted[0] as NotificationRow;

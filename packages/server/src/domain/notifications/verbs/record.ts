@@ -12,7 +12,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RecordParams } from "../contract/params.ts";
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
 import type { InboxView } from "../contract/views.ts";
-import { insertNotification, insertNotificationWith } from "../persistence/queries.ts";
+import { insertNotification } from "../persistence/queries.ts";
 
 export function createRecord(ctx: NotificationsContext): Pick<NotificationsService, "record"> {
   async function record(params: RecordParams): Promise<InboxView> {
@@ -26,12 +26,13 @@ export function createRecord(ctx: NotificationsContext): Pick<NotificationsServi
       payload: event,
       createdAt: ctx.now(),
     };
-    // When the producer supplies its membership-transition statements, the INSERT rides the same `db.batch`
-    // — a crash can never commit the transition without the durable notification, or vice versa.
-    if (params.coStatements !== undefined && params.coStatements.length > 0) {
-      return await insertNotificationWith(ctx.db, row, params.coStatements as BatchStmt[]);
-    }
-    return await insertNotification(ctx.db, row);
+    // When the producer supplies its membership-transition statements — or asks for singleton delivery —
+    // the INSERT rides the same `db.batch`: a crash can never commit the transition without the durable
+    // notification, and a supersede can never land without its replacement.
+    return await insertNotification(ctx.db, row, {
+      ...(params.coStatements !== undefined && params.coStatements.length > 0 ? { coStatements: params.coStatements as BatchStmt[] } : {}),
+      ...(params.supersedeActiveOfSameType === true ? { supersedeActiveOfSameType: true } : {}),
+    });
   }
   return { record };
 }

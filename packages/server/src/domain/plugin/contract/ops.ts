@@ -12,7 +12,7 @@
 import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
-import type { NotificationEvent, PluginNotificationRecipient } from "@orb/contracts/notifications";
+import type { NotificationEvent, NotificationType, PluginNotificationRecipient } from "@orb/contracts/notifications";
 import type {
   InvocationChat,
   PluginAssetView,
@@ -224,6 +224,20 @@ export interface PluginHostOps {
    *  `emit` capability: NONE (a host-internal crash notice); `post` capability: `notify`. Both wired at compose. */
   readonly notifications: {
     readonly emit: (event: NotificationEvent) => Promise<void>;
+    /** The STANDING-ASK TRIO (#1041) the consent prompt drives — a standing ask is a claim that stays true,
+     *  so it has three moves an episodic event does not, and the CALLER picks by what actually changed:
+     *   - `emitStanding` — the ask GREW: record the event as the recipient's ONE live row of its type
+     *     (any active row of that type is superseded in the same batch) and re-badge. New information.
+     *   - `refreshStanding` — the ask SHRANK: correct the SAME row's payload in place (`seq`/`readAt`
+     *     untouched), so answering nine asks one at a time never re-badges the bell nine times.
+     *   - `retractStanding` — the ask is GONE: withdraw the row. There is no zero-count event to record.
+     *  All three are no-ops for a reader who dismissed the row (no active row of the type), which is the
+     *  settled state, not a reason to resurrect it. Wired at compose to `notifications.record`
+     *  (`supersedeActiveOfSameType`) / `notifications.refreshStanding` / `notifications.retract`, each +
+     *  the per-user bus publish. Capability: NONE — host-internal, never reachable from a guest. */
+    readonly emitStanding: (event: NotificationEvent) => Promise<void>;
+    readonly refreshStanding: (event: NotificationEvent) => Promise<void>;
+    readonly retractStanding: (req: { readonly recipientUserId: UserId; readonly type: NotificationType }) => Promise<void>;
     readonly post: (req: {
       readonly pluginId: PluginId;
       readonly installerUserId: UserId;

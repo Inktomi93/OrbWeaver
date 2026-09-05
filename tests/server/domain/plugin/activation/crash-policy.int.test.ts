@@ -23,6 +23,10 @@ test("crashes below the threshold record the detail but keep the plugin runnable
         return Promise.resolve();
       },
       post: () => Promise.resolve(),
+      // The #1041 standing-ask trio: inert here — the crash notice is an episodic `emit`, not a standing ask.
+      emitStanding: () => Promise.resolve(),
+      refreshStanding: () => Promise.resolve(),
+      retractStanding: () => Promise.resolve(),
     },
   };
   const h = makePluginHarness(db, { ops });
@@ -69,6 +73,10 @@ test("two crashes racing across the threshold notify the owner ONCE (the crossin
         return Promise.resolve();
       },
       post: () => Promise.resolve(),
+      // The #1041 standing-ask trio: inert here — the crash notice is an episodic `emit`, not a standing ask.
+      emitStanding: () => Promise.resolve(),
+      refreshStanding: () => Promise.resolve(),
+      retractStanding: () => Promise.resolve(),
     },
   };
   const h = makePluginHarness(db, { ops });
