@@ -22,7 +22,6 @@ test("each owner receives a receipt even when a sibling already acquired the res
 test("ignored missing, empty, and unresolved resources withhold owner grant reconciliation in the real dispatcher", ({ scratch }) => {
   const cases = [undefined, "", "{broken", JSON.stringify({ name: "orb", private: true })];
   for (const content of cases) {
-    const invocation = createResourceHost({ root: scratch, ...(content === undefined ? {} : { overlay: { "package.json": content } }) });
     const gate = defineGate({
       id: "resource-owner",
       family: "resource-owner",
@@ -33,7 +32,7 @@ test("ignored missing, empty, and unresolved resources withhold owner grant reco
       population: { of: "none", why: "package resource only" },
       message: "fixture resource owner",
       create: (context: GatePolicyContext) => {
-        const resources = bindPolicyResources(invocation.host, context);
+        const resources = context.resources;
         return {
           evaluate: () => {
             resources.packageMetadata("root");
@@ -48,6 +47,7 @@ test("ignored missing, empty, and unresolved resources withhold owner grant reco
       root: scratch,
       project: new Project({ useInMemoryFileSystem: true }),
       resourcePathsByPolicy: new Map([[gate.id, ["package.json"]]]),
+      ...(content === undefined ? {} : { resourceOptions: { overlay: { "package.json": content } } }),
       failOnWarnings: false,
       reviewedGrants: [{ id: "fixture-grant", policyId: gate.id, subject: "package.json", operation: "read", why: "fixture grant", endsWhen: "fixture ends" }],
     });

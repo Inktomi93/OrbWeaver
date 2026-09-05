@@ -2,6 +2,7 @@
 import type { Node, SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
 import type { GateAuthority, GateSeverity } from "./gate-authority.ts";
 import type { PopulationExpr } from "./population.ts";
+import type { ResourceHost } from "./resource-host.ts";
 
 export const GATE_POLICY_ANALYSES = ["syntax", "types", "resource"] as const;
 export type GatePolicyAnalysis = (typeof GATE_POLICY_ANALYSES)[number];
@@ -58,6 +59,7 @@ export interface GatePolicyReportSink {
 export interface GatePolicyContext {
   readonly files: readonly SourceFile[];
   readonly resourcePaths: readonly string[];
+  readonly resources: ResourceHost;
   readonly relativePath: (sourceFile: SourceFile) => string;
   readonly sourceFile: (repoRelativePath: string) => SourceFile;
   readonly checker: () => TypeChecker;

@@ -10,6 +10,7 @@ import type {
   ReviewedGateGrant,
 } from "./gate-authority.ts";
 import type { GatePolicy } from "./policy.ts";
+import type { ResourceHostOptions } from "./resource-host.ts";
 
 export const POLICY_PHASES = ["population", "create", "visitFile", "visit", "evaluate", "receipt"] as const;
 export type PolicyPhase = (typeof POLICY_PHASES)[number];
@@ -59,6 +60,8 @@ export interface PolicyPassInput {
   readonly project: Project;
   readonly requestedPaths?: readonly string[];
   readonly resourcePathsByPolicy?: ReadonlyMap<string, readonly string[]>;
+  /** Fixture overlays/parser injection cannot override this invocation's root or reuse a prior host. */
+  readonly resourceOptions?: Omit<ResourceHostOptions, "root">;
   readonly reviewedGrants: readonly ReviewedGateGrant[];
   readonly failOnWarnings: boolean;
   readonly waiverFor?: (finding: CoordinatedGateFinding) => string | null;

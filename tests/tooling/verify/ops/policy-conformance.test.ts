@@ -266,13 +266,17 @@ test("resource proofs materialize exact content and clean temp roots after succe
         const source = ctx.sourceFile("packages/client/src/provider.ts");
         const root = source.getFilePath().slice(0, -"packages/client/src/provider.ts".length);
         roots.push(root);
-        const content = readFileSync(join(root, "resources/config.json"), "utf8");
+        const content = readFileSync(join(root, "package.json"), "utf8");
+        const fact = ctx.resources.packageMetadata("root");
+        if (fact.status !== "ready") {
+          throw new Error(fact.reason);
+        }
         observed.push({
           source: source.getFullText(),
           resources: ctx.resourcePaths,
           content,
         });
-        if (content.includes("bite") && ctx.resourcePaths.length === 1) {
+        if (fact.value.name === "bite" && ctx.resourcePaths.length === 1) {
           ctx.report.file(ctx.resourcePaths[0] as string);
         }
       },
@@ -282,7 +286,7 @@ test("resource proofs materialize exact content and clean temp roots after succe
         mode: "resource",
         files: {
           "packages/client/src/provider.ts": "export const provider = true;\n",
-          "resources/config.json": '{"state":"bite"}\n',
+          "package.json": '{ "name": "bite", "private": true }\n',
         },
         why: "resource identity and content",
       },
@@ -292,7 +296,7 @@ test("resource proofs materialize exact content and clean temp roots after succe
         mode: "resource",
         files: {
           "packages/client/src/provider.ts": "export const provider = false;\n",
-          "resources/config.json": '{"state":"clean"}\n',
+          "package.json": '{ "name": "clean", "private": true }\n',
         },
         why: "the clean resource",
       },
@@ -303,17 +307,58 @@ test("resource proofs materialize exact content and clean temp roots after succe
   expect(observed).toEqual([
     {
       source: "export const provider = true;\n",
-      resources: ["resources/config.json"],
-      content: '{"state":"bite"}\n',
+      resources: ["package.json"],
+      content: '{ "name": "bite", "private": true }\n',
     },
     {
       source: "export const provider = false;\n",
-      resources: ["resources/config.json"],
-      content: '{"state":"clean"}\n',
+      resources: ["package.json"],
+      content: '{ "name": "clean", "private": true }\n',
     },
   ]);
   expect(roots).toHaveLength(2);
   expect(roots.every((root) => !existsSync(root))).toBe(true);
+
+  const unconsumed = defineGate({
+    ...resource,
+    id: "unconsumed-resource",
+    family: "unconsumed-resource",
+    create: (ctx) => ({
+      evaluate: () => {
+        if (ctx.sourceFile("packages/client/src/provider.ts").getFullText().includes("true")) {
+          ctx.report.file("package.json");
+        }
+      },
+    }),
+  });
+  const unconsumedFailures = verifyPolicyProofs([unconsumed]);
+  expect(unconsumedFailures.map(({ arm }) => arm)).toEqual(["mustFlag", "mustPass"]);
+  expect(unconsumedFailures.every(({ detail }) => detail.includes("declared resource population produced no resource receipt"))).toBe(true);
+
+  for (const mode of ["forged", "partial"] as const) {
+    const incomplete = defineGate({
+      ...resource,
+      id: `${mode}-resource`,
+      family: `${mode}-resource`,
+      mustFlag: resource.mustFlag.map((proof) => ({ ...proof, files: { ...proof.files, "support.txt": "declared but unread" } })),
+      mustPass: resource.mustPass.map((proof) => ({ ...proof, files: { ...proof.files, "support.txt": "declared but unread" } })),
+      create: (ctx) => ({
+        evaluate: () => {
+          if (mode === "forged") {
+            ctx.receipt({ kind: "resource", source: "claimed", resources: 2 });
+          } else {
+            ctx.resources.packageMetadata("root");
+          }
+          if (ctx.sourceFile("packages/client/src/provider.ts").getFullText().includes("true")) {
+            ctx.report.file("package.json");
+          }
+        },
+      }),
+    });
+    const failures = verifyPolicyProofs([incomplete]);
+    expect(failures.map(({ arm }) => arm)).toEqual(["mustFlag", "mustPass"]);
+    expect(failures.every(({ detail }) => detail.includes("unconsumed paths:") && detail.includes("support.txt"))).toBe(true);
+  }
 
   const throwingResource = defineGate({
     ...resource,

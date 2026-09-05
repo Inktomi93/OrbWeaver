@@ -17,6 +17,7 @@ import type {
   PolicyToolError,
 } from "../contract/policy-pass.ts";
 import { POLICY_PHASES } from "../contract/policy-pass.ts";
+import { createResourceHost } from "../ops/resource-host.ts";
 import { coordinateGateAuthority } from "./gate-authority.ts";
 import { makePolicyContext } from "./policy-pass-context.ts";
 import { assertGatePolicyDescriptor, assertGatePolicyHooks, assertRepoPathIdentity, normalizePathSet } from "./policy-validation.ts";
@@ -37,6 +38,7 @@ interface PolicyRun {
   hooks: GatePolicyHooks | undefined;
   receipts: readonly PolicySemanticReceipt[];
   finishReceipts: (() => readonly PolicySemanticReceipt[]) | undefined;
+  unconsumedResources: (() => readonly string[]) | undefined;
 }
 
 const EMPTY_POPULATION: PolicyPopulationReceipt = {
@@ -152,6 +154,7 @@ function newRun(policy: GatePolicy): PolicyRun {
     hooks: undefined,
     receipts: [],
     finishReceipts: undefined,
+    unconsumedResources: undefined,
   };
 }
 
@@ -231,6 +234,7 @@ function resolveRuns(input: PolicyPassInput, errors: PolicyToolError[]): { reado
 }
 
 function createRuns(runs: readonly PolicyRun[], input: PolicyPassInput, checker: () => TypeChecker, errors: PolicyToolError[]): void {
+  const resources = createResourceHost({ ...input.resourceOptions, root: input.root }).host;
   for (const run of runs) {
     if (run.owner.status !== "success") {
       continue;
@@ -240,10 +244,12 @@ function createRuns(runs: readonly PolicyRun[], input: PolicyPassInput, checker:
       root: input.root,
       files: run.files,
       resourcePaths: run.population.effectiveResourcePaths,
+      resources,
       checker,
       findings: run.findings,
     });
     run.finishReceipts = runtime.finishReceipts;
+    run.unconsumedResources = runtime.unconsumedResources;
     guard(run, "create", errors, () => {
       const hooks = run.policy.create(runtime.context);
       assertGatePolicyHooks(hooks);
@@ -317,6 +323,10 @@ function evaluateRuns(runs: readonly PolicyRun[], errors: PolicyToolError[]): vo
       const failures = run.receipts.flatMap(receiptFailures);
       if (run.population.effectiveResourcePaths.length > 0 && !run.receipts.some((receipt) => receipt.kind === "resource")) {
         failures.push("declared resource population produced no resource receipt");
+      }
+      const unconsumed = run.unconsumedResources?.() ?? [];
+      if (unconsumed.length > 0) {
+        failures.push(`declared resource population has unconsumed paths: ${unconsumed.join(", ")}`);
       }
       if (failures.length > 0) {
         throw new Error(`policy receipt refused: ${failures.join("; ")}`);

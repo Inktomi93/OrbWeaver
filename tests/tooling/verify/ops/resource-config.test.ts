@@ -1,4 +1,4 @@
-import { Project } from "ts-morph";
+import { Project, SyntaxKind } from "ts-morph";
 import { loadPackageMetadata, loadStaticConfig } from "../../../../tooling/src/verify/ops/resource-config.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -57,6 +57,31 @@ test("static configs expose only anchored selection rows and count those rows", 
         { key: "include", value: "tests/**/*.test.ts", line: 2 },
         { key: "exclude", value: "tests/a.int.test.ts", line: 1 },
         { key: "globalSetup", value: "./tests/setup.ts", line: 2 },
+      ],
+    },
+  });
+});
+
+test("static config scans property assignments once across its key families", async ({ plantedTree }) => {
+  const text = 'module.exports = { forbidden: [{ from: { path: ["^a$"] }, to: { pathNot: ["^b$"] } }] };';
+  const root = await plantedTree({ ".dependency-cruiser.cjs": text });
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { allowJs: true } });
+  const source = project.createSourceFile(".dependency-cruiser.cjs", text);
+  const getDescendantsOfKind = source.getDescendantsOfKind.bind(source);
+  let propertyScans = 0;
+  source.getDescendantsOfKind = ((kind: SyntaxKind) => {
+    propertyScans += Number(kind === SyntaxKind.PropertyAssignment);
+    return getDescendantsOfKind(kind);
+  }) as typeof source.getDescendantsOfKind;
+  const result = loadStaticConfig(createResourceReader({ root }), "depcruise", () => source);
+  expect(propertyScans).toBe(1);
+  expect(result).toMatchObject({
+    status: "ready",
+    members: 2,
+    value: {
+      rows: [
+        { key: "path", value: "^a$", line: 1 },
+        { key: "pathNot", value: "^b$", line: 1 },
       ],
     },
   });
