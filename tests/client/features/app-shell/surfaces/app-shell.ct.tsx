@@ -526,6 +526,48 @@ for (const { chord, title } of [
   });
 }
 
+// THE FOCUS RETURN IS THE DURABLE TRIGGER, NOT WHOEVER HELD FOCUS WHEN THE DIALOG MOUNTED (#890). The
+// chord path used to hand ModalHost its return target through a SIDE CHANNEL: `useCommandShortcut` focused
+// the trigger inside a rAF so that `DialogModal`'s mount-time `document.activeElement` snapshot would happen
+// to see it. Anything that moved focus between that rAF and React's commit — Chromium's own focus
+// restoration after a Meta accelerator is the documented one — made the snapshot `document.body`, which is
+// connected, so `finalFocus` dutifully returned focus to the BODY and `toBeFocused` on the trigger failed
+// for good (a permanent wrong outcome from a racy capture, which is why the flake never healed on retry).
+// This test injects that exact interleaving deterministically: the trigger steals its own focus back the one
+// time it receives it, before the dialog can mount. RED on the pre-fix source, and no `--repeat-each` needed.
+test("the command palette returns focus to the durable Jump trigger when nothing holds focus as the dialog mounts", async ({ mount, page }) => {
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.listChats": chatListResponder([]) });
+  const shell = await mount(<AppShellStory />);
+  const trigger = shell.getByRole("button", { name: JUMP_COMMAND_MENU_RE });
+  await expect(trigger).toBeVisible();
+
+  // Armed, not permanent: the handler reads the dataset flag the test clears once the dialog is up, so the
+  // steal cannot also swallow the focus RETURN this test is here to observe. The disarm goes through a CSS
+  // locator, not `trigger`: while the dialog is open Base UI marks everything outside it `aria-hidden`, so
+  // the ROLE locator stops resolving and a `trigger.evaluate` there only times out.
+  const triggerElement = page.locator('button[aria-label*="command menu"]');
+  await triggerElement.evaluate((element: HTMLElement) => {
+    element.dataset["ctStealFocus"] = "armed";
+    element.addEventListener("focus", () => {
+      if (element.dataset["ctStealFocus"] === "armed") {
+        element.blur();
+      }
+    });
+  });
+
+  await page.keyboard.press("Meta+KeyK");
+  const dialog = page.getByRole("dialog", { name: "Jump to…" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("combobox")).toBeFocused();
+  await triggerElement.evaluate((element: HTMLElement) => {
+    element.dataset["ctStealFocus"] = "disarmed";
+  });
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Jump to…" })).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
+
 interface ShortcutEventInit {
   readonly altKey?: boolean;
   readonly ctrlKey?: boolean;

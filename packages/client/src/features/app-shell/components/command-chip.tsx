@@ -6,22 +6,14 @@ import { Button } from "@orb/ui/button";
 import { Kbd } from "@orb/ui/kbd";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
-import type { ReactNode, RefObject } from "react";
+import type { ReactNode } from "react";
 import type { ModalSlotId } from "#state";
 import { openModal } from "#state";
 
 /** The ⌘K chip — DESKTOP-SHAPED (side-eye P1's budget): a phone has no ⌘K key, and at 320px this chip plus
  *  its divider was ~60px of a row that had none to give. Nothing is lost: the You sheet carries the same
  *  command modal as a named row (you-sheet.tsx), which is where every other overflow affordance lives. */
-export function CommandChip({
-  modalId,
-  show,
-  triggerRef,
-}: {
-  readonly modalId: ModalSlotId | undefined;
-  readonly show: boolean;
-  readonly triggerRef: RefObject<HTMLButtonElement | null>;
-}): ReactNode {
+export function CommandChip({ modalId, show }: { readonly modalId: ModalSlotId | undefined; readonly show: boolean }): ReactNode {
   if (!show) {
     return null;
   }
@@ -31,9 +23,11 @@ export function CommandChip({
         <TooltipTrigger
           render={
             <Button
-              ref={triggerRef}
               intent="secondary"
               size="sm"
+              // The DURABLE focus return for this modal (#890). ModalHost reads it when a keyboard-opened
+              // palette captured nobody, which is what replaced the old pre-focus race (modal-host.tsx).
+              data-modal-trigger={modalId}
               // WCAG 2.5.3 Label in Name (UI-Primitives-and-Reuse §13.10): the button READS "⌘K jump", so
               // "jump" must be in the name — "Command menu" alone made the one word on the button
               // unspeakable. Both vocabularies are carried, so `getByRole("button", { name: /command

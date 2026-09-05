@@ -1,18 +1,19 @@
 // useCommandShortcut — the document-keyboard lifecycle for the command palette. AppShell derives the
-// command modal from the registry and supplies its durable trigger; this hook owns only classification,
-// the Chromium-safe deferred open, and exact listener/frame cleanup. It does not discover commands or
-// keep a second shortcut map: keyboard and click both invoke the shell store's one `openModal` action.
+// command modal from the registry; this hook owns only classification, the Chromium-safe deferred open, and
+// exact listener/frame cleanup. It does not discover commands or keep a second shortcut map: keyboard and
+// click both invoke the shell store's one `openModal` action.
+//
+// IT DOES NOT TOUCH FOCUS (#890). It used to focus the durable trigger inside the deferring frame, purely so
+// that ModalHost's mount-time `document.activeElement` snapshot would happen to capture it — a side channel
+// that lost every race against Chromium's own post-accelerator focus restoration and dumped the close's
+// focus at the top of the document. The focus return has ONE owner now: ModalHost resolves the modal's
+// declared `data-modal-trigger`.
 
-import type { RefObject } from "react";
 import { useEffect } from "react";
 import type { ModalSlotId } from "#state";
 import { openModal } from "#state";
 
-export function useCommandShortcut(
-  triggerRef: RefObject<HTMLButtonElement | null>,
-  commandModalId: ModalSlotId | undefined,
-  openModalId: ModalSlotId | null,
-): void {
+export function useCommandShortcut(commandModalId: ModalSlotId | undefined, openModalId: ModalSlotId | null): void {
   useEffect(() => {
     let pendingOpen: number | null = null;
     const onCommandKeyDown = (event: KeyboardEvent): void => {
@@ -37,10 +38,11 @@ export function useCommandShortcut(
       if (pendingOpen !== null) {
         return;
       }
-      // Chromium restores focus after a Meta accelerator's keydown. Opening on the next frame lets the
-      // durable trigger become ModalHost's return target after the native chord has released.
+      // Chromium restores focus after a Meta accelerator's keydown; opening on the next frame keeps that
+      // restoration off the freshly-mounted dialog. KEPT DELIBERATELY at #890 even though the focus-return
+      // half of its original reason is gone: a headless CT cannot press a native OS accelerator, so dropping
+      // the frame reads green here (measured, 35/35) and proves nothing about the browser this guards.
       pendingOpen = requestAnimationFrame(() => {
-        triggerRef.current?.focus();
         openModal(commandModalId);
         pendingOpen = null;
       });
@@ -52,5 +54,5 @@ export function useCommandShortcut(
       }
       document.removeEventListener("keydown", onCommandKeyDown, { capture: true });
     };
-  }, [commandModalId, openModalId, triggerRef]);
+  }, [commandModalId, openModalId]);
 }
