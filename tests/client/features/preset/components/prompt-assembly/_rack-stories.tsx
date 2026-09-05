@@ -8,14 +8,15 @@
 // with ZERO call-site flush.
 //
 // The fixture deliberately mixes all FOUR shapes: a LITERAL (full ⋯ set), a templated MARKER (no Delete,
-// no Duplicate), a plain-marker CARRIER (no inject/trigger in the schema, so no depth/order/triggers
-// fields), and the PIVOT (no switch at all, no menu).
+// no Duplicate), a plain-marker CARRIER (no `inject` in the schema, so no depth/order fields — but IT DOES
+// carry `trigger`, #1462/#1736, so its Triggers cluster renders like every other non-pivot section), and
+// the PIVOT (no switch at all, no menu).
 
 import type { AppFormInstance, AutosaveSession } from "@orb/client/forms";
 import { createAutosaveEntityForm } from "@orb/client/forms";
 import { closePresetSectionDrill, retargetPresetSectionDrill } from "@orb/client/state";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, parsePromptConfig } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Toaster, ToastProvider } from "@orb/ui/toast";
@@ -68,15 +69,26 @@ function triggerState(sections: readonly PromptSection[]): string {
 }
 
 /** Mirrors the live section-id order + the last-saved section count so a CT can assert the mutation AND
- *  its persistence, plus the enabled flags (the drilled-header echo's convergence proof). */
-function RackBody({ session, savedCount }: { readonly session: AutosaveSession<PromptConfig>; readonly savedCount: number }): ReactElement {
+ *  its persistence, plus the enabled flags (the drilled-header echo's convergence proof). `savedTrig` is
+ *  the round-trip proof for #1736 — the `trigger` state re-derived from `parsePromptConfig`'s output on
+ *  what the SAVE seam actually received, not from the live form (which would only prove the field WROTE,
+ *  not that it survives the contract's own parse). */
+function RackBody({
+  session,
+  savedCount,
+  savedTrig,
+}: {
+  readonly session: AutosaveSession<PromptConfig>;
+  readonly savedCount: number;
+  readonly savedTrig: string;
+}): ReactElement {
   const form = session.form as AppFormInstance<PromptConfig>;
   useFreshSectionDrill();
   return (
     <>
       <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
         {(sections): ReactElement => (
-          <output>{`ids=${sections.map((s) => s.id).join(",")} savedCount=${savedCount} on=${sections.filter((s) => s.enabled).length} splice=${spliceState(sections)} trig=${triggerState(sections)}`}</output>
+          <output>{`ids=${sections.map((s) => s.id).join(",")} savedCount=${savedCount} on=${sections.filter((s) => s.enabled).length} splice=${spliceState(sections)} trig=${triggerState(sections)} savedTrig=${savedTrig}`}</output>
         )}
       </form.Subscribe>
       <PresetStructureTabs form={form} presetId={STORY_PRESET} tab="prompt" />
@@ -150,14 +162,20 @@ export function SectionForkStory(): ReactElement {
 /** The Prompt view over a real autosave boundary. */
 export function RackStory(): ReactElement {
   const [savedCount, setSavedCount] = useState(-1);
+  // #1736 round-trip proof: what the SAVE seam received, re-derived through the contract's OWN read path
+  // (`parsePromptConfig`) — not the live form value. If the client ever stripped `trigger` off a plain
+  // marker before saving, or the schema round-trip dropped it, this would read `-` where the form's own
+  // `trig=` already read the edited value.
+  const [savedTrig, setSavedTrig] = useState("(unsaved)");
   const save = (values: PromptConfig): Promise<void> => {
     setSavedCount(values.sections.length);
+    setSavedTrig(triggerState(parsePromptConfig(values).sections));
     return Promise.resolve();
   };
   return (
     <ToastProvider>
       <StoryForm entityId={STORY_PRESET} save={save} serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections: [...SECTIONS] }}>
-        {(session): ReactElement => <RackBody savedCount={savedCount} session={session} />}
+        {(session): ReactElement => <RackBody savedCount={savedCount} savedTrig={savedTrig} session={session} />}
       </StoryForm>
       <Toaster />
     </ToastProvider>

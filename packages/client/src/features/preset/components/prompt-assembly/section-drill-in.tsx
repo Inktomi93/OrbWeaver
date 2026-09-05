@@ -92,9 +92,11 @@ export interface SectionDrillInProps {
 export function SectionDrillIn({ form, section, index, onBack }: SectionDrillInProps): ReactElement {
   const { label, oneLiner } = headerCopy(section);
   const pivot = isPivotSection(section);
-  // A CARRIER declares no `inject`/`trigger` in the schema, so those clusters are ABSENT for it — never
-  // rendered-and-disabled. Zone survives (it is array position, which every section has).
-  const arrangeable = supportsArrangement(section);
+  // A CARRIER declares no `inject` in the schema, so the Placement cluster's Order/Depth sub-fields are
+  // ABSENT for it (via the `supportsArrangement` checks inside `DeliveryFields`/`PlacementFields` below)
+  // — never rendered-and-disabled. `trigger` IS declared on every branch (#1462/#1736), so the Triggers
+  // cluster renders for every non-pivot section regardless of arrangeability. Zone survives too (it is
+  // array position, which every section has).
   // FOCUS LANDS HERE ON DRILL (side-eye F-04): the chevron that opened this editor unmounts with the rack,
   // so focus fell to <body> and the keyboard user restarted at the top of the document. Back-to-rack is
   // the right target — it is the region's first control and it names the way out. The RESTORE half (focus
@@ -157,8 +159,13 @@ export function SectionDrillIn({ form, section, index, onBack }: SectionDrillInP
         }}
       </form.Subscribe>
 
-      {pivot || !arrangeable ? null : (
+      {pivot ? null : (
         <>
+          {/* TRIGGERS is gated on `!pivot` ALONE (#1462/#1736), never on `arrangeable`: `trigger` is
+              declared on every schema branch, so a plain-marker carrier (world_info_before/after) gets
+              the same firing-gate editor a literal or templated marker does. `OverrideLocks` keeps its
+              OWN gate (`isTemplatedMarkerSection`) and renders nothing for a carrier — that null is
+              already correct and unrelated to this cluster. */}
           <Section kicker="Triggers">
             <TriggerFields form={form} index={index} section={section} />
           </Section>
