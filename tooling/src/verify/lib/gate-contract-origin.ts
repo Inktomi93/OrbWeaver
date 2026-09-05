@@ -10,6 +10,7 @@ export interface CallableMember {
 
 const INVOCATION_WRAPPERS = new Set(["apply", "bind", "call"]);
 const TS_MORPH_MODULE = "ts-morph";
+const FINAL_POLICY_MODULE = "/tooling/src/verify/contract/policy.ts";
 
 function unwrap(node: MorphNode): MorphNode {
   let current = node;
@@ -141,6 +142,17 @@ export function isTsMorphProjectConstructor(node: MorphNode): boolean {
       (Node.isExportSpecifier(declaration)
         ? declaration.getName() === "Project"
         : declaration.getFirstAncestorByKind(SyntaxKind.ExportSpecifier)?.getName() === "Project"),
+  );
+}
+
+/** True only when the callable resolves to the final policy contract's defineGate export. */
+export function isCanonicalDefineGate(node: MorphNode): boolean {
+  const fact = resolveModuleMemberOrigin(node);
+  if (fact.kind === "unresolved" || fact.value.exportedName !== "defineGate" || fact.value.memberPath.length > 0) {
+    return false;
+  }
+  return [...fact.trace.declarations, fact.value.declaration].some((declaration) =>
+    declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(FINAL_POLICY_MODULE),
   );
 }
 

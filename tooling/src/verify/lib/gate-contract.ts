@@ -5,6 +5,7 @@ import { readExpressionString } from "./config-static-read.ts";
 import {
   isBindCreationCall,
   isBuiltinMutator,
+  isCanonicalDefineGate,
   isTsMorphProjectConstructor,
   isTsMorphWalk,
   objectAssignTarget,
@@ -124,15 +125,7 @@ function usesDefineGate(sf: SourceFile): boolean {
   if (!(TsNode.isCallExpression(value) && TsNode.isIdentifier(value.getExpression()))) {
     return false;
   }
-  const local = value.getExpression().getText();
-  return sf.getImportDeclarations().some((importDeclaration) => {
-    if (!importDeclaration.getModuleSpecifierValue().endsWith("/contract/gate.ts")) {
-      return false;
-    }
-    return importDeclaration
-      .getNamedImports()
-      .some((namedImport) => namedImport.getName() === "defineGate" && (namedImport.getAliasNode()?.getText() ?? "defineGate") === local);
-  });
+  return isCanonicalDefineGate(value.getExpression());
 }
 
 function descriptorPropertyName(property: Node): string | undefined {
