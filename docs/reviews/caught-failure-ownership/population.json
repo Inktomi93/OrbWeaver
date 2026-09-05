@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 545,
-    "enforced": 540,
+    "sites": 547,
+    "enforced": 542,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 540,
+      "deliberate-absorb": 542,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
-      "default": 148,
-      "empty": 255
+      "default": 149,
+      "empty": 256
     }
   },
   "rows": [
@@ -6169,7 +6169,7 @@
     {
       "siteId": "tooling/src/snap/ops/session-admin.ts::default:catch::1",
       "path": "tooling/src/snap/ops/session-admin.ts",
-      "line": 48,
+      "line": 62,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6177,12 +6177,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a live pid whose socket does not answer is REPORTED from its row with the \"not answering\" mark the caller prints — the read degrades to the evidence it has, it never hides the session. Ends if a silent daemon must become a hard error.",
-      "markerLine": 41
+      "markerLine": 48
     },
     {
       "siteId": "tooling/src/snap/ops/session-admin.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/session-admin.ts",
-      "line": 129,
+      "line": 145,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6190,7 +6190,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a daemon that does not answer its close is REAPED below (group signal + marker settle) and the reap's receipt is printed — the failure path is the louder one. Ends if the reap stops being unconditional after a refused close.",
-      "markerLine": 125
+      "markerLine": 139
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:promise::1",
@@ -6247,7 +6247,7 @@
     {
       "siteId": "tooling/src/snap/ops/session-client.ts::default:catch::1",
       "path": "tooling/src/snap/ops/session-client.ts",
-      "line": 112,
+      "line": 136,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6255,12 +6255,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a refused or absent socket IS the negative answer of a readiness poll — the caller keeps polling until the daemon answers, exits, or the boot budget names the failure. Ends if the poll stops bounding the wait.",
-      "markerLine": 109
+      "markerLine": 133
     },
     {
       "siteId": "tooling/src/snap/ops/session-client.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/session-client.ts",
-      "line": 131,
+      "line": 155,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6268,12 +6268,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the log does not exist until the daemon's first write — an absent file is \"nothing to relay yet\" (the offset is handed back unchanged) and the poll reads again next tick. Ends if a missing log must be reported instead.",
-      "markerLine": 120
+      "markerLine": 144
     },
     {
       "siteId": "tooling/src/snap/ops/session-client.ts::empty:error::1",
       "path": "tooling/src/snap/ops/session-client.ts",
-      "line": 243,
+      "line": 272,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -6281,7 +6281,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "a daemon that vanished mid-call is reported as SESSION DEAD (or SESSION ERROR with the reason) and the call exits toolError — the failure is the printed verdict. Ends if that exit code stops being surfaced.",
-      "markerLine": 226
+      "markerLine": 250
     },
     {
       "siteId": "tooling/src/snap/ops/session-daemon-request.ts::empty:error::1",
@@ -6468,7 +6468,7 @@
     {
       "siteId": "tooling/src/stack/lib/dev-process-identity.ts::default:catch::1",
       "path": "tooling/src/stack/lib/dev-process-identity.ts",
-      "line": 40,
+      "line": 80,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6476,12 +6476,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "malformed identity JSON returns null and recordedDevStackVerdict refuses the existing file. Ends if null can authorize a signal.",
-      "markerLine": 19
+      "markerLine": 56
     },
     {
       "siteId": "tooling/src/stack/lib/dev-process-identity.ts::default:catch::2",
       "path": "tooling/src/stack/lib/dev-process-identity.ts",
-      "line": 50,
+      "line": 90,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6489,7 +6489,33 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable identity returns null and the existing-path check produces a manual-cleanup refusal. Ends if null can authorize a signal.",
-      "markerLine": 46
+      "markerLine": 86
+    },
+    {
+      "siteId": "tooling/src/stack/lib/dev-process-identity.ts::default:catch::3",
+      "path": "tooling/src/stack/lib/dev-process-identity.ts",
+      "line": 153,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable /proc/<pid>/environ returns null, which adoptDevStackGroup treats as UNMARKED — the fail-closed direction, so it can never authorize a signal. Ends if null ever contributes to an adoptable verdict.",
+      "markerLine": 141
+    },
+    {
+      "siteId": "tooling/src/stack/lib/dev-process-identity.ts::empty:error::1",
+      "path": "tooling/src/stack/lib/dev-process-identity.ts",
+      "line": 301,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH means the adopted group exited between the census and the signal — the desired end state; every other signal failure rethrows. Ends if callers require proof the signal landed.",
+      "markerLine": 298
     },
     {
       "siteId": "tooling/src/stack/lib/port-health.ts::empty:error::1",
@@ -6559,7 +6585,7 @@
     {
       "siteId": "tooling/src/stack/ops/dev-identity-entry.ts::empty:error::1",
       "path": "tooling/src/stack/ops/dev-identity-entry.ts",
-      "line": 76,
+      "line": 131,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -6567,7 +6593,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ENOENT means the already-absent identity file needs no deletion; every other unlink failure surfaces and prevents a cleared verdict. Ends if another absence code is supported.",
-      "markerLine": 73
+      "markerLine": 128
     },
     {
       "siteId": "tooling/src/stack/ops/engines-ctl.ts::default:catch::1",
