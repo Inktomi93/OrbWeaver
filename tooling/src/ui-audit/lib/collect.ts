@@ -55,8 +55,8 @@
 //   border-contrast           excluded(noDeclaredBorder, inactiveExempt) · withheld(the backdrop's own
 //                             unresolved reason, borderColorUnreadable) — a control that declared no
 //                             boundary made no claim, and an unresolvable surround is not a clean edge
-//   side-tab                  excluded(statusRegionAccent, ratifiedListRowSelection)
-//   border-accent-on-rounded  same census, same two ratified exemptions, its own affected count
+//   side-tab                  excluded(statusRegionAccent, ratifiedListRowSelection, illustratedPickerArt)
+//   border-accent-on-rounded  same census, same three ratified exemptions, its own affected count
 //   glow-shadow               excluded(sanctionedGlowCarrier) — keeps the exemption's REACH visible
 //   distorted-image           excluded(noComparableExtent, objectFitCropsOrLetterboxes)
 //   radial-halo               excluded(sanctionedGlowCarrier)

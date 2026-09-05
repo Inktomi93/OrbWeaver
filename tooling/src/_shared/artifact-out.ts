@@ -76,17 +76,28 @@ export type InstrumentArtifactCompleteness = z.infer<typeof instrumentArtifactCo
 
 const nonnegativeCountSchema = z.number().int().nonnegative();
 const nullableCountSchema = nonnegativeCountSchema.nullable();
+/** A limit receipt's quantities are MEASUREMENTS IN THE UNIT THE EVENT'S `kind`/`path` NAMES, not counts:
+ *  bytes (`byte-cap`), frames, rows, retainer depth — and MILLISECONDS, because the filmstrip's
+ *  `duration-cap` writes `original: now - startedAt` against a real clock and `retained`/`policy.durationMs`
+ *  in the same unit (snap/lib/filmstrip-buffer.ts). Integer-ness was never a property of the field, only of
+ *  the units that happen to be discrete, so demanding `.int()` here made a CORRECT over-cap
+ *  `snap --filmstrip` run exit 2 with `malformed artifact declaration` on `original: 15837.811772000005`
+ *  (#1643). Finite + nonnegative is the real invariant — zod 4's `z.number()` already rejects NaN/Infinity —
+ *  and it is what the shape's two other homes always spelled (`_shared/browser-evidence-ring.ts`,
+ *  `snap/contract/heap.ts`). `records` stays a COUNT: a record is discrete by construction. */
+const limitQuantitySchema = z.number().nonnegative();
+const nullableLimitQuantitySchema = limitQuantitySchema.nullable();
 const artifactLimitEventSchema = z.object({
   kind: z.string().min(1),
   path: z.string().min(1),
-  original: nullableCountSchema,
-  retained: nullableCountSchema,
-  omitted: nullableCountSchema,
+  original: nullableLimitQuantitySchema,
+  retained: nullableLimitQuantitySchema,
+  omitted: nullableLimitQuantitySchema,
 });
 const artifactLimitReceiptSchema = z.object({
   source: z.string().min(1),
   complete: z.boolean(),
-  policy: z.record(z.string().min(1), nonnegativeCountSchema).nullable(),
+  policy: z.record(z.string().min(1), limitQuantitySchema).nullable(),
   events: z.array(artifactLimitEventSchema),
 });
 

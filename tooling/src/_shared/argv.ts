@@ -160,23 +160,38 @@ export function splitPageSuffix(tok: string): { flag: string; page: number } {
 }
 
 /** The decoded `--goto` target: which `__orb.nav` method reaches it + the argument to pass. A bare id is a
- *  rail SECTION; `settings:<group>[.<sub>]` opens the Settings section on a config group and optional
- *  subcategory (the CLI spelling kept its word when the settings modal retired into the section, #866 S1
- *  — the bridge method is `openConfig`); `modal:<slot>` opens a rail modal. */
+ *  rail SECTION; `settings:<group>[.<sub>[.<setting>]]` opens the Settings section on a config group, its
+ *  subcategory, and one setting LEAF (the CLI spelling kept its word when the settings modal retired into
+ *  the section, #866 S1 — the bridge method is `openConfig`); `modal:<slot>` opens a rail modal. */
 export type GotoTarget =
   | { readonly method: "section"; readonly arg: string }
-  | { readonly method: "openConfig"; readonly arg: string; readonly sub?: string }
+  | { readonly method: "openConfig"; readonly arg: string; readonly sub?: string; readonly setting?: string }
   | { readonly method: "openModal"; readonly arg: string };
 
 const SETTINGS_PREFIX = "settings:";
 const MODAL_PREFIX = "modal:";
+/** The config address is THREE parts, verbatim the vocabulary `openConfigTo(group, sub?, setting?)` and the
+ *  `/config?to=g.s.l` copy-link grammar carry (packages/client/src/state/config-link.ts). #1176 widened the
+ *  bridge to the leaf; until #1639 this parser stopped at two, so a drive asking for one knob was decoded
+ *  as its section and the run reported success. */
+const GOTO_CONFIG_GRAMMAR = "settings:<group>[.<sub>[.<setting>]]";
 
 /** Parse a `--goto` target string into the nav method + argument. Pure (the same decode snap injects
- *  in-page), so it's unit-testable in Node without a browser. */
+ *  in-page), so it's unit-testable in Node without a browser. REFUSES an address the grammar cannot spell
+ *  — a truncated decode navigates SOMEWHERE ELSE and reports `ok:true`, which is the lying-instrument
+ *  class the nav module exists to avoid; the throw surfaces as one NAV FAILED line and a red exit at every
+ *  call site (`_shared/nav.ts`, `snap/ops/drive.ts`). `parseConfigLink`'s `rest.length > 0` refusal is the
+ *  same decision on the client half. */
 export function parseGotoTarget(target: string): GotoTarget {
   if (target.startsWith(SETTINGS_PREFIX)) {
-    const [group = "", sub] = target.slice(SETTINGS_PREFIX.length).split(".", 2);
-    return sub === undefined ? { method: "openConfig", arg: group } : { method: "openConfig", arg: group, sub };
+    const [group = "", sub, setting, ...rest] = target.slice(SETTINGS_PREFIX.length).split(".");
+    if (rest.length > 0) {
+      throw new Error(`--goto "${target}" spells more parts than the config address ${GOTO_CONFIG_GRAMMAR}`);
+    }
+    if (group === "" || sub === "" || setting === "") {
+      throw new Error(`--goto "${target}" names an empty address part; the config address is ${GOTO_CONFIG_GRAMMAR}`);
+    }
+    return { method: "openConfig", arg: group, ...(sub === undefined ? {} : { sub }), ...(setting === undefined ? {} : { setting }) };
   }
   if (target.startsWith(MODAL_PREFIX)) {
     return { method: "openModal", arg: target.slice(MODAL_PREFIX.length) };

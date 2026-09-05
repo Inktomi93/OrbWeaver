@@ -82,6 +82,18 @@ test("parseGotoTarget decodes settings:<group> to openConfig (the CLI keeps its 
   expect(parseGotoTarget("settings:chat-behavior")).toEqual({ method: "openConfig", arg: "chat-behavior" });
 });
 
+test("parseGotoTarget decodes the THIRD part — a setting LEAF — the bridge has taken since #1176", () => {
+  expect(parseGotoTarget("settings:appearance.sizing.density")).toEqual({ method: "openConfig", arg: "appearance", sub: "sizing", setting: "density" });
+});
+
+test("parseGotoTarget REFUSES an address the config grammar cannot spell instead of silently truncating it", () => {
+  // The grammar is `settings:<group>[.<sub>[.<setting>]]` — the same three-part address `openConfigTo` and
+  // the `/config?to=g.s.l` copy-link take. A fourth part named nothing and used to be dropped by
+  // `split(".", 2)`, so the probe navigated somewhere ELSE and reported success (the lying-nav class).
+  expect(() => parseGotoTarget("settings:appearance.sizing.density.extra")).toThrow("settings:<group>[.<sub>[.<setting>]]");
+  expect(() => parseGotoTarget("settings:appearance..density")).toThrow("empty");
+});
+
 test("parseGotoTarget decodes modal:<slot> to openModal", () => {
   expect(parseGotoTarget("modal:you")).toEqual({ method: "openModal", arg: "you" });
   expect(parseGotoTarget("modal:you")).toEqual({ method: "openModal", arg: "you" });

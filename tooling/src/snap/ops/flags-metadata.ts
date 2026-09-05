@@ -62,7 +62,10 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--wait-for": { group: "Reach", summary: "selector or text=phrase — wait for a selector to become visible, or for rendered text" },
   "--upload": { group: "Reach", summary: "selector=path[,path] — choose file(s) through an input or a trigger's filechooser" },
   "--drop-files": { group: "Reach", summary: "selector=path[,path] — dispatch dragenter/dragover/drop with a real DataTransfer" },
-  "--goto": { group: "Reach", summary: "SPA navigation through __orb.nav — a section id, settings category, or modal slot" },
+  "--goto": {
+    group: "Reach",
+    summary: "SPA navigation through __orb.nav — a section id, a dotted settings address group.sub.setting, or a modal slot",
+  },
   "--open-chat": { group: "Reach", summary: "open a room by id, exact title, latest, or current" },
   "--open-character": { group: "Reach", summary: "Characters section + select by id or name" },
   "--context-tab": { group: "Reach", summary: "switch the context panel's tab" },

@@ -82,6 +82,9 @@ export function classifyAccentBorder(input: AccentBorderInput, rule: AccentBorde
   if (input.listRowSelected) {
     return { kind: "excluded", reason: "ratifiedListRowSelection" };
   }
+  if (input.artPane) {
+    return { kind: "excluded", reason: "illustratedPickerArt" };
+  }
   return { kind: "judged", finding: checkAccentBorder(input).find((finding) => finding.rule === rule) ?? null };
 }
 
@@ -97,6 +100,17 @@ export function checkAccentBorder(input: AccentBorderInput): Finding[] {
   // unselected list row wearing a hardcoded accent, and any non-ListRow rounded box with a left edge,
   // stay judged — that is what keeps this exemption from widening into the rule's real target.
   if (input.listRowSelected) {
+    return [];
+  }
+  // THE PICTURE IS NOT THE PRODUCT (#1642). Inside an illustrated picker's art aperture
+  // (`[data-slot=picker-cell-art]`, the shared `@orb/ui` PickerCell anatomy) the accent stripe is the
+  // cell's SUBJECT: the chat-style cells render mini transcript lines in each skin's own classes and
+  // inherit that skin's 3px accent through `stripeOf` precisely so a reader can tell the skins apart,
+  // and the density/elevation cells draw their axis the same way. Judging it reported the DIAGRAM (4
+  // findings on `[data-slot=chat-style-cards]`, 2× side-tab + 2× border-accent-on-rounded) while saying
+  // nothing about any surface a user reads. Keyed on the shared slot, never one feature's selector —
+  // the exemption's REACH is every picture picker, and the sample stays counted in the denominator.
+  if (input.artPane) {
     return [];
   }
   const findings: Finding[] = [];

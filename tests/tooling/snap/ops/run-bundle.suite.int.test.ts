@@ -13,10 +13,12 @@ import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { vi } from "vitest";
 import type { InstrumentEvidenceScope } from "../../../../tooling/src/_shared/artifact-scope.ts";
 import { aggregateScope, artifactRef, exactScope, factBatchId, scopeMatches } from "../../../../tooling/src/_shared/artifact-scope.ts";
+import { FILMSTRIP_LIMITS } from "../../../../tooling/src/snap/contract/filmstrip.ts";
 import { snapArmFact } from "../../../../tooling/src/snap/contract/run-facts.ts";
 import type { SnapRunArtifact } from "../../../../tooling/src/snap/contract/run-index.ts";
 import type { Args } from "../../../../tooling/src/snap/contract/types.ts";
 import { redactBrowserDiagnostics } from "../../../../tooling/src/snap/lib/browser-evidence-redaction.ts";
+import { FilmstripBuffer } from "../../../../tooling/src/snap/lib/filmstrip-buffer.ts";
 import { collectSnapRunArtifacts, snapDirtyIdentity, snapGitIdentity } from "../../../../tooling/src/snap/lib/run-bundle-files.ts";
 import { readSnapAnalyzerProblems } from "../../../../tooling/src/snap/lib/run-report-problems.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
@@ -1344,6 +1346,39 @@ test("cross-process artifact declarations reject every malformed allocation fiel
     await writeFile(join(slot, ".artifacts", "declaration.json"), `${JSON.stringify(declaration)}\n`);
     await expect(collectSnapRunArtifacts(slot), field).rejects.toThrow("malformed artifact declaration");
   }
+});
+
+test("a real over-cap filmstrip receipt survives the declaration reader — a duration cap is measured in ms, not counted (#1643)", async ({ scratch }) => {
+  // THE PRODUCER, never a hand-typed literal: the duration-cap event's `original` is `now - startedAt` off
+  // a real clock, so it is fractional on every run that outlives the 15s cap. `artifactLimitEventSchema`
+  // required an INTEGER there, so `readArtifactDeclarations` rejected the whole declaration and a CORRECT
+  // `snap --filmstrip` run died with `INSTRUMENT ERROR: malformed artifact declaration` (exit 2).
+  const overCapMs = 15_837.811_772_000_005;
+  expect(Number.isInteger(overCapMs), "the reproducing clock reading is fractional").toBe(false);
+  const buffer = new FilmstripBuffer(FILMSTRIP_LIMITS, 0);
+  buffer.push(Buffer.from("over-cap frame"), overCapMs);
+  const receipt = buffer.receipt(overCapMs);
+  expect(receipt.limits[0]?.events).toContainEqual(
+    expect.objectContaining({ kind: "duration-cap", path: "$.durationMs", original: overCapMs, retained: FILMSTRIP_LIMITS.durationMs }),
+  );
+
+  const root = join(scratch, "filmstrip-duration-cap-repo");
+  await initializeRepository(root);
+  const slot = await openSlot(root, "filmstrip-duration-cap");
+  await mkdir(join(slot.dir, "filmstrip"), { recursive: true });
+  const artifact = join(slot.dir, "filmstrip", "filmstrip.json");
+  await writeFile(artifact, "{}\n");
+  beginInstrumentRun("snap", root, { slotDir: slot.dir });
+  try {
+    await declareTestArtifact("filmstrip", artifact, { channel: "filmstrip", schema: "snap-filmstrip-v1", limits: receipt.limits });
+  } finally {
+    finishInstrumentRun();
+  }
+  const artifacts = await collectSnapRunArtifacts(slot.dir);
+  const declared = artifacts.find((entry) => entry.relativePath.endsWith("filmstrip.json"));
+  expect(declared?.declaration).toBe("declared");
+  // The measurement reaches the reader UNROUNDED — the receipt is evidence about a real clock.
+  expect(declared?.limits?.[0]?.events).toContainEqual(expect.objectContaining({ kind: "duration-cap", original: overCapMs }));
 });
 
 function firstDiagnosticRecord(artifact: Record<string, unknown>): Record<string, unknown> {
