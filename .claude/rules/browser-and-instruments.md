@@ -34,6 +34,11 @@ paths:
   different runs.
 - **A CT file nobody NAMED is a file nobody ran.** `pnpm check` is static and `check:structure` never
   executes a CT, so list the CT paths you ran in your floor and in your report, beside their results.
+  **The route CTs have no area owner, so this rule is their owner (#1644, 2026-09-05):** a lane touching
+  app-shell composition, the first-run persona gate, the home launcher, or an ambient-route feed runs
+  `tests/client/routes/app-root.ct.tsx` + `tests/client/routes/route-pending.ct.tsx` — six client folds
+  shipped with the first one 4/6 red because no brief listed it. A gate-TRIGGER change retires every STORY
+  that mounts the gate; `pnpm ast refs` cannot see a story that never imports the component.
 - **Only per-package `pnpm typecheck` owns `tests/**/*.ct.tsx`**, and only `typecheck:tests-dom` owns
   `tests/e2e/` — `types:graph` is a false clean for both. Name the right program (truth table in
   `lane-standing-facts.md`).
