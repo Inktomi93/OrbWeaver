@@ -185,7 +185,7 @@ function resolveToSpeakerAnchor(
 
 /** Validate a member's segment CLAIM against the server's OWN canon parse and mint the stored trio.
  *  Throws `invalid_segment` on any mismatch — an out-of-range index or a span that is not the claimed
- *  speaker's is a content/cast race, and refusing beats landing the click on somebody else's line. */
+ *  speaker's is a content/roster race, and refusing beats landing the click on somebody else's line. */
 function mintSegmentAnchor(
   content: string,
   characterNames: readonly string[],
@@ -199,7 +199,7 @@ function mintSegmentAnchor(
 }
 
 /** The toggle's segment arm: absent claim ⇒ whole-message (`null`); present ⇒ validated + minted. The
- *  plain-`Name:` grammar's cast set applies ONLY to a narrator-voiced row — the SAME `isNarratorVoiced`
+ *  plain-`Name:` grammar's character-name set applies ONLY to a narrator-voiced row — the SAME `isNarratorVoiced`
  *  gate the client renderer/picker uses (`message-content.tsx`), or the two parses disagree about one body
  *  (a `<speaker>` tag splits unconditionally on both sides either way). */
 async function resolveSegmentClaim(
@@ -314,7 +314,7 @@ export function createReactAsCharacter(ctx: ChatContext, deps: ReactionsDeps): R
     // SPEAKING onto the transcript, so a muted seat may not author one — and nothing upstream enforces it: the
     // attach gate is knob-level only (`teaching-contribution.ts` attaches the tool when the ROOM's
     // `reactionsEnabled && charactersCanReact` resolve on; it knows no seat, and the model picks the name at
-    // call time). Errors-as-data with the seat's real state, so the model routes to another cast member.
+    // call time). Errors-as-data with the seat's real state, so the model routes to another seated character.
     if (seat.disabled) {
       return { ok: false, reason: `The character "${seat.characterName}" is muted in this chat and cannot react.` };
     }

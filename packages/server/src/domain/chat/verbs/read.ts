@@ -204,7 +204,7 @@ type ReadVerbs = Pick<
  *  such key, and hanging this alias off the list read made those two callers un-typeable. */
 type ChatRowView = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
-/** The resolved preview substrate: the host, the resolved cast/personas, the connection `model`, and the
+/** The resolved preview substrate: the host, the resolved seated characters/personas, the connection `model`, and the
  *  cross-domain assemble inputs. The previews + `getActivePresetConfig` share this resolution. */
 interface PreviewInputs {
   /** The previewed chat — carried so the registry build can stamp the GAME group's `MacroSourceRef.id`. */
@@ -220,8 +220,8 @@ interface PreviewInputs {
   readonly characterIds: readonly CharacterId[];
   readonly personaIds: readonly PersonaId[];
   /** The room's effective GroupConfig — its `output` axis is the ONE the SHAPE peek resolves, so a preview
-   *  renders the SAME cast/per-speaker shape the next turn will (`TurnSpeakerShape.output`), never a pinned
-   *  guess. A narrator room previews its joined-cast `{{char}}` + `[Character — …]` framing; per-speaker is
+   *  renders the SAME seated-characters/per-speaker shape the next turn will (`TurnSpeakerShape.output`), never a pinned
+   *  guess. A narrator room previews its joined-seated-characters `{{char}}` + `[Character — …]` framing; per-speaker is
    *  byte-unchanged. `DEFAULT_GROUP_CONFIG` for a room carrying no group blob. */
   readonly group: GroupConfig;
   /** The room's parsed `metadata` blob — the B1 offer-choices knob's room half, so the host's Preview shows
@@ -249,7 +249,7 @@ interface ChatSummaryInputs {
 }
 
 /**
- * The list row's cast — the present roster MINUS the viewer's own seat (side-eye NR4).
+ * The list row's seated characters — the present roster MINUS the viewer's own seat (side-eye NR4).
  *
  * The names are what an untitled row shows as its title ("Alex, Niko"), and the viewer is in every chat they
  * can list, so their own name is a constant prefix carrying zero information while eating the width the row
@@ -376,9 +376,9 @@ async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView
   );
 }
 
-/** Resolve the {@link PreviewInputs} for a chat: the present roster → host + cast + personas, then the
+/** Resolve the {@link PreviewInputs} for a chat: the present roster → host + seated characters + personas, then the
  *  connection (`model`) + the cross-domain assemble inputs. A hostless room is unusable (leak-free
- *  NOT_FOUND). The cast is reordered to put `speakerCharacterId` primary when supplied.
+ *  NOT_FOUND). The seated characters are reordered to put `speakerCharacterId` primary when supplied.
  *
  *  A preview has no TRIGGERING human (no turn is running), so `{{user}}` for the prompt-config sections binds
  *  to the HOST's own active persona (the `human` trigger) — the preview already resolves everything else under
@@ -614,7 +614,7 @@ async function buildPreviewContext(
   );
   const primary = gathered.speakerRefs?.[0];
   // The room's OWN output axis — the same one `shapeNextTurn` threads below and a real turn reads off
-  // `TurnSpeakerShape.output`: a NARRATOR room previews its cast shape (joined `{{char}}` + `[Character — …]`
+  // `TurnSpeakerShape.output`: a NARRATOR room previews its all-seated-characters shape (joined `{{char}}` + `[Character — …]`
   // framing), a per-speaker room renders the primary speaker's turn byte-identically to before. A preview has
   // no arbitrated round, so `cardScope` stays pinned `merged` (narrator is always merged; per-speaker's
   // scoped fold is a per-round selection a shapeless peek can't make) — only the output axis is now honest.
@@ -1018,7 +1018,7 @@ async function shapeNextTurn(
     appendUserTurn: null,
     injections: inChatInjections,
     // The room's own output axis (see `buildPreviewContext`) — a narrator preview shapes its history as the
-    // cast turn will. `cardScope`/`scopedTargetId` stay pinned (merged / no fold): narrator is always merged,
+    // narrator turn will. `cardScope`/`scopedTargetId` stay pinned (merged / no fold): narrator is always merged,
     // and a shapeless peek makes no per-speaker scoped selection, so per-speaker rooms stay byte-identical.
     output: inputs.group.output,
     cardScope: "merged",

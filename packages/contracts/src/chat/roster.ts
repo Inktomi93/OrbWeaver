@@ -468,7 +468,7 @@ export interface MemberCardView {
  *  keyed to THIS chat, so they transfer with the room by construction — there is nothing to copy and nothing
  *  to opt into. */
 export const handoffOfferSchema = z.object({
-  /** Copy the OLD HOST's seated cast into the nominee's library and re-point this room's seats at the
+  /** Copy the OLD HOST's seated characters into the nominee's library and re-point this room's seats at the
    *  copies: their present character seats, each card's attached character-scoped world books AS COPIES
    *  (a reference-carry would silently lose the lore — the character-book pool is owner-filtered), and the
    *  host-owned chat-attached books. `false` ⇒ the D64 drop (the seats the nominee cannot resolve are

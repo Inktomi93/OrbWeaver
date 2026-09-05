@@ -7,8 +7,8 @@
 // `@orb/contracts/chat`); they live in `chat/contract/` only to satisfy the one-type-home gate.
 //
 // NO `ownerId` anywhere (D20 — the substrate derives owner via the chat FK, never a stamp); the scope key is
-// `scopedCharacterId`, ALWAYS a real `CharacterId` (inv 8 — solo's cast char / the synthetic group-as-character
-// `__group__${chatId}` for solo/merged/narrator / a per-witnessing cast char under scoped; NO `''` sentinel,
+// `scopedCharacterId`, ALWAYS a real `CharacterId` (inv 8 — solo's seated character / the synthetic group-as-character
+// `__group__${chatId}` for solo/merged/narrator / a per-witnessing seated character under scoped; NO `''` sentinel,
 // NO NULL — §4). The canonical retrieval-mode axis DERIVES `MemoryRetrievalMode` (no inline union re-spell).
 
 import type { BackfillPassResult, ChatBusEvent, MemoryBackfillResult, MemoryRecallSlice, MessageKind } from "@orb/contracts/chat";
@@ -50,10 +50,10 @@ export interface ResolvedMemoryConfig {
 
 /** The egocentric memory bucket (§4): which "pile" a build writes / a recall reads. `scopedCharacterId` is
  *  ALWAYS a real `CharacterId` (inv 8): the synthetic group-as-character for the shared bucket (solo/merged/
- *  narrator — everyone sees everything), or a cast character's id for a scoped-group per-character bucket
+ *  narrator — everyone sees everything), or a seated character's id for a scoped-group per-character bucket
  *  (egocentric-only recall). `isGroup` rides onto the digest row (`chat_digests.isGroup`, the analytics split).
  *  Derived by the engine at compose from `cardScope` + the active speaker — NOT a branch here (`no-if-is-group`:
- *  solo keys the same way as merged-of-one, just with the cast char vs the synthetic group char). */
+ *  solo keys the same way as merged-of-one, just with the seated character vs the synthetic group char). */
 export interface MemoryScope {
   readonly chatId: ChatId;
   readonly scopedCharacterId: CharacterId;
@@ -82,17 +82,17 @@ export interface MsgRow {
 }
 
 /** The ROUND-LEVEL recall inputs the engine re-runs `recallMemory` with PER SCOPED SPEAKER (the per-speaker
- *  witnessed recall). Gathered ONCE at round assemble (the recent window + cast name map + the shared
+ *  witnessed recall). Gathered ONCE at round assemble (the recent window + character name map + the shared
  *  group-as-character bucket are all speaker-invariant); the engine varies only `scopedCharacterId` + the
  *  speaker's join/leave `witnessing` horizons, so a scoped speaker recalls its OWN egocentric, horizon-filtered
  *  memory while merged/narrator/solo rounds keep the round-level shared recall byte-identically. `null` when
- *  there is no character to key on (memory off / empty cast) — the engine then leaves `memory` untouched. */
+ *  there is no character to key on (memory off / an empty roster) — the engine then leaves `memory` untouched. */
 export interface MemoryRecallInputs {
   /** The shared (group-as-character) bucket — the round-level merged recall keyed on it. */
   readonly groupCharacterId: CharacterId;
   /** The recent window (oldest→newest) the mixB/mixC egocentric query is built from. */
   readonly recent: readonly MsgRow[];
-  /** The cast name map the egocentric query prefixes speakers with. */
+  /** The character name map the egocentric query prefixes speakers with. */
   readonly names: ReadonlyMap<CharacterId, string>;
   /** The resolved memory config the round-level recall used (so the per-speaker re-run matches its tuning). */
   readonly config: MemoryConfig | null;

@@ -48,7 +48,7 @@ import { and, eq, inArray } from "drizzle-orm";
 interface WorldInfoPoolTarget {
   readonly chatId: ChatId;
   readonly ownerId: UserId;
-  /** Every present AI cast member's identity; primary first. Empty ⇒ no character-scope books. */
+  /** Every present AI seated character's identity; primary first. Empty ⇒ no character-scope books. */
   readonly characterIds: readonly CharacterId[];
   /** The present humans' active personas. Empty ⇒ no persona-scope books. */
   readonly personaIds: readonly PersonaId[];

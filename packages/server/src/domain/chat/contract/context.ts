@@ -536,7 +536,7 @@ type ResolveHandleOp = (handle: Handle) => Promise<UserId | null>;
 type ResolveUserEnabledOp = (userId: UserId) => Promise<boolean>;
 
 /** Server-derived SSE liveness for a userId (never client-asserted — a spoofable presence is a
- *  prompt-composition attack). Read once per round for cast-gating. */
+ *  prompt-composition attack). Read once per round for seated-character-gating. */
 export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
 
 /** The D50 PromptTransform seam apply op (automation-design/04 §6) — the injected registry over which
@@ -823,7 +823,7 @@ export interface ChatRpgOps {
    *  `args.copyGmPreset`/`args.cardCopies` are the ACCEPTED OFFER's rpg arms: with the preset
    *  offered, an unreadable knob is COPIED into the new host's library and re-pointed instead of nulled (the
    *  room keeps the voice it had); `cardCopies` re-keys `rpg_sheets` off the departing host's cards onto the
-   *  nominee's copies, so the transferred cast's durable identity data stops depending on a library the old
+   *  nominee's copies, so the transferred seated characters' durable identity data stops depending on a library the old
    *  host can empty. An offer-less accept passes `false` + `[]` and produces the IDENTICAL statement list the
    *  pre-offer heal produced. */
   readonly handoffHealStatements: (args: HandoffHealArgs) => Promise<readonly BatchStmt[]>;
@@ -981,8 +981,8 @@ type ResolveConnectedPersonaOp = (userId: UserId, characterIds: readonly Charact
 type VerifyPersonaOwnedOp = (params: { readonly ownerId: UserId; readonly personaId: PersonaId }) => Promise<boolean>;
 
 /** memory's digest write payload → `embeddings.store`. `contentHash` is the staleness/collapse key;
- *  `key.scopedCharacterId` is always a real CharacterId (the synthetic group-as-character bucket, or a cast
- *  member, never a sentinel/null).
+ *  `key.scopedCharacterId` is always a real CharacterId (the synthetic group-as-character bucket, or a seated
+ *  character, never a sentinel/null).
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export interface StoreDigestParams {
@@ -1137,8 +1137,8 @@ export interface TeachingKnobs {
 export interface TeachingIdentity {
   /** The ACTIVE/triggering persona's name, or `undefined` when the turn has none (⇒ the kit floor). */
   readonly user: string | undefined;
-  /** The Ruling-B host/null-speaker `{{char}}`: the JOINED CAST in a multi-character room, the single
-   *  character in solo, `""` for an empty cast. */
+  /** The Ruling-B host/null-speaker `{{char}}`: ALL THE SEATED CHARACTERS, joined, in a multi-character room, the single
+   *  character in solo, `""` for an empty roster. */
   readonly char: string;
 }
 

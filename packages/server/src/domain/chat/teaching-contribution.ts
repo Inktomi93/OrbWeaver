@@ -184,7 +184,7 @@ function buildAttributionLines(rows: Awaited<ReturnType<typeof listAttributionRe
     for (const row of kept) {
       const token = reactionEmojiSchema.safeParse(row.emoji);
       if (token.success) {
-        // The plain-`Name:` cast set applies only to a narrator-voiced row — the same `isNarratorVoiced`
+        // The plain-`Name:` character-name set applies only to a narrator-voiced row — the same `isNarratorVoiced`
         // gate the write-side validation and the client renderer use (one predicate, every parse).
         lines.push(attributionLine(row, token.data, isNarratorVoiced(row.messageKind) ? characterNames : [], parseable));
       }

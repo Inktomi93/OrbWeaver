@@ -133,7 +133,7 @@ export const CHAT_OP_CODES = {
   reactionsDisabled: "reactions_disabled",
   /** B7 — a segment-targeted `toggleReaction` whose claimed anchor does not resolve against the SERVER's
    *  own parse of the variant's canon (index out of range, or the span at that index is not the claimed
-   *  speaker's). Almost always a benign race — the content or cast changed between the picker's parse and
+   *  speaker's). Almost always a benign race — the content or roster changed between the picker's parse and
    *  the write — and refusing beats silently retargeting the member's click at the whole message. */
   invalidSegment: "invalid_segment",
   /** #1356 — a `setUserMacroValues` flush carried a `single-select`/`multi-select` pick that is not one of

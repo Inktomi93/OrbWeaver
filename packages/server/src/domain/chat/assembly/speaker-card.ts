@@ -4,7 +4,7 @@
 // (`ctx.character`/`speaker`) and the co-speakers:
 //   • per-speaker × merged (default) → co-speakers = the OTHER present characters (the "[Also present — X]" block renders them).
 //   • per-speaker × scoped           → co-speakers = [] (own card only; best isolation).
-//   • narrator                       → ONE call voices the WHOLE cast: the primary is the character section, EVERY
+//   • narrator                       → ONE call voices ALL the seated characters: the primary is the character section, EVERY
 //                                      other present member is a co-speaker, and `speaker` is the `multi-voice` arm, which
 //                                      is what binds `{{char}}` to the joined member names (`assembly/macros` charForSpeaker).
 // PURE — never mutates the input ctx (§5: per-speaker is a fresh shape, not a mutation). A ctx with no
@@ -13,9 +13,9 @@
 // WHY NARRATOR NEEDS ITS OWN ARM: a narrator round's speaker is the SYNTHETIC
 // group character, which by construction is NOT in `speakerRefs` — without this arm it would fall through
 // the `idx === -1` guard below and assemble as if it were a SOLO turn for the primary (a system row naming
-// only the primary, opening "write <primary>'s perspective only" on a turn that voices the whole cast, with
-// the model nonetheless attempting the cast from a nudge naming names it was never given a card for). The
-// `-1` guard stays: it is the honest fallback for a genuinely off-cast speaker on a
+// only the primary, opening "write <primary>'s perspective only" on a turn that voices all the seated characters, with
+// the model nonetheless attempting all the seated characters from a nudge naming names it was never given a card for). The
+// `-1` guard stays: it is the honest fallback for a genuinely off-roster speaker on a
 // PER-SPEAKER round (a wiring gap), and narrator no longer reaches it.
 //
 // D60: `speakerRefs` carries `agent` refs too. An agent has NO card — its resolved SOUL fills the same
@@ -30,13 +30,13 @@ type GroupOutput = GroupConfig["output"];
 /** The card-scope axis; lives only on the per-speaker arm (narrator is always merged). */
 type CardScope = Extract<GroupConfig, { output: "per-speaker" }>["cardScope"];
 
-/** NARRATOR: one call voices the whole cast. The primary card is the character section and every OTHER
+/** NARRATOR: one call voices all the seated characters. The primary card is the character section and every OTHER
  *  present member rides as a co-speaker — the SAME breadth `cardScope:"merged"` produces, because the cards
  *  a narrator turn needs are exactly "everyone in the room". `speaker` takes the `multi-voice` arm so `{{char}}`
  *  resolves to the joined member names rather than to whichever member happens to be primary. */
 function shapeContextForMultiVoice(ctx: AssembleContext, characters: readonly AssembleCharacter[]): AssembleContext {
   const active = characters[0] ?? ctx.character;
-  // An EMPTY-but-defined cast is reachable, so `members` needs the same floor `active` gets: `getCard` returning
+  // An EMPTY-but-defined roster is reachable, so `members` needs the same floor `active` gets: `getCard` returning
   // falsy for every seated id drops the whole roster (`assembly/context` buildAssembleContext) while a narrator
   // round still fires (`verbs/turn` gates on `output === "narrator"` OR a speaker, never on roster size). An
   // unfloored `members: []` joins to "" and ships "…voicing  and the world around them" — `{{char}}` with no
@@ -53,7 +53,7 @@ function shapeContextForMultiVoice(ctx: AssembleContext, characters: readonly As
 }
 
 /** PER-SPEAKER: the named speaker's card becomes the character section; `cardScope` selects the breadth of
- *  the co-speakers merged in beside it. An off-cast ref keeps the primary (never crashes). */
+ *  the co-speakers merged in beside it. An off-roster ref keeps the primary (never crashes). */
 function shapeContextForSingle(
   ctx: AssembleContext,
   characters: readonly AssembleCharacter[],

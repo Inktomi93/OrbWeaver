@@ -69,7 +69,7 @@ export const messageRoleSchema = z.enum(MESSAGE_ROLES);
 // canon. KIND NOW DECIDES NO WIRE ROLE EITHER (owner ruling, 2026-08-18, verbatim: "if you mean group chat
 // narration mode then that is the wrong behavior"): the "ship a narrator row as a wire `system` row on
 // capable models" mapping — a SHAPE-time dispatch on kind × capability, built on the measured vLLM cell in
-// `56a979d44` — is RULED OUT. Group narration is ONE generation voicing the whole cast, i.e. the assistant's
+// `56a979d44` — is RULED OUT. Group narration is ONE generation voicing all the seated characters, i.e. the assistant's
 // own output voice, so a narrator row delivers `assistant` on every wire. Kind also does not replace the D55
 // synthetic group character: that identity keeps the `__group__` memory scoping, the attribution chrome and
 // the host-owned mint. Kind is purpose; attribution remains voice.
@@ -82,7 +82,7 @@ export const messageKindSchema = z.enum(MESSAGE_KINDS);
  *  so the column default, the read-seam floor and a test factory can never spell three different defaults. */
 export const DEFAULT_MESSAGE_KIND: MessageKind = "standard";
 
-/** Whether a row's body is voiced through the NARRATOR grammar (one generation speaking the whole cast) —
+/** Whether a row's body is voiced through the NARRATOR grammar (one generation speaking all the seated characters) —
  *  the OUTER gate on the plain-`Name:` half of the speaker-span parse: in any other kind a row is one
  *  speaker's, so a line opening `Alice:` is prose (or, on a USER row, an attribution a member could forge)
  *  and must never split. Deliberately KIND-based, not role-based (the old
@@ -90,7 +90,7 @@ export const DEFAULT_MESSAGE_KIND: MessageKind = "standard";
  *  room's output dial moved).
  *
  *  PROMOTED here from the client's `attribution.ts` (B7): the server's segment-anchor validation parses
- *  the SAME body with the SAME cast-name gate (`verbs/reactions.ts`), and two spellings of this predicate
+ *  the SAME body with the SAME character-name gate (`verbs/reactions.ts`), and two spellings of this predicate
  *  is a client picker and a server validator disagreeing about the same bytes. `undefined` = a row with no
  *  server slot yet (a pre-commit draft greeting) — not narrator-voiced, same as before. */
 export function isNarratorVoiced(kind: MessageKind | undefined): boolean {

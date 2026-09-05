@@ -16,8 +16,8 @@ import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 
 /** The shared group bucket's scope key: the synthetic group-as-character's REAL row id (find-or-mint,
- *  idempotent — race-safe on the `(ownerId, handle)` unique). Callers gate on cast size (`>1`); a solo room keys
- *  its memory on its lone cast char, never through here. `ownerId` is the room HOST (D18/D19 — the funding
+ *  idempotent — race-safe on the `(ownerId, handle)` unique). Callers gate on seated-character count (`>1`); a solo room keys
+ *  its memory on its lone seated character, never through here. `ownerId` is the room HOST (D18/D19 — the funding
  *  owner the synthetic identity belongs to). */
 export async function resolveGroupBucketCharacterId(ctx: ChatContext, args: { readonly ownerId: UserId; readonly chatId: ChatId }): Promise<CharacterId> {
   const group = await ctx.mintSyntheticGroupCharacter({

@@ -24,7 +24,7 @@ interface DriveRoundParams {
   readonly engine: Pick<TurnEngine, "runTurn">;
   readonly base: RoundBase;
   readonly group: GroupConfig;
-  /** The arbitration result, name-resolved + ordered. Ignored for `narrator` (one cast turn). */
+  /** The arbitration result, name-resolved + ordered. Ignored for `narrator` (one narrator turn). */
   readonly speakers: readonly SpeakerCandidate[];
   /** The synthetic group character that authors a narrator turn (a real id, never null). Required when
    *  `group.output === "narrator"`; the verb mints it via `ctx.mintSyntheticGroupCharacter`. */
@@ -32,15 +32,15 @@ interface DriveRoundParams {
   /** The name the narrator round's synthetic speaker carries — the joined candidate names (`{{char}}`-as-whole-room), collapsing to the single name at one candidate. Read on the narrator arm only. */
   readonly narratorSpeakerName: string;
   /** The present, NON-MUTED character names a narrator turn voices — the nudge's `{{names}}` and the
-   *  cast-of-one guard. Empty/≤1 ⇒ a narrator round sends no nudge at all (byte-identical single turn). */
+   *  single-character guard. Empty/≤1 ⇒ a narrator round sends no nudge at all (byte-identical single turn). */
   readonly narratorMemberNames: readonly string[];
 }
 
 /** The NARRATOR round's trailing nudge — two INDEPENDENT host toggles, joined by a space:
- *  (a) `groupNudge` names the cast this one generation is voicing; (b) `speakerTags` asks for the
+ *  (a) `groupNudge` names all the seated characters this one generation is voicing; (b) `speakerTags` asks for the
  *  `<speaker>NAME</speaker>` markers the client narrator renderer colors by. Both fire only on a
- *  MULTI-member round — a cast-of-one narrator turn is a solo turn and stays byte-identical. Both off
- *  (or cast ≤ 1) ⇒ null, and SHAPE falls through to its own continuation tail exactly as before. */
+ *  MULTI-member round — a single-character narrator turn is a solo turn and stays byte-identical. Both off
+ *  (or seated-character count ≤ 1) ⇒ null, and SHAPE falls through to its own continuation tail exactly as before. */
 function buildNarratorNudge(base: RoundBase, group: GroupConfig, memberNames: readonly string[]): string | null {
   if (memberNames.length <= 1) {
     return null;
@@ -92,7 +92,7 @@ function buildSpeakerPrep(base: RoundBase, group: GroupConfig, speaker: SpeakerC
   // the speaker's name as its `{{name}}` pre-substitution token; the host prose rode onto the round's one
   // immutable assemble ctx at build. Unset ⇒ the shipped line, byte-identical. NARRATOR takes the other
   // arm: its round is ONE speaker by construction (so `multi` is always false), and the fence it needs is
-  // the opposite one — voice the WHOLE cast, tagged per speaker.
+  // the opposite one — voice all the seated characters, tagged per speaker.
   const groupNudge = buildRoundNudge(base, group, speaker, round);
   return {
     ...base,

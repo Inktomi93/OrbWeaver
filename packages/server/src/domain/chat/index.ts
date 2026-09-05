@@ -129,7 +129,7 @@ export { backfillGroupCharacters, backfillMemory } from "./substrate/backfill.ts
 // `viewerIsHost` flag `chatEventBounds` resolves; the verdict is chat's ONE implementation everywhere.
 export { scrubDeltaEventForMember, stripChatEventForMember, stripMessagesForViewer, viewerReadsHidden } from "./substrate/member-visibility.ts";
 // The ONE participant display-name terminal (R10 + owner ruling: no raw id ever renders). Exported for the
-// same reason the guards are: the regex compose seam (`entry/compose/regex.ts`) resolves the cast that names
+// same reason the guards are: the regex compose seam (`entry/compose/regex.ts`) resolves the seated characters that name
 // a room in the reverse roster, and it must land on the SAME word chat's own roster read does for a seat
 // whose backing actor is gone — a second spelling would be a second vocabulary for one sentinel.
 export { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "./substrate/participant-name.ts";
