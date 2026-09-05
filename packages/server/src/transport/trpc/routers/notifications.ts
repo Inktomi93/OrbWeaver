@@ -6,7 +6,7 @@
 // THE INBOX TRIO IS `authedProcedure` (#1627, 2026-09-05 — PD-106's ruling survives, its INPUT changed).
 // The whole router rode `multiHumanProcedure` because every notification SOURCE was multi-human
 // (invite/kick/host-handoff delivery), so a deployment that cannot seat a second human (single-user, or
-// local with `LOCAL_MULTI_USER` off — the B4 axis) refused the inbox as NOT_FOUND. Single-human sources
+// local with the `localMultiUser` AppSetting off — the B4 axis) refused the inbox as NOT_FOUND. Single-human sources
 // now exist and were writing durable rows nobody on such a deployment could read: `plugin-disabled` (the
 // crash policy notifying the INSTALLING OWNER — `domain/plugin/activation/crash-policy.ts`) and
 // `automation-notice` (the auto-disable notice to the rule AUTHOR, including the owner-GLOBAL lane that

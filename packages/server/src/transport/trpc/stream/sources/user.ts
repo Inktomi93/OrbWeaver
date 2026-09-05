@@ -8,7 +8,8 @@
 // ref carries no field that could widen it), so `authorizeAttach` is a no-op and there is no per-yield
 // re-gate — the same posture the deleted procedure had. This room is deliberately NOT behind the
 // multi-human belt: a user with two browsers is not a multi-human deployment, and cross-device freshness is
-// the whole point of the lane.
+// the whole point of the lane. No room carries that belt today — the inbox was the last one and #1627 took
+// it off (its sources address a single human), so `sources/notifications.ts` now holds this same posture.
 
 import type { StreamDataFrame } from "@orb/contracts/stream";
 import { subscribeUserEvents } from "../../user-events-bus.ts";
