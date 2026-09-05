@@ -5,6 +5,9 @@
 //   • a REFERENCED asset (character avatar) is KEPT even when old (liveness beats age).
 //   • the GRACE WINDOW protects a recently-touched blob (mtime within grace) even when unreferenced — the
 //     put→link gap guard.
+//   • an ORPHAN blob that gets INDEXED between the sweep's snapshot and the purge is NOT reclaimed — the
+//     `assetId: undefined` arm re-resolves owner+hash at the destructive edge, so a row committed after the
+//     snapshot is never left pointing at removed bytes.
 //   • `dryRun` counts what it WOULD reclaim without deleting.
 //   • PD-131 anti-reap: a `background` asset pinned ONLY by `appearance.backgroundAssetId` in the
 //     `user_settings.config` JSON (NO FK column) is KEPT even when old — the JSON live-source scan roots it.
@@ -205,6 +208,51 @@ describe("collectGarbage", () => {
     expect(result.reclaimed).toBe(0);
     expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(1);
     expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(true);
+  });
+
+  test("an orphan blob INDEXED between the snapshot and the purge is not reclaimed", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    // A pure orphan: bytes on disk, no index row, past grace — the sweep's `assetId: undefined` arm.
+    const bytes = pngBytes(33);
+    const put = await h.ctx.cas.putBytes(owner, bytes, FROZEN_AT_MS);
+    await setBlobMtime(h, owner, put.hash, FROZEN_AT_MS - TWO_HOURS_MS);
+
+    const reached = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const original = h.ctx.cas;
+    const cas: Cas = {
+      putBytes: original.putBytes.bind(original),
+      blobPath: original.blobPath.bind(original),
+      exists: original.exists.bind(original),
+      // Pause AFTER the grace stat: the mtime this sweep judges by was read BEFORE the concurrent store —
+      // exactly the real race (a `putBytes` mtime bump the sweep can no longer see).
+      mtimeMs: async (ownerId, hash) => {
+        const mtime = await original.mtimeMs(ownerId, hash);
+        reached.resolve();
+        await release.promise;
+        return mtime;
+      },
+      read: original.read.bind(original),
+      verify: original.verify.bind(original),
+      remove: original.remove.bind(original),
+      listHashes: original.listHashes.bind(original),
+      listOwners: original.listOwners.bind(original),
+    };
+    const collecting = createAssetsService({ ...h.ctx, cas }).collectGarbage({});
+    await reached.promise;
+    // The transition the snapshot cannot see: a store dedups onto these bytes and INDEXES them.
+    const stored = await createAssetsService(h.ctx).store({ principal: principal(owner), bytes, kind: "avatar", mime: PNG });
+    release.resolve();
+
+    const result = await collecting;
+
+    expect(result.reclaimed).toBe(0);
+    expect(await db.select().from(assets).where(eq(assets.id, stored.assetId))).toHaveLength(1);
+    // The row must never be left pointing at bytes the sweep removed.
+    expect(await h.ctx.cas.exists(owner, put.hash)).toBe(true);
   });
 
   test("a reference committed while the guarded asset-row DELETE is held wins the destructive edge", async () => {

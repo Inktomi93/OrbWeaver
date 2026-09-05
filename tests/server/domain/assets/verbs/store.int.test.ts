@@ -2,6 +2,8 @@
 //   • within-user content-hash dedup (same bytes ⇒ ONE row, `created:false` on the second) — D21.
 //   • per-user CAS scoping (same bytes, two owners ⇒ two rows, two distinct blobs) — D21.
 //   • `asset.created` fires on a NEW asset, NOT on a dedup hit (the embeddings seam).
+//   • a RECOVERED row (blob already on disk, row lost to a crash) is a CREATION: `created` reports the ROW
+//     insert, not the CAS write, so the emit — and therefore the indexer — is never skipped for it.
 //   • `enforceMagic` rejects a mislabeled binary BEFORE it reaches CAS (invariant #6).
 //   • a card blob's CAS hash == sha-256 of the whole file (== `characters.importHash`) — invariant #10.
 
@@ -12,6 +14,7 @@ import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, pngBytes, principal, seedUser } from "../_support.ts";
@@ -97,6 +100,28 @@ describe("store", () => {
     await svc.store({ principal: principal(owner), bytes, kind: "avatar", mime: PNG });
     // Still exactly one emit — the second store deduped, so the indexer is not re-notified.
     expect(h.emitted).toHaveLength(1);
+  });
+
+  test("a RECOVERED row over an orphan blob counts as created and emits asset.created", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const bytes = pngBytes(3, 1, 4);
+
+    // The crash state: the CAS write landed, the index row did not (purge-asset's benign orphan, or a
+    // process death between `putBytes` and the insert). The blob exists; nothing references it.
+    const put = await h.ctx.cas.putBytes(owner, bytes, FROZEN_AT_MS);
+    expect(put.created).toBe(true);
+    expect(await db.select().from(assets)).toHaveLength(0);
+
+    const stored = await svc.store({ principal: principal(owner), bytes, kind: "avatar", mime: PNG });
+
+    // The ROW is what was created — the CAS write deduped. `created` reports the row, so the recovered
+    // asset is indexed exactly once (the embeddings seam never hears about it otherwise).
+    expect(stored.created).toBe(true);
+    expect(h.emitted).toEqual([{ type: "asset.created", assetId: stored.assetId }]);
   });
 
   test("enforceMagic rejects a non-image labeled image/png (and stores nothing)", async () => {

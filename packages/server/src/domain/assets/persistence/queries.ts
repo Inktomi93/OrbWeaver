@@ -113,7 +113,8 @@ export async function metadataForOwnerAndHash(db: Db, ownerId: UserId, hash: str
 
 /** The CAS+row coherence primitive: put bytes to the owner's CAS, then upsert the index row by
  *  `(ownerId, hash)`. The one writer of the blob↔row pair. `enforceMagic` verifies claimed mime against
- *  the byte signature; a dedup conflict falls through to `assetIdForHash`. */
+ *  the byte signature; a dedup conflict falls through to `assetIdForHash`. The returned `created` is the
+ *  ROW verdict (see the comment at the return) — NOT the CAS write's. */
 export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promise<StoredAsset> {
   if (input.enforceMagic) {
     // The byte-signature belt now covers documents (pdf/zip/text) alongside images — dispatch on the claimed
@@ -149,7 +150,13 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
   if (assetId === undefined) {
     throw new Error(`assets.store: row missing after upsert (${put.hash})`);
   }
-  return { assetId, hash: put.hash, size: put.size, created: put.created };
+  // `created` reports the ROW, never `put.created`: the index row is what the rest of the system reacts to
+  // (`store` emits `asset.created` off this flag, and the indexer embeds off that event). The two disagree
+  // exactly when a crash left a blob without its row — the CAS write then dedups (`put.created === false`)
+  // while THIS call inserts the missing row, and reporting the CAS verdict would silently skip the emit for
+  // a recovered asset. The reverse (row present, blob freshly written) is the repair path and is likewise a
+  // non-creation. Emission must be total: a recovered row IS a creation.
+  return { assetId, hash: put.hash, size: put.size, created: inserted[0] !== undefined };
 }
 
 interface ListOwnedInput {
