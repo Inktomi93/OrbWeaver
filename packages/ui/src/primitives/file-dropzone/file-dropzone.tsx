@@ -116,8 +116,18 @@ interface FileDropzoneNameSources {
  *
  * RETURNS A CONDITIONAL OBJECT, never `aria-labelledby={maybeUndefined}`. Base UI merges the render
  * element's props over its own with a `for…in` assignment (`merge-props/mergeProps.js` `mutablyMergeInto`)
- * and JSX materializes `attr={undefined}` as a PRESENT key — so writing the attribute unconditionally
- * would overwrite `Field.Control`'s own `labelId` with `undefined` and delete the label case 2 protects.
+ * and JSX materializes `attr={undefined}` as a PRESENT key, so writing the attribute unconditionally
+ * OVERWRITES `Field.Control`'s own `labelId` with `undefined`.
+ *
+ * WHAT THAT COSTS IS THE ATTRIBUTE, NOT THE NAME — stated precisely because the first writing of this
+ * paragraph overstated it and #1679 measured the difference. `Field.Label` defaults to `nativeLabel`, so it
+ * ALSO emits a real `<label for>` (`internals/labelable-provider/useLabel.js` returns
+ * `htmlFor: resolvedControlId` when `native`); with the attribute clobbered the computed name still
+ * resolves through that label, and every accname assertion stays green. The conditional is still right, and
+ * for a reason that survives the correction: `aria-labelledby` is Base UI's OWN wiring, and the native
+ * label is not always there to catch the fall — a `Field.Label` given a non-`<label>` `render`, or
+ * `nativeLabel={false}`, drops `htmlFor` and leaves the attribute as the only thing naming this input.
+ * Relying on the fallback would be relying on an accident. Pinned as an ATTRIBUTE assertion in both CTs.
  */
 function nameAttributes(sources: FileDropzoneNameSources): { "aria-label"?: string; "aria-labelledby"?: string } {
   const { ariaLabel, ariaLabelledBy, fieldLabelled, instructions, instructionsId } = sources;

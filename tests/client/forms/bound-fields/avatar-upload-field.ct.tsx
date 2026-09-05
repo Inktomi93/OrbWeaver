@@ -33,6 +33,9 @@ test("the bound field's label is what the file input announces, not the dropzone
   const story = await mount(<AvatarUploadEpochStory />);
   await expect(story.getByLabel("Portrait", { exact: true })).toHaveAttribute("data-slot", "file-dropzone-input");
   await expect(story.getByLabel("Drag and drop, or click to browse", { exact: true })).toHaveCount(0);
+  // …and the NAME surviving is not enough (#1679): `Field.Label` also emits a native `<label for>`, so the
+  // name holds even when Base UI's own `aria-labelledby` has been clobbered away. Pin the attribute too.
+  await expect(story.locator('[data-slot="file-dropzone-input"]')).toHaveAttribute("aria-labelledby", /^base-ui-/u);
 });
 
 test("an older upload completion cannot overwrite the newer avatar identity or preview", async ({ mount, page }) => {

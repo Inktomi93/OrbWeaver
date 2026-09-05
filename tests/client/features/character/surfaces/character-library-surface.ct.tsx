@@ -1961,9 +1961,16 @@ test("#523 the tag-vocabulary scroll viewport is a NAMED region, not an unlabele
 //
 // The two named groups are 41px each at a FINE pointer and 53/57 at a coarse one: the whole +28px is the
 // D62 touch floor lifting their controls 32→44 (`touch-floor-is-an-unbudgeted-width-tax`, in its HEIGHT
-// form). Nothing here is compressible by MERGING — measured at 430, one line of `View` + its two toggles
-// is 207px and one line of `Filters` + its disclosure is 223px against a 413px pane, so the obvious
-// "fold the two kickers into one row" costs a wrap instead of saving a band, and it is worse at 320.
+// form). Nothing here is compressible by MERGING. METHOD (re-measured in THIS CT browser, #1679 — the
+// numbers first written here were 207/223/413 and were none of them reproducible): mount the story at
+// `width={430}` under `hasTouch`, clone each `getByRole("group")` subtree, set the clone to
+// `width: max-content`, and read its `getBoundingClientRect().width` — the INTRINSIC width the group's
+// kicker + controls want on one line, which is what a merge would have to fit. `View` + its two toggles
+// measures **211.4px** and `Filters` + its disclosure **230.9px**, so a merged row wants **442.3px**
+// (plus the inter-group gap, which this sum omits) against the **430px** the groups actually render at
+// — `boundingBox().width` for both groups, the story root and the list is 430, i.e. this story insets
+// nothing. So the obvious "fold the two kickers into one row" costs a wrap instead of saving a band, and
+// it is worse at 320. The CONCLUSION is unchanged from the first writing; only the numbers were wrong.
 // What WOULD buy the height back is deleting a band, and every band here is owner-ruled (program #102
 // variant B's two named groups · #491's collapsed vocabulary · the ONE-NAME-PER-SCREEN band shed). So
 // this suite gets a FENCE rather than a fix: the number cannot drift again without a red.
