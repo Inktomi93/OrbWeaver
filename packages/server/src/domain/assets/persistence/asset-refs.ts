@@ -1,5 +1,8 @@
-// The registry of every `@orb/db` column holding a live `AssetId` FK, iterated by both GC paths
-// (`collectGarbage`'s whole-CAS sweep + `reapIfOrphan`'s targeted check) to decide "is this blob referenced?".
+// The registry of every `@orb/db` column holding a live `AssetId` FK, plus the ONE reference collector
+// (`selectReferencedAssetIds`) every reader derives from: both GC paths (`collectGarbage`'s whole-CAS sweep +
+// `reapIfOrphan`'s targeted check) ask "is this blob referenced?", and the portability EXPORT asks the same
+// question narrowed to one owner. One home on purpose — while the export walked its own FK-only collector it
+// omitted every JSON-pinned background GC keeps alive, so a restore rebuilt the referencing JSON with no bytes.
 // A column missing from BOTH lists silently makes its blobs GC-eligible — the schema-introspection test
 // (asset-refs.int.test.ts) enumerates every FK-to-`assets.id` column and asserts each is classified here.
 //
@@ -31,7 +34,7 @@ import {
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq, exists, isNotNull, not, or, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, isNotNull, not, or, sql } from "drizzle-orm";
 import type { AssetRef } from "../contract/maintenance.ts";
 
 /** RETAINING references — a non-null value here keeps its asset (and blob) LIVE; the safe default for an
@@ -178,14 +181,21 @@ async function selectCarriedBackgroundReferencedAssetIds(db: Db): Promise<Set<As
   return live;
 }
 
-/** The whole-corpus live set `collectGarbage` sweeps every blob against — the FK registry UNIONED with the
- *  JSON live-sources (settings backgrounds + the BG-C carried card/chat backgrounds), so a JSON-pinned
- *  background is as GC-safe as an FK-referenced avatar. */
-export async function selectAllReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for GC live-set
+/** The FK half of the live set. `ownerId === null` is the whole-corpus GC sweep; an owner narrows every
+ *  registry column to THAT owner's assets through the `assets` join (the export half — a bundle carries only
+ *  its owner's blobs, and a foreign-owned referenced asset is not the exporter's to ship). */
+async function selectFkReferencedAssetIds(db: Db, ownerId: UserId | null): Promise<Set<AssetId>> {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for the reference live-set
   const live = new Set<AssetId>();
   for (const ref of ASSET_REFS) {
-    const rows = await db.selectDistinct({ id: ref.column }).from(ref.table).where(isNotNull(ref.column));
+    const rows =
+      ownerId === null
+        ? await db.selectDistinct({ id: ref.column }).from(ref.table).where(isNotNull(ref.column))
+        : await db
+            .selectDistinct({ id: ref.column })
+            .from(ref.table)
+            .innerJoin(assets, eq(assets.id, ref.column))
+            .where(and(isNotNull(ref.column), eq(assets.ownerId, ownerId)));
     for (const row of rows) {
       const id = row.id as AssetId | null;
       if (id !== null) {
@@ -193,13 +203,63 @@ export async function selectAllReferencedAssetIds(db: Db): Promise<Set<AssetId>>
       }
     }
   }
+  return live;
+}
+
+/** SQLite's bound-parameter ceiling is per statement, and the JSON live-sources are cross-user by design
+ *  (any user's settings/card/chat may pin any asset), so the owner narrowing runs in bounded batches rather
+ *  than one unbounded `IN (…)`. */
+const OWNER_FILTER_BATCH = 500;
+
+/** The ids among `candidates` whose `assets` row belongs to `ownerId`. The JSON live-sources cannot express
+ *  the owner filter in their own SQL (they read a foreign table's JSON column, and the library array is
+ *  parsed in JS precisely so a corrupt value FAILS instead of silently reading empty — see
+ *  `libraryAssetIds`), so the narrowing happens here, against the index rows themselves. */
+async function narrowToOwner(db: Db, candidates: ReadonlySet<AssetId>, ownerId: UserId): Promise<Set<AssetId>> {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for the reference live-set
+  const owned = new Set<AssetId>();
+  const ids = [...candidates];
+  for (let i = 0; i < ids.length; i += OWNER_FILTER_BATCH) {
+    const rows = await db
+      .select({ id: assets.id })
+      .from(assets)
+      .where(and(eq(assets.ownerId, ownerId), inArray(assets.id, ids.slice(i, i + OWNER_FILTER_BATCH))));
+    for (const row of rows) {
+      owned.add(row.id);
+    }
+  }
+  return owned;
+}
+
+/** The ONE reference collector — the FK registry UNIONED with every JSON live-source (settings pick +
+ *  library, the BG-C carried card/chat backgrounds), optionally narrowed to one owner. Both readers derive
+ *  from it: GC sweeps blobs against the whole-corpus set (`ownerId === null`), and the portability export
+ *  ships the owner-scoped set. They MUST NOT diverge — a reference GC honors but the export misses restores
+ *  the referencing JSON without its bytes, which is the same data loss with a longer fuse. */
+async function selectReferencedAssetIds(db: Db, ownerId: UserId | null): Promise<Set<AssetId>> {
+  const live = await selectFkReferencedAssetIds(db, ownerId);
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for the reference live-set
+  const jsonPinned = new Set<AssetId>();
   for (const id of await selectSettingsReferencedAssetIds(db)) {
-    live.add(id);
+    jsonPinned.add(id);
   }
   for (const id of await selectCarriedBackgroundReferencedAssetIds(db)) {
+    jsonPinned.add(id);
+  }
+  for (const id of ownerId === null ? jsonPinned : await narrowToOwner(db, jsonPinned, ownerId)) {
     live.add(id);
   }
   return live;
+}
+
+/** The whole-corpus live set `collectGarbage` sweeps every blob against. */
+export async function selectAllReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
+  return await selectReferencedAssetIds(db, null);
+}
+
+/** The live set restricted to ONE owner's assets — the portability export's reference walk. */
+export async function selectOwnedReferencedAssetIds(db: Db, ownerId: UserId): Promise<Set<AssetId>> {
+  return await selectReferencedAssetIds(db, ownerId);
 }
 
 /** The subset of `candidateIds` still referenced — the targeted check `reapIfOrphan` runs on ids

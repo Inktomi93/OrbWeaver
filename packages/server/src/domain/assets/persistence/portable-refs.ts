@@ -1,15 +1,15 @@
 // persistence/portable-refs — the owner-scoped reads that drive the assets-portability export.
-// selectOwnedReferencedAssetIds walks the ASSET_REFS registry (the FK side, owner-scoped via the assets
-// join); selectInlineReferencedContents reads the chat-canon asset:<id> refs the FK registry can't see
+// selectInlineReferencedContents reads the chat-canon asset:<id> refs no reference REGISTRY can see
 // (membership-scoped, LIKE-prefiltered); loadOwnedAssetForExport is the export's owner gate — a foreign or
-// missing id resolves to undefined, never exported.
+// missing id resolves to undefined, never exported. The REFERENCE walk itself is not here: it is the one
+// collector in `asset-refs.ts` (`selectOwnedReferencedAssetIds` = the GC live set narrowed to this owner), so
+// the export can never honor fewer references than GC does.
 
 import type { AssetKind } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
 import { assets, chatParticipants, messages, messageVariants } from "@orb/db";
 import type { AssetId, UserId } from "@orb/kit/ids";
-import { and, eq, isNotNull, like } from "drizzle-orm";
-import { ASSET_REFS } from "./asset-refs.ts";
+import { and, eq, like } from "drizzle-orm";
 
 const LIMIT_ONE = 1;
 const INLINE_REF_LIKE = "%asset:%";
@@ -18,25 +18,6 @@ interface OwnedAssetExportRow {
   readonly hash: string;
   readonly kind: AssetKind;
   readonly mime: string;
-}
-
-export async function selectOwnedReferencedAssetIds(db: Db, ownerId: UserId): Promise<Set<AssetId>> {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for owned asset collection
-  const ids = new Set<AssetId>();
-  for (const ref of ASSET_REFS) {
-    const rows = await db
-      .selectDistinct({ id: ref.column })
-      .from(ref.table)
-      .innerJoin(assets, eq(assets.id, ref.column))
-      .where(and(isNotNull(ref.column), eq(assets.ownerId, ownerId)));
-    for (const row of rows) {
-      const id = row.id as AssetId | null;
-      if (id !== null) {
-        ids.add(id);
-      }
-    }
-  }
-  return ids;
 }
 
 export async function selectInlineReferencedContents(db: Db, ownerId: UserId): Promise<string[]> {

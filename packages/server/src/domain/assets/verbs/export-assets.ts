@@ -1,12 +1,15 @@
-// verb: exportAssets — streams every blob the owner's library references (FK refs via
-// selectOwnedReferencedAssetIds + text-side asset:<id> refs from message bodies). Each id passes through the
-// owner gate (loadOwnedAssetForExport) — a gone id or foreign-owned inline ref is silently skipped, never
-// read from a foreign CAS partition. Lazy generator: bounded memory, no abort signal (isomorphic contract).
+// verb: exportAssets — streams every blob the owner's library references: the GC live set narrowed to this
+// owner (`selectOwnedReferencedAssetIds` — the FK registry AND the JSON-pinned backgrounds, one collector
+// with GC so the bundle can never omit a reference GC honors) + text-side asset:<id> refs from message
+// bodies. Each id passes through the owner gate (loadOwnedAssetForExport) — a gone id or foreign-owned
+// inline ref is silently skipped, never read from a foreign CAS partition. Lazy generator: bounded memory,
+// no abort signal (isomorphic contract).
 
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import type { AssetsPortabilityContext } from "../contract/portability.ts";
-import { loadOwnedAssetForExport, selectInlineReferencedContents, selectOwnedReferencedAssetIds } from "../persistence/portable-refs.ts";
+import { selectOwnedReferencedAssetIds } from "../persistence/asset-refs.ts";
+import { loadOwnedAssetForExport, selectInlineReferencedContents } from "../persistence/portable-refs.ts";
 import { buildPortableAssetFilename, extractInlineAssetIds } from "../substrate/portable-asset-file.ts";
 
 export function createExportAssets(ctx: AssetsPortabilityContext): PortableEntity["exportAll"] {
