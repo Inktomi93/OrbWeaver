@@ -26,6 +26,7 @@ function theme(over: Partial<Theme>): Theme {
     override: {},
     css: null,
     isSeed: false,
+    isDefault: false,
     createdAt: 0,
     updatedAt: 0,
     ...over,

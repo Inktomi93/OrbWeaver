@@ -48,14 +48,21 @@ export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "./seeded-back
 export const THEME_NAME_MAX = 80;
 export const THEME_CSS_MAX = 65_536; // custom CSS is a text field, not a blob store
 
-/** The theme entity view (themes-design §3.2). `isSeed` DERIVES at projection from a NULL owner —
- *  never a stored column; seeds are code-authored, non-deletable, duplicate-to-customize. */
+/** The theme entity view (themes-design §3.2). BOTH provenance flags DERIVE at projection — neither is a
+ *  stored column. `isSeed` = a NULL owner: seeds are code-authored, non-deletable, duplicate-to-customize.
+ *  `isDefault` = THIS row is the one `theme.selectedThemeId: null` resolves to — the base `@theme` ramp,
+ *  which stamps no `[data-theme]` block. Exactly one row in a library carries it, and it is the client's
+ *  ONLY handle on which row that is: the sentinel id that decides it is domain-internal by the ruling in
+ *  `packages/server/src/domain/settings/constants.ts`, and identifying the row by its DISPLAY NAME instead
+ *  is the #1667 defect this field exists to make impossible (one rename and the picker marks no card, or
+ *  the wrong one). */
 export const themeSchema = z.object({
   id: z.string(), // ThemeId on the wire; branded at the db/domain seam (themes slice)
   name: z.string().trim().min(1).max(THEME_NAME_MAX),
   override: themeOverrideSchema,
   css: z.string().max(THEME_CSS_MAX).nullable(),
   isSeed: z.boolean(),
+  isDefault: z.boolean(),
   createdAt: z.number().int(),
   updatedAt: z.number().int(),
 });

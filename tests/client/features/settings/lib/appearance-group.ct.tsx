@@ -42,9 +42,9 @@ const NAV_LABELS = ["Looks", "Message style", "Avatars", "Sizing & motion", "Mes
 
 /** The Looks section's theme reads (#866 S4) — three seeds, no owned rows. */
 const LOOKS_THEMES = [
-  { id: "theme_00000000000000000000000001", name: "Hearth", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
-  { id: "theme_00000000000000000000000002", name: "Mocha", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
-  { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+  { id: "theme_00000000000000000000000001", name: "Hearth", override: {}, css: null, isSeed: true, isDefault: true, createdAt: 0, updatedAt: 0 },
+  { id: "theme_00000000000000000000000002", name: "Mocha", override: {}, css: null, isSeed: true, isDefault: false, createdAt: 0, updatedAt: 0 },
+  { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, isDefault: false, createdAt: 0, updatedAt: 0 },
 ];
 
 function stub(page: Page, update: TrpcResponder = (): unknown => ({})): Promise<TrpcRecorder> {

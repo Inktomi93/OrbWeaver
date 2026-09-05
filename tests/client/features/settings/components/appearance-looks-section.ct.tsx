@@ -29,13 +29,16 @@ interface SeedView {
   readonly override: { readonly background: string; readonly accent: string };
   readonly css: null;
   readonly isSeed: boolean;
+  /** #1671 — the wire's own "this row is what `selectedThemeId: null` resolves to" flag. */
+  readonly isDefault: boolean;
   readonly createdAt: number;
   readonly updatedAt: number;
 }
 function seed(id: string, name: string, bg: string, accent: string): SeedView {
-  return { id, name, override: { background: bg, accent }, css: null, isSeed: true, createdAt: NOW, updatedAt: NOW };
+  return { id, name, override: { background: bg, accent }, css: null, isSeed: true, isDefault: false, createdAt: NOW, updatedAt: NOW };
 }
-const HEARTH = seed("theme_00000000000000000000000001", "Hearth", "oklch(0.158 0.006 60)", "oklch(0.72 0.175 52)");
+/** The ONE default row (`isDefault: true`) — what `selectedThemeId: null` resolves to on the real wire. */
+const HEARTH: SeedView = { ...seed("theme_00000000000000000000000001", "Hearth", "oklch(0.158 0.006 60)", "oklch(0.72 0.175 52)"), isDefault: true };
 const MOCHA = seed("theme_00000000000000000000000002", "Mocha", "oklch(0.15 0.015 250)", "oklch(0.7 0.14 250)");
 const LIGHT = seed("theme_00000000000000000000000003", "Light", "oklch(0.98 0.004 75)", "oklch(0.55 0.16 50)");
 /** A FOURTH seed the client has never heard of — the no-allowlist plant (#920). If a client-side
@@ -47,6 +50,7 @@ const CUSTOM_CSS_THEME = {
   override: { background: "oklch(0.3 0.02 120)", accent: "oklch(0.7 0.1 120)" },
   css: ".orb-thumbnail-canary { outline: 4px solid red; }",
   isSeed: false,
+  isDefault: false,
   createdAt: NOW,
   updatedAt: NOW,
 };
@@ -56,6 +60,7 @@ const OWNED = {
   override: { background: "oklch(0.2 0.02 300)", accent: "oklch(0.7 0.1 300)" },
   css: null,
   isSeed: false,
+  isDefault: false,
   createdAt: NOW,
   updatedAt: NOW,
 };
@@ -196,6 +201,37 @@ for (const [name, expected] of [
     await expect.poll(() => trpc.lastInput(APPLY_PROC), { intervals: [20, 50, 100] }).toEqual({ section: "theme", patch: { selectedThemeId: expected } });
   });
 }
+
+// #1671 — THE DEFAULT LOOK IS A FLAG ON THE ROW, NEVER ITS DISPLAY NAME. The view carries `isDefault`
+// (derived server-side at the projection, where the sentinel id lives), and the client reads THAT. This
+// mount renames the shipped default row — a rename the owner can ship at any time, and one that changes
+// nothing about which row `selectedThemeId: null` resolves to — and asserts both halves of the predicate
+// survive it: the card reads as current, and picking it still writes NULL rather than its id. Against the
+// pre-#1671 client, which compared `theme.name` to a mirrored "Hearth" literal, this mount renders NO
+// current card at all on the DEFAULT setting (the state most users are in) and writes the id instead.
+test("a RENAMED default look is still the current card, and still applies as NULL", async ({ mount, page }) => {
+  const renamedDefault: SeedView = { ...HEARTH, name: "Home fire" };
+  const trpc = await routeTrpc(page, {
+    // The default row is NOT first: a name predicate that matches nothing falls through to `themes[0]`,
+    // so a first-position default would hide the defect behind the fallback.
+    "settings.listThemes": () => [MOCHA, renamedDefault, LIGHT],
+    "settings.getUserSettings": () => SETTINGS_VIEW, // selectedThemeId: null ⇒ the default row is current
+    [APPLY_PROC]: () => ({}),
+  });
+  const component = await mount(<LooksSectionStory />);
+  const collection = component.getByRole("radiogroup", { name: "Theme" });
+  await expect(collection.getByRole("radio")).toHaveCount(3);
+  const currentCell = collection.getByRole("radio", { name: "Home fire", exact: true });
+  await expect(currentCell).toHaveAttribute("aria-checked", "true");
+  await expect(currentCell.locator('[data-slot="picker-cell-meta"]')).toHaveText("current");
+  await expect(collection.getByRole("radio", { name: "Mocha", exact: true }).locator('[data-slot="picker-cell-meta"]')).toHaveCount(0);
+  // …and the builder door names the row the collection actually says is current.
+  await expect(component.getByRole("button", { name: "New theme from Home fire…" })).toBeVisible();
+  // The write half: apply it from the ⋯ (a radio does not re-fire on the already-checked option).
+  await component.getByRole("button", { name: "Actions for Home fire" }).click();
+  await page.getByRole("menuitem", { name: "Apply" }).click();
+  await expect.poll(() => trpc.lastInput(APPLY_PROC), { intervals: [20, 50, 100] }).toEqual({ section: "theme", patch: { selectedThemeId: null } });
+});
 
 test("an owned theme's Apply patches through the real write seam", async ({ mount, page }) => {
   const trpc = await stub(page);

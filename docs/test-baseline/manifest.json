@@ -388,7 +388,6 @@
     "tests/client/features/settings/components/appearance-looks-section.ct.tsx",
     "tests/client/features/settings/lib/appearance-group.ct.tsx",
     "tests/client/features/settings/lib/chat-behavior-group.ct.tsx",
-    "tests/client/features/settings/lib/seed-theme-identity.test.ts",
     "tests/client/features/settings/lib/theme-editor-model.test.ts",
     "tests/client/features/stats/components/analytics-context-tabs.suite.ct.tsx",
     "tests/client/features/stats/components/analytics-models-tab.ct.tsx",
@@ -2418,6 +2417,9 @@
     "tests/ui/variant-arm-parity.suite.test.ts"
   ],
   "deletions": {
+    "tests/client/features/settings/lib/seed-theme-identity.test.ts": {
+      "why": "its SUBJECT was deleted: `packages/client/src/features/settings/lib/seed-theme-identity.ts` held the client's MIRROR of the default palette's display name (`HEARTH_NAME`), and this spec existed only to keep that mirror byte-identical to the server constant it could not import. #1671 removed the need for a name on the client entirely — the theme VIEW now carries a derived `isDefault` (minted at `packages/server/src/domain/settings/substrate/theme-views.ts`, the one reader of `THEME_HEARTH_ID` outside the seeder), and the Looks active-card predicate + the fold caption read that flag. With no mirror there is no divergence to pin. Nothing was dropped: this file's stronger rung — that the row the SEEDER actually writes is the one the client receives as the default — moved to `tests/server/domain/settings/substrate/theme-views.test.ts` (exactly one `SEED_THEMES` row projects `isDefault`) and `tests/server/domain/settings/verbs/list-themes.int.test.ts` (the same, past the real seeder and the real read), and the user-visible half is pinned in the browser by `tests/client/features/settings/components/appearance-looks-section.ct.tsx` (a RENAMED default row is still the current card and still applies as NULL). Un-deletes only if the client is ever given a name-shaped handle on a seed row again."
+    },
     "tests/tooling/screen-record/ops/record.int.test.ts": {
       "why": "RETIRED WITH ITS SUBJECT — Project #1310 moved transition evidence onto Snap's exact-page --filmstrip arm and deleted screen-record's second browser/parser/driver/render path. The surviving compatibility contract is pinned by tests/tooling/screen-record/index.test.ts and the executable browser/artifact parity lives in tests/tooling/snap/ops/arms/filmstrip.suite.int.test.ts."
     },

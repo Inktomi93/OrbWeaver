@@ -12,8 +12,9 @@
 // made that impossible).
 //
 // APPLY-NOT-MODE (#297): picking a cell APPLIES the look through the D71 pipeline — `theme.selectedThemeId`
-// — and HEARTH WRITES NULL (the base `@theme`, no `[data-theme]` block, and the anti-brick reset in one
-// gesture). Every other cell writes its id.
+// — and THE DEFAULT CARD WRITES NULL (the base `@theme`, no `[data-theme]` block, and the anti-brick reset
+// in one gesture). Every other cell writes its id. WHICH card that is comes from the view's derived
+// `isDefault` (#1671), never from its display name (#1667) and never from a client-side sentinel id.
 //
 // THE CELL IS THE APP'S ONE PICKER CELL (#929 E6) inside a real `RadioGroupPicker`: one tab stop, roving
 // focus, arrows change selection (#981 F20). The thumbnail is `ThemeMiniSurface`, which paints each row
@@ -55,7 +56,6 @@ import { downloadTextFile, notify } from "#lib";
 import { configAnchorId } from "#state";
 import { useCreateTheme, useDuplicateTheme, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
 import { APPEARANCE_LOOKS_SUBCATEGORY } from "../lib/appearance-looks-nav.ts";
-import { HEARTH_NAME } from "../lib/seed-theme-identity.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeInputFromForm } from "../lib/theme-editor-model.ts";
 import { ThemeEditor } from "./theme-editor.tsx";
@@ -76,7 +76,7 @@ interface EditorSession {
 /** A not-yet-existing theme, shaped as the entity the editor seeds from. */
 function draftFromValues(id: string, values: ThemeFormValues): Theme {
   const input = themeInputFromForm(values);
-  return { id, name: input.name, override: input.override, css: input.css ?? null, isSeed: false, createdAt: 0, updatedAt: 0 };
+  return { id, name: input.name, override: input.override, css: input.css ?? null, isSeed: false, isDefault: false, createdAt: 0, updatedAt: 0 };
 }
 
 /** The exported file's shape — the row's own bytes, so an export→import round-trip is identity. */
@@ -135,13 +135,16 @@ function LooksBody(): ReactElement {
   const [editing, setEditing] = useState<EditorSession | null>(null);
   const ids = useId();
 
-  // ONE collection, in the SERVER's order — no client allowlist, no shipped/own split (#920).
-  const isActive = (theme: Theme): boolean => (selectedId === null ? theme.isSeed && theme.name === HEARTH_NAME : theme.id === selectedId);
+  // ONE collection, in the SERVER's order — no client allowlist, no shipped/own split (#920). WITH NO
+  // EXPLICIT SELECTION the current row is the one the SERVER flags as default (#1671): the sentinel id is
+  // domain-internal and the display name is a user-visible word that can be renamed, so `isDefault` is the
+  // only honest predicate — comparing the name is #1667, which marked no card (or the wrong one).
+  const isActive = (theme: Theme): boolean => (selectedId === null ? theme.isDefault : theme.id === selectedId);
   const current = themes.find(isActive) ?? themes[0];
 
-  // Applying: the ONE applying act (#297). The Hearth card writes NULL.
+  // Applying: the ONE applying act (#297). The DEFAULT card writes NULL.
   const applyById = (id: string | null): void => selectTheme.mutate({ section: "theme", patch: { selectedThemeId: id } });
-  const apply = (theme: Theme): void => applyById(theme.isSeed && theme.name === HEARTH_NAME ? null : theme.id);
+  const apply = (theme: Theme): void => applyById(theme.isDefault ? null : theme.id);
 
   // The builder door: a DRAFT of the current look; the duplicate row is minted at the first real edit.
   const openBuilderFromCurrent = (): void => {
@@ -153,7 +156,7 @@ function LooksBody(): ReactElement {
       return;
     }
     setEditing({
-      draft: { ...current, name: `${current.name}${COPY_SUFFIX}`, isSeed: false },
+      draft: { ...current, name: `${current.name}${COPY_SUFFIX}`, isSeed: false, isDefault: false },
       mint: () => duplicateTheme.mutateAsync({ id: current.id as ThemeId }),
     });
   };
@@ -246,7 +249,10 @@ function LooksBody(): ReactElement {
               <Row align="center" gap="row">
                 <Button intent="secondary" onClick={openBuilderFromCurrent}>
                   <Icon icon={Plus} size="sm" />
-                  {`New theme from ${current?.name ?? HEARTH_NAME}…`}
+                  {/* The door names the row the collection says is CURRENT. An EMPTY collection has no
+                      such row and no name to borrow — that arm opens the from-scratch draft above, so it
+                      says so rather than naming a palette that is not on screen (#1671). */}
+                  {current === undefined ? "New theme…" : `New theme from ${current.name}…`}
                 </Button>
               </Row>
             </SettingRow>
