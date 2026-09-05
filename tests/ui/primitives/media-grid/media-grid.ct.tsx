@@ -48,6 +48,44 @@ test("cells reserve an identical square box whether or not media has loaded (no 
   await expect(placeholder.locator('[data-slot="media-grid-placeholder"]')).toHaveCSS("background-color", TOKENS["color.muted"].value);
 });
 
+// #1159 — the CELL's reservation was pinned above; this pins the `<img>`'s OWN. The client's `[space]`
+// flagger reads AUTHORED intent (width+height attributes, or an aspect-ratio), never the resolved
+// height, because a bare `<img>` reports a resolved height too — so it filed "<img> has no reserved box
+// · [data-slot=media-grid-image]" against a grid whose cells could not shift. The fixture's `src` 404s
+// in CT, so `naturalWidth === 0` is a genuine BEFORE-LOAD state, not a simulated one: the box asserted
+// here is the box that exists while nothing has loaded.
+test("the image declares its own reserved box, and fills the cell before its source has loaded", async ({ mount }) => {
+  const component = await mount(<MixedContentGrid widthPx={WIDE_PX} />);
+  const cell = component.getByRole("gridcell", { name: "Has image" });
+  const image = cell.locator('[data-slot="media-grid-image"]');
+  await expect(image).toBeVisible();
+
+  await expect
+    .poll(() => image.evaluate((el: Element) => (el as HTMLImageElement).naturalWidth), {
+      message: "the fixture src must NOT have loaded — otherwise this is not a before-load box",
+    })
+    .toBe(0);
+  await expect
+    .poll(() => image.evaluate((el: Element) => getComputedStyle(el).aspectRatio), { message: "the flagger's predicate: an authored aspect-ratio, not `auto`" })
+    .not.toBe("auto");
+  await expect.poll(() => image.evaluate((el: Element) => el.getBoundingClientRect().width)).toBeGreaterThan(0);
+  await expect.poll(() => image.evaluate((el: Element) => el.getBoundingClientRect().height)).toBeGreaterThan(0);
+
+  // The reserved image box IS the reserved cell box — polled as a RELATION so the virtualizer's own
+  // measure pass has settled before the two are compared.
+  await expect
+    .poll(async () => {
+      const boxes = await cell.evaluate((el: Element) => {
+        const img = el.querySelector('[data-slot="media-grid-image"]');
+        const cellRect = el.getBoundingClientRect();
+        const imgRect = img === null ? null : img.getBoundingClientRect();
+        return imgRect === null ? null : { dh: Math.abs(imgRect.height - cellRect.height), dw: Math.abs(imgRect.width - cellRect.width) };
+      });
+      return boxes === null ? Number.POSITIVE_INFINITY : Math.max(boxes.dw, boxes.dh);
+    })
+    .toBeLessThan(1);
+});
+
 test("animated items render the original url, not the thumbnail variant", async ({ mount }) => {
   const component = await mount(<AnimatedDispatchGrid />);
   await expect(component.getByRole("gridcell", { name: "Static" }).locator("img")).toHaveAttribute("src", "thumb-static.png");
