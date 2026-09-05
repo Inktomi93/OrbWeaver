@@ -12,3 +12,20 @@
 export function pinSpacerActive(viewportHeightPx: number, contentBelowPinPx: number): boolean {
   return contentBelowPinPx < viewportHeightPx;
 }
+
+/** The rendered slice of the virtual window this decision reads — the two offsets and nothing else, so the
+ *  math stays pure and message-list keeps the virtualizer to itself. */
+export interface PinnedSpan {
+  readonly start: number;
+  readonly end: number;
+}
+
+/**
+ * Has the pin done its job? True once the reply below the pinned row fills a viewport (the prompt now sits
+ * at the top against real content), which is when the caller drops the pin and collapses the spacer — so
+ * there is no trailing void. A pin that is not rendered right now, or no pin at all, is never collapsed:
+ * an unrendered row's span is unknown, not zero.
+ */
+export function pinSpacerSpent(viewportHeightPx: number, pinned: PinnedSpan | undefined, last: PinnedSpan | undefined): boolean {
+  return pinned !== undefined && last !== undefined && !pinSpacerActive(viewportHeightPx, last.end - pinned.start);
+}
