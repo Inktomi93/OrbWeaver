@@ -24,7 +24,7 @@ import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.t
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
-import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
+import { columnClassFor, gutterRailFor, MESSAGE_ROW_SKINS, rowBodyClassFor } from "../lib/message-row-variants.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
@@ -300,6 +300,11 @@ export function MessageRow({
       initial: attribution.name === null ? "" : initialsFor(attribution.name),
       showInChatAvatars,
     }) ?? null;
+  // #1728 arm B. `Grid` and `Row` are both `div`s taking `className`/`gap`/`data-*` and each ignores the
+  // other's variant prop, so ONE element spelling serves both arms and the body's markup is not written
+  // twice; the two placement facts are single-homed beside the skin table that decides them.
+  const gutterRail = gutterRailFor(skin, role);
+  const columnClass = columnClassFor(skin);
   const avatarNode = renderRowAvatar({
     attribution,
     avatarTreatment,
@@ -310,6 +315,7 @@ export function MessageRow({
     avatarAspect,
     avatarRing,
     alignToInsideHeader: skin.headerPlacement === "inside",
+    gutterRail,
   });
   const weldedAvatar = avatarTreatment === "sticky-portrait" ? avatarNode : null;
   const leadingAvatar = weldedAvatar !== null || role === "user" ? null : avatarNode;
@@ -370,7 +376,19 @@ export function MessageRow({
         className={cn("group @container", skin.outer(role), enterClasses)}
       >
         {selecting ? <Checkbox aria-label="Select message" checked={selected} onCheckedChange={(): void => toggleMessageSelected(message.id)} /> : null}
-        <Row align="start" className="@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6" gap="row" data-slot="message-row-body">
+        {/* #1728 arm B — flex for `anchored`, a three-rail GRID for `gutterCentred`, whose rails centre the
+            READING COLUMN on its own: with the chip inside the centred unit the prose measured 285px from a
+            1280px row's left and 245px from its right, and snapped to 265/265 the moment avatars were
+            toggled off — a 20px slide caused by an unrelated setting. Below `@4xl` the grid arm resolves to
+            the same in-flow two-track gutter: arm B applies where a margin exists, and where the track IS
+            the viewport it cannot, which is a fact of the ruling's input rather than a deviation from it.
+            The avatar stays a SIBLING of the column in both arms — §B.1 intact, placement only. */}
+        <Row
+          align="start"
+          className={cn(rowBodyClassFor(skin), "@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6")}
+          gap="row"
+          data-slot="message-row-body"
+        >
           {leadingAvatar}
           {/* #245 — THE ROW HOLDS ITS OWN BOX OPEN WHILE IT IS EDITED. The column is content-sized (the
               row body shrink-wraps inside the track), and its max-content is usually the NAME ROW — whose
@@ -379,7 +397,7 @@ export function MessageRow({
               the instant the reader clicked Edit, and in `flat` it slid 42px sideways as well. The
               suppression is kept; what it vacates is reserved. `minInlineSize` (not a fixed size) so a
               longer draft can still grow the box out to the column's own cap. */}
-          <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1" style={resolveColumnStyle(skin.columnStyle, reservedInlineSize)}>
+          <Stack gap="row" data-slot="message-content-column" className={columnClass} style={resolveColumnStyle(skin.columnStyle, reservedInlineSize)}>
             {header.above}
             {renderRowBubble({
               role,

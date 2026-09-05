@@ -2663,3 +2663,119 @@ test("#598/#608 the narrow chip keeps the word in the a11y tree even though it l
     - button "Next variant"
   `);
 });
+
+// ── #1728 arm B: WHERE THE READING COLUMN SITS IN ITS ROW (owner ruling 2026-09-05) ─────────────────
+// The defect: the CENTRED skins (`flat`/`hush` via `flatOuter`, and `document`) centred the row BODY —
+// chip plus column as one unit — so the prose sat off-centre by the chip and SLID when a reader toggled
+// `appearance.showInChatAvatars`. Measured on the unmodified source at a 1280px row, the column spanned
+// 285..1035 (285 left / 245 right) with avatars on and 265/265 with them off; at 1024 it read 157/117
+// against 137/137. The fix seats the column in the MIDDLE rail of `@orb/ui`'s `gutterCentred` tracks so
+// it centres on its own and the chip hangs in the rail beside it — the avatar stays a SIBLING of the
+// column, so §B.1 is intact and only the placement mechanism changed.
+//
+// EACH ARM IS ITS OWN TEST WITH ONE MOUNT AND ONE STORY REFERENCE, twice-forced: playwright-ct refuses a
+// second `mount()` in a test ("Attempting to mount a component into a container that already has a React
+// root"), and `ct-story-single-import` refuses a second reference to the same story in one JSX tree. The
+// "does not slide on toggle" claim is therefore proved as TWO symmetry facts rather than as an A/B diff:
+// symmetric with avatars ON and symmetric with them OFF is the same statement as "identical", and it is
+// the stronger one to pin because it also names where the column should be.
+const READING_COLUMN = '[data-slot="message-content-column"]';
+/** The `@4xl` container step the row's two placement arms meet at (56rem at the 16px root). */
+const GUTTER_CROSSOVER_PX = 896;
+/** Long enough that the column reaches its `--reading-measure` cap at every width under test. */
+const MEASURE_FILLING_BODY =
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";
+
+/** The column's inset from each edge of its ROW, in whole pixels, read off the RENDERED boxes (never a
+ *  class string) so it fails against the unmodified source rather than against a missing API. */
+async function readingColumnInsets(component: Locator): Promise<readonly [number, number]> {
+  return await component.evaluate((root): readonly [number, number] => {
+    const row = root.querySelector('[data-slot="message-row"]');
+    const column = root.querySelector('[data-slot="message-content-column"]');
+    if (row === null || column === null) {
+      return [Number.NaN, Number.NaN];
+    }
+    const r = row.getBoundingClientRect();
+    const c = column.getBoundingClientRect();
+    return [Math.round(c.left - r.left), Math.round(r.right - c.right)];
+  });
+}
+
+for (const chatStyle of ["flat", "document"] as const) {
+  for (const width of [GUTTER_CROSSOVER_PX, 1024, 1280]) {
+    for (const avatars of [true, false]) {
+      test(`#1728: ${chatStyle} centres the reading column at ${String(width)}px with avatars ${avatars ? "ON" : "OFF"}`, async ({ mount }) => {
+        const component = await mount(
+          <MessageRowStory
+            width={width}
+            chatStyle={chatStyle}
+            messageRole="assistant"
+            content={MEASURE_FILLING_BODY}
+            characterId={ALICE_ID}
+            participants={[alice()]}
+            showInChatAvatars={avatars}
+          />,
+        );
+        await expect(component.locator(READING_COLUMN)).toBeVisible();
+        // Polled, not a one-shot live read: the row measures itself and its container query resolves
+        // after mount, so a single sample can catch the pre-resolution box (the DEF-14 class).
+        await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe((await readingColumnInsets(component))[1]);
+      });
+    }
+  }
+}
+
+test("#1728: the bubble skin KEEPS its edge-anchored identity gutter at a desktop width", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      width={1280}
+      chatStyle="bubble"
+      messageRole="assistant"
+      content={MEASURE_FILLING_BODY}
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      showInChatAvatars={true}
+    />,
+  );
+  await expect(component.locator(READING_COLUMN)).toBeVisible();
+  // A 32px `avatar-md` chip + its 8px `spacing.row` gap — the term `dimension.shell-content-floor`'s
+  // derivation spends, deliberately left alone by arm B.
+  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(40);
+});
+
+test("#1728: the bubble skin KEEPS its edge-anchored identity gutter at a phone width", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      width={320}
+      chatStyle="bubble"
+      messageRole="assistant"
+      content={MEASURE_FILLING_BODY}
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      showInChatAvatars={true}
+    />,
+  );
+  await expect(component.locator(READING_COLUMN)).toBeVisible();
+  // The row's own `@max-md` step: a 24px chip + a 6px `spacing.field` gap.
+  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(30);
+});
+
+test("#1728: below the crossover the centred skins keep the IN-FLOW gutter", async ({ mount }) => {
+  // 768px is inside the band where the column already fills the track: there is no margin for a chip to
+  // hang in, so arm B must not engage. Arm B applies where a margin EXISTS, and where the track is the
+  // viewport it cannot — a fact of the ruling's input rather than a deviation from it.
+  const component = await mount(
+    <MessageRowStory
+      width={768}
+      chatStyle="flat"
+      messageRole="assistant"
+      content={MEASURE_FILLING_BODY}
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      showInChatAvatars={true}
+    />,
+  );
+  await expect(component.locator(READING_COLUMN)).toBeVisible();
+  await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(40);
+  await expect.poll(async () => (await readingColumnInsets(component))[1]).toBe(0);
+});
