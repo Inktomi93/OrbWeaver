@@ -19,7 +19,7 @@ import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characters } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
-import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, inArray, isNull, notExists, sql } from "drizzle-orm";
@@ -97,6 +97,22 @@ async function basisMoved(db: Db, characterId: CharacterId, ownerId: UserId, bas
     .limit(1);
   const live = rows[0];
   return live !== undefined && (live.contentHash !== basis.contentHash || live.creatorNotes !== basis.creatorNotes);
+}
+
+/** Why did an owner-scoped card write match nothing? Only reachable once a write has ALREADY been refused,
+ *  so the happy path never pays for it: a carried background the owner cannot use is reported as such, and
+ *  everything else collapses into the leak-free "gone / not yours". Shared by {@link writeCardInPlace} and
+ *  {@link restoreCardInPlace} — the same predicates refuse them, so the same reader explains both. */
+async function classifyRefusedCardWrite(db: Db, ownerId: UserId, assetId: AssetId | undefined): Promise<"missing" | "background-unavailable"> {
+  if (assetId === undefined) {
+    return "missing";
+  }
+  const owned = await db
+    .select({ id: assets.id })
+    .from(assets)
+    .where(and(eq(assets.id, assetId), eq(assets.ownerId, ownerId)))
+    .limit(1);
+  return owned.length === 0 ? "background-unavailable" : "missing";
 }
 
 /** Insert a new character row. A per-owner handle collision → `CharacterOperationError("handle_conflict")`. */
@@ -228,19 +244,7 @@ export async function writeCardInPlace(
     if (expectedBasis !== undefined && (await basisMoved(db, characterId, ownerId, expectedBasis))) {
       return "stale";
     }
-    if (
-      assetId !== undefined &&
-      (
-        await db
-          .select({ id: assets.id })
-          .from(assets)
-          .where(and(eq(assets.id, assetId), eq(assets.ownerId, ownerId)))
-          .limit(1)
-      ).length === 0
-    ) {
-      return "background-unavailable";
-    }
-    return "missing";
+    return await classifyRefusedCardWrite(db, ownerId, assetId);
   } catch (err) {
     if (isConstraintViolation(err)?.kind === "unique") {
       const conflict = new CharacterOperationError(CHARACTER_HANDLE_CONFLICT, `a character with handle "${edits.handle}" already exists`);
@@ -254,6 +258,50 @@ export async function writeCardInPlace(
 /** Append a `character_snapshots` history blob (the "git commit"). Nothing FKs this table (invariant 4). */
 export async function appendSnapshot(db: Db, values: SnapshotInsert): Promise<void> {
   await db.insert(characterSnapshots).values(values);
+}
+
+/**
+ * Restore a snapshot INTO the live card and record the pre-restore state, as ONE unit.
+ *
+ * THE PRE-RESTORE SNAPSHOT IS THE RESTORE'S WITNESS, NOT ITS PRELUDE. `restore` used to `appendSnapshot`
+ * and then call {@link writeCardInPlace}: a write that refused (the row raced away, the carried background
+ * became unavailable) threw with a "auto: before restore" boundary already committed, and every retry
+ * appended another one — a history full of restores that never happened. The two writes are the same
+ * domain and the same db, so `db.batch` DOES span them, and this is the shape the file header describes:
+ * the precondition rides the write statement. The UPDATE goes first and the snapshot's `id` is computed by
+ * `(SELECT ? WHERE changes() > 0)` — `changes()` reads the immediately preceding statement's row count
+ * within the batch's transaction, so a refused update NULLs the PK, the NOT NULL constraint aborts the
+ * batch, and BOTH statements roll back. A refusal is then explained by the same reader `writeCardInPlace`
+ * uses.
+ *
+ * No `expectedBasis` arm: restore overwrites the card wholesale from a snapshot the caller just picked, so
+ * "the row moved under me" is not a question it asks (D28 edit-in-place, no CAS).
+ */
+export async function restoreCardInPlace(
+  db: Db,
+  target: { readonly characterId: CharacterId; readonly ownerId: UserId },
+  edits: CharacterEdits,
+  preRestore: SnapshotInsert,
+): Promise<"written" | "missing" | "background-unavailable"> {
+  const { characterId, ownerId } = target;
+  const assetId = backgroundAssetId(edits.backgroundOverride);
+  const statements: BatchStmt[] = [
+    db
+      .update(characters)
+      .set(edits)
+      .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId), ownedBackgroundExists(db, ownerId, assetId)))
+      .returning({ id: characters.id }),
+    db.insert(characterSnapshots).values({ ...preRestore, id: sql<CharacterSnapshotId>`(SELECT ${preRestore.id} WHERE changes() > 0)` }),
+  ];
+  try {
+    await db.batch(batchMany(statements));
+    return "written";
+  } catch (err) {
+    if (isConstraintViolation(err)?.kind === "not-null") {
+      return await classifyRefusedCardWrite(db, ownerId, assetId);
+    }
+    throw err;
+  }
 }
 
 /** Hard-delete an owned character (cascades snapshots / personas / downstream FKs). Returns `true` when a

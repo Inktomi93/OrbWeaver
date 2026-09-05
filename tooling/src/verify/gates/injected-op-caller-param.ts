@@ -49,11 +49,14 @@ const CALLER_FREE_OPS: ExemptionTable = {
       "reap anyway. UN-PRINCIPAL by design (D20, stated in `assets/verbs/reap-if-orphan.ts`'s header) and it " +
       "returns no row data. Ends the day the reap stops consulting the reference registry first.",
   },
-  ReapCharacterSpritesOp: {
+  ListCharacterSpriteAssetsOp: {
     why:
       "expressions-design/01 §8 — OPTIONAL and currently UNWIRED (no compose root supplies it; the FK cascade " +
-      "plus the next GC sweep is the live behavior). Ends the day the expressions leaf lands: the wiring must " +
-      "carry the caller then, because it DELETES bindings by characterId.",
+      "plus the next GC sweep is the live behavior). It is now a READ of the assetIds bound to a character, " +
+      "taken before the owner-scoped delete that actually frees them, and it returns ids the caller already " +
+      "proved it owns; it no longer DELETES anything (renamed from `ReapCharacterSpritesOp` when the detach " +
+      "was moved behind the delete). Ends the day the expressions leaf lands: the wiring must carry the " +
+      "caller then, because the ids it returns would be reachable by characterId alone.",
   },
   ResolveAssetHashOp: {
     why:

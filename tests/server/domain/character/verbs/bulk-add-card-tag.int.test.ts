@@ -109,4 +109,29 @@ describe("bulk add card tag", () => {
     await svc.bulkAddCardTag({ principal: principal(owner), tagName: "   ", characterIds: [a.id] });
     expect(h.tagAttaches).toEqual([]);
   });
+
+  test("one failing attach still audits + ANNOUNCES the siblings that committed, then rethrows", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const base = createCharacterService(h.ctx);
+    const a = await base.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" } });
+    const b = await base.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" } });
+    h.audits.length = 0;
+    h.userEvents.length = 0;
+
+    // The per-character attaches are independent writes. Under `Promise.all` the first rejection abandoned
+    // the verb before the audit/emit block, so B's committed tag change was never announced and the client
+    // kept rendering a stale card.
+    const svc = createCharacterService({
+      ...h.ctx,
+      attachCardTag: async (args): Promise<boolean> => (args.characterId === a.id ? await Promise.reject(new Error("the tag store is down")) : true),
+    });
+
+    await expect(svc.bulkAddCardTag({ principal: principal(owner), tagName: "hero", characterIds: [a.id, b.id] })).rejects.toThrow("the tag store is down");
+
+    expect(h.audits).toHaveLength(1);
+    expect(h.audits[0]?.entry.metadata).toEqual({ tag: "hero", updated: 1 });
+    expect(h.userEvents).toEqual([{ userId: owner, event: { type: "charactersChanged" } }]);
+  });
 });
