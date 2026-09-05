@@ -1,0 +1,17 @@
+import process from "node:process";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { inspectGateContract } from "../lib/gate-contract.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm gate:contract");
+
+export function runGateContract(root: string): number {
+  const project = getWorkspace({ root, globs: [`${root}/tooling/src/verify/gates/*.ts`] });
+  const report = inspectGateContract(project.getSourceFiles(), root);
+  process.stdout.write(`gate-contract: ${report.findings.length} finding(s) across ${report.files} gate module(s)\n`);
+  for (const finding of report.findings) {
+    process.stdout.write(`${finding.file}:${finding.line}:${finding.column} [${finding.code}] ${finding.detail}\n`);
+  }
+  return report.findings.length === 0 ? EXIT.clean : EXIT.violations;
+}

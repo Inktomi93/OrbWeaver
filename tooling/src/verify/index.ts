@@ -30,6 +30,8 @@ export type {
   Scope,
   ScopeSafety,
 } from "./contract/gate.ts";
+export type { GateContractCode, GateContractFinding, GateContractReport } from "./contract/gate-contract.ts";
+export { GATE_CONTRACT_CODES } from "./contract/gate-contract.ts";
 export type { Check, CheckContext, GateResult, Violation } from "./contract/harness.ts";
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
 export type { DeclaredScan, GateIgnoreMarker, GatePassResult, GateScan, PassResult, ToolError } from "./contract/pass.ts";
@@ -61,6 +63,7 @@ export {
   UI_SRC,
 } from "./lib/baseui-read.ts";
 export { aggregateExit, asViolations, eslintScheme, ownScheme } from "./lib/exit-classifiers.ts";
+export { inspectGateContract } from "./lib/gate-contract.ts";
 export { findGateIgnoreMarkers, parseGateIgnoreMarker } from "./lib/gate-ignore.ts";
 export { getProject } from "./lib/harness.ts";
 export { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, slowdowns } from "./lib/history.ts";
@@ -82,6 +85,7 @@ export { verifyGateProofs } from "./ops/conformance.ts";
 export { compareSchemaBaseline, runDbBaselineParity } from "./ops/db-baseline-parity.ts";
 export type { Ledger } from "./ops/debt.ts";
 export { LEDGERS, readLedgerRows, reconcileLedgers, runDebtWalk } from "./ops/debt.ts";
+export { runGateContract } from "./ops/gate-contract.ts";
 export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";
 export { deriveCaughtFailurePopulation, generateCaughtFailurePopulation, POPULATION_REL } from "./ops/gen/caught-failure-population.ts";
 export { generateDensityBaseline } from "./ops/gen/density.ts";

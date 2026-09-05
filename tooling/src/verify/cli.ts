@@ -29,6 +29,7 @@ import {
   runBootChunkRatchet,
   runDbBaselineParity,
   runDebtWalk,
+  runGateContract,
   runLedgersFresh,
   runNewGate,
   runOrphanRatchet,
@@ -66,6 +67,7 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   scoped: SCOPED_USAGE,
   "scoped-test": SCOPED_TEST_USAGE,
   "new-gate": "usage: node tooling/src/verify/cli.ts new-gate <kebab-name>\n  Scaffolds a gate descriptor + its conformance proofs (GATE-AUTHORING.md).",
+  "gate-contract": "usage: node tooling/src/verify/cli.ts gate-contract\n  Reports gate modules that bypass the shared ts-morph runtime contract.",
   baseline: BASELINE_HELP,
   "tests-membership":
     "usage: node tooling/src/verify/cli.ts tests-membership\n  Reconciles which test files each TYPE program compiles — reports the escapees.",
@@ -108,6 +110,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return runScopedTest(root, rest);
     case "new-gate":
       return runNewGate(root, rest);
+    case "gate-contract":
+      return runGateContract(root);
     case "baseline":
       return runBaseline(root, rest);
     case "tests-membership":

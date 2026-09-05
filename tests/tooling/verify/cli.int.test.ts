@@ -56,6 +56,7 @@ test("an unknown verb is still MISUSE, not a help answer", async ({ runCli }) =>
 const TAIL_REFUSALS: readonly (readonly [string, readonly string[], string])[] = [
   ["ledgers-fresh", ["--scope", "packages/ui"], "takes no arguments"],
   ["structure", ["--changed"], "takes no arguments"],
+  ["gate-contract", ["--changed"], "takes no arguments"],
   ["db-baseline", ["extra"], "takes no arguments"],
   ["orphan-ratchet", ["--updat"], "does not recognize"],
   ["new-gate", ["a-gate", "b-gate"], "ONE gate per invocation"],

@@ -8,6 +8,19 @@ updated: 2026-09-05
 
 This replaces the cancelled custom-ESLint Orb-policy cutover and supersedes [gate-config-system.md](gate-config-system.md). Native Biome/ESLint/community rules continue to own generic ecosystem lint. Every Orb-specific policy uses one ts-morph runtime and one capability contract. The migration is built in an isolated branch and lands atomically; no production state supports old and new descriptors together.
 
+## Existing machinery we retain
+
+This is a rewrite of the live gate runtime, not a second gate system. These existing homes survive and are changed in place at cutover:
+
+- `pnpm gate:new` remains the only scaffold and continues to print every coupled site;
+- `lib/loader.ts` remains the auto-registry; dropping a gate module into the corpus registers it;
+- `mustFlag`/`mustPass` remain mandatory and run through the production dispatcher;
+- `lib/pass.ts` keeps one kind-indexed walk, deterministic isolation, timing, and scan receipts;
+- `pnpm check:structure`, its run manifest, JSON artifact, and `pnpm check:show` remain the verdict path;
+- `gate-modernization` remains the permanent mechanical authoring owner, rewritten to consume shared facts.
+
+`GATE-AUTHORING.md` describes the production runtime until the atomic cutover. Migration lanes read this design as the destination and read every assigned gate in full. At cutover `GATE-AUTHORING.md`, `gate:new`, the descriptor contract, the loader, and `gate-modernization` are rewritten together; no parallel authoring guide or scaffold survives.
+
 ## Why this program exists
 
 Current `main` has 255 gates. The shared node dispatcher is real, but most of the fleet can bypass it:
@@ -34,6 +47,7 @@ defineGate({
   severity: "error" | "warning",
   population,
   analysis: "syntax" | "types" | "resource",
+  execution: "selected-files" | "entire-population",
   message,
   fix,
   create(context) {
@@ -45,11 +59,14 @@ defineGate({
 ```
 
 - `population` replaces `scopeSafety` plus `scanRoot`. It is declared data resolved once into a manifest. File, folder, package, project, changed, whole, check, and family selection all use the same manifest algebra.
+- `execution` states whether a verdict composes over an arbitrary selected subset or requires the gate's entire declared population. A narrowed request defers an `entire-population` gate, or refuses under strict scope. This is the non-lossy replacement for `scopeSafety`.
 - `create` runs once per invocation and closes over mutable state. `begin`, module-global accumulators, and re-entry cleanup disappear.
 - `visitors` retain the current kind-indexed single walk. A gate module cannot call descendant/project traversal APIs.
 - `evaluate` consumes the resolved population, shared query/index services, compiler/checker, or explicit resources. It cannot access a raw `Project` and start another repository walk.
 - central post-processing owns inline waiver lookup, typed-grant consumption/liveness, severity, sorting, completeness, and reporting. Gate order cannot change suppression/grant reconciliation.
 - `status: dormant` is removed; it has zero occupants. A policy is registered or absent.
+
+The exported `gate` is a direct `defineGate({ ... })` call with an object-literal argument. Descriptor indirection is forbidden because it hides required fields from the authoring checker and scaffold. Each descriptor has one authority and one severity; an old multi-arm module whose arms differ on either axis splits into separate policy ids under the same family.
 
 ## Standard capabilities
 
@@ -79,6 +96,8 @@ The shared reader layer owns:
 - sanctioned-home and exact grant liveness.
 
 A unique policy algorithm may live in `verify/lib`, but repository walking, binding identity, static-value unwrapping, and resource loading are shared primitives. Unsupported syntax returns an unresolved fact or tool error; it never returns absence.
+
+`create` receives only the resolved files/resources, the lazy checker, shared query services, report/receipt sinks, and invocation metadata. It never receives a `Project`. Its returned `visitors`, optional `visitFile`, and optional `evaluate` run in that order; `evaluate` is the post-walk phase for cross-file judgments and stale-grant reconciliation.
 
 ## Population vocabulary
 
@@ -110,6 +129,24 @@ Development commits may build migration tools and converted gate modules on this
 7. In one cutover state, switch loader/runner/CLI to the new contract and delete the old descriptor fields, old harness paths, legacy markers/baselines, migration command, and obsolete self-policing gates.
 
 No adapter survives the branch. No gate is credited because a similarly named module exists; the loader, command, tests, and real run must exercise it.
+
+### Closed migration census and waves
+
+The current 255-module corpus has four mutually exclusive hook shapes: 122 node-visitor, 34 file-hook, 86 run-only, and 13 mixed run plus visitor/file-hook. The mixed 13 migrate last because their post-walk ordering is load-bearing. Cross-cutting prerequisites are 188 population predicates, 66 `begin` hooks, 80 `finalize` hooks, 81 gate modules with descendant walks, 49 with `getSourceFiles`, 53 `fsBacked` gates, and only seven current consumers of the canonical symbol reader.
+
+`pnpm gate:contract` is the temporary migration census, not a second conformance runtime or a ratchet. On the 2026-09-05 base it reports 1,579 concrete sites across all 255 modules: 255 descriptor wrappers, 688 legacy fields, 436 direct walk/source lookups, two gate-owned Projects, 40 module-scope `let`/`var` statements, 145 proven mutated module bindings, and 13 baseline-path literals. It is deleted after all counts reach zero and `gate-modernization` owns the permanent rules.
+
+Work proceeds in dependency order:
+
+1. population algebra plus old/new admitted-set equivalence;
+2. final contract, invocation context, dispatcher, authority/severity/report path, and fixture runtime;
+3. shared binding/symbol/static-value/resource readers needed by more than one gate family;
+4. simple visitors and file hooks with no private walks;
+5. descendant-walking gates after their shared reader exists;
+6. run/resource gates, then the 13 mixed timing-sensitive gates;
+7. frozen-corpus old/new differential, performance/RSS comparison, authoring/scaffold rewrite, and one atomic cutover.
+
+Every implementation lane receives an exhaustive file manifest generated from the current corpus, reads those gate files in full, and owns no runtime or shared-reader architecture. A lane may request a missing shared primitive; it may not add a local walk, cache, scope predicate, exemption grammar, or registry. Membership and progress are derived from the loader and migration census rather than maintained as a second list.
 
 ## Acceptance
 
