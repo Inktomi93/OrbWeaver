@@ -1,5 +1,7 @@
 // domain/settings/persistence/queries — all db access for settings (queries only, no business logic). This
-// domain never reads/joins users. Timestamps arrive as params (injected clock, no ambient wall-clock reads).
+// domain never reads/joins `users` (the `no-direct-users-read` chokepoint — `users` is
+// domain/sessions + domain/admin only; a caller here always already holds a resolved Principal's userId).
+// Timestamps arrive as params (injected clock, no ambient wall-clock reads).
 //
 // THE ONE EXCEPTION (#471): the two whole-blob writers (`writeUserConfig`, `writeAppOverride`) re-read the
 // row they are about to replace and REFUSE when an existing blob is unreadable. It lives here, not in the
@@ -20,7 +22,7 @@ import { castId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { SQL } from "drizzle-orm";
-import { and, eq, exists, inArray, sql } from "drizzle-orm";
+import { and, eq, exists, sql } from "drizzle-orm";
 import { requireIntactStoredConfig } from "#kit/stored-config";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 import type { GlobalSettingView, UserSettingsView } from "../contract/views.ts";
@@ -47,8 +49,10 @@ export async function readUserSettings(db: Db, ownerId: UserId): Promise<UserSet
   };
 }
 
-/** First-touch seed (idempotent). Write paths call this before the UPDATE so it can't silently no-op a
- *  never-touched user.
+/** First-touch seed (idempotent), independent of `writeUserConfig`'s own guarded seed
+ *  ({@link insertGuardedUserSettings}) — materializes defaults with no guard, for callers that need a row
+ *  to exist without a config write (there are none on the tree today; kept as the module's public seed
+ *  primitive, tested directly below).
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export async function ensureUserSettings(db: Db, ownerId: UserId, at: number): Promise<void> {
@@ -66,7 +70,8 @@ export async function ensureUserSettings(db: Db, ownerId: UserId, at: number): P
 // The ONE asset kind a background may be. Every writer of a `backgroundAssetId` / `backgroundLibrary`
 // entry stores exactly this kind — the appearance upload field, `materializeBackground` (the pasted-URL
 // arm), and the ST profile import — so the predicate below refuses nothing the product produces.
-const BACKGROUND_ASSET_KIND: AssetKind = "background";
+// Exported for `heal-legacy-background-pins.ts` (#1600), the ONE other reader of this kind constant.
+export const BACKGROUND_ASSET_KIND: AssetKind = "background";
 
 /** The ONE refusal both halves of the background predicate raise (the pre-write check and the guards that
  *  ride the UPDATE), so which half refused is not observable — and neither names the asset. */
@@ -75,8 +80,9 @@ function backgroundUnavailable(): DomainOperationError {
 }
 
 /** The background assets a config PINS: the `asset`-kind current selection plus every library entry,
- *  deduped. These are exactly the ids the write predicate has to clear. */
-function pinnedBackgroundAssetIds(config: UserSettings): AssetId[] {
+ *  deduped. These are exactly the ids the write predicate has to clear. Exported for
+ *  `heal-legacy-background-pins.ts` (#1600), the ONE other reader of this predicate. */
+export function pinnedBackgroundAssetIds(config: UserSettings): AssetId[] {
   const current =
     config.appearance.backgroundImageKind === "asset" && config.appearance.backgroundAssetId.length > 0
       ? [castId<AssetId>(config.appearance.backgroundAssetId)]
@@ -101,30 +107,54 @@ function ownedBackgroundGuards(db: Db, ownerId: UserId, ids: readonly AssetId[])
 }
 
 /**
- * {@link ownedBackgroundGuards} evaluated STANDALONE, before anything is written. `writeUserConfig` must
- * seed the row before it can UPDATE it, so without this a refused FIRST write left a defaults-only row
- * behind (#1478 item 2): the refusal has to be decided before the seed. The guards still ride the UPDATE as
- * the atomic belt — this is a PRE-WRITE CHECK whose window is one statement (`db.transaction` is banned in
- * product code and `batchMany` bans a SELECT ahead of its writes, `@orb/db/kit/batch`, so a guard subquery
- * inside the write plus this check are the reachable shapes). Inside that window the write still REFUSES
- * (fail-closed — the guards decide it); only the no-row property degrades.
+ * The FIRST-write path (#1577; closes the #1478 item 2 residual): a brand-new user's row has to be
+ * SEEDED before it can be UPDATEd, and the old shape did that as two statements — a standalone pre-check,
+ * then a separate seed INSERT, then the guarded UPDATE — so an asset deleted in the window between the
+ * pre-check and the seed left a defaults-only row behind even though the write correctly refused.
+ *
+ * This closes the window by making the seed itself the guarded statement: an `insert().select()` (drizzle
+ * 0.45's sqlite dialect; the repo's first use) whose SELECT carries the ownership+kind guard in its WHERE,
+ * so the guard is evaluated fresh at THIS statement's execution rather than at an earlier read — there is
+ * no interleaving to land inside because there is only one statement. The SELECT's FROM is a bare
+ * one-row derived table (`(select 1)`), never `users` (this domain's `no-direct-users-read` fence, checked
+ * at gate-time) — `ownerId` itself needs no guaranteed-row source, it is a LITERAL carried by every branch,
+ * and the `userId` FK on `user_settings` still rejects a nonexistent owner at the DB level exactly as the
+ * unconditional `ensureUserSettings` insert always relied on. SQLite's grammar refuses a bare
+ * `SELECT … FROM (subquery) ON CONFLICT …` with no WHERE at all (a parser quirk, confirmed live), so an
+ * absent guard (no pinned backgrounds) still carries an explicit always-true `1 = 1`.
+ *
+ * `onConflictDoNothing` (not a guarded `onConflictDoUpdate`) is deliberate: this function is reached only
+ * when the caller has already observed no row. A genuine race — a second concurrent first-write from the
+ * SAME user landing between that observation and this statement — is a different, narrower race than the
+ * one this closes (an asset deleted mid-write); under it the loser sees a refusal rather than a silent
+ * write, which is the same fail-closed posture as the guard itself and is left unhandled on purpose (no
+ * observed caller fires two concurrent first writes for one user).
  */
-async function requireOwnedBackgrounds(db: Db, ownerId: UserId, ids: readonly AssetId[]): Promise<void> {
-  if (ids.length === 0) {
-    return;
-  }
-  const cleared = await db
-    .select({ id: assets.id })
-    .from(assets)
-    .where(and(eq(assets.ownerId, ownerId), eq(assets.kind, BACKGROUND_ASSET_KIND), inArray(assets.id, [...ids])));
-  // `ids` is deduped and `assets.id` is the PK, so a cleared id contributes exactly one row: a short count
-  // means at least one pinned id is missing, someone else's, or not a background.
-  if (cleared.length !== ids.length) {
+async function insertGuardedUserSettings(db: Db, ownerId: UserId, config: UserSettings, at: number): Promise<void> {
+  const guards = ownedBackgroundGuards(db, ownerId, pinnedBackgroundAssetIds(config));
+  const written = await db
+    .insert(userSettings)
+    .select((qb) =>
+      qb
+        .select({
+          userId: sql<UserId>`${ownerId}`.as("user_id"),
+          schemaVersion: sql<number>`${USER_SETTINGS_SCHEMA_VERSION}`.as("schema_version"),
+          config: sql<UserSettings>`${JSON.stringify(config)}`.as("config"),
+          updatedAt: sql<number>`${at}`.as("updated_at"),
+        })
+        .from(sql`(select 1)`)
+        .where(guards.length > 0 ? and(...guards) : sql`1 = 1`),
+    )
+    .onConflictDoNothing()
+    .returning({ userId: userSettings.userId });
+  if (written.length === 0) {
     throw backgroundUnavailable();
   }
 }
 
-/** Seed-then-UPDATE the user's config blob; schemaVersion is service-owned (pinned to the current constant).
+/** Seed-or-UPDATE the user's config blob; schemaVersion is service-owned (pinned to the current constant).
+ *  The first write for a user is ONE guarded `insert().select()` ({@link insertGuardedUserSettings}); every
+ *  later write is a guarded UPDATE riding the same {@link ownedBackgroundGuards} atomically.
  *
  *  REFUSES (`DomainOperationError(stored_config_unreadable)`) when a row already exists whose blob cannot be
  *  read: every caller builds `config` by spreading a READ of that row, and the read seam degrades an
@@ -133,17 +163,15 @@ async function requireOwnedBackgrounds(db: Db, ownerId: UserId, ids: readonly As
 export async function writeUserConfig(db: Db, ownerId: UserId, config: UserSettings, at: number): Promise<void> {
   const rows = await db.select().from(userSettings).where(eq(userSettings.userId, ownerId)).limit(1);
   const row = rows[0];
-  if (row !== undefined) {
-    requireIntactStoredConfig(userSettingsConfig.parseOutcome(row.config, row.schemaVersion), `user_settings for ${ownerId}`);
+  if (row === undefined) {
+    await insertGuardedUserSettings(db, ownerId, config, at);
+    return;
   }
-  const ids = pinnedBackgroundAssetIds(config);
-  // THE PREDICATE IS EVALUATED BEFORE THE SEED (#1478 item 2) — see `requireOwnedBackgrounds`.
-  await requireOwnedBackgrounds(db, ownerId, ids);
-  await ensureUserSettings(db, ownerId, at);
+  requireIntactStoredConfig(userSettingsConfig.parseOutcome(row.config, row.schemaVersion), `user_settings for ${ownerId}`);
   const written = await db
     .update(userSettings)
     .set({ config, schemaVersion: USER_SETTINGS_SCHEMA_VERSION, updatedAt: at })
-    .where(and(eq(userSettings.userId, ownerId), ...ownedBackgroundGuards(db, ownerId, ids)))
+    .where(and(eq(userSettings.userId, ownerId), ...ownedBackgroundGuards(db, ownerId, pinnedBackgroundAssetIds(config))))
     .returning({ userId: userSettings.userId });
   if (written.length === 0) {
     throw backgroundUnavailable();
