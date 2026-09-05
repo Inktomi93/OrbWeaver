@@ -51,9 +51,11 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 function exactKeys(value: Record<string, unknown>, allowed: ReadonlySet<string>): void {
-  const unknown = Object.keys(value).find((key) => !allowed.has(key));
-  if (unknown !== undefined) {
-    throw new Error(`policy scope request has unknown property ${JSON.stringify(unknown)}`);
+  const unknown = Object.keys(value)
+    .filter((key) => !allowed.has(key))
+    .toSorted(compare);
+  if (unknown.length > 0) {
+    throw new Error(`policy scope request has unknown properties ${unknown.map((key) => JSON.stringify(key)).join(", ")}`);
   }
 }
 
@@ -190,6 +192,10 @@ function validatePrograms(resolution: PolicyScopeResolution): void {
     }
     assertSortedUniquePaths(program.files, `policy scope program ${program.id} files`);
     assertSortedUniquePaths(program.references, `policy scope program ${program.id} references`);
+    assertSortedUniquePaths(program.configPaths, `policy scope program ${program.id} config paths`);
+    if (!program.configPaths.includes(program.config)) {
+      throw new Error(`policy scope program ${program.id} does not own its config`);
+    }
     if (program.references.some((reference) => !programIds.includes(reference))) {
       throw new Error(`policy scope program ${program.id} has an unresolved reference`);
     }

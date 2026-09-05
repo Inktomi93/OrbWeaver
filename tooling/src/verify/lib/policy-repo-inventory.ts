@@ -14,7 +14,9 @@ import { GIT_READ_PREFIX } from "./repo-paths.ts";
 
 const TRACKED_ARGS = [...GIT_READ_PREFIX, "ls-files", "-z"] as const;
 const UNTRACKED_ARGS = [...GIT_READ_PREFIX, "ls-files", "--others", "--exclude-standard", "-z"] as const;
-const MERGE_BASE_REFS = ["main", "origin/main"] as const;
+// The remote-tracking ref is the durable published baseline even on a local main checkout; linked/offline
+// worktrees fall back to their shared local main ref without any network access.
+const MERGE_BASE_REFS = ["origin/main", "main"] as const;
 const ASCII_C0_MAX = 0x1f;
 const ASCII_DELETE = 0x7f;
 const SHA_RE = /^[0-9a-f]{7,64}$/u;
@@ -90,15 +92,11 @@ function currentAuthoredFile(root: string, path: string): string | null {
   } catch (error) {
     throw new Error(`repository inventory symlink cannot be resolved: ${path}`, { cause: error });
   }
-  const rel = containedRelative(root, canonical, `repository inventory path ${path}`);
-  if (!statSync(canonical).isFile()) {
-    return null;
+  containedRelative(root, canonical, `repository inventory path ${path}`);
+  if (entry.isSymbolicLink()) {
+    return path;
   }
-  if (entry.isSymbolicLink() && rel === "") {
-    throw new Error(`repository inventory path is not a file: ${path}`);
-  }
-  assertPolicyRepoPath(rel, "canonical repository inventory path");
-  return rel;
+  return entry.isFile() ? path : null;
 }
 
 function gitRead(root: string, args: readonly string[]): string {
@@ -147,6 +145,15 @@ export function resolveExistingPolicyPath(inventory: PolicyRepositoryInventory, 
     throw new Error(`${kind} scope path must be a repo-relative POSIX path`);
   }
   const candidate = path === "." ? inventory.root : resolve(inventory.root, path);
+  let entry: ReturnType<typeof lstatSync>;
+  try {
+    entry = lstatSync(candidate);
+  } catch (error) {
+    if (isMissing(error)) {
+      throw new Error(`${kind} scope path does not exist: ${path}`, { cause: error });
+    }
+    throw error;
+  }
   let canonical: string;
   try {
     canonical = realpathSync(candidate);
@@ -156,19 +163,16 @@ export function resolveExistingPolicyPath(inventory: PolicyRepositoryInventory, 
     }
     throw error;
   }
-  const rel = containedRelative(inventory.root, canonical, `${kind} scope path ${path}`);
-  const identity = rel === "" ? "." : rel;
-  if (identity !== path) {
-    throw new Error(`${kind} scope path resolves to a different repository identity: ${path} -> ${identity}`);
-  }
+  containedRelative(inventory.root, canonical, `${kind} scope path ${path}`);
   const stat = statSync(canonical);
-  if ((kind === "file" && !stat.isFile()) || (kind === "folder" && !stat.isDirectory())) {
+  const matchesKind = kind === "file" ? entry.isFile() || entry.isSymbolicLink() : stat.isDirectory();
+  if (!matchesKind) {
     throw new Error(`${kind} scope path is not a ${kind}: ${path}`);
   }
   if (kind === "file" && !inventory.paths.includes(path)) {
     throw new Error(`file scope path is not an authored file: ${path}`);
   }
-  return identity;
+  return path;
 }
 
 function packageRow(value: unknown, inventory: PolicyRepositoryInventory): PolicyWorkspacePackage {
@@ -291,9 +295,9 @@ export function readPolicyChangedSelection(inventory: PolicyRepositoryInventory)
     semanticPaths.push(...parsed.paths);
     index = parsed.nextIndex;
   }
-  const known = new Set(semanticPaths.map((path) => path.path));
+  const knownCurrent = new Set(semanticPaths.filter((path) => path.status !== "deleted").map((path) => path.path));
   for (const path of inventory.untrackedPaths) {
-    if (!known.has(path)) {
+    if (!knownCurrent.has(path)) {
       semanticPaths.push(semanticPath(path, "added"));
     }
   }

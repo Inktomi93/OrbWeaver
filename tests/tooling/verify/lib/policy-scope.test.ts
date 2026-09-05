@@ -146,8 +146,26 @@ test("asserted scopes refuse empty, duplicate, missing, ignored, malformed, trav
   expect(() => resolvePolicyScope(scratch, { kind: "whole", extra: true } as never)).toThrow(/scope request/i);
 });
 
-test("repository and explicit scopes refuse a symlink that escapes the root", ({ scratch }) => {
+test("Git-authored internal symlink aliases stay distinct and selectable while an external escape refuses", ({ scratch }) => {
   plantRepo(scratch);
+  symlinkSync("main.ts", join(scratch, "packages/a/src/alias-a.ts"), "file");
+  symlinkSync("main.ts", join(scratch, "packages/a/src/alias-b.ts"), "file");
+  symlinkSync("packages/a/src", join(scratch, "src-dir-link"), "dir");
+  git(scratch, "add", "packages/a/src/alias-a.ts", "packages/a/src/alias-b.ts", "src-dir-link");
+  git(scratch, "commit", "--quiet", "-m", "internal links");
+
+  const whole = resolvePolicyScope(scratch, { kind: "whole" });
+  expect(whole.currentPaths).toEqual(expect.arrayContaining(["packages/a/src/alias-a.ts", "packages/a/src/alias-b.ts", "src-dir-link"]));
+  const aliases = resolvePolicyScope(scratch, {
+    kind: "file",
+    paths: ["packages/a/src/alias-a.ts", "packages/a/src/alias-b.ts", "src-dir-link"],
+  });
+  expect(aliases.currentPaths).toEqual(["packages/a/src/alias-a.ts", "packages/a/src/alias-b.ts", "src-dir-link"]);
+  const project = resolvePolicyScope(scratch, { kind: "project", config: "packages/a/tsconfig.json" });
+  expect(project.programs.find((program) => program.id === "packages/a/tsconfig.json")?.files).toEqual(
+    expect.arrayContaining(["packages/a/src/alias-a.ts", "packages/a/src/alias-b.ts"]),
+  );
+
   const outside = mkdtempSync(join(tmpdir(), "orb-policy-scope-outside-"));
   try {
     writeFileSync(join(outside, "outside.ts"), "export {};\n");
@@ -167,21 +185,36 @@ test("changed preserves add, modify, delete, rename, and untracked semantics whi
   git(scratch, "add", "packages/a/src/staged.ts");
   writeFileSync(join(scratch, "packages/a/src/untracked.ts"), "export const untracked = true;\n");
   git(scratch, "mv", "packages/a/src/main.ts", "packages/a/src/renamed.ts");
-  rmSync(join(scratch, "packages/b/src/b.ts"));
+  writeFileSync(join(scratch, "packages/a/src/main.ts"), "export const replacement = true;\n");
+  git(scratch, "rm", "--quiet", "packages/b/src/b.ts");
+  mkdirSync(join(scratch, "packages/b/src"), { recursive: true });
+  writeFileSync(join(scratch, "packages/b/src/b.ts"), "export const replacement = true;\n");
 
   const changed = resolvePolicyScope(scratch, { kind: "changed" });
   expect(changed.semanticPaths).toEqual(
     expect.arrayContaining([
       { path: "packages/a/src/main.ts", status: "deleted", previousPath: null },
+      { path: "packages/a/src/main.ts", status: "added", previousPath: null },
       { path: "packages/a/src/renamed.ts", status: "renamed-existing", previousPath: "packages/a/src/main.ts" },
       { path: "packages/a/src/shared.ts", status: "modified", previousPath: null },
       { path: "packages/a/src/staged.ts", status: "added", previousPath: null },
       { path: "packages/a/src/untracked.ts", status: "added", previousPath: null },
       { path: "packages/b/src/b.ts", status: "deleted", previousPath: null },
+      { path: "packages/b/src/b.ts", status: "added", previousPath: null },
     ]),
   );
   expect(changed.requestedPaths).toEqual(changed.semanticPaths);
   expect(changed.semanticPaths.map((path) => path.path)).toEqual([
+    "packages/a/src/main.ts",
+    "packages/a/src/main.ts",
+    "packages/a/src/renamed.ts",
+    "packages/a/src/shared.ts",
+    "packages/a/src/staged.ts",
+    "packages/a/src/untracked.ts",
+    "packages/b/src/b.ts",
+    "packages/b/src/b.ts",
+  ]);
+  expect(changed.currentPaths).toEqual([
     "packages/a/src/main.ts",
     "packages/a/src/renamed.ts",
     "packages/a/src/shared.ts",
@@ -189,9 +222,8 @@ test("changed preserves add, modify, delete, rename, and untracked semantics whi
     "packages/a/src/untracked.ts",
     "packages/b/src/b.ts",
   ]);
-  expect(changed.currentPaths).toEqual(["packages/a/src/renamed.ts", "packages/a/src/shared.ts", "packages/a/src/staged.ts", "packages/a/src/untracked.ts"]);
   expect(changed.inventory.mergeBase?.ref).toBe("main");
-  expect(changed.ownership.find((row) => row.path === "packages/a/src/main.ts")).toMatchObject({
+  expect(changed.ownership.find((row) => row.path === "packages/a/src/main.ts" && row.status === "deleted")).toMatchObject({
     reason: "deleted-conservative-all-programs",
     programIds: changed.programs.map((program) => program.id),
   });
@@ -222,6 +254,34 @@ test("changed falls back from missing local main to origin/main", ({ scratch }) 
   expect(changed.inventory.mergeBase).toEqual({ ref: "origin/main", commit: base });
 });
 
+test("changed uses origin/main for an ahead main checkout and local main for an offline linked worktree", ({ scratch }) => {
+  const mainAhead = join(scratch, "main-ahead");
+  mkdirSync(mainAhead);
+  plantRepo(mainAhead);
+  const published = git(mainAhead, "rev-parse", "HEAD");
+  git(mainAhead, "update-ref", "refs/remotes/origin/main", published);
+  writeFileSync(join(mainAhead, "committed.ts"), "export const committed = true;\n");
+  git(mainAhead, "add", "committed.ts");
+  git(mainAhead, "commit", "--quiet", "-m", "local main ahead");
+
+  const changedMain = resolvePolicyScope(mainAhead, { kind: "changed" });
+  expect(changedMain.inventory.mergeBase).toEqual({ ref: "origin/main", commit: published });
+  expect(changedMain.semanticPaths).toContainEqual({ path: "committed.ts", status: "added", previousPath: null });
+
+  const source = join(scratch, "worktree-source");
+  const linked = join(scratch, "offline-worktree");
+  mkdirSync(source);
+  plantRepo(source);
+  git(source, "worktree", "add", "--quiet", "-b", "feature", linked, "main");
+  writeFileSync(join(linked, "worktree-commit.ts"), "export const worktree = true;\n");
+  git(linked, "add", "worktree-commit.ts");
+  git(linked, "commit", "--quiet", "-m", "worktree commit");
+
+  const changedWorktree = resolvePolicyScope(linked, { kind: "changed" });
+  expect(changedWorktree.inventory.mergeBase?.ref).toBe("main");
+  expect(changedWorktree.semanticPaths).toContainEqual({ path: "worktree-commit.ts", status: "added", previousPath: null });
+});
+
 test("project membership follows compiler include, exclude, multiple ownership, and recursive references", ({ scratch }) => {
   plantRepo(scratch);
   const project = resolvePolicyScope(scratch, { kind: "project", config: "packages/a/tsconfig.json" });
@@ -235,6 +295,58 @@ test("project membership follows compiler include, exclude, multiple ownership, 
     "packages/a/tsconfig.json",
     "packages/b/tsconfig.json",
   ]);
+});
+
+test("direct, inherited, and references-only config changes select every dependent program", ({ scratch }) => {
+  plantRepo(scratch);
+  mkdirSync(join(scratch, "configs"));
+  writeJson(join(scratch, "configs/tsconfig.base-a.json"), { compilerOptions: { strict: true } });
+  writeJson(join(scratch, "configs/tsconfig.base-b.json"), {
+    extends: "./tsconfig.base-a.json",
+    compilerOptions: { noUncheckedIndexedAccess: true },
+  });
+  writeJson(join(scratch, "packages/a/tsconfig.json"), {
+    extends: ["../../configs/tsconfig.base-a.json", "../../configs/tsconfig.base-b.json"],
+    compilerOptions: { composite: true },
+    include: ["src/**/*.ts"],
+  });
+  writeJson(join(scratch, "packages/b/tsconfig.json"), {
+    extends: "../../configs/tsconfig.base-a.json",
+    compilerOptions: { composite: true },
+    include: ["src/**/*.ts"],
+  });
+  writeJson(join(scratch, "tsconfig.solution.json"), {
+    files: [],
+    references: [{ path: "./packages/a" }, { path: "./packages/b" }],
+  });
+
+  const expected = ["packages/a/tsconfig.json", "packages/b/tsconfig.json", "tsconfig.solution.json"];
+  expect(resolvePolicyScope(scratch, { kind: "file", paths: ["configs/tsconfig.base-a.json"] }).requestedProgramIds).toEqual(expected);
+  expect(resolvePolicyScope(scratch, { kind: "file", paths: ["configs/tsconfig.base-b.json"] }).requestedProgramIds).toEqual([
+    "packages/a/tsconfig.json",
+    "tsconfig.solution.json",
+  ]);
+  expect(resolvePolicyScope(scratch, { kind: "file", paths: ["packages/a/tsconfig.json"] }).requestedProgramIds).toEqual([
+    "packages/a/tsconfig.json",
+    "tsconfig.solution.json",
+  ]);
+  expect(resolvePolicyScope(scratch, { kind: "file", paths: ["tsconfig.solution.json"] }).requestedProgramIds).toEqual(expected);
+});
+
+test("unknown request-key diagnostics are sorted and independent of insertion order", ({ scratch }) => {
+  plantRepo(scratch);
+  const message = (request: object): string => {
+    try {
+      resolvePolicyScope(scratch, request as never);
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+    throw new Error("malformed request unexpectedly resolved");
+  };
+  const first = message({ kind: "whole", zebra: true, alpha: true });
+  const second = message({ alpha: true, zebra: true, kind: "whole" });
+  expect(first).toBe(second);
+  expect(first).toContain('"alpha", "zebra"');
 });
 
 test("malformed, unresolved-reference, and zero-member compiler configs refuse", ({ scratch }) => {
@@ -272,4 +384,10 @@ test("the real workspace maps @orb/tooling without a hard-coded package path tab
   expect(tooling.workspacePackage).toEqual({ name: "@orb/tooling", path: "tooling" });
   expect(tooling.currentPaths).toContain("tooling/package.json");
   expect(tooling.programs.find((program) => program.id === "tooling/tsconfig.json")?.files).toContain("tooling/src/verify/lib/selection.ts");
+  const toolingConfig = resolvePolicyScope(repoRoot, { kind: "file", paths: ["tooling/tsconfig.json"] });
+  expect(toolingConfig.requestedProgramIds).toContain("tooling/tsconfig.json");
+  const baseConfig = resolvePolicyScope(repoRoot, { kind: "file", paths: ["tsconfig.base.json"] });
+  expect(baseConfig.requestedProgramIds).toEqual(baseConfig.programs.map((program) => program.id));
+  const whole = resolvePolicyScope(repoRoot, { kind: "whole" });
+  expect(whole.currentPaths).toEqual(expect.arrayContaining([".agents/skills", ".codex/agent-doctrine.md", ".codex/hooks"]));
 });
