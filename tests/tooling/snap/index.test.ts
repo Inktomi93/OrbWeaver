@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { CapturedRequest } from "@orb/tooling/_shared/browser-capture";
+import { vi } from "vitest";
 import type { SnapFailureSummary } from "../../../tooling/src/snap/index.ts";
 import {
   capEvalText,
@@ -45,6 +46,11 @@ const CLEAN_FAILURES: SnapFailureSummary = {
   appearance: 0,
   lighthouse: 0,
 };
+
+// THREE OF THESE FORTY CASES SHELL THE REAL CLI (#1744) — 1.7-2.1s each on this box at loadavg ~30, and
+// under the parallel lane's 5s default a co-scheduled snap sibling turns that into a timeout that reads
+// like a parser defect. The other thirty-seven are pure and never approach this ceiling.
+vi.setConfig({ testTimeout: scaledBudget(30_000) });
 
 function runSnap(args: readonly string[]): ReturnType<typeof spawnSync> {
   return spawnSync(process.execPath, [SNAP_CLI, ...args], {

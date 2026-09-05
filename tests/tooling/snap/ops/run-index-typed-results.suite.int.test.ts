@@ -32,6 +32,10 @@ import { readSnapRunIndex } from "../../../../tooling/src/snap/ops/run-report.ts
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
+// ONE CEILING FOR THE CHILD AND FOR THE TEST (#1744): the two cases below each drive a REAL browser
+// through the CLI, and their bodies ran under the parallel lane's 5s default — measured 4.98s on a
+// whole-directory `test:scoped tests/tooling/snap --maxWorkers=4` (2026-09-05), i.e. inside 20ms of a
+// timeout that would have read as a defect in the run-index writer.
 const CLI_TIMEOUT_MS = scaledBudget(120_000);
 const ZERO_FAILURES = {
   navigation: 0,
@@ -325,7 +329,10 @@ test("diagnostic ring eviction makes the run-index state incomplete even when re
   expect(index.diagnostics.state).toBe("incomplete");
 });
 
-test("current writer is cold-agent-readable, preserves pair bytes, and never emits nullable scope", async ({ runCli, scratch }) => {
+test("current writer is cold-agent-readable, preserves pair bytes, and never emits nullable scope", { timeout: CLI_TIMEOUT_MS }, async ({
+  runCli,
+  scratch,
+}) => {
   const file = join(scratch, "typed-results.html");
   await writeFile(file, '<!doctype html><html><body><button id="ok">okay</button></body></html>');
   const run = await runCli("snap", ["--file", file, "--no-deadcss", "--no-failure-evidence"], { timeoutMs: CLI_TIMEOUT_MS });
@@ -353,7 +360,7 @@ test("current writer is cold-agent-readable, preserves pair bytes, and never emi
   expect(report.stdout).toContain("arm=shot schema=snap-arm-shot-v1");
 });
 
-test("legacy v1 null triples normalize only in the reader and malformed current results refuse", async ({ runCli, scratch }) => {
+test("legacy v1 null triples normalize only in the reader and malformed current results refuse", { timeout: CLI_TIMEOUT_MS }, async ({ runCli, scratch }) => {
   const file = join(scratch, "legacy.html");
   await writeFile(file, "<!doctype html><html><body>legacy</body></html>");
   const run = await runCli("snap", ["--file", file, "--no-shot", "--no-deadcss", "--no-failure-evidence"], { timeoutMs: CLI_TIMEOUT_MS });
