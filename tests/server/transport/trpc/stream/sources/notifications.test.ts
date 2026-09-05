@@ -6,9 +6,9 @@
 // Load-bearing, and all three are properties the deleted procedure had:
 //   • DURABLE-FIRST RESUME — a cursor replays the inbox rows with `seq > cursor`, ASCENDING, before the live
 //     bus; a CURSOR-LESS attach replays nothing (the client already loaded `list`).
-//   • THE PD-106 MULTI-HUMAN BELT — relocated from `multiHumanProcedure` onto this room's `authorizeAttach`
-//     (the socket itself stays `authedProcedure` so a single-user deployment keeps its other rooms). Same
-//     uniform NOT_FOUND: the room reads as nonexistent, never as a FORBIDDEN that advertises the capability.
+//   • AUTHED IS THE WHOLE GATE (#1627). The room carried the PD-106 multi-human belt on its `authorizeAttach`
+//     until single-human notification sources landed; the belt is off, `stream.attach` stays `authedProcedure`,
+//     and the per-user scope is structural (the channel key IS `principal.userId`). See the describe below.
 //   • A THROWN DOMAIN ERROR IS TYPED, NEVER A RAW 500 — what `withSubscriptionErrors` gave the whole stream
 //     before the fold is now a per-ROOM `roomFailed` frame, so the inbox's durable replay failing no longer
 //     takes the tab's chat/user rooms down with it.
@@ -188,37 +188,55 @@ describe("the notifications room — durable-first resume", () => {
   });
 });
 
-describe("the notifications room — the PD-106 multi-human belt, relocated onto the attach", () => {
-  test("a deployment that cannot seat a second human refuses the room as NOT_FOUND (it reads as nonexistent)", async () => {
-    const replaySince = vi.fn<NotificationsService["replaySince"]>();
-    const call = caller(ctxWith({ replaySince }, false));
+// ── #1627 — THE PD-106 BELT IS OFF THIS ROOM. ─────────────────────────────────────────────────────────
+// The belt covered the inbox because every notification SOURCE was multi-human (invite/kick/host-handoff).
+// Two live sources refute that on this tree — `plugin-disabled` (the crash policy → the installing owner)
+// and `automation-notice` (auto-disable → the rule author, incl. the chat-less owner-global lane) — so a
+// single-user deployment was accumulating durable rows whose recipient could neither list nor stream them.
+// The RULING survives, its INPUT changed: `multiHumanProcedure` still carries `notifications.presence` and
+// the invites router, and this room now takes the `user` room's posture (`sources/user.ts`) — there is
+// nothing left to gate, because the channel key IS `principal.userId` and the resume read is caller-scoped
+// inside the verb. `stream.connect`/`attach` remain `authedProcedure`, which is the belt that stayed.
+describe("the notifications room — authed is the whole gate (#1627)", () => {
+  test("a deployment that cannot seat a second human ATTACHES the inbox and gets its durable replay", async () => {
+    const replaySince = vi.fn<NotificationsService["replaySince"]>(inboxLog([6, 7]).replaySince);
+    const iterator = await openInboxRoom(ctxWith({ replaySince }, false), { sinceSeq: 5 });
+    const first = await iterator.next();
+    await iterator.return?.(undefined);
 
-    // The same verdict `multiHumanProcedure` gave the deleted procedure — a uniform NOT_FOUND, never a
-    // FORBIDDEN that would confirm the capability exists.
-    await expect(call.stream.attach({ socketId: nextSocket(), ref: { channel: "notifications" } })).rejects.toMatchObject({ code: "NOT_FOUND" });
-    expect(replaySince).not.toHaveBeenCalled();
+    // The durable rows the old belt withheld from the only human on the box.
+    expect(replaySince).toHaveBeenCalled();
+    expect(inboxFrame(first).seq).toBe(6);
   });
 
-  test("the refusal is the ROOM's, not the socket's — a single-user deployment keeps its other rooms", async () => {
-    // The reason the belt could not stay on the procedure: `stream.connect` is `authedProcedure`, so a
-    // single-user deployment must still attach `user`/`chat`/`rpg`. Only the inbox room is refused.
+  test("both rooms attach on a single-user socket — the inbox joins `user` instead of being refused", async () => {
     const socketId = nextSocket();
     const call = caller(ctxWith({}, false));
 
     await expect(call.stream.attach({ socketId, ref: { channel: "user" } })).resolves.toBeUndefined();
-    await expect(call.stream.attach({ socketId, ref: { channel: "notifications" } })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(call.stream.attach({ socketId, ref: { channel: "notifications" } })).resolves.toBeUndefined();
 
     const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
     const iterator = socket[Symbol.asyncIterator]();
     const ack = await iterator.next();
+    const secondAck = await iterator.next();
     const pending = iterator.next();
     await new Promise((resolve) => setTimeout(resolve, 0));
     publishUserEvent(RECIPIENT, { type: "tagsChanged" });
     const live = await pending;
     await iterator.return?.(undefined);
 
-    expect(frameOf(ack.value)).toEqual({ channel: "control", type: "attached", ref: { channel: "user" } });
+    expect([frameOf(ack.value), frameOf(secondAck.value)]).toEqual([
+      { channel: "control", type: "attached", ref: { channel: "user" } },
+      { channel: "control", type: "attached", ref: { channel: "notifications" } },
+    ]);
     expect(frameOf(live.value)).toEqual({ channel: "user", event: { type: "tagsChanged" } });
+  });
+
+  test("an ANONYMOUS caller still cannot attach the inbox — the socket's authed gate is the surviving belt", async () => {
+    const call = caller(makeContext({ auth: null, services: { notifications: {} }, multiHumanCapable: false }));
+
+    await expect(call.stream.attach({ socketId: nextSocket(), ref: { channel: "notifications" } })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 });
 

@@ -4,7 +4,8 @@
 // bus, the aria announcer, the ?join handoff, first-run persona). The ONE sanctioned composition route —
 // it may import feature front doors (G1 exempts it, like router.tsx→auth); a
 // `sections={{…}}`/`modals={{…}}` god-map is RED. The notifications bell is no longer wired here — it's a
-// registered `topbar.trail` chrome widget (`notificationsChrome`, gated on multiHumanCapable at the door).
+// registered `topbar.trail` chrome widget (`notificationsChrome`), and since #1627 it carries no capability
+// gate at all: the inbox has single-human sources.
 
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import type { ReactElement } from "react";
@@ -17,8 +18,9 @@ import { announceStatus, useActiveChatId, useActiveSection, useSelectedCharacter
 import { AppRootSessionBoundary } from "./app-root-session-boundary/index.ts";
 
 export function AppRoot(): ReactElement {
-  // Single-user renders none of the three multi-human surfaces (bell, the cast bar's humans row —
-  // "People" is the roster's HUMAN SUBSET, not a tab — and the /join landing);
+  // Single-user renders neither remaining multi-human surface: the cast bar's humans row ("People" is the
+  // roster's HUMAN SUBSET, not a tab) and the /join landing below. The BELL left this list with #1627 — its
+  // inbox has single-human sources — so the capability now gates only those two.
   // `false` until the config lands so chrome never flashes-then-yanks.
   const { data: authConfig } = useAuthConfig();
   const multiHumanCapable = authConfig?.multiHumanCapable === true;

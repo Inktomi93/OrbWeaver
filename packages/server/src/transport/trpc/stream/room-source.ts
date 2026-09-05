@@ -21,11 +21,18 @@ export interface RoomArgs<C extends StreamChannel> {
   readonly principal: Principal;
   readonly services: Services;
   /**
-   * The deployment's multi-human capability (`Context.multiHumanCapable`), threaded as DATA. It is the
-   * PD-106 belt a per-room surface may need on its ATTACH — the socket itself is `authedProcedure` by
-   * design (a single-user deployment must still get its user/chat/rpg rooms), so a belt that used to be
-   * procedure middleware becomes a per-ROOM verdict (`sources/notifications.ts`). Threaded rather than
-   * re-derived because the request seam already resolved it once (`transport/trpc/context.ts`).
+   * The deployment's multi-human capability (`Context.multiHumanCapable`), threaded as DATA — the seam a
+   * per-ROOM PD-106 belt is written against, because the socket itself is `authedProcedure` by design (a
+   * single-user deployment must still get its user/chat/rpg rooms) so a belt that would be procedure
+   * middleware has to become an attach verdict instead. Threaded rather than re-derived: the request seam
+   * already resolved it once (`transport/trpc/context.ts`).
+   *
+   * NO SOURCE READS IT TODAY (#1627, 2026-09-05). `sources/notifications.ts` was the one reader until the
+   * inbox gained single-human sources and its belt came off; the seam stays because the next multi-human
+   * room (an invite/roster stream) needs exactly this and re-threading it through `routers/stream.ts` +
+   * `socket.ts` is the change this field exists to avoid. A room that wants it refuses at ATTACH with the
+   * uniform `DomainNotFoundError` + a `multi_human_unavailable` security event — never a FORBIDDEN, which
+   * would advertise the capability.
    */
   readonly multiHumanCapable: boolean;
 }

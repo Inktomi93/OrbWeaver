@@ -15,7 +15,7 @@
 // security finding — this suite goes RED and the failure is a STOP-and-report item (route to
 // security-executor), NOT something the docs/test lane fixes.
 
-import { assets, characterDocuments, documents, plugins, themes, userCredentials, workloadSchedules, workloads } from "@orb/db";
+import { assets, characterDocuments, documents, notifications, plugins, themes, userCredentials, workloadSchedules, workloads } from "@orb/db";
 import type {
   AssetId,
   AutomationRuleId,
@@ -23,6 +23,7 @@ import type {
   ChatId,
   DocumentId,
   MessageId,
+  NotificationId,
   PersonaId,
   PluginId,
   PresetId,
@@ -97,6 +98,13 @@ const MARK = {
   // itself twice. `list` is PROBED (not EXEMPT) per the WHERE-partition rule: drop the ownerId predicate
   // and every user reads one shared party list.
   rosterPreset: "AlphaSecretParty",
+  // #1627 — a durable row in A's INBOX. The inbox trio lost its PD-106 multi-human belt when single-human
+  // notification sources landed, so the `recipient_user_id` WHERE-clause partition
+  // (`domain/notifications/persistence/queries.ts`) is now the ONLY thing between two principals' inboxes —
+  // the WHERE-partition rule (a dropped predicate makes every user read ONE shared inbox, which no parameter
+  // shape can express). The marker rides the `automation-notice` member's rendered `message`, the one variant
+  // that carries free text; every other member is ids-only and would be invisible to the leak detector.
+  notification: "AlphaSecretNotice",
   // D147 — an installed plugin owned by A. `plugins.ownerId` is the partition key and every management verb
   // gates on it ALONE (there is no role gate any more, and deliberately no admin any-row branch), so these
   // probes are the transport-tier proof of the whole authority model. The marker rides the plugin's `name`,
@@ -161,6 +169,10 @@ interface OwnerIds {
   // #26 — A's saved party; every rosterPreset verb derives authority from `roster_presets.ownerId`, so a
   // stranger passing this id must collapse to leak-free NOT_FOUND.
   rosterPresetId: RosterPresetId;
+  // #1627 — A's durable inbox row. `dismiss` is the only id-taking verb on the widened trio, so this is the
+  // foreign id its leak-free NOT_FOUND collapse is probed with; `list`/`markAllRead` take no id at all and are
+  // probed as the WHERE-partition shape (marker read / unread-flag witness).
+  notificationId: NotificationId;
 }
 
 /** tRPC's cross-realm error duck-type (matchers.ts precedent): an Error named "TRPCError" with a code. */
@@ -1424,6 +1436,23 @@ const PROBES: readonly Probe[] = [
   //    to a leak-free NOT_FOUND/empty expectation. ──
   { path: "notifications.presence", call: (c) => c.notifications.presence({ userIds: [OWNER_USER_ID] }) },
 
+  // ── notifications — THE INBOX TRIO (#1627). These were EXEMPT("self-scoped … multi-human belt") while the
+  //    PD-106 belt refused the whole router on any deployment that could not seat a second human. The belt is
+  //    gone (single-human sources exist: a crash-disabled plugin, an auto-disabled automation rule), so the
+  //    `recipient_user_id` WHERE-clause partition is the ONLY belt left — and that is precisely the shape
+  //    EXEMPT cannot express: no parameter carries a foreign id for `list`/`markAllRead`, yet dropping the
+  //    predicate makes every user read ONE shared inbox. So all three are PROBED:
+  //      • `list` — the READ partition, witnessed by A's marker (and, from B's side, by the post-sweep
+  //        empty-inbox pin: "the stranger sees nothing" and "A still sees its own" are two different failures).
+  //      • `markAllRead` — no id at all and it returns a COUNT, so the forward detector is blind to it; its
+  //        witness is A's `readAt` still null after the sweep.
+  //      • `dismiss` — the one id-taking verb, `requireNotFound`: a stranger holding A's notificationId must
+  //        get the same leak-free NOT_FOUND collapse the verb gives a nonexistent row, and A's row must
+  //        still be in A's inbox afterwards (a landed dismiss REMOVES it from `list`). ──
+  { path: "notifications.list", call: (c) => c.notifications.list() },
+  { path: "notifications.markAllRead", call: (c) => c.notifications.markAllRead() },
+  { path: "notifications.dismiss", call: (c, i) => c.notifications.dismiss({ notificationId: i.notificationId }), requireNotFound: true },
+
   { path: "rpg.createGame", call: (c, i) => c.rpg.createGame({ chatId: i.chatId, mode: "lite" }) },
   { path: "rpg.updateConfig", call: (c, i) => c.rpg.updateConfig({ chatId: i.chatId, patch: { steeringNote: "hacked" } }) },
   {
@@ -1716,9 +1745,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "connection.orCredits": "self-scoped: reads the caller's OWN provider key",
   "connection.orGenerationCost": "not-owned: an upstream OpenRouter generation handle",
   "connection.testClaudeAuth": "self-scoped: the caller's own max-pro-sub health check",
-  "notifications.list": "self-scoped by principal.userId (multi-human belt)",
-  "notifications.markAllRead": "self-scoped by principal.userId (recipient-scoped inside the verb, no foreign id)",
-  "notifications.dismiss": "self-scoped by principal.userId (inbox scoped inside the verb)",
   // The multiplexed socket (SSE-1). `attach`/`detach` are ordinary mutations and ARE probed below. `connect`
   // is the one EventSource and NEVER TERMINATES, so the sweep's drain would hang on it — the exemption is the
   // same one every other subscription here carries. Its cross-tenant teeth are a dedicated unit test: a
@@ -2133,6 +2159,29 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       updatedAt: 1,
     });
 
+    // #1627 — a durable row in A's INBOX, seeded DIRECTLY: notifications are raised by PRODUCERS (a
+    // membership transition, a crashing plugin, an auto-disabling rule) and there is no front-door write
+    // verb, which is exactly why the trio's only belt is the recipient predicate. The `automation-notice`
+    // member is the one variant carrying free text, so the marker rides its rendered `message`; it points at
+    // A's owner-global rule, the same chat-less lane whose auto-disable notice a single-user deployment
+    // could not read while the PD-106 belt was on. `seq` is the per-recipient cursor (unique with the
+    // recipient), and the row is born UNREAD + UNDISMISSED — both are post-sweep witnesses below.
+    const notificationId = castId<NotificationId>("notification_alpha");
+    await db.insert(notifications).values({
+      id: notificationId,
+      recipientUserId: OWNER_USER_ID,
+      type: "automation-notice",
+      payload: {
+        type: "automation-notice",
+        recipientUserId: OWNER_USER_ID,
+        chatId: null,
+        source: { kind: "rule", ruleId: automationOwnerRule.id },
+        message: MARK.notification,
+      },
+      seq: 1,
+      createdAt: 1,
+    });
+
     // A theme row seeded directly (the front-door createTheme needs a full color-token override — the
     // lenient read seam accepts a partial blob, so this is representative for the ownership probe).
     const themeId = castId<ThemeId>("theme_alpha");
@@ -2177,6 +2226,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       refinerySchemaId: refinerySchema.id,
       pluginId,
       rosterPresetId: rosterPreset.id,
+      notificationId,
     };
   }
 
@@ -2309,6 +2359,24 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(bookAttachmentsStill.characters).toEqual([]);
     const tagStill = (await ownerCaller.tag.listTags()).find((t) => t.id === ids.tagId);
     expect(tagStill?.name).toBe(MARK.tag); // survived removeTag/mergeTags; untouched by updateTag
+
+    // ── #1627 — THE INBOX PARTITION, read from BOTH sides. The forward detector covers the `list` READ; these
+    //    cover what it structurally cannot see, because neither remaining probe leaves text: `markAllRead`
+    //    answers a COUNT and `dismiss` answers void-or-a-view, and BOTH move a null timestamp. `dismiss` is
+    //    the sharper of the two — a landed cross-tenant dismiss EXCLUDES the row from `list` entirely
+    //    (`isNull(dismissedAt)` in the query), so A's inbox would simply go quiet. MEASURED (#1627,
+    //    2026-09-05) against one planted omission per verb in `domain/notifications/persistence/queries.ts`:
+    //    dropping the recipient predicate from `selectInbox` fires the forward detector on the marker, from
+    //    `dismissScoped` fires the probe's own `requireNotFound` arm (the stranger's dismiss RESOLVED), and
+    //    from `markAllReadScoped` fires the `readAt` pin below — which is the sole witness of that probe,
+    //    since a cross-tenant markAllRead leaves no text and returns only a count. ──
+    const inboxStill = await ownerCaller.notifications.list();
+    expect(inboxStill.items).toHaveLength(1); // the stranger's dismiss never removed A's row from A's inbox
+    expect(inboxStill.items[0]?.readAt).toBeNull(); // …nor did its markAllRead flip A's unread state
+    expect(JSON.stringify(inboxStill.items[0]?.payload)).toContain(MARK.notification); // and it is still A's own notice
+    // The B side: "the stranger sees nothing" is a different failure from "A still sees its own" (the C5
+    // owner-budget posture) — a partition can break by widening OR by projecting someone else's rows.
+    expect(await otherCaller.notifications.list()).toEqual({ items: [], nextCursor: null });
 
     // ══ #795 — THE WRITE-IDOR COMPLETENESS AUDIT ═══════════════════════════════════════════════════════════
     // #755 closed four families by hand (persona/preset/world-info/tag). This closes the REST: every remaining

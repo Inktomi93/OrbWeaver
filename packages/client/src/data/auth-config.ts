@@ -98,8 +98,15 @@ export function useUploadCaps(): UploadCaps {
 /**
  * Can this deployment seat ≥2 humans — answered at FIRST PAINT (#476). The multi-human client surfaces gate
  * on this, and `/api/auth/config` is fetched at app-root mount, so a plain `data?.multiHumanCapable === true`
- * is FALSE for the first frames of every shell life: the topbar bell then mounts INTO the trail and shifts it
- * (measured 0.00015 — under the `[cls]` flagger's own reporting floor, so nothing ever named it).
+ * is FALSE for the first frames of every shell life and a gated slot mounts INTO the layout and shifts it
+ * (measured on the topbar bell: 0.00015 — under the `[cls]` flagger's own reporting floor, so nothing ever
+ * named it).
+ *
+ * IT HAS NO CALLER TODAY (#1627, 2026-09-05). Its one consumer was the bell's `useVisible`, and the bell lost
+ * its capability gate when the inbox gained single-human sources; the two remaining gated surfaces
+ * (`routes/app-root.tsx`'s /join dialog, the cast bar's People section) still read `useAuthConfig()` raw and
+ * are the candidates to adopt this — or to retire it. Left standing rather than deleted because the boot-paint
+ * problem it solves is the surface's, not the bell's.
  *
  * So while the read is unresolved the answer is this DEVICE's remembered one (`#state` deployment-boot-hint,
  * localStorage, rehydrated at module init — the `appearance-boot-hint` pattern, same store class); the
