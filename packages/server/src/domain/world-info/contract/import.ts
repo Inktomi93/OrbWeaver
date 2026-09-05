@@ -51,9 +51,11 @@ export interface WorldInfoDuplicateCarryContext {
 
 /** Re-points the source character's attached books at the new character id (fresh character_books rows,
  *  role preserved). REFERENCE-carry — the world_books themselves are never cloned; zero attachments = no-op.
- *  `ownerId` is the OWNED-SOURCE GATE, the same guard {@link LinkCarriedBooks} carries: BOTH character ids
- *  must be the caller's or the carry copies nothing. Without it the op is safe only because its one call
- *  site happens to have loaded the source owned first — a promise no signature carries to the next one. */
+ *  `ownerId` is the OWNED-SOURCE GATE, the same guard {@link LinkCarriedBooks} carries, at BOTH ends: both
+ *  character ids must be the caller's or the carry copies nothing, AND only junction rows whose world_book is
+ *  the caller's own cross (#1516 — a foreign book attached to an owned character is dropped silently, the
+ *  `handoff-copy-write` posture). Without them the op is safe only because its one call site happens to have
+ *  loaded the source owned first — a promise no signature carries to the next one. */
 export type CopyCharacterBooks = (args: {
   readonly ownerId: UserId;
   readonly fromCharacterId: CharacterId;

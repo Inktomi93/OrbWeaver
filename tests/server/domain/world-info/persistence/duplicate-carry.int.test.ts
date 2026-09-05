@@ -93,6 +93,28 @@ describe("createCopyCharacterBooks", () => {
     expect(await junctionsFor(db, theirs)).toEqual([]);
   });
 
+  // #1516: `bothOwned` proves only the two CHARACTERS. A junction row may point at a world_book owned by
+  // SOMEONE ELSE (`handoff-copy-write.ts`'s header says such rows exist in practice), and carrying it hands
+  // the caller a durable reference to a stranger's lore under a character they own — a second reader of the
+  // book that the book's owner never granted. Only the caller's OWN books cross; the owned book is the
+  // positive control that proves the predicate did not just empty the carry.
+  test("a FOREIGN-owned book attached to an owned source is NOT carried (owned book still is)", async () => {
+    const db = await freshDb();
+    const owner = (await seedUser(db, {})).id;
+    const stranger = (await seedUser(db, {})).id;
+    const from = (await seedCharacter(db, { ownerId: owner })).id;
+    const to = (await seedCharacter(db, { ownerId: owner })).id;
+    const mine = await seedAttachedBook(db, { bookId: "world_book_mine", ownerId: owner, characterId: from, role: "primary" });
+    const theirs = await seedAttachedBook(db, { bookId: "world_book_theirs", ownerId: stranger, characterId: from, role: "auxiliary" });
+
+    await createCopyCharacterBooks({ db, now: (): number => NOW })({ ownerId: owner, fromCharacterId: from, toCharacterId: to });
+
+    expect(await junctionsFor(db, to)).toEqual([{ worldBookId: mine, role: "primary" }]);
+    expect((await junctionsFor(db, to)).map((j) => j.worldBookId)).not.toContain(theirs);
+    // The source's own rows are untouched — the carry drops the foreign ref, it does not clean up history.
+    expect((await junctionsFor(db, from)).length).toBe(2);
+  });
+
   test("a source with zero attached books is a no-op (no junction rows, no books)", async () => {
     const db = await freshDb();
     const owner = (await seedUser(db, {})).id;
