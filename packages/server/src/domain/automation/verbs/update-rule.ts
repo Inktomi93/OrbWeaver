@@ -35,6 +35,13 @@ export function createUpdateRule(ctx: AutomationContext): AutomationService["upd
         authorUserId: rule.ownerId,
       },
     );
+    // S4 — THE VOID RUNS BEFORE THE WRITE (#1564, #1424's residue). Voiding only after `applyRuleUpdate` left a
+    // real window: a confirm that claims the card in the gap re-checks a rule that exists, is enabled and is
+    // still hosted by its author — all true — and then executes the STASHED PRE-EDIT arm against the edited
+    // rule. Voiding first makes that unreachable. If the write below then fails, the cost is a dropped card for
+    // a rule that did not change, which is one re-fire away; the other order's cost is running an act the host
+    // just edited out.
+    ctx.suggestions.voidRule(params.ruleId);
     await applyRuleUpdate(ctx.db, params.ruleId, {
       name: params.name,
       description: params.description ?? null,
@@ -56,13 +63,13 @@ export function createUpdateRule(ctx: AutomationContext): AutomationService["upd
     if (row === undefined) {
       throw new Error(`updateRule: row ${params.ruleId} vanished immediately after update`);
     }
-    // S4 — AN EDIT VOIDS THIS RULE'S PENDING ASKS (#1424), the same call `setRuleEnabled(false)` and
-    // `deleteRule` make, for the same reason one step further on. A pending card stores the arm as it RESOLVED
-    // at fire time, and confirming it executes that STASHED arm — so without this, a host who edited a
-    // dangerous or obsolete action away could still confirm the card sitting in their room and run the
-    // PRE-EDIT act. The confirm's own liveness re-check cannot catch it: it asks whether the rule exists, is
-    // enabled and its author still hosts — all still true after an edit, none of them a question about WHICH
-    // act was approved. The honest surface for a rule that no longer says what the card says is no card.
+    // THE SECOND VOID (#1424 · #1564), and it is not redundant: the one above the write closes the
+    // confirm-in-the-gap window, this one closes its MIRROR — a dispatch that RAISED a card while the write was
+    // in flight, whose stashed arm is the pre-edit one too. Both are an in-RAM scan of one rule's slots.
+    // A pending card stores the arm as it RESOLVED at fire time and confirming executes that STASHED arm, which
+    // is why neither the confirm's own liveness re-check (exists / enabled / author still hosts — every one of
+    // them still true after an edit) nor either void alone is enough. The honest surface for a rule that no
+    // longer says what its card says is no card. `setRuleEnabled(false)` and `deleteRule` make the same call.
     ctx.suggestions.voidRule(params.ruleId);
     // An enabled rule's trigger BUS can change (chat↔domain) — refresh the pre-check's domain-rule flag.
     // `refresh`, not `reload` (#1431): the row above is already written, so an index failure must not reject

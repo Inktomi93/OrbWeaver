@@ -307,6 +307,21 @@ test("a chat variable named __proto__ lands as an OWN key on the shared env", as
   expect(captured.varOps[1]?.ops).toEqual([{ op: "set", key: "__proto__", value: "6" }]);
 });
 
+// #1564 — the READ half of the same reserved-key hole. `frame.env.vars[key]` for `__proto__` answers
+// `Object.prototype` on any plane that does not already own that key — an OBJECT where `runIncDec` needs a
+// string — so a legal variable name turned an `inc` into `current.trim is not a function` and the isolated
+// dispatch reported a generic `action_error` about a rule that was fine.
+test("set_variable 'inc' on a __proto__ key the plane does not own is a FRESH COUNTER, not a crash", async () => {
+  const { db, host, chatId } = await setup();
+  const { dispatch, captured } = makeHarness(db);
+  const frame = makeFrame({ chatId, authorUserId: host }); // env.vars is a plain {} — it does NOT own __proto__
+
+  const outcome = await dispatch({ type: "set_variable", scope: "chat", key: "__proto__", op: "inc" }, frame);
+
+  expect(outcome).toEqual({ ok: true });
+  expect(captured.varOps[0]?.ops).toEqual([{ op: "set", key: "__proto__", value: "1" }]);
+});
+
 test("set_variable chat-scope delete write-through clears the shared env (F2 — a later has()/read sees it gone)", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch } = makeHarness(db);

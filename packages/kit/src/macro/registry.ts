@@ -14,7 +14,7 @@ import { BUILTIN_MACRO_METADATA } from "./builtin-metadata.ts";
 import { isIfTruthy } from "./metadata.ts";
 import { unitDraw } from "./prng.ts";
 import type { MacroAST, MacroContext, MacroHandler, MacroMetadata, MacroMetadataInput, MacroRegisterOptions, MacroRegistry, VarOp } from "./types.ts";
-import { applyVarOp } from "./variables.ts";
+import { applyVarOp, readVarKey } from "./variables.ts";
 
 const DECIMAL_RADIX = 10;
 const RANDOM_DEFAULT_CEIL = 101; // bare {{random}} rolls 0..100 inclusive
@@ -176,7 +176,9 @@ function readContextValue(name: string, ctx: MacroContext): unknown {
     case "lastCharMessage":
       return ctx.lastCharMessage;
     default:
-      return ctx.env[name];
+      // OWN keys only (#1564): property syntax would answer `Object.prototype` for a bare `{{__proto__}}`
+      // and the prototype's methods for `{{toString}}` — inherited members are not this plane's vocabulary.
+      return readVarKey(ctx.env, name);
   }
 }
 
@@ -371,7 +373,7 @@ const readVar: MacroHandler = (args, ctx) => {
   if (key === undefined || key === "") {
     return "";
   }
-  return String(ctx.env[key] ?? "");
+  return String(readVarKey(ctx.env, key) ?? "");
 };
 
 // {{setvar::name::value}} — write `value` to ctx.env[name], render "". Records the op on ctx.opLog.
@@ -408,7 +410,7 @@ const incVar: MacroHandler = (args, ctx) => {
   const op: VarOp = { op: "inc", key };
   applyVarOp(ctx.env, op);
   ctx.opLog?.push(op);
-  return String(ctx.env[key] ?? "");
+  return String(readVarKey(ctx.env, key) ?? "");
 };
 
 // {{decvar::name}} — parse-or-zero −1 on the stored string.
@@ -420,7 +422,7 @@ const decVar: MacroHandler = (args, ctx) => {
   const op: VarOp = { op: "dec", key };
   applyVarOp(ctx.env, op);
   ctx.opLog?.push(op);
-  return String(ctx.env[key] ?? "");
+  return String(readVarKey(ctx.env, key) ?? "");
 };
 
 // {{hasvar::name}} — "true" / "" so it composes with `{{if hasvar::flag}}`. Semantics: "exists" is

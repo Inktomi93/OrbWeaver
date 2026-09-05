@@ -262,6 +262,23 @@ test("NEEDLE (route authored): ONLY the clamped integer score crosses, under the
   expect(captured.varOps).toEqual([{ chatId, ops: [{ op: "set", key: "tension", value: "8" }] }]); // round(7.6), stringified — and nothing else.
 });
 
+// #1564 — the vars route mirrors onto the SHARED env under the same write-through law the `set_variable` arm
+// obeys, so it needs the same own-key writer: a route key of `__proto__` written with property syntax hits
+// `Object.prototype`'s inherited setter and lands nowhere, leaving the durable write and the in-memory plane
+// disagreeing for every later arm and rule in the batch.
+test("NEEDLE (route authored): a __proto__ route key lands as an OWN key on the shared env, not nowhere", async () => {
+  const { db, host, chatId, ruleId } = await setup(2);
+  const { dispatch, captured } = makeHarness(db, [reply({ ...EMPTY_PLOT, score: 4 })]);
+  const frame = makeFrame({ chatId, authorUserId: host, ruleId });
+
+  const outcome = await dispatch(arm({ type: "run_analysis", brief: "b", routes: { vars: { key: "__proto__" } } }), frame);
+
+  expect(outcome).toEqual({ ok: true });
+  expect(captured.varOps).toEqual([{ chatId, ops: [{ op: "set", key: "__proto__", value: "4" }] }]);
+  expect(Object.hasOwn(frame.env.vars, "__proto__")).toBe(true);
+  expect(frame.env.vars["__proto__"]).toBe("4");
+});
+
 // ── the lore route: belts, span-stamping, the watermark ──────────────────────────────────────────────
 
 /** 20 messages ⇒ maxSeq 20, protect tail 16 ⇒ the settled span is (0, 4]. */

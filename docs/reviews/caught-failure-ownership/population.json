@@ -1632,7 +1632,7 @@
     {
       "siteId": "packages/kit/src/macro/registry.ts::default:err::1",
       "path": "packages/kit/src/macro/registry.ts",
-      "line": 353,
+      "line": 355,
       "column": 5,
       "grammar": "default",
       "position": "default:err",
@@ -1640,7 +1640,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "documented — macros never throw into assembly;",
-      "markerLine": 349
+      "markerLine": 351
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::default:catch::1",

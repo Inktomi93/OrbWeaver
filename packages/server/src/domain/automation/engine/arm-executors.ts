@@ -37,6 +37,7 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import { readVarKey, setVarKey } from "@orb/kit/macro";
 import type { RunAnalysisAction } from "../contract/analysis.ts";
 import type { ArmDispatch, ArmExecutorDeps, ArmOutcome, DispatchFrame } from "../contract/ops.ts";
 import { deleteGlobalVariable, selectGlobalVariable, upsertGlobalVariable } from "../persistence/queries.ts";
@@ -115,19 +116,6 @@ function resolveNumericValue(op: "inc" | "dec", current: string, operandText: st
   return String(op === "inc" ? base + operand : base - operand);
 }
 
-/** Write `key` as an OWN property of a string-keyed plane, whatever the key is called (#1420).
- *
- *  A PLAIN ASSIGNMENT CANNOT DO THIS. The variable key vocabulary is length-bounded and nothing else, so a
- *  host may legitimately name a variable `__proto__` — and `map[key] = value` for that name hits the setter
- *  INHERITED from `Object.prototype` and silently creates no own property at all. The write reports success,
- *  the DB row exists, and the CEL env this plane feeds cannot see it: the variable is invisible to every
- *  predicate and every later `inc`. `defineProperty` writes the own data property regardless of the name.
- *  (`constructor`/`toString` and friends are ordinary shadowable data-property names and were never broken —
- *  the accessor is the one hazard, but defining is correct for all of them.) */
-function setOwnKey(target: Record<string, string>, key: string, value: string): void {
-  Object.defineProperty(target, key, { value, writable: true, enumerable: true, configurable: true });
-}
-
 /** THE ONE variable-WRITE seam an arm uses (`set_variable` writes here; `run_tool` captures its result here).
  *
  *  WRITE-THROUGH is the load-bearing half and it is why this is a shared helper rather than two similar
@@ -156,7 +144,10 @@ async function writeArmVariable(
     }
     const ops: readonly VarOp[] = [{ op: "set", key, value }];
     await deps.ops.chat.applyVariableOps(chatId, ops);
-    setOwnKey(frame.env.vars, key, value);
+    // The shared env is the plane's IN-MEMORY half; `setVarKey` is its own-key writer (`@orb/kit/macro` —
+    // one home with the durable fold, #1564), because a `__proto__` key written with property syntax lands
+    // nowhere and the next arm's read composes on a value that does not exist.
+    setVarKey(frame.env.vars, key, value);
     return OK;
   }
   await upsertGlobalVariable(deps.db, { ownerId: frame.authorUserId, key, value, updatedAt: frame.now });
@@ -175,7 +166,10 @@ async function runIncDec(
   args: { readonly scope: AutomationVariableScope; readonly key: string; readonly op: "inc" | "dec"; readonly operandText: string },
 ): Promise<ArmOutcome> {
   const { scope, key, op, operandText } = args;
-  const current = scope === "chat" ? (frame.env.vars[key] ?? "0") : ((await selectGlobalVariable(deps.db, frame.authorUserId, key)) ?? "0");
+  // OWN-key read (#1564). `frame.env.vars[key]` for the key `__proto__` answers `Object.prototype` on any
+  // plane that does not already own it — an OBJECT where the rest of this function needs a string, which
+  // turned a legal variable name into `current.trim is not a function` and a generic `action_error`.
+  const current = scope === "chat" ? (readVarKey(frame.env.vars, key) ?? "0") : ((await selectGlobalVariable(deps.db, frame.authorUserId, key)) ?? "0");
   const value = resolveNumericValue(op, current, operandText);
   if (value === null) {
     // It names BOTH operands because either one can be the bad half.

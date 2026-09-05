@@ -101,3 +101,63 @@ test("absent opLog ⇒ handlers still mutate env, record nothing (preview postur
   processMacros("{{setvar::x::1}}", { char: "C", user: "U", persona: "", scenario: "", env });
   expect(env["x"]).toBe("1");
 });
+
+// ── #1564 — RESERVED PROPERTY NAMES ARE ORDINARY VARIABLE NAMES ────────────────────────────────
+// A variable key is length-validated and nothing else at every door, so `__proto__` is a legal name. With
+// plain property syntax the plane got it wrong BOTH ways: `env[key] = value` hit the setter inherited from
+// `Object.prototype` and created no own property (the write vanished, including out of `Object.entries` and
+// therefore out of `chats.runtime_variables`), and `env[key]` answered `Object.prototype` — an OBJECT where
+// every caller expects a string. `{{hasvar}}` has always used `Object.hasOwn`, which is precisely why
+// `hasvar::__proto__` said "false" while the same env's `getvar::__proto__` said "[object Object]".
+
+test("applyVarOp set/add/delete handle __proto__ as an ordinary OWN key", () => {
+  const env: MacroEnv = {};
+  applyVarOp(env, { op: "set", key: "__proto__", value: "13" });
+  expect(Object.hasOwn(env, "__proto__")).toBe(true);
+  expect(env["__proto__"]).toBe("13");
+  // The prototype chain is untouched — this defines an own property, it does not reparent the object.
+  expect(Object.getPrototypeOf(env)).toBe(Object.prototype);
+
+  applyVarOp(env, { op: "add", key: "__proto__", value: "7" });
+  expect(env["__proto__"]).toBe("137"); // and NOT "[object Object]7", the pre-fix inherited read
+
+  applyVarOp(env, { op: "delete", key: "__proto__" });
+  expect(Object.hasOwn(env, "__proto__")).toBe(false);
+});
+
+test("applyVarOp inc/dec on __proto__ count from the OWN value, never from Object.prototype", () => {
+  const env: MacroEnv = {};
+  applyVarOp(env, { op: "set", key: "__proto__", value: "5" });
+  applyVarOp(env, { op: "inc", key: "__proto__" });
+  expect(env["__proto__"]).toBe("6");
+  applyVarOp(env, { op: "dec", key: "__proto__" });
+  expect(env["__proto__"]).toBe("5");
+  // A key the env does NOT own is the fresh-counter case, not an inherited-member read: parse-or-zero over
+  // `undefined`, exactly as for any other absent key. (The parse-or-zero coercion itself is #1557.)
+  applyVarOp(env, { op: "inc", key: "toString" });
+  expect(env["toString"]).toBe("1");
+});
+
+test("foldVarOps carries a __proto__ key all the way into the durable cache", () => {
+  const folded = foldVarOps([[{ op: "set", key: "__proto__", value: "13" }], [{ op: "inc", key: "beats" }]]);
+  expect(Object.hasOwn(folded, "__proto__")).toBe(true);
+  expect(folded["__proto__"]).toBe("13");
+  // THE DURABLE HALF: the cache is JSON-serialized onto `chats.runtime_variables`, and a key that is not an
+  // own property is simply absent from the row — the write reported success and the value was gone.
+  const roundTripped = JSON.parse(JSON.stringify(folded)) as Record<string, string>;
+  expect(roundTripped["__proto__"]).toBe("13");
+});
+
+test("{{getvar}} and {{hasvar}} agree about __proto__ — and neither reads an inherited member", () => {
+  const env: MacroEnv = {};
+  const ctx = { char: "C", user: "U", persona: "", scenario: "", env };
+  // Before any write both say "absent": hasvar renders "", getvar renders "" (NOT "[object Object]").
+  expect(processMacros("[{{getvar::__proto__}}][{{hasvar::__proto__}}]", ctx)).toBe("[][]");
+  // A bare `{{toString}}` is a plane lookup too, and an inherited METHOD is not this vocabulary: the lookup
+  // now answers `undefined`, so the evaluator's unknown-macro path leaves the token verbatim. Before the own-
+  // key read it resolved to `Object.prototype.toString` and rendered the function's source into the prompt.
+  expect(processMacros("[{{toString}}]", ctx)).toBe("[{{toString}}]");
+
+  processMacros("{{setvar::__proto__::13}}", ctx);
+  expect(processMacros("[{{getvar::__proto__}}][{{hasvar::__proto__}}]", ctx)).toBe("[13][true]");
+});

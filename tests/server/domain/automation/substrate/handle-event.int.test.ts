@@ -7,7 +7,7 @@
 import type { AutomationActionInput, AutomationBusEvent, AutomationTrigger } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { NotificationEvent } from "@orb/contracts/notifications";
-import { chatParticipants, messages } from "@orb/db";
+import { automationRules, chatParticipants, messages } from "@orb/db";
 import type { AutomationRuleId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -16,7 +16,7 @@ import { describe } from "vitest";
 import type { ArmDispatch, AutomationOps } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
 import type { AutomationService } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
 import { createArmExecutors } from "../../../../../packages/server/src/domain/automation/engine/arm-executors.ts";
-import { createAutomationService } from "../../../../../packages/server/src/domain/automation/index.ts";
+import { createAutomationService, createEnabledRuleIndex } from "../../../../../packages/server/src/domain/automation/index.ts";
 import { listFiresForRule } from "../../../../../packages/server/src/domain/automation/persistence/fires.ts";
 import { createSuggestionStore } from "../../../../../packages/server/src/domain/automation/substrate/suggestions.ts";
 import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
@@ -24,7 +24,7 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedAsset, seedCharacter, seedMessage } from "../../chat/_support.ts";
 import type { HarnessOverrides } from "../_support.ts";
-import { makeAutomationHarness, NO_TOOLS, principal, seedHostChat, seedUser } from "../_support.ts";
+import { makeAutomationHarness, NO_TOOLS, principal, readFailingDb, seedHostChat, seedUser } from "../_support.ts";
 
 const CHAT_OPENED: AutomationTrigger = { bus: "chat", type: "chatOpened" };
 const TURN_COMPLETED: AutomationTrigger = { bus: "chat", type: "turnCompleted" };
@@ -1034,4 +1034,43 @@ describe("#1433 - bus routing derives from the trigger tuples", () => {
     await f.svc.handleEvent({ type: "messagesReordered", chatId: f.chatId });
     expect(f.calls).toEqual([]);
   });
+});
+
+// #1564 — the LAST unswept `reload()`. When a dispatch auto-disables a rule the front door reconciles the
+// enabled index, and a failed rebuild there is the quietest form of the #1431 defect: `reload` throws into
+// `createHandleEvent`'s self-safe wrapper, which logs and moves on, so the index is behind canon with NO latch
+// for `healStaleIndexes` to notice and no caller to tell. `refresh` sets that latch.
+test("#1564 — an index-refresh failure after a dispatch auto-disable LATCHES STALE instead of vanishing into the self-safe wrapper", async () => {
+  const db = await freshDb();
+  const host = await seedUser(db, "user_host");
+  const chatId = await seedHostChat(db, host);
+  const failing = { fail: false };
+  const enabled = createEnabledRuleIndex(readFailingDb(db, failing));
+  const ctx = makeAutomationHarness(db, { enabled });
+  const svc = createAutomationService(ctx);
+  const rule = await svc.createRule({
+    principal: principal(host),
+    chatId,
+    name: "doomed",
+    trigger: CHAT_OPENED,
+    predicateCel: null,
+    actions: [SET_VAR],
+  });
+  await svc.setRuleEnabled({ principal: principal(host), ruleId: rule.id, enabled: true });
+  await enabled.reload();
+  // A blob no arm schema can parse ⇒ the dispatch DISABLES the rule ⇒ the reconcile under test.
+  await db
+    .update(automationRules)
+    // FABRICATION-OK: the A5 CORRUPT-BLOB state is by definition a value no schema admits — a typed factory
+    // could not produce it, and it is exactly the invalid input the disable-on-corrupt path exists to answer.
+    .set({ actions: [{ not: "an arm" }] as never })
+    .where(eq(automationRules.id, rule.id));
+
+  failing.fail = true;
+  await svc.handleEvent(chatOpened(chatId));
+
+  expect(enabled.isStale()).toBe(true);
+  // THE PREMISE, proven: the auto-disable really committed, so the reconcile really ran.
+  const [view] = await svc.listRules({ principal: principal(host), chatId });
+  expect(view?.enabled).toBe(false);
 });

@@ -152,7 +152,10 @@ async function handle(ctx: AutomationContext, event: BusEvent): Promise<void> {
   }
   const summary = await runDispatch(ctx, rules, resolved);
   if (summary.anyDisabled) {
-    await ctx.enabled.reload();
+    // `refresh`, not `reload` (#1564): same rule as the verbs — the auto-disable committed before this runs.
+    // `reload` would throw into the self-safe wrapper, which logs and moves on, leaving a stale index that
+    // `healStaleIndexes` has no latch to notice; `refresh` sets the latch this very function retries on.
+    await ctx.enabled.refresh();
   }
 }
 
