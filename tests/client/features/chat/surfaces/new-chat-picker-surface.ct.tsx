@@ -396,3 +396,27 @@ test("a previous session's unsent composer text CANNOT repopulate a different ro
   await expect(component.getByTestId(testId("composer"))).toBeVisible();
   await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("");
 });
+
+// ── #1748: the shared picker's reservation key is the OWNER'S ────────────────────────────────────────
+// `CharacterPicker` is mounted by eight owners, so it may never mint a `reserveKey` of its own — one literal
+// inside the composite is ONE remembered box for all eight, the duplicate-key defect by a route the
+// reservation gate's literal census cannot see through a shared component. The prop is a pass-through and
+// every owner supplies its own; this pane is the pin for that, asserted at the OWNER (not at the composite),
+// so the proof compiles against the pre-change tree and reds there for the right reason: no key, no memory.
+test("#1748 the new-chat picker reserves its box under THIS owner's key, not the composite's", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": charPage });
+
+  const component = await mount(<NewChatPickerStory />);
+  // SETTLED: the rows are the boundary's resolved child, so the measuring wrapper has run.
+  await expect(component.getByText("Aria")).toBeVisible();
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const key = Object.keys(localStorage).find((k) => k.includes("surface-box"));
+        const blob = key === undefined ? "{}" : (localStorage.getItem(key) ?? "{}");
+        return (JSON.parse(blob) as { state?: { boxes?: Record<string, number> } }).state?.boxes?.["chat.newChatPicker"] ?? 0;
+      }),
+    )
+    .toBeGreaterThan(0);
+});

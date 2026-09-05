@@ -24,12 +24,13 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
 import { resolveSpacingPxIn } from "../../../../support/ct/touch-floor.ts";
 import {
   PresetLibraryAnnouncedStory,
   PresetLibraryDockedStory,
+  PresetLibrarySurfaceShortStory,
   PresetLibrarySurfaceStory,
   PresetLibraryWelcomeFilteredStory,
   PresetLibraryWelcomeListModeStory,
@@ -1118,4 +1119,63 @@ test("G6 a REJECTED orb file keeps the dialog open with the SERVER's reason", as
   // The STRICT parse lives on the server, so its verdict is what the owner reads — no client re-derivation.
   await expect(page.getByText(SERVER_PARSE_ERROR)).toBeVisible();
   await expect(page.getByRole("button", { name: "Import preset", exact: true })).toBeVisible();
+});
+
+// ── #1748: the pane CHROME and its SCROLL BOX sit above the boundary (`LibraryListFrame`) ────────────
+// The shared library scaffold was refused a `reserveKey` on GEOMETRY: `LibraryListLayout`'s rows container
+// was the pane's scroller and it rendered INSIDE the boundary, so the reservation's auto-height measuring
+// Stack severed its `flex-1` and every row past the fold became unreachable (#1133). The layout is split now
+// — frame (surface + search + scroll box) above the boundary, rows below it — and these are the three facts
+// that move together. The SEARCH-WHILE-PENDING arm is a defect proof (red against HEAD: with the input under
+// the boundary the pending pane is a bare sentence); the REMEMBER arm is a defect proof (no key on HEAD);
+// the REACHABILITY arm is a FENCE against HEAD and reds against the keyed-but-unsplit tree.
+
+/** 40 rows — enough that a 200px pane cannot be honest about them without scrolling. */
+const MANY_PRESETS = [
+  summary({ id: BUILT_IN, name: "Default", isSystemDefault: true }),
+  ...Array.from({ length: 39 }, (_unused, i) => summary({ id: `preset_ct_bulk${String(i).padStart(6, "0")}`, name: `Bulk preset ${i}` })),
+];
+
+const LAST_BULK_NAME = "Bulk preset 38";
+
+test("#1748 the search input survives the pending read, and the rows still reach past the fold", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await routeTrpc(page, {
+    "preset.list": hold,
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_preset",
+      schemaVersion: 1,
+      config: DEFAULT_USER_SETTINGS,
+      updatedAt: 0,
+    }),
+  });
+
+  const component = await mount(<PresetLibrarySurfaceShortStory />);
+  await hold.requested;
+
+  // PENDING, and the chrome is still there: the search box is pane furniture, not list content. Before the
+  // split it lived under the boundary and this locator resolved to nothing while the read was in flight.
+  const search = component.getByRole("textbox", { name: "Search presets" });
+  await expect(search).toBeVisible();
+  await expect(component.getByText("Loading your presets…")).toBeVisible();
+
+  hold.release(MANY_PRESETS);
+  await expect(component.getByText("Bulk preset 0", { exact: true })).toBeVisible();
+
+  // The frame's scroll box is a REAL scroller and it moves; the last row is reachable.
+  const scroller = component.locator('[data-slot="library-list-scroll"]');
+  await expect.poll(() => scroller.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(0);
+  await component.getByText(LAST_BULK_NAME, { exact: true }).scrollIntoViewIfNeeded();
+  await expect(component.getByText(LAST_BULK_NAME, { exact: true })).toBeInViewport();
+
+  // …and the settle remembered this OWNER's box — the key is minted at the surface, never in the shared shell.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const key = Object.keys(localStorage).find((k) => k.includes("surface-box"));
+        const blob = key === undefined ? "{}" : (localStorage.getItem(key) ?? "{}");
+        return (JSON.parse(blob) as { state?: { boxes?: Record<string, number> } }).state?.boxes?.["preset.library"] ?? 0;
+      }),
+    )
+    .toBeGreaterThan(0);
 });

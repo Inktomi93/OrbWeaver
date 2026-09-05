@@ -51,6 +51,7 @@ function AddMemberShell({
           label="Add a character"
           onSelect={onAdd}
           placeholder="Search characters…"
+          reserveKey="chat.addMemberPicker"
         />
       </PopoverPopup>
     </Popover>

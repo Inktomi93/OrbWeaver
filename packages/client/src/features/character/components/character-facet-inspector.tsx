@@ -50,16 +50,19 @@ export function CharacterFacetInspector({ characterId }: CharacterFacetInspector
     return <CharacterOverviewCard characterId={characterId} />;
   }
   return (
-    // DELIBERATELY UNRESERVED (#1098) — a GEOMETRY refusal. The settled body scrolls itself
-    // (`FacetContextBody`'s `min-h-0 overflow-y-auto`, below), and that box only has a height because an
-    // ancestor flex chain gives it one; `reserveKey`'s auto-height measuring Stack severs that chain and
-    // the inspector stops scrolling (#1133). Hoist the scroller above the boundary before keying.
-    <QueryBoundary
-      fallback={<Text voice="quiet">Loading…</Text>}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="this field" onRetry={retry} />}
-    >
-      <InspectorLoader form={resolved.form} facetId={selectedFacetId as CharacterFacetId} characterId={characterId} />
-    </QueryBoundary>
+    // THE SCROLL BOX IS THE TAB'S, NOT THE BODY'S (#1748, the #1133 hoist). The box only has a height
+    // because an ancestor flex chain gives it one, and `reserveKey`'s auto-height measuring Stack severs
+    // that chain wherever the scroller sits UNDER the boundary; hoisted, the measuring wrapper sits INSIDE
+    // the scroller, the chain is unbroken, and the scroller survives the read.
+    <Stack className="relative min-h-0 overflow-y-auto">
+      <QueryBoundary
+        fallback={<Text voice="quiet">Loading…</Text>}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="this field" onRetry={retry} />}
+        reserveKey="character.facetInspector"
+      >
+        <InspectorLoader form={resolved.form} facetId={selectedFacetId as CharacterFacetId} characterId={characterId} />
+      </QueryBoundary>
+    </Stack>
   );
 }
 
@@ -109,7 +112,7 @@ function InspectorBody({
     return <FacetContextEmpty arm={arm} glyph={facet.glyph} />;
   }
   return (
-    <Stack gap="section" className="relative min-h-0 overflow-y-auto">
+    <Stack gap="section">
       <Stack gap="field">
         <Text voice="promoted">{facet.label}</Text>
         <Text voice="gloss">{facet.subtitle}</Text>

@@ -154,6 +154,7 @@ function StartSessionDoor({ trigger }: { readonly trigger: (busy: boolean) => Re
             void openRefinery(id).catch(() => undefined);
           }}
           placeholder="Search characters…"
+          reserveKey="refinery.startSessionPicker"
         />
       </PopoverPopup>
     </Popover>

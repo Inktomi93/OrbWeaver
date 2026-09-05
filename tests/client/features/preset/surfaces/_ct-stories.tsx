@@ -116,6 +116,22 @@ export function PresetLibrarySurfaceStory(): ReactElement {
   );
 }
 
+/** The library in a pane SHORTER than its rows — the #1748 fold. The scroll box and the search chrome moved
+ *  ABOVE the boundary (`LibraryListFrame`), so both halves of that move need a guaranteed fold to be provable:
+ *  the rows still reach past it, and the search input is on screen while the read is still in flight. No list
+ *  band here — the pane is the whole story. */
+export function PresetLibrarySurfaceShortStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ height: 200, width: 420 }}>
+          <PresetLibrarySurface />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 /** The library WITH the production toast outlet mounted (#481). Activation's confirmation is a `notify`
  *  notice — the toast viewport is `aria-live="polite"`, so one mechanism serves both the eye and AT — and
  *  `notify` is a MODULE-GLOBAL bind: without `CtToastSurface` (the one owner of that bind + `AppToaster`) the
