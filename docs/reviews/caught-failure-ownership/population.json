@@ -46,7 +46,7 @@
     {
       "siteId": "packages/client/src/agent-nav/index.ts::promise:fetchQuery::3",
       "path": "packages/client/src/agent-nav/index.ts",
-      "line": 386,
+      "line": 404,
       "column": 28,
       "grammar": "promise",
       "position": "promise:fetchQuery",
@@ -54,12 +54,12 @@
       "snippet": "const byId = await queryClient.fetchQuery(trpc.character.get.queryOptions({ characterId: idOrName as CharacterId })).catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "a fetch failure is indistinguishable from an invalid id — the id arm falls through to the honest name-search arm below, same as resolveDirectChatId. Ends if this arm stops sharing its miss path with the invalid-id case.",
-      "markerLine": 385
+      "markerLine": 403
     },
     {
       "siteId": "packages/client/src/agent-nav/index.ts::promise:fetchQuery::4",
       "path": "packages/client/src/agent-nav/index.ts",
-      "line": 395,
+      "line": 413,
       "column": 26,
       "grammar": "promise",
       "position": "promise:fetchQuery",
@@ -67,7 +67,7 @@
       "snippet": "const page = await queryClient.fetchQuery(trpc.character.list.queryOptions({ limit: CHARACTER_NAV_PAGE_LIMIT, search: idOrName })).catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "the rejection is converted into an explicit `ok:false` NavResult the caller consumes as the verdict. Ends if this arm stops returning the failure as a NavResult.",
-      "markerLine": 394
+      "markerLine": 412
     },
     {
       "siteId": "packages/client/src/agent-seed/retry-attempt.ts::promise:promise::1",

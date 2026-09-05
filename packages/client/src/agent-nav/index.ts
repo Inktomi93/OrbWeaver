@@ -334,14 +334,32 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       openModal(slot);
       return OK;
     },
-    openConfig(group: string, sub?: string): NavResult {
+    openConfig(group: string, sub?: string, setting?: string): NavResult {
       if (!isConfigGroup(group)) {
         return reject("config group", group, CONFIG_GROUP_IDS);
+      }
+      // THE LEAF IS THE THIRD PART OF THE ADDRESS, and it used to be DROPPED (#1176, found by #926): the
+      // store's `openConfigTo` has taken `(group, sub?, setting?)` since #866 S3 and the copy-link grammar
+      // spells all three (`/config?to=group.sub.setting`), while this arm's signature stopped at `sub` — so
+      // a drive asking for a knob landed on its section and the bridge reported `ok:true`. A bridge that
+      // silently answers a NARROWER question than it was asked is the lying-instrument class this handle
+      // exists to avoid, so the widening that used to be silent is now the refusal below.
+      //
+      // `sub`/`setting` are not a closed vocabulary here and cannot be: the only runtime index of the real
+      // sections and leaves is the config-section registry assembled at the COMPOSE DOOR, which the
+      // composition tier's bridge may not import (`client-compose-door-only`, and #433 keeps that graph out
+      // of the boot chunk). What IS decidable without it is the address's SHAPE — a leaf is addressed
+      // through its section (`ConfigSettingRef.sub` is required for exactly this reason), so a leaf handed
+      // over without one names nothing and is refused instead of landing one level up. Validating that a
+      // sub/setting NAMES a real section/leaf is #1638 — it needs the registry injected down to here, and
+      // the injection arm is a door decision, not this arm's.
+      if (setting !== undefined && sub === undefined) {
+        return { ok: false, reason: `setting "${setting}" needs its section — call openConfig("${group}", <sub>, "${setting}")` };
       }
       markAgentNavigation();
       // The EXACT deep link a feature fires ("configure memory" from a chat surface lands ON the memory
       // section): the section switch, the group expansion and the anchor landing are one store write.
-      openConfigTo(group, sub);
+      openConfigTo(group, sub, setting);
       return OK;
     },
     async contextTab(name: string): Promise<NavResult> {

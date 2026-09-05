@@ -65,7 +65,17 @@ test("a FAILED roster read degrades to the same floor and never throws", async (
     pageErrors.push(error.message);
   });
 
+  // THE BARRIER, not a race (#1265). The readout is deliberately the SAME `pending` for in-flight and for
+  // failed (the story's header says so), so asserting straight off the mount would be satisfied by the
+  // LOADING arm and would prove nothing about the error arm — it only redded before because the failure
+  // happened to land first. Registered before the mount so it cannot be missed, and awaited before the
+  // assertions: once the failure envelope has reached the browser, `retry: false` (ct-data-providers)
+  // settles the query to error in that same fetch resolution, so what is asserted below is the SETTLED
+  // failed read.
+  const failedRead = page.waitForResponse((response) => response.url().includes("chat.getChat"));
+
   await mount(<CarriedAppearanceCastStory chatId={chatId} />);
+  await failedRead;
 
   await expect(page.getByTestId("carried-cast")).toHaveText("pending");
   expect(pageErrors).toEqual([]);

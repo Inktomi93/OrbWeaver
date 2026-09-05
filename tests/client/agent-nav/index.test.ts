@@ -151,18 +151,47 @@ test("openConfig() dispatches openConfigTo (group + optional sub); an unknown gr
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
   expect(nav.openConfig("appearance")).toEqual({ ok: true });
-  expect(spy).toHaveBeenCalledExactlyOnceWith("appearance", undefined);
+  expect(spy).toHaveBeenCalledExactlyOnceWith("appearance", undefined, undefined);
 
   spy.mockClear();
   // A collection is a config group too (F-1): the SAME verb reaches it, and a sub rides through.
   expect(nav.openConfig("tags")).toEqual({ ok: true });
-  expect(spy).toHaveBeenCalledExactlyOnceWith("tags", undefined);
+  expect(spy).toHaveBeenCalledExactlyOnceWith("tags", undefined, undefined);
   spy.mockClear();
   expect(nav.openConfig("chat-behavior", "world-info")).toEqual({ ok: true });
-  expect(spy).toHaveBeenCalledExactlyOnceWith("chat-behavior", "world-info");
+  expect(spy).toHaveBeenCalledExactlyOnceWith("chat-behavior", "world-info", undefined);
 
   spy.mockClear();
   expect(nav.openConfig("bogus-group").ok).toBe(false);
+  expect(spy).not.toHaveBeenCalled();
+});
+
+// The LEAF leg (#1176, found by #926). `openConfigTo` has taken a third `setting` argument since #866 S3
+// and the copy-link grammar spells all three parts, but this arm's signature stopped at `sub` — so the
+// third argument was SILENTLY DROPPED and a drive asking for a knob landed on its section with `ok:true`.
+// These assert THROUGH the store action (what a real "Related" link click dispatches), because the return
+// value was already `{ok:true}` while the argument was being thrown away: a passing `ok` is the defect.
+test("openConfig() carries the setting LEAF through to openConfigTo — the third argument is not dropped", () => {
+  const spy = vi.spyOn(state, "openConfigTo");
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
+
+  expect(nav.openConfig("appearance", "sizing", "chat-width")).toEqual({ ok: true });
+  expect(spy).toHaveBeenCalledExactlyOnceWith("appearance", "sizing", "chat-width");
+});
+
+test("openConfig() REFUSES a setting handed over without its section, and dispatches nothing", () => {
+  const spy = vi.spyOn(state, "openConfigTo");
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
+
+  // A leaf is addressed THROUGH its section (`ConfigSettingRef.sub` is required for the same reason), so a
+  // bare leaf names nothing. Landing on the group would be the bridge answering a narrower question than it
+  // was asked — the silent-widening shape this whole arm exists to refuse.
+  const result = nav.openConfig("appearance", undefined, "chat-width");
+
+  expect(result.ok).toBe(false);
+  // The refusal NAMES the leaf it could not place — a bare `ok:false` sends a drive hunting for the wrong
+  // mistake (the group vocabulary), which is what `reject()` already spells out for the other arms.
+  expect(result.ok ? "" : result.reason).toContain("chat-width");
   expect(spy).not.toHaveBeenCalled();
 });
 
