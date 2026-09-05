@@ -6,7 +6,7 @@ import type { ResultPair } from "../../_shared/artifacts.ts";
 import type { BrowserAccelerationEvidence } from "../../_shared/browser-acceleration.ts";
 import { readBrowserAcceleration } from "../../_shared/browser-acceleration.ts";
 import type { BoxLoad, MeasurementVerdict } from "../../_shared/load-budget.ts";
-import { computeLoadFactor, judgeMeasurementLoad, readBoxLoad } from "../../_shared/load-budget.ts";
+import { judgeMeasurementLoad, loadResultPairs, readBoxLoad } from "../../_shared/load-budget.ts";
 import type { SnapRatePosture } from "../contract/rate-posture.ts";
 import { snapRatePostureIdSchema } from "../contract/rate-posture.ts";
 
@@ -80,10 +80,12 @@ export function ratePostureDisposition(receipt: SnapRatePosture, what: string): 
   return { ...judgeMeasurementLoad(receipt.load, what), postureId: receipt.id };
 }
 
+/** DELEGATED, never re-spelled (#1651): the `load=`/`budget-factor=` pair is `_shared/load-budget`'s to
+ *  format. This function used to build both strings itself, so when that module started stamping a PLANTED
+ *  reading (`load=0.2/24(planted)`) snap's own RESULT line silently kept the un-stamped spelling — the
+ *  second-home rot the one-home rule exists to prevent, caught by an assertion on the receipt rather than
+ *  by review. The posture already HOLDS its reading, so the reader here is that value, not a fresh
+ *  `os.loadavg()` call: one run, one box reading, every line agreeing. */
 export function ratePostureResultPairs(receipt: SnapRatePosture): readonly ResultPair[] {
-  return [
-    ["load", `${receipt.load.loadavg1.toFixed(1)}/${String(receipt.load.cpuCount)}`],
-    ["budget-factor", computeLoadFactor(receipt.load.loadavg1, receipt.load.cpuCount).toFixed(2)],
-    ["rate-posture", receipt.id],
-  ];
+  return [...loadResultPairs(() => receipt.load), ["rate-posture", receipt.id]];
 }

@@ -5,10 +5,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { MeterData, StepReport } from "@orb/tooling/cpu-profile";
 import type { AuditData } from "@orb/tooling/motion-audit";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 import { buildReports } from "../../../../tooling/src/cpu-profile/ops/report.ts";
 import { animationTotals } from "../../../../tooling/src/motion-audit/lib/animations.ts";
 import { clsTotals, loafTotals, observedClsTotals } from "../../../../tooling/src/motion-audit/lib/verdicts.ts";
@@ -27,6 +28,16 @@ const CLI_TIMEOUT_MS = scaledBudget(180_000);
 vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 
 const QUIET = ["--no-shot", "--no-deadcss", "--no-failure-evidence"];
+
+/** A PLANTED QUIET BOX for every CLI child this file spawns (#1651). The perf arm below asserts
+ *  `interaction-perf state=passed` — a JUDGED verdict — and the rate arms label themselves `load-suspect`
+ *  above per-core loadavg 1.0 (≥ 24 on this 16c/24t box), which is the fleet's ordinary state while lanes
+ *  run. Left to the host, this file passes on a quiet box and reds on a busy one for a reason that has
+ *  nothing to do with snap. `vi.stubEnv` in a `beforeEach` rather than at module scope: the root config
+ *  sets `unstubEnvs`, so a module-level stub is torn down after the first test in the file. */
+beforeEach(() => {
+  vi.stubEnv(BOX_LOAD_ENV, "0.2/24");
+});
 
 function resultValue(stdout: string, key: string): string {
   const prefix = `${key}=`;
@@ -247,9 +258,9 @@ test("perf meter thresholds are strict evidence but never become an exit gate", 
   expect(interactionPerfExit(EXIT.clean, [], null, longTask)).toBe(EXIT.clean);
   expect(interactionPerfExit(EXIT.violations, [], null, breach)).toBe(EXIT.violations);
   expect(interactionPerfExit(EXIT.clean, [{ evidence: "planted", detail: "missing" }], null, boundary)).toBe(EXIT.toolError);
-  expect(interactionPerfExit(EXIT.clean, [], "planted load withhold", boundary)).toBe(EXIT.toolError);
+  expect(interactionPerfExit(EXIT.clean, [], "planted acceleration withhold", boundary)).toBe(EXIT.toolError);
   expect(interactionPerfProblems(boundary, [], null).some((problem) => problem.metric === "rate-verdict")).toBe(false);
-  expect(interactionPerfProblems(boundary, [], "planted load withhold")).toContainEqual(
+  expect(interactionPerfProblems(boundary, [], "planted acceleration withhold")).toContainEqual(
     expect.objectContaining({ kind: "evidence-gap", metric: "rate-verdict", observed: "withheld", threshold: "measured" }),
   );
 
