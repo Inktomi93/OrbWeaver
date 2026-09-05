@@ -7,21 +7,20 @@
 // This suite closes that gap structurally: the REAL shipped `main.js` runs in a bare `node:vm` context
 // (ES intrinsics only — no timers, no fetch, no process, the floor a bare QuickJS context offers) after the
 // realm's EXPORTED `AMBIENT_STUBS` text is evaluated in it, so the harness's denial IS the realm's, never a
-// copy that can drift. `orb.host(1)` is a fake surface over Maps + a canned `net.fetch` keyed by URL
-// substring; the guest's top-level function declarations (`epochMs`, `fmtDate`) are reachable as context
-// globals (a script's top-level declarations land on the global object — the shape `evalCode` gives QuickJS).
+// copy that can drift. The harness itself moved to `tests/support/atlas-guest.ts` when the #1698 import-
+// outcome suite needed the same boot with a character plane; what it does is unchanged.
 //
 // `.suite`: one property (the atlas survives the realm's denial) across the guest bundle + the realm — it
 // mirrors no single module. What the real QuickJS sandbox adds (marshalling, caps, the belts) is pinned in
 // tests/server/infra/plugin-host/; the atlas's registration + activation publish in the real sandbox is
 // `seed-example-plugins.int.test.ts` (which cannot reach the wire halves — `safeFetch` has no seam).
 
-import { readFile } from "node:fs/promises";
-import vm from "node:vm";
-import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
 import { describe } from "vitest";
+import type { CannedResponse } from "../../../support/atlas-guest.ts";
+import { bootAtlas, lastAtlasState } from "../../../support/atlas-guest.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
+<<<<<<< HEAD
 const MAIN_JS = new URL("../../../../packages/showcase-plugins/bundles/card-atlas/main.js", import.meta.url);
 const FIXED_EPOCH = 1_700_000_000_000;
 const SETTLE_TICKS = 24;
@@ -142,6 +141,8 @@ function lastState(drive: AtlasDrive): Record<string, unknown> {
   return last.state;
 }
 
+=======
+>>>>>>> 8671448cd (fix(ui,server): the hub import states its outcome, and its writes stop hanging off a toast (#1698))
 /** A foreign wire row — the hubs' snake_case keys are wire tokens, tuple-built so they never become
  *  lint-checked identifiers (the atlas's own header-pair pattern). */
 function wire(entries: readonly (readonly [string, unknown])[]): Record<string, unknown> {
@@ -216,9 +217,9 @@ const DATACAT: CannedResponse = {
 
 describe("card atlas under the realm's ambient denial (#805)", () => {
   test("chub: ISO-dated rows publish, `newest` orders by the parsed dates, the unparseable control row still lands", async () => {
-    const drive = await bootAtlas([CHUB]);
+    const drive = await bootAtlas({ responses: [CHUB] });
     await drive.act("search", { q: "", source: "chub", sort: "newest", sfw: "false" });
-    const state = lastState(drive);
+    const state = lastAtlasState(drive);
     // The undated row sorts LAST (an unknown is not a zero) — and it is THERE (the datum is absent, not the row).
     expect(tileTitles(state)).toEqual(["Newer", "Older", "Undated"]);
     expect(String(state["status"])).toContain("3 from Chub");
@@ -227,10 +228,10 @@ describe("card atlas under the realm's ambient denial (#805)", () => {
   });
 
   test("the detail sheet renders Created/Updated as YYYY-MM-DD through the real STAT_ROWS path (fmtDate)", async () => {
-    const drive = await bootAtlas([CHUB, CHUB_DETAIL]);
+    const drive = await bootAtlas({ responses: [CHUB, CHUB_DETAIL] });
     await drive.act("search", { q: "", source: "chub", sort: "newest", sfw: "false" });
     await drive.act("open_result", { tile: "r0" });
-    const state = lastState(drive);
+    const state = lastAtlasState(drive);
     expect(state["stage"]).toBe("card");
     const detail = state["detail"] as { stats: readonly { key: string; value: string }[] };
     expect(detail.stats).toEqual(
@@ -247,9 +248,9 @@ describe("card atlas under the realm's ambient denial (#805)", () => {
     ["botbooru", "Boo", [BOTBOORU]],
     ["datacat", "Cat", [DATACAT_MINT, DATACAT]],
   ] as const)("%s: the ISO-dated row publishes a tile", async (hub, title, responses) => {
-    const drive = await bootAtlas(responses);
+    const drive = await bootAtlas({ responses });
     await drive.act("search", { q: "", source: hub, sort: "relevance", sfw: "false" });
-    expect(tileTitles(lastState(drive))).toEqual([title]);
+    expect(tileTitles(lastAtlasState(drive))).toEqual([title]);
     expect(drive.logs.filter((line) => line.includes("search failed"))).toEqual([]);
   });
 });
@@ -266,7 +267,7 @@ describe("the guest date engine — every receipted wire shape, pure arithmetic"
     ["leap day", "2000-02-29T00:00:00Z", 951_782_400_000],
     ["epoch-second string (pygmalion's dialect)", "1700000000", 1_700_000_000_000],
   ])("epochMs: %s", async (_label, stamp, expected) => {
-    const drive = await bootAtlas([]);
+    const drive = await bootAtlas({ responses: [] });
     expect(drive.call("epochMs", stamp)).toBe(expected);
   });
 
@@ -278,12 +279,12 @@ describe("the guest date engine — every receipted wire shape, pure arithmetic"
     ["hour 24", "2024-03-01T24:00:00Z"],
     ["trailing junk", "2024-03-01T10:00:00Zjunk"],
   ])("epochMs: %s is the absent datum (undefined), never a throw", async (_label, stamp) => {
-    const drive = await bootAtlas([]);
+    const drive = await bootAtlas({ responses: [] });
     expect(drive.call("epochMs", stamp)).toBeUndefined();
   });
 
   test("epochMs: numeric inputs keep the seconds-vs-ms dialect split", async () => {
-    const drive = await bootAtlas([]);
+    const drive = await bootAtlas({ responses: [] });
     expect(drive.call("epochMs", 1_700_000_000)).toBe(1_700_000_000_000);
     expect(drive.call("epochMs", 1_700_000_000_000)).toBe(1_700_000_000_000);
   });
@@ -294,7 +295,7 @@ describe("the guest date engine — every receipted wire shape, pure arithmetic"
     [1_787_184_000_000, "2026-08-20"],
     [0, "1970-01-01"],
   ])("fmtDate(%d) renders %s", async (ms, expected) => {
-    const drive = await bootAtlas([]);
+    const drive = await bootAtlas({ responses: [] });
     expect(drive.call("fmtDate", ms)).toBe(expected);
   });
 });

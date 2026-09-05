@@ -1885,24 +1885,43 @@ async function addViaPng(result) {
   }
 }
 
+/** A toast the ADD PATH may not die on (#1698). `host.ui.toast` is rate-limited to one notice every
+ *  `PLUGIN_TOAST_COOLDOWN_SECONDS` per plugin and REFUSES BY THROWING (the host's outbox is deliberate about
+ *  that: a plugin over its floor should learn so). The add path used to `await` it mid-function, so a refused
+ *  toast threw straight through `addToLibrary` — which silently skipped the provenance stamp AND the owned
+ *  index below it, and stopped the caller from republishing the page at all. A second add inside ten seconds
+ *  therefore changed nothing on screen and lost the card's provenance. The notice is BEST-EFFORT; the writes
+ *  and the page are not. Logged rather than swallowed: the refusal is a real fact about this plugin's budget. */
+async function say(level, message) {
+  try {
+    await host.ui.toast(level, message);
+  } catch (err) {
+    host.log.info(`toast refused (the page still states the outcome): ${String(err)}`);
+  }
+}
+
 /** Add one card to the library: PNG-first (definition + avatar in one pass), JSON fold where the hub serves
- *  card JSON; then stamp + remember. Every arm answers a toast. */
+ *  card JSON; then stamp + remember.
+ *
+ *  RETURNS THE OUTCOME, and that is the #1698 fix's other half. The detail page's owned line used to be read
+ *  back out of the owned INDEX, which this function has just written — so the instant a first-ever import
+ *  succeeded the page said "Already in your library", i.e. the one moment the surface exists for reported
+ *  that nothing had happened. Ownership-at-rest and what-just-happened are two different facts; the caller
+ *  now hands the second one to `publishDetail`. `"added"` / `"already"` / `null` (the hub refused). */
 async function addToLibrary(result, raw) {
   let outcome = await addViaPng(result);
   if (outcome === null) {
     const card = await SOURCES[result.source].fetchCard(result, raw);
     if (card === null) {
-      await host.ui.toast("error", `${SOURCES[result.source].label} wouldn't hand the card over — try again in a moment.`);
-      return;
+      await say("error", `${SOURCES[result.source].label} wouldn't hand the card over — try again in a moment.`);
+      return null;
     }
     outcome = await host.character.ingest(card);
   }
   const { characterId, created } = outcome;
-  if (!created) {
-    await host.ui.toast("info", `${result.name} is already in your library (byte-identical — nothing was duplicated).`);
-  } else {
-    await host.ui.toast("success", `${result.name} is in your library.`);
-  }
+  // THE WRITES COME FIRST. Everything below the ingest is what makes the import durable, and none of it may
+  // hang off a notice that is allowed to refuse (see `say`).
+  //
   // The PORTABLE stamp: this plugin's own reserved key on the card. Survives export→import; readable and
   // writable by card-atlas alone (the host stamps the namespace from the manifest slug — unforgeable).
   if (host.grants.includes("character.card_state")) {
@@ -1913,6 +1932,12 @@ async function addToLibrary(result, raw) {
     });
   }
   await host.storage.set(ownedKey(result), characterId);
+  if (created) {
+    await say("success", `${result.name} is in your library.`);
+    return "added";
+  }
+  await say("info", `${result.name} is already in your library (byte-identical — nothing was duplicated).`);
+  return "already";
 }
 
 // ── publishing (the page is a projection of the session) ───────────────────────────────────────────────────
@@ -1958,7 +1983,15 @@ async function publishBrowse(status, sourceKey, loading) {
   });
 }
 
-async function publishDetail(result, blurb) {
+/** What the detail page's owned line says. At REST it reports ownership; right after an add it reports the
+ *  ADD (#1698). The two were one string, and the standing-ownership wording ("Already in your library") is a
+ *  lie about a card that has just this second been imported. */
+const OUTCOME_LINE = {
+  added: "Added to your library.",
+  already: "Already in your library — nothing was duplicated.",
+};
+
+async function publishDetail(result, blurb, outcome) {
   const cache = await loadArtCache();
   const ownedId = await host.storage.get(ownedKey(result));
   // The hero: the sharper cached variant when one has landed, else the grid cover — so the decision surface
@@ -1985,7 +2018,10 @@ async function publishDetail(result, blurb) {
       name: result.name,
       stats,
       blurb: blurb || "(this card ships no description)",
-      owned: ownedId === null ? "" : "Already in your library — adding again just re-checks the bytes.",
+      // The OUTCOME wins where there is one — this render is the answer to a button press, and the person is
+      // owed what just happened rather than a standing property of the library. `undefined` (every publish
+      // that is not an add's) falls back to the rest state.
+      owned: OUTCOME_LINE[outcome] ?? (ownedId === null ? "" : "Already in your library — adding again just re-checks the bytes."),
       art,
     },
   });
@@ -2283,10 +2319,12 @@ async function addAction() {
     await host.ui.toast("warn", "Adding to your library needs the character.ingest capability granted (Settings → Plugins).");
     return;
   }
-  await addToLibrary(openResult.result, openResult.raw);
+  const outcome = await addToLibrary(openResult.result, openResult.raw);
   // Republish from the SESSION's own copy of the blurb rather than re-fetching the detail: the add arm
   // already spends up to one slow fetch, and the settlement wall prices a second one out of the invocation.
-  await publishDetail(openResult.result, openResult.blurb);
+  // The OUTCOME rides along so the page states what just happened (#1698) — `null` is the hub-refused arm,
+  // which has already said its piece and leaves the rest state alone.
+  await publishDetail(openResult.result, openResult.blurb, outcome ?? undefined);
 }
 
 /** The action router — one verb per affordance, dispatched by id; `back` (and any unknown id) goes home. */
