@@ -36,7 +36,10 @@ const CARD_WITH_BOOK = `{"spec":"chara_card_v3","spec_version":"3.0","data":{"na
 const CARD_BYTES = new TextEncoder().encode(CARD_WITH_BOOK);
 
 /** Deterministic world-book/entry minters (no unseeded ids under tests/ — test-determinism). */
-function worldInfoOps(db: Db): { readonly importLorebook: NonNullable<ImportContext["importLorebook"]>; readonly hasPrimaryBook: NonNullable<ImportContext["hasPrimaryBook"]> } {
+function worldInfoOps(db: Db): {
+  readonly importLorebook: NonNullable<ImportContext["importLorebook"]>;
+  readonly hasPrimaryBook: NonNullable<ImportContext["hasPrimaryBook"]>;
+} {
   let n = 0;
   const counter = (): string => {
     n += 1;

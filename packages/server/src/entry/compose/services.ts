@@ -43,7 +43,7 @@ import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResu
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
-import type { AssetId, ChatId, PersonaId, PluginId, PresetId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, PersonaId, PluginId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
@@ -866,7 +866,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // input form is the only difference between the arms: `character.ingest` serializes a guest JSON card (no
   // avatar); `character.ingestAsset` (#798) hands the funnel a PNG the installer owns, and a PNG carries its
   // EMBEDDED avatar through (`isPng` → `parseCardPng` → CAS-store the avatar), which is the whole point of #798.
-  // @foreign-id-ok(characterId): the import funnel mints this under the installer; it flows out to the guest as inert text through the bridge, never re-parsed as one of ours here. Ends if this helper starts branding its result.
   // `pluginId` is PROVENANCE ONLY (#1702): neither `character.ingest` arm carries a filename (a guest JSON
   // card and a CAS-read PNG both arrive nameless), so `importCharacter` derived nothing and every hub-ingested
   // card read `characterProvenanceOf` as `authored` (row #1702). It rides straight through to `ImportCardInput`,
@@ -877,7 +876,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     installerUserId: UserId,
     bytes: Uint8Array,
     pluginId: PluginId | null,
-  ): Promise<{ characterId: string; created: boolean }> => {
+  ): Promise<{ characterId: CharacterId; created: boolean }> => {
     const principal = await resolveOwnerPrincipal(installerUserId);
     const importCtx = buildImportContext({
       principal,

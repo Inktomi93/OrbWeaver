@@ -2,7 +2,7 @@
 // No versions: the card IS the flat `characters` row, edited in place. No `raw` blob — every known field
 // has a typed home, so an app-authored card round-trips identically to an imported one.
 
-import type { CharacterHandle } from "@orb/kit/ids";
+import type { CharacterHandle, PluginId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { z } from "zod";
@@ -108,14 +108,14 @@ export const PLUGIN_IMPORTED_FROM_PREFIX = "plugin";
  * re-ingest through the SAME plugin mint the SAME string (the `findByImportedFrom` re-ingest match, #1702
  * done-criterion 3) without ever trusting plugin-authored content for attribution.
  */
-export function pluginImportedFrom(pluginId: string, contentHash: string): string {
+export function pluginImportedFrom(pluginId: PluginId, contentHash: string): string {
   return `${PLUGIN_IMPORTED_FROM_PREFIX}:${pluginId}:${contentHash}`;
 }
 
 /** The plugin id out of a {@link pluginImportedFrom} string, or `null` for any other shape (a filename, one
  *  of the other synthetic provenance keys, or `null` itself). The client's provenance printer uses this to
  *  show the plugin rather than the raw `plugin:<id>:<hash>` string. */
-export function parsePluginImportedFrom(importedFrom: string | null): { readonly pluginId: string } | null {
+export function parsePluginImportedFrom(importedFrom: string | null): { readonly pluginId: PluginId } | null {
   if (importedFrom === null) {
     return null;
   }
@@ -128,7 +128,10 @@ export function parsePluginImportedFrom(importedFrom: string | null): { readonly
   if (sep <= 0) {
     return null;
   }
-  return { pluginId: rest.slice(0, sep) };
+  // The stored string is re-parsed at this boundary, never cast: a provenance key whose middle segment is not
+  // a plugin TypeID (a hand-edited row, a foreign shape that happened to start with the prefix) prints raw.
+  const parsed = typeIdSchema(ID_PREFIX.plugin).safeParse(rest.slice(0, sep));
+  return parsed.success ? { pluginId: parsed.data } : null;
 }
 
 // V3 `data.assets[]` — the media manifest; each entry is `{type,uri,name,ext}` (the RisuAI/charx shape,
