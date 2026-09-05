@@ -206,14 +206,16 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
               )}
             </Row>
           ))}
-          <Text voice="gloss">To re-compose the roster, arrange a room you host and save it as a new roster — the saved-rosters door in Members.</Text>
+          <Text voice="gloss" className="max-w-(--reading-measure-prose)">
+            To re-compose the roster, arrange a room you host and save it as a new roster — the saved-rosters door in Members.
+          </Text>
         </Section>
         {roster.rules.length > 0 ? (
           <Section kicker="Rules" data-slot="roster-rules">
             {roster.rules.map((rule) => (
               <RosterRuleBlock knobs={rule.knobs} key={rule.rulePresetId} preset={presetOf(rule.rulePresetId)} rulePresetId={rule.rulePresetId} />
             ))}
-            <Text voice="gloss">
+            <Text voice="gloss" className="max-w-(--reading-measure-prose)">
               Applied with the roster — re-minted into the room and switched on. To change them, configure a room and save a new roster.
             </Text>
           </Section>
