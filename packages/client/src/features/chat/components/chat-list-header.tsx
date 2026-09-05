@@ -19,6 +19,13 @@
 // (`lib/chats-selection-title.ts`), the noun that survives — still exactly one visible census, in both
 // regimes, and both readers call the one hook so the lens rules are not re-derived.
 //
+// NEW STAYS HERE *AND* IN THE PANE'S EMPTY STATE (#1361 item 2, owner-ruled 2026-09-05) — the ONE ruled
+// exception to "never two doors at once". This one is the band's chrome affordance and its kicker supplies
+// the noun ("New", the #864 band idiom); the other is the only thing on an otherwise empty pane. The full
+// ruling, and the receipt for why NEITHER enforcement half of the `duplicate-action-door` family can carry
+// an allowance row for it, is stated once at `surfaces/chat-list-surface.tsx`'s header. Recorded at BOTH
+// doors so neither reads as the odd one out.
+//
 // Import sits beside New as a GHOST icon — the ratified band anatomy (the presets band's landed precedent):
 // a secondary entry into the same "get a chat" job, and the ONE home for transcript import (the room's ⋯
 // menu carries no lifecycle chrome). Export is its opposite number on the row kebab.

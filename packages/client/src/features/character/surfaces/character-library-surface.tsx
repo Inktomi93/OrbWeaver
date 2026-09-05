@@ -35,7 +35,6 @@
 // matches nothing at all: a filter you cannot see is a filter you cannot turn off).
 
 import type { CharacterListSort } from "@orb/contracts/character";
-import { CHAT_LIST_MAX_LIMIT } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -53,8 +52,8 @@ import {
   clearCharacterFilters,
   clearCharacterSelection,
   cycleTagFilter,
+  resumeChat,
   selectCharacter,
-  selectChat,
   setActiveSection,
   setCharacterSearch,
   toggleFavoritesOnly,
@@ -81,10 +80,6 @@ import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import type { LibraryScopeArgs } from "../hooks/use-library-scope.ts";
 import { useLibraryScope } from "../hooks/use-library-scope.ts";
 import { CHARACTER_SEARCH_DEBOUNCE_MS, loadedProgressLabel, partialGroupingLabel, resultCountLabel } from "../lib/character-library-lens.ts";
-import { resumeTargets } from "../lib/character-list-view.ts";
-
-/** How deep the resume-or-new map looks back. The server's own page ceiling — one read, no keyset walk. */
-const RESUME_WINDOW = CHAT_LIST_MAX_LIMIT;
 
 /** How many favorites the strip reads. Its own bounded page, UNFILTERED by the pane's lenses. */
 const FAVORITES_STRIP_LIMIT = 24;
@@ -167,13 +162,12 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
   const duplicate = useDuplicateCharacter({ trpc, invalidation });
   const remove = useRemoveCharacter({ trpc, invalidation });
 
-  // The resume-or-new map (§4.4/§9c), over a BOUNDED recents page (2026-08-09): `listChats` is keyset-paged
-  // now, and this used to read the caller's entire membership list on every library mount. A row whose
-  // character is not in the recents window falls through to "start a new chat", which is the same visible
-  // affordance — the CTA's label does not change, only which chat it lands in. The exact fix is a batch
-  // reverse read (`characterIds → resume chatId`), which is a new server capability, not this lane's.
-  const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({ limit: RESUME_WINDOW }));
-  const resumeMap = resumeTargets(chatsQuery.data?.items ?? []);
+  // THE RESUME TARGET IS ON THE ROW (#1662). It used to be a client fold: a `listChats` page of 100 rooms,
+  // read on every library mount, reverse-indexed into `characterId -> chatId` (`resumeTargets`, retired in
+  // the same change) — so a character outside that window silently fell through to "start a new chat" from
+  // a CTA that said resume. `CharacterSummary.lastChatId` is the SAME total order (recency -> updatedAt ->
+  // id, #1503) computed over her WHOLE library by the read that already selects her, so the door costs no
+  // request at all and cannot go stale against the stamp beside it.
 
   // The rows are the SERVER's answer whole — no client pass. The only thing left to derive is the view fold.
   const items: readonly CharacterCardItem[] = collection.items;
@@ -213,8 +207,10 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
   };
   const chatWith = (id: string): void => {
     const characterId = castId<CharacterId>(id);
-    const target = resumeMap.get(characterId);
-    if (target === undefined) {
+    // `collection.items`, not the `items` alias below it: that alias is widened to the CARD's structural
+    // subset (`CharacterCardItem`), which deliberately does not carry the resume target.
+    const target = collection.items.find((item) => item.id === id)?.lastChatId ?? null;
+    if (target === null) {
       // A real `chat.startChat` through the ONE shared creation seam (`#data`), which enters the room
       // itself; the section switch is this surface's own half.
       setActiveSection("chats");
@@ -223,8 +219,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
       startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.
       return;
     }
-    selectChat(target);
-    setActiveSection("chats");
+    resumeChat(target);
   };
 
   const renderRow = (item: CharacterCardItem): ReactNode => (

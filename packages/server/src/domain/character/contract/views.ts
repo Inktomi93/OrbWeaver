@@ -6,7 +6,7 @@ import type { CharacterCard, CharacterProvenance } from "@orb/contracts/characte
 
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
-import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 
 /** The full owned-card detail. What create/get/update/duplicate/restore return. The card's face fields
  *  compose `#card-face` (D137(E)) at the SCHEMA level; this view CONFORMS to the nullable-description
@@ -83,6 +83,18 @@ export interface CharacterSummary {
    * cannot print three answers.
    */
   readonly lastChattedAt: number | null;
+  /**
+   * WHICH ROOM that stamp belongs to — the RESUME target, `null` when she has never been chatted with. Same
+   * visibility scope and same recency clock as {@link CharacterSummary.lastChattedAt}, ordered
+   * recency → `updatedAt` → id (the total order #1503 paid for), so the room a resume door opens is by
+   * construction the room whose stamp the surface printed beside it.
+   *
+   * IT IS A PROJECTION, NOT A CLIENT FOLD (#1662). The client used to reverse-index a BOUNDED `listChats`
+   * page into a `characterId → chatId` map, which answered about the last 100 rooms: a character outside
+   * that window fell through to "start a new chat" from a control that said resume. One home, one order,
+   * the whole library — and no second read, because every consumer of this view already has the row.
+   */
+  readonly lastChatId: ChatId | null;
   /**
    * #865 — HOW MANY THREADS this character has: a `COUNT` of the same member-visible seated rooms
    * `lastChattedAt` maxes over, which is what the editor header's "N chats" and the context band's chip

@@ -11,7 +11,7 @@ import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characterSummaries, characters, characterTags, chatParticipants, chats, tags } from "@orb/db";
 import { chatRecencyExpr, escapeLikeTerm, memberVisibleChatScope, parseStringArrayColumn } from "@orb/db/kit";
-import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, TagId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, count, desc, eq, exists, gt, inArray, isNull, lt, max, not, or, sql } from "drizzle-orm";
@@ -105,6 +105,8 @@ interface CharacterListRow extends CharacterWithAvatar {
   readonly elevatorPitch: string | null;
   /** `MAX({@link chatRecencyExpr})` over her visible rooms; null = never chatted (the NULLS-LAST tail). */
   readonly lastChattedAt: number | null;
+  /** WHICH room achieved that max ({@link lastChatRoomExpr}); null = never chatted. */
+  readonly lastChatId: ChatId | null;
   /** A `COUNT` of those rooms — never null, so a never-chatted character reads 0 (#865's contract, now
    *  stated at the source rather than coalesced in {@link summaryOf}). */
   readonly chatCount: number;
@@ -166,6 +168,31 @@ function lastChattedExpr(db: Db, ownerId: UserId): SQL<number | null> {
     .select({ at: max(chatRecencyExpr(db)) })
     .from(chats)
     .innerJoin(chatParticipants, seatedChatScope(db, ownerId))})`;
+}
+
+/**
+ * WHICH ROOM {@link lastChattedExpr} MAXED OVER — the resume target, over the SAME visibility scope and the
+ * SAME recency clock, so the room a reader lands in is by construction the one whose stamp the shelf printed
+ * ("chatted 3h ago" and the door that opens can never name two different rooms).
+ *
+ * THE ORDER IS TOTAL, AND IT IS #1503's (the client-side `resumeTargets` map this expression RETIRED —
+ * recency, then `updated_at`, then the id): recency alone is not an order, because a bulk seed, a
+ * same-millisecond pair and every never-messaged room share a value — the winner would then be whichever row
+ * the engine yielded first, and one character's resume door would change target with nothing on screen
+ * explaining it. Descending on all three, so the newest/most-recently-touched/highest-id room wins.
+ *
+ * WHY IT IS A PROJECTION AND NOT A CLIENT FOLD (#1662): the fold it replaces reverse-indexed a BOUNDED
+ * `listChats` page (100 rooms), so a character outside that window silently fell through to "start a new
+ * chat" — a door that says resume and does not. The answer is the owner's whole library either way, and it
+ * costs no read at all here: the shelf and the row already select this character.
+ */
+function lastChatRoomExpr(db: Db, ownerId: UserId): SQL<ChatId | null> {
+  return sql<ChatId | null>`(${db
+    .select({ id: chats.id })
+    .from(chats)
+    .innerJoin(chatParticipants, seatedChatScope(db, ownerId))
+    .orderBy(desc(chatRecencyExpr(db)), desc(chats.updatedAt), desc(chats.id))
+    .limit(LIMIT_ONE)})`;
 }
 
 /** HOW MANY of those rooms — a real `COUNT`, so a character with none reads 0 rather than NULL. That is the
@@ -398,6 +425,9 @@ export async function listOwnedCharactersWithAvatar(db: Db, input: ListOwnedPage
       // so the row PRINTS the number the editor header and the context pane print. Still ONE statement and
       // no new column, which is the #865 constraint that put them on a join in the first place.
       lastChattedAt: lastChattedExpr(db, input.ownerId),
+      // THREE correlated subqueries now (#1662): the resume TARGET rides beside the stamp it belongs to, so
+      // the strip's door and the strip's caption are one answer rather than two reads that can disagree.
+      lastChatId: lastChatRoomExpr(db, input.ownerId),
       chatCount: chatCountExpr(db, input.ownerId),
       refineryScore: sql<number | null>`${refineryScoreExpr}`,
     })
@@ -693,7 +723,7 @@ export function detailOf({ character: row, avatar }: CharacterWithAvatar, canoni
  *  ({@link chatCountExpr}), so a never-chatted character is already 0. #865's contract — "a join miss and a
  *  zero are the same fact to a reader" — is unchanged; the join it was defending against is gone. */
 export function summaryOf(
-  { character: row, avatar, elevatorPitch, lastChattedAt, chatCount }: CharacterListRow,
+  { character: row, avatar, elevatorPitch, lastChattedAt, lastChatId, chatCount }: CharacterListRow,
   canonicalTags: readonly TagView[],
   ambiguousNames: ReadonlySet<string>,
 ): CharacterSummary {
@@ -715,6 +745,7 @@ export function summaryOf(
     tags: canonicalTags,
     elevatorPitch,
     lastChattedAt,
+    lastChatId,
     chatCount,
     provenance: characterProvenanceOf(row),
     nameIsAmbiguous: ambiguousNames.has(row.name.toLowerCase()),

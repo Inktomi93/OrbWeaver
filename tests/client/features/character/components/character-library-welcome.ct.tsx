@@ -16,7 +16,7 @@
 //  · the FRESH-INSTALL arm — cards exist, nothing chatted, nothing starred;
 //  · ONE New door, docked vs collapsed (#520/#532), and `Just added` only in the collapsed arm;
 //  · a face carries "· N chats" (#865's `chatCount` on the wire is what makes that line possible at all);
-//  · pressing a face SELECTS that character;
+//  · pressing a Recently-chatted face RESUMES her newest room, while every other shelf's face OPENS her (#1662);
 //  · 430 + coarse: three columns of faces, and the doors, which is the only arm a phone can reach this pane in.
 //
 // THE STUB DISPATCHES ON `sort` (this file's own responder, not the shared `characterListResponder`): the
@@ -60,12 +60,14 @@ const SABINE = character("Sabine Veyra", {
   starred: true,
   chatCount: 4,
   lastChattedAt: NOW - 3 * HOUR_MS,
+  lastChatId: "chat_sabine_newest",
   elevatorPitch: "Warden of the outer stair; wary, precise, owes a debt.",
   createdAt: NOW - 2 * DAY_MS,
 });
 const ELIAS = character("Elias Thorn", {
   chatCount: 2,
   lastChattedAt: NOW - DAY_MS,
+  lastChatId: "chat_elias_newest",
   elevatorPitch: "A scribe who talks to lanterns.",
   createdAt: NOW - 3 * DAY_MS,
 });
@@ -73,12 +75,14 @@ const KOHAKU = character("Kohaku", {
   starred: true,
   chatCount: 7,
   lastChattedAt: NOW - 2 * DAY_MS,
+  lastChatId: "chat_kohaku_newest",
   elevatorPitch: "Shrine fox, bored of prayers.",
   createdAt: NOW - 40 * DAY_MS,
 });
 const NIKO = character("Niko", {
   chatCount: 1,
   lastChattedAt: NOW - 5 * DAY_MS,
+  lastChatId: "chat_niko_newest",
   elevatorPitch: "Courier. Never late, never early.",
   createdAt: NOW - 41 * DAY_MS,
 });
@@ -123,7 +127,7 @@ test("#864 the pane at rest is the LANDING — the caption is gone and the shelv
   // sinks a never-chatted row, it does not drop it) and must not appear on a shelf claiming otherwise.
   const recentShelf = shelf(pane, "Recently chatted");
   await expect(recentShelf.getByRole("button")).toHaveCount(4);
-  await expect(recentShelf.getByRole("button", { name: "Elias Thorn" })).toBeVisible();
+  await expect(recentShelf.getByRole("button", { name: "Resume the chat with Elias Thorn" })).toBeVisible();
   await expect(recentShelf.getByRole("button", { name: /Avel the Quiet/u })).toHaveCount(0);
 
   // #865's two wire fields, rendered: the thread count on the stamp line and the pitch as the caption.
@@ -162,19 +166,36 @@ test("#1134 the landing's three reads go out as one wave — no response lands b
 
   await routeTrpc(page, landingRoutes({ recent: [SABINE, ELIAS, KOHAKU], newest: [SABINE, ELIAS, KOHAKU] }));
   const pane = await mount(<CharacterLibraryWelcomeListModeStory />);
-  await expect(shelf(pane, "Recently chatted").getByRole("button", { name: "Kohaku" })).toBeVisible();
+  await expect(shelf(pane, "Recently chatted").getByRole("button", { name: "Resume the chat with Kohaku, starred" })).toBeVisible();
 
   expect(events.filter((event) => event === "out").length, "the probe measured nothing — no read reached the wire").toBeGreaterThan(0);
   expect(events.indexOf("in"), `a response landed while reads were still going out: ${events.join(",")}`).toBe(events.lastIndexOf("out") + 1);
 });
 
-test("#864 pressing a face selects that character", async ({ mount, page }) => {
+// #1662 (owner-ruled 2026-09-05) — THE RECENTLY-CHATTED FACE IS A RESUME DOOR, and the two halves of that
+// ruling are pinned together here because either alone is satisfiable by a bug: a face that ANNOUNCES resume
+// and still opens the editor is the same defect one layer down, and a face that resumes while announcing
+// only "<character>" is the `duplicate-action-door` pairing this closes (the list row one pane over offers a
+// button by exactly that name). The other shelves are the CONTROL: same component, same mount, same press —
+// Starred still opens the character, so "the door moved" is a statement about the RESUME shelf and not about
+// the cell.
+test("#1662 pressing a Recently-chatted face RESUMES her newest room; a Starred face still opens her", async ({ mount, page }) => {
   await routeTrpc(page, landingRoutes({ recent: [SABINE, ELIAS], newest: [SABINE, ELIAS] }));
   const pane = await mount(<CharacterLibraryWelcomeListModeStory />);
 
   await expect(pane.getByText("selected: nobody")).toBeVisible();
-  await shelf(pane, "Recently chatted").getByRole("button", { name: "Elias Thorn" }).click();
-  await expect(pane.getByText("selected: char_elias_thorn")).toBeVisible();
+  // The SECTION half is deliberately loose here: this story mounts the landing alone, so the shell's active
+  // section is whatever the store defaults to. What must be none is the ROOM.
+  await expect(pane.getByText(/^room: none in /u)).toBeVisible();
+
+  await shelf(pane, "Recently chatted").getByRole("button", { name: "Resume the chat with Elias Thorn" }).click();
+  // The ROOM the row named, and the section it lives in — never the editor selection.
+  await expect(pane.getByText("room: chat_elias_newest in chats")).toBeVisible();
+  await expect(pane.getByText("selected: nobody")).toBeVisible();
+
+  // Starred is `door="open"`: the name carries no verb and the press lands in the editor.
+  await shelf(pane, "Starred · 1").getByRole("button", { name: "Sabine Veyra, starred" }).click();
+  await expect(pane.getByText("selected: char_sabine_veyra")).toBeVisible();
 });
 
 test("#864 APPLICABILITY — a shelf with nothing in it renders nothing, never an empty room", async ({ mount, page }) => {

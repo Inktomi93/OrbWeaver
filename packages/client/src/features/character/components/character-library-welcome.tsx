@@ -28,21 +28,28 @@
 // two-column crossover to unbalance and a wider pane buys MORE faces rather than bigger ones.
 //
 // D44 — portraits go through the `Avatar` primitive (`CharacterShelfFace`); no prose is drawn over art.
+//
+// #1662 — RECENTLY CHATTED IS A RESUME SHELF, not a second way to open a card (owner-ruled 2026-09-05).
+// Its faces used to press `onOpen(id)`, the SAME door the library row one pane over already offers, so
+// design-audit's `duplicate-action-door` paired the two on five populations and AT heard "<character>"
+// twice. The shelf that says "sorted by last chat" and prints "chatted 3h ago" now OPENS THAT ROOM
+// (`CharacterSummary.lastChatId` → `resumeChat`), and the list row keeps opening the character. Starred /
+// Just added / Shipped are `door="open"`: no room is claimed, so none is offered.
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import { MS_PER_WEEK } from "@orb/kit/time";
-import { Container, Grid, Row, Stack } from "@orb/ui/layout";
+import { Container, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useId } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { LIST_OFF_SCREEN_HINT, selectCharacter, useSectionListMode } from "#state";
 import { CharacterLandingDoors } from "./character-create-actions.tsx";
-import { CharacterShelfFace } from "./character-shelf-face.tsx";
+import type { ShelfFace } from "./character-shelf.tsx";
+import { CharacterShelf } from "./character-shelf.tsx";
 
 /** How many faces Recently chatted reaches for. Four to five is the artboard's row; the shelf shows the
  *  ones that have actually been chatted, so the ask is the ceiling, not the count. */
@@ -72,65 +79,6 @@ const FRESH_HINT =
 const EMPTY_GLOSS_DOCKED = "Nobody lives here yet. New at the top of the list makes someone, and Import a card beside it brings one in.";
 const EMPTY_GLOSS_COLLAPSED = `Nobody lives here yet — make someone, or bring a card in.${LIST_OFF_SCREEN_HINT}`;
 
-/** A shelf's own cells. Empty `faces` is the caller's job to refuse (applicability) — this renders the band
- *  it is given, so a shelf with a header and no faces would be a shape the caller asked for. */
-function CharacterShelf({
-  label,
-  legend,
-  faces,
-  onOpen,
-}: {
-  readonly label: string;
-  /** The trailing LEGEND on the header rule ("sorted by last chat") — a statement about the shelf's order,
-   *  never a link: the artboard draws these as text, and a link-shaped span that does nothing is worse than
-   *  no span at all. */
-  readonly legend: string | null;
-  readonly faces: readonly ShelfFace[];
-  readonly onOpen: (id: CharacterId) => void;
-}): ReactElement {
-  // ONE `useId` per shelf, suffixed by each face's own id — never a hook inside a map body. The character id
-  // is unique within a shelf by construction, so the pair is unique.
-  const captionScope = useId();
-  return (
-    <Stack gap="row">
-      <Row align="baseline" className="border-border border-b pb-tight" gap="field" justify="between">
-        <Heading level={3} voice="kicker">
-          {label}
-        </Heading>
-        {legend === null ? null : (
-          <Text as="span" voice="gloss">
-            {legend}
-          </Text>
-        )}
-      </Row>
-      <Grid aria-label={label} cols="cellShelf" gap="row" role="list">
-        {faces.map((face) => (
-          <CharacterShelfFace
-            avatarHash={face.avatarHash}
-            caption={face.caption}
-            captionId={`${captionScope}${face.id}`}
-            id={face.id}
-            key={face.id}
-            name={face.name}
-            onOpen={onOpen}
-            stamp={face.stamp}
-            starred={face.starred}
-          />
-        ))}
-      </Grid>
-    </Stack>
-  );
-}
-
-interface ShelfFace {
-  readonly id: CharacterId;
-  readonly name: string;
-  readonly avatarHash: string | null;
-  readonly starred: boolean;
-  readonly stamp: string | null;
-  readonly caption: string | null;
-}
-
 /** The pitch ladder, the library row's own (#119): elevator pitch → the visible tag line → NOTHING. The
  *  handle is row IDENTITY, not caption copy, so a face with neither reads one line shorter rather than
  *  printing a lowercase slug. */
@@ -154,7 +102,15 @@ function chattedStamp(lastChattedAt: number, chatCount: number): string {
 }
 
 function faceOf(character: CharacterRow, stamp: string | null, caption: string | null): ShelfFace {
-  return { id: character.id, name: character.name, avatarHash: character.avatarHash, starred: character.starred, stamp, caption };
+  return {
+    id: character.id,
+    name: character.name,
+    avatarHash: character.avatarHash,
+    starred: character.starred,
+    stamp,
+    caption,
+    lastChatId: character.lastChatId,
+  };
 }
 
 /** The Characters CONTENT pane at rest. Its own `QueryBoundary`: the shell does NOT wrap a section's CONTENT
@@ -178,9 +134,14 @@ type CharacterListPage = inferOutput<Trpc["character"]["list"]>;
 type CharacterRow = CharacterListPage["items"][number];
 
 /** The recent page's never-chatted TAIL, narrowed away — a type predicate rather than a `!== null` filter so
- *  the stamp below reads a `number`, not a `number | null` it would have to re-check. */
-function hasChatted(character: CharacterRow): character is CharacterRow & { readonly lastChattedAt: number } {
-  return character.lastChattedAt !== null;
+ *  the stamp below reads a `number`, not a `number | null` it would have to re-check.
+ *
+ *  IT NARROWS THE ROOM TOO (#1662). The two columns are one fact from one subquery pair (`lastChatId` is
+ *  WHICH room `lastChattedAt` maxed over), so a row carrying a stamp and no room is a shape the read cannot
+ *  produce — but this shelf's whole cell is now a door INTO that room, so the predicate that admits a face
+ *  is the predicate that proves the door. */
+function hasChatted(character: CharacterRow): character is CharacterRow & { readonly lastChatId: ChatId; readonly lastChattedAt: number } {
+  return character.lastChattedAt !== null && character.lastChatId !== null;
 }
 
 /** The doors, in the ONE arm this pane owns them (#520 — never two `New`s on the plane). */
@@ -310,7 +271,7 @@ function FreshInstallArm({ listOffScreen, newest }: { readonly listOffScreen: bo
   return (
     <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? FRESH_GLOSS_COLLAPSED : FRESH_GLOSS_DOCKED} title="Meet your characters">
       <Stack gap="section">
-        {shippedFaces.length === 0 ? null : <CharacterShelf faces={shippedFaces} label={label} legend={null} onOpen={selectCharacter} />}
+        {shippedFaces.length === 0 ? null : <CharacterShelf door="open" faces={shippedFaces} label={label} legend={null} onOpen={selectCharacter} />}
         <Text className="max-w-(--reading-measure-prose) rounded-base border border-border border-dashed p-row" voice="quiet">
           {FRESH_HINT}
         </Text>
@@ -346,17 +307,17 @@ function ResumeArm({
     <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? LEAD_GLOSS_COLLAPSED : LEAD_GLOSS_DOCKED} title="Pick up where you left off">
       <Stack gap="section">
         {recentFaces.length === 0 ? null : (
-          <CharacterShelf faces={recentFaces} label="Recently chatted" legend="sorted by last chat" onOpen={selectCharacter} />
+          <CharacterShelf door="resume" faces={recentFaces} label="Recently chatted" legend="sorted by last chat" onOpen={selectCharacter} />
         )}
         {starredFaces.length === 0 ? null : (
-          <CharacterShelf faces={starredFaces} label={`Starred · ${String(starredCount)}`} legend={null} onOpen={selectCharacter} />
+          <CharacterShelf door="open" faces={starredFaces} label={`Starred · ${String(starredCount)}`} legend={null} onOpen={selectCharacter} />
         )}
         {/* JUST ADDED belongs to the COLLAPSED arm alone (the artboards' own split). With the list docked the
             list itself is where newest rows are browsed, and a third shelf repeating it is this pane
             competing with the pane beside it; collapsed, the list is gone and this is the only way to reach
             them. */}
         {listOffScreen && justAddedFaces.length > 0 ? (
-          <CharacterShelf faces={justAddedFaces} label="Just added" legend={null} onOpen={selectCharacter} />
+          <CharacterShelf door="open" faces={justAddedFaces} label="Just added" legend={null} onOpen={selectCharacter} />
         ) : null}
         {addedThisWeek.length === 0 ? null : (
           // THE RULE SPANS THE PANE, THE LINE DOES NOT: the foot's border is the shelves' bottom edge, so it

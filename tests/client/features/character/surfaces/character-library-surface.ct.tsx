@@ -1991,6 +1991,20 @@ test("#523 the tag-vocabulary scroll viewport is a NAMED region, not an unlabele
 // the height has to be bought by REMOVING a band rather than by re-flowing one. 308 is the measured number
 // plus 2px of sub-pixel headroom; the desktop/fine fence is {@link RAIL_CHROME_CEILING_PX} = 264, so the
 // coarse device costs this pane +42px for the same controls.
+//
+// #1669 ARM A LANDED, AND THIS FENCE'S NUMBER DID NOT MOVE - which is a statement about the STORY, not about
+// the product (owner ruling 2026-09-05: the band's actions move to the phone's topbar trail and the band is
+// shed). The saving is a CSS one the SHELL owns: the `:has()` chain that sheds the band lives under
+// `.shell-grid[data-list-mode="docked"]` inside shell.css's `<=48rem` media query, and `CharactersListHeader`
+// drops its `action` on the shell's published MOBILE regime. This story mounts the band at a fixed-width div
+// inside a desktop viewport with no shell grid and no `AppShell` to publish that regime, so neither
+// condition can hold here and the 306px it measures is still the honest SURFACE number - the search row, the
+// two named groups and the band as this story renders it.
+//
+// THE WHOLE-SCREEN NUMBER IS FENCED WHERE THE SCREEN EXISTS:
+// `tests/client/features/app-shell/surfaces/app-shell.ct.tsx`, "#1669 the Characters plane's phone chrome" -
+// the real shell on the real registry at 320/390 coarse, 336px before the change and 288px after. Lowering
+// THIS constant to that number would be a fence over a state this mount cannot reach.
 const PHONE_CHROME_ARMS = [
   { width: 320, ceiling: 308 },
   { width: 390, ceiling: 308 },

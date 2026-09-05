@@ -28,7 +28,7 @@ import {
   automationRulesSection,
   automationSuggestionSource,
 } from "#features/automation";
-import { characterSlashCommands, makeCharactersSection } from "#features/character";
+import { characterCreateChrome, characterSlashCommands, makeCharactersSection } from "#features/character";
 import {
   ChatsWithCharacterPane,
   chatMessageReactionsSurface,
@@ -333,7 +333,10 @@ const chrome = createContributorRegistry(
     // `bugReportChrome` (#1095) is registered unconditionally and gates itself on IS_DEV in `useVisible` — the
     // registry's own no-gap contract, and the same shape every other capability-gated widget here uses. It
     // renders nothing in a production build.
-    widgets: [notificationsChrome, pluginCommandsChrome, fullscreenChrome, contextToggleChrome, personaChrome, bugReportChrome],
+    // `characterCreateChrome` (#1669) is the first SECTION-scoped trail entry: the Characters pane's primary,
+    // on a phone only, where the LIST band that used to carry it is shed. Its `useVisible` states the three
+    // conditions; the zone is shell-global, the affordance is not.
+    widgets: [notificationsChrome, pluginCommandsChrome, characterCreateChrome, fullscreenChrome, contextToggleChrome, personaChrome, bugReportChrome],
   }),
 );
 

@@ -22,7 +22,7 @@
 // `use-prefetch-room.ts`); the map's `listMessages` row rides along because the two are one feed.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
 import { ChatListBandAndSurfaceStory, ChatListHeaderStory, ChatListSurfaceStory } from "../_ct-stories.tsx";
@@ -1619,3 +1619,106 @@ test("#1180 the intent wrapper is display:contents — it generates no box and m
     )
     .toBe(true);
 });
+
+// -- #1361 item 3: THE PHONE'S CHROME BUDGET, and the faces strip that bought the last of it ----------
+// The characters twin's posture, one section over (`character/surfaces/character-library-surface.ct.tsx`,
+// "#1661 the phone's chrome budget"): a RATCHET on the pixels this pane spends before the thing the reader
+// came for, so the number cannot drift back without a red.
+//
+// WHAT WAS MEASURED (430x740 coarse, live main 2026-09-04): 299px of chrome before the first chat row, of
+// which the #1350 month fold took 22 - leaving 285. The FACES STRIP is ~85 of that remainder and is the
+// largest single band left, so the owner ruled it folds on the phone landing (#1361 item 3, 2026-09-05).
+// The mechanism is the month bound's, deliberately reused rather than re-invented: a `Collapsible` whose
+// trigger carries the scope in force.
+//
+// `hasTouch: true` is what flips `matchMedia("(pointer: coarse)")` in chromium (`page.emulateMedia` has no
+// `pointer` feature), and the first assertion PROVES the emulation landed before any geometry is trusted -
+// at a fine pointer these controls are shorter and a fence would pass while measuring the wrong device.
+// `mobile` on the story is the shell's published viewport regime (`setMobileViewport`), which is the axis
+// the fold itself reads; the two are independent and BOTH are required for this to be a phone.
+//
+// MEASURED HERE, both arms: **156px** folded against **181px** on the unmodified source (the red-first
+// receipt, taken by restoring `chat-list-character-filter.tsx` from HEAD and re-running these same mounts).
+// WIDTH-INVARIANT across the phone band, for the same reason the characters pane is - nothing in the folded
+// chrome wraps at either end - so the smaller phone is no worse and the bigger one no better. 158 is the
+// measured number plus 2px of sub-pixel headroom.
+//
+// THE SAVING IS THE STRIP MINUS ITS TRIGGER, NOT THE WHOLE STRIP: a `Collapsible` trigger is a
+// `--spacing-control-sm` row, 44px at a coarse pointer, so folding an ~69px band buys ~25. Both of this
+// pane's folded filters now pay that 44px separately, which is a real remaining cost and is recorded as a
+// follow-up rather than papered over here.
+const CHAT_PHONE_CHROME_CEILING_PX = 158;
+const CHAT_PHONE_CHROME_ARMS = [
+  { width: 320, ceiling: CHAT_PHONE_CHROME_CEILING_PX },
+  { width: 390, ceiling: CHAT_PHONE_CHROME_CEILING_PX },
+] as const;
+
+test.describe("#1361 the chats pane's phone chrome budget", () => {
+  test.use({ hasTouch: true });
+
+  for (const arm of CHAT_PHONE_CHROME_ARMS) {
+    test(`at ${String(arm.width)}px coarse the folded chrome above the first chat row holds its budget`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+      const component = await mount(<ChatListSurfaceStory mobile={true} width={arm.width} />);
+      await expect(component.getByText("A grand adventure")).toBeVisible();
+
+      expect(await chatPhoneChrome(component)).toBeLessThanOrEqual(arm.ceiling);
+    });
+
+    // THE FENCE'S OWN POSITIVE CONTROL, one per arm - a ceiling that never moves is indistinguishable from
+    // a constant the test happens to read. The same measurement is taken in the state that must exceed it:
+    // both disclosures OPEN, which is the chrome this pane spent before the two folds landed.
+    test(`at ${String(arm.width)}px coarse both disclosures OPEN exceed that budget - the fence measures, it does not assert`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+      const component = await mount(<ChatListSurfaceStory mobile={true} width={arm.width} />);
+      await expect(component.getByText("A grand adventure")).toBeVisible();
+      expect(await chatPhoneChrome(component)).toBeLessThanOrEqual(arm.ceiling);
+
+      await component.getByRole("button", { name: "Filter by character", exact: true }).click();
+      await component.getByRole("button", { name: "Show chats up to", exact: true }).click();
+      await expect(component.getByLabel("Show chats up to")).toBeVisible();
+      expect(await chatPhoneChrome(component)).toBeGreaterThan(arm.ceiling);
+    });
+  }
+});
+
+// #1361 item 3 - THE FOLD ITSELF, in the two claims a fold owes: the faces are not rendered while folded,
+// and the TRIGGER carries the scope in force, so folding never hides what is narrowing the list.
+test("#1361 @mobile: the faces strip folds behind a disclosure that names the scope in force", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+  const component = await mount(<ChatListSurfaceStory mobile={true} width={390} />);
+  await expect(component.getByText("A grand adventure")).toBeVisible();
+
+  // FOLDED: no face row on screen, and the search field - the primary - still is.
+  await expect(component.getByRole("textbox", { name: "Search chats" })).toBeVisible();
+  await expect(component.getByRole("list", { name: "Filter by character" })).toHaveCount(0);
+
+  // Opening it reveals the SAME strip, announced by the same one name (#208).
+  await component.getByRole("button", { name: "Filter by character", exact: true }).click();
+  const strip = component.getByRole("list", { name: "Filter by character" });
+  await expect(strip).toBeVisible();
+
+  // Scoping to a face lands on the TRIGGER, so a reader who folds it away still reads the scope.
+  await strip.getByRole("button", { name: "Show chats with Aria Nightshade" }).click();
+  await expect(component.getByRole("button", { name: "Filter by character \u00b7 Aria Nightshade", exact: true })).toBeVisible();
+});
+
+// The DESKTOP twin - the arm that goes red if the fold leaks past its applicability. The pane is a 300px
+// column with vertical room to spare, so the strip renders outright under its printed kicker.
+test("#1361 @desktop: the faces strip renders outright, with no disclosure", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("A grand adventure")).toBeVisible();
+
+  await expect(component.getByRole("list", { name: "Filter by character" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Filter by character", exact: true })).toHaveCount(0);
+});
+
+/** The pane's chrome: the distance from the story root's top edge to the list of chats. */
+async function chatPhoneChrome(component: Locator): Promise<number> {
+  const list = component.getByRole("list", { name: "Chats list" });
+  const [paneBox, listBox] = await Promise.all([component.boundingBox(), list.boundingBox()]);
+  return Math.round((listBox?.y ?? 0) - (paneBox?.y ?? 0));
+}

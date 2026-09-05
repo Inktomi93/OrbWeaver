@@ -410,7 +410,7 @@
     {
       "siteId": "packages/client/src/features/character/surfaces/character-library-surface.tsx::promise:startChat::1",
       "path": "packages/client/src/features/character/surfaces/character-library-surface.tsx",
-      "line": 223,
+      "line": 219,
       "column": 7,
       "grammar": "promise",
       "position": "promise:startChat",
@@ -418,7 +418,7 @@
       "snippet": "startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.",
       "verdict": "deliberate-absorb",
       "reason": "useStartChat's mutation carries",
-      "markerLine": 221
+      "markerLine": 217
     },
     {
       "siteId": "packages/client/src/features/chat/components/chat-documents-section.tsx::promise:promise::1",
