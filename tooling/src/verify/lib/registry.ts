@@ -5,7 +5,7 @@
 import type { ScopedArgv, StageDef, Tier } from "../contract/stage.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";
 import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
-import { branchChangedPaths } from "./repo-paths.ts";
+import { TOOLING_TOUCHED_REASON, toolingTouched } from "./registry-preconditions.ts";
 
 // ── the registry ──────────────────────────────────────────────────────────────────────────────────────
 // Build history (all LANDED): V1 wired argv (whole-scope) + tiers + classify; V2 landed the `scopedArgv`
@@ -20,9 +20,6 @@ import { branchChangedPaths } from "./repo-paths.ts";
 
 const STATIC: readonly Tier[] = ["static", "push", "full"];
 const DOC_CATALOG_PATH_RE = /^(?:docs\/.*\.md|docs\/catalog\/.*|tooling\/src\/doc-catalog\/.*)$/u;
-/** The two trees whose change makes the instrument battery a PUSH concern (#1523) — an instrument's own
- *  source, and its own tests. Nothing else can regress a tooling suite that was green on the merge base. */
-const TOOLING_PATH_RE = /^(?:tooling\/|tests\/tooling\/)/u;
 
 /** tsc scoped invocation: sole owner → `ts7 -p <config>`; none → skip; multiple owners → the whole
  *  per-package lane (the honest floor, one child not N). Uses ts7 (the scripts/ts7.cjs wrapper, TS7
@@ -294,8 +291,8 @@ const GATING_STAGES: readonly StageDef[] = [
     // default for debugging — the CT_GATE env this used to ride was retired 2026-07-17).
     argv: ["pnpm", "test"],
     classify: asViolations,
-    // At changed scope: vitest's own related-test graph over the unit+integration lanes (serial + contract
-    // are whole-tree-shaped, deferred to push). CT does NOT ride this lane at changed scope — its scoped
+    // At changed scope: vitest's own related-test graph over the unit + integration + tooling lanes
+    // (serial + contract are whole-tree-shaped, deferred to push). CT does NOT ride this lane at changed scope — its scoped
     // mirror-mapping is the separate `browser:ct` changed-tier stage (LANDED 2026-07-17); the WHOLE CT suite
     // rides this lane's whole-scope argv at push (via `pnpm test`). Whole-only otherwise.
     //
@@ -318,6 +315,13 @@ const GATING_STAGES: readonly StageDef[] = [
     // The flag sits BEFORE `--changed` because `--changed`'s ref value is OPTIONAL — a flag placed after it
     // can be swallowed as that value. Measured 2026-09-02: it does not mask a broken invocation
     // (`--project bogus --changed --passWithNoTests` still exits 1, "No projects matched the filter").
+    // `tooling` RIDES THE INNER LOOP (#1566). #1523 moved 280 files out of `unit`/`integration` into their
+    // own project and gave the new stage `tiers: ["push","full"]` — which silently emptied this argv's
+    // reach over `tests/tooling`: not run at `changed`, and not DEFERRED either, so a lane editing an
+    // instrument got a green inner loop that had selected zero of its tests. The split's whole point is
+    // the WHOLE-suite cost at push; `--changed` is a related-test graph over the diff and costs what the
+    // diff costs, so the inner loop keeps every runtime lane it had before the split. This project list is
+    // therefore the one that must grow when a lane is added — the `changed`-tier reach is not derived.
     scopedArgv: (sel) => [
       "vitest",
       "run",
@@ -325,6 +329,8 @@ const GATING_STAGES: readonly StageDef[] = [
       "unit",
       "--project",
       "integration",
+      "--project",
+      "tooling",
       "--passWithNoTests",
       "--changed",
       ...(sel.gitRef === undefined ? [] : [sel.gitRef]),
@@ -348,18 +354,12 @@ const GATING_STAGES: readonly StageDef[] = [
     tiers: ["push", "full"],
     argv: ["pnpm", "test:tooling"],
     classify: asViolations,
-    tierPrecondition: {
-      tiers: ["push"],
-      reason: "the branch diff (vs its merge base, plus the working tree) touches tooling/** or tests/tooling/**",
-      satisfied: (root) => {
-        const changed = branchChangedPaths(root);
-        // CANNOT-TELL ⇒ null ⇒ the runner RUNS it. A detached HEAD, a fresh clone with no `main`, or a
-        // failed git call must never read as "no instrument changed".
-        return changed === null ? null : changed.some((path) => TOOLING_PATH_RE.test(path));
-      },
-    },
-    // Whole-only by nature: at a scoped tier the changed-set's tooling files already ride `tests:node`'s
-    // related-test graph, and a second lane over the same selection would run them twice.
+    // The predicate is tri-state and `null` (cannot tell) RUNS — see registry-preconditions.ts.
+    tierPrecondition: { tiers: ["push"], reason: TOOLING_TOUCHED_REASON, satisfied: toolingTouched },
+    // Whole-only by nature, and that is only HONEST because `tests:node`'s scoped argv names `--project
+    // tooling` (see it above — #1566 restored it). A second row at `changed` would spawn a second vitest
+    // over the same selection; a row at NO tier would be the regression this comment used to describe
+    // away. If that project ever leaves that argv, this stage owes the `changed` tier instead.
   },
   {
     name: "browser:ct",

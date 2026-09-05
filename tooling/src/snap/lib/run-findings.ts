@@ -211,11 +211,21 @@ export async function collectSnapFindings(input: SnapFindingInput): Promise<read
     ...(await reactFindingDrafts(input.artifacts)),
     ...(await harFindingDrafts(input.artifacts)),
   ];
-  if (drafts.some((row) => row.severity === "error") === false && input.verdict.state !== "passed") {
-    const arms = armVerdictDrafts(input);
+  if (input.verdict.state !== "passed") {
+    // PER-ARM ROWS ARE NOT A FALLBACK (#1566). #1385 landed them inside the "no error row at all" branch,
+    // which meant a contrast failure ALONGSIDE a page error got no row of its own — the page error is a
+    // different fact, and the arm that voted still went unexplained. They are emitted whenever an arm is
+    // in a voting state, and de-duplicated against the arms a PRODUCER already described: an analyzer
+    // that wrote its own problem rows (design-audit, motion, heap, interaction-perf) has said everything
+    // this row would, so a second one would be noise wearing the same arm's name.
+    const described = new Set(drafts.flatMap((row) => row.arms));
+    const arms = armVerdictDrafts(input).filter((row) => !row.arms.some((arm) => described.has(arm)));
+    drafts.push(...arms);
     // THE FALLBACK MUST NOT FIRE WHEN A ROW EXISTS (#1385 item 5) — its own text says actionable evidence
     // was absent, and printing that beside a row that carries it is the instrument contradicting itself.
-    drafts.push(...(arms.length > 0 ? arms : [fallbackFinding(input)]));
+    if (drafts.some((row) => row.severity === "error") === false) {
+      drafts.push(fallbackFinding(input));
+    }
   }
   return mergeDrafts(attachAttributions(drafts), input.indexPath);
 }

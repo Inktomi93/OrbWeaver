@@ -27,7 +27,15 @@ export function stageLine(r: StageResult): string {
     return `${stageMark(r)} ${r.name}  deferred (whole-only at this scope) — runs at ${r.runsAt}`;
   }
   if (r.mode === "skipped") {
-    return `${stageMark(r)} ${r.name}  skipped (no files in scope)`;
+    // TWO REASONS SHARE THE `skipped` MODE and they are not interchangeable (#1566). A SCOPED skip means
+    // the selection held no relevant file; a TIER-PRECONDITION skip means the stage belongs to this tier
+    // conditionally and the condition did not hold — a whole-tier run, where "no files in scope" is
+    // simply false. `runsAt` is what tells them apart (a scoped skip carries none) and it must reach the
+    // CONSOLE, not just verify.json: the reader deciding whether their push was really covered is looking
+    // at this line.
+    return r.runsAt === null
+      ? `${stageMark(r)} ${r.name}  skipped (no files in scope)`
+      : `${stageMark(r)} ${r.name}  skipped — tier precondition not met; runs at ${r.runsAt}`;
   }
   const scope = r.mode === "scoped" ? " scoped" : "";
   const tag = !r.ok && r.exitCode === EXIT.toolError ? " [tool-error]" : "";

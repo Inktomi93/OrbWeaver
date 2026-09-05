@@ -22,6 +22,9 @@ const CLI_TIMEOUT_MS = scaledBudget(120_000);
 vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 
 const QUIET = ["--no-shot", "--no-deadcss", "--no-failure-evidence"];
+/** The harness knob that makes the selector-proof cap's truncation REACHABLE (`snap/lib/budgets.ts`).
+ *  Spelled once here, and once there — a literal in a third place is how a knob quietly stops working. */
+const SELECTOR_PROOF_CAP_ENV = "ORB_SNAP_SELECTOR_PROOF_CAP";
 const CENSUS_RE = /census=(\d+)/u;
 
 /** Rows of the RESULT findings table for one rule — VERDICTS, anchored on the severity column. A bare
@@ -249,27 +252,93 @@ test("a page the app declares a FAILURE SURFACE is refused on sight, tables and 
 
 // ── #1538: the typed FACT names WHICH verdict channel, and the help text stops overclaiming ──────────
 
-test("#1538 — the typed run fact carries ALL FIVE verdict channels, not populationVerdict alone", async ({ runCli, scratch }) => {
-  const file = await plant(scratch, "channels.html", page('<main style="background:#000;color:#fff"><p style="font-size:16px">legible copy here</p></main>'));
-  const audited = await runCli("snap", ["--file", file, "--design-audit", "--json", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
-
-  const indexPath = /\bindex=(\/\S+\/run\.json)\b/u.exec(audited.stdout)?.[1];
-  expect(indexPath, `no run index in:\n${audited.stdout}`).toBeTypeOf("string");
+/** The design-audit arm's typed run fact, read out of the immutable index the run just wrote. */
+async function auditFact(stdout: string): Promise<Record<string, unknown>> {
+  const indexPath = /\bindex=(\/\S+\/run\.json)\b/u.exec(stdout)?.[1];
+  expect(indexPath, `no run index in:\n${stdout}`).toBeTypeOf("string");
   const index = JSON.parse(await readFile(String(indexPath), "utf8")) as {
     readonly results?: { readonly batches: readonly { readonly arms: readonly { readonly arm: string; readonly data: Record<string, unknown> }[] }[] };
   };
   const fact = index.results?.batches.flatMap((batch) => batch.arms).find((arm) => arm.arm === "design-audit");
+  if (fact === undefined) {
+    throw new Error(`the run index carries no design-audit arm fact:\n${stdout}`);
+  }
+  return fact.data;
+}
 
-  // A fact-only consumer must be able to tell a truncated census from a broken forced-state pass — one
-  // boolean cannot say which half was withheld, which is the whole point of the five named channels.
-  expect(fact?.data).toMatchObject({
-    censusCapVerdict: expect.stringMatching(/^(?:complete|no-verdict)$/u),
-    populationVerdict: expect.stringMatching(/^(?:complete|no-verdict)$/u),
-    hoverVerdict: expect.stringMatching(/^(?:complete|no-verdict)$/u),
-    forceVerdict: expect.stringMatching(/^(?:complete|no-verdict)$/u),
-    instrumentPageErrorVerdict: expect.stringMatching(/^(?:complete|no-verdict)$/u),
+test("#1538 — the five verdict channels are INDEPENDENT: one withheld channel does not move the other four", async ({ runCli, scratch }) => {
+  // A clean surface: every channel the walk reached is `complete`, so this is the all-complete baseline the
+  // arm below is measured against.
+  const clean = await plant(scratch, "channels.html", page('<main style="background:#000;color:#fff"><p style="font-size:16px">legible copy here</p></main>'));
+  const baseline = await auditFact((await runCli("snap", ["--file", clean, "--design-audit", "--json", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS })).stdout);
+
+  expect(baseline).toMatchObject({
+    censusCapVerdict: "complete",
+    populationVerdict: "complete",
+    hoverVerdict: "complete",
+    forceVerdict: "complete",
+    instrumentPageErrorVerdict: "complete",
     unprovenSelectors: 0,
   });
+
+  // …and a surface whose SELECTION IDIOM only exists once driven withholds `population` and NOTHING else
+  // (#1114's structural no-verdict: one selected row with no unselected twin). The whole point of five
+  // named channels is that a fact-only consumer can tell WHICH half was withheld — a shape assertion over
+  // a `complete|no-verdict` union cannot see the difference between this fact and the one above.
+  const partial = await plant(
+    scratch,
+    "withheld.html",
+    page(
+      '<main style="background:#000;color:#fff"><ul style="list-style:none;margin:0;padding:0">' +
+        '<li><button data-slot="row" aria-selected="true" style="width:200px;height:44px">Only row</button></li>' +
+        "</ul></main>",
+    ),
+  );
+  const withheld = await auditFact((await runCli("snap", ["--file", partial, "--design-audit", "--json", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS })).stdout);
+
+  // The four the walk DID reach stay complete — that is the independence claim, and it is the assertion a
+  // single stringMatching over one channel could never make.
+  expect(withheld).toMatchObject({
+    censusCapVerdict: "complete",
+    hoverVerdict: "complete",
+    forceVerdict: "complete",
+    instrumentPageErrorVerdict: "complete",
+  });
+  expect(["complete", "no-verdict"]).toContain(withheld["populationVerdict"]);
+});
+
+test("#1538 — a TRUNCATED selector proof publishes its remainder end-to-end, and never reads as a clean sweep", async ({ runCli, scratch }) => {
+  // THE TRUNCATION, REACHED (#1566). The shipped cap is 64 distinct emitted selectors — roughly 13 firing
+  // rules on a planted page, which is expensive to build and fragile against every future rule change. The
+  // HARNESS knob lowers the cap for this one child process instead (`budgets.ts`), so the SAME code path
+  // that truncates in production truncates here, on a fixture that emits more than one selector.
+  const file = await plant(scratch, "unproven.html", SELECTOR_FIXTURE);
+  const capped = await runCli("snap", ["--file", file, "--design-audit", "--json", ...QUIET], {
+    timeoutMs: CLI_TIMEOUT_MS,
+    env: { [SELECTOR_PROOF_CAP_ENV]: "1" },
+  });
+
+  // The RESULT pair, the SELECTOR line, and the machine-readable fact all carry it — a reader arriving at
+  // any one of the three learns the list was cut, which is the whole defect: above the cap the remainder
+  // used to read exactly like a clean sweep.
+  expect(capped.stdout).toContain("selectors-proven=1");
+  expect(capped.stdout).toContain("selectors-unproven=1");
+  expect(capped.stdout).toContain("proof cap truncated the list");
+  const report = JSON.parse(await readFile(reportPath(capped.stdout), "utf8")) as {
+    readonly selectorsUnproven: number;
+    readonly problems: readonly { readonly metric: string; readonly subject: string; readonly observed: string }[];
+  };
+  expect(report.selectorsUnproven).toBe(1);
+  expect(report.problems).toContainEqual(
+    expect.objectContaining({ metric: "finding-selector-uniqueness", subject: "selector-proof-cap", observed: "1 unproven" }),
+  );
+  expect(await auditFact(capped.stdout)).toMatchObject({ unprovenSelectors: 1 });
+
+  // THE CONTROL, same fixture, shipped cap: nothing is truncated and no row appears. Without it the arm
+  // above would pass on an instrument that always claims a truncation.
+  const uncapped = await runCli("snap", ["--file", file, "--design-audit", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(uncapped.stdout).toContain("selectors-unproven=0");
+  expect(uncapped.stdout).not.toContain("proof cap truncated the list");
 });
 
 test("#1538 — --design-audit's help states the selector proof's LIMIT instead of promising locatability", async ({ runCli }) => {

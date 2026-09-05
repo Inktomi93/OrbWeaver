@@ -9,6 +9,7 @@
 //
 // The `*_SETTLE_MS` / `*_REVEAL_MS` values below are deliberately NOT budgets and not scaled: they are
 // SLEEPS the run always pays in full, so stretching them under load would spend real time to buy nothing.
+import process from "node:process";
 import { budget } from "../../_shared/load-budget.ts";
 
 // The BASE consts are exported (not just their derived ceilings) so a load-scaling pin can drive the
@@ -51,7 +52,24 @@ export const MOUNT_SETTLE_MS = 500;
 // is a Playwright round trip, so the sweep is bounded and the remainder is published as UNPROVEN rather
 // than counted as unique — an unasked question must never render like a clean answer. Comfortably above
 // the worst real surface measured 2026-09-04 (13 distinct selectors on /corpus).
-export const DESIGN_AUDIT_SELECTOR_PROOF_CAP = 64;
+const DESIGN_AUDIT_SELECTOR_PROOF_CAP = 64;
+/** The env override on that cap — a HARNESS knob, not an operator one (#1566). The cap's failure mode is
+ *  a truncation that reads clean, and the only end-to-end proof of the truncation is a run that EXCEEDS
+ *  it. Reaching 64 distinct emitted selectors on a real surface needs ~13 firing rules over a planted
+ *  page: expensive to build, expensive to run, and fragile against every future rule change. Lowering the
+ *  cap to 1 for one CLI invocation proves the same mechanism against the same code path.
+ *
+ *  ONE spelling, read ONCE at module load — every consumer is a fresh process (the snap CLI is spawned per
+ *  run), so a caller sets it in the CHILD's environment, never mid-process. A non-numeric or non-positive
+ *  value falls back to the shipped cap rather than silently disabling the proof. */
+const SELECTOR_PROOF_CAP_ENV = "ORB_SNAP_SELECTOR_PROOF_CAP";
+// biome-ignore lint/style/noProcessEnv: ORB_SNAP_SELECTOR_PROOF_CAP is an ambient TOOLING knob (the harness override that makes the proof cap's truncation reachable in a test), the same class as _shared/load-budget.ts's ORB_BUDGET_CEILING_MS — not app config, and the env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake, so it cannot be imported down here.
+const SELECTOR_PROOF_CAP_OVERRIDE = Number(process.env[SELECTOR_PROOF_CAP_ENV]);
+
+/** The proof cap in force for THIS process. */
+export function designAuditSelectorProofCap(): number {
+  return Number.isInteger(SELECTOR_PROOF_CAP_OVERRIDE) && SELECTOR_PROOF_CAP_OVERRIDE > 0 ? SELECTOR_PROOF_CAP_OVERRIDE : DESIGN_AUDIT_SELECTOR_PROOF_CAP;
+}
 // The daemon's outer watchdog base for a non-navigating `--session … --design-audit` call. The walk is a
 // full-page census plus a pixel settle plus a forced-state pass; the shared load scaler is applied once
 // by the daemon on top of this (contract/arms.ts sessionCallBaseMs).

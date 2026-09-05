@@ -602,6 +602,30 @@ test("the ruled candidate is EXCLUDED with a named reason, never a silent skip",
   expect(result.accounting).toMatchObject({ candidates: 1, judged: 0, affected: 0, excluded: { ruledSubFloor: 1 } });
 });
 
+test("the PRINTED denominator excludes the ruled control too — the row and the accounting cannot disagree", () => {
+  // #1566: only `checkTapTargetPopulations` subtracted the exclusion. `targetPopulationFindings` computed
+  // its per-group `measured` set from `extentTruncated` alone, so a group holding one ruled control beside
+  // two failing ones printed "2 affected of 3 judged" next to `judged=2 … excluded(ruledSubFloor=1)` —
+  // the same run stating two different denominators, and the one a reader ACTS on was the wrong one.
+  const home = { authoredTarget: "button|slot=collapsible-trigger|role=|type=", authoredHome: "div@turn-footer" };
+  const member = (targetId: string, over: Partial<TapTargetInput> = {}): TapTargetInput => ({
+    ...home,
+    targetId,
+    ancestorTargetIds: [],
+    selector: `[data-target=${targetId}]`,
+    width: 406,
+    height: 16,
+    ...over,
+  });
+  const result = checkTapTargetPopulations([member("a"), member("b"), member("ruled", { ruledTargetFloor: "sub-floor-ok" })], false);
+
+  expect(result.findings).toHaveLength(1);
+  expect(result.findings[0]?.value).toContain("2 affected of 2 judged");
+  expect(result.findings[0]?.population).toMatchObject({ affected: 2, judged: 2 });
+  // …and the two readings agree: `judged` here is the same number the accounting publishes.
+  expect(result.accounting).toMatchObject({ candidates: 3, judged: 2, affected: 2, excluded: { ruledSubFloor: 1 } });
+});
+
 test("tap-target populations collapse siblings, suppress nested owners, and preserve distinct homes", () => {
   const target = (targetId: string, home: string, ancestorTargetIds: readonly string[] = []): TapTargetInput => ({
     targetId,

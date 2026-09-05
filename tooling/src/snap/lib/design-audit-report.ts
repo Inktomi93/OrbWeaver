@@ -30,7 +30,7 @@ import {
   WITHHELD_REASONS,
 } from "../../ui-audit/index.ts";
 import type { DesignAuditMeasurement, SelectorProof } from "../ops/design-audit-walk.ts";
-import { DESIGN_AUDIT_SELECTOR_PROOF_CAP } from "./budgets.ts";
+import { designAuditSelectorProofCap } from "./budgets.ts";
 
 /** The `-1` absent sentinel every ui-audit RESULT row already uses: a refusal to state, never a zero
  *  that reads as "nothing was there". */
@@ -43,7 +43,7 @@ const ABSENT = -1;
 function printSelectorProof(proofs: readonly SelectorProof[], unproven: number): void {
   if (unproven > 0) {
     print(
-      `SELECTOR     ${String(unproven)} emitted finding selector(s) were NOT proven — the ${String(DESIGN_AUDIT_SELECTOR_PROOF_CAP)}-selector proof cap truncated the list, so those rows are unverified, not unique`,
+      `SELECTOR     ${String(unproven)} emitted finding selector(s) were NOT proven — the ${String(designAuditSelectorProofCap())}-selector proof cap truncated the list, so those rows are unverified, not unique`,
     );
   }
   const ambiguous = proofs.filter((proof) => proof.matches !== 1);
