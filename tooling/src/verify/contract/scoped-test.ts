@@ -15,7 +15,7 @@ export type ScopedTestCollection = { readonly files: readonly string[] } | { rea
 
 /** ONE INVOCATION'S CT LEASE (#1581): where it builds, and how it gives the worktree back. `release` is
  *  idempotent — the runner calls it from a `finally`, so a refused preflight frees the tree too. */
-export interface CtRunnerLease {
+interface CtRunnerLease {
   /** The per-invocation build cache — absolute, freshly created (hence COLD), removed by `release`. */
   readonly cacheDir: string;
   readonly release: () => void;
