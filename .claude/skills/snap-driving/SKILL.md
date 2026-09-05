@@ -232,6 +232,12 @@ parameterized actions.
   the context's own DPR (1 desktop, 3 under `--mobile`), a number raises the context DPR and does
   not combine with `--mobile`. Past the 16 000 000 px budget the run REFUSES rather than writing a
   huge PNG, and `scale=<ask>/<WxH>` on the RESULT line states what it actually produced.
+- **`--mobile` and `--viewport` COMPOSE (#1668).** `--mobile --viewport 320x740` is "the iPhone, windowed to
+  320x740" — `pointer: coarse`, DPR 3 and the mobile UA all survive, in either argv order. `--wide`/`--desktop`
+  are device PRESETS and do clear the device. Before trusting any geometry number, read the RESULT line's
+  `device=<pointer>:dpr<n>:<WxH>` token: it is what the PAGE answered (`matchMedia`, `devicePixelRatio`), so
+  `device=fine:dpr1:320x740` on a run you thought was mobile means the emulation did not apply. The CT browser
+  with `test.use({ hasTouch: true })` is no longer the only coarse-at-320 channel.
 - **`--probe` VOIDS every motion/CLS number in the run** — it floors all animations/transitions
   from first paint, which kills the FLIP animations that make track changes CLS-free, so the
   harness manufactures layout-shift findings. Such a run prints `PROBE-NEUTERED-MOTION` and stamps
