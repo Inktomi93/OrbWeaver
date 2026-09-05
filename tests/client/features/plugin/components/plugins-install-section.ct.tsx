@@ -729,11 +729,11 @@ test("a DIVERGED seeded showcase plugin offers the same one-click, served by the
   // truth (the transient verdict is dropped) — the whole point of reading the server's own row back.
   await expect(page.getByText("Version 1.2.0", { exact: false })).toBeVisible();
 
-  // ONESHOT-OK: the settled version above proves the mutation completed. The SOURCE is the assertion — a
-  // showcase row must drive `upgradeFromShowcase` (which packs the shipped bundle) and must never reach the
-  // stored-url verb, which would throw `PluginNoSourceUrlError` on a row that has no remembered source.
-  expect(recorder.lastInput("plugin.upgradeFromShowcase")).toEqual({ pluginId: SHOWCASE_ROW.id });
-  expect(recorder.count("plugin.upgradeFromStoredUrl")).toBe(0);
+  // The SOURCE is the assertion — a showcase row must drive `upgradeFromShowcase` (which packs the shipped
+  // bundle) and must never reach the stored-url verb, which would throw `PluginNoSourceUrlError` on a row
+  // that has no remembered source. Polled: the recorder is written by the mutation's own microtask.
+  await expect.poll(() => recorder.lastInput("plugin.upgradeFromShowcase")).toEqual({ pluginId: SHOWCASE_ROW.id });
+  await expect.poll(() => recorder.count("plugin.upgradeFromStoredUrl")).toBe(0);
 });
 
 test("an up-to-date url plugin says so; a file plugin offers no update check (U8 2b)", async ({ mount, page }) => {

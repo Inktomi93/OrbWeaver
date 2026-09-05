@@ -17,6 +17,11 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const SILENCE_MS = 1200;
+
+// WALL CLOCK, through ONE door: the subject of the arms below is a real deadline settling on real time (a
+// socket that says nothing, a child that hangs) — there is no clock to inject into the other side.
+// @orb-gate-ignore test-determinism: the SUBJECT is a real deadline measured on real time — the far side (a mute socket / a hung child) has no injectable clock
+const wallNowMs = (): number => Date.now();
 /** The settle slack: how far past its own deadline the door may run before we call it a hang. */
 const SETTLE_SLACK_MS = scaledBudget(20_000);
 
@@ -61,11 +66,11 @@ test("sessionRequest: a daemon that accepts and then says NOTHING is refused at 
   const home = mkdtempSync(path.join(tmpdir(), "orb-session-mute-"));
   const { socketPath, server } = await fakeDaemon(home, () => undefined);
   try {
-    const started = Date.now();
+    const started = wallNowMs();
     // The defect made this await never return. `rejects` is the contract: an unmeasurable call is the
     // caller's "I could not measure" (it prints SESSION ERROR and exits toolError), never a verdict.
     await expect(sessionRequest(socketPath, pingRequest(), () => undefined, SILENCE_MS)).rejects.toThrow(/sent nothing/u);
-    expect(Date.now() - started, "the door must settle at its own deadline, not hang").toBeLessThan(SILENCE_MS + SETTLE_SLACK_MS);
+    expect(wallNowMs() - started, "the door must settle at its own deadline, not hang").toBeLessThan(SILENCE_MS + SETTLE_SLACK_MS);
   } finally {
     server.close();
     rmSync(home, { recursive: true, force: true });
@@ -93,12 +98,12 @@ test("sessionRequest: the clock measures SILENCE — a chatty long call is never
     }, beatMs);
   });
   try {
-    const started = Date.now();
+    const started = wallNowMs();
     const seen: string[] = [];
     const exit = await sessionRequest(socketPath, pingRequest(), (event) => seen.push(event.kind), SILENCE_MS);
     expect(exit).toBe(0);
     expect(seen.filter((kind) => kind === "line")).toHaveLength(beats);
-    expect(Date.now() - started, "the call must have outlived the silence deadline while still talking").toBeGreaterThan(SILENCE_MS);
+    expect(wallNowMs() - started, "the call must have outlived the silence deadline while still talking").toBeGreaterThan(SILENCE_MS);
   } finally {
     server.close();
     rmSync(home, { recursive: true, force: true });

@@ -232,7 +232,7 @@ export interface SnippetResult {
  *  It deliberately does NOT re-spell `PLUGIN_ORIGINS`: same-looking members, different axis (origin = how the
  *  bytes arrived, this = who serves the next version), so it is its own tuple-free union rather than a subset
  *  alias of one that would drift the moment a `catalog` origin lands. */
-export type PluginUpdateSource = "url" | "showcase";
+type PluginUpdateSource = "url" | "showcase";
 
 /** One plugin's update-check outcome. A discriminated union rather than a flat shape with an optional
  *  `newVersion`, so `newVersion` is present EXACTLY on `update-available` — a version can be neither forgotten
