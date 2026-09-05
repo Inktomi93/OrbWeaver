@@ -46,7 +46,25 @@ async function liftPresetScripts(args: {
     });
     return NO_SCRIPTS;
   }
-  return await profile.importPresetScripts({ ownerId: ctx.ownerId, presetId, scripts: p.parsed.regexScripts });
+  // PER-PRESET ISOLATION, the wave's stated contract: a THROWING lift used to reject `importPresets` whole,
+  // discarding the counts and notes of every preset the run had already imported and handing the operator an
+  // exception instead of a partial report (#1469 item 7). The preset itself landed; only its scripts did not,
+  // and that is exactly one recorded skip.
+  // @orb-gate-ignore caught-failure-ownership(default:err): bookkeeping — the failure is recorded into
+  // `skippedPresets` (with the lift's own reason), part of the verb's own returned result. Ends if
+  // `skippedPresets` stops being read by the caller.
+  try {
+    return await profile.importPresetScripts({ ownerId: ctx.ownerId, presetId, scripts: p.parsed.regexScripts });
+  } catch (err) {
+    // The last line of a prettified driver error is the actionable one — the same reason-shape the card wave
+    // records ("UNIQUE constraint failed: …" rather than the whole stack).
+    const message = err instanceof Error ? err.message : String(err);
+    skippedPresets.push({
+      file: p.sourceFile,
+      reason: `${p.parsed.regexScripts.length} preset regex script(s) not lifted (the preset imported; the lift failed): ${message.split("\n").filter(Boolean).at(-1) ?? message}`,
+    });
+    return NO_SCRIPTS;
+  }
 }
 
 export function createImportPresets(ctx: ImportContext): Pick<ImportService, "importPresets"> {
