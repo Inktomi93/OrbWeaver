@@ -155,8 +155,16 @@ type ResolveCredentialOp = (params: { readonly runAsUserId: UserId; readonly sou
  *  And it takes the CREDENTIAL ID the generation actually authenticated with — read off
  *  `ResolvedConnection.credential`, frozen at dispatch — rather than a source to re-resolve afterwards: a
  *  rotate or set-active between the rejection and this call would otherwise revoke the user's NEW key.
- *  `null` is the keyless arm (vllm/local-light/max-pro-sub own no row); the verb no-ops on it. */
+ *  `null` is the keyless arm (vllm/local-light/max-pro-sub own no row); the verb no-ops on it.
+ *
+ *  `ownerId` IS THE TENANT SCOPE, and it is on the signature because the op IS the domain boundary
+ *  (`injected-op-caller-param`, AGENTS §2): an op that takes an entity id and no caller is safe only by its
+ *  call sites' discipline, and the next wiring inherits nothing that says so. It becomes the revoke's WHERE
+ *  predicate. The engine passes the turn's frozen `prep.runAsUserId` — the SAME principal `resolveChat`
+ *  resolved this credential under, so the two cannot disagree without a composition-root bug, and if they
+ *  ever do the credentials verb refuses and records it rather than writing to a stranger's row. */
 type MaybeRevokeOnAuthFailedOp = (params: {
+  readonly ownerId: UserId;
   readonly credentialId: UserCredentialId | null;
   readonly errorKind: ProviderErrorKind;
   readonly errorMessage: string;

@@ -1,6 +1,8 @@
-// verb: markRevoked — the runner-internal revoke. Takes only a credentialId + reason: the runner proved
-// access by holding it from a completed turn, so there is no ownership check here. MUST NOT be merged
-// with markRevokedByUser (which does ownership-check) until userId is threaded through the runner revoke path.
+// verb: markRevoked — the runner-internal revoke. No Principal (the runner discovers a 401 and holds only
+// ids), but it DOES carry the `ownerId` the row must belong to: `setRevokedById` is owner-scoped, so a
+// foreign id matches no row rather than relying on the caller having proved anything. It stays DISTINCT from
+// markRevokedByUser, which additionally proves ownership up front (leak-free NOT_FOUND on a stranger's id
+// rather than a silent no-op), audits under a different action and emits `credentialsChanged` to the owner.
 // The PERSISTED reason is `auth_failed`: the only thing a runner discovers about a credential it is holding
 // is that the provider rejected it (the free-text `reason` stays log-only provenance).
 
@@ -13,7 +15,7 @@ import { setRevokedById } from "../persistence/queries.ts";
 export function createMarkRevoked(ctx: CredentialContext): CredentialsService["markRevoked"] {
   return async (params: MarkRevokedParams): Promise<void> => {
     const now = ctx.now();
-    await setRevokedById(ctx.db, params.credentialId, now, "auth_failed");
+    await setRevokedById(ctx.db, { ownerId: params.ownerId, credentialId: params.credentialId, revokedAt: now, reason: "auth_failed" });
     // Runner-internal revoke: no owner is proven (the runner holds only the id), so the durable row is
     // system-attributed (`actorUserId: null`) with the id it revoked as the soft-ref entity.
     await ctx.audit(

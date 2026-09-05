@@ -135,7 +135,7 @@ describe("resolve", () => {
       metadata: { kind: "custom_openai", baseUrl: "https://llm.local/v1" },
     });
     // Revoked by the STRIKE-OUT path (not the user's own revoke), the case the resolver actually meets.
-    await svc.maybeRevokeOnAuthFailed({ credentialId: added.id, errorKind: "auth_failed", errorMessage: "the endpoint rejected the key" });
+    await svc.maybeRevokeOnAuthFailed({ ownerId: owner, credentialId: added.id, errorKind: "auth_failed", errorMessage: "the endpoint rejected the key" });
 
     await expect(svc.resolve({ principal: principal(owner), source: "custom_openai" })).rejects.toThrow(DomainNoCredentialError);
   });

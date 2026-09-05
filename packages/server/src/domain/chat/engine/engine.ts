@@ -971,7 +971,7 @@ async function runPreTurnCompaction(
     // …but a swallowed failure is exactly where a dead key hides: this arm exists to rescue a chat already
     // over its window, so without the strike-out that chat re-dials the rejected key on every attempt and
     // the operator sees only a warn line.
-    await strikeOutCredential(ctx, prep.connection, compactErr, chatId);
+    await strikeOutCredential(ctx, prep, compactErr);
   } finally {
     compactionInFlight.delete(chatId);
   }
@@ -1055,7 +1055,7 @@ function fireManagedCompaction(
       // FAILURE-HONEST: a thrown marker build (provider error OR empty generation) leaves the existing marker
       // untouched and surfaces the `compaction_failed` warning (the memory_build_failed mirror).
       getLog().warn({ err: compactErr, chatId }, "chat: managed compaction failed");
-      await strikeOutCredential(ctx, connection, compactErr, chatId);
+      await strikeOutCredential(ctx, prep, compactErr);
       await emitQuiet(deps, { type: "warning", chatId, code: "compaction_failed" });
       // Rethrow so the span marks itself ERROR (I-7: previously swallowed here too). Still fire-and-forget —
       // the outer `.catch` below absorbs it.
@@ -1231,19 +1231,20 @@ function providerTerminalReason(err: unknown): string | null {
  * messages are built from the source/role/backend vocabulary, never the credential), which is what makes it
  * safe to carry into the credential audit + security-event trail.
  */
-async function strikeOutCredential(ctx: ChatContext, connection: ResolvedConnection, err: unknown, chatId: ChatId): Promise<void> {
+async function strikeOutCredential(ctx: ChatContext, prep: TurnPrep, err: unknown): Promise<void> {
   const provider = providerErrorOf(err);
   if (provider === null) {
     return;
   }
   try {
     await ctx.maybeRevokeOnAuthFailed({
-      credentialId: connection.credential.credentialId,
+      ownerId: prep.runAsUserId,
+      credentialId: prep.connection.credential.credentialId,
       errorKind: provider.kind,
       errorMessage: provider.message,
     });
   } catch (revokeErr) {
-    getLog().warn({ err: revokeErr, chatId }, "chat: the post-generation credential strike-out failed (the generation's own error is unaffected)");
+    getLog().warn({ err: revokeErr, chatId: prep.chatId }, "chat: the post-generation credential strike-out failed (the generation's own error is unaffected)");
   }
 }
 
@@ -1255,7 +1256,7 @@ async function strikeOutOnTurnFault(ctx: ChatContext, prep: TurnPrep, err: unkno
   if (reason !== "error") {
     return;
   }
-  await strikeOutCredential(ctx, prep.connection, err, prep.chatId);
+  await strikeOutCredential(ctx, prep, err);
 }
 
 /**

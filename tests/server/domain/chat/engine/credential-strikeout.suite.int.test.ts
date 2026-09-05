@@ -146,7 +146,9 @@ describe("the main turn's fault path strikes out the credential it ran under", (
 
     // `auth_failed` — the normalized kind minted inside infra, NOT an HTTP status re-derived at the seam. The
     // dead adapter spelled this position "unauthorized"/"forbidden", which the verb could never match.
-    expect(strikes).toEqual([{ credentialId: BYO_CREDENTIAL, errorKind: "auth_failed", errorMessage: "the endpoint rejected the key (401)" }]);
+    // `ownerId` is the turn's frozen `runAsUserId` — the scope the credentials verb turns into its WHERE, so
+    // a strike can only ever reach a row THIS principal owns (`injected-op-caller-param`).
+    expect(strikes).toEqual([{ ownerId: HOST, credentialId: BYO_CREDENTIAL, errorKind: "auth_failed", errorMessage: "the endpoint rejected the key (401)" }]);
   });
 
   test("a WRAPPED provider fault still classifies (the cause-chain walk, not a single deref)", async () => {
@@ -155,7 +157,7 @@ describe("the main turn's fault path strikes out the credential it ran under", (
 
     await expect(engine.runTurn(prepOf(chatId))).rejects.toThrow("bridge re-wrap");
 
-    expect(strikes.at(0)).toMatchObject({ credentialId: BYO_CREDENTIAL, errorKind: "auth_failed" });
+    expect(strikes.at(0)).toMatchObject({ ownerId: HOST, credentialId: BYO_CREDENTIAL, errorKind: "auth_failed" });
   });
 
   test("a NON-auth provider failure reaches the op with its OWN kind — the policy lives in the verb, not here", async () => {
@@ -226,6 +228,20 @@ describe("the main turn's fault path strikes out the credential it ran under", (
     expect(prep.connection.credential.credentialId).toBe(BYO_CREDENTIAL);
   });
 
+  test("THE SCOPE the credentials verb revokes under is the turn's own runAsUserId, never a wider one", async () => {
+    // `injected-op-caller-param`: the op is the domain boundary, so the boundary carries the tenant scope.
+    // `prep.runAsUserId` is the frozen principal `resolveChat` resolved this credential under, which is what
+    // makes it a legitimate WHERE predicate rather than a second unverified id.
+    const chatId = await seedChat(db, "strike-scope");
+    const otherHost = castId<UserId>("user_someone_else");
+    const engine = engineOver(throwingTurn(authFailed()));
+
+    await expect(engine.runTurn(prepOf(chatId, { runAsUserId: otherHost, triggeredBy: otherHost }))).rejects.toThrow("rejected the key");
+
+    expect(strikes.at(0)?.ownerId).toBe(otherHost);
+    expect(strikes.at(0)?.ownerId).not.toBe(HOST);
+  });
+
   test("THE STRIKE IS A PASSENGER: a throwing revoke never replaces the failure the caller sees", async () => {
     // It runs INSIDE the turn's catch, so an unguarded throw would swap the provider's error for a revoke
     // error on its way to tRPC — the operator would be told the wrong thing about their own turn.
@@ -274,7 +290,7 @@ describe("the compaction arms strike too — they burn the same credential on th
 
     // Failure-honest: the turn still committed. And the dead key was struck rather than silently re-spent.
     expect(outcome.aborted).toBe(false);
-    expect(strikes.at(0)).toEqual({ credentialId: BYO_CREDENTIAL, errorKind: "auth_failed", errorMessage: "compaction: 401" });
+    expect(strikes.at(0)).toEqual({ ownerId: HOST, credentialId: BYO_CREDENTIAL, errorKind: "auth_failed", errorMessage: "compaction: 401" });
   });
 
   test("the POST-TURN compaction hook strikes on `auth_failed`", async () => {
@@ -290,7 +306,7 @@ describe("the compaction arms strike too — they burn the same credential on th
 
     // Fire-and-forget by design — the hook outlives `runTurn`.
     await vi.waitFor(() => {
-      expect(strikes.at(0)).toEqual({ credentialId: BYO_CREDENTIAL, errorKind: "auth_failed", errorMessage: "compaction: 401" });
+      expect(strikes.at(0)).toEqual({ ownerId: HOST, credentialId: BYO_CREDENTIAL, errorKind: "auth_failed", errorMessage: "compaction: 401" });
     });
   });
 
