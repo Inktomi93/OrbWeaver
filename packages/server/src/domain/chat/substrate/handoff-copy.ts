@@ -82,15 +82,26 @@ async function executeHandoffCopy(
   // hole this arm exists to close. Same shape as the books' room half otherwise: mints land now, the
   // `chat_regex_scripts` move comes back UNEXECUTED for the swap batch.
   const regexRepoint = await ctx.copyHandoffRegexScripts({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId });
-  if (seats.length === 0) {
-    return { ...EMPTY_COPY_PLAN, regexRepoint };
-  }
-  const cardCopies = await ctx.copyHandoffCards({
-    fromOwnerId: oldHostUserId,
-    toOwnerId: nomineeUserId,
-    chatId,
-    characterIds: seats.map((s) => s.characterId),
-  });
+  // THE SEAT GATE IS THE CARD MINT'S, NOT THE WHOLE COPY'S — #1763. `copyHandoffBooks` does two halves: the
+  // seated cards' lore (derived from `cardCopies`) and the ROOM's own `chat_books`, which hangs off the room
+  // and owes the seats nothing. Returning early on `seats.length === 0` took the room half down with the card
+  // half, so an offer accepted in a seat-less room left the departed host's book firing into a room they had
+  // left — the #1739 hole, one table over. An empty `cardCopies` is already the op's own "room half only"
+  // input (`pendingCardCopies([])` ⇒ the card loop never runs), so the fix is to stop skipping the CALL.
+  //
+  // The two halves stay in ONE op deliberately: they share the call-local source→copy map, so a book attached
+  // to BOTH a seated card and the room is copied ONCE and shared exactly as the originals shared it. Splitting
+  // them into two injected ops would give each its own map and fork the room's lore into divergent duplicates
+  // — the failure `world-info/persistence/handoff-copy-write` names in its own header. Both pinned.
+  const cardCopies =
+    seats.length === 0
+      ? []
+      : await ctx.copyHandoffCards({
+          fromOwnerId: oldHostUserId,
+          toOwnerId: nomineeUserId,
+          chatId,
+          characterIds: seats.map((s) => s.characterId),
+        });
   const copyOf = new Map(cardCopies.map((c) => [c.sourceCharacterId, c]));
   const bookRepoint = await ctx.copyHandoffBooks({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId, cardCopies });
   return {

@@ -474,6 +474,82 @@ describe("lore — the books are copied BY VALUE, and the room's license is seve
     expect(attachedBook?.name).toBe("Room lore");
     expect((await db.select().from(worldBooks).where(eq(worldBooks.id, bookId)))[0]?.ownerId).toBe(host);
   });
+
+  // #1763 — THE ROOM HALF IS NOT THE CARD HALF'S CARGO. `chat_books` hangs off the ROOM, so an offer
+  // accepted in a room with no GIFTABLE seat (no seats at all, or only seats the nominee already owns /
+  // the old host does not own) must still sever the room's book license. Before this arm the whole copy
+  // short-circuited on `seats.length === 0` and the departed host kept a book firing into a room they had
+  // left — the same shape #1739 fixed for the room's regex scripts, one table over.
+  test("an offer accepted with ZERO giftable seats still re-points the room's book (#1763)", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    // No character seat anywhere on this roster — the room is two humans and a lorebook.
+    const bookId = castId<WorldBookId>("world_book_room");
+    await db.insert(worldBooks).values({ id: bookId, ownerId: host, name: "Room lore", description: null, createdAt: 1 });
+    await db.insert(worldEntries).values({ id: castId<WorldEntryId>("world_entry_r"), worldBookId: bookId, title: "t", content: "room truth", createdAt: 1 });
+    await db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: 1 });
+    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+
+    const attached = await db.select().from(chatBooks).where(eq(chatBooks.chatId, chatId));
+    expect(attached).toHaveLength(1);
+    const attachedBook = (
+      await db
+        .select()
+        .from(worldBooks)
+        .where(eq(worldBooks.id, attached[0]?.worldBookId ?? bookId))
+    )[0];
+    expect(attachedBook?.ownerId).toBe(member);
+    expect(attachedBook?.name).toBe("Room lore");
+    // The entries came with it — a copy whose lore did not follow is a book that reads empty.
+    expect(
+      (
+        await db
+          .select()
+          .from(worldEntries)
+          .where(eq(worldEntries.worldBookId, attachedBook?.id ?? bookId))
+      ).map((e) => e.content),
+    ).toEqual(["room truth"]);
+    // The CARD half stayed seat-gated: nothing was minted for a seat that does not exist.
+    expect(await db.select().from(characters).where(eq(characters.ownerId, member))).toHaveLength(0);
+  });
+
+  // WHY THE TWO HALVES STAY IN ONE OP (the #1763 fork): they share the call-local source→copy map, so a book
+  // attached to BOTH a seated card and the room is copied ONCE and shared, exactly as the originals shared
+  // it. Splitting the op in two would give each half its own map and silently fork the room's lore into two
+  // divergent duplicates — which is the failure `createCopyHandoffBooks`'s own header names.
+  test("a book attached to BOTH the seated card and the room is copied ONCE and shared (#1763)", async () => {
+    const { host, member, chatId, aria } = await seedTransferRoom();
+    const bookId = castId<WorldBookId>("world_book_shared");
+    await db.insert(worldBooks).values({ id: bookId, ownerId: host, name: "Shared lore", description: null, createdAt: 1 });
+    await db.insert(worldEntries).values({ id: castId<WorldEntryId>("world_entry_s"), worldBookId: bookId, title: "t", content: "one truth", createdAt: 1 });
+    await db.insert(characterBooks).values({ characterId: aria, worldBookId: bookId, role: "primary", createdAt: 1 });
+    await db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: 1 });
+    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+
+    const copies = await db.select().from(worldBooks).where(eq(worldBooks.ownerId, member));
+    expect(copies).toHaveLength(1);
+    const copyId = copies[0]?.id;
+    // BOTH junctions name that one copy — the card's and the room's.
+    const cardCopyId = (await db.select().from(characters).where(eq(characters.ownerId, member)))[0]?.id ?? aria;
+    expect((await db.select().from(characterBooks).where(eq(characterBooks.characterId, cardCopyId)))[0]?.worldBookId).toBe(copyId);
+    expect((await db.select().from(chatBooks).where(eq(chatBooks.chatId, chatId)))[0]?.worldBookId).toBe(copyId);
+    // …and the entry landed once, not twice.
+    expect(
+      await db
+        .select()
+        .from(worldEntries)
+        .where(eq(worldEntries.worldBookId, copyId ?? bookId)),
+    ).toHaveLength(1);
+  });
 });
 
 /** Seed one chat-tier regex script owned by `ownerId` and attach it to `chatId` at `position`. */
