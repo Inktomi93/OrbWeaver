@@ -4,9 +4,9 @@
 
 import type { CharacterCard, CharacterProvenance } from "@orb/contracts/character";
 
-import type { TagView } from "@orb/contracts/tag";
+import type { TagFolderType, TagView } from "@orb/contracts/tag";
 import type { ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
-import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, TagId } from "@orb/kit/ids";
 
 /** The full owned-card detail. What create/get/update/duplicate/restore return. The card's face fields
  *  compose `#card-face` (D137(E)) at the SCHEMA level; this view CONFORMS to the nullable-description
@@ -125,4 +125,28 @@ export interface CharacterSummary {
    * disambiguator by filtering.
    */
   readonly nameIsAmbiguous: boolean;
+}
+
+/**
+ * ONE BUCKET OF THE LIBRARY'S GROUP-BY-TAG CENSUS (#1696) — a visible tag and how many characters carry it
+ * WITHIN THE CURRENT LENS.
+ *
+ * `characters` is a real `COUNT` over the same scope `character.list` pages and `totalCount` counts, so the
+ * grouped view's headers are library facts rather than an arithmetic over whatever pages happened to be in
+ * memory. It is deliberately NOT `TagFilterVocabularyEntry.characters`, which is the same shape over the
+ * WHOLE library: printing a lens-blind census beside lens-filtered members is the second-wrong-answer this
+ * verb exists to avoid (the refusal recorded in `character-categorized-list.tsx` — see the verb).
+ *
+ * `folderType` rides along because the grouped view's FIRST paint is decided by it (C9-1d,
+ * `groupStartsOpen`), and a header the client renders from a census it did not previously have must carry
+ * everything that header needs — otherwise the client is back to reading it off a loaded row, i.e. off the
+ * window.
+ */
+export interface CharacterTagGroupCensus {
+  readonly id: TagId;
+  readonly name: string;
+  readonly folderType: TagFolderType;
+  /** How many of the owner's non-synthetic characters carry this tag WITHIN the request's lens. Always ≥ 1:
+   *  a tag no matching character carries is not a group, and an empty header is not a fact worth a row. */
+  readonly characters: number;
 }

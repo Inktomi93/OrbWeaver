@@ -43,7 +43,22 @@ import { characterListResponder, makeCharacterSummary, makeTagFixture } from "..
 const LIBRARY_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   "settings.getUserSettings": { userId: "user_ct_lib", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
   "chat.listChats": chatListResponder([]),
+  // The GROUP-BY-TAG census (#1696). Ambient because the categorized view asks for it the moment it is
+  // switched on, and an unrouted read leaves the buckets in their PENDING arm — which renders no counts at
+  // all, so a CT that forgot it would be asserting the loading state. Tests that care about the numbers
+  // override this key with their own census; this default is "there is nothing to say", which is the honest
+  // answer for the untagged three-row fixtures most of this file mounts.
+  "character.listTagGroups": () => ({ groups: [], uncategorized: 0 }),
 };
+
+/** A census as `character.listTagGroups` answers it — the server's own order, so a CT that overrides it is
+ *  writing what the server would send rather than what the client would sort. */
+function tagGroupCensus(groups: readonly (readonly [string, string, number, string])[], uncategorized: number): unknown {
+  return {
+    groups: groups.map(([id, name, characters, folderType]) => ({ id, name, characters, folderType })),
+    uncategorized,
+  };
+}
 
 /** A library ROW, by its character's name.
  *
@@ -242,6 +257,8 @@ function routeThree(page: Page): Promise<TrpcRecorder> {
     "character.list": characterListResponder([STARLA, BOLT2, TAGGED]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => RPG_TAG_LIBRARY,
+    // The three fixtures as the SERVER would count them: one rpg row, two with no visible tag.
+    "character.listTagGroups": () => tagGroupCensus([["tag_rpg", "rpg", 1, "NONE"]], 2),
   });
 }
 
@@ -271,7 +288,7 @@ test("§4.3 the Group toggle switches to categorized view (an Uncategorized buck
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Group by tag" }).click();
-  // Starla + Bolt have no tags → the trailing Uncategorized category header.
+  // Starla + Bolt have no tags → the trailing Uncategorized category header. `routeThree`'s census says so.
   await expect(component.getByText("Uncategorized")).toBeVisible();
 });
 
@@ -302,6 +319,17 @@ test("C9-1d an OPEN tag's group starts EXPANDED; a plain tag's group starts coll
     "character.list": characterListResponder([inOpenFolder, inPlainGroup]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => tagLibraryOf({ id: "tag_noir", name: "noir", characters: 1 }, { id: "tag_rpg", name: "rpg", characters: 1 }),
+    // The census carries `folderType` (#1696) — the grouped view's first paint is decided by it, and since
+    // the HEADERS come from the census now, that column has to travel with them rather than be read off a
+    // loaded row (which is the window this whole change is getting out of).
+    "character.listTagGroups": () =>
+      tagGroupCensus(
+        [
+          ["tag_noir", "noir", 1, "OPEN"],
+          ["tag_rpg", "rpg", 1, "NONE"],
+        ],
+        0,
+      ),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Group by tag" }).click();
@@ -1604,6 +1632,11 @@ test("P1-3 a starred row shows its ★ at rest on the TITLE LINE, and it yields 
  *  `totalCount` only. */
 const BIG_CENSUS = 327;
 
+/** The buckets THE LIBRARY has, not the ones the page happens to carry — the whole point of #1696. `rpg`
+ *  holds 47 of the 327 and the pane will have paged in at most one of them. */
+const BIG_RPG_BUCKET = 47;
+const BIG_UNCATEGORIZED = 265;
+
 function routePartialLibrary(page: Page, rows: readonly ReturnType<typeof makeCharacterSummary>[]): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
@@ -1614,6 +1647,7 @@ function routePartialLibrary(page: Page, rows: readonly ReturnType<typeof makeCh
     },
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
+    "character.listTagGroups": () => tagGroupCensus([["tag_rpg", "rpg", BIG_RPG_BUCKET, "NONE"]], BIG_UNCATEGORIZED),
   });
 }
 
@@ -1831,31 +1865,70 @@ test("#493 the status line states the CENSUS; the loaded count moves to the foot
   await expect(component.getByText(`3 of ${String(BIG_CENSUS)} loaded`)).toHaveAttribute("aria-hidden", "true");
 });
 
-// P2-2 — Group produced `ADVENTURE 1 · … · UNCATEGORIZED 27`: four counts summing to the 30 rows paged in,
-// presented as library facts, re-forming under the reader as scrolling pages more in. The mode states its
-// scope now, wherever the loaded set is a strict subset of what matched.
-test("#493 group-by-tag says it is grouping the LOADED page, not the library", async ({ mount, page }) => {
+// ── #1696: THE GROUPING IS A SERVER LENS NOW (side-eye 2026-09-05) ──────────────────────────────────
+// #493 P2-2 measured the defect: Group produced `ADVENTURE 1 · … · UNCATEGORIZED 27` — four counts summing
+// to the 30 rows paged in, presented as library facts, re-forming under the reader as scrolling paged more
+// in. #493 shipped a blanket caveat because the only census available then was lens-blind and had no
+// Uncategorized arm; `character.listTagGroups` is neither, so the caveat is gone and the NUMBERS are the
+// fix. These arms mount a library the pane can never finish paging — 3 rows against a 327-row census — so
+// every header count on screen is one the loaded rows could not have produced.
+test("#1696 group headers carry the LIBRARY's count, not the loaded page's", async ({ mount, page }) => {
   await routePartialLibrary(page, [ARIA, BOLT, CASSIUS]);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Aria Nightshade")).toBeVisible();
   await component.getByRole("button", { name: "Group by tag" }).click();
 
-  await expect(component.getByText(`Grouping the 3 of ${String(BIG_CENSUS)} characters loaded so far`, { exact: false })).toBeVisible();
-  await expect(component.getByText("Uncategorized")).toBeVisible();
+  // The old fold could only ever have said `1` here (one loaded row carries rpg) and `2` for Uncategorized.
+  await expect(component.getByRole("button", { name: `rpg ${String(BIG_RPG_BUCKET)}` })).toBeVisible();
+  await expect(component.getByRole("button", { name: `Uncategorized ${String(BIG_UNCATEGORIZED)}` })).toBeVisible();
+  // …and the blanket caveat is gone with the defect it described.
+  await expect(component.getByText("loaded so far", { exact: false })).toHaveCount(0);
 });
 
-test("#493 a COMPLETE library groups with no caveat — the notice is a claim about partiality, not decoration", async ({ mount, page }) => {
+test("#1696 a bucket that is only PARTLY paged in says so, per bucket", async ({ mount, page }) => {
+  await routePartialLibrary(page, [ARIA, BOLT, CASSIUS]);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Aria Nightshade")).toBeVisible();
+  await component.getByRole("button", { name: "Group by tag" }).click();
+
+  // What survives of #493's ruling: the mode still states its scope — at the resolution that is actually
+  // useful, inside the bucket whose members are a window. Uncategorized starts expanded (it has no
+  // folderType to configure), so its note is on screen without opening anything.
+  await expect(component.getByText(`2 of ${String(BIG_UNCATEGORIZED)} loaded`, { exact: false })).toBeVisible();
+});
+
+test("#1696 a bucket the census names with NO loaded member still gets a header", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
     "character.list": characterListResponder([ARIA, BOLT, CASSIUS]),
-    "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
+    // `vampire` is a real bucket of this library and not one row of it is on this page — the defect's
+    // mirror image, and the reason the HEADERS have to come from the server too rather than only the counts.
+    "character.listTagGroups": () => tagGroupCensus([["tag_vamp", "vampire", 12, "NONE"]], 3),
   });
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Aria Nightshade")).toBeVisible();
   await component.getByRole("button", { name: "Group by tag" }).click();
 
-  await expect(component.getByText("loaded so far", { exact: false })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "vampire 12" })).toBeVisible();
+});
+
+test("#1696 a COMPLETE bucket carries no scope note — the note is a claim about partiality, not decoration", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
+    "character.list": characterListResponder([ARIA, BOLT, CASSIUS]),
+    "tag.listTagFilterVocabulary": () => [],
+    // Every matching row is on this page, and the census says exactly what the three rows are: Aria carries
+    // `rpg`, Bolt and Cassius carry nothing. No bucket is a window, so no bucket owes a scope note.
+    "character.listTagGroups": () => tagGroupCensus([["tag_rpg", "rpg", 1, "NONE"]], 2),
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Aria Nightshade")).toBeVisible();
+  await component.getByRole("button", { name: "Group by tag" }).click();
+
+  await expect(component.getByRole("button", { name: "Uncategorized 2" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "rpg 1" })).toBeVisible();
+  await expect(component.getByText("loaded —", { exact: false })).toHaveCount(0);
   await expect(component.getByText(LOADED_PROGRESS)).toHaveCount(0);
 });
 

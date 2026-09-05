@@ -5,7 +5,7 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { CharacterId, CharacterSnapshotId } from "@orb/kit/ids";
 import type { CharacterListCursor } from "./params.ts";
-import type { CharacterSummary } from "./views.ts";
+import type { CharacterSummary, CharacterTagGroupCensus } from "./views.ts";
 
 /** A handle to a character identity row — the return of the injected synthetic-group mint/find ops
  *  (chat consumes it cross-feature; type-only re-exported from the front door). */
@@ -65,6 +65,23 @@ export interface ListCharactersResult {
    *  `items.length` — the `ChatListPage.totalCount` precedent. The band printed no count at all while the
    *  only number available was "loaded so far"; this is the honest one, so it can print again. */
   readonly totalCount: number;
+}
+
+/**
+ * THE GROUP-BY-TAG CENSUS (#1696) — every bucket the categorized view can render, counted over the request's
+ * lens.
+ *
+ * `uncategorized` is a FIRST-CLASS member rather than a derivation: it is the biggest bucket on a real
+ * library and it cannot be computed from `groups` (a character with two tags is counted in both, so the
+ * group counts do not sum to the matched total). It is also precisely the number the prior arm could not
+ * source at all, which is the reason that arm refused a census outright.
+ */
+export interface ListCharacterTagGroupsResult {
+  /** One bucket per VISIBLE tag that at least one matching character carries — most-populated first, ties
+   *  alphabetical, so the same total order the header list is rendered in has one author (the server). */
+  readonly groups: readonly CharacterTagGroupCensus[];
+  /** Matching characters carrying NO visible tag — the "Uncategorized" bucket. */
+  readonly uncategorized: number;
 }
 
 /** The D148 plugin card-state read verdict (`persistence/plugin-card-data.ts`): `found:false` ⇒ no such OWNED

@@ -22,6 +22,7 @@ import type { ReactElement, ReactNode } from "react";
 import type { CollectionSurface } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
 import { clearCharacterFilters } from "#state";
+import type { TagGroupCensus } from "../lib/character-list-view.ts";
 import { groupByTag } from "../lib/character-list-view.ts";
 import type { CharacterCardItem } from "./character-card.tsx";
 import { CharacterCategorizedList } from "./character-categorized-list.tsx";
@@ -53,9 +54,10 @@ export interface CharacterLibraryBodyProps {
    *  it have I got" is the question, and it is the number the pane's top status line had to stop printing
    *  because at rest it read as a result count (`character-library-lens.ts`'s own note). */
   readonly loadedProgress: string | null;
-  /** The GROUP-BY-TAG mode's scope sentence (`partialGroupingLabel`), `null` when the buckets are complete
-   *  (#493). Only the categorized arm reads it. */
-  readonly partialNotice: string | null;
+  /** The GROUP-BY-TAG census (#1696) — the buckets and their LIBRARY sizes under the current lens, or `null`
+   *  while `character.listTagGroups` is in flight. Only the categorized arm reads it, and only that arm's
+   *  hook asks for it. */
+  readonly tagGroups: TagGroupCensus | null;
   readonly onClearSearch: () => void;
   readonly onRetry: () => void;
   readonly renderRow: (item: CharacterCardItem) => ReactNode;
@@ -73,7 +75,7 @@ export function CharacterLibraryBody({
   isFetchingNextPage,
   listProps,
   loadedProgress,
-  partialNotice,
+  tagGroups,
   onClearSearch,
   onRetry,
   renderRow,
@@ -147,11 +149,10 @@ export function CharacterLibraryBody({
   if (categorized) {
     return (
       <CharacterCategorizedList
-        groups={groupByTag(filtered)}
+        groups={groupByTag(filtered, tagGroups)}
         hasNextPage={hasNextPage}
         isLoadingMore={isFetchingNextPage}
         onLoadMore={listProps.onEndApproach}
-        partialNotice={partialNotice}
         renderRow={renderRow}
       />
     );

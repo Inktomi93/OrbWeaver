@@ -55,6 +55,24 @@ export interface ListCharactersParams extends CharacterActorParams {
   readonly excludeTagIds?: readonly TagId[];
 }
 
+/**
+ * The GROUP-BY-TAG census request (#1696) — the same lens axes {@link ListCharactersParams} carries, and
+ * NOTHING ELSE. No `sort`, no `cursor`, no `limit`: a census is not a page, and every one of those three
+ * would be a way to make the answer window-dependent again, which is the whole defect.
+ */
+export interface ListCharacterTagGroupsParams extends CharacterActorParams {
+  /** SERVER-SIDE search over the WHOLE library — the same predicate the page uses. */
+  readonly search?: string;
+  /** `true` = favorites only · `false` = unstarred only · omitted = both. */
+  readonly starred?: boolean;
+  /** `false` = the library's Archived-toggle-OFF state · `true` = archived only · omitted = both. */
+  readonly archived?: boolean;
+  /** AND-semantics: a row must carry EVERY one of these accepted tags. */
+  readonly includeTagIds?: readonly TagId[];
+  /** AND-semantics: a row must carry NONE of these accepted tags. */
+  readonly excludeTagIds?: readonly TagId[];
+}
+
 /** What a caller writing from an OLD basis declares it merged against (#1446/#1560) — the card state the
  *  write is conditional on. `contentHash` covers the card's IDENTITY; every member beside it is a field a
  *  stale-basis caller may WRITE that the hash deliberately does not witness (`#kit/serde/card`
