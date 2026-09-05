@@ -181,25 +181,44 @@ describe("invite-token path redaction (F1 — the bearer token is never persiste
   });
 });
 
-// A minimal Hono-Context stand-in: `observabilityErrorHandler` only touches `c.text(body, status)` (the
-// same posture the middleware test above uses for its mock Context). `c.text` returns a real Response so
-// the 500 shape can be asserted without pulling Hono into the test.
+// A minimal Hono-Context stand-in for the error path. It carries what BOTH arms of the handler touch:
+// `c.text(body, status)` (the 500), and — for the throw-ABOVE-the-scope arm (#1479) — `c.req.*` and
+// `c.header()`. `text` merges the prepared headers exactly as Hono's `newResponse` does, so the
+// X-Request-Id stamp is observable on the returned Response.
 const INTERNAL_ERROR = 500;
-interface MockErrorCtx {
+interface MockErrorCtx extends MockCtx {
+  readonly prepared: Headers;
+  header: (name: string, value: string) => void;
   text: (body: string, status: number) => Response;
 }
-const errorCtx: MockErrorCtx = {
-  text: (body: string, status: number): Response => new Response(body, { status }),
-};
+
+function makeErrorCtx(opts: { path?: string; method?: string; incomingId?: string } = {}): MockErrorCtx {
+  const prepared = new Headers();
+  return {
+    req: {
+      path: opts.path ?? "/api/chats",
+      method: opts.method ?? "GET",
+      header: (name: string): string | undefined => (name.toLowerCase() === "x-request-id" ? opts.incomingId : undefined),
+    },
+    res: { status: INTERNAL_ERROR, headers: new Headers() },
+    get: (_key: "principal"): MockPrincipal | null => null,
+    prepared,
+    header: (name: string, value: string): void => {
+      prepared.set(name, value);
+    },
+    text: (body: string, status: number): Response => new Response(body, { status, headers: prepared }),
+  };
+}
 
 describe("observabilityErrorHandler (the thrown-request path, PD-118)", () => {
   test("logs ONE request.thrown error line carrying the err, and returns Hono's default 500 text", async () => {
     // pino output is silenced (LOG_LEVEL=silent) in tests; spy `logger.error` directly (the same posture
-    // as client-error.test.ts). Called OUTSIDE `runInRequest`, so getLog() resolves to the base logger.
+    // as client-error.test.ts). A pino child (`runInRequest`) is `Object.create(parent)`, so a child minted
+    // after this spy inherits it — the assertion holds on both arms.
     const spy = vi.spyOn(logger, "error");
     const err = new Error("handler-blew-up");
-    // ErrorHandler's return type is `Response | Promise<Response>`; await covers both (our impl is sync).
-    const res = await observabilityErrorHandler(err, errorCtx as never);
+    // ErrorHandler's return type is `Response | Promise<Response>`; await covers both.
+    const res = await observabilityErrorHandler(err, makeErrorCtx() as never);
 
     expect(spy).toHaveBeenCalledOnce();
     const [fields, msg] = spy.mock.calls[0] as [Record<string, unknown>, string];
@@ -209,5 +228,50 @@ describe("observabilityErrorHandler (the thrown-request path, PD-118)", () => {
     // The client-visible response is unchanged from Hono's default onError — this is an observability fix.
     expect(res.status).toBe(INTERNAL_ERROR);
     expect(await res.text()).toBe("Internal Server Error");
+  });
+
+  // #1479 — a throw from a middleware mounted ABOVE `observability` (the auth seam) never enters the
+  // request scope: no id, no ring entry, no trace. Hono's compose catches it at its own dispatch frame, so
+  // onError is the ONLY place that can see it, and this is the arm that does. The mount order is untouched.
+  test("a throw ABOVE the scope records the request itself: ring entry + trace + the X-Request-Id stamp", async () => {
+    initTracing();
+    const incomingId = "above-scope-req-1";
+    const res = await observabilityErrorHandler(new Error("auth-blew-up"), makeErrorCtx({ path: "/api/chats", incomingId }) as never);
+
+    expect(res.headers.get("X-Request-Id")).toBe(incomingId);
+    const record = recentRequests(200).find((r) => r.id === incomingId);
+    expect(record?.status).toBe(INTERNAL_ERROR);
+    expect(record?.path).toBe("/api/chats");
+    expect(record?.method).toBe("GET");
+    expect(getTraceByRequestId(incomingId)?.status).toBe("error");
+  });
+
+  test("…the id it records obeys the SAME charset guard (a malicious header never reaches the ring)", async () => {
+    const malicious = "abc def\nSet-Cookie: evil";
+    await observabilityErrorHandler(new Error("auth-blew-up"), makeErrorCtx({ path: "/api/chats", incomingId: malicious }) as never);
+    expect(recentRequests(200).some((r) => r.id === malicious)).toBe(false);
+  });
+
+  test("…and a /join/<token> path is REDACTED in that record (the capability never enters the ring)", async () => {
+    const incomingId = "above-scope-join-1";
+    await observabilityErrorHandler(new Error("auth-blew-up"), makeErrorCtx({ path: "/join/secret-capability", incomingId }) as never);
+    const record = recentRequests(200).find((r) => r.id === incomingId);
+    expect(record?.path).toBe("/join/:token");
+  });
+
+  // The CONTROL for the arm split: a context the middleware DID observe takes the legacy path — the ring
+  // entry is the middleware's own (status 200), and the error handler adds no second one.
+  test("a context the middleware already observed is NOT re-recorded by the error handler", async () => {
+    initTracing();
+    const incomingId = "observed-then-thrown-1";
+    const ctx = makeErrorCtx({ path: "/api/chats", incomingId });
+    // FABRICATION-OK: narrowing the real Hono middleware to the minimal test-local call-shape.
+    await (observability as unknown as MiddlewareFn)(ctx, (): Promise<void> => Promise.resolve());
+
+    await observabilityErrorHandler(new Error("handler-blew-up"), ctx as never);
+
+    const records = recentRequests(200).filter((r) => r.id === incomingId);
+    expect(records).toHaveLength(1);
+    expect(records[0]?.status).toBe(INTERNAL_ERROR);
   });
 });

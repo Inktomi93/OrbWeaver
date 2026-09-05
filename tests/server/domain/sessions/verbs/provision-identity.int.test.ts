@@ -5,9 +5,9 @@ import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { logger } from "@orb/server/foundation/observability";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService } from "../_support.ts";
 
@@ -38,7 +38,12 @@ function asProvisioned(result: ProvisionOut): Provisioned {
 }
 
 async function rowCount(): Promise<number> {
-  return (await db.select().from(users)).length;
+  return await rowCountOn(db);
+}
+
+/** `rowCount` against an explicit handle — the race tests below drive their own held db. */
+async function rowCountOn(on: Db): Promise<number> {
+  return (await on.select().from(users)).length;
 }
 
 beforeEach(async () => {
@@ -746,5 +751,62 @@ describe("sessions.provisionIdentity — requireApproval gate (A2, OIDC_REQUIRE_
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     const result = asProvisioned(await svc.provisionIdentity(identity()));
     expect(result.enabled).toBe(true);
+  });
+});
+
+// #1478 — THE INSERT RACE. `insertUser` is a bare `onConflictDoNothing()`, so a concurrent writer that took
+// this HANDLE makes our insert a silent no-op; the re-read then keys on `externalId`, which the WINNER does
+// not carry, and the verb used to throw a raw Error whose own comment called that state "Unreachable" (a
+// 500 on the login path, and a comment asserting the case away). The refusal is the same operator-actionable
+// `account-exists` the sequential collision path (MS-W1) returns — never an adoption of the winner's row.
+describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", () => {
+  /** Plant a colliding row while the provisioning INSERT is parked before the driver. RAW sql on purpose:
+   *  drizzle quotes the table name, so this statement does not match the hold pattern and is not itself
+   *  held. */
+  const plantOtherSubject = `insert into users (id, handle, external_id, role, enabled, created_at, updated_at)
+                               values ('user_winner', 'alice', 'authentik|someone-else', 'user', 1, 1, 1)`;
+
+  test("a concurrent writer taking the HANDLE ⇒ denied account-exists; the winner's row is untouched", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const held = await freshHeldDb();
+    const service = makeService(held.db).svc;
+    const warn = vi.spyOn(logger, "warn");
+    const parked = held.hold(/insert into "users"/i);
+
+    const pending = service.provisionIdentity(identity());
+    await parked.reached;
+    await held.db.run(sql.raw(plantOtherSubject));
+    parked.release();
+
+    // The login is REFUSED with the collision reason the OIDC callback maps to its own authError…
+    expect(await pending).toEqual({ outcome: "denied", reason: "account-exists" });
+    // …no second row was minted, and the winner keeps its own subject (no rebind, no adoption).
+    const rows = await held.db.select().from(users);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.externalId).toBe("authentik|someone-else");
+    // …and the refusal rides the security trail, naming the collision rather than a stack trace.
+    const line = warn.mock.calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["event"] === "sso_insert_lost_race");
+    expect(line?.["security"]).toBe(true);
+    expect(line?.["handleTaken"]).toBe(true);
+  });
+
+  test("the SAME-subject race still resolves onto the winner's row (the shape the insert absorbs by design)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const held = await freshHeldDb();
+    const service = makeService(held.db).svc;
+    const parked = held.hold(/insert into "users"/i);
+
+    const pending = service.provisionIdentity(identity());
+    await parked.reached;
+    // The concurrent first login of the SAME identity: same handle AND same stable subject.
+    await held.db.run(
+      sql.raw(`insert into users (id, handle, external_id, role, enabled, created_at, updated_at)
+               values ('user_twin', 'alice', '${EXTERNAL}', 'user', 1, 1, 1)`),
+    );
+    parked.release();
+
+    const result = asProvisioned(await pending);
+    expect(result.userId).toBe("user_twin");
+    expect(await rowCountOn(held.db)).toBe(1);
   });
 });

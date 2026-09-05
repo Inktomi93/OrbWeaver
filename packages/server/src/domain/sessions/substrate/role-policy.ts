@@ -91,7 +91,12 @@ export function isSubjectMismatch(existingExternalId: ExternalId | null, incomin
  *  — it re-spells no `role === "owner"` (the `owner-role-split` gate's target), so a consumer that needs the
  *  binary "is this the owner?" question calls THIS instead of comparing a derived role literal. */
 export function isOwnerByPolicy(handle: Handle, groups: string[]): boolean {
-  const ownerGroup = process.env["OWNER_GROUP"];
+  // TRIMMED like every sibling group var (#1478 item 3). `csv()` trims each configured OWNER_HANDLES /
+  // OIDC_ADMIN_GROUPS / OIDC_ALLOWED_GROUPS entry and the OIDC callback trims each CLAIMED group name, so
+  // comparing this one raw meant a `OWNER_GROUP=" owners "` box never granted owner at all — and a
+  // whitespace-only value matched a whitespace-only claim. Trim ONLY: the compare stays EXACT
+  // (case-sensitive, no prefix/fuzzy match), because anything looser is an elevation widening.
+  const ownerGroup = process.env["OWNER_GROUP"]?.trim();
   if (ownerGroup !== undefined && ownerGroup.length > 0 && groups.includes(ownerGroup)) {
     return true;
   }

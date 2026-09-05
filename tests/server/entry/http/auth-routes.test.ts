@@ -677,7 +677,7 @@ describe("OIDC groups-claim parsing (A4 — array | joined-string | single-strin
   const groupsFor = (groups: unknown, separator?: string): readonly string[] | undefined =>
     identityFromClaims({ preferred_username: "u", sub: "s", groups }, claims, separator)?.groups;
 
-  test("an ARRAY is taken as-is (prior behavior, unchanged)", () => {
+  test("an ARRAY yields its string members", () => {
     expect(groupsFor(["a", "b"])).toEqual(["a", "b"]);
   });
 
@@ -708,6 +708,21 @@ describe("OIDC groups-claim parsing (A4 — array | joined-string | single-strin
 
   test("an array with non-string members keeps only the strings", () => {
     expect(groupsFor(["a", 1, null, "b"])).toEqual(["a", "b"]);
+  });
+
+  // #1478 item 4 — ONE normalisation for both claim shapes. The CONFIG side is trimmed everywhere
+  // (`csv()` for OIDC_ADMIN_GROUPS / OIDC_ALLOWED_GROUPS / OWNER_HANDLES, and OWNER_GROUP since the same
+  // issue), so a padded member in an ARRAY-shaped claim matched no configured name — an unexpected DENY
+  // under OIDC_ALLOWED_GROUPS, or a missing elevation under the admin/owner lists.
+  test("an ARRAY member is TRIMMED and empties dropped — the same normalisation as the joined-string branch", () => {
+    expect(groupsFor([" admins ", "staff\t", "", "   "])).toEqual(["admins", "staff"]);
+  });
+
+  test("…and trimming never WIDENS the match — a near-miss member stays a different group", () => {
+    // Config-side names are compared exactly (`intersects`/`includes`), so " admins " must land on
+    // `admins` and "admin" must NOT.
+    expect(groupsFor(["admin"])).toEqual(["admin"]);
+    expect(groupsFor([" Neo Owners "])).toEqual(["Neo Owners"]);
   });
 });
 

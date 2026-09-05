@@ -847,20 +847,28 @@ function registerBackchannelLogout(app: Hono, deps: AuthRoutesDeps, oidc: OidcRo
   );
 }
 
-/** A4 — parse the groups-claim VALUE. An array yields its string members (unchanged prior behavior); a
- *  single string is split on the configured separator (an authentik property mapping may emit a ';'-joined
- *  string), trimmed, empties dropped — a string with no separator is one group. Anything else ⇒ []. Before
- *  this, a joined string yielded [], which under `OIDC_ALLOWED_GROUPS` denied EVERY login (a fail-closed
- *  misconfiguration that reads like a broken IdP). */
+/** THE group-name normalisation, shared by both claim shapes (#1478 item 4): trim each name, drop the
+ *  empties. It is ONE function because the CONFIG side is trimmed everywhere it is parsed (`csv()` for
+ *  OIDC_ADMIN_GROUPS / OIDC_ALLOWED_GROUPS / OWNER_HANDLES, and `isOwnerByPolicy` for OWNER_GROUP) and the
+ *  comparison against it is EXACT — so a name normalised on one side and not the other silently matches
+ *  nothing. Trim only: no case folding, no prefix matching, because every one of those lists grants
+ *  something. */
+function cleanGroupNames(names: readonly string[]): string[] {
+  return names.map((name) => name.trim()).filter((name) => name.length > 0);
+}
+
+/** A4 — parse the groups-claim VALUE. An array yields its string members; a single string is split on the
+ *  configured separator (an authentik property mapping may emit a ';'-joined string) — a string with no
+ *  separator is one group. Both shapes then go through {@link cleanGroupNames}. Anything else ⇒ []. Before
+ *  A4, a joined string yielded [], which under `OIDC_ALLOWED_GROUPS` denied EVERY login (a fail-closed
+ *  misconfiguration that reads like a broken IdP); before #1478 the ARRAY branch skipped the trim, so a
+ *  padded member of an array-shaped claim matched no configured name either. */
 function normalizeGroups(raw: unknown, separator: string): string[] {
   if (Array.isArray(raw)) {
-    return raw.filter((g): g is string => typeof g === "string");
+    return cleanGroupNames(raw.filter((g): g is string => typeof g === "string"));
   }
   if (typeof raw === "string" && raw.length > 0) {
-    return raw
-      .split(separator)
-      .map((g) => g.trim())
-      .filter((g) => g.length > 0);
+    return cleanGroupNames(raw.split(separator));
   }
   return [];
 }

@@ -276,6 +276,11 @@ export function createLifecycle(): Lifecycle {
     if (booted) {
       return;
     }
+    // SET BEFORE THE PROTOCOL, ON PURPOSE (#1479 item 2, refuted as a defect): this is the IN-FLIGHT latch
+    // of `if (booted) return`, not an "initialization finished" flag — nothing else reads it. Moving the
+    // assignment after the bind below would let a second `boot()` re-run migrations, the seeds, compose and
+    // the listener bind concurrently. A boot FAILURE never leaves it stale either: `entry/index.ts` exits
+    // the process (there is no in-process retry to unblock).
     booted = true;
 
     // Boot the OTel SDK BEFORE any span opens (the db wrap below opens the first spans). Idempotent — the

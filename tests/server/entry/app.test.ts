@@ -338,6 +338,61 @@ describe("createApp", () => {
     expect(trace.spans.some((s) => s.events.some((e) => e.name === "exception"))).toBe(true);
   });
 
+  // #1479 — AUTH-INFRASTRUCTURE FAULTS ARE OBSERVABLE. The principal-resolution middleware is mounted ABOVE
+  // `observability` on purpose (it must resolve the Principal the middleware binds, without widening the
+  // request span to include auth's own latency — `app.ts`'s note), and Hono's compose catches a throw at ITS
+  // OWN dispatch frame, so no outer `next()` can see it. That left a throwing `resolvePrincipal` — a db
+  // outage, a JWKS fault, exactly the class worth seeing — invisible to /api/_debug/requests and /traces.
+  // `app.onError` is the one place that can observe it, and it now does when the scope was never opened.
+  test("#1479: a throw in the AUTH middleware (above observability) lands in the request ring + trace, and still 500s", async () => {
+    initTracing();
+    const requestId = "auth-fault-req-1";
+    const throwingSeam: AuthSeam = {
+      resolvePrincipal: (): Promise<SeamResult> => Promise.reject(new Error("boom-auth-infra")),
+      debugGateAdmits: (): boolean => false,
+    };
+    const app = createApp(deps({ seam: throwingSeam }));
+
+    const res = await hit(app, new Request("http://localhost/healthz", { headers: { "X-Request-Id": requestId } }));
+
+    // The client contract is unchanged — the same 500 Hono's default onError returns.
+    expect(res.status).toBe(INTERNAL_ERROR);
+    expect(await res.text()).toBe("Internal Server Error");
+    // …and the caller now gets a correlation handle for /api/_debug/logs?requestId=… on THIS failure.
+    expect(res.headers.get("X-Request-Id")).toBe(requestId);
+
+    const records = recentRequests(500).filter((r) => r.id === requestId);
+    expect(records).toHaveLength(1); // exactly one — the observed arm must not also record it
+    expect(records[0]?.status).toBe(INTERNAL_ERROR);
+    expect(records[0]?.path).toBe("/healthz");
+    expect(records[0]?.method).toBe("GET");
+    // Auth never resolved, so there is no caller to attribute the request to.
+    expect(records[0]?.userId).toBeUndefined();
+
+    const trace = getTraceByRequestId(requestId);
+    expect(trace?.status).toBe("error");
+  });
+
+  // The ring is a REQUEST INDEX, and `/join/<token>` carries a bearer capability in its path. The observed
+  // path has redacted it since the ring existed; the auth-fault path must not be the hole that writes the
+  // raw token into a 500-entry ring the debug surface serves.
+  test("#1479: an auth fault on /join/<token> records the REDACTED path — the capability never enters the ring", async () => {
+    initTracing();
+    const requestId = "auth-fault-join-1";
+    const secret = "jointoken-must-not-be-recorded";
+    const throwingSeam: AuthSeam = {
+      resolvePrincipal: (): Promise<SeamResult> => Promise.reject(new Error("boom-auth-infra")),
+      debugGateAdmits: (): boolean => false,
+    };
+    const app = createApp(deps({ seam: throwingSeam }));
+
+    await hit(app, new Request(`http://localhost/join/${secret}`, { headers: { "X-Request-Id": requestId } }));
+
+    const record = recentRequests(500).find((r) => r.id === requestId);
+    expect(record?.path).toBe("/join/:token");
+    expect(JSON.stringify(recentRequests(500))).not.toContain(secret);
+  });
+
   // Parity gap #1: the tRPC mount caps JSON bodies at 1 MiB (hono/body-limit belt). An oversized POST to
   // the mount is rejected 413 by the belt BEFORE the handler buffers it (and before auth/routing) — a bare
   // 413, not an observability-flattened 500. A tiny body under the cap sails past the belt (proven by NOT

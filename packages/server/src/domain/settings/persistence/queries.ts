@@ -8,6 +8,7 @@
 // caller, where a per-verb check is a convention the next verb forgets. `substrate/stored-config.ts`
 // carries the reasoning + the tradeoff.
 
+import type { AssetKind } from "@orb/contracts/assets";
 import type { UserSettings } from "@orb/contracts/settings";
 import { appSettingsConfig, DEFAULT_USER_SETTINGS, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
@@ -17,7 +18,8 @@ import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import { and, eq, exists, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, eq, exists, inArray, sql } from "drizzle-orm";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 import type { GlobalSettingView, UserSettingsView } from "../contract/views.ts";
 import { requireIntactStoredConfig } from "../substrate/stored-config.ts";
@@ -60,6 +62,67 @@ export async function ensureUserSettings(db: Db, ownerId: UserId, at: number): P
     .onConflictDoNothing();
 }
 
+// The ONE asset kind a background may be. Every writer of a `backgroundAssetId` / `backgroundLibrary`
+// entry stores exactly this kind — the appearance upload field, `materializeBackground` (the pasted-URL
+// arm), and the ST profile import — so the predicate below refuses nothing the product produces.
+const BACKGROUND_ASSET_KIND: AssetKind = "background";
+
+/** The ONE refusal both halves of the background predicate raise (the pre-write check and the guards that
+ *  ride the UPDATE), so which half refused is not observable — and neither names the asset. */
+function backgroundUnavailable(): DomainOperationError {
+  return new DomainOperationError("background_unavailable", "A background asset is no longer available.");
+}
+
+/** The background assets a config PINS: the `asset`-kind current selection plus every library entry,
+ *  deduped. These are exactly the ids the write predicate has to clear. */
+function pinnedBackgroundAssetIds(config: UserSettings): AssetId[] {
+  const current =
+    config.appearance.backgroundImageKind === "asset" && config.appearance.backgroundAssetId.length > 0
+      ? [castId<AssetId>(config.appearance.backgroundAssetId)]
+      : [];
+  const ids = [...current, ...config.appearance.backgroundLibrary.map((entry) => entry.assetId)];
+  return ids.filter((id, index, all) => all.indexOf(id) === index);
+}
+
+/** THE background predicate as EXISTS subqueries that RIDE the UPDATE (atomic with the write): every pinned
+ *  id must name an asset this user owns AND whose `kind` is `background`. Ownership alone is not the
+ *  question (#1478 item 1) — a user's own card / avatar / export asset id is owned but is not a background,
+ *  and accepting one leaves the background plane semantically corrupt while the write reports success. */
+function ownedBackgroundGuards(db: Db, ownerId: UserId, ids: readonly AssetId[]): SQL[] {
+  return ids.map((id) =>
+    exists(
+      db
+        .select({ one: sql`1` })
+        .from(assets)
+        .where(and(eq(assets.id, id), eq(assets.ownerId, ownerId), eq(assets.kind, BACKGROUND_ASSET_KIND))),
+    ),
+  );
+}
+
+/**
+ * {@link ownedBackgroundGuards} evaluated STANDALONE, before anything is written. `writeUserConfig` must
+ * seed the row before it can UPDATE it, so without this a refused FIRST write left a defaults-only row
+ * behind (#1478 item 2): the refusal has to be decided before the seed. The guards still ride the UPDATE as
+ * the atomic belt — this is a PRE-WRITE CHECK whose window is one statement (`db.transaction` is banned in
+ * product code and `batchMany` bans a SELECT ahead of its writes, `@orb/db/kit/batch`, so a guard subquery
+ * inside the write plus this check are the reachable shapes). Inside that window the write still REFUSES
+ * (fail-closed — the guards decide it); only the no-row property degrades.
+ */
+async function requireOwnedBackgrounds(db: Db, ownerId: UserId, ids: readonly AssetId[]): Promise<void> {
+  if (ids.length === 0) {
+    return;
+  }
+  const cleared = await db
+    .select({ id: assets.id })
+    .from(assets)
+    .where(and(eq(assets.ownerId, ownerId), eq(assets.kind, BACKGROUND_ASSET_KIND), inArray(assets.id, [...ids])));
+  // `ids` is deduped and `assets.id` is the PK, so a cleared id contributes exactly one row: a short count
+  // means at least one pinned id is missing, someone else's, or not a background.
+  if (cleared.length !== ids.length) {
+    throw backgroundUnavailable();
+  }
+}
+
 /** Seed-then-UPDATE the user's config blob; schemaVersion is service-owned (pinned to the current constant).
  *
  *  REFUSES (`DomainOperationError(stored_config_unreadable)`) when a row already exists whose blob cannot be
@@ -72,27 +135,17 @@ export async function writeUserConfig(db: Db, ownerId: UserId, config: UserSetti
   if (row !== undefined) {
     requireIntactStoredConfig(userSettingsConfig.parseOutcome(row.config, row.schemaVersion), `user_settings for ${ownerId}`);
   }
+  const ids = pinnedBackgroundAssetIds(config);
+  // THE PREDICATE IS EVALUATED BEFORE THE SEED (#1478 item 2) — see `requireOwnedBackgrounds`.
+  await requireOwnedBackgrounds(db, ownerId, ids);
   await ensureUserSettings(db, ownerId, at);
-  const current =
-    config.appearance.backgroundImageKind === "asset" && config.appearance.backgroundAssetId.length > 0
-      ? [castId<AssetId>(config.appearance.backgroundAssetId)]
-      : [];
-  const ids = [...current, ...config.appearance.backgroundLibrary.map((entry) => entry.assetId)].filter((id, index, all) => all.indexOf(id) === index);
-  const owned = ids.map((id) =>
-    exists(
-      db
-        .select({ one: sql`1` })
-        .from(assets)
-        .where(and(eq(assets.id, id), eq(assets.ownerId, ownerId))),
-    ),
-  );
   const written = await db
     .update(userSettings)
     .set({ config, schemaVersion: USER_SETTINGS_SCHEMA_VERSION, updatedAt: at })
-    .where(and(eq(userSettings.userId, ownerId), ...owned))
+    .where(and(eq(userSettings.userId, ownerId), ...ownedBackgroundGuards(db, ownerId, ids)))
     .returning({ userId: userSettings.userId });
   if (written.length === 0) {
-    throw new DomainOperationError("background_unavailable", "A background asset is no longer available.");
+    throw backgroundUnavailable();
   }
 }
 
