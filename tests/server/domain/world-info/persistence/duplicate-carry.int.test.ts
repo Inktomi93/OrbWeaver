@@ -115,6 +115,24 @@ describe("createCopyCharacterBooks", () => {
     expect((await junctionsFor(db, from)).length).toBe(2);
   });
 
+  // RETRY CONVERGENCE: `duplicate` can fail after this carry landed (a later statement, a crashed process),
+  // and the operator's retry re-runs the whole verb. The junction PK is (characterId, worldBookId), so a
+  // bare insert makes the second carry throw a UNIQUE violation instead of converging on the state the first
+  // one already reached — a carry that is not idempotent turns a benign retry into a permanent failure.
+  test("a REPEATED carry converges instead of failing on the junction PK", async () => {
+    const db = await freshDb();
+    const owner = (await seedUser(db, {})).id;
+    const from = (await seedCharacter(db, { ownerId: owner })).id;
+    const to = (await seedCharacter(db, { ownerId: owner })).id;
+    const primary = await seedAttachedBook(db, { bookId: "world_book_primary", ownerId: owner, characterId: from, role: "primary" });
+    const carry = createCopyCharacterBooks({ db, now: (): number => NOW });
+
+    await carry({ ownerId: owner, fromCharacterId: from, toCharacterId: to });
+    await carry({ ownerId: owner, fromCharacterId: from, toCharacterId: to });
+
+    expect(await junctionsFor(db, to)).toEqual([{ worldBookId: primary, role: "primary" }]);
+  });
+
   test("a source with zero attached books is a no-op (no junction rows, no books)", async () => {
     const db = await freshDb();
     const owner = (await seedUser(db, {})).id;

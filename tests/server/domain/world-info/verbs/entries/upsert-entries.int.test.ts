@@ -77,6 +77,88 @@ describe("upsertEntries", () => {
     expect(after[0]?.content).toBe("the HOST's careful wording");
   });
 
+  // `title` IS the upsert key within the book (contracts/world-info, the UpsertLoreEntryInput doc), so two
+  // inputs carrying the same title in ONE request are two writes to ONE key: the second must land on the row
+  // the first just wrote. A prior-snapshot that is never folded forward made both inputs see `prior ===
+  // undefined` and INSERT, minting two rows under one key — the state no consumer's re-run can ever repair
+  // (the next run's snapshot then has two candidates for the same title).
+  test("two same-title inputs in ONE request fold onto the SAME entry (title is the upsert key)", async () => {
+    const db = await freshDb();
+    const svc = createWorldInfoService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
+
+    const result = await svc.upsertEntries({
+      principal: principal(owner),
+      bookId: book.id,
+      entries: [
+        { title: "Fact", keys: ["k"], content: "first", span: SPAN },
+        { title: "Fact", keys: ["k2"], content: "second", span: SPAN },
+      ],
+    });
+
+    expect(result).toEqual({ inserted: 1, updated: 1, skippedHandEdited: 0 });
+    const entries = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.content).toBe("second");
+    expect(entries[0]?.keys).toEqual(["k2"]);
+  });
+
+  // The same fold on the UPDATE arm. A FENCE, not a defect proof — it was green before the fold too (both
+  // updates already targeted the one prior row) — and it is what fails if the fold is ever "fixed" by
+  // REFUSING a repeated title instead: this arm must keep applying both writes in order.
+  test("a same-title pair over an EXISTING entry applies both writes in order (last wins)", async () => {
+    const db = await freshDb();
+    const svc = createWorldInfoService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
+    await svc.upsertEntries({ principal: principal(owner), bookId: book.id, entries: [{ title: "Fact", keys: ["k"], content: "v1", span: SPAN }] });
+
+    const result = await svc.upsertEntries({
+      principal: principal(owner),
+      bookId: book.id,
+      entries: [
+        { title: "Fact", keys: ["k"], content: "v2", span: SPAN },
+        { title: "Fact", keys: ["k"], content: "v3", span: SPAN },
+      ],
+    });
+
+    expect(result).toEqual({ inserted: 0, updated: 2, skippedHandEdited: 0 });
+    const entries = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.content).toBe("v3");
+  });
+
+  // The hand-edit belt survives the fold: a curated row stays curated for EVERY input naming its title.
+  // A FENCE (green before the fold as well): it is what fails if the fold ever stamps a SKIPPED row forward
+  // as though the writer had rewritten it, which would disarm the guard mid-request.
+  test("a hand-edited entry is skipped for BOTH same-title inputs", async () => {
+    const db = await freshDb();
+    const svc = createWorldInfoService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
+    await svc.upsertEntries({ principal: principal(owner), bookId: book.id, entries: [{ title: "Fact", keys: ["k"], content: "machine", span: SPAN }] });
+    const [seeded] = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    if (seeded === undefined) {
+      throw new Error("entry missing");
+    }
+    await svc.updateEntry({ principal: principal(owner), entryId: seeded.id, input: { content: "the HOST's wording" } });
+
+    const result = await svc.upsertEntries({
+      principal: principal(owner),
+      bookId: book.id,
+      entries: [
+        { title: "Fact", keys: ["k"], content: "rewrite a", span: SPAN },
+        { title: "Fact", keys: ["k"], content: "rewrite b", span: SPAN },
+      ],
+    });
+
+    expect(result).toEqual({ inserted: 0, updated: 0, skippedHandEdited: 2 });
+    const after = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    expect(after).toHaveLength(1);
+    expect(after[0]?.content).toBe("the HOST's wording");
+  });
+
   test("a foreign book is NotFound — nothing written", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);

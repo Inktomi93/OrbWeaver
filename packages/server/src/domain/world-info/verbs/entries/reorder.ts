@@ -1,7 +1,8 @@
 // verb: applyEntryOrder — rewrite the display/injection order of an owned book's entries into the `priority`
 // column (no separate order column; `listEntries` reads `priority DESC`). Book ownership gated first; the
-// supplied ids are intersected with the book's real entries (stale/foreign ids dropped, caller order
-// preserved); entries in the book but absent from the list keep their existing priority. Position i →
+// supplied ids are intersected with the book's real entries (stale/foreign ids dropped, REPEATS collapsed to
+// their first occurrence, caller order preserved); entries in the book but absent from the list keep their
+// existing priority. Position i →
 // `priority = N - i` (position 0 → highest = N, last → 1; always positive + distinct). One atomic batch.
 
 import { worldEntries } from "@orb/db";
@@ -25,7 +26,13 @@ export function createReorder(ctx: WorldInfoContext): WorldInfoService["applyEnt
     }
 
     const owned = new Set((await listBookEntries(ctx.db, bookId)).map((e) => e.id));
-    const ids = orderedEntryIds.filter((id) => owned.has(id));
+    // DEDUPE, first occurrence wins — a repeated id is ONE position in the requested order, not two. Counted
+    // twice it inflated `total`, so the LATER statement for that id overwrote the earlier one with a LOWER
+    // priority: the entry sank below rows the caller had placed after it, i.e. a duplicate silently produced
+    // an order the caller never asked for, and `reordered` claimed more entries than the book holds.
+    // Refusing instead is not open: `orderedEntryIds` is documented as best-effort ("stale/foreign ids
+    // silently dropped", contract/params) and a client re-sending a list is not an error case.
+    const ids = [...new Set(orderedEntryIds.filter((id) => owned.has(id)))];
     if (ids.length === 0) {
       return { reordered: 0 };
     }

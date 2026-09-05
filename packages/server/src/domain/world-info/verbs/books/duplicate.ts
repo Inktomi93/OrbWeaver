@@ -1,8 +1,9 @@
 // verb: duplicateBook — deep-copy an owned book + ALL its entries into a fresh `"<name> (copy)"` book.
 // Everything in ONE atomic `db.batch`: a crash can't leave a partial entry set. New ids for the book AND
 // every entry; `createdAt` is `now` (not copied). Each entry row is spread verbatim (title/description/
-// content/keys/enabled/priority/ignoreBudget/metadata carry over) with only `id`/`worldBookId`/`createdAt`
-// overridden. Attachments are NOT copied — the duplicate is a fresh editable copy, unattached at every scope.
+// content/keys/enabled/priority/ignoreBudget/metadata carry over) with `id`/`worldBookId` overridden and
+// BOTH stamps (`createdAt`/`updatedAt`) taken from the injected clock — a copy's stamps are its own, never
+// the source's. Attachments are NOT copied — the duplicate is a fresh editable copy, unattached at every scope.
 
 import { worldBooks, worldEntries } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
@@ -33,7 +34,11 @@ export function createDuplicate(ctx: WorldInfoContext): WorldInfoService["duplic
         description: source.description,
         createdAt: at,
       }),
-      ...entries.map((e) => ctx.db.insert(worldEntries).values({ ...e, id: ctx.newEntryId(), worldBookId: newBookId, createdAt: at })),
+      // `updatedAt` is stamped, never spread: the copy is a NEW row, so the source's edit stamp is not its
+      // history. Carrying it made a freshly duplicated entry claim it was last edited before the book that
+      // holds it existed — the "edited" stamp a list pane sorts on (worldEntries.updatedAt) reporting an
+      // event that never happened to this row.
+      ...entries.map((e) => ctx.db.insert(worldEntries).values({ ...e, id: ctx.newEntryId(), worldBookId: newBookId, createdAt: at, updatedAt: at })),
     ];
     await ctx.db.batch(batchMany(stmts));
 

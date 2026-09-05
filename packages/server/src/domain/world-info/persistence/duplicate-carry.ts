@@ -22,6 +22,9 @@
 //     are DROPPED SILENTLY (this op returns void and `duplicate` has no report channel; refusing the whole
 //     carry would let one stranger-owned junction row break a user's own duplicate — the twin likewise
 //     skips rather than refuses).
+//
+// RETRY-SAFE: the attach insert is `onConflictDoNothing` on the (characterId, worldBookId) PK, so a carry
+// re-run after a later failure in `duplicate` converges instead of erroring on rows it already wrote.
 
 import { characterBooks, characters, worldBooks } from "@orb/db";
 import { and, eq, inArray } from "drizzle-orm";
@@ -59,13 +62,20 @@ export function createCopyCharacterBooks(ctx: WorldInfoDuplicateCarryContext): C
       return;
     }
     const at = ctx.now();
-    await db.insert(characterBooks).values(
-      rows.map((r) => ({
-        characterId: toCharacterId,
-        worldBookId: r.worldBookId,
-        role: r.role,
-        createdAt: at,
-      })),
-    );
+    // IDEMPOTENT (the `import-write` attach precedent): the junction PK is (characterId, worldBookId), so a
+    // re-run — `duplicate` failing after this carry landed and the operator retrying it — would otherwise
+    // hit a UNIQUE violation and turn a benign retry into a permanent failure. Doing nothing on conflict
+    // converges on the state the first carry already reached; the row that is there is the same reference.
+    await db
+      .insert(characterBooks)
+      .values(
+        rows.map((r) => ({
+          characterId: toCharacterId,
+          worldBookId: r.worldBookId,
+          role: r.role,
+          createdAt: at,
+        })),
+      )
+      .onConflictDoNothing();
   };
 }
