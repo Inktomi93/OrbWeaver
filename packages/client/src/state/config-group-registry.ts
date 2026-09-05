@@ -229,10 +229,22 @@ export function isPlaceholderGroup(def: ConfigGroupDefinition): boolean {
   return "placeholder" in def.body;
 }
 
-/** A group's LIST-visible identity, read blind by the host: `true` for the arms that render a body of their
- *  own — from the section registry (`sections`), their feature (`surface`) or the honest placeholder — the
- *  arms whose activation PUSHES CONTENT on a phone (the shell's one-shell rule). A `collection` group's rows
- *  are its owner's members and a member is what pushes, so it is the one arm that answers `false`. */
-export function isPushingGroup(def: ConfigGroupDefinition): boolean {
+/** Does this group render a body the CONTENT surface's `GroupBody` arm can draw — the section registry's
+ *  sections or the honest placeholder's coming-soon copy?
+ *
+ * ═══ THIS WAS `isPushingGroup`, AND SPLITTING IT IS THE POINT (#1725, stickler F15) ═══════════════════
+ * One predicate answered two questions that used to have the same answer: "does CONTENT have a body to
+ * draw for this group" and "does activating it take over the screen on a phone". A collection answered
+ * `false` to both — its CONTENT was a MEMBER, so a band tap left the phone on the LIST.
+ *
+ * The owner's 2026-09-05 ruling made a collection's CONTENT the LIBRARY ("tag list under in list is kinda a
+ * no go that needs to move into content"), so the second answer flipped and the first did not: a band tap
+ * DOES take over the phone now, and `GroupBody` still has nothing to draw for a collection (its landing is
+ * a different arm entirely). A flip would have routed every collection into `GroupBody`, which returns
+ * `null` for one — a blank CONTENT pane behind a door that says it opened. So the predicate SPLITS: this
+ * one keeps the CONTENT router's question and the name that states it, and the phone's question is now
+ * simply "is a group active at all" (`config-section.tsx`'s selection seam), because after the ruling every
+ * arm takes over the screen and a predicate that is true for all three arms is not a predicate. */
+export function rendersOwnBody(def: ConfigGroupDefinition): boolean {
   return !isCollectionGroup(def);
 }

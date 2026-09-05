@@ -39,7 +39,7 @@ import {
   configSectionNavs,
   isCollectionGroup,
   isPlaceholderGroup,
-  isPushingGroup,
+  rendersOwnBody,
   setActiveConfigSub,
   setConfigFocus,
   useActiveConfigGroup,
@@ -86,9 +86,9 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
   useFocusOnMount(contentRef, selection !== null);
 
   const active = activeGroup === null ? null : groups.get(activeGroup);
-  // The active PUSHING group, or `null` when the pane shows the member or the teaching frame — ONE derivation the
+  // The active group that RENDERS ITS OWN BODY, or `null` when the pane shows the member or the teaching frame — ONE derivation the
   // region label, the footer and the arm all read.
-  const shownGroup = selection === null && active !== null && isPushingGroup(active) ? active : null;
+  const shownGroup = selection === null && active !== null && rendersOwnBody(active) ? active : null;
   const showsGroup = shownGroup !== null;
   // The ACTIVE collection with nothing open — the arm the zero-member band selects into (F5). Derived here
   // beside `shownGroup` so the two arms are one decision, and passed down rather than re-derived.
@@ -321,7 +321,7 @@ function MemberBody({ group, memberId }: { readonly group: ConfigGroupDefinition
  *  pure `sections` SKIMMER (the host renders the anchor's contributed sections, in door order — the ONLY
  *  render path a settings-shaped group has) or the DECLARED-PLANNED placeholder. Admin needs no extra guard
  *  here — the LIST and the search hide it from non-admin viewers via `when`, and a forced deep link hits the
- *  group's own server-gated error. A `collection` group never reaches here (`isPushingGroup`). */
+ *  group's own server-gated error. A `collection` group never reaches here (`rendersOwnBody`). */
 function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactNode {
   const viewer = useSettingsViewerView();
   // The ONE order contract (`ConfigSectionPartition`, #978 F4) — the pane does NOT re-sort what it is

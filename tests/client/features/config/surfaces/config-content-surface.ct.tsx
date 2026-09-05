@@ -864,26 +864,33 @@ const POPULATED_SCRIPTS = [
 /** The regex group's own blurb, from its `ConfigGroupDefinition` — the landing draws the CONTRIBUTION's copy,
  *  never a host string, which is the claim this literal is here to hold. */
 const REGEX_BLURB = "Find/replace that runs on input, output, or both; everywhere, or only where you attach it.";
-/** The HOST's one sentence about its own geometry (features/config/lib/config-copy.ts). */
-const LANDING_HINT = "Pick one from the list to open its editor.";
+// THE HOST'S ONE SENTENCE IS GONE (#1725). `LANDING_HINT` held "Pick one from the list to open its editor."
+// — the host's fact about where a library's members live, which every landing arm above asserted. The owner
+// moved the members onto this very pane, so the sentence became a direction to the pane the reader is
+// standing in and was deleted with its reader (`config-copy.ts`). Every arm that used it now asserts the
+// CONTROL ROW instead, which is the honest tell for "this pane is a library": a sentence can be true of a
+// pane that offers nothing, a control row cannot.
 
-test("a POPULATED collection band ENTERS its library in one act — rows open AND its landing takes CONTENT", async ({ mount, page }) => {
+// #1725 RETIRED THE DISCLOSE HALF OF #925's ENTER. The ruling was "select and disclose in ONE act" and this
+// test held both halves; the owner then moved the members into CONTENT, so there is nothing in the LIST to
+// disclose and `aria-expanded` is gone from the band. The ENTER half — one click, the location moves, CONTENT
+// is this library — is what the ruling was protecting, and it is asserted whole below, now including the rows
+// themselves, which are the thing that actually arrived.
+test("#1725: a collection band ENTERS its library in one act — the location moves AND CONTENT is the library", async ({ mount, page }) => {
   await stub(page, { "regex.listScripts": () => POPULATED_SCRIPTS });
   const component = await mount(<ConfigHostStory />);
 
   const band = component.locator(EMPTY_BAND);
-  await expect(band).toHaveAttribute("aria-expanded", "false");
+  // Nothing to unfold, so nothing claims to: the attribute is absent, not `false`.
+  await expect(band).not.toHaveAttribute("aria-expanded", /.*/);
   await band.click();
 
-  // The disclosure still happens — the rows are what a collection band opens…
-  await expect(band).toHaveAttribute("aria-expanded", "true");
-  // …AND the reader's location moved with it: the band marks itself, and CONTENT is this library's landing,
-  // drawn from the contribution's own fields plus the host's one line about where the members are.
   await expect(band).toHaveAttribute("aria-current", "true");
   const content = component.getByRole("region", { name: "Settings", exact: true });
   await expect(content.getByRole("heading", { level: 2, name: "Regex scripts" })).toBeVisible();
   await expect(content.getByText(REGEX_BLURB)).toBeVisible();
-  await expect(content.getByText(LANDING_HINT)).toBeVisible();
+  // The MEMBERS are here now — the whole point of the ruling — and so is the library's own create verb.
+  await expect(content.locator('[data-slot="list-row-root"]').first()).toBeVisible();
   await expect(content.getByRole("button", { name: "New script" })).toBeVisible();
   // The four-library launcher landing is NOT what a named library's landing shows — and since #1210 it is
   // not what ANYTHING shows.
@@ -974,22 +981,15 @@ test("switching between libraries with DIFFERENT declared hook sets keeps the ap
   expect(pageErrors, `the switch threw: ${pageErrors.join(" · ")}`).toEqual([]);
 });
 
-test("…and a second click folds the rows away WITHOUT leaving the library", async ({ mount, page }) => {
-  await stub(page, { "regex.listScripts": () => POPULATED_SCRIPTS });
-  const component = await mount(<ConfigHostStory />);
-
-  const band = component.locator(EMPTY_BAND);
-  await band.click();
-  await expect(band).toHaveAttribute("aria-expanded", "true");
-  await band.click();
-
-  // The one place this species diverges from a settings group, whose active band cannot collapse itself: a
-  // library's rows are its CONTENTS, and folding contents away is a thing a reader does.
-  await expect(band).toHaveAttribute("aria-expanded", "false");
-  // …and it costs nothing: the location, and therefore the pane, is untouched.
-  await expect(band).toHaveAttribute("aria-current", "true");
-  await expect(component.getByRole("region", { name: "Settings", exact: true }).getByRole("heading", { level: 2, name: "Regex scripts" })).toBeVisible();
-});
+// ── RETIRED BY #1725 (owner ruling 2026-09-05) ───────────────────────────────────────────────────────
+// "…and a second click folds the rows away WITHOUT leaving the library" lived here. It pinned the ONE place
+// the collection species diverged from a settings group: an active collection band could collapse its own
+// rows, because a library's rows are its CONTENTS and folding contents away is a thing a reader does. That
+// divergence had a referent only while the rows were in the LIST. The owner moved them into CONTENT, so
+// there is no fold, no `aria-expanded`, and no second click whose meaning differs from the first — a
+// collection band is the same one-act door at every press. Nothing is weakened elsewhere: the band's
+// idempotent ENTER is the test above, and "the LIST holds no member rows" is pinned red-first in
+// `components/config-list-collection-group.ct.tsx`. Deleted with the behaviour it described.
 
 // ── THE LANDING STATES THE LIBRARY, IT DOES NOT RESTATE THE LIST (#1209, owner ruling 2026-09-02) ────
 // THE DEFECT, measured live: with Tags active, CONTENT's only interactive element was "New tag" — twelve
@@ -1050,10 +1050,15 @@ test("a populated library's landing states its own FACTS — and every affordanc
   await expect(facts.getByText("1 of 3")).toBeVisible();
   await expect(facts.getByText("In use")).toBeVisible();
 
-  // EVERY CONTROL ON THIS PANE IS A REAL DOOR. Two of them: the fact's door and the create verb — and the
-  // fact's door OPENS THE MEMBER it is about, which is the whole difference from the chip wall it replaced.
-  await expect(content.getByRole("button")).toHaveCount(2);
-  await content.getByRole("button", { name: "Open orphan-tag" }).click();
+  // EVERY CONTROL IN THE FACTS BLOCK IS A REAL DOOR — the claim #1209 minted, at the scope it was always
+  // about. It used to be spelled as the whole pane's button count (two: the fact's door and the create
+  // verb), which #1725 retired as a SPELLING: the pane now also holds the control row and the library's own
+  // rows, all of them real doors, so a pane-wide count would be counting the wrong thing and would drift on
+  // every control the library gains. The insights slot is the surface the ruling is about, and inside it the
+  // count is EXACT: one fact has a subject and opens it, the other is data and is not dressed as an
+  // affordance.
+  await expect(facts.getByRole("button")).toHaveCount(1);
+  await facts.getByRole("button", { name: "Open orphan-tag" }).click();
   await expect(component.getByRole("heading", { name: "orphan-tag" })).toBeVisible();
 });
 
@@ -1064,11 +1069,21 @@ test("…and the wall it replaced is gone: no chip census, no dead +N more", asy
   await component.locator(TAGS_BAND).click();
   const content = component.getByRole("region", { name: "Settings", exact: true });
   await expect(content.getByRole("heading", { level: 2, name: "Tags" })).toBeVisible();
-  // The two tells of the retired anatomy, asserted as absences: the ranked kicker and the remainder chip.
-  await expect(content.getByText("Most used")).toHaveCount(0);
+  // The two tells of the retired anatomy, asserted as absences INSIDE THE FACTS BLOCK — the surface the
+  // wall occupied. The pane-wide scope stopped discriminating at #1725: the tag library's own SORT control
+  // is legitimately labelled "Most used", so a pane-wide absence would now be red for a reason that has
+  // nothing to do with the chip wall. The facts block is where a ranked kicker would return.
+  const facts = content.locator('[data-slot="config-library-insights"]');
+  await expect(facts.getByText("Most used")).toHaveCount(0);
   await expect(content.getByText(/^\+\d+ more$/)).toHaveCount(0);
-  // …and no member NAME is restated on the pane except inside a real door's own label ("Open orphan-tag").
-  await expect(content.getByText("used-a", { exact: true })).toHaveCount(0);
+  // …and no member NAME is restated OUTSIDE a row or a real door's own label. The negative used to be
+  // absolute ("`used-a` appears nowhere on this pane") because the pane had no rows and any member name on
+  // it was necessarily a chip. #1725 put the rows here, so an absolute negative would now forbid the library
+  // itself. The ruling's substance is the DOUBLE rendering it forbade, so the claim is re-expressed as
+  // exactly that: the name appears in its ROW, and nowhere else on the pane.
+  await expect(content.locator('[data-slot="list-row-root"]').filter({ hasText: "used-a" })).toHaveCount(1);
+  await expect(content.locator('[data-slot="config-library-insights"]').getByText("used-a", { exact: true })).toHaveCount(0);
+  await expect(content.locator('[data-slot="collection-control-row"]').getByText("used-a", { exact: true })).toHaveCount(0);
 });
 
 // ── A LIBRARY WHOSE CENSUS FAILED IS NOT A LIBRARY THAT IS SETTLING (#1546) ──────────────────────────
@@ -1092,14 +1107,18 @@ test("a library whose census FAILED says so on the landing, and offers a retry t
   // The library still NAMES itself — the reader came here on purpose.
   await expect(landing.getByRole("heading", { level: 2, name: "Regex scripts" })).toBeVisible();
   await expect(landing.getByText("Couldn't load regex scripts.")).toBeVisible();
-  // …and the populated layout is NOT what a pane with no number draws.
-  await expect(landing.getByText(LANDING_HINT)).toHaveCount(0);
+  // …and the populated layout is NOT what a pane with no number draws. The tell used to be the host's hint
+  // sentence, which #1725 deleted with its reader; the CONTROL ROW is the tell now, and it is a better one —
+  // it is the thing a reader would try to press over a library that does not exist.
+  await expect(landing.locator('[data-slot="collection-control-row"]')).toHaveCount(0);
   await expect(landing.getByRole("button", { name: "New script" })).toHaveCount(0);
 
   rows.push(POPULATED_SCRIPTS);
   await landing.getByRole("button", { name: "Retry" }).click();
-  // A real refetch, and the pane returns to the arm the answer earns.
-  await expect(landing.getByText(LANDING_HINT)).toBeVisible();
+  // A real refetch, and the pane returns to the arm the answer earns — control row, and the members it
+  // controls.
+  await expect(landing.locator('[data-slot="collection-control-row"]')).toBeVisible();
+  await expect(landing.locator('[data-slot="list-row-root"]').first()).toBeVisible();
   await expect(landing.getByText("Couldn't load regex scripts.")).toHaveCount(0);
 });
 
