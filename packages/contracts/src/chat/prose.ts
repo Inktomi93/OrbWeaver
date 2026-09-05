@@ -16,7 +16,7 @@
 //   • per-PRESET (owner ruling 2026-08-07, verbatim: "templates need to have one home in presets not
 //     scattered between that and settings or hiding in code"): the TURN-WIRE FRAMINGS — the two injection note
 //     frames, the continuation cue, and (F4 re-home, 2026-08-08, ruling arm (a) + D132(B) amendment) the seven
-//     GROUP-ROUND FRAMINGS: the merged/narrator co-speaker headings (`alsoPresent`/`castMember`/
+//     GROUP-ROUND FRAMINGS: the merged/narrator co-speaker headings (`alsoPresent`/`characterHeading`/
 //     `scenarioHeading`/`exampleHeading`), the per-speaker and narrator round nudges (`roundNudge`/
 //     `narratorNudge`), and the speaker-tag instruction (`speakerTags`). Storage `promptConfig.prose`; authored
 //     in the preset Templates tab beside every other template. Decision 8 is NOT reversed by this: it answers
@@ -171,8 +171,8 @@ export const CHAT_PROSE_SLOTS = {
     title: "Merged co-speaker heading",
     fires: 'A `cardScope:"merged"` group turn, once per other present character.',
   },
-  "chat.group.castMember": {
-    id: "chat.group.castMember",
+  "chat.group.characterHeading": {
+    id: "chat.group.characterHeading",
     home: "preset",
     version: 2,
     // The NARRATOR twin of `alsoPresent`, and a separate slot rather than a re-version of it for one reason:
@@ -188,6 +188,20 @@ export const CHAT_PROSE_SLOTS = {
     // explicit "this block is a character" signal is what weaker local models lean on. Model-facing bytes are
     // still bytes, so it rides the lawful re-version path (D132(A)/§4.4); a silent edit would strand every
     // host's `baseVersion` stamp.
+    //
+    // THE ID ITSELF WAS `chat.group.castMember` UNTIL 2026-09-05 (#1737, owner-ruled arm (a)). The 2026-08-30
+    // ruling above SURVIVES — its INPUT changed: the warning it records is about a SILENT id edit, and this one
+    // is not silent. `migrateProseSlotVocab` (`domain/preset/persistence/migrate-prose-slot-vocab.ts`, run as a
+    // boot step) re-keys every stored `promptConfig.prose` override onto the new id CARRYING its `baseVersion`
+    // stamp, so no host's staleness signal is stranded and `version` stays 2 (the TEXT did not change). The id
+    // was the last `cast` spelling left in `contracts/src/chat` — the `alsoPresent` twin, the `title` and the
+    // preset Templates `label` had all said "character" since v2, and only the persisted key disagreed.
+    //
+    // WHY `characterHeading` AND NOT `…Member`: `vocabulary-map.md` gives `character` for the concept this
+    // slot names (the seated characters the arbiter may drive) and gives **Member** to the HUMANS in a room
+    // (`chat_participants.kind='human'`) — so a `Member` suffix on a character-only slot would swap one
+    // crossed word for another. `Heading` is not a concept word at all; it is the suffix this slot's own group
+    // siblings already carry (`chat.group.scenarioHeading` / `chat.group.exampleHeading`). Nothing minted.
     text: "[Character — {{name}}]",
     macros: "none",
     requiredMacros: ["{{name}}"],

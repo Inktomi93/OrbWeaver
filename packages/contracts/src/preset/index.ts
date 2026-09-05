@@ -1304,12 +1304,12 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "chat.group.alsoPresent",
   },
   {
-    id: "chat.group.castMember",
+    id: "chat.group.characterHeading",
     kind: "group",
     label: "Character heading",
     fires: "A narrator round — opens each character's card block beside the primary",
     caps: [{ kind: "tokens", tokens: ["{{name}}"] }],
-    defaultSlot: "chat.group.castMember",
+    defaultSlot: "chat.group.characterHeading",
   },
   {
     id: "chat.group.scenarioHeading",

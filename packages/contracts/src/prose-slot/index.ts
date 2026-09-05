@@ -117,7 +117,7 @@ export const PROSE_SLOT_IDS = [
   //    build where the preset IS in scope (`composeProse` at `assembly/context`), so `promptConfig.prose` is
   //    their storage and each has a Templates-tab `group`-kind row. ──
   "chat.group.alsoPresent",
-  "chat.group.castMember",
+  "chat.group.characterHeading",
   "chat.group.scenarioHeading",
   "chat.group.exampleHeading",
   "chat.group.roundNudge",

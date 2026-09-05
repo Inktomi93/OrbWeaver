@@ -2444,7 +2444,7 @@ describe("runTurnPipeline — narrator round assembly", () => {
     // it had never been shown.
     expect(system).toContain("JFC is a foul-mouthed mechanic");
     // …under the NARRATOR frame, not the per-speaker bystander frame: this call is voicing JFC, so calling
-    // them "also present" would contradict the round's own nudge (PROSE slot `chat.group.castMember`).
+    // them "also present" would contradict the round's own nudge (PROSE slot `chat.group.characterHeading`).
     expect(system).toContain("[Character — JFC]");
     expect(system).not.toContain("[Also present — JFC]");
   });

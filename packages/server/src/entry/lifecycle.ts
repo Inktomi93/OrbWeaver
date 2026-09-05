@@ -59,6 +59,7 @@ import { createAuthSeam, createHostPrincipalResolver } from "./auth/index.ts";
 import {
   DB_LAUNCHED,
   migrateHandoffOfferVocabOnBoot,
+  migrateProseSlotVocabOnBoot,
   reclaimLocksOnBoot,
   runBootMigrations,
   seedCasSchedules,
@@ -307,6 +308,13 @@ export function createLifecycle(): Lifecycle {
     // unrecognised blob to NO_HANDOFF_OFFER rather than failing, so an un-migrated row silently drops a
     // departing host's recorded consent. Idempotent — a no-op on every boot after the first.
     await migrateHandoffOfferVocabOnBoot({ db });
+
+    // #1737 DATA migration, in the same window and for the same reason: the `home:"preset"` prose slot
+    // `chat.group.castMember` became `chat.group.characterHeading`, and `proseOverridesSchema` STRIPS an
+    // unknown slot id at the parse seam — so an un-migrated `presets.config` silently loses the host's
+    // authored narrator character heading instead of failing. Idempotent — a no-op on every boot after the
+    // first. Runs before compose, which is where the first preset read lives.
+    await migrateProseSlotVocabOnBoot({ db });
 
     // Resolve the owner id before compose (the owner role-clients bundle resolves against it). A
     // transient sessions service is built only to run the owner seed; compose owns the real one.
