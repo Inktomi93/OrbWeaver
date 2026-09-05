@@ -1,0 +1,209 @@
+// Builds the capability-bounded policy context and owns anchored finding/receipt collection.
+import { isAbsolute, relative, resolve, sep } from "node:path";
+import type { Node, SourceFile, TypeChecker } from "ts-morph";
+import type { RawGateFinding } from "../contract/gate-authority.ts";
+import type {
+  GatePolicy,
+  GatePolicyContext,
+  GatePolicyFileFindingDetails,
+  GatePolicyFindingDetails,
+  GatePolicyNodeFindingDetails,
+  GatePolicyReceipt,
+} from "../contract/policy.ts";
+import type { PolicySemanticReceipt } from "../contract/policy-pass.ts";
+import { assertRepoPathIdentity } from "./policy-validation.ts";
+
+const COMMON_DETAIL_KEYS = ["message", "fix", "subject", "operation"] as const;
+const NODE_DETAIL_KEYS = new Set([...COMMON_DETAIL_KEYS, "token", "offset"]);
+const FILE_DETAIL_KEYS = new Set([...COMMON_DETAIL_KEYS, "line", "column", "token"]);
+const POPULATION_RECEIPT_KEYS = new Set(["kind", "source", "members", "unresolved"]);
+const RESOURCE_RECEIPT_KEYS = new Set(["kind", "source", "resources", "unresolved"]);
+
+interface ContextInput {
+  readonly policy: GatePolicy;
+  readonly root: string;
+  readonly files: readonly SourceFile[];
+  readonly resourcePaths: readonly string[];
+  readonly checker: () => TypeChecker;
+  readonly findings: RawGateFinding[];
+}
+
+export interface PolicyContextRuntime {
+  readonly context: GatePolicyContext;
+  readonly finishReceipts: () => readonly PolicySemanticReceipt[];
+}
+
+function exactKeys(value: object, allowed: ReadonlySet<string>, label: string): void {
+  const unknown = Object.keys(value).find((key) => !allowed.has(key));
+  if (unknown !== undefined) {
+    throw new Error(`${label} cannot author ${JSON.stringify(unknown)}`);
+  }
+}
+
+function assertOptionalText(value: unknown, label: string): void {
+  if (value !== undefined && (typeof value !== "string" || value.trim().length === 0)) {
+    throw new Error(`${label} must be a nonempty string when present`);
+  }
+}
+
+function findingDetails(details: GatePolicyFindingDetails | undefined): GatePolicyFindingDetails {
+  const safe = details ?? {};
+  for (const key of COMMON_DETAIL_KEYS) {
+    assertOptionalText(safe[key], `finding ${key}`);
+  }
+  return safe;
+}
+
+function appendDetails(base: { file: string; line: number; column: number }, details: GatePolicyFindingDetails & { readonly token?: string }): RawGateFinding {
+  return {
+    ...base,
+    ...(details.token === undefined ? {} : { token: details.token }),
+    ...(details.message === undefined ? {} : { message: details.message }),
+    ...(details.fix === undefined ? {} : { fix: details.fix }),
+    ...(details.subject === undefined ? {} : { subject: details.subject }),
+    ...(details.operation === undefined ? {} : { operation: details.operation }),
+  };
+}
+
+function repoRelative(root: string, sourceFile: SourceFile): string {
+  const rel = relative(resolve(root), resolve(sourceFile.getFilePath()));
+  const normalized = sep === "/" ? rel : rel.split(sep).join("/");
+  if (normalized.length === 0 || isAbsolute(rel) || normalized === ".." || normalized.startsWith("../")) {
+    throw new Error(`source file is outside the policy root: ${sourceFile.getFilePath()}`);
+  }
+  assertRepoPathIdentity(normalized, "source file path");
+  return normalized;
+}
+
+function assertCoordinate(value: number | undefined, label: string): number {
+  const coordinate = value ?? 1;
+  if (!(Number.isInteger(coordinate) && coordinate >= 1)) {
+    throw new Error(`${label} must be a positive integer`);
+  }
+  return coordinate;
+}
+
+function assertCount(value: unknown, label: string): number {
+  if (!(Number.isInteger(value) && (value as number) >= 0)) {
+    throw new Error(`${label} must be a nonnegative integer`);
+  }
+  return value as number;
+}
+
+function receiptKey(receipt: GatePolicyReceipt): string {
+  return JSON.stringify([receipt.kind, receipt.source]);
+}
+
+function acceptPopulationReceipt(receipts: Map<string, PolicySemanticReceipt>, receipt: Extract<GatePolicyReceipt, { kind: "population" }>): void {
+  exactKeys(receipt, POPULATION_RECEIPT_KEYS, "policy receipt");
+  const members = assertCount(receipt.members, "policy receipt members");
+  const unresolved = assertCount(receipt.unresolved ?? 0, "policy receipt unresolved");
+  const key = receiptKey(receipt);
+  const prior = receipts.get(key);
+  receipts.set(key, {
+    kind: "population",
+    source: receipt.source,
+    members: (prior?.kind === "population" ? prior.members : 0) + members,
+    unresolved: (prior?.unresolved ?? 0) + unresolved,
+  });
+}
+
+function acceptResourceReceipt(receipts: Map<string, PolicySemanticReceipt>, receipt: Extract<GatePolicyReceipt, { kind: "resource" }>): void {
+  exactKeys(receipt, RESOURCE_RECEIPT_KEYS, "policy receipt");
+  const resources = assertCount(receipt.resources, "policy receipt resources");
+  const unresolved = assertCount(receipt.unresolved ?? 0, "policy receipt unresolved");
+  const key = receiptKey(receipt);
+  const prior = receipts.get(key);
+  receipts.set(key, {
+    kind: "resource",
+    source: receipt.source,
+    resources: (prior?.kind === "resource" ? prior.resources : 0) + resources,
+    unresolved: (prior?.unresolved ?? 0) + unresolved,
+  });
+}
+
+function acceptReceipt(receipts: Map<string, PolicySemanticReceipt>, receipt: GatePolicyReceipt): void {
+  assertOptionalText(receipt.source, "policy receipt source");
+  if (receipt.kind === "population") {
+    acceptPopulationReceipt(receipts, receipt);
+    return;
+  }
+  acceptResourceReceipt(receipts, receipt);
+}
+
+/** Construct one invocation-local context. No internal Project/root reference is exposed on it. */
+export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
+  const files = Object.freeze([...input.files]);
+  const resourcePaths = Object.freeze([...input.resourcePaths]);
+  const paths = new Map(files.map((candidate) => [repoRelative(input.root, candidate), candidate]));
+  const sourceIdentities = new Set(files.map((candidate) => candidate.compilerNode));
+  const effectivePaths = new Set([...paths.keys(), ...resourcePaths]);
+  const receipts = new Map<string, PolicySemanticReceipt>();
+
+  const relativePath = (candidate: SourceFile): string => {
+    if (!sourceIdentities.has(candidate.compilerNode)) {
+      throw new Error(`source file is outside the effective population: ${candidate.getFilePath()}`);
+    }
+    return repoRelative(input.root, candidate);
+  };
+  const getSourceFile = (path: string): SourceFile => {
+    assertRepoPathIdentity(path, "sourceFile path");
+    const found = paths.get(path);
+    if (found === undefined) {
+      throw new Error(`sourceFile path is absent or outside the effective population: ${path}`);
+    }
+    return found;
+  };
+  const reportNode = (node: Node, rawDetails?: GatePolicyNodeFindingDetails): void => {
+    const details = rawDetails ?? {};
+    exactKeys(details, NODE_DETAIL_KEYS, "node finding");
+    findingDetails(details);
+    const path = relativePath(node.getSourceFile());
+    let position = node.getStart();
+    if (details.token !== undefined) {
+      if (
+        !(
+          Number.isInteger(details.offset) &&
+          details.offset >= 0 &&
+          node.getText().slice(details.offset, details.offset + details.token.length) === details.token
+        )
+      ) {
+        throw new Error(`node finding token ${JSON.stringify(details.token)} is not anchored at its declared offset`);
+      }
+      position += details.offset;
+    }
+    const { line, column } = node.getSourceFile().getLineAndColumnAtPos(position);
+    input.findings.push(appendDetails({ file: path, line, column }, details));
+  };
+  const reportFile = (path: string, rawDetails?: GatePolicyFileFindingDetails): void => {
+    assertRepoPathIdentity(path, "finding file");
+    if (!effectivePaths.has(path)) {
+      throw new Error(`finding file is outside the effective population: ${path}`);
+    }
+    const details = rawDetails ?? {};
+    exactKeys(details, FILE_DETAIL_KEYS, "file finding");
+    findingDetails(details);
+    assertOptionalText(details.token, "finding token");
+    input.findings.push(
+      appendDetails({ file: path, line: assertCoordinate(details.line, "finding line"), column: assertCoordinate(details.column, "finding column") }, details),
+    );
+  };
+  const context: GatePolicyContext = {
+    files,
+    resourcePaths,
+    relativePath,
+    sourceFile: getSourceFile,
+    checker: () => {
+      if (input.policy.analysis === "syntax") {
+        throw new Error(`syntax policy ${input.policy.id} cannot access the type checker`);
+      }
+      return input.checker();
+    },
+    report: { node: reportNode, file: reportFile },
+    receipt: (receipt) => acceptReceipt(receipts, receipt),
+  };
+  return {
+    context,
+    finishReceipts: () => [...receipts.values()].toSorted((left, right) => left.kind.localeCompare(right.kind) || left.source.localeCompare(right.source)),
+  };
+}

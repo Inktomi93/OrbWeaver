@@ -1,0 +1,333 @@
+// Final policy dispatcher: resolve once, create once, walk once, then centrally reconcile authority.
+import { isAbsolute, relative, resolve, sep } from "node:path";
+import { performance } from "node:perf_hooks";
+import { collectByKinds } from "@orb/tooling/_shared/ts-workspace";
+import type { SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
+import type { GateOwnerCompletion, RawGateFinding } from "../contract/gate-authority.ts";
+import type { GatePolicy, GatePolicyHooks } from "../contract/policy.ts";
+import type {
+  PolicyOwnerResult,
+  PolicyPassInput,
+  PolicyPassResult,
+  PolicyPhase,
+  PolicyPopulationReceipt,
+  PolicySemanticReceipt,
+  PolicyTiming,
+  PolicyToolError,
+} from "../contract/policy-pass.ts";
+import { POLICY_PHASES } from "../contract/policy-pass.ts";
+import { coordinateGateAuthority } from "./gate-authority.ts";
+import { makePolicyContext } from "./policy-pass-context.ts";
+import { assertGatePolicyHooks, assertRepoPathIdentity, normalizePathSet } from "./policy-validation.ts";
+import { resolvePopulation } from "./population-resolver.ts";
+
+interface MutableTiming {
+  readonly phaseMs: Record<PolicyPhase, number>;
+}
+
+interface PolicyRun {
+  readonly policy: GatePolicy;
+  readonly timing: MutableTiming;
+  readonly findings: RawGateFinding[];
+  population: PolicyPopulationReceipt;
+  owner: GateOwnerCompletion;
+  files: readonly SourceFile[];
+  effectivePathSet: ReadonlySet<string>;
+  hooks: GatePolicyHooks | undefined;
+  receipts: readonly PolicySemanticReceipt[];
+  finishReceipts: (() => readonly PolicySemanticReceipt[]) | undefined;
+}
+
+const EMPTY_POPULATION: PolicyPopulationReceipt = {
+  declaredSourcePaths: [],
+  declaredResourcePaths: [],
+  requestedPaths: null,
+  effectiveSourcePaths: [],
+  effectiveResourcePaths: [],
+};
+
+function phaseRecord(): Record<PolicyPhase, number> {
+  return { population: 0, create: 0, visitFile: 0, visit: 0, evaluate: 0 };
+}
+
+function floorMs(value: number): number {
+  const precision = 1000;
+  return Math.floor(value * precision) / precision;
+}
+
+function ceilMs(value: number): number {
+  const precision = 1000;
+  return Math.ceil(value * precision) / precision;
+}
+
+function charge<T>(timing: MutableTiming, phase: PolicyPhase, operation: () => T): T {
+  const started = performance.now();
+  try {
+    return operation();
+  } finally {
+    timing.phaseMs[phase] += performance.now() - started;
+  }
+}
+
+function finishTiming(timing: MutableTiming): PolicyTiming {
+  const phaseMs = Object.fromEntries(POLICY_PHASES.map((phase) => [phase, floorMs(timing.phaseMs[phase])])) as Record<PolicyPhase, number>;
+  return { phaseMs, totalMs: POLICY_PHASES.reduce((sum, phase) => sum + phaseMs[phase], 0) };
+}
+
+function sourcePath(root: string, sourceFile: SourceFile): string {
+  const rel = relative(resolve(root), resolve(sourceFile.getFilePath()));
+  const normalized = sep === "/" ? rel : rel.split(sep).join("/");
+  if (normalized.length === 0 || isAbsolute(rel) || normalized === ".." || normalized.startsWith("../")) {
+    throw new Error(`source file is outside the policy root: ${sourceFile.getFilePath()}`);
+  }
+  assertRepoPathIdentity(normalized, "source file path");
+  return normalized;
+}
+
+function isExplicitNone(policy: GatePolicy): boolean {
+  const population = policy.population;
+  return typeof population === "object" && !Array.isArray(population) && "of" in population && population.of === "none";
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function markIncomplete(run: PolicyRun, phase: PolicyPhase, error: unknown, errors: PolicyToolError[]): void {
+  const message = messageOf(error);
+  run.owner = { status: "incomplete", population: "incomplete", reason: `${phase}: ${message}` };
+  errors.push({ policyId: run.policy.id, phase, message });
+}
+
+function guard(run: PolicyRun, phase: Exclude<PolicyPhase, "population">, errors: PolicyToolError[], operation: () => void): void {
+  if (run.owner.status !== "success") {
+    return;
+  }
+  try {
+    charge(run.timing, phase, operation);
+  } catch (error) {
+    markIncomplete(run, phase, error, errors);
+  }
+}
+
+function canonicalFindings(findings: readonly RawGateFinding[]): readonly RawGateFinding[] {
+  return [...findings].toSorted(
+    (left, right) =>
+      left.file.localeCompare(right.file) ||
+      left.line - right.line ||
+      left.column - right.column ||
+      (left.token ?? "").localeCompare(right.token ?? "") ||
+      (left.message ?? "").localeCompare(right.message ?? ""),
+  );
+}
+
+function newRun(policy: GatePolicy): PolicyRun {
+  return {
+    policy,
+    timing: { phaseMs: phaseRecord() },
+    findings: [],
+    population: EMPTY_POPULATION,
+    owner: { status: "incomplete", population: "incomplete", reason: "population has not resolved" },
+    files: [],
+    effectivePathSet: new Set(),
+    hooks: undefined,
+    receipts: [],
+    finishReceipts: undefined,
+  };
+}
+
+interface ResolutionInput {
+  readonly run: PolicyRun;
+  readonly candidates: readonly string[];
+  readonly sourceFiles: ReadonlyMap<string, SourceFile>;
+  readonly requestedPaths: readonly string[] | null;
+  readonly resources: readonly string[];
+}
+
+function resolveRun({ run, candidates, sourceFiles, requestedPaths, resources }: ResolutionInput): void {
+  const declared = resolvePopulation(run.policy.population, candidates).paths;
+  if (run.policy.analysis !== "resource" && resources.length > 0) {
+    throw new Error(`non-resource policy ${run.policy.id} received resource paths`);
+  }
+  if (isExplicitNone(run.policy) && resources.length === 0) {
+    throw new Error(`resource-only policy ${run.policy.id} resolved no resource paths`);
+  }
+  const sourceSet = new Set(declared);
+  if (resources.some((path) => sourceSet.has(path))) {
+    throw new Error(`policy ${run.policy.id} resolved the same identity as source and resource`);
+  }
+  const requestedSet = requestedPaths === null ? null : new Set(requestedPaths);
+  const effectiveSourcePaths = requestedSet === null ? declared : declared.filter((path) => requestedSet.has(path));
+  const effectiveResourcePaths = requestedSet === null ? resources : resources.filter((path) => requestedSet.has(path));
+  run.population = {
+    declaredSourcePaths: declared,
+    declaredResourcePaths: resources,
+    requestedPaths,
+    effectiveSourcePaths,
+    effectiveResourcePaths,
+  };
+  const effectiveTotal = effectiveSourcePaths.length + effectiveResourcePaths.length;
+  const declaredTotal = declared.length + resources.length;
+  run.files = effectiveSourcePaths.map((path) => {
+    const sourceFile = sourceFiles.get(path);
+    if (sourceFile === undefined) {
+      throw new Error(`resolved source population path has no SourceFile: ${path}`);
+    }
+    return sourceFile;
+  });
+  run.effectivePathSet = new Set([...effectiveSourcePaths, ...effectiveResourcePaths]);
+  if (requestedSet !== null && effectiveTotal === 0) {
+    run.owner = { status: "not-applicable", population: "complete", reason: "requested selection has an empty policy intersection" };
+  } else if (run.policy.execution === "entire-population" && effectiveTotal < declaredTotal) {
+    run.owner = { status: "not-applicable", population: "complete", reason: "entire-population policy deferred for a proper subset selection" };
+  } else {
+    run.owner = { status: "success", population: "complete" };
+  }
+}
+
+function resolveRuns(input: PolicyPassInput, errors: PolicyToolError[]): { readonly runs: PolicyRun[]; readonly sourceFiles: ReadonlyMap<string, SourceFile> } {
+  const sourceFiles = new Map<string, SourceFile>();
+  for (const sourceFile of input.project.getSourceFiles()) {
+    const path = sourcePath(input.root, sourceFile);
+    if (sourceFiles.has(path)) {
+      throw new Error(`workspace contains duplicate source path ${path}`);
+    }
+    sourceFiles.set(path, sourceFile);
+  }
+  const candidates = [...sourceFiles.keys()].toSorted();
+  const requestedPaths = input.requestedPaths === undefined ? null : normalizePathSet(input.requestedPaths, "requested path");
+  const runs = input.policies.map(newRun);
+  for (const run of runs) {
+    try {
+      charge(run.timing, "population", () => {
+        const resources = normalizePathSet(input.resourcePathsByPolicy?.get(run.policy.id) ?? [], `resource path for ${run.policy.id}`);
+        resolveRun({ run, candidates, sourceFiles, requestedPaths, resources });
+      });
+    } catch (error) {
+      markIncomplete(run, "population", error, errors);
+      run.population = { ...EMPTY_POPULATION, requestedPaths };
+    }
+  }
+  return { runs, sourceFiles };
+}
+
+function createRuns(runs: readonly PolicyRun[], input: PolicyPassInput, checker: () => TypeChecker, errors: PolicyToolError[]): void {
+  for (const run of runs) {
+    if (run.owner.status !== "success") {
+      continue;
+    }
+    const runtime = makePolicyContext({
+      policy: run.policy,
+      root: input.root,
+      files: run.files,
+      resourcePaths: run.population.effectiveResourcePaths,
+      checker,
+      findings: run.findings,
+    });
+    run.finishReceipts = runtime.finishReceipts;
+    guard(run, "create", errors, () => {
+      const hooks = run.policy.create(runtime.context);
+      assertGatePolicyHooks(hooks);
+      run.hooks = hooks;
+    });
+  }
+}
+
+function indexVisitors(
+  runs: readonly PolicyRun[],
+  errors: PolicyToolError[],
+): ReadonlyMap<SyntaxKind, readonly ((node: import("ts-morph").Node, sf: SourceFile) => void)[]> {
+  const index = new Map<SyntaxKind, ((node: import("ts-morph").Node, sf: SourceFile) => void)[]>();
+  for (const run of runs) {
+    if (run.owner.status !== "success") {
+      continue;
+    }
+    for (const visitor of run.hooks?.visitors ?? []) {
+      for (const kind of visitor.kinds) {
+        const dispatch = (node: import("ts-morph").Node, sourceFile: SourceFile): void => {
+          guard(run, "visit", errors, () => visitor.visit(node, sourceFile));
+        };
+        const existing = index.get(kind);
+        if (existing === undefined) {
+          index.set(kind, [dispatch]);
+        } else {
+          existing.push(dispatch);
+        }
+      }
+    }
+  }
+  return index;
+}
+
+function walkRuns(runs: readonly PolicyRun[], sourceFiles: ReadonlyMap<string, SourceFile>, errors: PolicyToolError[]): void {
+  const relevantPaths = new Set(runs.flatMap((run) => (run.owner.status === "success" ? run.population.effectiveSourcePaths : [])));
+  for (const [path, sourceFile] of [...sourceFiles]
+    .filter(([candidate]) => relevantPaths.has(candidate))
+    .toSorted(([left], [right]) => left.localeCompare(right))) {
+    const fileRuns = runs.filter((run) => run.owner.status === "success" && run.effectivePathSet.has(path));
+    for (const run of fileRuns) {
+      if (run.hooks?.visitFile !== undefined) {
+        guard(run, "visitFile", errors, () => run.hooks?.visitFile?.(sourceFile));
+      }
+    }
+    const visitors = indexVisitors(fileRuns, errors);
+    collectByKinds([sourceFile], visitors);
+  }
+}
+
+function evaluateRuns(runs: readonly PolicyRun[], errors: PolicyToolError[]): void {
+  for (const run of runs) {
+    if (run.hooks?.evaluate !== undefined) {
+      guard(run, "evaluate", errors, () => run.hooks?.evaluate?.());
+    }
+    run.receipts = run.finishReceipts?.() ?? [];
+  }
+}
+
+function ownerResult(run: PolicyRun): PolicyOwnerResult {
+  return {
+    id: run.policy.id,
+    owner: run.owner,
+    population: run.population,
+    findings: canonicalFindings(run.findings),
+    receipts: run.receipts,
+    timing: finishTiming(run.timing),
+  };
+}
+
+/** Run every selected policy with invocation-local state, then coordinate all authority centrally. */
+export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
+  const started = performance.now();
+  const toolErrors: PolicyToolError[] = [];
+  const { runs, sourceFiles } = resolveRuns(input, toolErrors);
+  let checker: TypeChecker | undefined;
+  const sharedChecker = (): TypeChecker => {
+    checker ??= input.project.getTypeChecker();
+    return checker;
+  };
+  createRuns(runs, input, sharedChecker, toolErrors);
+  walkRuns(runs, sourceFiles, toolErrors);
+  evaluateRuns(runs, toolErrors);
+  const policies = runs.map(ownerResult).toSorted((left, right) => left.id.localeCompare(right.id));
+  const authority = coordinateGateAuthority({
+    selectedPolicies: input.policies.map(({ id, authority: policyAuthority, severity }) => ({ id, authority: policyAuthority, severity })),
+    ownerResults: policies.map(({ id, population, owner, findings }) => ({
+      policyId: id,
+      populationFiles: [...population.effectiveSourcePaths, ...population.effectiveResourcePaths].toSorted(),
+      owner,
+      findings,
+    })),
+    reviewedGrants: input.reviewedGrants,
+    failOnWarnings: input.failOnWarnings,
+    ...(input.waiverFor === undefined ? {} : { waiverFor: input.waiverFor }),
+    ...(input.reconcileOrdinary === undefined ? {} : { reconcileOrdinary: input.reconcileOrdinary }),
+  });
+  const sortedErrors = toolErrors.toSorted(
+    (left, right) =>
+      left.policyId.localeCompare(right.policyId) ||
+      POLICY_PHASES.indexOf(left.phase) - POLICY_PHASES.indexOf(right.phase) ||
+      left.message.localeCompare(right.message),
+  );
+  const policyMs = policies.reduce((sum, policyResult) => sum + policyResult.timing.totalMs, 0);
+  return { policies, toolErrors: sortedErrors, authority, timing: { totalMs: Math.max(ceilMs(performance.now() - started), policyMs), policyMs } };
+}
