@@ -643,6 +643,7 @@
     "tests/db/kit/check-list.test.ts",
     "tests/db/kit/db-errors.int.test.ts",
     "tests/db/kit/insert-chunk.test.ts",
+    "tests/db/kit/like.test.ts",
     "tests/db/schema/assets.int.test.ts",
     "tests/db/schema/audit.int.test.ts",
     "tests/db/schema/automation.int.test.ts",

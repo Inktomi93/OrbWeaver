@@ -528,6 +528,31 @@ describe("list — server-side search", () => {
     expect(page.items).toEqual([]);
   });
 
+  test("the LIKE metacharacters `%` and `_` are literal text in a search term, not wildcards", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const { owner } = await seedLensLibrary(db);
+
+    // `%` used to be interpolated straight into `%needle%`, so searching it returned the WHOLE library.
+    const bareWildcard = await svc.list({ principal: principal(owner), search: "%" });
+    expect(bareWildcard.items).toEqual([]);
+    expect(bareWildcard.totalCount).toBe(0);
+
+    // `_` is LIKE's single-character wildcard: "b_lt" must not reach "Bolt".
+    expect((await svc.list({ principal: principal(owner), search: "b_lt" })).items).toEqual([]);
+
+    // …and the escape must not cost a LITERAL match: a card whose name really carries a `%` is findable.
+    const discount = await seedRawCharacter(db, {
+      id: "character_discount",
+      ownerId: owner,
+      handle: castId<CharacterHandle>("discount"),
+      name: "50% Off",
+      createdAt: 5000,
+    });
+    const literal = await svc.list({ principal: principal(owner), search: "%" });
+    expect(literal.items.map((r) => r.id)).toEqual([discount]);
+  });
+
   test("a whitespace-only search is the UNSEARCHED library, never a search for a space", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);

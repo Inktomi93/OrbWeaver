@@ -10,6 +10,7 @@
 import { STATS_LIST_MAX_LIMIT } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, characters, dailyStats, modelStats, ownerStats } from "@orb/db";
+import { escapeLikeTerm } from "@orb/db/kit";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
@@ -33,12 +34,6 @@ import { modelLatencyKey, readLatency, readModelLatencies } from "./latency.ts";
 const DEFAULT_LIMIT = 50;
 const UNKNOWN_PROVIDER = "(unknown)";
 const DAY_MS = 86_400_000;
-
-/** Escape the LIKE metacharacters (`%` `_`) and the escape char itself so a user's search term matches
- *  literally — paired with an `ESCAPE '\'` clause at every call site. */
-function escapeLike(term: string): string {
-  return term.replace(/[\\%_]/g, (ch) => `\\${ch}`);
-}
 
 export async function readOverview(db: Db, ownerId: UserId): Promise<OwnerStatsView | null> {
   const row = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
@@ -147,7 +142,7 @@ export async function readLeaderboard(db: Db, ownerId: UserId, opts: Leaderboard
   // matches literally; the comparison is lowered on both sides for a case-insensitive match on unicode
   // names SQLite's ASCII-only LIKE would miss. Empty/whitespace ⇒ no predicate (the whole population).
   const needle = (opts.search ?? "").trim();
-  const pattern = needle === "" ? null : `%${escapeLike(needle.toLowerCase())}%`;
+  const pattern = needle === "" ? null : `%${escapeLikeTerm(needle.toLowerCase())}%`;
   const nameMatch = pattern === null ? undefined : sql`lower(${characters.name}) LIKE ${pattern} ESCAPE '\\'`;
   const rowsWhere = nameMatch === undefined ? eq(characters.ownerId, ownerId) : and(eq(characters.ownerId, ownerId), nameMatch);
   const rows = await db
