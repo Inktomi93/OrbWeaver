@@ -37,14 +37,15 @@
     },
     {
       "path": "docs/architecture/history/Core-Debt-Cleared-Ledger.md",
-      "assignedSha256": "540319bcac0ea69705d521f591e1f8403933c8aefe8dbaa57c15cda908dbae7b",
+      "assignedSha256": "94c38123633be2e3f29624e8971f5a15c183744d3582b489380e38f2dc88c7f8",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "540319bcac0ea69705d521f591e1f8403933c8aefe8dbaa57c15cda908dbae7b",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "94c38123633be2e3f29624e8971f5a15c183744d3582b489380e38f2dc88c7f8",
+      "verifiedCommit": "7d7c1e352f3710700f34ce7c1793224a608728fd",
+      "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at 7d7c1e352 by the orchestrator after reading the #1627 diff in full: the PD-106 row carries a DATED amendment (the ruling survives — its INPUT changed: three single-human sources now ride the inbox — plugin-disabled, automation-notice, the #1041 consent aggregate; the belt kept for presence only), with the owner’s two 2026-09-05 sentences quoted and attributed; no new PD/D row minted; frontmatter dated 2026-09-05.",
         "docs/architecture/history/Core-Debt-Cleared-Ledger.md:1 (full read; historical header/provenance evaluated)",
         "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
