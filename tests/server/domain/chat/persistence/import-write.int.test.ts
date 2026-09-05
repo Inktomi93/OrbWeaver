@@ -444,6 +444,55 @@ describe("createBulkImportChats", () => {
     expect(slots.map((s) => s.characterId)).toEqual([primary.id, second.id]);
   });
 
+  // ── #1687 — the per-seat KNOB channel. ST's `disabled_members` is a per-member MUTE and orb has the column
+  //    for it; before this the wire seated a flat id list and the flag could only be reported as lost.
+  test("a seat named by seatKnobs is born MUTED; every unnamed seat keeps the column defaults", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const primary = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const muted = await seedCharacter(db, { ownerId: owner.id, name: "Bex" });
+    const op = createBulkImportChats(importCtx(db, owner.id));
+
+    const base = chatInput("Muted.jsonl");
+    await op({
+      ownerId: owner.id,
+      characterId: primary.id,
+      chats: [{ ...base, roster: [muted.id], seatKnobs: [{ characterId: muted.id, disabled: true }] }],
+    });
+
+    const seats = await db.select().from(chatParticipants);
+    const seatFor = (characterId: string): (typeof seats)[number] | undefined => seats.find((r) => r.characterId === characterId);
+    expect(seatFor(muted.id)?.disabled).toBe(true);
+    // The unnamed seats are untouched: the knobs are SPREAD, never defaulted at the write, so a room with one
+    // muted member is byte-identical to the pre-#1687 row everywhere else.
+    expect(seatFor(primary.id)?.disabled).toBe(false);
+    expect(seatFor(muted.id)?.talkativeness).toBe(seatFor(primary.id)?.talkativeness);
+    expect(seats.find((r) => r.kind === "human")?.disabled).toBe(false);
+  });
+
+  test("a knob may name the PRIMARY, and a knob for an UNSEATED character refuses the whole run", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const primary = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const unseated = await seedCharacter(db, { ownerId: owner.id, name: "Bex" });
+    const op = createBulkImportChats(importCtx(db, owner.id));
+
+    const base = chatInput("PrimaryMute.jsonl");
+    await op({ ownerId: owner.id, characterId: primary.id, chats: [{ ...base, seatKnobs: [{ characterId: primary.id, disabled: true }] }] });
+    expect((await db.select().from(chatParticipants)).find((r) => r.characterId === primary.id)?.disabled).toBe(true);
+
+    // An unseated (or foreign) knob is a caller defect, refused before any write — never a silent drop, which
+    // would make "the mute travelled" unfalsifiable.
+    await expect(
+      op({
+        ownerId: owner.id,
+        characterId: primary.id,
+        chats: [{ ...chatInput("GhostKnob.jsonl"), seatKnobs: [{ characterId: unseated.id, disabled: true }] }],
+      }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    expect(await db.select().from(chats)).toHaveLength(1);
+  });
+
   test("a slot naming an owned-but-UNSEATED character is refused (no ghost speaker)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});

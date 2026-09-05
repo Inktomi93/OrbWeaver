@@ -86,6 +86,22 @@ function assertSeatedSpeakers(ci: BulkImportChatInput, primary: CharacterId): vo
   }
 }
 
+/** Referential gate for the per-seat KNOBS (#1687), the {@link assertSeatedSpeakers} posture: a knob may only
+ *  configure a seat this chat actually SEATS. Dropping an unseated knob silently would make "the mute
+ *  travelled" a claim nobody can check — the whole point of carrying the flag. */
+function assertSeatedKnobs(ci: BulkImportChatInput, primary: CharacterId): void {
+  if (ci.seatKnobs === undefined || ci.seatKnobs.length === 0) {
+    return;
+  }
+  // @orb-gate-ignore persistence-no-in-memory-state: call-local membership Set over one input's seats (a pure precondition check, no state survives the call)
+  const seated = new Set(seatedCharacterIds(primary, ci.roster));
+  for (const knob of ci.seatKnobs) {
+    if (!seated.has(knob.characterId)) {
+      throw new DomainNotFoundError("chat_participant", knob.characterId);
+    }
+  }
+}
+
 /** What a pre-existing import of one `importHash` looks like to the dedup gate: the room it landed as, and
  *  whether that room still has NO anchor persona (the heal's gate — see {@link healPersonaAttribution}). */
 interface ExistingImport {
@@ -189,6 +205,10 @@ function rosterRows(args: {
   readonly ownerId: UserId;
   readonly characterIds: readonly CharacterId[];
   readonly anchorPersonaId: BulkImportChatInput["anchorPersonaId"];
+  /** The chat's declared per-seat knobs (#1687). A seat with none takes the columns' own defaults, which is
+   *  byte-identically the pre-#1687 row — the knobs are SPREAD, never defaulted here, so the column stays the
+   *  one home for "what an unspecified knob means". */
+  readonly seatKnobs: BulkImportChatInput["seatKnobs"];
   readonly now: number;
 }): (typeof chatParticipants.$inferInsert)[] {
   return [
@@ -202,15 +222,20 @@ function rosterRows(args: {
       joinedAt: args.now,
       joinSeq: 0,
     },
-    ...args.characterIds.map((characterId): typeof chatParticipants.$inferInsert => ({
-      id: args.ctx.newParticipantId(),
-      chatId: args.chatId,
-      kind: "character",
-      characterId,
-      role: "member",
-      joinedAt: args.now,
-      joinSeq: 0,
-    })),
+    ...args.characterIds.map((characterId): typeof chatParticipants.$inferInsert => {
+      const knobs = args.seatKnobs?.find((knob) => knob.characterId === characterId);
+      return {
+        id: args.ctx.newParticipantId(),
+        chatId: args.chatId,
+        kind: "character",
+        characterId,
+        role: "member",
+        ...(knobs?.talkativeness === undefined ? {} : { talkativeness: knobs.talkativeness }),
+        ...(knobs?.disabled === undefined ? {} : { disabled: knobs.disabled }),
+        joinedAt: args.now,
+        joinSeq: 0,
+      };
+    }),
   ];
 }
 
@@ -482,6 +507,7 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
       ownerId,
       characterIds: seatedCharacterIds(characterId, ci.roster),
       anchorPersonaId: ci.anchorPersonaId,
+      seatKnobs: ci.seatKnobs,
       now: ci.createdAt,
     }).map((r) => batchStmt(db.insert(chatParticipants).values(r))),
   ];
@@ -528,6 +554,9 @@ function everyReferencedCharacter(primary: CharacterId, input: readonly BulkImpo
   const ids: CharacterId[] = [primary];
   for (const c of input) {
     ids.push(...(c.roster ?? []));
+    // A knob names a seat; an id that reaches the ownership gate here can never be one the seat gate below
+    // then refuses for the wrong reason (foreign reads as unseated).
+    ids.push(...(c.seatKnobs ?? []).map((knob) => knob.characterId));
     for (const m of c.messages) {
       const named = namedSpeaker(m);
       if (named !== null) {
@@ -551,14 +580,15 @@ async function planOneChat(args: Omit<OneChatArgs, "existingAssetIds" | "narrato
   return buildChatStatements({ ...args, existingAssetIds, narratorCharacterId });
 }
 
-/** The run's two whole-input gates, BEFORE any write: EVERY id this run could seat or attribute — the
- *  primary, every chat's extra roster, every slot's named speaker — must be the caller's, and every named
- *  speaker must be seated in its own room. A foreign or unseated id anywhere refuses the whole run rather
- *  than landing a partially-correct room. */
+/** The run's whole-input gates, BEFORE any write: EVERY id this run could seat, attribute or CONFIGURE — the
+ *  primary, every chat's extra roster, every slot's named speaker, every per-seat knob (#1687) — must be the
+ *  caller's, and every named speaker and knob must be seated in its own room. A foreign or unseated id
+ *  anywhere refuses the whole run rather than landing a partially-correct room. */
 async function assertImportPreconditions(db: Db, ownerId: UserId, characterId: CharacterId, input: readonly BulkImportChatInput[]): Promise<void> {
   await assertOwnedCharacters(db, ownerId, everyReferencedCharacter(characterId, input));
   for (const ci of input) {
     assertSeatedSpeakers(ci, characterId);
+    assertSeatedKnobs(ci, characterId);
   }
 }
 

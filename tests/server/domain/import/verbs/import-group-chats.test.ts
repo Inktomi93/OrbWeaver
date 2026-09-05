@@ -305,27 +305,56 @@ describe("importGroupChats", () => {
     expect(result.ambiguousSpeakerNames).toEqual([]);
   });
 
-  // #1469 item 4 — `disabledMemberFiles` was parsed onto `ParsedStGroup` and read by NOBODY. The seating
-  // ruling (contract/views.ts: "still seated — the room's cast is the cast") is preserved; the half of that
-  // same ruling that never shipped — "recorded so the report can say the disabled flag itself did not
-  // travel" — is what these pin.
-  test("a member ST had DISABLED is still seated, and the mute that did not travel is reported", async () => {
+  // #1469 item 4 → #1687. The seating ruling (contract/views.ts: "still seated — the room's cast is the
+  // cast") is preserved; its INPUT changed. #1469 could only REPORT the mute as lost because the bulk-import
+  // wire had no knob channel; the wire now carries `seatKnobs`, so the seat lands MUTED and the report says
+  // the flag travelled.
+  test("a member ST had DISABLED is still seated, and the mute TRAVELS as a per-seat knob (#1687)", async () => {
     const written: Written = { calls: [] };
     const service = createImportService(ctxWith(written));
 
     const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"], { disabled_members: ["Bram.png"] })]));
 
-    // The cast is unchanged — Bram keeps his seat (the recorded ruling).
+    // The cast is unchanged — Bram keeps his seat (the recorded ruling)…
     expect(written.calls[0]?.chats[0]?.roster).toEqual([BRAM]);
+    // …and the write op is handed the mute for exactly that seat (the knob the room is born with).
+    expect(written.calls[0]?.chats[0]?.seatKnobs).toEqual([{ characterId: BRAM, disabled: true }]);
     expect(result.seatedDisabledMembers).toEqual([{ group: "Group: Aria + Bram", member: "Bram.png" }]);
   });
 
-  test("a group with no disabled members reports an empty list, never a missing one", async () => {
+  test("a DISABLED member whose card never resolved is a skipped member, never a phantom muted seat", async () => {
+    const written: Written = { calls: [] };
+    const service = createImportService(ctxWith(written));
+
+    // "Ghost.png" is in neither the import set nor the library, and ST had it disabled.
+    const result = await service.importGroupChats(input([group(["Aria.png", "Ghost.png"], { disabled_members: ["Ghost.png"] })]));
+
+    expect(result.skippedMembers.map((m) => m.member)).toEqual(["Ghost.png"]);
+    // Claiming a seat that does not exist was muted would be a lie the write op would refuse anyway.
+    expect(result.seatedDisabledMembers).toEqual([]);
+    expect(written.calls[0]?.chats[0]?.seatKnobs).toBeUndefined();
+  });
+
+  test("the PRIMARY seat is mutable too — ST disables by position, and position 0 is a position", async () => {
+    const written: Written = { calls: [] };
+    const service = createImportService(ctxWith(written));
+
+    const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"], { disabled_members: ["Aria.png"] })]));
+
+    // Aria is the room's primary (first resolved member); the knob names her all the same.
+    expect(written.calls[0]?.chats[0]?.seatKnobs).toEqual([{ characterId: ARIA, disabled: true }]);
+    expect(result.seatedDisabledMembers).toEqual([{ group: "Group: Aria + Bram", member: "Aria.png" }]);
+  });
+
+  test("a group with no disabled members reports an empty list, never a missing one, and carries NO knobs", async () => {
     const written: Written = { calls: [] };
     const service = createImportService(ctxWith(written));
 
     const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"])]));
 
     expect(result.seatedDisabledMembers).toEqual([]);
+    // ABSENT, not an empty array: the field's contract says absent ⇒ every seat takes the column defaults,
+    // which is byte-identically the pre-#1687 row.
+    expect(written.calls[0]?.chats[0]?.seatKnobs).toBeUndefined();
   });
 });

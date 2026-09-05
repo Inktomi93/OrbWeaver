@@ -190,6 +190,7 @@ describe("the imported chat's display title", () => {
       roomName: "Tavern Night",
       primaryCharacterId: castId<CharacterId>("character_a"),
       roster: [],
+      mutedSeats: [],
       speakerByFile: new Map(),
       speakerByName: new Map(),
       metadata: {},

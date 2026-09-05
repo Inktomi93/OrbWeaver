@@ -293,8 +293,10 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
       ),
     ),
     section(
-      "Group members SillyTavern had disabled (imported as ACTIVE — the mute did not travel)",
-      report.seatedDisabledMembers.map((m) => `\`${m.group}\` → \`${m.member}\` — seated in the room; mute it there if you want it quiet`),
+      "Group members SillyTavern had disabled (seated MUTED — the flag travelled)",
+      report.seatedDisabledMembers.map(
+        (m) => `\`${m.group}\` → \`${m.member}\` — seated in the room with its mute ON, exactly as ST had it; un-mute it in the room to hear from it`,
+      ),
     ),
     section(
       "Group definitions that failed to parse",

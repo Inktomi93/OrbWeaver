@@ -117,15 +117,24 @@ function speakerNamesOf(
   return { byName, ambiguous };
 }
 
-/** The members ST had DISABLED, recorded as seated-anyway (#1469 item 4). THE SEATING IS THE RECORDED RULING
+/** The members ST had DISABLED, resolved to the SEATS they became (#1687). THE SEATING IS THE RECORDED RULING
  *  (`contract/views.ts` on `ParsedStGroup.disabledMemberFiles`: "still seated — the room's cast is the cast")
- *  and it stands; the half of that same ruling that never shipped is this record — the field was parsed and
- *  read by NOBODY, so the promised "the report can say the disabled flag itself did not travel" was a claim
- *  the report could not make. Orb DOES carry a per-seat `disabled` knob (`chat_participants.disabled` /
- *  `seatKnobsSchema`), but the bulk-import wire seats a flat `CharacterId[]` with no knob channel — landing
- *  the mute needs a chat-contract change, which is not this verb's to make. */
-function disabledSeatsOf(group: CollectedGroup): ImportSeatedDisabledMember[] {
-  return group.parsed.disabledMemberFiles.map((member) => ({ group: group.parsed.name, member }));
+ *  and it stands; what changed is its INPUT. #1469 item 4 could only REPORT the flag as lost because the
+ *  bulk-import wire seated a flat `CharacterId[]` with no knob channel; the wire now carries `seatKnobs`, so
+ *  the member is seated AND muted through orb's own per-seat knob and the report says the flag travelled.
+ *
+ *  Only a RESOLVED member counts: an unresolved card is already reported as a skipped member, and a mute for
+ *  a seat that does not exist is a knob the write op would (rightly) refuse. */
+function disabledSeatsOf(
+  group: CollectedGroup,
+  seated: readonly { readonly file: string; readonly characterId: CharacterId }[],
+): { readonly reported: ImportSeatedDisabledMember[]; readonly mutedSeats: CharacterId[] } {
+  const disabled = new Set(group.parsed.disabledMemberFiles);
+  const muted = seated.filter((s) => disabled.has(s.file));
+  return {
+    reported: muted.map((s) => ({ group: group.parsed.name, member: s.file })),
+    mutedSeats: muted.map((s) => s.characterId),
+  };
 }
 
 /** The precondition a group must meet to become a room: at least one seated member AND at least one readable
@@ -149,7 +158,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     profile: ReturnType<typeof requireProfile>,
     seats: GroupSeats,
   ): Promise<{ readonly chatsImported: number; readonly realConversation: boolean; readonly chatsPersonaHealed: number }> {
-    const { seated, speakerByName } = seats;
+    const { seated, speakerByName, mutedSeats } = seats;
     // Proven non-empty by `refusalFor` before this runs; the fallback keeps the read total.
     const primary = seated[0];
     if (primary === undefined) {
@@ -172,6 +181,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
           personaByUserName: profile.personaByUserName,
           primaryCharacterId: primary.characterId,
           roster,
+          mutedSeats,
           speakerByFile,
           speakerByName,
           metadata,
@@ -209,8 +219,8 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     // §5.7: collected across EVERY group's transcripts, including a group that is later refused — the pick
     // still did not travel, and the report says so.
     const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
-    // Both collected across EVERY group, INCLUDING one later refused: an ambiguous name and a discarded mute
-    // are facts about the ST snapshot, not about whether this room happened to import.
+    // Both collected across EVERY group, INCLUDING one later refused: an ambiguous name and a carried mute are
+    // facts about the ST snapshot, not about whether this room happened to import.
     const ambiguousSpeakerNames: ImportAmbiguousSpeakerName[] = [];
     const seatedDisabledMembers: ImportSeatedDisabledMember[] = [];
 
@@ -218,10 +228,11 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       const { seated, skipped } = resolveMembers(group, input.characterIdByCardFilename);
       skippedMembers.push(...skipped);
       unresolvedPins.push(...unresolvedPinnedPersonas(group.chats, profile.personaByUserName));
-      seatedDisabledMembers.push(...disabledSeatsOf(group));
+      const disabled = disabledSeatsOf(group, seated);
+      seatedDisabledMembers.push(...disabled.reported);
       const names = speakerNamesOf(group, seated, input);
       ambiguousSpeakerNames.push(...names.ambiguous);
-      const outcome = await runGroup(group, profile, { seated, speakerByName: names.byName });
+      const outcome = await runGroup(group, profile, { seated, speakerByName: names.byName, mutedSeats: disabled.mutedSeats });
       if (!outcome.ok) {
         skippedGroups.push({ group: group.parsed.name, reason: outcome.reason });
         continue;

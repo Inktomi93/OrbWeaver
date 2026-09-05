@@ -123,8 +123,8 @@ export interface ImportGroupsResult {
   /** Display names two seated cards share: the name-only attribution fallback is withheld for them and the
    *  slots fall to the room's primary, reported rather than guessed (#1469 item 5). */
   readonly ambiguousSpeakerNames: readonly ImportAmbiguousSpeakerName[];
-  /** Members ST had disabled that the room seats ACTIVE — the flag did not travel, and now says so
-   *  (#1469 item 4). */
+  /** Members ST had disabled that the room seats MUTED — the flag TRAVELLED (#1687; #1469 item 4 shipped the
+   *  reporting half first, when the bulk-import wire still had no knob channel). */
   readonly seatedDisabledMembers: readonly ImportSeatedDisabledMember[];
 }
 

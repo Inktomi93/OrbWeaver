@@ -8,7 +8,7 @@
 // attribution and the room-behavior blob. The group arm DELEGATES rather than re-deriving, so a change to
 // dates/variants/persona attribution can never apply to only one kind of room.
 
-import type { BulkImportChatInput, BulkImportInjectionInput, BulkImportMessageInput, BulkImportVariantInput } from "@orb/contracts/chat";
+import type { BulkImportChatInput, BulkImportInjectionInput, BulkImportMessageInput, BulkImportSeatKnobs, BulkImportVariantInput } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { msToWallClock } from "@orb/kit/time";
@@ -409,5 +409,8 @@ export function buildGroupChatInput(ci: CollectedChat, deps: GroupChatInputDeps)
     // explicit null would say the same thing in a second spelling.
     return speaker === null ? message : { ...message, characterId: speaker };
   });
-  return { ...base, messages, roster: deps.roster, metadata: deps.metadata };
+  // #1687: ST's `disabled_members` become orb's per-seat mute. Emitted only when the group actually disabled
+  // someone — an absent list is the "every seat takes the column defaults" arm the field's contract states.
+  const seatKnobs = deps.mutedSeats.map((characterId): BulkImportSeatKnobs => ({ characterId, disabled: true }));
+  return { ...base, messages, roster: deps.roster, metadata: deps.metadata, ...(seatKnobs.length > 0 ? { seatKnobs } : {}) };
 }

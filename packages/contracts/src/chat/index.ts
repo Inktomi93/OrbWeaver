@@ -75,6 +75,7 @@ export type {
   BulkImportChatsResult,
   BulkImportInjectionInput,
   BulkImportMessageInput,
+  BulkImportSeatKnobs,
   BulkImportVariantInput,
   ImportedChatIdentity,
 } from "./bulk-import.ts";
