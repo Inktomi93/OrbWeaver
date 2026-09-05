@@ -36,6 +36,11 @@ export interface LibrarySurfaceShellProps {
  *  focus-on-mount container (the surface-purity `A11y focus restoration` gate scans the surface file). */
 export function LibrarySurfaceShell({ loadingLabel, errorLabel, children }: LibrarySurfaceShellProps): ReactElement {
   return (
+    // DELIBERATELY UNRESERVED (#1098) — refused TWICE over. (1) Two owners (the preset and databank
+    // library surfaces) share this shell, so one literal key is one box for two libraries. (2) Both of
+    // them render `LibraryListLayout` INSIDE this boundary, and its rows container is the pane's scroller
+    // (`min-h-0 flex-1 overflow-y-auto`, below) — `reserveKey` wraps the settled child in an auto-height
+    // Stack, so the rows would resolve against an indefinite parent and stop scrolling (#1133).
     <QueryBoundary
       fallback={<Text tone="muted">{loadingLabel}</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label={errorLabel} onRetry={retry} />}

@@ -27,7 +27,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { QueryBoundary, QueryErrorState, useExternalMediaBlocked, useInteractiveCardsAllowed, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useExternalMediaBlocked, useInteractiveCardsAllowed, useInvalidation, useTRPC } from "#data";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import type { CharacterAppearanceTabProps } from "./character-appearance-tab.tsx";
 
@@ -74,9 +74,12 @@ function htmlTrustEdit(value: string): { trustHtml: boolean | null; interactiveH
  *  reads as one: its own door since #841, where it is not three paragraphs at the bottom of a colour editor. */
 export function CharacterTrustTab({ characterId }: CharacterAppearanceTabProps): ReactElement {
   return (
+    // RESERVED (#1098) — the Trust tab settles into the render-policy rows; its sibling Look tab is keyed
+    // for the same reason, and two tabs in one panel that resize differently is the worse half of it.
     <QueryBoundary
-      fallback={<Text voice="quiet">Loading trust…</Text>}
+      fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="trust" onRetry={retry} />}
+      reserveKey="character.context.trust"
     >
       <TrustTabBody characterId={characterId} />
     </QueryBoundary>

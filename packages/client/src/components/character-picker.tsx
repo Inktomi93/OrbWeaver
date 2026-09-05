@@ -112,6 +112,11 @@ export interface CharacterPickerProps {
 /** The searchable character picker body — a QueryBoundary + cmdk Command over `character.list`. */
 export function CharacterPicker(props: CharacterPickerProps): ReactElement {
   return (
+    // DELIBERATELY UNRESERVED (#1098) — design §1.4 already ruled this one OUT of the keying tranche and
+    // the ruling still holds on today's tree: the picker is mounted by EIGHT owners (refinery x3, chat x3,
+    // persona x2), so a single key would collide across all of them. It needs a caller-supplied
+    // `reserveKey` pass-through, which is a change to every owner, not to this file. The count is already
+    // prop-driven, so the gate's static-count arm does not indict this mount either.
     <QueryBoundary
       fallback={<SkeletonRows count={props.skeletonCount ?? DEFAULT_SKELETON_ROW_COUNT} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the character library" onRetry={retry} />}

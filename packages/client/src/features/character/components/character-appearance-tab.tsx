@@ -35,7 +35,7 @@ import { ThemeSwatchStrip } from "@orb/ui/theme-swatch";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { BackgroundSourceField } from "#components";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { notify } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
@@ -83,9 +83,12 @@ const THEME_FIELD_NAMES = Object.keys(EMPTY_CHARACTER_THEME_FORM) as (keyof Char
  */
 export function CharacterLookTab({ characterId }: CharacterAppearanceTabProps): ReactElement {
   return (
+    // RESERVED (#1098) — the Look tab settles into eleven colour rows plus the background field; a single
+    // quiet line in their place resized the whole CONTEXT panel every time the card read landed.
     <QueryBoundary
-      fallback={<Text voice="quiet">Loading appearance…</Text>}
+      fallback={<SkeletonRows count={5} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="appearance" onRetry={retry} />}
+      reserveKey="character.context.look"
     >
       <FieldLayout orientation="horizontal">
         <LookTabBody characterId={characterId} />

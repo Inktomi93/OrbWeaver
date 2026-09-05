@@ -50,6 +50,10 @@ export function CharacterFacetInspector({ characterId }: CharacterFacetInspector
     return <CharacterOverviewCard characterId={characterId} />;
   }
   return (
+    // DELIBERATELY UNRESERVED (#1098) — a GEOMETRY refusal. The settled body scrolls itself
+    // (`FacetContextBody`'s `min-h-0 overflow-y-auto`, below), and that box only has a height because an
+    // ancestor flex chain gives it one; `reserveKey`'s auto-height measuring Stack severs that chain and
+    // the inspector stops scrolling (#1133). Hoist the scroller above the boundary before keying.
     <QueryBoundary
       fallback={<Text voice="quiet">Loading…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this field" onRetry={retry} />}
