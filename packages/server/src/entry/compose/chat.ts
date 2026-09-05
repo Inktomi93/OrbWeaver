@@ -109,8 +109,9 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
 
 // Agent-sdk turn shape: the stateful backend wants a session seed (transcript before this turn) + a prompt
 // tail (trailing user rows). With both it resumes its cached session and reseeds on divergence, so history
-// rides the session instead of being re-sent flattened every turn. No clean user tail (continue-mode, or a
-// tool row) falls back to the pre-existing flatten (one prompt string, fresh throwaway session).
+// rides the session instead of being re-sent flattened every turn. Tool and system rows ride the seed as
+// their own frames (#1593); only the ABSENCE of a trailing user row (continue-mode) falls back to the
+// pre-existing flatten (one prompt string with each row's blank lines collapsed, fresh throwaway session).
 
 /** One rendered row: image parts become a placeholder (no vision on this path); the wire `name` label is
  *  stamped into the text (agent-sdk seed frames carry no `name` field). */

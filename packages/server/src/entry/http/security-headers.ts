@@ -207,11 +207,12 @@ function policy(opts: { readonly dev: boolean; readonly external: boolean }): Mi
  * handler that ever stopped writing its own CSP gets the app policy (a loudly refused embed) rather than
  * no policy at all (silence).
  *
- * LIMIT, stated rather than discovered: a handler that THROWS is answered by `app.onError`, and hono's
- * `compose()` routes that throw past this middleware's post-`next()` code — the catch lives at the frame
- * ABOVE in `node_modules/hono/dist/compose.js`, so nothing after `await next()` runs. An error
- * response on an exempt path is therefore still un-policied; closing that needs the app's error handler to
- * carry the policy, which is a separate seam.
+ * ERROR PATHS, measured rather than reasoned (security review 2026-09-05, #1594 / #1615): a handler that
+ * throws an `Error` is caught by hono's `compose()` at THAT handler's own dispatch frame, which runs
+ * `app.onError` there and assigns `context.res` — so this middleware's `await next()` resolves normally and
+ * the post-`next()` write below DOES reach the 500 (fully policied). The only un-policied error path is a
+ * NON-`Error` throw: `compose()`'s `err instanceof Error && onError` predicate fails, the value is rethrown
+ * past every middleware, and the adapter's own 500 goes out bare.
  */
 export function securityHeaders(opts: SecurityHeadersOptions): MiddlewareHandler {
   // Both arms are built ONCE at wiring time; the per-request work is the boolean read + a dispatch.
