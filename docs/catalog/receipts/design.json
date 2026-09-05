@@ -114,13 +114,13 @@
     },
     {
       "path": "docs/design/1238-plugin-distribution.md",
-      "assignedSha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
+      "assignedSha256": "a9ad2fe8799e0c3dc7025afb252d425ea2f32da78ee421d40d18f6712a5a9418",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
-      "verifiedCommit": "fe7e41eed47b0c25da3fb215c05b7cb1b0f976b1",
-      "verifiedAt": "2026-09-02",
+      "verifiedSha256": "a9ad2fe8799e0c3dc7025afb252d425ea2f32da78ee421d40d18f6712a5a9418",
+      "verifiedCommit": "5fdea267b3155c4c6a58910bed0ee81a30677321",
+      "verifiedAt": "2026-09-05",
       "claims": [
         {
           "claim": "The teaching plugins live in the server package's entry tier and their guest .js sources are typechecked by NO program (allowJs is false repo-wide); only the SDK mirror is pinned, and the seeds ride the image's whole-src copy — the rot and reachability the ruling names are structural.",
@@ -197,6 +197,7 @@
       ],
       "summary": "The #1238 distribution design (lane cb-plugin-dist-design, forge, 2026-09-02): the teaching set becomes @orb/showcase-plugins under packages/* (server-dep, node-resolved seeding — no image-copy mechanism, per the owner's container ruling), guest sources enter a checkJs type program against the published host-v1.d.ts, and three doors land on the one funnel: dev-gated load-unpacked, client-packed folder upload, and install-from-git via an infra/git adapter (isomorphic-git over the egress-guarded transport, ephemeral clone, git origin + source_commit receipt). Owner rulings recorded verbatim incl. disclaimer-text-no-extra-click; three forks with defaults; three build lanes dispatched from section 9.",
       "evidence": [
+        "re-attested at 5fdea267b by the orchestrator after reading the #1692 edit in full: §2 gains a LANDED note (the package exists; the seeder resolves packShowcaseBundle by node resolution; the checkJs program over the guest sources deliberately did NOT land with the move and is its own row); the before-state finding's tense updated; citation targets re-pointed to the package; updated 2026-09-05.",
         "authored born-reviewed by the designing lane at fe7e41eed: full reads of the plugin domain's install/upgrade/url-verb family, the substrate funnel, the seeder + packer, the contracts manifest/lifecycle homes, the db CHECKs, the client install card + bundle reader, and the SillyTavern reference (src/endpoints/extensions.js install/update/branches flow) — receipts inline in the doc",
         "owner rulings 2026-09-02 quoted verbatim in the doc's commission block (new package; no forced zips; app-does-the-clone; disclaimer text without a separate click; no container-build asset moving)"
       ]
@@ -1491,14 +1492,15 @@
     },
     {
       "path": "docs/design/plugin-showcase-set.md",
-      "assignedSha256": "c5d99e0217681ba0e26d7ab91dac02524ff3ffe587084fbd107e8bccb3697ec9",
+      "assignedSha256": "ad5703c68f7ce56526117aadaee24d13561b4b2b82565488c60bfb6eba92b2b1",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "c5d99e0217681ba0e26d7ab91dac02524ff3ffe587084fbd107e8bccb3697ec9",
-      "verifiedCommit": "9b35fa21e76dc74e7158ed7256454d74357d4a0c",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "ad5703c68f7ce56526117aadaee24d13561b4b2b82565488c60bfb6eba92b2b1",
+      "verifiedCommit": "5fdea267b3155c4c6a58910bed0ee81a30677321",
+      "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at 5fdea267b by the orchestrator after reading the #1692 edit in full: the authoring guide and the host-v1.d.ts homes re-pointed from entry/boot/seed-assets to packages/showcase-plugins/bundles/; no design change; updated 2026-09-05.",
         "docs/design/plugin-showcase-set.md:1-224 (full read; #774 showcase design-of-record, status rows 1-11 built + suite-green, #788 surface-growth append reconciled)",
         "git log --oneline -1 -- docs/design/plugin-showcase-set.md: 690d2c6ec feat(#774): mirror the #788 surface growth into the published SDK — 23 caps, tokens namespace, five reads",
         "GitHub issue #774 (the showcase commission — nine seeded plugins as developer teaching material)",

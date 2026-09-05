@@ -717,9 +717,9 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 571,
-      "bytes": 301105,
-      "sha256": "596ffa687449b668dbe5df6ec7283360c4fa42c5e4e98b1dd305e1b6d7cb7613",
+      "lines": 573,
+      "bytes": 304235,
+      "sha256": "013dfea5392c93099958cd775fd786a3dc017e288a50d7559fbe46f764964540",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -732,14 +732,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "596ffa687449b668dbe5df6ec7283360c4fa42c5e4e98b1dd305e1b6d7cb7613",
+        "assignedSha256": "013dfea5392c93099958cd775fd786a3dc017e288a50d7559fbe46f764964540",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "596ffa687449b668dbe5df6ec7283360c4fa42c5e4e98b1dd305e1b6d7cb7613",
-        "verifiedCommit": "2eed0d66bd7211f0c49eff3b4fcf02e9b14c9933",
+        "verifiedSha256": "013dfea5392c93099958cd775fd786a3dc017e288a50d7559fbe46f764964540",
+        "verifiedCommit": "5fdea267b3155c4c6a58910bed0ee81a30677321",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested at 5fdea267b by the orchestrator after reading D160 in full (p-showcase-package, #1692): default content ships as a workspace package the server DECLARES and resolves by node resolution — the first is @orb/showcase-plugins (packages/showcase-plugins/: nine bundles, the authoring guide, the published host-v1.d.ts; enforcers = the pnpm workspace dependency (physics) + dep-cruiser); header roll to D160, next free D161+; the retired seed directory is named in prose, not as a live path.",
           "re-attested at 2eed0d66b by the orchestrator after reading the #1649 amendment in full (p-chat-vocab-migration): D131's lead and arm (A) take the vocabulary map's word — the seated-character drop, HandoffOffer {copyCharacters, copyGmPreset} — and the Homes list gains the boot step entry/boot/migrate-handoff-offer-vocab.ts (the persisted key renamed WITH a boot-time data migration, no shim; the ruling survives, its input changed). No other row changed.",
           "re-attested at 89514942d by the orchestrator after reading the D159 row in full (cb-token-belts, #1641 + #1361 item 1): a FORM-CONTROL edge and a DECORATIVE divider are two tokens — --color-input-border minted (3:1 floor against every panel + the composited bg-input fill, focus-ring ceiling per seed; static light-dark on the --color-selection-quiet precedent, one dark arm for both dark seeds), --color-border stays the divider; both owner texts verbatim, the appearance-settings negative finding, homes and all three enforcers named; header roll D1–D78/D86/D106–D159, next free D160+.",
           "re-attested at 32f5554d3 by the orchestrator after reading the #1627 leg-3 diff in full: D118 keeps its placement ruling (a multi-human belt is a per-ROOM authorizeAttach verdict) and gains a dated parenthetical that its one instance (the inbox) retired with #1627 and a future multi-human room refuses at its own attach, never on the socket — the ruling survives, its input changed; no new symbol/path cites; frontmatter dated 2026-09-05.",
@@ -11268,13 +11269,13 @@
       },
       "receipt": {
         "path": "docs/design/1238-plugin-distribution.md",
-        "assignedSha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
+        "assignedSha256": "a9ad2fe8799e0c3dc7025afb252d425ea2f32da78ee421d40d18f6712a5a9418",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
-        "verifiedCommit": "fe7e41eed47b0c25da3fb215c05b7cb1b0f976b1",
-        "verifiedAt": "2026-09-02",
+        "verifiedSha256": "a9ad2fe8799e0c3dc7025afb252d425ea2f32da78ee421d40d18f6712a5a9418",
+        "verifiedCommit": "5fdea267b3155c4c6a58910bed0ee81a30677321",
+        "verifiedAt": "2026-09-05",
         "claims": [
           {
             "claim": "The teaching plugins live in the server package's entry tier and their guest .js sources are typechecked by NO program (allowJs is false repo-wide); only the SDK mirror is pinned, and the seeds ride the image's whole-src copy — the rot and reachability the ruling names are structural.",
@@ -11351,11 +11352,12 @@
         ],
         "summary": "The #1238 distribution design (lane cb-plugin-dist-design, forge, 2026-09-02): the teaching set becomes @orb/showcase-plugins under packages/* (server-dep, node-resolved seeding — no image-copy mechanism, per the owner's container ruling), guest sources enter a checkJs type program against the published host-v1.d.ts, and three doors land on the one funnel: dev-gated load-unpacked, client-packed folder upload, and install-from-git via an infra/git adapter (isomorphic-git over the egress-guarded transport, ephemeral clone, git origin + source_commit receipt). Owner rulings recorded verbatim incl. disclaimer-text-no-extra-click; three forks with defaults; three build lanes dispatched from section 9.",
         "evidence": [
+          "re-attested at 5fdea267b by the orchestrator after reading the #1692 edit in full: §2 gains a LANDED note (the package exists; the seeder resolves packShowcaseBundle by node resolution; the checkJs program over the guest sources deliberately did NOT land with the move and is its own row); the before-state finding's tense updated; citation targets re-pointed to the package; updated 2026-09-05.",
           "authored born-reviewed by the designing lane at fe7e41eed: full reads of the plugin domain's install/upgrade/url-verb family, the substrate funnel, the seeder + packer, the contracts manifest/lifecycle homes, the db CHECKs, the client install card + bundle reader, and the SillyTavern reference (src/endpoints/extensions.js install/update/branches flow) — receipts inline in the doc",
           "owner rulings 2026-09-02 quoted verbatim in the doc's commission block (new package; no forced zips; app-does-the-clone; disclaimer text without a separate click; no container-build asset moving)"
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/1308-browser-evidence-retention.md",
@@ -13483,14 +13485,15 @@
       },
       "receipt": {
         "path": "docs/design/plugin-showcase-set.md",
-        "assignedSha256": "c5d99e0217681ba0e26d7ab91dac02524ff3ffe587084fbd107e8bccb3697ec9",
+        "assignedSha256": "ad5703c68f7ce56526117aadaee24d13561b4b2b82565488c60bfb6eba92b2b1",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "c5d99e0217681ba0e26d7ab91dac02524ff3ffe587084fbd107e8bccb3697ec9",
-        "verifiedCommit": "9b35fa21e76dc74e7158ed7256454d74357d4a0c",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "ad5703c68f7ce56526117aadaee24d13561b4b2b82565488c60bfb6eba92b2b1",
+        "verifiedCommit": "5fdea267b3155c4c6a58910bed0ee81a30677321",
+        "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested at 5fdea267b by the orchestrator after reading the #1692 edit in full: the authoring guide and the host-v1.d.ts homes re-pointed from entry/boot/seed-assets to packages/showcase-plugins/bundles/; no design change; updated 2026-09-05.",
           "docs/design/plugin-showcase-set.md:1-224 (full read; #774 showcase design-of-record, status rows 1-11 built + suite-green, #788 surface-growth append reconciled)",
           "git log --oneline -1 -- docs/design/plugin-showcase-set.md: 690d2c6ec feat(#774): mirror the #788 surface growth into the published SDK — 23 caps, tokens namespace, five reads",
           "GitHub issue #774 (the showcase commission — nine seeded plugins as developer teaching material)",
@@ -13522,7 +13525,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/plugin-ui-plane.md",
