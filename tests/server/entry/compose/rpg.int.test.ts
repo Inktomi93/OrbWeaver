@@ -1631,7 +1631,7 @@ test("R-OBS composed-real: a folded turn records its mount, its calls, its flush
   // soon as the vehicle is chosen — so it is not the observable a reader (or an e2e barrier) may treat as
   // "the extraction is over". `flushed` is, and it must come AFTER the dispatch receipt in the ring.
   const flushed = events.find((event): event is Extract<RpgTraceEvent, { phase: "flushed" }> => event.phase === "flushed");
-  expect(flushed).toMatchObject({ turnId: TURN, wrote: true, droppedReason: null });
+  expect(flushed).toMatchObject({ turnId: TURN, outcome: "wrote", droppedReason: null });
   const phases = events.map((event) => event.phase);
   expect(phases.indexOf("flushed")).toBeGreaterThan(phases.indexOf("flush"));
 

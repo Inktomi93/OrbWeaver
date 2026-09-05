@@ -1823,10 +1823,10 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     // settle is the normal end of every turn; the interesting arms (drop, cancel, fallback) keep their own
     // louder lines. The trace phase is what a barrier polls.
     onFlushSettled: (info) => {
-      deps.trace?.({ phase: "flushed", chatId: info.chatId, turnId: info.turnId, wrote: info.wrote, droppedReason: info.droppedReason });
+      deps.trace?.({ phase: "flushed", chatId: info.chatId, turnId: info.turnId, outcome: info.outcome, droppedReason: info.droppedReason });
       logger.debug(
-        { event: "rpg.flush.settled", chatId: info.chatId, gameId: info.gameId, turnId: info.turnId, wrote: info.wrote, droppedReason: info.droppedReason },
-        "rpg state round settled at the write boundary",
+        { event: "rpg.flush.settled", chatId: info.chatId, gameId: info.gameId, turnId: info.turnId, outcome: info.outcome, droppedReason: info.droppedReason },
+        "rpg state round settled",
       );
     },
     onFlushDropped: (info) => {

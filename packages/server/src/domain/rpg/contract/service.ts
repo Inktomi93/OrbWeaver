@@ -84,6 +84,7 @@ import type {
   UpsertQuestParams,
 } from "./params.ts";
 import type { CreateGameResult, HandDoorResult, PopulateResult, ResyncResult, RollDiceResult } from "./results.ts";
+import type { RpgFlushOutcome } from "./trace.ts";
 
 export type RpgGameRow = typeof rpgGames.$inferSelect;
 export type NewRpgGame = typeof rpgGames.$inferInsert;
@@ -743,15 +744,16 @@ interface StateRoundCancelInfo {
   readonly discardedStagedWrites: boolean;
 }
 
-/** The write-boundary SETTLE signal (#1493) — the round is over, whatever it did. `wrote` is the durable half
- *  (a snapshot landed); `droppedReason` is the F1 backstop's field-level refusal and is `null` on every arm
- *  that did not drop, INCLUDING the arm that staged nothing (a quiet beat is not a drop).
+/** The STATE-ROUND SETTLE signal (#1493) — the round is over, whatever it did, on EVERY arm including the
+ *  ones that never reached a write. `outcome` is the shared closed vocabulary ({@link RpgFlushOutcome}, one
+ *  home in `./trace.ts`); `droppedReason` is the F1 backstop's field-level refusal and is `null` on every
+ *  arm but `dropped` (a quiet beat is not a drop).
  *  Non-exported: reachable only through `RpgContext.onFlushSettled`'s signature — no consumer names it (knip). */
 interface FlushSettledInfo {
   readonly chatId: ChatId;
   readonly gameId: RpgGameId;
   readonly turnId: ChatTurnId;
-  readonly wrote: boolean;
+  readonly outcome: RpgFlushOutcome;
   readonly droppedReason: string | null;
 }
 

@@ -42,6 +42,7 @@ import type { ChatTurnId, MessageId, MessageVariantId, RpgSnapshotId } from "@or
 import type { RpgTurnContext } from "../../chat/index.ts";
 import type { StagedPatch, StagedTurnFlush } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow, RpgRunToolRound } from "../contract/service.ts";
+import type { RpgFlushOutcome } from "../contract/trace.ts";
 import { findMessageSeq, writeStagedSnapshotAndJournal } from "../persistence/snapshots.ts";
 import { recordTurnToolCalls } from "../persistence/turn-tool-calls.ts";
 import { currentSnapshotState, foldTurnWriteIntoHandHead, snapshotStateBeforeSlot } from "../snapshot-edit.ts";
@@ -290,10 +291,22 @@ async function foldIntoShadowingHandRow(
  *  a structurally-impossible write. The verdict is derived from the SAME connection the round would use (the
  *  character turn's `turnConnection`, F1) — never a re-resolve of the host's global default. The header law
  *  ("a game whose model has no writer capability never reaches here", compose/rpg.ts) is now ENFORCED here. */
-async function flushWritableTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGameRow["config"]["extractionMode"], turn: CompletedTurn): Promise<void> {
+async function flushWritableTurn(
+  ctx: RpgContext,
+  game: RpgGameRow,
+  turn: CompletedTurn,
+  /** The round's inputs and its OUTPUT LEDGER, grouped because they travel together. `settle` is written as
+   *  each arm LEARNS its verdict and read by `flushTurn`'s outermost `finally` (#1493 residual): a returned
+   *  value could not work, because the caller must still publish an honest settle when this function THROWS,
+   *  and the truth at that moment ("the write landed, the disclosure write blew up") exists only here. It is
+   *  born `failed`, so an arm that never updates it reports the throw it took. */
+  round: { readonly mode: RpgGameRow["config"]["extractionMode"]; readonly settle: { outcome: RpgFlushOutcome; droppedReason: string | null } },
+): Promise<void> {
+  const { mode, settle } = round;
   // CANCELLED BEFORE WE EVEN START (the caller pressed Stop while an earlier speaker's round was still queued):
   // no reads, no round, no spend. Byte-identical to a non-writing turn.
   if (isCancelled(turn.signal)) {
+    settle.outcome = "cancelled";
     ctx.onStateRoundCancelled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, discardedStagedWrites: false });
     return;
   }
@@ -309,6 +322,7 @@ async function flushWritableTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGam
   // COMMITTED and on screen (D124's turn-row arm), and a later cancel may not erase it.
   if (isCancelled(turn.signal)) {
     const staged = ctx.staging.take(turn.turnId) !== undefined;
+    settle.outcome = "cancelled";
     ctx.onStateRoundCancelled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, discardedStagedWrites: staged });
     return;
   }
@@ -324,37 +338,54 @@ async function flushWritableTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGam
   // second write, which is the same lie with a shorter life (#77).
   const flush = ctx.staging.take(turn.turnId);
   const suppressed: string[] = [...(flush?.suppressedByLocks ?? [])];
-  let wrote = false;
-  let droppedReason: string | null = null;
   try {
-    if (flush !== undefined) {
+    if (flush === undefined) {
+      // The quiet beat: the round ran, staged nothing, and that IS its terminal state.
+      settle.outcome = "no-writes";
+    } else {
       const written = await writeFlush(ctx, game, flush, turn);
       suppressed.push(...written.suppressed);
-      wrote = written.droppedReason === null;
-      droppedReason = written.droppedReason;
+      // WRITTEN INTO THE LEDGER THE INSTANT IT IS KNOWN, before the disclosure write below can throw: a
+      // committed snapshot reported as `failed` because the tool-call record blew up afterwards would be
+      // the same lie in the other direction.
+      settle.outcome = written.droppedReason === null ? "wrote" : "dropped";
+      settle.droppedReason = written.droppedReason;
     }
   } finally {
     await recordTurnCalls(ctx, game, turn, { roundCalls, suppressed });
-    // THE SETTLE (#1493), and it is TOTAL: every arm past the cancel gate lands here — a flush that wrote, a
-    // flush the F1 backstop dropped, a turn that staged nothing, and a write boundary that THREW (the `finally`
-    // runs before the throw propagates). Until this event, nothing in the trail said "the extraction is over":
-    // `onStateRoundPath` fires at DISPATCH, so a barrier polling it was racing the write it waited for.
-    ctx.onFlushSettled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, wrote, droppedReason });
   }
 }
 
 /** Keep the live panel pending for the whole post-commit vehicle, including its quiet/cancel/failure arms.
  *  The narrative turn finishes before this async flush, so chat's streaming phase alone cannot represent the
  *  gap. `finally` is load-bearing: every started lifecycle gets its matching settle even when a provider or
- *  write boundary throws, and the turn id lets concurrent rounds settle independently. */
+ *  write boundary throws, and the turn id lets concurrent rounds settle independently.
+ *
+ *  IT IS ALSO THE ONE SETTLE SITE (#1493 residual, verifier v-L2-tooling). The first cut raised
+ *  `onFlushSettled` inside the write boundary's own `finally` and AFTER `recordTurnCalls`, which made it
+ *  neither total nor last-word: a failed disclosure write, a throw out of `stageStateRound`, both cancel
+ *  arms and the readonly return below all skipped it, and a barrier polling for the settle hung to its
+ *  timeout on exactly those turns. Here it sits beside `stateRoundSettled` — the lifecycle closer that was
+ *  already total — and the ledger the inner function writes is what makes the event honest about WHICH arm
+ *  ended the round. */
 export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGameRow["config"]["extractionMode"], turn: CompletedTurn): Promise<void> {
   if (deriveTrackersReadOnly(mode, turn.turnConnection.connection.capability)) {
-    return; // manual-steering: the resolved connection has no write path for this mode — no round, no failing call
+    // Manual-steering: the resolved connection has no write path for this mode — no round, no failing call.
+    // It STILL settles, with the arm named: this game will never extract, and a reader (or a barrier) that
+    // learns that immediately is told the truth, where silence reads exactly like a round still in flight.
+    // No bus lifecycle, though — nothing was ever pending on the panel.
+    ctx.onFlushSettled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, outcome: "readonly", droppedReason: null });
+    return;
   }
   ctx.emitBus({ type: "stateRoundStarted", chatId: game.chatId, turnId: turn.turnId });
+  // Born `failed`: if the round throws before any arm records its verdict, that is precisely what happened.
+  const settle: { outcome: RpgFlushOutcome; droppedReason: string | null } = { outcome: "failed", droppedReason: null };
   try {
-    await flushWritableTurn(ctx, game, mode, turn);
+    await flushWritableTurn(ctx, game, turn, { mode, settle });
   } finally {
+    // SETTLE FIRST, then close the live lifecycle: both are fire-and-forget, and the observability event is
+    // the one a barrier is waiting on.
+    ctx.onFlushSettled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, ...settle });
     ctx.emitBus({ type: "stateRoundSettled", chatId: game.chatId, turnId: turn.turnId });
   }
 }

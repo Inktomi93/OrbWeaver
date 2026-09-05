@@ -322,7 +322,7 @@ export interface RpgFakes {
    *  order the boundary reached them. This is what proves the settle is TOTAL (a dropped flush and a turn that
    *  staged nothing settle too) and that it lands AFTER the durable write, which is the property the e2e
    *  barrier depends on. */
-  readonly flushSettles: { chatId: ChatId; turnId: ChatTurnId; wrote: boolean; droppedReason: string | null; busEventsAtSettle: number }[];
+  readonly flushSettles: { chatId: ChatId; turnId: ChatTurnId; outcome: string; droppedReason: string | null; busEventsAtSettle: number }[];
   /** Per post-commit round: was its OWN signal aborted by the time the round's body resumed (read AFTER
    *  `stateRoundGate`)? The real vehicles hand that same signal to the provider, so `true` here is the proof the
    *  cancellation reached the model call — not merely the write boundary one step later. */
@@ -592,7 +592,7 @@ export function makeRpgService(
       fakes.flushSettles.push({
         chatId: info.chatId,
         turnId: info.turnId,
-        wrote: info.wrote,
+        outcome: info.outcome,
         droppedReason: info.droppedReason,
         busEventsAtSettle: fakes.busEvents.length,
       });

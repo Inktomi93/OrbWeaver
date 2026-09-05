@@ -196,7 +196,7 @@ test("#1493 SETTLE: the write boundary announces AFTER the durable write — and
   // The snapshot LANDED, and exactly one settle names it.
   expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the settled hall");
   expect(h.fakes.flushSettles).toHaveLength(1);
-  expect(h.fakes.flushSettles[0]).toMatchObject({ chatId, turnId: TURN, wrote: true, droppedReason: null });
+  expect(h.fakes.flushSettles[0]).toMatchObject({ chatId, turnId: TURN, outcome: "wrote", droppedReason: null });
   // ORDER: `snapshotPatched` is emitted only after the snapshot+journal commit returns, so a settle that
   // already counted it is a settle that happened after the durable write — the property the barrier needs.
   expect(h.fakes.busEvents.map((event) => event.type)).toContain("snapshotPatched");
@@ -214,7 +214,53 @@ test("#1493 SETTLE: a turn that staged NOTHING still settles — the quiet beat 
   expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
   // The one difference from the arm above: nothing was WRITTEN, and nothing was DROPPED either — a quiet
   // beat is not a backstop refusal, and conflating them would make the empty delta read as data loss.
-  expect(h.fakes.flushSettles).toEqual([{ chatId, turnId: TURN, wrote: false, droppedReason: null, busEventsAtSettle: expect.any(Number) }]);
+  expect(h.fakes.flushSettles).toEqual([{ chatId, turnId: TURN, outcome: "no-writes", droppedReason: null, busEventsAtSettle: expect.any(Number) }]);
+});
+
+test("#1493 SETTLE is TOTAL: a THROWING disclosure write still settles, and still says the snapshot WROTE", async () => {
+  // THE RESIDUAL (verifier v-L2-tooling). The settle used to be raised inside the write boundary's own
+  // `finally`, AFTER `await recordTurnCalls(...)` — so a disclosure write that threw took the settle down
+  // with it and the e2e barrier hung to its 75 s timeout on a turn whose snapshot had ALREADY committed.
+  // Fault injection is the real write target: drop the disclosure table and the insert throws for real.
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { foldedDelta: { statePatch: { location: "the ford" }, journal: [] } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await db.run(sql`DROP TABLE rpg_turn_tool_calls`);
+
+  const verdict = await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: FOLDED_CALLS })).then(
+    () => "resolved",
+    () => "threw",
+  );
+
+  // The turn DID fail (the disclosure write is not optional) — and that is exactly the arm under test.
+  expect(verdict).toBe("threw");
+  // The snapshot committed BEFORE the throw, so the settle must say `wrote` — reporting `failed` here would
+  // send a reader looking for a write that is on disk.
+  expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the ford");
+  expect(h.fakes.flushSettles).toHaveLength(1);
+  expect(h.fakes.flushSettles[0]).toMatchObject({ chatId, turnId: TURN, outcome: "wrote", droppedReason: null });
+});
+
+test("#1493 SETTLE is TOTAL: the F2 readonly game settles immediately — it will never extract", async () => {
+  // No round runs at all here, so without a settle the trail says nothing and a barrier waits for an event
+  // that can never come. `readonly` is the honest member: not a failure, not a quiet beat — no write path.
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta: { statePatch: { location: "unreachable" }, journal: [] } });
+  await pinExtractionMode(h, chatId, "cheap");
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  h.fakes.busEvents.length = 0;
+
+  const readonlyConn = turnConnection({
+    connection: makeResolvedConnection({ capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }) }), // tools ABSENT
+  });
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonlyConn);
+
+  expect(h.fakes.toolRoundCalls).toHaveLength(0);
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+  expect(h.fakes.flushSettles).toEqual([{ chatId, turnId: TURN, outcome: "readonly", droppedReason: null, busEventsAtSettle: 0 }]);
+  // …and the panel lifecycle is still untouched: nothing was pending, so nothing announces.
+  expect(h.fakes.busEvents).toEqual([]);
 });
 
 test("F1: a negative pool delta on a fresh pool flushes a CONTRACT-VALID row (getTrackerView does not throw)", async () => {
@@ -279,7 +325,7 @@ test("F1 (structural backstop): a would-be-INVALID staged state DROPS the whole 
   // has a real emitter here, which is why the field exists at all. A barrier that only released on a
   // successful write would hang forever on exactly the turn a reader most needs to see.
   expect(h.fakes.flushSettles).toHaveLength(1);
-  expect(h.fakes.flushSettles[0]?.wrote).toBe(false);
+  expect(h.fakes.flushSettles[0]?.outcome).toBe("dropped");
   expect(h.fakes.flushSettles[0]?.droppedReason).toMatch(POOLS_MAX_RE);
 });
 
@@ -1008,6 +1054,10 @@ test("MID-ROUND cancel: the running round's own signal fires and the flush write
   //    away (the expensive case), and it is NOT filed as a contract-invalid drop: a cancel is not a corruption.
   expect(h.fakes.stateRoundCancels).toEqual([{ chatId, turnId: TURN, discardedStagedWrites: true }]);
   expect(h.fakes.flushDrops).toEqual([]);
+  // 3b. …and the round SETTLES on the cancel arm too (#1493 residual): the settle used to live past both
+  //     cancel returns, so a caller who pressed Stop left every reader waiting for an event that never came.
+  expect(h.fakes.flushSettles).toHaveLength(1);
+  expect(h.fakes.flushSettles[0]).toMatchObject({ chatId, turnId: TURN, outcome: "cancelled", droppedReason: null });
 });
 
 test("cancel is OWNER-SCOPED: another member's Stop leaves this round alone and the state still lands", async () => {
