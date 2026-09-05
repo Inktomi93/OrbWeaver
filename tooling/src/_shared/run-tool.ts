@@ -12,6 +12,7 @@
 import process from "node:process";
 import type { ExitCode } from "./exit-contract.ts";
 import { EXIT } from "./exit-contract.ts";
+import { boxLoadKnobError } from "./load-budget.ts";
 
 /** Throw from a tool main for CLI misuse — the runner maps it to exit 3 (misuse) with the message. */
 export class UsageError extends Error {}
@@ -44,6 +45,14 @@ export async function runTool(main: () => Promise<number> | number): Promise<voi
   process.on("unhandledRejection", (e) => crashExit("unhandled rejection", e));
   // @orb-gate-ignore caught-failure-ownership(default:e): the exit-contract's own door — UsageError writes ARG ERROR and escalates misuse, anything else routes through crashExit which writes stderr, escalates toolError and hard-exits. Ends if a branch here stops writing stderr or escalating.
   try {
+    // THE AMBIENT-KNOB DOOR (#1666). A mis-spelled `ORB_BOX_LOAD` is MISUSE — the same class as bad argv —
+    // but it is read lazily by whichever module first needs a budget, which for several instruments is the
+    // IMPORT GRAPH: a throw there escapes before these handlers exist and exits 1, i.e. "violations found"
+    // under the house contract. Asking here, once, inside the try, makes it one line and exit 3.
+    const knob = boxLoadKnobError();
+    if (knob !== null) {
+      throw new UsageError(knob);
+    }
     escalate((await main()) as ExitCode);
   } catch (e) {
     if (e instanceof UsageError) {

@@ -381,6 +381,27 @@ test("a completed run writes a self-consistent index and its receipt READ comman
   expect(listing.stdout).not.toContain("run slot");
 });
 
+test("a MIS-SPELLED planted box knob is MISUSE (exit 3), one line, no stack trace (#1666)", async ({ runCli, scratch }) => {
+  // The knob is read lazily by whichever module first needs a budget — for several instruments that is the
+  // IMPORT GRAPH, before `runTool` installs its handlers — so the first cut's throw surfaced as node's own
+  // crash: a raw stack trace and exit 1, which under the house contract (0 clean · 1 violations · 2 tool
+  // error · 3 misuse) reads as "violations found". A mis-spelled dev knob is argv-class MISUSE.
+  const file = join(scratch, "knob.html");
+  await writeFile(file, '<!doctype html><html data-app-ready="settled"><body><main>x</main></body></html>');
+  const run = await runCli("snap", ["--file", file, "--json", "--no-deadcss", "--no-failure-evidence"], {
+    timeoutMs: CLI_TIMEOUT_MS,
+    env: { [BOX_LOAD_ENV]: "not-a-reading" },
+  });
+
+  await expect(run).toExitWith(EXIT.misuse);
+  expect(run.stderr).toContain(`ARG ERROR    ${BOX_LOAD_ENV}="not-a-reading" is not a planted box reading`);
+  expect(run.stderr).toContain('spell it "<loadavg1>/<cpuCount>"');
+  // ONE LINE: no stack frames, and no TOOL ERROR banner (that banner is the exit-2 crash path).
+  expect(run.stderr.trimEnd().split("\n")).toHaveLength(1);
+  expect(run.stderr).not.toContain("TOOL ERROR");
+  expect(run.stderr).not.toMatch(/\bat .*load-budget\.ts:\d+/u);
+});
+
 test("THE INVERSE: a planted LOADED box annotates the same clean run — one uncounted row, and still exit 0 (#1651)", async ({ runCli, scratch }) => {
   // The positive control for the arm above. Without it, "no findings" would be satisfied by a build in
   // which the #1616 annotation stopped being emitted at all — which is the reader half of the ruling, and

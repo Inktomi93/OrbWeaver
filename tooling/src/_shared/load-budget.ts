@@ -74,6 +74,14 @@ const BUDGET_CEILING_ENV = "ORB_BUDGET_CEILING_MS";
 export interface BoxLoad {
   readonly loadavg1: number;
   readonly cpuCount: number;
+  /** PROVENANCE, carried by the VALUE (#1666): `true` only for a reading `readBoxLoad` took from
+   *  {@link BOX_LOAD_ENV}. The receipt printers stamp `(planted)` on exactly this, so the stamp certifies
+   *  the number it is printed beside rather than the process it was printed in. Absent ⇒ the live box, or
+   *  a control the caller injected and therefore owns. */
+  //  `| undefined` because a CARRIER of this reading (snap's rate posture) declares the field through a
+  //  zod schema, whose `.optional()` output is `boolean | undefined`; under `exactOptionalPropertyTypes`
+  //  a bare `?:` would refuse that value at the seam (TS2379).
+  readonly planted?: boolean | undefined;
 }
 
 /** How a caller supplies the reading. The default is the live box; a planted control passes a fake. */
@@ -94,27 +102,56 @@ export const BOX_LOAD_ENV = "ORB_BOX_LOAD";
  *  that was quiet only because someone exported the knob is exactly the lie this module exists to stop. */
 const PLANTED_SUFFIX = "(planted)";
 
-function plantedBoxLoad(): BoxLoad | undefined {
+function rawBoxLoadKnob(): string | undefined {
   // biome-ignore lint/style/noProcessEnv: this IS the tooling env door for a planted control — the rule guards app config reads, and no config is read here.
   const raw = process.env[BOX_LOAD_ENV];
-  if (raw === undefined || raw.trim() === "") {
-    return;
+  return raw === undefined || raw.trim() === "" ? undefined : raw;
+}
+
+/** PURE + TOTAL: the operator message for a mis-spelled knob, or `null` when the knob is absent or valid.
+ *
+ *  IT IS A VALUE, NOT A THROW, because of WHERE the first read happens (#1666): several instruments derive
+ *  a module-scope budget, so a throw from the reader fires during the IMPORT GRAPH — before `runTool`
+ *  installs its handlers — and node's default crash exit is 1, which under the house contract means
+ *  "violations found". A mis-spelled dev knob is the MISUSE class, so `_shared/run-tool.ts` asks this
+ *  question once per CLI, inside `main`'s try, and raises the one-line `UsageError` (exit 3, no stack). */
+export function boxLoadKnobError(): string | null {
+  const raw = rawBoxLoadKnob();
+  if (raw === undefined) {
+    return null;
   }
   const [load, cores] = raw.split("/");
   const loadavg1 = Number(load);
   const cpuCount = Number(cores);
   const wellFormed = Number.isFinite(loadavg1) && loadavg1 >= 0 && Number.isInteger(cpuCount) && cpuCount >= 1;
-  if (!wellFormed) {
-    // REFUSE, never fall back. A malformed control that quietly reverted to the live box would report a
-    // reading nobody planted and pass it off as the planted one — a false clean wearing a control's name.
-    throw new Error(`${BOX_LOAD_ENV}="${raw}" is not a planted box reading — spell it "<loadavg1>/<cpuCount>", e.g. "0.2/24"`);
-  }
-  return { loadavg1, cpuCount };
+  return wellFormed ? null : `${BOX_LOAD_ENV}="${raw}" is not a planted box reading — spell it "<loadavg1>/<cpuCount>", e.g. "0.2/24"`;
 }
 
-/** Is the CURRENT reading planted? Read by the receipt printers only. */
-function readingIsPlanted(): boolean {
-  return plantedBoxLoad() !== undefined;
+function plantedBoxLoad(): BoxLoad | undefined {
+  const raw = rawBoxLoadKnob();
+  if (raw === undefined) {
+    return;
+  }
+  if (boxLoadKnobError() !== null) {
+    // NO THROW HERE, and that is a MEASURED constraint, not a softening (#1666). This reader runs inside
+    // the IMPORT GRAPH — `snap/lib/budgets.ts:19` derives a module-scope ceiling — so a throw fires before
+    // `runTool` installs its handlers and node's crash exit is 1, i.e. "violations found" (receipt: the
+    // red-first arm printed `expected exit 3 (misuse), got 1 (violations)` with a stack frame at
+    // budgets.ts:19). The refusal therefore lives at the DOORS, where it can be one honest line:
+    //   • every instrument CLI — `runTool` asks `boxLoadKnobError()` before `main` and exits 3;
+    //   • every vitest worker — `tests/tooling/_load-budget.ts` asks at import and throws, which the
+    //     runner reports as a failure naming the knob.
+    // A reader with neither door (a config load) falls back to the LIVE box, and the missing `(planted)`
+    // stamp on its receipts is what tells the operator their plant never took.
+    return;
+  }
+  const [load, cores] = raw.split("/");
+  // PROVENANCE TRAVELS WITH THE READING (#1666). The stamp used to key off "is the env set", which
+  // certified numbers it had never seen: under `ORB_BOX_LOAD=0.2/24`, `loadPairs(() => ({loadavg1: 7.5,
+  // cpuCount: 8}))` printed `load=7.5/8(planted)` — 7.5/8 was never planted. A flag ON THE VALUE is the
+  // only thing that can answer "did THIS number come from the plant", and it survives every carrier that
+  // spreads the reading (snap's rate posture does, and its contract now names the field).
+  return { loadavg1: Number(load), cpuCount: Number(cores), planted: true };
 }
 
 export function readBoxLoad(): BoxLoad {
@@ -162,11 +199,12 @@ export function loadPairs(read: BoxLoadReader = readBoxLoad): readonly string[] 
   return [`load=${loadValue(box)}`, `budget-factor=${computeLoadFactor(box.loadavg1, box.cpuCount).toFixed(2)}`];
 }
 
-/** The `load=` VALUE both receipt printers share — one home, so the planted stamp cannot land on one line
- *  and not the other. `(planted)` only when the ambient reading came from {@link BOX_LOAD_ENV}: an
- *  explicitly-injected reader (an in-process control) is the CALLER's own value and says so at its site. */
-function loadValue(box: BoxLoad): string {
-  return `${box.loadavg1.toFixed(1)}/${String(box.cpuCount)}${readingIsPlanted() ? PLANTED_SUFFIX : ""}`;
+/** The `load=` VALUE every receipt site shares — one home, so the planted stamp cannot land on one line
+ *  and not the next. `(planted)` iff THIS READING came from {@link BOX_LOAD_ENV} (`box.planted`), never
+ *  merely because the env is set: an explicitly-injected reader is the CALLER's own value and is printed
+ *  unstamped. Exported so the two PROSE sites below print the same stamped figure the pairs do. */
+export function loadValue(box: BoxLoad): string {
+  return `${box.loadavg1.toFixed(1)}/${String(box.cpuCount)}${box.planted === true ? PLANTED_SUFFIX : ""}`;
 }
 
 /** The same two pairs as one space-joined line — the RESULT-line / diagnostic spelling. */
@@ -224,7 +262,9 @@ export function hasMeasurement(verdict: MeasurementVerdict): boolean {
  *  boundary that starts stretching wall clocks. Below it the factor is exactly 1 and solo behaviour is
  *  untouched. IT NEVER RETURNS `withheld`: under the #1616 ruling load labels, it does not withhold. */
 export function judgeMeasurementLoad(box: BoxLoad, what: string): MeasurementVerdict {
-  const where = `loadavg ${box.loadavg1.toFixed(1)} / ${String(box.cpuCount)} cores`;
+  // The SAME stamped figure the RESULT pairs carry (#1666): a `load-suspect` reason taken under a planted
+  // box used to read exactly like a live-box sentence, and this string is what a reader sees FIRST.
+  const where = `loadavg ${loadValue(box)} cores`;
   if (computeLoadFactor(box.loadavg1, box.cpuCount) === 1) {
     return { disposition: "complete", reason: `${what}: box quiet enough to measure (${where})` };
   }
@@ -311,7 +351,7 @@ export function loadKillMessage(kill: LoadKill, read: BoxLoadReader = readBoxLoa
   const arithmetic = kill.baseMs === undefined ? "" : ` = ${String(kill.baseMs)}×${factor.toFixed(2)}`;
   return (
     `${LOAD_KILL_MARKER}: ${kill.what} exceeded its load-scaled budget (${String(kill.budgetMs)}ms${arithmetic}) ` +
-    `at loadavg ${box.loadavg1.toFixed(1)}/${String(box.cpuCount)} cores — this is a TOOL/LOAD kill (exit-2 class: the run is NOT a ` +
+    `at loadavg ${loadValue(box)} cores — this is a TOOL/LOAD kill (exit-2 class: the run is NOT a ` +
     "verdict, NOT an assertion failure). Re-run on a quiet tree; do not read this as a real red (#606)."
   );
 }

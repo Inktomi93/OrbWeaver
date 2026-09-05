@@ -17,8 +17,27 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import process from "node:process";
 import type { BoxLoad, MeasurementVerdict } from "@orb/tooling/_shared/load-budget";
-import { budget, isTimeoutKill, judgeMeasurementLoad, LOAD_SUSPECT_META_KEY, loadKillError, readBoxLoad } from "@orb/tooling/_shared/load-budget";
+import {
+  boxLoadKnobError,
+  budget,
+  isTimeoutKill,
+  judgeMeasurementLoad,
+  LOAD_SUSPECT_META_KEY,
+  loadKillError,
+  readBoxLoad,
+} from "@orb/tooling/_shared/load-budget";
 import type { TaskMeta } from "vitest";
+
+// THE VITEST DOOR for a mis-spelled planted-box knob (#1666). The policy module deliberately does NOT throw
+// on a bad `ORB_BOX_LOAD` — it is read inside instrument IMPORT GRAPHS, where a throw exits 1 ("violations")
+// before any handler exists — so each door refuses in its own idiom: an instrument CLI exits 3 from
+// `runTool`, and a vitest worker throws HERE, at import, where the runner reports it as a failure naming the
+// knob. Silently measuring the live box while the operator believes a plant is in force is the one outcome
+// neither door may produce.
+const knobError = boxLoadKnobError();
+if (knobError !== null) {
+  throw new Error(knobError);
+}
 
 export type { BoxLoad, MeasurementVerdict } from "@orb/tooling/_shared/load-budget";
 export {
