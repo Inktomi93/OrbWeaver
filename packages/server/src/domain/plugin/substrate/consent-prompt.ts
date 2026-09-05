@@ -29,13 +29,19 @@
 // IT NEVER THROWS INTO ITS CALLER. The consent WRITE is the user's act and must stand whatever the inbox
 // does; a failed notify is logged and dropped.
 //
-// WHERE IT IS VISIBLE, STATED (#1627). The row is recorded durably on every deployment, but the inbox's
-// transport still carries the PD-106 multi-human belt (the `notifications` router + the socket room refuse
-// as NOT_FOUND, and the bell's chrome entry gates on the same capability), so on a `single-user` box — or
-// `local` with `LOCAL_MULTI_USER` off — this ask is written and never read. It is not the first member in
-// that position: `plugin-disabled` (`activation/crash-policy.ts`, to the installing owner) and the
-// owner-global `automation-notice` (`domain/automation/engine/dispatch.ts`, `chatId: null`) are swallowed
-// by the same belt today. Widening it is #1627's, deliberately not this file's: it is an authz-belt change.
+// WHERE IT IS VISIBLE, STATED (#1627). The row is recorded durably on every deployment AND readable on
+// every deployment. The inbox's PD-106 multi-human belt came off with #1627 (owner, 2026-09-05: "yeah the
+// notifications on single boxes probably needs to be reconsidered now that plugins and etc use them." /
+// "probably just make it consistent."): `notifications.list`/`markAllRead`/`dismiss` are `authedProcedure`,
+// the socket's `notifications` room accepts any authed attach, and the bell's chrome entry carries no
+// capability gate — so a `single-user` box (or `local` with `localMultiUser` off) surfaces this ask exactly
+// as a multi-human one does. The belt survives only where it is genuinely about OTHER humans
+// (`notifications.presence`, the invites router). This ask was one of the three single-human sources that
+// refuted the belt's premise, beside `plugin-disabled` (`activation/crash-policy.ts`, to the installing
+// owner) and the owner-global `automation-notice` (`domain/automation/engine/dispatch.ts`, `chatId: null`).
+// What scopes the ask is the RECIPIENT PREDICATE, never a deployment mode: every inbox read and write pins
+// `recipient_user_id` (`domain/notifications/persistence/queries.ts`), probed at the wire in the
+// cross-tenant sweep.
 
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import { errorMessage } from "@orb/kit/error-message";
