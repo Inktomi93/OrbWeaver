@@ -330,10 +330,10 @@ async function reduceStream(
 function cleanPerSpeakerContent(content: string, args: RunTurnPipelineArgs): string {
   const ctx = args.assembleContext;
   if (args.kind === "impersonate") {
-    const castNames = (ctx.characters ?? [ctx.character]).map((c) => c.name);
+    const characterNames = (ctx.characters ?? [ctx.character]).map((c) => c.name);
     // The SAME name SHAPE stamped the user rows with, so the label the model was trained to echo is
     // exactly the label stripped here.
-    return cleanPerSpeakerReply(content, userSpeakerName(ctx.activePersona), castNames);
+    return cleanPerSpeakerReply(content, userSpeakerName(ctx.activePersona), characterNames);
   }
   if ((args.shape?.output ?? "per-speaker") !== "per-speaker") {
     return content;

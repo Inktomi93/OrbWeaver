@@ -93,7 +93,7 @@ function greetTargets(policy: OpeningPolicy, characterIds: readonly CharacterId[
 
 /** Validate every founding character is a host-readable (owner-scoped) card before any roster row exists.
  *  A foreign/unknown id is a not-found (owner-scoped read makes foreign == missing, leak-free). */
-async function requireFoundingCast(ctx: ChatContext, hostUserId: UserId, characterIds: readonly CharacterId[]): Promise<void> {
+async function requireFoundingCharacters(ctx: ChatContext, hostUserId: UserId, characterIds: readonly CharacterId[]): Promise<void> {
   const cards = await Promise.all(
     characterIds.map(async (characterId) => ({
       characterId,
@@ -174,7 +174,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     const anchor = await resolveFoundingAnchor(ctx, hostUserId, characterIds, anchorPersonaId);
     const policy = resolveOpeningPolicy(opening, characterIds.length);
 
-    await requireFoundingCast(ctx, hostUserId, characterIds);
+    await requireFoundingCharacters(ctx, hostUserId, characterIds);
 
     const rosterRows = buildInitialRosterRows({
       chatId,

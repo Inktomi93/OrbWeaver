@@ -81,11 +81,11 @@ export async function loadVariantSlotInChat(
   return rows.at(0);
 }
 
-/** The room's PRESENT CAST-NAME set — every present character seat's character name, the plain-`Name:`
+/** The room's PRESENT CHARACTER-NAME set — every present character seat's character name, the plain-`Name:`
  *  span grammar's key set. The SERVER-SIDE MIRROR of the client's `speakerThemesByName` keys
  *  (`features/chat/lib/attribution.ts` — character seats only): the two must key the same names or a
  *  picker-computed segment index and this side's validation parse would disagree about the same bytes. */
-export async function loadPresentCastNames(db: Db, chatId: ChatId): Promise<readonly string[]> {
+export async function loadPresentCharacterNames(db: Db, chatId: ChatId): Promise<readonly string[]> {
   const rows = await db
     .select({ name: characters.name })
     .from(chatParticipants)

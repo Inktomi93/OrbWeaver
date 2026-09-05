@@ -270,7 +270,7 @@ function renderCoSpeakerBlocks(ctx: AssembleContext, registry: MacroRegistry): {
   return co.map((m) => ({ name: m.name, text: renderCoSpeakerBlock(m, ctx, registry) })).filter((b) => b.text.length > 0);
 }
 
-const MERGED_CACHE_BUSTER = "merged-present-cast";
+const MERGED_CACHE_BUSTER = "merged-present-characters";
 
 function recordMergedCacheBuster(trace: AssembleTrace): void {
   if (!trace.staticCacheBusters.includes(MERGED_CACHE_BUSTER)) {
