@@ -616,13 +616,25 @@ function createListChatInjections(ctx: ChatContext): ChatService["listChatInject
 }
 
 /** `deleteChatInjection` — host-only. Drop one positional injection (scoped to chatId; idempotent). Emits
- *  `chatUpdated`. */
+ *  `chatUpdated` ONLY when a row actually went away.
+ *
+ *  THE VERB STAYS IDEMPOTENT — a repeated or stale id is not an error (unlike its `setChatInjection` sibling,
+ *  whose unknown id is a leak-free NOT_FOUND: an UPDATE that matched nothing was asked to change a specific
+ *  row, while a DELETE that matched nothing has already got what it asked for). What it stops doing is
+ *  ANNOUNCING: `chatUpdated` is what makes every present client re-read the room, so firing it for a delete
+ *  that moved no row asserts a mutation that did not happen — to every member's cache and to any automation
+ *  watching the room (#1463 item 9). `RETURNING` is the transition test, the same shape the claim stamp uses. */
 function createDeleteChatInjection(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["deleteChatInjection"] {
   return async ({ principal, chatId, injectionId }: DeleteChatInjectionParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
-    await ctx.db.delete(chatInjections).where(and(eq(chatInjections.id, injectionId), eq(chatInjections.chatId, chatId)));
-    await emit({ type: "chatUpdated", chatId });
+    const dropped = await ctx.db
+      .delete(chatInjections)
+      .where(and(eq(chatInjections.id, injectionId), eq(chatInjections.chatId, chatId)))
+      .returning({ id: chatInjections.id });
+    if (dropped.length > 0) {
+      await emit({ type: "chatUpdated", chatId });
+    }
   };
 }
 

@@ -12,7 +12,7 @@ import type { VarOp } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
 import { beforeEach } from "vitest";
 import { applyStandaloneVariableOps } from "../../../../../packages/server/src/domain/chat/substrate/variable-ops.ts";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedChat } from "../_support.ts";
 
@@ -85,4 +85,27 @@ test("a standalone delta folds together with the existing message-variant deltas
       ],
     },
   ]);
+});
+
+// ── The two-writer race (#1463 item 1) ──────────────────────────────────────────────────────────────────
+// The standalone plane's real callers are an automation arm executor, the analysis arm and the plugin-host
+// membrane — none of which serialize on the chat. Both writers read the SAME chain snapshot (the hold parks
+// them at the read that resolves it), rebuild the array from it and write; without a guard the second write
+// overwrites the first's batch and its op is gone from BOTH the durable log and the folded cache.
+test("two concurrent standalone writes both land (neither op is lost to the other's snapshot)", async () => {
+  const held = await freshHeldDb();
+  const chatId = await seedChat(held.db, "standalone-race");
+  const ctx = makeChatContext(held.db);
+  // Park BOTH writers at the read of the standalone chain, so each rebuilds from the pre-race snapshot.
+  const gate = held.hold(/select "standalone_variable_deltas" from "chats"/iu, 2);
+  const first = applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "alpha", value: "1" }]);
+  const second = applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "beta", value: "2" }]);
+  await gate.reached;
+  gate.release();
+  await Promise.all([first, second]);
+
+  const rows = await held.db.select({ runtime: chats.runtimeVariables, standalone: chats.standaloneVariableDeltas }).from(chats).where(eq(chats.id, chatId));
+  // Both ops survive in the folded cache AND in the durable batch log (the fold's source of truth).
+  expect(rows.at(0)?.runtime).toEqual({ alpha: "1", beta: "2" });
+  expect(rows.at(0)?.standalone).toHaveLength(2);
 });

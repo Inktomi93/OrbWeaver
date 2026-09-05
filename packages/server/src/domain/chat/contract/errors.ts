@@ -144,6 +144,12 @@ export const CHAT_OP_CODES = {
    *  options, so a coded refusal leaks nothing. The resolve-side belt (kit `resolveStaticInput`) still
    *  drops an already-STORED pick whose option was renamed away after the write. */
   unknownMacroPick: USER_MACRO_UNKNOWN_PICK_OP_CODE,
+  /** #1463 — a STANDALONE (out-of-turn) runtime-variable write lost its compare-and-set every attempt
+   *  (`substrate/variable-ops.ts`). The plane has no lock by design, so a loss means a sibling writer
+   *  COMMITTED and the write re-derives; losing the bound repeatedly is therefore not contention but a
+   *  defect somewhere else, and this refusal exists so it surfaces loudly instead of spinning or silently
+   *  dropping the ops. Internal surface (the callers are automation/plugin ops, not a client verb). */
+  variableWriteContended: "variable_write_contended",
 } as const;
 
 /** The reason-code union (derived from the one tuple of values — never re-spelled). */

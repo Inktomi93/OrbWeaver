@@ -8,12 +8,12 @@ import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import type { ChatId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
   foldChain,
   runtimeVariablesUpdateStatement,
-  standaloneVariableDeltasUpdateStatement,
+  standaloneVariableCasStatement,
 } from "../../../../../packages/server/src/domain/chat/substrate/runtime-variables.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -68,19 +68,42 @@ describe("runtimeVariablesUpdateStatement — round-tripped against the chat row
   });
 });
 
-describe("standaloneVariableDeltasUpdateStatement — round-tripped against the chat row", () => {
+describe("standaloneVariableCasStatement — the guarded log+cache write, round-tripped against the chat row", () => {
   const delta: StandaloneVariableDelta = { seq: 1, delta: [{ op: "set", key: "hp", value: "10" }] };
 
-  test("a non-empty delta list writes the array verbatim", async () => {
-    await db.batch(batchMany([standaloneVariableDeltasUpdateStatement(db, chatId, [delta])]));
-    const [row] = await db.select({ v: chats.standaloneVariableDeltas }).from(chats).where(eq(chats.id, chatId));
+  /** The column as STORED — the exact bytes the guard compares (never the parsed value). */
+  async function storedRaw(): Promise<string | null> {
+    const [row] = await db
+      .select({ raw: sql<string | null>`${chats.standaloneVariableDeltas}` })
+      .from(chats)
+      .where(eq(chats.id, chatId));
+    return row?.raw ?? null;
+  }
+
+  test("a matched predicate writes BOTH columns and RETURNS the moved row", async () => {
+    const moved = await standaloneVariableCasStatement(db, chatId, { deltas: [delta], cache: { hp: "10" }, expectedRaw: null });
+    expect(moved).toHaveLength(1);
+    const [row] = await db.select({ v: chats.standaloneVariableDeltas, c: chats.runtimeVariables }).from(chats).where(eq(chats.id, chatId));
     expect(row?.v).toEqual([delta]);
+    expect(row?.c).toEqual({ hp: "10" });
   });
 
-  test("an empty delta list writes null (mirrors the runtime-cache null contract)", async () => {
-    await db.batch(batchMany([standaloneVariableDeltasUpdateStatement(db, chatId, [delta])])); // seed a non-null value first
-    await db.batch(batchMany([standaloneVariableDeltasUpdateStatement(db, chatId, [])]));
-    const [row] = await db.select({ v: chats.standaloneVariableDeltas }).from(chats).where(eq(chats.id, chatId));
+  test("empty inputs write null, never a `[]`/`{}` sentinel (mirrors the runtime-cache null contract)", async () => {
+    await standaloneVariableCasStatement(db, chatId, { deltas: [delta], cache: { hp: "10" }, expectedRaw: null });
+    const moved = await standaloneVariableCasStatement(db, chatId, { deltas: [], cache: {}, expectedRaw: await storedRaw() });
+    expect(moved).toHaveLength(1);
+    const [row] = await db.select({ v: chats.standaloneVariableDeltas, c: chats.runtimeVariables }).from(chats).where(eq(chats.id, chatId));
     expect(row?.v).toBeNull();
+    expect(row?.c).toBeNull();
+  });
+
+  test("a STALE predicate moves NO row and leaves both columns untouched", async () => {
+    await standaloneVariableCasStatement(db, chatId, { deltas: [delta], cache: { hp: "10" }, expectedRaw: null });
+    // `null` is now stale — the log has been written since.
+    const moved = await standaloneVariableCasStatement(db, chatId, { deltas: [], cache: { hp: "99" }, expectedRaw: null });
+    expect(moved).toEqual([]);
+    const [row] = await db.select({ v: chats.standaloneVariableDeltas, c: chats.runtimeVariables }).from(chats).where(eq(chats.id, chatId));
+    expect(row?.v).toEqual([delta]);
+    expect(row?.c).toEqual({ hp: "10" });
   });
 });

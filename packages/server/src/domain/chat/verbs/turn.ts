@@ -2060,6 +2060,33 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
   };
 }
 
+/** Fold N caller signals into a controller WE own by re-aborting it with NO argument, and return the detach.
+ *  The reason is deliberately dropped rather than propagated (`AbortSignal.any` would carry it): this signal
+ *  reaches a provider request, and the transport classifier decides `aborted` vs retryable-`server` by regex
+ *  over the error's name+message, so a foreign abort reason can turn a deliberate cancellation into a re-run.
+ *  The law's one home is `infra/providers/backends/kit/abort-flatten.ts` (sealed to domain — this is the same
+ *  fold spelled locally, as `domain/rpg/flush-barrier.ts` does). An ALREADY-aborted source aborts
+ *  synchronously, so a call entered post-cancel never reaches the wire. */
+function foldCancellation(controller: AbortController, sources: readonly (AbortSignal | undefined)[]): () => void {
+  const onAbort = (): void => controller.abort();
+  const attached = sources.flatMap((source) => {
+    if (source === undefined) {
+      return [];
+    }
+    if (source.aborted) {
+      controller.abort();
+      return [];
+    }
+    source.addEventListener("abort", onAbort, { once: true });
+    return [source];
+  });
+  return (): void => {
+    for (const source of attached) {
+      source.removeEventListener("abort", onAbort);
+    }
+  };
+}
+
 /** A single-producer/single-consumer bridge from the engine's `onText` CALLBACK to an async generator: the
  *  generation pushes text deltas via `push`, the generator drains them in order, and `close()` ends the drain.
  *  Backpressure-free (chat deltas are tiny + bounded); a LOCAL queue, NOT the transport bus channel — this is a
@@ -2121,8 +2148,22 @@ function createDeltaBridge(): DeltaBridge {
  *  generates, yielding text deltas. Persists NOTHING: no user slot, no canon, no bus event — the user reviews
  *  the drafted line in the composer and commits it with a normal send. Replaced the persisting `impersonate`
  *  turn (flash-and-vanish on the post-commit refetch race) + its one-shot draft predecessor (text plopped in
- *  all at once). The signal (transport-supplied) cancels the in-flight generation on teardown; the partial
- *  text already yielded stays in the composer. */
+ *  all at once).
+ *
+ *  THREE CANCELLATION SOURCES, ONE CONTROLLER (#1464). A draft is a generation on the room's model — it costs
+ *  the same GPU and the same money as a turn — so it must be stoppable by every door that stops one:
+ *   1. `activeTurns` — the registry `abort(chatId, caller)` walks. This is the room's Stop control, and a
+ *      generation that never registers is unreachable from it no matter what the transport does. Registered
+ *      with `using`, so the entry is released at EVERY exit of this generator, finalization included.
+ *   2. the caller's `signal` — the transport's own teardown (the tRPC subscription's).
+ *   3. GENERATOR FINALIZATION — the consumer stopping its `for await` (a closed composer, a returned
+ *      iterator). Nothing else observes that: the registration's release does not cancel, so without the
+ *      `finally` below the run keeps generating and billing for a composer nobody is watching.
+ *  They fold into ONE controller by RE-ABORTING it with no argument rather than `AbortSignal.any` — this
+ *  signal is threaded onto a provider request, and `.any` propagates the source's `reason`, which the
+ *  transport classifier reads as a retryable fault ("timeout"/"connection") and RE-RUNS. That law's home is
+ *  `infra/providers/backends/kit/abort-flatten.ts`; `domain/rpg/flush-barrier.ts` folds the same way for the
+ *  same reason (providers is sealed to domain, so the fold is spelled, not imported). */
 function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService["impersonateStream"] {
   return async function* ({ principal, chatId, personaId, intent, guided, signal }: ImpersonateStreamParams): AsyncGenerator<ImpersonateStreamDelta> {
     const membership = await requireParticipant(ctx, principal, chatId);
@@ -2156,7 +2197,13 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
     // The non-persisting generation: same assemble ctx + impersonateNudge + steer a real turn builds, run
     // through the engine's generate-only path (no lock, no canon write, no bus emit). Each text delta is pushed
     // onto the bridge and yielded to the transport AS IT ARRIVES (progressive composer fill). The engine pays
-    // the consent + GPU-budget belts; the caller's `signal` (subscription teardown) aborts the in-flight run.
+    // the consent + GPU-budget belts.
+    //
+    // Registered BEFORE the run starts and released at every exit (`using`), so the room's Stop control can
+    // reach this draft for its whole life; the caller's signal folds into the same controller (see the header).
+    using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
+    const cancellation = new AbortController();
+    const unfold = foldCancellation(cancellation, [handle.signal, signal]);
     const bridge = createDeltaBridge();
     const run = deps.engine
       .generateText(
@@ -2189,15 +2236,33 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
           }),
           // new-slot user shape — a draft reads the full canon as context; nothing is written.
           persist: { mode: "new-slot", role: "user" },
-          ...(signal !== undefined ? { signal } : {}),
+          signal: cancellation.signal,
         },
         (text) => bridge.push(text),
       )
       // Close the drain on completion OR failure so the consumer never hangs; a real fault re-throws below.
       .then(() => undefined)
       .finally(() => bridge.close());
-    for await (const delta of bridge.drain()) {
-      yield { delta };
+    let drained = false;
+    try {
+      for await (const delta of bridge.drain()) {
+        yield { delta };
+      }
+      drained = true;
+    } finally {
+      unfold();
+      if (!drained) {
+        // The consumer walked away mid-draft (a `break`, a closed subscription, a thrown yield). Cancel the
+        // generation it abandoned — nothing else will.
+        cancellation.abort();
+        // @orb-gate-ignore caught-failure-ownership(promise:run): the fault has NOWHERE to go — this generator
+        // is being finalized, so `await run` below is unreachable and the consumer that would have received a
+        // throw is gone. The run is cancelled above and its settlement is logged rather than dropped silently.
+        // Ends if a cancelled draft gains a surface (a bus warning) that could carry the fault instead.
+        void run.catch((err: unknown) => {
+          getLog().debug({ chatId, err }, "chat: impersonate draft cancelled by its consumer");
+        });
+      }
     }
     // Surface a provider/DB fault (generateText returns cleanly on abort, so this only rethrows a real error).
     await run;

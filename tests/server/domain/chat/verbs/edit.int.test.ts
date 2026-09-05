@@ -719,6 +719,65 @@ describe("canon-mutator stats drift gate (live delta == a reconcile over the res
     // Guard: the dup DOUBLED the source's contribution (source + copy) — and live agrees with the rebuild.
     expect(live.owner).toMatchObject({ assistantTurns: 2, costUsd: 3 });
   });
+
+  // #1463 item 2. `applyProseRewrite` APPENDS the repaired body as a fresh variant built from `{content}`
+  // alone — `variantEconomics` writes every economics column NULL on it. A +1 delta describing the AUDITED
+  // variant's economics therefore credits a generation the written row never had, and the live mirror drifts
+  // from a rebuild by exactly the audited variant's cost/tokens/cache/reasoning.
+  test("applyProseRewrite — the +1 delta describes the ROW WRITTEN (null economics), not the audited variant", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      characterId: charA,
+      content: "the audited body",
+    });
+    await db
+      .update(messageVariants)
+      .set({
+        model: "gpt",
+        provider: "openrouter",
+        tokensIn: 11,
+        tokensOut: 22,
+        costUsd: 2.5,
+        cacheReadTokens: 7,
+        cacheWriteTokens: 5,
+        contextWindow: 800,
+        genStartedAt: FROZEN_AT,
+        genFinishedAt: FROZEN_AT + 200,
+        reasoning: "hmm",
+      })
+      .where(eq(messageVariants.id, variantId));
+
+    const deltas: StatsDelta[] = [];
+    const edit = createEdit(recordingStatsCtx(db, deltas), { emit, resolveForeignInputs, claimChat: noClaim });
+
+    await reconcileStats(db, { ownerId: host, now: clock.now });
+    await edit.applyProseRewrite({
+      principal: principal(host),
+      chatId,
+      messageId,
+      variantId,
+      expectedContentHash: sha256Hex("the audited body"),
+      content: "the repaired body",
+    });
+
+    // The three-part swap: −audited-as-message, +audited-as-swipe, +written-as-message.
+    expect(deltas).toHaveLength(3);
+    const written = deltas.at(-1);
+    expect(written?.costUsd).toBe(0);
+    expect(written?.tokensIn).toBe(0);
+    expect(written?.cacheReadTokens).toBe(0);
+    const live = await snapshotRollups(db, host);
+
+    await reconcileStats(db, { ownerId: host, now: clock.now });
+    expect(live).toEqual(await snapshotRollups(db, host));
+
+    // Guard against a false green from two empties: the audited variant became a SWIPE (whose stream credits
+    // the re-roll counters + scalar tokens and deliberately carries no cost/cache — `swipeRowOf`), and the
+    // appended message row contributed NO economics of its own. So the owner's message-stream cost is back to
+    // zero rather than doubled onto a row that never generated anything.
+    expect(live.owner).toMatchObject({ assistantTurns: 1, swipes: 1, costUsd: 0, costSamples: 0, tokensIn: 11, tokensOut: 22 });
+  });
 });
 
 describe("moveMessage — host-only re-sequence", () => {

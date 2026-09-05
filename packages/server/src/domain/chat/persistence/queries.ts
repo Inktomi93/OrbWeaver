@@ -1069,6 +1069,20 @@ async function loadStandaloneVariableDeltas(db: Db, chatId: ChatId): Promise<Sta
   return parsed.success ? parsed.data : [];
 }
 
+/** The standalone-delta column as STORED TEXT, for the standalone write's compare-and-set predicate
+ *  (`substrate/variable-ops.ts`). Deliberately NOT the parsed value: the CAS compares the column against the
+ *  exact bytes this caller read, so it cannot be fooled by a parse→re-serialize round trip that normalizes
+ *  key order or drops an unknown field. `undefined` ⇒ no such chat row (the write is a no-op, not a race);
+ *  `{ raw: null }` ⇒ the row exists and has never been written. */
+export async function loadStandaloneVariableDeltasRaw(db: Db, chatId: ChatId): Promise<{ readonly raw: string | null } | undefined> {
+  const rows = await db
+    .select({ raw: sql<string | null>`${chats.standaloneVariableDeltas}` })
+    .from(chats)
+    .where(eq(chats.id, chatId))
+    .limit(LIMIT_ONE);
+  return rows.at(0);
+}
+
 /** The runtime-cache fold SOURCE, seq-ordered: the per-variant message deltas along the selected-variant
  *  chain UNIONED with the chat's standalone (out-of-turn) delta batches. Each blob is parsed at the
  *  read seam; a malformed blob degrades to `[]`, never throws. `foldChain` re-sorts by `seq`, so the two

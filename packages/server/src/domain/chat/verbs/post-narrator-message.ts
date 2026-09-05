@@ -17,11 +17,9 @@
 // and this refusal is what makes the content-less canon row — which leaked into export, digests, plugin
 // reads, automation facts, counts, forks and every client cache — UNREPRESENTABLE rather than filtered.
 
-import { batchMany } from "@orb/db/kit";
 import type { ChatContext } from "../context.ts";
 import type { PostNarratorMessage, PostNarratorMessageDeps } from "../contract/context.ts";
-import { buildCommittedMessageView, insertCanonMessageStatements, insertMessageAssetStatements } from "../persistence/canon-write.ts";
-import { loadMaxMessageSeq } from "../persistence/queries.ts";
+import { buildCommittedMessageView, commitCanonAppend, insertCanonMessageStatements, insertMessageAssetStatements } from "../persistence/canon-write.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { assistantTurnDelta } from "../substrate/stats-delta.ts";
@@ -41,10 +39,6 @@ function buildBody(content: string, refs: string): string {
 
 export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMessageDeps): PostNarratorMessage {
   return async (chatId, content, media, options) => {
-    // A narrator post is a committed canon row, so it CLAIMS (R0 F4(a)) -- before the write, per the
-    // ordering invariant. This op is principal-free by design (automation/plugins drive it), so there
-    // is no authority guard to sequence after: the caller was authorized at ITS own boundary.
-    await deps.claimChat(chatId);
     const mediaRefs = media ?? [];
     // The group character is owned by the room HOST (the D19 funding/authority identity) — the same
     // owner every narrator turn mints under (`turn.ts` runAiRound).
@@ -53,7 +47,6 @@ export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMe
     if (hostUserId === null) {
       throw new Error(`postNarratorMessage: chat ${chatId} has no host to author the narrator identity under`);
     }
-    const group = await ctx.mintSyntheticGroupCharacter({ ownerId: hostUserId, chatId });
 
     // ONE body STRING: the narrator text + one markdown image ref per media asset (D51 — never stored blocks).
     const refs = mediaRefs.map((assetId) => `![${NARRATOR_MEDIA_ALT}](asset:${assetId})`).join("\n");
@@ -66,46 +59,61 @@ export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMe
       throw new Error(`postNarratorMessage: refused a blank post to chat ${chatId} — a content-less canon row is not a message (D124)`);
     }
 
-    const seq = await loadMaxMessageSeq(ctx.db, chatId);
-    const now = ctx.now();
-    const messageId = ctx.newMessageId();
-    const params = {
-      messageId,
-      variantId: ctx.newMessageVariantId(),
-      chatId,
-      seq: seq + 1,
-      role: "assistant" as const,
-      // DECLARED purpose (the kind axis) — not inferred later from "assistant + the synthetic group char",
-      // which is exactly the inference that evaporates when that character is deleted (its FK SET-NULLs) or
-      // when the room's output dial flips. The canon `role` stays `assistant`, and so does the DELIVERED
-      // role: the narrator→wire-`system` mapping that was briefly a SHAPE-time projection is owner-ruled out
-      // (2026-08-18 — group narration is the assistant's own output voice).
-      kind: "narrator" as const,
-      authorUserId: null,
-      characterId: group.characterId,
-      personaId: null,
-      now,
-      variant: { content: body },
-      // Origin — absent for rpg posts (byte-identical DB defaults 'human'/0); the automation
-      // `generate_image` non-quiet post threads its firing rule's initiator + cascade depth so the posted
-      // image's `messageCommitted` fact resolves at depth ≥ 1 and a non-opted re-fire is cascade-suppressed.
-      ...(options !== undefined && "initiator" in options ? { initiator: options.initiator, automationDepth: options.automationDepth } : {}),
-    };
-    const assetRows = mediaRefs.map((assetId) => ({ id: ctx.newMessageAssetId(), messageId, assetId }));
-    const statements = insertCanonMessageStatements(ctx.db, params);
-    ctx.applyStatsDelta(statements, ctx.db, assistantTurnDelta({ ownerId: hostUserId, characterId: group.characterId, economics: { content: body }, now }));
-    statements.push(...insertMessageAssetStatements(ctx.db, { rows: assetRows, now }));
-    // The only caller is RPG checkpoint restore. Build AFTER ids exist, append LAST: a chat-side failure keeps
-    // the RPG row absent, and an RPG-side failure rolls every preceding marker statement back.
-    if (options !== undefined && "rpgRestoreStatement" in options) {
-      statements.push(options.rpgRestoreStatement({ messageId, variantId: params.variantId }));
-    }
-    await ctx.db.batch(batchMany(statements));
+    // A narrator post is a committed canon row, so it CLAIMS (R0 F4(a)) -- before the write, per the
+    // ordering invariant. This op is principal-free by design (automation/plugins drive it), so there
+    // is no authority guard to sequence after: the caller was authorized at ITS own boundary.
+    //
+    // AFTER EVERY REFUSAL THAT CAN BE DECIDED WITHOUT WRITING, and that ordering is the point (#1463 item 6):
+    // claiming is one-way — it publishes the husk into every member's library and replays the creation-time
+    // economics — so a post that was never going to commit (no host to author under, nothing to say) must not
+    // spend it. The invariant it must not break is the other side: the claim still precedes the WRITE, because
+    // the replay counts the canon present at claim and a claim after the write would double-count this row.
+    await deps.claimChat(chatId);
+    const group = await ctx.mintSyntheticGroupCharacter({ ownerId: hostUserId, chatId });
 
-    const view = buildCommittedMessageView(params);
+    // The head allocation + its one expected collision ride the SHARED retry (`commitCanonAppend`): a
+    // concurrent canon writer may have taken this seq, in which case the whole attempt — ids included — is
+    // discarded and re-minted against the new head. Every id is minted INSIDE the attempt for that reason.
+    const { view, messageId, variantId } = await commitCanonAppend(ctx.db, chatId, (seq) => {
+      const now = ctx.now();
+      const attemptMessageId = ctx.newMessageId();
+      const params = {
+        messageId: attemptMessageId,
+        variantId: ctx.newMessageVariantId(),
+        chatId,
+        seq,
+        role: "assistant" as const,
+        // DECLARED purpose (the kind axis) — not inferred later from "assistant + the synthetic group char",
+        // which is exactly the inference that evaporates when that character is deleted (its FK SET-NULLs) or
+        // when the room's output dial flips. The canon `role` stays `assistant`, and so does the DELIVERED
+        // role: the narrator→wire-`system` mapping that was briefly a SHAPE-time projection is owner-ruled out
+        // (2026-08-18 — group narration is the assistant's own output voice).
+        kind: "narrator" as const,
+        authorUserId: null,
+        characterId: group.characterId,
+        personaId: null,
+        now,
+        variant: { content: body },
+        // Origin — absent for rpg posts (byte-identical DB defaults 'human'/0); the automation
+        // `generate_image` non-quiet post threads its firing rule's initiator + cascade depth so the posted
+        // image's `messageCommitted` fact resolves at depth ≥ 1 and a non-opted re-fire is cascade-suppressed.
+        ...(options !== undefined && "initiator" in options ? { initiator: options.initiator, automationDepth: options.automationDepth } : {}),
+      };
+      const assetRows = mediaRefs.map((assetId) => ({ id: ctx.newMessageAssetId(), messageId: attemptMessageId, assetId }));
+      const statements = insertCanonMessageStatements(ctx.db, params);
+      ctx.applyStatsDelta(statements, ctx.db, assistantTurnDelta({ ownerId: hostUserId, characterId: group.characterId, economics: { content: body }, now }));
+      statements.push(...insertMessageAssetStatements(ctx.db, { rows: assetRows, now }));
+      // The only caller is RPG checkpoint restore. Build AFTER ids exist, append LAST: a chat-side failure keeps
+      // the RPG row absent, and an RPG-side failure rolls every preceding marker statement back.
+      if (options !== undefined && "rpgRestoreStatement" in options) {
+        statements.push(options.rpgRestoreStatement({ messageId: attemptMessageId, variantId: params.variantId }));
+      }
+      return { statements, result: { view: buildCommittedMessageView(params), messageId: attemptMessageId, variantId: params.variantId } };
+    });
+
     await deps.emit({ type: "messageCommitted", chatId, messageId, view });
     // A new narrator message moved chat-list recency → fan `chatsChanged` (list-only) to present human members.
     await ctx.emitChatChanged(chatId);
-    return { messageId, variantId: params.variantId };
+    return { messageId, variantId };
   };
 }

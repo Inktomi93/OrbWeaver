@@ -17,7 +17,7 @@ import { beforeEach, describe } from "vitest";
 import type { QuietGenerate, QuietGenerateParams } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { createCompaction } from "../../../../../packages/server/src/domain/chat/verbs/compaction.ts";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support.ts";
@@ -291,5 +291,50 @@ describe("runCompaction — the injected core (chained-marker math)", () => {
 
     await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
     expect(deltas).toHaveLength(0);
+  });
+});
+
+// ── The two-pass race (#1463 item 5) ────────────────────────────────────────────────────────────────────
+// The core is LOCK-FREE by design (the file header) and stays that way: both passes read `compactedAtSeq`,
+// both pay for a generation, and that duplicate spend is the accepted cost of lock-freedom. What must NOT
+// happen is the losing pass CLOBBERING the marker the winner already advanced — a write conditioned on
+// nothing lets the second pass stamp a marker covering LESS canon over one covering more, so the span
+// between them is silently re-summarized (and re-billed) on every subsequent pass.
+describe("runCompaction — a losing concurrent pass never overwrites the advanced marker", () => {
+  test("the second pass discards its marker and reports the winner's (the coverage stamp never regresses)", async () => {
+    const held = await freshHeldDb();
+    const host = await seedUser(held.db, castId<Handle>("host"));
+    const chatId = await seedChat(held.db, "race");
+    await seedParticipant(held.db, { chatId, key: "h", userId: host, role: "host" });
+    await seedMessage(held.db, chatId, 1, { role: "user", authorUserId: host, content: "one" });
+    await seedMessage(held.db, chatId, 2, { role: "assistant", content: "two" });
+    await seedMessage(held.db, chatId, 3, { role: "assistant", content: "three" });
+
+    // The LOSER's generation is gated so the two writes are ordered deterministically: the wide pass (through
+    // seq 3) writes first, then the narrow pass (through seq 2) tries to write over it from its stale read.
+    const slow = Promise.withResolvers<void>();
+    const wide = createCompaction(makeChatContext(held.db), { emit, quietGenerate: quietStub("MARKER-WIDE"), resolveConnection });
+    const narrow = createCompaction(makeChatContext(held.db), {
+      emit,
+      quietGenerate: () => slow.promise.then(() => ({ text: "MARKER-NARROW", costUsd: null })),
+      resolveConnection,
+    });
+
+    // Park BOTH passes at the chat-row read, so each resolves the SAME `compactedAtSeq` (null → 0).
+    const gate = held.hold(/select .* from "chats"/iu, 2);
+    const widePass = wide.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER, coveragePoint: 3 });
+    const narrowPass = narrow.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER, coveragePoint: 2 });
+    await gate.reached;
+    gate.release();
+    expect(await widePass).toEqual({ summary: "MARKER-WIDE", compactedAtSeq: 3, updated: true });
+    slow.resolve();
+    const narrowResult = await narrowPass;
+
+    // The marker on the row is the WINNER's, at its coverage point — the narrow pass wrote nothing.
+    const [row] = await held.db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.compactSummary).toBe("MARKER-WIDE");
+    expect(row?.compactedAtSeq).toBe(3);
+    // …and the loser reports the settled state rather than claiming an update it did not make.
+    expect(narrowResult).toEqual({ summary: "MARKER-WIDE", compactedAtSeq: 3, updated: false });
   });
 });

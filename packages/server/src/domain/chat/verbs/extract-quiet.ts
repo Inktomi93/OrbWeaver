@@ -28,6 +28,7 @@ import { classifyParticipant } from "../persistence/participant.ts";
 import { loadCanonHistory, loadStoredUserMacroValues } from "../persistence/queries.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { buildTurnUserMacros } from "../substrate/assembly-access.ts";
+import { isPromptEligible } from "../substrate/prompt-eligibility.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
 
 /** How many recent canon rows the extractor reads as scene context (the same window `smart` arbitration uses). */
@@ -72,18 +73,23 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
     const subjectId = p.subjectCharacterId ?? firstCastCharacterId ?? null;
     const charName = hostUserId !== null && subjectId !== null ? ((await deps.getCard({ ownerId: hostUserId, characterId: subjectId }))?.name ?? "") : "";
 
-    // The bounded recent-history window (prompt-excluded rows dropped), as the scene the extractor reads.
+    // The bounded recent-history window (ineligible rows dropped), as the scene the extractor reads.
     // VIEWER-CLAMPED FIRST: `loadCanonHistory` is a room-plane (floorless) reader, but this product is a model
     // DISTILLATION handed back to ONE human (`imagery.extractPrompt` returns the prompt string on the wire), so
     // rows below that caller's own D16 floor must never enter the scene. Unlike a turn reply this is not one
     // shared utterance, so clamping it per reader is coherent (it forks nothing). Filtering BEFORE the window
     // slice is deliberate — a clamped caller still gets a full RECENT_WINDOW of rows they may actually see.
     // Floor 0 (the common `full` case) is inert: `messages.seq` is 1-based.
+    //
+    // PROMPT ELIGIBILITY IS PART OF THAT SAME "may actually see" (#1463 items 3+4), so it is resolved on the
+    // same side of the slice: a tail of prompt-hidden rows must not starve the window of the ten real rows it
+    // exists to carry. And the verdict is the SHARED one (`isPromptEligible` — the host's hide AND the row's
+    // declared purpose), not a local re-spell: this is a prompt boundary into a side model, so a `comment` row
+    // (D129 `prompt:"never"`) is no more sendable here than it is to the compaction marker.
     const canon = await loadCanonHistory(deps.db, p.chatId);
     const recent = canon
-      .filter((m) => m.seq >= p.historyFloorSeq)
+      .filter((m) => m.seq >= p.historyFloorSeq && isPromptEligible(m))
       .slice(-RECENT_WINDOW)
-      .filter((m) => !m.excludedFromPrompt)
       // §3.6 / D106 summary-plane strip (the compaction-sink ruling): the extractor's distillation is handed
       // back on the wire (and can seed a durable, member-peekable prompt), so hidden-class spans NEVER enter the
       // model's scene — a lie's truth must not launder into an image prompt. Cards collapse to their stub too.

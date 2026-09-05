@@ -14,7 +14,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, noClaim, seedAsset, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
@@ -172,5 +172,73 @@ describe("postNarratorMessage", () => {
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.reject(new Error("should not mint")) });
     const postNarratorMessage = createPostNarratorMessage(ctx, { emit, claimChat: noClaim });
     await expect(postNarratorMessage(chatId, "orphaned")).rejects.toThrow("no host");
+  });
+
+  // ── The husk belt (#1463 item 6) ──────────────────────────────────────────────────────────────────────
+  // Claiming is the one-way husk→real transition: it publishes the room into every member's library and
+  // replays the creation-time economics. A post that CANNOT succeed must not spend that transition — so
+  // everything checkable is checked BEFORE the claim, and the claim still precedes the write (the ordering
+  // invariant in `verbs/claim-chat.ts`, which a claim-after-write would break by double-counting).
+  test("a refused post never claims the husk (validation precedes the claim; the claim still precedes the write)", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "husk", { startedAt: null });
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    const groupChar = await seedCharacter(db, host, "narrator");
+    const claims: string[] = [];
+    const claimChat = (id: string): Promise<void> => {
+      claims.push(id);
+      return Promise.resolve();
+    };
+    const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
+    const postNarratorMessage = createPostNarratorMessage(ctx, { emit, claimChat });
+
+    await expect(postNarratorMessage(chatId, "   \n ")).rejects.toThrow(BLANK_POST_RE);
+    expect(claims).toEqual([]);
+
+    // …and the succeeding post DOES claim, before its write.
+    await postNarratorMessage(chatId, "The bell tolls.");
+    expect(claims).toEqual([chatId]);
+  });
+
+  test("a hostless chat is refused before the claim (no husk published for a post that cannot commit)", async () => {
+    const chatId = await seedChat(db, "orphan", { startedAt: null });
+    const claims: string[] = [];
+    const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.reject(new Error("should not mint")) });
+    const postNarratorMessage = createPostNarratorMessage(ctx, {
+      emit,
+      claimChat: (id) => {
+        claims.push(id);
+        return Promise.resolve();
+      },
+    });
+
+    await expect(postNarratorMessage(chatId, "orphaned")).rejects.toThrow("no host");
+    expect(claims).toEqual([]);
+  });
+
+  // ── The seq-allocation race (#1463 item 7) ────────────────────────────────────────────────────────────
+  // Real concurrent callers exist (the automation plugin bridge, rpg's checkpoint restore and its turn ops
+  // all post narrator rows off their own clocks). Two posts that read the same canon head both mint `seq+1`;
+  // the loser trips the `(chat_id, seq)` unique and — without the same retry the image path already carries —
+  // takes the whole message with it.
+  test("two concurrent narrator posts both commit (the loser re-allocates instead of dying)", async () => {
+    const held = await freshHeldDb();
+    const host = await seedUser(held.db, castId<Handle>("host"));
+    const chatId = await seedChat(held.db, "race");
+    await seedParticipant(held.db, { chatId, key: "host", userId: host, role: "host" });
+    const groupChar = await seedCharacter(held.db, host, "narrator");
+    const ctx = makeChatContext(held.db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
+    const postNarratorMessage = createPostNarratorMessage(ctx, { emit, claimChat: noClaim });
+
+    // Park BOTH posts at the canon-head read, so each allocates from the SAME max seq.
+    const gate = held.hold(/select max\("seq"\)/iu, 2);
+    const first = postNarratorMessage(chatId, "first line");
+    const second = postNarratorMessage(chatId, "second line");
+    await gate.reached;
+    gate.release();
+    await Promise.all([first, second]);
+
+    const rows = await held.db.select().from(messages).where(eq(messages.chatId, chatId));
+    expect(rows.map((r) => r.seq).toSorted((a, b) => a - b)).toEqual([1, 2]);
   });
 });
