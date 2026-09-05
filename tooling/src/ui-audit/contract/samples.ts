@@ -250,8 +250,15 @@ export interface AccentBorderInput {
    *  of the picture, not a decoration on a card: the chat-style cell's mini transcript inherits the real
    *  skin's border declarations on purpose (`stripeOf`, appearance-chat-style-cards.tsx) so the reader can
    *  see what that skin looks like, and the density/elevation diagram cells do the same for their axes.
-   *  Keyed on the SHARED slot rather than any one feature's selector, so all three pickers ride one row.
-   *  ANCESTOR-scoped (unlike `listRowSelected`): the whole aperture is the picture. */
+   *  Keyed on the SHARED slot rather than any one feature's selector, so ALL FOUR illustrated pickers ride
+   *  one row — `<RadioGroupPickerItem art=…>` is the only way into the aperture and ast-grep finds exactly
+   *  four (787 tsx scanned, 2026-09-05): chat style, density, elevation, and the theme LOOKS picker
+   *  (`ThemeMiniSurface`, appearance-looks-section.tsx), whose swatch paints a card with the theme's own
+   *  radius and hairline — a theme swatch is a picture of a design too, so silencing the accent-border
+   *  family over it is the same call, not a widening.
+   *  ANCESTOR-scoped (unlike `listRowSelected`): the whole aperture is the picture, and `closest()` matches
+   *  SELF, so the aperture element carries its own flag — harmless, its recipe declares no border at all
+   *  (`packages/ui/src/primitives/picker-cell/variants.ts` `art`), so it never enters this census. */
   readonly artPane: boolean;
 }
 

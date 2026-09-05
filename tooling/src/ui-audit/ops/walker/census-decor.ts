@@ -256,8 +256,9 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
       listRowSelected: !!(abel.matches && abel.matches(LIST_ROW_SELECTED_SEL)),
       // The illustrated-picker art aperture (#1642) — ANCESTOR-scoped on purpose, the inverse of the line
       // above: every box inside the picture is part of the picture, and the tell the diagram draws is the
-      // very thing the cell exists to show. Keyed on the shared @orb/ui PickerCell slot, so the chat
-      // style, density and elevation pickers are one exemption rather than three selectors.
+      // very thing the cell exists to show. Keyed on the shared @orb/ui PickerCell slot, so all FOUR
+      // illustrated pickers — chat style, density, elevation, theme looks — are one exemption rather
+      // than four selectors.
       artPane: !!(abel.closest && abel.closest(PICKER_ART_SEL)),
     });
   }

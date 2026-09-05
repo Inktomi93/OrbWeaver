@@ -109,7 +109,10 @@ export function checkAccentBorder(input: AccentBorderInput): Finding[] {
   // and the density/elevation cells draw their axis the same way. Judging it reported the DIAGRAM (4
   // findings on `[data-slot=chat-style-cards]`, 2× side-tab + 2× border-accent-on-rounded) while saying
   // nothing about any surface a user reads. Keyed on the shared slot, never one feature's selector —
-  // the exemption's REACH is every picture picker, and the sample stays counted in the denominator.
+  // the exemption's REACH is FOUR pickers, not the one that reported it: ast-grep on
+  // `<RadioGroupPickerItem art=…>` (787 tsx, 2026-09-05) finds chat style, density, elevation and the
+  // theme LOOKS picker, whose `ThemeMiniSurface` swatch paints a card with the theme's own radius and
+  // hairline — a theme swatch is a picture of a design too. The sample stays counted in the denominator.
   if (input.artPane) {
     return [];
   }

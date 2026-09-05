@@ -95,10 +95,13 @@ export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = "a,button,[role=b
   // THE ILLUSTRATED PICKER'S ART APERTURE (#1642). @orb/ui's PickerCell is the ONE anatomy every
   // single-choice PICTURE picker wears, and its art slot holds a DIAGRAM OF A DESIGN — the chat-style
   // cell renders mini transcript lines in the real skin's own classes and inherits that skin's accent
-  // stripe on purpose, the density and elevation cells draw their axis the same way. A decor rule that
-  // judges a tell inside this aperture is judging the picture, not the product. Keyed on the SHARED
-  // slot so all three pickers ride one exemption; consumers walk ANCESTORS (the whole aperture is the
-  // picture), which is the deliberate inverse of the element-scoped selection predicate above.
+  // stripe on purpose, and the density, elevation and theme-LOOKS cells draw their own subject the same
+  // way. A decor rule that judges a tell inside this aperture is judging the picture, not the product.
+  // Keyed on the SHARED slot so ALL FOUR pickers ride one exemption (ast-grep on the art prop, 787 tsx,
+  // 2026-09-05); consumers walk ANCESTORS (the whole aperture is the picture), which is the deliberate
+  // inverse of the element-scoped selection predicate above. The aperture renders unconditionally and
+  // closest() matches SELF, so the aperture element is inside its own exemption — no over-reach: its
+  // recipe declares no border, so it never reaches a border census at all.
   var PICKER_ART_SEL = "[data-slot='picker-cell-art']";
   // ── THE CAP LEDGER (#1038) ────────────────────────────────────────────────
   // A census that stops PUSHING at a representative bound must not stop COUNTING: the pre-#1038 loops
