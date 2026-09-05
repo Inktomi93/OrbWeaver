@@ -67,13 +67,13 @@ import {
 // every seated character (narrator) vs a SINGLE primary (per-speaker). The two arms also resolve DIFFERENT default texts —
 // the narrator arm gets `NARRATOR_MAIN_PROMPT_TEMPLATE` ("…voicing {{char}} and the world around them"),
 // every other arm keeps the shipped per-speaker bytes. Hoisted per biome's top-level-regex rule.
-const JOINED_CAST_FRAMING = /You are the narrator of an immersive[^\n]*voicing (Aria, Kai|Kai, Aria) and the world around them/;
+const JOINED_CHARACTERS_FRAMING = /You are the narrator of an immersive[^\n]*voicing (Aria, Kai|Kai, Aria) and the world around them/;
 const SINGLE_SPEAKER_FRAMING = /You are (Aria|Kai) in an immersive/;
 /** The `listChats` page ceiling (`CHAT_LIST_MAX_LIMIT` in verbs/read.ts). Named here so the clamp arm below
  *  fails loudly if the verb's number moves, instead of silently testing a bound that no longer exists. */
 const CHAT_LIST_PAGE_CEILING = 100;
 
-const JOINED_CAST_ANYWHERE = /(You are (Aria, Kai|Kai, Aria)|voicing (Aria, Kai|Kai, Aria))/;
+const JOINED_CHARACTERS_ANYWHERE = /(You are (Aria, Kai|Kai, Aria)|voicing (Aria, Kai|Kai, Aria))/;
 
 let db: Db;
 let loadParticipantViews: ReturnType<typeof makeLoadParticipantViews>;
@@ -1547,7 +1547,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // through the speaker arm: a narrator turn binds it to the JOINED character names. The shipped preview bound it to a
     // single primary name. The narrator arm also resolves the narrator-true DEFAULT — the host previewing a
     // narrator room must see the bytes that round actually sends, never the per-speaker framing.
-    expect(prompt.static).toMatch(JOINED_CAST_FRAMING);
+    expect(prompt.static).toMatch(JOINED_CHARACTERS_FRAMING);
     expect(prompt.static).not.toMatch(SINGLE_SPEAKER_FRAMING); // never the single-speaker binding
     expect(prompt.static).not.toContain("perspective only"); // …nor its single-perspective clause
     // Both character cards reach the wire, framed as the round's VOICES (narrator "[Character — X]"), never bystanders.
@@ -1579,7 +1579,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // Per-speaker is the shipped shape: one speaker voiced, `{{char}}` bound to that ONE primary, the rest
     // framed as bystanders. Threading the real output axis must leave this arm identical.
     expect(prompt.static).toMatch(SINGLE_SPEAKER_FRAMING);
-    expect(prompt.static).not.toMatch(JOINED_CAST_ANYWHERE);
+    expect(prompt.static).not.toMatch(JOINED_CHARACTERS_ANYWHERE);
     expect(prompt.static).toContain("[Also present — ");
     // The mirror of the narrator arm's own fence. This used to read `not.toContain("[Cast —")` — the narrator
     // heading's PRE-v2 bytes, which no default has produced since 2026-08-30, so the fence was vacuously true
