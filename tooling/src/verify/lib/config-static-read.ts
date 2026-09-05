@@ -12,10 +12,9 @@ import { Node, Project, SyntaxKind } from "ts-morph";
 import type { ConfigRead, ExtractRequest, RowExtraction, StaticRead, UnresolvedShape } from "../contract/config-read.ts";
 import type { ExactRow } from "./grant-liveness.ts";
 import { lineFinder } from "./grant-liveness.ts";
+import { resolveStableExpression } from "./reference-fact.ts";
 
 export type { ConfigRead, ExtractRequest, RowExtraction } from "../contract/config-read.ts";
-
-const EMPTY: StaticRead = { values: [], unresolved: [] };
 
 function refuse(node: Node): StaticRead {
   return { values: [], unresolved: [{ kind: node.getKindName(), text: node.getText(), line: node.getStartLineNumber() }] };
@@ -28,27 +27,179 @@ function merge(parts: readonly StaticRead[]): StaticRead {
   };
 }
 
+function unwrap(node: Node): Node {
+  let current = node;
+  while (Node.isParenthesizedExpression(current) || Node.isAsExpression(current) || Node.isSatisfiesExpression(current) || Node.isNonNullExpression(current)) {
+    current = current.getExpression();
+  }
+  return current;
+}
+
+function declarationSymbol(node: Node): object | undefined {
+  if (!(Node.isVariableDeclaration(node) && Node.isIdentifier(node.getNameNode()))) {
+    return;
+  }
+  return node.getNameNode().getSymbol()?.compilerSymbol;
+}
+
+function isAssignmentOperator(kind: SyntaxKind): boolean {
+  return kind >= SyntaxKind.FirstAssignment && kind <= SyntaxKind.LastAssignment;
+}
+
+function isStoredOrReturned(identifier: import("ts-morph").Identifier): boolean {
+  let current: Node = identifier;
+  let parent = current.getParent();
+  while (parent !== undefined) {
+    if (Node.isSpreadElement(parent) && parent.getExpression() === current) {
+      return false;
+    }
+    if (Node.isVariableDeclaration(parent)) {
+      const initializer = parent.getInitializer();
+      return initializer !== undefined && unwrap(initializer) !== identifier;
+    }
+    if (Node.isReturnStatement(parent)) {
+      return true;
+    }
+    if (Node.isExportAssignment(parent)) {
+      return false;
+    }
+    if (Node.isBinaryExpression(parent) && isAssignmentOperator(parent.getOperatorToken().getKind())) {
+      return parent.getRight() === current || parent.getRight().getDescendants().includes(identifier);
+    }
+    current = parent;
+    parent = current.getParent();
+  }
+  return false;
+}
+
+function isMutatingUse(identifier: import("ts-morph").Identifier): boolean {
+  if (isStoredOrReturned(identifier)) {
+    return true;
+  }
+  let current: Node = identifier;
+  let parent = current.getParent();
+  while (
+    parent !== undefined &&
+    (Node.isParenthesizedExpression(parent) ||
+      Node.isAsExpression(parent) ||
+      Node.isSatisfiesExpression(parent) ||
+      Node.isNonNullExpression(parent) ||
+      Node.isPropertyAccessExpression(parent) ||
+      Node.isElementAccessExpression(parent))
+  ) {
+    current = parent;
+    parent = current.getParent();
+  }
+  if (parent === undefined) {
+    return false;
+  }
+  if (Node.isCallExpression(parent)) {
+    return (
+      parent.getExpression() === current || parent.getArguments().some((argument) => argument === current || argument.getDescendants().includes(identifier))
+    );
+  }
+  if (Node.isBinaryExpression(parent) && parent.getLeft() === current) {
+    return isAssignmentOperator(parent.getOperatorToken().getKind());
+  }
+  if ((Node.isPrefixUnaryExpression(parent) || Node.isPostfixUnaryExpression(parent)) && parent.getOperand() === current) {
+    const operator = parent.getOperatorToken();
+    return operator === SyntaxKind.PlusPlusToken || operator === SyntaxKind.MinusMinusToken;
+  }
+  return Node.isDeleteExpression(parent) && parent.getExpression() === current;
+}
+
+function aliasEdge(declaration: import("ts-morph").VariableDeclaration): readonly [alias: object, source: object] | undefined {
+  const alias = declarationSymbol(declaration);
+  const initializer = declaration.getInitializer();
+  const value = initializer === undefined ? undefined : unwrap(initializer);
+  const source = value !== undefined && Node.isIdentifier(value) ? value.getSymbol()?.compilerSymbol : undefined;
+  return alias === undefined || source === undefined ? undefined : [alias, source];
+}
+
+function escapedSymbol(identifier: import("ts-morph").Identifier): object | undefined {
+  const parent = identifier.getParent();
+  if (Node.isShorthandPropertyAssignment(parent)) {
+    return parent.getValueSymbol()?.compilerSymbol;
+  }
+  const symbol = identifier.getSymbol()?.compilerSymbol;
+  return symbol !== undefined && !(Node.isVariableDeclaration(parent) && parent.getNameNode() === identifier) && isMutatingUse(identifier) ? symbol : undefined;
+}
+
+function propagateEscapedAliases(escaped: Set<object>, aliases: readonly (readonly [alias: object, source: object])[]): void {
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const [alias, source] of aliases) {
+      if (escaped.has(alias) && !escaped.has(source)) {
+        escaped.add(source);
+        grew = true;
+      }
+    }
+  }
+}
+
+function escapedCollectionSymbols(source: import("ts-morph").SourceFile): ReadonlySet<object> {
+  const aliases = source
+    .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
+    .map(aliasEdge)
+    .filter((edge): edge is readonly [alias: object, source: object] => edge !== undefined);
+  const escaped = new Set(
+    source
+      .getDescendantsOfKind(SyntaxKind.Identifier)
+      .map(escapedSymbol)
+      .filter((symbol): symbol is object => symbol !== undefined),
+  );
+  propagateEscapedAliases(escaped, aliases);
+  return escaped;
+}
+
+/** Arrays are mutable even behind `const`. Refuse any mutation/escape through the binding or a same-file
+ * alias; otherwise the literal snapshot can differ from the runtime config value. */
+function collectionBindingEscapes(terminal: Node, declarations: readonly Node[], escaped: ReadonlySet<object>): boolean {
+  if (!Node.isArrayLiteralExpression(terminal)) {
+    return false;
+  }
+  return declarations.some((declaration) => {
+    const symbol = declarationSymbol(declaration);
+    return symbol !== undefined && escaped.has(symbol);
+  });
+}
+
 /** Resolve an identifier through its ONE variable declaration's initializer. A `const` with no initializer,
  *  a parameter, an import, or a re-assigned binding is refused rather than guessed. */
-function readIdentifier(node: Node, seen: Set<Node>): StaticRead {
-  const decl = node.getSymbol()?.getDeclarations()[0];
-  if (decl === undefined || !Node.isVariableDeclaration(decl)) {
-    return refuse(node);
+function readIdentifier(node: Node, seen: Set<Node>, escaped: ReadonlySet<object>): StaticRead {
+  const fact = resolveStableExpression(node);
+  if (
+    fact.trace.origin.getSourceFile() !== node.getSourceFile() ||
+    fact.trace.declarations.some((declaration) => declaration.getSourceFile() !== node.getSourceFile())
+  ) {
+    return { values: [], unresolved: [{ kind: "Reference:external", text: node.getText(), line: node.getStartLineNumber() }] };
   }
-  const init = decl.getInitializer();
-  return init === undefined ? refuse(node) : readValue(init, seen);
+  if (fact.kind === "unresolved") {
+    if (fact.reason === "dynamic" && (Node.isTemplateExpression(fact.node) || Node.isBinaryExpression(fact.node))) {
+      return readValue(fact.node, seen, escaped);
+    }
+    return {
+      values: [],
+      unresolved: [{ kind: `Reference:${fact.reason}`, text: fact.node.getText(), line: fact.node.getStartLineNumber() }],
+    };
+  }
+  if (collectionBindingEscapes(fact.value, fact.trace.declarations, escaped)) {
+    return { values: [], unresolved: [{ kind: "Reference:write", text: node.getText(), line: node.getStartLineNumber() }] };
+  }
+  return readValue(fact.value, seen, escaped);
 }
 
 /** A template literal is readable only when EVERY substitution resolves to EXACTLY ONE string — a span that
  *  resolves to an array (or to nothing) has no single ordered value, so the whole template is refused. */
-function readTemplate(node: Node, seen: Set<Node>): StaticRead {
+function readTemplate(node: Node, seen: Set<Node>, escaped: ReadonlySet<object>): StaticRead {
   if (!Node.isTemplateExpression(node)) {
     return refuse(node);
   }
   let acc = node.getHead().getLiteralText();
   const unresolved: UnresolvedShape[] = [];
   for (const span of node.getTemplateSpans()) {
-    const part = readValue(span.getExpression(), seen);
+    const part = readValue(span.getExpression(), seen, escaped);
     unresolved.push(...part.unresolved);
     if (part.values.length !== 1) {
       unresolved.push({ kind: "TemplateSpan", text: span.getExpression().getText(), line: span.getStartLineNumber() });
@@ -60,12 +211,12 @@ function readTemplate(node: Node, seen: Set<Node>): StaticRead {
 }
 
 /** A `+` concatenation of two single-valued halves, in source order. Any other operator is refused. */
-function readConcat(node: Node, seen: Set<Node>): StaticRead {
+function readConcat(node: Node, seen: Set<Node>, escaped: ReadonlySet<object>): StaticRead {
   if (!Node.isBinaryExpression(node) || node.getOperatorToken().getText() !== "+") {
     return refuse(node);
   }
-  const left = readValue(node.getLeft(), seen);
-  const right = readValue(node.getRight(), seen);
+  const left = readValue(node.getLeft(), seen, escaped);
+  const right = readValue(node.getRight(), seen, escaped);
   if (left.values.length !== 1 || right.values.length !== 1) {
     return merge([left, right, refuse(node)]);
   }
@@ -81,39 +232,39 @@ function readConcat(node: Node, seen: Set<Node>): StaticRead {
  *  somewhere else in the expression", which is not a cycle at all: `.dependency-cruiser.cjs` spells
  *  `${UI}` nine times inside ONE `pathNot` array, and an accumulate-only fence refused eight of them —
  *  measured, and exactly the false-RED that would have blocked every lane's import-law floor. */
-function readValue(node: Node, seen: Set<Node> = new Set()): StaticRead {
+function readValue(node: Node, seen: Set<Node> = new Set(), escaped: ReadonlySet<object> = escapedCollectionSymbols(node.getSourceFile())): StaticRead {
   if (seen.has(node)) {
-    return EMPTY;
+    return refuse(node);
   }
   seen.add(node);
   try {
-    return readValueInner(node, seen);
+    return readValueInner(node, seen, escaped);
   } finally {
     seen.delete(node);
   }
 }
 
-function readValueInner(node: Node, seen: Set<Node>): StaticRead {
+function readValueInner(node: Node, seen: Set<Node>, escaped: ReadonlySet<object>): StaticRead {
   if (Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
     return { values: [node.getLiteralText()], unresolved: [] };
   }
   if (Node.isArrayLiteralExpression(node)) {
-    return merge(node.getElements().map((el) => readValue(el, seen)));
+    return merge(node.getElements().map((el) => readValue(el, seen, escaped)));
   }
   if (Node.isSpreadElement(node)) {
-    return readValue(node.getExpression(), seen);
+    return readValue(node.getExpression(), seen, escaped);
   }
   if (Node.isParenthesizedExpression(node) || Node.isAsExpression(node) || Node.isSatisfiesExpression(node)) {
-    return readValue(node.getExpression(), seen);
+    return readValue(node.getExpression(), seen, escaped);
   }
   if (Node.isIdentifier(node)) {
-    return readIdentifier(node, seen);
+    return readIdentifier(node, seen, escaped);
   }
   if (Node.isTemplateExpression(node)) {
-    return readTemplate(node, seen);
+    return readTemplate(node, seen, escaped);
   }
   if (Node.isBinaryExpression(node)) {
-    return readConcat(node, seen);
+    return readConcat(node, seen, escaped);
   }
   return refuse(node);
 }
@@ -174,6 +325,7 @@ export function readConfigSource(root: string, rel: string): ConfigRead {
  *  a shape this cannot read is never a clean zero. */
 export function extractRows(request: ExtractRequest): RowExtraction {
   const { sf, rel, text, keys, classify } = request;
+  const escaped = escapedCollectionSymbols(sf);
   const lineOf = lineFinder(text);
   const exact: ExactRow[] = [];
   const skippedRows: ExactRow[] = [];
@@ -185,7 +337,7 @@ export function extractRows(request: ExtractRequest): RowExtraction {
     if (!keys.includes(pa.getName().replaceAll(/['"]/gu, "")) || init === undefined) {
       continue;
     }
-    const read = readValue(init);
+    const read = readValue(init, new Set(), escaped);
     unresolved.push(...read.unresolved);
     for (const value of read.values) {
       candidates += 1;

@@ -1,0 +1,95 @@
+// Each invocation shares one lazy provider cache; policies cannot reach disk, parsers, or cache reset.
+
+import { resolve } from "node:path";
+import { performance } from "node:perf_hooks";
+import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import type { Project, SourceFile } from "ts-morph";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { ResourceFact, ResourceLoad, ResourceReceipt } from "../contract/resource.ts";
+import type { PackageResourceId, StaticConfigResourceId } from "../contract/resource-config.ts";
+import type { ResourceHost, ResourceHostOptions, ResourceInvocation } from "../contract/resource-host.ts";
+import type { AuthoredTreeId } from "../contract/resource-tree.ts";
+import { loadPackageMetadata, loadStaticConfig } from "./resource-config.ts";
+import { createResourceReader } from "./resource-reader.ts";
+import { loadTrackedFiles } from "./resource-tracked.ts";
+import { loadAuthoredCss, loadAuthoredTree, loadProductCss } from "./resource-tree.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm check:structure");
+
+function freezeValue<T>(value: T): T {
+  if (typeof value === "object" && value !== null) {
+    for (const child of Object.values(value)) {
+      freezeValue(child);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}
+
+/** Create once at the invocation root; release the returned object to release every cached resource. */
+export function createResourceHost(options: ResourceHostOptions): ResourceInvocation {
+  const root = resolve(options.root);
+  const reader = createResourceReader(options);
+  const receipts = new Map<string, ResourceReceipt>();
+  let parser: Project | undefined;
+  const sourceParser =
+    options.parseSource ??
+    ((path: string, text: string): SourceFile => {
+      parser ??= getWorkspace({ root, globs: [] });
+      parser.compilerOptions.set({ allowJs: true });
+      return parser.createSourceFile(`${root}/${path}`, text, { overwrite: true });
+    });
+  const parseSource = (path: string, text: string): SourceFile => {
+    const source = sourceParser(path, text);
+    if (resolve(source.getFilePath()) !== resolve(root, path)) {
+      throw new Error(`resource parser returned a source outside its exact invocation identity: ${path}`);
+    }
+    return source;
+  };
+  const cached = <T>(source: string, load: () => ResourceLoad<T>): (() => ResourceFact<T>) => {
+    let fact: ResourceFact<T> | undefined;
+    return () => {
+      if (fact !== undefined) {
+        return fact;
+      }
+      const started = performance.now();
+      let loaded: ResourceLoad<T>;
+      try {
+        loaded = load();
+      } catch (error) {
+        loaded = { status: "unresolved", paths: [], members: 0, reason: error instanceof Error ? error.message : String(error) };
+      }
+      const receipt: ResourceReceipt = {
+        source,
+        status: loaded.status,
+        paths: loaded.paths,
+        members: loaded.members,
+        durationMs: performance.now() - started,
+        ...(loaded.subprocess === undefined ? {} : { subprocess: loaded.subprocess }),
+      };
+      fact = freezeValue({ ...loaded, receipt });
+      receipts.set(source, fact.receipt);
+      return fact;
+    };
+  };
+  const keyed = <Id extends string, T>(family: string, load: (id: Id) => ResourceLoad<T>): ((id: Id) => ResourceFact<T>) => {
+    const providers = new Map<Id, () => ResourceFact<T>>();
+    return (id) => {
+      let provider = providers.get(id);
+      if (provider === undefined) {
+        provider = cached(`${family}:${id}`, () => load(id));
+        providers.set(id, provider);
+      }
+      return provider();
+    };
+  };
+  const host: ResourceHost = Object.freeze({
+    authoredTree: keyed("authored-tree", (id: AuthoredTreeId) => loadAuthoredTree(reader, id)),
+    authoredCss: cached("authored-css", () => loadAuthoredCss(reader)),
+    productCss: cached("product-css", () => loadProductCss(reader)),
+    packageMetadata: keyed("package", (id: PackageResourceId) => loadPackageMetadata(reader, id)),
+    staticConfig: keyed("static-config", (id: StaticConfigResourceId) => loadStaticConfig(reader, id, parseSource)),
+    trackedFiles: cached("tracked-files", () => loadTrackedFiles(root)),
+  });
+  return Object.freeze({ host, receipts: () => Object.freeze([...receipts.values()].toSorted((left, right) => left.source.localeCompare(right.source))) });
+}

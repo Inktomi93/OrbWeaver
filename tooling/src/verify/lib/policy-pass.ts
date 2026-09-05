@@ -315,6 +315,9 @@ function evaluateRuns(runs: readonly PolicyRun[], errors: PolicyToolError[]): vo
     run.receipts = run.finishReceipts?.() ?? [];
     guard(run, "receipt", errors, () => {
       const failures = run.receipts.flatMap(receiptFailures);
+      if (run.population.effectiveResourcePaths.length > 0 && !run.receipts.some((receipt) => receipt.kind === "resource")) {
+        failures.push("declared resource population produced no resource receipt");
+      }
       if (failures.length > 0) {
         throw new Error(`policy receipt refused: ${failures.join("; ")}`);
       }
