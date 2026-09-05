@@ -611,6 +611,101 @@ test("NOT multi-human capable → no People section anywhere (single-user render
   await expect(panel.getByRole("button", { name: "Invite people" })).toHaveCount(0);
 });
 
+// ── #1627 — THE FIRST-PAINT ARM OF THE PEOPLE GATE ─────────────────────────────────────────────────────
+// `useChatContextState` read `useAuthConfig().data?.multiHumanCapable` RAW, so this section rendered the
+// SINGLE-HUMAN arm for the whole flight of `/api/auth/config` (fetched at app-root mount) and then appeared —
+// the same defect #476 measured on the notifications bell (0.00015 layout shift, under the `[cls]` flagger's
+// own reporting floor, so nothing named it). It now reads `useMultiHumanCapable`, the ONE hint-backed read;
+// the bell handed the hint over when its own gate was retired (its inbox has single-human sources).
+//
+// The hint is a RENDER hint only: `chat.participants`, the invite verbs and their server belts are untouched,
+// which is why a stale hint can only cost a section that empties itself milliseconds later.
+
+/** The deployment-boot hint's key (`createPersistedStore("deployment-boot")`), seeded BEFORE the page's
+ *  modules run — a persisted store rehydrates at MODULE INIT, so writing after mount proves nothing. */
+const DEPLOYMENT_HINT_KEY = "orb:deployment-boot";
+
+async function seedCapabilityHint(page: Page, multiHumanCapable: boolean): Promise<void> {
+  const blob = JSON.stringify({ state: { multiHumanCapable }, version: 1 });
+  await page.addInitScript({
+    content: `try { localStorage.setItem(${JSON.stringify(DEPLOYMENT_HINT_KEY)}, ${JSON.stringify(blob)}); } catch { /* storage disabled */ }`,
+  });
+  await page.reload();
+}
+
+/** Hold `/api/auth/config` in flight; the returned fn lands the deployment's answer when the test wants it.
+ *  The window under test is the one where it has NOT landed. */
+async function holdAuthConfig(page: Page): Promise<(capable: boolean) => void> {
+  let land: ((capable: boolean) => void) | undefined;
+  const answered = new Promise<boolean>((resolve) => {
+    land = resolve;
+  });
+  await page.route("**/api/auth/config", async (route) => {
+    const multiHumanCapable = await answered;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        mode: "single",
+        requiresLogin: false,
+        localEnabled: false,
+        oidcEnabled: false,
+        discreetLogin: false,
+        defaultHandle: null,
+        multiHumanCapable,
+      }),
+    });
+  });
+  return (capable: boolean): void => land?.(capable);
+}
+
+test("a device that REMEMBERS a multi-human deployment paints People before the config lands (#1627)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...THIS_CHAT_TAB_READS,
+    "chat.getChat": () => multiHumanChat(true, [humanSeat("alex", "Alex", "host"), humanSeat("buddy", "Buddy", "member")]),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+    "invites.listInvites": () => [],
+  });
+  const land = await holdAuthConfig(page);
+  await seedCapabilityHint(page, true);
+
+  const component = await mount(<ChatContextPanelStory />);
+  await cell(component, "Members").click();
+
+  // The config is STILL in flight — under the raw read this half of the tab was simply absent here.
+  const panel = page.getByTestId("members-panel");
+  await expect(panel.locator('[data-slot="members-people"]')).toBeVisible();
+  land(true);
+  // …and the server agreeing changes nothing the user can see.
+  await expect(panel.locator('[data-slot="members-people"]')).toBeVisible();
+});
+
+test("a device told NOTHING renders the single-human arm until the config lands — the honest floor", async ({ mount, page }) => {
+  // A FENCE, not a defect proof: this is also the pre-#1627 behavior on every device. It pins the
+  // first-EVER-visit arm, so a future "just default the hint to true" cannot reserve an invite surface a
+  // single-user deployment never renders.
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...THIS_CHAT_TAB_READS,
+    "chat.getChat": () => multiHumanChat(true, [humanSeat("alex", "Alex", "host"), humanSeat("buddy", "Buddy", "member")]),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+    "invites.listInvites": () => [],
+  });
+  const land = await holdAuthConfig(page);
+
+  const component = await mount(<ChatContextPanelStory />);
+  await cell(component, "Members").click();
+
+  const panel = page.getByTestId("members-panel");
+  await expect(panel.locator('[data-slot="members-people"]')).toHaveCount(0);
+  // The server's yes is what puts it there — and what this device remembers for its next boot.
+  land(true);
+  await expect(panel.locator('[data-slot="members-people"]')).toBeVisible();
+});
+
 test("capable HOST: Members lists the humans (host chip) and the invite dialog mints by handle", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,

@@ -102,11 +102,11 @@ export function useUploadCaps(): UploadCaps {
  * (measured on the topbar bell: 0.00015 — under the `[cls]` flagger's own reporting floor, so nothing ever
  * named it).
  *
- * IT HAS NO CALLER TODAY (#1627, 2026-09-05). Its one consumer was the bell's `useVisible`, and the bell lost
- * its capability gate when the inbox gained single-human sources; the two remaining gated surfaces
- * (`routes/app-root.tsx`'s /join dialog, the cast bar's People section) still read `useAuthConfig()` raw and
- * are the candidates to adopt this — or to retire it. Left standing rather than deleted because the boot-paint
- * problem it solves is the surface's, not the bell's.
+ * ITS CALLERS ARE THE TWO REMAINING CAPABILITY-GATED SURFACES (#1627, 2026-09-05): `routes/app-root.tsx`'s
+ * /join dialog and `features/chat/hooks/use-chat-context-state.ts`'s People-section flag. Both read
+ * `useAuthConfig()` RAW until then — i.e. the single-human arm for the whole flight of the fetch, the exact
+ * defect #476 measured on the bell — and the bell itself stopped consuming this when its inbox gained
+ * single-human sources and the gate came off. One read of this capability, one hint, one write-back.
  *
  * So while the read is unresolved the answer is this DEVICE's remembered one (`#state` deployment-boot-hint,
  * localStorage, rehydrated at module init — the `appearance-boot-hint` pattern, same store class); the
