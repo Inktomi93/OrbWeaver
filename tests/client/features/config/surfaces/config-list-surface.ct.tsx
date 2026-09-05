@@ -1252,3 +1252,107 @@ test("an expanded band's rows are an OWNED, NAMED group, not flat siblings", asy
   await expect(memberRows).toBeVisible();
   await expect(memberRows).toHaveAccessibleName(/^Tags/);
 });
+
+// ── #1169 · THE MAP'S LAST MILE, AND THE PANE'S VOICE BUDGET ────────────────────────────────────────
+//
+// The 2026-09-05 cohort census across the four LIST panes (docs/reviews/misc/
+// 2026-09-05-config-list-pane-divergence.md) found the `@modified` verdict propagating UP — shelf, band —
+// and stopping one level above the row that NAMES the location: `useConfigModified` derives BOTH grains in
+// one pass and the LIST spent only the group one, so a reader who had changed one setting was told "a
+// group under User changed" and then handed nine identical section rows. The same census judged the pane's
+// FOUR voices and found two of them carrying STATE, which is the shape #1214-2 already moved off the shelf.
+/** The Appearance SECTION that owns `avatarShape` — the key `stubModified` moves. Named here rather than
+ *  derived so the assertion is about the ROW, not a second copy of the section registry's key partition. */
+const MODIFIED_SECTION_ROW = "Avatars";
+/** The Appearance group's own section rows, mounted (the arrival default expands this group). */
+function appearanceRows(workspace: Locator): Locator {
+  return workspace.locator(LIST_PANE).locator(`[data-config-group="${FIRST_GROUP_ID}"] [data-slot="list-row-root"]`);
+}
+
+test("the section ROW says WHICH section differs from its default", async ({ mount, page }) => {
+  await stubModified(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  const rows = appearanceRows(workspace);
+  await expect.poll(() => rows.count(), "the arrival group's rows must be mounted at all").toBeGreaterThan(1);
+
+  // EXACTLY ONE row wears the mark, and it is the section whose `owns` claim holds the moved key — the
+  // whole point of the SECTION grain (a group-grain answer would mark all nine).
+  const marked = rows.filter({ hasText: CONFIG_MODIFIED_MARK });
+  await expect(marked).toHaveCount(1);
+  await expect(marked.locator('[data-slot="list-row-title"]')).toHaveText(MODIFIED_SECTION_ROW);
+  // It reaches AT as the row's DESCRIPTION, never its NAME — `ListRow`'s #512 contract, which is why the
+  // mark can be added at all without every settings row announcing its own state on every focus move.
+  const body = marked.locator('[data-slot="list-row-body"]');
+  await expect(body).toHaveAccessibleName(MODIFIED_SECTION_ROW);
+  await expect(body).toHaveAccessibleDescription(new RegExp(CONFIG_MODIFIED_MARK));
+});
+
+/** Every mounted Appearance row's height, zero-boxed rows dropped — so the LENGTH is a real measured count
+ *  and a silent empty sweep can never read as a pass (the band sweep's own discipline). */
+function appearanceRowHeights(workspace: Locator): Promise<readonly number[]> {
+  return appearanceRows(workspace).evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height).filter((height) => height > 0));
+}
+
+// THE MARK MUST NOT MOVE THE ROW. This is the mechanism half of the refusal recorded at `SubcategoryRow`:
+// the peers' rest-visible-state slot (`ListRow.markers`, the chats row's `Archived` badge) takes a `sm`
+// Badge BOX (~30px) that a title-only 35px row cannot absorb, so a modified row would out-grow its
+// unmodified siblings and the LIST's pitch would depend on the reader's settings. `meta` is a 16px
+// title-line datum and costs nothing. Measured against the OTHER rows in the same group rather than a
+// literal, so a correct density retune moves them together and this stays true.
+test("…and the mark does not change the row's pitch — one height across the whole group", async ({ mount, page }) => {
+  await stubModified(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await expect.poll(() => page.evaluate(() => matchMedia("(pointer: fine)").matches), "the fine-pointer arm must be active").toBe(true);
+  await expect.poll(async () => (await appearanceRowHeights(workspace)).length, "the sweep must have measured rows at all").toBeGreaterThan(1);
+
+  const heights = await appearanceRowHeights(workspace);
+  expect(new Set(heights), `all ${String(heights.length)} section rows share one pitch, marked or not`).toEqual(new Set([heights[0]]));
+});
+
+test.describe("coarse pointer — the section row", () => {
+  test.use({ hasTouch: true });
+
+  test("…at a COARSE pointer too, where the row box is the touch floor", async ({ mount, page }) => {
+    await stubModified(page);
+    const workspace = await mount(<ConfigWorkspaceStory />);
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches), "the coarse arm must be active").toBe(true);
+    await expect.poll(async () => (await appearanceRowHeights(workspace)).length, "the sweep must have measured rows at all").toBeGreaterThan(1);
+
+    const heights = await appearanceRowHeights(workspace);
+    expect(new Set(heights), `all ${String(heights.length)} section rows share one coarse pitch, marked or not`).toEqual(new Set([heights[0]]));
+    // …and that one pitch IS the resolved coarse control box, not a smaller number that merely agrees with
+    // itself: the census's open question about this row was whether it clears the finger floor.
+    const floor = await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.style.height = "var(--spacing-control-md)";
+      document.body.append(probe);
+      const px = probe.getBoundingClientRect().height;
+      probe.remove();
+      return px;
+    });
+    expect(heights[0], `the section row clears the resolved coarse control-md floor (${String(floor)}px)`).toBeGreaterThanOrEqual(floor);
+  });
+});
+
+// THE BAND'S MARK IS A BADGE (the voice budget: STATE is never a NAME voice). It was a `Text voice="kicker"`
+// — and the band's own label is `voice="interactiveKicker"`, i.e. the same micro-caps register — so a
+// modified band read as two labels of equal rank, which is verbatim the #1214-2 defect the shelf's mark was
+// moved off for. The pin is the DELTA between the two boxes on one rendered band, never a token value.
+test("the band's modified mark is a BADGE, not a second name of the same rank", async ({ mount, page }) => {
+  await stubModified(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  const band = workspace.locator(LIST_PANE).locator(`[data-slot="config-band"][data-config-group="${FIRST_GROUP_ID}"]`);
+  const mark = band.locator('[data-slot="config-group-modified"]');
+  await expect(mark).toBeVisible();
+
+  const [markBg, labelBg] = await Promise.all([
+    mark.evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor),
+    band.locator('[data-voice="interactiveKicker"]').evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor),
+  ]);
+  expect(markBg, "the mark is a box; the band's name is not").not.toBe(labelBg);
+  // AND THE #1099 CLAUSE'S MECHANISM SURVIVES: the band is `h-control-sm`, a FIXED box, so a marked band is
+  // exactly as tall as the resolved token — the reason that clause preferred text was "no growth", and a
+  // box in a fixed-height control does not grow it.
+  const box = await controlSmPx(page);
+  await expect.poll(() => band.evaluate((el: HTMLElement) => el.getBoundingClientRect().height)).toBe(box);
+});
