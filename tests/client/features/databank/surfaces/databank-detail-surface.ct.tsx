@@ -194,7 +194,7 @@ test("the detail states its metadata, keeps its Ready chip, and offers Reindex",
 // THE DETAIL KEEPS A MEASURE (side-eye sweep 2026-08-03). `justify="between"` label/value rows spend
 // whatever width they are given: at the 1448px desktop CONTENT pane "Origin" sat at x=496 and its own value
 // "Text" at x=1387 — 890px of nothing between a label and the thing it labels, and Reindex flung to the far
-// edge of its sentence. Both sibling member editors (tag, regex) keep `max-w-prose`; this one did not.
+// edge of its sentence. Both sibling member editors (tag, regex) cap at `--width-content-col` (#1175); this one did not.
 // Asserted at the WIDEST real host (the 720px story cannot see it) as the RENDERED readout width against
 // the pane's own, so a token change cannot drift out from under it and a px literal cannot satisfy it.
 test("the detail keeps a MEASURE at a desktop-wide pane — it does not spread with the window", async ({ mount, page }) => {
@@ -229,7 +229,7 @@ test("the detail keeps a MEASURE at a desktop-wide pane — it does not spread w
   });
   // The pane really is the wide one…
   expect(measured?.pane ?? 0).toBeGreaterThan(1200);
-  // …and the readout is not. `max-w-prose` is the measure both sibling member editors (tag, regex) keep;
+  // …and the readout is not. `--width-content-col` is the cap both sibling member editors (tag, regex) take (#1175);
   // asserted as a RELATION to the pane, so the token behind it can move without rotting this line.
   expect(measured?.row ?? Number.POSITIVE_INFINITY).toBeLessThan((measured?.pane ?? 0) * 0.7);
 });
