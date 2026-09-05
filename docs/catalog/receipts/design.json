@@ -1846,14 +1846,15 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "14293b60aa5e47b8623793130004ff2236bbc1d81e85b039576b06e54689af2f",
+      "assignedSha256": "ff881eb0e5e3e255f83169d57eec8259e4f6c5d978c55aaf967baa88817fdc96",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "14293b60aa5e47b8623793130004ff2236bbc1d81e85b039576b06e54689af2f",
-      "verifiedCommit": "c545899ab5807230330db4b1f5de6345bbe5c79c",
+      "verifiedSha256": "ff881eb0e5e3e255f83169d57eec8259e4f6c5d978c55aaf967baa88817fdc96",
+      "verifiedCommit": "b0e62f3bdebc42d7d85b919a0c0cb7f6fd0387c2",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at b0e62f3bd by the orchestrator after reading the #1737/#1738 edit in full: the HELD survivor table is EMPTY (its last row, the prose-slot id, closed by the rename) and is replaced by a dated closure paragraph; the section keeps its re-derivation command and the false-stem fence; the drive-axis prose sweep (#1738) took the map's words (seated/present characters, joined character names, multi-voice, presence-gating).",
         "re-attested at c545899ab by the orchestrator after reading the #1718 row in full (cb-mobile-shell): a Filters row — the phone chats pane's ONE shared filter trigger names every bound in force (Filters / Filters: chats up to <month> / Filters: chats with <character> / both), grammar homed at phoneFiltersLabel in chat-list-scope.ts; #1350's 'the trigger carries the bound' principle survives with its input changed.",
         "re-attested at 2eed0d66b by the orchestrator after reading the #1649/#1049 edit in full: the four HELD handoff-offer rows CLOSED (copyCast → copyCharacters with a boot data migration; offerCast → offerCharacters; summaryCast → summaryParticipantNames); the table now carries its own re-derivation command and the false-stem fence; ONE new HELD row — the persisted prose-slot id chat.group.castMember (#1737, owner arm) — so the survivor table stays truthful.",
         "re-attested at b64f6bdc0 by the orchestrator after reading the #1662 row in full (cb-mobile-shell): a Resume row — the verb leads the accessible name of a door that re-enters an existing room (Resume <room title> on home; Resume the chat with <character> on the faces strip), homed at state/active-chat-store resumeChat; no other row changed.",
