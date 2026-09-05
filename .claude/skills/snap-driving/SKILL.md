@@ -43,7 +43,7 @@ has a fixed shape; use the shape.
    pull the structured lines: `grep -nE '^(RESULT|ASSERT|FINDING|CONTRAST|POPULATION|ARG ERROR|NAV)' <log>`.
    Never `| tail`, never `| head` — a pipeline's exit code is the reader's, and the reader eats the list.
 5. **The durable receipt is `run.json`** (the `EVIDENCE`/`INDEX` path). It carries the verdict, a typed
-   fact per arm (`snap-arm-<arm>-v1`: state `passed|failed|refused|withheld|absent|off` + data), the
+   fact per arm (`snap-arm-<arm>-v1`: state `passed|failed|refused|withheld|load-suspect|absent|off` + data), the
    artifact inventory, and the findings. Replay it WITHOUT a browser:
 
    ```bash
@@ -55,8 +55,11 @@ has a fixed shape; use the shape.
    `--report`/`--reports` never start a browser, stage, session or run slot — they are free.
 6. **Exit codes are the first triage, before you read anything else:** `0` clean · `1` red (a finding, a
    failed assertion, a failed step, a console error) · `2` REFUSAL / tool error — the instrument COULD NOT
-   MEASURE (a withheld arm, a dead session, a cold stage, load); never a product verdict and never a clean
-   row · `3` misuse — your argv is wrong, nothing ran, the `ARG ERROR` line names the fix.
+   MEASURE (a withheld arm, a dead session, a cold stage); never a product verdict and never a clean
+   row · `3` misuse — your argv is wrong, nothing ran, the `ARG ERROR` line names the fix. Load is NOT a
+   refusal (owner ruling 2026-09-05, #1616): a rate measured under load is exit `0` with a `load-suspect`
+   label on the arm and a `load-suspect=<arms>` token on the `RESULT` line — read the number as evidence,
+   never as a verdict.
 7. **`--help` is 400+ lines.** `pnpm snap --help > "$SCRATCHPAD/snap-help.txt"` then `Read` the file when
    you need the exact contract; `reference/flags.md` is the one-line-per-flag index for everything else.
 
@@ -72,7 +75,7 @@ has a fixed shape; use the shape.
 | contrast | `--contrast <sel>` (+`--contrast-pixel`) | WCAG ratio vs the effective backdrop | — |
 | cascade | `--cascade <sel=prop>` | why a property has that value (Active/Overloaded declarations) | `--lighthouse` |
 | assert | `--expect-*` | a rendered fact, as a PASS/FAIL receipt | — |
-| app-snapshot | always on | coarse boot timing + `__orb.snap()` overview | withheld under load |
+| app-snapshot | always on | coarse boot timing + `__orb.snap()` overview | measured under load and labelled `load-suspect`; withheld only on an unproven or software-rendered browser |
 | motion | `--motion [sel]` | one motion window: LoAF, CLS (judge non-virtualized), dirty animations, dropped frames | `--filmstrip`, `--cpu-profile` |
 | perf | `--perf` | per-step input delay, long tasks, rAF gaps, CLS over the action tape (a meter, not a gate) | `--filmstrip`, `--cpu-profile` |
 | cpu-profile | `--cpu-profile` | who burns the frame (V8 sampling profile) | `--perf`, `--motion`, `--filmstrip` |

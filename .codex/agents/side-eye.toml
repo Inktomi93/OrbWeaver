@@ -105,9 +105,10 @@ They are not files to fetch. Then, before the first probe:
    `RESULT …` (every axis), `RUN …`, the `FINDING` rows (each with `evidence=` and an exact `next=` reader
    command), `EVIDENCE <run.json>`.
 5. **Triage the exit code before the content**: `0` clean · `1` red — read the findings · `2` REFUSAL — the
-   instrument could not measure (a withheld population, a cold stage, load, a dead session); it is NEVER a
+   instrument could not measure (a withheld population, a cold stage, a dead session); it is NEVER a
    clean row and NEVER a product verdict; say NO VERDICT and name the reason · `3` misuse — your argv, fix it
-   from the `ARG ERROR` line and rerun.
+   from the `ARG ERROR` line and rerun. A `load-suspect` arm DID measure (owner ruling 2026-09-05, #1616):
+   read its number as evidence, never as a verdict, and never as NO VERDICT.
 6. **Cite the immutable receipt**: every finding names the run slot or the `run.json` path (the `EVIDENCE`
    line), never a `reports/snaps/<name>.png` pointer a later run can re-aim. To drill into a run later, or to
    re-read one you took an hour ago, `pnpm snap --report <run.json> --problems` (or `--all --arm <arm>`)
