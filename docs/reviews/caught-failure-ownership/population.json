@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 547,
-    "enforced": 542,
+    "sites": 548,
+    "enforced": 543,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 542,
+      "deliberate-absorb": 543,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
       "default": 149,
-      "empty": 256
+      "empty": 257
     }
   },
   "rows": [
@@ -1515,7 +1515,7 @@
     {
       "siteId": "packages/contracts/src/preset/index.ts::default:catch::1",
       "path": "packages/contracts/src/preset/index.ts",
-      "line": 3119,
+      "line": 3120,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1523,7 +1523,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "ST mirror — JSON.parse of custom_stopping_strings",
-      "markerLine": 3114
+      "markerLine": 3115
     },
     {
       "siteId": "packages/contracts/src/rpg/extraction.ts::default:catch::1",
@@ -2616,6 +2616,19 @@
       "verdict": "deliberate-absorb",
       "reason": "propagated — `next` is what this function",
       "markerLine": 17
+    },
+    {
+      "siteId": "packages/server/src/domain/settings/persistence/heal-legacy-background-pins.ts::empty:catch::1",
+      "path": "packages/server/src/domain/settings/persistence/heal-legacy-background-pins.ts",
+      "line": 93,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable row is #471's territory, not",
+      "markerLine": 84
     },
     {
       "siteId": "packages/server/src/domain/settings/verbs/add-external-background.ts::empty:catch::1",
