@@ -5766,7 +5766,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 242,
+      "line": 215,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5774,12 +5774,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.",
-      "markerLine": 237
+      "markerLine": 210
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 279,
+      "line": 252,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5787,12 +5787,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read.",
-      "markerLine": 272
+      "markerLine": 245
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:retryErr::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 253,
+      "line": 226,
       "column": 9,
       "grammar": "empty",
       "position": "empty:retryErr",
@@ -5800,7 +5800,7 @@
       "snippet": "} catch (retryErr) {",
       "verdict": "deliberate-absorb",
       "reason": "the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read.",
-      "markerLine": 248
+      "markerLine": 221
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::1",
@@ -5818,7 +5818,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 275,
+      "line": 248,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -5826,7 +5826,7 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.",
-      "markerLine": 274
+      "markerLine": 247
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::1",
@@ -5844,7 +5844,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 267,
+      "line": 240,
       "column": 9,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -5852,12 +5852,12 @@
       "snippet": "await page",
       "verdict": "deliberate-absorb",
       "reason": "gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures.",
-      "markerLine": 266
+      "markerLine": 239
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitForLoadState::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 405,
+      "line": 378,
       "column": 11,
       "grammar": "promise",
       "position": "promise:waitForLoadState",
@@ -5865,7 +5865,7 @@
       "snippet": "await page.waitForLoadState(\"networkidle\", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.",
-      "markerLine": 403
+      "markerLine": 376
     },
     {
       "siteId": "tooling/src/snap/ops/filmstrip-capture.ts::promise:stopProtocol::1",
