@@ -116,6 +116,8 @@ Use the parked dispatch-fence research as evidence, not verbatim policy. Run its
 
 Named roots exist only for independently selectable workspace packages and top-level authored trees. Nested implementation directories such as DB schema, server domain/infra/transport, and the gate corpus use `under`/`notUnder` conventions; they do not get another hand-maintained root alias. Sanctioned homes remain exact reviewed grants with rename/deletion liveness, not population subtraction. Resource gates declare `@none` for TS dispatch and their explicit resource population. A predicate that cannot be represented without loss blocks that conversion until the shared algebra gains one reviewed, tested operator or the population change is explicitly classified; there is no custom-resolver escape hatch.
 
+The final AST/compiler source universe is authored `.ts` and `.tsx` only. `.mts`, `.cts`, `.mjs`, and `.cjs` remain outside policy source populations as separate cleanup work; compiler membership cannot widen them back in. JSON/JSONC, CSS, Markdown, SQL, and other non-source formats participate only through explicit closed ResourceHost declarations. A hybrid policy may consume one `.ts`/`.tsx` path as both source syntax and a declared raw resource, but that dual role is explicit and receipted rather than inferred from the extension.
+
 ## Exceptions and debt
 
 There is no gate-specific exemption grammar and no count ratchet.
