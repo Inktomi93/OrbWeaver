@@ -88,6 +88,49 @@ export function characterProvenanceOf(row: { readonly importedFrom: string | nul
   return row.creator === AUTHORED_CARD_CREATOR ? "shipped" : "authored";
 }
 
+/** The `importedFrom` prefix marking a plugin-funnel canon-write — distinct from a raw filename (file-upload
+ *  import) and from the OTHER synthetic provenance keys already minted elsewhere (`handoff:<chatId>:<id>`,
+ *  `rpg-promotion:v1:<chatId>:<actorKey>`). A reader that wants to special-case "came in through a plugin"
+ *  (the client's provenance printer) keys on this prefix rather than re-deriving the shape. */
+export const PLUGIN_IMPORTED_FROM_PREFIX = "plugin";
+
+/**
+ * Mint the deterministic `importedFrom` value for a card ingested through a plugin's `character.ingest` /
+ * `character.ingestAsset` capability (#1702).
+ *
+ * THE HUB'S OWN CARD ID NEVER REACHES THIS FUNNEL, AND THAT IS THE POINT. `character.ingest`'s wire shape is
+ * `{ card: Record<string, unknown> }` — arbitrary, plugin-authored JSON the funnel treats as UNTRUSTED
+ * CONTENT — so a `source`/`ref` pulled out of that payload (which hub, which card path) would be a claim the
+ * INGESTING PLUGIN makes about itself, unverifiable and spoofable by any plugin holding the grant. The one
+ * identity the funnel actually knows and that compose has already verified is the PLUGIN's own manifest id
+ * (closed over at `domain/plugin/substrate/bridge.ts`, never guest-supplied) — paired with the imported
+ * bytes' own content hash (the SAME hash the row dedupes and displays by), which makes a byte-identical
+ * re-ingest through the SAME plugin mint the SAME string (the `findByImportedFrom` re-ingest match, #1702
+ * done-criterion 3) without ever trusting plugin-authored content for attribution.
+ */
+export function pluginImportedFrom(pluginId: string, contentHash: string): string {
+  return `${PLUGIN_IMPORTED_FROM_PREFIX}:${pluginId}:${contentHash}`;
+}
+
+/** The plugin id out of a {@link pluginImportedFrom} string, or `null` for any other shape (a filename, one
+ *  of the other synthetic provenance keys, or `null` itself). The client's provenance printer uses this to
+ *  show the plugin rather than the raw `plugin:<id>:<hash>` string. */
+export function parsePluginImportedFrom(importedFrom: string | null): { readonly pluginId: string } | null {
+  if (importedFrom === null) {
+    return null;
+  }
+  const prefix = `${PLUGIN_IMPORTED_FROM_PREFIX}:`;
+  if (!importedFrom.startsWith(prefix)) {
+    return null;
+  }
+  const rest = importedFrom.slice(prefix.length);
+  const sep = rest.lastIndexOf(":");
+  if (sep <= 0) {
+    return null;
+  }
+  return { pluginId: rest.slice(0, sep) };
+}
+
 // V3 `data.assets[]` — the media manifest; each entry is `{type,uri,name,ext}` (the RisuAI/charx shape,
 // e.g. `{type:"icon",uri:"ccdefault:",name:"main",ext:"png"}` or an `embeded://…` charx-ZIP path). PARSED +
 // PRESERVED only. Resolving an asset URI — charx ZIP extraction, an `http(s)` fetch, `ccdefault:` — and

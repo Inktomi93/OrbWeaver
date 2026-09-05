@@ -10,10 +10,17 @@ import type { CharacterHandle } from "@orb/kit/ids";
 
 /** One card to import: the raw bytes (a PNG with an embedded ccv3/chara chunk, or a bare V2/V3 JSON card)
  *  plus an optional source label. `filename` feeds both the fallback character name (when the card JSON
- *  carries none) and the `importedFrom` provenance stamp. */
+ *  carries none) and the `importedFrom` provenance stamp.
+ *
+ *  `pluginId` is the OTHER provenance channel (#1702): a plugin's `character.ingest`/`ingestAsset` funnel
+ *  carries no filename (its wire shape is `{card: Record<string,unknown>}` / `{assetId}`, never a name), so
+ *  without this the row's `importedFrom` stayed null and `characterProvenanceOf` misread every hub-ingested
+ *  card as `authored`. Mutually exclusive with `filename` in practice (only the plugin funnel sets this) —
+ *  the verb still prefers `filename` were both ever present, matching the fallback-name precedent. */
 export interface ImportCardInput {
   readonly bytes: Uint8Array;
   readonly filename?: string;
+  readonly pluginId?: string;
 }
 
 /** `importCharacter` input — one ST card → one canonical character (this slice). The embedded chats/

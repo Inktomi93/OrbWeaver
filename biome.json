@@ -759,6 +759,7 @@
         "tests/server/domain/import/substrate/chat-input.test.ts",
         "tests/server/domain/import/substrate/persona.test.ts",
         "tests/server/domain/import/substrate/theme.test.ts",
+        "tests/server/domain/import/verbs/import-character.int.test.ts",
         "tests/server/domain/import/verbs/import-character.test.ts",
         "tests/server/domain/import/verbs/import-chats.test.ts",
         "tests/server/domain/import/verbs/import-group-chats.test.ts",

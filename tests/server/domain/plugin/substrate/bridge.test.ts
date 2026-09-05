@@ -592,10 +592,10 @@ describe("buildPluginBridge — the U8 ingest writes close over the installer (n
   function ingestRecordingOps(): {
     readonly ops: PluginHostOps;
     readonly databankCalls: { installerUserId: UserId; name: string; text: string }[];
-    readonly characterCalls: { installerUserId: UserId; card: Record<string, unknown> }[];
+    readonly characterCalls: { installerUserId: UserId; card: Record<string, unknown>; pluginId: PluginId | null }[];
   } {
     const databankCalls: { installerUserId: UserId; name: string; text: string }[] = [];
-    const characterCalls: { installerUserId: UserId; card: Record<string, unknown> }[] = [];
+    const characterCalls: { installerUserId: UserId; card: Record<string, unknown>; pluginId: PluginId | null }[] = [];
     const base = makeInertOps();
     const ops: PluginHostOps = {
       ...base,
@@ -642,7 +642,30 @@ describe("buildPluginBridge — the U8 ingest writes close over the installer (n
     const result = await bridge.character.ingest({ name: "Aria", spec: "chara_card_v2" });
 
     expect(result).toEqual({ characterId: "char_recorded00000000000000", created: true });
-    expect(rec.characterCalls).toEqual([{ installerUserId: INSTALLER, card: { name: "Aria", spec: "chara_card_v2" } }]);
+    expect(rec.characterCalls).toEqual([{ installerUserId: INSTALLER, card: { name: "Aria", spec: "chara_card_v2" }, pluginId: PLUGIN }]);
+  });
+
+  // #1702 — `pluginId` rides the SAME closure `requirePluginId` reads elsewhere in this file (never a guest
+  // input): the funnel's only route to a non-forgeable provenance identity. A transient snippet (no plugin
+  // row) forwards `null` rather than throwing — this capability keys no per-plugin belt on it (unlike
+  // `surfaceQuickReply`/`ui.setState`), so it stays reachable in shape even though the snippet's fixed grant
+  // profile never actually admits `character.ingest` in practice.
+  test("character.ingest forwards the CALLING plugin's own id as provenance, never a guest-suppliable value", async () => {
+    const rec = ingestRecordingOps();
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, OTHER_PLUGIN_REF, freeBelts());
+
+    await bridge.character.ingest({ name: "Bram" });
+
+    expect(rec.characterCalls[0]?.pluginId).toBe(OTHER_PLUGIN);
+  });
+
+  test("character.ingest from a TRANSIENT SNIPPET (no plugin identity) forwards pluginId null", async () => {
+    const rec = ingestRecordingOps();
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, null, freeBelts());
+
+    await bridge.character.ingest({ name: "Bram" });
+
+    expect(rec.characterCalls[0]?.pluginId).toBeNull();
   });
 });
 

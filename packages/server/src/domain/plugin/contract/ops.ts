@@ -364,6 +364,11 @@ export interface PluginHostOps {
     readonly ingest: (req: {
       readonly installerUserId: UserId;
       readonly card: Record<string, unknown>;
+      /** The CALLING plugin's own manifest id, closed over by the bridge (never guest-supplied) — the
+       *  unspoofable identity `importedFrom` provenance mints from when the card carries no filename
+       *  (#1702). `null` for the (currently unreachable — no snippet grant profile carries this capability)
+       *  transient-snippet path. */
+      readonly pluginId: PluginId | null;
       // @foreign-id-ok(characterId): the injected-op result id for the installer's own new character, minted under the installer and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
     }) => Promise<{ readonly characterId: string; readonly created: boolean }>;
     /** The remote-image "summon with art" op (`character.ingestAsset`, capability `character.ingest` — #798).
@@ -376,6 +381,8 @@ export interface PluginHostOps {
       readonly installerUserId: UserId;
       // @foreign-id-ok(assetId): the guest's untrusted wire string, owner-scope-gated by the CAS read, cast at compose — branding here would claim a validation this boundary has not performed.
       readonly assetId: string;
+      /** See `ingest`'s `pluginId` — the same provenance identity, for the PNG-carrying arm. */
+      readonly pluginId: PluginId | null;
       // @foreign-id-ok(characterId): the injected-op result id for the installer's own new character, minted under the installer and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
     }) => Promise<{ readonly characterId: string; readonly created: boolean }>;
     /** The `character.card_state` capability's WRITE op (D148). Merge this plugin's per-card state under the
