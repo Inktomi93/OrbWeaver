@@ -1839,14 +1839,15 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "e06f975c4383e7079e9742013163933e7eaddfd5afee898dccf505a195b2ac50",
+      "assignedSha256": "03886120cd496ce05c5ff4bef7b02b0288e48cbfbd1d75d0d230082262fa29f7",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "e06f975c4383e7079e9742013163933e7eaddfd5afee898dccf505a195b2ac50",
-      "verifiedCommit": "b64f6bdc02607ba0dc2b3d1d6ce4fedda2de28cc",
+      "verifiedSha256": "03886120cd496ce05c5ff4bef7b02b0288e48cbfbd1d75d0d230082262fa29f7",
+      "verifiedCommit": "2eed0d66bd7211f0c49eff3b4fcf02e9b14c9933",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at 2eed0d66b by the orchestrator after reading the #1649/#1049 edit in full: the four HELD handoff-offer rows CLOSED (copyCast → copyCharacters with a boot data migration; offerCast → offerCharacters; summaryCast → summaryParticipantNames); the table now carries its own re-derivation command and the false-stem fence; ONE new HELD row — the persisted prose-slot id chat.group.castMember (#1737, owner arm) — so the survivor table stays truthful.",
         "re-attested at b64f6bdc0 by the orchestrator after reading the #1662 row in full (cb-mobile-shell): a Resume row — the verb leads the accessible name of a door that re-enters an existing room (Resume <room title> on home; Resume the chat with <character> on the faces strip), homed at state/active-chat-store resumeChat; no other row changed.",
         "re-attested at 0edf956f1 (#1220 arm a + #1680, cb-vocab-hygiene leg 3): the hearth palette cell census widened to packages/tooling/scripts with the three tooling carriers and both instrument corrections stated verbatim; the chat sanctioned-survivor table carries four HELD rows citing #1649. Read in full by the orchestrator.",
         "re-attested at c4c7cd0de (#1671, cb-theme-isdefault): the hearth palette cell's client carrier row now says the mirrored display name is GONE (ThemeView.isDefault is the client's read). Read in full by the orchestrator.",
