@@ -72,6 +72,10 @@ export interface CharacterCardTileStoryProps {
   readonly selected?: boolean;
   readonly bulkMode?: boolean;
   readonly bulkSelected?: boolean;
+  /** Host width in px — the coarse-collapse fences shoot the row at real phone widths (320/390/430), where
+   *  every icon button is at the 44-48px touch floor and the trailing cluster's budget is the whole finding.
+   *  @defaultValue 360 (the desk-ish list-pane width every fine-pointer test above was written against). */
+  readonly width?: number;
 }
 
 /** The bare `<CharacterCardTile>` (§4.4 row) — drives avatar/subtitle-ladder/star/accent/bulk rendering in
@@ -89,6 +93,7 @@ export function CharacterCardTileStory({
   selected = false,
   bulkMode = false,
   bulkSelected = false,
+  width = 360,
 }: CharacterCardTileStoryProps): ReactElement {
   const [chattedId, setChattedId] = useState<string | null>(null);
   const [bulkId, setBulkId] = useState<string | null>(null);
@@ -98,7 +103,7 @@ export function CharacterCardTileStory({
   const [duplicatedId, setDuplicatedId] = useState<string | null>(null);
   const [deletedId, setDeletedId] = useState<string | null>(null);
   return (
-    <div style={{ width: 360 }}>
+    <div style={{ width }}>
       <CharacterCardTile
         bulkMode={bulkMode}
         bulkSelected={bulkSelected}
