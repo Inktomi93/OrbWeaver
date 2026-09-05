@@ -40,6 +40,7 @@ import {
   TEMPLATE_KINDS,
   THINK_PREFIX_DEFAULT,
   THINK_SUFFIX_DEFAULT,
+  tryImportStChatCompletionPreset,
   userIntentSchema,
   userMacroSchema,
   userMacroValuesSchema,
@@ -798,6 +799,48 @@ test("importStChatCompletionPreset (#1363): sectionCount describes the RETURNED 
   expect(result.sectionCount).toBe(result.config.sections.length);
   expect(firstInjectDepth(result.config)).toBe(0);
   expect(result.dropped[0]?.field).toBe("prompts.a.injection_depth");
+});
+
+// #1580 — the reader's TWO refusals were one bare Error, so the import door could only say "the reader
+// stopped" for a file the reader had RECOGNISED and then refused. The typed outcome carries the difference;
+// the throwing wrapper keeps both messages byte-for-byte, so no caller's copy moved.
+/** A RECOGNISED ST preset (prompts + prompt_order) whose literal section blows the schema's content bound —
+ *  #1363's intact-parse belt refuses it AFTER recognition. */
+function stRefusedPreset(): Record<string, unknown> {
+  return {
+    prompts: [{ identifier: "lore-dump", name: "Lore dump", content: "x".repeat(100_001) }],
+    prompt_order: [{ character_id: 100_001, order: [{ identifier: "lore-dump", enabled: true }] }],
+  };
+}
+
+test("tryImportStChatCompletionPreset (#1580): a RECOGNISED preset refused by the intact belt answers recognised:true", () => {
+  const outcome = tryImportStChatCompletionPreset(stRefusedPreset());
+  expect(outcome.ok).toBe(false);
+  // The discriminant is the whole point: this file IS a SillyTavern preset, and the door must be able to say so.
+  expect(outcome).toMatchObject({ ok: false, recognised: true });
+  expect(outcome.ok ? "" : outcome.reason).toContain("This SillyTavern preset mapped to a config orb cannot store");
+  // The reason carries the parse outcome's own failure word. NOTE (not this row's scope): that word is
+  // `schema-rejected` — the belt does NOT name WHICH bound blew, so the operator still cannot tell which
+  // prompt to shrink. The typed outcome makes that gap visible instead of hiding it behind "reader stopped".
+  expect(outcome.ok ? "" : outcome.reason).toContain("(schema-rejected)");
+});
+
+test("tryImportStChatCompletionPreset (#1580): an object the reader never claims answers recognised:false", () => {
+  const outcome = tryImportStChatCompletionPreset({ note: "some other tool's export", items: [1, 2, 3] });
+  expect(outcome).toMatchObject({ ok: false, recognised: false });
+  expect(outcome.ok ? "" : outcome.reason).toBe("Not a SillyTavern Chat Completion preset (expected prompts[] + prompt_order).");
+});
+
+test("tryImportStChatCompletionPreset (#1580): a good preset answers ok:true with the wrapper's EXACT result", () => {
+  const outcome = tryImportStChatCompletionPreset(stInjectedPreset({ injection_depth: 3 }));
+  expect(outcome.ok).toBe(true);
+  // One mapper, one result — the wrapper adds a throw and nothing else.
+  expect(outcome.ok ? outcome.result : null).toEqual(importStChatCompletionPreset(stInjectedPreset({ injection_depth: 3 })));
+});
+
+test("importStChatCompletionPreset (#1580): the throwing wrapper still throws BOTH refusals, verbatim", () => {
+  expect(() => importStChatCompletionPreset({ note: "not st" })).toThrow("Not a SillyTavern Chat Completion preset (expected prompts[] + prompt_order).");
+  expect(() => importStChatCompletionPreset(stRefusedPreset())).toThrow(/^This SillyTavern preset mapped to a config orb cannot store/u);
 });
 
 test("importStChatCompletionPreset (D68-A): a non-default min_p maps onto params.minP", () => {
