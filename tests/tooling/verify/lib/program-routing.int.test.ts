@@ -8,8 +8,10 @@
 // was still exactly right. Which files the graph ACTUALLY contains is the `tsconfig-routing-parity`
 // gate's business plus the live ts7 listing, never a frozen literal in here.
 import { spawnSync } from "node:child_process";
-import { rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { inheritedProcessEnv } from "@orb/tooling/_shared/proc";
+import { vi } from "vitest";
 import { graphMembershipKey, programsFor, touchesGraph } from "../../../../tooling/src/verify/lib/program-routing.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -83,6 +85,53 @@ test("graphMembershipKey: a DELETED tracked file moves the key (deleting a graph
   rmSync(join(scratch, "tracked.ts"));
   // No bytes to hash — the path's presence in the working-tree delta is what carries the deletion.
   expect(graphMembershipKey(scratch)).not.toBe(clean);
+});
+
+// ── #1583: verify's git reads never take the operator's `.git/index.lock` ────────────────────────────
+//
+// A lane watching a `pnpm verify --changed` stage saw `.git/index.lock` held for the length of the run and
+// read it as a git WRITE inside a checker. Re-derived on the tree: there is no write — verify runs
+// `diff`/`ls-files`/`rev-parse`/`log`/`show`/`grep --cached` and nothing else. The lock is git's own
+// OPTIONAL index refresh, which `diff HEAD` performs while reading. `--no-optional-locks` is git's flag for
+// exactly that reader posture and changes no output.
+//
+// WHY THIS ARM AND NOT A LOCK WATCHER: the refresh holds the lock for the microseconds it takes to rewrite
+// the stat cache, and only when that cache is stale — a watcher racing it is a flaky pin, and an empty
+// observation would read as proof. Measured while writing this, in a scratch repo: a PRE-HELD index.lock
+// changes neither exit code nor output for either spelling, so the lock is unobservable from outside. What
+// IS deterministic is the ARGV the child receives, so that is what this pins — a stub `git` on PATH
+// records what verify actually asked for.
+function stubGitRecording(dir: string): { readonly bin: string; readonly log: string } {
+  const bin = join(dir, "stub-bin");
+  const log = join(dir, "git-argv.log");
+  mkdirSync(bin, { recursive: true });
+  const real = spawnSync("bash", ["-lc", "command -v git"], { encoding: "utf8" }).stdout.trim();
+  writeFileSync(join(bin, "git"), `#!/usr/bin/env bash\nprintf '%s\\n' "$*" >> ${JSON.stringify(log)}\nexec ${JSON.stringify(real)} "$@"\n`, {
+    mode: 0o755,
+  });
+  return { bin, log };
+}
+
+test("every verify git READ carries --no-optional-locks — a checker never locks the operator's index (#1583)", ({ scratch }) => {
+  plantRepo(scratch);
+  const stub = stubGitRecording(scratch);
+  // `vi.stubEnv` is the house door for an env seam under test (tests/server/entry/lifecycle.int.test.ts's
+  // idiom) — it restores itself, so a throw inside the call cannot leave a stub `git` on PATH.
+  // The stub dir alone would hide `bash`/`node` from the child; PATH is read back through the ONE
+  // process-env door rather than the global (`_shared/proc`'s `inheritedProcessEnv`).
+  vi.stubEnv("PATH", `${stub.bin}:${inheritedProcessEnv({})["PATH"] ?? ""}`);
+  try {
+    graphMembershipKey(scratch);
+  } finally {
+    vi.unstubAllEnvs();
+  }
+  const invocations = readFileSync(stub.log, "utf8")
+    .split("\n")
+    .filter((line) => line.trim() !== "");
+  expect(invocations.length, "the key derivation must actually have shelled out").toBeGreaterThan(0);
+  for (const line of invocations) {
+    expect(line, `a verify git read without the reader posture: ${line}`).toContain("--no-optional-locks");
+  }
 });
 
 test("rule 5: an overlay member gains the GRAPH program, a non-member does not, and a COLD cache is CONSERVATIVE", () => {
