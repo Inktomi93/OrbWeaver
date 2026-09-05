@@ -12,7 +12,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FormDialog } from "#components";
 
 export interface ManualTarget {
@@ -50,15 +50,20 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
   // already inside the round the Save button would submit: text from one character silently landing in
   // another's rewrite.
   //
-  // AN EFFECT ON THE CLOSED STATE, NOT THE `onOpenChange` WRAPPER the sibling dialogs use, and the
+  // KEYED OFF THE CLOSED STATE, NOT THE `onOpenChange` WRAPPER the sibling dialogs use, and the
   // difference is load-bearing: the SUCCESS path here closes programmatically
   // (`refinery-content-surface.tsx` → `onSuccess: setManualOpen(false)`), which never reaches a controlled
-  // popup's `onOpenChange`. Keying off the closed state itself catches every way this dialog can shut.
-  useEffect((): void => {
+  // popup's `onOpenChange`. Watching `open` itself catches every way this dialog can shut. The reset runs
+  // DURING RENDER (React's derive-from-a-prop idiom, `create-autosave-entity-form.tsx` is the house
+  // precedent) rather than in an effect: an effect would commit one render with the stale drafts and the
+  // compiler lint refuses a synchronous setState there.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (!open) {
       setDrafts({});
     }
-  }, [open]);
+  }
 
   function draftOf(target: ManualTarget): DraftState {
     return drafts[keyOf(target)] ?? { text: target.text, cleared: false, touched: false };
