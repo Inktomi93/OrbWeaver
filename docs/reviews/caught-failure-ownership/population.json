@@ -540,7 +540,7 @@
     {
       "siteId": "packages/client/src/features/credentials/components/add-credential-dialog.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/credentials/components/add-credential-dialog.tsx",
-      "line": 287,
+      "line": 290,
       "column": 10,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -548,7 +548,7 @@
       "snippet": "void fetchModels",
       "verdict": "deliberate-absorb",
       "reason": "an advisory-only reachability check —",
-      "markerLine": 284
+      "markerLine": 287
     },
     {
       "siteId": "packages/client/src/features/credentials/components/endpoint-inspector-dialog.tsx::promise:mutateAsync::1",
@@ -657,7 +657,7 @@
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx",
-      "line": 109,
+      "line": 112,
       "column": 5,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -665,12 +665,12 @@
       "snippet": "distribute.mutateAsync({ bundleBase64: toBundleBase64(state.preview.bytes) }).then(",
       "verdict": "deliberate-absorb",
       "reason": "useDistributePlugin carries",
-      "markerLine": 106
+      "markerLine": 109
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx::promise:mutateAsync::2",
       "path": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx",
-      "line": 212,
+      "line": 215,
       "column": 23,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -678,7 +678,7 @@
       "snippet": "withdraw.mutateAsync({ slug: row.slug }).then(",
       "verdict": "deliberate-absorb",
       "reason": "useWithdrawPlugin carries",
-      "markerLine": 209
+      "markerLine": 212
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-frame.tsx::promise:hostCall::1",
