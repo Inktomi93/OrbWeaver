@@ -69,9 +69,11 @@ const EMPTY_TOOL_RESULT = "[no output]";
  * `tool_use_id`) is minted HERE and nowhere else — the contract's {@link AgentSeedBlock} stays in the
  * transcript's vocabulary, and this backend internalizes its own wire quirks (Tier-3b).
  *
- * An if-chain closed by {@link assertNeverSeedBlock} rather than a `switch`: exhaustiveness is identical
- * (a new member reaches the `never` and fails `tsc`), and biome's type service calls every case of a switch
- * over a derived union unreachable.
+ * An if-chain rather than a `switch` (biome's type service calls every case of a switch over a derived union
+ * unreachable), closed by the tool-result arm's PARAMETER TYPE rather than a `never` sink: after the two
+ * earlier returns `block` narrows to exactly {@link toSdkToolResult}'s member, so a new `AgentSeedBlock`
+ * member fails `tsc` at that call — and no arm re-compares a discriminant tsc has already decided, which is
+ * what eslint's `no-unnecessary-condition` reds on a third `if`.
  *
  * `input` MUST be a JSON object on the wire and `arguments` is the raw model-emitted string. An unparseable
  * blob never reaches here — the seam that decides a pair is structural refuses it there, WITH its `tool_result`
@@ -86,19 +88,17 @@ function toSdkBlock(block: AgentSeedBlock): Record<string, unknown> {
   if (block.type === "tool-call") {
     return { type: "tool_use", id: block.toolCallId, name: block.name, input: toToolInput(block.arguments) ?? {} };
   }
-  if (block.type === "tool-result") {
-    return {
-      type: "tool_result",
-      tool_use_id: block.toolCallId,
-      content: block.content.length > 0 ? block.content : EMPTY_TOOL_RESULT,
-      ...(block.isError === true ? { is_error: true } : {}),
-    };
-  }
-  return assertNeverSeedBlock(block);
+  return toSdkToolResult(block);
 }
 
-function assertNeverSeedBlock(block: never): never {
-  throw new Error(`buildFrame: unhandled AgentSeedBlock ${JSON.stringify(block)}`);
+/** The tool-result arm, typed on its member: this parameter IS the exhaustiveness pin (see {@link toSdkBlock}). */
+function toSdkToolResult(block: Extract<AgentSeedBlock, { type: "tool-result" }>): Record<string, unknown> {
+  return {
+    type: "tool_result",
+    tool_use_id: block.toolCallId,
+    content: block.content.length > 0 ? block.content : EMPTY_TOOL_RESULT,
+    ...(block.isError === true ? { is_error: true } : {}),
+  };
 }
 
 /** The model-emitted `arguments` string as the wire's `input` object, or `null` when it is not one. Uses

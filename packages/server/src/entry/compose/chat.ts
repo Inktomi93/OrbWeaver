@@ -151,7 +151,7 @@ const DROPPED_PART_TEXT: Record<Exclude<TurnContentPart, { type: "text" }>["type
  *
  * `parts` defaults to the whole row and is narrowed by the seed builder, which lifts the parts that ride as
  * REAL SDK blocks (#1605) out first and renders only what is left. An EMPTY render takes no name stamp: an
- * empty row is not a turn, and `Alice: ` is not a truer statement of that than `` is.
+ * empty row is not a turn, and `Alice: ` is not a truer statement of that than an empty string is.
  */
 function agentRowText(m: TurnMessage, parts: readonly TurnContentPart[] = m.content): string {
   const text = parts.map((c) => (c.type === "text" ? c.text : DROPPED_PART_TEXT[c.type])).join("");

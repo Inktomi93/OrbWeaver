@@ -10,6 +10,7 @@ import process from "node:process";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
 import { beforeEach, vi } from "vitest";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -283,7 +284,7 @@ test("#1556/#1675 — the 4 KB budget measures the agent-readable body; the raci
   await mkdir(racingDir, { recursive: true });
   await writeFile(
     join(racingDir, ".inflight"),
-    `${JSON.stringify({ runId: racingId, pid: process.pid, checkout: "planted", startedAt: new Date().toISOString() })}\n`,
+    `${JSON.stringify({ runId: racingId, pid: process.pid, checkout: "planted", startedAt: new Date(FROZEN_AT_MS).toISOString() })}\n`,
   );
 
   try {

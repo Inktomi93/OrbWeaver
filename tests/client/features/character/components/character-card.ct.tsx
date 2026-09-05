@@ -297,8 +297,9 @@ test.describe("coarse pointer", () => {
       await expect(component.getByRole("button", { name: `Actions for ${LONG_NAME}`, exact: true })).toBeVisible();
 
       // GEOMETRY, not classes. Two touch boxes (48px each) plus the cluster's own gap — never three.
-      const clusterWidth = await component.locator('[data-slot="list-row-actions"]').evaluate((el: HTMLElement) => el.getBoundingClientRect().width);
-      expect(clusterWidth).toBeLessThan(115);
+      await expect
+        .poll(() => component.locator('[data-slot="list-row-actions"]').evaluate((el: HTMLElement) => el.getBoundingClientRect().width))
+        .toBeLessThan(115);
     });
 
     // THE TITLE LANE'S SHARE, which is what the collapse actually buys. A FRACTION, not a pixel, so it

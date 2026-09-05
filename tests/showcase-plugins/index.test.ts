@@ -26,7 +26,8 @@ import { expect, test } from "../support/fixtures.ts";
 /** sha256 of each shipped bundle's packed bytes, captured 2026-09-05 from the pre-move packer. */
 const PACKED_SHA256: Readonly<Record<(typeof SHOWCASE_PLUGIN_SLUGS)[number], string>> = {
   "affinity-tracker": "434a9d1745a0f98dc723167238e0eeb2f5773ab6a0355cc0896812acd0c7b60d",
-  "card-atlas": "3aab9523cf4907375a7a003d6fb8447a0f252d02c76c412092ba97c464ccc571",
+  // Re-blessed after 563833950 (#1698): the hub import states its outcome, which changed the guest's main.js.
+  "card-atlas": "9d0327e4147787dba5cb7a1a7bd7887631c09b933ec74e38736cb0e6390e344c",
   "draft-polish": "543a5cdaf0549ca64a366b7f0b2d866becf7dfe50b715d3568b3a1408a7347c4",
   "keepsake-camera": "053696f2e17fc77668d255c5f7818a587dec4f18f34292301557aa34bc256e39",
   "oracle-deck": "2e5a49acb000b327c90ae9173b3f8ed7cfca6ec5c0d84e4d82f531ba31a8225c",

@@ -1353,10 +1353,17 @@ describe("the chat runner's TERMINAL-tool channel (D112 R1 fold)", () => {
 // `Object.prototype`'s `__proto__` SETTER — which drops it. Nothing on the chat side is caller-keyed today, so
 // this is the mechanism's pin rather than an exploit's: it makes the constraint stated at the merge checkable
 // instead of hoping the next refactor reads the comment.
+/** The merge's own `mcpServers` map type, read off its result (its variadic parameter indexes to `never`): a
+ *  hostile entry typed as a REAL server config is the SDK shape the merge would see, never a fabricated cast. */
+type MountedMcpServers = NonNullable<ReturnType<typeof mergeMountedOptions>["mcpServers"]>;
+
 describe("mergeMountedOptions — a `__proto__` mount key survives the merge as an own entry", () => {
   test("merging preserves an own `__proto__` key and never moves the prototype", () => {
-    const hostile = { ["__proto__"]: { type: "http", url: "https://attacker.example" } } as Record<string, unknown>;
-    const merged = mergeMountedOptions({ mcpServers: Object.fromEntries(Object.entries(hostile)) as never }, { mcpServers: { orbweaver: {} as never } });
+    const hostile: MountedMcpServers = { ["__proto__"]: { type: "http", url: "https://attacker.example" } };
+    const merged = mergeMountedOptions(
+      { mcpServers: Object.fromEntries(Object.entries(hostile)) },
+      { mcpServers: { orbweaver: { type: "http", url: "https://host.example" } } },
+    );
     const servers = merged.mcpServers as Record<string, unknown>;
     expect(Object.hasOwn(servers, "__proto__")).toBe(true);
     expect(Object.getPrototypeOf(servers)).toBe(Object.prototype);

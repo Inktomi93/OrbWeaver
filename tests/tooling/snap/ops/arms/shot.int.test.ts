@@ -112,7 +112,8 @@ test("--scale refuses loudly rather than silently writing a huge PNG or a nonsen
 const LATE_IMAGE_MS = 1000;
 const PLANT_VIEWPORT = "800x400";
 
-type PlantMode = "eager" | "late" | "missing";
+const PLANT_MODES = ["eager", "late", "missing"] as const;
+type PlantMode = (typeof PLANT_MODES)[number];
 
 /** `eager` puts the image in the markup (the artifact every arm is compared against); `late` and
  *  `missing` leave the slot empty until the app-snapshot arm asks the page for its snapshot. */

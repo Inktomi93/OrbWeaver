@@ -100,6 +100,10 @@ const STRUCTURAL_CLASS_FILES: Readonly<Record<string, { readonly count: number; 
     count: 3,
     why: "the two rem values are container-query conditions that cannot consume variables, and -1ch collapses a mono space by its font-relative advance; the row ends if the pager's measured stand-down mechanism changes",
   },
+  "packages/client/src/features/character/components/character-create-actions.tsx": {
+    count: 2,
+    why: "the two 19rem values are the complementary container-query conditions of the create button's display pair (`@max-[19rem]` / `@[19rem]`), and a container-query condition cannot consume a variable; the row ends if the pair's stand-down mechanism changes or the pane width becomes token-expressible",
+  },
   "packages/ui/src/markdown/markdown.tsx": {
     count: 1,
     why: "60cqh is a container-query height budget, not a reusable component length; the row ends if Markdown stops using container-relative overflow",
