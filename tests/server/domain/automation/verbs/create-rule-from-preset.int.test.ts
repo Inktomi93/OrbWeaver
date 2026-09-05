@@ -45,7 +45,7 @@ import { createSuggestionStore } from "../../../../../packages/server/src/domain
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage, seedParticipant } from "../../chat/_support.ts";
-import { FIXED_NOW_MS, makeAutomationHarness, NO_TOOLS, principal, seedHostChat, seedUser } from "../_support.ts";
+import { FIXED_NOW_MS, MSG_COMMITTED, makeAutomationHarness, NO_TOOLS, principal, SET_VAR, seedHostChat, seedUser } from "../_support.ts";
 
 const BAD_KNOB = /knob 'everyN'/;
 /** An UNCHOSEN book now refuses at the KNOB, in the host's own noun (#630 — the `entityRef` kind carries no
@@ -308,6 +308,32 @@ describe("createRuleFromPreset — the mint", () => {
     // Law 4 — the counter half carries the explicit high cap; the threshold half keeps the default.
     expect(views[0]?.maxFiresPerHour).toBe(240);
     expect(views[1]?.maxFiresPerHour).toBe(30);
+  });
+
+  // #1427 — a preset SET is one act. It used to commit rule-by-rule through the whole `createRule` verb, so
+  // an n-rule preset emitted n `rulesChanged` for one host click (and allocated n positions from n separate
+  // read-then-write pairs). It is now planned whole, then committed in ONE batch, and announced ONCE.
+  test("a multi-rule preset announces the roster ONCE, not once per member", async () => {
+    const f = await setup();
+    f.bus.length = 0;
+
+    const views = await f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
+
+    expect(views).toHaveLength(2);
+    expect(f.bus.filter((event) => event.type === "rulesChanged")).toEqual([{ type: "rulesChanged", chatId: f.chatId }]);
+  });
+
+  test("the set lands at CONTIGUOUS ascending positions, continuing the chat's existing order", async () => {
+    const f = await setup();
+    // A hand-authored rule already holds position 0 in this scope.
+    await f.svc.createRule({ principal: principal(f.host), chatId: f.chatId, name: "hand-authored", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+
+    const views = await f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
+
+    // Allocated inside the batch, off one snapshot: 1 then 2, with no gap and no collision with the 0.
+    expect(views.map((v) => v.position)).toEqual([1, 2]);
+    const listed = await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId });
+    expect(listed.map((r) => r.position)).toEqual([0, 1, 2]);
   });
 
   test("refuses a bad knob with a typed validation error and stores NOTHING", async () => {

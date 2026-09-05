@@ -34,7 +34,8 @@ export interface ProfileImportDeps {
   readonly files: readonly ImportFile[];
 }
 
-/** One successfully imported (or deduped) card. `created:false` = a byte-identical re-import (no write). */
+/** One successfully imported (or deduped) card. `created:false` = a byte-identical re-import: no new
+ *  CHARACTER row — the card's overlay planes are still reconciled against the existing one (#1470). */
 export interface ImportedCard {
   readonly filename: string | null;
   readonly characterId: CharacterId;

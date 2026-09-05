@@ -230,6 +230,41 @@ describe("importCharacter", () => {
     expect(result.attachedBooksSkipped).toBe(1);
   });
 
+  // ── #1470 — a run that dies after the character row is committed must not be permanently partial ────────
+  test("a run that FAILS after the create heals on a retry of the same bytes — the dedup hit reconciles the missing planes", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    const card = cardWithRefs([{ worldBookId: bookA, role: "primary" }], true);
+    const bytes = encoder.encode(card);
+
+    // RUN 1 — the carried-book re-link throws. The character row + its tags are already committed; the book
+    // plane never ran. Before #1470 this state was permanent: the row carries the importHash, so every retry
+    // of these bytes hit `existing !== null` and returned zeros without touching the missing planes.
+    h.setLinkOutcome(() => {
+      throw new Error("world-info unavailable");
+    });
+    await expect(svc.importCharacter({ card: { bytes } })).rejects.toThrow("world-info unavailable");
+    expect(h.creates).toHaveLength(1);
+    expect(h.lorebooks).toHaveLength(0);
+    // The harness's create mints a deterministic id and registers its importHash, exactly as the real
+    // provenance-stamping create does — so the retry below resolves THIS row through the dedup oracle.
+    const characterId = castId<CharacterId>("character_created_1");
+
+    // RUN 2 — the same bytes, world-info back (foreign install: nothing links, so the embedded clone is the
+    // fallback). The dedup arm resolves the incomplete character and FINISHES it.
+    h.setLinkOutcome((refs) => ({ linked: 0, skipped: refs.length }));
+    const healed = await svc.importCharacter({ card: { bytes } });
+
+    expect(healed.created).toBe(false);
+    expect(healed.characterId).toBe(characterId);
+    expect(h.creates).toHaveLength(1); // no second character was minted
+    // …and the plane that was lost has landed, on the SAME character, with the report saying so.
+    expect(h.lorebooks).toHaveLength(1);
+    expect(h.lorebooks[0]?.characterId).toBe(characterId);
+    expect(healed.attachedBooksLinked).toBe(0);
+    expect(healed.attachedBooksSkipped).toBe(1);
+  });
+
   test("a card carrying NO references never calls the re-link op (regression pin)", async () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);
@@ -255,18 +290,26 @@ describe("importCharacter", () => {
     expect(h.tagAttaches).toHaveLength(0);
   });
 
-  test("the dedup path attaches NO tags (tags landed on the first import)", async () => {
+  test("the dedup path RE-ASSERTS the card's tags against the existing character (#1470)", async () => {
+    // This inverts a pin that used to assert the dedup arm attached nothing. That behaviour was the #1470
+    // defect's other half: the tag attach is one of the planes a failed run can leave missing, and the arm
+    // that could heal it was the arm that returned early. The attach is idempotent and by NAME, so
+    // re-asserting a tag that already landed writes nothing.
     const h = makeHarness();
     const svc = createImportService(h.ctx);
     const bytes = encoder.encode(V3_JSON);
 
     const first = await svc.importCharacter({ card: { bytes } });
     h.tagAttaches.length = 0; // ignore the first import's attaches
-    h.setExisting(first.importHash, castId<CharacterId>("character_existing"));
 
-    await svc.importCharacter({ card: { bytes } });
+    const second = await svc.importCharacter({ card: { bytes } });
 
-    expect(h.tagAttaches).toHaveLength(0);
+    expect(second.created).toBe(false);
+    expect(second.characterId).toBe(first.characterId);
+    expect(h.tagAttaches.map((t) => t.tagName)).toEqual(["bard", "fantasy"]);
+    for (const attach of h.tagAttaches) {
+      expect(attach.characterId).toBe(first.characterId);
+    }
   });
 
   test("a bare-JSON card stores no avatar (no image) and still creates", async () => {
@@ -286,7 +329,7 @@ describe("importCharacter", () => {
     expect(call.input.avatarAssetId).toBeNull();
   });
 
-  test("dedups on importHash: a byte-identical re-import returns the existing character, no write", async () => {
+  test("dedups on importHash: a byte-identical re-import mints NO second character and stores no avatar", async () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);
     const bytes = encoder.encode(V3_JSON);
@@ -299,7 +342,8 @@ describe("importCharacter", () => {
 
     expect(second.created).toBe(false);
     expect(second.characterId).toBe(existingId);
-    // dedup short-circuits BEFORE any avatar store or create — only the first run wrote.
+    // The dedup arm short-circuits the CHARACTER write — the avatar store and the create never run again.
+    // (It does re-assert the overlay planes; that is #1470's reconcile, pinned separately.)
     expect(h.creates).toHaveLength(1);
     expect(h.stores).toHaveLength(0);
   });

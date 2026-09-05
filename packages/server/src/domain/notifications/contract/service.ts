@@ -4,7 +4,7 @@
 
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
-import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams } from "./params.ts";
+import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams, ReplaySinceParams } from "./params.ts";
 import type { ListInboxResult, MarkAllReadResult } from "./results.ts";
 import type { InboxView } from "./views.ts";
 
@@ -33,4 +33,13 @@ export interface NotificationsService {
   dismiss: (params: DismissParams) => Promise<InboxView>;
   /** The caller's own active inbox (dismissed excluded), newest-first, cursor-paged on `seq`. */
   list: (params: ListInboxParams) => Promise<ListInboxResult>;
+  /** The RESUME read behind the socket's `notifications` room (#1459): the caller's own active rows with
+   *  `seq > afterSeq`, ASCENDING, at most `limit` (clamped to the shared `NOTIFICATIONS_LIST_MAX_LIMIT`
+   *  ceiling, exactly as `list` is). A short page means the log is exhausted.
+   *
+   *  IT IS A SEPARATE READ FROM `list` BECAUSE THE DIRECTION IS THE CONTRACT. `list` serves a UI that pages
+   *  DOWN from the newest row; a resume pages UP from what the reader last delivered, so any prefix of the
+   *  answer is a complete answer for that prefix. Resuming through `list` cannot be made safe by a bigger
+   *  bound — it can only make the silently-skipped middle rarer. */
+  replaySince: (params: ReplaySinceParams) => Promise<readonly InboxView[]>;
 }

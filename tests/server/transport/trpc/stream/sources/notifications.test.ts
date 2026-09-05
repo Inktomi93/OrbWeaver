@@ -12,14 +12,23 @@
 //   • A THROWN DOMAIN ERROR IS TYPED, NEVER A RAW 500 — what `withSubscriptionErrors` gave the whole stream
 //     before the fold is now a per-ROOM `roomFailed` frame, so the inbox's durable replay failing no longer
 //     takes the tab's chat/user rooms down with it.
+//
+// #1459 — THE WATERMARK MAY NEVER PASS A ROW THAT WAS NOT YIELDED. The replay used to page the inbox
+// NEWEST-first through `list` under a 10×100 bound and stop silently at the bound, holding the TOP of the log
+// while skipping its middle — and then advance the room cursor to the newest row it held, so the skipped rows
+// were never offered by any later replay. The three pins at the bottom of this file drive the room source's
+// pump DIRECTLY (no socket queue in the way, so the assertions are about the SOURCE's contract): a backlog
+// past the old bound arrives whole, a row landing mid-replay arrives exactly once, and a pump killed
+// mid-replay resumes at exactly the row it last delivered.
 
+import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
 import type { StreamFrame } from "@orb/contracts/stream";
 import { DomainUnavailableError } from "@orb/kit/errors";
 import type { ChatId, NotificationId, SocketId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { InboxView, NotificationsService } from "@orb/server/domain/notifications";
 import type { Context } from "@orb/server/transport/trpc";
-import { publishNotification, publishUserEvent } from "@orb/server/transport/trpc";
+import { publishNotification, publishUserEvent, ROOM_SOURCES } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
@@ -59,6 +68,57 @@ function inboxFrame(result: IteratorResult<unknown>): Extract<StreamFrame, { cha
   return frame;
 }
 
+/** A fake DURABLE inbox over an in-memory ascending log, served through the room's resume read. `push` is how
+ *  a test lands a row MID-REPLAY. The `limit` clamp mirrors the verb's (`NOTIFICATIONS_LIST_MAX_LIMIT`), which
+ *  is what makes the pump's "a short page is the tail" reading honest. */
+function inboxLog(seqs: readonly number[]): {
+  readonly replaySince: NotificationsService["replaySince"];
+  readonly push: (seq: number) => void;
+  readonly pages: number[];
+} {
+  const rows: InboxView[] = seqs.map(inboxView);
+  const pages: number[] = [];
+  const replaySince: NotificationsService["replaySince"] = ({ afterSeq, limit }): Promise<readonly InboxView[]> => {
+    pages.push(afterSeq);
+    const page = rows.filter((row) => row.seq > afterSeq).slice(0, Math.min(limit ?? NOTIFICATIONS_LIST_MAX_LIMIT, NOTIFICATIONS_LIST_MAX_LIMIT));
+    return Promise.resolve(page);
+  };
+  return {
+    replaySince,
+    push: (seq): void => {
+      rows.push(inboxView(seq));
+    },
+    pages,
+  };
+}
+
+/** Drive the room source's pump DIRECTLY and collect the seqs of the first `take` frames, then abort it —
+ *  exactly what a socket death / detach does to a running replay. */
+async function pump(notifications: Partial<NotificationsService>, opts: { readonly cursor: number | null; readonly take: number }): Promise<number[]> {
+  const controller = new AbortController();
+  const seen: number[] = [];
+  const args = {
+    ref: { channel: "notifications" } as const,
+    principal: principal("user", { userId: RECIPIENT }),
+    services: ctxWith(notifications).services,
+    multiHumanCapable: true,
+    cursor: opts.cursor,
+    signal: controller.signal,
+  };
+  for await (const frame of ROOM_SOURCES.notifications.run(args)) {
+    // `RoomSourceDef.run` is typed over the whole data-frame union; this room only ever yields its own arm.
+    if (frame.channel !== "notifications") {
+      throw new Error(`the notifications room yielded a ${frame.channel} frame`);
+    }
+    seen.push(frame.seq);
+    if (seen.length >= opts.take) {
+      break;
+    }
+  }
+  controller.abort();
+  return seen;
+}
+
 function ctxWith(notifications: Partial<NotificationsService>, multiHumanCapable = true): Context {
   return makeContext({
     auth: principal("user", { userId: RECIPIENT }),
@@ -82,19 +142,15 @@ async function openInboxRoom(ctx: Context, opts: { readonly sinceSeq?: number } 
 
 describe("the notifications room — durable-first resume", () => {
   test("replays durable rows newer than the cursor, ascending, before going live", async () => {
-    // Newest-first page (the inbox `list` contract); only seq 6 and 7 are newer than the cursor 5.
-    const list = vi.fn<NotificationsService["list"]>(async () => ({
-      items: [inboxView(7), inboxView(6), inboxView(5), inboxView(4)],
-      nextCursor: 4,
-    }));
+    const replaySince = vi.fn<NotificationsService["replaySince"]>(inboxLog([4, 5, 6, 7]).replaySince);
 
-    const iterator = await openInboxRoom(ctxWith({ list }), { sinceSeq: 5 });
+    const iterator = await openInboxRoom(ctxWith({ replaySince }), { sinceSeq: 5 });
     const first = await iterator.next();
     const second = await iterator.next();
     await iterator.return?.(undefined);
 
     // The durable replay happened (the inbox table was read for the resume) …
-    expect(list).toHaveBeenCalled();
+    expect(replaySince).toHaveBeenCalled();
     // … and the missed rows replay ASCENDING (6 then 7), each carrying its durable seq as the frame cursor.
     expect(inboxFrame(first).seq).toBe(6);
     expect(inboxFrame(first).event.seq).toBe(6);
@@ -102,8 +158,8 @@ describe("the notifications room — durable-first resume", () => {
   });
 
   test("a CURSOR-LESS attach replays nothing and goes straight live — the client already loaded `list`", async () => {
-    const list = vi.fn<NotificationsService["list"]>();
-    const iterator = await openInboxRoom(ctxWith({ list }));
+    const replaySince = vi.fn<NotificationsService["replaySince"]>();
+    const iterator = await openInboxRoom(ctxWith({ replaySince }));
 
     const pending = iterator.next(); // parks the pump in the live loop before anything is published
     publishNotification(inboxView(9));
@@ -111,13 +167,13 @@ describe("the notifications room — durable-first resume", () => {
     await iterator.return?.(undefined);
 
     // No durable read at all — the first frame is the LIVE arrival, at its own durable seq.
-    expect(list).not.toHaveBeenCalled();
+    expect(replaySince).not.toHaveBeenCalled();
     expect(inboxFrame(first).seq).toBe(9);
   });
 
   test("the replay/live overlap is deduped by the monotonic seq — a re-published replayed row is dropped", async () => {
-    const list = vi.fn<NotificationsService["list"]>(async () => ({ items: [inboxView(6)], nextCursor: null }));
-    const iterator = await openInboxRoom(ctxWith({ list }), { sinceSeq: 5 });
+    const { replaySince } = inboxLog([6]);
+    const iterator = await openInboxRoom(ctxWith({ replaySince }), { sinceSeq: 5 });
     const replayed = await iterator.next();
 
     const pending = iterator.next();
@@ -134,13 +190,13 @@ describe("the notifications room — durable-first resume", () => {
 
 describe("the notifications room — the PD-106 multi-human belt, relocated onto the attach", () => {
   test("a deployment that cannot seat a second human refuses the room as NOT_FOUND (it reads as nonexistent)", async () => {
-    const list = vi.fn<NotificationsService["list"]>();
-    const call = caller(ctxWith({ list }, false));
+    const replaySince = vi.fn<NotificationsService["replaySince"]>();
+    const call = caller(ctxWith({ replaySince }, false));
 
     // The same verdict `multiHumanProcedure` gave the deleted procedure — a uniform NOT_FOUND, never a
     // FORBIDDEN that would confirm the capability exists.
     await expect(call.stream.attach({ socketId: nextSocket(), ref: { channel: "notifications" } })).rejects.toMatchObject({ code: "NOT_FOUND" });
-    expect(list).not.toHaveBeenCalled();
+    expect(replaySince).not.toHaveBeenCalled();
   });
 
   test("the refusal is the ROOM's, not the socket's — a single-user deployment keeps its other rooms", async () => {
@@ -167,13 +223,13 @@ describe("the notifications room — the PD-106 multi-human belt, relocated onto
 });
 
 describe("the notifications room — a failing durable replay is a TYPED per-room frame", () => {
-  test("a throwing `list` becomes roomFailed with the classified code, and the socket's other room survives", async () => {
+  test("a throwing resume read becomes roomFailed with the classified code, and the socket's other room survives", async () => {
     // Before the fold this throw ended the WHOLE stream (`withSubscriptionErrors` yields a terminal frame and
     // returns). Under the multiplex it is one room's fault: the inbox room detaches with a typed frame the
     // client surfaces as a toast, and every other room on the tab keeps delivering.
     const socketId = nextSocket();
-    const list = vi.fn<NotificationsService["list"]>(() => Promise.reject(new DomainUnavailableError("inbox read unavailable")));
-    const call = caller(ctxWith({ list }));
+    const replaySince = vi.fn<NotificationsService["replaySince"]>(() => Promise.reject(new DomainUnavailableError("inbox read unavailable")));
+    const call = caller(ctxWith({ replaySince }));
     await call.stream.attach({ socketId, ref: { channel: "notifications" }, sinceSeq: 3 });
     await call.stream.attach({ socketId, ref: { channel: "user" } });
 
@@ -200,5 +256,60 @@ describe("the notifications room — a failing durable replay is a TYPED per-roo
     expect(frames).toContainEqual({ channel: "control", type: "detached", ref: { channel: "notifications" } });
     // The socket is ALIVE: the unrelated room's event still arrives.
     expect(frames).toContainEqual({ channel: "user", event: { type: "tagsChanged" } });
+  });
+});
+
+// ── #1459 — the resume is COMPLETE, and its watermark is a contiguous prefix ────────────────────────────
+// These drive `notificationsRoomSource.run` directly: the properties are the SOURCE's, and a socket queue in
+// between would answer with its own `lag` shedding instead.
+describe("the notifications room — the resume never advances past a row it did not yield (#1459)", () => {
+  test("a backlog far past the old 10x100 bound replays WHOLE — every missed row, in order, none skipped", async () => {
+    // 1200 durable rows above the client's cursor. The old replay paged NEWEST-first under a 1000-row bound
+    // and stopped there, so it delivered 201..1200 and advanced the room cursor to 1200 — rows 1..200 were
+    // never yielded and never revisited. Paging UP from the cursor cannot express that outcome.
+    const backlog = Array.from({ length: 1200 }, (_, i) => i + 1);
+    const { replaySince, pages } = inboxLog(backlog);
+
+    const delivered = await pump({ replaySince }, { cursor: 0, take: backlog.length });
+
+    expect(delivered).toEqual(backlog);
+    // …and it got there by asking from the WATERMARK each time, never from a page cursor of its own.
+    expect(pages).toEqual([0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100]);
+  });
+
+  test("a row that lands MID-REPLAY reaches the client exactly once — the later page yields it, the live overlap drops it", async () => {
+    // The log holds exactly one full page. Row 101 is written (and published on the bus) while page 1 is
+    // being served, so it is both a durable row the replay has not reached and a live arrival already
+    // buffered by the listener the pump attached first.
+    const log = inboxLog(Array.from({ length: 100 }, (_, i) => i + 1));
+    let landed = false;
+    const replaySince: NotificationsService["replaySince"] = async (params) => {
+      const page = await log.replaySince(params);
+      if (!landed) {
+        landed = true;
+        log.push(101);
+        publishNotification(inboxView(101));
+      }
+      return page;
+    };
+
+    const delivered = await pump({ replaySince }, { cursor: 0, take: 101 });
+
+    expect(delivered).toHaveLength(101);
+    expect(delivered.filter((seq) => seq === 101)).toEqual([101]);
+    expect(delivered).toEqual([...Array.from({ length: 100 }, (_, i) => i + 1), 101]);
+  });
+
+  test("a pump killed mid-replay resumes at exactly the row it last delivered — nothing repeats, nothing is skipped", async () => {
+    const backlog = Array.from({ length: 300 }, (_, i) => i + 1);
+    const { replaySince } = inboxLog(backlog);
+
+    // The socket dies 150 rows in (the pump is aborted where it stands).
+    const before = await pump({ replaySince }, { cursor: 0, take: 150 });
+    // The reconnect resumes from the room cursor, which is the last DELIVERED seq (`socket.ts`).
+    const after = await pump({ replaySince }, { cursor: before.at(-1) ?? 0, take: 150 });
+
+    expect(before).toEqual(backlog.slice(0, 150));
+    expect(after).toEqual(backlog.slice(150));
   });
 });

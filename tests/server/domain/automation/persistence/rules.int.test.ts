@@ -7,10 +7,11 @@ import { describe } from "vitest";
 import {
   applyReorder,
   insertRule,
+  insertRules,
   listRuleIdsForChat,
   listRuleRowsForChat,
-  maxPosition,
   selectRuleRow,
+  selectRuleRowsByIds,
   toRuleView,
 } from "../../../../../packages/server/src/domain/automation/persistence/rules.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -19,18 +20,15 @@ import { FIXED_NOW_MS, seedHostChat, seedUser } from "../_support.ts";
 
 const SET_ARM = { type: "set_variable" as const, scope: "chat" as const, key: "k", op: "set" as const, value: "v" };
 
-async function seedRule(
-  db: Parameters<typeof insertRule>[0],
-  opts: { ownerId: UserId; chatId: ChatId; name: string; position: number },
-): Promise<AutomationRuleId> {
-  const id = mintTypeId("automation_rule");
-  await insertRule(db, {
-    id,
+/** One planned rule. `position` is NOT a parameter — the INSERT allocates it from the scope (#1427), so a
+ *  fixture's ORDER is what decides its position, exactly as a caller's is. */
+function plannedRule(opts: { ownerId: UserId; chatId: ChatId | null; name: string }): Parameters<typeof insertRule>[1] {
+  return {
+    id: mintTypeId("automation_rule"),
     ownerId: opts.ownerId,
     chatId: opts.chatId,
     name: opts.name,
     description: null,
-    position: opts.position,
     triggerBus: "chat",
     triggerType: "messageCommitted",
     predicateCel: null,
@@ -42,28 +40,103 @@ async function seedRule(
     maxFiresPerHour: 30,
     createdAt: FIXED_NOW_MS,
     updatedAt: FIXED_NOW_MS,
-  });
-  return id;
+  };
+}
+
+async function seedRule(db: Parameters<typeof insertRule>[0], opts: { ownerId: UserId; chatId: ChatId; name: string }): Promise<AutomationRuleId> {
+  const planned = plannedRule(opts);
+  await insertRule(db, planned);
+  return planned.id;
 }
 
 describe("automation_rules persistence", () => {
-  test("insertRule forces enabled=false; maxPosition tracks the highest position", async () => {
+  test("insertRule forces enabled=false and ALLOCATES position from the scope — the first rule lands at 0", async () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const chatId = await seedHostChat(db, owner);
-    await expect(maxPosition(db, chatId, owner)).resolves.toBe(-1);
-    const id = await seedRule(db, { ownerId: owner, chatId, name: "a", position: 0 });
-    const row = await selectRuleRow(db, id);
+    const first = await seedRule(db, { ownerId: owner, chatId, name: "a" });
+    const second = await seedRule(db, { ownerId: owner, chatId, name: "b" });
+    const row = await selectRuleRow(db, first);
     expect(row?.enabled).toBe(false);
-    await expect(maxPosition(db, chatId, owner)).resolves.toBe(0);
+    expect(row?.position).toBe(0);
+    expect((await selectRuleRow(db, second))?.position).toBe(1);
+  });
+
+  // #1427 — the allocation is a subquery ON the INSERT, so it cannot be interleaved with by a concurrent
+  // create the way a JS `max+1` read followed by a separate write can be.
+  test("CONCURRENT creates in one scope get DISTINCT positions — the allocation is atomic with the write", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const chatId = await seedHostChat(db, owner);
+
+    // A real interleaving: five inserts issued together against one db, none awaited before the next starts.
+    await Promise.all(["a", "b", "c", "d", "e"].map((name) => insertRule(db, plannedRule({ ownerId: owner, chatId, name }))));
+
+    const rows = await listRuleRowsForChat(db, chatId);
+    expect(rows).toHaveLength(5);
+    expect(rows.map((r) => r.position).toSorted((x, y) => x - y)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  test("positions are PER SCOPE — a second owner's global lane starts at 0, not past the first owner's", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const other = await seedUser(db, "other");
+    await insertRule(db, plannedRule({ ownerId: owner, chatId: null, name: "mine-1" }));
+    await insertRule(db, plannedRule({ ownerId: owner, chatId: null, name: "mine-2" }));
+    const theirs = plannedRule({ ownerId: other, chatId: null, name: "theirs" });
+    await insertRule(db, theirs);
+
+    expect((await selectRuleRowsByIds(db, [theirs.id]))[0]?.position).toBe(0);
+  });
+
+  test("insertRules commits a SET in one batch, at ascending positions off one snapshot", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const chatId = await seedHostChat(db, owner);
+    await seedRule(db, { ownerId: owner, chatId, name: "existing" });
+
+    const set = [
+      plannedRule({ ownerId: owner, chatId, name: "set-1" }),
+      plannedRule({ ownerId: owner, chatId, name: "set-2" }),
+      plannedRule({ ownerId: owner, chatId, name: "set-3" }),
+    ];
+    await insertRules(db, set);
+
+    // Each statement in the batch sees the ones before it, so the set continues the scope's order.
+    const rows = await selectRuleRowsByIds(
+      db,
+      set.map((rule) => rule.id),
+    );
+    expect(rows.map((r) => r.name)).toEqual(["set-1", "set-2", "set-3"]);
+    expect(rows.map((r) => r.position)).toEqual([1, 2, 3]);
+  });
+
+  test("insertRules is ALL-OR-NOTHING — one refused member leaves NONE of the set behind", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const chatId = await seedHostChat(db, owner);
+    const already = plannedRule({ ownerId: owner, chatId, name: "already" });
+    await insertRule(db, already);
+
+    // The third member re-uses a committed id, so the db refuses it. The two ahead of it are in the same
+    // batch — the whole statement list rolls back with it.
+    const set = [
+      plannedRule({ ownerId: owner, chatId, name: "set-1" }),
+      plannedRule({ ownerId: owner, chatId, name: "set-2" }),
+      { ...already, name: "collides" },
+    ];
+    await expect(insertRules(db, set)).rejects.toThrow();
+
+    const rows = await listRuleRowsForChat(db, chatId);
+    expect(rows.map((r) => r.name)).toEqual(["already"]);
   });
 
   test("applyReorder rewrites position as a total order; listRuleRowsForChat reads it", async () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const chatId = await seedHostChat(db, owner);
-    const a = await seedRule(db, { ownerId: owner, chatId, name: "a", position: 0 });
-    const b = await seedRule(db, { ownerId: owner, chatId, name: "b", position: 1 });
+    const a = await seedRule(db, { ownerId: owner, chatId, name: "a" });
+    const b = await seedRule(db, { ownerId: owner, chatId, name: "b" });
     await applyReorder(db, chatId, [b, a], FIXED_NOW_MS);
     const rows = await listRuleRowsForChat(db, chatId);
     expect(rows.map((r) => r.name)).toEqual(["b", "a"]);
@@ -73,7 +146,7 @@ describe("automation_rules persistence", () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const chatId = await seedHostChat(db, owner);
-    const id = await seedRule(db, { ownerId: owner, chatId, name: "good", position: 0 });
+    const id = await seedRule(db, { ownerId: owner, chatId, name: "good" });
     const good = await selectRuleRow(db, id);
     expect(good).toBeDefined();
     if (good === undefined) {
@@ -99,9 +172,9 @@ describe("automation_rules persistence", () => {
     const owner = await seedUser(db);
     const chatId = await seedHostChat(db, owner);
     const otherChat = await seedHostChat(db, owner, "other");
-    const a = await seedRule(db, { ownerId: owner, chatId, name: "a", position: 0 });
-    const b = await seedRule(db, { ownerId: owner, chatId, name: "b", position: 1 });
-    await seedRule(db, { ownerId: owner, chatId: otherChat, name: "elsewhere", position: 0 });
+    const a = await seedRule(db, { ownerId: owner, chatId, name: "a" });
+    const b = await seedRule(db, { ownerId: owner, chatId, name: "b" });
+    await seedRule(db, { ownerId: owner, chatId: otherChat, name: "elsewhere" });
 
     expect((await listRuleIdsForChat(db, chatId)).toSorted()).toEqual([a, b].toSorted());
     expect(await listRuleIdsForChat(db, otherChat)).toHaveLength(1);

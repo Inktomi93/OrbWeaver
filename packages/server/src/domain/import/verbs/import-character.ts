@@ -1,10 +1,20 @@
 // verb: importCharacter — one ST character card → one canonical character. Flow: parse bytes → hash whole
-// file → byte-identical dedup (return existing, created:false — the ONLY dedup: the same FILE, never a name)
-// → flatten+validate → mint a FREE per-owner handle (a name-slug collision suffixes the HANDLE only, never
-// the display name — two distinct "Emily" cards are two characters) → create fresh with provenance +
-// CAS-store avatar → attach tags → re-link carried attached-book references (PD-144), else carry the embedded
-// lorebook clone (the fallback when no reference resolves on this install). All cross-feature ops are injected
-// via context.ts — import never reads a db table directly.
+// file → byte-identical dedup (the ONLY dedup: the same FILE, never a name) → flatten+validate → mint a FREE
+// per-owner handle (a name-slug collision suffixes the HANDLE only, never the display name — two distinct
+// "Emily" cards are two characters) → create fresh with provenance + CAS-store avatar → attach tags → re-link
+// carried attached-book references (PD-144), else carry the embedded lorebook clone (the fallback when no
+// reference resolves on this install). All cross-feature ops are injected via context.ts — import never reads
+// a db table directly.
+//
+// THE DEDUP HIT FINISHES THE IMPORT; IT DOES NOT SKIP IT (#1470). A card lands as a character row PLUS three
+// overlay planes (tags · books · scripts), each its own awaited op, so a throw after the create commits a
+// character with planes missing — and the dedup key is that character's own `importHash`, so it is the exact
+// row that answers "already imported". The dedup arm therefore runs the SAME `attachAllPlanes` the create arm
+// does and returns the counts it actually landed: `created:false` means no new CHARACTER was written, never
+// that nothing was. Why RECONCILE rather than one transaction: `db.transaction()` is banned in this tree (the
+// replacement-connection trap, `Tier-1-DB` §6) and a `db.batch` is one db's statements — it cannot span four
+// injected cross-DOMAIN ops, and this verb touches no db at all. So the resumable state is the one the owning
+// domains already hold, and each plane's op is idempotent for the same (character, card) pair.
 
 import type { AttachedBookRef } from "@orb/contracts/character";
 import type { RegexScriptCard } from "@orb/contracts/regex";
@@ -122,6 +132,24 @@ async function attachCarriedContent(
   return { attachedBooksLinked, attachedBooksSkipped, regexScriptsLifted, regexScriptsReused };
 }
 
+/** EVERY plane a card lands beyond the character row, in one place — because BOTH arms of the verb run it
+ *  (#1470). The create arm runs it to finish a fresh import; the dedup arm runs it to RECONCILE one that did
+ *  not finish. One function, so the two arms cannot drift into different definitions of "imported". */
+async function attachAllPlanes(
+  ctx: ImportContext,
+  characterId: CharacterId,
+  tags: readonly string[],
+  carried: CarriedContent,
+): Promise<{
+  readonly attachedBooksLinked: number;
+  readonly attachedBooksSkipped: number;
+  readonly regexScriptsLifted: number;
+  readonly regexScriptsReused: number;
+}> {
+  await attachCardTags(ctx, characterId, tags);
+  return await attachCarriedContent(ctx, characterId, carried);
+}
+
 export function createImportCharacter(ctx: ImportContext): ImportService["importCharacter"] {
   return async ({ card }: ImportCharacterInput): Promise<ImportCharacterResult> => {
     const { bytes, filename } = card;
@@ -141,17 +169,29 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
 
     const importHash = importFileHash(bytes);
 
+    const carried: CarriedContent = {
+      book,
+      attachedBooks,
+      regexScripts: characterCard.regexScripts ?? [],
+      attachedRegexScripts,
+    };
+
     const existing = await ctx.findByImportHash({ ownerId: ctx.ownerId, importHash });
     if (existing !== null) {
-      return {
-        characterId: existing,
-        created: false,
-        importHash,
-        attachedBooksLinked: 0,
-        attachedBooksSkipped: 0,
-        regexScriptsLifted: 0,
-        regexScriptsReused: 0,
-      };
+      // THE DEDUP HIT RECONCILES; IT DOES NOT RETURN EARLY (#1470). The character row and its overlay planes
+      // are written by SEPARATE awaited ops, so a throw anywhere after the create leaves a committed character
+      // whose tags/books/scripts never landed — and because the dedup key is the card's own `importHash`, the
+      // row that proves "already imported" is exactly the row that is incomplete. Returning zeros here made
+      // that state PERMANENT: every retry of the same bytes short-circuited on it, and nothing anywhere
+      // recorded the character as unfinished. So a re-import re-runs the overlays and reports what actually
+      // landed. It is safe to re-run because every plane is idempotent for the same (character, card) pair —
+      // the tag attach is race-safe and by name, the carried re-link is `onConflictDoNothing` on its junction
+      // PK, the script lift content-dedups against the library, and the embedded-book clone takes world-info's
+      // documented SAME-CHARACTER RE-IMPORT path (an in-place edit of this character's primary book, never a
+      // second book). What it is NOT is a no-op: a re-uploaded card re-asserts its own content, which is the
+      // semantic the owning domains already define for a re-import.
+      const reconciled = await attachAllPlanes(ctx, existing, tags, carried);
+      return { characterId: existing, created: false, importHash, ...reconciled };
     }
 
     // Content-addressed store: a byte-identical re-import resolves to the same asset id.
@@ -167,15 +207,8 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     });
     const characterId = ref.characterId;
     const created = true;
-    await attachCardTags(ctx, characterId, tags);
+    const attached = await attachAllPlanes(ctx, characterId, tags, carried);
 
-    const { attachedBooksLinked, attachedBooksSkipped, regexScriptsLifted, regexScriptsReused } = await attachCarriedContent(ctx, characterId, {
-      book,
-      attachedBooks,
-      regexScripts: characterCard.regexScripts ?? [],
-      attachedRegexScripts,
-    });
-
-    return { characterId, created, importHash, attachedBooksLinked, attachedBooksSkipped, regexScriptsLifted, regexScriptsReused };
+    return { characterId, created, importHash, ...attached };
   };
 }

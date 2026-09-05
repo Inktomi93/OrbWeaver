@@ -1,7 +1,8 @@
 // verb: createRule — author-created rule creation, in EITHER scope. Gates the scope's own authority,
 // validates the whole payload (trigger liveness · CEL parse · action shapes/caps/reserved-arm refusal · the
-// C5 owner-global scope matrix · book consent · cooldown floor), assigns `position = max+1` WITHIN that
-// scope, and inserts the rule BORN DISABLED (enabling is the consent act). Returns the stored view.
+// C5 owner-global scope matrix · book consent · cooldown floor), and inserts the rule BORN DISABLED (enabling
+// is the consent act). Returns the stored view. `position = max+1` within the scope is allocated by the
+// INSERT's own subquery, not read here — read-then-write is the race (#1427; `persistence/rules.ts`).
 //
 // THE TWO SCOPES AND THEIR TWO GATES (C5 — the platform ruling: automation is a PLATFORM, and "not in v1"
 // only ever meant unwired-but-typed):
@@ -16,20 +17,25 @@
 // What actually bounds a global rule is the ARM MATRIX (`substrate/validate.ts`) and the owner rate belt
 // (`automation_owner_budgets`), not a new permission kind.
 
+import type { PlannedRuleInsert, PlanRule } from "../contract/ops.ts";
 import type { CreateRuleParams } from "../contract/params.ts";
 import type { RuleView } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { requireChatHost } from "../guard.ts";
-import { insertRule, maxPosition, selectRuleRow, toRuleView } from "../persistence/rules.ts";
+import { insertRule, selectRuleRow, toRuleView } from "../persistence/rules.ts";
 import { notifyRulesChanged } from "../substrate/rule-feed.ts";
 import { RULE_MAX_FIRES_DEFAULT, validateRuleInput } from "../substrate/validate.ts";
 
-export function createCreateRule(ctx: AutomationContext): AutomationService["createRule"] {
-  return async (params: CreateRuleParams): Promise<RuleView> => {
+/**
+ * The verb's WRITE-NOTHING half: validate the payload and mint the row it would insert. Split out so
+ * `createRuleFromPreset` can validate a whole set before its first write and then commit it in ONE batch
+ * (#1427) WITHOUT a second write path — it is injected there exactly as the whole verb used to be, since a
+ * verb may not import a sibling verb. The scope's authority gate is deliberately NOT here: it is per-SCOPE,
+ * not per-rule, and a set shares one scope, so each caller runs it once (see the two call sites).
+ */
+export function createPlanRule(ctx: AutomationContext): PlanRule {
+  return async (params: CreateRuleParams): Promise<PlannedRuleInsert> => {
     const chatId = params.chatId;
-    if (chatId !== null) {
-      await requireChatHost(ctx, params.principal, chatId);
-    }
     const cooldownSeconds = params.cooldownSeconds ?? 0;
     const maxFiresPerHour = params.maxFiresPerHour ?? RULE_MAX_FIRES_DEFAULT;
     const { actions } = await validateRuleInput(
@@ -47,18 +53,15 @@ export function createCreateRule(ctx: AutomationContext): AutomationService["cre
       },
     );
     const now = ctx.now();
-    const id = ctx.newRuleId();
     // Mint provenance (§3-S3 flip shape) — present ONLY when `createRuleFromPreset` is the caller (the
     // field is verb-only, never on the tRPC wire; a hand-authored rule stores the null pair).
     const provenance = params.presetProvenance ?? null;
-    const position = (await maxPosition(ctx.db, chatId, params.principal.userId)) + 1;
-    await insertRule(ctx.db, {
-      id,
+    return {
+      id: ctx.newRuleId(),
       ownerId: params.principal.userId,
       chatId,
       name: params.name,
       description: params.description ?? null,
-      position,
       triggerBus: params.trigger.bus,
       triggerType: params.trigger.type,
       predicateCel: params.predicateCel ?? null,
@@ -70,11 +73,22 @@ export function createCreateRule(ctx: AutomationContext): AutomationService["cre
       maxFiresPerHour,
       createdAt: now,
       updatedAt: now,
-    });
+    };
+  };
+}
+
+export function createCreateRule(ctx: AutomationContext, planRule: PlanRule): AutomationService["createRule"] {
+  return async (params: CreateRuleParams): Promise<RuleView> => {
+    const chatId = params.chatId;
+    if (chatId !== null) {
+      await requireChatHost(ctx, params.principal, chatId);
+    }
+    const planned = await planRule(params);
+    await insertRule(ctx.db, planned);
     // The row exists — it was just inserted in this transaction-less path (single-writer, no concurrent delete).
-    const row = await selectRuleRow(ctx.db, id);
+    const row = await selectRuleRow(ctx.db, planned.id);
     if (row === undefined) {
-      throw new Error(`createRule: row ${id} vanished immediately after insert`);
+      throw new Error(`createRule: row ${planned.id} vanished immediately after insert`);
     }
     // THE RULE ROSTER ANNOUNCES ITSELF (event-bus coverage survey H2/F5). `rulesChanged` was declared on
     // `AutomationBusEvent` and emitted NOWHERE — the D50 dead-wire class, alive on the bus built AFTER the

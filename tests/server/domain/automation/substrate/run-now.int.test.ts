@@ -30,7 +30,6 @@ async function seedEnabledRule(
     chatId: fixture.chatId,
     name: "r",
     description: null,
-    position: 0,
     triggerBus: "chat",
     triggerType: "messageCommitted",
     predicateCel: null,

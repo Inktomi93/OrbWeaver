@@ -24,7 +24,11 @@ export interface ImportOrphanCharacterResult {
   readonly name: string;
 }
 
-/** created:false means an existing character already carried this importHash — nothing was written.
+/** `created:false` means an existing character already carried this importHash, so no new CHARACTER was
+ *  written — NOT that nothing was (#1470). That re-import RECONCILES the card's overlay planes against the
+ *  existing character (a run that threw after the create leaves them missing, and the dedup key is that same
+ *  row), so the counts below report what the reconcile actually landed and are NOT zero by definition on the
+ *  dedup arm.
  *  PD-144: `attachedBooksLinked`/`attachedBooksSkipped` report the carried book-reference re-link — skipped
  *  counts references whose id had no book the importer owns on this install (absent/foreign), reported so a
  *  cross-install import surfaces the books that didn't travel. Both 0 for a card carrying no references. */
@@ -36,7 +40,8 @@ export interface ImportCharacterResult {
   readonly attachedBooksSkipped: number;
   /** The card's regex-script lift (D121-E), the `attachedBooks*` precedent: fresh library rows minted from
    *  the by-value payload / candidates attached to existing rows instead of cloned. Both 0 for a script-less
-   *  card, a dedup match (`created:false`), and an unwired lift op. */
+   *  card and for an unwired lift op; on a dedup match they report the reconcile's lift, which content-dedups
+   *  against the library and so reads as `reused` once the scripts have landed. */
   readonly regexScriptsLifted: number;
   readonly regexScriptsReused: number;
 }
