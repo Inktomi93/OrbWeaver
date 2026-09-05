@@ -64,13 +64,13 @@ export type PluginVariableOp = VarOp;
  *  `@orb/contracts/chat`'s {@link VariablePrecondition}, aliased here the way {@link PluginVariableOp} aliases
  *  the kit op. A guest that read a value, computed from it and wants the write to land only if nothing moved
  *  underneath passes its belief; the shape is deliberately NOT an op member (see the one home for why). */
-export type PluginVariablePrecondition = VariablePrecondition;
+type PluginVariablePrecondition = VariablePrecondition;
 
 /** What `chat.applyVariableOps` answers (#1555) — `@orb/contracts/chat`'s {@link VariableWriteResult}, aliased.
  *  A lost race is DATA the guest branches on (`outcome === "stale"` + the live values), never a throw: an
  *  uncaught throw here would spend one of the three crash strikes that auto-disable a plugin, and losing a
  *  contended write is a normal outcome, not a fault. */
-export type PluginVariableWriteResult = VariableWriteResult;
+type PluginVariableWriteResult = VariableWriteResult;
 
 /** Mirror of the `insert_world_info_entry` action's entry fields — attached-book-only, entryKey-
  *  updatable, host-side idempotent. */
