@@ -89,6 +89,32 @@ export interface CollectionInsight {
   readonly open?: { readonly label: string; readonly run: () => void };
 }
 
+/** ONE library's member CENSUS as the host knows it — the number, or why there is no number (#1546).
+ *
+ *  IT MODELS FAILURE BECAUSE ABSENCE ALONE IS A LIE. This was a bare `number | undefined`, so a census
+ *  whose read had FAILED and one that had not landed yet were the same value, and every host arm that
+ *  branches on the count was structurally unable to tell them apart: the landing rendered its populated
+ *  layout — glance, hint, create verb — over a library it could not count, with no failure said and no way
+ *  to retry. The `undefined` ⇒ "settling, draw no verdict" ruling those surfaces record SURVIVES; what
+ *  changed is its INPUT, because it was minted when the contract could not express a failed read at all.
+ *
+ *  `count` STILL LEADS, and it is not subordinate to `failed`: a refetch that fails over a warm cache
+ *  leaves a real number beside `failed: true`, and a host that has a number states it. The failure arm is
+ *  for the read that produced NO number — `count === undefined && failed`.
+ *
+ *  `retry` is part of the channel rather than the surface's own business for the same reason the count is:
+ *  only the contribution knows which query answered, so only the contribution can re-ask it. The host calls
+ *  it from the failure arm and nowhere else. */
+export interface CollectionCount {
+  /** The member count, or `undefined` while the read has not produced one (settling OR failed). */
+  readonly count: number | undefined;
+  /** The read FAILED, as distinct from having not landed. */
+  readonly failed: boolean;
+  /** Re-asks the read behind {@link count} — the failure arm's door (`refetch` takes an OPTIONS BAG, so an
+   *  implementor wraps it rather than passing the method by reference). */
+  readonly retry: () => void;
+}
+
 /** What the host hands a collection's LIST half. */
 export interface CollectionListView {
   /** Selection arrives KIND-PRE-BOUND: non-null only when the selected member belongs to THIS collection. */
@@ -150,8 +176,11 @@ export interface CollectionContribution {
    *  "Rendered fewer/more hooks than expected" invariant violation escapes every route boundary and
    *  white-screens the whole shell (measured: switching Tags→Rosters on the config CONTENT landing; the
    *  Tags→Regex pair survived only because those two happen to declare equal hook counts). Both host sites
-   *  key today: `config-content-surface.tsx`'s landing (the only host since the Hearth retired, #1210). */
-  readonly useCount?: () => number | undefined;
+   *  key today: `config-content-surface.tsx`'s landing (the only host since the Hearth retired, #1210).
+   *
+   *  It answers a {@link CollectionCount}, never a bare number: a census that FAILED and one still settling
+   *  are different states and the host draws different arms for them (#1546). */
+  readonly useCount?: () => CollectionCount;
   /** The library's own LANDING FACTS (see {@link CollectionInsight}) — what the CONTENT pane says about a
    *  populated library, and the one thing neither the band nor the blurb nor the LIST carries: the band
    *  says how MANY, the blurb says what the library is FOR, the LIST says what is IN it, and this says what

@@ -32,7 +32,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { userSettingsView } from "../../../../support/ct/user-settings-view.ts";
 import {
   CorpusHomeDefaultPaneStory,
@@ -192,6 +192,56 @@ const FAILED_PASS: TrpcRoutes = {
     },
   ],
 };
+
+/** The queue read itself DOWN — the state three of the five rail rows silently mis-reported (#1546). */
+const QUEUE_DOWN: TrpcRoutes = {
+  ...ANALYSED,
+  "workloads.list": (): unknown => trpcError({ message: "the queue is down" }),
+};
+
+// ── A BROKEN RUN-HISTORY READ IS NOT FIVE PASSES THAT NEVER RAN (#1546) ──────────────────────────────
+// Three rail rows read their ran/not-run half off ONE `workloads.list` query. A FAILED read collapsed into
+// `false`, so the rail — the surface's single home for what has and has not run — stated "not run" for
+// passes it had no evidence about, with nothing said about the failure and nothing to press.
+test("a FAILED queue read reads 'unknown' on the rail, never 'not run' (#1546)", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...QUEUE_DOWN });
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
+
+  const rail = component.locator('[data-slot="readiness-rail"]');
+  const rows = rail.locator('[data-slot="readiness-stage"]');
+  await expect(rows.filter({ hasText: "Near-duplicates" })).toContainText("unknown");
+  await expect(rows.filter({ hasText: "Keywords" })).toContainText("unknown");
+  // A pass with OUTPUT is still read as run: the theme row has a measurement, so the queue's silence
+  // cannot take it away.
+  await expect(rows.filter({ hasText: "Story themes" })).toContainText("1 theme computed");
+  // The claim in its negative half — no row asserts a history nobody could read.
+  await expect(rail.getByText("not run", { exact: true })).toHaveCount(0);
+  await expect(rail.getByText("none found", { exact: true })).toHaveCount(0);
+});
+
+test("…and the rail says WHAT could not be read, with a retry that re-asks it (#1546)", async ({ mount, page }) => {
+  // A FLAG, not a request counter: the surface fires more than one round trip before it paints, so
+  // "fail request one" is a different claim from "the queue is down" (the config landing's twin pin was
+  // measured answering from request two).
+  // WHAT THE STUB ANSWERS NEXT, as a PUSHED array rather than a boolean flip: biome narrows a
+  // `= false` initializer to the literal type and reds the later flip as an always-falsy condition,
+  // and the `: boolean` that would fix that is itself `noInferrableTypes`. Data, not a flag.
+  const answers: unknown[] = [trpcError({ message: "the queue is down" })];
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED, "workloads.list": (): unknown => answers.at(-1) });
+  const component = await mount(<CorpusHomeDefaultPaneStory />);
+  await expect(page.locator('[data-corpus-focal="familyMap"]')).toBeVisible();
+
+  const rail = component.locator('[data-slot="readiness-rail"]');
+  await expect(rail.getByText("Couldn't load which passes have run.")).toBeVisible();
+  answers.push([]);
+  await rail.getByRole("button", { name: "Retry" }).click();
+
+  // The retry really re-asks (a Retry that only re-renders is the dead end this block exists against), and
+  // the answered queue puts the rows back on their ordinary words.
+  await expect(rail.getByText("Couldn't load which passes have run.")).toHaveCount(0);
+  await expect(rail.locator('[data-slot="readiness-stage"]').filter({ hasText: "Near-duplicates" })).toContainText("not run");
+});
 
 const JOBS_DOOR = /All jobs in Settings/;
 const FAMILIES_DOOR = /All families/;

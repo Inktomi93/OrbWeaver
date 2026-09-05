@@ -6,15 +6,18 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
-import type { CollectionInsight } from "#lib";
+import type { CollectionCount, CollectionInsight } from "#lib";
 import { timeLib } from "#lib";
 import { openModal, selectCollectionMember } from "#state";
 import { ROSTER_COLLECTION_ID } from "../lib/roster-model.ts";
 
-/** The group band's live census ("ROSTERS · 4"). */
-export function useRosterCount(): number | undefined {
+/** The group band's live census ("ROSTERS · 4"). A FAILED read says so rather than reading as absence
+ *  (#1546 — see {@link CollectionCount}). */
+export function useRosterCount(): CollectionCount {
   const trpc = useTRPC();
-  return useQuery(trpc.rosterPreset.list.queryOptions()).data?.length;
+  const census = useQuery(trpc.rosterPreset.list.queryOptions());
+  // `refetch` takes an OPTIONS BAG, so it is wrapped rather than passed by reference.
+  return { count: census.data?.length, failed: census.error !== null, retry: (): void => void census.refetch() };
 }
 
 /**

@@ -751,6 +751,12 @@
     "count": 1,
     "why": "burnable debt: lint/suspicious/noUnknownAttribute×1 — no RATIFIED_RULES entry, so these are still a live population"
   },
+  "tests/client/lib/collection-contracts.test-d.ts": {
+    "count": 2,
+    "ratified": 2,
+    "why": "ratified by rule: @ts-expect-error×2 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
   "tests/client/lib/motion-flaggers.ct.tsx": {
     "count": 2,
     "why": "burnable debt: lint/nursery/noPlaywrightWaitForTimeout×2 — no RATIFIED_RULES entry, so these are still a live population"

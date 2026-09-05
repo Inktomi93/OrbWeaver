@@ -6,7 +6,7 @@
 import { ConfirmDialog } from "@orb/client/components";
 import { Button } from "@orb/ui/button";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ConfirmDialogControlledHarness } from "./confirm-dialog.fixtures.tsx";
+import { ConfirmDialogControlledHarness, ConfirmDialogRejectingHarness } from "./confirm-dialog.fixtures.tsx";
 
 test("uncontrolled: renders the given trigger, opens on click, confirms and closes", async ({ mount, page }) => {
   let confirmed = 0;
@@ -93,4 +93,51 @@ test("description is optional — a title-only confirm renders no description pa
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('Delete "Entry title"?');
   await expect(dialog.locator("p")).toHaveCount(0);
+});
+
+// ── THE CONFIRM IS THE RETRY SURFACE FOR ITS OWN VERB (#1563) ────────────────────────────────────────
+// It closed via `AlertDialogClose` REGARDLESS of outcome, so the close was not the caller's to gate and a
+// destructive confirm could never report — let alone retry — the mutation it fired. Where the caller had a
+// second surface the failure landed there; where it had none (most of the sixteen call sites), a rejected
+// destructive write left a vanished dialog and nothing to press. Returning the verb's settle is the
+// contract; returning nothing keeps the old close-on-click behaviour, which every state-only confirm uses
+// and which the tests above still pin.
+
+test("a REJECTED confirm stays open, says why, and its own button is the retry (#1563)", async ({ mount, page }) => {
+  const component = await mount(<ConfirmDialogRejectingHarness />);
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Delete" }).click();
+
+  // STILL OPEN — the assertion that was unreachable by construction — carrying the server's own reason.
+  // The FAILURE LINE is the barrier, and the open-ness is asserted after it: `toBeVisible` on a dialog that
+  // is mid-close still passes on its first poll, so on its own it proves nothing about the settled state.
+  await expect(dialog.locator('[data-slot="confirm-dialog-failure"]')).toContainText("the row is locked by another seat");
+  await expect(dialog).toBeVisible();
+  await expect(component.getByTestId("confirm-removed")).toHaveText("intact");
+
+  // …and the SAME button is the retry: a second press runs the verb again, and the settled success is what
+  // closes the dialog.
+  await dialog.getByRole("button", { name: "Delete" }).click();
+  await expect(component.getByTestId("confirm-removed")).toHaveText("removed");
+  await expect(page.getByRole("alertdialog")).toBeHidden();
+});
+
+test("Cancel still abandons a failed confirm, and reopening starts clean (#1563)", async ({ mount, page }) => {
+  const component = await mount(<ConfirmDialogRejectingHarness />);
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByRole("alertdialog").locator('[data-slot="confirm-dialog-failure"]')).toBeVisible();
+
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("alertdialog")).toBeHidden();
+  await expect(component.getByTestId("confirm-removed")).toHaveText("intact");
+
+  // The next opening is a NEW decision, not a resumed one — a stale failure line over an untouched
+  // confirm would be its own lie.
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await expect(page.getByRole("alertdialog").locator('[data-slot="confirm-dialog-failure"]')).toHaveCount(0);
 });

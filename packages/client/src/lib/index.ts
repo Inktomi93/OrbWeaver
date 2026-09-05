@@ -35,7 +35,14 @@ export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-
 export { deriveChatTitle, UNTITLED_CHAT_TITLE } from "./chat-title.ts";
 export type { ClientErrorPayload } from "./client-error-report.ts";
 export { buildClientErrorPayload } from "./client-error-report.ts";
-export type { CollectionContext, CollectionContribution, CollectionDetailView, CollectionInsight, CollectionListView } from "./collection-contracts.ts";
+export type {
+  CollectionContext,
+  CollectionContribution,
+  CollectionCount,
+  CollectionDetailView,
+  CollectionInsight,
+  CollectionListView,
+} from "./collection-contracts.ts";
 export { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT } from "./collection-contracts.ts";
 export type { ConfigQueryToken, ParsedConfigQuery } from "./config-search-tokens.ts";
 export { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "./config-search-tokens.ts";
@@ -83,6 +90,8 @@ export type { RegistryContext } from "./create-registry-context.tsx";
 export { createRegistryContext } from "./create-registry-context.tsx";
 export { IS_DEV } from "./dev-flag.ts";
 export { downloadJson, downloadTextFile, downloadUrl, slugifyFilename } from "./download-json.ts";
+export type { EditSession } from "./edit-session.ts";
+export { resolveCommit } from "./edit-session.ts";
 export type { AppErrorBoundaryProps } from "./error-boundary.tsx";
 export { AppErrorBoundary } from "./error-boundary.tsx";
 export {

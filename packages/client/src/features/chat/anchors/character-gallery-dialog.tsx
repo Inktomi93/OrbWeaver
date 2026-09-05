@@ -121,16 +121,13 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
   // back at the grid, and nothing on screen to retry from — the toast was the only evidence, over a grid that
   // still showed the image they had just confirmed deleting. On failure the confirm stays open, which IS the
   // retry.
-  const removeItem = (galleryItemId: GalleryItemId): void => {
-    remove.mutate(
-      { galleryItemId },
-      {
-        onSuccess: (): void => {
-          setRemoveConfirmOpen(false);
-          setLightbox(null);
-        },
-      },
-    );
+  // THE CONFIRM IS THE RETRY SURFACE FOR ITS OWN VERB (#1563), so the settle is RETURNED to it rather than
+  // handled here: `ConfirmDialog` holds open while this is in flight, closes itself on success, and on
+  // rejection stays open with the reason and its own button as the retry. Only the LIGHTBOX close is this
+  // surface's own business — the removed image's own frame outlives the confirm.
+  const removeItem = async (galleryItemId: GalleryItemId): Promise<void> => {
+    await remove.mutateAsync({ galleryItemId });
+    setLightbox(null);
   };
 
   return (
@@ -185,7 +182,7 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
                 confirmLabel="Remove"
                 description={`This removes the image from ${characterName}'s gallery. The image itself stays in your uploads.`}
                 forceRender={true}
-                onConfirm={(): void => removeItem(lightbox.galleryItemId)}
+                onConfirm={(): Promise<void> => removeItem(lightbox.galleryItemId)}
                 onOpenChange={setRemoveConfirmOpen}
                 open={removeConfirmOpen}
                 title="Remove this image?"

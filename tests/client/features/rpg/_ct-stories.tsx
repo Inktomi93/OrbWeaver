@@ -25,6 +25,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { ConditionChips } from "../../../../packages/client/src/features/rpg/components/rpg-actor-trackers.tsx";
+import { BeatRow } from "../../../../packages/client/src/features/rpg/components/rpg-beat-row.tsx";
 import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/rpg/components/rpg-freshness-indicator.tsx";
 import { RpgGameDoor } from "../../../../packages/client/src/features/rpg/components/rpg-game-door.tsx";
 import { PackBody } from "../../../../packages/client/src/features/rpg/components/rpg-pack-rows.tsx";
@@ -49,6 +50,44 @@ const PACK_FIXTURE: readonly RpgInventoryItem[] = [
   { id: "itm-1", name: "Iron Sword", description: "", quantity: 1, location: "belt", type: "" },
   { id: "itm-2", name: "Healing Draught", description: "", quantity: 3, location: "pack", type: "" },
 ];
+
+/** A CHRONICLE BEAT whose body is rewritten from elsewhere — a model turn, another seat — while the host
+ *  has the body editor open (#1559). The row cannot express this by itself: it needs a parent that moves
+ *  `content` WHILE the editor is live, which is the same reason `TrackerValueTwoWriters` exists.
+ *
+ *  THE "ARRIVE" BUTTON PREVENTS ITS OWN MOUSEDOWN DEFAULT ON PURPOSE (the tracker story's lesson): a normal
+ *  click moves focus off the open textarea, and the resulting BLUR would commit before the rewrite ever
+ *  landed — the story would then exercise the ordinary commit path and pass against the bug. */
+export function BeatRowTwoWritersStory(): ReactElement {
+  const [content, setContent] = useState("She owes the party a favour.");
+  // What `onEditContent` was actually called with — the assert-the-mutation-fired channel. "none" = never.
+  const [committed, setCommitted] = useState("none");
+  return (
+    <div style={{ width: 430 }}>
+      <BeatRow
+        beat={{ key: "rpg_journal_ct_1", type: "npc", label: "", title: "Sera's debt", content }}
+        edit={{
+          onEditTitle: (): void => undefined,
+          onEditContent: (_entryId, next): void => {
+            setCommitted(next);
+            setContent(next);
+          },
+          onDelete: (): void => undefined,
+        }}
+      />
+      <output data-testid="beat-content-committed">{committed}</output>
+      <button
+        type="button"
+        onClick={(): void => setContent("The debt was called in at the Lantern.")}
+        onMouseDown={(e): void => {
+          e.preventDefault(); // keep focus in the open editor — see the header
+        }}
+      >
+        arrive rewrite
+      </button>
+    </div>
+  );
+}
 
 /** The two TOUCH-FLOOR geometry sites, mounted bare at a FIXED width (owner ruling 2026-08-07 — the
  *  `no-floorless-control-in-wrap` deferrals). Both take plain props and need no data providers, which is why

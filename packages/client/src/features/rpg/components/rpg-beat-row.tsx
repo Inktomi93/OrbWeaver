@@ -18,8 +18,10 @@ import { Icon, Trash2 } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { BeatLine, ConfirmDialog, TrackerValue } from "#components";
+import type { EditSession } from "#lib";
+import { resolveCommit } from "#lib";
 import { journalRowLabel } from "../lib/journal-labels.ts";
 
 /** The host's per-beat write callbacks (absent ⇒ the read-only member arm — PERMISSION-omit). */
@@ -118,26 +120,33 @@ function BeatBodyEditor({
   readonly trailing: ReactNode;
 }): ReactElement {
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(content);
   /**
-   * WHAT THE EDITOR OPENED WITH, and whether this close is a CANCELLATION (#1502). Both exist because the
-   * commit runs on BLUR, and closing the panel is what produces that blur — so the two things Escape must
-   * do (drop the draft, collapse) reach `onBlur` as one already-decided fact it cannot infer:
-   *   • `cancelled` — `setDraft(content)` does not take effect before the unmount-driven blur runs, and the
-   *     blur handler is closed over the PREVIOUS render's `draft`, so Escape used to commit the very text it
-   *     had just been asked to throw away. A ref, not state, precisely because it must be readable inside
-   *     that already-scheduled handler.
-   *   • `openedFrom` — the draft is deliberately seeded ONCE (a passive re-render must not clobber what the
-   *     host is typing), which means `draft !== content` is TRUE when the BODY changed underneath an
-   *     untouched editor, and the commit then writes the opened-with text back over what arrived. Judging
-   *     against the value at open time is the same fix TrackerValue carries (#1485): nothing typed, nothing
-   *     sent. What this row does NOT yet do is SURFACE that collision when the host has also typed — it
-   *     takes the host's text, where the tracker holds and asks. If a second writer becomes routine here,
-   *     `tracker-value.tsx` has the shape.
+   * THE OPEN EDIT — draft, what it opened with, and what arrived underneath it (`lib/edit-session.ts`).
+   *
+   * The draft is seeded ONCE, when the editor opens: a passive re-render must not clobber what the host is
+   * typing, and that ruling is preserved by changing the commit's CONDITION rather than the seeding
+   * (#1502). Judging against `openedFrom` is what stopped an untouched editor writing its opened-with text
+   * back over a body that changed underneath it.
+   *
+   * AND THE COLLISION IS NOW SURFACED RATHER THAN RESOLVED FOR THE HOST (#1559). When the host HAS typed
+   * and the body ALSO moved — the normal case during play, because beats are model-writable — this row
+   * used to take the host's text silently, where `TrackerValue` holds and asks. Both editors now go
+   * through the ONE resolver: nothing typed ⇒ nothing sent; typed over a still body ⇒ an ordinary commit;
+   * both moved ⇒ held open with what arrived stated, where committing again overwrites deliberately and
+   * Escape keeps what arrived. Reseeding the draft stays the refused arm.
+   */
+  const [session, setSession] = useState<EditSession>({ draft: content, openedFrom: content, conflict: null });
+  /**
+   * IS THIS CLOSE A CANCELLATION? (#1502.) The commit runs on BLUR and collapsing the panel is what
+   * produces that blur, so the two things Escape must do (drop the draft, collapse) reach `onBlur` as one
+   * already-decided fact it cannot infer: a `setSession` does not take effect before the unmount-driven
+   * blur runs, and that handler is closed over the PREVIOUS render's session, so Escape used to commit the
+   * very text it had just been asked to throw away. A ref, not state, precisely because it must be
+   * readable inside that already-scheduled handler.
    */
   const cancelled = useRef(false);
-  const openedFrom = useRef(content);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const conflictId = useId();
   // The editor exists only after an explicit click on the beat's body (the click-to-edit gesture) —
   // and the panel is unmounted while closed, so mounting IS opening. Taking focus is that gesture's
   // continuation, not a focus steal (and it keeps the keyboard path whole: the trigger it replaced is gone).
@@ -154,8 +163,7 @@ function BeatBodyEditor({
       open={open}
       onOpenChange={(next): void => {
         if (next) {
-          setDraft(content);
-          openedFrom.current = content;
+          setSession({ draft: content, openedFrom: content, conflict: null });
           cancelled.current = false;
         }
         setOpen(next);
@@ -189,32 +197,59 @@ function BeatBodyEditor({
         <Textarea
           ref={bodyRef}
           aria-label={bodyLabel}
+          {...(session.conflict === null ? {} : { "aria-describedby": conflictId })}
           data-slot="rpg-beat-body-edit"
+          // The CONFLICT surface, in `tracker-value.tsx`'s own vocabulary: `data-conflict` carries THE VALUE
+          // that arrived (one spelling for both editors, so a sweep finds both), and `data-invalid` lights
+          // the primitive's destructive border — the skin it already ships for "this is not going to land as
+          // typed". What differs is where the incoming value is READ: a beat body is a PARAGRAPH, so it is
+          // shown in the line below rather than quoted into a `title` the way a short datum can be. The
+          // panel is already expanded, so there is room — and a rewrite you cannot read is not a choice you
+          // can make.
+          {...(session.conflict === null ? {} : { "data-conflict": session.conflict, "data-invalid": "" })}
           id={`rpg-beat-body-${entryId}`}
           rows={4}
-          value={draft}
+          value={session.draft}
           placeholder="write the beat…"
-          onChange={(e): void => setDraft(e.target.value)}
+          onChange={(e): void => setSession({ ...session, draft: e.target.value })}
           onBlur={(): void => {
             const abandoned = cancelled.current;
             cancelled.current = false;
-            // Nothing sent when the host abandoned the edit, and nothing sent when the host typed nothing —
-            // see the `cancelled` / `openedFrom` note above for why neither is inferable here.
-            if (!abandoned && draft !== openedFrom.current) {
-              onCommit(draft);
+            if (abandoned) {
+              // Nothing sent when the host abandoned the edit — see the `cancelled` note above for why
+              // this is not inferable here.
+              setOpen(false);
+              return;
             }
-            setOpen(false);
+            const { send, next } = resolveCommit(session, content);
+            if (send !== null) {
+              onCommit(send);
+            }
+            // `next` non-null is the HELD conflict: the editor stays open carrying the host's text, and the
+            // second commit through here is the deliberate overwrite.
+            if (next === null) {
+              setOpen(false);
+            } else {
+              setSession(next);
+            }
           }}
           onKeyDown={(e): void => {
             if (e.key === "Escape") {
               // Abandon: mark the cancellation FIRST (the collapse below produces the blur that would
-              // otherwise commit), drop the draft, collapse, nothing sent (the TrackerValue cancel grammar).
+              // otherwise commit), drop the draft, collapse, nothing sent (the TrackerValue cancel
+              // grammar). Under a conflict this is also the "keep what arrived" answer, since the row at
+              // rest renders the CURRENT body.
               cancelled.current = true;
-              setDraft(content);
+              setSession({ draft: content, openedFrom: content, conflict: null });
               setOpen(false);
             }
           }}
         />
+        {session.conflict === null ? null : (
+          <Text data-slot="rpg-beat-body-conflict" id={conflictId} voice="label">
+            {`The beat changed while you were editing — save again to overwrite it, or press Escape to keep what arrived: “${session.conflict}”`}
+          </Text>
+        )}
       </CollapsiblePanel>
     </Collapsible>
   );

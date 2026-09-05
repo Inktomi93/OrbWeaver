@@ -4,7 +4,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useInvalidation, useTRPC } from "#data";
-import type { CollectionInsight } from "#lib";
+import type { CollectionCount, CollectionInsight } from "#lib";
 import { selectCollectionMember } from "#state";
 import { TAG_COLLECTION_ID } from "../lib/tags-model.ts";
 import { useCreateTag } from "./use-tag-settings-mutations.ts";
@@ -14,10 +14,13 @@ import { useCreateTag } from "./use-tag-settings-mutations.ts";
 const NEW_TAG_NAME = "New tag";
 
 /** The group band's live census — a NON-suspending read sharing the rows' cache, so the band renders
- *  immediately and the number settles under it. */
-export function useTagCount(): number | undefined {
+ *  immediately and the number settles under it. A FAILED read says so rather than reading as absence
+ *  (#1546 — the host cannot draw a failure arm for a state the contract cannot express). */
+export function useTagCount(): CollectionCount {
   const trpc = useTRPC();
-  return useQuery(trpc.tag.listTagsWithUsage.queryOptions()).data?.length;
+  const census = useQuery(trpc.tag.listTagsWithUsage.queryOptions());
+  // `refetch` takes an OPTIONS BAG, so it is wrapped rather than passed by reference.
+  return { count: census.data?.length, failed: census.error !== null, retry: (): void => void census.refetch() };
 }
 
 /**
