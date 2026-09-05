@@ -58,6 +58,7 @@ import { createApp } from "./app.ts";
 import { createAuthSeam, createHostPrincipalResolver } from "./auth/index.ts";
 import {
   DB_LAUNCHED,
+  healLegacyBackgroundPinsOnBoot,
   migrateHandoffOfferVocabOnBoot,
   migrateProseSlotVocabOnBoot,
   reclaimLocksOnBoot,
@@ -315,6 +316,12 @@ export function createLifecycle(): Lifecycle {
     // authored narrator character heading instead of failing. Idempotent — a no-op on every boot after the
     // first. Runs before compose, which is where the first preset read lives.
     await migrateProseSlotVocabOnBoot({ db });
+
+    // #1600 ONE-TIME DATA heal, same window: a `user_settings` row pinning a background asset that predates
+    // #1478.1's ownership+kind guard (dev data, or any asset whose `kind` was never `background`) refuses
+    // EVERY settings write for that user, not only a background edit. Idempotent — a no-op on every boot
+    // after the first, and on a db seeded entirely post-#1478.
+    await healLegacyBackgroundPinsOnBoot({ db });
 
     // Resolve the owner id before compose (the owner role-clients bundle resolves against it). A
     // transient sessions service is built only to run the owner seed; compose owns the real one.
