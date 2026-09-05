@@ -18,6 +18,7 @@
 
 import type { VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { historyFloor } from "@orb/contracts/chat";
+import type { Principal } from "@orb/contracts/identity";
 import type { InvocationChat, PluginCapability, PluginHandlerRef } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, Handle, MessageId, PluginId } from "@orb/kit/ids";
@@ -29,8 +30,10 @@ import { createNotificationsService } from "@orb/server/domain/notifications";
 import type { PluginActivationScope, PluginHostOps, PluginHostPort, PluginInvokeHandler, PluginRegistrationHandle } from "@orb/server/domain/plugin";
 import { buildPluginStorage, createSurfaceStatePublisher } from "@orb/server/domain/plugin";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
+import { unzipSync, zipSync } from "fflate";
+import type { ExamplePluginSeederDeps } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
 import { createExamplePluginSeeder } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
-import { packShowcaseBundle, SHOWCASE_PLUGIN_SLUGS } from "../../../../packages/showcase-plugins/src/index.ts";
+import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "../../../../packages/showcase-plugins/src/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -511,25 +514,70 @@ test("scene chips: the real bundle offers chips on a long narrator beat, once pe
   expect(captured.chips[1]?.at(-1)?.sendText).toContain("The Storm");
 });
 
+/** The two `UserSettings.onboarding` fields the seeder owns, as one mutable object a test can hand to several
+ *  seeder INSTANCES in turn — which is what "the next boot" means here (the in-process memo makes a second
+ *  `ensureSeeded` on the SAME instance a no-op by design, so a re-run test needs a fresh instance over the
+ *  same persisted state). */
+interface SeedLatch {
+  seeded: boolean;
+  versions: Record<string, string>;
+}
+
+/** The compose wiring (`entry/compose/services.ts`), against the harness's REAL plugin service and an
+ *  in-memory settings latch. Every arm here mirrors a compose line; `overrides` is how one test narrows one
+ *  of them (a missing bundle, a bumped version) without re-spelling the other eight. */
+function seederDeps(h: ReturnType<typeof makePluginHarness>, latch: SeedLatch, overrides: Partial<ExamplePluginSeederDeps> = {}): ExamplePluginSeederDeps {
+  return {
+    packBundle: packShowcaseBundle,
+    bundledVersion: async (slug): Promise<string | null> => (await readShowcaseManifest(slug))?.version ?? null,
+    install: async ({ caller: principal, bundle }) => await h.service.install({ caller: principal, bundle, grant: [] }),
+    upgrade: async ({ caller: principal, pluginId, bundle }): Promise<void> => {
+      await h.service.upgrade({ caller: principal, pluginId, bundle });
+    },
+    requestConsent: async ({ caller: principal, pluginId }): Promise<void> => {
+      await h.service.setGrant({ caller: principal, pluginId, grant: [], acknowledgedNetHosts: [] });
+    },
+    listHeld: async (principal) => (await h.service.list({ caller: principal })).map((row) => ({ slug: row.slug, pluginId: row.id, version: row.version })),
+    isSeeded: (): Promise<boolean> => Promise.resolve(latch.seeded),
+    markSeeded: (): Promise<void> => {
+      latch.seeded = true;
+      return Promise.resolve();
+    },
+    readSeededVersions: (): Promise<Readonly<Record<string, string>>> => Promise.resolve(latch.versions),
+    writeSeededVersions: (_principal, versions): Promise<void> => {
+      latch.versions = { ...versions };
+      return Promise.resolve();
+    },
+    ...overrides,
+  };
+}
+
+/** A REAL shipped bundle with one field changed: its manifest `version`. Used to stand in for "a later release
+ *  of this showcase plugin" without committing a second copy of a bundle — the packer's fixed mtime is reused
+ *  so the forged bytes stay a pure function of their inputs, exactly like the shipped ones. */
+async function bundleAtVersion(slug: string, version: string): Promise<Uint8Array> {
+  const packed = await packShowcaseBundle(slug);
+  const entries = unzipSync(packed as Uint8Array);
+  const manifest = JSON.parse(new TextDecoder().decode(entries["manifest.json"])) as Record<string, unknown>;
+  manifest["version"] = version;
+  const rebuilt: Record<string, [Uint8Array, { mtime: number }]> = {};
+  for (const [name, bytes] of Object.entries(entries)) {
+    rebuilt[name] = [name === "manifest.json" ? new TextEncoder().encode(JSON.stringify(manifest)) : bytes, { mtime: FORGED_BUNDLE_MTIME_MS }];
+  }
+  return zipSync(rebuilt);
+}
+
+/** The packer's own fixed stamp (`@orb/showcase-plugins`) — re-stated here rather than exported, because a
+ *  TEST forging bytes is not a second packer and must not make the real one's constant part of an API. */
+const FORGED_BUNDLE_MTIME_MS = 331_257_600_000;
+
 test("the per-user seeder lands every example installed, disabled and UNGRANTED — and re-runs are a no-op", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
-  let latched = false;
+  const latch: SeedLatch = { seeded: false, versions: {} };
 
-  const seeder = createExamplePluginSeeder({
-    packBundle: packShowcaseBundle,
-    install: async ({ caller: principal, bundle }) => await h.service.install({ caller: principal, bundle, grant: [] }),
-    requestConsent: async ({ caller: principal, pluginId }) => {
-      await h.service.setGrant({ caller: principal, pluginId, grant: [], acknowledgedNetHosts: [] });
-    },
-    alreadyInstalled: async (principal, slug) => (await h.service.list({ caller: principal })).some((row) => row.slug === slug),
-    isSeeded: (): Promise<boolean> => Promise.resolve(latched),
-    markSeeded: (): Promise<void> => {
-      latched = true;
-      return Promise.resolve();
-    },
-  });
+  const seeder = createExamplePluginSeeder(seederDeps(h, latch));
 
   await seeder.ensureSeeded(caller);
   const rows = await h.service.list({ caller });
@@ -541,7 +589,7 @@ test("the per-user seeder lands every example installed, disabled and UNGRANTED 
     expect(row.reconsentPending, row.slug).toBe(true);
     expect(row.declaredCapabilities.length, row.slug).toBeGreaterThan(0);
   }
-  expect(latched).toBe(true);
+  expect(latch.seeded).toBe(true);
 
   // The in-process memo makes a second call free; clearing it and re-running must still mint nothing (the
   // persisted latch is the DELETION-RESPECT guard — an example the user removed must not come back).
@@ -560,36 +608,26 @@ test("a MISSING bundle does not latch — the incomplete pass retries and comple
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
-  let latched = false;
+  const latch: SeedLatch = { seeded: false, versions: {} };
   // A MUTABLE HOLDER, not a bare `let`: biome narrows a `let x = true` initializer and then calls the guard
   // below "always truthy", while a property read is opaque to that narrowing. Same value, no suppression.
   const pack: { absent: boolean } = { absent: true };
   const missingSlug = "oracle-deck";
 
-  const seeder = createExamplePluginSeeder({
-    packBundle: async (slug) => (pack.absent && slug === missingSlug ? null : await packShowcaseBundle(slug)),
-    install: async ({ caller: principal, bundle }) => await h.service.install({ caller: principal, bundle, grant: [] }),
-    requestConsent: async ({ caller: principal, pluginId }) => {
-      await h.service.setGrant({ caller: principal, pluginId, grant: [], acknowledgedNetHosts: [] });
-    },
-    alreadyInstalled: async (principal, slug) => (await h.service.list({ caller: principal })).some((row) => row.slug === slug),
-    isSeeded: (): Promise<boolean> => Promise.resolve(latched),
-    markSeeded: (): Promise<void> => {
-      latched = true;
-      return Promise.resolve();
-    },
-  });
+  const seeder = createExamplePluginSeeder(
+    seederDeps(h, latch, { packBundle: async (slug) => (pack.absent && slug === missingSlug ? null : await packShowcaseBundle(slug)) }),
+  );
 
   await seeder.ensureSeeded(caller);
   // The pass did NOT fail: every other example is installed (the header's per-slug tolerance, preserved).
   expect((await h.service.list({ caller })).map((r) => r.slug).sort()).toEqual([...SHOWCASE_PLUGIN_SLUGS].filter((s) => s !== missingSlug).sort());
   // …but it was INCOMPLETE, so it must stay retryable — both the persisted latch and the in-process memo.
-  expect(latched).toBe(false);
+  expect(latch.seeded).toBe(false);
 
   pack.absent = false;
   await seeder.ensureSeeded(caller);
   expect((await h.service.list({ caller })).map((r) => r.slug).sort()).toEqual([...SHOWCASE_PLUGIN_SLUGS].sort());
-  expect(latched).toBe(true);
+  expect(latch.seeded).toBe(true);
 });
 
 /** The install-time refusals a copied example must not trip: the packer emits only ADMITTED entries, and every
@@ -1078,21 +1116,9 @@ test("the seeder leaves the owner ONE durable ask that counts every waiting plug
   };
   const h = makePluginHarness(db, { port: realHost(), ops });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
-  let latched = false;
+  const latch: SeedLatch = { seeded: false, versions: {} };
 
-  const seeder = createExamplePluginSeeder({
-    packBundle: packShowcaseBundle,
-    install: async ({ caller: principal, bundle }) => await h.service.install({ caller: principal, bundle, grant: [] }),
-    requestConsent: async ({ caller: principal, pluginId }) => {
-      await h.service.setGrant({ caller: principal, pluginId, grant: [], acknowledgedNetHosts: [] });
-    },
-    alreadyInstalled: async (principal, slug) => (await h.service.list({ caller: principal })).some((row) => row.slug === slug),
-    isSeeded: (): Promise<boolean> => Promise.resolve(latched),
-    markSeeded: (): Promise<void> => {
-      latched = true;
-      return Promise.resolve();
-    },
-  });
+  const seeder = createExamplePluginSeeder(seederDeps(h, latch));
 
   await seeder.ensureSeeded(caller);
 
@@ -1122,4 +1148,144 @@ test("the seeder leaves the owner ONE durable ask that counts every waiting plug
     recipientUserId: caller.userId,
     pendingCount: SHOWCASE_PLUGIN_SLUGS.length - 1,
   });
+});
+
+// ────────────────────────────────────────────────────────────────────────────────────────────────────
+// #803 — THE AUTO-UPGRADE (owner-ruled 2026-09-05, arm (a)). The four arms of one decision, each with the
+// state that decides it. Before this, `examplePluginsSeeded` gated the WHOLE pass, so an improved bundle
+// (card-atlas 1.0.0 → 1.1.0) reached only a FRESH database and every existing install stayed on the old
+// version until someone dropped their db. The upgrade half now runs on every pass and touches a row only
+// when it is still exactly what this system last wrote.
+//
+// "The next boot" is a SECOND SEEDER INSTANCE over the SAME latch object, deliberately: the in-process memo
+// makes a repeat `ensureSeeded` on one instance a no-op by design, so re-running through the same instance
+// would prove nothing about the persisted state.
+// ────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The slug these four use: Tier-S (no `ui.js`), so a forged bundle stays a two-entry zip. */
+const UPGRADE_SLUG = "draft-polish";
+
+async function seedOnce(h: ReturnType<typeof makePluginHarness>, latch: SeedLatch, caller: Principal): Promise<void> {
+  await createExamplePluginSeeder(seederDeps(h, latch)).ensureSeeded(caller);
+}
+
+type ListedPlugin = Awaited<ReturnType<ReturnType<typeof makePluginHarness>["service"]["list"]>>[number];
+
+/** One slug's row out of a `plugin.list` read, or `undefined` when the caller does not hold it — which is
+ *  itself an assertion subject here (the deleted arm). */
+function rowFor(rows: readonly ListedPlugin[], slug: string): ListedPlugin | undefined {
+  return rows.find((row) => row.slug === slug);
+}
+
+test("#803 a NEWER bundle reaches a PRISTINE seeded install — same row, upgraded in place", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const latch: SeedLatch = { seeded: false, versions: {} };
+
+  await seedOnce(h, latch, caller);
+  const before = rowFor(await h.service.list({ caller }), UPGRADE_SLUG);
+  expect(before).toBeDefined();
+  // The install half recorded OUR provenance — that record is what makes the row recognisable as ours later.
+  expect(latch.versions[UPGRADE_SLUG]).toBe(before?.version);
+
+  // The next release of that showcase plugin.
+  const shipped = "9.9.9";
+  const nextBoot = createExamplePluginSeeder(
+    seederDeps(h, latch, {
+      packBundle: async (slug) => (slug === UPGRADE_SLUG ? await bundleAtVersion(slug, shipped) : await packShowcaseBundle(slug)),
+      bundledVersion: async (slug): Promise<string | null> => (slug === UPGRADE_SLUG ? shipped : ((await readShowcaseManifest(slug))?.version ?? null)),
+    }),
+  );
+  await nextBoot.ensureSeeded(caller);
+
+  const after = rowFor(await h.service.list({ caller }), UPGRADE_SLUG);
+  expect(after?.version).toBe(shipped);
+  // The SAME row, not a re-install: the plugin id is the FK every `plugin_kv` key and surface state hangs
+  // off, so a new id would silently orphan everything the user's copy had accumulated.
+  expect(after?.id).toBe(before?.id);
+  // The consent posture survives the upgrade untouched — still nothing granted, still off.
+  expect(after?.grantedCapabilities).toEqual([]);
+  expect(after?.status).toBe("disabled");
+  // …and the provenance advanced, so the NEXT release compares against what we actually wrote.
+  expect(latch.versions[UPGRADE_SLUG]).toBe(shipped);
+});
+
+test("#803 a DIVERGED install is left alone — the user has taken the plugin over", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const latch: SeedLatch = { seeded: false, versions: {} };
+
+  await seedOnce(h, latch, caller);
+  const seeded = rowFor(await h.service.list({ caller }), UPGRADE_SLUG);
+  // The user replaces it with their own build, through the real upgrade verb — the row moves to a version
+  // this system never wrote, which is the plugin domain's own divergence oracle
+  // (`verbs/uninstall-for-all-users.ts`: a `version-diverged` row is one its owner has taken over).
+  await h.service.upgrade({ caller, pluginId: seeded?.id as PluginId, bundle: await bundleAtVersion(UPGRADE_SLUG, "5.0.0") });
+  expect(rowFor(await h.service.list({ caller }), UPGRADE_SLUG)?.version).toBe("5.0.0");
+
+  const shipped = "9.9.9";
+  await createExamplePluginSeeder(
+    seederDeps(h, latch, {
+      packBundle: async (slug) => (slug === UPGRADE_SLUG ? await bundleAtVersion(slug, shipped) : await packShowcaseBundle(slug)),
+      bundledVersion: async (slug): Promise<string | null> => (slug === UPGRADE_SLUG ? shipped : ((await readShowcaseManifest(slug))?.version ?? null)),
+    }),
+  ).ensureSeeded(caller);
+
+  // Untouched: their fork stands, and our provenance record still names what WE last wrote.
+  expect(rowFor(await h.service.list({ caller }), UPGRADE_SLUG)?.version).toBe("5.0.0");
+  expect(latch.versions[UPGRADE_SLUG]).toBe(seeded?.version);
+});
+
+test("#803 a DELETED seeded plugin stays deleted, even when a newer bundle ships", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const latch: SeedLatch = { seeded: false, versions: {} };
+
+  await seedOnce(h, latch, caller);
+  const seeded = rowFor(await h.service.list({ caller }), UPGRADE_SLUG);
+  await h.service.uninstall({ caller, pluginId: seeded?.id as PluginId });
+
+  const shipped = "9.9.9";
+  await createExamplePluginSeeder(
+    seederDeps(h, latch, {
+      packBundle: async (slug) => (slug === UPGRADE_SLUG ? await bundleAtVersion(slug, shipped) : await packShowcaseBundle(slug)),
+      bundledVersion: async (slug): Promise<string | null> => (slug === UPGRADE_SLUG ? shipped : ((await readShowcaseManifest(slug))?.version ?? null)),
+    }),
+  ).ensureSeeded(caller);
+
+  // DELETION-RESPECT is not a second rule in the upgrade half — a row the user removed is simply not in the
+  // held set, so there is nothing to upgrade and the latch still forbids re-installing it.
+  expect(rowFor(await h.service.list({ caller }), UPGRADE_SLUG)).toBeUndefined();
+});
+
+test("#803 a settled boot at EQUAL versions writes nothing at all", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const latch: SeedLatch = { seeded: false, versions: {} };
+
+  await seedOnce(h, latch, caller);
+  const first = await h.service.list({ caller });
+  const recorded = { ...latch.versions };
+
+  // The next boot on the SAME shipped bundles: no install (latched), no upgrade (nothing is newer), and —
+  // the part a version compare alone would not give — no settings write either.
+  const writes: number[] = [];
+  await createExamplePluginSeeder(
+    seederDeps(h, latch, {
+      writeSeededVersions: (): Promise<void> => {
+        writes.push(1);
+        return Promise.resolve();
+      },
+    }),
+  ).ensureSeeded(caller);
+
+  expect(writes).toHaveLength(0);
+  expect(latch.versions).toEqual(recorded);
+  const second = await h.service.list({ caller });
+  expect(second.map((row) => `${row.slug}@${row.version}`).sort()).toEqual(first.map((row) => `${row.slug}@${row.version}`).sort());
+  expect(second.map((row) => row.updatedAt)).toEqual(first.map((row) => row.updatedAt));
 });

@@ -344,6 +344,34 @@ test("onboarding: personaWizardSeen was DELETED (⑥); a stored stale value is s
   expect(parsed.onboarding.defaultPersonaSeeded).toBe(true);
 });
 
+test("onboarding: seededPluginVersions round-trips per slug, and a malformed blob degrades to EMPTY not to a lie", () => {
+  // #803's divergence oracle. It starts EMPTY, which is also the pre-#803 backfill arm the seeder reads as
+  // "adopt whatever this user holds" — so the default is load-bearing, not decoration.
+  expect(DEFAULT_USER_SETTINGS.onboarding.seededPluginVersions).toEqual({});
+
+  const parsed = parseUserSettings({
+    schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
+    onboarding: { examplePluginsSeeded: true, seededPluginVersions: { "card-atlas": "1.1.0", "oracle-deck": "1.0.0" } },
+  });
+  expect(parsed.onboarding.seededPluginVersions).toEqual({ "card-atlas": "1.1.0", "oracle-deck": "1.0.0" });
+  // The latch and the record are INDEPENDENT halves of one seeder: the latch gates installing, the map gates
+  // upgrading, and a pass reads both.
+  expect(parsed.onboarding.examplePluginsSeeded).toBe(true);
+
+  // A blob whose value is the wrong SHAPE falls to `{}` rather than throwing the whole settings read — and
+  // `{}` is the safe arm on purpose: the seeder then treats every held row as adopted and compares versions,
+  // which can at worst cost one redundant upgrade pass that finds nothing newer to do.
+  const salvaged = parseUserSettings({
+    schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
+    onboarding: { examplePluginsSeeded: true, seededPluginVersions: ["card-atlas", "1.1.0"] },
+  });
+  expect(salvaged.onboarding.seededPluginVersions).toEqual({});
+  // FIELD-LOCAL salvage is the load-bearing half: without `.catch({})` ON THIS FIELD the malformed value
+  // fails the whole `onboarding` object and every SIBLING latch resets to its default — which would
+  // resurrect nine uninstalled showcase plugins on the next request. The sibling is the real assertion.
+  expect(salvaged.onboarding.examplePluginsSeeded).toBe(true);
+});
+
 test("workloads: the analysis-tuning knobs are section-patchable (⑤) — maxPairs/hubFraction accepted", () => {
   const parsed = parseUserSettings({
     schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
