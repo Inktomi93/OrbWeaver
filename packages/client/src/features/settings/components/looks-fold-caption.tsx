@@ -7,8 +7,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-
-const HEARTH_NAME = "Hearth";
+import { HEARTH_NAME } from "../lib/seed-theme-identity.ts";
 
 export function LooksFoldCaption(): ReactElement {
   const trpc = useTRPC();

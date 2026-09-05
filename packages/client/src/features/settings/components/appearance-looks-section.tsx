@@ -55,15 +55,13 @@ import { downloadTextFile, notify } from "#lib";
 import { configAnchorId } from "#state";
 import { useCreateTheme, useDuplicateTheme, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
 import { APPEARANCE_LOOKS_SUBCATEGORY } from "../lib/appearance-looks-nav.ts";
+import { HEARTH_NAME } from "../lib/seed-theme-identity.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeInputFromForm } from "../lib/theme-editor-model.ts";
 import { ThemeEditor } from "./theme-editor.tsx";
 import { ThemeMiniSurface } from "./theme-mini-surface.tsx";
 import { ThemeRowMenu } from "./theme-row-menu.tsx";
 
-/** The ONE seed whose selection is spelled `null` — it IS the base `@theme`, so it has no
- *  `[data-theme]` block to select into. Every other theme (seed or owned) writes its own id. */
-const HEARTH_NAME = "Hearth";
 const COPY_SUFFIX = " copy";
 /** The draft id a from-scratch session carries — it keys the editor's mount, and is never sent anywhere. */
 const NEW_THEME_DRAFT_ID = "theme_draft_new";
