@@ -1170,13 +1170,13 @@
     },
     {
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
-      "assignedSha256": "0bbfc1e66968a1dbe4f70e64cada35da58c6662d15ae8967e6b169298125f27a",
+      "assignedSha256": "ea182c70a06e0001034cc7ec90f60387d4bb0f3d68243003222a297a3d781757",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "0bbfc1e66968a1dbe4f70e64cada35da58c6662d15ae8967e6b169298125f27a",
-      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
-      "verifiedAt": "2026-09-04",
+      "verifiedSha256": "ea182c70a06e0001034cc7ec90f60387d4bb0f3d68243003222a297a3d781757",
+      "verifiedCommit": "8d9f2518351118ec99d6a89890ff622c48b4b04b",
+      "verifiedAt": "2026-09-05",
       "evidence": [
         "re-attested at 561ea5ec3 (#1292, full delta read): the RENDERED instruments (#1164) paragraph narrows to `snap` and `design-audit` as the surviving rendered browser instruments; `record`/`motion-audit`/`perf-meter` are now loud compatibility redirects into Snap that open no browser. No other text moved.",
         "re-attested at 9301fdf41 after the unified Snap/run-slot verification changes: full document and delta reconciled against the current 254-gate registry, 2,327-file test manifest, typed immutable Snap run indices, and clean structure receipt main-3229425-2026-09-04T07-04-27-858Z.",
@@ -1195,7 +1195,8 @@
         "delta re-verify 2026-08-30 (bc94c85f16e429e06f1d67b3704072df2098189c, #817 ledgers:fresh merged by the orchestrator, who read the delta in full): the static tier row + the ordered static set gain `ledgers:fresh`, and a full stage bullet records what it checks (the two single-writer ledgers vs the SAME derivation the regenerators run), why (three barrier re-lines in one night while pnpm check stayed green), its cost (19.7s — the census half is the whole-repo ts-morph project the tier already builds), whole-only-by-absence scoping, exit 2 on an empty derivation, and the lane consequence (a newly tracked spec needs a manifest regen after git add); no other line changed; typed claims unaffected",
         "re-attested at da8503537 — #1107 fold (881c70701): §3.3b gains the structure record's timing shape (pass `timing: { totalMs, gateMs }`, per-gate `timing: { totalMs, phaseMs }` measured in the one `guard()` wrapper, floor/ceil arithmetic, the five-slowest console line). Delta read once against a live `pnpm check` artifact; no other text moved.",
         "re-attested at f20da4c30 — fold of #1164 (cb-instrument-slots, claude-b): the rendered instruments (snap/design-audit/record/motion-audit/perf-meter) take per-run artifact slots with atomic per-FILE pointers, reference-aware retention, the tooling-shared-plumbing arm G, and the artifact-out.ts layer split; §3.3b's 'deliberately not slotted' ruling retired with both texts preserved. Delta read once at the fold; no other text moved.",
-        "re-attested at 6c12b4cf3737e94f96df5521f5bd9a5e8c85af1c (#1272, lane p-scoped-red): §3.7's `tests:node` bullet gains the scoped lane's exit semantics — a DERIVED-empty `--changed` selection is a clean skip, because the scoped child carries `--passWithNoTests` (tooling/src/verify/lib/registry.ts), while the whole-scope `pnpm test` and `tests:execution-membership` still red on an empty suite. PD-115 (`vitest.config.ts` passWithNoTests:false) is named and preserved: it judges an ASSERTED selector, this one is DERIVED. Verified by the landed pins (tests/tooling/verify/ops/run.int.test.ts, red-first against HEAD) and a real door run — `pnpm verify --scope tooling/src/verify/ops` on a clean committed tree exits 0 where it exited 1, a dirty-tree run still selected and ran 20 files / 235 tests, and the asserted-zero control (`scoped --scope no/such/dir`) still exits 2. Delta read once; no other text in this document moved."
+        "re-attested at 6c12b4cf3737e94f96df5521f5bd9a5e8c85af1c (#1272, lane p-scoped-red): §3.7's `tests:node` bullet gains the scoped lane's exit semantics — a DERIVED-empty `--changed` selection is a clean skip, because the scoped child carries `--passWithNoTests` (tooling/src/verify/lib/registry.ts), while the whole-scope `pnpm test` and `tests:execution-membership` still red on an empty suite. PD-115 (`vitest.config.ts` passWithNoTests:false) is named and preserved: it judges an ASSERTED selector, this one is DERIVED. Verified by the landed pins (tests/tooling/verify/ops/run.int.test.ts, red-first against HEAD) and a real door run — `pnpm verify --scope tooling/src/verify/ops` on a clean committed tree exits 0 where it exited 1, a dirty-tree run still selected and ran 20 files / 235 tests, and the asserted-zero control (`scoped --scope no/such/dir`) still exits 2. Delta read once; no other text in this document moved.",
+        "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 re-attested at 8d9f25183 by the orchestrator after reading the #1523 diff in full: §3.2 conditional tier membership (`StageDef.tierPrecondition`, tri-state, null = RUN), `tests:tooling` split off `tests:node` (push conditional on tooling/** or tests/tooling/** in the branch diff; full unconditional), the measured 71.1/9.0/1.3 CPU-min receipt and the owner's ask quoted, the `tooling` vitest project partition (one glob, unit/integration subtract, execution-membership proves it)."
       ],
       "claims": [
         {
