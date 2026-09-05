@@ -2,7 +2,9 @@
 //   • a card whose stored hash matches its recorded `importHash` LINKS the avatar (and the store is real).
 //   • a card whose `importHash` does NOT match the stored bytes is counted `mismatched`, NOT linked (the
 //     integrity guard — a wrong/corrupt staging file never overwrites the pointer).
-//   • `dryRun` writes nothing (no store, no link).
+//   • a mismatched card is never STORED — the hash verdict is knowable from the bytes, so rejecting it
+//     costs no row and no blob (an indexed-then-rejected card is GC's problem an hour later).
+//   • `dryRun` writes nothing AND forecasts the real link/mismatch split (the params contract's promise).
 
 import { createHash } from "node:crypto";
 import { assets, characters } from "@orb/db";
@@ -70,23 +72,50 @@ describe("backfillAvatars", () => {
     expect(await avatarOf(db, character)).toBeNull();
   });
 
-  test("dryRun writes nothing", async () => {
+  test("a mismatched card is never STORED — no unreferenced asset is left behind for GC", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
-    const bytes = pngBytes(7, 8);
+    const bytes = pngBytes(4, 5);
+
+    await svc.backfillAvatars({
+      ownerId: owner,
+      cards: [{ characterId: character, bytes, importHash: "deadbeef" }],
+    });
+
+    // The integrity verdict is knowable from the bytes alone, so a rejected card must cost nothing: no row…
+    expect(await db.select().from(assets)).toHaveLength(0);
+    // …and no blob (an indexed-then-rejected card is an unreferenced asset GC has to clean up an hour later).
+    expect(await h.ctx.cas.exists(owner, sha256(bytes))).toBe(false);
+  });
+
+  test("dryRun forecasts the link/mismatch split without writing anything", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
+    const villain = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("villain") });
+    const good = pngBytes(7, 8);
+    const bad = pngBytes(9, 10);
 
     const result = await svc.backfillAvatars({
       ownerId: owner,
-      cards: [{ characterId: character, bytes, importHash: sha256(bytes) }],
+      cards: [
+        { characterId: hero, bytes: good, importHash: sha256(good) },
+        { characterId: villain, bytes: bad, importHash: "deadbeef" },
+      ],
       dryRun: true,
     });
 
-    expect(result).toEqual({ scanned: 1, linked: 0, mismatched: 0, dryRun: true });
-    expect(await avatarOf(db, character)).toBeNull();
+    // "Report what WOULD link" (the params contract) — a forecast that always says 0/0 forecasts nothing.
+    expect(result).toEqual({ scanned: 2, linked: 1, mismatched: 1, dryRun: true });
+    expect(await avatarOf(db, hero)).toBeNull();
+    expect(await avatarOf(db, villain)).toBeNull();
     expect(await db.select().from(assets)).toHaveLength(0);
   });
 });
