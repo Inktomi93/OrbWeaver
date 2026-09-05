@@ -41,6 +41,7 @@ import { useEffect, useState } from "react";
 import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { CharacterHistoryTab } from "../../../../packages/client/src/features/character/components/character-history-tab.tsx";
 import { CharacterOverviewCard } from "../../../../packages/client/src/features/character/components/character-overview-card.tsx";
+import { CharacterRelationsTab } from "../../../../packages/client/src/features/character/components/character-relations-tab.tsx";
 import { CharacterTagsRow } from "../../../../packages/client/src/features/character/components/character-tags-row.tsx";
 import { CtAppDataProviders, CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
@@ -615,6 +616,19 @@ export function CharacterOverviewCardStory(): ReactElement {
     <CtDataProviders>
       <div style={{ padding: 16, width: 384 }}>
         <CharacterOverviewCard characterId={castId<CharacterId>("character_ctoverviewcard1")} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The CONTEXT Relations tab alone, at the docked panel's 384px. Alone because its subject is the two
+ *  reads each section is built from — the whole context pane would drag in five ambient reads whose
+ *  failures are not what is being asserted. */
+export function CharacterRelationsTabStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ padding: 16, width: 384 }}>
+        <CharacterRelationsTab characterId={castId<CharacterId>("character_ctrelationstab1")} />
       </div>
     </CtDataProviders>
   );

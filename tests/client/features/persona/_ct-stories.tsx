@@ -14,6 +14,7 @@ import type { ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { FirstRunPersonaDialog } from "../../../../packages/client/src/features/persona/anchors/first-run-persona-dialog.tsx";
 import { PersonaEditor } from "../../../../packages/client/src/features/persona/components/persona-editor.tsx";
 import { PersonaList } from "../../../../packages/client/src/features/persona/components/persona-list.tsx";
 import { PersonaThisChatSection } from "../../../../packages/client/src/features/persona/components/persona-this-chat-section.tsx";
@@ -185,6 +186,17 @@ export function PersonaPanelRowStory(): ReactElement {
         />
         <p data-testid="fired">{fired}</p>
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The FIRST-RUN persona gate — the forced dialog a viewer who owns zero personas meets before chatting.
+ *  Mounted bare, the way `AppRoot` mounts it (an AppShell sibling on `/`): the gate reads `persona.list`
+ *  itself and renders nothing until the zero-personas trigger fires. */
+export function FirstRunPersonaDialogStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <FirstRunPersonaDialog />
     </CtDataProviders>
   );
 }

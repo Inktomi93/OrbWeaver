@@ -7,9 +7,9 @@
 //   · the host's `filter`, applied by the owner's own rows.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { WorldInfoCollectionRowsStory } from "../_ct-stories.tsx";
 
 /** Any row STATE-TOGGLE name (§12's toggle arm) — world-info deliberately has none. */
@@ -87,4 +87,49 @@ test("the host's filter is applied by the owner's rows", async ({ mount, page })
 
   await expect(rows.getByText("Scratch lore")).toBeVisible();
   await expect(rows.getByText("The Ninefold Reach")).toHaveCount(0);
+});
+
+// ── #1501 · THE SELECTION CLEARS WHEN THE BOOK IS GONE, NOT WHEN THE DELETE IS SENT ──────────────
+// The clear ran synchronously before `remove.mutate(...)`, so a REJECTED delete still threw the reader out
+// of a book that still exists — CONTENT fell back to the workspace welcome with nothing but a toast to say
+// why. The reason for clearing is unchanged (CONTENT must not hold a dead editor over a deleted id); it
+// simply only applies once the id IS deleted.
+async function deleteTheOpenBook(rows: Locator, page: Page): Promise<void> {
+  await rows.locator('[data-slot="list-row-root"]', { hasText: REACH.name }).hover();
+  await rows.getByRole("button", { name: `Actions for ${REACH.name}`, exact: true }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  const confirm = page.getByRole("alertdialog");
+  if (await confirm.isVisible()) {
+    await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+  }
+}
+
+test("a REJECTED delete keeps the reader in the book that still exists (#1501)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "worldInfo.listBooksWithUsage": () => [REACH, SCRATCH],
+    "worldInfo.removeBook": () => trpcError({ message: "delete failed" }),
+  });
+  const rows = await mount(<WorldInfoCollectionRowsStory selectedId={REACH.id} />);
+  const open = rows.getByRole("status", { name: "Open collection member" });
+  await expect(open).toHaveText(REACH.id);
+
+  await deleteTheOpenBook(rows, page);
+
+  await expect.poll(() => trpc.count("worldInfo.removeBook"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(open).toHaveText(REACH.id);
+});
+
+test("a SUCCESSFUL delete does clear it — CONTENT must not hold a dead editor (#1501, the other direction)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "worldInfo.listBooksWithUsage": () => [REACH, SCRATCH],
+    "worldInfo.removeBook": () => null,
+  });
+  const rows = await mount(<WorldInfoCollectionRowsStory selectedId={REACH.id} />);
+  const open = rows.getByRole("status", { name: "Open collection member" });
+  await expect(open).toHaveText(REACH.id);
+
+  await deleteTheOpenBook(rows, page);
+
+  await expect.poll(() => trpc.count("worldInfo.removeBook"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(open).toHaveText("none");
 });

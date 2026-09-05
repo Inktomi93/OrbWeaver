@@ -121,3 +121,39 @@ test("a SUCCESSFUL 'Run in every chat' still clears the selection (#1501, the ot
   await expect.poll(() => trpc.count("regex.bulkSetGlobal"), { intervals: [20, 50, 100] }).toBe(1);
   await expect(count).toHaveText("0");
 });
+
+// ONE PIN PROVES ONE VERB (#1569). The row's defect was FOUR gated verbs — the two GLOBAL menu items, the
+// placement apply, and the delete — so the remaining two get their own arms rather than riding the first's.
+test("a REJECTED placement apply keeps the selection that names its targets (#1501)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "regex.bulkSetPlacement": () => trpcError({ message: "placement write failed" }) });
+  const component = await mount(<RegexBulkBarStory />);
+  const count = component.getByRole("status", { name: "Bulk selection count" });
+
+  await component.getByRole("button", { name: /^More actions for/ }).click();
+  await page.getByRole("menuitem", { name: "Change where they run" }).click();
+  const picker = page.getByRole("dialog");
+  await expect(picker).toBeVisible();
+  // Apply is gated on a non-empty stream set (an empty placement is not a write), so pick the first chip.
+  await picker.locator("[aria-pressed]").first().click();
+  await picker.getByRole("button", { name: "Apply", exact: true }).click();
+
+  await expect.poll(() => trpc.count("regex.bulkSetPlacement"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(count).toHaveText("2");
+});
+
+test("a REJECTED bulk DELETE keeps bulk mode and its selection (#1501)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "regex.bulkRemove": () => trpcError({ message: "bulk delete failed" }) });
+  const component = await mount(<RegexBulkBarStory />);
+  const count = component.getByRole("status", { name: "Bulk selection count" });
+
+  await component.getByRole("button", { name: /^More actions for/ }).click();
+  await page.getByRole("menuitem", { name: /^Delete/ }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete", exact: true }).click();
+
+  await expect.poll(() => trpc.count("regex.bulkRemove"), { intervals: [20, 50, 100] }).toBe(1);
+  // The scripts are all still there, so the MODE operating on them must be too. The mode is the observable
+  // here and the count is not: the delete arm stands down through `exitRegexBulkMode()` (the shared bulk
+  // store), never through the host's `onClear`, so a count-only assertion is blind to this verb.
+  await expect(component.getByRole("status", { name: "Bulk mode" })).toHaveText("on");
+  await expect(count).toHaveText("2");
+});

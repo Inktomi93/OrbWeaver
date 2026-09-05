@@ -12,12 +12,12 @@
 // `character.get`/`chat.listChats`/`character.update` are stubbed at the NETWORK (routeTrpc).
 
 import type { CharacterHandle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../../../../support/ct/autosave-status-transcript.ts";
 import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
 import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import { userSettingsView } from "../../../../support/ct/user-settings-view.ts";
@@ -1082,4 +1082,88 @@ test("#1138 an Overview value is NAMED BY its label, not merely adjacent to it",
   // attribute computes to no name at all. This is the pin that catches a "fix" that regresses to it.
   const value = row.getByText("chub");
   await expect(value).toHaveAccessibleName("");
+});
+
+// ── #1501 · UPLOAD-COMPLETE IS NOT COMMIT ────────────────────────────────────────────────────────
+// The portrait swapped and the confirm ring flashed on the same tick as `character.update` was SENT, so a
+// rejected write left the new face on screen — over a card that still wears the old one everywhere else —
+// and the ring said it had been saved. The blob landing in the CAS says nothing about the character row
+// pointing at it; both the preview and its confirmation belong to the WRITE.
+//
+// `CARD` carries `avatarHash: null`, so the observable is exact and needs no hash comparison: before the
+// upload the hero paints its initials with no `<img>` at all, and a rejected update must not create one.
+// The multipart upload is raw fetch, not tRPC — `page.route` it the way the appearance-background CT does.
+const UPLOAD_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+
+// MINTED, never hand-written: `uploadAsset` parses its own response through `storedAssetSchema`, so a
+// short-suffix literal makes the upload THROW before it can drive the write this pin is about.
+const PORTRAIT_ASSET_ID = mintTypeId(ID_PREFIX.asset);
+
+/** The CAS hash width `storedAssetSchema` enforces (`packages/contracts/src/assets/index.ts:78` — the
+ *  constant is module-private there, so it is spelled here rather than widening a contract for a test). */
+const CAS_HASH_HEX_CHARS = 64;
+
+/** A CAS hash the CONTRACT accepts. `uploadAsset` parses its own response through `storedAssetSchema`,
+ *  whose `hash` is `z.string().length(...)` — a short readable literal makes the upload THROW into the
+ *  caller's catch, and every write it was supposed to drive silently never happens. */
+function casHash(seed: string): string {
+  return seed.repeat(Math.ceil(CAS_HASH_HEX_CHARS / seed.length)).slice(0, CAS_HASH_HEX_CHARS);
+}
+
+async function routeUpload(page: Page, hash: string): Promise<void> {
+  await page.route("**/api/assets/upload", async (route) => {
+    await route.fulfill({ json: { assetId: PORTRAIT_ASSET_ID, hash, size: UPLOAD_PNG.length, created: true } });
+  });
+  // The BLOB read too: `Avatar` renders its `<img>` only once the image LOADS, so an unrouted blob 404s and
+  // the avatar falls back to initials — which would make "no img" true on the success arm as well and turn
+  // the pair into one unfalsifiable assertion.
+  await page.route("**/api/blob/**", async (route) => {
+    await route.fulfill({ body: UPLOAD_PNG, contentType: "image/png" });
+  });
+}
+
+async function pickAPortrait(component: Locator): Promise<void> {
+  await component.locator('[data-slot="file-trigger-input"]').setInputFiles({ name: "aria.png", mimeType: "image/png", buffer: UPLOAD_PNG });
+}
+
+test("a REJECTED portrait update leaves the OLD portrait on screen (#1501)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+    "character.get": () => CARD,
+    "character.list": characterListResponder(EDITOR_LIBRARY),
+    "chat.listChats": chatListResponder([]),
+    "character.update": () => trpcError({ message: "portrait write failed" }),
+  });
+  await routeUpload(page, casHash("ab"));
+  const component = await mount(<CharacterEditorSurfaceStory />);
+  const portrait = component.getByRole("button", { name: "Replace portrait" });
+  await expect(portrait).toBeVisible();
+  await expect(portrait.locator("img")).toHaveCount(0);
+
+  await pickAPortrait(component);
+
+  // The write was attempted and refused, so the card still wears what it wore — no preview, no confirm ring.
+  await expect.poll(() => trpc.count("character.update"), { intervals: [20, 50, 100, 200] }).toBe(1);
+  await expect(portrait.locator("img")).toHaveCount(0);
+});
+
+const ACCEPTED_HASH = casHash("cd");
+
+test("a SUCCESSFUL portrait update DOES paint the new face (#1501, the other direction)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+    "character.get": () => CARD,
+    "character.list": characterListResponder(EDITOR_LIBRARY),
+    "chat.listChats": chatListResponder([]),
+    "character.update": () => CARD,
+  });
+  await routeUpload(page, ACCEPTED_HASH);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+  const portrait = component.getByRole("button", { name: "Replace portrait" });
+  await expect(portrait).toBeVisible();
+
+  await pickAPortrait(component);
+
+  await expect.poll(() => trpc.count("character.update"), { intervals: [20, 50, 100, 200] }).toBe(1);
+  await expect(portrait.locator("img")).toHaveAttribute("src", new RegExp(ACCEPTED_HASH));
 });

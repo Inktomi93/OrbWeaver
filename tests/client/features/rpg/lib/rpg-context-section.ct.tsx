@@ -4445,3 +4445,19 @@ test("#149 the band holds its box open while `getTrackerView` is in flight, and 
   await expect(reservation).toHaveCount(0);
   await expect.poll(async () => await band.evaluate((el) => el.getBoundingClientRect().height)).toBeLessThanOrEqual(pending);
 });
+
+// ── #1500 · THE JOURNAL'S CARD SCOPE IS A PROJECTION OVER TWO READS ──────────────────────────────
+// The Journal archives the SAME cards the Scene home births, through the same `collectArchivedCards` over
+// the same `chat.listMessages` cache — and it collapsed a failed transcript read into the same empty array
+// as a game that has crafted nothing, so the scope said "No cards yet — the story crafts them." about a
+// transcript it had failed to read. Pinned at the takeover, which is this tab's only mount.
+test("Journal ▸ Cards: a FAILED transcript read never says 'No cards yet' (#1500)", async ({ mount, page }) => {
+  await stubTakeover(page, { game: cardsGame(), messages: trpcError({ message: "transcript read failed" }) });
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
+  await component.getByRole("button", { name: "Cards" }).click();
+
+  await expect(component.getByText("Couldn't load the card archive.")).toBeVisible();
+  await expect(component.getByText("No cards yet", { exact: false })).toHaveCount(0);
+});

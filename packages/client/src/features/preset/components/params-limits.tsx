@@ -32,6 +32,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
+import { useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
@@ -305,19 +306,7 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
               disturbed. A blur that stores a map re-mounts with the CANONICAL serialization of what was
               actually stored, which is also the honest answer to "invalid JSON is ignored" — the box now
               shows what the preset holds instead of text that looks saved and is not. */}
-          <form.Subscribe selector={(state): string => serializeLogitBias(state.values.params.logitBias)}>
-            {(serialized): ReactElement => (
-              <Field hint="A JSON map of token id → bias (-100…100). Nudges or blocks specific tokens. Invalid JSON is ignored." label="Logit bias">
-                <Textarea
-                  aria-label="Logit bias"
-                  defaultValue={serialized}
-                  key={serialized}
-                  onBlur={(e): void => form.setFieldValue("params.logitBias", parseLogitBias(e.target.value))}
-                  rows={3}
-                />
-              </Field>
-            )}
-          </form.Subscribe>
+          <LogitBiasField form={form} />
           <FieldLayout orientation="horizontal">
             <form.Subscribe selector={(state): boolean => state.values.params.advanced?.parallelToolCalls === true}>
               {(parallel): ReactElement => (
@@ -352,6 +341,47 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
         </Stack>
       </CollapsiblePanel>
     </Collapsible>
+  );
+}
+
+/**
+ * The logit-bias escape hatch — the deck's ONE uncontrolled field, and therefore the only one that needed a
+ * key (#1502). It is uncontrolled because the value is a JSON MAP the user edits as TEXT: a controlled
+ * `value` would round-trip through `parseLogitBias` on every keystroke and eat any half-typed brace. But
+ * React applies `defaultValue` at MOUNT and never again, so switching presets left the previous preset's
+ * JSON sitting in the box, and — the half that made it a two-writer bug rather than a display glitch — the
+ * next `onBlur` wrote that stale text back over the newly-loaded preset's bias map.
+ *
+ * THE KEY IS THE STORED SERIALIZATION **PLUS A BLUR EPOCH**, and the epoch is the #1570 half. The stored
+ * serialization alone made the field's own ruling — "a blur re-mounts with the CANONICAL serialization of
+ * what was actually stored, which is the honest answer to 'invalid JSON is ignored'" — true in only one
+ * direction. Blur invalid text OVER a stored map and the map becomes `undefined`, the key changes, the box
+ * clears: correct. Blur the SAME invalid text with NO stored map and the field value does not move, so the
+ * key does not either, so the box keeps text that looks saved and is not. One input, two behaviours.
+ *
+ * The epoch makes every blur a remount, so the box always shows what the preset HOLDS. Typing still changes
+ * nothing (the epoch moves on blur, the serialization only when the form value does), so an open edit is
+ * never disturbed — which is the property the key was introduced to protect.
+ */
+function LogitBiasField({ form }: { readonly form: AppForm }): ReactElement {
+  const [blurEpoch, setBlurEpoch] = useState(0);
+  return (
+    <form.Subscribe selector={(state): string => serializeLogitBias(state.values.params.logitBias)}>
+      {(serialized): ReactElement => (
+        <Field hint="A JSON map of token id → bias (-100…100). Nudges or blocks specific tokens. Invalid JSON is ignored." label="Logit bias">
+          <Textarea
+            aria-label="Logit bias"
+            defaultValue={serialized}
+            key={`${String(blurEpoch)}:${serialized}`}
+            onBlur={(e): void => {
+              form.setFieldValue("params.logitBias", parseLogitBias(e.target.value));
+              setBlurEpoch((epoch: number): number => epoch + 1);
+            }}
+            rows={3}
+          />
+        </Field>
+      )}
+    </form.Subscribe>
   );
 }
 

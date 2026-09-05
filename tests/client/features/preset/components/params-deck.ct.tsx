@@ -1012,3 +1012,37 @@ test("CUSTOM PARAMS — a RESET reseeds the rows; the pre-reset keys do not surv
   await expect(deck.getByRole("textbox", { name: "Parameter 1 value" })).toHaveValue("0.1");
   await expect(deck.getByRole("textbox", { name: "Parameter 2 name" })).toHaveCount(0);
 });
+
+// ── #1570 item 3 · THE BOX ALWAYS SHOWS WHAT THE PRESET HOLDS, IN BOTH DIRECTIONS ────────────────
+// The field's own ruling is "a blur re-mounts with the CANONICAL serialization of what was actually stored
+// — the honest answer to 'invalid JSON is ignored'". Keyed on the stored serialization ALONE that was true
+// in one direction only: blurring invalid text OVER a stored map moves the value to `undefined`, so the key
+// changes and the box clears; blurring the SAME text with NO stored map moves nothing, so the key does not
+// change and the box keeps text that looks saved and is not. One input, two behaviours — this is the arm
+// that had none, and the arm below is the one that already worked, pinned so the epoch cannot regress it.
+const INVALID_BIAS = "{not json";
+
+test("LOGIT BIAS — invalid text over an EMPTY map clears on blur, exactly as it does over a stored one (#1570)", async ({ mount, page }) => {
+  const deck = await mount(<ParamsDeckGhostStory />);
+  await openAdvanced(deck);
+
+  const box = deck.getByRole("textbox", { name: "Logit bias" });
+  await expect(box).toHaveValue("");
+  await box.fill(INVALID_BIAS);
+  // Blur is the commit: the field is uncontrolled by design (a controlled value would eat a half-typed brace).
+  await page.keyboard.press("Tab");
+
+  await expect(box).toHaveValue("");
+});
+
+test("LOGIT BIAS — a VALID map survives its own blur (#1570, the other direction)", async ({ mount, page }) => {
+  const deck = await mount(<ParamsDeckGhostStory />);
+  await openAdvanced(deck);
+
+  const box = deck.getByRole("textbox", { name: "Logit bias" });
+  await box.fill('{"7":50}');
+  await page.keyboard.press("Tab");
+
+  // Canonical serialization of what was STORED — not the raw text, and not an empty box.
+  await expect(box).toHaveValue('{"7":50}');
+});

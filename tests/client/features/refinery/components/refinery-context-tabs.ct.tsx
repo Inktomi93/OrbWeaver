@@ -14,9 +14,9 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { makeCharacterDetail } from "../../character/fixtures.ts";
-import { RefineryDoorStory, RunsTabBodyStory, SetupTabBodyStory } from "../_ct-stories.tsx";
+import { RefineryDoorStory, RunsTabBodyStory, SetupTabBodyStory, VersionsTabBodyStory } from "../_ct-stories.tsx";
 
 // MINTED, never hand-written (the `typeIdSchema` 26-char-suffix rule).
 const SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
@@ -300,4 +300,29 @@ test("the Setup tab reaches EDITING a saved schema — the update verb had no do
   await rowChangeButton(page, "Score schema").click();
   await expect(page.getByText('Edit "Vividness scorer"', { exact: true })).toBeVisible();
   await expect(page.getByText('"x-orb-ui"')).toBeVisible();
+});
+
+// ── #1500 · "NO VERSIONS YET" IS A CLAIM ABOUT THE SNAPSHOT LOG ──────────────────────────────────
+// `snapshots.data ?? []` collapsed pending, empty and FAILED into one sentence — and the empty arm offers
+// to MINT the first snapshot, so a reader whose list merely failed to load was invited to write a version
+// of a card that already has a dozen. The list is a plain `useQuery`, so both non-empty arms are this
+// body's own to render.
+test("a FAILED snapshot list never says 'No versions yet', and its Retry re-reads (#1500)", async ({ mount, page }) => {
+  let attempts = 0;
+  const trpc = await routeTrpc(page, {
+    "character.get": () => CARD,
+    "character.listSnapshots": () => (attempts++ === 0 ? trpcError({ message: "snapshot list failed" }) : []),
+  });
+  const tab = await mount(<VersionsTabBodyStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+
+  await expect(tab.getByText("Couldn't load this card's versions.")).toBeVisible();
+  await expect(tab.getByText("No versions yet")).toHaveCount(0);
+  // The offer to mint the first snapshot belongs to a KNOWN-empty log, never an unread one.
+  await expect(tab.getByRole("button", { name: "Snapshot the card now" })).toHaveCount(0);
+
+  await tab.getByRole("button", { name: "Retry" }).click();
+  await expect.poll(() => trpc.count("character.listSnapshots"), { intervals: [20, 50, 100] }).toBe(2);
+  // A log that really IS empty is a different answer, and the tab is entitled to make its offer then.
+  await expect(tab.getByText("No versions yet")).toBeVisible();
+  await expect(tab.getByRole("button", { name: "Snapshot the card now" })).toBeVisible();
 });
