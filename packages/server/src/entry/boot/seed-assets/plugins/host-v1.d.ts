@@ -645,6 +645,30 @@ interface PluginHostV1 {
     set: (key: string, value: string) => Promise<void>;
     delete: (key: string) => Promise<void>;
     list: (prefix?: string) => Promise<readonly string[]>;
+    /** ATOMIC compare-and-set. Writes `next` only while the key still holds `expected` — pass `null` for
+     *  `expected` to mean "the key must not exist yet". Resolves `{ applied, current }`: `applied` is whether
+     *  YOUR write landed, and `current` is what the key holds now, which on a refusal is the value that beat
+     *  you and is therefore your next `expected`. Losing the race is DATA, never a throw. Same `storage.kv`
+     *  grant and the same ceilings as `set`.
+     *
+     *  USE THIS, NOT `get` + `set`, FOR ANY VALUE YOU DERIVE FROM ITS OWN PREVIOUS VALUE — counters, tallies,
+     *  running scores, session records. Your handlers run CONCURRENTLY inside one process: a message event, a
+     *  tool call and a surface action can each be awaiting a host call between your read and your write, and
+     *  the last `set` silently wins, discarding the others. You cannot fix that guest-side — there are no
+     *  timers, no randomness and no locks in here — so the retry is a plain bounded loop with no waiting:
+     *
+     *      async function bump(key) {
+     *        for (let attempt = 0; attempt < 5; attempt += 1) {
+     *          const current = await host.storage.get(key);
+     *          const next = String((Number(current) || 0) + 1);
+     *          const result = await host.storage.compareAndSet(key, current, next);
+     *          if (result.applied) return next;
+     *        }
+     *        return null; // contended past the bound — decide what that means for YOUR plugin
+     *      }
+     *
+     *  (After the first attempt you can skip the `get` and feed `result.current` back in as `expected`.) */
+    compareAndSet: (key: string, expected: string | null, next: string) => Promise<{ applied: boolean; current: string | null }>;
   };
 
   readonly notifications: {

@@ -72,14 +72,17 @@ interface WorkloadQueueFailure {
 /** Called synchronously after a queued-row failure UPDATE settles; the engine supplies the bus publisher. */
 export type WorkloadQueueFailureSink = (failure: WorkloadQueueFailure) => void;
 
-/** What the BOOT reclaim (#529) needs about one orphaned in-flight row, and nothing else. Deliberately NOT
- *  a `WorkloadRowAnyKind`: the reclaim decides disposition from the kind's declared resume policy + the
- *  row's respawn count, so it must also dispose of rows whose params no longer parse (poison) — which the
- *  view path surfaces with `params: null` — and rows of a kind this build no longer ships, which the view
- *  path narrows away entirely. The column's declared type is the tuple, so a deploy-skew kind is a RUNTIME
- *  possibility only; the reclaim resolves it against the registry and treats an absent one as
- *  non-resumable. */
-export interface WorkloadBootReclaimRow {
+/** What a DISPOSITION path needs about one in-flight row, and nothing else — read by BOTH the boot reclaim
+ *  (#529) and the steady-state stale sweep (#1413). Deliberately NOT a `WorkloadRowAnyKind`: a disposition
+ *  decides from the kind's declared resume policy + the row's respawn count + its lease, never from params,
+ *  so it must also dispose of rows whose params no longer parse (poison) — which the view path surfaces with
+ *  `params: null` — and rows of a kind this build no longer ships, which the view path narrows away
+ *  ENTIRELY. That last case is why this shape is shared rather than boot-only: the sweep used to project
+ *  through `toView`, so an unknown-kind row could never be terminalized and held its kind's single-active
+ *  slot until a process restart. The column's declared type is the tuple, so a deploy-skew kind is a RUNTIME
+ *  possibility only (the DDL's `workloads_kind_check` constrains writes, not rows already on disk); each
+ *  disposition resolves it against the registry and treats an absent one as non-resumable. */
+export interface WorkloadInFlightRow {
   readonly id: WorkloadId;
   readonly kind: WorkloadKind;
   /** How many times boot has already re-queued this row without the run reporting progress since. */

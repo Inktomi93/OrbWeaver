@@ -3,7 +3,7 @@
 export type { DistributedPluginApplier, DistributedPluginApplierDeps } from "./apply-distributed-plugins.ts";
 export { createDistributedPluginApplier } from "./apply-distributed-plugins.ts";
 export type { MigrateDeps } from "./migrate.ts";
-export { resolveMigrationsFolder, runBootMigrations } from "./migrate.ts";
+export { DB_LAUNCHED, resolveMigrationsFolder, runBootMigrations } from "./migrate.ts";
 export type { ReclaimLocksDeps } from "./reclaim-locks.ts";
 export { reclaimLocksOnBoot } from "./reclaim-locks.ts";
 export { readSeedAvatar } from "./seed-assets/index.ts";

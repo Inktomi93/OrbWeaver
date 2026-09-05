@@ -95,30 +95,83 @@ describe("createPersonaSeedLatch — the seeder never relitigates a persona pick
     expect(config.seeds.currentPersonaId).toBe(seeded);
   });
 
-  test("the layer-2 heal (markSeeded with null) lands the latch and moves NO pointer", async ({ db, services }) => {
+  // #1412 — THE ORDER IS THE INVARIANT, and this is a defect proof, not a fence. `markSeeded` used to write
+  // `onboarding.defaultPersonaSeeded: true` FIRST and the `seeds.*` pointers in a SECOND update: a crash
+  // between them left a created persona with no pointers while the committed latch permanently suppressed
+  // re-seeding (`isSeeded` short-circuits `seed()` before layer 2 is ever consulted). The latch is the LAST
+  // write now, so it means "complete" — an interruption leaves the pass retryable and loses nothing.
+  test("a crash BETWEEN the two settings writes leaves the seed RETRYABLE — the latch never lands first", async ({ db, services }) => {
+    const user = (await seedUser(db, { handle: castId("interrupted") })).id;
+    const principal = principalOf(user);
+    const seeded = castId<PersonaId>("persona_the_seeder_just_made");
+    let writes = 0;
+    const flakySettings = {
+      getUserSettings: (args: Parameters<typeof services.settings.getUserSettings>[0]): ReturnType<typeof services.settings.getUserSettings> =>
+        services.settings.getUserSettings(args),
+      updateUserSettingsSection: async (
+        args: Parameters<typeof services.settings.updateUserSettingsSection>[0],
+      ): ReturnType<typeof services.settings.updateUserSettingsSection> => {
+        writes += 1;
+        if (writes === 2) {
+          throw new Error("cb-1412 probe: the process died between the two settings writes");
+        }
+        return await services.settings.updateUserSettingsSection(args);
+      },
+    };
+    const latch = createPersonaSeedLatch({ settings: flakySettings, getPersona: () => services.persona });
+
+    await expect(latch.markSeeded(principal, seeded)).rejects.toThrow(/died between the two settings writes/u);
+
+    const config = (await services.settings.getUserSettings({ principal })).config;
+    // The latch is a COMPLETENESS claim: an interrupted mark must leave the user re-seedable.
+    expect(config.onboarding.defaultPersonaSeeded).toBe(false);
+    // …and the half that DID land is the pointers, so the created persona is already reachable.
+    expect(config.seeds.defaultPersonaId).toBe(seeded);
+    expect(config.seeds.currentPersonaId).toBe(seeded);
+  });
+
+  // #1412, the other half of "the latch means complete": the layer-2 heal now REPAIRS null pointers instead
+  // of leaving them null forever. FENCE at THIS tier (it passed pre-fix — `markSeeded` always filled null
+  // pointers when handed an id; the defect was that the heal never handed one over), and the defect proof
+  // lives one tier up at `tests/server/entry/boot/seed-default-persona.int.test.ts` — "a LOST latch does not
+  // mint a second default persona", whose second mark used to carry `null`. FORK, stated: the prior comment on this factory read "the surviving row's
+  // id is NOT handed over: pointing seeds.defaultPersonaId/currentPersonaId at it here would relitigate a
+  // pick the user may have made", and the pin that encoded it asserted `markSeeded(principal, null)` moves no
+  // pointer. That mechanism is PRESERVED exactly — the `=== null` guards below are the same PICK LAW guards,
+  // so an explicit pick is still untouchable — but its premise does not hold for a pointer that is NULL: the
+  // #461 incident this heal exists for is a settings blob that came back at schema defaults, which nulls the
+  // pointers too, and leaving them null is the incomplete state the row asks to have repaired on next boot.
+  test("the layer-2 heal REPAIRS null pointers at the surviving artifact, and still never moves a pick", async ({ db, services }) => {
     const user = (await seedUser(db, { handle: castId("healed") })).id;
     const principal = principalOf(user);
     const latch = createPersonaSeedLatch({ settings: services.settings, getPersona: () => services.persona });
+    const survivor = await services.persona.create({
+      principal,
+      input: { name: "Traveler", description: "the seeded one that outlived its latch", metadata: { seededDefault: true } },
+    });
 
-    await latch.markSeeded(principal, null);
+    await latch.markSeeded(principal, survivor.id);
 
     const config = (await services.settings.getUserSettings({ principal })).config;
     expect(config.onboarding.defaultPersonaSeeded).toBe(true);
-    expect(config.seeds.defaultPersonaId).toBeNull();
-    expect(config.seeds.currentPersonaId).toBeNull();
+    expect(config.seeds.defaultPersonaId).toBe(survivor.id);
+    expect(config.seeds.currentPersonaId).toBe(survivor.id);
   });
 
-  test("ownsSeededDefault sees the seeder's artifact and nothing else", async ({ db, services }) => {
+  test("findSeededDefault returns the seeder's artifact id and nothing else", async ({ db, services }) => {
     const user = (await seedUser(db, { handle: castId("artifact") })).id;
     const principal = principalOf(user);
     const latch = createPersonaSeedLatch({ settings: services.settings, getPersona: () => services.persona });
 
     // A library of the user's OWN personas never suppresses the seed — the recorded ruling this fix preserves.
     await services.persona.create({ principal, input: { name: "Traveler", description: "same name, mine" } });
-    expect(await latch.ownsSeededDefault(principal)).toBe(false);
+    expect(await latch.findSeededDefault(principal)).toBeNull();
 
-    await services.persona.create({ principal, input: { name: "Traveler", description: "the seeded one", metadata: { seededDefault: true } } });
-    expect(await latch.ownsSeededDefault(principal)).toBe(true);
+    const seeded = await services.persona.create({
+      principal,
+      input: { name: "Traveler", description: "the seeded one", metadata: { seededDefault: true } },
+    });
+    expect(await latch.findSeededDefault(principal)).toBe(seeded.id);
   });
 });
 

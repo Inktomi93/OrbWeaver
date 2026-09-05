@@ -55,13 +55,44 @@ function buildPrompt(messages) {
   return `Read this excerpt from a roleplay scene and rate how warm and close the participants are toward each other, from ${SCORE_MIN} (hostile) to ${SCORE_MAX} (intimate). Answer with the number and nothing else.\n\n${transcript}`;
 }
 
-/** Read + bump the per-chat message counter. Returns the new count. The counter lives in the plugin's OWN KV
- *  (per plugin × installing owner), so it is invisible to every other plugin and to the room. */
+/** How many times a contended compare-and-set is retried before this plugin gives up on the write. There is
+ *  no backoff and none is possible — the sandbox has no timers and no randomness — but none is needed: the
+ *  loop never waits, it only re-reads the value that beat it, and each turn is one host call. */
+const CAS_ATTEMPTS = 5;
+
+/** Derive a stored value from its own previous value, ATOMICALLY. Returns the value that landed, or `null`
+ *  when the key stayed contended past the bound.
+ *
+ *  WHY, stated exactly, because the obvious version is wrong: this plugin's own SERVER handlers do NOT race
+ *  each other — `infra/plugin-host/port.ts` runs every invoke on one resident through a serialized tail chain,
+ *  so a tool call, an event delivery and a panel action never interleave. What is NOT serialized is the OTHER
+ *  caller of the same KV rows: a Tier-C scripted `ui.js` reaches `storage.*` through `plugin.uiHostCall`,
+ *  which goes straight to the bridge with no queue at all — and two browser tabs are two such callers. So any
+ *  value derived from its own previous value needs a compare-and-set the moment a plugin grows a client-side
+ *  writer, which is the moment nobody remembers to come back and add one.
+ *
+ *  `host.storage.compareAndSet` writes only while the key still holds what we read, and reports the value
+ *  that won when it does not — which is exactly the input the next attempt needs, so a retry costs no extra
+ *  read. Copy this helper; it is the house idiom for a counter. */
+async function updateStored(key, nextFrom) {
+  let current = await host.storage.get(key);
+  for (let attempt = 0; attempt < CAS_ATTEMPTS; attempt += 1) {
+    const next = nextFrom(current);
+    const result = await host.storage.compareAndSet(key, current, next);
+    if (result.applied) {
+      return next;
+    }
+    current = result.current;
+  }
+  return null;
+}
+
+/** Read + bump the per-chat message counter. Returns the new count, or `null` when the counter stayed
+ *  contended. The counter lives in the plugin's OWN KV (per plugin × installing owner), so it is invisible to
+ *  every other plugin and to the room. */
 async function bumpCount(chatId) {
-  const raw = await host.storage.get(countKey(chatId));
-  const next = (Number(raw) || 0) + 1;
-  await host.storage.set(countKey(chatId), String(next));
-  return next;
+  const next = await updateStored(countKey(chatId), (raw) => String((Number(raw) || 0) + 1));
+  return next === null ? null : Number(next);
 }
 
 /** Ask the model, parse strictly, clamp. `null` for every failure shape — an unusable answer is not a score. */
@@ -84,7 +115,13 @@ async function readScore(chat) {
  *  participant, and can never name a recipient at all. */
 async function announceIfMoved(chat, chatId, score) {
   const previous = await host.storage.get(scoreKey(chatId));
-  await host.storage.set(scoreKey(chatId), String(score));
+  // COMPARE-AND-SET, not `set`. If anything recorded a reading between this read and this write — a Tier-C
+  // surface, another tab; not another of THIS plugin's server handlers, which the host serializes — that
+  // reading is the newer truth, and overwriting it here would both discard it and announce a delta measured
+  // against a number that is no longer in the store.
+  if (!(await host.storage.compareAndSet(scoreKey(chatId), previous, String(score))).applied) {
+    return;
+  }
   if (previous === null) {
     return; // The first reading is a baseline, not a change.
   }
@@ -102,7 +139,10 @@ host.events.on("messageCommitted", async (fact) => {
     if (chatId === null) {
       return; // A chat-less domain fact — nothing to read. (This handler only subscribes to a chat trigger.)
     }
-    if ((await bumpCount(chatId)) % SCORE_EVERY !== 0) {
+    const count = await bumpCount(chatId);
+    // `null` = the counter stayed contended past the retry bound. Skip this message rather than score it: a
+    // reading is a sample, not a ledger, so losing one costs nothing and double-counting would be a lie.
+    if (count === null || count % SCORE_EVERY !== 0) {
       return; // THE DEBOUNCE. Seven messages out of eight cost one KV read and one KV write.
     }
     // `chat.current()` is the invocation's admitted room. Fetched here, after the debounce, because a handle

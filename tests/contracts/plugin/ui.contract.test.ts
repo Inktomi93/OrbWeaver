@@ -82,6 +82,12 @@ test("UI_PROXYABLE_HOST_FUNCTIONS is the pinned U4 subset — reads + the two KV
     "storage.set",
     "storage.delete",
     "storage.list",
+    // #1442 — the ATOMIC KV write. IN, and the classification is forced rather than preferred: it is a
+    // `storage.kv`-plane DATA op whose reach is strictly NARROWER than `storage.set` two lines up (same grant,
+    // same owner scope, a precondition added, no new ownership check, no compute cost). Excluding it would
+    // leave a scripted surface — which does the same read-modify-write on the same keys the server guest does
+    // — with no lost-update-free write at all, which is the defect rather than a limit.
+    "storage.compareAndSet",
   ]);
 });
 
@@ -173,8 +179,9 @@ test("the EXCLUSIONS are excluded — residency, authority writes, spend, and eg
   for (const fn of excluded) {
     expect(isUiProxyableHostFunction(fn), fn).toBe(false);
   }
-  // Together with the ordered pin above, these two tests are exhaustive over `HOST_FUNCTION_CAPABILITY`: 9 in,
-  // 33 out, 42 total (#798 added `net.fetchAsset` + `character.ingestAsset`, both OUT).
+  // Together with the ordered pin above, these two tests are exhaustive over `HOST_FUNCTION_CAPABILITY`: 10 in,
+  // 33 out, 43 total (#798 added `net.fetchAsset` + `character.ingestAsset`, both OUT; #1442 added
+  // `storage.compareAndSet`, IN).
   expect(UI_PROXYABLE_HOST_FUNCTIONS.length + excluded.length).toBe(Object.keys(HOST_FUNCTION_CAPABILITY).length);
 });
 

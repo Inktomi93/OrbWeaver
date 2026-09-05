@@ -83,7 +83,7 @@ describe("workloads-worker reap tick", () => {
 
     const reaped = await reapOnce(deps, "heartbeat_stale");
 
-    expect(reap).toHaveBeenCalledWith({ db: deps.runnerDeps.db, contributions: deps.runnerDeps.contributions, now: T0, reason: "heartbeat_stale" });
+    expect(reap).toHaveBeenCalledWith({ db: deps.runnerDeps.db, now: T0, reason: "heartbeat_stale" });
     expect(reaped).toBe(3);
   });
 

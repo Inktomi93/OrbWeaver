@@ -104,25 +104,39 @@ export interface AssetsCharacterComposeResult {
  *  gets the current filled and the default left alone). Extracted so that law is provable over the real
  *  settings + persona services; the seeder itself never imports a domain, so it cannot own this.
  *
+ *  THE LATCH IS WRITTEN LAST (#1412) — see `markSeeded` for why the order IS the invariant here. A prior
+ *  ruling on this factory said the layer-2 heal must not hand over the surviving row's id ("would relitigate
+ *  a pick the user may have made"); its MECHANISM survives untouched — the `=== null` guards below are what
+ *  make relitigating impossible — while its premise does not cover a pointer that is already null, which is
+ *  exactly the state the #461 blob-reset leaves behind and the state the heal now repairs.
+ *
  * @public Test-anchored module surface; the pick law is pinned at `tests/server/entry/compose/assets-character.int.test.ts`.
  */
 export function createPersonaSeedLatch(deps: {
   readonly settings: Pick<SettingsService, "getUserSettings" | "updateUserSettingsSection">;
   readonly getPersona: () => Pick<PersonaService, "list">;
-}): Pick<DefaultPersonaSeederDeps, "isSeeded" | "ownsSeededDefault" | "markSeeded"> {
+}): Pick<DefaultPersonaSeederDeps, "isSeeded" | "findSeededDefault" | "markSeeded"> {
   return {
     isSeeded: async (principal): Promise<boolean> => (await deps.settings.getUserSettings({ principal })).config.onboarding.defaultPersonaSeeded,
-    ownsSeededDefault: async (principal): Promise<boolean> => (await deps.getPersona().list({ principal })).some((row) => row.metadata?.seededDefault === true),
+    findSeededDefault: async (principal): Promise<PersonaId | null> =>
+      (await deps.getPersona().list({ principal })).find((row) => row.metadata?.seededDefault === true)?.id ?? null,
     markSeeded: async (principal, seededPersonaId): Promise<void> => {
-      await deps.settings.updateUserSettingsSection({
-        principal,
-        input: { section: "onboarding", patch: { defaultPersonaSeeded: true } },
-      });
-      if (seededPersonaId === null) {
-        return;
-      }
+      // POINTERS FIRST, LATCH LAST (#1412). The two settings sections cannot be written in one call, so the
+      // ORDER is the only atomicity available — and it decides what a crash between them means. Latch-first
+      // committed "this user is seeded" before it was true: `isSeeded` short-circuits `seed()` ahead of the
+      // layer-2 heal, so a created persona with null pointers was permanently unrepairable. Latch-last makes
+      // the latch a COMPLETENESS claim: an interruption leaves it false, the next touch re-enters `seed()`,
+      // layer 2 recognises the surviving artifact and repairs the pointers.
+      //
+      // The read below is check-then-act over a section this same request is about to patch, so a concurrent
+      // explicit pick landing between the read and the write can still lose (a NARROW window: it is the
+      // freshest possible read immediately preceding its own write, not a stale snapshot). Closing it needs a
+      // CONDITIONAL section write in `domain/settings`, which does not exist; that is a settings-domain
+      // change, not a composition-root one.
       const current = (await deps.settings.getUserSettings({ principal })).config;
       const patch: { defaultPersonaId?: PersonaId; currentPersonaId?: PersonaId } = {};
+      // THE PICK LAW, unchanged: only a pointer that is genuinely NULL is filled, and the two are decided
+      // independently — an explicit pick outranks the seeder permanently, on the heal path too.
       if (current.seeds.defaultPersonaId === null) {
         patch.defaultPersonaId = seededPersonaId;
       }
@@ -135,6 +149,10 @@ export function createPersonaSeedLatch(deps: {
           input: { section: "seeds", patch },
         });
       }
+      await deps.settings.updateUserSettingsSection({
+        principal,
+        input: { section: "onboarding", patch: { defaultPersonaSeeded: true } },
+      });
     },
   };
 }

@@ -23,7 +23,7 @@ import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, or, sql } from "
 import { getLog } from "#foundation/observability";
 import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { CancelWorkloadResult } from "../contract/params.ts";
-import type { WorkloadBootReclaimRow, WorkloadQueueFailureSink, WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row.ts";
+import type { WorkloadInFlightRow, WorkloadQueueFailureSink, WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row.ts";
 
 // The terminal states `markTerminal` may stamp (an in-flight → terminal flip).
 const TERMINAL_STATUSES = ["succeeded", "failed", "cancelled", "worker_died"] as const satisfies readonly WorkloadStatus[];
@@ -442,7 +442,7 @@ export function scanRunnableWorkloads(input: QueueScanInput): Promise<WorkloadRu
  *  active slot forever. Unlike `findStaleInFlight` it does NOT build views either: the boot reclaim must
  *  also dispose of poison rows and rows of a kind this build no longer ships, and it needs no params to
  *  decide their disposition. */
-export async function findInFlightForBootReclaim(db: Db): Promise<WorkloadBootReclaimRow[]> {
+export async function findInFlightForBootReclaim(db: Db): Promise<WorkloadInFlightRow[]> {
   return await db
     .select({ id: workloads.id, kind: workloads.kind, respawns: workloads.respawns, updatedAt: workloads.updatedAt })
     .from(workloads)
@@ -469,14 +469,17 @@ export async function requeueInFlight(db: Db, args: { id: WorkloadId; now: numbe
   return moved.length > 0;
 }
 
-/** In-flight rows whose lease went stale (`updatedAt < staleBefore`) — the reaper's sweep input. */
-export async function findStaleInFlight(db: Db, contributions: WorkloadContributions, staleBefore: number): Promise<WorkloadRowAnyKind[]> {
-  const rows = await db
-    .select()
+/** In-flight rows whose lease went stale (`updatedAt < staleBefore`) — the reaper's sweep input.
+ *
+ *  RAW COLUMNS, NO VIEW (#1413) — the same reason `findInFlightForBootReclaim` reads raw, now applied to the
+ *  steady-state half. This projected through `toView`, which returns `null` for a kind this build does not
+ *  ship, and the sweep dropped those nulls: an unknown-kind in-flight row could never reach `markTerminal`
+ *  and stayed `running`/`cancelling` forever, holding its kind's single-active slot. Only a restart cleared
+ *  it (the boot reclaim already read raw), so the LIVE system never healed. A disposition needs no params —
+ *  it needs the id, the kind and the pre-overwrite lease — so narrowing was never buying anything here. */
+export async function findStaleInFlight(db: Db, staleBefore: number): Promise<WorkloadInFlightRow[]> {
+  return await db
+    .select({ id: workloads.id, kind: workloads.kind, respawns: workloads.respawns, updatedAt: workloads.updatedAt })
     .from(workloads)
     .where(and(inArray(workloads.status, [...IN_FLIGHT_STATUSES]), lt(workloads.updatedAt, staleBefore)));
-  return rows.flatMap((row) => {
-    const view = toView(contributions, row);
-    return view === null ? [] : [view];
-  });
 }

@@ -231,6 +231,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     storage: {
       get: (key) => ops.storage.get(requirePluginId("storage.get"), installerUserId, key),
       set: (key, value) => ops.storage.set(requirePluginId("storage.set"), installerUserId, key, value),
+      compareAndSet: (key, expected, next) => ops.storage.compareAndSet(requirePluginId("storage.compareAndSet"), installerUserId, { key, expected, next }),
       delete: (key) => ops.storage.delete(requirePluginId("storage.delete"), installerUserId, key),
       list: (prefix) => ops.storage.list(requirePluginId("storage.list"), installerUserId, prefix),
     },

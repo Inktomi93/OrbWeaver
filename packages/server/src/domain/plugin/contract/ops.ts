@@ -196,6 +196,14 @@ export interface PluginHostOps {
   readonly storage: {
     readonly get: (pluginId: PluginId, ownerId: UserId, key: string) => Promise<string | null>;
     readonly set: (pluginId: PluginId, ownerId: UserId, key: string, value: string) => Promise<void>;
+    /** The ATOMIC arm (#1442) — `set` with a precondition on the current value (`null` = the key must be
+     *  absent). Same caps, same scope; the predicate rides the write, so it is safe under the concurrency
+     *  `set` is not. */
+    readonly compareAndSet: (
+      pluginId: PluginId,
+      ownerId: UserId,
+      entry: { readonly key: string; readonly expected: string | null; readonly next: string },
+    ) => Promise<{ applied: boolean; current: string | null }>;
     readonly delete: (pluginId: PluginId, ownerId: UserId, key: string) => Promise<void>;
     readonly list: (pluginId: PluginId, ownerId: UserId, prefix: string | undefined) => Promise<readonly string[]>;
   };

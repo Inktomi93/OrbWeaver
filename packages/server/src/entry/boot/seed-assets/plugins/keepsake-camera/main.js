@@ -167,10 +167,49 @@ async function takeSnapshot(chat, styleKey, note) {
   }
 }
 
+/** How many times a contended compare-and-set is retried before the write is abandoned. No backoff, and none
+ *  is possible (the sandbox has no timers or randomness) — but none is needed: the loop never waits, it only
+ *  re-reads the value that beat it. */
+const CAS_ATTEMPTS = 5;
+
+/** Take the next album sequence number, ATOMICALLY, or `null` if the counter stayed contended.
+ *
+ *  `get` + 1 + `set` is a lost update waiting to happen, and here it costs a KEEPSAKE rather than a count:
+ *  two claimants that both read `4` both file at `moment:5`, and the second overwrites the first — the album
+ *  silently eats a picture.
+ *
+ *  WHY, stated exactly, because the obvious version is wrong: this plugin's own SERVER handlers do NOT race
+ *  each other — `infra/plugin-host/port.ts` runs every invoke on one resident through a serialized tail chain,
+ *  so a tool call, an event delivery and a panel action never interleave. What is NOT serialized is the OTHER
+ *  caller of the same KV rows: a Tier-C scripted `ui.js` reaches `storage.*` through `plugin.uiHostCall`,
+ *  which goes straight to the bridge with no queue at all — and two browser tabs are two such callers. So any
+ *  value derived from its own previous value needs a compare-and-set the moment a plugin grows a client-side
+ *  writer, which is the moment nobody remembers to come back and add one.
+ *
+ *  `host.storage.compareAndSet` only writes while the counter still holds what we read, so a sequence number
+ *  belongs to exactly one moment. */
+async function nextSequence() {
+  let current = await host.storage.get(SEQ_KEY);
+  for (let attempt = 0; attempt < CAS_ATTEMPTS; attempt += 1) {
+    const next = String((Number(current) || 0) + 1);
+    const result = await host.storage.compareAndSet(SEQ_KEY, current, next);
+    if (result.applied) {
+      return Number(next);
+    }
+    current = result.current;
+  }
+  return null;
+}
+
 /** File one caught keepsake, evicting past the album cap, and refresh the page. */
 async function keepMoment(title, styleKey, assetId) {
-  const seq = Number((await host.storage.get(SEQ_KEY)) ?? "0") + 1;
-  await host.storage.set(SEQ_KEY, String(seq));
+  const seq = await nextSequence();
+  if (seq === null) {
+    // Contended past the bound. Say so rather than filing over someone else's moment — the postcard is still
+    // in the room either way; only the album misses this one.
+    host.log.info("album sequence stayed contended — this keepsake was not filed");
+    return;
+  }
   await host.storage.set(momentKey(seq), JSON.stringify({ title, style: styleKey ?? "painterly", assetId, atMs: host.clock.nowEpochMs() }));
   const keys = (await host.storage.list("moment:")).sort();
   for (const key of keys.slice(0, Math.max(0, keys.length - ALBUM_MAX))) {

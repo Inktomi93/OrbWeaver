@@ -276,7 +276,7 @@ describe("runWorkload lease under a slow item", () => {
       // The body is STILL awaiting `gate` across this whole span — exactly the shape of a 31s vLLM summarize.
       clock += inFlightMs;
       await vi.advanceTimersByTimeAsync(inFlightMs);
-      const reaped = await reapOrphanedWorkloads({ db, contributions: CONTRIBUTIONS, now: clock, staleThresholdMs: staleMs, reason: "heartbeat_stale" });
+      const reaped = await reapOrphanedWorkloads({ db, now: clock, staleThresholdMs: staleMs, reason: "heartbeat_stale" });
       const status = await loadWorkloadStatus(db, id);
       gate.resolve();
       await running;

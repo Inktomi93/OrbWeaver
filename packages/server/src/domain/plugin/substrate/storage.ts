@@ -9,7 +9,7 @@
 import type { Db } from "@orb/db";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import type { PluginHostOps } from "../contract/ops.ts";
-import { countKeys, deleteKv, getKv, listKv, upsertKv } from "../persistence/plugin-kv.ts";
+import { compareAndSetKv, countKeys, deleteKv, getKv, listKv, upsertKv } from "../persistence/plugin-kv.ts";
 
 /** The per-plugin key ceiling ("≤ 256 keys/plugin"). Enforced HERE (a count the DDL cannot do); the
  *  value/key BYTE caps are DDL CHECKs. ONE home for the count cap. */
@@ -40,6 +40,21 @@ export function buildPluginStorage(db: Db, nowMs: () => number): PluginHostOps["
         throw new PluginKvCapError(`at most ${PLUGIN_KV_MAX_KEYS} keys per plugin`);
       }
       await upsertKv(db, scope, { key, value, updatedAt: nowMs() });
+    },
+    // The ATOMIC arm (#1442). The 256-key ceiling is checked on the CREATE precondition only, exactly like
+    // `set`: `expected !== null` names a key that already exists, so it can consume no new slot. A refusal
+    // here is the cap error (a host refusal), NOT `applied: false` — losing a race and hitting the ceiling are
+    // different outcomes and a guest must be able to tell them apart.
+    compareAndSet: async (
+      pluginId: PluginId,
+      ownerId: UserId,
+      entry: { readonly key: string; readonly expected: string | null; readonly next: string },
+    ): Promise<{ applied: boolean; current: string | null }> => {
+      const scope = { pluginId, ownerId };
+      if (entry.expected === null && (await getKv(db, scope, entry.key)) === null && (await countKeys(db, scope)) >= PLUGIN_KV_MAX_KEYS) {
+        throw new PluginKvCapError(`at most ${PLUGIN_KV_MAX_KEYS} keys per plugin`);
+      }
+      return await compareAndSetKv(db, scope, { key: entry.key, expected: entry.expected, value: entry.next, updatedAt: nowMs() });
     },
     delete: (pluginId: PluginId, ownerId: UserId, key: string) => deleteKv(db, { pluginId, ownerId }, key),
     list: (pluginId: PluginId, ownerId: UserId, prefix: string | undefined) => listKv(db, { pluginId, ownerId }, prefix),

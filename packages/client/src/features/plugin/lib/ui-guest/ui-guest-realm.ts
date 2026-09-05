@@ -10,7 +10,7 @@
 // The security posture lives at the sites below and is not re-summarised here; the worker's own header carries
 // the whole-sandbox story.
 
-import type { PluginLogLevel } from "@orb/contracts/plugin";
+import type { PluginLogLevel, UiProxyableHostFunction } from "@orb/contracts/plugin";
 import { PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
@@ -243,11 +243,21 @@ function buildSurface(deps: RealmDeps): QuickJSHandle {
  *  BECAUSE the tuple is the security boundary: deriving them at runtime would make "which functions exist" a
  *  property of data the host composed. The server re-gates every name regardless; this shape means a wrong name
  *  fails in the guest, immediately, with a readable error instead of a network round-trip. */
-const PROXY_NAMESPACES: Readonly<Record<string, readonly string[]>> = {
+/** One proxied namespace's legal method names, DERIVED from the contracts tuple (#1442). The list below stays
+ *  hand-spelled — that is the security posture above — but it is now constrained rather than free-form: a
+ *  method here that is not a real `UI_PROXYABLE_HOST_FUNCTIONS` member fails `tsc`. Deliberately a SUBSET
+ *  constraint, not a completeness one: under-listing costs a guest a call it can make server-side anyway,
+ *  while over-listing would post a name the tuple never admitted. Before this, the map was
+ *  `Record<string, readonly string[]>` and nothing anywhere — no gate, no test, no type — connected it to the
+ *  tuple it claims to mirror, so a widened tuple silently left the client dialect behind. */
+type MethodNameOf<T> = T extends `${string}.${infer M}` ? M : never;
+type ProxyMethod<N extends string> = MethodNameOf<Extract<UiProxyableHostFunction, `${N}.${string}`>>;
+
+const PROXY_NAMESPACES = {
   chat: ["listMessages", "getVariables"],
   variables: ["get", "set", "delete"],
-  storage: ["get", "set", "delete", "list"],
-};
+  storage: ["get", "set", "compareAndSet", "delete", "list"],
+} satisfies { readonly [N in "chat" | "variables" | "storage"]: readonly ProxyMethod<N>[] };
 
 function buildHostProxy(deps: RealmDeps): QuickJSHandle {
   const { ctx, current } = deps;

@@ -878,7 +878,7 @@
     {
       "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts::promise:promise::1",
       "path": "packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts",
-      "line": 271,
+      "line": 281,
       "column": 16,
       "grammar": "promise",
       "position": "promise:promise",
@@ -886,12 +886,12 @@
       "snippet": "void deferred.settled.then(pump(ctx), pump(ctx));",
       "verdict": "deliberate-absorb",
       "reason": "both settle arms run the SAME pump(ctx) —",
-      "markerLine": 267
+      "markerLine": 277
     },
     {
       "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts::promise:promise::2",
       "path": "packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts",
-      "line": 293,
+      "line": 303,
       "column": 14,
       "grammar": "promise",
       "position": "promise:promise",
@@ -899,7 +899,7 @@
       "snippet": "void deferred.settled.then(pump(ctx), pump(ctx));",
       "verdict": "deliberate-absorb",
       "reason": "both settle arms run the SAME pump(ctx) —",
-      "markerLine": 290
+      "markerLine": 300
     },
     {
       "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts::empty:err::1",
@@ -3452,7 +3452,7 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:race::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1804,
+      "line": 1819,
       "column": 10,
       "grammar": "promise",
       "position": "promise:race",
@@ -3460,12 +3460,12 @@
       "snippet": "void Promise.race([running, timeout])",
       "verdict": "deliberate-absorb",
       "reason": "the GUEST owns it — the rejection arm below reaches `deferred.reject(err)`, preserving the Error's NAME so a plugin can feature-detect by type. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Ends if a disposed context gains a safe late-failure sink.",
-      "markerLine": 1803
+      "markerLine": 1818
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:running::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1800,
+      "line": 1815,
       "column": 18,
       "grammar": "promise",
       "position": "promise:running",
@@ -3473,7 +3473,7 @@
       "snippet": "settlement = running.then(releaseSlot, releaseSlot);",
       "verdict": "deliberate-absorb",
       "reason": "BOOKKEEPING ONLY — this chain exists so teardown can await in-flight work, and both arms deliberately do the same thing (exactly one release per acquisition, so the counter cannot drift). The REJECTION of `running` is owned by the sibling race chain below, which routes it to `deferred.reject` and thence to the guest. Ends if this chain becomes the only reader of `running`.",
-      "markerLine": 1799
+      "markerLine": 1814
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/port.ts::promise:run::1",
@@ -4960,7 +4960,7 @@
     {
       "siteId": "tooling/src/seed/ops/demo.ts::empty:err::1",
       "path": "tooling/src/seed/ops/demo.ts",
-      "line": 119,
+      "line": 128,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -4968,12 +4968,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "the JSDoc above states the intent directly — a best-effort seeded turn where the greeting transcript is already committed, so an offline-model failure is logged with the honest limitation and the demo db stays valid. Ends if the failure stops being logged.",
-      "markerLine": 115
+      "markerLine": 124
     },
     {
       "siteId": "tooling/src/seed/ops/demo.ts::empty:error::1",
       "path": "tooling/src/seed/ops/demo.ts",
-      "line": 298,
+      "line": 307,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4981,7 +4981,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the message is warned to the operator and the function returns EXIT.toolError — propagated through both channels, not dropped. Ends if either the warn or the return code is removed.",
-      "markerLine": 295
+      "markerLine": 304
     },
     {
       "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::empty:catch::1",

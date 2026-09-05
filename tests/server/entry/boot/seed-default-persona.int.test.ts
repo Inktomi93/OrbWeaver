@@ -24,7 +24,7 @@ import { makeHarness as makePersonaHarness, principal, seedUser } from "../../do
 
 interface MarkCall {
   readonly userId: UserId;
-  readonly seededPersonaId: PersonaId | null;
+  readonly seededPersonaId: PersonaId;
 }
 
 /** In-memory settings latch + recorder for the seeded persona id (the real settings wiring is a compose
@@ -32,7 +32,7 @@ interface MarkCall {
  *  latch vanished from the settings blob between two boots while the seeded persona stayed in the library. */
 function fakeLatch(): {
   readonly isSeeded: (p: Principal) => Promise<boolean>;
-  readonly markSeeded: (p: Principal, id: PersonaId | null) => Promise<void>;
+  readonly markSeeded: (p: Principal, id: PersonaId) => Promise<void>;
   readonly forget: (p: Principal) => void;
   readonly marks: MarkCall[];
 } {
@@ -93,7 +93,8 @@ async function makeHarness(autoSeedEnabled = true): Promise<{
       },
       // The SECOND idempotency layer (the character seeder's handle-conflict tolerance, in persona terms):
       // the seeder's own artifact is self-identifying through `metadata.seededDefault`.
-      ownsSeededDefault: async (p): Promise<boolean> => (await persona.list({ principal: p })).some((row) => row.metadata?.seededDefault === true),
+      findSeededDefault: async (p): Promise<PersonaId | null> =>
+        (await persona.list({ principal: p })).find((row) => row.metadata?.seededDefault === true)?.id ?? null,
       ...latch,
     });
 
@@ -134,7 +135,7 @@ describe("createDefaultPersonaSeeder", () => {
       autoSeedEnabled: (): boolean => true,
       createPersona: (): Promise<{ id: PersonaId }> => Promise.reject(new Error("db is on fire")),
       storeAvatar: (): Promise<AssetId | null> => Promise.resolve(null),
-      ownsSeededDefault: (): Promise<boolean> => Promise.resolve(false),
+      findSeededDefault: (): Promise<PersonaId | null> => Promise.resolve(null),
       ...latch,
     });
     const actor = principal("user_fresh" as UserId);
@@ -154,7 +155,7 @@ describe("createDefaultPersonaSeeder", () => {
         return Promise.resolve({ id: "persona_seeded" as PersonaId });
       },
       storeAvatar: (): Promise<AssetId | null> => Promise.resolve(null),
-      ownsSeededDefault: (): Promise<boolean> => Promise.resolve(false),
+      findSeededDefault: (): Promise<PersonaId | null> => Promise.resolve(null),
       ...latch,
     });
     await seeder.ensureSeeded(principal("user_x" as UserId));
@@ -226,10 +227,13 @@ describe("createDefaultPersonaSeeder", () => {
     const list = await h.persona.list({ principal: h.actor });
     expect(list).toHaveLength(1);
     expect(list[0]?.id).toBe(first);
-    // …and the latch is HEALED without a repoint: the second mark carries `null`, so the composition root's
-    // `markSeeded` has no id to point `seeds.defaultPersonaId`/`currentPersonaId` at.
+    // …and the latch is HEALED *with* the surviving row's id (#1412 — this used to be `null`). The blob
+    // reset that lost the latch also nulled `seeds.defaultPersonaId`/`currentPersonaId`, so a heal that
+    // withheld the id left the user pointing at nothing forever. Handing it over cannot relitigate a pick:
+    // the composition root's `markSeeded` fills a pointer ONLY while it is null (the PICK LAW, pinned at
+    // tests/server/entry/compose/assets-character.int.test.ts).
     expect(h.latch.marks).toHaveLength(2);
-    expect(h.latch.marks[1]?.seededPersonaId).toBeNull();
+    expect(h.latch.marks[1]?.seededPersonaId).toBe(first);
   });
 
   test("the seeded persona carries the artifact marker (what the second layer keys on)", async () => {

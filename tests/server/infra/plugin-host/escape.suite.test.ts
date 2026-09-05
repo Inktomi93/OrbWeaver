@@ -214,7 +214,13 @@ describe("escape — the guest→host argument boundary is inert (no callable/li
       search: { documents: () => Promise.resolve([]) },
       imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_x0000000000000000000000" }) },
       variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
-      storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
+      storage: {
+        get: () => Promise.resolve(null),
+        set: () => Promise.resolve(),
+        compareAndSet: () => Promise.resolve({ applied: true, current: null }),
+        delete: () => Promise.resolve(),
+        list: () => Promise.resolve([]),
+      },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
       // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
@@ -311,7 +317,13 @@ describe("escape — a stale chat handle cannot read a prior/other chat (single-
       search: { documents: () => Promise.resolve([]) },
       imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_x0000000000000000000000" }) },
       variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
-      storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
+      storage: {
+        get: () => Promise.resolve(null),
+        set: () => Promise.resolve(),
+        compareAndSet: () => Promise.resolve({ applied: true, current: null }),
+        delete: () => Promise.resolve(),
+        list: () => Promise.resolve([]),
+      },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
       // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
@@ -404,7 +416,13 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       search: { documents: () => Promise.resolve([]) },
       imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_x0000000000000000000000" }) },
       variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
-      storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
+      storage: {
+        get: () => Promise.resolve(null),
+        set: () => Promise.resolve(),
+        compareAndSet: () => Promise.resolve({ applied: true, current: null }),
+        delete: () => Promise.resolve(),
+        list: () => Promise.resolve([]),
+      },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
       // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
@@ -481,7 +499,13 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_x0000000000000000000000" }) },
       // The PARKED calls: activation fires 5 of these fire-and-forget and they do not settle during activation.
       variables: { get: () => stragglerGate, set: () => Promise.resolve(), delete: () => Promise.resolve() },
-      storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
+      storage: {
+        get: () => Promise.resolve(null),
+        set: () => Promise.resolve(),
+        compareAndSet: () => Promise.resolve({ applied: true, current: null }),
+        delete: () => Promise.resolve(),
+        list: () => Promise.resolve([]),
+      },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
       // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
@@ -565,7 +589,13 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       search: { documents: () => Promise.resolve([]) },
       imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_x0000000000000000000000" }) },
       variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
-      storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
+      storage: {
+        get: () => Promise.resolve(null),
+        set: () => Promise.resolve(),
+        compareAndSet: () => Promise.resolve({ applied: true, current: null }),
+        delete: () => Promise.resolve(),
+        list: () => Promise.resolve([]),
+      },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
       // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
@@ -630,7 +660,13 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       search: { documents: () => Promise.resolve([]) },
       imagery: { generatePicture: () => Promise.resolve({ assetId: "asset_x0000000000000000000000" }) },
       variables: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve() },
-      storage: { get: () => Promise.resolve(null), set: () => Promise.resolve(), delete: () => Promise.resolve(), list: () => Promise.resolve([]) },
+      storage: {
+        get: () => Promise.resolve(null),
+        set: () => Promise.resolve(),
+        compareAndSet: () => Promise.resolve({ applied: true, current: null }),
+        delete: () => Promise.resolve(),
+        list: () => Promise.resolve([]),
+      },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
       // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
@@ -717,6 +753,10 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
         set: (key): Promise<void> => {
           wrote.push(key);
           return Promise.resolve();
+        },
+        compareAndSet: (key): Promise<{ applied: boolean; current: string | null }> => {
+          wrote.push(key);
+          return Promise.resolve({ applied: true, current: null });
         },
         delete: () => Promise.resolve(),
         list: () => Promise.resolve([]),

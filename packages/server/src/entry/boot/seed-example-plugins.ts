@@ -23,8 +23,10 @@
 //      (`PluginAlreadyInstalledError`), which is treated as "already present, nothing to do" rather than a
 //      failure. Layer 2 covers a latch that came back at schema defaults (a settings blob CAN, live receipt
 //      2026-08-22) without minting a second copy: the `(owner, slug)` UNIQUE index is the real backstop.
-// The latch is written ONLY after a fully successful pass, so a transient failure (a fs read, a db blip)
-// retries on the next touch instead of silently skipping the user forever.
+// The latch is written ONLY after a COMPLETE pass — every slug installed or already present — so a transient
+// failure (a fs read, a db blip, a bundle the pack could not produce) retries on the next touch instead of
+// silently skipping the user forever. That completeness is `SeedOutcome`'s whole job (#1411): a throw is not
+// the only way a pass can be incomplete, and the non-throwing way used to latch.
 
 import type { Principal } from "@orb/contracts/identity";
 import { errorMessage } from "@orb/kit/error-message";
@@ -51,9 +53,17 @@ export const EXAMPLE_PLUGIN_SLUGS = [
   "card-atlas",
 ] as const;
 
+/** What ONE slug's pass can produce, homed as a tuple and DERIVED from (never re-spelled — the axis rule).
+ *  `installed`/`present` both mean "accounted for"; `unavailable` means the pack shipped no such bundle, which
+ *  is the one outcome that must block the latch. Module-local: the seeder's internal completeness vocabulary,
+ *  never a cross-boundary shape. */
+const SEED_OUTCOMES = ["installed", "present", "unavailable"] as const;
+type SeedOutcome = (typeof SEED_OUTCOMES)[number];
+
 export interface ExamplePluginSeederDeps {
   /** Pack one example's source directory into installable bundle bytes; `null` when the pack ships no such
-   *  slug (a missing example skips ONE plugin, it does not fail the pass). */
+   *  slug. A missing example skips ONE plugin and does not fail the pass (the other slugs still install) —
+   *  but it does BLOCK THE LATCH (#1411), so the skip is retried rather than made permanent. */
   readonly packBundle: (slug: string) => Promise<Uint8Array | null>;
   /** The REAL install verb, under the receiving user's own Principal. */
   readonly install: (args: { readonly caller: Principal; readonly bundle: Uint8Array }) => Promise<{ readonly id: PluginId }>;
@@ -76,37 +86,51 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
   const settled = new Set<UserId>();
   const inFlight = new Map<UserId, Promise<void>>();
 
-  /** Seed ONE example for `principal`. Returns whether a row was minted (for the log line only). */
-  async function seedOne(principal: Principal, slug: string): Promise<boolean> {
+  /** Seed ONE example for `principal`. The outcome is the LATCH INPUT, not a log detail (#1411):
+   *  `installed`/`present` are both "this slug is accounted for", `unavailable` is not. */
+  async function seedOne(principal: Principal, slug: string): Promise<SeedOutcome> {
     if (await deps.alreadyInstalled(principal, slug)) {
-      return false;
+      return "present";
     }
     const bundle = await deps.packBundle(slug);
     if (bundle === null) {
-      log.warn({ slug }, "plugin: example bundle is missing from the pack — skipped");
-      return false;
+      log.warn({ slug }, "plugin: example bundle is missing from the pack — skipped, and the pass will NOT latch");
+      return "unavailable";
     }
     const { id } = await deps.install({ caller: principal, bundle });
     // The second half of the consent posture (file header): raise the standing ask. Deliberately NOT folded
     // into the install verb — a fresh install has nothing to re-consent to, which is exactly right for a
     // human who just chose a grant against the manifest, and exactly wrong for a row they never asked for.
     await deps.requestConsent({ caller: principal, pluginId: id });
-    return true;
+    return "installed";
   }
 
-  async function seed(principal: Principal): Promise<void> {
+  /** Runs a pass; returns whether it LATCHED (which is also whether the in-process memo may record it). */
+  async function seed(principal: Principal): Promise<boolean> {
     if (await deps.isSeeded(principal)) {
-      return;
+      return true;
     }
     // Concurrent across SLUGS, and that is safe rather than merely convenient: each example is an independent
     // `(owner, slug)` row with its own CAS asset, so two passes share no row and cannot race each other. A
     // throw in any one of them rejects the whole pass — which is the intent: a partial seed must not latch.
-    const results = await Promise.all(EXAMPLE_PLUGIN_SLUGS.map((slug) => seedOne(principal, slug)));
-    const minted = results.filter(Boolean).length;
-    // Only a pass that got all the way here latches. A throw above propagates to `ensureSeeded`'s catch and
-    // the user is retried on their next touch.
+    const outcomes = await Promise.all(EXAMPLE_PLUGIN_SLUGS.map(async (slug) => ({ slug, outcome: await seedOne(principal, slug) })));
+    const minted = outcomes.filter((row) => row.outcome === "installed").length;
+    const unavailable = outcomes.filter((row) => row.outcome === "unavailable").map((row) => row.slug);
+    // THE LATCH IS A COMPLETENESS CLAIM (#1411). `examplePluginsSeeded` is read by `isSeeded` BEFORE any slug
+    // is attempted, so latching an incomplete pass means the missing example can never be retried — a
+    // transient pack failure silently costs that user the example for the life of the install. The per-slug
+    // tolerance the file header describes is unchanged (a missing bundle skips ONE plugin and the other eight
+    // still land); what it does NOT buy is the latch.
+    if (unavailable.length > 0) {
+      log.warn(
+        { userId: principal.userId, minted, unavailable },
+        "plugin: example-plugin seed is INCOMPLETE — not latching, the missing examples retry on the next touch",
+      );
+      return false;
+    }
     await deps.markSeeded(principal);
     log.info({ userId: principal.userId, minted }, "plugin: seeded the example plugins (installed, disabled, nothing granted)");
+    return true;
   }
 
   return {
@@ -119,8 +143,12 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
         return pending;
       }
       const run = seed(principal)
-        .then((): void => {
-          settled.add(principal.userId);
+        .then((latched: boolean): void => {
+          // Only a LATCHED pass may be memoized — otherwise the in-process memo would suppress the retry the
+          // un-written persisted latch just bought (#1411: the memo is the second half of the same skip).
+          if (latched) {
+            settled.add(principal.userId);
+          }
         })
         .catch((err: unknown): void => {
           log.error({ userId: principal.userId, err: errorMessage(err) }, "plugin: example-plugin seed failed");
