@@ -110,6 +110,7 @@
     "tests/client/features/automation/lib/apply-automation-bus-event.test.ts",
     "tests/client/features/automation/lib/apply-quick-reply-event.test.ts",
     "tests/client/features/automation/lib/rule-copy.test.ts",
+    "tests/client/features/automation/lib/rule-refusal-copy.test.ts",
     "tests/client/features/character/components/character-actions-menu.ct.tsx",
     "tests/client/features/character/components/character-appearance-tab.ct.tsx",
     "tests/client/features/character/components/character-bulk-bar.ct.tsx",

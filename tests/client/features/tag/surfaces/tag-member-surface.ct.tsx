@@ -17,6 +17,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { measureContentColumn } from "../../../../support/ct/measure-content-column.ts";
+import { proseRow, readProseMeasure } from "../../../../support/ct/prose-measure.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { TagMemberContentColumnStory, TagMemberStory } from "../_ct-stories.tsx";
@@ -230,4 +231,45 @@ test("the editor column is CENTERED, capped, and BREATHES past @5xl (#1664)", as
   expect(wide.maxWidthPx).toBeCloseTo(wide.widePx, 0);
   expect(wide.columnWidth).toBeCloseTo(wide.widePx, 0);
   expect(Math.abs(wide.leftGutter - wide.rightGutter)).toBeLessThanOrEqual(1);
+});
+
+// ── #1653 — a `<Field>` DESCRIPTION is teaching prose, and the default Field never capped it ────────────
+// The prose measure lives on the Field primitive's `description` slot, but ONLY inside the
+// `align:"track" + orientation:"horizontal"` COMPOUND variant (`packages/ui/src/primitives/field/
+// variants.ts`). The BASE slot is `text-label leading-label text-muted-foreground` — no measure at all — so
+// every DEFAULT `<Field description=…>` in the app renders `max-width: none`. This editor's folder-type
+// description is the longest of them: measured pre-fix at 720px = 124.6 average glyph advances per line,
+// against the design law's 65-75 band. That is worse than the 90.0 that opened #1653.
+//
+// THE FIX IS IN THE PRIMITIVE, WHICH IS WHY THIS PIN LIVES AT A CONSUMER. `Field` exposes no per-site
+// className for the description slot, so there IS no site-local spelling of the cap — the alternatives were
+// a new API knob re-spelled at each call site (the "third un-derived width" #1175 was filed about, and it
+// would leave every unvisited Field uncapped) or the base slot. The base slot is the one home. These
+// consumer pins are the proof that it reaches a real surface, at that surface's real mount width.
+const PROSE_WIDTHS = [1280, 1440, 1920] as const;
+/** `.claude/skills/side-eye-design-review/SKILL.md` §2, in the law's own unit — never a px, never a token. */
+const LAW_CHARACTERS_PER_LINE = 75;
+/** The folder-type description's own opening — enough to find it, not the whole string, so the pin is about
+ *  the MEASURE rather than about the wording. */
+const FOLDER_TYPE_DESCRIPTION = "In the library's grouped view";
+
+test("#1653 the folder-type description reads inside the prose measure at every desktop width", async ({ mount, page }) => {
+  await stub(page);
+  const editor = await mount(<TagMemberStory />);
+  // SETTLED: the editor has painted its own heading before anything is measured.
+  await expect(editor.getByRole("heading", { level: 2, name: "adventure" })).toBeVisible();
+  await expect(editor.getByText(FOLDER_TYPE_DESCRIPTION, { exact: false })).toBeVisible();
+
+  const rows: string[] = [];
+  for (const width of PROSE_WIDTHS) {
+    await page.setViewportSize({ width, height: 900 });
+    // Barrier on a SETTLED box — a read on the same tick as the viewport change is the pre-reflow one.
+    await expect.poll(async () => Math.round((await readProseMeasure(page, FOLDER_TYPE_DESCRIPTION)).widthPx)).toBeGreaterThan(0);
+    const reading = await readProseMeasure(page, FOLDER_TYPE_DESCRIPTION);
+    rows.push(proseRow(width, reading));
+    // ON the token, not merely under some width: the description must resolve THIS measure in its own font.
+    expect(reading.widthPx, `#1653 tag at ${String(width)}: ${rows.join(" | ")}`).toBeLessThanOrEqual(reading.proseTokenPx + 0.5);
+    expect(reading.lawCharacters, `#1653 tag at ${String(width)}: ${rows.join(" | ")}`).toBeLessThanOrEqual(LAW_CHARACTERS_PER_LINE);
+  }
+  expect(rows).toHaveLength(PROSE_WIDTHS.length);
 });

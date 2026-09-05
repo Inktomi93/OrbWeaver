@@ -17,7 +17,21 @@ export const fieldVariants = tv({
     // `field` intent token, which stays 6px everywhere else it is used (D3).
     labelRow: "inline-flex items-center gap-field pointer-fine:gap-row",
     hintTrigger: "text-muted-foreground hover:text-foreground",
-    description: "text-label leading-label text-muted-foreground",
+    // THE MEASURE RIDES THE BASE SLOT (#1653), not one compound arm. It was spelled ONLY inside the
+    // `align:"track" + orientation:"horizontal"` compound below, so every DEFAULT `<Field description=…>`
+    // in the app rendered `max-width: none`: measured in the CT browser with real Geist, the tag editor's
+    // folder-type description read 720.0px = 124.6 average glyph advances per line and the regex editor's
+    // trim-strings gloss 121.5, against the design law's 65-75 band (`--reading-measure-prose` resolves
+    // 423.0px in this slot's 13px font = 67.7 characters). The track arm's cap was correct and is not
+    // reversed — it was simply the only arm that got it.
+    //
+    // THIS SLOT IS THE ONE HOME because `Field` exposes no per-site className for it (`field.tsx` renders
+    // `<BaseField.Description className={slots.description()}>`): the alternative was a new API knob
+    // re-spelled at every call site, which is the third un-derived width #1175 was filed about AND would
+    // leave every unvisited Field uncapped. A `max-width` can only ever NARROW, and it narrows nothing that
+    // is already short — the slot's non-prose occupants (a hex readout, a numeric floor, a match count) sit
+    // far inside 423px and are unaffected.
+    description: "max-w-(--reading-measure-prose) text-label leading-label text-muted-foreground",
     error: "text-label leading-label text-destructive",
     labelBlock: "flex min-w-0 flex-col gap-field",
     controlCol: "flex shrink-0 flex-col items-end gap-field",
@@ -80,7 +94,9 @@ export const fieldVariants = tv({
         labelBlock: "@lg:contents",
         label: "@lg:col-start-1 @lg:row-start-1",
         labelRow: "@lg:col-start-1 @lg:row-start-1",
-        description: "max-w-(--reading-measure-prose) @lg:col-span-full @lg:row-start-2",
+        // The MEASURE moved to the base slot (#1653) — it is not re-spelled here, because half a migration
+        // is the rot. What stays is this arm's own job: the full-width row-2 PLACEMENT inside the subgrid.
+        description: "@lg:col-span-full @lg:row-start-2",
         // The control column stops being a fixed 200px right-hand DOCK and becomes the shared track's
         // cell, filled from its START. Not `items-end`/`stretch`: the cold contract is explicit that
         // unlike controls must not be stretched merely to equalize their visible right edge — a switch is

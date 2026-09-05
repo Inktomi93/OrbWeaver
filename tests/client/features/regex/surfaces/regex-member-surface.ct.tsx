@@ -12,6 +12,7 @@ import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { measureContentColumn } from "../../../../support/ct/measure-content-column.ts";
+import { proseRow, readProseMeasure } from "../../../../support/ct/prose-measure.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { RegexMemberContentColumnStory, RegexMemberStory } from "../_ct-stories.tsx";
@@ -284,4 +285,41 @@ test("the editor column is CENTERED, capped, and BREATHES past @5xl (#1664)", as
   expect(wide.maxWidthPx).toBeCloseTo(wide.widePx, 0);
   expect(wide.columnWidth).toBeCloseTo(wide.widePx, 0);
   expect(Math.abs(wide.leftGutter - wide.rightGutter)).toBeLessThanOrEqual(1);
+});
+
+// ── #1653 — the editor's LONGEST teaching copy is a `<Field>` description, and it had no measure ────────
+// The prose measure was spelled on the Field primitive's `description` slot ONLY inside the
+// `align:"track" + orientation:"horizontal"` compound variant; the BASE slot carried none, so every
+// DEFAULT `<Field description=…>` rendered `max-width: none`. This editor has two of the app's longest
+// (the trim-strings and macro-substitution glosses), and the sibling tag editor's folder-type description
+// measured 124.6 law characters pre-fix — against the design law's 65-75 band.
+//
+// The fix is in the primitive, because `Field` exposes no per-site className for its description slot; this
+// pin is the proof that it reaches a real editor at that editor's real mount.
+const PROSE_WIDTHS = [1280, 1440, 1920] as const;
+/** `.claude/skills/side-eye-design-review/SKILL.md` §2, in the law's own unit — never a px, never a token. */
+const LAW_CHARACTERS_PER_LINE = 75;
+/** The trim-strings description's own opening — the longest running copy in this editor. */
+const TRIM_DESCRIPTION = "Text stripped from every match";
+
+test("#1653 the trim-strings description reads inside the prose measure at every desktop width", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RegexMemberStory />);
+  // SETTLED: the editor's own heading has painted before anything is measured. `exact` because the pipeline
+  // debugger's stage kicker also carries this script's name.
+  await expect(page.getByRole("heading", { name: "strip ooc", exact: true })).toBeVisible();
+  await expect(page.getByText(TRIM_DESCRIPTION, { exact: false })).toBeVisible();
+
+  const rows: string[] = [];
+  for (const width of PROSE_WIDTHS) {
+    await page.setViewportSize({ width, height: 900 });
+    // Barrier on a SETTLED box — a read on the same tick as the viewport change is the pre-reflow one.
+    await expect.poll(async () => Math.round((await readProseMeasure(page, TRIM_DESCRIPTION)).widthPx)).toBeGreaterThan(0);
+    const reading = await readProseMeasure(page, TRIM_DESCRIPTION);
+    rows.push(proseRow(width, reading));
+    // ON the token, not merely under some width: the description must resolve THIS measure in its own font.
+    expect(reading.widthPx, `#1653 regex at ${String(width)}: ${rows.join(" | ")}`).toBeLessThanOrEqual(reading.proseTokenPx + 0.5);
+    expect(reading.lawCharacters, `#1653 regex at ${String(width)}: ${rows.join(" | ")}`).toBeLessThanOrEqual(LAW_CHARACTERS_PER_LINE);
+  }
+  expect(rows).toHaveLength(PROSE_WIDTHS.length);
 });

@@ -134,6 +134,7 @@
     "tests/support/ct/measure-clamp.ts",
     "tests/support/ct/part-vs-surface.ts",
     "tests/support/ct/pixel-contrast.ts",
+    "tests/support/ct/prose-measure.ts",
     "tests/support/ct/scroll-containing-block.ts",
     "tests/support/ct/touch-floor.ts",
     "tests/support/ct/weave-drive.ts",
