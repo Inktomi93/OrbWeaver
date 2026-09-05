@@ -1,5 +1,5 @@
 // Final spelling-independent binding/reference facts for the shared gate runtime.
-import type { Identifier, Node as MorphNode } from "ts-morph";
+import type { Identifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import type {
   MemberReference,
@@ -15,12 +15,13 @@ import { resolveModuleMemberOriginWith } from "./reference-fact-module.ts";
 interface ResolutionState {
   readonly declarations: MorphNode[];
   readonly visited: Set<object>;
+  readonly writtenSymbolsBySource: Map<object, ReadonlySet<object>>;
 }
 
 type WriteInspection = { readonly kind: "stable" } | { readonly kind: "written" } | { readonly kind: "unsupported"; readonly detail: string };
 
 function state(): ResolutionState {
-  return { declarations: [], visited: new Set<object>() };
+  return { declarations: [], visited: new Set<object>(), writtenSymbolsBySource: new Map<object, ReadonlySet<object>>() };
 }
 
 function appendDeclaration(target: ResolutionState, declaration: MorphNode): void {
@@ -108,25 +109,84 @@ function isDeclarationName(node: MorphNode): boolean {
   return false;
 }
 
-function inspectWrites(declaration: MorphNode): WriteInspection {
+function isTransparentWriteWrapper(parent: MorphNode, child: MorphNode): boolean {
+  return (
+    (Node.isParenthesizedExpression(parent) || Node.isAsExpression(parent) || Node.isSatisfiesExpression(parent) || Node.isNonNullExpression(parent)) &&
+    parent.getExpression() === child
+  );
+}
+
+function isAssignmentContainer(parent: MorphNode, child: MorphNode): boolean {
+  if (Node.isArrayLiteralExpression(parent)) {
+    return parent.getElements().some((element) => element.compilerNode === child.compilerNode);
+  }
+  if (Node.isObjectLiteralExpression(parent)) {
+    return parent.getProperties().some((property) => property.compilerNode === child.compilerNode);
+  }
+  if (Node.isPropertyAssignment(parent)) {
+    return parent.getInitializer() === child;
+  }
+  if (Node.isShorthandPropertyAssignment(parent)) {
+    return parent.getNameNode() === child;
+  }
+  return (Node.isSpreadAssignment(parent) || Node.isSpreadElement(parent)) && parent.getExpression() === child;
+}
+
+function isDirectWriteTarget(parent: MorphNode, child: MorphNode): boolean {
+  if (Node.isBinaryExpression(parent) && parent.getLeft() === child) {
+    const operator = parent.getOperatorToken().getKind();
+    return operator >= SyntaxKind.FirstAssignment && operator <= SyntaxKind.LastAssignment;
+  }
+  if ((Node.isPrefixUnaryExpression(parent) || Node.isPostfixUnaryExpression(parent)) && parent.getOperand() === child) {
+    const operator = parent.getOperatorToken();
+    return operator === SyntaxKind.PlusPlusToken || operator === SyntaxKind.MinusMinusToken;
+  }
+  return (
+    (Node.isDeleteExpression(parent) && parent.getExpression() === child) ||
+    ((Node.isForInStatement(parent) || Node.isForOfStatement(parent)) && parent.getInitializer() === child)
+  );
+}
+
+function isWriteTarget(node: MorphNode): boolean {
+  let current = node;
+  let parent = current.getParent();
+  while (parent !== undefined && (isTransparentWriteWrapper(parent, current) || isAssignmentContainer(parent, current))) {
+    current = parent;
+    parent = current.getParent();
+  }
+  return parent !== undefined && isDirectWriteTarget(parent, current);
+}
+
+function writtenSymbols(sourceFile: SourceFile, target: ResolutionState): ReadonlySet<object> {
+  const key: object = sourceFile.compilerNode;
+  const cached = target.writtenSymbolsBySource.get(key);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const symbols = new Set<object>();
+  for (const identifier of sourceFile.getDescendantsOfKind(SyntaxKind.Identifier)) {
+    if (isDeclarationName(identifier) || !isWriteTarget(identifier)) {
+      continue;
+    }
+    const symbol = identifier.getSymbol();
+    if (symbol !== undefined) {
+      symbols.add(symbol.compilerSymbol);
+    }
+  }
+  target.writtenSymbolsBySource.set(key, symbols);
+  return symbols;
+}
+
+function inspectWrites(declaration: MorphNode, target: ResolutionState): WriteInspection {
   const name = bindingNameNode(declaration);
-  if (name === undefined || !Node.isIdentifier(name) || !Node.isReferenceFindable(name)) {
+  if (name === undefined || !Node.isIdentifier(name)) {
     return { kind: "unsupported", detail: `ts-morph cannot enumerate writes for ${declaration.getKindName()}` };
   }
-  try {
-    for (const reference of name.findReferences().flatMap((group) => group.getReferences())) {
-      const sameDefinition = reference.getSourceFile() === name.getSourceFile() && reference.getTextSpan().getStart() === name.getStart();
-      if (!sameDefinition && reference.isWriteAccess() && !isDeclarationName(reference.getNode())) {
-        return { kind: "written" };
-      }
-    }
-  } catch (error) {
-    return {
-      kind: "unsupported",
-      detail: `ts-morph could not enumerate writes for ${name.getText()}: ${Error.isError(error) ? error.message : String(error)}`,
-    };
+  const symbol = name.getSymbol();
+  if (symbol === undefined) {
+    return { kind: "unsupported", detail: `ts-morph cannot resolve the binding symbol for ${name.getText()}` };
   }
-  return { kind: "stable" };
+  return writtenSymbols(name.getSourceFile(), target).has(symbol.compilerSymbol) ? { kind: "written" } : { kind: "stable" };
 }
 
 function uniqueDeclaration(identifier: Identifier, target: ResolutionState): ReferenceFact<MorphNode> {
@@ -148,7 +208,7 @@ function uniqueDeclaration(identifier: Identifier, target: ResolutionState): Ref
 }
 
 function writtenBinding(declaration: MorphNode, target: ResolutionState): UnresolvedReferenceFact | undefined {
-  const inspection = inspectWrites(declaration);
+  const inspection = inspectWrites(declaration, target);
   let fact: UnresolvedReferenceFact | undefined;
   if (inspection.kind === "written") {
     fact = unresolved("write", declaration, target, `the binding ${declaration.getText()} is reassigned or updated`);
@@ -179,7 +239,7 @@ function importedTarget(current: Identifier, declaration: import("ts-morph").Imp
     : resolved(targetDeclaration, target, targetDeclaration);
 }
 
-function resolveConstDeclaration(current: Identifier, declaration: MorphNode, target: ResolutionState): ReferenceFact<MorphNode> {
+function constInitializer(current: Identifier, declaration: MorphNode, target: ResolutionState): ReferenceFact<MorphNode> {
   if (!Node.isVariableDeclaration(declaration)) {
     if (Node.isParameterDeclaration(declaration)) {
       return unresolved("missing", declaration, target, `parameter ${current.getText()} has no stable initializer`);
@@ -202,22 +262,29 @@ function resolveConstDeclaration(current: Identifier, declaration: MorphNode, ta
   const initializer = declaration.getInitializer();
   return initializer === undefined
     ? unresolved("missing", declaration, target, `const binding ${declaration.getName()} has no initializer`)
-    : resolveStableExpressionInternal(initializer, target);
+    : resolved(initializer, target, initializer);
 }
 
 function resolveStableExpressionInternal(raw: MorphNode, target: ResolutionState): ReferenceFact<MorphNode> {
-  const current = unwrapExpression(raw);
-  if (!Node.isIdentifier(current)) {
-    return isDynamicTerminal(current)
-      ? unresolved("dynamic", current, target, `${current.getKindName()} depends on runtime evaluation`)
-      : resolved(current, target, current);
+  let current = unwrapExpression(raw);
+  while (Node.isIdentifier(current)) {
+    const binding = uniqueDeclaration(current, target);
+    if (binding.kind === "unresolved") {
+      return binding;
+    }
+    const declaration = Node.isImportSpecifier(binding.value) ? importedTarget(current, binding.value, target) : binding;
+    if (declaration.kind === "unresolved") {
+      return declaration;
+    }
+    const initializer = constInitializer(current, declaration.value, target);
+    if (initializer.kind === "unresolved") {
+      return initializer;
+    }
+    current = unwrapExpression(initializer.value);
   }
-  const binding = uniqueDeclaration(current, target);
-  if (binding.kind === "unresolved") {
-    return binding;
-  }
-  const declaration = Node.isImportSpecifier(binding.value) ? importedTarget(current, binding.value, target) : binding;
-  return declaration.kind === "unresolved" ? declaration : resolveConstDeclaration(current, declaration.value, target);
+  return isDynamicTerminal(current)
+    ? unresolved("dynamic", current, target, `${current.getKindName()} depends on runtime evaluation`)
+    : resolved(current, target, current);
 }
 
 /** Resolve wrappers and immutable aliases to one terminal expression, or return the exact refusal. */
@@ -233,37 +300,39 @@ export function readStaticString(node: MorphNode): ReferenceFact<string> {
   }
   const terminal = unwrapExpression(fact.value);
   if (Node.isStringLiteral(terminal) || Node.isNoSubstitutionTemplateLiteral(terminal)) {
-    const target: ResolutionState = { declarations: [...fact.trace.declarations], visited: new Set<object>() };
+    const target: ResolutionState = { declarations: [...fact.trace.declarations], visited: new Set<object>(), writtenSymbolsBySource: new Map() };
     return resolved(terminal.getLiteralText(), target, terminal);
   }
-  const target: ResolutionState = { declarations: [...fact.trace.declarations], visited: new Set<object>() };
+  const target: ResolutionState = { declarations: [...fact.trace.declarations], visited: new Set<object>(), writtenSymbolsBySource: new Map() };
   return unresolved("unsupported", terminal, target, `${terminal.getKindName()} is not a static string`);
 }
 
 /** Read a static number, including unary signs, through the shared stable-binding resolver. */
 export function readStaticNumber(node: MorphNode): ReferenceFact<number> {
-  const fact = resolveStableExpression(node);
-  if (fact.kind === "unresolved") {
-    return fact;
-  }
-  const terminal = unwrapExpression(fact.value);
-  const target: ResolutionState = { declarations: [...fact.trace.declarations], visited: new Set<object>() };
-  if (Node.isNumericLiteral(terminal)) {
-    return resolved(terminal.getLiteralValue(), target, terminal);
-  }
-  if (Node.isPrefixUnaryExpression(terminal)) {
+  const target = state();
+  let current = node;
+  let sign = 1;
+  for (;;) {
+    const fact = resolveStableExpressionInternal(current, target);
+    if (fact.kind === "unresolved") {
+      return fact;
+    }
+    const terminal = unwrapExpression(fact.value);
+    if (Node.isNumericLiteral(terminal)) {
+      return resolved(sign * terminal.getLiteralValue(), target, terminal);
+    }
+    if (!Node.isPrefixUnaryExpression(terminal)) {
+      return unresolved("unsupported", terminal, target, `${terminal.getKindName()} is not a static number`);
+    }
     const operator = terminal.getOperatorToken();
     if (operator !== SyntaxKind.PlusToken && operator !== SyntaxKind.MinusToken) {
       return unresolved("unsupported", terminal, target, `${terminal.getKindName()} does not carry a numeric sign`);
     }
-    const operand = readStaticNumber(terminal.getOperand());
-    if (operand.kind === "unresolved") {
-      return mergeUnresolved(operand, target);
+    if (operator === SyntaxKind.MinusToken) {
+      sign *= -1;
     }
-    appendTrace(target, operand.trace.declarations);
-    return resolved(operator === SyntaxKind.MinusToken ? -operand.value : operand.value, target, operand.trace.origin);
+    current = terminal.getOperand();
   }
-  return unresolved("unsupported", terminal, target, `${terminal.getKindName()} is not a static number`);
 }
 
 function computedName(node: MorphNode, target: ResolutionState): ReferenceFact<string> {
@@ -291,6 +360,9 @@ function computedName(node: MorphNode, target: ResolutionState): ReferenceFact<s
 export function readMemberReference(node: MorphNode): ReferenceFact<MemberReference> {
   const access = unwrapExpression(node);
   const target = state();
+  if ((Node.isPropertyAccessExpression(access) || Node.isElementAccessExpression(access)) && isWriteTarget(access)) {
+    return unresolved("write", access, target, `member ${access.getText()} is an assignment, update, or delete target`);
+  }
   if (Node.isPropertyAccessExpression(access)) {
     const nameNode = access.getNameNode();
     return resolved({ name: access.getName(), receiver: access.getExpression(), nameNode, access }, target, nameNode);
