@@ -36,7 +36,13 @@ const AT_ISO = new Date(AT).toISOString();
 const EMPTY: ImportReport = {
   scanned: 0,
   changed: 0,
+  dryRun: false,
+  dryRunWouldImport: null,
   skippedCards: [],
+  skippedCardTags: [],
+  truncatedDirs: [],
+  ambiguousSpeakerNames: [],
+  seatedDisabledMembers: [],
   unreadableCards: [],
   unreadableWorlds: [],
   unreadablePresets: [],
@@ -249,5 +255,60 @@ describe("writeImportReport — the per-entity 'did not travel' planes each name
     const { md } = await render({ ...EMPTY, orphanImports: [{ dir: "Ghost", characterName: "Ghost", created: false, chatsImported: 1 }] });
 
     expect(md).toContain("`Ghost` → `Ghost` (1 chat(s); placeholder already existed from a prior run)");
+  });
+});
+
+// #1469 — the four planes this renderer had no line for at all. Each was a real loss the operator could not
+// learn about from the report: a truncated directory, a tag that never attached, two same-named seats that
+// left a turn unattributed, an ST mute that did not travel — and a DRY RUN whose structural zeroes read
+// exactly like an empty profile.
+describe("writeImportReport — the #1469 silent planes now have lines", () => {
+  test("a truncated directory names the dir and the counts on both sides of the ceiling", async () => {
+    const { md } = await render({ ...EMPTY, truncatedDirs: [{ dir: "root/userA/characters", kept: 100_000, total: 140_002 }] });
+
+    expect(md).toContain("`root/userA/characters` — 140002 entries found, only the first 100000 were read (the rest did NOT import)");
+  });
+
+  test("a tag that did not attach, an ambiguous speaker name and an ST-disabled member each name their subject", async () => {
+    const { md } = await render({
+      ...EMPTY,
+      skippedCardTags: [{ character: "Aria.png", tag: "bard", reason: "UNIQUE constraint failed" }],
+      ambiguousSpeakerNames: [{ group: "Two Emilys", name: "Emily", seats: 2 }],
+      seatedDisabledMembers: [{ group: "The Party", member: "Bram.png" }],
+    });
+
+    expect(md).toContain("`Aria.png` → `bard` — UNIQUE constraint failed");
+    expect(md).toContain("`Two Emilys` — 2 seated cards are called `Emily`");
+    expect(md).toContain("`The Party` → `Bram.png` — seated in the room; mute it there if you want it quiet");
+  });
+
+  test("a DRY RUN says so at the top and lists what a real run would attempt, per wave", async () => {
+    const { md } = await render({
+      ...EMPTY,
+      dryRun: true,
+      dryRunWouldImport: {
+        characters: 3,
+        personas: 1,
+        chats: 7,
+        worlds: 2,
+        presets: 1,
+        themes: 0,
+        backgrounds: 4,
+        groups: 1,
+        groupChats: 2,
+        orphanChatDirs: 1,
+      },
+    });
+
+    expect(md).toContain("**DRY RUN — nothing was written.**");
+    expect(md).toContain("- Characters: 3 (with 7 chat transcript(s))");
+    expect(md).toContain("- Background images: 4");
+    expect(md).toContain("- Group rooms: 1 (with 2 group transcript(s))");
+  });
+
+  test("a REAL run renders NO dry-run banner (the banner is the tell, not a decoration)", async () => {
+    const { md } = await render(EMPTY);
+
+    expect(md).not.toContain("DRY RUN");
   });
 });

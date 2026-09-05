@@ -199,4 +199,36 @@ describe("runBundleImport", () => {
     });
     expect(calls).toHaveLength(0);
   });
+
+  // #1469 — an ABORT (the workload was cancelled) `break`s out of both loops, and every file the driver never
+  // reached simply vanished from the report: the operator read `imported: 1, skipped: 0, failed: 0` over a
+  // half-imported bundle, with no way to tell a cancelled run from a complete one.
+  test("an ABORTED bundle names every file it never reached, and says the run was aborted", async () => {
+    const calls: RecordedCall[] = [];
+    const controller = new AbortController();
+    const registry: PortabilityRegistry = [
+      // The persona wave runs FIRST (PORTABLE_IMPORT_ORDER) and cancels the run from inside its first file —
+      // exactly the shape a workload cancel takes mid-bundle.
+      fakeEntity("persona", "personas/", calls, () => {
+        controller.abort();
+        return { ok: true, created: true };
+      }),
+      fakeEntity("character", "characters/", calls, () => ({ ok: true, created: true })),
+    ];
+    const archive = await packBundle([
+      { path: "personas/alex.json", bytes: enc.encode("{}") },
+      { path: "personas/kai.json", bytes: enc.encode("{}") },
+      { path: "characters/aria.json", bytes: enc.encode("{}") },
+    ]);
+
+    const report = await runBundleImport({ registry, ownerId: OWNER, archive, signal: controller.signal });
+
+    // Only the first file was actually imported.
+    expect(calls.map((c) => c.filename)).toEqual(["alex.json"]);
+    expect(report.aborted).toBe(true);
+    // BOTH unreached files are named — the one behind it in its own wave, and the whole wave never started.
+    expect(report.outcomes.filter((o) => o.notAttempted === true).map((o) => o.path)).toEqual(["personas/kai.json", "characters/aria.json"]);
+    // They are SKIPS, not failures: nothing was tried, so nothing failed.
+    expect(report).toMatchObject({ imported: 1, skipped: 2, failed: 0 });
+  });
 });

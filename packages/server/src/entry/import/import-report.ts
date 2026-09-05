@@ -177,12 +177,36 @@ function userPlaneLines(report: ImportReport): string[] {
   ];
 }
 
+/** The DRY-RUN banner + per-wave census. A rehearsal writes nothing, so every write count below it is zero by
+ *  construction — which reads exactly like a profile carrying none of those planes unless the report says so. */
+function dryRunLines(report: ImportReport): string[] {
+  const census = report.dryRunWouldImport;
+  if (census === null) {
+    return [];
+  }
+  return [
+    "",
+    "> **DRY RUN — nothing was written.** Every count in this report is zero because no wave ran, not because",
+    "> the profile is empty. A real run would attempt:",
+    "",
+    `- Characters: ${census.characters} (with ${census.chats} chat transcript(s))`,
+    `- Personas: ${census.personas}`,
+    `- World books: ${census.worlds}`,
+    `- Presets: ${census.presets}`,
+    `- Themes: ${census.themes}`,
+    `- Background images: ${census.backgrounds}`,
+    `- Group rooms: ${census.groups} (with ${census.groupChats} group transcript(s))`,
+    `- Orphan chat directories (a placeholder character each): ${census.orphanChatDirs}`,
+  ];
+}
+
 /** Render the import report as Markdown. `generatedAt` is epoch-ms (the run clock) → an ISO stamp header. */
 function formatImportReport(report: ImportReport, generatedAt: number): string {
   return [
     "# SillyTavern import report",
     "",
     `Generated: ${new Date(generatedAt).toISOString()}`,
+    ...dryRunLines(report),
     "",
     "## Summary",
     "",
@@ -224,6 +248,10 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
       ...report.orphanSkipped.map((o) => `\`${o.dir}\` — NOT imported: ${o.reason}`),
     ]),
     section("Characters skipped (skip-listed)", report.skippedCharacters),
+    section(
+      "Library tags that did NOT attach (the character imported without them)",
+      report.skippedCardTags.map((t) => `\`${t.character}\` → \`${t.tag}\` — ${t.reason}`),
+    ),
     section("Presets imported — what did NOT map", presetNoteLines(report)),
     section(
       "Preset files skipped — NOT imported",
@@ -258,6 +286,17 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
       report.skippedGroupMembers.map((m) => `\`${m.group}\` → \`${m.member}\` — ${m.reason}`),
     ),
     section(
+      "Group speakers that could NOT be told apart (two seated cards share one display name)",
+      report.ambiguousSpeakerNames.map(
+        (a) =>
+          `\`${a.group}\` — ${a.seats} seated cards are called \`${a.name}\`, so a transcript line naming only "${a.name}" (an older export with no card filename on the line) was left to the room's primary rather than assigned to one of them`,
+      ),
+    ),
+    section(
+      "Group members SillyTavern had disabled (imported as ACTIVE — the mute did not travel)",
+      report.seatedDisabledMembers.map((m) => `\`${m.group}\` → \`${m.member}\` — seated in the room; mute it there if you want it quiet`),
+    ),
+    section(
       "Group definitions that failed to parse",
       report.unreadableGroups.map((f) => `\`${f}\``),
     ),
@@ -268,6 +307,10 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
     section(
       "Chat-bound persona picks that did NOT resolve (the chat imported; only the pick was dropped)",
       report.unresolvedPinnedPersonas.map((p) => `\`${p.chat}\` → persona \`${p.persona}\` — no persona of that name in this import or your library`),
+    ),
+    section(
+      "Directories the importer could only read PART of (entry ceiling — everything past the count was NOT examined)",
+      report.truncatedDirs.map((t) => `\`${t.dir}\` — ${t.total} entries found, only the first ${t.kept} were read (the rest did NOT import)`),
     ),
     section("ST profile planes NOT imported (no importer yet)", report.unhandled.map(unhandledLine)),
     section(

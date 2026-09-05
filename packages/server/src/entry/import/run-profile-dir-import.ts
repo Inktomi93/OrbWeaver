@@ -45,11 +45,15 @@ import type {
   CollectedTheme,
   CollectedWorld,
   CollectResult,
+  ImportAmbiguousSpeakerName,
+  ImportDryRunCensus,
   ImportFsPort,
   ImportPersonaInput,
   ImportPresetNote,
   ImportReport,
+  ImportSeatedDisabledMember,
   ImportSkippedCard,
+  ImportSkippedCardTag,
   ImportSkippedGroup,
   ImportSkippedGroupMember,
   ImportThemeNote,
@@ -202,6 +206,8 @@ interface CollectRecords {
   readonly skippedCharacters: string[];
   readonly unhandled: string[];
   readonly unhandledSettings: string[];
+  /** Directories the collector truncated at its entry ceiling (dir + kept/total), merged across profiles. */
+  readonly truncatedDirs: { dir: string; kept: number; total: number }[];
 }
 
 interface Collected extends CollectRecords {
@@ -261,6 +267,7 @@ function mergeRecords(into: CollectRecords, from: Awaited<ReturnType<typeof coll
   into.skippedCharacters.push(...from.skippedCharacters);
   into.unhandled.push(...from.unhandled);
   into.unhandledSettings.push(...from.unhandledSettings);
+  into.truncatedDirs.push(...from.truncatedDirs);
 }
 
 /** Collect every user-profile subdirectory under the root, merging the per-dir results into one set. A
@@ -301,6 +308,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
     skippedCharacters: [],
     unhandled: [],
     unhandledSettings: [],
+    truncatedDirs: [],
   };
   for (const ent of (await fs.readdir(profileRoot)).toSorted((a, b) => a.name.localeCompare(b.name))) {
     if (signal.aborted) {
@@ -434,13 +442,16 @@ async function toPersonaInput(store: ImportAssetPort["store"], principal: Princi
 async function storeCollectedBackgrounds(
   deps: ProfileDirImportDeps,
   backgrounds: readonly CollectedBackground[],
-): Promise<{ readonly entries: BackgroundLibraryEntry[]; readonly skipped: ImportSkippedCard[] }> {
+): Promise<{ readonly entries: BackgroundLibraryEntry[]; readonly storedFiles: string[]; readonly skipped: ImportSkippedCard[] }> {
   const entries: BackgroundLibraryEntry[] = [];
+  /** The source filename of each stored entry, index-aligned to `entries` — what the report names when the
+   *  blobs land in the CAS but no applier attaches them. */
+  const storedFiles: string[] = [];
   const skipped: ImportSkippedCard[] = [];
   const store = deps.storeBackground;
   const newEntryId = deps.newBackgroundEntryId;
   if (store === undefined || newEntryId === undefined) {
-    return { entries, skipped: backgrounds.map((b) => ({ file: b.filename, reason: "background import is not wired into this composition" })) };
+    return { entries, storedFiles, skipped: backgrounds.map((b) => ({ file: b.filename, reason: "background import is not wired into this composition" })) };
   }
   for (const background of backgrounds) {
     if (deps.signal.aborted) {
@@ -458,12 +469,41 @@ async function storeCollectedBackgrounds(
         maxBytes: ASSET_UPLOAD_MAX_BYTES,
       });
       entries.push({ entryId: newEntryId(), assetId: stored.assetId, assetHash: stored.hash, mime: background.mime, name: background.name });
+      storedFiles.push(background.filename);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       skipped.push({ file: background.filename, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
     }
   }
-  return { entries, skipped };
+  return { entries, storedFiles, skipped };
+}
+
+/** The BACKGROUND + `appearance` wave: CAS-store the blobs, then land them (and the `power_user` ergonomics
+ *  patch) through the settings applier in ONE serialized write. Split out of the driver so the UNWIRED-applier
+ *  arm has somewhere to live: with no applier there is no `backgroundLibrary` append, so the stored blobs are
+ *  unreferenced — unreachable from the picker and reclaimed by the GC an hour later — which used to be
+ *  entirely silent (neither counted nor reported, #1469). `storedFiles` is index-aligned to `entries`, so the
+ *  report names exactly the files that landed in the CAS and nowhere else. */
+async function landBackgroundsAndAppearance(
+  deps: ProfileDirImportDeps,
+  collected: Collected,
+): Promise<{
+  readonly backgroundsImported: number;
+  readonly appearanceKeysApplied: readonly string[];
+  /** The store's own refusals PLUS the stored-but-unattached rows. */
+  readonly skippedBackgrounds: readonly ImportSkippedCard[];
+}> {
+  const stored = await storeCollectedBackgrounds(deps, collected.backgrounds);
+  const apply = deps.applyImportedAppearance;
+  if (apply === undefined || (stored.entries.length === 0 && Object.keys(collected.appearance).length === 0)) {
+    const unattached = stored.storedFiles.map((file) => ({
+      file,
+      reason: "stored in your media library but NOT attached to the background picker — the appearance applier is not wired into this composition",
+    }));
+    return { backgroundsImported: 0, appearanceKeysApplied: [], skippedBackgrounds: [...stored.skipped, ...unattached] };
+  }
+  const outcome = await apply(deps.principal.userId, { patch: collected.appearance, backgroundLibrary: stored.entries });
+  return { backgroundsImported: outcome.backgroundsAdded, appearanceKeysApplied: outcome.patchedKeys, skippedBackgrounds: stored.skipped };
 }
 
 /** Import the collected standalone ST worlds as UNATTACHED owner library books; returns the net-new count
@@ -500,11 +540,16 @@ interface WaveOutcomes {
   readonly backgroundsImported: number;
   /** Backgrounds the STORE refused (magic mismatch, over-cap) — the non-media ones are merged in `reportFrom`. */
   readonly skippedBackgrounds: readonly ImportSkippedCard[];
+  /** ST library tags that did not attach to their imported card (per-tag isolation, never silent). */
+  readonly skippedCardTags: readonly ImportSkippedCardTag[];
   readonly appearanceKeysApplied: readonly string[];
   readonly groupsImported: number;
   readonly groupChatsImported: number;
   readonly skippedGroups: readonly ImportSkippedGroup[];
   readonly skippedGroupMembers: readonly ImportSkippedGroupMember[];
+  /** Display names two seated cards share (the withheld name fallback) + the ST mutes that did not travel. */
+  readonly ambiguousSpeakerNames: readonly ImportAmbiguousSpeakerName[];
+  readonly seatedDisabledMembers: readonly ImportSeatedDisabledMember[];
   /** §5.7, MERGED across the solo bundle loop and the group wave — one report line per chat whose ST
    *  chat-bound persona pick named nobody here, wherever the transcript came from. */
   readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
@@ -538,11 +583,14 @@ const NO_WAVES: WaveOutcomes = {
   themeNotes: [],
   backgroundsImported: 0,
   skippedBackgrounds: [],
+  skippedCardTags: [],
   appearanceKeysApplied: [],
   groupsImported: 0,
   groupChatsImported: 0,
   skippedGroups: [],
   skippedGroupMembers: [],
+  ambiguousSpeakerNames: [],
+  seatedDisabledMembers: [],
   unresolvedPinnedPersonas: [],
   chatsPersonaHealed: 0,
   globalRegexScriptsLifted: 0,
@@ -563,12 +611,35 @@ interface ReportArgs {
   readonly changed: number;
   readonly skippedCards: readonly ImportSkippedCard[];
   readonly waves: WaveOutcomes;
+  /** Present ONLY on a dryRun — the census that keeps a rehearsal's structural zeroes from reading as "this
+   *  profile carries none of these planes" (#1469). */
+  readonly dryRunWouldImport?: ImportDryRunCensus;
 }
 
-function reportFrom({ collected, scanned, changed, skippedCards, waves }: ReportArgs): ImportReport {
+/** What each wave WOULD attempt, straight off the collect result: the counts a real run's wave outcomes
+ *  report after writing. `characters` is the bundle count (`changed` separately carries the read-only
+ *  create PREDICTION); chats are every transcript paired to a card. */
+function dryRunCensus(collected: Collected): ImportDryRunCensus {
+  return {
+    characters: collected.bundles.length,
+    personas: collected.personas.length,
+    chats: collected.bundles.reduce((n, b) => n + b.chats.length, 0),
+    worlds: collected.worlds.length,
+    presets: collected.presets.length,
+    themes: collected.themes.length,
+    backgrounds: collected.backgrounds.length,
+    groups: collected.groups.length,
+    groupChats: collected.groups.reduce((n, g) => n + g.chats.length, 0),
+    orphanChatDirs: collected.orphanChatDirs.length,
+  };
+}
+
+function reportFrom({ collected, scanned, changed, skippedCards, waves, dryRunWouldImport }: ReportArgs): ImportReport {
   return {
     scanned,
     changed,
+    dryRun: dryRunWouldImport !== undefined,
+    dryRunWouldImport: dryRunWouldImport ?? null,
     skippedCards,
     unreadableCards: collected.unreadableCards,
     unreadableWorlds: collected.unreadableWorlds,
@@ -586,6 +657,7 @@ function reportFrom({ collected, scanned, changed, skippedCards, waves }: Report
     skippedCharacters: collected.skippedCharacters,
     unhandled: [...new Set(collected.unhandled)],
     unhandledSettings: [...new Set(collected.unhandledSettings)],
+    truncatedDirs: collected.truncatedDirs,
     // The silent-gap sweep's counts: the FOUND halves are collect-time facts (real on a dryRun too); the
     // lifted/attached halves ride `waves` above and are zero on a dryRun, like every other write outcome.
     globalRegexScriptsFound: collected.globalRegexScripts.length,
@@ -764,9 +836,28 @@ async function importOneBundle(
  *  suggestion. The attaches are independent and the verb is race-safe/idempotent (try-insert, fall back on
  *  conflict; never downgrades an accepted row), so they run together; `allSettled` isolates a single tag's
  *  failure so one bad tag never loses the already-imported character. */
-function attachBundleTags(deps: ProfileDirImportDeps, characterId: CharacterId, tagNames: readonly string[]): Promise<unknown> {
+async function attachBundleTags(
+  deps: ProfileDirImportDeps,
+  bundle: CollectedCard,
+  characterId: CharacterId,
+  tagNames: readonly string[],
+): Promise<ImportSkippedCardTag[]> {
   const ownerId = deps.principal.userId;
-  return Promise.allSettled(tagNames.map((tagName) => deps.attachCardTag({ ownerId, characterId, tagName, source: "manual", status: "accepted" })));
+  const settled = await Promise.allSettled(
+    tagNames.map((tagName) => deps.attachCardTag({ ownerId, characterId, tagName, source: "manual", status: "accepted" })),
+  );
+  // The `allSettled` result used to be DISCARDED into a `Promise<unknown>`, so a rejected attach vanished:
+  // the card imported with fewer labels than the profile carried and the report said nothing (#1469). The
+  // isolation stands — one bad tag still never loses the character; it is now a named row.
+  const skipped: ImportSkippedCardTag[] = [];
+  settled.forEach((outcome, i) => {
+    const tag = tagNames[i];
+    if (outcome.status === "rejected" && tag !== undefined) {
+      const message = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
+      skipped.push({ character: bundle.filename, tag, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
+    }
+  });
+  return skipped;
 }
 
 /** Import every collected card bundle with PER-CARD ISOLATION: a bundle that throws (an oversized field, a
@@ -792,6 +883,8 @@ async function importCollectedBundles(
   /** The card-lift halves of the regex accounting, summed across every imported card. */
   readonly cardScriptsLifted: number;
   readonly cardScriptsReused: number;
+  /** Library tags that did NOT attach to an imported card, with the reason (per-tag isolation, never silent). */
+  readonly skippedCardTags: ImportSkippedCardTag[];
 }> {
   let changed = 0;
   let chatsPersonaHealed = 0;
@@ -800,6 +893,7 @@ async function importCollectedBundles(
   const characterNameByCardFilename = new Map<string, string>();
   const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
   let cardScriptsLifted = 0;
+  const skippedCardTags: ImportSkippedCardTag[] = [];
   let cardScriptsReused = 0;
   for (const bundle of bundles) {
     if (deps.signal.aborted) {
@@ -819,7 +913,7 @@ async function importCollectedBundles(
       characterNameByCardFilename.set(bundle.filename, bundle.cardName);
       const tagNames = tagsByEntityKey.get(bundle.filename);
       if (tagNames !== undefined && tagNames.length > 0) {
-        await attachBundleTags(deps, result.characterId, tagNames);
+        skippedCardTags.push(...(await attachBundleTags(deps, bundle, result.characterId, tagNames)));
       }
     } catch (err) {
       // The concise refusal reason for the report — the last line of a ZodError prettify is the actionable
@@ -837,6 +931,7 @@ async function importCollectedBundles(
     chatsPersonaHealed,
     cardScriptsLifted,
     cardScriptsReused,
+    skippedCardTags,
   };
 }
 
@@ -881,7 +976,16 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
   const scanned = tallyScanned(collected);
 
   if (deps.dryRun) {
-    return reportFrom({ collected, scanned, changed: await countWouldCreate(deps, collected.bundles), skippedCards: [], waves: NO_WAVES });
+    return reportFrom({
+      collected,
+      scanned,
+      changed: await countWouldCreate(deps, collected.bundles),
+      skippedCards: [],
+      // Every WRITE outcome is zero because nothing was written; the census beside it says what the real run
+      // would attempt, per wave, so a rehearsal is never mistaken for an empty profile (#1469).
+      waves: NO_WAVES,
+      dryRunWouldImport: dryRunCensus(collected),
+    });
   }
 
   // The card avatar is CAS-stored inside importCharacter via ctx.storeAsset → this capped store (PD-94).
@@ -941,15 +1045,10 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
   // `power_user` ergonomics patch in ONE serialized settings write (the array append needs a
   // read-modify-write that must sit INSIDE the per-user serializer). A re-run stores byte-identical blobs
   // that dedup in the CAS and appends nothing (the entry dedup is by assetId), so `changed` stays honest.
-  const stored = await storeCollectedBackgrounds(deps, collected.backgrounds);
-  let backgroundsImported = 0;
-  let appearanceKeysApplied: readonly string[] = [];
-  if (deps.applyImportedAppearance !== undefined && (stored.entries.length > 0 || Object.keys(collected.appearance).length > 0)) {
-    const outcome = await deps.applyImportedAppearance(deps.principal.userId, { patch: collected.appearance, backgroundLibrary: stored.entries });
-    backgroundsImported = outcome.backgroundsAdded;
-    appearanceKeysApplied = outcome.patchedKeys;
-    changed += backgroundsImported;
-  }
+  const appearanceWave = await landBackgroundsAndAppearance(deps, collected);
+  const backgroundsImported = appearanceWave.backgroundsImported;
+  const appearanceKeysApplied = appearanceWave.appearanceKeysApplied;
+  changed += backgroundsImported;
 
   const bundleResult = await importCollectedBundles(deps, service, collected.bundles, collected.tagsByEntityKey);
   changed += bundleResult.changed;
@@ -1000,12 +1099,15 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
       skippedThemes: themeResult.skippedThemes,
       themeNotes: themeResult.notes,
       backgroundsImported,
-      skippedBackgrounds: stored.skipped,
+      skippedBackgrounds: appearanceWave.skippedBackgrounds,
       appearanceKeysApplied,
       groupsImported: groupResult.groupsImported,
       groupChatsImported: groupResult.groupChatsImported,
       skippedGroups: groupResult.skippedGroups,
       skippedGroupMembers: groupResult.skippedMembers,
+      skippedCardTags: bundleResult.skippedCardTags,
+      ambiguousSpeakerNames: groupResult.ambiguousSpeakerNames,
+      seatedDisabledMembers: groupResult.seatedDisabledMembers,
       // Every wave's unresolved chat-bound persona picks, in run order: solo bundles, group rooms, orphans.
       unresolvedPinnedPersonas: [...bundleResult.unresolvedPins, ...groupResult.unresolvedPinnedPersonas, ...orphanResult.unresolvedPins],
       // Every wave's dedup-skip HEALS, summed: this is the number the operator reads to see an existing
@@ -1034,18 +1136,28 @@ function direntKind(e: Dirent): FsEntry["kind"] {
   return e.isDirectory() ? "directory" : "other";
 }
 
-/** The real node:fs `ImportFsPort` for the staged profile snapshot. `readdir` resolves `[]` for a
- *  missing/unreadable dir (the port contract — a profile may carry only one subdir), never throwing. */
+/** The fs codes that mean "this profile carries no such plane": the dir is not there (`ENOENT`), or the name
+ *  is occupied by a FILE (`ENOTDIR`) — both are ABSENT, which is the port's documented `[]`. Every other code
+ *  (`EACCES`, `EIO`, `ELOOP`, `EMFILE`, …) is an INFRASTRUCTURE fault: folding those into the same empty
+ *  listing made an unreadable `characters/` read as "this profile has no characters" and imported a truncated
+ *  profile while reporting success (#1469). */
+const ABSENT_DIR_CODES: ReadonlySet<string> = new Set(["ENOENT", "ENOTDIR"]);
+
+/** The real node:fs `ImportFsPort` for the staged profile snapshot. `readdir` resolves `[]` for an ABSENT dir
+ *  (the port contract — a profile may carry only one subdir) and REJECTS on an infrastructure fault. */
 export function createNodeFsImportPort(): ImportFsPort {
   return {
     readdir: async (dir): Promise<readonly FsEntry[]> => {
-      // @orb-gate-ignore caught-failure-ownership(default:catch): documented above — the PORT'S OWN contract
-      // states `readdir` resolves `[]` for a missing/unreadable dir, never throwing (a profile may carry
-      // only one subdir). Ends if the port contract changes to distinguish missing from unreadable.
+      // @orb-gate-ignore caught-failure-ownership(default:catch): the catch is NARROWED to the two ABSENT
+      // codes and RE-THROWS everything else — an infra fault leaves as a rejection, which the collector
+      // wraps as `ImportInfraFailureError`. Ends if the port stops distinguishing absent from broken.
       try {
         const ents = await readdirFs(dir, { withFileTypes: true });
         return ents.map((e): FsEntry => ({ name: e.name, kind: direntKind(e) }));
-      } catch {
+      } catch (error) {
+        if (!ABSENT_DIR_CODES.has((error as NodeJS.ErrnoException).code ?? "")) {
+          throw error;
+        }
         return [];
       }
     },

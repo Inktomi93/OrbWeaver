@@ -5,6 +5,9 @@
 // maxBytes cap on every stored blob, dryRun's ZERO-write prediction, and idempotency (a byte-identical
 // second run scans the same set but changes nothing).
 
+import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
@@ -1044,9 +1047,133 @@ describe("runProfileDirImport — ST groups", () => {
   });
 });
 
+// ── #1469, the ENTRY half of the silent-loss sweep ───────────────────────────────────────────────────────
+describe("runProfileDirImport — a partial run says so", () => {
+  test("dryRun NAMES every wave it would run, instead of reporting zeroes indistinguishable from `nothing there`", async () => {
+    // A profile carrying one card, one persona, one chat, one world, one preset and one group: a dry run
+    // that answers `presetsImported: 0, groupsImported: 0` reads exactly like an empty profile.
+    const files: Record<string, Uint8Array> = {
+      ...fixtureFiles("root"),
+      "root/userA/worlds/Eldoria.json": ENC.encode(JSON.stringify({ entries: { "0": { uid: 0, key: ["e"], content: "A forest." } } })),
+      "root/userA/OpenAI Settings/Marinara.json": ENC.encode(openAiPresetJson()),
+      "root/userA/groups/g1.json": ENC.encode(JSON.stringify({ id: "g1", name: "The Party", members: ["Aria.png"], chats: ["party"] })),
+      "root/userA/group chats/party.jsonl": ENC.encode(chatJsonl("Alex", "unused")),
+    };
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(memoryFs(files), f, { dryRun: true }));
+
+    expect(report.dryRun).toBe(true);
+    expect(report.dryRunWouldImport).toEqual({
+      characters: 1,
+      personas: 1,
+      chats: 1,
+      worlds: 1,
+      presets: 1,
+      themes: 0,
+      backgrounds: 0,
+      groups: 1,
+      groupChats: 1,
+      orphanChatDirs: 0,
+    });
+    // Still ZERO writes — the census is collect-time arithmetic, not a rehearsal.
+    expect(f.log).toHaveLength(0);
+    expect(f.stores).toHaveLength(0);
+  });
+
+  test("a REAL run carries no dry-run census (the flag says which report you are reading)", async () => {
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(memoryFs(fixtureFiles("root")), f));
+
+    expect(report.dryRun).toBe(false);
+    expect(report.dryRunWouldImport).toBeNull();
+  });
+
+  test("a card TAG that fails to attach is reported — the allSettled result used to be thrown away", async () => {
+    const files: Record<string, Uint8Array> = {
+      ...fixtureFiles("root"),
+      "root/userA/settings.json": ENC.encode(
+        JSON.stringify({
+          power_user: { personas: { "alex.png": "Alex" }, default_persona: "alex.png" },
+          tags: [{ id: "t1", name: "bard" }],
+          // biome-ignore lint/style/useNamingConvention: ST wire field names (snake_case) are the interchange format.
+          tag_map: { "Aria.png": ["t1"] },
+        }),
+      ),
+    };
+    const f = fakes();
+
+    const report = await runProfileDirImport({
+      ...deps(memoryFs(files), f),
+      attachCardTag: () => Promise.reject(new Error("tag write failed\nUNIQUE constraint failed: tags.name")),
+    });
+
+    // The character still imported (per-tag isolation); the tag that did not attach is NAMED.
+    expect(report.changed).toBeGreaterThan(0);
+    expect(report.skippedCardTags).toEqual([{ character: "Aria.png", tag: "bard", reason: "UNIQUE constraint failed: tags.name" }]);
+  });
+
+  test("backgrounds stored with NO appearance applier wired are reported as unattached, not counted as imported", async () => {
+    const files: Record<string, Uint8Array> = {
+      ...fixtureFiles("root"),
+      "root/userA/backgrounds/dungeon.png": MINIMAL_PNG,
+    };
+    const f = fakes();
+
+    // The store IS wired (the blob lands in the CAS) but the settings-side applier is NOT — so nothing ever
+    // references the asset, and before this it was neither imported nor reported.
+    const report = await runProfileDirImport({
+      ...deps(memoryFs(files), f),
+      storeBackground: () => Promise.resolve({ assetId: castId<AssetId>("asset_bg"), hash: "deadbeef" }),
+      newBackgroundEntryId: () => "entry_1",
+    });
+
+    expect(report.backgroundsImported).toBe(0);
+    expect(report.skippedBackgrounds).toEqual([
+      {
+        file: "backgrounds/dungeon.png",
+        reason: "stored in your media library but NOT attached to the background picker — the appearance applier is not wired into this composition",
+      },
+    ]);
+  });
+});
+
 describe("createNodeFsImportPort", () => {
   test("readdir resolves [] for a missing dir instead of throwing", async () => {
     const fs = createNodeFsImportPort();
     await expect(fs.readdir("/no/such/orbweaver/profile/dir")).resolves.toEqual([]);
+  });
+
+  // #1469 — EVERY readdir error folded into `[]`, so an infrastructure fault (a symlink loop, an EACCES on a
+  // staged profile whose permissions did not survive the copy, EIO on a failing mount) read as "that plane is
+  // empty" and the import reported success over a truncated profile. ABSENT stays absent; BROKEN now rejects,
+  // and the collector turns the rejection into `ImportInfraFailureError` naming the dir.
+  test("readdir REJECTS on an INFRASTRUCTURE fault (a symlink loop) instead of reporting the plane empty", async () => {
+    const fs = createNodeFsImportPort();
+    const base = await mkdtemp(join(tmpdir(), "pib-loop-"));
+    // A two-link cycle: reading either resolves forever → ELOOP, the documented infra class, reproducible
+    // regardless of which uid the suite runs as (a chmod-000 dir is still readable as root).
+    await symlink(join(base, "b"), join(base, "a"));
+    await symlink(join(base, "a"), join(base, "b"));
+    try {
+      await expect(fs.readdir(join(base, "a"))).rejects.toMatchObject({ code: "ELOOP" });
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
+  });
+
+  test("a path that is a FILE, not a dir, stays the documented ABSENT case (ENOTDIR ⇒ [])", async () => {
+    const fs = createNodeFsImportPort();
+    const base = await mkdtemp(join(tmpdir(), "pib-file-"));
+    const notADir = join(base, "worlds");
+    await writeFile(notADir, "x");
+    try {
+      // A profile that carries a FILE where a plane's directory would be has no such plane — the same
+      // "absent, not broken" reading the reports-ring reader had to learn.
+      await expect(fs.readdir(notADir)).resolves.toEqual([]);
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
   });
 });
