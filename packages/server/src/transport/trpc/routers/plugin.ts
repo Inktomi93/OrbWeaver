@@ -126,8 +126,9 @@ export const pluginRouter = t.router({
   //    reason `previewFromUrl`/`upgradeFromUrl` are: each triggers SERVER EGRESS to a plugin's remembered URL,
   //    and a GET-shaped door onto egress is cacheable + outside the CSRF belt (which covers mutations only).
   //
-  //    `checkForUpdates` takes NO input — it walks the CALLER's own `url`-origin plugins (`listOwned` filters
-  //    owner_id = caller) and re-fetches each remote manifest through `ctx.fetchBundle` — so it is sweep-EXEMPT
+  //    `checkForUpdates` takes NO input — it walks the CALLER's own plugins (`listOwned` filters
+  //    owner_id = caller), re-fetching each `url`-origin remote manifest through `ctx.fetchBundle` and reading
+  //    each SEEDED SHOWCASE row's version off the bundle this build ships (#1740) — so it is sweep-EXEMPT
   //    like `list`/`listSurfaces` (no foreign id). `upgradeFromStoredUrl` takes a FOREIGN pluginId and joins the
   //    PROBED sweep set exactly like `upgradeFromUrl`: the service loads the owner-scoped row and NOT_FOUNDs a
   //    stranger BEFORE any fetch (a stranger never triggers egress on someone else's stored URL), and #615's
@@ -137,6 +138,16 @@ export const pluginRouter = t.router({
   upgradeFromStoredUrl: authedProcedure
     .input(z.object({ pluginId: pluginIdSchema }))
     .mutation(({ ctx, input }) => ctx.services.plugin.upgradeFromStoredUrl({ caller: ctx.auth, pluginId: input.pluginId })),
+
+  // ── THE SEEDED-EXAMPLE TWIN (#1740). `upgradeFromShowcase` sources the bytes from the bundle this build
+  //    SHIPS rather than from a URL, so it triggers NO egress at all — it stays a mutation because it WRITES
+  //    (it swaps a row's bundle through the same `upgrade` verb), which is the ordinary reason, not the egress
+  //    one above. It takes a FOREIGN pluginId and joins the PROBED sweep set exactly like its stored-url twin:
+  //    the service loads the owner-scoped row and NOT_FOUNDs a stranger BEFORE it asks whether that row is one
+  //    of the examples — so a stranger cannot even learn that much about someone else's install.
+  upgradeFromShowcase: authedProcedure
+    .input(z.object({ pluginId: pluginIdSchema }))
+    .mutation(({ ctx, input }) => ctx.services.plugin.upgradeFromShowcase({ caller: ctx.auth, pluginId: input.pluginId })),
 
   // RE-CONSENT. `grant` is the WHOLE new confirmed subset (not a delta) and `acknowledgedNetHosts` is the
   // caller's echo of the exact `PluginView.netHosts` it displayed — the anti-TOCTOU pin the service refuses on

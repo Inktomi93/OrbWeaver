@@ -205,11 +205,11 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
       return null;
     }
     if (!isPristine(row, recorded)) {
-      // The user has taken this plugin over. We do not touch it, and we deliberately do not manufacture an
-      // "update available" state for it either: the client's update prompt is `url`-origin only and its
-      // button re-fetches a REMEMBERED SOURCE a seeded row does not have, so lighting it here would light a
-      // button that throws. Surfacing a bundled update for a diverged install needs its own verb + client
-      // arm; this line is the honest record until it exists.
+      // The user has taken this plugin over. We do not touch it — and we still do not manufacture any state
+      // for it here. Since #1740 the OWNER can take the newer bundle deliberately: `plugin.checkForUpdates`
+      // reports a showcase row against the shipped manifest and `plugin.upgradeFromShowcase` runs it through
+      // the REAL `upgrade` verb, so the offer is an explicit one-click and never this pass's doing. This log
+      // line stays the record of what the AUTOMATIC pass refused.
       log.info(
         { userId: principal.userId, slug: row.slug, installed: row.version, shipped, seeded: recorded ?? null },
         "plugin: a NEWER showcase bundle ships, but this install has diverged from what we seeded — left untouched",

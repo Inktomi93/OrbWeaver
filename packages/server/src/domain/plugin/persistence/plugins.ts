@@ -21,12 +21,32 @@ import { clearPluginBundleAssetsStatement, linkPluginBundleAssetStatement } from
 /** The stored `plugins` row. Homed as the db `$inferSelect` (the RuleRow precedent) — persistence's unit. */
 type PluginRow = typeof plugins.$inferSelect;
 
+/** WHO CAN SERVE THE NEXT VERSION for one row (#1740) — never how the bytes arrived. The `url` arm reads
+ *  straight off the `source_url` the install recorded; the `showcase` arm is membership in the SHIPPED slug set.
+ *
+ *  `url` IS TESTED FIRST, deliberately: a user's OWN url install of a slug we also ship keeps its remembered
+ *  source. It is their plugin — pointing its update button at our copy is precisely the takeover the seeder's
+ *  divergence oracle refuses to perform. */
+function updateSourceFor(row: PluginRow, showcaseSlugs: ReadonlySet<string>): PluginView["updateSource"] {
+  if (row.sourceUrl !== null) {
+    return "url";
+  }
+  return showcaseSlugs.has(row.slug) ? "showcase" : null;
+}
+
 /** Project a row to the owner-facing `PluginView` — the ONE projection (the install verb builds its return
  *  through this too, so a field added here can never be missing from a freshly-installed row's view).
  *  `builtAgainst`, `declaredCapabilities` and `netHosts` are all lifted from the persisted manifest json
  *  (provenance and the DECLARED ask ride INSIDE the manifest — no denormalized columns); `null` when the
- *  manifest declared none. */
-export function toPluginView(row: PluginRow): PluginView {
+ *  manifest declared none.
+ *
+ *  `showcaseSlugs` is the SHIPPED slug set (`ctx.showcase.slugs`, injected — this tier does not import content)
+ *  and is what makes `updateSource` answerable at all (#1740): a seeded example arrives as an `upload` and is
+ *  indistinguishable from a hand-uploaded plugin by column, so the only honest oracle is "does this build ship a
+ *  bundle under that slug". A REQUIRED parameter rather than an optional one, so every call site is forced to
+ *  say where its set comes from — a defaulted `new Set()` would silently project every seeded row as
+ *  un-updatable on whichever path forgot. */
+export function toPluginView(row: PluginRow, showcaseSlugs: ReadonlySet<string>): PluginView {
   return {
     id: row.id,
     slug: row.slug,
@@ -35,6 +55,7 @@ export function toPluginView(row: PluginRow): PluginView {
     status: row.status,
     origin: row.origin,
     sourceUrl: row.sourceUrl,
+    updateSource: updateSourceFor(row, showcaseSlugs),
     grantedCapabilities: row.grantedCapabilities,
     declaredCapabilities: row.manifest.capabilities,
     netHosts: row.manifest.netHosts ?? null,

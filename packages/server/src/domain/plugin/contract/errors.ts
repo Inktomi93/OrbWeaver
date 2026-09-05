@@ -62,6 +62,26 @@ export class PluginNoSourceUrlError extends DomainOperationError {
   }
 }
 
+/** A one-click `upgradeFromShowcase` on a plugin this build ships NO bundle for (#1740) — a hand-installed
+ *  plugin, or a slug the shipped set dropped. DISTINCT from `PluginNotFoundError` for the same reason its
+ *  stored-url sibling above is: the plugin exists and is the caller's own; what is absent is a shipped bundle to
+ *  upgrade FROM. Thrown AFTER the owner-scoped load (so a stranger gets NOT_FOUND first and this can never oracle
+ *  a foreign row) and before anything is packed. Maps to BAD_REQUEST.
+ *
+ *  It is also the SWEEP's teeth: A's seeded probe row is not a showcase slug, so a dropped ownership pre-check
+ *  would surface this distinguishable BAD_REQUEST instead of the leak-free NOT_FOUND the probe pins. */
+// @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see `ManifestInvalidError`
+// above (same host-side lifecycle taxonomy, a CALLER sees it, never the guest-observable membrane error).
+export class PluginNotShowcaseError extends DomainOperationError {
+  // @foreign-id-ok(pluginId): echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
+  constructor(pluginId: string) {
+    super(
+      "plugin_not_showcase",
+      `plugin ${pluginId} is not one of the examples this build ships — there is no bundled copy to update it from (upload a new bundle instead)`,
+    );
+  }
+}
+
 /** The manifest pins a `hostVersion` this build does not serve. Separate from a generic manifest
  *  fault so the caller can be told to rebuild against the served major, not "fix your manifest".
  *
