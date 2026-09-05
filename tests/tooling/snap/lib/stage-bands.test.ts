@@ -188,6 +188,28 @@ test("with every band occupied, the LOWEST STRANDED row is reaped on acquire", (
   expect(allocation.kind === "reap" && allocation.band).toBe(7);
 });
 
+/** THE KEEPER IS NOT A FENCE (#1163 arm b). A stage now arms its own idle timer, and the one thing that
+ *  must NOT follow is a band nobody can reclaim when that timer dies — the strand rule already covers a
+ *  dead OWNER pid, and this is the same property for a dead KEEPER pid: the allocator reads `lastUsedAt`
+ *  and never asks whether a keeper exists, so the arm-(a) backstop is unchanged by construction. Both
+ *  directions are here: a LIVE keeper does not save the row either, because reap-on-acquire fires under
+ *  band pressure and the timer fires under none. */
+test("a keeper pid on the row changes NOTHING about reap-on-acquire — dead or alive, an idle strand is still the candidate", () => {
+  const withKeeper = (keeperPid: number): { readonly row: StageRow } => ({
+    row: row(7, { checkout: LANE_CHECKOUT, sha: OTHER_SHA, lastUsedAt: USED_LONG_AGO, keeper: { pid: keeperPid, armedAt: USED_LONG_AGO } }),
+  });
+  // A pid nothing owns (DEAD) and pid 1 (init — always ALIVE, and never ours): the allocator must not
+  // consult either, so it reaps both.
+  for (const keeperPid of [2_147_483_646, 1]) {
+    const occupied = Array.from({ length: STAGE_BAND_COUNT }, (_unused, band) =>
+      band === 7 ? withKeeper(keeperPid) : { row: row(band, { checkout: LANE_CHECKOUT, sha: OTHER_SHA, lastUsedAt: USED_RECENTLY }) },
+    );
+    const allocation = allocateStageBand({ ...ALLOC, limits: { ttlMs: TTL_MS, cap: STAGE_BAND_COUNT }, views: views(occupied) });
+    expect(allocation.kind, `keeper pid ${keeperPid}`).toBe("reap");
+    expect(allocation.kind === "reap" && allocation.band).toBe(7);
+  }
+});
+
 test("a stranded row whose SESSION is still live is not the reap candidate — the fence holds inside the allocator too", () => {
   const occupied = Array.from({ length: STAGE_BAND_COUNT }, (_unused, band) => ({
     row: row(band, { checkout: LANE_CHECKOUT, sha: OTHER_SHA, lastUsedAt: USED_LONG_AGO, sessions: ["p-live"] }),

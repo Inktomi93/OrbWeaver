@@ -15,6 +15,11 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
+/** Snap's OWN spawned entries — accepted argv, hidden from the printed grammar and the generated index
+ *  because an operator typing one would be starting a background process by hand rather than asking for
+ *  evidence (`ops/flag-grammar.ts` INTERNAL_FLAGS). A SET rather than one hardcoded name, so the next such
+ *  entry is one row here rather than a silently-wrong equality. */
+const INTERNAL_SPELLINGS: ReadonlySet<string> = new Set(["--session-daemon", "--stage-keeper"]);
 const SNAP_CLI = fileURLToPath(new URL("../../../../tooling/src/snap/cli.ts", import.meta.url));
 vi.setConfig({ testTimeout: scaledBudget(15_000) });
 
@@ -163,14 +168,17 @@ test("approved cleanup has one accepted spelling and each retired spelling refus
   }
 });
 
-test("descriptor-owned help grammar covers every public accepted spelling exactly once and hides the daemon entry", () => {
+test("descriptor-owned help grammar covers every public accepted spelling exactly once and hides snap's own spawned entries", () => {
   const described = snapFlagDescriptors().map((row) => row.flag);
   const publicAccepted = Object.keys(FLAG_HANDLERS)
-    .filter((flag) => flag !== "--session-daemon")
+    .filter((flag) => !INTERNAL_SPELLINGS.has(flag))
     .sort();
   expect(described).toEqual(publicAccepted);
   expect(new Set(described).size).toBe(described.length);
-  expect(described).not.toContain("--session-daemon");
+  for (const internal of INTERNAL_SPELLINGS) {
+    expect(described, `${internal} is snap's own child entry, never an operator spelling`).not.toContain(internal);
+    expect(FLAG_HANDLERS[internal], `${internal} is still ACCEPTED — hidden is not the same as gone`).toBeDefined();
+  }
 });
 
 test("the durable accepted-flag ledger matches every executable descriptor grammar, not membership alone", async () => {
@@ -196,7 +204,7 @@ test("the durable accepted-flag ledger matches every executable descriptor gramm
       .get(descriptor.flag)
       ?.split("|")
       .map((cell) => cell.trim());
-    expect(cells?.at(-3), descriptor.flag).toBe(descriptor.flag === "--session-daemon" ? "internal" : "owned");
+    expect(cells?.at(-3), descriptor.flag).toBe(INTERNAL_SPELLINGS.has(descriptor.flag) ? "internal" : "owned");
   }
   for (const line of lines.values()) {
     expect(line).not.toMatch(/incidental|broken|currently drifts/u);

@@ -1,8 +1,9 @@
 // WHAT IS RUNNING, AND WHOSE IS IT — the observation half of the isolated stage, split out of ops/stage.ts
 // when that file crossed the tooling line cap (docs/architecture/core/Core-Tooling-Law.md §4.3). One command family:
-// read the band ports' owners (ONE `ss` for the whole table), decide whether a bound port belongs to a
-// STAGE, age a process, kill a process group, take the THREE health probes of design §3.6, and list the
-// stage dirs on disk. Nothing here boots, tears down or judges — ops/stage.ts orchestrates and
+// read the band ports' owners (ONE `ss` for the whole table), read the box's ESTABLISHED connections so a
+// band can be asked whether anything is actually DRIVING it (#1163's interaction signal), decide whether a
+// bound port belongs to a STAGE, age a process, kill a process group, take the THREE health probes of
+// design §3.6, and list the stage dirs on disk. Nothing here boots, tears down or judges — ops/stage.ts orchestrates and
 // lib/stage-plan.ts + lib/stage-bands.ts rule; these are the raw signals all of them read.
 //
 // Every negative here is "I could not measure", never "it is not there": `ss`/`ps`/`readlink` failing to
@@ -16,13 +17,19 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { budget } from "../../_shared/load-budget.ts";
 import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
 import type { ServedState } from "../../stack/index.ts";
-import type { StagePorts } from "../contract/stage.ts";
+import type { EstablishedConnection, StagePorts } from "../contract/stage.ts";
 import { STAGE_ROOT_REL, stageBaseUrl } from "../lib/stage-plan.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const SS_PID_RE = /pid=(\d+)/u;
 const SS_PORT_RE = /:(\d+)\s/u;
+/** `ss -tnp state established` column layout: `Recv-Q Send-Q Local:Port Peer:Port [users:(…)]`. A state
+ *  filter suppresses the State column, so the queue depths lead — which is also what distinguishes a data
+ *  row from the header without matching on the header's words. */
+const SS_MIN_FIELDS = 4;
+const SS_LOCAL_FIELD = 2;
+const SS_PEER_FIELD = 3;
 
 /** ONE `ss -tlnp`, parsed into port → pid. Ten bands × two ports used to mean twenty `ss` invocations per
  *  allocation (`bandIsBound` alone forked twice per band); the table asks the box ONE question and every
@@ -41,6 +48,84 @@ export function listeningPids(): ReadonlyMap<number, number> {
     }
   }
   return bound;
+}
+
+/** ONE `ss -tnp state established`, parsed into the ESTABLISHED connections of the box: for each socket,
+ *  which local port it terminates, which peer port it faces, and which pid owns the LOCAL end.
+ *
+ *  THIS IS THE STAGE TIMER'S "SOMEBODY IS DRIVING IT" SIGNAL (#1163, design §3.6). `lastUsedAt` is stamped
+ *  by table writes, and a one-shot drive writes the table ONCE and then holds a browser against the stage
+ *  for as long as the run takes — a 90-minute matrix pass would look idle to a clock that only reads the
+ *  row. A page holds vite's HMR websocket open for its whole life, so an established connection to a band
+ *  port from a process that is not the stage's own IS the interaction, observed rather than assumed. */
+function establishedConnections(): readonly EstablishedConnection[] {
+  const out = runNicedSync("ss", ["-tnp", "state", "established"]);
+  if (out.status !== 0) {
+    return [];
+  }
+  const rows: EstablishedConnection[] = [];
+  for (const line of out.stdout.split("\n")) {
+    const fields = line.trim().split(/\s+/u);
+    // Recv-Q Send-Q Local:Port Peer:Port [users:(("cmd",pid=N,fd=M))] — the header line's first field is
+    // the word "Recv-Q", so requiring a numeric queue depth drops it without matching on its text.
+    if (fields.length < SS_MIN_FIELDS || !/^\d+$/u.test(fields[0] ?? "")) {
+      continue;
+    }
+    const local = splitHostPort(fields[SS_LOCAL_FIELD] ?? "");
+    const peer = splitHostPort(fields[SS_PEER_FIELD] ?? "");
+    if (local === null || peer === null) {
+      continue;
+    }
+    const pid = SS_PID_RE.exec(line);
+    rows.push({ localPort: local.port, peerHost: peer.host, peerPort: peer.port, pid: pid === null ? null : Number(pid[1]) });
+  }
+  return rows;
+}
+
+/** `host:port` split from the RIGHT — an IPv6 local address is `[::1]:8888`, so a left split loses. */
+function splitHostPort(token: string): { readonly host: string; readonly port: number } | null {
+  const colon = token.lastIndexOf(":");
+  if (colon <= 0) {
+    return null;
+  }
+  const port = Number(token.slice(colon + 1));
+  return Number.isInteger(port) ? { host: token.slice(0, colon), port } : null;
+}
+
+const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["127.0.0.1", "::1", "[::1]", "localhost"]);
+
+/** Is anything that is NOT one of this stage's own processes connected to its ports right now? Returns a
+ *  DESCRIPTION of the first such peer (for the timer's log line) or null when nobody is.
+ *
+ *  UNCERTAINTY COUNTS AS CONNECTED, deliberately: a peer whose own socket row `ss` did not name, or one
+ *  reaching the band from off-box, is reported as foreign. The timer is the arm with no pressure behind
+ *  it — "I could not identify the client" must never be the reason a lane's stage disappears mid-drive.
+ *  `isStageOwn` is injected so a committed proof can plant both directions without a real stage. */
+export function foreignBandPeer(ports: StagePorts, isStageOwn: (pid: number) => boolean = pidIsStageRooted): string | null {
+  const connections = establishedConnections();
+  const ownerOfLocalPort = new Map<number, number>();
+  for (const row of connections) {
+    if (row.pid !== null && !ownerOfLocalPort.has(row.localPort)) {
+      ownerOfLocalPort.set(row.localPort, row.pid);
+    }
+  }
+  const bandPorts = new Set([ports.server, ports.vite]);
+  for (const row of connections) {
+    if (!bandPorts.has(row.localPort)) {
+      continue;
+    }
+    if (!LOOPBACK_HOSTS.has(row.peerHost)) {
+      return `${row.peerHost}:${row.peerPort} (off-box client of :${row.localPort})`;
+    }
+    const peerPid = ownerOfLocalPort.get(row.peerPort);
+    if (peerPid === undefined) {
+      return `${row.peerHost}:${row.peerPort} (unidentified client of :${row.localPort})`;
+    }
+    if (!isStageOwn(peerPid)) {
+      return `pid ${peerPid} (client of :${row.localPort})`;
+    }
+  }
+  return null;
 }
 
 /** The pid bound to a stage-band port, or null — the row-less teardown's index. `bound` is injectable so a

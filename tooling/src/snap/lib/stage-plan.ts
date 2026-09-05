@@ -21,6 +21,9 @@ export const DIRTY_STAGE_KEY = "dirty";
 export const STAGE_ROOT_REL = join(".cache", "snap-stage");
 /** The BAND TABLE (#1276) — one row per band, the file every checkout of the repo agrees on. */
 export const BANDS_REL = join(STAGE_ROOT_REL, "bands.json");
+/** The bounded REAP LEDGER (#1163): the last few teardowns with the ARM that fired. A reaped band leaves
+ *  no row, so without this "band 3 is free" and "band 3 was reaped 40 s ago" read identically. */
+export const REAPS_REL = join(STAGE_ROOT_REL, "reaps.json");
 /** The pre-#1276 single marker. Read ONCE as a legacy row and DELETED (ops/stage-marker.ts
  *  `migrateLegacyMarker`) — there is no compat shim, because half a migration is the named rot
  *  (`Core-Tooling-Law.md` §1). This constant exists only so the migration and the status line can name
