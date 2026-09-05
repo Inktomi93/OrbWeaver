@@ -1,5 +1,6 @@
 // persistence: portable-refs — the OWNER-SCOPED export reads, against a real db. Pins the three scopes that
-// keep an export from leaking: the FK registry walk returns only the owner's REFERENCED assets (an
+// keep an export from leaking: the owner-narrowed reference walk (`selectOwnedReferencedAssetIds`, homed with
+// the GC collector in `asset-refs.ts`) returns only the owner's REFERENCED assets (an
 // unreferenced blob and a foreign owner's blob are both excluded); the inline scan is MEMBERSHIP-scoped
 // (D18 — a chat the owner isn't in never contributes) and asset-mention-filtered; the row load is the owner
 // gate (foreign / missing ⇒ undefined).
@@ -9,11 +10,8 @@ import { assets, messages, messageVariants } from "@orb/db";
 import type { AssetId, CharacterHandle, ChatId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  loadOwnedAssetForExport,
-  selectInlineReferencedContents,
-  selectOwnedReferencedAssetIds,
-} from "../../../../../packages/server/src/domain/assets/persistence/portable-refs.ts";
+import { selectOwnedReferencedAssetIds } from "../../../../../packages/server/src/domain/assets/persistence/asset-refs.ts";
+import { loadOwnedAssetForExport, selectInlineReferencedContents } from "../../../../../packages/server/src/domain/assets/persistence/portable-refs.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChatRow, seedParticipant, seedUser, setCharacterAvatar } from "../_support.ts";

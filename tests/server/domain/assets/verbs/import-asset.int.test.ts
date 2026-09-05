@@ -5,6 +5,10 @@
 //      character FK resolves and the `asset:<id>` text resolves. Re-import is idempotent.
 //   2. SECURITY BELTS: a hash-mismatched (tampered) blob is rejected before it can poison CAS; an id already
 //      owned by another user is rejected; an id re-used for different content is rejected.
+//   3. A NON-EMPTY DESTINATION: the owner may already hold the bundle's bytes under a different id — the
+//      `(ownerId, hash)` unique index makes the claimed id UNCREATABLE, so the import refuses instead of
+//      reporting a success no downstream ref can resolve. And a replay over a row whose blob went missing
+//      RESTORES the bytes rather than claiming success over an unreadable asset.
 
 import type { AssetKind } from "@orb/contracts/assets";
 import type { PortableFile } from "@orb/contracts/portability";
@@ -23,6 +27,7 @@ import type { AssetsHarness } from "../_support.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedChatRow, seedParticipant, seedUser, setCharacterAvatar } from "../_support.ts";
 
 const PNG = "image/png";
+const ENOENT_RE = /ENOENT/u;
 
 function seedingService(h: AssetsHarness): ReturnType<typeof createAssetsService> {
   return createAssetsService({ ...h.ctx, newAssetId: () => mintTypeId(ID_PREFIX.asset) });
@@ -120,6 +125,55 @@ describe("importAsset — full re-link round-trip", () => {
       expect(await importAsset(freshOwner, file)).toEqual({ ok: true, created: false });
     }
     expect(await ownedAssetCount(dst, freshOwner)).toBe(2);
+  });
+});
+
+describe("importAsset — a destination that already holds the bytes", () => {
+  test("bytes the owner already holds under a DIFFERENT id are refused, never reported as imported", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = seedingService(h);
+    const importAsset = createImportAsset(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+    // The destination is NOT empty: the owner already uploaded these exact bytes, so they carry a LOCAL id.
+    const bytes = pngBytes(2, 4, 6);
+    const local = await svc.store({ principal: principal(owner), bytes, kind: "gallery", mime: PNG });
+
+    // The bundle claims the SOURCE box's id for the same bytes. `(ownerId, hash)` is unique, so the claimed
+    // id CANNOT be created — reporting success would leave every gallery/card/inline ref pointing at nothing.
+    const claimed = mintTypeId(ID_PREFIX.asset);
+    const outcome = await importAsset(owner, fileFor(claimed, "avatar", PNG, bytes));
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.error).toContain(local.assetId);
+    expect(await loadAssetCasRefById(db, claimed)).toBeUndefined();
+    expect(await ownedAssetCount(h, owner)).toBe(1);
+  });
+
+  test("a replay over a row whose BLOB went missing restores the bytes", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const importAsset = createImportAsset(h.ctx);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+    const bytes = pngBytes(7, 7, 7);
+    const id = mintTypeId(ID_PREFIX.asset);
+    const file = fileFor(id, "avatar", PNG, bytes);
+    expect(await importAsset(owner, file)).toEqual({ ok: true, created: true });
+
+    // The row survives, the bytes do not (an interrupted restore, or a GC that raced the link).
+    await h.ctx.cas.remove(owner, hashAssetBytes(bytes));
+    // The row now points at nothing: every read of it faults (the integrity hole this replay must close).
+    await expect(svc.loadAssetBytes(id)).rejects.toThrow(ENOENT_RE);
+
+    // Replaying the authoritative bundle file must REPAIR the asset, not claim success over a hole.
+    expect(await importAsset(owner, file)).toEqual({ ok: true, created: false });
+    const restored = await svc.loadAssetBytes(id);
+    expect(restored && Array.from(restored)).toEqual(Array.from(bytes));
   });
 });
 
