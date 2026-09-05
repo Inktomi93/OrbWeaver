@@ -482,16 +482,6 @@
       }
     },
     {
-      "includes": ["tooling/src/verify/gates/bus-onData-no-store-write.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useFilenamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
       "includes": ["packages/client/**"],
       "linter": {
         "rules": {

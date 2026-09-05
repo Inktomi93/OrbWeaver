@@ -4,62 +4,78 @@
 // from the key the reader/invalidator uses and the two never match again. Flags a `queryKey:` property
 // whose value is an inline array literal, scoped to packages/client/src/**. Does not flag an identifier/property-access value.
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
+import { unwrapExpression } from "../lib/ast-read.ts";
 
 const MESSAGE =
   "inline array-literal queryKey — client query keys are 100% tRPC-proxy-derived " +
   "(trpc.<router>.<proc>.queryKey()/.queryFilter()/.pathFilter()); a hand-written key array silently " +
   "diverges from the reader/invalidator's key. Mint it from the proxy (UI-Gates-and-Lessons.md §11.1).";
 
-/** Strip `as` / `satisfies` / parens so the underlying initializer is reachable — but NEVER resolve an
- *  identifier to its declaration (a `const K = [...]` proxy-shaped mint is legal). */
-function unwrap(node: Node): Node {
-  let n = node;
-  while (Node.isAsExpression(n) || Node.isSatisfiesExpression(n) || Node.isParenthesizedExpression(n)) {
-    n = n.getExpression();
-  }
-  return n;
-}
-
-export const gate: GateDescriptor = {
-  name: "no-array-literal-querykey",
-  docRow: "UI-Gates-and-Lessons.md §11.1",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "no-array-literal-querykey",
+  family: "no-array-literal-querykey",
+  authority: "ordinary",
+  severity: "error",
+  population: "@client",
+  analysis: "syntax",
+  execution: "selected-files",
   message: MESSAGE,
   fix: "mint the key from the tRPC options proxy: trpc.<router>.<proc>.queryKey() / .queryFilter() / .pathFilter().",
-  scanRoot: (p) => p.includes("packages/client/src/"),
-  kinds: [SyntaxKind.PropertyAssignment],
-  visit: (node, _sf, ctx) => {
-    if (!Node.isPropertyAssignment(node) || node.getName() !== "queryKey") {
-      return;
-    }
-    if (Node.isArrayLiteralExpression(unwrap(node.getInitializerOrThrow()))) {
-      ctx.report(node, { token: "queryKey", offset: 0 });
-    }
-  },
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.PropertyAssignment],
+        visit: (node) => {
+          if (!Node.isPropertyAssignment(node) || node.getName() !== "queryKey") {
+            return;
+          }
+          if (Node.isArrayLiteralExpression(unwrapExpression(node.getInitializerOrThrow()))) {
+            ctx.report.node(node, { token: "queryKey", offset: 0 });
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files: 'export const q = { queryKey: ["users", 1] };\n',
-      at: "packages/client/src/features/a/data.ts",
+      mode: "source",
+      files: { "packages/client/src/features/a/data.ts": 'export const q = { queryKey: ["users", 1] };\n' },
       why: "an inline array-literal queryKey — the neo drift a proxy-minted key locks out",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/a/wrapped.ts":
+          'type Key = readonly unknown[];\nexport const a = { queryKey: (["users"] satisfies Key) };\nexport const b = { queryKey: ((["chats"] as const)) };\n',
+      },
+      expect: { count: 2 },
+      why: "satisfies, as-const, and parentheses wrappers cannot hide the inline array literal",
     },
   ],
   mustPass: [
     {
-      files: "export const ok = { queryKey: readKey };\n",
-      at: "packages/client/src/features/a/data2.ts",
+      mode: "source",
+      files: { "packages/client/src/features/a/data2.ts": "export const ok = { queryKey: readKey };\n" },
       why: "an identifier passthrough (proxy-shaped mint) — never resolved to its declaration, so it passes",
     },
     {
-      files: "export const ok = { queryKey: GATED_OFF_KEY as unknown as TKey };\n",
-      at: "packages/client/src/features/a/data3.ts",
+      mode: "source",
+      files: { "packages/client/src/features/a/data3.ts": "export const ok = { queryKey: GATED_OFF_KEY as unknown as TKey };\n" },
       why: "a queryKey wrapped in `as` over a NON-array identifier — unwrap strips casts but never resolves the identifier, passes",
     },
     {
-      files: "export const ok = trpc.users.list.queryKey();\n",
-      at: "packages/client/src/features/a/data4.ts",
+      mode: "source",
+      files: { "packages/client/src/features/a/data4.ts": "export const ok = trpc.users.list.queryKey();\n" },
       why: "a `.queryKey()` proxy CALL (not a `queryKey:` property) — the sanctioned mint, passes",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/a/indirect.ts":
+          'const RESOLVED = ["users"] as const;\ndeclare const props: object;\nexport const indirect = { queryKey: RESOLVED };\nexport const factory = { queryKey: () => ["users"] };\nexport const spread = { ...props };\n',
+      },
+      why: "declared limits: resolved constants, arrow factories, and a queryKey hidden behind object spread are not inline array initializers on the delivered property",
+    },
   ],
-};
+});
