@@ -10,7 +10,7 @@
 // argv and the browser disagreed. Both directions are pinned in the same file: a viewport override under
 // `--mobile` must stay coarse, and a bare `--viewport` must stay FINE at DPR 1, or the fix would have
 // "worked" by making every viewport coarse.
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
@@ -87,6 +87,36 @@ test("#1668 THE OTHER DIRECTION — a bare --viewport is still a DESKTOP: fine p
   expect(run.stdout).toContain('"touch": false');
   expect(run.stdout).toContain('"iphone": false');
   expect(deviceReceipt(run.stdout)).toBe("fine:dpr1:320x740");
+});
+
+test("#1678 — the MANIFEST records the size the browser got, never a phone beside a desktop viewport", async ({ runCli, scratch }) => {
+  // A `--mobile --json` run wrote `environment: { device: "iPhone 14 Pro Max", viewport: 1280x800 }` while
+  // its own nested `environment.browser[0]` said 430x740 / DPR 3 / coarse in all three of requested,
+  // applied and actual: the top line echoed `opts.viewport`, which a device preset never touches. One
+  // record, two answers, and the argv-shaped one is what a reader sees first.
+  const file = await fixture(scratch, "manifest-device.html");
+  const run = await runCli("snap", ["--file", file, "--mobile", "--json", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  await expect(run).toExitWith(EXIT.clean);
+
+  const manifestPath = run.stdout
+    .split(/\s+/u)
+    .find((token) => token.startsWith("json="))
+    ?.slice("json=".length);
+  expect(manifestPath, `no json= token in:\n${run.stdout}`).toBeTypeOf("string");
+  const manifest = JSON.parse(await readFile(String(manifestPath), "utf8")) as {
+    readonly environment: {
+      readonly device: string | null;
+      readonly viewport: { readonly width: number; readonly height: number };
+      readonly browser: readonly { readonly applied: { readonly viewport: { readonly width: number; readonly height: number } } }[];
+    };
+  };
+
+  expect(manifest.environment.device).toBe("iPhone 14 Pro Max");
+  // The top line now AGREES with the nested browser evidence it ships beside…
+  expect(manifest.environment.viewport).toEqual(manifest.environment.browser[0]?.applied.viewport);
+  // …and with the device the RESULT line reported, which is the same descriptor's size.
+  expect(manifest.environment.viewport.width).toBe(430);
+  expect(deviceReceipt(run.stdout)).toMatch(/^coarse:dpr3:430x\d+$/u);
 });
 
 test("#1668 — --mobile alone is unchanged, and --desktop after --mobile still means DESKTOP", async ({ runCli, scratch }) => {

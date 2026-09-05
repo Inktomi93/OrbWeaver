@@ -144,6 +144,22 @@ type ManifestInput = Omit<SnapManifest, "schemaVersion" | "diagnosticRedaction" 
   };
 };
 
+/** THE MANIFEST'S TOP-LINE VIEWPORT IS THE ONE THE BROWSER GOT (#1678), not the one argv carried.
+ *
+ *  Reproduced on this tree before the fix: `pnpm snap --file … --mobile --json` wrote
+ *  `environment: { device: "iPhone 14 Pro Max", viewport: { width: 1280, height: 800 } }` — a phone beside
+ *  a desktop size — while the NESTED `environment.browser[0]` said 430x740 / DPR 3 / coarse in all three
+ *  of requested, applied and actual. The top line echoed `opts.viewport`, which a device preset never
+ *  touches (a descriptor supplies its own size at the context, #1668's `effectiveContextViewport`), so one
+ *  record answered the same question two ways and the argv-shaped answer was the one a reader saw first.
+ *
+ *  The APPLIED contract is the source for the same reason `scaleResultValue` uses it: it is the only value
+ *  that already accounts for a descriptor AND for an explicit `--viewport` override. No browser evidence
+ *  (a manifest written without a context) leaves the argv value in place — there is nothing better to say. */
+function appliedEnvironmentViewport(environment: ManifestInput["environment"]): Viewport {
+  return environment.browser[0]?.applied.viewport ?? environment.viewport;
+}
+
 function diskSafeManifest(input: ManifestInput): SnapManifest {
   const { evidence, scenario, viteDepChurn, ...base } = input;
   const diagnostics = redactBrowserDiagnostics(input.diagnostics);
@@ -151,6 +167,7 @@ function diskSafeManifest(input: ManifestInput): SnapManifest {
   return {
     schemaVersion: 1,
     ...base,
+    environment: { ...base.environment, viewport: appliedEnvironmentViewport(base.environment) },
     console: input.console.map((entry) => redactCapturedConsole(entry)),
     pageErrors: input.pageErrors.map((entry) => redactBrowserPageError(entry)),
     diagnostics: diagnostics.records,
