@@ -328,7 +328,7 @@ by fixed first-party members, never per-plugin (the one-assembly law, G8):
 >    has no channel to travel on. It also names the honest cost — a toast raised with no viewer present (an
 >    event handler, a resident tool) waits for that person's next round-trip with the plugin, or is evicted;
 >    the durable channel stays `notifications.post`. The user bus was REJECTED as the channel: it is the
->    invalidation router (`bus-onData-no-store-write`), and a toast has nothing to invalidate.
+>    invalidation router (`bus-on-data-no-store-write`), and a toast has nothing to invalidate.
 > 3. **A THIRD host fn was required: `host.ui.openDialog`.** §4.8 rules that no vocabulary node opens a modal,
 >    so with only `registerCommand` + `toast` a registered dialog would have been unreachable. It rides the
 >    same `ui.surface` grant, and the DOMAIN resolves the id against the plugin's own `dialog`-anchored

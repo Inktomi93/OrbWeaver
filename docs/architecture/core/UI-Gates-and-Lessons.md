@@ -97,7 +97,7 @@ The UI enforcement families:
   `modal-/section-/chrome-registry-completeness` trio — `registry-pairing` RETIRED at M4, the
   rail↔modal bijection is structural — plus `modal-body-not-placeholder`, `placeholder-copy-registry`), and the
   client-foundation belts (`no-array-literal-querykey`, `no-inline-invalidate-outside-seam`,
-  `bus-onData-no-store-write`, `no-form-reset-in-autosave`, `persist-partialize-and-total-migrate`).
+  `bus-on-data-no-store-write`, `no-form-reset-in-autosave`, `persist-partialize-and-total-migrate`).
 - **Tests.** The token-freshness invariant (§3 derived theme) + the CT containment tests on the D44
   trio (UI-Theming-and-Content.md §12.6).
 
@@ -170,7 +170,7 @@ three seams. The three standing rulings (also D43 (1)/(2)/(3)):
 - **The bus→cache sync seam is the only sanctioned SSE shape.** A subscription `onData` may (a) buffer
   transient progress in LOCAL state and (b) `invalidateQueries(readKey)` — it must NEVER become a second
   store. The invalidation key is produced by the same `*.queryKey(args)` the reader uses. *Gate
-  `bus-onData-no-store-write`.*
+  `bus-on-data-no-store-write`.*
 
 ### 11.2 The container model is a FREEZE, not an unwind
 

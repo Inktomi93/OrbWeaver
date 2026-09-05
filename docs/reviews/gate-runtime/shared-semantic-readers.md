@@ -40,7 +40,7 @@ The legacy `ast-read.ts` and `symbol-reference.ts` APIs still have capped/undefi
 | `bound-field-via-hook` | O | Canonical import identity supplied; convert subjects/grants and broaden visitor subscriptions. |
 | `bounded-list-limit` | O,V | Zod fluent-chain semantics and maximum-bound judgment remain. |
 | `bus-channel-primitive` | O | Canonical constructor target supplied; convert exact home/grant identities. |
-| `bus-onData-no-store-write` | M | Computed member normalization supplied; retain spelling policy or add Zustand receiver proof. |
+| `bus-onData-no-store-write` → `bus-on-data-no-store-write` | M | Computed member normalization supplied; retain spelling policy or add Zustand receiver proof. |
 | `byte-check-cast` | O,V | Drizzle CHECK/tagged SQL composition and SQL semantics remain. |
 | `chat-stream-writes-in-bus-only` | O | Canonical import identity supplied; grants, subscription coverage, and out-of-root fixtures remain. |
 | `client-cache-surgery-only-in-data` | M,O | QueryClient instance/method provenance remains; method spelling is insufficient. |
