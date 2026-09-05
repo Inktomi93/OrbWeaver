@@ -3,6 +3,7 @@
 // greetings split (first message vs alternates), {{char}}/{{user}} normalization, and HTML stripping.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import { describe } from "vitest";
 import { buildCardEmbedText } from "../../../../../packages/server/src/domain/character/substrate/embed-text.ts";
 import { buildGroupCard } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
@@ -48,5 +49,24 @@ describe("buildCardEmbedText", () => {
   test("normalizes {{char}}/{{user}} placeholders and strips HTML", () => {
     const text = buildCardEmbedText(card({ name: "Ivy", description: "<b>{{char}}</b> greets {{user}} warmly" }));
     expect(text).toBe("Name: Ivy\nDescription: Ivy greets User warmly");
+  });
+
+  test("the cap is measured in TOKENS, so a CJK/emoji card stays inside the window", () => {
+    // The old cap multiplied the window by a fixed 3.67 chars/token "measured" on English prose. Every
+    // non-ASCII codepoint is ~1 token, so a card in these scripts sailed ~3.7x over the ceiling and the
+    // engine refused it on every indexing attempt — the cap did nothing for exactly the cards that needed it.
+    const window = 100;
+    const dense = buildCardEmbedText(card({ name: "星", description: `${"漢字と絵文字🙂".repeat(200)}` }), "User", window);
+    expect(estimateTokens(dense)).toBeLessThanOrEqual(safeTokenWindow(window));
+
+    // The same window over plain ASCII is not over-cut: the budget is the estimator's, not a char count.
+    const ascii = buildCardEmbedText(card({ name: "Bryn", description: "a".repeat(2000) }), "User", window);
+    expect(estimateTokens(ascii)).toBeLessThanOrEqual(safeTokenWindow(window));
+    expect(ascii.length).toBeGreaterThan(dense.length);
+  });
+
+  test("a card that already fits is returned whole (no clamp, no lost tail)", () => {
+    const text = buildCardEmbedText(card({ name: "Bryn", description: "a lighthouse keeper" }), "User", 1000);
+    expect(text).toBe("Name: Bryn\nDescription: a lighthouse keeper");
   });
 });

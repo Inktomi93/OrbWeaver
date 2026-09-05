@@ -5,34 +5,27 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { swapIdentityMacros } from "@orb/kit/macro";
+import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
 import { env } from "#foundation/env";
 
 type CardEmbedFields = Pick<CharacterCard, "name" | "description" | "personality" | "scenario" | "greetings">;
 
-// Char budget mirrors the embed model's window (3.67 chars/token measured). Capping here keeps content_hash
-// consistent with the bytes that actually reach the vector, avoiding spurious re-embeds. The window is NO
-// LONGER a bare 8192 literal — it is the embed engine's effective window: the caller passes the
-// self-reported value when available, else this falls to the single-home env floor
-// (VLLM_EMBED_MAX_MODEL_LEN), which is also the engine's launch flag. One home, engine-self-report wins.
-const APPROX_CHARS_PER_TOKEN = 3.67;
-
-// UTF-16 high-surrogate range — the leading half of an astral-codepoint pair.
-const HIGH_SURROGATE_MIN = 0xd8_00;
-const HIGH_SURROGATE_MAX = 0xdb_ff;
-
-/** Truncate to at most `maxChars` UTF-16 units WITHOUT splitting a surrogate pair — a blind `.slice(0, n)`
- *  can cut an astral codepoint (emoji etc.) in half, feeding a lone high surrogate to the tokenizer. */
-function truncateAtCodepoint(text: string, maxChars: number): string {
-  if (text.length <= maxChars) {
-    return text;
-  }
-  let end = maxChars;
-  const last = text.charCodeAt(end - 1);
-  if (last >= HIGH_SURROGATE_MIN && last <= HIGH_SURROGATE_MAX) {
-    end -= 1; // high surrogate — its low half got cut off
-  }
-  return text.slice(0, end);
-}
+// THE CAP IS MEASURED IN TOKENS, NOT IN A CHARS-PER-TOKEN RATIO. This file used to multiply the window by a
+// fixed 3.67 chars/token "measured" on English prose and cut UTF-16 units at that char count. The ratio is a
+// property of the TEXT, not of the model: CJK, emoji and dense code tokenize near 1 char/token, so a card in
+// those scripts produced up to ~3.7× the configured ceiling in tokens and was refused by the engine on every
+// indexing attempt — the cap silently did nothing for exactly the cards that needed it.
+//
+// `@orb/kit/tokens` is the house seam for "cut this to fit a real engine window" (its header names the embed
+// clamp and the memory chunker as its callers; the vLLM embed surface sizes off the SAME pair). It counts
+// codepoints — every non-ASCII codepoint is one token — and `safeTokenWindow` carries the measured 1.4156×
+// headroom between that estimate and a real BPE tokenizer (#187). Capping here still keeps `content_hash`
+// consistent with the bytes that actually reach the vector, which is why the cut lives at this projection
+// and not only at the provider surface.
+//
+// The window is not a bare 8192 literal: the caller passes the engine's self-reported value when available,
+// else this falls to the single-home env floor (VLLM_EMBED_MAX_MODEL_LEN), which is also the engine's launch
+// flag. One home, engine-self-report wins.
 
 /** Strip HTML, collapse runs of whitespace/newlines, trim per line. */
 function cleanText(text: string): string {
@@ -56,7 +49,7 @@ function normalizePlaceholders(text: string, charName: string, userName: string)
  *  `maxTokens` is the embed engine's effective window (self-report ⊕ env floor); defaulted to the env floor
  *  so a bare unit call (and every existing pure test) sizes off the single-home window, never a literal. */
 export function buildCardEmbedText(card: CardEmbedFields, userName = "User", maxTokens: number = env.VLLM_EMBED_MAX_MODEL_LEN): string {
-  const maxEmbedChars = Math.floor(maxTokens * APPROX_CHARS_PER_TOKEN);
+  const budget = safeTokenWindow(maxTokens);
   const name = card.name;
   const first = card.greetings[0]?.text ?? null;
   const alternates = card.greetings.slice(1);
@@ -87,5 +80,5 @@ export function buildCardEmbedText(card: CardEmbedFields, userName = "User", max
     }
   }
 
-  return truncateAtCodepoint(parts.filter((p): p is string => p !== null).join("\n"), maxEmbedChars);
+  return clampToTokenBudget(parts.filter((p): p is string => p !== null).join("\n"), budget);
 }
