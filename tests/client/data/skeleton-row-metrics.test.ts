@@ -7,7 +7,7 @@
 // a hard-coded 48px pitch would have been right in the browser these numbers were measured in and wrong on
 // a tablet, which is the whole reason this is arithmetic over resolved tokens rather than a literal.
 
-import { skeletonRowCountFor } from "@orb/client/data/pure";
+import { skeletonRowCountFor } from "@orb/client/data";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "../../support/fixtures.ts";
 

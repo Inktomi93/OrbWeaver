@@ -3,8 +3,8 @@
 // transitively through the hooks that call it. The hook-level and rendered-frame proofs live in
 // tests/client/state/shell-store.ct.tsx and tests/client/features/app-shell/surfaces/app-shell.ct.tsx.
 
-import type { OverlayPanelRequest } from "@orb/client/state/pure";
-import { resolvePanelMode } from "@orb/client/state/pure";
+import type { OverlayPanelRequest } from "@orb/client/state";
+import { resolvePanelMode } from "@orb/client/state";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

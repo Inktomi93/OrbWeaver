@@ -4,7 +4,7 @@
 // per-row `{{char}}`/`{{user}}` re-targeting via the row's OWN stamps; frozen clock injected
 // (determinism).
 
-import { isDisplayRegexTooComplex, renderMessageForDisplay } from "@orb/client/lib/pure";
+import { isDisplayRegexTooComplex, renderMessageForDisplay } from "@orb/client/lib";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";

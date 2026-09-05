@@ -42,7 +42,7 @@ import {
   workloadsTuningSection,
 } from "@orb/client/features/workloads";
 import { worldInfoSettingsSection } from "@orb/client/features/world-info";
-import { createContributorRegistry } from "@orb/client/lib/pure";
+import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
 import { assertSettingsKeyPartition, assertTeachHonesty, UNCLAIMED_SETTINGS_KEYS } from "@orb/client/state";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";

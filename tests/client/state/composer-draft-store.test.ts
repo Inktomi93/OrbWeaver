@@ -7,7 +7,7 @@
 // Exercised through the non-hook `__readComposerDraftsForTest` snapshot (the `recent-models-store.test.ts`
 // posture — the reactive `useComposerDraft` needs a React render).
 
-import { __readComposerDraftsForTest, __resetComposerDrafts, COMPOSER_DRAFT_CAP, readComposerDraft, setComposerDraft } from "@orb/client/state/pure";
+import { __readComposerDraftsForTest, __resetComposerDrafts, COMPOSER_DRAFT_CAP, readComposerDraft, setComposerDraft } from "@orb/client/state";
 import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

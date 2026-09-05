@@ -10,7 +10,7 @@
 // TS2322 by `pnpm typecheck:tests-dom`. Do not read a `pnpm test:types` pass as this file passing.
 // The partition is pinned by tests/tooling/testd-lane-program-coverage.int.test.ts (#1270).
 
-import { createRegistry } from "@orb/client/lib/pure";
+import { createRegistry } from "@orb/client/lib";
 import { expectTypeOf, test } from "vitest";
 
 const ID_TUPLE = ["a", "b", "c"] as const;

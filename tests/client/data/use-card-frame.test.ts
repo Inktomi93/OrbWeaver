@@ -6,8 +6,8 @@
 //   2. EVERY failure mode resolves to `undefined`, because `undefined` is what makes `SandboxFrame` render
 //      the srcdoc FLOOR. A throw or a rejected promise here would blank a card instead of degrading it.
 
-import type { CardFrameRequest } from "@orb/client/data/pure";
-import { cardFrameMintBody, mintCardFrame } from "@orb/client/data/pure";
+import type { CardFrameRequest } from "@orb/client/data";
+import { cardFrameMintBody, mintCardFrame } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

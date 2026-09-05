@@ -6,7 +6,7 @@
 // vocabularies rather than asserted (#1488). `fetch` is stubbed at the global boundary
 // (the sanctioned "fake at the edges" seam, the `upload-asset` precedent), never a hand-mock of the helper.
 
-import { uploadDocument } from "@orb/client/data/pure";
+import { uploadDocument } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { afterEach, vi } from "vitest";

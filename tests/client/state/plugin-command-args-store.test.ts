@@ -3,7 +3,7 @@
 // React render — the `plugin-dialog-store.test.ts` posture). The pins: the store carries the command + its
 // declared specs as the subject, a re-open REPLACES, and clear frees the slot.
 
-import { __readPluginCommandArgsSubjectForTest, __resetPluginCommandArgs, clearPluginCommandArgs, openPluginCommandArgs } from "@orb/client/state/pure";
+import { __readPluginCommandArgsSubjectForTest, __resetPluginCommandArgs, clearPluginCommandArgs, openPluginCommandArgs } from "@orb/client/state";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";

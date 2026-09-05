@@ -2,7 +2,7 @@
 // `globalThis.location` internally — see the file header), so this is plain-data-in/plain-data-out and
 // needs no DOM/jsdom to test under the node unit lane.
 
-import { buildClientErrorPayload } from "@orb/client/lib/pure";
+import { buildClientErrorPayload } from "@orb/client/lib";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

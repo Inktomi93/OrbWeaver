@@ -3,7 +3,7 @@
 // silently searched as text), the partial-token detector the `@` menu keys on, and the literal-substring
 // highlight ranges. Pure logic → a browser-free unit test (Spine-Testing.md §7).
 
-import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "@orb/client/lib/pure";
+import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "@orb/client/lib";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
