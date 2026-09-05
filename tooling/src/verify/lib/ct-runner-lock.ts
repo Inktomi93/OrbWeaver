@@ -39,7 +39,7 @@ export function ctRunnerLockPath(root: string): string {
 
 /** This invocation's build cache. Keyed by pid + start time: two runs of the same tree can never collide,
  *  and a leftover directory names the run that left it. */
-export function ctCacheDirFor(root: string, id: string): string {
+function ctCacheDirFor(root: string, id: string): string {
   return join(root, CT_RUN_DIR_REL, `build-${id}`);
 }
 
@@ -83,7 +83,7 @@ function defaultAlive(pid: number): boolean {
   }
 }
 
-export function ctRunnerBusyRefusal(holder: CtRunnerLockRecord): string {
+function ctRunnerBusyRefusal(holder: CtRunnerLockRecord): string {
   return (
     `a second \`pnpm ct:scoped\` is LIVE in this worktree (pid ${String(holder.pid)}, started ${holder.startedAt}) — ` +
     "two CT runners in one tree corrupt each other's build (#1581), so this one is refusing instead of racing. " +
