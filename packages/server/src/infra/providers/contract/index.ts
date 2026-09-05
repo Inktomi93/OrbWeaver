@@ -73,6 +73,7 @@ export type {
 } from "./chat.ts";
 // ── Infra-internal: the chat role (request/result/usage/finish vocab + the D48 wire-role axis) ───
 export {
+  AGENT_CONTINUATION_PROMPT_STUB,
   AGENT_PROMPT_TAIL_JOINER,
   HISTORY_ROLES,
   NORMALIZED_FINISH_REASONS,

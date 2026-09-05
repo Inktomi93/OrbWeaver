@@ -92,7 +92,7 @@ import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatement, recordMemoryLog } from "#foundation/observability";
 import type { AgentSeedTurn, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, RoleClientsWithSignal } from "#infra/providers";
-import { AGENT_PROMPT_TAIL_JOINER, createAgentToolServer } from "#infra/providers";
+import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, createAgentToolServer } from "#infra/providers";
 import { createRegexApplyReplace, createRegexTest } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit.ts";
 import { publishNotification } from "../../transport/trpc/index.ts";
@@ -110,8 +110,8 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
 // Agent-sdk turn shape: the stateful backend wants a session seed (transcript before this turn) + a prompt
 // tail (trailing user rows). With both it resumes its cached session and reseeds on divergence, so history
 // rides the session instead of being re-sent flattened every turn. Tool and system rows ride the seed as
-// their own frames (#1593); only the ABSENCE of a trailing user row (continue-mode) falls back to the
-// pre-existing flatten (one prompt string with each row's blank lines collapsed, fresh throwaway session).
+// their own frames (#1593), and a history with NO trailing user row seeds everything and asks the
+// host-authored continuation stub (#1607) — there is no flattened-transcript prompt string on this wire at all.
 
 /** One rendered row: image parts become a placeholder (no vision on this path); the wire `name` label is
  *  stamped into the text (agent-sdk seed frames carry no `name` field). */
@@ -222,44 +222,12 @@ export function extractTrailingSystemRows(history: readonly TurnMessage[]): { ro
  * apparently authored by the human, which is the confusion role separation exists to prevent. TOTAL, not
  * defaulted, so the recurrence is a COMPILE error: a new `HISTORY_ROLES` member with no label here fails `tsc`
  * instead of silently inheriting the user's voice (the §5.5 mapped-Record dispatch shape).
+ *
+ * The labels now announce a SEED FRAME rather than a line in a flattened blob (#1607 deleted the blob), so a
+ * label is no longer a boundary anything could forge — but it is still the only thing that says whose voice a
+ * `user`-framed row speaks in, which is the whole of #1457.
  */
 const AGENT_ROW_LABELS: Record<TurnMessage["role"], string> = { user: "User", assistant: "Assistant", system: "System", tool: "Tool result" };
-
-/** A run of two-or-more newlines — the blank line that IS a turn boundary in {@link flattenAgentHistory}. */
-const BLANK_LINE_RUN = /\n{2,}/g;
-
-/**
- * The flatten fallback: the whole history as one role-labeled blob, reached when the history has no trailing
- * USER row and there is therefore nothing to query the SDK with (continue-mode; a transcript ending in tool
- * results). Exported for bridge tests only — not a composition surface.
- *
- * THE TURN BOUNDARY IS UNFORGEABLE FROM CONTENT (#1593), and that is what the `BLANK_LINE_RUN` collapse buys.
- * In a single prompt string a boundary is TEXT — a blank line plus a label — so hostile content carrying a
- * literal `\n\nUser: …` opened a user turn the host never wrote. Escaping the label spellings would be a
- * blocklist, and a blocklist is whitespace-shape-fragile (`\n\n\nUser:`, `\n\n  User:`). Collapsing each ROW's
- * own blank lines instead makes the host's joiner the only blank line in the blob, so EVERY blank-line-preceded
- * header is host-written, for every shape. THE PRICE: paragraph breaks inside a flatten-arm row reach the model
- * as single newlines. The seed arm pays nothing — its rows are separate SDK frames.
- *
- * THE LIMIT, stated rather than discovered: a line-initial `User:` after a SINGLE newline is still content, and
- * a model that reads any such line as a turn is a model-side weakness no string prompt can close. The
- * structural close is to stop sending a multi-row transcript as a string at all — see {@link splitAgentHistory},
- * which now covers every history that HAS a user tail.
- *
- * REFUSING the agent-sdk path for tool-bearing histories was the other fail-closed candidate and was
- * rejected (#1457): the backend can run those turns, so refusal buys no confidentiality and costs the user
- * their chat — and the forge is not tool-specific anyway, so refusal would close none of the class.
- */
-export function flattenAgentHistory(history: readonly TurnMessage[]): string {
-  return history
-    .map((m) => {
-      const prefix = AGENT_ROW_LABELS[m.role];
-      const name = m.name !== undefined && m.name.length > 0 ? ` (${m.name})` : "";
-      const text = m.content.map((c) => (c.type === "text" ? c.text : "[Image]")).join("");
-      return `${prefix}${name}: ${text.replace(BLANK_LINE_RUN, "\n")}`;
-    })
-    .join(AGENT_PROMPT_TAIL_JOINER);
-}
 
 /**
  * How each history role rides the SESSION SEED. TOTAL, and both facts are load-bearing: `frame` is the SDK
@@ -276,39 +244,51 @@ const AGENT_SEED_FRAMES: Record<TurnMessage["role"], { readonly frame: AgentSeed
 };
 
 /**
- * Split the shaped history into the session seed + the joined prompt tail; `null` when the history has no
- * trailing USER row (the caller falls back to {@link flattenAgentHistory}).
+ * Split the shaped history into the session seed + the prompt this turn queries with. TOTAL — every history
+ * reaches the SDK as frames plus one prompt, and there is no other agent-sdk turn shape (#1607).
  *
- * THIS IS THE STRUCTURAL ARM (#1593). The seed is not a nicety — `session/frames.ts::buildSeedFrames` emits ONE
- * `SessionStoreEntry` per seed turn, so a turn boundary here is a JSON frame and content inside a frame cannot
- * create another frame. Every history that reaches it therefore has boundaries content cannot forge, which is
- * why a `tool` row no longer forces the flat string: it rides as an ANNOUNCED `user` frame instead.
+ * THIS IS THE STRUCTURAL ARM (#1593, completed by #1607). The seed is not a nicety —
+ * `session/frames.ts::buildSeedFrames` emits ONE `SessionStoreEntry` per seed turn, so a turn boundary here is a
+ * JSON frame and content inside a frame cannot create another frame. A `tool` row therefore never forces a flat
+ * string: it rides as an ANNOUNCED `user` frame instead.
  *
  * THE TAIL IS THE TRAILING RUN OF `user` ROWS, never "everything after the last assistant". The two rules agree
  * on every tool-free history (system rows near the tail are lifted by {@link extractTrailingSystemRows} first),
  * and they differ exactly where it matters: a `tool` row after the last assistant would otherwise become the
  * QUERY PROMPT — tool output handed to the model as the human's own message, #1457 arriving by the other door.
  * The tail carries NO host labels, so there is nothing in it for content to imitate.
+ *
+ * NO TAIL ⇒ THE HOST-AUTHORED {@link AGENT_CONTINUATION_PROMPT_STUB}, and the WHOLE history seeds. That case is
+ * live, not theoretical: a tool exchange leaves `[…, assistant, tool]` on the recursion's next request, and a
+ * turn whose verb appends no user row ends on an assistant. It used to flatten the entire transcript into one
+ * prompt string with a text turn boundary; the stub deletes that string, so the paragraph-collapse fence #1593
+ * had to install is gone too (rows keep their bytes — they are separate frames).
+ *
+ * AN EMPTY-TEXT ROW IS NOT A TURN and never becomes a frame: `message.content: [{type:"text", text:""}]` is a
+ * body the Anthropic wire rejects, which would fail every later turn on that lineage rather than this one.
  */
-export function splitAgentHistory(history: readonly TurnMessage[]): { seed: readonly AgentSeedTurn[]; prompt: string } | null {
+export function splitAgentHistory(history: readonly TurnMessage[]): { seed: readonly AgentSeedTurn[]; prompt: string } {
   let tailStart = history.length;
   while (tailStart > 0 && history[tailStart - 1]?.role === "user") {
     tailStart -= 1;
   }
-  const prompt = history
+  const tail = history
     .slice(tailStart)
     .map(agentRowText)
     .filter((t) => t.length > 0)
     .join(AGENT_PROMPT_TAIL_JOINER);
-  if (prompt.length === 0) {
-    return null;
-  }
-  const seed = history.slice(0, tailStart).map((m): AgentSeedTurn => {
+  // An empty tail means the trailing user run said nothing (or there was none): the whole history seeds and the
+  // stub is the query. Never a blank prompt, and never a bare tool row promoted to one.
+  const seedRows = tail.length > 0 ? history.slice(0, tailStart) : history;
+  const seed = seedRows.flatMap((m): AgentSeedTurn[] => {
     const { frame, announce } = AGENT_SEED_FRAMES[m.role];
     const text = agentRowText(m);
-    return { role: frame, content: announce ? `${AGENT_ROW_LABELS[m.role]}: ${text}` : text };
+    if (text.length === 0) {
+      return [];
+    }
+    return [{ role: frame, content: announce ? `${AGENT_ROW_LABELS[m.role]}: ${text}` : text }];
   });
-  return { seed, prompt };
+  return { seed, prompt: tail.length > 0 ? tail : AGENT_CONTINUATION_PROMPT_STUB };
 }
 
 /** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling
@@ -528,8 +508,8 @@ function warningChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
 /** The AGENT-SDK arm of the turn mapping: the stateful wire. Trailing depth-0 system rows have already been
  *  lifted out of the transcript by {@link extractTrailingSystemRows} and joined onto `dynamic`, because the SDK
  *  delivers mid-conversation system authority through the dynamic-context hook channel rather than as history
- *  rows. `agentSplit` present ⇒ the seeded resume shape (chatId + seed turns + the clean user tail); absent ⇒
- *  the whole transcript flattened into one prompt. */
+ *  rows. The shape is ONE (#1607): chatId + seed frames + a prompt, which is the trailing user run when there is
+ *  one and the host-authored continuation stub when there is not. */
 function agentSdkChatRequest(args: {
   readonly req: TurnRequest;
   readonly orSkinTierModels: NonNullable<Awaited<ReturnType<ConnectionService["getOrSkinTierModels"]>>>;
@@ -562,7 +542,9 @@ function agentSdkChatRequest(args: {
     // hands the co-emitted calls back on `result.toolCalls` — the SAME field the array wires report,
     // so the pipeline's fold reads one shape.
     ...(req.agentTerminalTools !== undefined ? { terminalTools: req.agentTerminalTools } : {}),
-    ...(split !== null ? { chatId: req.chatId, seed: split.seed, prompt: split.prompt } : { prompt: flattenAgentHistory(extract.rows) }),
+    chatId: req.chatId,
+    seed: split.seed,
+    prompt: split.prompt,
     onDelta,
     signal: req.signal,
   };
