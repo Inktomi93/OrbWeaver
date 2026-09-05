@@ -29,7 +29,12 @@ import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
 
 const ENC = new TextEncoder();
-const DEC = new TextDecoder();
+// FATAL DECODE (#1460) — the default `TextDecoder()` is `fatal: false`, which replaces a malformed UTF-8
+// byte sequence with U+FFFD and keeps going: the corrupted string can still pass `JSON.parse`, so a
+// corrupted artifact "imports successfully" with silently altered text (names/content/metadata/secrets).
+// `fatal: true` makes a byte-level corruption THROW instead, which `decodeObject`'s catch turns into the
+// typed `invalid-encoding` refusal — never a thrown `TypeError` escaping to the caller as an unhandled 500.
+const DEC = new TextDecoder("utf-8", { fatal: true });
 const JSON_INDENT = 2;
 /** The version an envelope-less legacy file is read as (the shape that predates the envelope). */
 const IMPLIED_LEGACY_VERSION = 1;
@@ -90,6 +95,7 @@ export interface JsonObjectSerdeSpec<Value, Body extends object> extends Envelop
  *  a NEWER orbweaver. */
 const PARSE_FAILURE_COPY: Record<PortableParseFailure, (kind: string) => string> = {
   "not-json": () => "the file is not JSON",
+  "invalid-encoding": () => "the file is corrupted — it is not valid UTF-8 text",
   "foreign-kind": (kind) => `the file is not an ${kind} file`,
   "newer-version": (kind) => `the file was written by a newer version of orbweaver (${kind}) — upgrade before restoring it`,
   malformed: (kind) => `the file's contents do not match the ${kind} format`,
@@ -104,14 +110,27 @@ function refuse<T>(reason: PortableParseFailure): PortableParse<T> {
   return { ok: false, reason };
 }
 
-/** The bytes as a plain JSON object, or the reason they are not one. */
+/** The bytes as a plain JSON object, or the reason they are not one. Byte fidelity is checked BEFORE JSON
+ *  syntax (#1460): a fatal-decode failure (malformed UTF-8) is `invalid-encoding`, distinct from a
+ *  well-formed-bytes-but-bad-syntax `not-json` — conflating them would report "not JSON" for bytes that
+ *  never even reached `JSON.parse`, and would silently let a corrupted-but-decodable file through under
+ *  the OLD non-fatal decoder (`DEC`'s header). */
 function decodeObject(bytes: Uint8Array): PortableParse<Record<string, unknown>> {
+  let text: string;
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): typed refusal — returns a PortableParse
+  // "invalid-encoding" reason, consumed via portableParseError for the operator-facing message. Ends if the
+  // caller stops rendering the reason.
+  try {
+    text = DEC.decode(bytes);
+  } catch {
+    return refuse("invalid-encoding");
+  }
   let raw: unknown;
   // @orb-gate-ignore caught-failure-ownership(empty:catch): typed refusal — returns a PortableParse
   // "not-json" reason, consumed via portableParseError for the operator-facing message. Ends if the
   // caller stops rendering the reason.
   try {
-    raw = JSON.parse(DEC.decode(bytes));
+    raw = JSON.parse(text);
   } catch {
     return refuse("not-json");
   }

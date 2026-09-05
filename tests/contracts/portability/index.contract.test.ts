@@ -1,5 +1,5 @@
 import type { PortabilityRegistry, PortableEntity, PortableFile, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
-import { PORTABLE_IMPORT_ORDER, PORTABLE_KINDS } from "@orb/contracts/portability";
+import { PORTABLE_IMPORT_ORDER, PORTABLE_KINDS, PORTABLE_PARSE_FAILURES } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
@@ -109,4 +109,10 @@ test("PortableImportOutcome carries an isolated failure without throwing", () =>
   expect(failed.ok).toBe(false);
   expect(failed.created).toBeUndefined();
   expect(failed.error).toBe("bad envelope");
+});
+
+// #1460 — `invalid-encoding` is a DISTINCT reason from `not-json`: byte-level corruption (malformed UTF-8) is
+// checked before JSON syntax even runs, so a family's decode boundary can say WHICH failed.
+test("PORTABLE_PARSE_FAILURES pins the closed set of parse-refusal reasons", () => {
+  expect([...PORTABLE_PARSE_FAILURES]).toEqual(["not-json", "invalid-encoding", "foreign-kind", "newer-version", "malformed"]);
 });
