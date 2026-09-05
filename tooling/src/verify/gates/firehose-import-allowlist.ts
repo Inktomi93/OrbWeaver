@@ -15,8 +15,10 @@
 // barrel absorbs the resolution. Same reasoning (and same shape) as `no-direct-users-read` /
 // `discovery-no-stats-rollups`.
 //
-// THREE ARMS — the two laundering routes plus a rename tripwire:
+// FOUR ARMS — the three laundering routes plus a rename tripwire:
 //  • a named `import { subscribeAllChatEvents }` outside the allowlist
+//  • a NAMESPACE-reached `import * as events; events.subscribeAllChatEvents` (either member spelling) —
+//    that shape produces no ImportSpecifier at all and walked past this gate in silence until #1506
 //  • a `export { subscribeAllChatEvents } from …` RE-EXPORT outside the allowlist (laundering the symbol into
 //    a new module so the import lands on an innocuous specifier)
 //  • FAIL-LOUD: the symbol is not declared anywhere in the tree → it was renamed past this gate, which would
@@ -27,6 +29,7 @@
 import type { SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import { MEMBER_ACCESS_KINDS, namespaceImportSpecifier, readMemberAccess } from "../lib/symbol-reference.ts";
 
 const FIREHOSE = "subscribeAllChatEvents";
 
@@ -68,13 +71,26 @@ export const gate: GateDescriptor = {
   message: MESSAGE,
   fix: FIX,
   scanRoot: (p) => SCANNED.test(`/${p}`),
-  kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.ExportSpecifier],
+  kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.ExportSpecifier, ...MEMBER_ACCESS_KINDS],
   visit: (node, sf, ctx) => {
-    const spec = node.asKind(SyntaxKind.ImportSpecifier) ?? node.asKind(SyntaxKind.ExportSpecifier);
-    if (spec === undefined || spec.getName() !== FIREHOSE || isAllowed(rel(ctx, sf))) {
+    if (isAllowed(rel(ctx, sf))) {
       return;
     }
-    ctx.report(node, { token: FIREHOSE, offset: 0 });
+    const spec = node.asKind(SyntaxKind.ImportSpecifier) ?? node.asKind(SyntaxKind.ExportSpecifier);
+    if (spec !== undefined) {
+      if (spec.getName() === FIREHOSE) {
+        ctx.report(node, { token: FIREHOSE, offset: 0 });
+      }
+      return;
+    }
+    // ARM 1b (#1506) — the NAMESPACE spelling of arm 1. `import * as events from "…"; events.subscribeAllChatEvents(…)`
+    // produces NO ImportSpecifier, so the specifier arms above never see the reference at all; the whole
+    // firehose was reachable this way while the gate reported ✓. Keyed on the same exact NAME the rename
+    // tripwire keys on, in EITHER member spelling (`events.x` and `events["x"]` are one reference).
+    const read = readMemberAccess(node);
+    if (read?.name === FIREHOSE && namespaceImportSpecifier(read.receiver) !== undefined) {
+      ctx.report(node, { token: FIREHOSE, offset: 0 });
+    }
   },
   // Fail-loud: if nothing declares the symbol any more it was renamed, and every arm above is dead.
   finalize: (ctx) => {
@@ -110,6 +126,22 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
+        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE}(): void {}\n`,
+        "packages/server/src/domain/hub/observer.ts": `import * as events from "../../transport/trpc";\nexport const o = events.${FIREHOSE};\n`,
+      },
+      expect: { count: 1, messageIncludes: "composition root" },
+      why: "ARM 1b (#1506): the NAMESPACE spelling of the same tail. Before the shared reader this example produced ZERO findings — there is no ImportSpecifier to visit, so a per-member-authz bypass was one `import * as` away",
+    },
+    {
+      files: {
+        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE}(): void {}\n`,
+        "packages/server/src/domain/hub/bracket-observer.ts": `import * as events from "../../transport/trpc";\nexport const o = events["${FIREHOSE}"];\n`,
+      },
+      expect: { count: 1, messageIncludes: "composition root" },
+      why: "ARM 1b, bracket spelling — a namespace member is ONE reference however it is written, so the member spelling cannot buy an escape either",
+    },
+    {
+      files: {
         // The symbol exists nowhere: the rename tripwire, which is the only thing between a rename and a
         // permanently, silently green gate.
         "packages/server/src/entry/compose/automation-watcher.ts": "export const x = 1;\n",
@@ -139,6 +171,13 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/buddy/observer.ts": 'import { subscribeChatEvents } from "../../transport/trpc";\nexport const o = subscribeChatEvents;\n',
       },
       why: "the PER-CHAT stream is the correct seam (member-gated per yield) — the gate must not fire on it",
+    },
+    {
+      files: {
+        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE}(): void {}\n`,
+        "packages/server/src/domain/buddy/observer.ts": 'import * as events from "../../transport/trpc";\nexport const o = events.subscribeChatEvents;\n',
+      },
+      why: "ARM 1b's NEGATIVE control: a namespace member read of the PER-CHAT stream is not the firehose — the new arm keys on the exact name, never on reached-through-a-namespace",
     },
   ],
 };

@@ -1,27 +1,30 @@
+// The subject is the READ, not its spelling: `form.state.values` and `form["state"]["values"]` are the
+// same dependency and the same re-render-per-keystroke defect, so the member chain is resolved through
+// `lib/symbol-reference.ts` rather than off `PropertyAccessExpression.getText()` (#1506 — the bracket
+// spelling produced ZERO findings while the dotted one flagged).
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
+import { readMemberAccess } from "../lib/symbol-reference.ts";
 
+/** The member chain a node reads, innermost-last: `a.b["c"]` → ["c", "b"]. Stops at the first link that is
+ *  not a member access, so the receiver's own text never enters the comparison. */
+function memberChain(node: Node): readonly string[] {
+  const chain: string[] = [];
+  let current: Node = node;
+  for (let read = readMemberAccess(current); read !== undefined; read = readMemberAccess(current)) {
+    chain.push(read.name);
+    current = read.receiver;
+  }
+  return chain;
+}
+
+/** `<x>.state.values` or `<x>.store`, in ANY member spelling — the two pre-listener reads. */
 function isFormStateReference(node: Node): boolean {
-  if (!Node.isPropertyAccessExpression(node)) {
+  const [last, previous] = memberChain(node);
+  if (last === undefined) {
     return false;
   }
-
-  const text = node.getText();
-  if (text === "form.state.values" || text === "form.store") {
-    return true;
-  }
-
-  // matches any $_.state.values or $_.store
-  if (text.endsWith(".state.values") || text.endsWith(".store")) {
-    const exprText = node.getExpression().getText();
-    if (exprText.endsWith(".state") && text.endsWith(".state.values")) {
-      return true;
-    }
-    if (text.endsWith(".store")) {
-      return true;
-    }
-  }
-  return false;
+  return last === "store" || (last === "values" && previous === "state");
 }
 
 export const gate: GateDescriptor = {
@@ -69,6 +72,22 @@ export const gate: GateDescriptor = {
       },
     },
     {
+      why: '#1506: the BRACKET spelling of the same read — `form["state"]["values"]` is the same dependency and the same per-keystroke re-render; it produced ZERO findings before the shared member reader',
+      files: {
+        "src/some-component.tsx": `
+          useEffect(() => {}, [form["state"]["values"]]);
+        `,
+      },
+    },
+    {
+      why: "#1506: the mixed spelling — one dotted link, one bracket link",
+      files: {
+        "src/some-component.tsx": `
+          useEffect(() => {}, [form.state["values"]]);
+        `,
+      },
+    },
+    {
       why: "reading myForm.store in deps",
       files: {
         "src/some-component.tsx": `
@@ -78,6 +97,14 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      why: "#1506's NEGATIVE control: a `.values` read that is NOT under `.state` is somebody else's object",
+      files: {
+        "src/some-component.tsx": `
+          useEffect(() => {}, [lookup["values"]]);
+        `,
+      },
+    },
     {
       why: "reading other state in deps",
       files: {

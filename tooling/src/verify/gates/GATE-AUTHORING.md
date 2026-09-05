@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-02
+updated: 2026-09-05
 ---
 
 # Authoring a structural gate
@@ -22,6 +22,7 @@ updated: 2026-09-02
 | couple | Core-Enforcement row · the `(N registered gates)` count · `check-gates.int` fixture OR `UNFIXTURABLE_GATES` |
 | exempt | typed `ExemptionRow` (`why` mandatory) + a STALE arm + a real-tree anchor. Never a comment marker without a stale arm |
 | posture | if it matches a literal against FILE TEXT, declare its COMMENT POSTURE in the header and wire it through `comment-spans.ts` (§5) |
+| spell | read every member/import/literal through `lib/symbol-reference.ts` — one syntax is not the class (§5, #1506) |
 | prove | `pnpm check:structure` on a REAL planted violation — conformance passing proves nothing about `scanRoot` |
 | fix | violations found at landing get FIXED in the same lane. Allowlists are for PERMANENT deliberate exemptions only |
 
@@ -415,6 +416,31 @@ Two traps this cost, both worth copying:
 - **`startsWith("<Type>")` on an annotation also matches `<Type>[]`** — an ARRAY of definitions is an
   assembler's derivation, not a definition, and a fail-closed arm keyed on the loose prefix would accuse it.
   Match the head exactly (`=== "X"` or `startsWith("X<")`).
+
+**SPELLING BLINDNESS — a detector keyed on ONE syntax is blind to the same semantics in another** (#1506,
+2026-09-05). Three respellings walked past 21 live gates at once, each a SILENT GREEN:
+
+| The escape | Why the gate never saw it | Read it with |
+| - | - | - |
+| `db["insert"](schema["chatDigests"])` | an ElementAccessExpression is not a PropertyAccessExpression, so a `getName()` detector is offered no node it recognises | `readMemberAccess` / `readsMemberNamed`, and subscribe to `MEMBER_ACCESS_KINDS`, never `PropertyAccessExpression` alone |
+| `import * as events; events.subscribeAllChatEvents(…)` | a namespace import produces NO ImportSpecifier at all — an import-keyed gate is offered no node WHATSOEVER | `moduleMemberReference` (named import + namespace member are ONE reference), subscribing to `ImportSpecifier` PLUS `MEMBER_ACCESS_KINDS` |
+| `role={ROLE}` · `margin: -8` | neither is a literal NODE (`Identifier`, `PrefixUnaryExpression`), so a literal-kind check answers "not my subject" | `readStringConstant` / `readNumericConstant` — both refuse an unreadable value rather than guessing |
+
+The ONE home for all six readers is `tooling/src/verify/lib/symbol-reference.ts`; they only ever WIDEN
+detection, so migrating a gate onto them cannot turn a live finding into a pass. Every migration owes a
+`mustFlag` row per respelling AND a `mustPass` NEGATIVE control (a namespace member of the WRONG module, a
+genuinely dynamic key), because a widened reader is exactly where a false positive would come from.
+
+**THE AUTHORING CONTROL IS AUTOMATIC: `tests/tooling/gate-spelling-twins.int.test.ts`.** It respells every
+gate's OWN `mustFlag` fixture — focused on the lines that gate actually reported, so a definition-site gate
+is never asked about a spelling its subject cannot take — feeds the twin back through `verifyGateProofs`,
+and compares the blind set against `tests/tooling/gate-spelling-twins.baseline.json`. The ledger is
+SHRINK-ONLY and two-sided (§4.8): **a gate that becomes blind is RED even if it is brand new**, and a row
+whose gate is no longer blind is RED. 83 gates were blind at mint — that population is a named follow-up
+burn-down, and the remedy for a red is never a new row, it is the shared reader. The measurement that set
+the design: respelling fixtures WHOLESALE produced 333 false "expected a finding, got 0" (rewriting a
+`sqliteTable(…)`/zod/`tv()` DEFINITION into bracket form destroys the subject rather than respelling it),
+against 304 for the focused twin — the focus is correctness, not tidiness.
 
 **A MARKER-EXEMPT GATE OWES THE SIX-CASE REAL-TREE PROBE.** Copy this shape, do not re-derive it — the
 conformance mini-projects prove the matcher, this proves the EXEMPTION VOCABULARY on the actual tree
