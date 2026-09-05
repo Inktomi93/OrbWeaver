@@ -668,6 +668,24 @@ test("a TRUTHY VLLM_DISABLED maps EXPLICITLY to posture off, named by its source
   expect(line).toContain("vllm-disabled=true");
 });
 
+test("VLLM_DISABLED is matched CASE-INSENSITIVELY — `TRUE` must not be rewritten to false (#1618 residual)", () => {
+  // THE INVERSION THIS PINS: the case-sensitive first cut read `TRUE` as falsy, fell into the normalising
+  // else-branch, and EXPORTED `VLLM_DISABLED=false` — an operator who spelled the spawn-safety switch in
+  // caps got the opposite of what they asked for, silently, on the variable whose only job is "do not start
+  // 38 GB of vLLM". Every spelling of ON must reach posture `off`.
+  for (const spelling of ["TRUE", "True", "Yes", "ON", "YES"]) {
+    const line = postureProbe({ VLLM_DISABLED: spelling });
+    expect(line, `${spelling} must resolve to the engines-off posture`).toContain("engines=off");
+    expect(line, `${spelling} must normalise to the schema's "true", never be inverted to false`).toContain("vllm-disabled=true");
+  }
+  // …and the falsy spellings stay falsy in any case — the fix must not make everything truthy.
+  for (const spelling of ["FALSE", "False", "No", "OFF", "0"]) {
+    const line = postureProbe({ VLLM_DISABLED: spelling });
+    expect(line, `${spelling} must NOT map to the off posture`).not.toContain("engines=off");
+    expect(line).toContain("vllm-disabled=false");
+  }
+});
+
 test("the resolution order is host > VLLM_DISABLED > .env pin > default, and the SOURCE is printed (#1618)", () => {
   // A host export still wins outright (the e2e harness's adopt-only depends on it).
   expect(postureProbe({ ENGINES_POSTURE: "adopt-or-start", VLLM_DISABLED: "false" })).toContain("engines=adopt-or-start source=host");

@@ -24,6 +24,19 @@
 import type { RpgBusEventType, RpgDeliveryPath, RpgFoldFallbackReason, RpgRecordedToolCall } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 
+/** HOW A STATE ROUND ENDED — one importable union, the settle event's and the settle hook's shared
+ *  vocabulary (§5.5: never re-spelled at either site). The members are the arms of `flushTurn`:
+ *  • `wrote` — the snapshot (and any journal) committed;
+ *  • `no-writes` — the round ran and staged nothing (the quiet beat; the 8B model's commonest end);
+ *  • `dropped` — the F1 write-boundary backstop refused a contract-invalid state (`droppedReason` says which
+ *    field), so canon is untouched;
+ *  • `cancelled` — the caller pressed Stop, at either gate; whatever was staged was discarded;
+ *  • `readonly` — the F2 gate: this game's resolved connection has no write path, so NO round ran at all;
+ *  • `failed` — something threw out of the round, the write boundary, or the tool-call disclosure. The
+ *    settle still fires (from the `finally`) BEFORE the throw propagates, because a barrier that only
+ *    releases on success hangs to its timeout on exactly the turn a reader most needs to see. */
+export type RpgFlushOutcome = "wrote" | "no-writes" | "dropped" | "cancelled" | "readonly" | "failed";
+
 /** The per-turn RPG trace event. Discriminated on `phase`; the recorder stamps `seq`/`at` at record time (the
  *  emitter never reads a clock — determinism). */
 export type RpgTraceEvent =
@@ -57,19 +70,23 @@ export type RpgTraceEvent =
       readonly fallbackReason: RpgFoldFallbackReason | null;
     }
   | {
-      /** THE WRITE BOUNDARY SETTLED (#1493). Emitted after `writeFlush` returns — after the durable
-       *  snapshot+journal commit, after the hand-row fold, after the tool-call record — on EVERY arm of the
-       *  round: a flush that wrote, a flush the contract backstop REFUSED, a round that staged nothing at
-       *  all, and a round whose write boundary THREW. This is the one event that is false before the
-       *  extraction has run and true after it, which is what a settle barrier needs.
+      /** THE STATE ROUND SETTLED (#1493). Emitted from the OUTERMOST `finally` of `flushTurn`, so it is
+       *  TOTAL over every arm — the write that landed, the backstop's refusal, the quiet beat that staged
+       *  nothing, both cancel gates, the F2 readonly game that ran no round at all, and any throw out of
+       *  the round or the disclosure write. This is the one event that is false before the extraction has
+       *  run and true after it, which is what a settle barrier needs.
        *
-       *  `wrote` is the durable half (a snapshot landed); `droppedReason` names the write-contract field
-       *  that refused when the F1 backstop dropped the flush, and is `null` on every other arm. Together
-       *  they answer "did anything land, and if not, why" without a second query. */
+       *  TOTALITY IS THE WHOLE POINT and it was NOT true of the first cut (verifier v-L2-tooling): the
+       *  settle sat in the write boundary's own `finally`, AFTER `recordTurnCalls`, so a failed disclosure
+       *  write, a throw out of `stageStateRound`, either cancel arm and the readonly return all skipped it
+       *  — and a barrier polling for it hung to its timeout instead of releasing.
+       *
+       *  `outcome` names WHICH arm; `droppedReason` names the write-contract field the F1 backstop refused
+       *  and is `null` on every arm but `dropped`. */
       readonly phase: "flushed";
       readonly chatId: ChatId;
       readonly turnId: ChatTurnId;
-      readonly wrote: boolean;
+      readonly outcome: RpgFlushOutcome;
       readonly droppedReason: string | null;
     }
   | {

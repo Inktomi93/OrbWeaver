@@ -246,10 +246,20 @@ ENV_FILE_POSTURE="$(env_file_posture)"
 # mapping, now spelled where engines.sh can see it), and a FALSY one normalises and FALLS THROUGH to the
 # `.env` pin / default exactly like unset — because "vllm is not disabled" says nothing about which of
 # off/adopt-only/adopt-or-start the operator wants.
+# CASE-INSENSITIVE, and that is a SAFETY property, not a nicety (verifier v-L2-tooling, #1618 residual):
+# the case-sensitive first cut read `VLLM_DISABLED=TRUE` as falsy, then the else-branch below REWROTE it to
+# `false` and exported it — an operator who spelled the spawn-safety switch in caps had their stated intent
+# silently inverted, on the one variable whose whole job is "do not start 38 GB of vLLM". `${x,,}` is a bash
+# 4 expansion; this script is already bash-only (arrays above).
 vllm_disabled_truthy() {
   case "${VLLM_DISABLED:-}" in
-    1 | on | yes | true) return 0 ;;
-    *) return 1 ;;
+    "") return 1 ;;
+    *)
+      case "${VLLM_DISABLED,,}" in
+        1 | on | yes | true) return 0 ;;
+        *) return 1 ;;
+      esac
+      ;;
   esac
 }
 if [ -n "${ENGINES_POSTURE:-}" ]; then
