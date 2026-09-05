@@ -19,6 +19,8 @@
 // the page list and the reason-for-no-pages behind one shape that two panes consume differently.
 
 import { useQuery } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { useTRPC } from "#data";
 import type { EXTENSIONS_EMPTY_COPY } from "../lib/extensions-copy.ts";
 
@@ -26,15 +28,31 @@ import type { EXTENSIONS_EMPTY_COPY } from "../lib/extensions-copy.ts";
  *  reachable state, and a client feature is not a type home for a declared union (`no-inline-types`). */
 type ExtensionsEmptyReason = keyof typeof EXTENSIONS_EMPTY_COPY;
 
-/** The resolved reason plus the one number its copy spends. */
+/** One projected row of `plugin.list` — a private derived alias, the `plugin-row.tsx` precedent (a 1-line
+ *  `inferOutput` derivation, not an exported shape a type home would own). */
+type PluginView = inferOutput<Trpc["plugin"]["list"]>[number];
+
+/** The resolved reason plus the plugins its copy is about. */
 export interface ExtensionsEmptyView {
   /** `null` while the reads have not settled — the pane owes a loading skin, not a claim. */
   readonly reason: ExtensionsEmptyReason | null;
-  /** How many installed plugins are standing on the caller's consent; 0 on every other arm. */
-  readonly awaiting: number;
+  /**
+   * The installed plugins standing on the caller's consent — EMPTY on every other arm.
+   *
+   * IT USED TO BE A COUNT, AND THE RULING SURVIVES — ITS INPUT CHANGED (#1699). #924's reason for carrying a
+   * number was that the copy spends one ("2 plugins are installed but not allowed to do anything yet"), and
+   * it still does — off `.length`, so there is one source rather than two. What the count could not do was
+   * let the pane NAME them: nine installed plugins rendered as one anonymous `Review what they ask for`, the
+   * only map row on the surface with no semantic identity. The rows themselves are what this arm is about,
+   * so the rows are what it carries, and the count is derived where it is printed.
+   */
+  readonly awaitingPlugins: readonly PluginView[];
 }
 
-const PENDING: ExtensionsEmptyView = { reason: null, awaiting: 0 };
+const PENDING: ExtensionsEmptyView = { reason: null, awaitingPlugins: [] };
+
+/** Every other arm: the reason alone, with no plugins to name. */
+const NONE_AWAITING: readonly PluginView[] = [];
 
 /**
  * Resolve why the caller sees no extension pages. Ordered by what they must do next, most-blocking first:
@@ -53,14 +71,14 @@ export function useExtensionsEmpty(): ExtensionsEmptyView {
     return PENDING;
   }
   if (plugins.length === 0) {
-    return { reason: "none-installed", awaiting: 0 };
+    return { reason: "none-installed", awaitingPlugins: NONE_AWAITING };
   }
-  const awaiting = plugins.filter((plugin) => plugin.reconsentPending).length;
-  if (awaiting > 0) {
-    return { reason: "awaiting-consent", awaiting };
+  const awaitingPlugins = plugins.filter((plugin) => plugin.reconsentPending);
+  if (awaitingPlugins.length > 0) {
+    return { reason: "awaiting-consent", awaitingPlugins };
   }
   if (plugins.every((plugin) => plugin.status !== "enabled")) {
-    return { reason: "all-off", awaiting: 0 };
+    return { reason: "all-off", awaitingPlugins: NONE_AWAITING };
   }
-  return { reason: "no-pages", awaiting: 0 };
+  return { reason: "no-pages", awaitingPlugins: NONE_AWAITING };
 }

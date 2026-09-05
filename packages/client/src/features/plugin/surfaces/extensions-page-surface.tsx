@@ -35,6 +35,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { testId, useFocusOnMount } from "#lib";
 import { clearPluginPage, openConfigTo, usePluginPageKey } from "#state";
+import { ExtensionsAwaitingConsent } from "../components/extensions-awaiting-consent.tsx";
 import { PluginFrame } from "../components/plugin-frame.tsx";
 import { PluginSurfaceRenderer } from "../components/plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "../components/plugin-surface-shell.tsx";
@@ -65,17 +66,27 @@ export function ExtensionsPageSurface(): ReactElement {
       if (empty.reason === null) {
         return <Container className="h-full outline-none" data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1} />;
       }
+      // #1699 — the mirror is of the WHOLE arm, identity included. A CONTENT pane that kept the anonymous CTA
+      // beside a LIST that names its plugins would be the two-panes-two-stories defect this mirror exists to
+      // close, one level down.
+      if (empty.reason === "awaiting-consent") {
+        return (
+          <Container className="h-full outline-none" data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
+            <ExtensionsAwaitingConsent plugins={empty.awaitingPlugins} />
+          </Container>
+        );
+      }
       const copy = EXTENSIONS_EMPTY_COPY[empty.reason];
       return (
         <Container className="h-full outline-none" data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
           <Stack align="center" className="h-full" justify="center">
             <EmptyState
               action={
-                <Button intent="secondary" onClick={(): void => openConfigTo("plugins", copy.sub, copy.setting ?? undefined)} size="sm">
+                <Button intent="secondary" onClick={(): void => openConfigTo("plugins", copy.sub)} size="sm">
                   {copy.action}
                 </Button>
               }
-              description={copy.description(empty.awaiting)}
+              description={copy.description()}
               icon={<Icon icon={Blocks} size="md" />}
               measure="wide"
               title={copy.title}
