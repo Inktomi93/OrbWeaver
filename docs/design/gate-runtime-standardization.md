@@ -68,6 +68,10 @@ defineGate({
 
 The exported `gate` is a direct `defineGate({ ... })` call with an object-literal argument. Descriptor indirection is forbidden because it hides required fields from the authoring checker and scaffold. Each descriptor has one authority and one severity; an old multi-arm module whose arms differ on either axis splits into separate policy ids under the same family.
 
+Each module exports exactly one policy and `id` equals its filename. `family` is a validated kebab value and the live family set is derived from loaded descriptors; there is no family registry. The existing `docRow` and hand-counted enforcement-roster row disappear. `gate:list`/`gate:explain` derive the machine roster from the loader, while the enforcement document keeps only system-level law. A split old module therefore becomes several small policy modules sharing one family instead of one descriptor with per-arm authority switches.
+
+Every self-proof row declares its fixture mode and paths explicitly. Source/type fixtures run in the in-memory workspace; resource fixtures materialize their declared files. No default path inferred from population and no fake real-tree anchor decides which substrate a proof receives.
+
 ## Standard capabilities
 
 Every Orb gate gets the same behavior without implementing it itself:
@@ -147,6 +151,26 @@ Work proceeds in dependency order:
 7. frozen-corpus old/new differential, performance/RSS comparison, authoring/scaffold rewrite, and one atomic cutover.
 
 Every implementation lane receives an exhaustive file manifest generated from the current corpus, reads those gate files in full, and owns no runtime or shared-reader architecture. A lane may request a missing shared primitive; it may not add a local walk, cache, scope predicate, exemption grammar, or registry. Membership and progress are derived from the loader and migration census rather than maintained as a second list.
+
+The 13 mixed-hook modules have been read in full and are ruled before conversion:
+
+| Current module | Final mapping |
+| - | - |
+| `agent-bridge-lock` | visitors plus exact-file `visitFile`; all cross-file reconciliation in `evaluate`; one hard policy |
+| `design-audit-rule-proof` | registry/proof visitors plus `evaluate`; one hard policy |
+| `no-inline-union-redecl` | ordinary union/respell policy, reviewed SDK-mirror grant policy, and hard grant-health policy under one family |
+| `query-boundary-reservation` | ordinary unreserved-boundary policy plus hard duplicate/seam-health policies |
+| `session-channel-boundary` | ordinary construction policy plus hard home-health policy |
+| `sub-floor-disclosure` | ordinary occurrence policy plus hard vocabulary-health policy |
+| `testid-liveness` | ordinary dead-consumer/row policy plus hard registry-health policy |
+| `tooling-argv-front-door` | ordinary illegal-reader, reviewed entry-grant, and hard population-health policies |
+| `tooling-front-door` | ordinary import-boundary policy plus reviewed root-config grant policy |
+| `tooling-instrument-proof` | syntax/resource visitors plus `evaluate`; one hard policy |
+| `tooling-ops-direct-invocation` | canonical exported-function/module-call facts plus `evaluate`; one hard policy |
+| `tooling-shared-plumbing` | separate family ids for Project home, browser doors, artifact/run-slot, exit/CLI, child-process priority, ports, and clock budgets; each id has one authority |
+| `ui-variant-axes-stamped` | hard recipe/duplicate/blindness policies plus work-item-linked warning debt; baseline deleted |
+
+For all 13, `evaluate` runs after the shared walk and before central waiver/grant liveness reconciliation. This preserves the current load-bearing rule that a post-walk finding consumes its waiver before the waiver auditor judges staleness, without relying on filename order.
 
 ## Acceptance
 
