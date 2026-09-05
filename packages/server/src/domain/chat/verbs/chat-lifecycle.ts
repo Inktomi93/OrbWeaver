@@ -482,7 +482,7 @@ async function assertDeclaredPicks(ctx: ChatContext, chatId: ChatId, values: Use
  *  delimiter here: an input NAME is `MACRO_NAME_RE`-shaped and can never contain one, so the first space
  *  always ends the name and no two distinct picks collide into one key. */
 function pickKey(pick: OffVocabularyPick): string {
-  return `${pick.input} ${pick.value}`;
+  return `${pick.input}\u0000${pick.value}`;
 }
 
 /** `getUserMacroPicks` (#24) — member. The picks pane's ONE read: the chat's PICKABLE user macros (those
