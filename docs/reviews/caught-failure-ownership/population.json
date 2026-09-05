@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 539,
-    "enforced": 534,
+    "sites": 538,
+    "enforced": 533,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 534,
+      "deliberate-absorb": 533,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 141,
       "default": 144,
-      "empty": 254
+      "empty": 253
     }
   },
   "rows": [
@@ -2022,7 +2022,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:catch::2",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1678,
+      "line": 1742,
       "column": 13,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2035,7 +2035,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:deltaErr::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1704,
+      "line": 1768,
       "column": 7,
       "grammar": "empty",
       "position": "empty:deltaErr",
@@ -2043,12 +2043,12 @@
       "snippet": "} catch (deltaErr) {",
       "verdict": "deliberate-absorb",
       "reason": "explicitly classified below — a `deltaErr` equal",
-      "markerLine": 1698
+      "markerLine": 1762
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::promise:releasedBody::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1809,
+      "line": 1874,
       "column": 10,
       "grammar": "promise",
       "position": "promise:releasedBody",
@@ -2165,7 +2165,7 @@
     {
       "siteId": "packages/server/src/domain/credentials/verbs/test-health.ts::default:catch::1",
       "path": "packages/server/src/domain/credentials/verbs/test-health.ts",
-      "line": 117,
+      "line": 122,
       "column": 7,
       "grammar": "default",
       "position": "default:catch",
@@ -2173,7 +2173,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the comment above is the contract — a malformed baseUrl cannot reach `ctx.probeEndpoint` either (its own URL parse fails identically), so `false` here just routes to the normal strike path where the dial reports the real failure. This branch only classifies local-vs-remote; it never decides the health verdict. Ends if the local/LAN classification gains an effect the strike path does not cover.",
-      "markerLine": 114
+      "markerLine": 119
     },
     {
       "siteId": "packages/server/src/domain/databank/ingest/index.ts::empty:error::1",
@@ -2919,7 +2919,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 978,
+      "line": 965,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -2927,46 +2927,33 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 974
+      "markerLine": 961
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 924,
+      "line": 998,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "best-effort cleanup — the trailing comment",
-      "markerLine": 907
+      "reason": "FAIL-CLOSED — the comment block above states",
+      "markerLine": 987
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1011,
-      "column": 9,
+      "line": 1035,
+      "column": 11,
       "grammar": "empty",
       "position": "empty:catch",
       "ordinal": 2,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 1000
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::3",
-      "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1048,
-      "column": 11,
-      "grammar": "empty",
-      "position": "empty:catch",
-      "ordinal": 3,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1040
+      "markerLine": 1027
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:err::1",
