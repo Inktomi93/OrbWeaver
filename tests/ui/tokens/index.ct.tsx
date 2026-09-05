@@ -6,7 +6,7 @@
 // coarse `@theme` value wins over the unlayered fine override. Expected height is DERIVED from the
 // generated TOKENS map (§13.7 contract — never a hardcoded literal); providers inject via beforeMount.
 import { Button } from "@orb/ui/button";
-import { TOKENS } from "@orb/ui/tokens";
+import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 // Coarse-pointer emulation: a touch-capable context reports `pointer: coarse`, so the @media override
@@ -14,7 +14,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 test.use({ hasTouch: true });
 
 // The floor, in px, straight from the token (coarse `value` = the @theme literal): 2.75rem → 44px.
-const FLOOR_PX = `${Number.parseFloat(TOKENS["spacing.touch-target"].value) * 16}px`;
+const FLOOR_PX = `${SNAPPED_LENGTH_BASE_PX["spacing.touch-target"]}px`;
 
 test("a coarse pointer keeps an interactive control on the ≥44px touch floor", async ({ mount, page }) => {
   const coarse = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);

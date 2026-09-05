@@ -31,6 +31,7 @@ export const TOKENS = {
   "color.accolade": { cssVar: "--color-accolade", value: "light-dark(oklch(0.48 0.12 100), oklch(0.82 0.16 100))" },
   "color.border": { cssVar: "--color-border", value: "oklch(0.99 0.005 60 / 0.08)" },
   "color.input": { cssVar: "--color-input", value: "oklch(0.99 0.005 60 / 0.12)" },
+  "color.input-border": { cssVar: "--color-input-border", value: "light-dark(oklch(0.51 0.008 70), oklch(0.68 0.005 70))" },
   "color.selection-quiet": { cssVar: "--color-selection-quiet", value: "light-dark(oklch(0.54 0.008 70), oklch(0.66 0.005 70))" },
   "color.selection-quiet-foreground": { cssVar: "--color-selection-quiet-foreground", value: "light-dark(oklch(0.98 0.004 75), oklch(0.17 0.008 70))" },
   "color.ring": { cssVar: "--color-ring", value: "oklch(0.72 0.175 52)" },
@@ -83,33 +84,33 @@ export const TOKENS = {
   "color.narration": { cssVar: "--color-narration", value: "oklch(0.78 0.02 70)" },
   "color.prose-body": { cssVar: "--color-prose-body", value: "oklch(0.9 0.008 72)" },
   "color.speaker": { cssVar: "--color-speaker", value: "oklch(0.72 0.175 52)" },
-  "spacing.micro": { cssVar: "--spacing-micro", value: "0.125rem" },
-  "spacing.tight": { cssVar: "--spacing-tight", value: "0.25rem" },
-  "spacing.field": { cssVar: "--spacing-field", value: "0.375rem" },
-  "spacing.row": { cssVar: "--spacing-row", value: "0.5rem" },
-  "spacing.block": { cssVar: "--spacing-block", value: "0.75rem" },
-  "spacing.section": { cssVar: "--spacing-section", value: "1.5rem" },
-  "spacing.density-section-compact": { cssVar: "--spacing-density-section-compact", value: "1rem" },
-  "spacing.gutter": { cssVar: "--spacing-gutter", value: "2rem" },
-  "spacing.touch-target": { cssVar: "--spacing-touch-target", value: "2.75rem" },
-  "spacing.control-sm": { cssVar: "--spacing-control-sm", value: "2.75rem" },
-  "spacing.control-md": { cssVar: "--spacing-control-md", value: "3rem" },
-  "spacing.control-lg": { cssVar: "--spacing-control-lg", value: "3.5rem" },
-  "spacing.avatar-sm": { cssVar: "--spacing-avatar-sm", value: "1.5rem" },
-  "spacing.avatar-md": { cssVar: "--spacing-avatar-md", value: "2rem" },
-  "spacing.avatar-lg": { cssVar: "--spacing-avatar-lg", value: "2.5rem" },
-  "spacing.avatar-hero": { cssVar: "--spacing-avatar-hero", value: "4rem" },
-  "spacing.switch-track": { cssVar: "--spacing-switch-track", value: "4rem" },
-  "spacing.switch-track-height": { cssVar: "--spacing-switch-track-height", value: "2.75rem" },
-  "spacing.switch-thumb": { cssVar: "--spacing-switch-thumb", value: "1.5rem" },
-  "spacing.switch-inset": { cssVar: "--spacing-switch-inset", value: "0.5625rem" },
-  "spacing.checkbox": { cssVar: "--spacing-checkbox", value: "1.125rem" },
-  "spacing.slider-thumb": { cssVar: "--spacing-slider-thumb", value: "1.5rem" },
-  "spacing.slider-inset": { cssVar: "--spacing-slider-inset", value: "0.75rem" },
-  "spacing.glyph-xs": { cssVar: "--spacing-glyph-xs", value: "1rem" },
-  "spacing.glyph-sm": { cssVar: "--spacing-glyph-sm", value: "1.25rem" },
-  "spacing.glyph-md": { cssVar: "--spacing-glyph-md", value: "1.5rem" },
-  "spacing.glyph-lg": { cssVar: "--spacing-glyph-lg", value: "2rem" },
+  "spacing.micro": { cssVar: "--spacing-micro", value: "round(up, 0.125rem, 1px)" },
+  "spacing.tight": { cssVar: "--spacing-tight", value: "round(up, 0.25rem, 1px)" },
+  "spacing.field": { cssVar: "--spacing-field", value: "round(up, 0.375rem, 1px)" },
+  "spacing.row": { cssVar: "--spacing-row", value: "round(up, 0.5rem, 1px)" },
+  "spacing.block": { cssVar: "--spacing-block", value: "round(up, 0.75rem, 1px)" },
+  "spacing.section": { cssVar: "--spacing-section", value: "round(up, 1.5rem, 1px)" },
+  "spacing.density-section-compact": { cssVar: "--spacing-density-section-compact", value: "round(up, 1rem, 1px)" },
+  "spacing.gutter": { cssVar: "--spacing-gutter", value: "round(up, 2rem, 1px)" },
+  "spacing.touch-target": { cssVar: "--spacing-touch-target", value: "round(up, 2.75rem, 1px)" },
+  "spacing.control-sm": { cssVar: "--spacing-control-sm", value: "round(up, 2.75rem, 1px)" },
+  "spacing.control-md": { cssVar: "--spacing-control-md", value: "round(up, 3rem, 1px)" },
+  "spacing.control-lg": { cssVar: "--spacing-control-lg", value: "round(up, 3.5rem, 1px)" },
+  "spacing.avatar-sm": { cssVar: "--spacing-avatar-sm", value: "round(up, 1.5rem, 1px)" },
+  "spacing.avatar-md": { cssVar: "--spacing-avatar-md", value: "round(up, 2rem, 1px)" },
+  "spacing.avatar-lg": { cssVar: "--spacing-avatar-lg", value: "round(up, 2.5rem, 1px)" },
+  "spacing.avatar-hero": { cssVar: "--spacing-avatar-hero", value: "round(up, 4rem, 1px)" },
+  "spacing.switch-track": { cssVar: "--spacing-switch-track", value: "round(up, 4rem, 1px)" },
+  "spacing.switch-track-height": { cssVar: "--spacing-switch-track-height", value: "round(up, 2.75rem, 1px)" },
+  "spacing.switch-thumb": { cssVar: "--spacing-switch-thumb", value: "round(up, 1.5rem, 1px)" },
+  "spacing.switch-inset": { cssVar: "--spacing-switch-inset", value: "round(up, 0.5625rem, 1px)" },
+  "spacing.checkbox": { cssVar: "--spacing-checkbox", value: "round(up, 1.125rem, 1px)" },
+  "spacing.slider-thumb": { cssVar: "--spacing-slider-thumb", value: "round(up, 1.5rem, 1px)" },
+  "spacing.slider-inset": { cssVar: "--spacing-slider-inset", value: "round(up, 0.75rem, 1px)" },
+  "spacing.glyph-xs": { cssVar: "--spacing-glyph-xs", value: "round(up, 1rem, 1px)" },
+  "spacing.glyph-sm": { cssVar: "--spacing-glyph-sm", value: "round(up, 1.25rem, 1px)" },
+  "spacing.glyph-md": { cssVar: "--spacing-glyph-md", value: "round(up, 1.5rem, 1px)" },
+  "spacing.glyph-lg": { cssVar: "--spacing-glyph-lg", value: "round(up, 2rem, 1px)" },
   "radius.inset": { cssVar: "--radius-inset", value: "0.25rem" },
   "radius.base": { cssVar: "--radius-base", value: "0.5rem" },
   "radius.control": { cssVar: "--radius-control", value: "0.375rem" },
@@ -187,14 +188,14 @@ export const TOKENS = {
   "motion.transit": { cssVar: "--motion-transit", value: "1400ms" },
   "motion.ambient": { cssVar: "--motion-ambient", value: "16000ms" },
   "ease.out-expo": { cssVar: "--ease-out-expo", value: "cubic-bezier(0.16, 1, 0.3, 1)" },
-  "orb.density-comfortable-field": { cssVar: "--orb-density-comfortable-field", value: "0.375rem" },
-  "orb.density-comfortable-row": { cssVar: "--orb-density-comfortable-row", value: "0.5rem" },
-  "orb.density-comfortable-block": { cssVar: "--orb-density-comfortable-block", value: "0.75rem" },
-  "orb.density-comfortable-section": { cssVar: "--orb-density-comfortable-section", value: "1.5rem" },
-  "orb.density-compact-field": { cssVar: "--orb-density-compact-field", value: "0.25rem" },
-  "orb.density-compact-row": { cssVar: "--orb-density-compact-row", value: "0.375rem" },
-  "orb.density-compact-block": { cssVar: "--orb-density-compact-block", value: "0.5rem" },
-  "orb.density-compact-section": { cssVar: "--orb-density-compact-section", value: "1rem" },
+  "orb.density-comfortable-field": { cssVar: "--orb-density-comfortable-field", value: "round(up, 0.375rem, 1px)" },
+  "orb.density-comfortable-row": { cssVar: "--orb-density-comfortable-row", value: "round(up, 0.5rem, 1px)" },
+  "orb.density-comfortable-block": { cssVar: "--orb-density-comfortable-block", value: "round(up, 0.75rem, 1px)" },
+  "orb.density-comfortable-section": { cssVar: "--orb-density-comfortable-section", value: "round(up, 1.5rem, 1px)" },
+  "orb.density-compact-field": { cssVar: "--orb-density-compact-field", value: "round(up, 0.25rem, 1px)" },
+  "orb.density-compact-row": { cssVar: "--orb-density-compact-row", value: "round(up, 0.375rem, 1px)" },
+  "orb.density-compact-block": { cssVar: "--orb-density-compact-block", value: "round(up, 0.5rem, 1px)" },
+  "orb.density-compact-section": { cssVar: "--orb-density-compact-section", value: "round(up, 1rem, 1px)" },
   "orb.grid-cell-fixed": { cssVar: "--orb-grid-cell-fixed", value: "8.5rem" },
   "orb.density-comfortable-cell-fixed": { cssVar: "--orb-density-comfortable-cell-fixed", value: "8.5rem" },
   "orb.density-compact-cell-fixed": { cssVar: "--orb-density-compact-cell-fixed", value: "7.5rem" },
@@ -228,6 +229,7 @@ export const TOKEN_POLARITY_ARMS = {
   "color.info": { light: "oklch(0.48 0.1 232)", dark: "oklch(0.7 0.1 232)" },
   "color.info-foreground": { light: "oklch(0.98 0.01 232)", dark: "oklch(0.2 0.03 232)" },
   "color.accolade": { light: "oklch(0.48 0.12 100)", dark: "oklch(0.82 0.16 100)" },
+  "color.input-border": { light: "oklch(0.51 0.008 70)", dark: "oklch(0.68 0.005 70)" },
   "color.selection-quiet": { light: "oklch(0.54 0.008 70)", dark: "oklch(0.66 0.005 70)" },
   "color.selection-quiet-foreground": { light: "oklch(0.98 0.004 75)", dark: "oklch(0.17 0.008 70)" },
   "color.chart-1": { light: "oklch(0.49 0.175 52)", dark: "oklch(0.72 0.175 52)" },
@@ -247,6 +249,33 @@ export type PolarityTokenPath = keyof typeof TOKEN_POLARITY_ARMS;
 
 /** Resolved px at the 16px root for every snapped-output dimension — build-time consumers (the ui-audit ramp bindings) read THIS and never parse the round() serialization (the TOKEN_POLARITY_ARMS precedent). */
 export const SNAPPED_LENGTH_BASE_PX = {
+  "spacing.micro": 2,
+  "spacing.tight": 4,
+  "spacing.field": 6,
+  "spacing.row": 8,
+  "spacing.block": 12,
+  "spacing.section": 24,
+  "spacing.density-section-compact": 16,
+  "spacing.gutter": 32,
+  "spacing.touch-target": 44,
+  "spacing.control-sm": 44,
+  "spacing.control-md": 48,
+  "spacing.control-lg": 56,
+  "spacing.avatar-sm": 24,
+  "spacing.avatar-md": 32,
+  "spacing.avatar-lg": 40,
+  "spacing.avatar-hero": 64,
+  "spacing.switch-track": 64,
+  "spacing.switch-track-height": 44,
+  "spacing.switch-thumb": 24,
+  "spacing.switch-inset": 9,
+  "spacing.checkbox": 18,
+  "spacing.slider-thumb": 24,
+  "spacing.slider-inset": 12,
+  "spacing.glyph-xs": 16,
+  "spacing.glyph-sm": 20,
+  "spacing.glyph-md": 24,
+  "spacing.glyph-lg": 32,
   "leading.display": 30,
   "leading.headline": 26,
   "leading.title": 22,
@@ -257,6 +286,22 @@ export const SNAPPED_LENGTH_BASE_PX = {
 } as const;
 
 export type SnappedTokenPath = keyof typeof SNAPPED_LENGTH_BASE_PX;
+
+/** The `snapped` serialization and its INVERSE are generated together (#1640): a runtime consumer that must read a LIVE
+ *  custom property — the pointer-conditional arm no static map carries — gets the belted length decoded here rather than
+ *  re-spelling `round(up, …, 1px)` at the call site. Accepts a bare `<n>rem`/`<n>px` too (an unsnapped token); returns
+ *  null for anything else, so a caller falls back instead of inventing a number. */
+export function snappedLengthPx(value: string, rootFontSizePx: number): number | null {
+  const trimmed = value.trim();
+  const belted = /^round\(up,\s*(?<length>[^,]+),\s*1px\)$/u.exec(trimmed);
+  const length = (belted?.groups?.["length"] ?? trimmed).trim();
+  const magnitude = Number.parseFloat(length);
+  if (!Number.isFinite(magnitude)) {
+    return null;
+  }
+  const px = length.endsWith("rem") ? magnitude * rootFontSizePx : length.endsWith("px") ? magnitude : null;
+  return px === null || belted === null ? px : Math.ceil(px);
+}
 
 /** `var(--…)` reference for a token — the ONE way runtime code names a token. */
 export function cssVar(path: TokenPath): string {

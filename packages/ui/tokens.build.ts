@@ -77,6 +77,8 @@ interface GeneratedPolarityArms {
 interface FineOverride {
   readonly path: readonly string[];
   readonly value: string;
+  /** The token's own `orb.output` role is `snapped` — the override inherits the device-pixel belt (#1640). */
+  readonly snapped: boolean;
 }
 
 /** `["color","user-bubble"]` → `--color-user-bubble` (group name IS the Tailwind v4 namespace). */
@@ -171,6 +173,15 @@ function resolvedValue(token: TransformedToken): unknown {
   return token.$value ?? token.value;
 }
 
+/**
+ * The device-pixel belt's ONE serialization (docs/design/integer-line-boxes.md §3b). Both arms of a
+ * snapped token spell it here — the `@theme` base value and the `@media (pointer: fine)` override —
+ * so the belt cannot be applied to half a token.
+ */
+function snappedSerialization(length: string): string {
+  return `round(up, ${length}, 1px)`;
+}
+
 function renderPortableToken(token: TransformedToken, contractToken: ContractToken, lightToken: ContractToken | undefined): string | null {
   const path = contractToken.pathString;
   switch (contractToken.outputRole) {
@@ -194,7 +205,7 @@ function renderPortableToken(token: TransformedToken, contractToken: ContractTok
       // and because every snapped token is authored integer at the 16px root (the gate's ARM T), `up` is
       // still the identity at the default scale. `nearest` also broke leading.label on text.label, whose
       // authored ratio IS the floor exactly — half a pixel of slack in either direction is below it.
-      return `round(up, ${renderDimension(resolvedValue(token), path)}, 1px)`;
+      return snappedSerialization(renderDimension(resolvedValue(token), path));
     case "light-dark":
       if (lightToken === undefined) {
         throw new Error(`${path}: light-dark output has no Light arm`);
@@ -292,13 +303,25 @@ export function renderGeneratedCss(tokens: readonly GeneratedCssValue[]): string
  * compiler), so the fine values win wherever a `height: var(--spacing-control-*)` utility resolves.
  * The narrowed values live in `tokens.json` (`$extensions["orb.pointerFine"]`) — this script carries
  * no design literals.
+ *
+ * THE BELT REACHES THIS BLOCK TOO (#1640). A fine override REPLACES the `@theme` value, so a snapped
+ * token whose fine arm is emitted bare is unbelted on exactly the pointer most sessions use — which is
+ * where #1143's off-grid switch thumb lived (`--spacing-switch-thumb` 1.125rem × 0.875 font-scale =
+ * 15.75px, halved by `items-center` to a 7.875px offset). Every override of a snapped token therefore
+ * carries the same `round(up, …, 1px)` serialization as its base arm; anything else is half a belt.
  */
 function renderPointerFineBlock(overrides: readonly FineOverride[]): string {
   if (overrides.length === 0) {
     return "";
   }
-  const lines = overrides.map((o) => `    ${cssVarName(o.path)}: ${o.value};`);
+  const lines = overrides.map((o) => `    ${cssVarName(o.path)}: ${o.snapped ? snappedSerialization(o.value) : o.value};`);
   return `\n@media (pointer: fine) {\n  :root {\n${lines.join("\n")}\n  }\n}\n`;
+}
+
+/** Does this raw DTCG node carry the `snapped` output role? (contract-validated; read here for the fine arm). */
+function hasSnappedOutput(node: Record<string, unknown>): boolean {
+  const output = (node["$extensions"] as Record<string, unknown> | undefined)?.["orb.output"];
+  return typeof output === "object" && output !== null && (output as Record<string, unknown>)["kind"] === "snapped";
 }
 
 /** Collect the contract-validated pointer-fine dimensions from the raw DTCG source. */
@@ -311,7 +334,9 @@ function collectPointerFine(node: Record<string, unknown>, path: readonly string
       if (typeof value !== "number" || (unit !== "px" && unit !== "rem")) {
         throw new Error(`orb.pointerFine at ${path.join(".")} escaped contract validation`);
       }
-      out.push({ path, value: `${value}${unit}` });
+      // The role is read off the SAME node the override rides (the contract validated both keys),
+      // so the fine arm cannot drift out of the belt its base arm is in.
+      out.push({ path, value: `${value}${unit}`, snapped: hasSnappedOutput(node) });
     }
     return;
   }
@@ -368,6 +393,22 @@ function renderTokensTs(tokens: readonly GeneratedCssValue[], polarityArms: read
     "} as const;",
     "",
     "export type SnappedTokenPath = keyof typeof SNAPPED_LENGTH_BASE_PX;",
+    "",
+    "/** The `snapped` serialization and its INVERSE are generated together (#1640): a runtime consumer that must read a LIVE",
+    " *  custom property — the pointer-conditional arm no static map carries — gets the belted length decoded here rather than",
+    " *  re-spelling `round(up, …, 1px)` at the call site. Accepts a bare `<n>rem`/`<n>px` too (an unsnapped token); returns",
+    " *  null for anything else, so a caller falls back instead of inventing a number. */",
+    "export function snappedLengthPx(value: string, rootFontSizePx: number): number | null {",
+    "  const trimmed = value.trim();",
+    "  const belted = /^round\\(up,\\s*(?<length>[^,]+),\\s*1px\\)$/u.exec(trimmed);",
+    '  const length = (belted?.groups?.["length"] ?? trimmed).trim();',
+    "  const magnitude = Number.parseFloat(length);",
+    "  if (!Number.isFinite(magnitude)) {",
+    "    return null;",
+    "  }",
+    '  const px = length.endsWith("rem") ? magnitude * rootFontSizePx : length.endsWith("px") ? magnitude : null;',
+    "  return px === null || belted === null ? px : Math.ceil(px);",
+    "}",
     "",
     "/** `var(--…)` reference for a token — the ONE way runtime code names a token. */",
     "export function cssVar(path: TokenPath): string {",

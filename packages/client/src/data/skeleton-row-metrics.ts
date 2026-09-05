@@ -22,7 +22,7 @@
 // own layout — `padding="block"` top+bottom, N rows of `h-control-lg`, N−1 `gap="row"` gaps — so the two
 // change together or the skeleton stops fitting its box.
 
-import { TOKENS } from "@orb/ui/tokens";
+import { snappedLengthPx, TOKENS } from "@orb/ui/tokens";
 
 // DOM access rides `globalThis` with self-contained structural types — the node typecheck lane follows the
 // barrel into this file and has no `dom` lib (the `use-chart-theme.ts` pattern, same reason, same shape).
@@ -43,31 +43,23 @@ const skeletonGlobals = globalThis as unknown as SkeletonGlobals;
 
 const DEFAULT_ROOT_FONT_PX = 16;
 
-/** `rem`/`px` → px. A custom property resolves to its authored token stream, so the unit is ours to
- *  convert; `rem` is by definition a multiple of the root font size. Anything else yields `null` and the
- *  caller falls back to a fixed count rather than inventing a number. */
-function toPx(value: string, rootFontSizePx: number): number | null {
-  const trimmed = value.trim();
-  const magnitude = Number.parseFloat(trimmed);
-  if (!Number.isFinite(magnitude)) {
-    return null;
-  }
-  if (trimmed.endsWith("rem")) {
-    return magnitude * rootFontSizePx;
-  }
-  return trimmed.endsWith("px") ? magnitude : null;
-}
-
-/** One spacing token in px, computed-first. */
+/** One spacing token in px, computed-first.
+ *
+ *  THE VALUE IS BELTED (#1640). A custom property resolves to its authored TOKEN STREAM, not to a length —
+ *  so since the spacing family took the `snapped` output role, both the live read and the static fallback
+ *  spell `round(up, 3.5rem, 1px)` and a bare `parseFloat` yields NaN. That failed OPEN here: every
+ *  resolution returned null and every tile silently fell back to the fixed 3 rows this file exists to
+ *  replace. `snappedLengthPx` is the generator's own inverse of that serialization, so the belt is decoded
+ *  exactly once, in the package that writes it. */
 function spacingPx(token: "spacing.control-lg" | "spacing.row" | "spacing.block"): number | null {
   const root = skeletonGlobals.document?.documentElement;
   if (root === undefined || skeletonGlobals.getComputedStyle === undefined) {
-    return toPx(TOKENS[token].value, DEFAULT_ROOT_FONT_PX);
+    return snappedLengthPx(TOKENS[token].value, DEFAULT_ROOT_FONT_PX);
   }
   const computed = skeletonGlobals.getComputedStyle(root);
   const rootFontSizePx = Number.parseFloat(computed.fontSize) || DEFAULT_ROOT_FONT_PX;
   const live = computed.getPropertyValue(TOKENS[token].cssVar);
-  return toPx(live === "" ? TOKENS[token].value : live, rootFontSizePx);
+  return snappedLengthPx(live === "" ? TOKENS[token].value : live, rootFontSizePx);
 }
 
 /**

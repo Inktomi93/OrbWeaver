@@ -102,7 +102,7 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 export const switchVariants = tv({
   slots: {
     root: [
-      "relative inline-flex h-switch-track-height w-switch-track shrink-0 cursor-pointer items-center justify-start rounded-full border-(length:--border-width-control) border-border bg-input py-0 px-switch-inset",
+      "relative inline-flex h-switch-track-height w-switch-track shrink-0 cursor-pointer items-center justify-start rounded-full border-(length:--border-width-control) border-input-border bg-input py-0 px-switch-inset",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING,

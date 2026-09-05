@@ -117,7 +117,16 @@ const SEED_COVERED = new Set<string>(["color.backdrop"]);
 //     would re-open the 48 unpassable ink-on-surface findings it was minted to close. Its `-foreground` is
 //     a PAIR ink — it only ever sits on its own fill — so it is static for the same reason and is the
 //     DOCUMENTED_STATIC row in tests/ui/tokens/theme-emit-pairing.suite.test.ts.
+//   • input-border: the FORM-CONTROL edge (D159, #1641 / #1361 item 1, owner ruling 2026-09-05). Static for
+//     the selection-quiet reason exactly: `orb.output: "light-dark"`, active arm by `color-scheme`, and a
+//     value that is a two-sided MEASURED bound rather than a palette role — a 1.4.11 FLOOR of 3:1 against
+//     every panel AND the `bg-input` fill composited over it (3.257 Hearth / 3.369 Light / 3.257 Mocha, worst
+//     ground the `bg-accent` hover row) under a CEILING beneath the focus ring on `--color-card` (6.22 vs
+//     6.82 / 5.67 vs 6.27 / 6.14 vs 6.65). Note the asymmetry with its sibling: `--color-border` is EMITTED
+//     and re-derives per custom base, because a decorative divider owes no ratio; this one owes 3:1 on both
+//     sides of a bound, which is what a derivation cannot carry.
 const STATIC_RATIONALE = new Set<string>([
+  "color.input-border",
   "color.sheen",
   "color.accolade",
   "color.selection-quiet",

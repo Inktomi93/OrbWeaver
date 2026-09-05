@@ -16,7 +16,7 @@ import {
 export const comboboxVariants = tv({
   slots: {
     inputGroup: [
-      "relative flex min-h-control-sm w-full min-w-0 flex-wrap items-center gap-field rounded-control border border-border bg-input px-field py-field",
+      "relative flex min-h-control-sm w-full min-w-0 flex-wrap items-center gap-field rounded-control border border-input-border bg-input px-field py-field",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       FOCUS_RING_WITHIN,
       "has-data-disabled:pointer-events-none has-data-disabled:opacity-50",

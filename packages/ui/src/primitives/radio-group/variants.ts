@@ -1,6 +1,6 @@
 import { SELECTION_CONTROL, tv } from "#lib";
 
-// Each item is a circle: bg-input/border-border at rest, primary fill + a light dot when selected.
+// Each item is a circle: bg-input/border-input-border at rest, primary fill + a light dot when selected.
 // SELECTION_CONTROL supplies the shared frame + state machine + the ::before touch-target hit area;
 // the radio layers its `rounded-full` and the checked primary fill.
 export const radioGroupVariants = tv({

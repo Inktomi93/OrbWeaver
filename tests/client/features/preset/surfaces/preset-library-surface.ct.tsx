@@ -26,6 +26,7 @@ import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
+import { resolveSpacingPxIn } from "../../../../support/ct/touch-floor.ts";
 import {
   PresetLibraryAnnouncedStory,
   PresetLibraryDockedStory,
@@ -455,7 +456,7 @@ test("P1-1 at the DOCKED 272px pane the trailing strip costs TWO slots and the n
   // written on the fixture's names passes for the wrong reason the day someone renames one — verified, in
   // fact, red-first: these four names still FIT at 272px under the old three-slot strip.
   const row = component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first();
-  const slot = await row.locator(ACTIONS).evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
+  const slot = await resolveSpacingPxIn(row.locator(ACTIONS), "--spacing-control-md");
   const geometry = await row.evaluate((el) => {
     const rect = (sel: string): DOMRect => (el.querySelector(sel) as HTMLElement).getBoundingClientRect();
     return { cluster: rect('[data-slot="list-row-actions"]').width, title: rect('[data-slot="list-row-title"]').width };
@@ -528,7 +529,7 @@ test("§12.2 the kebab rests hidden and IS the control-md box (the row grammar's
   await expect(kebab).toHaveClass(REVEAL_ON_HOVER);
 
   // Derived from the element's OWN resolved token, so it holds under either pointer arm (D62 P1).
-  const expected = await kebab.evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
+  const expected = await resolveSpacingPxIn(kebab, "--spacing-control-md");
   await expect.poll(async () => (await kebab.boundingBox())?.width).toBe(expected);
   await expect.poll(async () => (await kebab.boundingBox())?.height).toBe(expected);
 });

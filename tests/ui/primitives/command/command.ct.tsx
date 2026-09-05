@@ -2,7 +2,7 @@
 // (Arrow/Home/End) rovers the highlight and Enter selects it; Escape reaches the caller via
 // `onEscape`. Gates use role locators (combobox/listbox/option) — cmdk owns the ARIA wiring.
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@orb/ui/command";
-import { TOKENS } from "@orb/ui/tokens";
+import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { AuxiliaryControlStory, CommandPaletteStory, DerivedItemsStory, LongCommandListStory } from "./command.fixtures.tsx";
@@ -149,7 +149,7 @@ test.describe("coarse pointer", () => {
       })
       .not.toBeNull();
     // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
-    expect(box?.height).toBeGreaterThanOrEqual(Number.parseFloat(TOKENS["spacing.touch-target"].value) * 16);
+    expect(box?.height).toBeGreaterThanOrEqual(SNAPPED_LENGTH_BASE_PX["spacing.touch-target"]);
   });
 });
 

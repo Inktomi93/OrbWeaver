@@ -12,7 +12,7 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import { TOKENS } from "@orb/ui/tokens";
+import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
@@ -776,7 +776,7 @@ test("echo (no avatar): the FALLBACK edge tile IS the art — hue field + initia
   // hero-avatar glyph token (~4× the old 16px title), not an easter egg — RENDERED font-size, not a class.
   await expect
     .poll(async () => tile.locator('[data-slot="text"]').evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize)))
-    .toBe(remTokenPx(TOKENS["spacing.avatar-hero"].value));
+    .toBe(SNAPPED_LENGTH_BASE_PX["spacing.avatar-hero"]);
   // Reading geometry is IDENTICAL to the with-image echo (the regression pin above): text is padded
   // clear by the art pane's own width token, never a reserved-but-empty gap.
   await expect.poll(async () => bubble.evaluate((el) => (el as HTMLElement).style.paddingRight)).toBe("var(--immersive-echo-art-width)");
@@ -1212,9 +1212,14 @@ test.describe("#988 message action rail containment", () => {
       const actionsRect = element.getBoundingClientRect();
       const bubbleRect = bubble.getBoundingClientRect();
       const contentRect = content.getBoundingClientRect();
-      const targetFloorToken = getComputedStyle(element).getPropertyValue("--spacing-touch-target").trim();
-      const targetFloor =
-        Number.parseFloat(targetFloorToken) * (targetFloorToken.endsWith("rem") ? Number.parseFloat(getComputedStyle(document.documentElement).fontSize) : 1);
+      // A PROBE, not a `getPropertyValue` parse: since #1640 the token stream reads `round(up, 2.75rem, 1px)`
+      // and `parseFloat` would answer NaN, making every floor comparison below vacuously true.
+      const floorProbe = element.ownerDocument.createElement("div");
+      floorProbe.style.position = "absolute";
+      floorProbe.style.paddingTop = "var(--spacing-touch-target)";
+      element.ownerDocument.body.append(floorProbe);
+      const targetFloor = Number.parseFloat(getComputedStyle(floorProbe).paddingTop);
+      floorProbe.remove();
       const visibleButtons = Array.from(element.querySelectorAll<HTMLButtonElement>("button")).filter((button) => {
         const style = getComputedStyle(button);
         const rect = button.getBoundingClientRect();
@@ -1357,7 +1362,7 @@ test("#204/#288 the header's height derives from the name, not the invisible act
       <MessageRowStory chatStyle="flat" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
     </div>,
   );
-  const rowPadPx = remTokenPx(TOKENS["spacing.row"].value);
+  const rowPadPx = SNAPPED_LENGTH_BASE_PX["spacing.row"];
   const insideHeight = await inside.locator(NAME_ROW).evaluate((el) => el.getBoundingClientRect().height);
   const insideName = await inside.locator(ATTRIBUTION).evaluate((el) => el.getBoundingClientRect().height);
   // An INSIDE header takes no plate of its own: it is exactly the name line, no padding term at all.

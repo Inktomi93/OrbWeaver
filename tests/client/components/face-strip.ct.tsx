@@ -9,13 +9,14 @@
 //   · the face's own box meets the per-pointer touch floor even though `size="media"` is content-sized.
 
 import { FaceStrip } from "@orb/client/components";
-import { TOKENS } from "@orb/ui/tokens";
+import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolveSpacingPxIn } from "../../support/ct/touch-floor.ts";
 import { FaceStripFoldHarness } from "./face-strip.fixtures.tsx";
 
 const AZARAEL = { id: "char_azarael", name: "Azarael", avatarHash: null };
 const SERA = { id: "char_sera", name: "Sera of the Long Winter Court", avatarHash: null };
-const AVATAR_MD_PX = Number.parseFloat(TOKENS["spacing.avatar-md"].value) * 16;
+const AVATAR_MD_PX = SNAPPED_LENGTH_BASE_PX["spacing.avatar-md"];
 /** WCAG 2.5.5's target floor — the law's coarse-pointer bar (D62 P1 / touch-target-floor.suite.ct.tsx). */
 const WCAG_FLOOR = 44;
 const OVERFLOW_COUNT_TEXT_RE = /^\+\d+$/u;
@@ -153,7 +154,7 @@ test("#153 UNCAPTIONED (the favorites-strip posture) is untouched: no name in th
   // control floor — a fixed 64px cell here would only add air between portraits that never wobbled.
   const component = await mount(<FaceStrip items={[BO, CALAMITY]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
   const boxes = await component.evaluate((root) => [...root.querySelectorAll("button")].map((el) => Math.round(el.getBoundingClientRect().width)));
-  const controlMd = await component.evaluate((root) => Number.parseFloat(getComputedStyle(root).getPropertyValue("--spacing-control-md")) * 16);
+  const controlMd = await resolveSpacingPxIn(component, "--spacing-control-md");
   expect(new Set(boxes).size).toBe(1);
   await expect
     .poll(async () => (await component.evaluate((root) => [...root.querySelectorAll("button")].map((el) => Math.round(el.getBoundingClientRect().width))))[0])
@@ -251,7 +252,7 @@ test("the face's hit box is the avatar token square — content-sized, not a col
   await expect.poll(async () => (await button.boundingBox())?.height).toBeGreaterThanOrEqual(AVATAR_MD_PX);
   // …and the MIN box is the control token, not the portrait: the face is a control, so it rides the same
   // per-pointer floor as its sibling icon buttons (side-eye P1-3), with the 32px avatar centered inside it.
-  const controlMd = await button.evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
+  const controlMd = await resolveSpacingPxIn(button, "--spacing-control-md");
   await expect.poll(async () => (await button.boundingBox())?.width).toBeGreaterThanOrEqual(controlMd);
   await expect.poll(async () => (await button.boundingBox())?.height).toBeGreaterThanOrEqual(controlMd);
 });
@@ -443,7 +444,7 @@ test.describe("coarse pointer — the face meets the touch floor", () => {
     };
     await expect.poll(shortSide, { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(WCAG_FLOOR);
     // The box is the resolved TOKEN (48px at coarse), never hand math — and the avatar inside it is untouched.
-    const controlMd = await button.evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
+    const controlMd = await resolveSpacingPxIn(button, "--spacing-control-md");
     await expect.poll(shortSide, { intervals: [20, 50, 100] }).toBe(controlMd);
     await expect
       .poll(() => component.locator('[data-slot="avatar-root"]').evaluate((el) => el.getBoundingClientRect().width), { intervals: [20, 50, 100] })
@@ -457,7 +458,7 @@ test.describe("coarse pointer — the face meets the touch floor", () => {
     const component = await mount(<FaceStripFoldHarness width={240} />);
     const tile = component.getByRole("button", { name: OVERFLOW_TILE });
     await expect(tile).toBeVisible();
-    const controlMd = await tile.evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
+    const controlMd = await resolveSpacingPxIn(tile, "--spacing-control-md");
     const shortSide = async (): Promise<number> => {
       const box = await tile.boundingBox();
       return Math.min(box?.width ?? 0, box?.height ?? 0);

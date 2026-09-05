@@ -92,6 +92,19 @@ const DOCUMENTED_STATIC = new Map<string, string>([
     "audited-static (#16) — the warning semantic surface is outside the ThemeScope override subset (§12.1); a fixed base needs no derived fg.",
   ],
   [
+    "--color-input-border",
+    "audited-static (D159, #1641 / #1361 item 1) — the opaque FORM-CONTROL edge. Same shape and same " +
+      'reason as `--color-selection-quiet`: ONE token carrying `orb.output: "light-dark"`, whose active ' +
+      "arm follows `color-scheme` (which ThemeScope DOES set), carrying a two-sided MEASURED bound a " +
+      "per-theme derivation cannot hold — a 1.4.11 FLOOR of 3:1 against every panel and the `bg-input` fill " +
+      "composited over it (worst 3.257 Hearth / 3.369 Light / 3.257 Mocha, on the `bg-accent` hover row) " +
+      "and a CEILING under the FOCUS RING on `--color-card` (6.22 vs 6.82 / 5.67 vs 6.27 / 6.14 vs 6.65), " +
+      "so a resting edge never outshouts the focused state. Its non-control sibling `--color-border` IS " +
+      "emitted and re-derives; the split is D159. Classified STATIC_RATIONALE in " +
+      "tests/ui/content/theme-scope/token-classification.suite.test.ts and pinned from both sides in " +
+      "palette-contrast.suite.test.ts plus the framebuffer in tests/ui/primitives/input/input.ct.tsx.",
+  ],
+  [
     "--color-selection-quiet-foreground",
     "audited-static (#1247, the pair minted at a743e4799 for #1110) — its ground `--color-selection-quiet` is a " +
       "static `light-dark()` token outside the ThemeScope override subset (§12.1), so the pair can never be " +

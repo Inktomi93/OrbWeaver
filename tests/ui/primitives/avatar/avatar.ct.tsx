@@ -1,13 +1,11 @@
 import { Avatar } from "@orb/ui/avatar";
-import { TOKENS } from "@orb/ui/tokens";
+import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 const SVG_MARKUP = "<svg xmlns='http://www.w3.org/2000/svg' width='2' height='2'><rect width='2' height='2'/></svg>";
 const TINY_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(SVG_MARKUP)}`;
 
-// avatar-lg is authored in rem; the rendered box resolves to px (root = 16px — the stack.ct precedent).
-const ROOT_PX = 16;
-const avatarLgPx = Math.round(Number.parseFloat(TOKENS["spacing.avatar-lg"].value) * ROOT_PX);
+const avatarLgPx = Math.round(SNAPPED_LENGTH_BASE_PX["spacing.avatar-lg"]);
 
 test("renders the image when it loads", async ({ mount, page }) => {
   await mount(

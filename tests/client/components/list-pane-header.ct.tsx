@@ -12,6 +12,7 @@ import { ListPaneHeader } from "@orb/client/components";
 import { Button } from "@orb/ui/button";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { resolveSpacingPxIn } from "../../support/ct/touch-floor.ts";
 import { ListBandInShell } from "./list-pane-header.fixtures.tsx";
 
 const MICRO_PX = Number.parseFloat(TOKENS["text.micro"].value) * 16;
@@ -75,10 +76,11 @@ test("#525 the census reads as a datum beside the name: no caps anywhere in the 
   await expect(count, "a census is a datum — caps would shout the joining word at the title's weight").toHaveCSS("text-transform", "none");
 
   let gap = await heading.evaluate((el) => Number.parseFloat(getComputedStyle(el).columnGap));
-  const [fieldStep, rowStep] = await heading.evaluate((el) => {
-    const styles = getComputedStyle(el);
-    return [styles.getPropertyValue("--spacing-field"), styles.getPropertyValue("--spacing-row")].map((value) => Number.parseFloat(value) * 16);
-  });
+  // Resolved through a PROBE in the heading's own inherited scope: `--spacing-field/row` are rebound per
+  // density tier, and since #1640 the custom property's computed value is the belted `round(up, …, 1px)`
+  // token stream, which `parseFloat` reads as NaN.
+  const fieldStep = await resolveSpacingPxIn(heading, "--spacing-field");
+  const rowStep = await resolveSpacingPxIn(heading, "--spacing-row");
   expect(fieldStep, "the token probe itself must resolve, or the comparison below is vacuous").toBeGreaterThan(0);
   expect(gap, "the datum sits one spacing step further out than a within-field gap").toBeCloseTo(rowStep ?? 0, 1);
   await expect

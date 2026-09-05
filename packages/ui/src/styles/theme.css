@@ -30,6 +30,7 @@
   --color-accolade: light-dark(oklch(0.48 0.12 100), oklch(0.82 0.16 100));
   --color-border: oklch(0.99 0.005 60 / 0.08);
   --color-input: oklch(0.99 0.005 60 / 0.12);
+  --color-input-border: light-dark(oklch(0.51 0.008 70), oklch(0.68 0.005 70));
   --color-selection-quiet: light-dark(oklch(0.54 0.008 70), oklch(0.66 0.005 70));
   --color-selection-quiet-foreground: light-dark(oklch(0.98 0.004 75), oklch(0.17 0.008 70));
   --color-ring: oklch(0.72 0.175 52);
@@ -82,33 +83,33 @@
   --color-narration: oklch(0.78 0.02 70);
   --color-prose-body: oklch(0.9 0.008 72);
   --color-speaker: oklch(0.72 0.175 52);
-  --spacing-micro: 0.125rem;
-  --spacing-tight: 0.25rem;
-  --spacing-field: 0.375rem;
-  --spacing-row: 0.5rem;
-  --spacing-block: 0.75rem;
-  --spacing-section: 1.5rem;
-  --spacing-density-section-compact: 1rem;
-  --spacing-gutter: 2rem;
-  --spacing-touch-target: 2.75rem;
-  --spacing-control-sm: 2.75rem;
-  --spacing-control-md: 3rem;
-  --spacing-control-lg: 3.5rem;
-  --spacing-avatar-sm: 1.5rem;
-  --spacing-avatar-md: 2rem;
-  --spacing-avatar-lg: 2.5rem;
-  --spacing-avatar-hero: 4rem;
-  --spacing-switch-track: 4rem;
-  --spacing-switch-track-height: 2.75rem;
-  --spacing-switch-thumb: 1.5rem;
-  --spacing-switch-inset: 0.5625rem;
-  --spacing-checkbox: 1.125rem;
-  --spacing-slider-thumb: 1.5rem;
-  --spacing-slider-inset: 0.75rem;
-  --spacing-glyph-xs: 1rem;
-  --spacing-glyph-sm: 1.25rem;
-  --spacing-glyph-md: 1.5rem;
-  --spacing-glyph-lg: 2rem;
+  --spacing-micro: round(up, 0.125rem, 1px);
+  --spacing-tight: round(up, 0.25rem, 1px);
+  --spacing-field: round(up, 0.375rem, 1px);
+  --spacing-row: round(up, 0.5rem, 1px);
+  --spacing-block: round(up, 0.75rem, 1px);
+  --spacing-section: round(up, 1.5rem, 1px);
+  --spacing-density-section-compact: round(up, 1rem, 1px);
+  --spacing-gutter: round(up, 2rem, 1px);
+  --spacing-touch-target: round(up, 2.75rem, 1px);
+  --spacing-control-sm: round(up, 2.75rem, 1px);
+  --spacing-control-md: round(up, 3rem, 1px);
+  --spacing-control-lg: round(up, 3.5rem, 1px);
+  --spacing-avatar-sm: round(up, 1.5rem, 1px);
+  --spacing-avatar-md: round(up, 2rem, 1px);
+  --spacing-avatar-lg: round(up, 2.5rem, 1px);
+  --spacing-avatar-hero: round(up, 4rem, 1px);
+  --spacing-switch-track: round(up, 4rem, 1px);
+  --spacing-switch-track-height: round(up, 2.75rem, 1px);
+  --spacing-switch-thumb: round(up, 1.5rem, 1px);
+  --spacing-switch-inset: round(up, 0.5625rem, 1px);
+  --spacing-checkbox: round(up, 1.125rem, 1px);
+  --spacing-slider-thumb: round(up, 1.5rem, 1px);
+  --spacing-slider-inset: round(up, 0.75rem, 1px);
+  --spacing-glyph-xs: round(up, 1rem, 1px);
+  --spacing-glyph-sm: round(up, 1.25rem, 1px);
+  --spacing-glyph-md: round(up, 1.5rem, 1px);
+  --spacing-glyph-lg: round(up, 2rem, 1px);
   --radius-inset: 0.25rem;
   --radius-base: 0.5rem;
   --radius-control: 0.375rem;
@@ -204,14 +205,14 @@
 }
 
 :root {
-  --orb-density-comfortable-field: 0.375rem;
-  --orb-density-comfortable-row: 0.5rem;
-  --orb-density-comfortable-block: 0.75rem;
-  --orb-density-comfortable-section: 1.5rem;
-  --orb-density-compact-field: 0.25rem;
-  --orb-density-compact-row: 0.375rem;
-  --orb-density-compact-block: 0.5rem;
-  --orb-density-compact-section: 1rem;
+  --orb-density-comfortable-field: round(up, 0.375rem, 1px);
+  --orb-density-comfortable-row: round(up, 0.5rem, 1px);
+  --orb-density-comfortable-block: round(up, 0.75rem, 1px);
+  --orb-density-comfortable-section: round(up, 1.5rem, 1px);
+  --orb-density-compact-field: round(up, 0.25rem, 1px);
+  --orb-density-compact-row: round(up, 0.375rem, 1px);
+  --orb-density-compact-block: round(up, 0.5rem, 1px);
+  --orb-density-compact-section: round(up, 1rem, 1px);
   --orb-grid-cell-fixed: 8.5rem;
   --orb-density-comfortable-cell-fixed: 8.5rem;
   --orb-density-compact-cell-fixed: 7.5rem;
@@ -219,14 +220,14 @@
 
 @media (pointer: fine) {
   :root {
-    --spacing-touch-target: 1.75rem;
-    --spacing-control-sm: 2rem;
-    --spacing-control-md: 2.125rem;
-    --spacing-control-lg: 2.5rem;
-    --spacing-switch-track: 3rem;
-    --spacing-switch-track-height: 2rem;
-    --spacing-switch-thumb: 1.125rem;
-    --spacing-switch-inset: 0.375rem;
+    --spacing-touch-target: round(up, 1.75rem, 1px);
+    --spacing-control-sm: round(up, 2rem, 1px);
+    --spacing-control-md: round(up, 2.125rem, 1px);
+    --spacing-control-lg: round(up, 2.5rem, 1px);
+    --spacing-switch-track: round(up, 3rem, 1px);
+    --spacing-switch-track-height: round(up, 2rem, 1px);
+    --spacing-switch-thumb: round(up, 1.125rem, 1px);
+    --spacing-switch-inset: round(up, 0.375rem, 1px);
   }
 }
 
