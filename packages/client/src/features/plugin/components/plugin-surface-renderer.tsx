@@ -101,7 +101,7 @@ function warnPrimaryRefused(message: string): void {
  *  ONE renderer for both tiers, deliberately: the vocabulary, the caps, the a11y floor and the impersonation
  *  walls are identical, so a second renderer would be a second place for them to drift. What differs between
  *  the tiers is only WHERE an event goes, which is exactly the size of this seam. */
-export interface PluginSurfaceSink {
+interface PluginSurfaceSink {
   /** Deliver a button/confirm action. Fire-and-forget — the RESULT is whatever tree the guest publishes next. */
   readonly submit: (actionId: string, values: Record<string, string>) => void;
   /** Deliver a field edit LIVE, as it is typed. This is the keystroke path: a Tier-S surface holds its draft
