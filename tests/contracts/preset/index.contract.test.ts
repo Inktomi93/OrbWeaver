@@ -870,10 +870,10 @@ test("tryImportStChatCompletionPreset (#1580): a RECOGNISED preset refused by th
   // The discriminant is the whole point: this file IS a SillyTavern preset, and the door must be able to say so.
   expect(outcome).toMatchObject({ ok: false, recognised: true });
   expect(outcome.ok ? "" : outcome.reason).toContain("This SillyTavern preset mapped to a config orb cannot store");
-  // The reason carries the parse outcome's own failure word. NOTE (not this row's scope): that word is
-  // `schema-rejected` — the belt does NOT name WHICH bound blew, so the operator still cannot tell which
-  // prompt to shrink. The typed outcome makes that gap visible instead of hiding it behind "reader stopped".
   expect(outcome.ok ? "" : outcome.reason).toContain("(schema-rejected)");
+  // #1592 — the belt now NAMES which prompt and which field blew the bound, so the operator can tell which
+  // prompt to shrink instead of reading the bare failure word.
+  expect(outcome.ok ? "" : outcome.reason).toContain('the ST prompt "lore-dump" `content`: Too big: expected string to have <=100000 characters');
 });
 
 test("tryImportStChatCompletionPreset (#1580): an object the reader never claims answers recognised:false", () => {
