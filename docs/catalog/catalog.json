@@ -13982,29 +13982,30 @@
       "path": "docs/design/vocabulary-map.md",
       "lane": "design",
       "issue": 5,
-      "lines": 129,
-      "bytes": 16693,
-      "sha256": "41a8cb4936150ecbffef5da7ad2a8d1c3fdfacccf704cec34a960520898fd37f",
+      "lines": 133,
+      "bytes": 20098,
+      "sha256": "3a4c1868fe708514c53214bc593a6c01696e66f5f5dca9d0386adb9c080816dd",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-05"
+          "updated": "2026-09-06"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/vocabulary-map.md",
-        "assignedSha256": "41a8cb4936150ecbffef5da7ad2a8d1c3fdfacccf704cec34a960520898fd37f",
+        "assignedSha256": "3a4c1868fe708514c53214bc593a6c01696e66f5f5dca9d0386adb9c080816dd",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "41a8cb4936150ecbffef5da7ad2a8d1c3fdfacccf704cec34a960520898fd37f",
-        "verifiedCommit": "c4c7cd0de6991811d00282f99dee2d6b47d3df67",
+        "verifiedSha256": "3a4c1868fe708514c53214bc593a6c01696e66f5f5dca9d0386adb9c080816dd",
+        "verifiedCommit": "0edf956f1db2fd5ac8fe196d41f0f56122736b35",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested at 0edf956f1 (#1220 arm a + #1680, cb-vocab-hygiene leg 3): the hearth palette cell census widened to packages/tooling/scripts with the three tooling carriers and both instrument corrections stated verbatim; the chat sanctioned-survivor table carries four HELD rows citing #1649. Read in full by the orchestrator.",
           "re-attested at c4c7cd0de (#1671, cb-theme-isdefault): the hearth palette cell's client carrier row now says the mirrored display name is GONE (ThemeView.isDefault is the client's read). Read in full by the orchestrator.",
           "re-attested at 07fb54090 (#1220 leg 2, cb-vocab-hygiene): the hearth palette cell is a re-derived carrier LIST with its census command named in the cell (never a count); resolver.json:9 described as the base-set id; the config-CT path cite restored. Read in full by the orchestrator after the v-V1 refutation.",
           "re-attested at 7bba38d6d by the orchestrator after reading the #1220 repair diff in full (cb-vocab-hygiene warm leg, K9 refutation): the hearth PALETTE row’s carrier cell rewritten to the three that hold (resolver.json, token-contract.ts’s id union, THEME_HEARTH_NAME) and the paragraph under the table that repeated the wrong list fixed; five ‘config welcome hearth’ mentions elsewhere moved to past tense naming #1210; frontmatter dated 2026-09-05.",
