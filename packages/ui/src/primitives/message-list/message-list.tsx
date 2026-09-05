@@ -182,13 +182,28 @@ export function MessageList<T>({
   const virtualizer = useVirtualizer<HTMLDivElement, HTMLLIElement>({
     count: items.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize,
+    // EVERY LENGTH HANDED TO THE VIRTUALIZER IS AN INTEGER, AND THAT IS A CRISPNESS INVARIANT (#1362 —
+    // integer-line-boxes.md Law 3), not defensiveness. `directDomUpdatesMode: "position"` makes
+    // react-virtual write `el.style.top = ${item.start}px` on every row, and `item.start` is the running
+    // sum of paddingStart + Σ(size + gap). virtual-core already rounds MEASURED sizes (its own
+    // `measureElement` does `Math.round(borderBoxSize)`), so the only fractional input is what the caller
+    // supplies — and a caller's estimate is routinely fractional by construction: the chat transcript's is
+    // a calibrated `96 + chars * 0.28` (message-list-surface.ts, #1181). One unmeasured row above the
+    // viewport therefore puts every row below it on a fraction of a pixel, which every promoted layer
+    // inside those rows inherits with baseline snapping OFF. Measured on the isolated stage before this
+    // rounding: `li[data-slot=message-list-row]` at `top -0.484 device px` under an integer-landing
+    // `ol[data-slot=message-list-viewport]`, carried into `promoted-layer-offset` on the row's own bubble
+    // and swipe strip. Rounding here rather than at the call site is the one-home answer: the invariant
+    // belongs to whoever writes the `top`, so a future caller cannot reintroduce it. The cost is bounded
+    // at half a pixel of estimate error per unmeasured row, which the estimate is already wrong by more
+    // than, in both directions, by its own calibration.
+    estimateSize: (index): number => Math.round(estimateSize(index)),
     overscan,
-    gap: gapPxFor(gapToken),
-    paddingStart: gapPxFor(blockPaddingToken),
+    gap: Math.round(gapPxFor(gapToken)),
+    paddingStart: Math.round(gapPxFor(blockPaddingToken)),
     // pin-prompt's bottom spacer: extra scrollable height below the last row so a short reply's pinned
     // prompt can still climb to the top. 0 (= virtual-core default) in `follow` mode → byte-identical.
-    paddingEnd: gapPxFor(blockPaddingToken) + pinSpacerPx,
+    paddingEnd: Math.round(gapPxFor(blockPaddingToken) + pinSpacerPx),
     getItemKey: (index) => getItemKey(itemAt(index), index),
     // exactOptionalPropertyTypes distinguishes an omitted prop from one set to undefined.
     ...(composedRangeExtractor === undefined ? {} : { rangeExtractor: composedRangeExtractor }),

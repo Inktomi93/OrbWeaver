@@ -9,6 +9,7 @@ import {
   BlockPaddedStickyList,
   CachedMeasurementsList,
   DerivedItemsMessageList,
+  FractionalEstimateList,
   HandleExposingList,
   KeepMountedStateList,
   PinPromptList,
@@ -627,4 +628,28 @@ test("only the TAIL row is a live region: the container is aria-live=off and his
   });
   await expect(component.locator('[data-slot="message-list-row"]').first()).toHaveAttribute("aria-posinset", "1");
   await expect(component.locator('[aria-live="polite"]')).toHaveCount(0);
+});
+
+// ── #1362: THE ROW LANDINGS ARE INTEGERS (integer-line-boxes.md Law 3) ──────────────────────────────
+// `directDomUpdatesMode: "position"` writes `el.style.top = ${item.start}px` on every row, so a
+// fractional `item.start` puts the row — and every `backdrop-filter` layer inside it — between device
+// pixels, where the composited raster is resampled and the glyphs blur. Measured on the isolated stage
+// BEFORE the fix: `li[data-slot=message-list-row]` at `top -0.484 device px` under an integer-landing
+// `ol[data-slot=message-list-viewport]`, carried into `promoted-layer-offset` on that row's own bubble
+// and swipe strip plus an `off-grid-text` on the strip's chevron. virtual-core already rounds MEASURED
+// sizes, so the only fractional input is the caller's estimate — which the chat transcript's calibrated
+// `96 + chars * 0.28` is by construction. The assertion reads the RENDERED inline style rather than any
+// new API, so it fails against the unmodified primitive.
+test("#1362: every rendered row's written top is an integer, even under a fractional estimateSize", async ({ mount }) => {
+  const component = await mount(<FractionalEstimateList />);
+  const rows = component.locator('[data-slot="message-list-row"]');
+  // Barrier on the SETTLED windowed set: the bottom-anchor scroll and the first measurement pass both
+  // land before this resolves, so the tops read below are the ones the reader actually sees.
+  await expect.poll(async () => await rows.count()).toBeGreaterThan(1);
+  const readTops = async (): Promise<readonly string[]> =>
+    await component.evaluate((root) => [...root.querySelectorAll('[data-slot="message-list-row"]')].map((el) => (el as HTMLElement).style.top));
+  // The positive control on the population, polled like the verdict below it: a zero-length or
+  // unit-less read would satisfy the integer assertion vacuously, which is the exact shape of a fence.
+  await expect.poll(async () => (await readTops()).filter((t) => t.endsWith("px") && t.length > 2).length).toBeGreaterThan(1);
+  await expect.poll(async () => (await readTops()).filter((t) => !Number.isInteger(Number.parseFloat(t)))).toEqual([]);
 });

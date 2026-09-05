@@ -519,3 +519,30 @@ export function CachedMeasurementsList(): ReactElement {
     </div>
   );
 }
+
+/**
+ * #1362 — the crispness invariant (integer-line-boxes.md Law 3): every row's WRITTEN `top` must be an
+ * integer number of CSS pixels. `directDomUpdatesMode: "position"` makes react-virtual assign
+ * `el.style.top = ${item.start}px`, and `item.start` is the running sum of paddingStart + Σ(size + gap);
+ * virtual-core rounds MEASURED sizes itself, so the only fractional input is the caller's ESTIMATE — and
+ * the real chat transcript's is a calibrated `96 + chars * 0.28`, fractional by construction.
+ *
+ * The shape that reproduces it: a fractional estimate, real rows MUCH taller than that estimate, and far
+ * more items than the window — so the hundreds of rows above the bottom-anchored viewport stay UNMEASURED
+ * and their estimates are what the visible rows' `top` is summed from. A row landing on a fraction of a
+ * pixel is inherited by every promoted layer inside it with baseline snapping OFF.
+ */
+export function FractionalEstimateList(): ReactElement {
+  const items = makeItems(300);
+  return (
+    <div style={{ height: 200 }}>
+      <MessageList
+        items={items}
+        getItemKey={(item): string => item.id}
+        estimateSize={(): number => 40.3}
+        renderItem={(item): ReactElement => <div style={{ height: 91 }}>{item.label}</div>}
+        className="h-full"
+      />
+    </div>
+  );
+}
